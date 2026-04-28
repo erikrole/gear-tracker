@@ -48,6 +48,10 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
             Task { @MainActor in
                 sharedAppState?.pendingPushBookingId = bookingId
             }
+        } else if let eventId = userInfo["eventId"] as? String {
+            Task { @MainActor in
+                sharedAppState?.pendingPushEventId = eventId
+            }
         }
         completionHandler()
     }

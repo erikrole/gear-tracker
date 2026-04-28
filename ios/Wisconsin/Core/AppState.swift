@@ -11,6 +11,7 @@ final class AppState {
     var unreadNotifCount = 0
     var openTradeCount = 0
     var pendingPushBookingId: String?
+    var pendingPushEventId: String?
     private var isRefreshing = false
 
     func refresh() async {

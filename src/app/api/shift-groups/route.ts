@@ -1,6 +1,6 @@
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { ok, parsePagination } from "@/lib/http";
+import { ok, fail, HttpError, parsePagination } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 
@@ -85,4 +85,33 @@ export const GET = withAuth(async (req, { user }) => {
   });
 
   return ok({ data, total });
+});
+
+export const POST = withAuth(async (req, { user }) => {
+  requirePermission(user.role, "shift", "manage");
+
+  const body = await req.json();
+  const eventId = typeof body.eventId === "string" ? body.eventId : null;
+  if (!eventId) return fail(new HttpError(400, "eventId required"));
+
+  const group = await db.shiftGroup.create({
+    data: { eventId, manuallyEdited: true },
+    include: {
+      shifts: {
+        include: {
+          assignments: {
+            where: { status: { in: ACTIVE_ASSIGNMENT_STATUSES } },
+            include: { user: { select: { id: true, name: true, primaryArea: true, avatarUrl: true } } },
+          },
+        },
+      },
+    },
+  });
+
+  return ok({
+    data: {
+      ...group,
+      coverage: { total: 0, filled: 0, percentage: 0 },
+    },
+  });
 });

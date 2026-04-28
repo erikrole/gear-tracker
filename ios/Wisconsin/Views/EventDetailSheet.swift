@@ -61,6 +61,7 @@ struct EventDetailSheet: View {
     @State private var requestTarget: EventShift?
     @State private var unassignTarget: ShiftAssignmentRecord?
     @State private var showAddShift = false
+    @State private var isCreatingGroup = false
     @State private var actionError: String?
 
     init(event: ScheduleEvent, myShift: MyShift?) {
@@ -337,13 +338,35 @@ struct EventDetailSheet: View {
                 Button("Retry") { Task { await vm.load() } }
             }
         } else if vm.shiftGroup == nil {
-            VStack(spacing: 6) {
+            VStack(spacing: 12) {
                 Image(systemName: "person.2.slash")
                     .font(.largeTitle)
                     .foregroundStyle(.tertiary)
                 Text("No crew scheduled")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                if canManageShifts {
+                    Button {
+                        Task {
+                            isCreatingGroup = true
+                            do {
+                                vm.shiftGroup = try await APIClient.shared.createShiftGroup(eventId: event.id)
+                            } catch {
+                                actionError = error.localizedDescription
+                            }
+                            isCreatingGroup = false
+                        }
+                    } label: {
+                        if isCreatingGroup {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Label("Set up crew", systemImage: "plus.circle")
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(isCreatingGroup)
+                }
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 24)
@@ -587,14 +610,14 @@ struct ShiftRow: View {
 
     private var workerTypeLabel: String {
         switch shift.workerType {
-        case "STUDENT": return "Student"
-        case "STAFF":   return "Staff"
-        default:        return shift.workerType
+        case "ST": return "Student"
+        case "FT": return "Staff"
+        default:   return shift.workerType
         }
     }
 
     private var workerTypeColor: Color {
-        shift.workerType == "STAFF" ? .secondary : .blue
+        shift.workerType == "FT" ? .secondary : .blue
     }
 }
 

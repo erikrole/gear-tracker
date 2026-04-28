@@ -502,7 +502,7 @@ private struct SuccessStepView: View {
                     .foregroundStyle(.green)
                 Text("Linked!")
                     .font(.title.weight(.bold))
-                (Text(scannedCode).fontDesign(.monospaced) + Text(" → ") + Text(asset.displayName).bold())
+                Text("\(Text(scannedCode).fontDesign(.monospaced)) → \(Text(asset.displayName).bold())")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

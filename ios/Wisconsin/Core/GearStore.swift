@@ -183,7 +183,7 @@ final class GearStore {
         let existingList = (try? context.fetch(
             FetchDescriptor<CachedAsset>(predicate: #Predicate { ids.contains($0.id) })
         )) ?? []
-        var existingById = Dictionary(uniqueKeysWithValues: existingList.map { ($0.id, $0) })
+        let existingById = Dictionary(uniqueKeysWithValues: existingList.map { ($0.id, $0) })
         for asset in assets {
             if let existing = existingById[asset.id] {
                 existing.assetTag = asset.assetTag

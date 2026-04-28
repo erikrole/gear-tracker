@@ -42,9 +42,11 @@ final class ScheduleViewModel {
     private var hasLoaded = false
 
     var shiftsByEventId: [String: MyShift] = [:]
+    private var lastLoadedAt: Date?
 
     var isStale: Bool {
-        return true
+        guard let t = lastLoadedAt else { return true }
+        return Date.now.timeIntervalSince(t) > scheduleStaleAfter
     }
 
     var groupedEvents: [(date: Date, events: [ScheduleEvent])] {
@@ -84,6 +86,7 @@ final class ScheduleViewModel {
             myShifts = fetchedShifts
             shiftsByEventId = Dictionary(uniqueKeysWithValues: fetchedShifts.map { ($0.event.id, $0) })
             hasLoaded = true
+            lastLoadedAt = .now
             error = nil
             GearStore.shared.seedScheduleEvents(fetchedEvents)
         } catch APIError.unauthorized {
@@ -227,13 +230,13 @@ struct ScheduleView: View {
             .navigationTitle("Schedule")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Picker("View", selection: $viewMode) {
-                        Image(systemName: "list.bullet").tag(ScheduleViewMode.list)
-                        Image(systemName: "calendar").tag(ScheduleViewMode.calendar)
+                    Button {
+                        viewMode = viewMode == .list ? .calendar : .list
+                    } label: {
+                        Image(systemName: viewMode == .list ? "calendar" : "list.bullet")
                     }
-                    .pickerStyle(.segmented)
-                    .frame(width: 96)
-                    .accessibilityLabel("Schedule view")
+                    .accessibilityLabel(viewMode == .list ? "Switch to calendar view" : "Switch to list view")
+                    .sensoryFeedback(.selection, trigger: viewMode)
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button {
@@ -272,6 +275,21 @@ struct ScheduleView: View {
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
                     Task { await vm.load() }
+                }
+            }
+            .onChange(of: appState.pendingPushEventId) { _, eventId in
+                guard let eventId else { return }
+                appState.pendingPushEventId = nil
+                if let event = vm.events.first(where: { $0.id == eventId }) {
+                    selectedEvent = event
+                } else {
+                    // Events not loaded yet — force a load then open once ready.
+                    Task {
+                        await vm.load(forceRefresh: true)
+                        if let event = vm.events.first(where: { $0.id == eventId }) {
+                            selectedEvent = event
+                        }
+                    }
                 }
             }
             .onChange(of: toast) { _, newToast in

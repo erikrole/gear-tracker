@@ -454,6 +454,16 @@ final class APIClient {
         return resp.data.first
     }
 
+    /// Creates a new shift group for an event (STAFF/ADMIN).
+    func createShiftGroup(eventId: String) async throws -> EventShiftGroup {
+        struct Body: Encodable { let eventId: String }
+        var req = request(path: "/api/shift-groups", method: "POST")
+        req.httpBody = try JSONEncoder().encode(Body(eventId: eventId))
+        struct Resp: Decodable { let data: EventShiftGroup }
+        let resp: Resp = try await perform(req)
+        return resp.data
+    }
+
     func myShifts(limit: Int = 20) async throws -> [MyShift] {
         var components = URLComponents(url: baseURL.appendingPathComponent("/api/my-shifts"), resolvingAgainstBaseURL: false)!
         components.queryItems = [.init(name: "limit", value: "\(limit)")]

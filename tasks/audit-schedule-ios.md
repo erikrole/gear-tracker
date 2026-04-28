@@ -1,4 +1,42 @@
-# Audit: schedule (iOS) — 2026-04-24
+# Audit: schedule (iOS) — 2026-04-27 (Pass 2)
+
+**MVP verdict:** NOT READY — 0 P0, 3 P1
+**Ship bar:** student-friendly, fully functional for core flows, zero hiccups in front of a class
+**Audit type:** static source (no build/run/UI tests)
+
+Scope (Pass 2 additions): `EventDetailSheet` crew section + `AssignStudentSheet` + `AddShiftSheet` + `AppDelegate` push routing. Adds findings not covered in 2026-04-24 pass.
+
+## P0 — blocks MVP (Pass 2)
+
+*None.*
+
+## P1 — polish before ship (Pass 2)
+
+- [x] [Breaking] `ScheduleViewModel.isStale` is hardcoded `return true` — the `scheduleStaleAfter` constant (5 min, line 32) is defined but never used. Every `onChange(of: scenePhase)` fires a full network reload even on a 1-second app switch. Students showing the schedule in class see a loading spinner every time the phone wakes.
+      `ios/Wisconsin/Views/ScheduleView.swift:46-48`
+      Why it blocks ship: "zero hiccups in front of a class" — pulling out the phone mid-presentation triggers a visible reload.
+      Suggested fix: add `private var lastLoadedAt: Date?`, set it after a successful load, and return `guard let t = lastLoadedAt else { return true }; return Date.now.timeIntervalSince(t) > scheduleStaleAfter`.
+
+- [x] [Flows] `workerTypeLabel` switch checks `"STUDENT"` / `"STAFF"` but the API returns `"ST"` / `"FT"` — every worker-type label in the crew section renders the raw value ("ST", "FT"). `workerTypeColor` also checks `== "STAFF"` (never true), so all full-time slots appear in the student blue.
+      `ios/Wisconsin/Views/EventDetailSheet.swift:588-598`
+      Why it blocks ship: student-visible in every event's crew card; ships confusing raw API strings.
+      Suggested fix: change switch cases to `"ST"` / `"FT"` and update color check accordingly.
+
+- [x] [Hardening] `AppDelegate.didReceive` only routes `bookingId` payloads — shift assignment push notifications (the goal stated in this audit) open the app but navigate nowhere.
+      `ios/Wisconsin/App/AppDelegate.swift:46-52`
+      Why it blocks ship: push for shift updates is explicitly required; tapping the notification does nothing.
+      Suggested fix: add an `eventId` or `shiftAssignmentId` branch that sets `appState.pendingPushEventId`; observe it in `ScheduleView` to open `EventDetailSheet` for that event, mirroring the `bookingId` → booking detail pattern.
+
+## P2 — post-MVP (Pass 2)
+
+- [x] [Gaps] Staff can't create a shift group for events with no group yet — `showAddShift` is only surfaced when `vm.shiftGroup != nil`; "No crew scheduled" has no create-group affordance for staff. Web uses ShiftDetailPanel for this.
+      `ios/Wisconsin/Views/EventDetailSheet.swift:339-348`
+
+- [ ] [Parity] `AssignStudentSheet` picker shows no conflict indicators — web's `UserAvatarPicker` shows yellow dots for conflicted users. GAP-35 in `docs/GAPS_AND_RISKS.md`.
+
+---
+
+# Audit: schedule (iOS) — 2026-04-24 (Pass 1, archived)
 
 **MVP verdict (post-fix, pre-Xcode-verify):** all P0 + P1 addressed plus practical niceties (Today button, swipe gesture, dot legend, success toasts, presentation detents, freshness label, trade-board prominence, time-block compaction). Needs build verification.
 **Ship bar:** student-friendly, fully functional for core flows, zero hiccups in front of a class
