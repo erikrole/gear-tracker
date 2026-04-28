@@ -48,7 +48,7 @@ export default function DashboardPage() {
   const filters = useDashboardFilters(data);
   const [now, setNow] = useState(() => new Date());
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
-  const [deletingDraftId, setDeletingDraftId] = useState<string | null>(null);
+  const [acting, setActing] = useState<string | null>(null);
   const confirm = useConfirm();
 
   // ── Navigate to booking wizard ──
@@ -88,8 +88,7 @@ export default function DashboardPage() {
     if (!ok) return;
     if (actionBusyRef.current) return;
     actionBusyRef.current = true;
-    // Optimistic: remove from list immediately
-    setDeletingDraftId(draftId);
+    setActing(draftId);
     const prevDrafts = data!.drafts;
     setData((prev) => prev ? { ...prev, drafts: prev.drafts.filter((x) => x.id !== draftId) } : prev);
     try {
@@ -106,19 +105,17 @@ export default function DashboardPage() {
       toast.error("Network error \u2014 couldn\u2019t delete draft");
     } finally {
       actionBusyRef.current = false;
-      setDeletingDraftId(null);
+      setActing(null);
     }
   };
 
   /* ── Inline Actions ─────────────────────────────────── */
 
-  const [inlineActionId, setInlineActionId] = useState<string | null>(null);
-
   const handleExtend = async (booking: BookingSummary, e: React.MouseEvent) => {
     e.stopPropagation();
     if (actionBusyRef.current) return;
     actionBusyRef.current = true;
-    setInlineActionId(booking.id);
+    setActing(booking.id);
     try {
       const newEnd = new Date(new Date(booking.endsAt).getTime() + 24 * 60 * 60 * 1000);
       const endpoint = booking.kind === "RESERVATION"
@@ -141,7 +138,7 @@ export default function DashboardPage() {
       toast.error("Network error — couldn\u2019t extend");
     } finally {
       actionBusyRef.current = false;
-      setInlineActionId(null);
+      setActing(null);
     }
   };
 
@@ -149,7 +146,7 @@ export default function DashboardPage() {
     e.stopPropagation();
     if (actionBusyRef.current) return;
     actionBusyRef.current = true;
-    setInlineActionId(bookingId);
+    setActing(bookingId);
     try {
       const res = await fetch(`/api/reservations/${bookingId}/convert`, { method: "POST" });
       if (handleAuthRedirect(res, "/")) return;
@@ -164,7 +161,7 @@ export default function DashboardPage() {
       toast.error("Network error — couldn\u2019t convert");
     } finally {
       actionBusyRef.current = false;
-      setInlineActionId(null);
+      setActing(null);
     }
   };
 
@@ -316,7 +313,7 @@ export default function DashboardPage() {
             filtered={filters.filtered}
             activeSport={filters.activeSport}
             now={now}
-            acting={inlineActionId !== null || deletingDraftId !== null}
+            acting={acting !== null}
             ownedAccent
             onSelectBooking={setSelectedBookingId}
             onDeleteDraft={handleDeleteDraft}
@@ -331,7 +328,7 @@ export default function DashboardPage() {
               activeSport={filters.activeSport}
               now={now}
               isStaff={isStaff}
-              acting={inlineActionId !== null || deletingDraftId !== null}
+              acting={acting !== null}
               onSelectBooking={setSelectedBookingId}
               onExtend={handleExtend}
               onCreateBooking={handleCreateBooking}

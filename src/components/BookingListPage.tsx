@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import dynamic from "next/dynamic";
-const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsSheet"), { ssr: false });
+const BookingDetailsSheet = lazy(() => import("@/components/BookingDetailsSheet"));
 import { toast } from "sonner";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
@@ -79,7 +78,20 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
   const reload = async () => { await refetch(); };
   const items = listData?.data ?? [];
   const total = listData?.total ?? 0;
-  const loadError: false | "network" | "server" = isError
+
+  // On background refresh failure (cached data still visible): toast instead of replacing UI
+  const prevIsErrorRef = useRef(false);
+  useEffect(() => {
+    if (isError && !prevIsErrorRef.current && listData) {
+      toast.error(typeof navigator !== "undefined" && !navigator.onLine
+        ? "You're offline — showing cached data"
+        : `Couldn't refresh — showing cached data`);
+    }
+    prevIsErrorRef.current = isError;
+  }, [isError]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Only show error screen on initial load (no cached data to fall back on)
+  const loadError: false | "network" | "server" = isError && !listData
     ? (typeof navigator !== "undefined" && !navigator.onLine ? "network" : "server")
     : false;
 
@@ -395,13 +407,17 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
       </Card>
 
       {/* ════════ Booking details sheet ════════ */}
-      <BookingDetailsSheet
-        bookingId={selectedBookingId}
-        onClose={() => { setSelectedBookingId(null); setInitialSheetTab(null); }}
-        onUpdated={reload}
-        currentUserRole={currentUserRole}
-        initialTab={initialSheetTab as "details" | "equipment" | "history" | null}
-      />
+      {selectedBookingId && (
+        <Suspense>
+          <BookingDetailsSheet
+            bookingId={selectedBookingId}
+            onClose={() => { setSelectedBookingId(null); setInitialSheetTab(null); }}
+            onUpdated={reload}
+            currentUserRole={currentUserRole}
+            initialTab={initialSheetTab as "details" | "equipment" | "history" | null}
+          />
+        </Suspense>
+      )}
 
       {/* Create flow is now at /checkouts/new and /reservations/new */}
     </>
