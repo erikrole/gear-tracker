@@ -53,6 +53,13 @@ Identify the target type (page, component, or system), then read everything rele
 4. Read all pages in `src/app/(app)/[system]/`
 5. Read the relevant `docs/AREA_*.md` and `docs/DECISIONS.md`
 
+### Cross-Reference Lessons
+
+7. Read `tasks/lessons.md` — scan for any lesson that applies to this target.
+   - If a known anti-pattern is present here, that's an immediate finding.
+   - If a known correct pattern is missing here, that's also a finding.
+   - Note which lesson IDs/sections apply so findings can cite them.
+
 ### While Reading, Note
 
 - How many API calls are made? Are they parallel or sequential?
@@ -60,6 +67,7 @@ Identify the target type (page, component, or system), then read everything rele
 - What data is in the schema but not surfaced in the UI?
 - What patterns does this use compared to sibling pages/components?
 - Anything that looks like it was written early and never revisited?
+- Does anything here do something *better* than sibling pages? Note it for propagation.
 
 ---
 
@@ -211,6 +219,25 @@ These are the most common rough edges that accumulate as an app evolves. Check e
 - Does the page check roles before rendering ADMIN-only actions?
 - Are there actions visible to STUDENT that shouldn't be?
 
+### Performance Spot Check
+- **N+1 queries**: In any API route this page calls, are there loops that query the DB per iteration?
+  (A `for` loop containing `prisma.findUnique()` or `prisma.findFirst()` is always an N+1.)
+- **Over-fetching**: Does the API response include large arrays or joined models that the UI never displays?
+  What's fetched vs what's actually rendered?
+- **Sequential vs parallel**: Does the page (or its API route) `await` multiple independent queries in sequence
+  when `Promise.all()` would work? Each sequential await adds full round-trip latency.
+- **Unguarded re-renders**: Are there `useEffect` or data fetches triggered on every render with no
+  dependency guard that should be memoized or stabilized?
+
+### Debug Cleanup
+- Any `console.log`, `console.error`, or `console.warn` left in the component or its hooks?
+- Any `TODO`, `FIXME`, or `HACK` comments that were never resolved?
+
+### Accessibility Basics
+- Icon-only buttons (`<Button>` or `<button>` with only an icon child) — do they have `aria-label`?
+- Form inputs — do they have associated `<label>` elements or `aria-label`?
+- Are there `onClick` handlers on non-interactive elements (`<div>`, `<span>`) that should be `<button>`?
+
 ---
 
 ## PHASE 5: Output
@@ -259,6 +286,13 @@ Write the report to `tasks/[target-name]-audit.md`:
 | Error message quality | ✅ / ⚠️ / ❌ | ... |
 | Button loading states | ✅ / ⚠️ / ❌ | ... |
 | Role gating | ✅ / ⚠️ / ❌ | ... |
+| Performance (N+1, over-fetch) | ✅ / ⚠️ / ❌ | ... |
+| Debug cleanup (console.log, TODOs) | ✅ / ⚠️ / ❌ | ... |
+| Accessibility basics | ✅ / ⚠️ / ❌ | ... |
+
+## Raise the Bar
+[Patterns found on this page that are better than the current norm elsewhere.
+Each item: what this page does well, which sibling pages should adopt it, and how.]
 
 ## Quick Wins
 [Top 3–5 improvements achievable in < 30 min each, no schema changes.
@@ -275,11 +309,15 @@ Format: what to change, why it matters, rough cost.]
 
 - Read-only. Zero code changes.
 - Every claim must cite a file and line number — no vague assertions.
+- lessons.md must be read before writing any findings — known patterns are higher-confidence findings.
 - Dead code findings must name the exact symbol, not just "there's some dead code."
 - Ripple map must be based on actual grep results, not guesses.
+- Performance findings must identify the exact loop or query, not just say "possible N+1."
 - Polish checklist items that pass get ✅ only — don't explain what's good, move on.
+- "Raise the Bar" is only populated when this page genuinely does something better than its siblings.
+  Don't invent propagation candidates to fill the section.
 - Quick Wins must be doable in < 30 minutes each, no schema changes required.
 - Bigger Bets must be worth the disruption — don't propose rewrites for elegance alone.
 - If a lens or section has nothing to report, omit it rather than padding.
-- The goal is a page that's fast, consistent with its neighbors, and has zero dead weight.
-  Every finding should serve that goal.
+- The goal is a page that's fast, consistent with its neighbors, has zero dead weight,
+  and whose best patterns spread forward. Every finding should serve that goal.
