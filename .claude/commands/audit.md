@@ -118,7 +118,60 @@ For each: current model → alternative → key tradeoff.
 
 ---
 
-## PHASE 3: Polish & Niceties Checklist
+## PHASE 3: Consistency & Fit
+
+This is the cross-app check — not "is this page good?" but "is this page a good citizen of the whole app?"
+A pattern change that happened somewhere else may not have propagated here yet. Find those gaps.
+
+### Data Fetching Pattern
+- Grep for how sibling pages in the same area fetch data — `useFetch`, `useQuery`, raw `fetch`, React Query.
+- Does this page use the same approach? If not, is there a reason, or is it just older code?
+- Flag **pattern drift**: a page still using manual `useState + fetch` when the app has standardized on something else.
+
+### Component Consistency
+- Grep for how sibling pages render lists, cards, empty states, and loading skeletons.
+- Does this page use the same primitives? If it has a local version of something that now exists as a
+  shared component, that's drift.
+- Check: does this page import components from shadcn that sibling pages wrap via a local abstraction?
+  It should use the abstraction.
+
+### Naming & Convention Alignment
+- Variable names, function names, handler names (`handleDelete` vs `onDelete` vs `deleteItem`).
+- Are they consistent with the naming style in sibling files?
+- Flag anything that would confuse a developer jumping from another page in the same area.
+
+### Dead Code
+This is non-negotiable — dead code is technical debt that compounds. Check thoroughly:
+- **Unused imports**: Lines at the top of the file importing things nothing in the file uses.
+- **Unused state**: `useState` variables that are set but never read in JSX or logic.
+- **Unreachable branches**: `if (condition)` paths where `condition` is always true or always false.
+- **Unused props**: Props defined in the interface that no consumer passes and the component doesn't use.
+- **Commented-out code**: Blocks left for "just in case" that should be deleted.
+- **Orphaned event handlers**: Functions defined but never attached to anything.
+- **Dead CSS classes**: Custom CSS classes in `globals.css` used only by this file — now replaceable by Tailwind or shadcn.
+
+For each dead code finding: name the exact symbol and line.
+
+### Ripple Awareness
+Think about what would need to change elsewhere in the app if something changed here:
+- **If this page's API response shape changed**: Which other pages or components consume the same endpoint?
+  Grep the API route path across `src/` to find all consumers.
+- **If a shared component used here changed its props**: Which other pages would be affected?
+  Grep the component name across `src/`.
+- **If this page's route changed**: Are there hardcoded links to this route elsewhere? Grep the route path.
+- **Shared types**: Does this page define types locally that should be in a shared types file — or uses a
+  shared type that has drifted from what it actually receives?
+
+List each ripple risk as: *"If X changes, these files would need updating: [list]"*
+
+### Navigation Integrity
+- Are all links FROM this page (`href`, `router.push`, `redirect`) pointing to routes that actually exist?
+- Are there any deep links or breadcrumbs that would be broken if this page moved?
+- Does the page receive URL params or query strings from other pages — and does it handle missing/invalid values?
+
+---
+
+## PHASE 4: Polish & Niceties Checklist
 
 These are the most common rough edges that accumulate as an app evolves. Check each one.
 
@@ -160,7 +213,7 @@ These are the most common rough edges that accumulate as an app evolves. Check e
 
 ---
 
-## PHASE 4: Output
+## PHASE 5: Output
 
 Write the report to `tasks/[target-name]-audit.md`:
 
@@ -171,7 +224,7 @@ Write the report to `tasks/[target-name]-audit.md`:
 **Type**: Page / Component / System
 
 ## What's Smart
-[Worth keeping. Each item cites file:line.]
+[Worth keeping or replicating. Each item cites file:line.]
 
 ## What Doesn't Make Sense
 [Confusing or risky patterns. Each item cites file:line.]
@@ -182,12 +235,25 @@ Write the report to `tasks/[target-name]-audit.md`:
 ## What Can Be Rethought
 [Bigger opportunities. Each item: current model → alternative → tradeoff.]
 
+## Consistency & Fit
+### Pattern Drift
+[Patterns this page uses that differ from the app's current standard. Each item: old pattern vs current standard, files affected.]
+
+### Dead Code
+[Every unused import, state variable, prop, branch, or handler. Each item: symbol name, file:line.]
+
+### Ripple Map
+[Changes here that would require updates elsewhere. Each item: "If X changes → these files need updating: [list]"]
+
+### Navigation Integrity
+[Any broken links, unhandled params, or route dependencies. ✅ if clean.]
+
 ## Polish Checklist
 | Check | Status | Notes |
 |---|---|---|
 | Empty states | ✅ / ⚠️ / ❌ | ... |
 | Skeleton fidelity | ✅ / ⚠️ / ❌ | ... |
-| Silent mutations | ✅ / ⚠️ / ❌ | [list any gaps] |
+| Silent mutations | ✅ / ⚠️ / ❌ | [list any gaps with file:line] |
 | Confirmation quality | ✅ / ⚠️ / ❌ | ... |
 | Mobile breakpoints | ✅ / ⚠️ / ❌ | ... |
 | Error message quality | ✅ / ⚠️ / ❌ | ... |
@@ -195,11 +261,12 @@ Write the report to `tasks/[target-name]-audit.md`:
 | Role gating | ✅ / ⚠️ / ❌ | ... |
 
 ## Quick Wins
-[Top 3–5 improvements achievable without schema changes or API redesigns.
-Each one: what to do, which file, estimated effort.]
+[Top 3–5 improvements achievable in < 30 min each, no schema changes.
+Format: **[file:line]** — what to do and why.]
 
 ## Bigger Bets
-[1–2 improvements worth serious consideration. Each one: what to do, why it matters, rough cost.]
+[1–2 improvements that require design or schema work but are worth it.
+Format: what to change, why it matters, rough cost.]
 ```
 
 ---
@@ -207,9 +274,12 @@ Each one: what to do, which file, estimated effort.]
 ## RULES
 
 - Read-only. Zero code changes.
-- Every claim in the four-lens analysis must cite a file and line number.
-- Polish checklist items without issues get ✅ and move on — don't pad.
-- Quick Wins must be doable in < 30 minutes each, no schema changes.
-- Bigger Bets must be worth the effort — don't propose rewrites for elegance alone.
-- If nothing interesting turns up in a lens, omit that section.
-- The Quick Wins section is the most important output — make it specific and actionable.
+- Every claim must cite a file and line number — no vague assertions.
+- Dead code findings must name the exact symbol, not just "there's some dead code."
+- Ripple map must be based on actual grep results, not guesses.
+- Polish checklist items that pass get ✅ only — don't explain what's good, move on.
+- Quick Wins must be doable in < 30 minutes each, no schema changes required.
+- Bigger Bets must be worth the disruption — don't propose rewrites for elegance alone.
+- If a lens or section has nothing to report, omit it rather than padding.
+- The goal is a page that's fast, consistent with its neighbors, and has zero dead weight.
+  Every finding should serve that goal.
