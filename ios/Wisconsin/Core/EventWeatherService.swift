@@ -14,13 +14,14 @@ actor EventWeatherService {
     private let service = WeatherService.shared
     private var cache: [String: EventWeatherData] = [:]
 
-    /// Returns weather for home games starting within the next 5 days.
-    /// Returns nil for away games, past events, or events too far in the future.
     func weather(for event: ScheduleEvent) async -> EventWeatherData? {
+        #if targetEnvironment(simulator)
+        return nil
+        #else
         guard event.isHome == true else { return nil }
         let now = Date()
         guard event.endsAt > now,
-              event.startsAt <= now.addingTimeInterval(5 * 24 * 60 * 60) else { return nil }
+              event.startsAt <= now.addingTimeInterval(10 * 24 * 60 * 60) else { return nil }
 
         if let hit = cache[event.id] { return hit }
 
@@ -40,9 +41,9 @@ actor EventWeatherService {
         } catch {
             return nil
         }
+        #endif
     }
 
-    // UW Madison venue coordinates. Falls back to campus center for any unrecognized home venue.
     private func venueCoordinate(for event: ScheduleEvent) -> CLLocationCoordinate2D {
         let name = (event.location?.name ?? "").lowercased()
         switch true {

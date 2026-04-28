@@ -818,7 +818,7 @@ struct EventRow: View {
         if !parts.isEmpty {
             return parts.joined(separator: " ")
         }
-        return Self.cleanSummary(event.summary ?? "")
+        return Self.cleanSummary(event.summary)
     }
 
     private static func cleanSummary(_ raw: String) -> String {
