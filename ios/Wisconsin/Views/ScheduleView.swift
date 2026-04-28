@@ -43,7 +43,7 @@ final class ScheduleViewModel {
     private var hasLoaded = false
 
     var shiftsByEventId: [String: MyShift] = [:]
-    private var lastLoadedAt: Date?
+    var lastLoadedAt: Date?
 
     var isStale: Bool {
         guard let t = lastLoadedAt else { return true }
@@ -191,6 +191,23 @@ struct ScheduleView: View {
                 }
             }
             .overlay(alignment: .top) {
+                // Stale data indicator — shown when last load was > 5 min ago and no error.
+                if vm.isStale && !vm.events.isEmpty && !vm.isLoading && vm.refreshError == nil,
+                   let loadedAt = vm.lastLoadedAt {
+                    HStack(spacing: 6) {
+                        Image(systemName: "clock")
+                            .font(.caption2)
+                        Text("Updated \(loadedAt.formatted(.relative(presentation: .named)))")
+                            .font(.caption2)
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(.regularMaterial, in: Capsule())
+                    .padding(.top, 4)
+                    .shadow(color: Color.primary.opacity(0.06), radius: 6, y: 2)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
                 // Non-blocking refresh-failed banner — lets the user keep using stale data.
                 if !vm.events.isEmpty, let refreshError = vm.refreshError {
                     HStack(spacing: 8) {

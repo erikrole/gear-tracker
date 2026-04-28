@@ -13,7 +13,18 @@ enum APIError: LocalizedError {
         case .notFound: "The requested item could not be found."
         case .serverError(let msg): msg
         case .decodingError: "Unexpected response from server."
-        case .networkError(let err): err.localizedDescription
+        case .networkError(let err): Self.humanize(err)
+        }
+    }
+
+    private static func humanize(_ error: Error) -> String {
+        let code = (error as? URLError)?.code
+        switch code {
+        case .notConnectedToInternet, .networkConnectionLost: return "No internet connection. Check your network and try again."
+        case .timedOut: return "Request timed out. Try again in a moment."
+        case .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed: return "Couldn't reach the server. Try again shortly."
+        case .cancelled: return "Request was cancelled."
+        default: return "Network error. Check your connection and try again."
         }
     }
 }

@@ -96,6 +96,39 @@ struct DashboardOverdueItem: Codable, Identifiable, Hashable {
     var id: String { bookingId }
 }
 
+struct DashboardDraft: Codable, Identifiable {
+    let id: String
+    let kind: String
+    let title: String
+    let itemCount: Int
+    let updatedAt: Date
+}
+
+struct DashboardFlaggedItem: Codable, Identifiable {
+    let id: String
+    let assetId: String
+    let assetTag: String
+    let assetName: String?
+    let type: String
+    let bookingTitle: String?
+    let reportedBy: String?
+    let createdAt: Date
+
+    var typeLabel: String {
+        switch type {
+        case "DAMAGED": return "Damaged"
+        case "LOST": return "Lost"
+        case "MAINTENANCE": return "Maintenance"
+        default: return type
+        }
+    }
+}
+
+struct DashboardLostBulkUnit: Codable {
+    let skuName: String
+    let count: Int
+}
+
 struct DashboardData: Codable {
     let role: String
     let stats: DashboardStats
@@ -106,6 +139,12 @@ struct DashboardData: Codable {
     let overdueItems: [DashboardOverdueItem]
     let myShifts: [DashboardShift]
     let upcomingEvents: [DashboardUpcomingEvent]
+    let drafts: [DashboardDraft]
+    let flaggedItems: [DashboardFlaggedItem]
+    let lostBulkUnits: [DashboardLostBulkUnit]
+
+    var isStaff: Bool { role == "STAFF" || role == "ADMIN" }
+    var isAdmin: Bool { role == "ADMIN" }
 }
 
 // MARK: - Schedule bridges

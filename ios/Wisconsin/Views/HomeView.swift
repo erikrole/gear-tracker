@@ -6,7 +6,7 @@ final class HomeViewModel {
     var dashboard: DashboardData?
     var isLoading = false
     var error: String?
-    private var lastLoadedAt: Date?
+    var lastLoadedAt: Date?
 
     /// Refresh if data is older than this. `.task` fires on every appearance,
     /// so without a freshness check we'd hammer the endpoint on every tab switch.
@@ -94,11 +94,31 @@ struct HomeView: View {
                     RefreshFailurePill(message: vm.error ?? "")
                 }
                 StatStrip(stats: dash.stats, onTap: { appState.selectedTab = 1 })
+                if let loadedAt = vm.lastLoadedAt {
+                    Text("Updated \(loadedAt.formatted(.relative(presentation: .named)))")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .padding(.top, -12)
+                }
                 if !dash.overdueItems.isEmpty {
                     OverdueBanner(totalCount: dash.overdueCount, items: dash.overdueItems)
                 }
+                if dash.isStaff && !dash.flaggedItems.isEmpty {
+                    FlaggedItemsBanner(items: dash.flaggedItems)
+                }
+                if dash.isAdmin && !dash.lostBulkUnits.isEmpty {
+                    LostBulkUnitsBanner(items: dash.lostBulkUnits)
+                }
                 if isAllEmpty(dash) {
                     AllClearEmptyState()
+                }
+                if dash.isStaff && !dash.drafts.isEmpty {
+                    DashboardCard(title: "Drafts", seeAllTab: 1, appState: appState) {
+                        ForEach(dash.drafts) { draft in
+                            DraftRow(draft: draft)
+                        }
+                    }
                 }
                 if !dash.myShifts.isEmpty {
                     DashboardCard(title: "My Upcoming Shifts", seeAllTab: 4, appState: appState) {
@@ -595,6 +615,113 @@ private struct EventSummaryRow: View {
             }
         }
         .padding(.vertical, 3)
+    }
+}
+
+// MARK: - Flagged Items Banner
+
+private struct FlaggedItemsBanner: View {
+    let items: [DashboardFlaggedItem]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("\(items.count) Flagged Item\(items.count == 1 ? "" : "s")",
+                  systemImage: "flag.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.orange)
+
+            ForEach(items) { item in
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(item.assetName ?? item.assetTag)
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                        HStack(spacing: 4) {
+                            Text(item.typeLabel)
+                            if let title = item.bookingTitle {
+                                Text("·")
+                                Text(title)
+                            }
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    }
+                    Spacer()
+                    Text(item.assetTag)
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.tertiary)
+                }
+                if item.id != items.last?.id { Divider() }
+            }
+        }
+        .padding(14)
+        .background(Color.orange.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.orange.opacity(0.18), lineWidth: 1))
+    }
+}
+
+// MARK: - Lost Bulk Units Banner
+
+private struct LostBulkUnitsBanner: View {
+    let items: [DashboardLostBulkUnit]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Lost Bulk Units", systemImage: "exclamationmark.triangle.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.red)
+
+            ForEach(items, id: \.skuName) { item in
+                HStack {
+                    Text(item.skuName)
+                        .font(.subheadline.weight(.medium))
+                        .lineLimit(1)
+                    Spacer()
+                    Text("\(item.count) missing")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.red)
+                }
+            }
+        }
+        .padding(14)
+        .background(Color.red.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.red.opacity(0.18), lineWidth: 1))
+    }
+}
+
+// MARK: - Draft Row
+
+private struct DraftRow: View {
+    let draft: DashboardDraft
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: draft.kind == "checkout" ? "archivebox" : "calendar.badge.clock")
+                .foregroundStyle(.secondary)
+                .frame(width: 24)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(draft.title)
+                    .font(.subheadline.weight(.medium))
+                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text("\(draft.itemCount) item\(draft.itemCount == 1 ? "" : "s")")
+                    Text("·")
+                    Text(draft.updatedAt.formatted(.relative(presentation: .named)))
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.vertical, 2)
     }
 }
 
