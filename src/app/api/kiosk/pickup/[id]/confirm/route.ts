@@ -2,16 +2,14 @@ import { db } from "@/lib/db";
 import { withKiosk } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
 import { createAuditEntry } from "@/lib/audit";
+import { pickupConfirmBody } from "@/lib/schemas/kiosk";
 
 /**
  * Confirm kiosk pickup: transition PENDING_PICKUP → OPEN.
  * Called after student scans their items at the kiosk.
  */
 export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => {
-  const body = await req.json();
-  const actorId = body.actorId as string;
-
-  if (!actorId) throw new HttpError(400, "actorId required");
+  const { actorId } = pickupConfirmBody.parse(await req.json());
 
   const user = await db.user.findUnique({
     where: { id: actorId },

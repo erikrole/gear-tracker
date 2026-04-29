@@ -2,71 +2,54 @@ import { db } from "@/lib/db";
 import { withKiosk } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
 import { createAuditEntry } from "@/lib/audit";
+import { kioskCompleteCheckin } from "@/lib/services/bookings-checkin";
+import { checkinCompleteBody } from "@/lib/schemas/kiosk";
 
 /**
  * Complete a kiosk check-in (return).
- * If all items are returned, marks the booking as COMPLETED.
+ *
+ * Delegates to `kioskCompleteCheckin` (SERIALIZABLE wrapper, bulk-aware
+ * `maybeAutoComplete`, scan-session close, lost-unit handling). The route
+ * keeps the kiosk audit shape (`action: "kiosk_checkin"`, `source: "KIOSK"`,
+ * `kioskDeviceId`, before/after counts) unchanged for the iOS client.
  */
 export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => {
-  const body = await req.json();
-  const actorId = body.actorId as string;
+  const { actorId } = checkinCompleteBody.parse(await req.json());
 
-  if (!actorId) throw new HttpError(400, "actorId required");
-
-  const booking = await db.booking.findUnique({
-    where: { id: params.id },
-    select: {
-      id: true,
-      status: true,
-      kind: true,
-      refNumber: true,
-      serializedItems: {
-        select: { allocationStatus: true },
-      },
-    },
+  const user = await db.user.findFirst({
+    where: { id: actorId, active: true },
+    select: { id: true, role: true },
   });
+  if (!user) throw new HttpError(404, "User not found");
 
-  if (!booking || booking.kind !== "CHECKOUT" || booking.status !== "OPEN") {
-    throw new HttpError(404, "Active checkout not found");
-  }
-
-  const totalItems = booking.serializedItems.length;
-  const returnedItems = booking.serializedItems.filter(
-    (i) => i.allocationStatus === "returned"
-  ).length;
-
-  // If all items returned, complete the booking
-  if (returnedItems >= totalItems) {
-    await db.booking.update({
-      where: { id: params.id },
-      data: { status: "COMPLETED" },
-    });
-  }
-
-  const user = await db.user.findUnique({
-    where: { id: actorId },
-    select: { role: true },
+  const result = await kioskCompleteCheckin({
+    bookingId: params.id,
+    actorUserId: actorId,
   });
 
   await createAuditEntry({
     actorId,
-    actorRole: user?.role ?? "STUDENT",
+    actorRole: user.role,
     entityType: "booking",
-    entityId: booking.id,
+    entityId: params.id,
     action: "kiosk_checkin",
+    before: {
+      returnedItems: result.returnedItems,
+      totalItems: result.totalItems,
+    },
     after: {
-      refNumber: booking.refNumber,
-      returnedItems,
-      totalItems,
-      completed: returnedItems >= totalItems,
+      refNumber: result.refNumber,
+      returnedItems: result.returnedItems,
+      totalItems: result.totalItems,
+      completed: result.completed,
       source: "KIOSK",
       kioskDeviceId: kiosk.kioskId,
     },
   });
 
   return ok({
-    returnedItems,
-    totalItems,
-    completed: returnedItems >= totalItems,
+    returnedItems: result.returnedItems,
+    totalItems: result.totalItems,
+    completed: result.completed,
   });
 });

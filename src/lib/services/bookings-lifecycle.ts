@@ -9,6 +9,7 @@ import {
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { checkAvailability, type BulkRequest } from "@/lib/services/availability";
+import { nextBookingRef } from "@/lib/services/booking-ref";
 import {
   bookingInclude,
   dedupeIds,
@@ -129,10 +130,8 @@ export async function createBooking(input: CreateBookingInput) {
       }
       const primaryEventId = sortedEventIds[0] ?? null;
 
-      const seqResult = await tx.$queryRaw<[{ nextval: bigint }]>`SELECT nextval('booking_ref_seq')`;
-      const seq = Number(seqResult[0].nextval);
       const prefix = input.kind === BookingKind.CHECKOUT ? "CO" : "RV";
-      const refNumber = `${prefix}-${String(seq).padStart(4, "0")}`;
+      const refNumber = await nextBookingRef(tx, prefix);
 
       const booking = await tx.booking.create({
         data: {

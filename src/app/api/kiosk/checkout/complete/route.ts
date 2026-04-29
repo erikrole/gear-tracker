@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { withKiosk } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
 import { createAuditEntry } from "@/lib/audit";
+import { checkoutCompleteBody } from "@/lib/schemas/kiosk";
+import { nextBookingRef } from "@/lib/services/booking-ref";
 
 /**
  * Complete a kiosk checkout: create booking + allocations in one step.
@@ -10,17 +12,14 @@ import { createAuditEntry } from "@/lib/audit";
  * now we create the booking and allocations atomically.
  */
 export const POST = withKiosk(async (req, { kiosk }) => {
-  const body = await req.json();
-  const actorId = body.actorId as string;
-  const locationId = (body.locationId as string) || kiosk.locationId;
-  const assetIds = body.items as Array<{ assetId: string }>;
+  const body = checkoutCompleteBody.parse(await req.json());
+  const actorId = body.actorId;
+  const locationId = body.locationId || kiosk.locationId;
+  const assetIds = body.items;
 
-  if (!actorId) throw new HttpError(400, "actorId required");
-  if (!assetIds?.length) throw new HttpError(400, "At least one item required");
-
-  // Verify user exists
-  const user = await db.user.findUnique({
-    where: { id: actorId },
+  // Verify user exists and is active
+  const user = await db.user.findFirst({
+    where: { id: actorId, active: true },
     select: { id: true, name: true, role: true },
   });
   if (!user) throw new HttpError(404, "User not found");
@@ -28,20 +27,13 @@ export const POST = withKiosk(async (req, { kiosk }) => {
   const now = new Date();
   const endsAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // Default: due in 24h
 
-  // Generate ref number
-  const lastBooking = await db.booking.findFirst({
-    where: { refNumber: { not: null } },
-    orderBy: { createdAt: "desc" },
-    select: { refNumber: true },
-  });
-  const lastSeq = lastBooking?.refNumber
-    ? parseInt(lastBooking.refNumber.replace(/^(CO|RV)-/, ""), 10)
-    : 0;
-  const refNumber = `CO-${String(lastSeq + 1).padStart(4, "0")}`;
-
   try {
-    const booking = await db.$transaction(
+    const { booking, refNumber } = await db.$transaction(
       async (tx) => {
+        // Generate ref-number inside the transaction so the advisory lock
+        // (held by `nextBookingRef`) serializes concurrent kiosk completions.
+        const refNumber = await nextBookingRef(tx, "CO");
+
         // Create the booking
         const b = await tx.booking.create({
           data: {
@@ -80,7 +72,7 @@ export const POST = withKiosk(async (req, { kiosk }) => {
           })),
         });
 
-        return b;
+        return { booking: b, refNumber };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
     );
@@ -111,6 +103,16 @@ export const POST = withKiosk(async (req, { kiosk }) => {
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
+      const target = (error.meta?.target as string[] | string | undefined) ?? "";
+      const targetStr = Array.isArray(target) ? target.join(",") : String(target);
+      // Booking.refNumber collision → race with another concurrent kiosk; retryable.
+      if (targetStr.includes("ref_number") || targetStr.includes("refNumber")) {
+        throw new HttpError(
+          409,
+          "Could not allocate a checkout reference — please retry",
+        );
+      }
+      // BookingSerializedItem(bookingId, assetId) → item-level conflict.
       throw new HttpError(409, "One or more items are no longer available");
     }
     throw error;

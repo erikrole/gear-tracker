@@ -611,3 +611,4 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - 2026-04-03: Added D-029 (registration gated by admin-managed email allowlist — AllowedEmail table, role pre-assignment, Settings UI).
 - 2026-04-07: Added D-030 (kiosk auth — device-level token, not user sessions. KioskDevice model with activation code pairing).
 - 2026-04-24: Added D-031 (multi-event booking — BookingEvent junction table with preserved Booking.eventId as primary; cap 3 events per booking).
+- 2026-04-29: Added D-032 (kiosk operates within `kiosk.locationId` — `users`, `dashboard`, and `student/[userId]` reads are scoped; users with `locationId = null` are visible to every kiosk as a transitional rule until rosters universally carry a location FK).
