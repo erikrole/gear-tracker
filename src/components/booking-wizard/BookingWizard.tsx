@@ -365,7 +365,9 @@ export function BookingWizard({ kind }: BookingWizardProps) {
     if (kitId) payload.kitId = kitId;
     if (form.notes.trim()) payload.notes = form.notes.trim();
     if (form.selectedEvents.length > 0) {
-      // Send multi-event list; API derives primary + junction rows.
+      // Multi-event contract (D-031): client always sends `eventIds[]` sorted chronologically.
+      // Server picks ordinal 0 as the canonical Booking.eventId and writes a BookingEvent
+      // junction row per id. Legacy `eventId` field is mutually exclusive — never sent here.
       payload.eventIds = form.selectedEvents.map((e) => e.id);
       payload.sportCode = form.selectedEvents[0].sportCode || form.sport || undefined;
     } else if (form.sport) {
