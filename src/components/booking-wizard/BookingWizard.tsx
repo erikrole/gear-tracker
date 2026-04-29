@@ -251,6 +251,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
   // ── Submission state ──
   const [createError, setCreateError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
   const submittingRef = useRef(false);
 
   // Clears the error banner whenever the user edits any step-1 field.
@@ -658,10 +659,16 @@ export function BookingWizard({ kind }: BookingWizardProps) {
           {step === 1 && (
             <Button
               variant="ghost"
-              onClick={async () => { await saveDraft(); router.back(); }}
+              disabled={savingDraft}
+              onClick={async () => {
+                setSavingDraft(true);
+                await saveDraft();
+                setSavingDraft(false);
+                router.back();
+              }}
               className="text-xs text-muted-foreground"
             >
-              Save draft & exit
+              {savingDraft ? "Saving..." : "Save draft & exit"}
             </Button>
           )}
         </div>

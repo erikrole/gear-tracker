@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
@@ -44,8 +45,6 @@ type Props = {
   bookingId: string | null;
   onClose: () => void;
   onUpdated?: () => void;
-  currentUserRole?: string;
-  initialTab?: "details" | "equipment" | "history" | null;
 };
 
 /* ───── Section heading ───── */
@@ -78,6 +77,7 @@ export default function BookingDetailsSheet({
   onClose,
   onUpdated,
 }: Props) {
+  const router = useRouter();
   const confirm = useConfirm();
 
   // Admin role — used to gate the manual override return buttons (kiosk handles all check-in/out for other roles)
@@ -207,7 +207,7 @@ export default function BookingDetailsSheet({
         setHasMoreAuditLogs(json.hasMore ?? false);
       }
     } catch {
-      // silently fail
+      toast.error("Failed to load more history");
     }
     setLoadingMoreAuditLogs(false);
   }, [bookingId, auditLogCursor, loadingMoreAuditLogs]);
@@ -264,7 +264,7 @@ export default function BookingDetailsSheet({
       item.asset.assetTag.toLowerCase().includes(q) ||
       item.asset.brand.toLowerCase().includes(q) ||
       item.asset.model.toLowerCase().includes(q) ||
-      item.asset.serialNumber.toLowerCase().includes(q)
+      item.asset.serialNumber?.toLowerCase().includes(q)
     );
   });
 
@@ -476,7 +476,7 @@ export default function BookingDetailsSheet({
         toast.success("Converted to checkout");
         onUpdated?.();
         onClose();
-        window.location.href = `/checkouts/${json.data.id}`;
+        router.push(`/checkouts/${json.data.id}`);
       } else {
         const msg = await parseErrorMessage(res, "Failed to convert");
         toast.error(msg);

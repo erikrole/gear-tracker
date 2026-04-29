@@ -30,13 +30,6 @@ const DURATION_OPTIONS = [
   { label: "1 month", minutes: 43200 },
 ];
 
-function formatDuration(minutes: number): string {
-  if (minutes < 60) return `${minutes}m`;
-  if (minutes < 1440) return `${minutes / 60}h`;
-  if (minutes < 10080) return `${minutes / 1440}d`;
-  return `${minutes / 10080}w`;
-}
-
 export default function BookingSettingsPage() {
   const [presets, setPresets] = useState<Preset[]>([]);
   const [saving, setSaving] = useState(false);

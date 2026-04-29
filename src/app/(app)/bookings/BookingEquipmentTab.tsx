@@ -105,7 +105,7 @@ export default function BookingEquipmentTab({
       if (err instanceof DOMException && err.name === "AbortError") return;
       toast.error("Failed to check equipment conflicts — try refreshing.");
     }
-  }, [isActive, booking.id, booking.location.id, booking.startsAt, booking.endsAt, booking.serializedItems, toast]);
+  }, [isActive, booking.id, booking.location.id, booking.startsAt, booking.endsAt, booking.serializedItems]);
 
   useEffect(() => {
     fetchConflicts();

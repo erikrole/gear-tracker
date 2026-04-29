@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { getAllowedBookingActions } from "@/lib/booking-actions";
 import {
   ContextMenu,
@@ -82,7 +83,7 @@ function MenuItems({
 
       {config.contextMenuExtras.map((extra) =>
         allowed.has(extra.action) ? (
-          <span key={extra.action}>
+          <React.Fragment key={extra.action}>
             <Separator />
             <Item
               className={extra.danger ? "text-destructive focus:text-destructive" : undefined}
@@ -93,7 +94,7 @@ function MenuItems({
             >
               {extra.label}
             </Item>
-          </span>
+          </React.Fragment>
         ) : null
       )}
     </>

@@ -27,7 +27,10 @@ export default function BookingsPage() {
     ? (searchParams.get("tab") as "all" | "checkouts" | "reservations")
     : "checkouts";
   const [activeTab, setActiveTab] = useState<"all" | "checkouts" | "reservations">(initialTab);
-  const [viewMode, setViewModeRaw] = useState<"cards" | "table">("cards");
+  const [viewMode, setViewModeRaw] = useState<"cards" | "table">(() => {
+    try { return localStorage.getItem("bookings-view-mode") === "table" ? "table" : "cards"; }
+    catch { return "cards"; }
+  });
 
   // Consume highlight once from URL so only the correct tab receives it (avoids all-tabs-mount race)
   const [highlight] = useState<string | null>(() => searchParams.get("highlight") || null);
@@ -40,13 +43,6 @@ export default function BookingsPage() {
       router.replace(qs ? `/bookings?${qs}` : "/bookings", { scroll: false });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("bookings-view-mode");
-      if (saved === "table") setViewModeRaw("table");
-    } catch { /* ignore */ }
   }, []);
 
   function setViewMode(mode: "cards" | "table") {
@@ -119,7 +115,7 @@ export default function BookingsPage() {
         },
       },
     ],
-  }), [confirm, toast]);
+  }), [confirm]);
 
   const allConfig: BookingListConfig = useMemo(() => ({
     kind: "ALL",
@@ -183,6 +179,7 @@ export default function BookingsPage() {
           try {
             const res = await fetchAction(`/api/reservations/${bookingId}/convert`);
             if (res.ok) {
+              toast.success("Reservation converted to checkout");
               setActiveTab("checkouts"); router.push("/bookings?tab=checkouts");
             } else {
               const msg = await parseErrorMessage(res, "Conversion failed");
@@ -251,7 +248,7 @@ export default function BookingsPage() {
         },
       },
     ],
-  }), [confirm, toast]);
+  }), [confirm]);
 
   return (
     <FadeUp>

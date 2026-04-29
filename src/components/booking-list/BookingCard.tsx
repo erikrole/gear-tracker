@@ -33,8 +33,8 @@ function GearAvatarStack({ items, bulkItems }: {
 
   return (
     <div className="flex items-center -space-x-2">
-      {shown.map((si, i) => (
-        <Avatar key={i} size="sm" className="border-2 border-card bg-muted">
+      {shown.map((si) => (
+        <Avatar key={si.asset.assetTag} size="sm" className="border-2 border-card bg-muted">
           {si.asset.imageUrl ? (
             <AvatarImage src={si.asset.imageUrl} alt={si.asset.assetTag} />
           ) : null}

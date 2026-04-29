@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -11,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import Link from "next/link";
 import { formatDateTime } from "@/lib/format";
+import { toLocalDateTimeValue } from "./helpers";
 import { CalendarIcon, ClockIcon, UserIcon, MapPinIcon, CalendarCheckIcon, LinkIcon, StickyNoteIcon, TriangleAlert } from "lucide-react";
 import type { BookingDetail, CheckinProgress, ConflictData } from "./types";
 import { InlineDateField } from "./InlineDateField";
@@ -41,11 +43,6 @@ function InfoRow({ icon: Icon, label, children }: { icon: React.ComponentType<{ 
   );
 }
 
-function toLocalDateTimeValue(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
 export default function BookingOverview({
   booking,
   conflictError,
@@ -58,19 +55,20 @@ export default function BookingOverview({
   onSaveDate,
 }: Props) {
   const confirm = useConfirm();
-  const [presets, setPresets] = useState<ExtendPreset[]>([]);
   const [customOpen, setCustomOpen] = useState(false);
   const [customValue, setCustomValue] = useState("");
 
-  // Load extend presets
-  useEffect(() => {
-    fetch("/api/settings/extend-presets")
-      .then((r) => r.ok ? r.json() : null)
-      .then((json) => {
-        if (json?.data?.presets) setPresets(json.data.presets);
-      })
-      .catch(() => {});
-  }, []);
+  const { data: presetsData } = useQuery<ExtendPreset[]>({
+    queryKey: ["extend-presets"],
+    queryFn: async () => {
+      const r = await fetch("/api/settings/extend-presets");
+      if (!r.ok) return [];
+      const json = await r.json();
+      return json?.data?.presets ?? [];
+    },
+    staleTime: 10 * 60_000,
+  });
+  const presets = presetsData ?? [];
 
   async function handlePreset(minutes: number) {
     const current = new Date(booking.endsAt);
@@ -236,17 +234,7 @@ export default function BookingOverview({
                 {extending ? "..." : p.label}
               </Button>
             ))}
-            <Popover
-              open={customOpen}
-              onOpenChange={(open) => {
-                if (!open && customValue) {
-                  // Clicking outside or pressing Escape saves the selection
-                  handleCustomExtend(customValue);
-                } else {
-                  setCustomOpen(open);
-                }
-              }}
-            >
+            <Popover open={customOpen} onOpenChange={setCustomOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" onClick={openCustom} disabled={extending}>
                   Custom

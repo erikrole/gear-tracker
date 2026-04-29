@@ -39,14 +39,24 @@ export const GET = withAuth(async (req, { user }) => {
   const { searchParams } = new URL(req.url);
 
   const q = searchParams.get("q")?.trim();
+  const filter = searchParams.get("filter");
   const status = parseStatusParam(searchParams.get("status"));
   const locationId = searchParams.get("location_id");
   const sportCode = searchParams.get("sport_code");
   const requesterId = searchParams.get("requester_id");
 
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const todayEnd = new Date(todayStart.getTime() + 86400_000);
+
   const where: Prisma.BookingWhereInput = {
     // No `kind` filter — returns both CHECKOUT and RESERVATION
     ...(status ? { status } : {}),
+    ...(filter === "overdue"
+      ? { endsAt: { lt: now }, status: { in: ["OPEN", "BOOKED"] } }
+      : filter === "due-today"
+        ? { endsAt: { gte: todayStart, lt: todayEnd }, status: { in: ["OPEN", "BOOKED"] } }
+        : {}),
     ...(locationId ? { locationId } : {}),
     ...(sportCode ? { sportCode } : {}),
     ...(requesterId ? { requesterUserId: requesterId } : {}),

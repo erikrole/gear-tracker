@@ -36,7 +36,7 @@ export function BookingTableRow({
           sv.rowClass,
         )}
         tabIndex={0}
-        role="link"
+        role="button"
         onClick={onClick}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
       >
@@ -160,7 +160,7 @@ export function BookingMobileCard({
         sv.rowClass,
       )}
       tabIndex={0}
-      role="link"
+      role="button"
       onClick={onClick}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
     >

@@ -6,6 +6,7 @@ import { AssetImage } from "@/components/AssetImage";
 import { UserAvatar } from "@/components/UserAvatar";
 import { MapPinIcon, SmartphoneIcon } from "lucide-react";
 import { sportLabel } from "@/lib/sports";
+import { formatDateTime } from "@/lib/format";
 import type { BulkSelection } from "@/components/EquipmentPicker";
 import type { PickerAsset } from "@/components/EquipmentPicker";
 import type { FormUser, Location, BulkSkuOption } from "@/components/booking-list/types";
@@ -29,16 +30,6 @@ type Props = {
   bulkSkus: BulkSkuOption[];
   itemCount: number;
 };
-
-function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
 
 function SummaryRow({
   label,

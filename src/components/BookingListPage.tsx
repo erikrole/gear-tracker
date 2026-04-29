@@ -413,8 +413,6 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
             bookingId={selectedBookingId}
             onClose={() => { setSelectedBookingId(null); setInitialSheetTab(null); }}
             onUpdated={reload}
-            currentUserRole={currentUserRole}
-            initialTab={initialSheetTab as "details" | "equipment" | "history" | null}
           />
         </Suspense>
       )}

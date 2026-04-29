@@ -310,7 +310,6 @@ export default function ItemDetailsPage() {
         bookingId={selectedBookingId}
         onClose={() => setSelectedBookingId(null)}
         onUpdated={loadAsset}
-        currentUserRole={currentUserRole}
       />
 
       <ChooseImageModal
