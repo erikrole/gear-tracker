@@ -6,7 +6,7 @@ import { AssetImage } from "@/components/AssetImage";
 import { UserAvatar } from "@/components/UserAvatar";
 import { MapPinIcon, SmartphoneIcon } from "lucide-react";
 import { sportLabel } from "@/lib/sports";
-import { formatChipTime, formatDateTime } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 import type { BulkSelection } from "@/components/EquipmentPicker";
 import type { PickerAsset } from "@/components/EquipmentPicker";
 import type { FormUser, Location, BulkSkuOption } from "@/components/booking-list/types";
@@ -95,37 +95,24 @@ export function WizardStep3({
           <span className="font-semibold">{form.title}</span>
         </SummaryRow>
 
-        {/* Events (one row per linked event, primary first) */}
+        {/* Events (one row per linked event) */}
         {form.selectedEvents.length > 0 && (
-          <SummaryRow label={form.selectedEvents.length > 1 ? `Events (${form.selectedEvents.length})` : "Event"}>
-            <div className="flex flex-col items-end gap-1.5">
-              {form.selectedEvents.map((ev, idx) => (
-                <div key={ev.id} className="flex items-center gap-2 flex-wrap justify-end">
-                  {idx === 0 && form.selectedEvents.length > 1 && (
-                    <Badge variant="outline" size="sm" className="text-[9px] uppercase tracking-wider">
-                      Primary
-                    </Badge>
+          <SummaryRow label={form.selectedEvents.length > 1 ? "Events" : "Event"}>
+            <div className="flex flex-col items-end gap-0.5">
+              {form.selectedEvents.map((ev) => (
+                <span key={ev.id}>
+                  {ev.sportCode && (
+                    <span className="font-normal text-muted-foreground">
+                      {sportLabel(ev.sportCode)}
+                      {ev.opponent ? " \u00b7 " : ""}
+                    </span>
                   )}
-                  <span className="text-xs text-muted-foreground tabular-nums">
-                    {formatChipTime(ev.startsAt)}
-                  </span>
-                  <span>
-                    {ev.sportCode && (
-                      <span className="font-normal text-muted-foreground">
-                        {sportLabel(ev.sportCode)}
-                        {ev.opponent ? " \u00b7 " : ""}
-                      </span>
-                    )}
-                    {ev.opponent
-                      ? `${ev.isHome === false ? "at" : "vs"} ${ev.opponent}`
-                      : !ev.sportCode
-                        ? ev.summary
-                        : ""}
-                  </span>
-                  {ev.isHome === true && <Badge variant="green" size="sm">Home</Badge>}
-                  {ev.isHome === false && <Badge variant="red" size="sm">Away</Badge>}
-                  {ev.isHome === null && ev.opponent && <Badge variant="blue" size="sm">Neutral</Badge>}
-                </div>
+                  {ev.opponent
+                    ? `${ev.isHome === false ? "at" : "vs"} ${ev.opponent}`
+                    : !ev.sportCode
+                      ? ev.summary
+                      : ""}
+                </span>
               ))}
             </div>
           </SummaryRow>

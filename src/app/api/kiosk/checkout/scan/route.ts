@@ -1,8 +1,6 @@
 import { db } from "@/lib/db";
 import { withKiosk } from "@/lib/api";
-import { ok } from "@/lib/http";
-import { findAssetByScanValue } from "@/lib/services/kiosk-scan";
-import { checkoutScanBody } from "@/lib/schemas/kiosk";
+import { HttpError, ok } from "@/lib/http";
 
 /**
  * Scan an item for kiosk checkout.
@@ -10,15 +8,42 @@ import { checkoutScanBody } from "@/lib/schemas/kiosk";
  * Does NOT create a booking yet — that happens on complete.
  */
 export const POST = withKiosk(async (req) => {
-  const { scanValue } = checkoutScanBody.parse(await req.json());
+  const body = await req.json();
+  const scanValue = (body.scanValue as string)?.trim();
 
-  const asset = await findAssetByScanValue(scanValue, {
+  if (!scanValue) {
+    throw new HttpError(400, "Scan value required");
+  }
+
+  // Parse QR code format: bg://item/<uuid> or raw tag name
+  let assetId: string | null = null;
+  let tagSearch: string | null = null;
+
+  const qrMatch = scanValue.match(/^bg:\/\/item\/(.+)$/);
+  if (qrMatch) {
+    assetId = qrMatch[1];
+  } else {
+    tagSearch = scanValue;
+  }
+
+  const assetSelect = {
     id: true,
     assetTag: true,
     name: true,
     status: true,
     category: { select: { name: true } },
-  });
+  } as const;
+
+  // Find the asset
+  const asset = assetId
+    ? await db.asset.findUnique({
+        where: { id: assetId },
+        select: assetSelect,
+      })
+    : await db.asset.findFirst({
+        where: { assetTag: { equals: tagSearch!, mode: "insensitive" } },
+        select: assetSelect,
+      });
 
   if (!asset) {
     return ok({ success: false, error: "Item not found" });

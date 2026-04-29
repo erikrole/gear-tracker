@@ -2,13 +2,10 @@ import { db } from "@/lib/db";
 import { withKiosk } from "@/lib/api";
 import { ok } from "@/lib/http";
 
-/** List active users for kiosk avatar grid (location-scoped: this location + unassigned). */
-export const GET = withKiosk(async (_req, { kiosk }) => {
+/** List active users for kiosk avatar grid */
+export const GET = withKiosk(async () => {
   const users = await db.user.findMany({
-    where: {
-      active: true,
-      OR: [{ locationId: kiosk.locationId }, { locationId: null }],
-    },
+    where: { active: true },
     orderBy: { name: "asc" },
     select: {
       id: true,

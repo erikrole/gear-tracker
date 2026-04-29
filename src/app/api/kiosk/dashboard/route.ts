@@ -2,8 +2,8 @@ import { db } from "@/lib/db";
 import { withKiosk } from "@/lib/api";
 import { ok } from "@/lib/http";
 
-/** Kiosk idle screen data: stats, today's events, active checkouts (location-scoped). */
-export const GET = withKiosk(async (_req, { kiosk }) => {
+/** Kiosk idle screen data: stats, today's events, active checkouts */
+export const GET = withKiosk(async (_req) => {
   const now = new Date();
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0);
@@ -11,7 +11,7 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
   todayEnd.setHours(23, 59, 59, 999);
 
   const [statsResult, events, checkouts] = await Promise.all([
-    // Stats: count active checkouts, items out, overdue (scoped to this kiosk's location).
+    // Stats: count active checkouts, items out, overdue
     db.$queryRaw<
       Array<{ checkouts: bigint; items_out: bigint; overdue: bigint }>
     >`
@@ -21,7 +21,6 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
         COUNT(DISTINCT b.id) FILTER (WHERE b.status = 'OPEN' AND b.kind = 'CHECKOUT' AND b.ends_at < ${now}) as overdue
       FROM bookings b
       LEFT JOIN booking_serialized_items bsi ON bsi.booking_id = b.id AND bsi.allocation_status = 'active'
-      WHERE b.location_id = ${kiosk.locationId}
     `,
 
     // Today's events
@@ -47,12 +46,11 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
       },
     }),
 
-    // Active checkouts at this kiosk's location, most overdue first, max 10.
+    // Active checkouts (team-wide, most recent first, max 10)
     db.booking.findMany({
       where: {
         kind: "CHECKOUT",
         status: "OPEN",
-        locationId: kiosk.locationId,
       },
       orderBy: [{ endsAt: "asc" }],
       take: 10,

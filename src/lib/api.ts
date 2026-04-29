@@ -67,16 +67,15 @@ export function withKiosk<P extends Record<string, string> = Record<string, stri
 ) {
   return async (req: Request, context: { params: Promise<P> }): Promise<NextResponse> => {
     try {
-      // CSRF: require Origin on mutating requests (matches withAuth).
+      // CSRF: validate Origin header on mutating requests
       if (req.method !== "GET" && req.method !== "HEAD") {
         const origin = req.headers.get("origin");
-        if (!origin) {
-          throw new HttpError(403, "Origin header required for mutating requests");
-        }
-        const host = req.headers.get("host") || req.headers.get("x-forwarded-host");
-        const expected = host ? new URL(`https://${host}`).origin : null;
-        if (expected && origin !== expected) {
-          throw new HttpError(403, "Cross-origin request blocked");
+        if (origin) {
+          const host = req.headers.get("host") || req.headers.get("x-forwarded-host");
+          const expected = host ? new URL(`https://${host}`).origin : null;
+          if (expected && origin !== expected) {
+            throw new HttpError(403, "Cross-origin request blocked");
+          }
         }
       }
       const kiosk = await requireKiosk();
