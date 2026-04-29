@@ -44,6 +44,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
       endsAt: draft.endsAt.toISOString(),
       eventId: draft.eventId,
       sportCode: draft.sportCode,
+      notes: draft.notes ?? "",
       serializedAssetIds: draft.serializedItems.map((si) => si.assetId),
       bulkItems: draft.bulkItems.map((bi) => ({
         bulkSkuId: bi.bulkSkuId,

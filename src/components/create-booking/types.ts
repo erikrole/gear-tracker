@@ -14,6 +14,7 @@ export type FormState = {
   locationId: string;
   startsAt: string;
   endsAt: string;
+  notes: string;
 };
 
 export type FormAction =
@@ -28,6 +29,7 @@ export type FormAction =
   | { type: "SET_LOCATION_ID"; value: string }
   | { type: "SET_STARTS_AT"; value: string }
   | { type: "SET_ENDS_AT"; value: string }
+  | { type: "SET_NOTES"; value: string }
   | { type: "RESET"; defaults: Partial<FormState> }
   | { type: "LOAD_DRAFT"; draft: Partial<FormState> };
 

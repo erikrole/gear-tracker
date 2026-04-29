@@ -11,6 +11,7 @@ import type { BulkSelection } from "@/components/EquipmentPicker";
 import type { PickerAsset } from "@/components/EquipmentPicker";
 import type { FormUser, Location, BulkSkuOption } from "@/components/booking-list/types";
 import type { FormState } from "@/components/create-booking/types";
+import { MAX_SCROLL_HEIGHT } from "./constants";
 
 type WizardConfig = {
   kind: "CHECKOUT" | "RESERVATION";
@@ -152,6 +153,13 @@ export function WizardStep3({
             <p className="text-sm font-medium">{formatDateTime(form.endsAt)}</p>
           </div>
         </div>
+
+        {/* Notes (only when present) */}
+        {form.notes.trim() && (
+          <SummaryRow label="Notes">
+            <span className="whitespace-pre-wrap text-left">{form.notes}</span>
+          </SummaryRow>
+        )}
       </div>
 
       {/* ── Equipment ── */}
@@ -176,7 +184,10 @@ export function WizardStep3({
             No equipment selected \u2014 go back to add items.
           </div>
         ) : (
-          <div className="border border-border rounded-sm max-h-[280px] overflow-y-auto overscroll-contain [touch-action:pan-y]">
+          <div
+            className="border border-border rounded-sm overflow-y-auto overscroll-contain [touch-action:pan-y]"
+            style={{ maxHeight: MAX_SCROLL_HEIGHT }}
+          >
             {selectedAssetDetails.map((asset, i) => (
               <div key={asset.id}>
                 {i > 0 && <Separator className="opacity-40" />}

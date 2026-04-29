@@ -100,6 +100,8 @@ function formReducer(state: FormState, action: FormAction): FormState {
       return { ...state, startsAt: action.value };
     case "SET_ENDS_AT":
       return { ...state, endsAt: action.value };
+    case "SET_NOTES":
+      return { ...state, notes: action.value };
     case "RESET":
       return {
         tieToEvent: action.defaults.tieToEvent ?? true,
@@ -110,6 +112,7 @@ function formReducer(state: FormState, action: FormAction): FormState {
         locationId: action.defaults.locationId ?? "",
         startsAt: toLocalDateTimeValue(roundTo15Min(new Date())),
         endsAt: toLocalDateTimeValue(roundTo15Min(new Date(Date.now() + 24 * 60 * 60 * 1000))),
+        notes: "",
       };
     case "LOAD_DRAFT":
       return { ...state, ...action.draft };
@@ -169,7 +172,20 @@ export function BookingWizard({ kind }: BookingWizardProps) {
   const initialRequester = meData?.id ?? "";
 
   // ── Existing drafts (for resume banner) ──
-  const [draftBannerDismissed, setDraftBannerDismissed] = useState(false);
+  // Persist dismissal for 1 hour via sessionStorage so it doesn't reappear on every reload.
+  const draftBannerKey = `wi:draftBannerDismissed:${kind}`;
+  const [draftBannerDismissed, setDraftBannerDismissed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const ts = window.sessionStorage.getItem(draftBannerKey);
+    if (!ts) return false;
+    return Date.now() - Number(ts) < 60 * 60 * 1000;
+  });
+  const dismissDraftBanner = useCallback(() => {
+    setDraftBannerDismissed(true);
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(draftBannerKey, String(Date.now()));
+    }
+  }, [draftBannerKey]);
   const { data: draftsData } = useQuery({
     queryKey: ["drafts"],
     queryFn: async ({ signal }) => {
@@ -197,6 +213,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
     locationId: initialLocationId || locations[0]?.id || "",
     startsAt: initialStartsAt || toLocalDateTimeValue(roundTo15Min(new Date())),
     endsAt: initialEndsAt || toLocalDateTimeValue(roundTo15Min(new Date(Date.now() + 24 * 60 * 60 * 1000))),
+    notes: "",
   });
 
   useEffect(() => {
@@ -346,6 +363,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
     };
 
     if (kitId) payload.kitId = kitId;
+    if (form.notes.trim()) payload.notes = form.notes.trim();
     if (form.selectedEvents.length > 0) {
       // Send multi-event list; API derives primary + junction rows.
       payload.eventIds = form.selectedEvents.map((e) => e.id);
@@ -380,27 +398,16 @@ export function BookingWizard({ kind }: BookingWizardProps) {
             shortages?: Array<{ bulkSkuId: string; requested: number; available: number }>;
           };
           // Auto-remove conflicting/unavailable assets so user doesn't have to find them manually
-          const conflictingAssetIds = new Set<string>();
-          if (d.conflicts?.length) {
-            for (const c of d.conflicts) {
-              conflictingAssetIds.add(c.assetId);
-              const tag = selectedAssetDetails.find((a) => a.id === c.assetId)?.assetTag || c.assetId;
-              msgs.push(`${tag} conflicts with \u201c${c.conflictingBookingTitle || "another booking"}\u201d`);
-            }
-          }
-          if (d.unavailableAssets?.length) {
-            for (const u of d.unavailableAssets) {
-              conflictingAssetIds.add(u.assetId);
-              const tag = selectedAssetDetails.find((a) => a.id === u.assetId)?.assetTag || u.assetId;
-              msgs.push(`${tag} is ${u.status === "MAINTENANCE" ? "in maintenance" : u.status.toLowerCase()}`);
-            }
-          }
-          if (d.shortages?.length) {
-            for (const s of d.shortages) {
-              const name = bulkSkus.find((sk) => sk.id === s.bulkSkuId)?.name || s.bulkSkuId;
-              msgs.push(`${name}: only ${s.available} available (requested ${s.requested})`);
-            }
-          }
+          const tagFor = (id: string) => selectedAssetDetails.find((a) => a.id === id)?.assetTag || id;
+          const conflictingAssetIds = new Set<string>([
+            ...(d.conflicts?.map((c) => c.assetId) ?? []),
+            ...(d.unavailableAssets?.map((u) => u.assetId) ?? []),
+          ]);
+          msgs.push(
+            ...(d.conflicts?.map((c) => `${tagFor(c.assetId)} conflicts with \u201c${c.conflictingBookingTitle || "another booking"}\u201d`) ?? []),
+            ...(d.unavailableAssets?.map((u) => `${tagFor(u.assetId)} is ${u.status === "MAINTENANCE" ? "in maintenance" : u.status.toLowerCase()}`) ?? []),
+            ...(d.shortages?.map((s) => `${bulkSkus.find((sk) => sk.id === s.bulkSkuId)?.name || s.bulkSkuId}: only ${s.available} available (requested ${s.requested})`) ?? []),
+          );
           if (conflictingAssetIds.size > 0) {
             setSelectedAssetIds((prev) => prev.filter((id) => !conflictingAssetIds.has(id)));
           }
@@ -491,7 +498,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
             </div>
             <button
               type="button"
-              onClick={() => setDraftBannerDismissed(true)}
+              onClick={dismissDraftBanner}
               className="text-muted-foreground hover:text-foreground transition-colors"
               aria-label="Dismiss"
             >

@@ -84,6 +84,16 @@ export function formatDateFull(iso: string | null) {
   });
 }
 
+/** "Mon 3:00 pm" — compact day + time, used in event chips */
+export function formatChipTime(iso: string) {
+  const d = new Date(iso);
+  const day = d.toLocaleDateString("en-US", { weekday: "short" });
+  const time = d
+    .toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+    .toLowerCase();
+  return `${day} ${time}`;
+}
+
 /** "Mar 11, 2026, 3:00 PM" */
 export function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString("en-US", {

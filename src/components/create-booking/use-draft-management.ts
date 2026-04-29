@@ -52,6 +52,7 @@ export function useDraftManagement({
         if (d.startsAt) draft.startsAt = toLocalDateTimeValue(new Date(d.startsAt));
         if (d.endsAt) draft.endsAt = toLocalDateTimeValue(new Date(d.endsAt));
         if (d.sportCode) draft.sport = d.sportCode;
+        if (typeof d.notes === "string") draft.notes = d.notes;
         dispatch({ type: "LOAD_DRAFT", draft });
         if (d.serializedAssetIds?.length) setSelectedAssetIds(d.serializedAssetIds);
         if (d.bulkItems?.length) {
@@ -84,6 +85,7 @@ export function useDraftManagement({
       if (draftId) payload.id = draftId;
       if (form.requester) payload.requesterUserId = form.requester;
       if (form.locationId) payload.locationId = form.locationId;
+      if (form.notes.trim()) payload.notes = form.notes.trim();
       if (form.selectedEvents.length > 0) {
         payload.eventIds = form.selectedEvents.map((e) => e.id);
         payload.sportCode = form.selectedEvents[0].sportCode || form.sport || undefined;

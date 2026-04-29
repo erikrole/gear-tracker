@@ -2,6 +2,7 @@
 
 import type { Dispatch, SetStateAction } from "react";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import {
@@ -13,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { ClockIcon, BoxesIcon, CheckIcon, XIcon } from "lucide-react";
 import { SPORT_CODES, sportLabel } from "@/lib/sports";
+import { formatChipTime } from "@/lib/format";
 import {
   toLocalDateTimeValue,
   formatDate,
@@ -20,13 +22,7 @@ import {
   type Location,
   type CalendarEvent,
 } from "@/components/booking-list/types";
-
-function formatChipTime(iso: string) {
-  const d = new Date(iso);
-  const day = d.toLocaleDateString("en-US", { weekday: "short" });
-  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).toLowerCase();
-  return `${day} ${time}`;
-}
+import { MAX_SCROLL_HEIGHT } from "./constants";
 import type { FormState, FormAction, ShiftInfo } from "@/components/create-booking/types";
 
 type WizardConfig = {
@@ -51,10 +47,17 @@ type Props = {
   toggleEvent: (ev: CalendarEvent) => { ok: boolean; reason?: string };
 };
 
-function FieldLabel({ children }: { children: React.ReactNode }) {
+function FieldLabel({
+  children,
+  required = false,
+}: {
+  children: React.ReactNode;
+  required?: boolean;
+}) {
   return (
     <span className="block text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1.5">
       {children}
+      {required && <span className="ml-1 text-destructive">*</span>}
     </span>
   );
 }
@@ -189,7 +192,10 @@ export function WizardStep1({
                   &ldquo;Link to event&rdquo; to create without an event.
                 </div>
               ) : (
-                <div className="flex flex-col gap-0.5 max-h-[280px] overflow-y-auto border border-border rounded-sm p-1">
+                <div
+                  className="flex flex-col gap-0.5 overflow-y-auto border border-border rounded-sm p-1"
+                  style={{ maxHeight: MAX_SCROLL_HEIGHT }}
+                >
                   {events.map((ev) => {
                     const selected = selectedEventIds.has(ev.id);
                     const disabled = !selected && atCap;
@@ -322,7 +328,7 @@ export function WizardStep1({
         <div className="space-y-4">
           {/* Title */}
           <div>
-            <FieldLabel>
+            <FieldLabel required>
               Booking name{form.tieToEvent && form.selectedEvents.length > 0 ? " \u2014 auto-filled from event" : ""}
             </FieldLabel>
             <Input
@@ -359,7 +365,7 @@ export function WizardStep1({
           {/* Requester + Location (2-col on sm+) */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <FieldLabel>{config.requesterLabel}</FieldLabel>
+              <FieldLabel required>{config.requesterLabel}</FieldLabel>
               <Select
                 value={form.requester}
                 onValueChange={(v) => dispatch({ type: "SET_REQUESTER", value: v })}
@@ -379,7 +385,7 @@ export function WizardStep1({
             </div>
 
             <div>
-              <FieldLabel>Location</FieldLabel>
+              <FieldLabel required>Location</FieldLabel>
               <Select
                 value={form.locationId}
                 onValueChange={(v) => dispatch({ type: "SET_LOCATION_ID", value: v })}
@@ -430,7 +436,7 @@ export function WizardStep1({
           {/* Dates (2-col) */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <FieldLabel>{config.startLabel}</FieldLabel>
+              <FieldLabel required>{config.startLabel}</FieldLabel>
               <DateTimePicker
                 value={form.startsAt ? new Date(form.startsAt) : undefined}
                 onChange={(d) => dispatch({ type: "SET_STARTS_AT", value: toLocalDateTimeValue(d) })}
@@ -438,13 +444,25 @@ export function WizardStep1({
               />
             </div>
             <div>
-              <FieldLabel>{config.endLabel}</FieldLabel>
+              <FieldLabel required>{config.endLabel}</FieldLabel>
               <DateTimePicker
                 value={form.endsAt ? new Date(form.endsAt) : undefined}
                 onChange={(d) => dispatch({ type: "SET_ENDS_AT", value: toLocalDateTimeValue(d) })}
                 placeholder="End date & time"
               />
             </div>
+          </div>
+
+          {/* Notes (optional) */}
+          <div>
+            <FieldLabel>Notes (optional)</FieldLabel>
+            <Textarea
+              value={form.notes}
+              onChange={(e) => dispatch({ type: "SET_NOTES", value: e.target.value })}
+              placeholder="Anything pickup or return crew should know — e.g. “VIP setup”, “Return by 6pm”"
+              rows={3}
+              maxLength={10000}
+            />
           </div>
         </div>
       </section>

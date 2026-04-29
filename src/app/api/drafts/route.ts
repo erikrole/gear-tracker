@@ -14,6 +14,7 @@ const saveDraftSchema = z.object({
   endsAt: z.string().optional(),
   eventId: z.string().cuid().nullable().optional(),
   sportCode: z.string().max(10).optional(),
+  notes: z.string().max(10000).optional(),
   serializedAssetIds: z.array(z.string().cuid()).default([]),
   bulkItems: z
     .array(z.object({ bulkSkuId: z.string().cuid(), quantity: z.number().int().positive() }))
@@ -67,6 +68,7 @@ export const POST = withAuth(async (req, { user }) => {
     createdBy: user.id,
     eventId: body.eventId ?? null,
     sportCode: body.sportCode ?? null,
+    notes: body.notes ?? null,
   };
 
   let draftId: string;
