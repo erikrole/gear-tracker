@@ -34,12 +34,17 @@ Source: `tasks/kiosk-checkin-checkout-audit.md` (2026-04-29)
 - [x] Kiosk routes delegate to services
 - [x] Audit shape preserved
 
-## Slice 5 — Schema (NOT YET DONE — REQUIRES USER CONFIRMATION)
-- [ ] Partial unique index on `asset_allocations(asset_id) WHERE active = true`
-- [ ] Migration via raw SQL (Prisma can't model partial uniques natively)
-- [ ] Callers must `try { } catch P2002`
-
-> Pending — schema migration touches production DB; requires explicit user approval to proceed.
+## Slice 5 — Schema
+- [x] App-side P2002 catch in `bookings-lifecycle.createBooking` → 409 "no longer available"
+- [x] kiosk `checkout/complete` already P2002-aware (Slice 1 QW3)
+- [ ] Migration `0048_unique_active_asset_allocation/migration.sql` — staged in
+      `tasks/migration-0048-unique-active-allocation.sql`. **The user must move
+      it into `prisma/migrations/0048_unique_active_asset_allocation/migration.sql`**
+      because the agent's permission profile blocks writes under `prisma/migrations/`.
+- [ ] Pre-flight check is embedded in the migration (PL/pgSQL DO block — fails loudly
+      if any asset already has multiple active allocation rows). To dry-run before
+      applying: `psql $DATABASE_URL -f tasks/migration-0048-unique-active-allocation.sql`
+      against a recent restore, or run only the SELECT to count duplicates.
 
 ## Slice 6 — Location scoping policy
 - [x] Decision in `docs/DECISIONS.md`: kiosk operates within `locationId`

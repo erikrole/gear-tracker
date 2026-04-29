@@ -53,7 +53,8 @@ type UpdateBookingInput = {
 };
 
 export async function createBooking(input: CreateBookingInput) {
-  return db.$transaction(
+  try {
+    return await db.$transaction(
     async (tx) => {
       // Resolve items from source reservation if provided
       let resolvedSerializedAssetIds = dedupeIds(input.serializedAssetIds);
@@ -258,6 +259,25 @@ export async function createBooking(input: CreateBookingInput) {
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
   );
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      const target = (error.meta?.target as string[] | string | undefined) ?? "";
+      const targetStr = Array.isArray(target) ? target.join(",") : String(target);
+      // Partial-unique index on asset_allocations(asset_id) WHERE active = TRUE.
+      // Fires when another flow allocated the same asset between availability
+      // check and insert. Maps to a 409 the booking-create UI already handles.
+      if (
+        targetStr.includes("asset_allocations_asset_id_active_unique") ||
+        targetStr.includes("asset_id")
+      ) {
+        throw new HttpError(409, "One or more items are no longer available");
+      }
+    }
+    throw error;
+  }
 }
 
 export async function updateReservation(
