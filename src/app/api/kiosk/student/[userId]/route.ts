@@ -3,13 +3,20 @@ import { withKiosk } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
 
 /** Get a student's active checkouts, pending pickups, and upcoming reservations */
-export const GET = withKiosk<{ userId: string }>(async (_req, { params }) => {
+export const GET = withKiosk<{ userId: string }>(async (_req, { kiosk, params }) => {
   const user = await db.user.findUnique({
     where: { id: params.userId },
-    select: { id: true, active: true },
+    select: { id: true, active: true, locationId: true },
   });
 
   if (!user || !user.active) {
+    throw new HttpError(404, "User not found");
+  }
+
+  // Location scoping: a user with a non-null locationId must match this kiosk.
+  // Users with `locationId = null` are treated as global (transitional).
+  // See docs/DECISIONS.md — "Kiosk operates within `kiosk.locationId`".
+  if (user.locationId !== null && user.locationId !== kiosk.locationId) {
     throw new HttpError(404, "User not found");
   }
 

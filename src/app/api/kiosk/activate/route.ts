@@ -3,18 +3,14 @@ import { withHandler } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
 import { tokenHash, createKioskSession } from "@/lib/auth";
 import { getClientIp } from "@/lib/rate-limit";
+import { activateBody } from "@/lib/schemas/kiosk";
 
 /**
  * Activate a kiosk device with a 6-digit code.
  * No auth required — this IS the auth bootstrapping step.
  */
 export const POST = withHandler(async (req) => {
-  const body = await req.json();
-  const code = (body.code as string)?.trim();
-
-  if (!code || !/^\d{6}$/.test(code)) {
-    throw new HttpError(400, "Invalid activation code format");
-  }
+  const { code } = activateBody.parse(await req.json());
 
   // Hash the code and look up device
   const hashedCode = await tokenHash(code);
