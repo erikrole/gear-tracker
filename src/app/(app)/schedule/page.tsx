@@ -48,6 +48,7 @@ export default function SchedulePage() {
       });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
+        toast.success("Event hidden");
         data.loadData();
       } else {
         const msg = await parseErrorMessage(res, "Failed to hide event");

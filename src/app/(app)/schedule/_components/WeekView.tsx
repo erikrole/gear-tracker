@@ -144,16 +144,16 @@ function EventCard({
 
   const barColor =
     entry.isHome === true
-      ? "bg-emerald-500"
+      ? "bg-[var(--green)]"
       : entry.isHome === false
-        ? "bg-amber-500"
+        ? "bg-[var(--orange)]"
         : "bg-muted-foreground/25";
 
   const cardBg =
     entry.isHome === true
-      ? "bg-emerald-500/8 hover:bg-emerald-500/14"
+      ? "bg-[var(--green)]/10 hover:bg-[var(--green)]/18"
       : entry.isHome === false
-        ? "bg-amber-500/8 hover:bg-amber-500/14"
+        ? "bg-[var(--orange)]/10 hover:bg-[var(--orange)]/18"
         : "bg-muted/35 hover:bg-muted/60";
 
   const wrapClass = cn(

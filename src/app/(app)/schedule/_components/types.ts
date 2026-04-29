@@ -79,18 +79,6 @@ export function coverageDot(pct: number): string {
   return "var(--badge-red-bg, #ef4444)";
 }
 
-export function areaCoverage(shifts: Shift[], area: string) {
-  const areaShifts = shifts.filter((s) => s.area === area);
-  const activeAssignments = areaShifts.flatMap((s) =>
-    s.assignments.filter((a) => ACTIVE_STATUSES.includes(a.status)),
-  );
-  return {
-    filled: activeAssignments.length,
-    total: areaShifts.length,
-    assignedUsers: activeAssignments.map((a) => a.user),
-  };
-}
-
 /** Check if user has an active assignment on any shift in this entry */
 export function userHasShift(entry: CalendarEntry, userId: string): boolean {
   return entry.shifts.some((s) =>

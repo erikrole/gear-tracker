@@ -80,7 +80,7 @@ function mergeData(events: CalendarEvent[], groups: ShiftGroup[]): CalendarEntry
 /** Build schedule fetch URL based on current view params */
 function buildScheduleUrls(viewMode: string, calMonth: Date, weekStart: Date, includePast: boolean, sportFilter: string) {
   const evParams = new URLSearchParams({ limit: "200" });
-  const sgParams = new URLSearchParams();
+  const sgParams = new URLSearchParams({ limit: "200" });
 
   if (viewMode === "calendar") {
     const startDate = calMonth.toISOString();

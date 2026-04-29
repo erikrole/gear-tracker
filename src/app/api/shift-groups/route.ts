@@ -9,7 +9,7 @@ export const GET = withAuth(async (req, { user }) => {
 
   const url = new URL(req.url);
   const { limit: rawLimit, offset } = parsePagination(url.searchParams);
-  const limit = Math.min(rawLimit, 100);
+  const limit = Math.min(rawLimit, 500);
 
   const sportCode = url.searchParams.get("sportCode");
   const startDate = url.searchParams.get("startDate");

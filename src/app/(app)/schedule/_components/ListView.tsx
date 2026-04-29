@@ -21,7 +21,6 @@ import {
   ACTIVE_STATUSES,
   AREA_LABELS,
   coverageVariant,
-  formatDate,
   formatTime,
   userShiftStatus,
 } from "./types";
@@ -51,14 +50,6 @@ const AREA_BADGE_VARIANT: Record<string, "green" | "purple" | "orange" | "blue">
   COMMS: "orange",
   GRAPHICS: "blue",
 };
-
-/* Left-bar color per home/away */
-const rowBarClass = (entry: CalendarEntry) =>
-  entry.isHome === true
-    ? "border-l-[var(--green)]"
-    : entry.isHome === false
-      ? "border-l-[var(--orange)]"
-      : "border-l-transparent";
 
 function shiftAssignee(shift: Shift) {
   const active = shift.assignments.find((a) => ACTIVE_STATUSES.includes(a.status));
@@ -399,9 +390,9 @@ export function ListView({
 
               const barColor =
                 entry.isHome === true
-                  ? "border-l-emerald-500"
+                  ? "border-l-[var(--green)]"
                   : entry.isHome === false
-                    ? "border-l-amber-500"
+                    ? "border-l-[var(--orange)]"
                     : "border-l-muted-foreground/20";
 
               return (
@@ -419,6 +410,7 @@ export function ListView({
                         ? setExpandedRowId(isExpanded ? null : entry.id)
                         : undefined
                     }
+                    aria-expanded={entry.shifts.length > 0 ? isExpanded : undefined}
                   >
                     <div className="flex items-start justify-between gap-2 mb-1">
                       <span className="font-semibold text-sm flex items-center gap-1.5 leading-tight">
@@ -499,7 +491,7 @@ export function ListView({
                             key={shift.id}
                             className="flex items-center gap-3 px-4 py-2.5 pl-8 border-b border-border/30 last:border-b-0 cursor-pointer hover:bg-muted/30 transition-colors focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
                             tabIndex={0}
-                            role="link"
+                            role="button"
                             onClick={() => onSelectGroup(entry.shiftGroupId)}
                             onKeyDown={(e) => {
                               if (e.key === "Enter" || e.key === " ") {
@@ -611,9 +603,9 @@ function EventRows({
 
   const borderBar =
     entry.isHome === true
-      ? "border-l-emerald-500"
+      ? "border-l-[var(--green)]"
       : entry.isHome === false
-        ? "border-l-amber-500"
+        ? "border-l-[var(--orange)]"
         : "border-l-transparent";
 
   return (
@@ -697,6 +689,7 @@ function EventRows({
                   <Button
                     variant="ghost"
                     size="icon-sm"
+                    aria-label="Hide event"
                     className="opacity-0 group-hover/row:opacity-100 transition-opacity"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -740,7 +733,7 @@ function EventRows({
               key={shift.id}
               className="bg-muted/10 hover:bg-muted/25 cursor-pointer transition-colors focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
               tabIndex={0}
-              role="link"
+              role="button"
               onClick={() => !isPickerOpen && onSelectGroup()}
               onKeyDown={(e) => {
                 if (!isPickerOpen && (e.key === "Enter" || e.key === " ")) {
@@ -767,7 +760,8 @@ function EventRows({
                     >
                       <PopoverTrigger asChild>
                         <button
-                          className="flex items-center gap-2 hover:bg-muted/60 rounded px-1.5 py-1 -ml-1.5 transition-colors"
+                          className="flex items-center gap-2 hover:bg-muted/60 rounded px-1.5 py-1 -ml-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={assigning}
                           onClick={(e) => {
                             e.stopPropagation();
                             onOpenPicker(shift.id);
