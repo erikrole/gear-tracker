@@ -299,7 +299,12 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
       enableSorting: true,
       cell: ({ row }) => {
         const item = row.original;
-        const subtitle = item.name || [item.brand, item.model].filter(Boolean).join(" ");
+        const rawSubtitle = item.name || [item.brand, item.model].filter(Boolean).join(" ");
+        // Hide subtitle when it duplicates the assetTag (case-insensitive, trimmed) — pure noise.
+        const subtitle =
+          rawSubtitle && rawSubtitle.trim().toLowerCase() !== item.assetTag.trim().toLowerCase()
+            ? rawSubtitle
+            : null;
         return (
           <div className="flex items-center gap-3 min-w-0">
             <AssetImage src={item.imageUrl} alt={item.assetTag} size={36} className="shrink-0" />
@@ -368,7 +373,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-8"
+                className="size-8 opacity-0 transition-opacity group-hover/row:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
                 onClick={(e) => e.stopPropagation()}
               >
                 <MoreHorizontal className="size-4" />

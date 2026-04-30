@@ -28,6 +28,8 @@ import { getItemHref } from "./lib/item-href";
 import { AssetImage } from "@/components/AssetImage";
 import { Checkbox } from "@/components/ui/checkbox";
 
+export type Density = "compact" | "comfortable";
+
 interface DataTableProps {
   columns: ColumnDef<Asset>[];
   data: Asset[];
@@ -38,6 +40,7 @@ interface DataTableProps {
   sorting: SortingState;
   onSortingChange: (sorting: SortingState) => void;
   refreshing?: boolean;
+  density?: Density;
   toolbar?: ReactNode;
   bulkBar?: ReactNode;
 }
@@ -52,9 +55,14 @@ export function DataTable({
   sorting,
   onSortingChange,
   refreshing = false,
+  density = "comfortable",
   toolbar,
   bulkBar,
 }: DataTableProps) {
+  const densityClass =
+    density === "compact"
+      ? "[&_td]:py-1 [&_td]:px-3 [&_th]:h-8 [&_th]:px-3"
+      : "";
   const router = useRouter();
 
   const table = useReactTable({
@@ -85,7 +93,7 @@ export function DataTable({
         </div>
       )}
 
-      <div className="relative rounded-md border" role="region" aria-busy={refreshing}>
+      <div className={cn("relative rounded-md border", densityClass)} role="region" aria-busy={refreshing}>
         {refreshing && (
           <div className="absolute inset-x-0 top-0 z-30 h-0.5 overflow-hidden rounded-t-md">
             <div className="h-full w-1/3 bg-primary/40 animate-[shimmer_1.5s_ease-in-out_infinite]" />
@@ -168,16 +176,23 @@ export function DataTable({
                   return (
                     <TableHead
                       key={header.id}
-                      className={cn("h-10 select-none", canSort && "cursor-pointer hover:bg-muted/80")}
+                      className={cn(
+                        "h-10 select-none group/th",
+                        canSort && "cursor-pointer hover:bg-muted/80"
+                      )}
                       onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
                     >
                       {header.isPlaceholder ? null : (
                         <div className="flex items-center gap-1">
                           {flexRender(header.column.columnDef.header, header.getContext())}
                           {canSort && (
-                            sorted === "asc" ? <ArrowUp className="size-3.5 text-foreground" /> :
-                            sorted === "desc" ? <ArrowDown className="size-3.5 text-foreground" /> :
-                            <ArrowUpDown className="size-3.5 text-muted-foreground/50" />
+                            sorted === "asc" ? (
+                              <ArrowUp className="size-3.5 text-foreground" />
+                            ) : sorted === "desc" ? (
+                              <ArrowDown className="size-3.5 text-foreground" />
+                            ) : (
+                              <ArrowUpDown className="size-3.5 text-muted-foreground/40 opacity-0 transition-opacity group-hover/th:opacity-100" />
+                            )
                           )}
                         </div>
                       )}
@@ -193,7 +208,7 @@ export function DataTable({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() ? "selected" : undefined}
-                  className="cursor-pointer hover:bg-muted/50 transition-colors focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
+                  className="group/row cursor-pointer hover:bg-muted/50 transition-colors focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
                   tabIndex={0}
                   role="row"
                   aria-label={`View ${row.original.assetTag}`}

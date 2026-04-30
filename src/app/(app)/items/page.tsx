@@ -28,7 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { type Asset, getColumns } from "./columns";
-import { DataTable } from "./data-table";
+import { DataTable, type Density } from "./data-table";
 import { NewItemSheet } from "./new-item-sheet";
 import { GapWizardDialog } from "./gap-wizard-dialog";
 import { useUrlFilters } from "./hooks/use-url-filters";
@@ -40,7 +40,7 @@ import { ItemsToolbar } from "./components/items-toolbar";
 import { ItemsPagination } from "./components/items-pagination";
 import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
 import { STATUS_STYLES } from "@/lib/status-styles";
-import { Download } from "lucide-react";
+import { Download, Rows3, Rows4 } from "lucide-react";
 import { FadeUp } from "@/components/ui/motion";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import { buildBulkRowId, getItemHref } from "./lib/item-href";
@@ -73,13 +73,22 @@ export default function ItemsPage() {
       return saved ? JSON.parse(saved) : {};
     } catch { return {}; }
   });
+  const [density, setDensity] = useState<Density>(() => {
+    try {
+      const saved = localStorage.getItem("items-density");
+      return saved === "compact" ? "compact" : "comfortable";
+    } catch { return "comfortable"; }
+  });
 
-  // Persist column visibility to localStorage
+  // Persist column visibility + density to localStorage
   useEffect(() => {
     try {
       localStorage.setItem("items-column-visibility", JSON.stringify(columnVisibility));
     } catch { /* ignore */ }
   }, [columnVisibility]);
+  useEffect(() => {
+    try { localStorage.setItem("items-density", density); } catch { /* ignore */ }
+  }, [density]);
   const [retireTarget, setRetireTarget] = useState<Asset | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
   const busyRef = useRef(false);
@@ -341,6 +350,16 @@ export default function ItemsPage() {
 
       <PageHeader title="Items">
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            className="hidden sm:flex size-9"
+            onClick={() => setDensity((d) => (d === "compact" ? "comfortable" : "compact"))}
+            aria-label={density === "compact" ? "Switch to comfortable density" : "Switch to compact density"}
+            title={density === "compact" ? "Comfortable density" : "Compact density"}
+          >
+            {density === "compact" ? <Rows3 className="size-4" aria-hidden="true" /> : <Rows4 className="size-4" aria-hidden="true" />}
+          </Button>
           {options.canEdit && (
             <>
               <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting} className="hidden sm:flex" aria-label={exporting ? "Exporting items" : "Export items to CSV"}>
@@ -376,61 +395,47 @@ export default function ItemsPage() {
             </span>
           </div>
 
-          {/* Status breakdown — dot + count + label */}
-          {(query.statusBreakdown.checkedOut > 0 ||
-            query.statusBreakdown.reserved > 0 ||
-            query.statusBreakdown.maintenance > 0 ||
-            query.statusBreakdown.retired > 0) && (
-            <>
-              <div className="hidden sm:block h-5 w-px bg-border/50 shrink-0" aria-hidden="true" />
-              <div className="flex items-center gap-4 flex-wrap">
-                {query.statusBreakdown.checkedOut > 0 && (
-                  <div className="flex items-center gap-1.5">
-                    <span className={`size-1.5 rounded-full shrink-0 ${STATUS_STYLES.blue.dot}`} aria-hidden="true" />
-                    <span className="text-[13px] font-semibold tabular-nums" style={{ fontFamily: "var(--font-heading)" }}>
-                      {query.statusBreakdown.checkedOut}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground/55" style={{ fontFamily: "var(--font-mono)" }}>
-                      out
-                    </span>
-                  </div>
-                )}
-                {query.statusBreakdown.reserved > 0 && (
-                  <div className="flex items-center gap-1.5">
-                    <span className={`size-1.5 rounded-full shrink-0 ${STATUS_STYLES.purple.dot}`} aria-hidden="true" />
-                    <span className="text-[13px] font-semibold tabular-nums" style={{ fontFamily: "var(--font-heading)" }}>
-                      {query.statusBreakdown.reserved}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground/55" style={{ fontFamily: "var(--font-mono)" }}>
-                      reserved
-                    </span>
-                  </div>
-                )}
-                {query.statusBreakdown.maintenance > 0 && (
-                  <div className="flex items-center gap-1.5">
-                    <span className={`size-1.5 rounded-full shrink-0 ${STATUS_STYLES.orange.dot}`} aria-hidden="true" />
-                    <span className="text-[13px] font-semibold tabular-nums" style={{ fontFamily: "var(--font-heading)" }}>
-                      {query.statusBreakdown.maintenance}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground/55" style={{ fontFamily: "var(--font-mono)" }}>
-                      maintenance
-                    </span>
-                  </div>
-                )}
-                {query.statusBreakdown.retired > 0 && (
-                  <div className="flex items-center gap-1.5">
-                    <span className={`size-1.5 rounded-full shrink-0 ${STATUS_STYLES.gray.dot}`} aria-hidden="true" />
-                    <span className="text-[13px] font-semibold tabular-nums" style={{ fontFamily: "var(--font-heading)" }}>
-                      {query.statusBreakdown.retired}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground/55" style={{ fontFamily: "var(--font-mono)" }}>
-                      retired
-                    </span>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
+          {/* Status breakdown — clickable chips, always 5 buckets (zeros greyed) */}
+          <div className="hidden sm:block h-5 w-px bg-border/50 shrink-0" aria-hidden="true" />
+          <div className="flex items-center gap-4 flex-wrap">
+            {(
+              [
+                { value: "AVAILABLE", count: query.statusBreakdown.available, label: "available", dotClass: STATUS_STYLES.green.dot },
+                { value: "CHECKED_OUT", count: query.statusBreakdown.checkedOut, label: "out", dotClass: STATUS_STYLES.blue.dot },
+                { value: "RESERVED", count: query.statusBreakdown.reserved, label: "reserved", dotClass: STATUS_STYLES.purple.dot },
+                { value: "MAINTENANCE", count: query.statusBreakdown.maintenance, label: "maintenance", dotClass: STATUS_STYLES.orange.dot },
+                { value: "RETIRED", count: query.statusBreakdown.retired, label: "retired", dotClass: STATUS_STYLES.gray.dot },
+              ] as const
+            ).map((bucket) => {
+              const isActive = filters.statusFilter.has(bucket.value);
+              const isZero = bucket.count === 0;
+              return (
+                <button
+                  key={bucket.value}
+                  type="button"
+                  onClick={() => {
+                    const next = new Set(filters.statusFilter);
+                    if (next.has(bucket.value)) next.delete(bucket.value);
+                    else next.add(bucket.value);
+                    filters.setStatusFilter(next);
+                    query.setPage(0);
+                  }}
+                  aria-pressed={isActive}
+                  className={`flex items-center gap-1.5 rounded-md px-1.5 py-0.5 -mx-1.5 transition-colors hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring ${
+                    isActive ? "bg-muted" : ""
+                  } ${isZero ? "opacity-40" : ""}`}
+                >
+                  <span className={`size-1.5 rounded-full shrink-0 ${bucket.dotClass}`} aria-hidden="true" />
+                  <span className="text-[13px] font-semibold tabular-nums" style={{ fontFamily: "var(--font-heading)" }}>
+                    {bucket.count}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground/70" style={{ fontFamily: "var(--font-mono)" }}>
+                    {bucket.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -539,6 +544,7 @@ export default function ItemsPage() {
             sorting={filters.sorting}
             onSortingChange={(next) => { filters.setSorting(next); query.setPage(0); }}
             refreshing={query.refreshing}
+            density={density}
             toolbar={
               <ItemsToolbar
                 searchInputRef={searchInputRef}
