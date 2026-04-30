@@ -132,8 +132,8 @@ function AssigneeStatus({
     <div className={`inline-flex items-center gap-1 rounded-full pl-[3px] pr-2 py-[3px] ${STATUS_STYLES[color].badge}`}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="cursor-default [&_span]:size-[18px] [&_span]:text-[9px]">
-            <UserAvatar name={name} avatarUrl={avatarUrl} size="sm" />
+          <span className="cursor-default">
+            <UserAvatar name={name} avatarUrl={avatarUrl} size="sm" className="size-[18px] text-[9px]" />
           </span>
         </TooltipTrigger>
         <TooltipContent>{name}</TooltipContent>
@@ -311,7 +311,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
             : null;
         return (
           <div className="flex items-center gap-3 min-w-0">
-            <AssetImage src={item.imageUrl} alt={item.assetTag} size={36} className="shrink-0" />
+            <AssetImage src={item.imageUrl} alt={item.assetTag} size={36} />
             <div className="flex flex-col min-w-0">
               <div className="flex items-center gap-1.5 min-w-0">
                 <span className="font-semibold truncate" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{item.assetTag}</span>

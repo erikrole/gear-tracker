@@ -10,14 +10,9 @@ type AssetImageProps = {
   alt: string;
   size?: number;
   className?: string;
-  /** Extra classes on the fallback placeholder */
   fallbackClassName?: string;
 };
 
-/**
- * Asset thumbnail with automatic error fallback.
- * Shows a placeholder icon when the image fails to load or src is null.
- */
 export function AssetImage({
   src,
   alt,
@@ -45,15 +40,22 @@ export function AssetImage({
   }
 
   return (
-    <Image
-      src={src}
-      alt={alt}
-      width={size * 2}
-      height={size * 2}
-      className={cn("rounded-md object-cover shrink-0 outline outline-1 outline-black/10 dark:outline-white/10", className)}
+    <div
+      className={cn(
+        "rounded-md shrink-0 overflow-hidden outline outline-1 outline-black/10 dark:outline-white/10",
+        className
+      )}
       style={{ width: size, height: size }}
-      unoptimized={!src.includes(".public.blob.vercel-storage.com")}
-      onError={() => setFailed(true)}
-    />
+    >
+      <Image
+        src={src}
+        alt={alt}
+        width={size * 2}
+        height={size * 2}
+        className="size-full object-cover"
+        unoptimized={!src.includes(".public.blob.vercel-storage.com")}
+        onError={() => setFailed(true)}
+      />
+    </div>
   );
 }
