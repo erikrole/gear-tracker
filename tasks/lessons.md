@@ -184,3 +184,10 @@
 - **Unified `acting` boolean > per-item disabled checks**: `disabled={inlineActionId === c.id}` only blocks the specific button — other mutation buttons stay clickable. Replace with `disabled={acting}` where `acting = inlineActionId !== null || deletingDraftId !== null`. Blocks ALL buttons during ANY mutation.
 - **Cross-mutation guard must span all mutation types on a page**: Dashboard had extend/convert guarded by `inlineActionId` and delete-draft guarded by `deletingDraftId` independently. User could fire both simultaneously. Fix: combine both into a single `acting` boolean.
 - **CSS variables with Tailwind token equivalents should use Tailwind**: `var(--text-sm)` → `text-sm`, `var(--panel)` → `bg-card`, `var(--panel-hover)` → `hover:bg-muted/60`. Preserves dark mode, reduces CSS variable surface area, and aligns with shadcn design system. Exception: intentional brand colors (e.g., `var(--wi-red)` for Wisconsin identity red) should stay as CSS variables.
+
+## Session 2026-04-30 (Platform Parity Assessment)
+
+### Patterns (Doc-Truth Discipline)
+- **Verify audit verdicts against source before re-implementing**: A 2026-04-27 audit had a "NOT READY — 3 P1" verdict header with all three P1 boxes already checked `[x]`. The fixes had landed in code; the verdict header just hadn't been refreshed. Always read the cited file/line locations before scheduling work — the verdict header lies more often than the source does.
+- **A "platform parity" task is half doc-sync**: When the question is "where do we stand," prefer updating change logs and adding an explicit parity table to the AREA doc over writing new code. The next contributor benefits more from documented intent (which surfaces are deliberately web-only) than from a fix that was already shipped.
+- **Audit checkbox state must match verdict header**: When marking audit items `[x]`, also update the audit's MVP-verdict line (or add a dated verification block). Bare checkboxes leave the next reader unsure whether the work shipped or just got triaged.

@@ -1,6 +1,6 @@
 # Audit: Dashboard / HomeView (iOS) — 2026-04-24
 
-**MVP verdict:** READY — all P0 + P1 addressed (2026-04-24, pending Xcode build verification)
+**MVP verdict:** READY — all P0 + P1 addressed (2026-04-24, pending Xcode build verification). Overdue-count consistency verified in source 2026-04-30: `HomeView.swift:105-106` renders `OverdueBanner(totalCount: dash.overdueCount, items: dash.overdueItems)`; banner header reads `totalCount` from the dashboard payload, list rows read from the truncated `items` array, and a `+ N more` footer appears at `:429-433` when `totalCount > items.count`. Stat strip and banner now agree.
 **Ship bar:** student-friendly, fully functional for core flows, zero hiccups in front of a class
 **Audit type:** static source (no build/run/UI tests)
 

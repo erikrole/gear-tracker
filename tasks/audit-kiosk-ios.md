@@ -1,6 +1,6 @@
 # Audit: Kiosk (iOS, canonical) — 2026-04-24
 
-**MVP verdict:** READY — 3 P0, 6 P1 all addressed (2026-04-24, pending Xcode build verification)
+**MVP verdict:** READY — 3 P0, 6 P1 all addressed (2026-04-24, pending Xcode build verification). Cart-persistence verified in source 2026-04-30: `KioskStore.checkoutCarts: [String: [KioskCartItem]]` (line 26) keyed by `userId`, accessed by `KioskCheckoutView` via `store.cart(for:)` / `store.setCart(_:for:)` (lines 20, 195, 210, 234). Inactivity timer at `KioskStore.swift:98-118` shows 4:30 warning then soft-routes to idle without clearing cart — student returns and resumes.
 **Ship bar:** student-friendly, fully functional for core flows, zero hiccups in front of a class
 **Audit type:** static source (no build/run/UI tests)
 **Canonical surface:** iOS `Wisconsin/Kiosk/` (per user decision 2026-04-24). Web `(kiosk)/kiosk/` is dead.

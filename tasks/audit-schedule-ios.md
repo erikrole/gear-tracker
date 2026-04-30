@@ -1,10 +1,17 @@
 # Audit: schedule (iOS) — 2026-04-27 (Pass 2)
 
-**MVP verdict:** NOT READY — 0 P0, 3 P1
+**MVP verdict:** READY (2026-04-30 verification) — all 3 P1s shipped; Xcode build verification still pending
 **Ship bar:** student-friendly, fully functional for core flows, zero hiccups in front of a class
 **Audit type:** static source (no build/run/UI tests)
 
 Scope (Pass 2 additions): `EventDetailSheet` crew section + `AssignStudentSheet` + `AddShiftSheet` + `AppDelegate` push routing. Adds findings not covered in 2026-04-24 pass.
+
+## 2026-04-30 verification
+
+Source-of-truth check confirms all three P1s landed:
+- **`isStale`** — `ScheduleView.swift:48-51` returns `Date.now.timeIntervalSince(t) > scheduleStaleAfter`; `lastLoadedAt` set on success at `:90`. Reload hammer fixed.
+- **`workerTypeLabel`** — `EventDetailSheet.swift:805-815` switch is on `"ST"`/`"FT"` ; `workerTypeColor` checks `== "FT"`. Crew section labels render correctly.
+- **Push routing** — `AppDelegate.swift:51-55` sets `sharedAppState?.pendingPushEventId = eventId`; `ScheduleView.swift:308-322` observes it, opens `EventDetailSheet` for the matching event, and force-loads if events aren't yet hydrated (cold-launch path). End-to-end wiring verified.
 
 ## P0 — blocks MVP (Pass 2)
 

@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Mobile Operations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-25
+- Last Updated: 2026-04-30
 - Status: Active
 - Version: V1
 
@@ -89,10 +89,38 @@ Cheqroom mobile patterns show useful primitives but too much menu depth and too 
 - `AREA_USERS.md`
 - `AREA_EVENTS.md`
 
+## Platform Parity (V1)
+
+Web (Next.js) and iOS (native, `ios/Wisconsin/`) are intentionally NOT 1:1. The split below is a product decision — admin/governance lives on web; student/operator workflows live everywhere; some surfaces are deliberately on only one. A contributor proposing to add a web-only surface to iOS (or vice versa) needs a Decision record, not just an audit follow-up.
+
+| Surface | Web | iOS | Status / Notes |
+|---|---|---|---|
+| Dashboard | ✅ | ✅ | Audited 2026-04-24 (READY). Stat strip + overdue banner now share `dash.overdueCount` / `dash.overdueItems`. |
+| Bookings (Reservations + Checkouts) | ✅ | ✅ | Audited 2026-04-24 (READY). GAP-34 (status filter/sort) + GAP-35 (conflict badges) deferred. |
+| Items | ✅ | ✅ | Audited 2026-04-24 (READY). GAP-36 (admin actions: Duplicate / Retire / Delete / Needs Maintenance) deferred to staff-mobile parity. |
+| Scan | ✅ (booking detail + import) | ✅ (dedicated tab) | Both surfaces canonical for their context. |
+| Schedule | ✅ (List + Week + Calendar + staff authoring) | ✅ (List + Calendar + staff authoring) | Audited 2026-04-27 Pass 2 (READY). Week view + My Hours + multi-filter bar deferred (P2). |
+| Search | ✅ | ✅ (sheet from Home) | Parity OK. |
+| Events | ✅ (standalone list + detail) | ✅ (via Schedule + `EventDetailSheet`) | Standalone iOS Events tab deferred — Schedule is the canonical entry. |
+| Notifications | ✅ (list + detail) | ✅ (sheet) + OS push | Parity OK. iOS list view via `NotificationsSheet` (HomeView toolbar). |
+| Profile | ✅ | ✅ (sheet) | Parity OK. iOS profile shows account info + Sign Out + "Manage account on web". |
+| Kiosk | 🚫 deleted (2026-04-24) | ✅ canonical | iOS `Wisconsin/Kiosk/` is the only surface. Web `(kiosk)/kiosk/` removed. |
+| Users (roster + role mgmt) | ✅ admin CRUD | ✅ sport-roster assignment via `AssignStudentSheet` | Web is full admin surface; iOS exposes the operator-frequent paths only. |
+| Kits | ✅ admin CRUD | ⛔ web-only by design | Admin surface; not a student daily path. |
+| Reports | ✅ admin dashboards | ⛔ web-only by design | Analytics surface, deferred per NORTH_STAR Phase C posture. |
+| Importer (CSV) | ✅ | ⛔ web-only by design | Bulk upload UX is poor on mobile. |
+| Labels | ✅ admin CRUD | ⛔ web-only by design | Admin surface; iOS item detail links to print via web. |
+| Licenses | ✅ student + staff | ⛔ push-nag only | Per `tasks/audit-licenses-ios.md`: V1 students get OS push when nagged; full list view deferred. |
+| Guides | ✅ help docs | ⛔ web-only by design | Not on the V1 student bar. |
+| Settings (Categories / Locations / Sports / Calendar Sources / Escalation / Allowed Emails / Venue Mappings / Database / Kiosk Devices) | ✅ admin | ⛔ web-only by design | All admin governance, accessed from iOS Profile via "Manage account on web". |
+
+**Out-of-band:** macOS `gear-tracker-mac/` is a stub for a desktop wrapper and not part of the V1 platform contract.
+
 ## Out of Scope (V1)
-1. Native mobile app build requirements.
+1. Additional native mobile app surfaces beyond the iOS implementation in `ios/Wisconsin/`.
 2. Customizable widget dashboards per user.
 3. Full offline-first booking mutation queue.
+4. Web-only admin surfaces (Reports, Importer, Labels, Settings panels) on iOS — defer to a Decision record before reconsidering.
 
 ## Developer Brief (No Code)
 1. Define a shared mobile interaction contract for row tap, action sheet, and quick actions.
@@ -120,6 +148,7 @@ Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md` (revised 2026-03-
 - **V3 (later)**: Bottom nav badge counts via live `/api/nav-counts` polling, game-day/shift context cards
 
 ## Change Log
+- 2026-04-30: **Platform parity assessment + audit-doc-truth pass** — added "Platform Parity (V1)" table above (intentional web-only vs iOS-on-parity surfaces, per V1 product split). Verified in source that the three Pass 2 schedule audit P1s landed (`isStale` uses `lastLoadedAt`, `workerTypeLabel` switches on `"ST"`/`"FT"`, push routing wired AppDelegate → `pendingPushEventId` → ScheduleView → EventDetailSheet with cold-launch force-load); the kiosk inactivity-cart-persistence and dashboard overdue-count fixes also verified shipped. Audit verdict notes added to `tasks/audit-schedule-ios.md`, `tasks/audit-kiosk-ios.md`, `tasks/audit-dashboard-ios.md`. Doc-only commit; no code changes. Lesson captured in `tasks/lessons.md`: audit verdicts can lag shipped fixes — verify against source before re-implementing.
 - 2026-04-25: **iOS schedule authoring** — closes the role-gated authoring gap on the Schedule surface. STAFF/ADMIN can now (1) assign students to open shift slots from the event's sport roster (or any user via search if the event has no sportCode) via `AssignStudentSheet` — fetched from `/api/sport-configs/[code]/roster`; (2) add new shifts to an event via `AddShiftSheet` (area + worker type + optional time override) — POST `/api/shift-groups/[id]/shifts`; (3) remove an assignment via context-menu on the assigned name with destructive confirm — DELETE `/api/shift-assignments/[id]`. STUDENTs can request open ST slots (premier or otherwise) — confirm dialog explains "Staff will review your request" for premier events — POST `/api/shift-assignments/request`. REQUESTED-state assignments now render a "Pending" pill so staff can see who's waiting for approval. New iOS API client methods: `sportRoster`, `assignShift`, `unassignShift`, `requestShift`, `addShift`. New views: `Schedule/AssignStudentSheet.swift`, `Schedule/AddShiftSheet.swift`. Models: added `RosterEntry` / `RosterUser`. Xcode project regenerated.
 - 2026-04-25: **iOS cross-cutting polish pass** — Profile collapsed from 6th tab to a top-bar avatar on Home (5-tab nav now within HIG); soft push pre-prompt (`PushPrePromptView`) shown after first login instead of cold OS alert (improves opt-in, follows HIG); centralized 401 handling — APIClient posts `.sessionDidExpire`, SessionStore clears `currentUser` so the user is auto-routed to LoginView (per-VM "Session expired" strings dropped from Schedule + EventDetail); unified `BannerView` component replaces the three separate banner styles in RootView / AppTabView; `Haptics` enum + `Date.gearShort/Long/Time/freshnessLabel` extensions + `Color.brandPrimary/brandSurface/brandSurfaceDim` tokens give one source of truth; "Updated Xm ago" subtitle now appears on Bookings / Items / Schedule lists; Sign Out gets a destructive `confirmationDialog`; ProfileView gains `NavigationLink`s on the stat strip + a "Manage account on web" Link to gear.erikrole.com; `appState.refresh()` (full counts) replaces `refreshUnread()` on `scenePhase == .active` so badges stay current regardless of which tab the user opens first; LoginView raw RGB swapped for `Color.brandPrimary/Surface/SurfaceDim`. Files: 13 modified, 5 new (Brand, DateFormats, Haptics, BannerView, PushPrePromptView). Xcode project regenerated. Build verification pending.
 - 2026-04-24: **iOS schedule audit fixes + niceties** — closes 1 P0 + 7 P1 from `tasks/audit-schedule-ios.md`. (1) Refresh failure no longer blanks an already-populated screen — events branch wins, refresh error becomes a non-blocking banner with Retry; (2) `ScheduleViewModel.lastLoadedAt` + `isStale` (5 min) and a `scenePhase == .active` hook make tab/scene re-entry refresh automatically; (3) calendar `displayedMonth` ↔ `selectedDate` now move together via shared `changeMonth(by:)` + `goToToday()`; (4) "My Shifts" empty state shows a `ContentUnavailableView` instead of blanking; (5) PostTradeSheet Cancel disables while posting + discard-changes confirm; (6) trade-board "My Active Posts" swipe routes through a destructive `confirmationDialog` matching the Claim pattern; (7) EventRow shadow uses `Color.primary` + `Color(.separator)` border for dark-mode lift; (8) `MyShiftStatus` enum replaces the string compare in `eligibleShifts`. Niceties: "Today" pill in calendar header when off-month; horizontal swipe to change month; calendar dot legend (My Shift / Home / Away); success toasts after post + claim ("Posted X shift", "You picked up X on Y"); event sheet uses `[.medium, .large]` detents; "Updated Xm ago" subtitle in List mode; trade-board toolbar button now shows `(N)` count pill instead of a tiny corner badge; CALL block hidden in EventRow when call time equals event start. Files: `ios/Wisconsin/Views/ScheduleView.swift`, `Schedule/PostTradeSheet.swift`, `Schedule/TradeBoardSheet.swift`. Build verification pending in Xcode.
