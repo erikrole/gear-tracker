@@ -66,6 +66,7 @@ export function useUrlFilters() {
     brandFilter.size > 0 ||
     departmentFilter.size > 0 ||
     favoritesOnly ||
+    showAccessories ||
     itemType !== "all";
 
   // Sync filters to URL search params
@@ -90,12 +91,14 @@ export function useUrlFilters() {
   }, [debouncedSearch, statusFilter, locationFilter, categoryFilter, brandFilter, departmentFilter, itemType, showAccessories, favoritesOnly, sorting]);
 
   const clearAllFilters = useCallback(() => {
+    setSearch("");
     setStatusFilter(new Set());
     setLocationFilter(new Set());
     setCategoryFilter(new Set());
     setBrandFilter(new Set());
     setDepartmentFilter(new Set());
     setFavoritesOnly(false);
+    setShowAccessories(false);
     setItemType("all");
   }, []);
 

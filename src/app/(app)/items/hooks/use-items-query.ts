@@ -81,11 +81,33 @@ export function useItemsQuery(deps: QueryDeps) {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
 
-  const [page, setPage] = useState(() => {
+  const [page, setPageState] = useState(() => {
     const p = parseInt(searchParams.get("page") ?? "", 10);
     return Number.isFinite(p) && p > 0 ? p : 0;
   });
-  const [limit, setLimit] = useState(25);
+  const [limit, setLimitState] = useState(() => {
+    const l = parseInt(searchParams.get("limit") ?? "", 10);
+    return Number.isFinite(l) && [10, 25, 50, 100].includes(l) ? l : 25;
+  });
+
+  // Sync page + limit into the URL alongside the filter params owned by use-url-filters.
+  const setPage = useCallback((next: number) => {
+    setPageState(next);
+    const params = new URLSearchParams(window.location.search);
+    if (next > 0) params.set("page", String(next));
+    else params.delete("page");
+    const qs = params.toString();
+    window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+  }, []);
+
+  const setLimit = useCallback((next: number) => {
+    setLimitState(next);
+    const params = new URLSearchParams(window.location.search);
+    if (next !== 25) params.set("limit", String(next));
+    else params.delete("limit");
+    const qs = params.toString();
+    window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+  }, []);
 
   const url = buildUrl(page, limit, deps);
   const queryKey = ["items", url];
@@ -136,7 +158,7 @@ export function useItemsQuery(deps: QueryDeps) {
     totalPages,
     loading: isLoading,
     refreshing: isFetching && !isLoading,
-    loadError: isError && isLoading,
+    loadError: isError && !response,
     reload: () => { refetch(); },
   };
 }

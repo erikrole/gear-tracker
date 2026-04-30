@@ -8,7 +8,7 @@ import { createAuditEntries } from "@/lib/audit";
 const bulkSchema = z
   .object({
     ids: z.array(z.string().cuid()).min(1).max(50),
-    action: z.enum(["move_location", "change_category", "retire", "maintenance", "delete", "add_to_kit"]),
+    action: z.enum(["move_location", "change_category", "retire", "unretire", "maintenance", "delete", "add_to_kit"]),
     locationId: z.string().cuid().optional(),
     categoryId: z.string().cuid().nullable().optional(),
     kitId: z.string().cuid().optional(),
@@ -109,6 +109,26 @@ export const POST = withAuth(async (req, { user }) => {
           action: "bulk_retired",
           before: { status: asset.status },
           after: { status: "RETIRED" },
+        }))
+    );
+  } else if (action === "unretire") {
+    const result = await db.asset.updateMany({
+      where: { id: { in: ids }, status: "RETIRED" },
+      data: { status: "AVAILABLE" },
+    });
+    updated = result.count;
+
+    await createAuditEntries(
+      assets
+        .filter((asset) => asset.status === "RETIRED")
+        .map((asset) => ({
+          actorId: user.id,
+          actorRole: user.role,
+          entityType: "asset",
+          entityId: asset.id,
+          action: "bulk_unretired",
+          before: { status: "RETIRED" },
+          after: { status: "AVAILABLE" },
         }))
     );
   } else if (action === "maintenance") {

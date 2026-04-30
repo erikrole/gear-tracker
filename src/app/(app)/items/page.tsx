@@ -43,6 +43,7 @@ import { STATUS_STYLES } from "@/lib/status-styles";
 import { Download } from "lucide-react";
 import { FadeUp } from "@/components/ui/motion";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { buildBulkRowId, getItemHref } from "./lib/item-href";
 
 export default function ItemsPage() {
   const router = useRouter();
@@ -111,7 +112,7 @@ export default function ItemsPage() {
   const mergedData = useMemo(() => {
     const bulkAssets: Asset[] = filters.itemType !== "serialized"
       ? query.bulkItems.map((b: BulkItem) => ({
-          id: `bulk-${b.id}`,
+          id: buildBulkRowId(b.id),
           assetTag: b.name,
           name: null,
           type: b.category,
@@ -197,7 +198,7 @@ export default function ItemsPage() {
     if (busyRef.current) return;
     switch (action) {
       case "open":
-        router.push(asset.id.startsWith("bulk-") ? `/bulk-inventory/${asset.id.slice(5)}` : `/items/${asset.id}`);
+        router.push(getItemHref(asset.id));
         break;
       case "duplicate":
         busyRef.current = true;
@@ -417,16 +418,21 @@ export default function ItemsPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
+                  <TableHead className="border-t w-[40px]"><Skeleton className="size-4" /></TableHead>
+                  <TableHead className="border-t w-[40px]"><Skeleton className="size-4" /></TableHead>
                   <TableHead className="border-t w-[280px]"><Skeleton className="h-4 w-12" /></TableHead>
                   <TableHead className="border-t w-[160px]"><Skeleton className="h-4 w-14" /></TableHead>
                   <TableHead className="border-t w-[120px]"><Skeleton className="h-4 w-16" /></TableHead>
                   <TableHead className="border-t w-[120px]"><Skeleton className="h-4 w-20" /></TableHead>
                   <TableHead className="border-t w-[130px]"><Skeleton className="h-4 w-16" /></TableHead>
+                  <TableHead className="border-t w-[40px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {Array.from({ length: 8 }, (_, r) => (
                   <TableRow key={r}>
+                    <TableCell><Skeleton className="size-4" /></TableCell>
+                    <TableCell><Skeleton className="size-4" /></TableCell>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Skeleton className="size-9 rounded-md shrink-0" />
@@ -440,6 +446,7 @@ export default function ItemsPage() {
                     <TableCell><Skeleton className="h-4" style={{ width: `${50 + (r % 3) * 18}%` }} /></TableCell>
                     <TableCell><Skeleton className="h-4" style={{ width: `${40 + (r % 4) * 15}%` }} /></TableCell>
                     <TableCell><Skeleton className="h-4" style={{ width: `${45 + (r % 3) * 20}%` }} /></TableCell>
+                    <TableCell><Skeleton className="size-4" /></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -478,7 +485,7 @@ export default function ItemsPage() {
             title="No items match your filters"
             description="Try adjusting your search or filters."
             actionLabel="Clear filters"
-            onAction={() => { filters.clearAllFilters(); filters.setSearch(""); }}
+            onAction={() => filters.clearAllFilters()}
           />
         ) : (
           <DataTable

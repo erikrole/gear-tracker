@@ -31,7 +31,6 @@ import {
   Archive,
   Trash2,
   ChevronDown,
-  Download,
   Star,
   StarOff,
 } from "lucide-react";
@@ -48,7 +47,6 @@ export function BulkActionBar({
   userRole,
   onAction,
   onClear,
-  onExportCsv,
 }: {
   count: number;
   locations: Location[];
@@ -58,7 +56,6 @@ export function BulkActionBar({
   userRole: string;
   onAction: (action: string, payload?: Record<string, string | null>) => void;
   onClear: () => void;
-  onExportCsv?: () => void;
 }) {
   const [retireOpen, setRetireOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -171,17 +168,6 @@ export function BulkActionBar({
             </DropdownMenuSub>
           )}
 
-          {/* CSV export */}
-          {onExportCsv && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onExportCsv}>
-                <Download className="mr-2 size-4" />
-                Export CSV
-              </DropdownMenuItem>
-            </>
-          )}
-
           <DropdownMenuSeparator />
 
           {/* Retire */}
@@ -264,7 +250,7 @@ export function BulkActionBar({
           <Spinner className="size-3.5" /> Processing…
         </span>
       )}
-      {error && <span className="text-sm text-destructive">{error}</span>}
+      {error && <span className="sr-only" role="alert">{error}</span>}
     </div>
   );
 }

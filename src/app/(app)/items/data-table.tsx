@@ -23,6 +23,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { Asset } from "./columns";
+import { getItemHref } from "./lib/item-href";
 
 interface DataTableProps {
   columns: ColumnDef<Asset>[];
@@ -83,15 +84,15 @@ export function DataTable({
 
       <div className="relative rounded-md border" role="region" aria-busy={refreshing}>
         {refreshing && (
-          <div className="absolute inset-x-0 top-0 z-20 h-0.5 overflow-hidden rounded-t-md">
+          <div className="absolute inset-x-0 top-0 z-30 h-0.5 overflow-hidden rounded-t-md">
             <div className="h-full w-1/3 bg-primary/40 animate-[shimmer_1.5s_ease-in-out_infinite]" />
           </div>
         )}
 
         <Table>
-          <TableHeader>
+          <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80">
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className="bg-muted/50">
+              <TableRow key={headerGroup.id} className="bg-transparent">
                 {headerGroup.headers.map((header) => {
                   const canSort = header.column.getCanSort();
                   const sorted = header.column.getIsSorted();
@@ -127,8 +128,15 @@ export function DataTable({
                   tabIndex={0}
                   role="row"
                   aria-label={`View ${row.original.assetTag}`}
-                  onClick={() => router.push(row.original.id.startsWith("bulk-") ? `/bulk-inventory/${row.original.id.slice(5)}` : `/items/${row.original.id}`)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); router.push(row.original.id.startsWith("bulk-") ? `/bulk-inventory/${row.original.id.slice(5)}` : `/items/${row.original.id}`); } }}
+                  onClick={(e) => {
+                    const href = getItemHref(row.original.id);
+                    if (e.metaKey || e.ctrlKey || e.button === 1) {
+                      window.open(href, "_blank", "noopener");
+                    } else {
+                      router.push(href);
+                    }
+                  }}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); router.push(getItemHref(row.original.id)); } }}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id} className="overflow-hidden text-ellipsis">
