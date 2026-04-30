@@ -129,10 +129,10 @@ function AssigneeStatus({
   }
 
   return (
-    <div className={`inline-flex items-center gap-1.5 rounded-full pl-0.5 pr-2 py-0.5 ${STATUS_STYLES[color].badge}`}>
+    <div className={`inline-flex items-center gap-1 rounded-full pl-[3px] pr-2 py-[3px] ${STATUS_STYLES[color].badge}`}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="cursor-default">
+          <span className="cursor-default [&_span]:size-[18px] [&_span]:text-[9px]">
             <UserAvatar name={name} avatarUrl={avatarUrl} size="sm" />
           </span>
         </TooltipTrigger>
