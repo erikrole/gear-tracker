@@ -248,12 +248,16 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
       />
     ),
     cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
+      <div
+        className="-m-2 p-2 inline-flex items-center justify-center"
         onClick={(e) => e.stopPropagation()}
-        aria-label="Select row"
-      />
+      >
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      </div>
     ),
     enableSorting: false,
     enableHiding: false,
@@ -329,7 +333,11 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
     {
       header: "Status",
       id: "status",
-      cell: ({ row }) => statusBadge(row.original),
+      cell: ({ row }) => (
+        <div className="flex items-center">
+          {statusBadge(row.original)}
+        </div>
+      ),
       enableSorting: false,
     },
     {

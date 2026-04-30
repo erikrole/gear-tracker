@@ -137,7 +137,11 @@ export function DataTable({
                     }
                   }}
                 >
-                  <div data-no-row-click className="pt-1">
+                  <div
+                    data-no-row-click
+                    className="-m-1 p-1 self-center"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <Checkbox
                       checked={row.getIsSelected()}
                       onCheckedChange={(v) => row.toggleSelected(!!v)}
