@@ -115,6 +115,14 @@ export async function getBookingDetail(bookingId: string) {
       ...bookingInclude,
       creator: { select: { id: true, name: true, email: true, avatarUrl: true } },
       serializedItems: { include: { asset: { include: { location: { select: { id: true, name: true } } } } } },
+      bulkItems: {
+        include: {
+          bulkSku: { select: { id: true, name: true, category: true, unit: true, imageUrl: true, trackByNumber: true } },
+          unitAllocations: {
+            include: { bulkSkuUnit: { select: { unitNumber: true, status: true } } },
+          },
+        },
+      },
       event: { select: { id: true, summary: true, sportCode: true, opponent: true, isHome: true } },
       events: {
         orderBy: { ordinal: "asc" },

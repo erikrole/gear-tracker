@@ -20,7 +20,8 @@ export type BulkItem = {
   plannedQuantity: number;
   checkedOutQuantity: number;
   checkedInQuantity: number;
-  bulkSku: { id: string; name: string; category: string; unit: string; imageUrl?: string | null };
+  bulkSku: { id: string; name: string; category: string; unit: string; imageUrl?: string | null; trackByNumber?: boolean };
+  unitAllocations?: Array<{ bulkSkuUnit: { unitNumber: number; status: string } }>;
 };
 
 export type AuditEntry = {

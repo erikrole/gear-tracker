@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Empty, EmptyDescription } from "@/components/ui/empty";
 import { AssetImage } from "@/components/AssetImage";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CheckCircle2, Search } from "lucide-react";
 import type { BookingDetail, SerializedItem, BulkItem } from "./types";
 
@@ -37,6 +38,7 @@ export default function BookingItems({
 }: Props) {
   const totalItems = (booking.serializedItems?.length ?? 0) + (booking.bulkItems?.length ?? 0);
   const showSearch = totalItems >= 4;
+  const allEmpty = filteredSerializedItems.length === 0 && filteredBulkItems.length === 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -61,109 +63,109 @@ export default function BookingItems({
         )}
       </div>
 
-      {/* Serialized items */}
-      {filteredSerializedItems.length > 0 && (
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-            Serialized Items
-          </div>
-          <Card elevation="flat">
-            <CardContent className="p-0 divide-y divide-border/40">
-              {filteredSerializedItems.map((item) => {
-                const isReturned = item.allocationStatus === "returned";
-                return (
-                  <div
-                    key={item.id}
-                    className={`flex items-center gap-3 px-3 py-2.5 ${isReturned ? "opacity-50" : ""}`}
-                  >
-                    <AssetImage src={item.asset.imageUrl} alt={item.asset.assetTag} size={36} />
-                    <div className="min-w-0 flex-1">
-                      <Link
-                        href={`/items/${item.asset.id}`}
-                        className="text-sm font-semibold text-foreground no-underline hover:text-[var(--wi-red)] transition-colors truncate block"
-                      >
-                        {item.asset.assetTag}
-                      </Link>
-                      <div className="text-xs text-muted-foreground truncate">
-                        {item.asset.brand} {item.asset.model}
-                        {item.asset.serialNumber && ` · ${item.asset.serialNumber}`}
-                      </div>
+      {/* Unified item list */}
+      {!allEmpty && (
+        <Card elevation="flat">
+          <CardContent className="p-0 divide-y divide-border/40">
+            {filteredSerializedItems.map((item) => {
+              const isReturned = item.allocationStatus === "returned";
+              return (
+                <div
+                  key={item.id}
+                  className={`flex items-center gap-3 px-3 py-2.5 ${isReturned ? "opacity-50" : ""}`}
+                >
+                  <AssetImage src={item.asset.imageUrl} alt={item.asset.assetTag} size={36} />
+                  <div className="min-w-0 flex-1">
+                    <Link
+                      href={`/items/${item.asset.id}`}
+                      className="text-sm font-semibold text-foreground no-underline hover:text-[var(--wi-red)] transition-colors truncate block"
+                    >
+                      {item.asset.assetTag}
+                    </Link>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {item.asset.brand} {item.asset.model}
+                      {item.asset.serialNumber && ` · ${item.asset.serialNumber}`}
                     </div>
-                    {canCheckin && (
-                      <div className="shrink-0">
-                        {isReturned ? (
-                          <CheckCircle2 className="size-4 text-green-600" />
-                        ) : (
-                          <Button
-                            variant="outline"
-                            size="xs"
-                            disabled={checkinLoading}
-                            onClick={(e) => { e.stopPropagation(); onCheckinItem(item.asset.id); }}
-                          >
-                            Mark returned
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                    {!canCheckin && isReturned && (
-                      <CheckCircle2 className="size-4 text-green-600 shrink-0" />
-                    )}
                   </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Bulk items */}
-      {filteredBulkItems.length > 0 && (
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-            Bulk Items
-          </div>
-          <Card elevation="flat">
-            <CardContent className="p-0 divide-y divide-border/40">
-              {filteredBulkItems.map((item) => {
-                const scannedOut = item.checkedOutQuantity;
-                const scannedIn = item.checkedInQuantity;
-                const isCompleted = booking.status === "COMPLETED";
-                const isOpen = booking.status === "OPEN";
-                const allOut = scannedOut >= item.plannedQuantity;
-                const allIn = scannedIn >= scannedOut && scannedOut > 0;
-
-                return (
-                  <div key={item.id} className="flex items-center gap-3 px-3 py-2.5">
-                    <AssetImage src={item.bulkSku.imageUrl} alt={item.bulkSku.name} size={36} />
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-semibold truncate">{item.bulkSku.name}</div>
-                      <div className="text-xs text-muted-foreground">{item.bulkSku.category}</div>
+                  {canCheckin && (
+                    <div className="shrink-0">
+                      {isReturned ? (
+                        <CheckCircle2 className="size-4 text-green-600" />
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          disabled={checkinLoading}
+                          onClick={(e) => { e.stopPropagation(); onCheckinItem(item.asset.id); }}
+                        >
+                          Mark returned
+                        </Button>
+                      )}
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <Badge variant="secondary" size="sm">
-                        {item.plannedQuantity} {item.bulkSku.unit}
+                  )}
+                  {!canCheckin && isReturned && (
+                    <CheckCircle2 className="size-4 text-green-600 shrink-0" />
+                  )}
+                </div>
+              );
+            })}
+
+            {filteredBulkItems.map((item) => {
+              const scannedOut = item.checkedOutQuantity;
+              const scannedIn = item.checkedInQuantity;
+              const isCompleted = booking.status === "COMPLETED";
+              const isOpen = booking.status === "OPEN";
+              const allOut = scannedOut >= item.plannedQuantity;
+              const allIn = scannedIn >= scannedOut && scannedOut > 0;
+
+              const assignedUnits = item.unitAllocations
+                ?.map((a) => a.bulkSkuUnit.unitNumber)
+                .sort((a, b) => a - b) ?? [];
+              const showUnitTooltip = item.bulkSku.trackByNumber && assignedUnits.length > 0;
+
+              const qtyBadge = (
+                <Badge variant="secondary" size="sm">
+                  {item.plannedQuantity} {item.bulkSku.unit}
+                </Badge>
+              );
+
+              return (
+                <div key={item.id} className="flex items-center gap-3 px-3 py-2.5">
+                  <AssetImage src={item.bulkSku.imageUrl} alt={item.bulkSku.name} size={36} />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold truncate">{item.bulkSku.name}</div>
+                    <div className="text-xs text-muted-foreground">{item.bulkSku.category}</div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {showUnitTooltip ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>{qtyBadge}</TooltipTrigger>
+                        <TooltipContent side="top" className="text-xs">
+                          {assignedUnits.map((n) => `#${n}`).join(" · ")}
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      qtyBadge
+                    )}
+                    {isOpen && booking.kind === "CHECKOUT" && scannedOut > 0 && (
+                      <Badge variant={allOut ? "green" : "orange"} size="sm">
+                        {scannedOut}/{item.plannedQuantity} out
                       </Badge>
-                      {isOpen && booking.kind === "CHECKOUT" && scannedOut > 0 && (
-                        <Badge variant={allOut ? "green" : "orange"} size="sm">
-                          {scannedOut}/{item.plannedQuantity} out
-                        </Badge>
-                      )}
-                      {isCompleted && scannedOut > 0 && (
-                        <Badge variant={allIn ? "green" : "orange"} size="sm">
-                          {scannedIn}/{scannedOut} in
-                        </Badge>
-                      )}
-                    </div>
+                    )}
+                    {isCompleted && scannedOut > 0 && (
+                      <Badge variant={allIn ? "green" : "orange"} size="sm">
+                        {scannedIn}/{scannedOut} in
+                      </Badge>
+                    )}
                   </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
       )}
 
-      {/* Empty state */}
-      {filteredSerializedItems.length === 0 && filteredBulkItems.length === 0 && (
+      {allEmpty && (
         <Empty className="py-10 border-0">
           <EmptyDescription>
             {equipSearch ? "No items match your search" : "No equipment in this booking"}
