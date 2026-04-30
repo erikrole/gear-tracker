@@ -108,6 +108,43 @@ export default function ItemsPage() {
     () => { setRowSelection({}); query.reload(); }
   );
 
+  const [selectingAll, setSelectingAll] = useState(false);
+  const handleSelectAllMatching = useCallback(async () => {
+    setSelectingAll(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("ids_only", "true");
+      if (filters.debouncedSearch) params.set("q", filters.debouncedSearch);
+      filters.statusKey.split(",").filter(Boolean).forEach((v) => params.append("status", v));
+      filters.locationKey.split(",").filter(Boolean).forEach((v) => params.append("location_id", v));
+      filters.categoryKey.split(",").filter(Boolean).forEach((v) => params.append("category_id", v));
+      filters.brandKey.split(",").filter(Boolean).forEach((v) => params.append("brand", v));
+      filters.departmentKey.split(",").filter(Boolean).forEach((v) => params.append("department_id", v));
+      if (filters.showAccessories) params.set("show_accessories", "true");
+      if (filters.favoritesOnly) params.set("favorites_only", "true");
+      const res = await fetch(`/api/assets?${params}`);
+      if (handleAuthRedirect(res)) return;
+      if (!res.ok) {
+        toast.error("Failed to expand selection");
+        return;
+      }
+      const json = await res.json();
+      const ids: string[] = json.ids ?? [];
+      const next: RowSelectionState = {};
+      for (const id of ids) next[id] = true;
+      setRowSelection(next);
+      if (json.truncated) {
+        toast.warning(`Selection capped at 5,000 items (use bulk actions in batches).`);
+      } else {
+        toast.success(`Selected ${ids.length} items`);
+      }
+    } catch {
+      toast.error("Network error — could not expand selection");
+    } finally {
+      setSelectingAll(false);
+    }
+  }, [filters]);
+
   // Merge bulk items into the main table as Asset-shaped rows
   const mergedData = useMemo(() => {
     const bulkAssets: Asset[] = filters.itemType !== "serialized"
@@ -533,11 +570,14 @@ export default function ItemsPage() {
                   count={selectedCount}
                   locations={options.locations}
                   categoryOptions={options.categoryOptions}
-                  busy={bulk.busy}
+                  kits={options.kits}
+                  busy={bulk.busy || selectingAll}
                   error={bulk.error}
                   userRole={options.userRole}
                   onAction={bulk.execute}
                   onClear={() => setRowSelection({})}
+                  onSelectAllMatching={handleSelectAllMatching}
+                  selectAllMatchingTotal={query.total}
                 />
               ) : undefined
             }

@@ -28,7 +28,25 @@ export type ActiveBooking = {
   title: string;
   requesterName: string;
   isOverdue?: boolean;
+  endsAt?: string;
 };
+
+function formatDueLabel(endsAt: string | undefined, isOverdue: boolean | undefined): string | null {
+  if (!endsAt) return null;
+  const end = new Date(endsAt);
+  if (Number.isNaN(end.getTime())) return null;
+  const diffMs = end.getTime() - Date.now();
+  const dayMs = 24 * 60 * 60 * 1000;
+  const days = Math.round(diffMs / dayMs);
+  if (isOverdue) {
+    const overdueDays = Math.max(1, Math.abs(days));
+    return overdueDays === 1 ? "1d overdue" : `${overdueDays}d overdue`;
+  }
+  if (days <= 0) return "due today";
+  if (days === 1) return "due 1d";
+  if (days < 14) return `due ${days}d`;
+  return null;
+}
 
 export type Asset = {
   id: string;
@@ -75,11 +93,19 @@ export function statusBadge(asset: Asset) {
       const isOverdue = activeBooking?.isOverdue;
       const label = name || "Checked out";
       const color = isOverdue ? "red" : "blue";
-      const fullStatus = name ? `Checked out by ${name}` : "Checked out";
+      const due = formatDueLabel(activeBooking?.endsAt, isOverdue);
+      const fullStatus = `${name ? `Checked out by ${name}` : "Checked out"}${
+        activeBooking?.endsAt ? ` · due ${new Date(activeBooking.endsAt).toLocaleDateString()}` : ""
+      }`;
       return (
-        <Badge className={`${STATUS_STYLES[color].badge} max-w-[160px]`} title={fullStatus}>
+        <Badge className={`${STATUS_STYLES[color].badge} max-w-[200px]`} title={fullStatus}>
           <StatusDot color={color} />
           <span className="truncate">{label}</span>
+          {due && (
+            <span className="ml-1 shrink-0 text-[10px] font-normal opacity-80 tabular-nums">
+              · {due}
+            </span>
+          )}
         </Badge>
       );
     }

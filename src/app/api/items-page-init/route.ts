@@ -8,7 +8,7 @@ import { cachedOk } from "@/lib/http";
  * in a single round-trip instead of 4 separate fetches.
  */
 export const GET = withAuth(async (_req, { user }) => {
-  const [locations, departments, categories, brandRows] = await Promise.all([
+  const [locations, departments, categories, brandRows, kits] = await Promise.all([
     db.location.findMany({
       where: { active: true },
       orderBy: { name: "asc" },
@@ -28,6 +28,10 @@ export const GET = withAuth(async (_req, { user }) => {
       where: { brand: { not: "" } },
       orderBy: { brand: "asc" },
     }),
+    db.kit.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
   ]);
 
   return cachedOk({
@@ -37,6 +41,7 @@ export const GET = withAuth(async (_req, { user }) => {
       departments,
       categories,
       brands: brandRows.map((r) => r.brand),
+      kits,
     },
   });
 });

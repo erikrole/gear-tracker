@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -42,35 +42,29 @@ export function BulkActionBar({
   count,
   locations,
   categoryOptions,
+  kits = [],
   busy,
   error,
   userRole,
   onAction,
   onClear,
+  onSelectAllMatching,
+  selectAllMatchingTotal,
 }: {
   count: number;
   locations: Location[];
   categoryOptions: { value: string; label: string }[];
+  kits?: Kit[];
   busy: boolean;
   error: string;
   userRole: string;
   onAction: (action: string, payload?: Record<string, string | null>) => void;
   onClear: () => void;
+  onSelectAllMatching?: () => void;
+  selectAllMatchingTotal?: number;
 }) {
   const [retireOpen, setRetireOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [kits, setKits] = useState<Kit[]>([]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch("/api/kits", { signal: controller.signal })
-      .then((r) => r.json())
-      .then((json) => {
-        if (json?.data) setKits(json.data);
-      })
-      .catch(() => {});
-    return () => controller.abort();
-  }, []);
 
   const canDelete = userRole === "ADMIN";
 
@@ -80,6 +74,11 @@ export function BulkActionBar({
       <Button variant="ghost" size="sm" onClick={onClear} disabled={busy}>
         Clear
       </Button>
+      {onSelectAllMatching && selectAllMatchingTotal !== undefined && selectAllMatchingTotal > count && (
+        <Button variant="link" size="sm" onClick={onSelectAllMatching} disabled={busy} className="h-auto px-1">
+          Select all {selectAllMatchingTotal} matching
+        </Button>
+      )}
       <div className="flex-1" />
 
       {/* Favorites — available to all roles */}

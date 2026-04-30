@@ -23,7 +23,10 @@ import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { Asset } from "./columns";
+import { statusBadge } from "./columns";
 import { getItemHref } from "./lib/item-href";
+import { AssetImage } from "@/components/AssetImage";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface DataTableProps {
   columns: ColumnDef<Asset>[];
@@ -89,7 +92,73 @@ export function DataTable({
           </div>
         )}
 
-        <Table>
+        {/* Mobile card layout */}
+        <div className="sm:hidden divide-y">
+          {table.getRowModel().rows.length === 0 ? (
+            <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+              No items match your filters.
+            </div>
+          ) : (
+            table.getRowModel().rows.map((row) => {
+              const item = row.original;
+              const subtitle = item.name || [item.brand, item.model].filter(Boolean).join(" ");
+              const meta = [item.location?.name, item.category?.name || item.type]
+                .filter(Boolean)
+                .join(" · ");
+              const href = getItemHref(item.id);
+              return (
+                <div
+                  key={row.id}
+                  data-state={row.getIsSelected() ? "selected" : undefined}
+                  className="flex items-start gap-3 px-3 py-3 active:bg-muted/50 data-[state=selected]:bg-muted/40"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`View ${item.assetTag}`}
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest("[data-no-row-click]")) return;
+                    if (e.metaKey || e.ctrlKey || e.button === 1) {
+                      window.open(href, "_blank", "noopener");
+                    } else {
+                      router.push(href);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      router.push(href);
+                    }
+                  }}
+                >
+                  <div data-no-row-click className="pt-1">
+                    <Checkbox
+                      checked={row.getIsSelected()}
+                      onCheckedChange={(v) => row.toggleSelected(!!v)}
+                      aria-label={`Select ${item.assetTag}`}
+                    />
+                  </div>
+                  <AssetImage src={item.imageUrl} alt={item.assetTag} size={44} className="shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold truncate" style={{ fontFamily: "var(--font-heading)" }}>
+                      {item.assetTag}
+                    </div>
+                    {subtitle && (
+                      <div className="text-xs text-muted-foreground truncate">{subtitle}</div>
+                    )}
+                    <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                      {statusBadge(item)}
+                      {meta && (
+                        <span className="text-[11px] text-muted-foreground/80 truncate">{meta}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Desktop table */}
+        <Table className="hidden sm:table">
           <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="bg-transparent">

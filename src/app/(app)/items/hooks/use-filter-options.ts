@@ -5,12 +5,14 @@ import type { CategoryOption } from "@/types/category";
 
 type Location = { id: string; name: string };
 type Department = { id: string; name: string };
+type Kit = { id: string; name: string };
 
 export function useFilterOptions() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
+  const [kits, setKits] = useState<Kit[]>([]);
   const [userRole, setUserRole] = useState<string>("");
 
   useEffect(() => {
@@ -24,6 +26,7 @@ export function useFilterOptions() {
           if (d.departments) setDepartments(d.departments);
           if (d.categories) setCategories(d.categories);
           if (d.brands) setBrands(d.brands);
+          if (d.kits) setKits(d.kits);
         }
       })
       .catch(() => {});
@@ -48,6 +51,7 @@ export function useFilterOptions() {
     departments,
     categories,
     brands,
+    kits,
     userRole,
     canEdit,
     categoryOptions,

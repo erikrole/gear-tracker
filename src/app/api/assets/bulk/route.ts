@@ -7,7 +7,7 @@ import { createAuditEntries } from "@/lib/audit";
 
 const bulkSchema = z
   .object({
-    ids: z.array(z.string().cuid()).min(1).max(50),
+    ids: z.array(z.string().cuid()).min(1).max(5000),
     action: z.enum(["move_location", "change_category", "retire", "unretire", "maintenance", "delete", "add_to_kit"]),
     locationId: z.string().cuid().optional(),
     categoryId: z.string().cuid().nullable().optional(),

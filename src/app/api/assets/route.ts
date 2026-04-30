@@ -135,6 +135,23 @@ export const GET = withAuth(async (req, { user }) => {
     where = baseWhere;
   }
 
+  // ids-only mode: return matching asset IDs (capped) for "select all matching" flows.
+  // Skips bulk items, favorites, breakdown — just the ids.
+  if (searchParams.get("ids_only") === "true") {
+    const cap = 5000;
+    const rows = await db.asset.findMany({
+      where,
+      orderBy,
+      take: cap + 1,
+      select: { id: true },
+    });
+    const truncated = rows.length > cap;
+    return ok({
+      ids: rows.slice(0, cap).map((r) => r.id),
+      truncated,
+    });
+  }
+
   const { limit, offset } = parsePagination(searchParams);
 
   const [rawData, total] = await Promise.all([
