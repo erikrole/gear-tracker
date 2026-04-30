@@ -61,6 +61,7 @@ Before implementing any feature:
 - Cross-reference `prisma/schema.prisma` for existing models, field names, and cascade rules
 - Check `docs/DECISIONS.md` for prior architectural choices
 - Review `docs/GAPS_AND_RISKS.md` for related pending decisions or known gaps
+- For iOS work (or anything that touches both platforms): verify against `ios/Wisconsin/` source — audit doc verdicts and AREA changelogs lag shipped fixes; the file/line citations in audits are the source of truth
 - Skipping this causes missed field requirements, schema mismatches, and rework
 
 ### 8. Vercel Deployment Constraints

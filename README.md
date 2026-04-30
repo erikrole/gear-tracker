@@ -8,7 +8,7 @@
 
 **Reservations & checkouts** — One unified booking model (`DRAFT → BOOKED → OPEN → COMPLETED`). Staff can create ad-hoc or event-linked checkouts, clone repeat bookings, and extend active ones with overlap detection. Conflict badges surface item-level contention before it becomes a problem.
 
-**Scan enforcement** — Check-out and check-in require a QR scan. A mobile-first scan interface handles all three modes (item lookup, checkout, check-in) with multi-device sync, numbered bulk unit selection, and optimistic UI with server confirmation.
+**Scan enforcement** — Check-out and check-in require a QR scan. The web scan interface and the native iOS app share one backend; both handle all three modes (item lookup, checkout, check-in) with multi-device sync, numbered bulk unit selection, and optimistic UI with server confirmation.
 
 **Shift scheduling** — Shifts auto-generate from ICS calendar events. Staff get assigned per sport and area. Students can request premier-event shifts and trade via an area-filtered trade board. A month-grid calendar shows coverage health at a glance (green / orange / red).
 
@@ -20,9 +20,15 @@
 
 **Admin settings** — Hierarchical category management, sport configuration with per-area shift counts, escalation rule editing, and on-demand database health diagnostics.
 
+## Apps
+
+- **Web** — Next.js (App Router, TypeScript) at the repo root. Primary surface for staff and admins; mobile-friendly for students.
+- **iOS** — Native SwiftUI app at `ios/Wisconsin/`. Student/operator surface plus the canonical kiosk implementation (the web kiosk route was deprecated 2026-04-24). See `ios/README.md` for setup.
+
 ## Stack
 
 - **Next.js** (App Router, TypeScript)
+- **SwiftUI** (iOS 17+)
 - **PostgreSQL** (Neon serverless) via Prisma ORM + `@prisma/adapter-neon`
 - **Vercel** — Node.js serverless functions, Blob storage, Cron Jobs
 - **shadcn/ui** + Tailwind CSS
