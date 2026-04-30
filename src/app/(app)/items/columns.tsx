@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { STATUS_STYLES, statusColor, type StatusColor } from "@/lib/status-styles";
 import { UserAvatar } from "@/components/UserAvatar";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export type ActiveBooking = {
   id: string;
@@ -79,47 +80,75 @@ function StatusDot({ color }: { color: StatusColor }) {
   );
 }
 
+function formatDueAt(endsAt: string | undefined): string | null {
+  if (!endsAt) return null;
+  const d = new Date(endsAt);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 function AssigneeStatus({
   color,
   label,
   name,
   avatarUrl,
   subText,
-  fullStatus,
+  endsAt,
 }: {
   color: StatusColor;
   label: string;
   name?: string;
   avatarUrl?: string | null;
   subText?: string | null;
-  fullStatus: string;
+  endsAt?: string;
 }) {
+  const dueAt = formatDueAt(endsAt);
+  const labelTooltip = dueAt ? `Due ${dueAt}` : label;
+
   if (!name) {
     return (
-      <Badge className={STATUS_STYLES[color].badge} title={fullStatus}>
-        <StatusDot color={color} />
-        {label}
-        {subText && (
-          <span className="ml-1 text-[10px] font-normal opacity-80 tabular-nums">· {subText}</span>
-        )}
-      </Badge>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge className={STATUS_STYLES[color].badge}>
+            <StatusDot color={color} />
+            {label}
+            {subText && (
+              <span className="ml-1 text-[10px] font-normal opacity-80 tabular-nums">· {subText}</span>
+            )}
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent>{labelTooltip}</TooltipContent>
+      </Tooltip>
     );
   }
+
   return (
-    <div
-      className={`inline-flex items-center gap-1.5 rounded-full pl-0.5 pr-2 py-0.5 max-w-[220px] ${STATUS_STYLES[color].badge}`}
-      title={fullStatus}
-    >
-      <UserAvatar name={name} avatarUrl={avatarUrl} size="sm" />
-      <div className="flex min-w-0 flex-col leading-tight">
-        <span className="text-[11px] font-semibold uppercase tracking-wide truncate">
-          {label}
-          {subText && (
-            <span className="ml-1 font-normal opacity-80 tabular-nums normal-case">· {subText}</span>
-          )}
-        </span>
-        <span className="text-[11px] font-normal opacity-80 truncate">{name}</span>
-      </div>
+    <div className={`inline-flex items-center gap-1.5 rounded-full pl-0.5 pr-2 py-0.5 ${STATUS_STYLES[color].badge}`}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="cursor-default">
+            <UserAvatar name={name} avatarUrl={avatarUrl} size="sm" />
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>{name}</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="text-[11px] font-semibold uppercase tracking-wide cursor-default">
+            {label}
+            {subText && (
+              <span className="ml-1 font-normal opacity-80 tabular-nums normal-case">· {subText}</span>
+            )}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>{labelTooltip}</TooltipContent>
+      </Tooltip>
     </div>
   );
 }
@@ -146,9 +175,7 @@ export function statusBadge(asset: Asset) {
           name={activeBooking?.requesterName}
           avatarUrl={activeBooking?.requesterAvatarUrl}
           subText={due}
-          fullStatus={`${activeBooking?.requesterName ? `Checked out by ${activeBooking.requesterName}` : "Checked out"}${
-            activeBooking?.endsAt ? ` · due ${new Date(activeBooking.endsAt).toLocaleDateString()}` : ""
-          }`}
+          endsAt={activeBooking?.endsAt}
         />
       );
     }
@@ -159,7 +186,7 @@ export function statusBadge(asset: Asset) {
           label="Reserved"
           name={activeBooking?.requesterName}
           avatarUrl={activeBooking?.requesterAvatarUrl}
-          fullStatus={activeBooking?.requesterName ? `Reserved by ${activeBooking.requesterName}` : "Reserved"}
+          endsAt={activeBooking?.endsAt}
         />
       );
     }
