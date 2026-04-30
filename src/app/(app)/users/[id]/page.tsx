@@ -108,7 +108,7 @@ export default function UserDetailPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("/api/profile/avatar", { method: "POST", body: formData });
+      const res = await fetch(`/api/users/${id}/avatar`, { method: "POST", body: formData });
       if (handleAuthRedirect(res)) return;
       const json = await res.json();
       if (!res.ok) {
@@ -129,7 +129,7 @@ export default function UserDetailPage() {
     setUserOverrides((prev) => ({ ...prev, avatarUrl: null }));
     setUploadingAvatar(true);
     try {
-      const res = await fetch("/api/profile/avatar", { method: "DELETE" });
+      const res = await fetch(`/api/users/${id}/avatar`, { method: "DELETE" });
       if (handleAuthRedirect(res)) return;
       const json = await res.json();
       if (!res.ok) {
