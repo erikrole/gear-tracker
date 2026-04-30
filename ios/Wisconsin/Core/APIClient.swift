@@ -312,7 +312,7 @@ final class APIClient {
     func assets(
         search: String? = nil,
         qr: String? = nil,
-        status: AssetComputedStatus? = nil,
+        statuses: Set<AssetComputedStatus> = [],
         categoryId: String? = nil,
         favoritesOnly: Bool = false,
         limit: Int = 30,
@@ -325,7 +325,9 @@ final class APIClient {
         ]
         if let search, !search.isEmpty { items.append(.init(name: "q", value: search)) }
         if let qr, !qr.isEmpty { items.append(.init(name: "qr", value: qr)) }
-        if let status { items.append(.init(name: "status", value: status.rawValue)) }
+        for status in statuses {
+            items.append(.init(name: "status", value: status.rawValue))
+        }
         if let categoryId { items.append(.init(name: "category_id", value: categoryId)) }
         if favoritesOnly { items.append(.init(name: "favorites_only", value: "true")) }
         components.queryItems = items

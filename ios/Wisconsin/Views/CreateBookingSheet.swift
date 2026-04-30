@@ -120,7 +120,7 @@ final class CreateBookingViewModel {
         do {
             let resp = try await APIClient.shared.assets(
                 search: assetSearch.isEmpty ? nil : assetSearch,
-                status: .available,
+                statuses: [.available],
                 limit: 30,
                 offset: assetOffset
             )

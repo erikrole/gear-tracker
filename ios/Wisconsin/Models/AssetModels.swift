@@ -78,6 +78,19 @@ struct Asset: Codable, Identifiable, Hashable {
 
     static func == (lhs: Asset, rhs: Asset) -> Bool { lhs.id == rhs.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
+
+    /// Returns a copy with `isFavorited` overridden. Asset is immutable; this is the
+    /// single source of truth for partial mutation (used by optimistic favorite toggle).
+    func withFavorited(_ value: Bool) -> Asset {
+        Asset(
+            id: id, assetTag: assetTag, name: name, brand: brand, model: model,
+            serialNumber: serialNumber, imageUrl: imageUrl, computedStatus: computedStatus,
+            location: location, category: category, department: department,
+            activeBooking: activeBooking, purchaseDate: purchaseDate,
+            purchasePrice: purchasePrice, residualValue: residualValue,
+            isFavorited: value
+        )
+    }
 }
 
 struct AssetsResponse: Codable {

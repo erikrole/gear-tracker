@@ -14,7 +14,7 @@ final class ItemsViewModel {
     var error: String?
     var pageError: String?
     var searchText = ""
-    var selectedStatus: AssetComputedStatus?
+    var selectedStatuses: Set<AssetComputedStatus> = []
     var favoritesOnly = false
     var hasMore = true
 
@@ -46,7 +46,7 @@ final class ItemsViewModel {
         do {
             let result = try await APIClient.shared.assets(
                 search: searchText.isEmpty ? nil : searchText,
-                status: selectedStatus,
+                statuses: selectedStatuses,
                 favoritesOnly: favoritesOnly,
                 limit: limit,
                 offset: offset
@@ -56,7 +56,7 @@ final class ItemsViewModel {
             offset += result.data.count
             hasMore = offset < result.total
             pageError = nil
-            if reset && offset == result.data.count && searchText.isEmpty && selectedStatus == nil && !favoritesOnly {
+            if reset && offset == result.data.count && searchText.isEmpty && selectedStatuses.isEmpty && !favoritesOnly {
                 GearStore.shared.seedAssets(result.data)
             }
         } catch is CancellationError {
@@ -88,50 +88,21 @@ final class ItemsViewModel {
     }
 
     func toggleFavorite(_ asset: Asset) async {
-        // Optimistic update
-        assets = assets.map { a in
-            guard a.id == asset.id else { return a }
-            return Asset(
-                id: a.id, assetTag: a.assetTag, name: a.name, brand: a.brand, model: a.model,
-                serialNumber: a.serialNumber, imageUrl: a.imageUrl, computedStatus: a.computedStatus,
-                location: a.location, category: a.category, department: a.department,
-                activeBooking: a.activeBooking, purchaseDate: a.purchaseDate,
-                purchasePrice: a.purchasePrice, residualValue: a.residualValue,
-                isFavorited: !a.isFavorited
-            )
-        }
+        let optimistic = !asset.isFavorited
+        applyFavorite(assetId: asset.id, value: optimistic)
         do {
             let newState = try await APIClient.shared.toggleFavorite(assetId: asset.id)
-            // Reconcile with server truth in case of race
-            assets = assets.map { a in
-                guard a.id == asset.id else { return a }
-                return Asset(
-                    id: a.id, assetTag: a.assetTag, name: a.name, brand: a.brand, model: a.model,
-                    serialNumber: a.serialNumber, imageUrl: a.imageUrl, computedStatus: a.computedStatus,
-                    location: a.location, category: a.category, department: a.department,
-                    activeBooking: a.activeBooking, purchaseDate: a.purchaseDate,
-                    purchasePrice: a.purchasePrice, residualValue: a.residualValue,
-                    isFavorited: newState
-                )
-            }
-            // If filtering by favorites, remove items that were just unfavorited
+            applyFavorite(assetId: asset.id, value: newState)
             if favoritesOnly && !newState {
                 assets.removeAll { $0.id == asset.id }
             }
         } catch {
-            // Revert on failure
-            assets = assets.map { a in
-                guard a.id == asset.id else { return a }
-                return Asset(
-                    id: a.id, assetTag: a.assetTag, name: a.name, brand: a.brand, model: a.model,
-                    serialNumber: a.serialNumber, imageUrl: a.imageUrl, computedStatus: a.computedStatus,
-                    location: a.location, category: a.category, department: a.department,
-                    activeBooking: a.activeBooking, purchaseDate: a.purchaseDate,
-                    purchasePrice: a.purchasePrice, residualValue: a.residualValue,
-                    isFavorited: asset.isFavorited
-                )
-            }
+            applyFavorite(assetId: asset.id, value: asset.isFavorited)
         }
+    }
+
+    private func applyFavorite(assetId: String, value: Bool) {
+        assets = assets.map { $0.id == assetId ? $0.withFavorited(value) : $0 }
     }
 }
 
@@ -236,7 +207,7 @@ struct ItemsView: View {
                         .accessibilityLabel(vm.favoritesOnly ? "Showing favorites" : "Show favorites")
                         .sensoryFeedback(.selection, trigger: vm.favoritesOnly)
 
-                        AssetStatusFilterMenu(selected: $vm.selectedStatus) {
+                        AssetStatusFilterMenu(selected: $vm.selectedStatuses) {
                             Task { await vm.load(reset: true) }
                         }
                     }
@@ -304,13 +275,16 @@ private struct AssetListBadge: View {
     let asset: Asset
 
     private var badgeColor: Color {
+        if asset.computedStatus == .checkedOut, asset.activeBooking?.isOverdue == true {
+            return .red
+        }
         switch asset.computedStatus {
-        case .available: .green
-        case .checkedOut: .blue
-        case .reserved: .purple
-        case .maintenance: .orange
-        case .retired: .secondary
-        case .unknown: .gray
+        case .available: return .green
+        case .checkedOut: return .blue
+        case .reserved: return .purple
+        case .maintenance: return .orange
+        case .retired: return .secondary
+        case .unknown: return .gray
         }
     }
 
@@ -322,16 +296,38 @@ private struct AssetListBadge: View {
         return asset.computedStatus.label
     }
 
+    private var dueLabel: String? {
+        guard asset.computedStatus == .checkedOut, let booking = asset.activeBooking else { return nil }
+        let endsAt = booking.endsAt
+        let days = Int((endsAt.timeIntervalSinceNow / 86_400).rounded())
+        if booking.isOverdue {
+            let overdueDays = max(1, abs(days))
+            return overdueDays == 1 ? "1d overdue" : "\(overdueDays)d overdue"
+        }
+        if days <= 0 { return "due today" }
+        if days == 1 { return "due 1d" }
+        if days < 14 { return "due \(days)d" }
+        return nil
+    }
+
     var body: some View {
-        Text(badgeText)
-            .font(.caption2.weight(.semibold))
-            .lineLimit(1)
-            .fixedSize()
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(badgeColor.opacity(0.15), in: Capsule())
-            .foregroundStyle(badgeColor)
-            .frame(maxWidth: 120, alignment: .trailing)
+        VStack(alignment: .trailing, spacing: 2) {
+            Text(badgeText)
+                .font(.caption2.weight(.semibold))
+                .lineLimit(1)
+                .fixedSize()
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(badgeColor.opacity(0.15), in: Capsule())
+                .foregroundStyle(badgeColor)
+            if let dueLabel {
+                Text(dueLabel)
+                    .font(.caption2)
+                    .foregroundStyle(badgeColor.opacity(0.8))
+                    .monospacedDigit()
+            }
+        }
+        .frame(maxWidth: 140, alignment: .trailing)
     }
 }
 
@@ -392,28 +388,44 @@ struct AssetStatusBadge: View {
 }
 
 struct AssetStatusFilterMenu: View {
-    @Binding var selected: AssetComputedStatus?
+    @Binding var selected: Set<AssetComputedStatus>
     let onSelect: () -> Void
 
-    private let statuses: [AssetComputedStatus?] = [nil, .available, .checkedOut, .reserved, .maintenance]
+    private let statuses: [AssetComputedStatus] = [.available, .checkedOut, .reserved, .maintenance]
 
     var body: some View {
         Menu {
+            Button {
+                if !selected.isEmpty {
+                    selected = []
+                    onSelect()
+                }
+            } label: {
+                HStack {
+                    Text("All")
+                    if selected.isEmpty { Image(systemName: "checkmark") }
+                }
+            }
+            Divider()
             ForEach(statuses, id: \.self) { status in
                 Button {
-                    selected = status
+                    if selected.contains(status) {
+                        selected.remove(status)
+                    } else {
+                        selected.insert(status)
+                    }
                     onSelect()
                 } label: {
                     HStack {
-                        Text(status?.label ?? "All")
-                        if selected == status { Image(systemName: "checkmark") }
+                        Text(status.label)
+                        if selected.contains(status) { Image(systemName: "checkmark") }
                     }
                 }
             }
         } label: {
-            Image(systemName: "line.3.horizontal.decrease.circle\(selected != nil ? ".fill" : "")")
+            Image(systemName: "line.3.horizontal.decrease.circle\(selected.isEmpty ? "" : ".fill")")
                 .frame(minWidth: 44, minHeight: 44)
         }
-        .accessibilityLabel("Filter by status")
+        .accessibilityLabel(selected.isEmpty ? "Filter by status" : "Filtering by \(selected.count) statuses")
     }
 }
