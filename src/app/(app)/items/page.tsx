@@ -168,11 +168,15 @@ export default function ItemsPage() {
         }))
       : [];
 
-    const serializedItems = filters.itemType !== "bulk" ? query.items : [];
-
-    return [...serializedItems, ...bulkAssets].sort((a, b) =>
-      a.assetTag.localeCompare(b.assetTag)
+    // Bulks always grouped together, alphabetical with numeric awareness
+    // ("16-35" before "100-400"). Serialized stays in server-sort order so the
+    // user's chosen sort wins.
+    bulkAssets.sort((a, b) =>
+      a.assetTag.localeCompare(b.assetTag, undefined, { numeric: true, sensitivity: "base" })
     );
+
+    const serializedItems = filters.itemType !== "bulk" ? query.items : [];
+    return [...serializedItems, ...bulkAssets];
   }, [query.items, query.bulkItems, filters.itemType]);
 
   // Optimistic favorite toggle

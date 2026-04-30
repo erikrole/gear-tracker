@@ -21,12 +21,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { STATUS_STYLES, statusColor, type StatusColor } from "@/lib/status-styles";
+import { UserAvatar } from "@/components/UserAvatar";
 
 export type ActiveBooking = {
   id: string;
   kind: string;
   title: string;
   requesterName: string;
+  requesterAvatarUrl?: string | null;
   isOverdue?: boolean;
   endsAt?: string;
 };
@@ -77,6 +79,51 @@ function StatusDot({ color }: { color: StatusColor }) {
   );
 }
 
+function AssigneeStatus({
+  color,
+  label,
+  name,
+  avatarUrl,
+  subText,
+  fullStatus,
+}: {
+  color: StatusColor;
+  label: string;
+  name?: string;
+  avatarUrl?: string | null;
+  subText?: string | null;
+  fullStatus: string;
+}) {
+  if (!name) {
+    return (
+      <Badge className={STATUS_STYLES[color].badge} title={fullStatus}>
+        <StatusDot color={color} />
+        {label}
+        {subText && (
+          <span className="ml-1 text-[10px] font-normal opacity-80 tabular-nums">· {subText}</span>
+        )}
+      </Badge>
+    );
+  }
+  return (
+    <div
+      className={`inline-flex items-center gap-1.5 rounded-full pl-0.5 pr-2 py-0.5 max-w-[220px] ${STATUS_STYLES[color].badge}`}
+      title={fullStatus}
+    >
+      <UserAvatar name={name} avatarUrl={avatarUrl} size="sm" />
+      <div className="flex min-w-0 flex-col leading-tight">
+        <span className="text-[11px] font-semibold uppercase tracking-wide truncate">
+          {label}
+          {subText && (
+            <span className="ml-1 font-normal opacity-80 tabular-nums normal-case">· {subText}</span>
+          )}
+        </span>
+        <span className="text-[11px] font-normal opacity-80 truncate">{name}</span>
+      </div>
+    </div>
+  );
+}
+
 export function statusBadge(asset: Asset) {
   const { computedStatus, activeBooking } = asset;
 
@@ -89,35 +136,31 @@ export function statusBadge(asset: Asset) {
         </Badge>
       );
     case "CHECKED_OUT": {
-      const name = activeBooking?.requesterName;
       const isOverdue = activeBooking?.isOverdue;
-      const label = name || "Checked out";
       const color = isOverdue ? "red" : "blue";
       const due = formatDueLabel(activeBooking?.endsAt, isOverdue);
-      const fullStatus = `${name ? `Checked out by ${name}` : "Checked out"}${
-        activeBooking?.endsAt ? ` · due ${new Date(activeBooking.endsAt).toLocaleDateString()}` : ""
-      }`;
       return (
-        <Badge className={`${STATUS_STYLES[color].badge} max-w-[200px]`} title={fullStatus}>
-          <StatusDot color={color} />
-          <span className="truncate">{label}</span>
-          {due && (
-            <span className="ml-1 shrink-0 text-[10px] font-normal opacity-80 tabular-nums">
-              · {due}
-            </span>
-          )}
-        </Badge>
+        <AssigneeStatus
+          color={color}
+          label={isOverdue ? "Overdue" : "Checked out"}
+          name={activeBooking?.requesterName}
+          avatarUrl={activeBooking?.requesterAvatarUrl}
+          subText={due}
+          fullStatus={`${activeBooking?.requesterName ? `Checked out by ${activeBooking.requesterName}` : "Checked out"}${
+            activeBooking?.endsAt ? ` · due ${new Date(activeBooking.endsAt).toLocaleDateString()}` : ""
+          }`}
+        />
       );
     }
     case "RESERVED": {
-      const name = activeBooking?.requesterName;
-      const label = name || "Reserved";
-      const fullStatus = name ? `Reserved by ${name}` : "Reserved";
       return (
-        <Badge className={`${STATUS_STYLES.purple.badge} max-w-[160px]`} title={fullStatus}>
-          <StatusDot color="purple" />
-          <span className="truncate">{label}</span>
-        </Badge>
+        <AssigneeStatus
+          color="purple"
+          label="Reserved"
+          name={activeBooking?.requesterName}
+          avatarUrl={activeBooking?.requesterAvatarUrl}
+          fullStatus={activeBooking?.requesterName ? `Reserved by ${activeBooking.requesterName}` : "Reserved"}
+        />
       );
     }
     case "MAINTENANCE":

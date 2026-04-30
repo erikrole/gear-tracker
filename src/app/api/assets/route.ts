@@ -274,7 +274,7 @@ export const GET = withAuth(async (req, { user }) => {
 /** Attach activeBooking (id, kind, title, requester) for CHECKED_OUT / RESERVED assets. */
 async function attachActiveBookings<T extends { id: string; computedStatus: string }>(
   assets: T[]
-): Promise<Array<T & { activeBooking: { id: string; kind: string; title: string; requesterName: string; isOverdue: boolean; endsAt: string } | null }>> {
+): Promise<Array<T & { activeBooking: { id: string; kind: string; title: string; requesterName: string; requesterAvatarUrl: string | null; isOverdue: boolean; endsAt: string } | null }>> {
   const needsBooking = assets.filter(
     (a) => a.computedStatus === "CHECKED_OUT" || a.computedStatus === "RESERVED"
   );
@@ -292,13 +292,13 @@ async function attachActiveBookings<T extends { id: string; computedStatus: stri
     select: {
       assetId: true,
       booking: {
-        select: { id: true, kind: true, title: true, status: true, endsAt: true, requester: { select: { name: true } } },
+        select: { id: true, kind: true, title: true, status: true, endsAt: true, requester: { select: { name: true, avatarUrl: true } } },
       },
     },
   });
 
   const now = new Date();
-  const bookingByAsset = new Map<string, { id: string; kind: string; title: string; requesterName: string; isOverdue: boolean; endsAt: string }>();
+  const bookingByAsset = new Map<string, { id: string; kind: string; title: string; requesterName: string; requesterAvatarUrl: string | null; isOverdue: boolean; endsAt: string }>();
   for (const alloc of allocations) {
     if (!bookingByAsset.has(alloc.assetId)) {
       bookingByAsset.set(alloc.assetId, {
@@ -306,6 +306,7 @@ async function attachActiveBookings<T extends { id: string; computedStatus: stri
         kind: alloc.booking.kind,
         title: alloc.booking.title,
         requesterName: alloc.booking.requester.name,
+        requesterAvatarUrl: alloc.booking.requester.avatarUrl ?? null,
         isOverdue: alloc.booking.status === "OPEN" && alloc.booking.endsAt < now,
         endsAt: alloc.booking.endsAt.toISOString(),
       });
