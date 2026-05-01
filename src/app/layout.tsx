@@ -6,6 +6,7 @@ import "@fontsource/barlow/500.css";
 import "@fontsource/barlow/600.css";
 import "@fontsource/barlow/700.css";
 import "./globals.css";
+import { Providers } from "./_providers";
 
 export const metadata: Metadata = {
   title: "Wisconsin Creative",
@@ -39,7 +40,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <script dangerouslySetInnerHTML={{ __html: swScript }} />
       </head>
-      <body className={`${GeistSans.variable} ${GeistMono.variable}`}>{children}</body>
+      <body className={`${GeistSans.variable} ${GeistMono.variable}`}>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }
