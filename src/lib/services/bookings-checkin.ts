@@ -9,6 +9,7 @@ import {
 } from "@prisma/client";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
+import { createAuditEntryTx, lookupActorRole } from "@/lib/audit";
 import { upsertBulkBalancesAndMovements } from "./bookings-helpers";
 
 /**
@@ -69,8 +70,13 @@ async function maybeAutoComplete(
   });
 
   // Audit
-  await tx.auditLog.create({
-    data: { actorUserId, entityType: "booking", entityId: bookingId, action: opts.auditAction }
+  const actorRole = await lookupActorRole(tx, actorUserId);
+  await createAuditEntryTx(tx, {
+    actorId: actorUserId,
+    actorRole,
+    entityType: "booking",
+    entityId: bookingId,
+    action: opts.auditAction,
   });
 
   return true;
@@ -143,6 +149,8 @@ export async function markCheckoutCompleted(bookingId: string, actorUserId: stri
       lostUnitNumbers.push({ bulkSkuId: bulkItem.bulkSkuId, unitNumbers: unitNums });
     }
 
+    const actorRole = await lookupActorRole(tx, actorUserId);
+
     if (lostUnitIds.length > 0) {
       await tx.bulkSkuUnit.updateMany({
         where: { id: { in: lostUnitIds } },
@@ -152,14 +160,13 @@ export async function markCheckoutCompleted(bookingId: string, actorUserId: stri
         },
       });
 
-      await tx.auditLog.create({
-        data: {
-          actorUserId,
-          entityType: "booking",
-          entityId: bookingId,
-          action: "bulk_units_auto_lost",
-          afterJson: { lostUnits: lostUnitNumbers },
-        },
+      await createAuditEntryTx(tx, {
+        actorId: actorUserId,
+        actorRole,
+        entityType: "booking",
+        entityId: bookingId,
+        action: "bulk_units_auto_lost",
+        after: { lostUnits: lostUnitNumbers },
       });
     }
 
@@ -175,13 +182,12 @@ export async function markCheckoutCompleted(bookingId: string, actorUserId: stri
       }
     });
 
-    await tx.auditLog.create({
-      data: {
-        actorUserId,
-        entityType: "booking",
-        entityId: bookingId,
-        action: "checkin_completed"
-      }
+    await createAuditEntryTx(tx, {
+      actorId: actorUserId,
+      actorRole,
+      entityType: "booking",
+      entityId: bookingId,
+      action: "checkin_completed",
     });
 
     return { success: true };
@@ -243,14 +249,14 @@ export async function checkinItems(
         data: { active: false }
       });
 
-      await tx.auditLog.create({
-        data: {
-          actorUserId,
-          entityType: "booking",
-          entityId: bookingId,
-          action: "partial_checkin",
-          afterJson: { returnedAssetIds: assetIds }
-        }
+      const actorRole = await lookupActorRole(tx, actorUserId);
+      await createAuditEntryTx(tx, {
+        actorId: actorUserId,
+        actorRole,
+        entityType: "booking",
+        entityId: bookingId,
+        action: "partial_checkin",
+        after: { returnedAssetIds: assetIds },
       });
 
       // Return bulk stock if all items are now returned (auto-complete path)
@@ -449,14 +455,14 @@ export async function checkinBulkItem(
         items: [{ bulkSkuId: bulkItem.bulkSkuId, quantity }]
       });
 
-      await tx.auditLog.create({
-        data: {
-          actorUserId,
-          entityType: "booking",
-          entityId: bookingId,
-          action: "partial_bulk_checkin",
-          afterJson: { bulkItemId, quantity, newCheckedIn, outQty }
-        }
+      const actorRole = await lookupActorRole(tx, actorUserId);
+      await createAuditEntryTx(tx, {
+        actorId: actorUserId,
+        actorRole,
+        entityType: "booking",
+        entityId: bookingId,
+        action: "partial_bulk_checkin",
+        after: { bulkItemId, quantity, newCheckedIn, outQty },
       });
 
       const autoCompleted = await maybeAutoComplete(tx, bookingId, booking.locationId, actorUserId, {

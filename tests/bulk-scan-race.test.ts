@@ -17,6 +17,7 @@ vi.mock("@/lib/db", () => {
     bookingSerializedItem: { updateMany: vi.fn() },
     assetAllocation: { updateMany: vi.fn() },
     auditLog: { create: vi.fn(), createMany: vi.fn() },
+    user: { findUnique: vi.fn().mockResolvedValue({ role: "ADMIN" }) },
   };
 
   return {
@@ -34,6 +35,11 @@ vi.mock("@/lib/db", () => {
 vi.mock("@/lib/audit", () => ({
   createAuditEntry: vi.fn(),
   createAuditEntries: vi.fn(),
+  createAuditEntryTx: vi.fn(),
+  createAuditEntriesTx: vi.fn(),
+  createSystemAuditEntry: vi.fn(),
+  lookupActorRole: vi.fn().mockResolvedValue("ADMIN"),
+  AUDIT_RETENTION_DAYS: 90,
 }));
 
 vi.mock("@/lib/services/bookings", async (importOriginal) => {

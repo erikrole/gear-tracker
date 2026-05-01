@@ -12,6 +12,7 @@ vi.mock("@/lib/db", () => {
     bookingBulkItem: { deleteMany: vi.fn(), createMany: vi.fn() },
     assetAllocation: { deleteMany: vi.fn(), createMany: vi.fn() },
     auditLog: { create: vi.fn(), createMany: vi.fn() },
+    user: { findUnique: vi.fn().mockResolvedValue({ role: "ADMIN" }) },
   };
 
   return {

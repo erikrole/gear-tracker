@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { withHandler } from "@/lib/api";
 import { db } from "@/lib/db";
+import { AUDIT_RETENTION_DAYS } from "@/lib/audit";
 
 function safeCompare(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
@@ -9,14 +10,13 @@ function safeCompare(a: string, b: string): boolean {
 }
 
 /**
- * Retention policy: delete audit log entries older than 90 days.
+ * Retention policy: delete audit log entries older than AUDIT_RETENTION_DAYS.
  * Runs weekly via Vercel Cron (see vercel.json).
  *
- * The approach is a hard delete in batches to avoid locking the table
- * for too long on large datasets. For regulatory needs, a separate
- * export-before-delete step can be added later.
+ * Hard delete in batches to avoid locking the table for too long on large
+ * datasets. For regulatory needs, a separate export-before-delete step can
+ * be added later.
  */
-const RETENTION_DAYS = 90;
 const BATCH_SIZE = 1000;
 
 export const GET = withHandler(async (req) => {
@@ -36,7 +36,7 @@ export const GET = withHandler(async (req) => {
   }
 
   const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - RETENTION_DAYS);
+  cutoff.setDate(cutoff.getDate() - AUDIT_RETENTION_DAYS);
 
   let totalDeleted = 0;
   let batchDeleted: number;
@@ -69,6 +69,6 @@ export const GET = withHandler(async (req) => {
     auditLogsDeleted: totalDeleted,
     sessionsDeleted: expiredSessions.count,
     cutoffDate: cutoff.toISOString(),
-    retentionDays: RETENTION_DAYS,
+    retentionDays: AUDIT_RETENTION_DAYS,
   });
 });

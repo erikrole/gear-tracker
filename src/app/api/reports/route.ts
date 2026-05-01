@@ -441,11 +441,14 @@ async function getAuditReport(
     data: data.map((entry) => ({
       id: entry.id,
       actor: entry.actor?.name || "System",
+      actorId: entry.actor?.id ?? null,
+      actorAvatarUrl: entry.actor?.avatarUrl ?? null,
       entityType: entry.entityType,
       entityId: entry.entityId,
       action: entry.action,
       createdAt: entry.createdAt,
-      details: entry.afterJson
+      beforeJson: entry.beforeJson,
+      afterJson: entry.afterJson,
     })),
     total,
     byAction,

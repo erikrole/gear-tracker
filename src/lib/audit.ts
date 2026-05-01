@@ -1,6 +1,13 @@
 import { Prisma, Role } from "@prisma/client";
 import { db } from "@/lib/db";
 
+/**
+ * Audit log retention policy. Single source of truth — referenced by the
+ * weekly retention cron and by the audit report page banner so they can
+ * never drift.
+ */
+export const AUDIT_RETENTION_DAYS = 90;
+
 type AuditEntry = {
   actorId: string;
   actorRole: Role;
@@ -10,6 +17,26 @@ type AuditEntry = {
   before?: Record<string, unknown>;
   after?: Record<string, unknown>;
 };
+
+type AuditEntryTx = {
+  actorId: string | null;
+  actorRole: Role | null;
+  entityType: string;
+  entityId: string;
+  action: string;
+  before?: Record<string, unknown>;
+  after?: Record<string, unknown>;
+};
+
+function buildAfterJson(
+  after: Record<string, unknown> | undefined,
+  actorRole: Role | null,
+): Prisma.InputJsonValue {
+  return {
+    ...(after ?? {}),
+    _actorRole: actorRole,
+  } as Prisma.InputJsonValue;
+}
 
 /**
  * Create an audit log entry with actor role always included.
@@ -26,10 +53,33 @@ export async function createAuditEntry(entry: AuditEntry) {
       beforeJson: entry.before
         ? (entry.before as Prisma.InputJsonValue)
         : undefined,
-      afterJson: {
-        ...(entry.after ?? {}),
-        _actorRole: entry.actorRole,
-      } as Prisma.InputJsonValue,
+      afterJson: buildAfterJson(entry.after, entry.actorRole),
+    },
+  });
+}
+
+/**
+ * System / pre-auth audit write — no human actor (e.g. kiosk activation).
+ * Records `_actorRole: null` consistently so readers don't have to special-case
+ * missing values.
+ */
+export async function createSystemAuditEntry(entry: {
+  entityType: string;
+  entityId: string;
+  action: string;
+  before?: Record<string, unknown>;
+  after?: Record<string, unknown>;
+}) {
+  await db.auditLog.create({
+    data: {
+      actorUserId: null,
+      entityType: entry.entityType,
+      entityId: entry.entityId,
+      action: entry.action,
+      beforeJson: entry.before
+        ? (entry.before as Prisma.InputJsonValue)
+        : undefined,
+      afterJson: buildAfterJson(entry.after, null),
     },
   });
 }
@@ -49,10 +99,69 @@ export async function createAuditEntries(entries: AuditEntry[]) {
       beforeJson: entry.before
         ? (entry.before as Prisma.InputJsonValue)
         : undefined,
-      afterJson: {
-        ...(entry.after ?? {}),
-        _actorRole: entry.actorRole,
-      } as Prisma.InputJsonValue,
+      afterJson: buildAfterJson(entry.after, entry.actorRole),
     })),
   });
+}
+
+/**
+ * Transaction-aware audit write. Use inside `db.$transaction((tx) => ...)`
+ * blocks so the audit row is rolled back with the rest of the work.
+ *
+ * Accepts a nullable `actorRole` so kiosk-style actions (no human actor) can
+ * still record `_actorRole: null` consistently.
+ */
+export async function createAuditEntryTx(
+  tx: Prisma.TransactionClient,
+  entry: AuditEntryTx,
+) {
+  await tx.auditLog.create({
+    data: {
+      actorUserId: entry.actorId ?? undefined,
+      entityType: entry.entityType,
+      entityId: entry.entityId,
+      action: entry.action,
+      beforeJson: entry.before
+        ? (entry.before as Prisma.InputJsonValue)
+        : undefined,
+      afterJson: buildAfterJson(entry.after, entry.actorRole),
+    },
+  });
+}
+
+/** Batch variant of createAuditEntryTx — collapses N inserts into one. */
+export async function createAuditEntriesTx(
+  tx: Prisma.TransactionClient,
+  entries: AuditEntryTx[],
+) {
+  if (entries.length === 0) return;
+  await tx.auditLog.createMany({
+    data: entries.map((entry) => ({
+      actorUserId: entry.actorId ?? undefined,
+      entityType: entry.entityType,
+      entityId: entry.entityId,
+      action: entry.action,
+      beforeJson: entry.before
+        ? (entry.before as Prisma.InputJsonValue)
+        : undefined,
+      afterJson: buildAfterJson(entry.after, entry.actorRole),
+    })),
+  });
+}
+
+/**
+ * Resolve an actor's role inside a transaction so callers don't have to
+ * thread `Role` through every signature. Cached one lookup per transaction
+ * by callers (call once at the top, reuse in every audit write below).
+ */
+export async function lookupActorRole(
+  tx: Prisma.TransactionClient,
+  actorUserId: string | null | undefined,
+): Promise<Role | null> {
+  if (!actorUserId) return null;
+  const u = await tx.user.findUnique({
+    where: { id: actorUserId },
+    select: { role: true },
+  });
+  return u?.role ?? null;
 }

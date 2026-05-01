@@ -11,6 +11,7 @@ vi.mock("@/lib/db", () => {
     bulkStockMovement: { create: vi.fn() },
     scanSession: { updateMany: vi.fn() },
     auditLog: { create: vi.fn() },
+    user: { findUnique: vi.fn().mockResolvedValue({ role: "ADMIN" }) },
   };
   return {
     db: {
@@ -157,13 +158,13 @@ describe("checkinItems", () => {
     await checkinItems("booking-1", "actor-1", ["a1"]);
 
     expect(mockTx.auditLog.create).toHaveBeenCalledWith({
-      data: {
+      data: expect.objectContaining({
         actorUserId: "actor-1",
         entityType: "booking",
         entityId: "booking-1",
         action: "partial_checkin",
-        afterJson: { returnedAssetIds: ["a1"] },
-      },
+        afterJson: expect.objectContaining({ returnedAssetIds: ["a1"] }),
+      }),
     });
   });
 

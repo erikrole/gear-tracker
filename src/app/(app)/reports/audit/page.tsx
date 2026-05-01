@@ -2,19 +2,19 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { formatDateTime, formatRelativeTime } from "@/lib/format";
+import { formatRelativeTime } from "@/lib/format";
 import { useFetch } from "@/hooks/use-fetch";
 import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { FadeUp } from "@/components/ui/motion";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import dynamic from "next/dynamic";
 import MetricCard from "../MetricCard";
-import ActivityTimeline, { type AuditEntry as TimelineEntry } from "@/components/ActivityTimeline";
+import ActivityTimeline, { TimelineSkeleton, type AuditEntry as TimelineEntry } from "@/components/ActivityTimeline";
+import { AUDIT_RETENTION_DAYS } from "@/lib/audit";
 
 const LazyActionBreakdownChart = dynamic(
   () => import("./charts").then((m) => ({ default: m.ActionBreakdownChart })),
@@ -33,11 +33,14 @@ import {
 type AuditEntry = {
   id: string;
   actor: string;
+  actorId?: string | null;
+  actorAvatarUrl?: string | null;
   entityType: string;
   entityId: string;
   action: string;
   createdAt: string;
-  details?: Record<string, unknown> | null;
+  beforeJson?: Record<string, unknown> | null;
+  afterJson?: Record<string, unknown> | null;
 };
 
 type AuditData = {
@@ -57,9 +60,13 @@ function toTimelineEntries(entries: AuditEntry[]): TimelineEntry[] {
     entityType: e.entityType,
     entityId: e.entityId,
     createdAt: e.createdAt,
-    beforeJson: null,
-    afterJson: e.details ?? null,
-    actor: { name: e.actor },
+    beforeJson: e.beforeJson ?? null,
+    afterJson: e.afterJson ?? null,
+    actor: {
+      id: e.actorId ?? undefined,
+      name: e.actor,
+      avatarUrl: e.actorAvatarUrl ?? null,
+    },
   }));
 }
 
@@ -128,14 +135,8 @@ export default function AuditReportPage() {
 
   if (loading && !data) {
     return (
-      <Card className="p-4">
-        {Array.from({ length: 6 }, (_, i) => (
-          <div key={i} className="flex gap-4 py-2">
-            <Skeleton className="h-4 w-28" />
-            <Skeleton className="h-4" style={{ width: `${50 + (i % 3) * 12}%` }} />
-            <Skeleton className="h-4 w-16 ml-auto" />
-          </div>
-        ))}
+      <Card className="p-0">
+        <TimelineSkeleton />
       </Card>
     );
   }
@@ -162,7 +163,7 @@ export default function AuditReportPage() {
     <FadeUp>
       {/* Retention notice */}
       <p className="text-xs text-muted-foreground mb-2">
-        Audit logs are retained for 90 days. Older entries are automatically archived weekly.
+        Audit logs are retained for {AUDIT_RETENTION_DAYS} days. Older entries are automatically archived weekly.
       </p>
 
       {/* Filters */}

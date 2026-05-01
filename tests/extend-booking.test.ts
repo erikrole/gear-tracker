@@ -11,6 +11,7 @@ vi.mock("@/lib/db", () => {
     booking: { findUnique: vi.fn(), findUniqueOrThrow: vi.fn(), update: vi.fn() },
     assetAllocation: { updateMany: vi.fn() },
     auditLog: { create: vi.fn() },
+    user: { findUnique: vi.fn().mockResolvedValue({ role: "ADMIN" }) },
   };
 
   return {
@@ -106,7 +107,7 @@ describe("extendBooking", () => {
         data: expect.objectContaining({
           action: "extended",
           beforeJson: { endsAt: currentEnd },
-          afterJson: { endsAt: newEnd },
+          afterJson: expect.objectContaining({ endsAt: newEnd }),
         }),
       })
     );

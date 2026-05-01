@@ -1,11 +1,13 @@
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
+import { requireRole } from "@/lib/rbac";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 
-export const GET = withAuth<{ id: string }>(async (req, { params }) => {
+export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
+  requireRole(user.role, ["ADMIN", "STAFF"]);
   const { id } = params;
 
   const sku = await db.bulkSku.findUnique({ where: { id }, select: { id: true } });

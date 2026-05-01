@@ -4,6 +4,7 @@ import { HttpError, ok } from "@/lib/http";
 import { tokenHash, createKioskSession } from "@/lib/auth";
 import { getClientIp } from "@/lib/rate-limit";
 import { activateBody } from "@/lib/schemas/kiosk";
+import { createSystemAuditEntry } from "@/lib/audit";
 
 /**
  * Activate a kiosk device with a 6-digit code.
@@ -32,13 +33,11 @@ export const POST = withHandler(async (req) => {
 
   // Audit kiosk activation (no user actor — use device ID as entity)
   const ip = getClientIp(req);
-  await db.auditLog.create({
-    data: {
-      entityType: "kiosk_device",
-      entityId: device.id,
-      action: "kiosk_activated",
-      afterJson: { deviceName: device.name, locationId: device.locationId, ip },
-    },
+  await createSystemAuditEntry({
+    entityType: "kiosk_device",
+    entityId: device.id,
+    action: "kiosk_activated",
+    after: { deviceName: device.name, locationId: device.locationId, ip },
   });
 
   return ok({

@@ -11,6 +11,7 @@ vi.mock("@/lib/db", () => {
     assetAllocation: { updateMany: vi.fn() },
     scanSession: { updateMany: vi.fn() },
     auditLog: { create: vi.fn() },
+    user: { findUnique: vi.fn().mockResolvedValue({ role: "ADMIN" }) },
   };
 
   return {
@@ -95,12 +96,12 @@ describe("cancelBooking", () => {
     await cancelBooking("b-1", "actor-1");
 
     expect(mockTx.auditLog.create).toHaveBeenCalledWith({
-      data: {
+      data: expect.objectContaining({
         actorUserId: "actor-1",
         entityType: "booking",
         entityId: "b-1",
         action: "cancelled",
-      },
+      }),
     });
   });
 

@@ -8,6 +8,11 @@ import {
 } from "@prisma/client";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
+import {
+  createAuditEntriesTx,
+  createAuditEntryTx,
+  lookupActorRole,
+} from "@/lib/audit";
 import { checkAvailability, type BulkRequest } from "@/lib/services/availability";
 import { nextBookingRef } from "@/lib/services/booking-ref";
 import {
@@ -205,23 +210,24 @@ export async function createBooking(input: CreateBookingInput) {
         }
       }
 
-      await tx.auditLog.create({
-        data: {
-          actorUserId: input.createdBy,
-          entityType: "booking",
-          entityId: booking.id,
-          action: "created",
-          afterJson: {
-            kind: input.kind,
-            title: input.title,
-            startsAt: input.startsAt,
-            endsAt: input.endsAt,
-            serializedAssetIds: resolvedSerializedAssetIds,
-            bulkItems: resolvedBulkItems,
-            sourceReservationId: input.sourceReservationId,
-            eventIds: sortedEventIds,
-          }
-        }
+      const actorRole = await lookupActorRole(tx, input.createdBy);
+
+      await createAuditEntryTx(tx, {
+        actorId: input.createdBy,
+        actorRole,
+        entityType: "booking",
+        entityId: booking.id,
+        action: "created",
+        after: {
+          kind: input.kind,
+          title: input.title,
+          startsAt: input.startsAt,
+          endsAt: input.endsAt,
+          serializedAssetIds: resolvedSerializedAssetIds,
+          bulkItems: resolvedBulkItems,
+          sourceReservationId: input.sourceReservationId,
+          eventIds: sortedEventIds,
+        },
       });
 
       // Cancel the source reservation atomically within the same transaction
@@ -241,14 +247,13 @@ export async function createBooking(input: CreateBookingInput) {
           data: { status: ScanSessionStatus.CANCELLED }
         });
 
-        await tx.auditLog.create({
-          data: {
-            actorUserId: input.createdBy,
-            entityType: "booking",
-            entityId: input.sourceReservationId,
-            action: "cancelled_by_checkout_conversion",
-            afterJson: { convertedToCheckoutId: booking.id }
-          }
+        await createAuditEntryTx(tx, {
+          actorId: input.createdBy,
+          actorRole,
+          entityType: "booking",
+          entityId: input.sourceReservationId,
+          action: "cancelled_by_checkout_conversion",
+          after: { convertedToCheckoutId: booking.id },
         });
       }
 
@@ -396,35 +401,38 @@ export async function updateReservation(
       if (updates.startsAt && updates.startsAt.toISOString() !== existing.startsAt.toISOString()) fieldChanges.startsAt = updates.startsAt.toISOString();
       if (updates.endsAt && updates.endsAt.toISOString() !== existing.endsAt.toISOString()) fieldChanges.endsAt = updates.endsAt.toISOString();
 
+      const actorRole = await lookupActorRole(tx, actorUserId);
+
       if (Object.keys(fieldChanges).length > 0 || equipEntries.length === 0) {
-        await tx.auditLog.create({
-          data: {
-            actorUserId,
-            entityType: "booking",
-            entityId: bookingId,
-            action: "updated",
-            beforeJson: {
-              title: existing.title,
-              startsAt: existing.startsAt.toISOString(),
-              endsAt: existing.endsAt.toISOString(),
-              notes: existing.notes
-            } satisfies AuditJson,
-            afterJson: fieldChanges
-          }
+        await createAuditEntryTx(tx, {
+          actorId: actorUserId,
+          actorRole,
+          entityType: "booking",
+          entityId: bookingId,
+          action: "updated",
+          before: {
+            title: existing.title,
+            startsAt: existing.startsAt.toISOString(),
+            endsAt: existing.endsAt.toISOString(),
+            notes: existing.notes,
+          } as AuditJson as Record<string, unknown>,
+          after: fieldChanges as Record<string, unknown>,
         });
       }
 
       if (equipEntries.length > 0) {
-        await tx.auditLog.createMany({
-          data: equipEntries.map((entry) => ({
-            actorUserId,
+        await createAuditEntriesTx(
+          tx,
+          equipEntries.map((entry) => ({
+            actorId: actorUserId,
+            actorRole,
             entityType: "booking",
             entityId: bookingId,
             action: entry.action,
-            beforeJson: entry.beforeJson as Prisma.InputJsonValue,
-            afterJson: entry.afterJson as Prisma.InputJsonValue
-          }))
-        });
+            before: entry.beforeJson as Record<string, unknown>,
+            after: entry.afterJson as Record<string, unknown>,
+          })),
+        );
       }
 
       return tx.booking.findUniqueOrThrow({
@@ -463,13 +471,13 @@ export async function cancelReservation(bookingId: string, actorUserId: string) 
       data: { status: ScanSessionStatus.CANCELLED }
     });
 
-    await tx.auditLog.create({
-      data: {
-        actorUserId,
-        entityType: "booking",
-        entityId: bookingId,
-        action: "cancelled"
-      }
+    const actorRole = await lookupActorRole(tx, actorUserId);
+    await createAuditEntryTx(tx, {
+      actorId: actorUserId,
+      actorRole,
+      entityType: "booking",
+      entityId: bookingId,
+      action: "cancelled",
     });
 
     return { success: true };
@@ -588,34 +596,37 @@ export async function updateCheckout(
       if (updates.notes !== undefined && updates.notes !== existing.notes) fieldChanges.notes = updates.notes ?? null;
       if (updates.endsAt && updates.endsAt.toISOString() !== existing.endsAt.toISOString()) fieldChanges.endsAt = updates.endsAt.toISOString();
 
+      const actorRole = await lookupActorRole(tx, actorUserId);
+
       if (Object.keys(fieldChanges).length > 0 || equipEntries.length === 0) {
-        await tx.auditLog.create({
-          data: {
-            actorUserId,
-            entityType: "booking",
-            entityId: bookingId,
-            action: "updated",
-            beforeJson: {
-              title: existing.title,
-              endsAt: existing.endsAt.toISOString(),
-              notes: existing.notes
-            } satisfies AuditJson,
-            afterJson: fieldChanges
-          }
+        await createAuditEntryTx(tx, {
+          actorId: actorUserId,
+          actorRole,
+          entityType: "booking",
+          entityId: bookingId,
+          action: "updated",
+          before: {
+            title: existing.title,
+            endsAt: existing.endsAt.toISOString(),
+            notes: existing.notes,
+          } as AuditJson as Record<string, unknown>,
+          after: fieldChanges as Record<string, unknown>,
         });
       }
 
       if (equipEntries.length > 0) {
-        await tx.auditLog.createMany({
-          data: equipEntries.map((entry) => ({
-            actorUserId,
+        await createAuditEntriesTx(
+          tx,
+          equipEntries.map((entry) => ({
+            actorId: actorUserId,
+            actorRole,
             entityType: "booking",
             entityId: bookingId,
             action: entry.action,
-            beforeJson: entry.beforeJson as Prisma.InputJsonValue,
-            afterJson: entry.afterJson as Prisma.InputJsonValue
-          }))
-        });
+            before: entry.beforeJson as Record<string, unknown>,
+            after: entry.afterJson as Record<string, unknown>,
+          })),
+        );
       }
 
       return tx.booking.findUniqueOrThrow({
@@ -685,15 +696,15 @@ export async function extendBooking(
         data: { endsAt: newEndsAt }
       });
 
-      await tx.auditLog.create({
-        data: {
-          actorUserId,
-          entityType: "booking",
-          entityId: bookingId,
-          action: "extended",
-          beforeJson: { endsAt: existing.endsAt },
-          afterJson: { endsAt: newEndsAt }
-        }
+      const actorRole = await lookupActorRole(tx, actorUserId);
+      await createAuditEntryTx(tx, {
+        actorId: actorUserId,
+        actorRole,
+        entityType: "booking",
+        entityId: bookingId,
+        action: "extended",
+        before: { endsAt: existing.endsAt },
+        after: { endsAt: newEndsAt },
       });
 
       return tx.booking.findUniqueOrThrow({
@@ -736,13 +747,13 @@ export async function cancelBooking(bookingId: string, actorUserId: string) {
       data: { status: ScanSessionStatus.CANCELLED }
     });
 
-    await tx.auditLog.create({
-      data: {
-        actorUserId,
-        entityType: "booking",
-        entityId: bookingId,
-        action: "cancelled"
-      }
+    const actorRole = await lookupActorRole(tx, actorUserId);
+    await createAuditEntryTx(tx, {
+      actorId: actorUserId,
+      actorRole,
+      entityType: "booking",
+      entityId: bookingId,
+      action: "cancelled",
     });
 
     return { success: true };

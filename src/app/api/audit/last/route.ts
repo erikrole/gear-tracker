@@ -26,18 +26,30 @@ export const POST = withAuth(async (req, { user }) => {
   const body = bodySchema.parse(await req.json());
   const ids = Array.from(new Set(body.entityIds));
 
-  // Pull every matching audit row ordered newest-first, then keep the first
-  // hit per entityId. The (entityType, entityId, createdAt) index in
-  // schema.prisma makes this efficient even with many rows per entity.
-  const rows = await db.auditLog.findMany({
-    where: { entityType: body.entityType, entityId: { in: ids } },
-    orderBy: { createdAt: "desc" },
-    include: { actor: { select: { id: true, name: true } } },
-  });
+  // Per-id findFirst against the (entityType, entityId, createdAt) index.
+  // Bounds each query to one row instead of scanning every audit row for
+  // the entity set.
+  const rows = await Promise.all(
+    ids.map((entityId) =>
+      db.auditLog.findFirst({
+        where: { entityType: body.entityType, entityId },
+        orderBy: { createdAt: "desc" },
+        select: {
+          entityId: true,
+          action: true,
+          createdAt: true,
+          actor: { select: { id: true, name: true } },
+        },
+      }),
+    ),
+  );
 
-  const latestByEntity: Record<string, { action: string; createdAt: string; actor: { id: string; name: string } | null }> = {};
+  const latestByEntity: Record<
+    string,
+    { action: string; createdAt: string; actor: { id: string; name: string } | null }
+  > = {};
   for (const row of rows) {
-    if (latestByEntity[row.entityId]) continue;
+    if (!row) continue;
     latestByEntity[row.entityId] = {
       action: row.action,
       createdAt: row.createdAt.toISOString(),

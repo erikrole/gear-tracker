@@ -20,6 +20,7 @@ vi.mock("@/lib/db", () => {
     bulkStockMovement: { createMany: vi.fn() },
     auditLog: { create: vi.fn() },
     scanSession: { updateMany: vi.fn() },
+    user: { findUnique: vi.fn().mockResolvedValue({ role: "ADMIN" }) },
     $queryRaw: vi.fn(),
   };
 

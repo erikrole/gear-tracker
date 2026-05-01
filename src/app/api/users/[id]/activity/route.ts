@@ -38,7 +38,7 @@ export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
     take: limit + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     include: {
-      actor: { select: { name: true, email: true } },
+      actor: { select: { id: true, name: true, email: true, avatarUrl: true } },
     },
   });
 

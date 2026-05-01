@@ -487,7 +487,7 @@ function formatTimestamp(iso: string, today: Date): string {
 
 /* ── Skeleton loader ── */
 
-function TimelineSkeleton() {
+export function TimelineSkeleton() {
   return (
     <div className="flex flex-col gap-4 p-4">
       {Array.from({ length: 5 }, (_, i) => (
