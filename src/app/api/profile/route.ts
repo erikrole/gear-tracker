@@ -81,38 +81,56 @@ export const PATCH = withAuth(async (req, { user }) => {
 
   const current = await db.user.findUniqueOrThrow({
     where: { id: user.id },
-    select: { name: true, phone: true, locationId: true },
+    select: {
+      name: true, phone: true, locationId: true,
+      title: true, athleticsEmail: true, startDate: true,
+      gradYear: true, studentYearOverride: true,
+      topSize: true, bottomSize: true, shoeSize: true,
+    },
   });
 
-  const updated = await db.user.update({
-    where: { id: user.id },
-    data: {
-      ...(payload.name ? { name: payload.name } : {}),
-      ...(Object.prototype.hasOwnProperty.call(payload, "phone")
-        ? { phone: payload.phone ?? null }
-        : {}),
-      ...(Object.prototype.hasOwnProperty.call(payload, "locationId")
-        ? { locationId: payload.locationId ?? null }
-        : {})
-    },
-    include: {
-      location: { select: { id: true, name: true } }
+  const data: Record<string, unknown> = {};
+  if (payload.name !== undefined) data.name = payload.name;
+  if (Object.prototype.hasOwnProperty.call(payload, "phone")) data.phone = payload.phone ?? null;
+  if (Object.prototype.hasOwnProperty.call(payload, "locationId")) data.locationId = payload.locationId ?? null;
+  if (Object.prototype.hasOwnProperty.call(payload, "title")) data.title = payload.title ?? null;
+  if (Object.prototype.hasOwnProperty.call(payload, "athleticsEmail")) {
+    data.athleticsEmail = payload.athleticsEmail ? payload.athleticsEmail.toLowerCase() : null;
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, "startDate")) {
+    data.startDate = payload.startDate ? new Date(payload.startDate) : null;
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, "gradYear")) data.gradYear = payload.gradYear ?? null;
+  if (Object.prototype.hasOwnProperty.call(payload, "studentYearOverride")) data.studentYearOverride = payload.studentYearOverride ?? null;
+  if (Object.prototype.hasOwnProperty.call(payload, "topSize")) data.topSize = payload.topSize ?? null;
+  if (Object.prototype.hasOwnProperty.call(payload, "bottomSize")) data.bottomSize = payload.bottomSize ?? null;
+  if (Object.prototype.hasOwnProperty.call(payload, "shoeSize")) data.shoeSize = payload.shoeSize ?? null;
+
+  let updated;
+  try {
+    updated = await db.user.update({
+      where: { id: user.id },
+      data,
+      include: { location: { select: { id: true, name: true } } },
+    });
+  } catch (err) {
+    if (err && typeof err === "object" && "code" in err && (err as { code?: string }).code === "P2002") {
+      throw new HttpError(409, "That athletics email is already in use");
     }
-  });
+    throw err;
+  }
 
   const beforeDiff: Record<string, unknown> = {};
   const afterDiff: Record<string, unknown> = {};
-  if (payload.name && payload.name !== current.name) {
-    beforeDiff.name = current.name;
-    afterDiff.name = payload.name;
-  }
-  if (Object.prototype.hasOwnProperty.call(payload, "phone") && payload.phone !== current.phone) {
-    beforeDiff.phone = current.phone;
-    afterDiff.phone = payload.phone ?? null;
-  }
-  if (Object.prototype.hasOwnProperty.call(payload, "locationId") && payload.locationId !== current.locationId) {
-    beforeDiff.locationId = current.locationId;
-    afterDiff.locationId = payload.locationId ?? null;
+  for (const key of Object.keys(data)) {
+    const before = (current as Record<string, unknown>)[key] ?? null;
+    const after = (updated as Record<string, unknown>)[key] ?? null;
+    const beforeKey = before instanceof Date ? before.toISOString() : before;
+    const afterKey = after instanceof Date ? after.toISOString() : after;
+    if (beforeKey !== afterKey) {
+      beforeDiff[key] = beforeKey;
+      afterDiff[key] = afterKey;
+    }
   }
 
   if (Object.keys(afterDiff).length > 0) {

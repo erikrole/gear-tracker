@@ -1,4 +1,4 @@
-import { Role, ShiftArea, ShiftWorkerType } from "@prisma/client";
+import { Role, ShiftArea, ShiftWorkerType, StudentYear } from "@prisma/client";
 import { z } from "zod";
 import { sanitizeText } from "./sanitize";
 
@@ -145,10 +145,20 @@ export const resetPasswordSchema = z.object({
 
 export const roleSchema = z.nativeEnum(Role);
 
+// Fields a user is allowed to edit on their own profile.
+// Direct report and assignments are intentionally excluded — staff/admin only.
 export const updateProfileSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   phone: z.string().max(30).nullable().optional(),
-  locationId: z.string().cuid().nullable().optional()
+  locationId: z.string().cuid().nullable().optional(),
+  title: z.string().max(120).nullable().optional(),
+  athleticsEmail: z.string().email().max(255).nullable().optional(),
+  startDate: z.string().datetime().nullable().optional(),
+  gradYear: z.number().int().min(1900).max(2100).nullable().optional(),
+  studentYearOverride: z.nativeEnum(StudentYear).nullable().optional(),
+  topSize: z.string().max(40).nullable().optional(),
+  bottomSize: z.string().max(40).nullable().optional(),
+  shoeSize: z.string().max(40).nullable().optional()
 });
 
 export const changePasswordSchema = z.object({

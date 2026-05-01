@@ -13,7 +13,7 @@ export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 /* ── useSaveField Hook ─────────────────────────────────── */
 
-export function useSaveField(onSave: (v: string) => Promise<void>) {
+export function useSaveField<T = string>(onSave: (v: T) => Promise<void>) {
   const [status, setStatus] = useState<SaveStatus>("idle");
   const timerRef = useRef<ReturnType<typeof setTimeout>>(null);
 
@@ -24,7 +24,7 @@ export function useSaveField(onSave: (v: string) => Promise<void>) {
   }, []);
 
   const save = useCallback(
-    async (value: string) => {
+    async (value: T) => {
       if (timerRef.current) clearTimeout(timerRef.current);
       setStatus("saving");
       try {

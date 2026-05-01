@@ -14,6 +14,14 @@ enum Role {
   STUDENT
 }
 
+enum StudentYear {
+  FRESHMAN
+  SOPHOMORE
+  JUNIOR
+  SENIOR
+  GRAD
+}
+
 enum AssetStatus {
   AVAILABLE
   MAINTENANCE
@@ -118,6 +126,20 @@ model User {
   notificationPrefs    Json?                      @map("notification_prefs")
   icsToken             String?                    @unique @map("ics_token")
 
+  title                String?
+  athleticsEmail       String?      @unique @map("athletics_email")
+  startDate            DateTime?    @map("start_date") @db.Date
+  directReportId       String?      @map("direct_report_id")
+  directReport         User?        @relation("DirectReports", fields: [directReportId], references: [id], onDelete: SetNull)
+  reports              User[]       @relation("DirectReports")
+  directReportName     String?      @map("direct_report_name")
+  gradYear             Int?         @map("grad_year")
+  studentYearOverride  StudentYear? @map("student_year_override")
+  topSize              String?      @map("top_size")
+  bottomSize           String?      @map("bottom_size")
+  shoeSize             String?      @map("shoe_size")
+
+  @@index([directReportId])
   @@map("users")
 }
 

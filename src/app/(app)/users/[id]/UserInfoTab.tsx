@@ -5,8 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { sportLabel } from "@/lib/sports";
 import { SPORT_CODES } from "@/lib/sports";
-import type { UserDetail, Location, Role } from "../types";
-import { AREA_LABELS, AREA_OPTIONS, ROLE_OPTIONS } from "../types";
+import type { UserDetail, Location, Role, StudentYear } from "../types";
+import { AREA_LABELS, AREA_OPTIONS, ROLE_OPTIONS, STUDENT_YEAR_OPTIONS, deriveStudentYear } from "../types";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -141,6 +141,274 @@ function SelectInputField({
   );
 }
 
+/* ── Date Input Field ─────────────────────────────────── */
+
+function DateInputField({
+  label,
+  value,
+  canEdit,
+  onSave,
+}: {
+  label: string;
+  value: string | null;          // ISO datetime
+  canEdit: boolean;
+  onSave: (iso: string | null) => Promise<void>;
+}) {
+  const initial = value ? value.slice(0, 10) : "";
+  const [draft, setDraft] = useState(initial);
+  const { status, save } = useSaveField<string | null>(onSave);
+  const id = useId();
+
+  useEffect(() => {
+    setDraft(initial);
+  }, [initial]);
+
+  const commit = useCallback(() => {
+    if (draft === initial) return;
+    if (!draft) {
+      save(null);
+      return;
+    }
+    // Normalize to UTC midnight; date column in Postgres ignores time.
+    const iso = new Date(`${draft}T00:00:00.000Z`).toISOString();
+    save(iso);
+  }, [draft, initial, save]);
+
+  return (
+    <SaveableField label={label} status={status} htmlFor={id}>
+      <Input
+        id={id}
+        type="date"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        disabled={!canEdit}
+        className="h-8 text-sm"
+      />
+    </SaveableField>
+  );
+}
+
+/* ── Number Input Field ───────────────────────────────── */
+
+function NumberInputField({
+  label,
+  value,
+  canEdit,
+  onSave,
+  placeholder,
+}: {
+  label: string;
+  value: number | null;
+  canEdit: boolean;
+  onSave: (n: number | null) => Promise<void>;
+  placeholder?: string;
+}) {
+  const [draft, setDraft] = useState(value == null ? "" : String(value));
+  const { status, save } = useSaveField<number | null>(onSave);
+  const id = useId();
+
+  useEffect(() => {
+    setDraft(value == null ? "" : String(value));
+  }, [value]);
+
+  const commit = useCallback(() => {
+    const trimmed = draft.trim();
+    if (trimmed === (value == null ? "" : String(value))) return;
+    if (!trimmed) {
+      save(null);
+      return;
+    }
+    const n = Number(trimmed);
+    if (!Number.isFinite(n) || !Number.isInteger(n)) {
+      toast.error(`${label} must be a whole number`);
+      setDraft(value == null ? "" : String(value));
+      return;
+    }
+    save(n);
+  }, [draft, value, save, label]);
+
+  return (
+    <SaveableField label={label} status={status} htmlFor={id}>
+      <Input
+        id={id}
+        type="number"
+        inputMode="numeric"
+        value={draft}
+        placeholder={placeholder}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+        disabled={!canEdit}
+        className="h-8 text-sm"
+      />
+    </SaveableField>
+  );
+}
+
+/* ── Direct Report Autocomplete ───────────────────────── */
+
+type DirectReportSearchResult = { id: string; name: string; email: string };
+
+function DirectReportField({
+  user,
+  canEdit,
+  onSavePicked,
+  onSaveFreeText,
+}: {
+  user: UserDetail;
+  canEdit: boolean;
+  onSavePicked: (pickedUserId: string | null) => Promise<void>;
+  onSaveFreeText: (name: string | null) => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<DirectReportSearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+
+  const linkedName = user.directReport?.name ?? null;
+  const displayValue = linkedName ?? user.directReportName ?? "";
+
+  // Debounced search against the existing /api/users endpoint.
+  useEffect(() => {
+    if (!open) return;
+    const trimmed = query.trim();
+    if (!trimmed || trimmed.length < 2) {
+      setResults([]);
+      return;
+    }
+    setSearching(true);
+    const handle = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/users?q=${encodeURIComponent(trimmed)}&limit=8&active=all`);
+        if (!res.ok) return;
+        const json = await res.json();
+        const data: DirectReportSearchResult[] = (json.data ?? [])
+          .filter((u: { id: string }) => u.id !== user.id)
+          .map((u: { id: string; name: string; email: string }) => ({
+            id: u.id, name: u.name, email: u.email,
+          }));
+        setResults(data);
+      } finally {
+        setSearching(false);
+      }
+    }, 200);
+    return () => clearTimeout(handle);
+  }, [query, open, user.id]);
+
+  async function pickUser(picked: DirectReportSearchResult) {
+    setOpen(false);
+    setQuery("");
+    await onSavePicked(picked.id);
+  }
+
+  async function saveFreeTextFromQuery() {
+    const trimmed = query.trim();
+    if (!trimmed) return;
+    setOpen(false);
+    setQuery("");
+    await onSaveFreeText(trimmed);
+  }
+
+  async function clear() {
+    setOpen(false);
+    setQuery("");
+    if (user.directReportId) {
+      await onSavePicked(null);
+    } else if (user.directReportName) {
+      await onSaveFreeText(null);
+    }
+  }
+
+  return (
+    <SaveableField label="Direct Report" status="idle">
+      <Popover open={open} onOpenChange={(next) => { setOpen(next); if (!next) setQuery(""); }}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            disabled={!canEdit}
+            className="w-full justify-between h-8 font-normal text-sm"
+          >
+            {displayValue ? (
+              <span className="flex items-center gap-1.5 truncate">
+                <span className="truncate">{displayValue}</span>
+                {linkedName ? (
+                  <Badge variant="blue" size="sm">Linked</Badge>
+                ) : (
+                  user.directReportName && (
+                    <Badge variant="gray" size="sm">Unlinked</Badge>
+                  )
+                )}
+              </span>
+            ) : (
+              <span className="text-muted-foreground">No direct report</span>
+            )}
+            <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+          <Command shouldFilter={false}>
+            <CommandInput
+              placeholder="Search users or type a name..."
+              value={query}
+              onValueChange={setQuery}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && results.length === 0 && query.trim()) {
+                  e.preventDefault();
+                  void saveFreeTextFromQuery();
+                }
+              }}
+            />
+            <CommandList>
+              {searching && (
+                <CommandEmpty>Searching…</CommandEmpty>
+              )}
+              {!searching && results.length === 0 && query.trim().length >= 2 && (
+                <CommandEmpty>
+                  <button
+                    type="button"
+                    className="text-sm text-left w-full px-2 py-1 hover:bg-accent rounded"
+                    onClick={saveFreeTextFromQuery}
+                  >
+                    Use “{query.trim()}” as free-text
+                  </button>
+                </CommandEmpty>
+              )}
+              {!searching && results.length === 0 && query.trim().length < 2 && (
+                <CommandEmpty>Type at least 2 characters…</CommandEmpty>
+              )}
+              {results.length > 0 && (
+                <CommandGroup heading="Users">
+                  {results.map((r) => (
+                    <CommandItem
+                      key={r.id}
+                      value={r.id}
+                      onSelect={() => pickUser(r)}
+                    >
+                      <div className="flex flex-col">
+                        <span>{r.name}</span>
+                        <span className="text-xs text-muted-foreground">{r.email}</span>
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+              {(user.directReportId || user.directReportName) && (
+                <CommandGroup>
+                  <CommandItem onSelect={clear} className="text-destructive">
+                    <X className="mr-2 size-4" /> Clear
+                  </CommandItem>
+                </CommandGroup>
+              )}
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </SaveableField>
+  );
+}
+
 /* ── Sport Options (for the add dropdown) ─────────────── */
 
 const SPORT_OPTIONS = SPORT_CODES.map((s) => ({
@@ -182,10 +450,16 @@ export default function UserInfoTab({
   // Assignments: admin/staff can edit for self + students
   const canEditAssignments = isAdmin || (isStaff && (isSelf || targetIsStudent));
 
+  // Fields a user can edit on their own profile (mirrors updateProfileSchema).
+  const SELF_EDITABLE_FIELDS = new Set([
+    "name", "locationId", "phone",
+    "title", "athleticsEmail", "startDate", "gradYear", "studentYearOverride",
+    "topSize", "bottomSize", "shoeSize",
+  ]);
+
   async function patchUser(payload: Record<string, unknown>) {
     const isSelfProfileField =
-      isSelf &&
-      Object.keys(payload).every((k) => k === "name" || k === "locationId" || k === "phone");
+      isSelf && Object.keys(payload).every((k) => SELF_EDITABLE_FIELDS.has(k));
 
     const url = isSelfProfileField
       ? "/api/profile"
@@ -367,10 +641,18 @@ export default function UserInfoTab({
             onSave={(v) => patchUser({ name: v })}
           />
           <TextInputField
-            label="Email"
+            label="Campus Email"
             value={user.email}
             canEdit={canEditProfile}
             onSave={(v) => patchUser({ email: v })}
+            type="email"
+          />
+          <TextInputField
+            label="Athletics Email"
+            value={user.athleticsEmail || ""}
+            placeholder="name@athletics.wisc.edu"
+            canEdit={canEditProfile || canEditSelf}
+            onSave={(v) => patchUser({ athleticsEmail: v || null })}
             type="email"
           />
           <TextInputField
@@ -405,6 +687,83 @@ export default function UserInfoTab({
             onSave={(v) => patchUser({ primaryArea: v || null })}
             allowEmpty
             emptyLabel="Not assigned"
+          />
+        </CardContent>
+      </Card>
+
+      {/* Details Card — fields migrated from the team Sheet */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Details</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0 py-1">
+          {!targetIsStudent && (
+            <TextInputField
+              label="Title"
+              value={user.title || ""}
+              placeholder="e.g. Digital Producer"
+              canEdit={canEditProfile || canEditSelf}
+              onSave={(v) => patchUser({ title: v || null })}
+            />
+          )}
+          <DateInputField
+            label="Start Date"
+            value={user.startDate}
+            canEdit={canEditProfile || canEditSelf}
+            onSave={(iso) => patchUser({ startDate: iso })}
+          />
+          {targetIsStudent && (
+            <>
+              <NumberInputField
+                label="Grad Year"
+                value={user.gradYear}
+                placeholder="e.g. 2027"
+                canEdit={canEditProfile || canEditSelf}
+                onSave={(n) => patchUser({ gradYear: n })}
+              />
+              <SelectInputField
+                label="Year (override)"
+                value={user.studentYearOverride || ""}
+                options={STUDENT_YEAR_OPTIONS as { value: string; label: string }[]}
+                canEdit={canEditProfile || canEditSelf}
+                onSave={(v) => patchUser({ studentYearOverride: (v || null) as StudentYear | null })}
+                allowEmpty
+                emptyLabel={
+                  user.gradYear
+                    ? `Auto: ${(deriveStudentYear(user.gradYear, null) ?? "—")}`
+                    : "Auto"
+                }
+              />
+            </>
+          )}
+          <DirectReportField
+            user={user}
+            canEdit={canEditProfile && !isSelf}
+            onSavePicked={(pickedId) => patchUser({ directReportId: pickedId })}
+            onSaveFreeText={(name) => patchUser({ directReportName: name })}
+          />
+          <TextInputField
+            label={targetIsStudent ? "Clothing Size" : "Top Size"}
+            value={user.topSize || ""}
+            placeholder="e.g. Medium"
+            canEdit={canEditProfile || canEditSelf}
+            onSave={(v) => patchUser({ topSize: v || null })}
+          />
+          {!targetIsStudent && (
+            <TextInputField
+              label="Bottom Size"
+              value={user.bottomSize || ""}
+              placeholder="e.g. Medium, 32"
+              canEdit={canEditProfile || canEditSelf}
+              onSave={(v) => patchUser({ bottomSize: v || null })}
+            />
+          )}
+          <TextInputField
+            label="Shoe Size"
+            value={user.shoeSize || ""}
+            placeholder="e.g. 10.5"
+            canEdit={canEditProfile || canEditSelf}
+            onSave={(v) => patchUser({ shoeSize: v || null })}
           />
         </CardContent>
       </Card>

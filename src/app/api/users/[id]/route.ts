@@ -1,5 +1,5 @@
 import { withAuth } from "@/lib/api";
-import { Prisma, ShiftArea } from "@prisma/client";
+import { Prisma, ShiftArea, StudentYear } from "@prisma/client";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
@@ -13,6 +13,18 @@ const updateUserSchema = z.object({
   phone: z.string().max(20).nullable().optional(),
   primaryArea: z.nativeEnum(ShiftArea).nullable().optional(),
   active: z.boolean().optional(),
+  // Profile fields migrated from the Sheet.
+  title: z.string().max(120).nullable().optional(),
+  athleticsEmail: z.string().email().max(255).nullable().optional(),
+  startDate: z.string().datetime().nullable().optional(),
+  gradYear: z.number().int().min(1900).max(2100).nullable().optional(),
+  studentYearOverride: z.nativeEnum(StudentYear).nullable().optional(),
+  topSize: z.string().max(40).nullable().optional(),
+  bottomSize: z.string().max(40).nullable().optional(),
+  shoeSize: z.string().max(40).nullable().optional(),
+  // Staff/admin only — direct report (FK + free-text fallback).
+  directReportId: z.string().cuid().nullable().optional(),
+  directReportName: z.string().trim().max(120).nullable().optional(),
 });
 
 export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
@@ -30,6 +42,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
       location: { select: { name: true } },
       sportAssignments: true,
       areaAssignments: true,
+      directReport: { select: { id: true, name: true } },
     },
   });
   if (!target) throw new HttpError(404, "User not found");
@@ -52,6 +65,19 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
       sportAssignments: target.sportAssignments,
       areaAssignments: target.areaAssignments,
       icsToken: isSelfOrAdmin ? (target.icsToken ?? null) : undefined,
+      title: target.title ?? null,
+      athleticsEmail: target.athleticsEmail ?? null,
+      startDate: target.startDate?.toISOString() ?? null,
+      directReportId: target.directReportId ?? null,
+      directReportName: target.directReportName ?? null,
+      directReport: target.directReport
+        ? { id: target.directReport.id, name: target.directReport.name }
+        : null,
+      gradYear: target.gradYear ?? null,
+      studentYearOverride: target.studentYearOverride ?? null,
+      topSize: target.topSize ?? null,
+      bottomSize: target.bottomSize ?? null,
+      shoeSize: target.shoeSize ?? null,
     },
   });
 });
@@ -159,6 +185,50 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     updateData.active = body.active;
   }
 
+  if (Object.prototype.hasOwnProperty.call(body, "title")) {
+    updateData.title = body.title ?? null;
+  }
+  if (Object.prototype.hasOwnProperty.call(body, "athleticsEmail")) {
+    updateData.athleticsEmail = body.athleticsEmail ? body.athleticsEmail.toLowerCase() : null;
+  }
+  if (Object.prototype.hasOwnProperty.call(body, "startDate")) {
+    updateData.startDate = body.startDate ? new Date(body.startDate) : null;
+  }
+  if (Object.prototype.hasOwnProperty.call(body, "gradYear")) {
+    updateData.gradYear = body.gradYear ?? null;
+  }
+  if (Object.prototype.hasOwnProperty.call(body, "studentYearOverride")) {
+    updateData.studentYearOverride = body.studentYearOverride ?? null;
+  }
+  if (Object.prototype.hasOwnProperty.call(body, "topSize")) {
+    updateData.topSize = body.topSize ?? null;
+  }
+  if (Object.prototype.hasOwnProperty.call(body, "bottomSize")) {
+    updateData.bottomSize = body.bottomSize ?? null;
+  }
+  if (Object.prototype.hasOwnProperty.call(body, "shoeSize")) {
+    updateData.shoeSize = body.shoeSize ?? null;
+  }
+
+  // Direct report — staff/admin only. UI sends *either* a cuid (existing user)
+  // *or* a free-text name. Setting one nulls the other so display logic stays unambiguous.
+  if (Object.prototype.hasOwnProperty.call(body, "directReportId")) {
+    if (body.directReportId === id) {
+      throw new HttpError(400, "A user cannot report to themselves");
+    }
+    updateData.directReportId = body.directReportId ?? null;
+    if (body.directReportId) {
+      updateData.directReportName = null;
+    }
+  }
+  if (Object.prototype.hasOwnProperty.call(body, "directReportName")) {
+    const name = body.directReportName?.trim() || null;
+    updateData.directReportName = name;
+    if (name) {
+      updateData.directReportId = null;
+    }
+  }
+
   if (Object.keys(updateData).length === 0) {
     throw new HttpError(400, "No fields to update");
   }
@@ -178,10 +248,15 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
         location: { select: { name: true } },
         sportAssignments: true,
         areaAssignments: true,
+        directReport: { select: { id: true, name: true } },
       },
     });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      const target = (err.meta?.target as string[] | undefined) ?? [];
+      if (target.some((t) => t.includes("athletics_email"))) {
+        throw new HttpError(409, "That athletics email is already in use");
+      }
       throw new HttpError(409, "A user with this email already exists");
     }
     throw err;
@@ -216,6 +291,19 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
       createdAt: updated.createdAt?.toISOString() ?? null,
       sportAssignments: updated.sportAssignments,
       areaAssignments: updated.areaAssignments,
+      title: updated.title ?? null,
+      athleticsEmail: updated.athleticsEmail ?? null,
+      startDate: updated.startDate?.toISOString() ?? null,
+      directReportId: updated.directReportId ?? null,
+      directReportName: updated.directReportName ?? null,
+      directReport: updated.directReport
+        ? { id: updated.directReport.id, name: updated.directReport.name }
+        : null,
+      gradYear: updated.gradYear ?? null,
+      studentYearOverride: updated.studentYearOverride ?? null,
+      topSize: updated.topSize ?? null,
+      bottomSize: updated.bottomSize ?? null,
+      shoeSize: updated.shoeSize ?? null,
     },
   });
 });
