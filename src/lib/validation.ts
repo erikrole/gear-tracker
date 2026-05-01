@@ -77,7 +77,7 @@ export const checkinReportSchema = z.object({
 
 export const overrideSchema = z.object({
   reason: z.string().min(5).max(1000),
-  details: z.record(z.unknown()).optional()
+  details: z.record(z.string(), z.unknown()).optional()
 });
 
 export const createBulkSkuSchema = z.object({
