@@ -409,6 +409,98 @@ function DirectReportField({
   );
 }
 
+/* ── Sizes Row (compact 2- or 3-column inline edit) ───── */
+
+function SizeMiniInput({
+  label,
+  value,
+  placeholder,
+  canEdit,
+  onSave,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  canEdit: boolean;
+  onSave: (v: string | null) => Promise<void>;
+}) {
+  const [draft, setDraft] = useState(value);
+  const { status, save } = useSaveField<string | null>(onSave);
+
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
+
+  const commit = useCallback(() => {
+    const trimmed = draft.trim();
+    if (trimmed === value.trim()) return;
+    save(trimmed || null);
+  }, [draft, value, save]);
+
+  return (
+    <label className="flex flex-col gap-0.5 min-w-0 flex-1">
+      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+        {label}
+        {status === "saving" && " · saving"}
+        {status === "saved" && " · saved"}
+        {status === "error" && " · error"}
+      </span>
+      <Input
+        value={draft}
+        placeholder={placeholder}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+        disabled={!canEdit}
+        className="h-7 text-sm px-2"
+      />
+    </label>
+  );
+}
+
+function SizesRow({
+  user,
+  isStudent,
+  canEdit,
+  onPatch,
+}: {
+  user: UserDetail;
+  isStudent: boolean;
+  canEdit: boolean;
+  onPatch: (payload: Record<string, unknown>) => Promise<void>;
+}) {
+  return (
+    <div className="px-3 py-2 border-t flex flex-col gap-1">
+      <span className="text-xs text-muted-foreground">Sizes</span>
+      <div className="flex items-end gap-2">
+        <SizeMiniInput
+          label={isStudent ? "Clothing" : "Top"}
+          value={user.topSize ?? ""}
+          placeholder="e.g. M"
+          canEdit={canEdit}
+          onSave={(v) => onPatch({ topSize: v })}
+        />
+        {!isStudent && (
+          <SizeMiniInput
+            label="Bottom"
+            value={user.bottomSize ?? ""}
+            placeholder="e.g. M, 32"
+            canEdit={canEdit}
+            onSave={(v) => onPatch({ bottomSize: v })}
+          />
+        )}
+        <SizeMiniInput
+          label="Shoes"
+          value={user.shoeSize ?? ""}
+          placeholder="e.g. 10.5"
+          canEdit={canEdit}
+          onSave={(v) => onPatch({ shoeSize: v })}
+        />
+      </div>
+    </div>
+  );
+}
+
 /* ── Sport Options (for the add dropdown) ─────────────── */
 
 const SPORT_OPTIONS = SPORT_CODES.map((s) => ({
@@ -742,28 +834,11 @@ export default function UserInfoTab({
             onSavePicked={(pickedId) => patchUser({ directReportId: pickedId })}
             onSaveFreeText={(name) => patchUser({ directReportName: name })}
           />
-          <TextInputField
-            label={targetIsStudent ? "Clothing Size" : "Top Size"}
-            value={user.topSize || ""}
-            placeholder="e.g. Medium"
+          <SizesRow
+            user={user}
+            isStudent={targetIsStudent}
             canEdit={canEditProfile || canEditSelf}
-            onSave={(v) => patchUser({ topSize: v || null })}
-          />
-          {!targetIsStudent && (
-            <TextInputField
-              label="Bottom Size"
-              value={user.bottomSize || ""}
-              placeholder="e.g. Medium, 32"
-              canEdit={canEditProfile || canEditSelf}
-              onSave={(v) => patchUser({ bottomSize: v || null })}
-            />
-          )}
-          <TextInputField
-            label="Shoe Size"
-            value={user.shoeSize || ""}
-            placeholder="e.g. 10.5"
-            canEdit={canEditProfile || canEditSelf}
-            onSave={(v) => patchUser({ shoeSize: v || null })}
+            onPatch={patchUser}
           />
         </CardContent>
       </Card>
