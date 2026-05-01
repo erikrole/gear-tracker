@@ -27,6 +27,9 @@ export const GET = withAuth(async (req, { user }) => {
   const locationId = searchParams.get("locationId");
   const activeParam = searchParams.get("active");
   const sort = searchParams.get("sort") || "name";
+  const yearParam = searchParams.get("year");      // FRESHMAN | SOPHOMORE | JUNIOR | SENIOR | GRAD
+  const sportParam = searchParams.get("sport");    // sport code (e.g. WHKY)
+  const areaParam = searchParams.get("area");      // ShiftArea enum value
 
   // Build where clause
   const conditions: Prisma.UserWhereInput[] = [];
@@ -53,6 +56,40 @@ export const GET = withAuth(async (req, { user }) => {
 
   if (locationId) {
     conditions.push({ locationId });
+  }
+
+  if (sportParam) {
+    conditions.push({ sportAssignments: { some: { sportCode: sportParam } } });
+  }
+
+  if (areaParam) {
+    conditions.push({
+      OR: [
+        { primaryArea: areaParam as Prisma.EnumShiftAreaFilter },
+        { areaAssignments: { some: { area: areaParam as Prisma.EnumShiftAreaFilter } } },
+      ],
+    });
+  }
+
+  // Year filter — derives an expected gradYear from a Sept→Aug academic calendar
+  // and matches either an explicit override or that derived gradYear.
+  if (yearParam && ["FRESHMAN", "SOPHOMORE", "JUNIOR", "SENIOR", "GRAD"].includes(yearParam)) {
+    const now = new Date();
+    const acadYearEnd = now.getMonth() >= 7 ? now.getFullYear() + 1 : now.getFullYear();
+    const yearGradMap: Record<string, Prisma.UserWhereInput> = {
+      SENIOR:    { gradYear: acadYearEnd },
+      JUNIOR:    { gradYear: acadYearEnd + 1 },
+      SOPHOMORE: { gradYear: acadYearEnd + 2 },
+      FRESHMAN:  { gradYear: { gte: acadYearEnd + 3 } },
+      GRAD:      { gradYear: { lte: acadYearEnd - 1 } },
+    };
+    const derivedMatch = yearGradMap[yearParam];
+    conditions.push({
+      OR: [
+        { studentYearOverride: yearParam as "FRESHMAN" | "SOPHOMORE" | "JUNIOR" | "SENIOR" | "GRAD" },
+        { AND: [{ studentYearOverride: null }, derivedMatch] },
+      ],
+    });
   }
 
   const where: Prisma.UserWhereInput =

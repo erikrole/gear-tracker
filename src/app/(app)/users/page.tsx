@@ -79,6 +79,9 @@ export default function UsersPage() {
   const debouncedSearch = useDebounce(search, 300);
   const [roleFilter, setRoleFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
+  const [yearFilter, setYearFilter] = useState("");
+  const [sportFilter, setSportFilter] = useState("");
+  const [areaFilter, setAreaFilter] = useState("");
   const [sort, setSort] = useState<SortKey | string>("name");
   const [showInactive, setShowInactive] = useState(false);
   const [page, setPage] = useState(0);
@@ -87,7 +90,7 @@ export default function UsersPage() {
   const [showCreate, setShowCreate] = useState(false);
 
   // Reset page when filters change
-  useEffect(() => { setPage(0); }, [debouncedSearch, roleFilter, locationFilter, sort, showInactive]);
+  useEffect(() => { setPage(0); }, [debouncedSearch, roleFilter, locationFilter, yearFilter, sportFilter, areaFilter, sort, showInactive]);
 
   // ── Build URL for user list fetch ──
   const usersUrl = useMemo(() => {
@@ -98,9 +101,12 @@ export default function UsersPage() {
     if (sort) params.set("sort", sort);
     if (roleFilter) params.set("role", roleFilter);
     if (locationFilter) params.set("locationId", locationFilter);
+    if (yearFilter) params.set("year", yearFilter);
+    if (sportFilter) params.set("sport", sportFilter);
+    if (areaFilter) params.set("area", areaFilter);
     if (showInactive) params.set("active", "all");
     return `/api/users?${params}`;
-  }, [page, debouncedSearch, sort, roleFilter, locationFilter, showInactive]);
+  }, [page, debouncedSearch, sort, roleFilter, locationFilter, yearFilter, sportFilter, areaFilter, showInactive]);
 
   const {
     data: listData,
@@ -134,7 +140,7 @@ export default function UsersPage() {
   const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
 
   const totalPages = Math.ceil(total / LIMIT);
-  const hasFilters = !!search || !!roleFilter || !!locationFilter;
+  const hasFilters = !!search || !!roleFilter || !!locationFilter || !!yearFilter || !!sportFilter || !!areaFilter;
   const isInitialLoad = loading && users.length === 0 && !loadError;
 
   return (
@@ -183,11 +189,20 @@ export default function UsersPage() {
           locationFilter={locationFilter}
           onLocationChange={setLocationFilter}
           locations={locations}
+          yearFilter={yearFilter}
+          onYearChange={setYearFilter}
+          sportFilter={sportFilter}
+          onSportChange={setSportFilter}
+          areaFilter={areaFilter}
+          onAreaChange={setAreaFilter}
           showInactive={showInactive}
           onShowInactiveChange={setShowInactive}
           onClearAll={() => {
             setRoleFilter("");
             setLocationFilter("");
+            setYearFilter("");
+            setSportFilter("");
+            setAreaFilter("");
             setShowInactive(false);
           }}
         />
