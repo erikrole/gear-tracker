@@ -4,7 +4,7 @@ import { formatDuration, getStatusVisual, type BookingItem } from "./types";
 import { cn } from "@/lib/utils";
 import { BookingContextMenuWrapper, BookingOverflowMenu, type BookingMenuProps } from "./BookingContextMenu";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { getInitials } from "@/lib/avatar";
+import { UserAvatar } from "@/components/UserAvatar";
 import { MoreHorizontalIcon } from "lucide-react";
 
 /* ───── Helpers ───── */
@@ -155,14 +155,12 @@ export function BookingCard({ item, overdueStatus, onClick, menuProps }: Booking
           {/* Bottom row: user + gear */}
           <div className="flex items-center justify-between pt-2.5 border-t border-border/40">
             <div className="flex items-center gap-1.5 min-w-0">
-              <Avatar size="sm" className="border border-border shrink-0">
-                {item.requester?.avatarUrl ? (
-                  <AvatarImage src={item.requester.avatarUrl} alt={item.requester.name} />
-                ) : null}
-                <AvatarFallback className="text-[10px] font-semibold">
-                  {getInitials(item.requester?.name ?? "?")}
-                </AvatarFallback>
-              </Avatar>
+              <UserAvatar
+                name={item.requester?.name ?? "?"}
+                avatarUrl={item.requester?.avatarUrl}
+                size="sm"
+                className="border border-border shrink-0"
+              />
               <span
                 className="text-[12px] truncate"
                 style={{ fontFamily: "var(--font-heading)", fontWeight: 500 }}

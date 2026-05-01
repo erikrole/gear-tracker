@@ -13,8 +13,7 @@ function titleOrYear(user: UserRowType): string | null {
   }
   return user.title ?? null;
 }
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { getInitials } from "@/lib/avatar";
+import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { TableRow, TableCell } from "@/components/ui/table";
@@ -31,15 +30,12 @@ export const UserTableRow = memo(function UserTableRow({ user }: { user: UserRow
     >
       <TableCell>
         <div className="flex items-center gap-3 min-w-0">
-          <Avatar className="size-9 shrink-0 ring-1 ring-border">
-            {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
-            <AvatarFallback
-              className="bg-secondary text-secondary-foreground text-xs font-bold"
-              style={{ fontFamily: "var(--font-heading)" }}
-            >
-              {getInitials(user.name)}
-            </AvatarFallback>
-          </Avatar>
+          <UserAvatar
+            name={user.name}
+            avatarUrl={user.avatarUrl}
+            size="md"
+            className="shrink-0 ring-1 ring-border"
+          />
           <div className="flex flex-col gap-0.5 min-w-0">
             <span
               className="leading-tight truncate text-[13px]"
@@ -85,15 +81,12 @@ export const UserMobileCard = memo(function UserMobileCard({ user }: { user: Use
       <Card className="hover:shadow-sm transition-shadow duration-150">
         <CardContent className="p-3.5">
           <div className="flex items-center gap-3.5">
-            <Avatar className="size-11 shrink-0 ring-1 ring-border" aria-hidden="true">
-              {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
-              <AvatarFallback
-                className="bg-secondary text-secondary-foreground text-sm font-bold"
-                style={{ fontFamily: "var(--font-heading)" }}
-              >
-                {getInitials(user.name)}
-              </AvatarFallback>
-            </Avatar>
+            <UserAvatar
+              name={user.name}
+              avatarUrl={user.avatarUrl}
+              size="lg"
+              className="shrink-0 ring-1 ring-border"
+            />
             <div className="flex flex-col gap-0.5 min-w-0 flex-1">
               <span
                 className="text-[13.5px] truncate leading-tight"

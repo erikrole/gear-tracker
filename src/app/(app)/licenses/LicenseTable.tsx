@@ -9,11 +9,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/UserAvatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatRelativeTime } from "@/lib/format";
-import { getInitials } from "@/lib/avatar";
 import { cn } from "@/lib/utils";
 import type { LicenseCode, ActiveClaim } from "./types";
 
@@ -73,10 +72,7 @@ function HolderCell({
 
         return (
           <div key={claim.id} className="flex items-center gap-1.5">
-            <Avatar className="size-5">
-              {avatarUrl && <AvatarImage src={avatarUrl} alt={name} />}
-              <AvatarFallback className="text-[10px]">{getInitials(name)}</AvatarFallback>
-            </Avatar>
+            <UserAvatar name={name} avatarUrl={avatarUrl} size="xs" />
             <span className={cn("text-sm", !showName && "text-muted-foreground")}>
               {showName ? name : "—"}
             </span>

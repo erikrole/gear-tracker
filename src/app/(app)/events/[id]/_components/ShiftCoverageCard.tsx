@@ -3,8 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { PlusIcon, XIcon } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { getInitials } from "@/lib/avatar";
+import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -217,9 +216,11 @@ export function ShiftCoverageCard({
     if (activeAssignment) {
       return (
         <span className="flex items-center gap-2 group">
-          <Avatar className="size-6">
-            <AvatarFallback className="text-[10px] font-medium">{getInitials(activeAssignment.user.name)}</AvatarFallback>
-          </Avatar>
+          <UserAvatar
+            name={activeAssignment.user.name}
+            avatarUrl={activeAssignment.user.avatarUrl}
+            size="sm"
+          />
           <span className="text-sm">{activeAssignment.user.name}</span>
           {isStaffOrAdmin && (
             <Tooltip>
@@ -480,9 +481,11 @@ export function ShiftCoverageCard({
               <TableCell>
                 {activeAssignment ? (
                   <span className="flex items-center gap-2">
-                    <Avatar className="size-6">
-                      <AvatarFallback className="text-[10px] font-medium">{getInitials(activeAssignment.user.name)}</AvatarFallback>
-                    </Avatar>
+                    <UserAvatar
+                      name={activeAssignment.user.name}
+                      avatarUrl={activeAssignment.user.avatarUrl}
+                      size="sm"
+                    />
                     {activeAssignment.user.name}
                   </span>
                 ) : (

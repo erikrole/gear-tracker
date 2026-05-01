@@ -4,7 +4,8 @@ import { useState } from "react";
 import { AlertTriangleIcon, BellRingIcon, CheckIcon, ClipboardCheckIcon } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { formatOverdueElapsed } from "@/lib/format";
-import { UserAvatar, GearAvatarStack } from "./dashboard-avatars";
+import { UserAvatar } from "@/components/UserAvatar";
+import { GearAvatarStack } from "./dashboard-avatars";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,

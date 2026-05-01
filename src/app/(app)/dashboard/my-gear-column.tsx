@@ -10,7 +10,8 @@ import { ScaleIn } from "@/components/ui/motion";
 import { cn } from "@/lib/utils";
 import { formatDayLabel, formatDueLabel, formatEventDateTime, formatRelativeTime, formatTimeShort, isDueToday } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
-import { UserAvatar, GearAvatarStack } from "./dashboard-avatars";
+import { UserAvatar } from "@/components/UserAvatar";
+import { GearAvatarStack } from "./dashboard-avatars";
 import type { DashboardData, BookingSummary, CreateBookingContext } from "../dashboard-types";
 import type { FilteredDashboardData } from "@/hooks/use-dashboard-filters";
 

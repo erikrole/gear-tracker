@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { withKiosk } from "@/lib/api";
 import { ok } from "@/lib/http";
+import { getInitials } from "@/lib/avatar";
 
 /** Kiosk idle screen data: stats, today's events, active checkouts (location-scoped). */
 export const GET = withKiosk(async (_req, { kiosk }) => {
@@ -99,12 +100,7 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
       title: c.title,
       requesterName: c.requester.name,
       requesterAvatarUrl: c.requester.avatarUrl,
-      requesterInitials: c.requester.name
-        .split(" ")
-        .map((w) => w[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2),
+      requesterInitials: getInitials(c.requester.name),
       items: c.serializedItems.map((si) => ({
         name: si.asset.name || si.asset.assetTag,
       })),

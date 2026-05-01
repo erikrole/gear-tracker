@@ -369,7 +369,7 @@ export const GET = withAuth(async (_req, { user }) => {
     const totalShiftSlots = shifts.length;
     const filledShiftSlots = shifts.filter((s) => s.assignments.length > 0).length;
     const seenUserIds = new Set<string>();
-    const assignedUsers: Array<{ id: string; name: string; initials: string; avatarUrl: string | null; area: string | null }> = [];
+    const assignedUsers: Array<{ id: string; name: string; avatarUrl: string | null; area: string | null }> = [];
     for (const shift of shifts) {
       for (const a of shift.assignments) {
         if (!seenUserIds.has(a.user.id)) {
@@ -377,7 +377,6 @@ export const GET = withAuth(async (_req, { user }) => {
           assignedUsers.push({
             id: a.user.id,
             name: a.user.name,
-            initials: getInitials(a.user.name),
             avatarUrl: a.user.avatarUrl ?? null,
             area: shift.area,
           });

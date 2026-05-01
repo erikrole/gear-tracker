@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/UserAvatar";
 import {
   Popover,
   PopoverContent,
@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/popover";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { getInitials } from "@/lib/avatar";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 
 /* ── Types ──────────────────────────────────────────────── */
@@ -312,14 +311,12 @@ export function EventTravelCard({
             {members.map((m) => (
               <div key={m.id} className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
-                  <Avatar className="size-7 shrink-0">
-                    {m.user.avatarUrl && (
-                      <AvatarImage src={m.user.avatarUrl} alt={m.user.name} />
-                    )}
-                    <AvatarFallback className="text-xs font-medium">
-                      {getInitials(m.user.name)}
-                    </AvatarFallback>
-                  </Avatar>
+                  <UserAvatar
+                    name={m.user.name}
+                    avatarUrl={m.user.avatarUrl}
+                    size="default"
+                    className="shrink-0"
+                  />
                   <span className="text-sm truncate">{m.user.name}</span>
                   <Badge variant="gray" className="text-[10px] h-4 px-1 shrink-0">
                     {m.user.role}

@@ -13,8 +13,8 @@ import UserAvailabilityTab from "./UserAvailabilityTab";
 import { toast } from "sonner";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { getInitials } from "@/lib/avatar";
+import { UserAvatar } from "@/components/UserAvatar";
+import { useConfirm } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -65,6 +65,7 @@ export default function UserDetailPage() {
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [resetBusy, setResetBusy] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const confirm = useConfirm();
 
   // ── Data fetching via useFetch ──
   const {
@@ -125,6 +126,13 @@ export default function UserDetailPage() {
   }
 
   async function removeAvatar() {
+    const ok = await confirm({
+      title: `Remove ${effectiveUser?.name ? effectiveUser.name + "'s " : ""}photo?`,
+      message: "The current avatar will be deleted permanently. The user can upload a new one anytime.",
+      confirmLabel: "Remove photo",
+      variant: "danger",
+    });
+    if (!ok) return;
     // Optimistic: remove avatar immediately, rollback on failure
     const previousUrl = effectiveUser?.avatarUrl ?? null;
     setUserOverrides((prev) => ({ ...prev, avatarUrl: null }));
@@ -281,17 +289,15 @@ export default function UserDetailPage() {
                   <DropdownMenuTrigger asChild disabled={uploadingAvatar}>
                     <button
                       type="button"
+                      aria-label={user.avatarUrl ? "Change profile photo" : "Upload profile photo"}
                       className="relative group rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
-                      <Avatar className="size-20 cursor-pointer ring-2 ring-border ring-offset-2 ring-offset-card">
-                        {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
-                        <AvatarFallback
-                          className="bg-secondary text-secondary-foreground text-2xl font-black"
-                          style={{ fontFamily: "var(--font-heading)" }}
-                        >
-                          {getInitials(user.name)}
-                        </AvatarFallback>
-                      </Avatar>
+                      <UserAvatar
+                        name={user.name}
+                        avatarUrl={user.avatarUrl}
+                        size="xl"
+                        className="cursor-pointer ring-2 ring-border ring-offset-2 ring-offset-card"
+                      />
                       <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         {uploadingAvatar ? (
                           <Spinner className="size-6 text-white" />
@@ -316,18 +322,12 @@ export default function UserDetailPage() {
                 </DropdownMenu>
               </>
             ) : (
-              <Avatar
-                className="size-20 ring-2 ring-border ring-offset-2 ring-offset-card"
-                aria-hidden="true"
-              >
-                {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
-                <AvatarFallback
-                  className="bg-secondary text-secondary-foreground text-2xl font-black"
-                  style={{ fontFamily: "var(--font-heading)" }}
-                >
-                  {getInitials(user.name)}
-                </AvatarFallback>
-              </Avatar>
+              <UserAvatar
+                name={user.name}
+                avatarUrl={user.avatarUrl}
+                size="xl"
+                className="ring-2 ring-border ring-offset-2 ring-offset-card"
+              />
             )}
           </div>
 

@@ -2,20 +2,17 @@
 
 import { UserIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { AvatarGroup } from "@/components/ui/avatar-group";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { getInitials } from "@/lib/avatar";
+import { UserAvatar } from "@/components/UserAvatar";
 import type { ItemThumb, EventSummary } from "../dashboard-types";
-
-export { UserAvatar } from "@/components/UserAvatar";
 
 export function GearAvatarStack({ items, totalCount }: { items: ItemThumb[]; totalCount: number }) {
   if (totalCount === 0) return null;
   const overflow = totalCount - items.length;
   return (
-    <AvatarGroup max={99}>
+    <div className="flex -space-x-2">
       {items.map((item) => (
-        <Avatar key={item.id} size="sm" className="ring-2 ring-background">
+        <Avatar key={item.id} size="sm" className="ring-2 ring-background bg-muted">
           {item.imageUrl ? (
             <AvatarImage src={item.imageUrl} alt={item.name || "Item"} />
           ) : (
@@ -28,7 +25,7 @@ export function GearAvatarStack({ items, totalCount }: { items: ItemThumb[]; tot
           <AvatarFallback className="text-[10px] bg-muted">+{overflow}</AvatarFallback>
         </Avatar>
       )}
-    </AvatarGroup>
+    </div>
   );
 }
 
@@ -47,20 +44,21 @@ export function ShiftAvatarStack({ assignedUsers, totalSlots, filledSlots }: { a
   const showEmpty = Math.min(emptySlots, maxShow - showUsers.length);
   const overflow = assignedUsers.length + emptySlots - maxShow;
   return (
-    <AvatarGroup max={99}>
+    <div className="flex -space-x-2">
       {showUsers.map((u) => {
         const areaLabel = u.area ? AREA_LABELS[u.area] ?? u.area : null;
         const tooltipText = areaLabel ? `${u.name} — ${areaLabel}` : u.name;
         return (
           <Tooltip key={u.id}>
             <TooltipTrigger asChild>
-              <Avatar size="sm" className="ring-2 ring-background cursor-default">
-                {u.avatarUrl ? (
-                  <AvatarImage src={u.avatarUrl} alt={u.name} />
-                ) : (
-                  <AvatarFallback>{u.initials}</AvatarFallback>
-                )}
-              </Avatar>
+              <span className="cursor-default">
+                <UserAvatar
+                  name={u.name}
+                  avatarUrl={u.avatarUrl}
+                  size="sm"
+                  className="ring-2 ring-background"
+                />
+              </span>
             </TooltipTrigger>
             <TooltipContent>{tooltipText}</TooltipContent>
           </Tooltip>
@@ -74,7 +72,7 @@ export function ShiftAvatarStack({ assignedUsers, totalSlots, filledSlots }: { a
           <AvatarFallback className="text-[10px] bg-muted">+{overflow}</AvatarFallback>
         </Avatar>
       )}
-    </AvatarGroup>
+    </div>
   );
 }
 

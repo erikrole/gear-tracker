@@ -1,4 +1,4 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/UserAvatar";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/popover";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { AlertTriangle, CheckIcon, MinusIcon, PlusIcon, XIcon } from "lucide-react";
-import { getInitials } from "@/lib/avatar";
 import { UserAvatarPicker, type PickerUser } from "./UserAvatarPicker";
 
 type ShiftUser = {
@@ -178,14 +177,11 @@ export function ShiftSlotCard({
             <>
               <div className="flex items-center justify-between">
                 <span className="text-sm flex items-center gap-2">
-                  <Avatar className="size-7">
-                    {activeAssignment.user.avatarUrl && (
-                      <AvatarImage src={activeAssignment.user.avatarUrl} alt={activeAssignment.user.name} />
-                    )}
-                    <AvatarFallback className="text-xs font-medium">
-                      {getInitials(activeAssignment.user.name)}
-                    </AvatarFallback>
-                  </Avatar>
+                  <UserAvatar
+                    name={activeAssignment.user.name}
+                    avatarUrl={activeAssignment.user.avatarUrl}
+                    size="default"
+                  />
                   {activeAssignment.user.name}
                   {activeAssignment.hasConflict && (
                     <Tooltip>
@@ -299,11 +295,11 @@ export function ShiftSlotCard({
               {pendingRequests.map((req) => (
                 <div key={req.id} className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground flex items-center gap-2">
-                    <Avatar className="size-6">
-                      <AvatarFallback className="text-xs font-medium">
-                        {getInitials(req.user.name)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <UserAvatar
+                      name={req.user.name}
+                      avatarUrl={req.user.avatarUrl}
+                      size="sm"
+                    />
                     {req.user.name}
                   </span>
                   {isStaff && (

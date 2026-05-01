@@ -25,10 +25,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { formatRelativeTime } from "@/lib/format";
-import { getInitials } from "@/lib/avatar";
 import type { LicenseCode } from "./types";
 
 type ClaimRecord = {
@@ -215,12 +214,7 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
                       key={claim.id}
                       className="flex items-center gap-2 rounded-md border bg-card p-2"
                     >
-                      <Avatar className="size-7">
-                        {claim.user?.avatarUrl && (
-                          <AvatarImage src={claim.user.avatarUrl} alt={name} />
-                        )}
-                        <AvatarFallback className="text-xs">{getInitials(name)}</AvatarFallback>
-                      </Avatar>
+                      <UserAvatar name={name} avatarUrl={claim.user?.avatarUrl} size="default" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm truncate">{name}</p>
                         <p className="text-xs text-muted-foreground">
@@ -441,12 +435,7 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
                   const name = claim.user?.name ?? claim.occupantLabel ?? "Unknown";
                   return (
                     <div key={claim.id} className="flex items-center gap-2 text-sm">
-                      <Avatar className="size-6">
-                        {claim.user?.avatarUrl && (
-                          <AvatarImage src={claim.user.avatarUrl} alt={name} />
-                        )}
-                        <AvatarFallback className="text-xs">{getInitials(name)}</AvatarFallback>
-                      </Avatar>
+                      <UserAvatar name={name} avatarUrl={claim.user?.avatarUrl} size="sm" />
                       <span className="flex-1 truncate">{name}</span>
                       <span className="text-xs text-muted-foreground shrink-0">
                         {formatRelativeTime(claim.claimedAt, new Date())}

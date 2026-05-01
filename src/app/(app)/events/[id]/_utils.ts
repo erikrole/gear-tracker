@@ -29,7 +29,7 @@ export type ShiftGroupSummary = {
     assignments: Array<{
       id: string;
       status: string;
-      user: { id: string; name: string };
+      user: { id: string; name: string; avatarUrl: string | null };
     }>;
   }>;
 };

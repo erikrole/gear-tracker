@@ -1,7 +1,6 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/UserAvatar";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { getInitials } from "@/lib/avatar";
 
 const AREA_LABELS: Record<string, string> = {
   VIDEO: "Video",
@@ -69,14 +68,9 @@ export function UserAvatarPicker({
                 title={conflict ?? undefined}
               >
                 <div className="relative shrink-0">
-                  <Avatar className="size-7">
-                    {u.avatarUrl && <AvatarImage src={u.avatarUrl} alt={u.name} />}
-                    <AvatarFallback className="text-xs font-medium">
-                      {getInitials(u.name)}
-                    </AvatarFallback>
-                  </Avatar>
+                  <UserAvatar name={u.name} avatarUrl={u.avatarUrl} size="default" />
                   {conflict && (
-                    <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-yellow-400 border border-background" />
+                    <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-amber-400 border border-background" />
                   )}
                 </div>
                 <div className="min-w-0 flex-1">

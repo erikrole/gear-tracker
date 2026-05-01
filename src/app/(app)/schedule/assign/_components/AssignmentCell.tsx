@@ -3,11 +3,10 @@
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { UserAvatarPicker } from "@/components/shift-detail/UserAvatarPicker";
 import type { PickerUser } from "@/components/shift-detail/UserAvatarPicker";
-import { getInitials } from "@/lib/avatar";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import type { GridShift, GridAssignment } from "@/hooks/use-assignment-grid";
 
@@ -131,16 +130,17 @@ export function AssignmentCell({ shifts, allUsers, usersLoading, isStaff, onRefe
             onClick={() => handleRemove(a.id)}
             className="group relative rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
           >
-            <Avatar className="size-7 ring-2 ring-background group-hover:ring-destructive/60 transition-all">
-              {a.user.avatarUrl && <AvatarImage src={a.user.avatarUrl} alt={a.user.name} />}
-              <AvatarFallback
-                className={`text-[10px] font-medium ${
-                  a.hasConflict ? "bg-yellow-100 text-yellow-700" : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {getInitials(a.user.name)}
-              </AvatarFallback>
-            </Avatar>
+            <UserAvatar
+              name={a.user.name}
+              avatarUrl={a.user.avatarUrl}
+              size="default"
+              className="ring-2 ring-background group-hover:ring-destructive/60 transition-all"
+              fallbackClassName={
+                a.hasConflict
+                  ? "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
+                  : undefined
+              }
+            />
             {a.hasConflict && (
               <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-yellow-400 border border-background" />
             )}

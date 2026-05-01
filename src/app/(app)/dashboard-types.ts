@@ -69,7 +69,7 @@ export type EventSummary = {
   isHome: boolean | null;
   totalShiftSlots: number;
   filledShiftSlots: number;
-  assignedUsers: Array<{ id: string; name: string; initials: string; avatarUrl: string | null; area: string | null }>;
+  assignedUsers: Array<{ id: string; name: string; avatarUrl: string | null; area: string | null }>;
 };
 
 export type OverdueItem = {

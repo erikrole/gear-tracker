@@ -3,13 +3,12 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { Cog, ArrowRight } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Empty, EmptyDescription } from "@/components/ui/empty";
-import { getInitials } from "@/lib/avatar";
 import { formatDateTime, formatDateShort, formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -726,16 +725,11 @@ function TimelineEntry({
           <Cog className="size-4 text-muted-foreground" />
         </div>
       ) : (
-        <Avatar
+        <UserAvatar
+          name={actorName}
+          avatarUrl={entry.actor?.avatarUrl}
           className={cn("size-8 shrink-0 ring-2", ringClass)}
-        >
-          {entry.actor?.avatarUrl && (
-            <AvatarImage src={entry.actor.avatarUrl} alt={actorName} />
-          )}
-          <AvatarFallback>
-            {getInitials(actorName)}
-          </AvatarFallback>
-        </Avatar>
+        />
       )}
 
       {/* Content */}
