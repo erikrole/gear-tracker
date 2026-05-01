@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
 import { Cog, ArrowRight } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +12,34 @@ import { Empty, EmptyDescription } from "@/components/ui/empty";
 import { getInitials } from "@/lib/avatar";
 import { formatDateTime, formatDateShort, formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+/** Map an audit row's entity to a deep-link route, or null if no detail page exists. */
+function entityHref(
+  entityType: string | undefined,
+  entityId: string | undefined,
+  afterJson: Record<string, unknown> | null,
+): string | null {
+  if (!entityType || !entityId) return null;
+  switch (entityType) {
+    case "booking": {
+      const kind = (afterJson?.kind as string | undefined)?.toLowerCase();
+      if (kind === "checkout") return `/checkouts/${entityId}`;
+      if (kind === "reservation") return `/reservations/${entityId}`;
+      // Unknown kind — let the bookings list resolve via id query.
+      return `/bookings?id=${entityId}`;
+    }
+    case "asset":
+      return `/items/${entityId}`;
+    case "user":
+      return `/users/${entityId}`;
+    case "bulk_sku":
+      return `/bulk-inventory/${entityId}`;
+    case "kit":
+      return `/settings/kits/${entityId}`;
+    default:
+      return null;
+  }
+}
 
 /* ── Re-export AuditEntry type as canonical ── */
 
@@ -33,7 +62,7 @@ export type ActivityTimelineProps = {
   hasMore?: boolean;
   onLoadMore?: () => void;
   /** Context for generating descriptions */
-  context?: "booking" | "item" | "report";
+  context?: "booking" | "item" | "report" | "user";
   /** Entity name for better descriptions */
   entityName?: string;
   /** Empty state message */
@@ -191,11 +220,36 @@ const RING_CLASSES: Record<ActionColorKey, string> = {
   muted:  "ring-border",
 };
 
+/** Resolve a friendly target phrase from the audit entry — used by `user` context
+ *  where each row references a different entity. Falls back to the entityType
+ *  with a short id suffix if no human-readable name is available. */
+function userTarget(entry: AuditEntry): string {
+  const after = entry.afterJson ?? {};
+  const before = entry.beforeJson ?? {};
+  if (entry.entityType === "user") return "their profile";
+  if (entry.entityType === "booking") {
+    const t = (after.title as string | undefined) ?? (before.title as string | undefined);
+    return t ? `booking "${t}"` : "a booking";
+  }
+  if (entry.entityType === "asset") {
+    const t = (after.name as string | undefined) ?? (before.name as string | undefined);
+    return t ? `item "${t}"` : "an item";
+  }
+  if (entry.entityType === "kit") {
+    const t = (after.name as string | undefined) ?? (before.name as string | undefined);
+    return t ? `kit "${t}"` : "a kit";
+  }
+  if (entry.entityType === "license") return "a license";
+  return entry.entityType
+    ? `a ${entry.entityType.replace(/_/g, " ")}`
+    : "this resource";
+}
+
 /** Generate a natural-language description of an action */
 function describeAction(
   entry: AuditEntry,
   actorName: string,
-  context: "booking" | "item" | "report",
+  context: "booking" | "item" | "report" | "user",
   entityName?: string,
 ): string {
   const target =
@@ -203,11 +257,13 @@ function describeAction(
       ? "this booking"
       : context === "item"
         ? entityName || "this item"
-        : entityName
-          ? entityName
-          : entry.entityType
-            ? `${entry.entityType} ${(entry.entityId ?? "").slice(0, 8)}`
-            : "this resource";
+        : context === "user"
+          ? userTarget(entry)
+          : entityName
+            ? entityName
+            : entry.entityType
+              ? `${entry.entityType} ${(entry.entityId ?? "").slice(0, 8)}`
+              : "this resource";
 
   const reportPrefix = context === "report" ? `${actorName} ` : "";
 
@@ -226,7 +282,9 @@ function describeAction(
     case "update":
       return context === "report"
         ? `${actorName} updated ${target}`
-        : "Updated details";
+        : context === "user"
+          ? `Updated ${target}`
+          : "Updated details";
     case "extended":
     case "extend": {
       const newEnd =
@@ -239,7 +297,9 @@ function describeAction(
     }
     case "cancelled":
     case "cancel":
-      return `${reportPrefix}Cancelled ${context === "report" ? target : "the booking"}`;
+      return `${reportPrefix}Cancelled ${
+        context === "report" || context === "user" ? target : "the booking"
+      }`;
     case "deleted":
       return `${reportPrefix}Deleted ${target}`;
     case "retired":
@@ -340,9 +400,13 @@ function describeAction(
     case "kiosk_activated":
       return "Kiosk device activated";
     default:
-      return context === "report"
-        ? `${actorName} performed ${entry.action.replace(/_/g, " ")}`
-        : entry.action.replace(/_/g, " ");
+      if (context === "report") {
+        return `${actorName} performed ${entry.action.replace(/_/g, " ")}`;
+      }
+      if (context === "user") {
+        return `${entry.action.replace(/_/g, " ")} on ${target}`;
+      }
+      return entry.action.replace(/_/g, " ");
   }
 }
 
@@ -513,7 +577,7 @@ function TimelineEntry({
   today,
 }: {
   entry: AuditEntry;
-  context: "booking" | "item" | "report";
+  context: "booking" | "item" | "report" | "user";
   entityName?: string;
   today: Date;
 }) {
@@ -541,8 +605,23 @@ function TimelineEntry({
   )
     return null;
 
+  // On user / report contexts each row references a different entity — make the
+  // row clickable when a detail page exists. Booking / item context rows already
+  // live on the entity's page so a self-link is redundant.
+  const linkable =
+    (context === "user" || context === "report") &&
+    entityHref(entry.entityType, entry.entityId, entry.afterJson);
+  const Wrapper: React.ElementType = linkable ? Link : "div";
+  const wrapperProps = linkable
+    ? {
+        href: linkable,
+        className:
+          "flex gap-3 items-start py-2.5 px-3 sm:px-4 no-underline text-inherit hover:bg-muted/40 transition-colors",
+      }
+    : { className: "flex gap-3 items-start py-2.5 px-3 sm:px-4" };
+
   return (
-    <div className="flex gap-3 items-start py-2.5 px-3 sm:px-4">
+    <Wrapper {...wrapperProps}>
       {/* Avatar or system icon */}
       {isSystem ? (
         <div
@@ -570,7 +649,7 @@ function TimelineEntry({
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2 flex-wrap">
           {context !== "report" && (
-            <span className="text-sm font-medium">{actorName}</span>
+            <span className="text-sm font-medium truncate">{actorName}</span>
           )}
           <span className="text-sm text-muted-foreground">
             {description}
@@ -607,7 +686,7 @@ function TimelineEntry({
           </div>
         )}
       </div>
-    </div>
+    </Wrapper>
   );
 }
 
