@@ -469,7 +469,7 @@ export default function ItemsPage() {
           <div className="rounded-md border hidden sm:block">
             <Table>
               <TableHeader>
-                <TableRow className="bg-muted/50">
+                <TableRow striped={false} className="bg-muted/50">
                   <TableHead className="border-t w-[40px]"><Skeleton className="size-4" /></TableHead>
                   <TableHead className="border-t w-[40px]"><Skeleton className="size-4" /></TableHead>
                   <TableHead className="border-t w-[280px]"><Skeleton className="h-4 w-12" /></TableHead>

@@ -171,9 +171,9 @@ export function DataTable({
 
         {/* Desktop table */}
         <Table className="hidden sm:table">
-          <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80">
+          <TableHeader className="bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80">
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className="bg-transparent">
+              <TableRow key={headerGroup.id} striped={false} className="bg-transparent">
                 {headerGroup.headers.map((header) => {
                   const canSort = header.column.getCanSort();
                   const sorted = header.column.getIsSorted();
@@ -212,7 +212,7 @@ export function DataTable({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() ? "selected" : undefined}
-                  className="group/row cursor-pointer hover:bg-muted/50 transition-colors focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
+                  className="group/row cursor-pointer focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
                   tabIndex={0}
                   role="row"
                   aria-label={`View ${row.original.assetTag}`}

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { FacetedFilter } from "../faceted-filter";
 
 const STATUS_OPTIONS = [
@@ -148,19 +149,17 @@ export function ItemsToolbar({
         <Star className={`size-3.5 ${favoritesOnly ? "fill-current" : ""}`} />
         Favorites
       </Button>
-      <div className="flex items-center rounded-md border border-border overflow-hidden shrink-0" role="group" aria-label="Item type filter">
-        {(["all", "serialized", "bulk"] as const).map((type) => (
-          <button
-            key={type}
-            type="button"
-            className={`px-2.5 py-1.5 text-xs font-medium transition-colors ${itemType === type ? "bg-foreground text-background" : "hover:bg-muted text-muted-foreground"}`}
-            onClick={() => onItemTypeChange(type)}
-            aria-pressed={itemType === type}
-          >
-            {type === "all" ? "All" : type === "serialized" ? "Serialized" : "Bulk"}
-          </button>
-        ))}
-      </div>
+      <ToggleGroup
+        type="single"
+        value={itemType}
+        onValueChange={(v) => v && onItemTypeChange(v as "all" | "serialized" | "bulk")}
+        className="shrink-0"
+        aria-label="Item type filter"
+      >
+        <ToggleGroupItem value="all" className="text-xs px-2.5">All</ToggleGroupItem>
+        <ToggleGroupItem value="serialized" className="text-xs px-2.5">Serialized</ToggleGroupItem>
+        <ToggleGroupItem value="bulk" className="text-xs px-2.5">Bulk</ToggleGroupItem>
+      </ToggleGroup>
       <div className="flex items-center gap-1.5">
         <Switch
           id="show-accessories"

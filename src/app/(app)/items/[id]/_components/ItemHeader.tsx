@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
@@ -66,27 +65,25 @@ function SerialBadge({ serialNumber }: { serialNumber: string }) {
   }
 
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            className="group flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-            style={{ fontFamily: "var(--font-mono)" }}
-            onClick={handleCopy}
-            aria-label={`Copy serial number ${serialNumber}`}
-          >
-            <span className="text-[9px] uppercase tracking-[0.16em] text-muted-foreground/50">SN</span>
-            {serialNumber}
-            {copied ? (
-              <Check className="size-3 text-green-500 shrink-0" />
-            ) : (
-              <Copy className="size-3 opacity-0 group-hover:opacity-60 transition-opacity shrink-0" />
-            )}
-          </button>
-        </TooltipTrigger>
-        <TooltipContent>{copied ? "Copied!" : "Copy serial number"}</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          className="group flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          style={{ fontFamily: "var(--font-mono)" }}
+          onClick={handleCopy}
+          aria-label={`Copy serial number ${serialNumber}`}
+        >
+          <span className="text-[9px] uppercase tracking-[0.16em] text-muted-foreground/50">SN</span>
+          {serialNumber}
+          {copied ? (
+            <Check className="size-3 text-green-500 shrink-0" />
+          ) : (
+            <Copy className="size-3 opacity-0 group-hover:opacity-60 transition-opacity shrink-0" />
+          )}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>{copied ? "Copied!" : "Copy serial number"}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -296,27 +293,25 @@ export function ItemHeader({
           <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 shrink-0 sm:self-start sm:pt-0.5">
             {/* Utility icons */}
             <div className="flex items-center gap-1">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-7"
-                      onClick={onRefresh}
-                      disabled={refreshing}
-                      aria-label="Refresh"
-                    >
-                      <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {lastRefreshed
-                      ? `Updated ${lastRefreshed.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
-                      : "Refresh"}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-7"
+                    onClick={onRefresh}
+                    disabled={refreshing}
+                    aria-label="Refresh"
+                  >
+                    <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {lastRefreshed
+                    ? `Updated ${lastRefreshed.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
+                    : "Refresh"}
+                </TooltipContent>
+              </Tooltip>
 
               <Button
                 variant="ghost"

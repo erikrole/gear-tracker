@@ -20,7 +20,6 @@ import {
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
@@ -116,12 +115,7 @@ function TextInputField({
           }}
           placeholder={placeholder}
           disabled={!canEdit || readOnly}
-          className={cn(
-            "h-8 text-sm border-transparent bg-transparent shadow-none",
-            "hover:bg-muted/60 hover:border-border/50",
-            "focus-visible:bg-background focus-visible:border-ring focus-visible:shadow-xs",
-            mono && "font-mono",
-          )}
+          className={cn("h-8 text-sm", mono && "font-mono")}
         />
         {dupWarning && (
           <p className="text-xs text-orange-600 dark:text-orange-400 mt-0.5 px-1">{dupWarning}</p>
@@ -195,10 +189,10 @@ function LinkField({
           }}
           placeholder={placeholder}
           disabled={!canEdit}
-          className="h-8 text-sm flex-1 border-transparent bg-transparent shadow-none hover:bg-muted/60 hover:border-border/50 focus-visible:bg-background focus-visible:border-ring focus-visible:shadow-xs"
+          className="h-8 text-sm flex-1"
         />
         {value && (
-          <TooltipProvider>
+          <>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -229,7 +223,7 @@ function LinkField({
               </TooltipTrigger>
               <TooltipContent>{copied ? "Copied!" : "Copy link"}</TooltipContent>
             </Tooltip>
-          </TooltipProvider>
+          </>
         )}
       </div>
     </SaveableField>
@@ -304,7 +298,7 @@ function SaveableNativeSelectField({
           if (v === value) return;
           await saveField.save(v);
         }}
-        className="h-8 text-sm border-transparent bg-transparent shadow-none hover:bg-muted/60 hover:border-border/50 focus-visible:bg-background focus-visible:border-ring focus-visible:shadow-xs"
+        className="h-8 text-sm"
       >
         <option value="">{placeholder || "Select..."}</option>
         {options.map((o) => (
@@ -390,7 +384,7 @@ function SaveableCategoryField({
               setNewCatName("");
             }
           }}
-          className="h-8 text-sm border-transparent bg-transparent shadow-none hover:bg-muted/60 hover:border-border/50 focus-visible:bg-background focus-visible:border-ring focus-visible:shadow-xs"
+          className="h-8 text-sm"
         />
       ) : (
         <CategoryCombobox
@@ -876,7 +870,7 @@ function NotesField({
           }}
           placeholder="Add notes..."
           rows={3}
-          className="text-sm border-transparent bg-transparent shadow-none resize-none hover:bg-muted/60 hover:border-border/50 focus-visible:bg-background focus-visible:border-ring focus-visible:shadow-xs"
+          className="text-sm resize-none"
         />
       ) : (
         <p className="text-sm whitespace-pre-wrap py-1.5 px-3">

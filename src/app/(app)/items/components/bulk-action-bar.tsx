@@ -207,7 +207,7 @@ export function BulkActionBar({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
+              variant="destructive"
               onClick={() => onAction("retire")}
               disabled={busy}
             >
@@ -234,7 +234,7 @@ export function BulkActionBar({
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
+              variant="destructive"
               onClick={() => onAction("delete")}
               disabled={busy}
             >
