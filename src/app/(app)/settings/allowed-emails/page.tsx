@@ -282,7 +282,7 @@ export default function AllowedEmailsPage() {
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[140px] h-9">
+              <SelectTrigger className="w-[140px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -343,7 +343,7 @@ export default function AllowedEmailsPage() {
                     <div className="space-y-1.5">
                       <Label htmlFor="add-role">Role</Label>
                       <Select value={addRole} onValueChange={(v) => setAddRole(v as "STUDENT" | "STAFF")}>
-                        <SelectTrigger id="add-role" className="h-9">
+                        <SelectTrigger id="add-role">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -390,7 +390,7 @@ export default function AllowedEmailsPage() {
                     <div className="space-y-1.5">
                       <Label htmlFor="add-bulk-role">Role for all</Label>
                       <Select value={addRole} onValueChange={(v) => setAddRole(v as "STUDENT" | "STAFF")}>
-                        <SelectTrigger id="add-bulk-role" className="h-9">
+                        <SelectTrigger id="add-bulk-role">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>

@@ -65,7 +65,7 @@ export default function UserFilters({
         />
         <div className="flex items-center gap-2 flex-wrap">
           <Select value={roleFilter || "__all__"} onValueChange={(v) => onRoleChange(v === "__all__" ? "" : v)}>
-            <SelectTrigger className="h-8 w-[130px]">
+            <SelectTrigger size="sm" className="w-[130px]">
               <SelectValue placeholder="All roles" />
             </SelectTrigger>
             <SelectContent>
@@ -76,7 +76,7 @@ export default function UserFilters({
             </SelectContent>
           </Select>
           <Select value={locationFilter || "__all__"} onValueChange={(v) => onLocationChange(v === "__all__" ? "" : v)}>
-            <SelectTrigger className="h-8 w-[150px]">
+            <SelectTrigger size="sm" className="w-[150px]">
               <SelectValue placeholder="All locations" />
             </SelectTrigger>
             <SelectContent>
@@ -87,7 +87,7 @@ export default function UserFilters({
             </SelectContent>
           </Select>
           <Select value={areaFilter || "__all__"} onValueChange={(v) => onAreaChange(v === "__all__" ? "" : v)}>
-            <SelectTrigger className="h-8 w-[130px]">
+            <SelectTrigger size="sm" className="w-[130px]">
               <SelectValue placeholder="All areas" />
             </SelectTrigger>
             <SelectContent>
@@ -98,7 +98,7 @@ export default function UserFilters({
             </SelectContent>
           </Select>
           <Select value={yearFilter || "__all__"} onValueChange={(v) => onYearChange(v === "__all__" ? "" : v)}>
-            <SelectTrigger className="h-8 w-[130px]">
+            <SelectTrigger size="sm" className="w-[130px]">
               <SelectValue placeholder="All years" />
             </SelectTrigger>
             <SelectContent>
@@ -109,7 +109,7 @@ export default function UserFilters({
             </SelectContent>
           </Select>
           <Select value={sportFilter || "__all__"} onValueChange={(v) => onSportChange(v === "__all__" ? "" : v)}>
-            <SelectTrigger className="h-8 w-[150px]">
+            <SelectTrigger size="sm" className="w-[150px]">
               <SelectValue placeholder="All sports" />
             </SelectTrigger>
             <SelectContent className="max-h-[300px]">

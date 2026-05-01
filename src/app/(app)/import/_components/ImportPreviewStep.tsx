@@ -195,7 +195,7 @@ export function ImportPreviewStep({
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Mode:</span>
           <Select value={importMode} onValueChange={(v) => onImportModeChange(v as "upsert" | "create_only")}>
-            <SelectTrigger className="w-[180px] h-9">
+            <SelectTrigger className="w-[180px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
