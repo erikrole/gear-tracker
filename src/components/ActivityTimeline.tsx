@@ -139,6 +139,21 @@ const FIELD_LABELS: Record<string, string> = {
   availableForCheckout: "Checkout availability",
   availableForCustody: "Custody availability",
   imageUrl: "Image",
+  // User profile fields
+  email: "Email",
+  phone: "Phone",
+  role: "Role",
+  primaryArea: "Primary area",
+  athleticsEmail: "Athletics email",
+  startDate: "Start date",
+  directReportId: "Direct report",
+  directReportName: "Direct report",
+  gradYear: "Grad year",
+  studentYearOverride: "Student year",
+  topSize: "Top size",
+  bottomSize: "Bottom size",
+  shoeSize: "Shoe size",
+  avatarUrl: "Profile photo",
 };
 
 /** Status vocabulary mapping */
@@ -174,6 +189,11 @@ const ACTION_COLORS: Record<string, ActionColorKey> = {
   extended: "blue",
   extend: "blue",
   duplicated: "blue",
+  profile_update: "blue",
+  avatar_uploaded: "blue",
+  avatar_updated: "blue",
+  avatar_deleted: "amber",
+  avatar_removed: "amber",
   "booking.items_added": "amber",
   "booking.items_removed": "amber",
   "booking.items_qty_changed": "amber",
@@ -375,8 +395,28 @@ function describeAction(
       return `${reportPrefix}Updated escalation settings`;
     case "escalation_rule_updated":
       return `${reportPrefix}Updated an escalation rule`;
-    case "profile_updated":
+    case "profile_update":
+    case "profile_updated": {
+      // When exactly one field changed, name it directly so the row reads
+      // "Updated their shoe size" instead of "Updated their profile" + 1 pill.
+      const fields = entry.afterJson ? Object.keys(entry.afterJson).filter((k) => !HIDDEN_FIELDS.has(k)) : [];
+      if (fields.length === 1) {
+        const label = (FIELD_LABELS[fields[0]] ?? fields[0]).toLowerCase();
+        return `${reportPrefix}Updated their ${label}`;
+      }
+      if (fields.length > 1) {
+        return `${reportPrefix}Updated their profile (${fields.length} fields)`;
+      }
       return `${reportPrefix}Updated their profile`;
+    }
+    case "avatar_uploaded":
+      return `${reportPrefix}Updated their profile photo`;
+    case "avatar_deleted":
+      return `${reportPrefix}Removed their profile photo`;
+    case "avatar_updated":
+      return `${reportPrefix}Updated their profile photo`;
+    case "avatar_removed":
+      return `${reportPrefix}Removed their profile photo`;
     case "draft_discarded":
       return `${reportPrefix}Discarded a draft booking`;
     case "password_reset_requested":
@@ -387,8 +427,15 @@ function describeAction(
       return `${reportPrefix}Deactivated a user account`;
     case "user_activated":
       return `${reportPrefix}Activated a user account`;
-    case "role_changed":
+    case "role_changed": {
+      const before = entry.beforeJson?.role as string | undefined;
+      const after = entry.afterJson?.role as string | undefined;
+      if (before && after) {
+        return `${reportPrefix}Changed role from ${before} to ${after}`;
+      }
+      if (after) return `${reportPrefix}Changed role to ${after}`;
       return `${reportPrefix}Changed a user's role`;
+    }
     case "login":
       return `${reportPrefix}Signed in`;
     case "logout":
@@ -505,13 +552,20 @@ function describeFieldChange(
   return { label, from, to };
 }
 
+/** Actions whose `before`/`after` JSON should render as field-change pills. */
+const DIFF_ACTIONS = new Set([
+  "updated",
+  "update",
+  "profile_update",
+  "profile_updated",
+  "role_changed",
+]);
+
 function getFieldChanges(entry: AuditEntry): FieldChange[] {
-  if (
-    entry.action !== "updated" ||
-    !entry.beforeJson ||
-    !entry.afterJson
-  )
-    return [];
+  if (!DIFF_ACTIONS.has(entry.action) || !entry.afterJson) return [];
+  // Some routes (e.g. role_changed) don't always write a `before` payload —
+  // the field-change describer handles missing `before` as "set"/"empty"
+  // gracefully so we still render the new value as a pill.
   return Object.keys(entry.afterJson)
     .map((k) => {
       const b = (entry.beforeJson as Record<string, unknown>)?.[k];
@@ -596,12 +650,15 @@ function TimelineEntry({
   );
   const changes = getFieldChanges(entry);
 
-  // Skip update entries where all changes were hidden internal fields
+  // Skip diff-bearing entries where every changed field was hidden / internal —
+  // otherwise the row reads like a phantom "Updated …" with no detail.
   if (
-    entry.action === "updated" &&
-    entry.beforeJson &&
+    DIFF_ACTIONS.has(entry.action) &&
     entry.afterJson &&
-    changes.length === 0
+    changes.length === 0 &&
+    // Avatar uploads / deletions are diff-less but meaningful — keep them.
+    entry.action !== "avatar_uploaded" &&
+    entry.action !== "avatar_deleted"
   )
     return null;
 
