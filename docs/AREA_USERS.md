@@ -3,9 +3,9 @@
 ## Document Control
 - Area: Users
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-04-06
+- Last Updated: 2026-04-30
 - Status: Active
-- Version: V1.1
+- Version: V1.2
 
 ## Direction
 Use a simple tiered permission model with inheritance so behavior is predictable in UI and backend authorization.
@@ -150,3 +150,10 @@ Use a simple tiered permission model with inheritance so behavior is predictable
 - 2026-04-06: **Users stress test (4 issues fixed):** BRK-001 (CRITICAL) deactivation TOCTOU — wrapped booking check+cancel+session cleanup in SERIALIZABLE transaction. BRK-002 (HIGH) password reset non-atomic — wrapped in batch transaction. BRK-003 (HIGH) student area isPrimary race — wrapped in transaction. BRK-004 (LOW) whitespace-only names — added `.trim()` to create/update schemas.
 - 2026-04-06: **UserIdentity component roadmap** created (`tasks/user-identity-component-roadmap.md`). V1: standardize avatar+name+role pattern across 12+ instances. V2: hover card, link behavior, loading skeleton. V3: compound API, quick actions, presence indicator.
 - 2026-04-09: **Athlete roster redesign** (commit e670c81) — UW Athletics brand refresh. User detail page: card-based profile hero with 80px avatar + ring, Gotham Black name at 32px, subtle red radial gradient wash, mono email. Users list table: Gotham Semibold on names, Geist Mono on emails. Mobile cards also updated. RoleBadge: Gotham font + weight 600 for intentional branding. Files modified: `UserRow.tsx` (98→179 lines), `[id]/page.tsx` (197→275 lines), `RoleBadge.tsx` (5 lines for font weight).
+- 2026-04-30: **Profile fields migrated from Google Sheet** (commit 1d18f7b, migration 0048). Site is now the source of truth for staff/student profile data:
+  - **New User columns**: `title`, `athletics_email` (unique), `start_date`, `direct_report_id` (self-FK, ON DELETE SET NULL) + `direct_report_name` (free-text fallback for managers not in the system), `grad_year`, `student_year_override` (`StudentYear` enum), `top_size`, `bottom_size`, `shoe_size`.
+  - **Derived year**: `deriveStudentYear(gradYear, override)` infers Fr/So/Jr/Sr/Grad from grad year using a Sept→Aug academic calendar. Override wins if set; UI's empty state on the override field shows the auto-derived value.
+  - **Permissions**: students can view *and edit* all of their own info **except** assignments and direct report (staff/admin only). `updateProfileSchema` now accepts the self-editable subset; `/api/users/[id]` PATCH gates `directReportId`/`directReportName` behind ADMIN/STAFF and rejects self-reporting cycles. Setting a `directReportId` clears `directReportName` and vice versa, so display logic stays unambiguous.
+  - **Audit**: every field change is recorded via `createAuditEntry` on both routes.
+  - **UI**: new "Details" card on `/users/[id]` (UserInfoTab.tsx). Field labels switch between "Top Size"/"Clothing Size" by role; bottom size hidden for students. Direct-report autocomplete searches `/api/users?q=…` and lets you pick a User (link) or save a free-text fallback.
+  - **`useSaveField` hook** generalized to `useSaveField<T>` so date/number fields reuse the same auto-save UX as text fields.

@@ -16,7 +16,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowUpDown, Loader2, RefreshCw, WifiOff } from "lucide-react";
+import Link from "next/link";
+import { ArrowUpDown, Loader2, Network, RefreshCw, WifiOff } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFetch } from "@/hooks/use-fetch";
 import { PageHeader } from "@/components/PageHeader";
@@ -152,6 +153,11 @@ export default function UsersPage() {
               : "Refresh"}
           </TooltipContent>
         </Tooltip>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/users/org-chart">
+            <Network className="mr-1 size-4" /> Org chart
+          </Link>
+        </Button>
         {canEdit && (
           <Button onClick={() => setShowCreate(true)}>
             Add user
