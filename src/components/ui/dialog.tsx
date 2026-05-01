@@ -130,7 +130,7 @@ function DialogCloseButton({
     <DialogPrimitive.Close
       data-slot="dialog-close-button"
       className={cn(
-        "ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground flex size-8 items-center justify-center rounded-md text-muted-foreground/80 opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none",
+        "data-[state=open]:bg-accent data-[state=open]:text-muted-foreground flex size-8 items-center justify-center rounded-md text-muted-foreground/80 opacity-70 outline-none transition-opacity hover:opacity-100 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none",
         className,
       )}
       {...props}
