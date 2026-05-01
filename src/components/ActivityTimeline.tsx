@@ -603,6 +603,41 @@ function formatTimestamp(iso: string, today: Date): string {
   })}`;
 }
 
+/* ── Coalescing ── */
+
+/** Window in milliseconds for collapsing rapid identical writes. Avatar
+ *  uploads and form-on-blur saves often fire 3-5 rows in a span of a few
+ *  seconds; one row with a "× N" pill reads better than five duplicates. */
+const COALESCE_WINDOW_MS = 60_000;
+
+type RenderEntry = AuditEntry & { _count?: number };
+
+/** Collapse runs of consecutive entries that share actor + action + entity
+ *  and fall within COALESCE_WINDOW_MS. Entries arrive newest-first so the
+ *  newest one is preserved as the "primary" — its diff is shown, with the
+ *  count badge indicating how many writes folded into it. */
+function coalesceEntries(entries: AuditEntry[]): RenderEntry[] {
+  const out: RenderEntry[] = [];
+  for (const entry of entries) {
+    const last = out[out.length - 1];
+    if (
+      last &&
+      (last.actor?.id ?? null) === (entry.actor?.id ?? null) &&
+      last.action === entry.action &&
+      last.entityType === entry.entityType &&
+      last.entityId === entry.entityId &&
+      Math.abs(
+        new Date(last.createdAt).getTime() - new Date(entry.createdAt).getTime(),
+      ) <= COALESCE_WINDOW_MS
+    ) {
+      last._count = (last._count ?? 1) + 1;
+      continue;
+    }
+    out.push({ ...entry, _count: 1 });
+  }
+  return out;
+}
+
 /* ── Skeleton loader ── */
 
 export function TimelineSkeleton() {
@@ -630,11 +665,12 @@ function TimelineEntry({
   entityName,
   today,
 }: {
-  entry: AuditEntry;
+  entry: RenderEntry;
   context: "booking" | "item" | "report" | "user";
   entityName?: string;
   today: Date;
 }) {
+  const repeatCount = entry._count && entry._count > 1 ? entry._count : null;
   const isSystem =
     !entry.actor || SYSTEM_ACTIONS.has(entry.action);
   const actorName = entry.actor?.name
@@ -711,7 +747,18 @@ function TimelineEntry({
           <span className="text-sm text-muted-foreground">
             {description}
           </span>
-          <span className="text-xs text-muted-foreground/60 ml-auto shrink-0">
+          {repeatCount && (
+            <Badge
+              variant="secondary"
+              className="h-5 px-1.5 text-[10px] tabular-nums"
+            >
+              ×{repeatCount}
+            </Badge>
+          )}
+          <span
+            className="text-xs text-muted-foreground/60 ml-auto shrink-0"
+            title={formatDateTime(entry.createdAt)}
+          >
             {formatTimestamp(entry.createdAt, today)}
           </span>
         </div>
@@ -760,10 +807,13 @@ export default function ActivityTimeline({
 }: ActivityTimelineProps) {
   const today = useMemo(() => new Date(), []);
 
-  // Group entries by date
+  // Coalesce rapid identical writes, then group by date. Coalescing first
+  // means a run that straddles a date boundary (rare) folds onto the newer
+  // side — the right side from a "what just happened" reading.
   const groups = useMemo(() => {
-    const map = new Map<string, AuditEntry[]>();
-    for (const entry of entries) {
+    const coalesced = coalesceEntries(entries);
+    const map = new Map<string, RenderEntry[]>();
+    for (const entry of coalesced) {
       const group = getDateGroup(entry.createdAt, today);
       const arr = map.get(group);
       if (arr) arr.push(entry);
