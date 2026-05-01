@@ -11,7 +11,6 @@ const cardVariants = cva(
         flat: "shadow-none",
         raised: "shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow)]",
         elevated: "shadow-[var(--shadow)] hover:shadow-[var(--shadow-md)]",
-        prominent: "shadow-[var(--shadow-md)] hover:shadow-[var(--shadow-lg)] border-[var(--border-light)]",
       },
     },
     defaultVariants: {

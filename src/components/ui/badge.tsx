@@ -22,7 +22,6 @@ const badgeVariants = cva(
         blue: "bg-[var(--blue-bg)] text-[var(--blue-text)]",
         purple: "bg-[var(--purple-bg)] text-[var(--purple-text)]",
         gray: "bg-[var(--accent-soft)] text-muted-foreground",
-        sport: "bg-[var(--btn-primary-bg)] text-[var(--btn-primary-text)]",
       },
       size: {
         default: "",
@@ -49,7 +48,6 @@ function Badge({
   return (
     <Comp
       data-slot="badge"
-      data-variant={variant}
       className={cn(badgeVariants({ variant, size }), className)}
       {...props}
     />
