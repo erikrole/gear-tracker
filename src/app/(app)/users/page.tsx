@@ -17,7 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import Link from "next/link";
-import { ArrowUpDown, Loader2, Network, RefreshCw, WifiOff } from "lucide-react";
+import { ArrowUpDown, Download, Loader2, Network, RefreshCw, WifiOff } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFetch } from "@/hooks/use-fetch";
 import { PageHeader } from "@/components/PageHeader";
@@ -159,6 +159,27 @@ export default function UsersPage() {
               : "Refresh"}
           </TooltipContent>
         </Tooltip>
+        {canEdit && (
+          <Button asChild variant="outline" size="sm">
+            <a
+              href={(() => {
+                const params = new URLSearchParams();
+                if (debouncedSearch) params.set("q", debouncedSearch);
+                if (roleFilter) params.set("role", roleFilter);
+                if (locationFilter) params.set("locationId", locationFilter);
+                if (yearFilter) params.set("year", yearFilter);
+                if (sportFilter) params.set("sport", sportFilter);
+                if (areaFilter) params.set("area", areaFilter);
+                if (showInactive) params.set("active", "all");
+                const qs = params.toString();
+                return qs ? `/api/users/export?${qs}` : "/api/users/export";
+              })()}
+              download
+            >
+              <Download className="mr-1 size-4" /> Export CSV
+            </a>
+          </Button>
+        )}
         <Button asChild variant="outline" size="sm">
           <Link href="/users/org-chart">
             <Network className="mr-1 size-4" /> Org chart
