@@ -77,7 +77,7 @@ function SheetContent({
         {/* Close button — white to contrast with dark header */}
         <DialogPrimitive.Close
           data-slot="sheet-close-button"
-          className="absolute top-[18px] right-5 flex size-7 items-center justify-center rounded-sm text-white/60 transition-colors hover:bg-white/10 hover:text-white focus:outline-none focus:ring-1 focus:ring-white/20 disabled:pointer-events-none"
+          className="absolute top-[18px] right-5 flex size-7 items-center justify-center rounded-sm text-white/60 outline-none transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-[3px] focus-visible:ring-white/30 disabled:pointer-events-none"
         >
           <X className="size-3.5" />
           <span className="sr-only">Close</span>
