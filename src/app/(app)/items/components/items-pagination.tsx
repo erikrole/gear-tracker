@@ -46,7 +46,7 @@ export function ItemsPagination({
             value={String(limit)}
             onValueChange={(v) => onLimitChange(Number(v))}
           >
-            <SelectTrigger className="h-8 w-[70px]">
+            <SelectTrigger size="sm" className="w-[70px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

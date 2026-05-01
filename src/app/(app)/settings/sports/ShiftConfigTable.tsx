@@ -157,7 +157,7 @@ export default function ShiftConfigTable({
                       onValueChange={(v) => onUpdateOffset(primaryCode, "shiftStartOffset", parseInt(v))}
                       disabled={saving?.startsWith(primaryCode) ?? false}
                     >
-                      <SelectTrigger className="w-[110px] h-8 text-sm">
+                      <SelectTrigger size="sm" className="w-[110px] text-sm">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -174,7 +174,7 @@ export default function ShiftConfigTable({
                       onValueChange={(v) => onUpdateOffset(primaryCode, "shiftEndOffset", parseInt(v))}
                       disabled={saving?.startsWith(primaryCode) ?? false}
                     >
-                      <SelectTrigger className="w-[110px] h-8 text-sm">
+                      <SelectTrigger size="sm" className="w-[110px] text-sm">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>

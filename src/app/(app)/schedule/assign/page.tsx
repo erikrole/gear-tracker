@@ -104,7 +104,7 @@ export default function AssignPage() {
 
         {/* Sport filter */}
         <Select value={grid.sportFilter || "_all"} onValueChange={(v) => grid.setSportFilter(v === "_all" ? "" : v)}>
-          <SelectTrigger className="h-8 w-44 text-sm">
+          <SelectTrigger size="sm" className="w-44 text-sm">
             <SelectValue placeholder="All sports" />
           </SelectTrigger>
           <SelectContent>
@@ -119,7 +119,7 @@ export default function AssignPage() {
 
         {/* Area filter */}
         <Select value={grid.areaFilter || "_all"} onValueChange={(v) => grid.setAreaFilter(v === "_all" ? "" : v)}>
-          <SelectTrigger className="h-8 w-36 text-sm">
+          <SelectTrigger size="sm" className="w-36 text-sm">
             <SelectValue placeholder="All areas" />
           </SelectTrigger>
           <SelectContent>

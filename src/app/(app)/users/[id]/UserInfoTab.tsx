@@ -123,7 +123,7 @@ function SelectInputField({
         }}
         disabled={!canEdit}
       >
-        <SelectTrigger className="h-8 text-sm">
+        <SelectTrigger size="sm" className="text-sm">
           <SelectValue placeholder={emptyLabel || "None"} />
         </SelectTrigger>
         <SelectContent>
