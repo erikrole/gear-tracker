@@ -14,12 +14,17 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
   )
 }
 
-function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
+function TableHeader({
+  className,
+  sticky = true,
+  ...props
+}: React.ComponentProps<"thead"> & { sticky?: boolean }) {
   return (
     <thead
       data-slot="table-header"
       className={cn(
-        "[&_tr]:border-b bg-muted/30 sticky top-0 z-10 backdrop-blur-sm",
+        "[&_tr]:border-b bg-muted/30",
+        sticky && "sticky top-0 z-10 backdrop-blur-sm",
         className
       )}
       {...props}
@@ -50,12 +55,17 @@ function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
   )
 }
 
-function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
+function TableRow({
+  className,
+  striped = true,
+  ...props
+}: React.ComponentProps<"tr"> & { striped?: boolean }) {
   return (
     <tr
       data-slot="table-row"
       className={cn(
-        "border-b transition-colors duration-150 hover:bg-muted/50 data-[state=selected]:bg-muted even:bg-muted/20",
+        "border-b transition-colors duration-150 hover:bg-muted/50 data-[state=selected]:bg-muted",
+        striped && "even:bg-muted/20",
         className
       )}
       {...props}
