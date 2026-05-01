@@ -3,10 +3,9 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
-import EmptyState from "@/components/EmptyState";
 import MetricCard from "../MetricCard";
 import { Button } from "@/components/ui/button";
-import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { type BadgeProps } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -26,7 +25,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import Heatmap from "@/components/ui/heatmap";
 
 const LazyStatusDonut = dynamic(
   () => import("./charts").then((m) => ({ default: m.StatusDonut })),
@@ -43,7 +41,6 @@ type UtilizationData = {
   byLocation: { location: string; count: number }[];
   byType: { type: string; count: number }[];
   byDepartment: { department: string; count: number }[];
-  heatmap: { date: string; value: number }[];
 };
 
 const STATUS_META: Record<string, { label: string; variant: BadgeProps["variant"] }> = {
@@ -134,8 +131,7 @@ export default function UtilizationPage() {
   }, []);
 
   const { data, loading, error, lastRefreshed, reload } = useFetch<UtilizationData>({
-    url: "/api/reports?type=utilization",
-    transform: (json) => json as unknown as UtilizationData,
+    url: "/api/reports/utilization",
   });
 
   if (loading && !data) {
@@ -256,26 +252,6 @@ export default function UtilizationPage() {
         )}
       </div>
 
-      {data.heatmap && data.heatmap.length > 0 && (
-        <Card className="mt-2.5">
-          <CardHeader>
-            <CardTitle>365-Day Checkout Activity</CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-x-auto pb-4">
-            <Heatmap
-              data={data.heatmap}
-              startDate={new Date(Date.now() - 365 * 86_400_000)}
-              endDate={new Date()}
-              cellSize={14}
-              gap={3}
-              displayStyle="squares"
-              colorMode="discrete"
-              daysOfTheWeek="MWF"
-              valueDisplayFunction={(v) => `${v} checkout${v !== 1 ? "s" : ""}`}
-            />
-          </CardContent>
-        </Card>
-      )}
     </FadeUp>
   );
 }

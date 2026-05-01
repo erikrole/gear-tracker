@@ -141,7 +141,7 @@ export default function OverdueLeaderboardPage() {
   }, []);
 
   const { data, loading, error, lastRefreshed, reload } = useFetch<OverdueData>({
-    url: "/api/reports?type=overdue",
+    url: "/api/reports/overdue",
     transform: (json) => json as unknown as OverdueData,
   });
 

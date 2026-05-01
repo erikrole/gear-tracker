@@ -23,6 +23,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { FadeUp } from "@/components/ui/motion";
 import { useFetch } from "@/hooks/use-fetch";
+import { syncUrl } from "@/lib/url-sync";
 import {
   Tooltip,
   TooltipContent,
@@ -112,8 +113,7 @@ export default function CheckoutsReportPage() {
   }, []);
 
   const { data, loading, error, lastRefreshed, reload } = useFetch<CheckoutData>({
-    url: `/api/reports?type=checkouts&days=${days}`,
-    transform: (json) => json as unknown as CheckoutData,
+    url: `/api/reports/checkouts?days=${days}`,
   });
 
   if (loading && !data) {
@@ -173,12 +173,7 @@ export default function CheckoutsReportPage() {
           <Button
             key={d}
             variant={days === d ? "default" : "outline"} size="sm"
-            onClick={() => {
-              setDays(d);
-              const url = new URL(window.location.href);
-              url.searchParams.set("days", String(d));
-              window.history.replaceState(null, "", url.toString());
-            }}
+            onClick={() => { setDays(d); syncUrl({ days: d }); }}
           >
             {d}d
           </Button>

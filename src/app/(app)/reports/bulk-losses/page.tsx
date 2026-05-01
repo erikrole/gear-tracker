@@ -46,10 +46,10 @@ type ReportData = {
 
 export default function BulkLossesReportPage() {
   const { data, loading, error, reload } = useFetch<ReportData>({
-    url: "/api/reports?type=bulk-losses",
+    url: "/api/reports/bulk-losses",
   });
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-24 w-full" />
@@ -58,19 +58,20 @@ export default function BulkLossesReportPage() {
     );
   }
 
-  if (error || !data) {
+  if (error && !data) {
     return (
       <Alert variant="destructive">
         <AlertCircle className="size-4" />
         <AlertTitle>Failed to load report</AlertTitle>
-        <AlertDescription>
-          <Button variant="outline" size="sm" onClick={reload} className="mt-2">
-            <RefreshCw className="size-3.5 mr-1.5" /> Retry
-          </Button>
+        <AlertDescription className="flex items-center gap-3">
+          <span>{error === "network" ? "You appear to be offline. Check your connection and try again." : "Unable to load bulk losses report. Please try again."}</span>
+          <Button variant="outline" size="sm" onClick={reload}>Retry</Button>
         </AlertDescription>
       </Alert>
     );
   }
+
+  if (!data) return null;
 
   return (
     <FadeUp>

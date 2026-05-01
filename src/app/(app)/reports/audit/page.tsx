@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { formatRelativeTime } from "@/lib/format";
 import { useFetch } from "@/hooks/use-fetch";
+import { syncUrl } from "@/lib/url-sync";
 import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -84,15 +85,6 @@ function downloadCsv(entries: AuditEntry[]) {
   URL.revokeObjectURL(url);
 }
 
-function syncUrl(params: Record<string, string | number>) {
-  const url = new URL(window.location.href);
-  for (const [k, v] of Object.entries(params)) {
-    if (v === "" || v === 0) url.searchParams.delete(k);
-    else url.searchParams.set(k, String(v));
-  }
-  window.history.replaceState(null, "", url.toString());
-}
-
 export default function AuditReportPage() {
   const searchParams = useSearchParams();
   const [page, setPage] = useState(() => {
@@ -113,14 +105,13 @@ export default function AuditReportPage() {
 
   const fetchUrl = useMemo(() => {
     const params = new URLSearchParams({
-      type: "audit",
       limit: String(limit),
       offset: String(page * limit),
     });
     if (periodDays > 0) {
       params.set("startDate", new Date(Date.now() - periodDays * 86_400_000).toISOString());
     }
-    return `/api/reports?${params}`;
+    return `/api/reports/audit?${params}`;
   }, [page, periodDays]);
 
   const { data, loading, error, lastRefreshed, reload: loadData } = useFetch<AuditData>({

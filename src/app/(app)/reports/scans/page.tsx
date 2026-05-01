@@ -23,6 +23,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { FadeUp } from "@/components/ui/motion";
 import { useFetch } from "@/hooks/use-fetch";
+import { syncUrl } from "@/lib/url-sync";
 import dynamic from "next/dynamic";
 
 const LazyDailyScanVolumeChart = dynamic(
@@ -96,15 +97,6 @@ function downloadCsv(entries: ScanEntry[]) {
   URL.revokeObjectURL(url);
 }
 
-function syncUrl(params: Record<string, string | number>) {
-  const url = new URL(window.location.href);
-  for (const [k, v] of Object.entries(params)) {
-    if (v === "" || v === 0) url.searchParams.delete(k);
-    else url.searchParams.set(k, String(v));
-  }
-  window.history.replaceState(null, "", url.toString());
-}
-
 export default function ScanHistoryPage() {
   const searchParams = useSearchParams();
   const [page, setPage] = useState(() => {
@@ -126,7 +118,6 @@ export default function ScanHistoryPage() {
 
   const fetchUrl = useMemo(() => {
     const params = new URLSearchParams({
-      type: "scans",
       limit: String(limit),
       offset: String(page * limit),
     });
@@ -134,7 +125,7 @@ export default function ScanHistoryPage() {
     if (periodDays > 0) {
       params.set("startDate", new Date(Date.now() - periodDays * 86_400_000).toISOString());
     }
-    return `/api/reports?${params}`;
+    return `/api/reports/scans?${params}`;
   }, [page, phaseFilter, periodDays]);
 
   const { data, loading, error, lastRefreshed, reload } = useFetch<ScanData>({

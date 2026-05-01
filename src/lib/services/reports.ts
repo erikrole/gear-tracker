@@ -1,53 +1,8 @@
-import { withAuth } from "@/lib/api";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { HttpError, ok } from "@/lib/http";
-import { requirePermission } from "@/lib/rbac";
 import { countAssetsByEffectiveStatus } from "@/lib/services/status";
 
-export const GET = withAuth(async (req, { user }) => {
-  requirePermission(user.role, "report", "view");
-  const { searchParams } = new URL(req.url);
-  const report = searchParams.get("type") || "utilization";
-
-  if (report === "utilization") {
-    return ok(await getUtilizationReport());
-  }
-
-  if (report === "checkouts") {
-    const days = parseInt(searchParams.get("days") || "30", 10);
-    return ok(await getCheckoutReport(days));
-  }
-
-  if (report === "audit") {
-    const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 200);
-    const offset = Math.max(parseInt(searchParams.get("offset") || "0", 10), 0);
-    const startDate = searchParams.get("startDate");
-    const endDate = searchParams.get("endDate");
-    const action = searchParams.get("action");
-    return ok(await getAuditReport(limit, offset, startDate, endDate, action));
-  }
-
-  if (report === "overdue") {
-    return ok(await getOverdueReport());
-  }
-
-  if (report === "bulk-losses") {
-    return ok(await getBulkLossReport());
-  }
-
-  if (report === "scans") {
-    const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 200);
-    const offset = Math.max(parseInt(searchParams.get("offset") || "0", 10), 0);
-    const startDate = searchParams.get("startDate");
-    const endDate = searchParams.get("endDate");
-    const phase = searchParams.get("phase");
-    return ok(await getScanHistoryReport(limit, offset, startDate, endDate, phase));
-  }
-
-  throw new HttpError(400, "Unknown report type");
-});
-
-async function getUtilizationReport() {
+export async function getUtilizationReport() {
   const results = await Promise.allSettled([
     countAssetsByEffectiveStatus(),
     db.asset.count(),
@@ -101,11 +56,9 @@ async function getUtilizationReport() {
   };
 }
 
-async function getCheckoutReport(days: number) {
+export async function getCheckoutReport(days: number) {
   const since = new Date(Date.now() - days * 86_400_000);
   const now = new Date();
-
-  // 365-day window for heatmap (independent of period filter)
   const heatmapSince = new Date(Date.now() - 365 * 86_400_000);
 
   const checkoutResults = await Promise.allSettled([
@@ -136,26 +89,24 @@ async function getCheckoutReport(days: number) {
       orderBy: { _count: { requesterUserId: "desc" } },
       take: 10
     }),
-    // Daily checkout counts for trend chart
-    db.booking.findMany({
-      where: { kind: "CHECKOUT", createdAt: { gte: since } },
-      select: { createdAt: true },
-    }),
-    // 365-day heatmap data
-    db.booking.findMany({
-      where: { kind: "CHECKOUT", createdAt: { gte: heatmapSince } },
-      select: { createdAt: true },
-    }),
+    // Single 365-day daily aggregation (period series is sliced in JS).
+    // Using date_trunc keeps the work in Postgres regardless of row count.
+    db.$queryRaw<{ date: string; count: bigint }[]>`
+      SELECT to_char(date_trunc('day', "created_at" AT TIME ZONE 'UTC'), 'YYYY-MM-DD') AS date,
+             COUNT(*)::bigint AS count
+      FROM bookings
+      WHERE kind = 'CHECKOUT' AND "created_at" >= ${heatmapSince}
+      GROUP BY 1
+      ORDER BY 1
+    `,
   ]);
 
   const totalCheckouts = checkoutResults[0].status === "fulfilled" ? checkoutResults[0].value : 0;
   const overdueCheckouts = checkoutResults[1].status === "fulfilled" ? checkoutResults[1].value : 0;
   const recentCheckouts = checkoutResults[2].status === "fulfilled" ? checkoutResults[2].value : [];
   const topRequesters = checkoutResults[3].status === "fulfilled" ? checkoutResults[3].value : [];
-  const allInPeriod = checkoutResults[4].status === "fulfilled" ? checkoutResults[4].value : [];
-  const heatmapRaw = checkoutResults[5].status === "fulfilled" ? checkoutResults[5].value : [];
+  const heatmapRaw = checkoutResults[4].status === "fulfilled" ? checkoutResults[4].value : [];
 
-  // Resolve requester names for top requesters
   const requesterIds = topRequesters.map((r) => r.requesterUserId);
   const users =
     requesterIds.length > 0
@@ -166,28 +117,22 @@ async function getCheckoutReport(days: number) {
       : [];
   const userMap = Object.fromEntries(users.map((u) => [u.id, u.name]));
 
-  // Aggregate daily checkout counts for trend chart
-  const dailyMap = new Map<string, number>();
-  for (const b of allInPeriod) {
-    const day = b.createdAt.toISOString().slice(0, 10);
-    dailyMap.set(day, (dailyMap.get(day) ?? 0) + 1);
-  }
-  // Fill in zero-count days
+  // Build day → count map from the 365-day aggregate, then derive both series.
+  const dayMap = new Map<string, number>();
+  for (const row of heatmapRaw) dayMap.set(row.date, Number(row.count));
+
+  const sinceKey = since.toISOString().slice(0, 10);
   const dailyTrend: { date: string; count: number }[] = [];
   const cursor = new Date(since);
   while (cursor <= now) {
     const key = cursor.toISOString().slice(0, 10);
-    dailyTrend.push({ date: key, count: dailyMap.get(key) ?? 0 });
+    if (key >= sinceKey) {
+      dailyTrend.push({ date: key, count: dayMap.get(key) ?? 0 });
+    }
     cursor.setDate(cursor.getDate() + 1);
   }
 
-  // Aggregate 365-day heatmap
-  const heatmapMap = new Map<string, number>();
-  for (const b of heatmapRaw) {
-    const day = b.createdAt.toISOString().slice(0, 10);
-    heatmapMap.set(day, (heatmapMap.get(day) ?? 0) + 1);
-  }
-  const heatmap = Array.from(heatmapMap.entries())
+  const heatmap = Array.from(dayMap.entries())
     .map(([date, value]) => ({ date, value }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
@@ -216,7 +161,7 @@ async function getCheckoutReport(days: number) {
   };
 }
 
-async function getOverdueReport() {
+export async function getOverdueReport() {
   const now = new Date();
 
   const overdueBookings = await db.booking.findMany({
@@ -238,7 +183,6 @@ async function getOverdueReport() {
     orderBy: { endsAt: "asc" },
   });
 
-  // Group by requester
   const byRequester = new Map<
     string,
     {
@@ -305,19 +249,30 @@ async function getOverdueReport() {
   };
 }
 
-async function getScanHistoryReport(
+export async function getScanHistoryReport(
   limit: number,
   offset: number,
   startDate?: string | null,
   endDate?: string | null,
-  phase?: string | null
+  phase?: string | null,
 ) {
-  const where: Record<string, unknown> = {};
-  const dateFilter: Record<string, Date> = {};
+  const where: Prisma.ScanEventWhereInput = {};
+  const dateFilter: Prisma.DateTimeFilter = {};
   if (startDate) dateFilter.gte = new Date(startDate);
   if (endDate) dateFilter.lte = new Date(endDate);
   if (Object.keys(dateFilter).length > 0) where.createdAt = dateFilter;
-  if (phase && (phase === "CHECKOUT" || phase === "CHECKIN")) where.phase = phase;
+  if (phase === "CHECKOUT" || phase === "CHECKIN") where.phase = phase;
+
+  // Build SQL fragments mirroring the Prisma where for the raw aggregation.
+  const conditions: Prisma.Sql[] = [];
+  if (startDate) conditions.push(Prisma.sql`"created_at" >= ${new Date(startDate)}`);
+  if (endDate) conditions.push(Prisma.sql`"created_at" <= ${new Date(endDate)}`);
+  if (phase === "CHECKOUT" || phase === "CHECKIN") {
+    conditions.push(Prisma.sql`phase::text = ${phase}`);
+  }
+  const whereSql = conditions.length > 0
+    ? Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}`
+    : Prisma.empty;
 
   const scanResults = await Promise.allSettled([
     db.scanEvent.findMany({
@@ -334,30 +289,27 @@ async function getScanHistoryReport(
     }),
     db.scanEvent.count({ where }),
     db.scanEvent.count({ where: { ...where, success: true } }),
-    // Daily aggregation for stacked bar chart
-    db.scanEvent.findMany({
-      where,
-      select: { createdAt: true, success: true },
-    }),
+    db.$queryRaw<{ date: string; success: bigint; fail: bigint }[]>`
+      SELECT to_char(date_trunc('day', "created_at" AT TIME ZONE 'UTC'), 'YYYY-MM-DD') AS date,
+             COUNT(*) FILTER (WHERE success = true)::bigint AS success,
+             COUNT(*) FILTER (WHERE success = false)::bigint AS fail
+      FROM scan_events
+      ${whereSql}
+      GROUP BY 1
+      ORDER BY 1
+    `,
   ]);
 
   const data = scanResults[0].status === "fulfilled" ? scanResults[0].value : [];
   const total = scanResults[1].status === "fulfilled" ? scanResults[1].value : 0;
   const successCount = scanResults[2].status === "fulfilled" ? scanResults[2].value : 0;
-  const allScans = scanResults[3].status === "fulfilled" ? scanResults[3].value : [];
+  const dailyRaw = scanResults[3].status === "fulfilled" ? scanResults[3].value : [];
 
-  // Aggregate daily scan volume (success vs fail)
-  const dailyScanMap = new Map<string, { success: number; fail: number }>();
-  for (const s of allScans) {
-    const day = s.createdAt.toISOString().slice(0, 10);
-    const entry = dailyScanMap.get(day) ?? { success: 0, fail: 0 };
-    if (s.success) entry.success++;
-    else entry.fail++;
-    dailyScanMap.set(day, entry);
-  }
-  const dailyScans = Array.from(dailyScanMap.entries())
-    .map(([date, counts]) => ({ date, ...counts }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const dailyScans = dailyRaw.map((r) => ({
+    date: r.date,
+    success: Number(r.success),
+    fail: Number(r.fail),
+  }));
 
   return {
     data: data.map((s) => ({
@@ -385,15 +337,15 @@ async function getScanHistoryReport(
   };
 }
 
-async function getAuditReport(
+export async function getAuditReport(
   limit: number,
   offset: number,
   startDate?: string | null,
   endDate?: string | null,
-  action?: string | null
+  action?: string | null,
 ) {
-  const where: Record<string, unknown> = {};
-  const dateFilter: Record<string, Date> = {};
+  const where: Prisma.AuditLogWhereInput = {};
+  const dateFilter: Prisma.DateTimeFilter = {};
   if (startDate) dateFilter.gte = new Date(startDate);
   if (endDate) dateFilter.lte = new Date(endDate);
   if (Object.keys(dateFilter).length > 0) where.createdAt = dateFilter;
@@ -410,7 +362,6 @@ async function getAuditReport(
       }
     }),
     db.auditLog.count({ where }),
-    // Group by action for bar chart
     db.auditLog.groupBy({
       by: ["action"],
       where,
@@ -418,7 +369,6 @@ async function getAuditReport(
       orderBy: { _count: { action: "desc" } },
       take: 15,
     }),
-    // Group by entity type for bar chart
     db.auditLog.groupBy({
       by: ["entityType"],
       where,
@@ -460,17 +410,14 @@ async function getAuditReport(
 
 /**
  * Bulk loss report: lost units grouped by SKU and by last requester.
- * Shows which users have lost the most numbered bulk units.
  */
-async function getBulkLossReport() {
+export async function getBulkLossReport() {
   const [lostBySkuResult, lostByUserResult, recentLossesResult] = await Promise.allSettled([
-    // Lost units grouped by SKU
     db.bulkSkuUnit.groupBy({
       by: ["bulkSkuId"],
       where: { status: "LOST" },
       _count: { id: true },
     }),
-    // Lost units with last allocation -> requester
     db.bulkSkuUnit.findMany({
       where: { status: "LOST" },
       select: {
@@ -499,7 +446,6 @@ async function getBulkLossReport() {
         },
       },
     }),
-    // Recent loss events (auto-marked from completions)
     db.auditLog.findMany({
       where: { action: "bulk_units_auto_lost" },
       orderBy: { createdAt: "desc" },
@@ -514,7 +460,6 @@ async function getBulkLossReport() {
     }),
   ]);
 
-  // Resolve SKU names for the groupBy result
   const lostBySku = lostBySkuResult.status === "fulfilled" ? lostBySkuResult.value : [];
   const skuIds = lostBySku.map((r) => r.bulkSkuId);
   const skuNames = skuIds.length > 0
@@ -528,7 +473,6 @@ async function getBulkLossReport() {
     count: r._count.id,
   })).sort((a, b) => b.count - a.count);
 
-  // Build per-user loss leaderboard
   const lostUnits = lostByUserResult.status === "fulfilled" ? lostByUserResult.value : [];
   const userLossCounts = new Map<string, { name: string; count: number }>();
   for (const unit of lostUnits) {
