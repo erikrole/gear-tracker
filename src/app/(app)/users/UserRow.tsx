@@ -2,7 +2,17 @@ import { memo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { UserRow as UserRowType } from "./types";
+import { deriveStudentYear, STUDENT_YEAR_OPTIONS } from "./types";
 import RoleBadge from "./RoleBadge";
+
+function titleOrYear(user: UserRowType): string | null {
+  if (user.role === "STUDENT") {
+    const y = deriveStudentYear(user.gradYear, user.studentYearOverride);
+    if (!y) return null;
+    return STUDENT_YEAR_OPTIONS.find((o) => o.value === y)?.label ?? null;
+  }
+  return user.title ?? null;
+}
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +64,9 @@ export const UserTableRow = memo(function UserTableRow({ user }: { user: UserRow
       <TableCell>
         <RoleBadge role={user.role} />
       </TableCell>
+      <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
+        {titleOrYear(user) ?? "\u2014"}
+      </TableCell>
       <TableCell className="hidden md:table-cell text-muted-foreground text-sm">
         {user.location || "\u2014"}
       </TableCell>
@@ -104,11 +117,13 @@ export const UserMobileCard = memo(function UserMobileCard({ user }: { user: Use
               <RoleBadge role={user.role} />
             </div>
           </div>
-          {(user.location || user.primaryArea) && (
+          {(user.location || user.primaryArea || titleOrYear(user)) && (
             <div
               className="flex items-center gap-1.5 mt-2 text-[11px] text-muted-foreground"
               style={{ paddingLeft: "56px" }}
             >
+              {titleOrYear(user) && <span className="truncate">{titleOrYear(user)}</span>}
+              {titleOrYear(user) && (user.location || user.primaryArea) && <span>&middot;</span>}
               {user.location && <span>{user.location}</span>}
               {user.location && user.primaryArea && <span>&middot;</span>}
               {user.primaryArea && <span>{user.primaryArea}</span>}

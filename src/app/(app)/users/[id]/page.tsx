@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { UserDetail, Location, Role } from "../types";
+import { deriveStudentYear, STUDENT_YEAR_OPTIONS } from "../types";
 import { useFetch } from "@/hooks/use-fetch";
 import RoleBadge from "../RoleBadge";
 import UserInfoTab from "./UserInfoTab";
@@ -35,7 +36,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { AlertCircle, CalendarDays, CameraIcon, Copy, KeyRound, TrashIcon } from "lucide-react";
+import { AlertCircle, Briefcase, CalendarDays, CameraIcon, Copy, GraduationCap, KeyRound, TrashIcon, UserRound } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { formatDateFull } from "@/lib/format";
 import { FadeUp } from "@/components/ui/motion";
@@ -345,6 +346,40 @@ export default function UserDetailPage() {
               >
                 {user.email}
               </p>
+              {user.role !== "STUDENT" && user.title && (
+                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Briefcase className="size-3 shrink-0" />
+                  {user.title}
+                </p>
+              )}
+              {user.role === "STUDENT" && (() => {
+                const y = deriveStudentYear(user.gradYear, user.studentYearOverride);
+                if (!y) return null;
+                const label = STUDENT_YEAR_OPTIONS.find((o) => o.value === y)?.label ?? y;
+                return (
+                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <GraduationCap className="size-3 shrink-0" />
+                    {label}
+                    {user.gradYear ? ` · Class of ${user.gradYear}` : ""}
+                  </p>
+                );
+              })()}
+              {(user.directReport || user.directReportName) && (
+                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <UserRound className="size-3 shrink-0" />
+                  Reports to{" "}
+                  {user.directReport ? (
+                    <Link
+                      href={`/users/${user.directReport.id}`}
+                      className="hover:underline"
+                    >
+                      {user.directReport.name}
+                    </Link>
+                  ) : (
+                    <span>{user.directReportName} <span className="text-[10px] uppercase tracking-wide opacity-70">external</span></span>
+                  )}
+                </p>
+              )}
               {user.createdAt && (
                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <CalendarDays className="size-3 shrink-0" />

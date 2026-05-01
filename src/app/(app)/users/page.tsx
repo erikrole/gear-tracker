@@ -199,6 +199,7 @@ export default function UsersPage() {
                 <TableRow>
                   <TableHead><Skeleton className="h-4 w-16" /></TableHead>
                   <TableHead><Skeleton className="h-4 w-12" /></TableHead>
+                  <TableHead className="hidden lg:table-cell"><Skeleton className="h-4 w-20" /></TableHead>
                   <TableHead className="hidden md:table-cell"><Skeleton className="h-4 w-20" /></TableHead>
                   <TableHead className="hidden md:table-cell"><Skeleton className="h-4 w-14" /></TableHead>
                 </TableRow>
@@ -216,6 +217,7 @@ export default function UsersPage() {
                       </div>
                     </TableCell>
                     <TableCell><Skeleton className="h-5 w-14 rounded-full" /></TableCell>
+                    <TableCell className="hidden lg:table-cell"><Skeleton className="h-3.5" style={{ width: `${45 + (r % 3) * 15}%` }} /></TableCell>
                     <TableCell className="hidden md:table-cell"><Skeleton className="h-3.5" style={{ width: `${50 + (r % 3) * 20}%` }} /></TableCell>
                     <TableCell className="hidden md:table-cell"><Skeleton className="h-3.5" style={{ width: `${40 + (r % 4) * 15}%` }} /></TableCell>
                   </TableRow>
@@ -255,6 +257,7 @@ export default function UsersPage() {
                     <TableRow>
                       <SortableHead label="Name" sortKey="name" currentSort={sort} onSort={setSort} />
                       <SortableHead label="Role" sortKey="role" currentSort={sort} onSort={setSort} />
+                      <TableHead className="hidden lg:table-cell">Title / Year</TableHead>
                       <TableHead className="hidden md:table-cell">Location</TableHead>
                       <TableHead className="hidden md:table-cell">Area</TableHead>
                     </TableRow>
