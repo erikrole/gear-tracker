@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence, type Variants } from "motion/react";
+import { motion, type Variants } from "motion/react";
 import { cn } from "@/lib/utils";
 
 /* ══════════════════════════════════════════════
@@ -128,5 +128,3 @@ export function ScaleIn({
   );
 }
 
-// Re-export for convenience
-export { motion, AnimatePresence };

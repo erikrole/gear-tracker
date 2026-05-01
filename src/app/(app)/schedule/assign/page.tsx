@@ -91,13 +91,13 @@ export default function AssignPage() {
       <div className="flex flex-wrap items-center gap-3 mb-4">
         {/* Month nav */}
         <div className="flex items-center gap-1">
-          <Button variant="outline" size="icon" className="size-8" onClick={prevMonth}>
+          <Button variant="outline" size="icon-sm" onClick={prevMonth} aria-label="Previous month">
             <ChevronLeft className="size-4" />
           </Button>
           <Button variant="outline" size="sm" className="min-w-[9rem] font-medium" onClick={thisMonth}>
             {monthLabel}
           </Button>
-          <Button variant="outline" size="icon" className="size-8" onClick={nextMonth}>
+          <Button variant="outline" size="icon-sm" onClick={nextMonth} aria-label="Next month">
             <ChevronRight className="size-4" />
           </Button>
         </div>
