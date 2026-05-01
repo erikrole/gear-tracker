@@ -137,6 +137,8 @@
 - **`finally` blocks are mandatory on all mutations**: Even when `setNudgingId(null)` appears after the try/catch, move it to `finally` to guarantee cleanup on unexpected throws or early returns (e.g., after 401 redirect).
 - **Skeleton must match actual page layout**: When the page has N cards/sections, the skeleton must have N matching skeleton sections. Audit by comparing rendered page sections against skeleton sections 1:1.
 - **useCallback deps must include all referenced functions**: `setBreadcrumbLabel` was missing from `loadEvent`'s useCallback deps, which could cause stale closures. Always include setter functions even when they appear stable.
+- **Role gating must be applied at every nav surface, not just one**: The settings layout filtered the side-tab list by `requiredRole`, but the breadcrumb's parent-Settings sibling-jump dropdown rendered every entry from `SETTINGS_SECTIONS` unfiltered — so a STUDENT on `/settings/notifications` saw (and could click into) admin-only routes from the dropdown. If a permission helper exists for a list, every consumer of that list must call it. Centralize the predicate (`meetsRoleRequirement(required, role)`) so the next consumer doesn't reinvent or skip the check.
+- **Don't read `localStorage` in render**: `getRecentEntities()` was being called inline during render of `PageBreadcrumb`, so every re-render did a `localStorage.getItem + JSON.parse + filter`. Move to `useMemo` keyed on the inputs that should invalidate the cache (here: section + entity-label-changed), and bail early when the result will be unused. Same rule applies to any sync `localStorage`/`sessionStorage` read.
 
 ## Session 2026-04-09
 

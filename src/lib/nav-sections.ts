@@ -139,11 +139,15 @@ export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSection> = [
 
 const ROLE_RANK: Record<string, number> = { STUDENT: 0, STAFF: 1, ADMIN: 2 };
 
-export function isSectionVisible(section: SettingsSection, role: string): boolean {
+export function meetsRoleRequirement(required: SettingsRole, role: string): boolean {
   const userRank = ROLE_RANK[role];
-  const requiredRank = ROLE_RANK[section.requiredRole];
+  const requiredRank = ROLE_RANK[required];
   if (userRank === undefined || requiredRank === undefined) return false;
   return userRank >= requiredRank;
+}
+
+export function isSectionVisible(section: SettingsSection, role: string): boolean {
+  return meetsRoleRequirement(section.requiredRole, role);
 }
 
 export const REPORT_SECTIONS = [
