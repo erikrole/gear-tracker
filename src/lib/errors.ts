@@ -49,8 +49,17 @@ export function handleAuthRedirect(res: Response, returnTo?: string): boolean {
  * Replaces the repeated `.json().catch(() => ({}))` + `as Record<string, string>` pattern.
  */
 export async function parseErrorMessage(res: Response, fallback?: string): Promise<string> {
-  const json = await res.json().catch(() => ({}));
-  return (json as Record<string, string>).error || fallback || `Request failed (${res.status})`;
+  const json = await parseJsonSafely<Record<string, string>>(res);
+  return json?.error || fallback || `Request failed (${res.status})`;
+}
+
+/** Safely parse JSON from a Response without throwing. */
+export async function parseJsonSafely<T>(res: Response): Promise<T | null> {
+  try {
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  }
 }
 
 /** User-facing error messages by kind. */

@@ -2,6 +2,7 @@
 
 import { useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -212,10 +213,11 @@ function PhotoGroup({ label, photos }: { label: string; photos: BookingPhoto[] }
           rel="noopener noreferrer"
           className="block rounded-lg overflow-hidden border border-border hover:border-foreground/20 transition-colors"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src={photo.imageUrl}
             alt={`${label} condition photo`}
+            width={800}
+            height={600}
             className="w-full h-auto object-cover"
           />
         </a>

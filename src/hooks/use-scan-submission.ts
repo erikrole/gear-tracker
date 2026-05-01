@@ -14,7 +14,11 @@ import {
   scanFeedbackError,
   scanFeedbackInfo,
 } from "@/lib/scan-feedback";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import {
+  handleAuthRedirect,
+  parseErrorMessage,
+  parseJsonSafely,
+} from "@/lib/errors";
 
 type UseScanSubmissionOptions = {
   mode: ScanMode;
@@ -116,11 +120,11 @@ export function useScanSubmission(
           return true;
         } else {
           if (handleAuthRedirect(res)) return false;
-          const json = (await res.clone().json().catch(() => ({}))) as {
+          const json = await parseJsonSafely<{
             error?: string;
             data?: { code?: string };
-          };
-          const errCode = json.data?.code;
+          }>(res.clone());
+          const errCode = json?.data?.code;
           if (errCode === "DUPLICATE_SCAN") {
             scanFeedbackInfo();
             setFeedback({
@@ -262,12 +266,12 @@ export function useScanSubmission(
 
           if (handleAuthRedirect(res)) return;
 
-          const errJson = (await res.json().catch(() => ({}))) as {
+          const errJson = await parseJsonSafely<{
             error?: string;
             data?: { code?: string };
-          };
-          const errCode = errJson.data?.code;
-          const errMsg = errJson.error || "";
+          }>(res);
+          const errCode = errJson?.data?.code;
+          const errMsg = errJson?.error || "";
 
           const matchingBulk = scanStatus.bulkItems.find(
             (item) => item.trackByNumber,

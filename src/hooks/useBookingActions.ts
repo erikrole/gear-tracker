@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 
 type ActionResult = { ok: boolean; error?: string };
 
@@ -31,8 +31,8 @@ async function callAction(
       const msg = await parseErrorMessage(res, "Action failed");
       return { ok: false, error: msg };
     }
-    const json = await res.json().catch(() => ({}));
-    return { ok: true, ...(json as object) };
+    const json = await parseJsonSafely<object>(res);
+    return { ok: true, ...(json ?? {}) };
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
       return { ok: false, error: "Request timed out \u2014 please try again." };

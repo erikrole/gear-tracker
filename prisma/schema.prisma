@@ -417,6 +417,7 @@ model BulkStockBalance {
 
   @@unique([bulkSkuId, locationId])
   @@index([locationId])
+  @@index([bulkSkuId])
   @@map("bulk_stock_balances")
 }
 
@@ -525,6 +526,7 @@ model OverrideEvent {
 
   @@index([bookingId, createdAt])
   @@index([actorUserId])
+  @@index([createdAt])
   @@map("override_events")
 }
 
@@ -718,6 +720,7 @@ model Notification {
   @@index([userId, readAt])
   @@index([userId, createdAt])
   @@index([type, createdAt])
+  @@index([sentAt])
   @@map("notifications")
 }
 

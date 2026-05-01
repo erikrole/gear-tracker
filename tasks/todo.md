@@ -82,3 +82,17 @@ Last updated: 2026-04-14
 - Every mutation endpoint needs audit logging (D-007)
 - Read `NORTH_STAR.md` first in any new Claude session
 - When shipping, update the relevant `AREA_*.md` and `GAPS_AND_RISKS.md` (CLAUDE.md rule 12)
+
+---
+
+## Wins Sprint (2026-04-30)
+
+- [x] Replace `img` with `next/image` in booking detail condition photos
+- [x] Remove silent JSON parse swallowing in booking + scan client flows
+- [x] Add missing indexes (`notifications.sent_at`, `override_events.created_at`, `bulk_stock_balances.bulk_sku_id`)
+- [x] Run `npm run test` (fails on pre-existing unrelated tests: equipment-guidance, shift-trades, create-booking)
+- [x] Run `npm run build` (`npm run build` blocked by Prisma schema engine error against Neon; `npx next build` passes)
+
+### Review
+- Shipped low-effort hardening on booking + scan client paths and added missing operational indexes.
+- Verification complete for compilation (`npx next build` succeeds). Test suite currently red for unrelated pre-existing failures.

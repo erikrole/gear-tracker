@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-04-09
+- Last Updated: 2026-04-30
 - Status: Living registry — update when shipping features or resolving decisions
 - Purpose: Single file listing every open gap, pending decision, and known risk across all docs
 
@@ -178,3 +178,4 @@
 - 2026-04-03: Registration gating shipped (D-029). Open self-registration replaced with admin-managed email allowlist. `AllowedEmail` model + migration, CRUD API with audit logging, Settings > Allowed Emails admin UI, registration endpoint gates on allowlist + assigns pre-approved role.
 - 2026-04-06: Cross-area ship-readiness audit. Users (22/25), Items (22/25), Checkouts (23/25), Dashboard (24/25). 20+ fixes shipped: session-level active enforcement, deactivation SERIALIZABLE, password reset atomic, QR/delete/generate/duplicate TOCTOU fixes, accessory transactions, booking audit-logs and photo permission gates, 401 hardening on kits + bulk-inventory, export permission corrected, doc sync across 6 AREA docs.
 - 2026-04-09: Hard doc sync pass. **Closed meta-gap: created AREA_KITS.md, AREA_REPORTS.md, AREA_BULK_INVENTORY.md** — 3 shipped features now formally documented. **Updated stale docs:** AREA_ITEMS (added Gap Wizard + item detail header redesign), AREA_USERS (added athlete roster redesign), AREA_MOBILE (added sidebar redesign + booking list migration + design refresh), AREA_KIOSK (AC-1 complete: admin CRUD for kiosk devices shipped). Updated Last Updated dates across all docs. Change log entry added to track doc sync commits. No code gaps identified; all features now have corresponding AREA doc entries.
+- 2026-04-30: Low-effort hardening pass shipped for booking/scan surfaces: replaced raw `<img>` in booking condition photos with `next/image`, centralized safe JSON parse handling in booking/scan client hooks, and added indexes for `notifications.sent_at`, `override_events.created_at`, and `bulk_stock_balances.bulk_sku_id` (migration `0049_add_operational_indexes`). No new gaps opened.
