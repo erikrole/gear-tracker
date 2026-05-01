@@ -19,10 +19,7 @@
       "Bash(ssh *)",
       "Bash(dd * of=/dev/*)",
       "Bash(* > /dev/*)",
-      "Bash(tee /dev/*)",
-      "Edit(prisma/migrations/**/migration.sql)",
-      "Write(prisma/migrations/**/migration.sql)",
-      "MultiEdit(prisma/migrations/**/migration.sql)"
+      "Bash(tee /dev/*)"
     ]
   },
   "hooks": {
