@@ -64,6 +64,7 @@ struct LoginView: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: 52, height: 52)
+                    .accessibilityHidden(true)
 
                 Text("Wisconsin Creative")
                     .font(.title2.weight(.bold))

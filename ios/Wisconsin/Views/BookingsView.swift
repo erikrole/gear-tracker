@@ -180,14 +180,13 @@ struct BookingsView: View {
                     .listStyle(.plain)
                 }
             }
-            .sensoryFeedback(.success, trigger: navigationPath)
             .navigationTitle("Bookings")
             .searchable(text: $vm.searchText, prompt: "Search bookings…")
             .onChange(of: vm.searchText) { vm.onSearchChange() }
             .onChange(of: vm.tab) { Task { await vm.load(reset: true) } }
             .toolbar {
                 if vm.tab == .reservations && canCreate {
-                    ToolbarItem(placement: .topBarLeading) {
+                    ToolbarItem(placement: .topBarTrailing) {
                         Button { showCreate = true } label: {
                             Image(systemName: "plus")
                         }

@@ -284,7 +284,7 @@ private struct ItemHeroCard: View {
 
                 VStack(alignment: .leading, spacing: 5) {
                     Text(heroTitle)
-                        .font(.system(size: 24, weight: .black))
+                        .font(.title2.weight(.heavy))
                         .tracking(-0.4)
                         .lineLimit(2)
 

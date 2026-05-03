@@ -237,7 +237,7 @@ struct HomeView: View {
     var body: some View {
         NavigationStack(path: $navigationPath) {
             mainContent
-                .navigationTitle("Dashboard")
+                .navigationTitle("Home")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
