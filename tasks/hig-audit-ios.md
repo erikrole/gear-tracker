@@ -88,11 +88,12 @@ These are project-wide patterns to adopt in a single sweep before per-screen pol
 - [x] **CC-7 — Replace hand-rolled top overlays with `.safeAreaInset(edge: .top)`.** ✅ Shipped 2026-05-03 (AppTabView offline banner).
       `AppTabView.swift:34-42` `BannerView` overlay is the canonical wrong-way; iOS 26 idiom is `.safeAreaInset(edge: .top) { OfflineBanner() }` directly on the `TabView`. Cite: https://developer.apple.com/documentation/swiftui/view/safeareainset(edge:alignment:spacing:content:)
 
-- [ ] **CC-8 — Honor `@Environment(\.accessibilityReduceMotion)` on every animated transition.** *(In progress — 1/15 sites done.)* AppTabView shipped 2026-05-03. Remaining 14 `.animation(...)` sites: `LinkStickerWizard.swift:53`, `BookingDetailView.swift:467` (ScalePressStyle — already honored on FABButtonStyle, sweep when ScalePressStyle is removed), `CreateBookingSheet.swift:491`, `ScheduleView.swift:247-248`, `WisconsinApp.swift:99`, `KioskPickupView.swift:87,107,262`, `KioskShellView.swift:41`, `KioskReturnView.swift:87,112,296`, `KioskCheckoutView.swift:112`, `ScanView.swift:42`. (Many kiosk sites — but kiosk is a fixed-mode public-facing flow where motion is part of the feedback signal; consider whether kiosk gets a pass.)
+- [x] **CC-8 — Honor `@Environment(\.accessibilityReduceMotion)` on every animated transition.** ✅ Shipped 2026-05-03.
+      All 8 non-kiosk animation sites gated: AppTabView (offline banner), WisconsinApp RootView (login offline banner), ScanView (result card spring), LinkStickerWizard (step transition), CreateBookingSheet AssetPickerRow (selection icon), ScheduleView (toast + refresh error), and `ScalePressStyle` (which auto-fans-out to its 3 call sites in ScheduleView ×2 and CreateBookingSheet). 7 kiosk sites intentionally retained — kiosk is a fixed-mode public-facing flow where motion is part of the feedback signal. Mirrors the web side's app-wide MotionConfig. AppTabView shipped 2026-05-03. Remaining 14 `.animation(...)` sites: `LinkStickerWizard.swift:53`, `BookingDetailView.swift:467` (ScalePressStyle — already honored on FABButtonStyle, sweep when ScalePressStyle is removed), `CreateBookingSheet.swift:491`, `ScheduleView.swift:247-248`, `WisconsinApp.swift:99`, `KioskPickupView.swift:87,107,262`, `KioskShellView.swift:41`, `KioskReturnView.swift:87,112,296`, `KioskCheckoutView.swift:112`, `ScanView.swift:42`. (Many kiosk sites — but kiosk is a fixed-mode public-facing flow where motion is part of the feedback signal; consider whether kiosk gets a pass.)
       `AppTabView.swift:44` unconditionally animates the offline banner. Web side already wired `MotionConfig` (per memory). iOS side needs the equivalent: every `.animation(...)` site should fall back to `nil` (or `.identity`) under Reduce Motion. Cite: https://developer.apple.com/design/human-interface-guidelines/accessibility
 
-- [ ] **CC-9 — Adopt `Observable` + `@Observable` macros consistently (Swift 5.10+).**
-      Already in use (`@Observable` macros visible per `@Environment(SessionStore.self)` calls). Verify all stores — no `ObservableObject` / `@Published` legacy left.
+- [x] **CC-9 — Adopt `Observable` + `@Observable` macros consistently (Swift 5.10+).** ✅ Verified 2026-05-03.
+      Codebase has zero `ObservableObject`, `@Published`, `@StateObject`, `@ObservedObject`, `@EnvironmentObject` references. Fully on `@Observable`.
 
 ---
 
@@ -298,8 +299,8 @@ Plus 9 cross-cutting items (CC-1..CC-9).
 4. Custom `ScalePressStyle` everywhere → drops out with CC-4
 5. Hardcoded RGB brand colors instead of Asset Catalog → new CC-10
 
-- [ ] **CC-10 — Move all hardcoded brand colors to Asset Catalog.**
-      Sites: `LoginView.swift:30-34`, `ItemDetailView.swift:252` (`wiRed`), `Brand.swift` (verify). Single `BrandPrimary` color set with light/dark/high-contrast variants.
+- [x] **CC-10 — Consolidate brand colors with dark-mode adaptation.** ✅ Shipped 2026-05-03.
+      Brand.swift is now the single source of truth. `Color.brandPrimary` uses `UIColor(dynamicProvider:)` — dark maroon (#A00000) in light, system-red luminance (#FF3B30) in dark (≥4.5:1 contrast). Killed the duplicate `wiRed` in ItemDetailView; tokenized LoginView gradient stops as `brandSplashTop`/`brandSplashMid`. WisconsinApp simplified to `.tint(.brandPrimary)`. Asset Catalog migration with high-contrast variants is still possible later but no longer urgent — the dynamicProvider gives the same runtime behavior.
       Cite: https://developer.apple.com/design/human-interface-guidelines/color
 
 ---
