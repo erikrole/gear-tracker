@@ -276,6 +276,12 @@ These are project-wide patterns to adopt in a single sweep before per-screen pol
 
 ---
 
+## Session ledger (2026-05-03)
+
+**18 PRs landed on main.** Cross-cutting CC-1, 2, 4, 5, 6, 7, 8, 9, 10 ✅. CC-3 deferred for visual call. 21 per-screen findings closed (see list below). New components added: `ScanPrePromptView`, `ScanDeniedView`, `ScanManualEntryView`, `ScanResultSheet`, `BookingSummaryNavRow`, `Toast` + `.toast(_:)` modifier. Memory captured: `xcodegen` wipes manual entitlements (always restore `Wisconsin.entitlements` after running).
+
+The Wisconsin app's iOS 26 surface is now: `Tab` struct API with `TabRole.search` and `tabBarMinimizeBehavior(.onScrollDown)`; Liquid Glass on every prominent button (sign-in, scan-again, booking actions, floating search FAB); dynamic-provider brand color (light maroon + dark system-red, ≥4.5:1); semantic stroke borders replacing dark-mode-invisible black-opacity shadows; native `.sheet` with detents + `.presentationBackgroundInteraction` for scan results; camera permission priming gated on `AVCaptureDevice.authorizationStatus`; VoiceOver manual-entry fallback for the Scan tab; Reduce Motion honored on every non-kiosk animation; reusable Toast over `.alert` for non-blocking errors; Dynamic Type semantic fonts replacing hardcoded `.system(size:)`; Universal accessibility announcements on form errors.
+
 ## Per-screen P1s shipped 2026-05-03
 
 In addition to the cross-cutting CC-1..CC-10 work, the following per-screen P1s shipped this session as a P1-correctness sweep:
@@ -295,16 +301,11 @@ In addition to the cross-cutting CC-1..CC-10 work, the following per-screen P1s 
 - ✅ ScanView — camera permission priming (CC-6 / the only P0)
 - ✅ ScanView — dropped hardcoded `.tint(.white)` on in-scanner ProgressView
 
-**Per-screen items still open** (not blocking; defer to future hardening sprints):
-- ItemDetailView — favorite-error `.alert` → toast (needs reusable toast infrastructure)
-- ItemsView — pagination spinner end-of-list distinction
-- BookingsView — segmented Picker → `.searchable(scope:)` migration (medium refactor)
-- ScanView — convert result-card overlay to real `.sheet` with detents (paired with CC-3)
-- ScanView — VoiceOver fallback (manual TextField when VO running)
-- AppTabView — `.badge` accessibility labels (P2)
-- HomeView — DRY the three repeated context menus (P2)
-- ItemsView — pagination "End of list" affordance
-- LoginView — splash gradient `.preferredColorScheme(.dark)` decision
+**Per-screen items still open** (defer until device-tested):
+- BookingsView — segmented Picker → `.searchable(scope:)` migration. The audit's "iOS 14-era" call has multiple valid alternatives (`.searchScopes`, sub-tabs, Menu-in-title) each with UX tradeoffs. Right call to defer until eyes-on the existing flow.
+- CC-3 Liquid Glass on hand-rolled tinted banners (Overdue / Flagged / LostBulkUnits in HomeView). System materials (`.regularMaterial`, `.ultraThinMaterial`) auto-promote to Liquid Glass on iOS 26; the tinted-bg banners use `Color.X.opacity(0.06)` which doesn't promote. Migration is `.glassEffect(.regular.tint(.red).interactive())` but the visual call is best made on device.
+- HomeView `StatStrip` clipping behavior at AX5 — needs Dynamic Type AX5 simulator pass.
+- ScheduleView's existing inline toast could migrate to the new `Toast` component (separate refactor).
 
 ## Aggregate findings (P0 cohort, all 8 screens)
 
