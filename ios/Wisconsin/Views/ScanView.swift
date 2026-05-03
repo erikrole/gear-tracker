@@ -138,7 +138,8 @@ private struct ScanResultCard: View {
             Divider()
 
             Button("Scan Again", action: onScanAgain)
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
+                .controlSize(.large)
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)

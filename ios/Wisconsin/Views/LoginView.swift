@@ -158,20 +158,16 @@ struct LoginView: View {
                 } label: {
                     ZStack {
                         if session.isLoading {
-                            ProgressView().tint(.white)
+                            ProgressView()
                         } else {
-                            Text("Sign in").fontWeight(.semibold)
+                            Text("Sign in")
                         }
                     }
                     .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(
-                        canSubmit ? Color(.label) : Color(.label).opacity(0.35),
-                        in: RoundedRectangle(cornerRadius: 10)
-                    )
-                    .foregroundStyle(Color(.systemBackground).opacity(canSubmit ? 1 : 0.5))
                 }
-                .buttonStyle(ScalePressStyle())
+                .buttonStyle(.glassProminent)
+                .controlSize(.large)
+                .tint(.brandPrimary)
                 .disabled(!canSubmit)
             }
             .padding(.horizontal, 24)
