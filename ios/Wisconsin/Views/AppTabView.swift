@@ -4,44 +4,44 @@ struct AppTabView: View {
     @Environment(SessionStore.self) private var session
     @Environment(AppState.self) private var appState
     @Environment(NetworkMonitor.self) private var network
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        ZStack(alignment: .top) {
-            TabView(selection: Bindable(appState).selectedTab) {
+        TabView(selection: Bindable(appState).selectedTab) {
+            Tab("Home", systemImage: "house", value: 0) {
                 HomeView()
-                    .tabItem { Label("Home", systemImage: "house") }
-                    .tag(0)
-
-                BookingsView()
-                    .tabItem { Label("Bookings", systemImage: "calendar.badge.checkmark") }
-                    .badge(appState.overdueCount)
-                    .tag(1)
-
-                ItemsView()
-                    .tabItem { Label("Items", systemImage: "archivebox") }
-                    .tag(2)
-
-                ScanView()
-                    .tabItem { Label("Scan", systemImage: "barcode.viewfinder") }
-                    .tag(3)
-
-                ScheduleView()
-                    .tabItem { Label("Schedule", systemImage: "calendar") }
-                    .badge(appState.myShiftCount)
-                    .tag(4)
             }
 
+            Tab("Bookings", systemImage: "calendar.badge.checkmark", value: 1) {
+                BookingsView()
+            }
+            .badge(appState.overdueCount)
+
+            Tab("Items", systemImage: "archivebox", value: 2) {
+                ItemsView()
+            }
+
+            Tab("Scan", systemImage: "barcode.viewfinder", value: 3, role: .search) {
+                ScanView()
+            }
+
+            Tab("Schedule", systemImage: "calendar", value: 4) {
+                ScheduleView()
+            }
+            .badge(appState.myShiftCount)
+        }
+        .tabBarMinimizeBehavior(.onScrollDown)
+        .safeAreaInset(edge: .top, spacing: 0) {
             if !network.isConnected {
                 BannerView(
                     severity: .warning,
                     message: "No connection — some actions may fail",
                     systemImage: "wifi.slash"
                 )
-                .padding(.top, 12)
-                .zIndex(1)
+                .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .animation(.easeInOut, value: network.isConnected)
+        .animation(reduceMotion ? nil : .easeInOut, value: network.isConnected)
     }
 }
 
