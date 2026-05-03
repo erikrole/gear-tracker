@@ -71,13 +71,21 @@ struct ScanView: View {
                     .background(.ultraThinMaterial, in: Circle())
                     .padding(.bottom, 48)
             }
-
-            if let results {
-                ScanResultCard(results: results, navigationPath: $navigationPath) {
-                    self.results = nil
+        }
+        .sheet(isPresented: Binding(
+            get: { results != nil },
+            set: { presented in
+                if !presented {
+                    results = nil
                     isScanning = true
                 }
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        )) {
+            if let results {
+                ScanResultSheet(results: results, navigationPath: $navigationPath)
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+                    .presentationBackgroundInteraction(.enabled(upThrough: .medium))
             }
         }
     }
@@ -87,7 +95,13 @@ struct ScanView: View {
         isSearching = true
         Task {
             defer { isSearching = false }
-            results = (try? await SearchService.shared.search(query: value, rawScan: value)) ?? SearchResults()
+            let outcome = (try? await SearchService.shared.search(query: value, rawScan: value)) ?? SearchResults()
+            results = outcome
+            if outcome.isEmpty {
+                Haptics.warning()
+            } else {
+                Haptics.success()
+            }
         }
     }
 }
@@ -194,64 +208,35 @@ private struct DataScannerRepresentable: UIViewControllerRepresentable {
     }
 }
 
-// MARK: - Results card
+// MARK: - Results sheet
 
-private struct ScanResultCard: View {
+/// Native sheet presentation for scan results. Replaces the prior hand-rolled
+/// floating overlay — the sheet handles its own grabber, drag-to-resize,
+/// swipe-to-dismiss, and Liquid Glass material via the system.
+/// Background interaction is enabled up through .medium so the camera feed
+/// stays live and the next scan can happen without dismissing manually.
+private struct ScanResultSheet: View {
     let results: SearchResults
     @Binding var navigationPath: NavigationPath
-    let onScanAgain: () -> Void
-
-    private var totalCount: Int {
-        results.items.count + results.reservations.count + results.checkouts.count + results.users.count
-    }
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        VStack(spacing: 0) {
-            Capsule()
-                .fill(.tertiary)
-                .frame(width: 36, height: 5)
-                .padding(.top, 8)
-                .padding(.bottom, 4)
-
+        Group {
             if results.isEmpty {
                 emptyState
-            } else if totalCount > 3 {
-                ScrollView {
-                    resultRows
-                }
-                .frame(maxHeight: 300)
             } else {
-                resultRows
+                ScrollView { resultRows }
             }
-
-            Divider()
-
-            Button("Scan Again", action: onScanAgain)
-                .buttonStyle(.glassProminent)
-                .controlSize(.large)
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
         }
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
-        .padding(.horizontal, 12)
-        .padding(.bottom, 8)
+        .presentationCornerRadius(24)
     }
 
     private var emptyState: some View {
-        VStack(spacing: 6) {
-            Image(systemName: "qrcode.viewfinder")
-                .font(.title2)
-                .foregroundStyle(.secondary)
-            Text("Nothing found")
-                .font(.subheadline.weight(.medium))
-            Text("This code isn't linked to any item yet")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        ContentUnavailableView {
+            Label("Nothing found", systemImage: "qrcode.viewfinder")
+        } description: {
+            Text("This code isn't linked to any item yet.")
         }
-        .padding(.vertical, 20)
-        .padding(.horizontal)
-        .frame(maxWidth: .infinity)
     }
 
     private var resultRows: some View {
@@ -259,6 +244,7 @@ private struct ScanResultCard: View {
             ForEach(Array(results.items.enumerated()), id: \.element.id) { index, asset in
                 Button {
                     navigationPath.append(asset)
+                    dismiss()
                 } label: {
                     HStack {
                         AssetResultRow(asset: asset)
@@ -280,6 +266,7 @@ private struct ScanResultCard: View {
             ForEach(Array(bookings.enumerated()), id: \.element.id) { index, booking in
                 Button {
                     navigationPath.append(booking)
+                    dismiss()
                 } label: {
                     BookingResultRow(booking: booking)
                         .padding(.horizontal, 16)
@@ -300,5 +287,6 @@ private struct ScanResultCard: View {
                 }
             }
         }
+        .padding(.top, 8)
     }
 }
