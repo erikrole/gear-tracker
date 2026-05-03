@@ -73,9 +73,11 @@ These are project-wide patterns to adopt in a single sweep before per-screen pol
 - [ ] **CC-3 — Replace hand-rolled `.regularMaterial`/`.ultraThinMaterial` overlays with `.glassEffect(_:in:)` Liquid Glass.**
       Sites: `ScanView.swift:146` (`ScanResultCard` uses `.regularMaterial`), `ScanView.swift:28` (`ProgressView` in `.ultraThinMaterial` circle), `BannerView.swift` (probably). Liquid Glass is the iOS 26 system material — Apple's guidance is "Standard components in SwiftUI use Liquid Glass. Adopt Liquid Glass on custom components." Replace with `.glassEffect(in: .rect(cornerRadius: 20))` or `.glassEffect()` (default capsule). Wrap clusters in `GlassEffectContainer` for perf. Cite: https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views
 
-- [ ] **CC-4 — Replace custom prominent buttons with `.buttonStyle(.glass)` / `.buttonStyle(.glassProminent)`.** *(In progress.)*
-      `LoginView.swift:156-175` (Sign in button) and `ScanView.swift:140-144` (Scan Again — already `.borderedProminent`, OK but could be `.glassProminent`). Glass button styles automatically pick up the system tint, scale press style, and iOS-26-native interaction.
-      - [x] BookingDetailView Extend / Cancel buttons — shipped 2026-05-03. Dropped hand-rolled colored backgrounds and the `ScalePressStyle()` calls; replaced with `.buttonStyle(.glass).controlSize(.large).tint(.blue/.red)`. `ScalePressStyle` itself stays for now (still used by other sites — sweep when CC-4 completes).
+- [x] **CC-4 — Replace custom prominent buttons with `.buttonStyle(.glass)` / `.buttonStyle(.glassProminent)`.** ✅ Shipped 2026-05-03.
+      - [x] BookingDetailView Extend / Cancel — `.buttonStyle(.glass).controlSize(.large).tint(.blue/.red)`.
+      - [x] LoginView Sign in — dropped the `Color(.label)` inverted-fill (invisible-white-on-white in dark mode) and the custom `ScalePressStyle`. Now `.buttonStyle(.glassProminent).tint(.brandPrimary)`.
+      - [x] ScanView Scan Again — `.borderedProminent` → `.glassProminent`.
+      - `ScalePressStyle` remains defined for the `FABButtonStyle` analog in `FloatingSearchButton` (different style intent — that's a FAB with custom spring scale; evaluate as part of CC-3 when the FAB itself moves to `.glassEffect(.regular.tint(.accentColor).interactive(), in: .circle)`).
 
 - [x] **CC-5 — Sweep all hardcoded `Color.black.opacity(...)` shadows.** ✅ Shipped 2026-05-03.
       Cleaned 4 shadow sites: `HomeView.swift` `StatCell` and `DashboardCard` (dropped both shadows, replaced with `Color(.separator)` stroke borders matching `ItemDetailView` card pattern); `FloatingSearchButton.swift` (dropped black drop-shadow, kept accent-tinted glow which adapts); `LoginView.swift` (kept the splash-card lift but converted to `Color(.sRGBLinear, white: 0, opacity: 0.4)` so it remains visible over the dark gradient). The 4 remaining `black.opacity` sites in the codebase are legitimate scrim/camera-overlay uses, not shadows.
