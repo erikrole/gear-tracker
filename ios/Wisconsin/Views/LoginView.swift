@@ -54,6 +54,7 @@ struct LoginView: View {
             }
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
+        .preferredColorScheme(.dark)
         .onChange(of: session.error) { _, error in
             if let error {
                 AccessibilityNotification.Announcement(error).post()
