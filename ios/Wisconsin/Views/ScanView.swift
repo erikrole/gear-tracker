@@ -9,6 +9,7 @@ struct ScanView: View {
     @State private var navigationPath = NavigationPath()
     @State private var cameraAuth: AVAuthorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -51,7 +52,9 @@ struct ScanView: View {
     @ViewBuilder
     private var scannerSurface: some View {
         ZStack(alignment: .bottom) {
-            if DataScannerViewController.isSupported {
+            if voiceOverEnabled {
+                ScanManualEntryView(onScan: handleScan)
+            } else if DataScannerViewController.isSupported {
                 DataScannerRepresentable(isScanning: $isScanning, onScan: handleScan)
                     .ignoresSafeArea()
             } else {
@@ -86,6 +89,62 @@ struct ScanView: View {
             defer { isSearching = false }
             results = (try? await SearchService.shared.search(query: value, rawScan: value)) ?? SearchResults()
         }
+    }
+}
+
+// MARK: - VoiceOver fallback
+
+/// Manual code-entry view shown to VoiceOver users in place of the camera
+/// scanner. Camera-based barcode scanning is not accessible to blind users —
+/// HIG recommends an equivalent text-input path.
+private struct ScanManualEntryView: View {
+    let onScan: (String) -> Void
+    @State private var code = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "keyboard")
+                .font(.system(size: 44))
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+
+            Text("Enter code manually")
+                .font(.title3.weight(.semibold))
+
+            Text("VoiceOver is on, so we've swapped the camera for keyboard entry. Type the asset tag, sticker code, or booking ref number and tap Look up.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+
+            TextField("Code", text: $code)
+                .textFieldStyle(.roundedBorder)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .submitLabel(.search)
+                .focused($focused)
+                .onSubmit(submit)
+                .padding(.horizontal, 32)
+
+            Button("Look up") { submit() }
+                .buttonStyle(.glassProminent)
+                .controlSize(.large)
+                .disabled(code.trimmingCharacters(in: .whitespaces).isEmpty)
+
+            Spacer()
+        }
+        .padding(.top, 36)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(.systemBackground))
+        .onAppear { focused = true }
+    }
+
+    private func submit() {
+        let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        onScan(trimmed)
+        code = ""
     }
 }
 
