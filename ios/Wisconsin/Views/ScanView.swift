@@ -1,51 +1,80 @@
 import SwiftUI
 import VisionKit
+import AVFoundation
 
 struct ScanView: View {
     @State private var isScanning = true
     @State private var isSearching = false
     @State private var results: SearchResults?
     @State private var navigationPath = NavigationPath()
+    @State private var cameraAuth: AVAuthorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
-            ZStack(alignment: .bottom) {
-                if DataScannerViewController.isSupported {
-                    DataScannerRepresentable(isScanning: $isScanning, onScan: handleScan)
-                        .ignoresSafeArea()
-                } else {
-                    ContentUnavailableView(
-                        "Scanner Not Available",
-                        systemImage: "camera.slash",
-                        description: Text("This device doesn't support camera scanning.")
-                    )
+            scanContent
+                .navigationTitle("Scan")
+                .navigationBarTitleDisplayMode(.inline)
+                .animation(reduceMotion ? nil : .spring(duration: 0.3), value: results != nil)
+                .navigationDestination(for: Asset.self) { asset in
+                    ItemDetailView(assetId: asset.id)
                 }
-
-                if isSearching {
-                    ProgressView()
-                        .tint(.white)
-                        .padding(16)
-                        .background(.ultraThinMaterial, in: Circle())
-                        .padding(.bottom, 48)
+                .navigationDestination(for: Booking.self) { booking in
+                    BookingDetailView(bookingId: booking.id)
                 }
-
-                if let results {
-                    ScanResultCard(results: results, navigationPath: $navigationPath) {
-                        self.results = nil
-                        isScanning = true
+                .onChange(of: scenePhase) { _, phase in
+                    // Re-read after the user toggles camera in Settings.
+                    if phase == .active {
+                        cameraAuth = AVCaptureDevice.authorizationStatus(for: .video)
                     }
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
+        }
+    }
+
+    @ViewBuilder
+    private var scanContent: some View {
+        switch cameraAuth {
+        case .notDetermined:
+            ScanPrePromptView { granted in
+                cameraAuth = granted ? .authorized : .denied
             }
-            .navigationTitle("Scan")
-            .navigationBarTitleDisplayMode(.inline)
-            .animation(reduceMotion ? nil : .spring(duration: 0.3), value: results != nil)
-            .navigationDestination(for: Asset.self) { asset in
-                ItemDetailView(assetId: asset.id)
+        case .denied, .restricted:
+            ScanDeniedView()
+        case .authorized:
+            scannerSurface
+        @unknown default:
+            scannerSurface
+        }
+    }
+
+    @ViewBuilder
+    private var scannerSurface: some View {
+        ZStack(alignment: .bottom) {
+            if DataScannerViewController.isSupported {
+                DataScannerRepresentable(isScanning: $isScanning, onScan: handleScan)
+                    .ignoresSafeArea()
+            } else {
+                ContentUnavailableView(
+                    "Scanner Not Available",
+                    systemImage: "camera.slash",
+                    description: Text("This device doesn't support camera scanning.")
+                )
             }
-            .navigationDestination(for: Booking.self) { booking in
-                BookingDetailView(bookingId: booking.id)
+
+            if isSearching {
+                ProgressView()
+                    .padding(16)
+                    .background(.ultraThinMaterial, in: Circle())
+                    .padding(.bottom, 48)
+            }
+
+            if let results {
+                ScanResultCard(results: results, navigationPath: $navigationPath) {
+                    self.results = nil
+                    isScanning = true
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
     }

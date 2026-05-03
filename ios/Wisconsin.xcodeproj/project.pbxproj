@@ -10,6 +10,7 @@
 		0139CC54E3F0164FA19EA25C /* EventWeatherService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51D3A73950E2AF7A4B427DAC /* EventWeatherService.swift */; };
 		01C0E89D9110CBB8DA80D650 /* SearchResultRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD7494E64F4395E73A7AA6C1 /* SearchResultRow.swift */; };
 		085E8467FC2D0385A67DD157 /* QRScannerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44E5D1DB0C8CBAD5E452E807 /* QRScannerSheet.swift */; };
+		0B3D380ACF389083C083FC5A /* ScanPrePromptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93A02FB7D1B8ADC547189F1A /* ScanPrePromptView.swift */; };
 		0FC9DC340824D39EB558E913 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B540C9027D1885BCBEA2E4D /* Models.swift */; };
 		126FE69C0DCDD7F917CE6580 /* KioskShellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E5A80EBE9AE9D0094E70FBB /* KioskShellView.swift */; };
 		12BE5380A72CE66E23CA39CD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 592769886AB12F6A842CC8CF /* Assets.xcassets */; };
@@ -111,6 +112,7 @@
 		80CA4880F08046F8E23F079B /* ItemDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemDetailView.swift; sourceTree = "<group>"; };
 		843772771897AABEF8DD1F93 /* BannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BannerView.swift; sourceTree = "<group>"; };
 		87AF393E027CAF24A08F414E /* WeatherKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WeatherKit.framework; path = System/Library/Frameworks/WeatherKit.framework; sourceTree = SDKROOT; };
+		93A02FB7D1B8ADC547189F1A /* ScanPrePromptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanPrePromptView.swift; sourceTree = "<group>"; };
 		96636E404DEEEDA5C6046ADB /* AddShiftSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddShiftSheet.swift; sourceTree = "<group>"; };
 		9CDE77AE37C01B8DA663C7CE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		9E58906A0DD7BCF5024161BE /* NotificationsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsSheet.swift; sourceTree = "<group>"; };
@@ -307,6 +309,7 @@
 				6D6258D04F2CBF34C14EBB69 /* LoginView.swift */,
 				9E58906A0DD7BCF5024161BE /* NotificationsSheet.swift */,
 				6A2DFDC7A0C7BD6C018D43D2 /* PushPrePromptView.swift */,
+				93A02FB7D1B8ADC547189F1A /* ScanPrePromptView.swift */,
 				37FF31264347D4D6932C4DBB /* ScanView.swift */,
 				74157D1DF3F4EF9F53F70494 /* ScheduleView.swift */,
 				6B64F325136AF7626ECECE8C /* UserDetailView.swift */,
@@ -445,6 +448,7 @@
 				5222CCDEB1C3A451B2B7EDED /* PostTradeSheet.swift in Sources */,
 				D24677599DC4E06E3E093A81 /* PushPrePromptView.swift in Sources */,
 				085E8467FC2D0385A67DD157 /* QRScannerSheet.swift in Sources */,
+				0B3D380ACF389083C083FC5A /* ScanPrePromptView.swift in Sources */,
 				23D18DF0CCE1DFC0E4CAD69E /* ScanView.swift in Sources */,
 				2CED1D2B5A4282EB13E29796 /* ScheduleModels.swift in Sources */,
 				2516A89A0CD4284023B38A28 /* ScheduleView.swift in Sources */,
