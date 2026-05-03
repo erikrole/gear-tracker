@@ -64,10 +64,10 @@ Findings tagged P0 (HIG violation), P1 (clear deviation), P2 (polish/feel).
 
 These are project-wide patterns to adopt in a single sweep before per-screen polish.
 
-- [ ] **CC-1 — Migrate `TabView` to the new `Tab` struct API.**
+- [x] **CC-1 — Migrate `TabView` to the new `Tab` struct API.** ✅ Shipped 2026-05-03.
       The current `AppTabView.swift:10-32` uses the legacy `.tabItem { Label(...) }` pattern. iOS 26 introduces `Tab("Home", systemImage: "house") { HomeView() }` which is the canonical declaration. The old pattern still compiles but the new one is required to access `TabRole`, `tabPlacement`, and the floating-tab-bar adaptations on iPad/Mac. Cite: https://developer.apple.com/documentation/swiftui/tab
 
-- [ ] **CC-2 — Adopt `TabRole.search` (where applicable) and `.tabBarMinimizeBehavior(.onScrollDown)`.**
+- [x] **CC-2 — Adopt `TabRole.search` (where applicable) and `.tabBarMinimizeBehavior(.onScrollDown)`.** ✅ Shipped 2026-05-03.
       The Scan tab is a search-flow entry; using `role: .search` puts it in the conventional search slot and unlocks system search styling. Adding `.tabBarMinimizeBehavior(.onScrollDown)` on the `TabView` gives the modern iOS 26 disappearing tab bar behavior on scroll. Cites: https://developer.apple.com/documentation/swiftui/tabrole, https://developer.apple.com/documentation/swiftui/view/tabbarminimizebehavior(_:)
 
 - [ ] **CC-3 — Replace hand-rolled `.regularMaterial`/`.ultraThinMaterial` overlays with `.glassEffect(_:in:)` Liquid Glass.**
@@ -85,10 +85,10 @@ These are project-wide patterns to adopt in a single sweep before per-screen pol
 - [ ] **CC-6 — Standardize permission priming via reusable pattern.**
       `PushPrePromptView.swift` exists for notifications. Need parity for camera (Scan) and any future use (mic, location, photos). Refactor into a generic `PrePromptScreen(symbol:title:body:rationale:onContinue:)` and create `ScanPrePromptView`. Cite: https://developer.apple.com/design/human-interface-guidelines/privacy
 
-- [ ] **CC-7 — Replace hand-rolled top overlays with `.safeAreaInset(edge: .top)`.**
+- [x] **CC-7 — Replace hand-rolled top overlays with `.safeAreaInset(edge: .top)`.** ✅ Shipped 2026-05-03 (AppTabView offline banner).
       `AppTabView.swift:34-42` `BannerView` overlay is the canonical wrong-way; iOS 26 idiom is `.safeAreaInset(edge: .top) { OfflineBanner() }` directly on the `TabView`. Cite: https://developer.apple.com/documentation/swiftui/view/safeareainset(edge:alignment:spacing:content:)
 
-- [ ] **CC-8 — Honor `@Environment(\.accessibilityReduceMotion)` on every animated transition.**
+- [ ] **CC-8 — Honor `@Environment(\.accessibilityReduceMotion)` on every animated transition.** *(In progress — 1/15 sites done.)* AppTabView shipped 2026-05-03. Remaining 14 `.animation(...)` sites: `LinkStickerWizard.swift:53`, `BookingDetailView.swift:467` (ScalePressStyle — already honored on FABButtonStyle, sweep when ScalePressStyle is removed), `CreateBookingSheet.swift:491`, `ScheduleView.swift:247-248`, `WisconsinApp.swift:99`, `KioskPickupView.swift:87,107,262`, `KioskShellView.swift:41`, `KioskReturnView.swift:87,112,296`, `KioskCheckoutView.swift:112`, `ScanView.swift:42`. (Many kiosk sites — but kiosk is a fixed-mode public-facing flow where motion is part of the feedback signal; consider whether kiosk gets a pass.)
       `AppTabView.swift:44` unconditionally animates the offline banner. Web side already wired `MotionConfig` (per memory). iOS side needs the equivalent: every `.animation(...)` site should fall back to `nil` (or `.identity`) under Reduce Motion. Cite: https://developer.apple.com/design/human-interface-guidelines/accessibility
 
 - [ ] **CC-9 — Adopt `Observable` + `@Observable` macros consistently (Swift 5.10+).**
