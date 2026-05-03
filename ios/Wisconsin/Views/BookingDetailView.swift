@@ -122,8 +122,10 @@ struct BookingDetailView: View {
         do {
             try await APIClient.shared.cancelBooking(id: bookingId)
             await loadBooking()
+            Haptics.success()
         } catch {
             self.error = error.localizedDescription
+            Haptics.warning()
         }
         isActioning = false
     }
@@ -267,7 +269,7 @@ private struct HeaderSection: View {
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.red, in: RoundedRectangle(cornerRadius: 8))
+                    .background(Color(.systemRed), in: RoundedRectangle(cornerRadius: 8))
             }
             if let event = booking.event, let summary = event.summary {
                 Text(summary)

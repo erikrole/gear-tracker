@@ -54,6 +54,11 @@ struct LoginView: View {
             }
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
+        .onChange(of: session.error) { _, error in
+            if let error {
+                AccessibilityNotification.Announcement(error).post()
+            }
+        }
     }
 
     private var card: some View {
