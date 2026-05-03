@@ -247,10 +247,6 @@ struct EditAssetSheet: View {
     }
 }
 
-// MARK: - Brand color
-
-private let wiRed = Color(red: 0.773, green: 0.020, blue: 0.047)
-
 // MARK: - Hero card
 
 private struct ItemHeroCard: View {
@@ -273,8 +269,8 @@ private struct ItemHeroCard: View {
         VStack(spacing: 0) {
             LinearGradient(
                 stops: [
-                    .init(color: wiRed, location: 0),
-                    .init(color: wiRed.opacity(0.2), location: 0.4),
+                    .init(color: Color.brandPrimary, location: 0),
+                    .init(color: Color.brandPrimary.opacity(0.2), location: 0.4),
                     .init(color: .clear, location: 0.75),
                 ],
                 startPoint: .leading,
@@ -310,7 +306,7 @@ private struct ItemHeroCard: View {
             ZStack(alignment: .topLeading) {
                 Color(.secondarySystemGroupedBackground)
                 RadialGradient(
-                    colors: [wiRed.opacity(0.06), .clear],
+                    colors: [Color.brandPrimary.opacity(0.06), .clear],
                     center: .topLeading,
                     startRadius: 0,
                     endRadius: 220

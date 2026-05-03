@@ -29,9 +29,9 @@ struct LoginView: View {
         ZStack {
             LinearGradient(
                 stops: [
-                    .init(color: Color(red: 0.102, green: 0.063, blue: 0.090), location: 0),
-                    .init(color: Color(red: 0.176, green: 0.039, blue: 0.055), location: 0.4),
-                    .init(color: Color.brandPrimary, location: 1),
+                    .init(color: .brandSplashTop, location: 0),
+                    .init(color: .brandSplashMid, location: 0.4),
+                    .init(color: .brandPrimary, location: 1),
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing

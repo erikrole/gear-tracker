@@ -50,13 +50,7 @@ struct WisconsinApp: App {
                         kioskStore.enterKiosk()
                     }
                 }
-                .tint(Color(UIColor(dynamicProvider: { trait in
-                    // Light: #A00000 (dark maroon — readable on white)
-                    // Dark: #FF3B30 (system-red luminance — meets 4.5:1 on dark bg per Apple HIG)
-                    trait.userInterfaceStyle == .dark
-                        ? UIColor(red: 1.0, green: 0.231, blue: 0.188, alpha: 1)
-                        : UIColor(red: 0.627, green: 0, blue: 0, alpha: 1)
-                })))
+                .tint(.brandPrimary)
         }
         .modelContainer(GearStore.shared.container)
     }
