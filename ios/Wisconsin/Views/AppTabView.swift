@@ -16,6 +16,7 @@ struct AppTabView: View {
                 BookingsView()
             }
             .badge(appState.overdueCount)
+            .accessibilityLabel(appState.overdueCount > 0 ? "Bookings, \(appState.overdueCount) overdue" : "Bookings")
 
             Tab("Items", systemImage: "archivebox", value: 2) {
                 ItemsView()
@@ -29,6 +30,7 @@ struct AppTabView: View {
                 ScheduleView()
             }
             .badge(appState.myShiftCount)
+            .accessibilityLabel(appState.myShiftCount > 0 ? "Schedule, \(appState.myShiftCount) upcoming shifts" : "Schedule")
         }
         .tabBarMinimizeBehavior(.onScrollDown)
         .safeAreaInset(edge: .top, spacing: 0) {

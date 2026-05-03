@@ -204,6 +204,13 @@ struct ItemsView: View {
                             ProgressView()
                                 .frame(maxWidth: .infinity)
                                 .task(id: vm.assets.count) { await vm.load() }
+                        } else if vm.assets.count > 10 {
+                            Text("End of list")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.vertical, 12)
+                                .listRowSeparator(.hidden)
                         }
                     }
                     .listStyle(.plain)

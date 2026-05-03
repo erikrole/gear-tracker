@@ -142,69 +142,21 @@ struct HomeView: View {
                 if !dash.myCheckouts.items.isEmpty {
                     DashboardCard(title: "My Checkouts", seeAllTab: 1, appState: appState) {
                         ForEach(dash.myCheckouts.items) { summary in
-                            NavigationLink(value: summary) { BookingSummaryRow(summary: summary) }
-                                .buttonStyle(.plain)
-                                .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 8))
-                                .contextMenu {
-                                    if let ref = summary.refNumber {
-                                        Button {
-                                            UIPasteboard.general.string = ref
-                                        } label: {
-                                            Label("Copy Ref #", systemImage: "doc.on.doc")
-                                        }
-                                    }
-                                    Button {
-                                        UIPasteboard.general.string = summary.title
-                                    } label: {
-                                        Label("Copy Title", systemImage: "doc.on.doc")
-                                    }
-                                }
+                            BookingSummaryNavRow(summary: summary)
                         }
                     }
                 }
                 if !dash.teamCheckouts.items.isEmpty {
                     DashboardCard(title: "Team Checkouts", seeAllTab: 1, appState: appState) {
                         ForEach(dash.teamCheckouts.items) { summary in
-                            NavigationLink(value: summary) { BookingSummaryRow(summary: summary) }
-                                .buttonStyle(.plain)
-                                .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 8))
-                                .contextMenu {
-                                    if let ref = summary.refNumber {
-                                        Button {
-                                            UIPasteboard.general.string = ref
-                                        } label: {
-                                            Label("Copy Ref #", systemImage: "doc.on.doc")
-                                        }
-                                    }
-                                    Button {
-                                        UIPasteboard.general.string = summary.title
-                                    } label: {
-                                        Label("Copy Title", systemImage: "doc.on.doc")
-                                    }
-                                }
+                            BookingSummaryNavRow(summary: summary)
                         }
                     }
                 }
                 if !dash.teamReservations.items.isEmpty {
                     DashboardCard(title: "Upcoming Reservations", seeAllTab: 1, appState: appState) {
                         ForEach(dash.teamReservations.items) { summary in
-                            NavigationLink(value: summary) { BookingSummaryRow(summary: summary) }
-                                .buttonStyle(.plain)
-                                .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 8))
-                                .contextMenu {
-                                    if let ref = summary.refNumber {
-                                        Button {
-                                            UIPasteboard.general.string = ref
-                                        } label: {
-                                            Label("Copy Ref #", systemImage: "doc.on.doc")
-                                        }
-                                    }
-                                    Button {
-                                        UIPasteboard.general.string = summary.title
-                                    } label: {
-                                        Label("Copy Title", systemImage: "doc.on.doc")
-                                    }
-                                }
+                            BookingSummaryNavRow(summary: summary)
                         }
                     }
                 }
@@ -528,6 +480,35 @@ private struct DashboardCard<Content: View>: View {
             RoundedRectangle(cornerRadius: 12)
                 .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
         )
+    }
+}
+
+// MARK: - Booking Summary Nav Row
+
+/// Navigation row used by the three dashboard cards (My Checkouts, Team Checkouts,
+/// Team Reservations). Wraps `BookingSummaryRow` with the standard NavigationLink
+/// + context menu (Copy Ref #, Copy Title) so the three cards stay in sync.
+private struct BookingSummaryNavRow: View {
+    let summary: BookingSummary
+
+    var body: some View {
+        NavigationLink(value: summary) { BookingSummaryRow(summary: summary) }
+            .buttonStyle(.plain)
+            .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 8))
+            .contextMenu {
+                if let ref = summary.refNumber {
+                    Button {
+                        UIPasteboard.general.string = ref
+                    } label: {
+                        Label("Copy Ref #", systemImage: "doc.on.doc")
+                    }
+                }
+                Button {
+                    UIPasteboard.general.string = summary.title
+                } label: {
+                    Label("Copy Title", systemImage: "doc.on.doc")
+                }
+            }
     }
 }
 
