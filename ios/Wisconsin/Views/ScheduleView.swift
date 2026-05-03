@@ -127,6 +127,7 @@ struct ScheduleView: View {
     @State private var showTradeBoard = false
     @State private var toast: ScheduleToast?
     @State private var isSubscribing = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(SessionStore.self) private var session
     @Environment(AppState.self) private var appState
     @Environment(\.scenePhase) private var scenePhase
@@ -244,8 +245,8 @@ struct ScheduleView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
-            .animation(.spring(duration: 0.3), value: toast)
-            .animation(.easeInOut(duration: 0.2), value: vm.refreshError)
+            .animation(reduceMotion ? nil : .spring(duration: 0.3), value: toast)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: vm.refreshError)
             .navigationTitle("Schedule")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {

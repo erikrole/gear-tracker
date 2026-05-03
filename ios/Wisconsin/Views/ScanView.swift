@@ -6,6 +6,7 @@ struct ScanView: View {
     @State private var isSearching = false
     @State private var results: SearchResults?
     @State private var navigationPath = NavigationPath()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -39,7 +40,7 @@ struct ScanView: View {
             }
             .navigationTitle("Scan")
             .navigationBarTitleDisplayMode(.inline)
-            .animation(.spring(duration: 0.3), value: results != nil)
+            .animation(reduceMotion ? nil : .spring(duration: 0.3), value: results != nil)
             .navigationDestination(for: Asset.self) { asset in
                 ItemDetailView(assetId: asset.id)
             }

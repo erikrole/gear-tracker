@@ -68,6 +68,7 @@ struct WisconsinApp: App {
 struct RootView: View {
     @Environment(SessionStore.self) private var session
     @Environment(KioskStore.self) private var kiosk
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showPushPrePrompt = false
 
     var body: some View {
@@ -90,7 +91,7 @@ struct RootView: View {
                             .padding(.top, 12)
                         }
                     }
-                    .animation(.easeInOut, value: session.isOffline)
+                    .animation(reduceMotion ? nil : .easeInOut, value: session.isOffline)
             }
         }
         .onChange(of: session.currentUser) { old, user in

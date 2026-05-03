@@ -6,6 +6,7 @@ import AVFoundation
 
 struct LinkStickerWizard: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var step: WizardStep = .scan
     @State private var scannedCode: String = ""
     @State private var selectedAsset: Asset? = nil
@@ -50,7 +51,7 @@ struct LinkStickerWizard: View {
                 }
 
             }
-            .animation(.easeInOut(duration: 0.25), value: step)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: step)
             .navigationTitle("Link Sticker Codes")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

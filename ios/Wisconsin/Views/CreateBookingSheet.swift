@@ -440,6 +440,7 @@ struct AssetPickerRow: View {
     let isSelected: Bool
     var isConflicted: Bool = false
     let onTap: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Button(action: onTap) {
@@ -488,7 +489,7 @@ struct AssetPickerRow: View {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
                     .foregroundStyle(isConflicted ? .orange : (isSelected ? .blue : Color(.systemGray4)))
-                    .animation(.easeInOut(duration: 0.15), value: isSelected)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isSelected)
             }
             .contentShape(Rectangle())
         }
