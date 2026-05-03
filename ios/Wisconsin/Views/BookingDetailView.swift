@@ -399,13 +399,11 @@ private struct ActionsSection: View {
                 onExtend()
             } label: {
                 Label("Extend Return Date", systemImage: "clock.arrow.circlepath")
-                    .fontWeight(.semibold)
                     .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.blue.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
-                    .foregroundStyle(.blue)
             }
-            .buttonStyle(ScalePressStyle())
+            .buttonStyle(.glass)
+            .controlSize(.large)
+            .tint(.blue)
             .disabled(isActioning)
 
             if booking.status == .pendingPickup {
@@ -426,18 +424,16 @@ private struct ActionsSection: View {
                 } label: {
                     Group {
                         if isActioning {
-                            ProgressView().tint(.red)
+                            ProgressView()
                         } else {
                             Label("Cancel Booking", systemImage: "xmark.circle")
-                                .fontWeight(.semibold)
                         }
                     }
                     .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
-                    .foregroundStyle(.red)
                 }
-                .buttonStyle(ScalePressStyle())
+                .buttonStyle(.glass)
+                .controlSize(.large)
+                .tint(.red)
                 .disabled(isActioning)
             }
         }
