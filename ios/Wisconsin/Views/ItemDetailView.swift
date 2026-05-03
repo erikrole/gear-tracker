@@ -8,7 +8,7 @@ struct ItemDetailView: View {
     @State private var error: String?
     @State private var showEdit = false
     @State private var isFavorited = false
-    @State private var favoriteError: String?
+    @State private var toast: Toast?
     @Environment(SessionStore.self) private var session
 
     private var canEditAsset: Bool {
@@ -23,7 +23,7 @@ struct ItemDetailView: View {
             isFavorited = try await APIClient.shared.toggleFavorite(assetId: assetId)
         } catch {
             isFavorited = previous
-            favoriteError = error.localizedDescription
+            toast = Toast(message: "Couldn't update favorite", icon: "exclamationmark.triangle.fill", role: .error)
         }
     }
 
@@ -85,14 +85,7 @@ struct ItemDetailView: View {
                 }
             }
         }
-        .alert("Couldn't update favorite", isPresented: Binding(
-            get: { favoriteError != nil },
-            set: { if !$0 { favoriteError = nil } }
-        )) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(favoriteError ?? "")
-        }
+        .toast($toast)
         .task { await loadAsset() }
         .refreshable { await loadAsset() }
         .sheet(isPresented: $showEdit) {
