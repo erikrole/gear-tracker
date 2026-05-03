@@ -76,8 +76,8 @@ These are project-wide patterns to adopt in a single sweep before per-screen pol
 - [ ] **CC-4 — Replace custom prominent buttons with `.buttonStyle(.glass)` / `.buttonStyle(.glassProminent)`.**
       `LoginView.swift:156-175` (Sign in button) and `ScanView.swift:140-144` (Scan Again — already `.borderedProminent`, OK but could be `.glassProminent`). Glass button styles automatically pick up the system tint, scale press style, and iOS-26-native interaction.
 
-- [ ] **CC-5 — Sweep all hardcoded `Color.black.opacity(...)` shadows.**
-      Recurring anti-pattern (already documented in `audit-bookings-ios.md`). Standard pattern: omit shadow entirely on iOS 26 surfaces (Liquid Glass provides depth implicitly), or use `.shadow(color: Color(.sRGBLinear, white: 0, opacity: 0.25), ...)` only when truly needed. Run a one-shot `rg "Color\.black\.opacity"` and audit each site.
+- [x] **CC-5 — Sweep all hardcoded `Color.black.opacity(...)` shadows.** ✅ Shipped 2026-05-03.
+      Cleaned 4 shadow sites: `HomeView.swift` `StatCell` and `DashboardCard` (dropped both shadows, replaced with `Color(.separator)` stroke borders matching `ItemDetailView` card pattern); `FloatingSearchButton.swift` (dropped black drop-shadow, kept accent-tinted glow which adapts); `LoginView.swift` (kept the splash-card lift but converted to `Color(.sRGBLinear, white: 0, opacity: 0.4)` so it remains visible over the dark gradient). The 4 remaining `black.opacity` sites in the codebase are legitimate scrim/camera-overlay uses, not shadows.
 
 - [ ] **CC-6 — Standardize permission priming via reusable pattern.**
       `PushPrePromptView.swift` exists for notifications. Need parity for camera (Scan) and any future use (mic, location, photos). Refactor into a generic `PrePromptScreen(symbol:title:body:rationale:onContinue:)` and create `ScanPrePromptView`. Cite: https://developer.apple.com/design/human-interface-guidelines/privacy

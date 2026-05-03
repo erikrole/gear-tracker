@@ -189,6 +189,6 @@ struct LoginView: View {
         }
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: .black.opacity(0.25), radius: 24, y: 12)
+        .shadow(color: Color(.sRGBLinear, white: 0, opacity: 0.4), radius: 24, y: 12)
     }
 }

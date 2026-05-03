@@ -22,7 +22,6 @@ struct FloatingSearchButton: View {
                     in: Circle()
                 )
                 .shadow(color: Color.accentColor.opacity(0.35), radius: 8, x: 0, y: 4)
-                .shadow(color: .black.opacity(0.12), radius: 3, x: 0, y: 2)
         }
         .buttonStyle(FABButtonStyle())
         .accessibilityLabel("Search")

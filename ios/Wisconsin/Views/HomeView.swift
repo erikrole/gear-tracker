@@ -364,8 +364,10 @@ private struct StatCell: View {
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
-            .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
-            .shadow(color: .black.opacity(0.04), radius: 2, x: 0, y: 1)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
+            )
         }
         .buttonStyle(.plain)
         .sensoryFeedback(.selection, trigger: hapticTrigger)
@@ -522,8 +524,10 @@ private struct DashboardCard<Content: View>: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
-        .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
-        .shadow(color: .black.opacity(0.04), radius: 2, x: 0, y: 1)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
+        )
     }
 }
 
