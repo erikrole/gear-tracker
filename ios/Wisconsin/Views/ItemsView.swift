@@ -145,6 +145,25 @@ struct ItemsView: View {
                             NavigationLink(value: asset) {
                                 AssetRow(asset: asset)
                             }
+                            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                Button {
+                                    Task { await vm.toggleFavorite(asset) }
+                                } label: {
+                                    Label(
+                                        asset.isFavorited ? "Unfavorite" : "Favorite",
+                                        systemImage: asset.isFavorited ? "star.slash" : "star"
+                                    )
+                                }
+                                .tint(.yellow)
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button {
+                                    reserveAsset = asset
+                                } label: {
+                                    Label("Reserve", systemImage: "plus.circle")
+                                }
+                                .tint(.accentColor)
+                            }
                             .contextMenu {
                                 Button {
                                     Task { await vm.toggleFavorite(asset) }
