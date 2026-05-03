@@ -276,6 +276,36 @@ These are project-wide patterns to adopt in a single sweep before per-screen pol
 
 ---
 
+## Per-screen P1s shipped 2026-05-03
+
+In addition to the cross-cutting CC-1..CC-10 work, the following per-screen P1s shipped this session as a P1-correctness sweep:
+
+- ✅ AppTabView — `.badge` accessibility (still P2; pending — see remaining)
+- ✅ LoginView — decorative `Image("Badgers")` marked `.accessibilityHidden(true)`
+- ✅ LoginView — error `AccessibilityNotification.Announcement` post on `session.error` change
+- ✅ HomeView — navigationTitle "Dashboard" → "Home" (matches tab label)
+- ✅ ItemsView — swipe actions added (leading: Favorite, trailing: Reserve)
+- ✅ ItemDetailView — hero title `.font(.system(size: 24))` → `.font(.title2.weight(.heavy))` (Dynamic Type)
+- ✅ ItemDetailView — `wiRed` killed (folded into CC-10)
+- ✅ BookingsView — `.sensoryFeedback(.success, trigger: navigationPath)` removed (haptic-on-navigation bug)
+- ✅ BookingsView — "+" toolbar moved from `.topBarLeading` → `.topBarTrailing`
+- ✅ BookingDetailView — Liquid Glass action buttons (folded into CC-4)
+- ✅ BookingDetailView — overdue banner `Color.red` → `Color(.systemRed)` (Increase Contrast adaptation)
+- ✅ BookingDetailView — `Haptics.success()`/`.warning()` on cancel completion
+- ✅ ScanView — camera permission priming (CC-6 / the only P0)
+- ✅ ScanView — dropped hardcoded `.tint(.white)` on in-scanner ProgressView
+
+**Per-screen items still open** (not blocking; defer to future hardening sprints):
+- ItemDetailView — favorite-error `.alert` → toast (needs reusable toast infrastructure)
+- ItemsView — pagination spinner end-of-list distinction
+- BookingsView — segmented Picker → `.searchable(scope:)` migration (medium refactor)
+- ScanView — convert result-card overlay to real `.sheet` with detents (paired with CC-3)
+- ScanView — VoiceOver fallback (manual TextField when VO running)
+- AppTabView — `.badge` accessibility labels (P2)
+- HomeView — DRY the three repeated context menus (P2)
+- ItemsView — pagination "End of list" affordance
+- LoginView — splash gradient `.preferredColorScheme(.dark)` decision
+
 ## Aggregate findings (P0 cohort, all 8 screens)
 
 | Screen | P0 | P1 | P2 |
