@@ -22,12 +22,12 @@ const nextConfig: NextConfig = {
     ],
   },
   async headers() {
-    // TODO(P0): migrate script-src to a per-request nonce via src/middleware.ts
-    // and remove 'unsafe-inline'. The two inline scripts in src/app/layout.tsx
-    // (themeScript FOUC fix, swScript SW registration) are the only blockers.
+    // CSP for paths NOT covered by src/middleware.ts (static assets,
+    // favicon, manifest, sw.js). Middleware overrides this per-request
+    // with a nonce-based policy on every dynamic route.
     const csp = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline'",
+      "script-src 'self'",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' blob: data: https://*.public.blob.vercel-storage.com",
       "font-src 'self' data:",

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import "@fontsource/barlow/400.css";
@@ -33,12 +34,16 @@ const themeScript = `(function(){try{var t=localStorage.getItem('theme');if(t===
 
 const swScript = `if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js')})}`;
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Per-request CSP nonce minted by src/middleware.ts. The two inline
+  // scripts below carry it so we can keep `'unsafe-inline'` off script-src.
+  const nonce = (await headers()).get("x-csp-nonce") ?? undefined;
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        <script dangerouslySetInnerHTML={{ __html: swScript }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: swScript }} />
       </head>
       <body className={`${GeistSans.variable} ${GeistMono.variable}`}>
         <Providers>{children}</Providers>
