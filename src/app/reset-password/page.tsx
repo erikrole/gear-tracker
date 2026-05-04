@@ -202,7 +202,7 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <div className="login-bg min-h-screen flex items-center justify-center p-4">
+    <main className="login-bg min-h-screen flex items-center justify-center p-4">
       <div className="fixed inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")", backgroundRepeat: "repeat", backgroundSize: "256px" }} />
       <Card className="relative w-full max-w-[420px] shadow-2xl border-0 animate-in fade-in-0 zoom-in-95 duration-500">
         <CardHeader className="text-center pb-2 pt-8">
@@ -218,6 +218,6 @@ export default function ResetPasswordPage() {
           </Suspense>
         </CardContent>
       </Card>
-    </div>
+    </main>
   );
 }
