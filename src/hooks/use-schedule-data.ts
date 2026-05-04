@@ -280,7 +280,7 @@ export function useScheduleData(): UseScheduleDataResult {
         groups.push([key, []]);
         lastKey = key;
       }
-      groups[groups.length - 1][1].push(entry);
+      groups[groups.length - 1]![1]!.push(entry); // at least one group pushed above in this iteration
     }
     return groups;
   }, [filteredEntries]);

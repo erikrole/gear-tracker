@@ -111,7 +111,7 @@ export function ShiftCoverageCard({
     const map: Record<string, Shift[]> = {};
     for (const s of shiftGroup.shifts) {
       if (!map[s.area]) map[s.area] = [];
-      map[s.area].push(s);
+      map[s.area]!.push(s);
     }
     return map;
   }, [shiftGroup.shifts]);

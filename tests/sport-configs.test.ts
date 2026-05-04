@@ -218,8 +218,8 @@ describe("getSportRoster", () => {
     const result = await getSportRoster("FB");
 
     expect(result).toHaveLength(1);
-    expect(result[0].userId).toBe("u-1");
-    expect(result[0].user.name).toBe("Student 1");
+    expect(result[0]!.userId).toBe("u-1");
+    expect(result[0]!.user.name).toBe("Student 1");
   });
 });
 

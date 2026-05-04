@@ -134,7 +134,7 @@ export default function EventDetailPage() {
   const eventParam = `&eventId=${id}`;
 
   const callTime = shiftGroup?.shifts.length
-    ? shiftGroup.shifts.reduce((min, s) => s.startsAt < min ? s.startsAt : min, shiftGroup.shifts[0].startsAt)
+    ? shiftGroup.shifts.reduce((min, s) => s.startsAt < min ? s.startsAt : min, shiftGroup.shifts[0]!.startsAt)
     : null;
   const showCallTime = callTime && callTime !== event.startsAt;
 

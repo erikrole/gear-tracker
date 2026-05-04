@@ -211,7 +211,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
             label="Area"
             value={areaFilter}
             displayValue={areaFilter ? AREA_LABELS[areaFilter] ?? areaFilter : ""}
-            options={AREAS.map((a) => ({ value: a, label: AREA_LABELS[a] }))}
+            options={AREAS.map((a) => ({ value: a, label: AREA_LABELS[a] ?? a }))}
             onSelect={(v) => setAreaFilter(v)}
             onClear={() => setAreaFilter("")}
           />

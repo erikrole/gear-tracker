@@ -209,7 +209,7 @@ export const GET = withAuth(async (req, { user }) => {
 
   // Section counts were fetched in the initial parallel stage
   const sectionCounts: Record<string, number> | undefined = sectionCountResults
-    ? Object.fromEntries(ALL_SECTION_KEYS.map((key, i) => [key, sectionCountResults[i]]))
+    ? Object.fromEntries(ALL_SECTION_KEYS.map((key, i) => [key, sectionCountResults[i] ?? 0]))
     : undefined;
 
   return ok({

@@ -91,7 +91,7 @@ export function GapWizardDialog({ open, onOpenChange, categories, departments, o
       if (items.length === 0 || skipCount >= newTotal) {
         setStage("done");
       } else {
-        setItem(items[0]);
+        setItem(items[0] ?? null);
         setSelectedValue("");
       }
     } finally {

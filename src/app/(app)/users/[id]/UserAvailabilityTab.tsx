@@ -39,7 +39,9 @@ const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Frid
 const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function formatTime(hhmm: string): string {
-  const [h, m] = hhmm.split(":").map(Number);
+  const parts = hhmm.split(":").map(Number);
+  const h = parts[0] ?? 0;
+  const m = parts[1] ?? 0;
   const period = h >= 12 ? "PM" : "AM";
   const hour = h % 12 || 12;
   return m === 0 ? `${hour} ${period}` : `${hour}:${String(m).padStart(2, "0")} ${period}`;

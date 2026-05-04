@@ -10,7 +10,7 @@ export function expectSerializableIsolation(
   callIndex = 0
 ) {
   expect(transactionCalls.length).toBeGreaterThan(callIndex);
-  expect(transactionCalls[callIndex].options).toEqual({
+  expect(transactionCalls[callIndex]!.options).toEqual({
     isolationLevel: "Serializable",
   });
 }
@@ -25,5 +25,5 @@ export function expectNoIsolation(
   callIndex = 0
 ) {
   expect(transactionCalls.length).toBeGreaterThan(callIndex);
-  expect(transactionCalls[callIndex].options).toBeUndefined();
+  expect(transactionCalls[callIndex]!.options).toBeUndefined();
 }

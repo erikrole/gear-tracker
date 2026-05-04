@@ -82,8 +82,8 @@ export function useUrlFilters() {
     if (showAccessories) params.set("accessories", "1");
     if (favoritesOnly) params.set("favorites", "1");
     if (sorting.length > 0) {
-      params.set("sort", sorting[0].id);
-      if (sorting[0].desc) params.set("order", "desc");
+      params.set("sort", sorting[0]!.id);
+      if (sorting[0]!.desc) params.set("order", "desc");
     }
     const qs = params.toString();
     const newUrl = qs ? `?${qs}` : window.location.pathname;
@@ -108,7 +108,7 @@ export function useUrlFilters() {
   const categoryKey = [...categoryFilter].sort().join(",");
   const brandKey = [...brandFilter].sort().join(",");
   const departmentKey = [...departmentFilter].sort().join(",");
-  const sortKey = sorting.length > 0 ? `${sorting[0].id}:${sorting[0].desc}` : "";
+  const sortKey = sorting.length > 0 ? `${sorting[0]!.id}:${sorting[0]!.desc}` : "";
 
   return {
     // State

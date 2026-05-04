@@ -59,6 +59,7 @@ export const GET = withAuth(async (_req, { user }) => {
     }),
   ]);
   const c = counts[0];
+  if (!c) throw new HttpError(500, "Stats counts query returned no rows");
 
   return ok({
     data: {

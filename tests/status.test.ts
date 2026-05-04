@@ -218,9 +218,9 @@ describe("enrichAssetsWithStatus", () => {
 
     const result = await enrichAssetsWithStatus(assets);
     expect(result).toHaveLength(2);
-    expect(result[0].computedStatus).toBe("AVAILABLE");
-    expect(result[0].assetTag).toBe("TAG-1");
-    expect(result[1].computedStatus).toBe("MAINTENANCE");
+    expect(result[0]!.computedStatus).toBe("AVAILABLE");
+    expect(result[0]!.assetTag).toBe("TAG-1");
+    expect(result[1]!.computedStatus).toBe("MAINTENANCE");
   });
 
   it("returns empty array for empty input", async () => {

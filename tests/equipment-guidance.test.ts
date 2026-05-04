@@ -13,8 +13,8 @@ describe("getActiveGuidance", () => {
     };
     const hints = getActiveGuidance(ctx);
     expect(hints).toHaveLength(1);
-    expect(hints[0].id).toBe("body-needs-batteries");
-    expect(hints[0].level).toBe("requirement");
+    expect(hints[0]!.id).toBe("body-needs-batteries");
+    expect(hints[0]!.level).toBe("requirement");
   });
 
   it("does NOT show battery hint when no body is selected", () => {
@@ -43,13 +43,13 @@ describe("getActiveGuidance", () => {
 
   it("returns battery hint even with multiple sections selected", () => {
     const ctx: GuidanceContext = {
-      selectedSectionKeys: ["cameras", "lenses", "accessories"],
+      selectedSectionKeys: ["cameras", "lenses", "other"],
       activeSection: "batteries",
     };
     const hints = getActiveGuidance(ctx);
     expect(hints).toHaveLength(2);
-    expect(hints[0].id).toBe("body-needs-batteries");
-    expect(hints[1].id).toBe("monitors-need-power");
+    expect(hints[0]!.id).toBe("body-needs-batteries");
+    expect(hints[1]!.id).toBe("monitors-need-power");
   });
 });
 

@@ -83,7 +83,7 @@ export const GET = withAuth(async (req, { user }) => {
       FRESHMAN:  { gradYear: { gte: acadYearEnd + 3 } },
       GRAD:      { gradYear: { lte: acadYearEnd - 1 } },
     };
-    const derivedMatch = yearGradMap[yearParam];
+    const derivedMatch = yearGradMap[yearParam]!; // yearParam validated by includes() above
     conditions.push({
       OR: [
         { studentYearOverride: yearParam as "FRESHMAN" | "SOPHOMORE" | "JUNIOR" | "SENIOR" | "GRAD" },

@@ -117,9 +117,10 @@ export default function PageBreadcrumb() {
   // Build crumbs, filtering out dynamic segments (IDs)
   const crumbs: Array<{ href: string; label: string }> = [];
   for (let i = 0; i < segments.length; i++) {
-    if (isDynamicSegment(segments[i])) continue;
-    const href = SEGMENT_OVERRIDE[segments[i]]?.href ?? "/" + segments.slice(0, i + 1).join("/");
-    crumbs.push({ href, label: formatSegment(segments[i]) });
+    const seg = segments[i]!; // in-bounds by loop condition
+    if (isDynamicSegment(seg)) continue;
+    const href = SEGMENT_OVERRIDE[seg]?.href ?? "/" + segments.slice(0, i + 1).join("/");
+    crumbs.push({ href, label: formatSegment(seg) });
   }
 
   const allItems: Array<{ href: string; label: string; isPage: boolean }> = [
@@ -135,8 +136,8 @@ export default function PageBreadcrumb() {
   }
 
   const shouldCollapse = !expanded && allItems.length > COLLAPSE_THRESHOLD;
-  const visibleItems = shouldCollapse
-    ? [allItems[0], ...allItems.slice(-2)]
+  const visibleItems: typeof allItems = shouldCollapse
+    ? [...allItems.slice(0, 1), ...allItems.slice(-2)]
     : allItems;
 
   const showSkeleton = onDetailPage && !entityLabel;
@@ -173,7 +174,7 @@ export default function PageBreadcrumb() {
                   <SiblingDropdown
                     currentHref={item.href}
                     label={item.label}
-                    siblings={SIBLING_MAP[item.href]}
+                    siblings={SIBLING_MAP[item.href]!}
                     role={currentUserRole}
                   />
                 ) : hasRecent ? (

@@ -66,7 +66,7 @@ export default function ShiftConfigTable({
   return (
     <div className="space-y-4">
       {SPORT_GROUPS.map((group) => {
-        const primaryCode = group.codes[0];
+        const primaryCode = group.codes[0]!; // every SPORT_GROUP has at least one code
         const config = getGroupConfig(group.codes);
         const active = isGroupActive(group.codes);
 

@@ -163,7 +163,7 @@ export function useScanSubmission(
       try {
         let searchTerm = value;
         const bgMatch = value.match(/^bg:\/\/(item|case)\/(.+)$/);
-        if (bgMatch) searchTerm = bgMatch[2];
+        if (bgMatch) searchTerm = bgMatch[2]!; // capture group 2 always present when regex matches
 
         // Search with both original QR value and stripped term for best match
         // Always pass qr= so the API checks qrCodeValue/primaryScanCode fields

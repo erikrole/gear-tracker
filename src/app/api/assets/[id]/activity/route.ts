@@ -48,7 +48,7 @@ export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
 
   const hasMore = logs.length > limit;
   const data = hasMore ? logs.slice(0, limit) : logs;
-  const nextCursor = hasMore ? data[data.length - 1].id : null;
+  const nextCursor = hasMore ? data[data.length - 1]!.id : null;
 
   return ok({ data, nextCursor });
 });

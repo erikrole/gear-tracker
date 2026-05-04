@@ -436,7 +436,7 @@ export function ListView({
                       <div className="flex items-center gap-1 flex-shrink-0">
                         {(() => {
                           const mobileCallTime = entry.shifts.length > 0
-                            ? formatTime(entry.shifts.reduce((min, s) => s.startsAt < min ? s.startsAt : min, entry.shifts[0].startsAt))
+                            ? formatTime(entry.shifts.reduce((min, s) => s.startsAt < min ? s.startsAt : min, entry.shifts[0]!.startsAt))
                             : null;
                           return mobileCallTime ? (
                             <span
@@ -598,7 +598,7 @@ function EventRows({
     : `${formatTime(entry.startsAt)} – ${formatTime(entry.endsAt)}`;
 
   const callTime = entry.shifts.length > 0
-    ? formatTime(entry.shifts.reduce((min, s) => s.startsAt < min ? s.startsAt : min, entry.shifts[0].startsAt))
+    ? formatTime(entry.shifts.reduce((min, s) => s.startsAt < min ? s.startsAt : min, entry.shifts[0]!.startsAt))
     : null;
 
   const borderBar =

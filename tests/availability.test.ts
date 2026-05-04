@@ -49,8 +49,8 @@ describe("checkSerializedConflicts", () => {
     });
 
     expect(result).toHaveLength(1);
-    expect(result[0].assetId).toBe("a-1");
-    expect(result[0].conflictingBookingId).toBe("b-other");
+    expect(result[0]!.assetId).toBe("a-1");
+    expect(result[0]!.conflictingBookingId).toBe("b-other");
   });
 
   it("excludes specified booking from conflict check", async () => {
@@ -115,7 +115,7 @@ describe("checkAssetStatuses", () => {
       bookingKind: "CHECKOUT",
     });
     expect(result).toHaveLength(1);
-    expect(result[0].status).toBe("NOT_AVAILABLE_FOR_CHECKOUT");
+    expect(result[0]!.status).toBe("NOT_AVAILABLE_FOR_CHECKOUT");
   });
 
   it("flags assets not available for reservation", async () => {
@@ -129,7 +129,7 @@ describe("checkAssetStatuses", () => {
       bookingKind: "RESERVATION",
     });
     expect(result).toHaveLength(1);
-    expect(result[0].status).toBe("NOT_AVAILABLE_FOR_RESERVATION");
+    expect(result[0]!.status).toBe("NOT_AVAILABLE_FOR_RESERVATION");
   });
 
   it("passes AVAILABLE assets with correct flags", async () => {
@@ -182,7 +182,7 @@ describe("checkBulkShortages", () => {
       bulkItems: [{ bulkSkuId: "sku-missing", quantity: 1 }],
     });
     expect(result).toHaveLength(1);
-    expect(result[0].available).toBe(0);
+    expect(result[0]!.available).toBe(0);
   });
 
   it("returns empty when sufficient stock", async () => {

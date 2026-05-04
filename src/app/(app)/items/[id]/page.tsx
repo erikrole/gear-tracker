@@ -88,7 +88,7 @@ export default function ItemDetailsPage() {
       const num = parseInt(e.key);
       if (num >= 1 && num <= tabDefs.length) {
         e.preventDefault();
-        switchTab(tabDefs[num - 1].key);
+        switchTab(tabDefs[num - 1]!.key);
       }
     }
     document.addEventListener("keydown", handleKeyDown);

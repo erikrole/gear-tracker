@@ -64,7 +64,7 @@ describe("resolveEventDefaults", () => {
     await resolveEventDefaults("WBB");
 
     expect(mockDb.calendarEvent.findFirst).toHaveBeenCalledTimes(1);
-    const call = mockDb.calendarEvent.findFirst.mock.calls[0][0];
+    const call = mockDb.calendarEvent.findFirst.mock.calls[0]![0];
     expect(call.where.sportCode).toBe("WBB");
     expect(call.where.status).toBe("CONFIRMED");
     expect(call.where.startsAt.gte).toBeInstanceOf(Date);

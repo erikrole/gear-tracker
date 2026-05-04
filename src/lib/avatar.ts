@@ -39,5 +39,5 @@ export function avatarColorClass(seed: string): string {
   for (let i = 0; i < seed.length; i++) {
     h = ((h << 5) + h + seed.charCodeAt(i)) | 0;
   }
-  return FALLBACK_PALETTE[Math.abs(h) % FALLBACK_PALETTE.length];
+  return FALLBACK_PALETTE[Math.abs(h) % FALLBACK_PALETTE.length]!; // modulo guarantees in-bounds
 }

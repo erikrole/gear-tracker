@@ -345,6 +345,7 @@ export const GET = withAuth(async (_req, { user }) => {
   }
 
   const c = counts[0];
+  if (!c) throw new HttpError(500, "Dashboard counts query returned no rows");
   const teamCheckoutsTotalCount = Number(c.team_checkouts);
   const teamCheckoutsOverdueCount = Number(c.team_checkouts_overdue);
   const teamReservationsTotalCount = Number(c.team_reservations);

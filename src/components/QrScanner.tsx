@@ -117,7 +117,7 @@ export default function QrScanner({
               if (video!.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
                 const barcodes = await detector.detect(video!);
                 if (barcodes.length > 0 && mounted) {
-                  const value = barcodes[0].rawValue;
+                  const value = barcodes[0]!.rawValue; // guarded by barcodes.length > 0
                   const scanNow = Date.now();
                   // Debounce: same code within 3s, or any code within 1s
                   const isDupe =

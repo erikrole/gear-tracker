@@ -65,8 +65,8 @@ function buildUrl(page: number, limit: number, deps: QueryDeps): string {
   if (deps.showAccessories) params.set("show_accessories", "true");
   if (deps.favoritesOnly) params.set("favorites_only", "true");
   if (deps.sorting.length > 0) {
-    params.set("sort", deps.sorting[0].id);
-    if (deps.sorting[0].desc) params.set("order", "desc");
+    params.set("sort", deps.sorting[0]!.id);
+    if (deps.sorting[0]!.desc) params.set("order", "desc");
   }
   return `/api/assets?${params}`;
 }

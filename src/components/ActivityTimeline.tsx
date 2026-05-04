@@ -400,7 +400,7 @@ function describeAction(
       // "Updated their shoe size" instead of "Updated their profile" + 1 pill.
       const fields = entry.afterJson ? Object.keys(entry.afterJson).filter((k) => !HIDDEN_FIELDS.has(k)) : [];
       if (fields.length === 1) {
-        const label = (FIELD_LABELS[fields[0]] ?? fields[0]).toLowerCase();
+        const label = (FIELD_LABELS[fields[0]!] ?? fields[0]!).toLowerCase(); // length === 1 guard above
         return `${reportPrefix}Updated their ${label}`;
       }
       if (fields.length > 1) {

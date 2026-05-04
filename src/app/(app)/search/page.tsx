@@ -269,11 +269,11 @@ export default function SearchPage() {
               <div key={type}>
                 <div className="flex items-center justify-between mb-2">
                   <h2 className="text-sm text-muted-foreground uppercase m-0">
-                    {sectionLabels[type]} ({items.length}{items.length >= 10 ? "+" : ""})
+                    {sectionLabels[type]!} ({items.length}{items.length >= 10 ? "+" : ""})
                   </h2>
                   {items.length >= 10 && (
-                    <Link href={sectionViewAllHrefs[type]} className="text-xs text-primary hover:underline">
-                      View all {sectionLabels[type].toLowerCase()}
+                    <Link href={sectionViewAllHrefs[type]!} className="text-xs text-primary hover:underline">
+                      View all {sectionLabels[type]!.toLowerCase()}
                     </Link>
                   )}
                 </div>

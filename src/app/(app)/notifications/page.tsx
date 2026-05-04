@@ -279,7 +279,7 @@ export default function NotificationsPage() {
         groups.push({ label, items: [n] });
         currentLabel = label;
       } else {
-        groups[groups.length - 1].items.push(n);
+        groups[groups.length - 1]!.items.push(n); // at least one group exists: push happened above when label changed
       }
     }
     return groups;

@@ -92,7 +92,7 @@ export default function EquipmentPicker({
   activeSection: controlledSection,
   onActiveSectionChange,
 }: EquipmentPickerProps) {
-  const [internalSection, setInternalSection] = useState<EquipmentSectionKey>(EQUIPMENT_SECTIONS[0].key);
+  const [internalSection, setInternalSection] = useState<EquipmentSectionKey>(EQUIPMENT_SECTIONS[0]!.key);
   const activeSection = controlledSection ?? internalSection;
   const setActiveSection = (sec: EquipmentSectionKey) => {
     setInternalSection(sec);

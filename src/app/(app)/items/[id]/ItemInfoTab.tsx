@@ -613,7 +613,7 @@ export default function ItemInfoCard({
         }
         body[patchKey] = value ? num : null;
       } else if (patchKey.startsWith("metadata.")) {
-        const metaKey = patchKey.split(".")[1];
+        const metaKey = patchKey.split(".")[1]!; // guaranteed by startsWith("metadata.") check
         const currentMeta = asset.metadata || {};
         const newMeta = { ...currentMeta, [metaKey]: value || undefined };
         body.notes = JSON.stringify(newMeta);
@@ -634,7 +634,7 @@ export default function ItemInfoCard({
       }
 
       if (patchKey.startsWith("metadata.")) {
-        const metaKey = patchKey.split(".")[1];
+        const metaKey = patchKey.split(".")[1]!; // guaranteed by startsWith("metadata.") check
         onFieldSaved({ metadata: { ...asset.metadata, [metaKey]: value } });
       } else {
         onFieldSaved({

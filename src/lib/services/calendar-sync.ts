@@ -68,7 +68,7 @@ function parseIcs(icsText: string) {
     const colonIdx = line.indexOf(":");
     if (colonIdx < 0) continue;
 
-    const key = line.slice(0, colonIdx).split(";")[0].toUpperCase();
+    const key = line.slice(0, colonIdx).split(";")[0]!.toUpperCase(); // split always returns at least one element
     const value = line.slice(colonIdx + 1);
     current[key] = value;
   }
@@ -214,10 +214,10 @@ export function extractSportInfo(summary: string): {
   // Try matching "{CODE} vs/at {opponent}" pattern
   const codeMatch = trimmed.match(/^(\w+)\s+(vs\.?|at)\s+(.+?)(?:\s*\(Neutral\))?$/i);
   if (codeMatch) {
-    const code = codeMatch[1].toUpperCase();
+    const code = codeMatch[1]!.toUpperCase(); // capture groups present when match succeeds
     if (SPORT_CODE_SET.has(code)) {
-      const prep = codeMatch[2].toLowerCase().replace(".", "");
-      const opponent = codeMatch[3].trim();
+      const prep = codeMatch[2]!.toLowerCase().replace(".", "");
+      const opponent = codeMatch[3]!.trim();
       const isNeutral = /\(Neutral\)/i.test(trimmed);
       return {
         sportCode: code,
@@ -230,7 +230,7 @@ export function extractSportInfo(summary: string): {
   // Try matching sport code at start of summary with other separator
   const dashMatch = trimmed.match(/^(\w+)\s*[-\u2013\u2014:]\s*(.+)$/);
   if (dashMatch) {
-    const code = dashMatch[1].toUpperCase();
+    const code = dashMatch[1]!.toUpperCase(); // capture group present when match succeeds
     if (SPORT_CODE_SET.has(code)) {
       return { sportCode: code, opponent: null, isHome: null };
     }
@@ -239,7 +239,7 @@ export function extractSportInfo(summary: string): {
   // Try matching just a sport code as prefix (e.g., "MBB Practice")
   const prefixMatch = trimmed.match(/^(\w+)\s/);
   if (prefixMatch) {
-    const code = prefixMatch[1].toUpperCase();
+    const code = prefixMatch[1]!.toUpperCase(); // capture group present when match succeeds
     if (SPORT_CODE_SET.has(code)) {
       return { sportCode: code, opponent: null, isHome: null };
     }
@@ -251,8 +251,8 @@ export function extractSportInfo(summary: string): {
     const rest = labelMatch.rest;
     const vsAtMatch = rest.match(/^(vs\.?|at)\s+(.+?)(?:\s*\(Neutral\))?$/i);
     if (vsAtMatch) {
-      const prep = vsAtMatch[1].toLowerCase().replace(".", "");
-      const opponent = vsAtMatch[2].trim();
+      const prep = vsAtMatch[1]!.toLowerCase().replace(".", ""); // capture groups present when match succeeds
+      const opponent = vsAtMatch[2]!.trim();
       const isNeutral = /\(Neutral\)/i.test(rest);
       return {
         sportCode: labelMatch.code,
@@ -512,8 +512,8 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
     httpStatus,
     responseSizeBytes,
     parsedEventCount: events.length,
-    earliestDtstart: sortedByStart.length > 0 ? sortedByStart[0].dtstart : null,
-    latestDtstart: sortedByStart.length > 0 ? sortedByStart[sortedByStart.length - 1].dtstart : null,
+    earliestDtstart: sortedByStart.length > 0 ? sortedByStart[0]!.dtstart : null,
+    latestDtstart: sortedByStart.length > 0 ? sortedByStart[sortedByStart.length - 1]!.dtstart : null,
     firstEvents: sortedByStart.slice(0, SAMPLE_SIZE).map((e) => ({ uid: e.uid, summary: e.summary.slice(0, 120), dtstart: e.dtstart })),
     lastEvents: sortedByStart.slice(-SAMPLE_SIZE).map((e) => ({ uid: e.uid, summary: e.summary.slice(0, 120), dtstart: e.dtstart })),
   };

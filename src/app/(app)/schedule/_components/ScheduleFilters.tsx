@@ -181,7 +181,7 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
                   ? (AREA_LABELS[filters.areaFilter] ?? filters.areaFilter)
                   : ""
               }
-              options={AREAS.map((a) => ({ value: a, label: AREA_LABELS[a] }))}
+              options={AREAS.map((a) => ({ value: a, label: AREA_LABELS[a] ?? a }))}
               onSelect={(v) => filters.setAreaFilter(v)}
               onClear={() => filters.setAreaFilter("")}
             />

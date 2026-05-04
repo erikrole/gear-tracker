@@ -143,7 +143,7 @@ describe("recordScan", () => {
     });
 
     expect(transactionCalls.length).toBeGreaterThanOrEqual(1);
-    expect(transactionCalls[0].options).toEqual({
+    expect(transactionCalls[0]!.options).toEqual({
       isolationLevel: "Serializable",
     });
   });

@@ -77,7 +77,7 @@ function sectionMatchClause(section: EquipmentSectionKey): Prisma.AssetWhereInpu
     });
   }
 
-  return conditions.length === 1 ? conditions[0] : { OR: conditions };
+  return conditions.length === 1 ? conditions[0]! : { OR: conditions }; // length === 1 guard
 }
 
 /** All section keys for iteration. */

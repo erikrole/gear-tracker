@@ -224,7 +224,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
 
   useEffect(() => {
     if (locations.length > 0 && !form.locationId) {
-      dispatch({ type: "SET_LOCATION_ID", value: locations[0].id });
+      dispatch({ type: "SET_LOCATION_ID", value: locations[0]!.id });
     }
   }, [locations]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -232,7 +232,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>(initialAssetIds ?? []);
   const [selectedBulkItems, setSelectedBulkItems] = useState<BulkSelection[]>([]);
   const [selectedAssetDetails, setSelectedAssetDetails] = useState<AvailableAsset[]>([]);
-  const [activeSection, setActiveSection] = useState<EquipmentSectionKey>(EQUIPMENT_SECTIONS[0].key);
+  const [activeSection, setActiveSection] = useState<EquipmentSectionKey>(EQUIPMENT_SECTIONS[0]!.key);
 
   // ── Kit state ──
   const [kitId, setKitId] = useState<string>("");
@@ -314,7 +314,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
   // ── Step 2 validation ──
   function validateStep2(): string | null {
     if (itemCount === 0) return "Add at least one piece of equipment";
-    if (unsatisfiedRequirements.length > 0) return unsatisfiedRequirements[0].message;
+    if (unsatisfiedRequirements.length > 0) return unsatisfiedRequirements[0]!.message;
     return null;
   }
 
@@ -329,7 +329,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
       const sectionIdx = EQUIPMENT_SECTIONS.findIndex((s) => s.key === activeSection);
       if (sectionIdx < EQUIPMENT_SECTIONS.length - 1) {
         setCreateError("");
-        setActiveSection(EQUIPMENT_SECTIONS[sectionIdx + 1].key);
+        setActiveSection(EQUIPMENT_SECTIONS[sectionIdx + 1]!.key);
         return;
       }
       const error = validateStep2();
@@ -369,7 +369,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
       // Server picks ordinal 0 as the canonical Booking.eventId and writes a BookingEvent
       // junction row per id. Legacy `eventId` field is mutually exclusive — never sent here.
       payload.eventIds = form.selectedEvents.map((e) => e.id);
-      payload.sportCode = form.selectedEvents[0].sportCode || form.sport || undefined;
+      payload.sportCode = form.selectedEvents[0]!.sportCode || form.sport || undefined;
     } else if (form.sport) {
       payload.sportCode = form.sport;
     }
@@ -691,7 +691,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
               {step === 2 && (() => {
                 const idx = EQUIPMENT_SECTIONS.findIndex((s) => s.key === activeSection);
                 if (idx < EQUIPMENT_SECTIONS.length - 1) {
-                  return `Browse ${EQUIPMENT_SECTIONS[idx + 1].label} →`;
+                  return `Browse ${EQUIPMENT_SECTIONS[idx + 1]!.label} →`;
                 }
                 return `Review${itemCount > 0 ? ` (${itemCount} item${itemCount !== 1 ? "s" : ""})` : ""}`;
               })()}

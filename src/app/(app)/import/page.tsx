@@ -72,14 +72,14 @@ export default function ImportPage() {
         return;
       }
 
-      const delimiter = lines[0].includes(";") ? ";" : ",";
-      const headers = parseLine(lines[0], delimiter);
+      const delimiter = lines[0]!.includes(";") ? ";" : ",";
+      const headers = parseLine(lines[0]!, delimiter);
       setCsvHeaders(headers);
 
       // Parse first 3 data rows as sample
       const samples: string[][] = [];
       for (let i = 1; i < Math.min(4, lines.length); i++) {
-        samples.push(parseLine(lines[i], delimiter));
+        samples.push(parseLine(lines[i]!, delimiter));
       }
       setCsvSample(samples);
 

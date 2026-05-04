@@ -16,7 +16,7 @@ export function GearAvatarStack({ items, totalCount }: { items: ItemThumb[]; tot
           {item.imageUrl ? (
             <AvatarImage src={item.imageUrl} alt={item.name || "Item"} />
           ) : (
-            <AvatarFallback className="text-[10px]">{(item.name || "?")[0].toUpperCase()}</AvatarFallback>
+            <AvatarFallback className="text-[10px]">{(item.name || "?")[0]!.toUpperCase()}</AvatarFallback>
           )}
         </Avatar>
       ))}

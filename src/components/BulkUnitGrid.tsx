@@ -26,7 +26,7 @@ export function BulkUnitGrid({ units, onStatusChange, disabled = false }: Props)
   return (
     <div className="grid grid-cols-[repeat(auto-fill,minmax(52px,1fr))] gap-1.5">
       {units.map((u) => {
-        const style = UNIT_STYLES[u.status] ?? UNIT_STYLES.AVAILABLE;
+        const style = UNIT_STYLES[u.status] ?? UNIT_STYLES["AVAILABLE"]!; // AVAILABLE always present in the map
         const lastAlloc = u.allocations?.[0]?.bookingBulkItem?.booking;
         const lastUser = lastAlloc?.requester?.name;
         const isCheckedOut = u.status === "CHECKED_OUT";

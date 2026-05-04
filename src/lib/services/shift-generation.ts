@@ -169,7 +169,7 @@ export async function generateShiftsForEvents(opts: {
   }> = [];
 
   for (let i = 0; i < events.length; i++) {
-    const event = events[i];
+    const event = events[i]!; // in-bounds by loop condition
     const config = event.sportCode ? configMap.get(event.sportCode) : undefined;
     if (!config || config.shiftConfigs.length === 0) continue;
 
@@ -215,7 +215,7 @@ export async function generateShiftsForEvents(opts: {
 
     // Map pendingShifts to actual shift group IDs
     const allShifts = pendingShifts.map((s) => ({
-      shiftGroupId: createdGroups[s.eventIndex],
+      shiftGroupId: createdGroups[s.eventIndex]!, // eventIndex is set to groupsToCreate.length at push time
       area: s.area,
       workerType: s.workerType,
       startsAt: s.startsAt,

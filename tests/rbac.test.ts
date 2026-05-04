@@ -82,8 +82,8 @@ describe("PERMISSIONS map completeness", () => {
   });
 
   it("ADMIN has access to diagnostics.view", () => {
-    expect(PERMISSIONS.diagnostics.view).toContain("ADMIN");
-    expect(PERMISSIONS.diagnostics.view).not.toContain("STAFF");
-    expect(PERMISSIONS.diagnostics.view).not.toContain("STUDENT");
+    expect(PERMISSIONS["diagnostics"]!.view).toContain("ADMIN");
+    expect(PERMISSIONS["diagnostics"]!.view).not.toContain("STAFF");
+    expect(PERMISSIONS["diagnostics"]!.view).not.toContain("STUDENT");
   });
 });

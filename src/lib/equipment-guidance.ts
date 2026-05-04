@@ -1,11 +1,11 @@
 import type { EquipmentSectionKey } from "./equipment-sections";
 
-type GuidanceContext = {
+export type GuidanceContext = {
   selectedSectionKeys: EquipmentSectionKey[];
   activeSection: EquipmentSectionKey;
 };
 
-type GuidanceRule = {
+export type GuidanceRule = {
   id: string;
   section: EquipmentSectionKey | null;
   message: string;
@@ -13,7 +13,7 @@ type GuidanceRule = {
   condition: (ctx: GuidanceContext) => boolean;
 };
 
-const EQUIPMENT_GUIDANCE_RULES: GuidanceRule[] = [
+export const EQUIPMENT_GUIDANCE_RULES: GuidanceRule[] = [
   // ── Core pairing rules ──────────────────────────────────
   {
     id: "body-needs-batteries",
@@ -117,6 +117,12 @@ const EQUIPMENT_GUIDANCE_RULES: GuidanceRule[] = [
     condition: (ctx) => ctx.selectedSectionKeys.length >= 4,
   },
 ];
+
+export function getActiveGuidance(ctx: GuidanceContext): GuidanceRule[] {
+  return EQUIPMENT_GUIDANCE_RULES.filter(
+    (rule) => rule.section === ctx.activeSection && rule.condition(ctx)
+  );
+}
 
 export function getUnsatisfiedRequirements(selectedSectionKeys: EquipmentSectionKey[]): GuidanceRule[] {
   const ctx: GuidanceContext = { selectedSectionKeys, activeSection: "cameras" };

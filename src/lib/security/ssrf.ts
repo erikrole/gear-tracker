@@ -24,7 +24,7 @@ export async function assertPublicHost(hostname: string): Promise<void> {
 function isPrivateIPv4(addr: string): boolean {
   const o = addr.split(".").map((n) => Number(n));
   if (o.length !== 4 || o.some((n) => Number.isNaN(n))) return true;
-  const [a, b] = o;
+  const [a = 0, b = 0] = o; // length === 4 guaranteed by guard above
   return (
     a === 0 ||                            // 0.0.0.0/8
     a === 10 ||                           // 10/8

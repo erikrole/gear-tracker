@@ -113,7 +113,7 @@ export const POST = withAuth(async (req, { user }) => {
     const sampleSummaries: string[] = [];
     for (const block of eventBlocks.slice(0, 5)) {
       const m = block.match(/\nSUMMARY[^:]*:([^\r\n]{1,200})/i);
-      if (m) sampleSummaries.push(m[1].trim());
+      if (m) sampleSummaries.push(m[1]!.trim()); // capture group 1 always present when match succeeds
     }
 
     const looksLikeIcs = /^BEGIN:VCALENDAR/im.test(text);

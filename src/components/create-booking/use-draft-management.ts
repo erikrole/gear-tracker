@@ -88,7 +88,7 @@ export function useDraftManagement({
       if (form.notes.trim()) payload.notes = form.notes.trim();
       if (form.selectedEvents.length > 0) {
         payload.eventIds = form.selectedEvents.map((e) => e.id);
-        payload.sportCode = form.selectedEvents[0].sportCode || form.sport || undefined;
+        payload.sportCode = form.selectedEvents[0]!.sportCode || form.sport || undefined;
       } else if (form.sport) {
         payload.sportCode = form.sport;
       }

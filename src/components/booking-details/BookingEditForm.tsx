@@ -29,8 +29,10 @@ function parseLocalDateTime(s: string): Date | undefined {
   if (!s) return undefined;
   const [datePart, timePart] = s.split("T");
   if (!datePart || !timePart) return undefined;
-  const [y, mo, d] = datePart.split("-").map(Number);
-  const [h, mi] = timePart.split(":").map(Number);
+  const dateParts = datePart.split("-").map(Number);
+  const timeParts = timePart.split(":").map(Number);
+  const y = dateParts[0] ?? 0, mo = dateParts[1] ?? 0, d = dateParts[2] ?? 0;
+  const h = timeParts[0] ?? 0, mi = timeParts[1] ?? 0;
   const date = new Date(y, mo - 1, d, h, mi);
   return isNaN(date.getTime()) ? undefined : date;
 }

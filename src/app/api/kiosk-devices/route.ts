@@ -10,7 +10,7 @@ import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 function generateActivationCode(): string {
   const buf = new Uint32Array(1);
   crypto.getRandomValues(buf);
-  const code = 100000 + (buf[0] % 900000);
+  const code = 100000 + (buf[0]! % 900000); // buf has exactly 1 element
   return code.toString();
 }
 

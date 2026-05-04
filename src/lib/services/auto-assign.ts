@@ -211,7 +211,7 @@ export async function autoAssignShiftGroup(
       return a.userId.localeCompare(b.userId);
     });
 
-    const chosen = eligible[0];
+    const chosen = eligible[0]!; // eligible.length === 0 case continues above
     const chosenUser = userMap.get(chosen.userId)!;
     assignedInThisRun.add(chosen.userId);
 

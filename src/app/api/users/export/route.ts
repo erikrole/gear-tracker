@@ -88,7 +88,7 @@ export const GET = withAuth(async (req, { user }) => {
     conditions.push({
       OR: [
         { studentYearOverride: yearParam as StudentYear },
-        { AND: [{ studentYearOverride: null }, yearGradMap[yearParam]] },
+        { AND: [{ studentYearOverride: null }, yearGradMap[yearParam]!] }, // yearParam validated by includes() above
       ],
     });
   }

@@ -14,11 +14,11 @@ const MAX_SELECTED_EVENTS = 3;
 /** Derive auto-fill fields from the chronologically-first event in the list. */
 function deriveFromPrimary(events: CalendarEvent[], sport: string) {
   if (events.length === 0) return {};
-  const primary = events[0];
+  const primary = events[0]!; // guarded by events.length === 0 early return above
   const title = generateEventTitle(primary.sportCode || sport, primary.opponent, primary.isHome);
   const start = new Date(new Date(primary.startsAt).getTime() - 2 * 60 * 60 * 1000);
   // endsAt derives from the LAST event — multi-event span covers the whole window.
-  const last = events[events.length - 1];
+  const last = events[events.length - 1]!; // same guard: length > 0
   const returnBuffer = last.isHome === false ? 24 * 60 * 60 * 1000 : 2 * 60 * 60 * 1000;
   const end = new Date(new Date(last.endsAt).getTime() + returnBuffer);
   return {

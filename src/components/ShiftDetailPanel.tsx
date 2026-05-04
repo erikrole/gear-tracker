@@ -406,7 +406,7 @@ export default function ShiftDetailPanel({
     const map: Record<string, Shift[]> = {};
     for (const s of group?.shifts ?? []) {
       if (!map[s.area]) map[s.area] = [];
-      map[s.area].push(s);
+      map[s.area]!.push(s); // guarded by initialization above
     }
     return map;
   }, [group?.shifts]);

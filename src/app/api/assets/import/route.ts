@@ -146,8 +146,8 @@ function parseRows(content: string, userMapping?: ColumnMapping): {
     throw new HttpError(400, "CSV must include a header and at least one data row");
   }
 
-  const delimiter = lines[0].includes(";") ? ";" : ",";
-  const headers = parseDelimitedLine(lines[0], delimiter);
+  const delimiter = lines[0]!.includes(";") ? ";" : ","; // guarded by lines.length < 2 check above
+  const headers = parseDelimitedLine(lines[0]!, delimiter);
   const mapping = userMapping ?? autoDetectMapping(headers);
 
   // First pass: collect tags to detect duplicates
@@ -155,7 +155,7 @@ function parseRows(content: string, userMapping?: ColumnMapping): {
   const tagCounts = new Map<string, number>();
 
   for (let i = 1; i < lines.length; i += 1) {
-    const values = parseDelimitedLine(lines[i], delimiter);
+    const values = parseDelimitedLine(lines[i]!, delimiter); // in-bounds by loop condition
     const record = Object.fromEntries(
       headers.map((h, idx) => [h, values[idx] ?? ""])
     ) as Record<string, string>;
@@ -441,10 +441,14 @@ export const POST = withAuth(async (req, { user }) => {
   const deptMap = new Map<string, string>();
 
   for (let i = 0; i < locationNames.length; i++) {
-    locationMap.set(locationNames[i], upsertResults[i].id);
+    const name = locationNames[i]!; // in-bounds by loop condition
+    const result = upsertResults[i]!; // parallel array, same length
+    locationMap.set(name, result.id);
   }
   for (let i = 0; i < deptNames.length; i++) {
-    deptMap.set(deptNames[i], upsertResults[locationNames.length + i].id);
+    const name = deptNames[i]!; // in-bounds by loop condition
+    const result = upsertResults[locationNames.length + i]!; // parallel array offset by locationNames.length
+    deptMap.set(name, result.id);
   }
 
   // 2. Batch: find existing assets by serialNumber + assetTag (1 call)
@@ -581,7 +585,9 @@ export const POST = withAuth(async (req, { user }) => {
         // Build kit name → kit id map
         const kitMap = new Map<string, string>();
         for (let i = 0; i < validKitEntries.length; i++) {
-          kitMap.set(validKitEntries[i], kitUpsertResults[i].id);
+          const entry = validKitEntries[i]!; // in-bounds by loop condition
+          const result = kitUpsertResults[i]!; // parallel array, same length
+          kitMap.set(entry, result.id);
         }
 
         // Create all kit memberships

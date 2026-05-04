@@ -191,8 +191,8 @@ describe("SyncResult type shape", () => {
     };
     expect(result.skipped).toBe(1);
     expect(result.errors).toHaveLength(1);
-    expect(result.errors[0].uid).toBe("abc");
-    expect(result.errors[0].operation).toBe("create");
+    expect(result.errors[0]!.uid).toBe("abc");
+    expect(result.errors[0]!.operation).toBe("create");
   });
 
   it("allows optional error field for fetch-level failures", () => {
@@ -268,8 +268,8 @@ describe("per-event error isolation", () => {
     expect(result.added).toBe(2);
     expect(result.skipped).toBe(1);
     expect(result.errors).toHaveLength(1);
-    expect(result.errors[0].uid).toBe("bad-1");
-    expect(result.errors[0].reason).toContain("Invalid start date");
+    expect(result.errors[0]!.uid).toBe("bad-1");
+    expect(result.errors[0]!.reason).toContain("Invalid start date");
   });
 
   it("good events still sync when one event has bad end date", () => {
@@ -282,8 +282,8 @@ describe("per-event error isolation", () => {
     const result = simulateEventLoop(events);
     expect(result.added).toBe(2);
     expect(result.skipped).toBe(1);
-    expect(result.errors[0].uid).toBe("bad-end");
-    expect(result.errors[0].reason).toContain("Invalid end date");
+    expect(result.errors[0]!.uid).toBe("bad-end");
+    expect(result.errors[0]!.reason).toContain("Invalid end date");
   });
 
   it("error summary contains uid and reason", () => {
@@ -292,9 +292,9 @@ describe("per-event error isolation", () => {
     ];
 
     const result = simulateEventLoop(events);
-    expect(result.errors[0].uid).toBe("bad-uid-123");
-    expect(result.errors[0].summary).toBe("Broken");
-    expect(result.errors[0].reason).toBeTruthy();
+    expect(result.errors[0]!.uid).toBe("bad-uid-123");
+    expect(result.errors[0]!.summary).toBe("Broken");
+    expect(result.errors[0]!.reason).toBeTruthy();
   });
 
   it("all valid events produce zero errors", () => {
@@ -333,8 +333,8 @@ function buildDiagnostics(events: Array<{ uid: string; summary: string; dtstart:
     httpStatus: 200,
     responseSizeBytes: 12345,
     parsedEventCount: events.length,
-    earliestDtstart: sorted.length > 0 ? sorted[0].dtstart : null,
-    latestDtstart: sorted.length > 0 ? sorted[sorted.length - 1].dtstart : null,
+    earliestDtstart: sorted.length > 0 ? sorted[0]!.dtstart : null,
+    latestDtstart: sorted.length > 0 ? sorted[sorted.length - 1]!.dtstart : null,
     firstEvents: sorted.slice(0, SAMPLE_SIZE).map((e) => ({ uid: e.uid, summary: e.summary.slice(0, 120), dtstart: e.dtstart })),
     lastEvents: sorted.slice(-SAMPLE_SIZE).map((e) => ({ uid: e.uid, summary: e.summary.slice(0, 120), dtstart: e.dtstart })),
   };
@@ -379,8 +379,8 @@ describe("SyncDiagnostics", () => {
     const diag = buildDiagnostics(events);
     expect(diag.firstEvents).toHaveLength(5);
     expect(diag.lastEvents).toHaveLength(5);
-    expect(diag.firstEvents[0].dtstart).toBe("20260301T100000Z");
-    expect(diag.lastEvents[4].dtstart).toBe("20260320T100000Z");
+    expect(diag.firstEvents[0]!.dtstart).toBe("20260301T100000Z");
+    expect(diag.lastEvents[4]!.dtstart).toBe("20260320T100000Z");
   });
 
   it("handles empty event list", () => {
@@ -423,7 +423,7 @@ describe("error operation tracking", () => {
     const result = simulateEventLoop([
       { uid: "bad", summary: "Bad", dtstart: "", dtend: "" },
     ]);
-    expect(result.errors[0].operation).toBe("validate");
+    expect(result.errors[0]!.operation).toBe("validate");
   });
 
   it("create failure errors include operation=create", () => {
@@ -536,8 +536,8 @@ describe("splitEventsForSync", () => {
     const existing = [makeExistingRow({ id: "db-1", externalId: "evt-1", summary: "Old Title" })];
     const result = splitEventsForSync(parsed, existing, []);
     expect(result.toUpdate).toHaveLength(1);
-    expect(result.toUpdate[0].id).toBe("db-1");
-    expect(result.toUpdate[0].data.summary).toBe("Updated Title");
+    expect(result.toUpdate[0]!.id).toBe("db-1");
+    expect(result.toUpdate[0]!.data.summary).toBe("Updated Title");
   });
 
   it("detects changed startsAt and puts in toUpdate", () => {
@@ -552,7 +552,7 @@ describe("splitEventsForSync", () => {
     const existing = [makeExistingRow({ id: "db-1", externalId: "evt-1", status: "CONFIRMED" })];
     const result = splitEventsForSync(parsed, existing, []);
     expect(result.toUpdate).toHaveLength(1);
-    expect(result.toUpdate[0].data.status).toBe("CANCELLED");
+    expect(result.toUpdate[0]!.data.status).toBe("CANCELLED");
   });
 
   it("splits a mixed feed into creates, updates, and unchanged", () => {
@@ -567,9 +567,9 @@ describe("splitEventsForSync", () => {
     ];
     const result = splitEventsForSync(parsed, existing, []);
     expect(result.toCreate).toHaveLength(1);
-    expect(result.toCreate[0].externalId).toBe("new-1");
+    expect(result.toCreate[0]!.externalId).toBe("new-1");
     expect(result.toUpdate).toHaveLength(1);
-    expect(result.toUpdate[0].data.externalId).toBe("existing-changed");
+    expect(result.toUpdate[0]!.data.externalId).toBe("existing-changed");
     expect(result.unchanged).toHaveLength(1);
   });
 
@@ -582,15 +582,15 @@ describe("splitEventsForSync", () => {
     const result = splitEventsForSync(parsed, [], []);
     expect(result.toCreate).toHaveLength(2);
     expect(result.skippedErrors).toHaveLength(1);
-    expect(result.skippedErrors[0].uid).toBe("bad-1");
-    expect(result.skippedErrors[0].operation).toBe("validate");
+    expect(result.skippedErrors[0]!.uid).toBe("bad-1");
+    expect(result.skippedErrors[0]!.operation).toBe("validate");
   });
 
   it("resolves location via regex mapping", () => {
     const parsed = [makeParsedEvent({ uid: "evt-1", location: "Gymnasium A" })];
     const mappings = [{ pattern: "gymnasium", locationId: "loc-gym" }];
     const result = splitEventsForSync(parsed, [], mappings);
-    expect(result.toCreate[0].locationId).toBe("loc-gym");
+    expect(result.toCreate[0]!.locationId).toBe("loc-gym");
   });
 
   it("resolves location via plain text fallback for invalid regex", () => {
@@ -598,7 +598,7 @@ describe("splitEventsForSync", () => {
     // Unbalanced parenthesis is invalid regex, so it falls back to includes()
     const mappings = [{ pattern: "field (north", locationId: "loc-field" }];
     const result = splitEventsForSync(parsed, [], mappings);
-    expect(result.toCreate[0].locationId).toBe("loc-field");
+    expect(result.toCreate[0]!.locationId).toBe("loc-field");
   });
 
   it("handles large feed without per-event DB queries (pure function)", () => {
@@ -613,11 +613,11 @@ describe("splitEventsForSync", () => {
     const parsed = [makeParsedEvent({ uid: "wb-1", summary: "Wisconsin Badgers Women's Tennis at Purdue" })];
     const result = splitEventsForSync(parsed, [], []);
     expect(result.toCreate).toHaveLength(1);
-    expect(result.toCreate[0].summary).toBe("Women's Tennis at Purdue");
-    expect(result.toCreate[0].rawSummary).toBe("Wisconsin Badgers Women's Tennis at Purdue");
-    expect(result.toCreate[0].sportCode).toBe("WTEN");
-    expect(result.toCreate[0].opponent).toBe("Purdue");
-    expect(result.toCreate[0].isHome).toBe(false);
+    expect(result.toCreate[0]!.summary).toBe("Women's Tennis at Purdue");
+    expect(result.toCreate[0]!.rawSummary).toBe("Wisconsin Badgers Women's Tennis at Purdue");
+    expect(result.toCreate[0]!.sportCode).toBe("WTEN");
+    expect(result.toCreate[0]!.opponent).toBe("Purdue");
+    expect(result.toCreate[0]!.isHome).toBe(false);
   });
 
   it("WRITE_CHUNK_SIZE is exported and equals 500", () => {
@@ -631,7 +631,7 @@ describe("splitEventsForSync", () => {
       location: "Madison, WI, Goodman Diamond",
     })];
     const result = splitEventsForSync(parsed, [], []);
-    expect(result.toCreate[0].isHome).toBe(true);
+    expect(result.toCreate[0]!.isHome).toBe(true);
   });
 
   it("'vs' + non-Madison location → isHome: null (neutral)", () => {
@@ -641,7 +641,7 @@ describe("splitEventsForSync", () => {
       location: "Minneapolis, MN, Target Field",
     })];
     const result = splitEventsForSync(parsed, [], []);
-    expect(result.toCreate[0].isHome).toBeNull();
+    expect(result.toCreate[0]!.isHome).toBeNull();
   });
 
   it("'at' + any location → isHome: false (away)", () => {
@@ -651,7 +651,7 @@ describe("splitEventsForSync", () => {
       location: "Iowa City, IA",
     })];
     const result = splitEventsForSync(parsed, [], []);
-    expect(result.toCreate[0].isHome).toBe(false);
+    expect(result.toCreate[0]!.isHome).toBe(false);
   });
 
   it("no location text + 'vs' → isHome: true (summary fallback)", () => {
@@ -661,7 +661,7 @@ describe("splitEventsForSync", () => {
       location: "",
     })];
     const result = splitEventsForSync(parsed, [], []);
-    expect(result.toCreate[0].isHome).toBe(true);
+    expect(result.toCreate[0]!.isHome).toBe(true);
   });
 
   it("known Wisconsin facility without Madison, WI → isHome: true", () => {
@@ -671,7 +671,7 @@ describe("splitEventsForSync", () => {
       location: "Camp Randall Stadium",
     })];
     const result = splitEventsForSync(parsed, [], []);
-    expect(result.toCreate[0].isHome).toBe(true);
+    expect(result.toCreate[0]!.isHome).toBe(true);
   });
 
   it("McClimon location → isHome: true", () => {
@@ -681,7 +681,7 @@ describe("splitEventsForSync", () => {
       location: "Madison, WI, McClimon Track/Soccer Complex",
     })];
     const result = splitEventsForSync(parsed, [], []);
-    expect(result.toCreate[0].isHome).toBe(true);
+    expect(result.toCreate[0]!.isHome).toBe(true);
   });
 });
 

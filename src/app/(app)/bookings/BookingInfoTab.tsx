@@ -223,7 +223,7 @@ function PhotoGroup({ label, photos }: { label: string; photos: BookingPhoto[] }
         </a>
       ))}
       <span className="text-[11px] text-muted-foreground">
-        by {photos[0].actor.name} &middot; {formatDateTime(photos[0].createdAt)}
+        by {photos[0]!.actor.name} &middot; {formatDateTime(photos[0]!.createdAt)}
       </span>
     </div>
   );

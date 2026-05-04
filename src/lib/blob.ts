@@ -92,7 +92,7 @@ export async function downloadImageToBlob(
 function extFromUrl(url: string): string | null {
   const match = url.match(/\.(jpe?g|png|webp|gif)(\?|$)/i);
   if (!match) return null;
-  return match[1].toLowerCase().replace("jpeg", "jpg");
+  return match[1]!.toLowerCase().replace("jpeg", "jpg"); // capture group 1 always present when regex matches
 }
 
 export async function deleteImage(url: string): Promise<void> {

@@ -116,7 +116,7 @@ function computeWindow(
   for (const b of filtered) {
     const jsDay = b.startsAt.getDay(); // 0=Sun
     const idx = jsDay === 0 ? 6 : jsDay - 1; // shift to Mon=0
-    byDayOfWeek[idx]++;
+    byDayOfWeek[idx] = (byDayOfWeek[idx] ?? 0) + 1; // idx is always 0-6, byDayOfWeek has exactly 7 elements
   }
 
   // --- Punctuality ---
