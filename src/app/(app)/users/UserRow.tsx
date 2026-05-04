@@ -25,8 +25,12 @@ export const UserTableRow = memo(function UserTableRow({ user }: { user: UserRow
 
   return (
     <TableRow
-      className="cursor-pointer"
+      className="cursor-pointer focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
+      tabIndex={0}
+      role="link"
+      aria-label={`View ${user.name}`}
       onClick={() => router.push(`/users/${user.id}`)}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); router.push(`/users/${user.id}`); } }}
     >
       <TableCell>
         <div className="flex items-center gap-3 min-w-0">

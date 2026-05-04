@@ -276,7 +276,7 @@ function SerializedRow({
         )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="size-7 flex items-center justify-center rounded-md hover:bg-muted/80 text-muted-foreground sm:opacity-0 sm:group-hover/row:opacity-100 focus:opacity-100 transition-opacity">
+            <button className="size-7 flex items-center justify-center rounded-md hover:bg-muted/80 text-muted-foreground sm:opacity-0 sm:group-hover/row:opacity-100 focus:opacity-100 [@media(pointer:coarse)]:opacity-100 transition-opacity">
               <MoreHorizontal className="size-4" />
               <span className="sr-only">Item actions</span>
             </button>
