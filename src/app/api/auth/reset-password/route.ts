@@ -47,6 +47,10 @@ export const POST = withHandler(async (req) => {
     entityType: "user",
     entityId: resetToken.userId,
     action: "password_reset_self",
+    after: {
+      ip,
+      userAgent: req.headers.get("user-agent") ?? null,
+    },
   });
 
   return ok({ message: "Password reset successfully. Please sign in." });

@@ -45,22 +45,6 @@ export async function uploadImage(
   return blob.url;
 }
 
-export async function uploadBookingPhoto(
-  file: File,
-  bookingId: string,
-  phase: string
-): Promise<string> {
-  const ext = file.name.split(".").pop() || "jpg";
-  const pathname = `bookings/${bookingId}/${phase.toLowerCase()}/${Date.now()}.${ext}`;
-
-  const blob = await put(pathname, file.stream(), {
-    access: "public",
-    contentType: file.type,
-  });
-
-  return blob.url;
-}
-
 /**
  * Download an external image and re-host it on Vercel Blob.
  * Returns the blob URL, or null if download fails.

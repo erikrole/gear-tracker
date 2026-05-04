@@ -4,11 +4,16 @@ import { validateImage, deleteImage, isBlobUrl } from "@/lib/blob";
 import { put } from "@vercel/blob";
 import { db } from "@/lib/db";
 import { createAuditEntry } from "@/lib/audit";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 /**
  * POST /api/profile/avatar — upload or replace current user's avatar
  */
 export const POST = withAuth(async (req, { user }) => {
+  // Cap avatar upload spam to prevent storage exhaustion via a
+  // compromised account (each upload writes a new blob).
+  await enforceRateLimit(`avatar:${user.id}`, { max: 10, windowMs: 60 * 60_000 });
+
   const formData = await req.formData();
   const file = formData.get("file");
   if (!(file instanceof File)) {
