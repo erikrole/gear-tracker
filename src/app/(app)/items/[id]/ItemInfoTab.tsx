@@ -14,7 +14,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogBody,
-  DialogCloseButton,
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
@@ -511,7 +510,6 @@ export function QRModal({
         <DialogHeader>
           <DialogTitle>QR Code</DialogTitle>
           <DialogDescription className="sr-only">View or generate a QR code for this item</DialogDescription>
-          <DialogCloseButton />
         </DialogHeader>
         <DialogBody className="py-6">
           <div className="flex justify-center mb-1">

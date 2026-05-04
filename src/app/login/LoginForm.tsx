@@ -117,7 +117,7 @@ export default function LoginForm() {
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Password</Label>
-                <Link href="/forgot-password" className="text-xs text-muted-foreground hover:text-foreground transition-colors" tabIndex={-1}>
+                <Link href="/forgot-password" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
                   Forgot password?
                 </Link>
               </div>
@@ -144,7 +144,7 @@ export default function LoginForm() {
                   className="absolute right-0 top-0 h-11 w-11 text-muted-foreground hover:text-foreground transition-colors"
                   onClick={() => setShowPassword(!showPassword)}
                   disabled={submitting}
-                  tabIndex={-1}
+                  aria-pressed={showPassword}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   <AnimatePresence mode="wait" initial={false}>

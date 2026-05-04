@@ -6,7 +6,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogCloseButton,
   DialogDescription,
   DialogBody,
 } from "@/components/ui/dialog";
@@ -181,7 +180,6 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
         <DialogHeader>
           <DialogTitle>Choose image</DialogTitle>
           <DialogDescription className="sr-only">Upload or paste a URL for the item image</DialogDescription>
-          <DialogCloseButton />
         </DialogHeader>
         <DialogBody className="pb-6">
           <Tabs value={tab} onValueChange={(v) => setTab(v as "url" | "upload")}>
