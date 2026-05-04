@@ -59,7 +59,13 @@ export const GET = withAuth(async (req, { user }) => {
         : {}),
     ...(locationId ? { locationId } : {}),
     ...(sportCode ? { sportCode } : {}),
-    ...(requesterId ? { requesterUserId: requesterId } : {}),
+    // Students may only see their own bookings — ignore any requester_id
+    // override they pass and pin to their own user id.
+    ...(user.role === "STUDENT"
+      ? { requesterUserId: user.id }
+      : requesterId
+        ? { requesterUserId: requesterId }
+        : {}),
     ...(q
       ? {
           OR: [

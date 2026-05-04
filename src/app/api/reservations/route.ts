@@ -11,13 +11,18 @@ import { createReservationLifecycleNotification } from "@/lib/services/notificat
 export const GET = withAuth(async (req, { user }) => {
   requirePermission(user.role, "booking", "view");
   const { searchParams } = new URL(req.url);
-  const result = await listBookings(BookingKind.RESERVATION, searchParams);
+  const restrictTo = user.role === "STUDENT" ? user.id : undefined;
+  const result = await listBookings(BookingKind.RESERVATION, searchParams, undefined, restrictTo);
   return ok(result);
 });
 
 export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "booking", "create");
   const body = sanitizeBookingFields(createReservationSchema.parse(await req.json()));
+  // Students may only create reservations for themselves.
+  if (user.role === "STUDENT") {
+    body.requesterUserId = user.id;
+  }
   const { start, end } = parseDateRange(body.startsAt, body.endsAt, { requireFutureStart: true });
 
   const reservation = await createBooking({

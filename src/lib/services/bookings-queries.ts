@@ -51,7 +51,9 @@ function parseStatusParam(value: string | null): BookingStatus | undefined {
 export async function listBookings(
   kind: BookingKind,
   searchParams: URLSearchParams,
-  extraWhere?: Prisma.BookingWhereInput
+  extraWhere?: Prisma.BookingWhereInput,
+  /** When set, forces requesterUserId scoping regardless of query params (used to lock STUDENT to own bookings). */
+  restrictToRequesterUserId?: string,
 ) {
   const q = searchParams.get("q")?.trim();
   const sortParam = searchParams.get("sort");
@@ -73,7 +75,11 @@ export async function listBookings(
         : {}),
     ...(searchParams.get("location_id") ? { locationId: searchParams.get("location_id")! } : {}),
     ...(searchParams.get("sport_code") ? { sportCode: searchParams.get("sport_code")! } : {}),
-    ...(searchParams.get("requester_id") ? { requesterUserId: searchParams.get("requester_id")! } : {}),
+    ...(restrictToRequesterUserId
+      ? { requesterUserId: restrictToRequesterUserId }
+      : searchParams.get("requester_id")
+        ? { requesterUserId: searchParams.get("requester_id")! }
+        : {}),
     ...(fromDate || toDate
       ? {
           startsAt: {

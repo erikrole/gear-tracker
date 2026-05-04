@@ -2,15 +2,22 @@ import { db } from "@/lib/db";
 import { withHandler } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
 import { tokenHash, createKioskSession } from "@/lib/auth";
-import { getClientIp } from "@/lib/rate-limit";
+import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 import { activateBody } from "@/lib/schemas/kiosk";
 import { createSystemAuditEntry } from "@/lib/audit";
 
 /**
  * Activate a kiosk device with a 6-digit code.
  * No auth required — this IS the auth bootstrapping step.
+ *
+ * Rate-limited per IP to slow brute-force enumeration of the 6-digit
+ * (~1M) keyspace. Note: limiter is per-Vercel-instance; a Redis-backed
+ * limiter is the correct long-term fix (see tasks/owasp-api-audit.md).
  */
 export const POST = withHandler(async (req) => {
+  const ip = getClientIp(req);
+  await enforceRateLimit(`kiosk:activate:${ip}`, { max: 10, windowMs: 15 * 60_000 });
+
   const { code } = activateBody.parse(await req.json());
 
   // Hash the code and look up device
@@ -32,7 +39,6 @@ export const POST = withHandler(async (req) => {
   await createKioskSession(device.id);
 
   // Audit kiosk activation (no user actor — use device ID as entity)
-  const ip = getClientIp(req);
   await createSystemAuditEntry({
     entityType: "kiosk_device",
     entityId: device.id,

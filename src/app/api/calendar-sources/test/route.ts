@@ -3,6 +3,7 @@ import { withAuth } from "@/lib/api";
 import { ok, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { assertPublicHost } from "@/lib/security/ssrf";
 
 const bodySchema = z.object({
   url: z.string().min(1).max(2048),
@@ -38,6 +39,11 @@ export const POST = withAuth(async (req, { user }) => {
   }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     throw new HttpError(400, "URL must use http or https.");
+  }
+  try {
+    await assertPublicHost(parsed.hostname);
+  } catch {
+    throw new HttpError(400, "URL host is private or non-routable.");
   }
   url = parsed.toString();
 

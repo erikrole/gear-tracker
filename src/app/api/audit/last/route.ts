@@ -3,6 +3,25 @@ import { withAuth } from "@/lib/api";
 import { ok } from "@/lib/http";
 import { db } from "@/lib/db";
 
+/**
+ * Entity types STAFF may query. Restricted to settings-surface types so
+ * STAFF cannot probe ADMIN activity by passing entityType: "user" /
+ * "session" / "kiosk_device" etc. ADMIN may query any type.
+ */
+const STAFF_ALLOWED_ENTITY_TYPES = new Set([
+  "allowed_email",
+  "location",
+  "category",
+  "department",
+  "sport",
+  "venue_mapping",
+  "calendar_source",
+  "kit",
+  "asset",
+  "bulk_sku",
+  "booking",
+]);
+
 const bodySchema = z.object({
   entityType: z.string().min(1).max(64),
   entityIds: z.array(z.string().min(1).max(64)).min(1).max(200),
@@ -24,6 +43,13 @@ export const POST = withAuth(async (req, { user }) => {
   }
 
   const body = bodySchema.parse(await req.json());
+
+  // STAFF can only inspect non-sensitive entity types — block probing of
+  // user/session/kiosk audit history that would reveal ADMIN activity.
+  if (user.role === "STAFF" && !STAFF_ALLOWED_ENTITY_TYPES.has(body.entityType)) {
+    return ok({ data: {} });
+  }
+
   const ids = Array.from(new Set(body.entityIds));
 
   // Per-id findFirst against the (entityType, entityId, createdAt) index.

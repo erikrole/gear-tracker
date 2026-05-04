@@ -27,13 +27,19 @@ export const GET = withAuth(async (req, { user }) => {
         ? { status: "OPEN" as never, endsAt: { gte: todayStart, lt: todayEnd } }
         : undefined;
 
-  const result = await listBookings(BookingKind.CHECKOUT, searchParams, extraWhere);
+  const restrictTo = user.role === "STUDENT" ? user.id : undefined;
+  const result = await listBookings(BookingKind.CHECKOUT, searchParams, extraWhere, restrictTo);
   return ok(result);
 });
 
 export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "checkout", "create");
   const body = sanitizeBookingFields(createCheckoutSchema.parse(await req.json()));
+  // Students may only create checkouts for themselves — silently override
+  // any requesterUserId in the body to prevent framing other users.
+  if (user.role === "STUDENT") {
+    body.requesterUserId = user.id;
+  }
   const { start, end } = parseDateRange(body.startsAt, body.endsAt, { requireFutureStart: true });
 
   // Event-default prefill: if sportCode provided but no eventId,

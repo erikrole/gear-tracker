@@ -457,6 +457,25 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
   // Normalize webcal:// to https://
   const url = source.url.replace(/^webcal:\/\//, "https://");
 
+  // SSRF guard: even though admins save these URLs, re-validate at fetch
+  // time so a saved URL pointing at a private/internal IP can't be used
+  // to probe internal services later.
+  try {
+    const { assertPublicHost } = await import("@/lib/security/ssrf");
+    const parsed = new URL(url);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      throw new Error("non-http(s) protocol");
+    }
+    await assertPublicHost(parsed.hostname);
+  } catch (err) {
+    const error = `Refusing to fetch: ${err instanceof Error ? err.message : "invalid URL"}`;
+    await db.calendarSource.update({
+      where: { id: sourceId },
+      data: { lastError: error, lastFetchedAt: new Date() }
+    });
+    return { ...emptyResult, error };
+  }
+
   let icsText: string;
   let httpStatus = 0;
   try {

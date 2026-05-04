@@ -14,6 +14,13 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
   const { id } = params;
   const detail = await getBookingDetail(id);
 
+  // Students may only view bookings they requested or created. ADMIN/STAFF
+  // can view any booking. Without this check, a student iterating booking
+  // IDs could read every requester's PII (IDOR).
+  if (user.role === "STUDENT" && detail.requesterUserId !== user.id && detail.createdBy !== user.id) {
+    throw new HttpError(404, "Booking not found");
+  }
+
   const allowedActions = getAllowedBookingActions(user, detail);
 
   return ok({ data: { ...detail, allowedActions } });
