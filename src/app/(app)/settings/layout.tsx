@@ -80,6 +80,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
               <Link
                 href={s.href}
                 title={s.description}
+                aria-current={pathname.startsWith(s.href) ? "page" : undefined}
                 className={`px-4 py-2.5 text-sm font-medium no-underline transition-colors border-b-2 -mb-px whitespace-nowrap ${pathname.startsWith(s.href) ? "text-foreground border-[var(--wi-red)] font-semibold" : "text-muted-foreground border-transparent hover:text-foreground"}`}
               >
                 {s.label}

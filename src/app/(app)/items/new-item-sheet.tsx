@@ -76,6 +76,8 @@ export function NewItemSheet({
       setCreatedAssetId(null);
       setCreatedLabel("");
       showSuccessMessage(`"${createdLabel}" created — ready for next item`);
+      // Move keyboard focus back to the first field of the fresh form.
+      requestAnimationFrame(() => serializedRef.current?.focus());
     } else {
       onOpenChange(false);
       resetAll();
@@ -145,6 +147,7 @@ export function NewItemSheet({
       if (addAnother) {
         bulkRef.current?.reset();
         showSuccessMessage(`"${label}" created — ready for next item`);
+        requestAnimationFrame(() => bulkRef.current?.focus());
       } else {
         toast.success(`"${label}" added to inventory`);
         onOpenChange(false);

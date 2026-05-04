@@ -300,13 +300,14 @@ export default function ScanPage() {
         </div>
       )}
 
-      {/* ══════ Celebration overlay ══════ */}
+      {/* ══════ Celebration overlay (transient confirmation, not a dialog) ══════ */}
       {session.showCelebration && (
         <div
           className="fixed inset-0 flex items-center justify-center bg-black/40 z-40 animate-[fade-in_0.2s_ease] p-[env(safe-area-inset-top)_env(safe-area-inset-right)_env(safe-area-inset-bottom)_env(safe-area-inset-left)]"
           onClick={() => session.setShowCelebration(false)}
-          role="dialog"
-          aria-label="All items scanned"
+          onKeyDown={(e) => { if (e.key === "Escape") session.setShowCelebration(false); }}
+          role="status"
+          aria-live="polite"
         >
           <div className="bg-card rounded-[20px] px-10 py-8 text-center shadow-[0_20px_60px_rgba(0,0,0,0.3)] animate-[scale-in_0.3s_ease] max-md:mx-6 max-md:px-6 max-md:py-7">
             <CheckCircle2Icon className="size-12 text-green-500 mx-auto mb-3" />

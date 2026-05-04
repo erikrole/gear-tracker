@@ -19,6 +19,7 @@ export interface SerializedFormHandle {
   validate(): string | null;
   getSubmitBody(): Record<string, unknown>;
   reset(keepShared?: boolean): void;
+  focus(): void;
 }
 
 interface Props {
@@ -52,6 +53,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
     // Asset tag uniqueness check
     const [assetTagError, setAssetTagError] = useState("");
     const assetTagCheckRef = useRef(0);
+    const assetTagInputRef = useRef<HTMLInputElement>(null);
     const checkAssetTagUnique = useCallback(async (tag: string) => {
       const trimmed = tag.trim();
       if (!trimmed) { setAssetTagError(""); return; }
@@ -157,6 +159,9 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
         setParentAsset(null);
         parentSearch.clear();
       },
+      focus() {
+        assetTagInputRef.current?.focus();
+      },
     }));
 
     return (
@@ -167,6 +172,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
 
           <FormRow label="Asset tag" required>
             <Input
+              ref={assetTagInputRef}
               value={assetTag}
               onChange={(e) => { setAssetTag(e.target.value); setAssetTagError(""); }}
               onBlur={() => checkAssetTagUnique(assetTag)}

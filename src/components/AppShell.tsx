@@ -447,6 +447,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <Link
               key={item.href}
               href={item.href}
+              aria-current={isActive ? "page" : undefined}
               className={`flex flex-col items-center justify-center gap-0.5 py-2 px-1 min-w-14 min-h-12 no-underline text-muted-foreground text-[length:var(--text-3xs)] font-medium border-none bg-transparent cursor-pointer transition-colors [-webkit-tap-highlight-color:transparent] hover:text-foreground${isActive ? " !text-[var(--wi-red)]" : ""}`}
             >
               {item.icon}

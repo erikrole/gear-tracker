@@ -267,7 +267,7 @@ export default function AppSidebar({
                             : "text-white/45 hover:text-white/85 hover:bg-white/[0.05] border-l-2 border-l-transparent rounded-r-md rounded-l-none pl-[calc(0.5rem-2px)] transition-all duration-150"
                         }
                       >
-                        <Link href={href}>
+                        <Link href={href} aria-current={isActive ? "page" : undefined}>
                           <Icon />
                           <span style={{ fontFamily: "var(--font-heading)", fontWeight: 500 }}>
                             {item.label}

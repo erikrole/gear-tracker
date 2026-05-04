@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { Dices } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ export interface BulkFormHandle {
   validate(): string | null;
   getSubmitPayload(): { url: string; body: Record<string, unknown>; label: string } | null;
   reset(): void;
+  focus(): void;
 }
 
 interface Props {
@@ -41,6 +42,8 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
     const [existingBulkSkus, setExistingBulkSkus] = useState<BulkSkuOption[]>([]);
     const [selectedBulkSkuId, setSelectedBulkSkuId] = useState("");
     const [addQty, setAddQty] = useState(1);
+
+    const bulkNameInputRef = useRef<HTMLInputElement>(null);
 
     const locationOptions = locations.map((l) => ({ value: l.id, label: l.name }));
 
@@ -103,6 +106,9 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
         setSelectedBulkSkuId("");
         setAddQty(1);
       },
+      focus() {
+        bulkNameInputRef.current?.focus();
+      },
     }));
 
     return (
@@ -135,7 +141,7 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
             <SectionHeading>New bulk item</SectionHeading>
 
             <FormRow label="Item name" required>
-              <Input value={bulkName} onChange={(e) => setBulkName(e.target.value)} placeholder="e.g. AA Batteries" required />
+              <Input ref={bulkNameInputRef} value={bulkName} onChange={(e) => setBulkName(e.target.value)} placeholder="e.g. AA Batteries" required />
             </FormRow>
 
             <FormRow label="Category" required>
