@@ -109,8 +109,8 @@ export default function LoginForm() {
                 aria-describedby={fieldErrors.email ? "email-error" : undefined}
                 className="h-11 text-base transition-colors"
               />
-              <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.email}>
-                <p id="email-error" className="overflow-hidden text-destructive text-xs">{fieldErrors.email || "\u00A0"}</p>
+              <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.email} aria-hidden={!fieldErrors.email}>
+                <p id="email-error" role="alert" className="overflow-hidden text-destructive text-xs">{fieldErrors.email || "\u00A0"}</p>
               </div>
             </div>
 
@@ -161,8 +161,8 @@ export default function LoginForm() {
                   </AnimatePresence>
                 </Button>
               </div>
-              <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.password}>
-                <p id="password-error" className="overflow-hidden text-destructive text-xs">{fieldErrors.password || "\u00A0"}</p>
+              <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.password} aria-hidden={!fieldErrors.password}>
+                <p id="password-error" role="alert" className="overflow-hidden text-destructive text-xs">{fieldErrors.password || "\u00A0"}</p>
               </div>
             </div>
 

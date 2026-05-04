@@ -148,8 +148,8 @@ function ResetPasswordForm() {
             {showPassword ? <EyeOffIcon className="size-5" /> : <EyeIcon className="size-5" />}
           </Button>
         </div>
-        <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.password}>
-          <p id="password-error" className="overflow-hidden text-destructive text-xs">{fieldErrors.password || " "}</p>
+        <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.password} aria-hidden={!fieldErrors.password}>
+          <p id="password-error" role="alert" className="overflow-hidden text-destructive text-xs">{fieldErrors.password || " "}</p>
         </div>
       </div>
 
@@ -171,8 +171,8 @@ function ResetPasswordForm() {
           aria-describedby={fieldErrors.confirmPassword ? "confirm-error" : undefined}
           className="h-11 text-base transition-colors"
         />
-        <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.confirmPassword}>
-          <p id="confirm-error" className="overflow-hidden text-destructive text-xs">{fieldErrors.confirmPassword || " "}</p>
+        <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.confirmPassword} aria-hidden={!fieldErrors.confirmPassword}>
+          <p id="confirm-error" role="alert" className="overflow-hidden text-destructive text-xs">{fieldErrors.confirmPassword || " "}</p>
         </div>
       </div>
 

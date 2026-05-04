@@ -118,8 +118,8 @@ export default function RegisterPage() {
                 aria-describedby={fieldErrors.name ? "name-error" : undefined}
                 className="h-11 text-base transition-colors"
               />
-              <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.name}>
-                <p id="name-error" className="overflow-hidden text-destructive text-xs">{fieldErrors.name || " "}</p>
+              <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.name} aria-hidden={!fieldErrors.name}>
+                <p id="name-error" role="alert" className="overflow-hidden text-destructive text-xs">{fieldErrors.name || " "}</p>
               </div>
             </div>
 
@@ -140,8 +140,8 @@ export default function RegisterPage() {
                 aria-describedby={fieldErrors.email ? "email-error" : undefined}
                 className="h-11 text-base transition-colors"
               />
-              <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.email}>
-                <p id="email-error" className="overflow-hidden text-destructive text-xs">{fieldErrors.email || " "}</p>
+              <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.email} aria-hidden={!fieldErrors.email}>
+                <p id="email-error" role="alert" className="overflow-hidden text-destructive text-xs">{fieldErrors.email || " "}</p>
               </div>
             </div>
 
@@ -177,8 +177,8 @@ export default function RegisterPage() {
                   {showPassword ? <EyeOffIcon className="size-5" /> : <EyeIcon className="size-5" />}
                 </Button>
               </div>
-              <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.password}>
-                <p id="password-error" className="overflow-hidden text-destructive text-xs">{fieldErrors.password || " "}</p>
+              <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.password} aria-hidden={!fieldErrors.password}>
+                <p id="password-error" role="alert" className="overflow-hidden text-destructive text-xs">{fieldErrors.password || " "}</p>
               </div>
             </div>
 

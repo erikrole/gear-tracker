@@ -155,7 +155,7 @@ export default function AppSidebar({
             />
             <div className="min-w-0 group-data-[collapsible=icon]:hidden">
               <p
-                className="text-[9.5px] tracking-[0.22em] text-white/25 uppercase leading-none mb-[3px]"
+                className="text-[9.5px] tracking-[0.22em] text-white/60 uppercase leading-none mb-[3px]"
                 style={{ fontFamily: "var(--font-mono)" }}
               >
                 UW Athletics
@@ -199,7 +199,7 @@ export default function AppSidebar({
                       {user.name}
                     </p>
                     <p
-                      className="text-[9.5px] text-white/28 truncate leading-tight mt-[2px] uppercase tracking-[0.14em]"
+                      className="text-[9.5px] text-white/60 truncate leading-tight mt-[2px] uppercase tracking-[0.14em]"
                       style={{ fontFamily: "var(--font-mono)" }}
                     >
                       {user.role ?? "Student"}
@@ -222,7 +222,7 @@ export default function AppSidebar({
                 <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
                   <div className="h-px flex-1 bg-white/[0.07]" />
                   <span
-                    className="text-[8.5px] uppercase tracking-[0.28em] text-white/22 select-none"
+                    className="text-[8.5px] uppercase tracking-[0.28em] text-white/60 select-none"
                     style={{ fontFamily: "var(--font-mono)" }}
                   >
                     {group.label}
@@ -276,7 +276,7 @@ export default function AppSidebar({
                             className="ml-auto text-[9px] tabular-nums group-data-[collapsible=icon]:hidden"
                             style={{
                               fontFamily: "var(--font-mono)",
-                              color: isActive ? "var(--wi-red)" : "rgba(255,255,255,0.17)",
+                              color: isActive ? "var(--wi-red)" : "rgba(255,255,255,0.55)",
                             }}
                           >
                             {itemNumber}
@@ -332,7 +332,7 @@ export default function AppSidebar({
                 key={val}
                 value={val}
                 aria-label={`${val.charAt(0).toUpperCase() + val.slice(1)} theme`}
-                className="text-white/35 px-2.5 py-1 text-xs hover:bg-transparent hover:text-white/70 data-[state=on]:bg-white/[0.12] data-[state=on]:text-white/90 data-[state=on]:shadow-none data-[state=on]:rounded"
+                className="text-white/60 px-2.5 py-1 text-xs hover:bg-transparent hover:text-white/85 data-[state=on]:bg-white/[0.12] data-[state=on]:text-white/95 data-[state=on]:shadow-none data-[state=on]:rounded"
               >
                 {i === 0 ? <SunIcon className="size-3.5" /> : i === 1 ? <MoonIcon className="size-3.5" /> : <MonitorIcon className="size-3.5" />}
               </ToggleGroupItem>

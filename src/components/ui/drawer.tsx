@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { Drawer as DrawerPrimitive } from "vaul"
+import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -60,6 +61,13 @@ function DrawerContent({
       >
         <div className="bg-muted mx-auto mt-4 h-1.5 w-12 shrink-0 rounded-full" />
         {children}
+        <DrawerPrimitive.Close
+          data-slot="drawer-close-button"
+          className="absolute right-4 top-4 flex size-8 items-center justify-center rounded-md text-muted-foreground/80 opacity-70 outline-none transition-opacity hover:opacity-100 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none"
+        >
+          <X className="size-4" />
+          <span className="sr-only">Close</span>
+        </DrawerPrimitive.Close>
       </DrawerPrimitive.Content>
     </DrawerPortal>
   )
