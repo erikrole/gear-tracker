@@ -560,18 +560,6 @@ a[data-slot="button"]:hover {
   100% { transform: translateX(400%); }
 }
 
-/* ===== Pagination ===== */
-/* DEPRECATED: migrate to shadcn Pagination component, then remove */
-.pagination {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  border-top: 1px solid var(--border-light);
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-}
-
 .pagination-btns {
   display: flex;
   gap: 4px;
@@ -655,13 +643,6 @@ a[data-slot="button"]:hover {
   0% { transform: scale(1); }
   50% { transform: scale(1.2); }
   100% { transform: scale(1); }
-}
-
-@media (max-width: 768px) {
-  .diag-table th,
-  .diag-table td {
-    padding: 6px 10px;
-  }
 }
 
 /* ===== Print styles ===== */
@@ -810,24 +791,6 @@ a[data-slot="button"]:hover {
     background: linear-gradient(135deg, #1a1017 0%, #2d0a0e 40%, #a00000 100%);
   }
 }
-
-/* Misc — only keep utilities Tailwind v4 doesn't provide natively */
-
-/* Diagnostic table (settings/database) */
-/* DEPRECATED: migrate to shadcn Table component, then remove */
-.diag-table { width: 100%; font-size: var(--text-sm); border-collapse: collapse; }
-.diag-table thead tr { border-bottom: 1px solid var(--border-light); }
-.diag-table th {
-  text-align: left;
-  padding: 8px 16px;
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wider);
-}
-.diag-table td { padding: 8px 16px; }
-.diag-table tbody tr { border-bottom: 1px solid var(--border-light); }
 
 /* ===== Touch Target Audit ===== */
 

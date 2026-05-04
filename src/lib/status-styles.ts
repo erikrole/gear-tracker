@@ -1,31 +1,18 @@
-import type { BadgeProps } from "@/components/ui/badge";
+import { badgeVariants } from "@/components/ui/badge";
 
-/** Maps a color key to dot + badge class strings (for the StatusDot pattern). */
+/**
+ * Maps a color key to dot + badge class strings (for the StatusDot pattern).
+ * `badge` is derived from <Badge variant={color}> — single source of truth.
+ * Prefer `<Badge variant={color}>` directly when possible; this map is for
+ * non-Badge surfaces (raw <div>s with avatar+text) and the StatusDot pairing.
+ */
 export const STATUS_STYLES = {
-  green: {
-    badge: "border-none bg-[var(--green-bg)] text-[var(--green-text)]",
-    dot: "bg-[var(--green-text)]",
-  },
-  blue: {
-    badge: "border-none bg-[var(--blue-bg)] text-[var(--blue-text)]",
-    dot: "bg-[var(--blue-text)]",
-  },
-  red: {
-    badge: "border-none bg-[var(--red-bg)] text-[var(--red-text)]",
-    dot: "bg-[var(--red-text)]",
-  },
-  purple: {
-    badge: "border-none bg-[var(--purple-bg)] text-[var(--purple-text)]",
-    dot: "bg-[var(--purple-text)]",
-  },
-  orange: {
-    badge: "border-none bg-[var(--orange-bg)] text-[var(--orange-text)]",
-    dot: "bg-[var(--orange-text)]",
-  },
-  gray: {
-    badge: "border-none bg-muted text-muted-foreground",
-    dot: "bg-muted-foreground",
-  },
+  green:  { badge: badgeVariants({ variant: "green"  }), dot: "bg-[var(--green-text)]"  },
+  blue:   { badge: badgeVariants({ variant: "blue"   }), dot: "bg-[var(--blue-text)]"   },
+  red:    { badge: badgeVariants({ variant: "red"    }), dot: "bg-[var(--red-text)]"    },
+  purple: { badge: badgeVariants({ variant: "purple" }), dot: "bg-[var(--purple-text)]" },
+  orange: { badge: badgeVariants({ variant: "orange" }), dot: "bg-[var(--orange-text)]" },
+  gray:   { badge: badgeVariants({ variant: "gray"   }), dot: "bg-muted-foreground"     },
 } as const;
 
 export type StatusColor = keyof typeof STATUS_STYLES;

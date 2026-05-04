@@ -1,2 +1,2 @@
-import { Skeleton } from "@/components/ui/skeleton";
-export default function Loading() { return <Skeleton className="h-96 w-full rounded-lg" />; }
+import { PageSkeleton } from "@/components/PageSkeleton";
+export default function Loading() { return <PageSkeleton title="Checkouts" rows={6} />; }
