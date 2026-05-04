@@ -18,6 +18,7 @@ import {
   ScrollTextIcon,
   BarChart3Icon,
   SettingsIcon,
+  HelpCircleIcon,
   LogOutIcon,
   BellIcon,
   PlusIcon,
@@ -340,6 +341,18 @@ export default function AppSidebar({
           </ToggleGroup>
         </div>
         <SidebarMenu className="px-2">
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              tooltip="Help & support"
+              className="text-white/55 hover:text-white/85 hover:bg-white/[0.05]"
+            >
+              <a href="mailto:erole@athletics.wisc.edu?subject=Wisconsin%20Creative%20gear-tracker%20help">
+                <HelpCircleIcon />
+                <span>Help</span>
+              </a>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
               tooltip={isLoggingOut ? "Logging out…" : "Log out"}

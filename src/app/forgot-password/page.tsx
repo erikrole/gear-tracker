@@ -97,6 +97,15 @@ export default function ForgotPasswordPage() {
               <p className="text-center text-sm text-muted-foreground">
                 <Link href="/login" className="font-medium text-foreground hover:underline transition-colors">Back to sign in</Link>
               </p>
+              <p className="text-center text-xs text-muted-foreground">
+                Need help?{" "}
+                <a
+                  href="mailto:erole@athletics.wisc.edu?subject=Wisconsin%20Creative%20gear-tracker%20help"
+                  className="underline underline-offset-2 hover:text-foreground transition-colors"
+                >
+                  Contact an administrator
+                </a>
+              </p>
             </form>
           )}
         </CardContent>

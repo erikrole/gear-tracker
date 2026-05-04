@@ -202,7 +202,14 @@ export default function LoginForm() {
             <Separator />
 
             <p className="text-center text-sm text-muted-foreground">
-              Access is by invitation only. Contact an administrator to request access.
+              Access is by invitation only.{" "}
+              <a
+                href="mailto:erole@athletics.wisc.edu?subject=Wisconsin%20Creative%20gear-tracker%20access"
+                className="underline underline-offset-2 hover:text-foreground transition-colors"
+              >
+                Contact an administrator
+              </a>{" "}
+              to request access.
             </p>
           </form>
         </CardContent>
