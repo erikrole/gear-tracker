@@ -21,7 +21,12 @@ export function middleware(request: NextRequest) {
   const csp = [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
-    `style-src 'self' 'nonce-${nonce}' 'unsafe-inline'`,
+    // style-src: keep 'unsafe-inline' for now. React/Next inline style
+    // props and hydration styles need it. Mixing nonce + 'unsafe-inline'
+    // makes the browser ignore 'unsafe-inline' per CSP spec, breaking
+    // every style={...} on the page. Migrating to nonce-styles is a
+    // larger refactor — captured in tasks/security-headers-audit.md.
+    "style-src 'self' 'unsafe-inline'",
     "img-src 'self' blob: data: https://*.public.blob.vercel-storage.com",
     "font-src 'self' data:",
     "connect-src 'self' https://*.public.blob.vercel-storage.com https://*.sentry.io https://*.ingest.sentry.io",

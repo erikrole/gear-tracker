@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { AlertCircle, EyeIcon, EyeOffIcon, WifiOff } from "lucide-react";
-import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,7 +37,6 @@ export default function LoginForm() {
   const [rememberMe, setRememberMe] = useState(false);
   const [isNetworkError, setIsNetworkError] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const prefersReducedMotion = useReducedMotion();
 
   const { submit, submitting, formError, clearErrors } = useFormSubmit({
     url: "/api/auth/login",
@@ -149,18 +147,15 @@ export default function LoginForm() {
                   aria-pressed={showPassword}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  <AnimatePresence mode="wait" initial={false}>
-                    <motion.span
-                      key={showPassword ? "hide" : "show"}
-                      initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.25, filter: "blur(4px)" }}
-                      animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-                      exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.25, filter: "blur(4px)" }}
-                      transition={prefersReducedMotion ? { duration: 0 } : { type: "spring", duration: 0.3, bounce: 0 }}
-                      className="flex items-center justify-center"
-                    >
-                      {showPassword ? <EyeOffIcon className="size-5" /> : <EyeIcon className="size-5" />}
-                    </motion.span>
-                  </AnimatePresence>
+                  {/* Animated icon swap via CSS — keeps motion/react out of the
+                      auth route bundle. prefers-reduced-motion is honored by
+                      the global @media rule in globals.css. */}
+                  <span
+                    key={showPassword ? "hide" : "show"}
+                    className="flex items-center justify-center motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-50 motion-safe:duration-200"
+                  >
+                    {showPassword ? <EyeOffIcon className="size-5" /> : <EyeIcon className="size-5" />}
+                  </span>
                 </Button>
               </div>
               <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 data-[visible=true]:grid-rows-[1fr]" data-visible={!!fieldErrors.password} aria-hidden={!fieldErrors.password}>
