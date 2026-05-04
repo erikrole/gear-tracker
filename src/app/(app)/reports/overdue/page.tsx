@@ -76,7 +76,15 @@ function LeaderboardMobileCard({
   onToggle: () => void;
 }) {
   return (
-    <div className="flex flex-col gap-2 px-4 py-3 border-b last:border-b-0 cursor-pointer" onClick={onToggle}>
+    <div
+      className="flex flex-col gap-2 px-4 py-3 border-b last:border-b-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
+      onClick={onToggle}
+      role="button"
+      tabIndex={0}
+      aria-expanded={expanded}
+      aria-label={`${expanded ? "Collapse" : "Expand"} ${entry.name}`}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }}
+    >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-muted-foreground text-sm">#{rank}</span>
@@ -313,7 +321,14 @@ function OverdueTableRows({
 }) {
   return (
     <>
-      <TableRow className="cursor-pointer" onClick={onToggle}>
+      <TableRow
+        className="cursor-pointer focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
+        onClick={onToggle}
+        tabIndex={0}
+        aria-expanded={expanded}
+        aria-label={`${expanded ? "Collapse" : "Expand"} ${entry.name}`}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }}
+      >
         <TableCell className="text-muted-foreground">{rank}</TableCell>
         <TableCell className="font-semibold">{entry.name}</TableCell>
         <TableCell className="text-right">

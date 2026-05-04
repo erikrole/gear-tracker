@@ -224,7 +224,7 @@ export function DataTable({
                       router.push(href);
                     }
                   }}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); router.push(getItemHref(row.original.id)); } }}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); router.push(getItemHref(row.original.id)); } }}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>

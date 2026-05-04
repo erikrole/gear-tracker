@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { AlertCircle, EyeIcon, EyeOffIcon, WifiOff } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { Spinner } from "@/components/ui/spinner";
@@ -85,7 +86,7 @@ export default function LoginForm() {
         <CardHeader className="text-center pb-2 pt-8">
           {/* Brand mark — Motion W */}
           <div className="flex items-center justify-center mb-3">
-            <img src="/Badgers.png" alt="Wisconsin" className="size-12 object-contain" />
+            <Image src="/Badgers.png" alt="Wisconsin" width={48} height={48} className="size-12 object-contain" priority />
           </div>
           <CardTitle className="text-2xl tracking-tight" style={{ fontFamily: "var(--font-heading)", fontWeight: 800 }}>Wisconsin Creative</CardTitle>
           <CardDescription className="text-base">Sign in to your account</CardDescription>

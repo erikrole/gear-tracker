@@ -3,6 +3,7 @@
 import { Suspense, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { AlertCircle, CheckCircle2, EyeIcon, EyeOffIcon, WifiOff } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
@@ -206,7 +207,7 @@ export default function ResetPasswordPage() {
       <Card className="relative w-full max-w-[420px] shadow-2xl border-0 animate-in fade-in-0 zoom-in-95 duration-500">
         <CardHeader className="text-center pb-2 pt-8">
           <div className="flex items-center justify-center mb-3">
-            <img src="/Badgers.png" alt="Wisconsin" className="size-12 object-contain" />
+            <Image src="/Badgers.png" alt="Wisconsin" width={48} height={48} className="size-12 object-contain" priority />
           </div>
           <CardTitle className="text-2xl tracking-tight" style={{ fontFamily: "var(--font-heading)", fontWeight: 800 }}>Wisconsin Creative</CardTitle>
           <CardDescription className="text-base">Set a new password</CardDescription>

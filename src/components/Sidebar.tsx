@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { getInitials } from "@/lib/avatar";
@@ -149,10 +150,13 @@ export default function AppSidebar({
         <SidebarHeader className="pb-0 pt-4">
           {/* ── Brand lockup ── */}
           <div className="flex items-center gap-3 px-4 pb-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2">
-            <img
+            <Image
               src="/Badgers.png"
               alt="Wisconsin Badgers"
+              width={28}
+              height={28}
               className="size-7 shrink-0 object-contain"
+              priority
             />
             <div className="min-w-0 group-data-[collapsible=icon]:hidden">
               <p

@@ -181,7 +181,14 @@ export function LicenseTable({
             const displayCode = isAdmin || isOwn ? code.code : MASKED_CODE;
 
             return (
-              <TableRow key={code.id} className={rowClass} onClick={handleClick}>
+              <TableRow
+                key={code.id}
+                className={cn(rowClass, isClickable && "focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]")}
+                onClick={handleClick}
+                tabIndex={isClickable ? 0 : undefined}
+                aria-label={isClickable ? `${code.status === "AVAILABLE" ? "Claim" : "Inspect"} license ${displayCode}` : undefined}
+                onKeyDown={isClickable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleClick(); } } : undefined}
+              >
                 <TableCell>
                   <div className="flex flex-col gap-0.5">
                     <div className="flex items-center gap-2 flex-wrap">

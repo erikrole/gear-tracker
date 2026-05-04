@@ -410,7 +410,14 @@ export function BookingKindTab({
                 const dur = formatDuration(b.startsAt, b.endsAt);
                 const st = bookingStatusLabel(b.status, b.kind);
                 return (
-                  <TableRow key={entry.id} className="cursor-pointer" onClick={() => onSelectBooking(b.id)}>
+                  <TableRow
+                    key={entry.id}
+                    className="cursor-pointer focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
+                    tabIndex={0}
+                    aria-label={`Open booking ${b.title}`}
+                    onClick={() => onSelectBooking(b.id)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectBooking(b.id); } }}
+                  >
                     <TableCell>
                       <div className="font-medium text-primary">{b.title}</div>
                       <div className="flex items-center gap-1.5 mt-0.5">
@@ -673,7 +680,14 @@ export function BookingsTab({
                 const dur = formatDuration(b.startsAt, b.endsAt);
                 const st = bookingStatusLabel(b.status, b.kind);
                 return (
-                  <TableRow key={entry.id} className="cursor-pointer" onClick={() => onSelectBooking(b.id)}>
+                  <TableRow
+                    key={entry.id}
+                    className="cursor-pointer focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
+                    tabIndex={0}
+                    aria-label={`Open booking ${b.title}`}
+                    onClick={() => onSelectBooking(b.id)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectBooking(b.id); } }}
+                  >
                     <TableCell>
                       <div className="font-medium text-primary">{b.title}</div>
                       <div className="flex items-center gap-1.5 mt-0.5">
