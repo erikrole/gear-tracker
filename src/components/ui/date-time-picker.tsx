@@ -88,6 +88,7 @@ function DateTimePicker({
         <div className="flex items-center gap-2 border-t px-3 py-2">
           <CalendarIcon className="size-4 text-muted-foreground" />
           <NativeSelect
+            aria-label="Hour"
             value={hours}
             onChange={(e) => handleTimeChange(Number(e.target.value), minutes)}
           >
@@ -100,6 +101,7 @@ function DateTimePicker({
           </NativeSelect>
           <span className="text-muted-foreground">:</span>
           <NativeSelect
+            aria-label="Minute"
             value={minutes}
             onChange={(e) => handleTimeChange(hours, Number(e.target.value))}
           >

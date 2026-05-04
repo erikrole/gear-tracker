@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AlertCircle, EyeIcon, EyeOffIcon, WifiOff } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,6 +37,7 @@ export default function LoginForm() {
   const [rememberMe, setRememberMe] = useState(false);
   const [isNetworkError, setIsNetworkError] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const prefersReducedMotion = useReducedMotion();
 
   const { submit, submitting, formError, clearErrors } = useFormSubmit({
     url: "/api/auth/login",
@@ -150,10 +151,10 @@ export default function LoginForm() {
                   <AnimatePresence mode="wait" initial={false}>
                     <motion.span
                       key={showPassword ? "hide" : "show"}
-                      initial={{ opacity: 0, scale: 0.25, filter: "blur(4px)" }}
+                      initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.25, filter: "blur(4px)" }}
                       animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-                      exit={{ opacity: 0, scale: 0.25, filter: "blur(4px)" }}
-                      transition={{ type: "spring", duration: 0.3, bounce: 0 }}
+                      exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.25, filter: "blur(4px)" }}
+                      transition={prefersReducedMotion ? { duration: 0 } : { type: "spring", duration: 0.3, bounce: 0 }}
                       className="flex items-center justify-center"
                     >
                       {showPassword ? <EyeOffIcon className="size-5" /> : <EyeIcon className="size-5" />}
