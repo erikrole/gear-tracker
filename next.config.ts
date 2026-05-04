@@ -22,31 +22,69 @@ const nextConfig: NextConfig = {
     ],
   },
   async headers() {
+    // TODO(P0): migrate script-src to a per-request nonce via src/middleware.ts
+    // and remove 'unsafe-inline'. The two inline scripts in src/app/layout.tsx
+    // (themeScript FOUC fix, swScript SW registration) are the only blockers.
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' blob: data: https://*.public.blob.vercel-storage.com",
+      "font-src 'self' data:",
+      "connect-src 'self' https://*.public.blob.vercel-storage.com https://*.sentry.io https://*.ingest.sentry.io",
+      "worker-src 'self'",
+      "manifest-src 'self'",
+      "frame-ancestors 'none'",
+      "form-action 'self'",
+      "base-uri 'none'",
+      "object-src 'none'",
+      "upgrade-insecure-requests",
+    ].join("; ");
+
+    const permissionsPolicy = [
+      "camera=(self)",
+      "microphone=()",
+      "geolocation=()",
+      "payment=()",
+      "usb=()",
+      "serial=()",
+      "bluetooth=()",
+      "magnetometer=()",
+      "gyroscope=()",
+      "accelerometer=()",
+      "ambient-light-sensor=()",
+      "autoplay=(self)",
+      "encrypted-media=()",
+      "fullscreen=(self)",
+      "picture-in-picture=()",
+      "display-capture=()",
+      "midi=()",
+      "screen-wake-lock=()",
+      "web-share=(self)",
+      "interest-cohort=()",
+      "browsing-topics=()",
+    ].join(", ");
+
     return [
       {
         source: "/:path*",
         headers: [
           { key: "X-Frame-Options", value: "DENY" },
           { key: "X-Content-Type-Options", value: "nosniff" },
-          {
-            key: "Referrer-Policy",
-            value: "strict-origin-when-cross-origin",
-          },
-          {
-            key: "Permissions-Policy",
-            value: "camera=(self), microphone=(), geolocation=()",
-          },
-          {
-            key: "Strict-Transport-Security",
-            value: "max-age=63072000; includeSubDomains; preload",
-          },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: permissionsPolicy },
+          { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+          { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
           { key: "X-DNS-Prefetch-Control", value: "on" },
-          {
-            key: "Content-Security-Policy",
-            value:
-              "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https:; font-src 'self'; connect-src 'self' https://*.sentry.io; frame-ancestors 'none'",
-          },
+          { key: "Content-Security-Policy", value: csp },
         ],
+      },
+      // Auth pages: never cache — prevents BFCache from replaying the form
+      // after sign-out and avoids any shared-cache leakage.
+      {
+        source: "/(login|register|forgot-password|reset-password)",
+        headers: [{ key: "Cache-Control", value: "no-store" }],
       },
     ];
   },

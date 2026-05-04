@@ -15,7 +15,13 @@ export class HttpError extends Error {
 }
 
 export function ok<T>(data: T, status = 200) {
-  return NextResponse.json(data, { status });
+  // Default authed JSON to no-store so a logged-out user can't replay
+  // sensitive responses from the browser cache via Back. Routes that
+  // benefit from caching should use cachedOk() explicitly.
+  return NextResponse.json(data, {
+    status,
+    headers: { "Cache-Control": "private, no-store" },
+  });
 }
 
 /** Like ok(), but adds a private 60s browser cache with 5-min stale-while-revalidate. */
