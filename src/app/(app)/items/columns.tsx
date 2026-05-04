@@ -381,7 +381,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-8 opacity-0 transition-opacity group-hover/row:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+                className="size-8 opacity-0 transition-opacity group-hover/row:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 [@media(pointer:coarse)]:opacity-100"
                 onClick={(e) => e.stopPropagation()}
               >
                 <MoreHorizontal className="size-4" />

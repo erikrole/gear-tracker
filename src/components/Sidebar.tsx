@@ -185,7 +185,7 @@ export default function AppSidebar({
                   <Avatar className="size-7 shrink-0 ring-1 ring-white/[0.15] bg-white/[0.08]">
                     {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
                     <AvatarFallback
-                      className="bg-transparent text-white/80 text-[10px] font-bold"
+                      className="bg-transparent text-white/80 text-[length:var(--text-2xs)] font-bold"
                       style={{ fontFamily: "var(--font-heading)" }}
                     >
                       {userInitials}
@@ -285,7 +285,7 @@ export default function AppSidebar({
                       </SidebarMenuButton>
 
                       {badgeCount > 0 && (
-                        <SidebarMenuBadge className="bg-[var(--wi-red)] text-white text-[10px] font-semibold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1">
+                        <SidebarMenuBadge className="bg-[var(--wi-red)] text-white text-[length:var(--text-2xs)] font-semibold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1">
                           <span className="sr-only">
                             {badgeCfg!.count} {badgeCfg!.suffix}
                           </span>

@@ -101,9 +101,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       // Skip if already in an input, or if modifier keys are held (except shift)
       if (cmdOpen) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      const tag = (e.target as HTMLElement)?.tagName;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-      if ((e.target as HTMLElement)?.isContentEditable) return;
+      if (target?.isContentEditable) return;
+      // Don't steal keystrokes from interactive widgets (combobox triggers,
+      // listboxes, open dialogs/menus, etc.) that consume printable keys.
+      if (target?.closest('[role="combobox"], [role="listbox"], [role="menu"], [role="dialog"], [role="option"], [contenteditable="true"]')) return;
       // Only trigger on printable single characters
       if (e.key.length === 1 && !e.repeat) {
         setCmdOpen(true);
@@ -405,7 +409,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   <Link href="/notifications" aria-label={unreadNotifications > 0 ? `Notifications (${unreadNotifications} unread)` : "Notifications"}>
                     <BellIcon className="size-5" />
                     {unreadNotifications > 0 && (
-                      <span className="absolute top-0.5 right-0.5 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full px-[5px] min-w-4 h-4 leading-4 text-center tabular-nums" aria-hidden="true">{unreadNotifications > 99 ? "99+" : unreadNotifications}</span>
+                      <span className="absolute top-0.5 right-0.5 bg-destructive text-destructive-foreground text-[length:var(--text-2xs)] font-bold rounded-full px-[5px] min-w-4 h-4 leading-4 text-center tabular-nums" aria-hidden="true">{unreadNotifications > 99 ? "99+" : unreadNotifications}</span>
                     )}
                   </Link>
                 </Button>
@@ -443,7 +447,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center justify-center gap-0.5 py-2 px-1 min-w-14 min-h-12 no-underline text-muted-foreground text-[11px] font-medium border-none bg-transparent cursor-pointer transition-colors [-webkit-tap-highlight-color:transparent] hover:text-foreground${isActive ? " !text-[var(--wi-red)]" : ""}`}
+              className={`flex flex-col items-center justify-center gap-0.5 py-2 px-1 min-w-14 min-h-12 no-underline text-muted-foreground text-[length:var(--text-3xs)] font-medium border-none bg-transparent cursor-pointer transition-colors [-webkit-tap-highlight-color:transparent] hover:text-foreground${isActive ? " !text-[var(--wi-red)]" : ""}`}
             >
               {item.icon}
               <span>{item.label}</span>
