@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/drawer";
 import { statusLabelEquipment, statusBadgeVariantEquipment } from "@/lib/status-colors";
 import type { ItemPreview } from "./types";
+import { getSdCardSlotLabel } from "@/lib/asset-attachments";
 
 type ItemPreviewDrawerProps = {
   item: ItemPreview | null;
@@ -26,6 +27,7 @@ export function ItemPreviewDrawer({ item, onClose }: ItemPreviewDrawerProps) {
   const router = useRouter();
   const isBooked = !!item?.activeBooking;
   const displayName = item?.name || `${item?.brand} ${item?.model}`;
+  const slotLabel = item?.parentAsset ? getSdCardSlotLabel(item, item.parentAsset.assetTag) : null;
 
   return (
     <Drawer
@@ -64,6 +66,15 @@ export function ItemPreviewDrawer({ item, onClose }: ItemPreviewDrawerProps) {
                   {statusLabelEquipment(item.computedStatus)}
                 </Badge>
               </div>
+              {item.parentAsset && (
+                <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                  <span>Attached to</span>
+                  <Link href={`/items/${item.parentAsset.id}`} className="font-mono font-medium text-primary hover:underline">
+                    {item.parentAsset.assetTag}
+                  </Link>
+                  {slotLabel && <Badge variant="blue" size="sm">{slotLabel}</Badge>}
+                </div>
+              )}
             </DrawerHeader>
 
             <div className="px-4 pb-2">

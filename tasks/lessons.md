@@ -27,6 +27,8 @@
 ## Data Integrity
 
 - **Asset status is derived, not stored** (D-001): Always compute from allocations. Never write to a status field.
+- **Numbered bulk unit QR codes are derived identities**: A QR value like `{binQrCodeValue}-{unitNumber}` should resolve through the parent `BulkSku` and existing `BulkSkuUnit` row. Do not add per-unit QR fields or convert batteries to serialized assets unless the operational model changes.
+- **Battery bookings are quantity intent until kiosk pickup**: Do not force camera-battery hard gates during booking creation. Creation records the requested battery quantity and warns on low compatible availability; kiosk scans bind the actual numbered units.
 - **Concurrent mutations need SERIALIZABLE**: Two users editing the same entity — lost updates happen without proper isolation.
 - **`Promise.allSettled` for read-only parallel queries**: Prevents total failure from one slow query in dashboard-style endpoints.
 - **Scan dedup within 5-second window**: Prevents camera debounce from creating duplicate scan events.

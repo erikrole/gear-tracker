@@ -21,6 +21,7 @@ import {
 import { PencilIcon, ImageIcon, Copy, Check, RefreshCw, Star, ChevronRight } from "lucide-react";
 
 import type { AssetDetail } from "../types";
+import { getAttachmentKind, getSdCardSlotLabel } from "@/lib/asset-attachments";
 
 /* ── Status Line ────────────────────────────────────────── */
 
@@ -147,6 +148,9 @@ export function ItemHeader({
   onAction,
   onImageModalOpen,
 }: ItemHeaderProps) {
+  const attachmentKind = asset.parentAsset ? getAttachmentKind(asset) : null;
+  const slotLabel = asset.parentAsset ? getSdCardSlotLabel(asset, asset.parentAsset.assetTag) : null;
+
   return (
     <>
       {/* ── Equipment Manifest Card ─────────────────────────── */}
@@ -376,7 +380,7 @@ export function ItemHeader({
             className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/50"
             style={{ fontFamily: "var(--font-mono)" }}
           >
-            Accessory of
+            Attached to
           </span>
           <ChevronRight className="size-3 text-muted-foreground/30" />
           <Link
@@ -386,6 +390,12 @@ export function ItemHeader({
           >
             {asset.parentAsset.assetTag}
           </Link>
+          {slotLabel && <Badge variant="blue" size="sm">{slotLabel}</Badge>}
+          {attachmentKind && !slotLabel && (
+            <Badge variant={attachmentKind === "camera-rig" ? "purple" : "gray"} size="sm">
+              Attachment
+            </Badge>
+          )}
           {(asset.parentAsset.brand || asset.parentAsset.model) && (
             <span
               className="text-[11px] text-muted-foreground/50"

@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Bulk Inventory Management
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-04-09
+- Last Updated: 2026-05-05
 - Status: Active
 - Version: V1
 
@@ -18,6 +18,10 @@ Track non-serialized (bulk) inventory — quantities of identical items (e.g., 5
 5. Conversion from quantity to numbered is one-way (creates N units; cannot convert back).
 6. Staff (ADMIN/STAFF) can add units, convert to numbered, mark units lost/retired.
 7. Students see bulk SKUs in equipment picker during checkout and can scan bin QR codes.
+8. QR-coded batteries stay in numbered bulk when they follow the existing Sony battery pattern: one SKU with unit-level tracking beneath it.
+9. Numbered bulk unit QR values are derived as `{binQrCodeValue}-{unitNumber}` and scan directly as that one unit; printed label text can stay as the unit number only.
+10. Camera-slot SD cards are not bulk inventory when assigned to a specific camera slot; they are serialized item attachments under the camera.
+11. Numbered battery available quantity derives from `BulkSkuUnit.status = AVAILABLE`; low-stock warnings use available units and default to threshold 10 when the SKU threshold is lower or unset.
 
 ## Routes
 
@@ -58,6 +62,12 @@ Track non-serialized (bulk) inventory — quantities of identical items (e.g., 5
 - `BulkSkuUnit` — bulk SKU FK, unitNumber (sequential), status (AVAILABLE / CHECKED_OUT / LOST / RETIRED), notes, timestamps (only exists if trackByNumber = true)
 - `BookingBulkItem` — booking FK, bulk SKU FK, quantity, timestamps
 - `BookingBulkUnitAllocation` — bulk SKU unit FK, booking bulk item FK, timestamps (links unit to booking)
+
+**QR behavior:**
+- Quantity-only SKUs scan by `BulkSku.binQrCodeValue` and prompt for quantity.
+- Numbered SKUs scan by `BulkSku.binQrCodeValue` to open the unit picker, or by `{binQrCodeValue}-{unitNumber}` to submit one specific unit directly.
+- Unit QR values are derived; there is no separate QR field on `BulkSkuUnit` in V1.
+- Kiosk pickup and check-in accept derived numbered unit QR values so batteries are physically scanned one by one.
 
 ## API
 
@@ -136,6 +146,10 @@ See `AREA_ITEMS.md` 2026-04-06 entry for bulk inventory page hardening:
 - [x] AC-6: Change unit status (mark lost, retire, release) with audit trail
 
 ## Change Log
+- 2026-05-05: Battery compatibility mapping aligned to the current import snapshot: Sony NP-FZ100 bodies (FX3, A7/A1/A9 family) and Sony BP-U bodies (FX6) warn against matching numbered battery SKUs. Reporting remains deferred in GAP-37.
+- 2026-05-05: Bulk battery hardening — kiosk pickup/check-in now accepts numbered battery unit QR scans, lookup resolves battery units, and checkout creation warns when compatible battery availability is low.
+- 2026-05-05: Numbered bulk unit QR scans shipped — values like `94e068d1-7` resolve to the parent SKU and unit #7 without opening the picker.
+- 2026-05-05: Clarified battery/media split — QR-coded batteries remain numbered bulk units, while camera-slot SD cards belong to the item attachment model.
 - 2026-03-15: Bulk inventory V1 shipped — SKU CRUD, quantity vs numbered tracking modes, unit table, add units, convert to numbered. Color-coded status badges. Mobile card layout. Pagination.
 - 2026-04-06: Bulk inventory page hardening (5-pass audit) — 401 redirect on all 3 mutations (add units, convert to numbered, unit status change). List data uses `useFetch` hook.
 - 2026-04-09: Design refresh (Phase 2) — UNIT_STATUS_CLASSES token map added. Data-table → shadcn Table. useConfirm instead of native confirm(). Shadcn Pagination. Tailwind classnames. Doc sync.

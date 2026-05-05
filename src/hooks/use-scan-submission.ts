@@ -19,6 +19,7 @@ import {
   parseErrorMessage,
   parseJsonSafely,
 } from "@/lib/errors";
+import { parseDerivedBulkUnitQr } from "@/lib/bulk-unit-qr";
 
 type UseScanSubmissionOptions = {
   mode: ScanMode;
@@ -238,6 +239,24 @@ export function useScanSubmission(
         );
 
         if (numberedBulk) {
+          const derivedUnitQr = parseDerivedBulkUnitQr(
+            value,
+            scanStatus.bulkItems.map((item) => ({
+              id: item.bulkSkuId,
+              binQrCodeValue: item.binQrCodeValue ?? null,
+              trackByNumber: item.trackByNumber,
+            })),
+          );
+
+          if (derivedUnitQr) {
+            await submitScan({
+              scanType: "BULK_BIN",
+              scanValue: value,
+              unitNumbers: [derivedUnitQr.unitNumber],
+            });
+            return;
+          }
+
           const endpoint =
             phase === "CHECKIN"
               ? `/api/checkouts/${checkoutId}/checkin-scan`

@@ -11,7 +11,9 @@ import {
 } from "@/lib/equipment-sections";
 import { CheckCircle2Icon, CircleIcon, SearchIcon, XIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
+import { getBatteryAvailabilityAlerts } from "@/lib/battery-compatibility";
 // Native overflow-y-auto used instead of Radix ScrollArea (max-height incompatibility)
 import { AssetImage } from "@/components/AssetImage";
 
@@ -41,6 +43,7 @@ export type PickerBulkSku = {
   category: string;
   currentQuantity: number;
   availableQuantity?: number;
+  minThreshold?: number | null;
   trackByNumber?: boolean;
   binQrCodeValue?: string | null;
   categoryName?: string | null;
@@ -182,6 +185,14 @@ export default function EquipmentPicker({
       .filter((a): a is PickerAsset => !!a);
   }, [selectedAssetIds, assetById, selectedAssetsCache]);
 
+  const batteryAlerts = useMemo(
+    () => getBatteryAvailabilityAlerts({
+      selectedAssets: resolvedSelectedAssets,
+      bulkSkus,
+    }),
+    [bulkSkus, resolvedSelectedAssets],
+  );
+
   // ── Helpers ──
 
   function toggleAsset(id: string, asset?: PickerAsset) {
@@ -272,6 +283,20 @@ export default function EquipmentPicker({
           Available only
         </label>
       </div>
+
+      {batteryAlerts.length > 0 && (
+        <div className="border-b border-border bg-background px-3 py-2">
+          {batteryAlerts.map((alert) => (
+            <Alert key={alert.ruleId} className="rounded-md border-orange-500/30 bg-orange-500/[0.06] py-2.5">
+              <AlertTitle className="text-sm">Low {alert.label}</AlertTitle>
+              <AlertDescription className="text-xs text-muted-foreground">
+                {alert.availableQuantity} available, threshold {alert.threshold}
+                {alert.cameraModels.length > 0 ? ` for ${alert.cameraModels.join(", ")}` : ""}.
+              </AlertDescription>
+            </Alert>
+          ))}
+        </div>
+      )}
 
       {/* ── Item list ── */}
       <div className="max-h-[28rem] overflow-y-auto">

@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { markCheckoutCompleted } from "@/lib/services/bookings";
 import { createAuditEntry } from "@/lib/audit";
+import { parseDerivedBulkUnitQr } from "@/lib/bulk-unit-qr";
 
 export async function startScanSession(args: {
   bookingId: string;
@@ -143,8 +144,19 @@ export async function recordScan(args: {
   }
 
   const scanValueNorm = args.scanValue.toLowerCase().trim();
-  const bulkItem = booking.bulkItems.find(
+  const exactBulkItem = booking.bulkItems.find(
     (item) => item.bulkSku.binQrCodeValue.toLowerCase().trim() === scanValueNorm
+  );
+  const derivedUnitQr = exactBulkItem
+    ? null
+    : parseDerivedBulkUnitQr(
+        args.scanValue,
+        booking.bulkItems.map((item) => item.bulkSku),
+      );
+  const bulkItem = exactBulkItem ?? (
+    derivedUnitQr
+      ? booking.bulkItems.find((item) => item.bulkSku.id === derivedUnitQr.bulkSkuId)
+      : undefined
   );
 
   if (!bulkItem) {
@@ -170,7 +182,14 @@ export async function recordScan(args: {
 
   // Numbered bulk: requires unitNumbers instead of quantity
   if (bulkSku.trackByNumber) {
-    if (!args.unitNumbers || args.unitNumbers.length === 0) {
+    const unitNumbers =
+      args.unitNumbers && args.unitNumbers.length > 0
+        ? args.unitNumbers
+        : derivedUnitQr
+          ? [derivedUnitQr.unitNumber]
+          : [];
+
+    if (unitNumbers.length === 0) {
       throw new HttpError(400, "Numbered bulk items require unitNumbers");
     }
 
@@ -178,13 +197,13 @@ export async function recordScan(args: {
       const units = await tx.bulkSkuUnit.findMany({
         where: {
           bulkSkuId: bulkSku.id,
-          unitNumber: { in: args.unitNumbers! }
+          unitNumber: { in: unitNumbers }
         }
       });
 
-      if (units.length !== args.unitNumbers!.length) {
+      if (units.length !== unitNumbers.length) {
         const found = new Set(units.map((u) => u.unitNumber));
-        const missing = args.unitNumbers!.filter((n) => !found.has(n));
+        const missing = unitNumbers.filter((n) => !found.has(n));
         throw new HttpError(400, `Unit numbers not found: ${missing.join(", ")}`);
       }
 
@@ -226,7 +245,7 @@ export async function recordScan(args: {
           bulkSkuId: bulkSku.id,
           phase: args.phase,
           success: true,
-          quantity: args.unitNumbers!.length,
+          quantity: unitNumbers.length,
           deviceContext: args.deviceContext
         }
       });
@@ -238,7 +257,7 @@ export async function recordScan(args: {
       await tx.bulkSkuUnit.updateMany({
         where: {
           bulkSkuId: bulkSku.id,
-          unitNumber: { in: args.unitNumbers! }
+          unitNumber: { in: unitNumbers }
         },
         data: { status: newStatus }
       });
@@ -272,7 +291,7 @@ export async function recordScan(args: {
 
       await tx.bookingBulkItem.update({
         where: { id: bulkItem.id },
-        data: { [quantityField]: { increment: args.unitNumbers!.length } }
+        data: { [quantityField]: { increment: unitNumbers.length } }
       });
 
       return { event };

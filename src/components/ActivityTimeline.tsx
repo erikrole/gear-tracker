@@ -371,20 +371,20 @@ function describeAction(
     case "accessory_attached": {
       const accName = entry.afterJson?.name || entry.afterJson?.accessoryName;
       return accName
-        ? `${reportPrefix}Attached accessory "${accName}"`
-        : `${reportPrefix}Attached an accessory`;
+        ? `${reportPrefix}Attached item "${accName}"`
+        : `${reportPrefix}Attached an item`;
     }
     case "accessory_detached": {
       const detName = entry.beforeJson?.name || entry.beforeJson?.accessoryName;
       return detName
-        ? `${reportPrefix}Detached accessory "${detName}"`
-        : `${reportPrefix}Detached an accessory`;
+        ? `${reportPrefix}Detached item "${detName}"`
+        : `${reportPrefix}Detached an item`;
     }
     case "accessory_moved": {
       const movName = entry.afterJson?.name || entry.afterJson?.accessoryName;
       return movName
-        ? `${reportPrefix}Moved accessory "${movName}" to another item`
-        : `${reportPrefix}Moved an accessory to another item`;
+        ? `${reportPrefix}Moved attachment "${movName}" to another item`
+        : `${reportPrefix}Moved an attachment to another item`;
     }
     case "image_uploaded":
       return `${reportPrefix}Uploaded a photo`;

@@ -111,6 +111,10 @@ struct KioskPendingPickup: Decodable, Identifiable {
         let name: String
         let quantity: Int
     }
+
+    var itemCount: Int {
+        serializedItems.count + bulkItems.reduce(0) { $0 + $1.quantity }
+    }
 }
 
 struct KioskReservation: Decodable, Identifiable {

@@ -19,7 +19,20 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
 
   const booking = await db.booking.findUnique({
     where: { id: params.id },
-    select: { id: true, status: true, kind: true, title: true, _count: { select: { serializedItems: true } } },
+    select: {
+      id: true,
+      status: true,
+      kind: true,
+      title: true,
+      serializedItems: { select: { id: true } },
+      bulkItems: {
+        select: {
+          plannedQuantity: true,
+          checkedOutQuantity: true,
+          bulkSku: { select: { name: true } },
+        },
+      },
+    },
   });
 
   if (!booking || booking.kind !== "CHECKOUT") {
@@ -28,6 +41,16 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
 
   if (booking.status !== "PENDING_PICKUP") {
     throw new HttpError(409, `Cannot confirm pickup — booking is in ${booking.status} state`);
+  }
+
+  const incompleteBulk = booking.bulkItems.find(
+    (item) => (item.checkedOutQuantity ?? 0) < item.plannedQuantity,
+  );
+  if (incompleteBulk) {
+    throw new HttpError(
+      409,
+      `Scan all ${incompleteBulk.bulkSku.name} units before confirming pickup`,
+    );
   }
 
   await db.booking.update({

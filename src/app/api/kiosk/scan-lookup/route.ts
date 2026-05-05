@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { withKiosk } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
 import { findAssetByScanValue } from "@/lib/services/kiosk-scan";
+import { findBulkUnitByScanValue } from "@/lib/services/bulk-unit-scans";
 import { scanLookupBody } from "@/lib/schemas/kiosk";
 
 /** Look up an item by QR code or asset tag */
@@ -17,6 +18,28 @@ export const POST = withKiosk(async (req) => {
   });
 
   if (!asset) {
+    const unit = await findBulkUnitByScanValue(scanValue);
+    if (unit) {
+      const status = unit.status === "CHECKED_OUT"
+        ? unit.dueAt && new Date(unit.dueAt) < new Date()
+          ? "Overdue"
+          : "Checked Out"
+        : unit.status.replace(/_/g, " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
+
+      return ok({
+        item: {
+          id: unit.id,
+          tagName: unit.tagName,
+          productName: unit.name,
+          type: unit.bulkSkuName,
+          status,
+          holder: unit.holder,
+          dueAt: unit.dueAt,
+          bookingTitle: unit.bookingTitle,
+        },
+      });
+    }
+
     throw new HttpError(404, "Item not found");
   }
 

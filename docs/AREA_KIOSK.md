@@ -57,6 +57,8 @@ Files under `ios/Wisconsin/Kiosk/`:
   - `POST /checkin/[id]/scan`, `POST /checkin/[id]/complete`
   - `POST /pickup/[id]/scan`, `POST /pickup/[id]/confirm`
   - `POST /scan-lookup` — read-only item-by-tag lookup
+- Numbered battery units scan through the same pickup/check-in endpoints with derived values like `{binQrCodeValue}-{unitNumber}`. Pickup binds the unit to the booking; check-in returns only the scanned unit.
+- Pickup and return detail payloads include numbered battery units in the same `items` checklist used by serialized assets, so the native iOS screens count batteries before allowing pickup/return actions.
 - **Auth helpers:** `withKiosk()` (`src/lib/api.ts`) and `requireKiosk()` (`src/lib/auth.ts`) validate the kiosk-session cookie, refresh `lastSeenAt`, throw 401 if inactive/deactivated.
 
 ## Acceptance Criteria
@@ -94,3 +96,5 @@ Files under `ios/Wisconsin/Kiosk/`:
 | 2026-04-14 | AC-2–AC-13 complete: Full web kiosk flow shipped — activation, idle screen, avatar grid, student hub, checkout flow, return flow, scan lookup, inactivity timer, source=KIOSK audit trail, withKiosk auth on all routes. |
 | 2026-04-29 | Audit-driven hardening: `kiosk/users`, `kiosk/dashboard`, `kiosk/student/[userId]` now scope reads by `kiosk.locationId` (D-032). Kiosk check-in unified under `bookings-checkin.ts` (`kioskCheckinAsset`, `kioskCompleteCheckin`) — bulk items, scan-session close, and SERIALIZABLE wrapping match the web path. Kiosk checkout/complete uses `nextBookingRef` with a per-kind advisory lock to eliminate refNumber races. All `/api/kiosk/*` mutating routes now Zod-validate bodies. `withKiosk` requires Origin on mutations (parity with `withAuth`). Misleading P2002 error message split between refNumber-collision (retry) and item-conflict (409 unavailable). Heartbeat now accepts GET in addition to POST. |
 | 2026-04-24 | **iOS canonical, web kiosk deprecated.** Deleted `src/app/(kiosk)/kiosk/` (3,400 LOC) — all kiosk surfaces now run in the native iOS app. AREA doc rewritten with explicit Trust Model section. Added camera fallback (DataScannerViewController-backed) for AC-6. Added AC-14: scanned-cart preserved across inactivity reset (mid-flow scans no longer silently lost). Added AC-15: heartbeat and idle-dashboard 401s now route back to activation instead of silently failing. UI polish: shared `Color.kioskRed` extension, first-name+last-initial disambiguation on roster collisions, friendlier activation copy, back-button confirms when scanned items present. |
+| 2026-05-05 | Numbered battery unit hardening: pickup/check-in scan routes now accept derived unit QR values, bind or return one unit at a time, and kiosk scan lookup resolves battery unit status with parent SKU context. |
+| 2026-05-05 | iOS kiosk battery checklist hardening: checkout detail payloads now include pending battery scan slots and checked-out battery units, and pickup confirm blocks until planned battery quantities are scanned. |

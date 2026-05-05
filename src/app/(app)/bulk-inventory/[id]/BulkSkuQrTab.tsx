@@ -90,13 +90,21 @@ export default function BulkSkuQrTab({
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground mb-4">
-              Each unit&apos;s QR value is derived as <code className="bg-muted px-1 py-0.5 rounded text-xs">{sku.binQrCodeValue}-&#123;unit#&#125;</code>.
+              Each label shows the unit number for Brother P-Touch printing. The QR still encodes <code className="bg-muted px-1 py-0.5 rounded text-xs">{sku.binQrCodeValue}-&#123;unit#&#125;</code>.
             </p>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(132px,1fr))] gap-4 print:grid-cols-3 print:gap-2">
               {sku.units.slice(0, 50).map((u) => (
-                <div key={u.id} className="flex flex-col items-center gap-1.5">
-                  <QrCodeImage value={`${sku.binQrCodeValue}-${u.unitNumber}`} size={90} />
-                  <span className="text-xs text-muted-foreground font-mono">#{u.unitNumber}</span>
+                <div
+                  key={u.id}
+                  className="flex flex-col items-center gap-1.5 rounded-md border border-border/60 bg-background p-2 print:break-inside-avoid print:border-black print:p-1.5"
+                >
+                  <div className="text-3xl font-black leading-none tabular-nums text-foreground print:text-black">
+                    {u.unitNumber}
+                  </div>
+                  <QrCodeImage value={`${sku.binQrCodeValue}-${u.unitNumber}`} size={92} />
+                  <span className="text-[10px] text-muted-foreground font-mono print:text-black">
+                    {sku.name}
+                  </span>
                 </div>
               ))}
               {sku.units.length > 50 && (

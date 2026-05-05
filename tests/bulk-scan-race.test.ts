@@ -10,6 +10,8 @@ vi.mock("@/lib/db", () => {
     booking: { findUnique: vi.fn() },
     scanEvent: { findFirst: vi.fn(), create: vi.fn() },
     bookingBulkItem: { findUnique: vi.fn(), update: vi.fn() },
+    bulkSkuUnit: { findMany: vi.fn(), updateMany: vi.fn() },
+    bookingBulkUnitAllocation: { findMany: vi.fn(), createMany: vi.fn(), updateMany: vi.fn() },
     bulkStockBalance: { findMany: vi.fn(), upsert: vi.fn() },
     bulkStockMovement: { createMany: vi.fn() },
     scanSession: { findFirst: vi.fn(), create: vi.fn(), updateMany: vi.fn() },
@@ -61,6 +63,7 @@ const mockTx = (db as any)._mockTx;
 
 beforeEach(() => {
   transactionCalls.length = 0;
+  vi.clearAllMocks();
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -179,5 +182,148 @@ describe("non-numbered bulk scan TOCTOU", () => {
         scanValue: "BIN-QR-1",
       })
     ).rejects.toThrow("Bulk scans require a positive quantity");
+  });
+});
+
+describe("numbered bulk derived unit QR scans", () => {
+  function setupNumberedBulkScan() {
+    mockTx.scanEvent.findFirst.mockResolvedValue(null);
+    mockTx.booking.findUnique.mockResolvedValue({
+      id: "b-1",
+      kind: "CHECKOUT",
+      status: "OPEN",
+      serializedItems: [],
+      bulkItems: [{
+        id: "bi-1",
+        bulkSkuId: "sku-1",
+        plannedQuantity: 16,
+        checkedOutQuantity: 0,
+        checkedInQuantity: 0,
+        bulkSku: { id: "sku-1", binQrCodeValue: "94e068d1", trackByNumber: true },
+      }],
+    });
+    mockTx.bulkSkuUnit.findMany.mockResolvedValue([
+      { id: "unit-7", bulkSkuId: "sku-1", unitNumber: 7, status: "AVAILABLE" },
+    ]);
+    mockTx.scanEvent.create.mockResolvedValue({ id: "event-1" });
+    mockTx.bulkSkuUnit.updateMany.mockResolvedValue({ count: 1 });
+    mockTx.bookingBulkUnitAllocation.createMany.mockResolvedValue({ count: 1 });
+    mockTx.bookingBulkItem.update.mockResolvedValue({});
+  }
+
+  it("treats binQr-unitNumber as a one-unit checkout scan", async () => {
+    setupNumberedBulkScan();
+
+    const result = await recordScan({
+      bookingId: "b-1",
+      actorUserId: "actor-1",
+      phase: "CHECKOUT" as any,
+      scanType: "BULK_BIN" as any,
+      scanValue: "94e068d1-7",
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockTx.bulkSkuUnit.findMany).toHaveBeenCalledWith({
+      where: {
+        bulkSkuId: "sku-1",
+        unitNumber: { in: [7] },
+      },
+    });
+    expect(mockTx.scanEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        scanValue: "94e068d1-7",
+        bulkSkuId: "sku-1",
+        quantity: 1,
+        success: true,
+      }),
+    });
+    expect(mockTx.bookingBulkItem.update).toHaveBeenCalledWith({
+      where: { id: "bi-1" },
+      data: { checkedOutQuantity: { increment: 1 } },
+    });
+  });
+
+  it("still rejects derived unit QR values for SKUs outside the checkout", async () => {
+    setupNumberedBulkScan();
+
+    await expect(recordScan({
+      bookingId: "b-1",
+      actorUserId: "actor-1",
+      phase: "CHECKOUT" as any,
+      scanType: "BULK_BIN" as any,
+      scanValue: "not-this-bin-7",
+    })).rejects.toThrow("Scanned bulk bin QR does not belong to this checkout");
+  });
+
+  it("rejects a derived unit QR when that unit is unavailable", async () => {
+    setupNumberedBulkScan();
+    mockTx.bulkSkuUnit.findMany.mockResolvedValue([
+      { id: "unit-7", bulkSkuId: "sku-1", unitNumber: 7, status: "CHECKED_OUT" },
+    ]);
+
+    await expect(recordScan({
+      bookingId: "b-1",
+      actorUserId: "actor-1",
+      phase: "CHECKOUT" as any,
+      scanType: "BULK_BIN" as any,
+      scanValue: "94e068d1-7",
+    })).rejects.toThrow("Units not available");
+  });
+
+  it("keeps exact bin QR matches ahead of derived unit parsing", async () => {
+    mockTx.scanEvent.findFirst.mockResolvedValue(null);
+    mockTx.booking.findUnique.mockResolvedValue({
+      id: "b-1",
+      kind: "CHECKOUT",
+      status: "OPEN",
+      serializedItems: [],
+      bulkItems: [
+        {
+          id: "numbered-bi",
+          bulkSkuId: "numbered-sku",
+          plannedQuantity: 16,
+          checkedOutQuantity: 0,
+          checkedInQuantity: 0,
+          bulkSku: { id: "numbered-sku", binQrCodeValue: "94e068d1", trackByNumber: true },
+        },
+        {
+          id: "quantity-bi",
+          bulkSkuId: "quantity-sku",
+          plannedQuantity: 10,
+          checkedOutQuantity: 0,
+          checkedInQuantity: 0,
+          bulkSku: { id: "quantity-sku", binQrCodeValue: "94e068d1-7", trackByNumber: false },
+        },
+      ],
+    });
+    mockTx.bookingBulkItem.findUnique.mockResolvedValue({
+      id: "quantity-bi",
+      bulkSkuId: "quantity-sku",
+      plannedQuantity: 10,
+      checkedOutQuantity: 0,
+      checkedInQuantity: 0,
+    });
+    mockTx.scanEvent.create.mockResolvedValue({ id: "event-1" });
+    mockTx.bookingBulkItem.update.mockResolvedValue({});
+
+    await recordScan({
+      bookingId: "b-1",
+      actorUserId: "actor-1",
+      phase: "CHECKOUT" as any,
+      scanType: "BULK_BIN" as any,
+      scanValue: "94e068d1-7",
+      quantity: 2,
+    });
+
+    expect(mockTx.bulkSkuUnit.findMany).not.toHaveBeenCalled();
+    expect(mockTx.bookingBulkItem.update).toHaveBeenCalledWith({
+      where: {
+        bookingId_bulkSkuId: {
+          bookingId: "b-1",
+          bulkSkuId: "quantity-sku",
+        },
+      },
+      data: { checkedOutQuantity: { increment: 2 } },
+    });
   });
 });

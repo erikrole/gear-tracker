@@ -39,8 +39,10 @@ src/components/
 1. **Race condition guards** — `useRef` synchronous guards prevent concurrent submissions from camera debounce
 2. **Optimistic updates + background refresh** — UI marks items scanned immediately; 15s polling confirms with server
 3. **Multi-device sync** — periodic `loadScanStatus()` catches updates from other devices
-4. **Dynamic flow routing** — numbered bulk unit picker is discovered mid-scan (API returns SCAN_NOT_IN_CHECKOUT → show picker)
-5. **Feedback auto-clear** — success: 5s, error/info: 8s
+4. **Dynamic flow routing** — numbered bulk unit picker is discovered mid-scan (API returns SCAN_NOT_IN_CHECKOUT → show picker), while derived unit QR values submit directly
+5. **Kiosk battery scans** — kiosk pickup and check-in accept numbered battery unit QR values and update only that unit
+6. **Attachment visibility** — lookup scans show attached camera items with parent camera context and SD card slot labels when the tag convention supports it
+7. **Feedback auto-clear** — success: 5s, error/info: 8s
 
 ## API Dependencies
 
@@ -60,6 +62,9 @@ src/components/
 
 | Date | Change |
 |---|---|
+| 2026-05-05 | Kiosk battery unit scans: pickup/check-in can scan one numbered battery unit at a time, and kiosk lookup resolves unit QR values to parent SKU and unit status |
+| 2026-05-05 | Numbered bulk unit QR scans: values like `94e068d1-7` resolve to the parent bulk SKU and unit #7, bypassing the picker while preserving server-side unit validation |
+| 2026-05-05 | Camera attachment lookup polish: lookup preview labels attached items with parent camera context and SD card slot labels when tags follow the `1A` convention |
 | 2026-03-23 | Scan page hardened (5-pass): design system alignment, data flow, resilience, UX polish |
 | 2026-03-25 | Decomposed from 1,038→251 lines: extracted 2 hooks + 4 components + shared types (GAP-14 closed) |
 | 2026-04-03 | Audio + haptic scan feedback: distinct tones & vibration patterns for success/error/info/celebration via Web Audio API (`src/lib/scan-feedback.ts`) |

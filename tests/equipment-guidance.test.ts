@@ -14,7 +14,7 @@ describe("getActiveGuidance", () => {
     const hints = getActiveGuidance(ctx);
     expect(hints).toHaveLength(1);
     expect(hints[0]!.id).toBe("body-needs-batteries");
-    expect(hints[0]!.level).toBe("requirement");
+    expect(hints[0]!.level).toBe("warning");
   });
 
   it("does NOT show battery hint when no body is selected", () => {

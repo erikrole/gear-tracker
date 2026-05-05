@@ -32,7 +32,7 @@ const tabDefs: Array<{ key: TabKey; label: string }> = [
   { key: "calendar", label: "Calendar" },
   { key: "insights", label: "Insights" },
   { key: "history", label: "History" },
-  { key: "accessories", label: "Accessories" },
+  { key: "accessories", label: "Attachments" },
   { key: "settings", label: "Settings" },
 ];
 
@@ -197,7 +197,7 @@ export default function ItemDetailsPage() {
 
   // Tab badge counts (derived from loaded asset data)
   const bookingsCount = (asset?.history?.length ?? 0) + (asset?.activeBooking ? 1 : 0);
-  const accessoriesCount = asset?.accessories?.length ?? 0;
+  const attachmentsCount = asset?.accessories?.length ?? 0;
 
   return (
     <FadeUp>
@@ -219,7 +219,7 @@ export default function ItemDetailsPage() {
           {tabDefs.map((tab, i) => {
             const count =
               tab.key === "bookings" ? bookingsCount :
-              tab.key === "accessories" ? accessoriesCount :
+              tab.key === "accessories" ? attachmentsCount :
               0;
             return (
               <TabsTrigger key={tab.key} value={tab.key} className="shrink-0 gap-1.5 data-[state=active]:border-[var(--wi-red)]">
@@ -296,7 +296,7 @@ export default function ItemDetailsPage() {
         </Card>
       )}
 
-      {/* Accessories tab */}
+      {/* Attachments tab */}
       {activeTab === "accessories" && (
         <AccessoriesSection asset={asset} canEdit={canEdit} onRefresh={loadAsset} />
       )}

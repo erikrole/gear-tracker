@@ -110,6 +110,7 @@ export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
 
   const bulkItems = booking.bulkItems.map((item) => ({
     bulkSkuId: item.bulkSku.id,
+    binQrCodeValue: item.bulkSku.binQrCodeValue,
     name: item.bulkSku.name,
     required: item.plannedQuantity,
     scanned: bulkScanned.get(item.bulkSku.id) ?? 0,

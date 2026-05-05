@@ -357,6 +357,8 @@
   - When enabled, numbered `BulkSkuUnit` records (1..N) are created under the single bin QR.
   - Unit status (AVAILABLE, CHECKED_OUT, LOST, RETIRED) is stored directly on the unit, not derived.
   - During checkout scan, staff selects specific unit numbers via a picker; during check-in, missing units are flagged by number.
+  - Unit QR values derived as `{binQrCodeValue}-{unitNumber}` are accepted as a direct scan of that specific numbered unit.
+  - Kiosk pickup/check-in is the source of truth for QR-coded batteries: booking creation records quantity only, and kiosk scans bind/return the physical unit numbers.
   - `BookingBulkUnitAllocation` links specific units to bookings with checkout/checkin timestamps.
   - Existing quantity-only SKUs can be converted to numbered tracking via a dedicated endpoint.
 - Consequences:
@@ -364,6 +366,9 @@
   - Loss tracking works at the individual unit level.
   - Physical labels must match unit numbers (user responsibility).
   - All unit operations use `createMany`/`updateMany` to batch DB calls efficiently.
+  - QR-coded batteries continue to use this model when they behave like the existing Sony battery flow: one battery SKU with unit-level tracking beneath it.
+  - Derived unit QR scans keep batteries out of top-level serialized assets while still supporting individual QR labels.
+  - Camera-model battery compatibility warnings are advisory at creation; they do not block checkout creation because physical battery accountability happens at kiosk pickup.
 - Guardrails:
   - Unit status is NOT derived like serialized assets (D-001). It is stored directly because units lack the full allocation time-window model.
   - Checked-out units cannot be marked lost/retired — must be checked in first.
@@ -374,11 +379,13 @@
 - Status: Accepted
 - Context:
   - Equipment like camera bodies ship with handles, cages, and other accessories that travel as a unit but need independent maintenance tracking.
+  - Camera-tied SD cards use operational slot tags such as `MBB 17 IV 1A`, where `MBB 17 IV` is the parent camera and `1A` means camera 1, slot A.
   - Full kit management (predefined templates, kit-level bookings) is overkill for V1. Users want a simple "this cage belongs to this camera" relationship.
 - Decision:
   - Self-referential FK `parentAssetId` on Asset with `ON DELETE SET NULL`. One level only — no nesting.
   - Accessories are hidden from the items list by default (filtered by `parentAssetId IS NULL`).
   - Accessories always travel with their parent — no independent booking line items.
+  - Camera-tied SD cards, cages, and fixed camera parts are treated as attachments/accessories, not bulk SKUs, when they should not be individually checked out.
   - Accessories can be flagged independently for maintenance.
   - Standalone items can be converted to accessories (attach) and back (detach) at any time.
   - Accessories can be moved between parents.
@@ -386,7 +393,8 @@
   - On detach, both flags are restored to true.
 - Consequences:
   - Items list shows accessory count badge (+N) on parent items.
-  - Item detail page shows "Accessory of [Parent]" banner for child items.
+  - Item detail page labels the surface as Attachments, groups SD Cards / Cages and Rigging / Misc Parts, and shows "Attached to [Parent]" for child items.
+  - SD card child detail and scan preview show the parsed camera slot label when the operational tag ends in a slot code like `1A`.
   - Scan preview shows parent relationship when scanning an accessory QR.
   - No schema changes to bookings — accessories ride along implicitly.
 - Guardrails:
@@ -613,3 +621,6 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - 2026-04-24: Added D-031 (multi-event booking — BookingEvent junction table with preserved Booking.eventId as primary; cap 3 events per booking).
 - 2026-04-29: Added D-032 (kiosk operates within `kiosk.locationId` — `users`, `dashboard`, and `student/[userId]` reads are scoped; users with `locationId = null` are visible to every kiosk as a transitional rule until rosters universally carry a location FK).
 - 2026-04-29: Added D-033 (DB-enforced single active allocation per asset — partial unique index `asset_allocations_asset_id_active_unique ON asset_allocations(asset_id) WHERE active = TRUE`. Closes the cross-flow double-checkout race that no application-level guard fully prevents. Application paths now `try { create } catch P2002 → 409`; migration 0048 includes a pre-flight DO block that fails if duplicates already exist).
+- 2026-05-05: Updated D-022/D-023 for camera attachment scope — camera-tied SD cards/cages/fixed parts stay as non-bookable asset attachments, while QR-coded batteries keep numbered bulk semantics.
+- 2026-05-05: Updated D-022 for derived numbered bulk unit QR scans using `{binQrCodeValue}-{unitNumber}`.
+- 2026-05-05: Updated D-022 for kiosk-scanned numbered batteries and non-blocking camera-model battery availability warnings.

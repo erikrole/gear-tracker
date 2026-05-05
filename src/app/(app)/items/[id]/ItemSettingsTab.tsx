@@ -10,8 +10,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Empty, EmptyDescription } from "@/components/ui/empty";
+import { Badge } from "@/components/ui/badge";
+import {
+  getAttachmentKind,
+  getSdCardSlotLabel,
+  groupAttachments,
+} from "@/lib/asset-attachments";
 
-/* ── Accessories Section ────────────────────────────────── */
+/* ── Attachments Section ────────────────────────────────── */
 
 export function AccessoriesSection({
   asset, canEdit, onRefresh,
@@ -30,9 +36,10 @@ export function AccessoriesSection({
   // Clean up debounce timeout on unmount
   useEffect(() => () => { if (searchTimeout.current) clearTimeout(searchTimeout.current); }, []);
 
-  // Is this item itself an accessory? If so, don't show the attach section.
+  // Is this item itself an attachment? If so, don't show the attach section.
   const isChild = !!asset.parentAsset;
-  const accessories = asset.accessories ?? [];
+  const attachments = asset.accessories ?? [];
+  const attachmentGroups = groupAttachments(attachments);
 
   function handleSearch(q: string) {
     setSearchQuery(q);
@@ -44,8 +51,8 @@ export function AccessoriesSection({
         const res = await fetch(`/api/assets?q=${encodeURIComponent(q.trim())}&limit=10&show_accessories=true`);
         if (res.ok) {
           const json = await res.json();
-          // Filter out self, current accessories, and items that are already children
-          const existing = new Set([asset.id, ...accessories.map((a) => a.id)]);
+          // Filter out self, current attachments, and items that are already children
+          const existing = new Set([asset.id, ...attachments.map((a) => a.id)]);
           setSearchResults(
             (json.data || [])
               .filter((a: { id: string; parentAssetId?: string | null }) => !existing.has(a.id) && !a.parentAssetId)
@@ -69,7 +76,7 @@ export function AccessoriesSection({
       });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        toast.success("Accessory attached");
+        toast.success("Attachment added");
         setAttaching(false);
         setSearchQuery("");
         setSearchResults([]);
@@ -85,7 +92,7 @@ export function AccessoriesSection({
 
   async function detachAccessory(childId: string, childTag: string) {
     const ok = await confirmDialog({
-      title: "Detach accessory",
+      title: "Detach item",
       message: `Detach ${childTag} from this item? It will become a standalone item again.`,
       confirmLabel: "Detach",
       variant: "danger",
@@ -95,7 +102,7 @@ export function AccessoriesSection({
       const res = await fetch(`/api/assets/${childId}/accessories`, { method: "DELETE" });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        toast.success("Accessory detached");
+        toast.success("Attachment detached");
         onRefresh();
       } else {
         const msg = await parseErrorMessage(res, "Failed to detach");
@@ -106,22 +113,23 @@ export function AccessoriesSection({
     }
   }
 
-  // For items that are themselves accessories, show parent info
+  // For items that are themselves attachments, show parent info
   if (isChild) {
+    const slotLabel = getSdCardSlotLabel(asset, asset.parentAsset?.assetTag);
     return (
       <div className="mt-3.5 max-w-2xl">
         <Card className="border-border/40">
           <CardHeader>
-            <CardTitle>Accessories</CardTitle>
+            <CardTitle>Attachments</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <Empty className="py-6 border-0">
               <EmptyDescription>
-                This item is an accessory of{" "}
+                This item is attached to{" "}
                 <Link href={`/items/${asset.parentAsset!.id}`} className="text-primary hover:underline font-mono font-medium">
                   {asset.parentAsset!.assetTag}
                 </Link>
-                {" "}and cannot have its own accessories.
+                {slotLabel ? ` as ${slotLabel}` : ""}. It cannot have its own attachments.
               </EmptyDescription>
             </Empty>
           </CardContent>
@@ -134,10 +142,10 @@ export function AccessoriesSection({
     <div className="mt-3.5 max-w-2xl">
       <Card className="border-border/40">
         <CardHeader>
-          <CardTitle>Accessories{accessories.length > 0 ? ` (${accessories.length})` : ""}</CardTitle>
+          <CardTitle>Attachments{attachments.length > 0 ? ` (${attachments.length})` : ""}</CardTitle>
           {canEdit && !attaching && (
             <Button variant="outline" size="sm" onClick={() => setAttaching(true)}>
-              Attach accessory
+              Add attachment
             </Button>
           )}
         </CardHeader>
@@ -175,33 +183,59 @@ export function AccessoriesSection({
             </div>
           )}
 
-          {accessories.length === 0 && !attaching && (
+          {attachments.length === 0 && !attaching && (
             <Empty className="py-6 border-0">
-              <EmptyDescription>No accessories attached to this item.</EmptyDescription>
+              <EmptyDescription>No attachments tied to this item.</EmptyDescription>
             </Empty>
           )}
 
-          {accessories.length > 0 && (
-            <div className="divide-y divide-border/30">
-              {accessories.map((acc) => (
-                <div key={acc.id} className="flex justify-between items-center py-2.5 min-h-[44px]">
-                  <div>
-                    <Link href={`/items/${acc.id}`} className="font-mono text-sm font-medium">
-                      {acc.assetTag}
-                    </Link>
-                    <span className="text-sm text-muted-foreground ml-2">{acc.brand} {acc.model}</span>
+          {attachments.length > 0 && (
+            <div className="space-y-5">
+              {attachmentGroups.map((group) => (
+                <section key={group.key} className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-semibold">{group.label}</h3>
+                    <Badge variant={group.key === "sd-card" ? "blue" : group.key === "camera-rig" ? "purple" : "gray"} size="sm">
+                      {group.items.length}
+                    </Badge>
                   </div>
-                  {canEdit && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => detachAccessory(acc.id, acc.assetTag)}
-                      title="Detach accessory"
-                    >
-                      Detach
-                    </Button>
-                  )}
-                </div>
+                  <p className="text-xs text-muted-foreground">{group.description}</p>
+                  <div className="divide-y divide-border/30">
+                    {group.items.map((acc) => {
+                      const slotLabel = getSdCardSlotLabel(acc, asset.assetTag);
+                      const kind = getAttachmentKind(acc);
+                      return (
+                        <div key={acc.id} className="flex justify-between items-center gap-3 py-2.5 min-h-[44px]">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                              <Link href={`/items/${acc.id}`} className="font-mono text-sm font-medium hover:underline">
+                                {acc.assetTag}
+                              </Link>
+                              {slotLabel && (
+                                <Badge variant="blue" size="sm">{slotLabel}</Badge>
+                              )}
+                            </div>
+                            <div className="text-sm text-muted-foreground truncate">
+                              {[acc.name, acc.brand, acc.model].filter(Boolean).join(" ") || acc.type}
+                              {kind === "sd-card" ? " · not individually checked out" : ""}
+                            </div>
+                          </div>
+                          {canEdit && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => detachAccessory(acc.id, acc.assetTag)}
+                              title="Detach item"
+                              className="shrink-0"
+                            >
+                              Detach
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
               ))}
             </div>
           )}

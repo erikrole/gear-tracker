@@ -4,6 +4,7 @@ import { withKiosk } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
 import { findAssetByScanValue } from "@/lib/services/kiosk-scan";
 import { kioskCheckinAsset } from "@/lib/services/bookings-checkin";
+import { scanKioskCheckinBulkUnit } from "@/lib/services/bulk-unit-scans";
 import { checkinScanBody } from "@/lib/schemas/kiosk";
 
 /**
@@ -14,6 +15,14 @@ import { checkinScanBody } from "@/lib/schemas/kiosk";
  */
 export const POST = withKiosk<{ id: string }>(async (req, { params }) => {
   const { scanValue } = checkinScanBody.parse(await req.json());
+
+  const bulkResult = await db.$transaction(
+    (tx) => scanKioskCheckinBulkUnit(tx, { bookingId: params.id, scanValue }),
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
+  if (bulkResult.handled) {
+    return ok(bulkResult);
+  }
 
   const booking = await db.booking.findUnique({
     where: { id: params.id },

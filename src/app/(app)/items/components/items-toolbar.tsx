@@ -168,7 +168,7 @@ export function ItemsToolbar({
           className="h-4 w-7 [&>span]:size-3 [&>span]:data-[state=checked]:translate-x-3"
         />
         <Label htmlFor="show-accessories" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
-          Accessories only
+          Attachments only
         </Label>
       </div>
       {hasActiveFilters && (

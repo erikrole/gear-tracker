@@ -98,7 +98,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
         if (!categoryId) return "Please select a category.";
         if (!departmentId) return "Please select a department.";
         if (!locationId) return "Please select a location.";
-        if (isAccessory && !parentAsset) return "Please select a parent item for this accessory.";
+        if (isAccessory && !parentAsset) return "Please select a parent item for this attachment.";
         return null;
       },
       getSubmitBody() {
@@ -352,11 +352,11 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
           <SectionHeading>Settings</SectionHeading>
 
           <div className="space-y-3">
-            {/* Accessory toggle */}
+            {/* Attachment toggle */}
             <div className="flex items-center justify-between gap-1">
               <div>
-                <Label className="text-sm font-medium">Item is an accessory</Label>
-                <p className="text-xs text-muted-foreground">Attach to a parent item (e.g. lens → camera body)</p>
+                <Label className="text-sm font-medium">Item is an attachment</Label>
+                <p className="text-xs text-muted-foreground">Tie to a parent item, such as a camera SD card, cage, or fixed part.</p>
               </div>
               <Switch
                 checked={isAccessory}
@@ -429,7 +429,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
                   </>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Accessories are not available for independent booking.
+                  Attachments are tracked as inventory but are not available for independent booking.
                 </p>
               </div>
             )}

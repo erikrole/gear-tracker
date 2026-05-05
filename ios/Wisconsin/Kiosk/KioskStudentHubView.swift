@@ -92,7 +92,7 @@ struct KioskStudentHubView: View {
                 ForEach(pickups) { pickup in
                     ActionButton(
                         title: "Pickup: \(pickup.title)",
-                        subtitle: "\(pickup.serializedItems.count) items",
+                        subtitle: "\(pickup.itemCount) items",
                         icon: "tray.and.arrow.down.fill",
                         color: Color.green
                     ) {

@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Items
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-04-06
+- Last Updated: 2026-05-05
 - Status: Active
 - Version: V1
 
@@ -21,6 +21,7 @@ Treat physical gear identity as primary, make list and detail views action-orien
    - `ADMIN` and `STAFF` can create and edit items.
    - `STUDENT` can view all items, no item edit rights.
 6. Metadata enrichment from external product URLs is not supported in V1.
+7. Camera-tied SD cards, cages, and fixed camera parts are tracked as item attachments when they should travel with the parent camera and not be individually checked out.
 
 ## V1 Workflow
 
@@ -46,6 +47,7 @@ Treat physical gear identity as primary, make list and detail views action-orien
 3. Header status line exposes live operational state with linked booking context when applicable.
 4. `Info` tab opens the default dashboard view with active check-out, upcoming reservations, and editable item information in a split layout.
 5. Additional tabs expose contextual history, calendars, linked workflows, and policy settings.
+6. The Attachments tab groups child items into SD Cards, Cages and Rigging, and Misc Parts. SD card tags such as `MBB 17 IV 1A` display as camera-slot assignments.
 
 ## Items List Surface (V1)
 
@@ -85,6 +87,7 @@ Treat physical gear identity as primary, make list and detail views action-orien
 3. Kebab menu includes state-appropriate actions by role.
 4. Multi-select is allowed for future bulk actions; bulk mutations are out of scope for V1.
 5. Mobile list interactions should avoid deep category drilling as the primary path, favoring search and direct item rows.
+6. Attachments are hidden by default and only shown through the Attachments-only filter or direct scan/search.
 
 ### Pagination
 1. Show `Showing X to Y of Z`.
@@ -296,7 +299,7 @@ Treat physical gear identity as primary, make list and detail views action-orien
 ## Numbered Bulk Item Tracking
 
 ### Overview
-Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered units (e.g., Battery #1–#40) under a single QR code. This supports loss tracking by unit number without requiring individual QR codes per item.
+Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered units (e.g., Battery #1–#40) under one parent bin QR. Unit QR values are derived from that parent QR plus the unit number, so physical labels can show only the unit number while scans still resolve a specific unit.
 
 ### Creation
 1. User toggles "Track by number" during bulk SKU creation.
@@ -310,12 +313,11 @@ Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered 
 - **Conversion:** existing quantity-only SKUs can be converted to numbered tracking
 
 ### Checkout/Check-in Flow
-1. Staff scans the single bin QR code.
-2. Unit picker bottom sheet opens with multi-select grid of available units.
-3. Staff selects specific unit numbers (or "Select all") and confirms.
-4. Selected units are allocated to the booking via `BookingBulkUnitAllocation`.
-5. Check-in flow pre-selects checked-out units; staff deselects any missing.
-6. Missing units are flagged with specific unit numbers.
+1. Booking creation records numbered batteries by quantity, not by unit number.
+2. Kiosk pickup scans each physical unit QR and allocates that unit via `BookingBulkUnitAllocation`.
+3. Kiosk check-in scans each physical unit QR and returns only that unit.
+4. The bin QR plus picker flow remains available for non-kiosk scan surfaces.
+5. Missing units are flagged with specific unit numbers.
 
 ### Data Model
 - `BulkSkuUnit`: numbered unit with status, linked to BulkSku (cascade delete)
@@ -325,7 +327,7 @@ Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered 
 ### Inventory Display
 - Numbered SKUs show available/total count and status summary in table
 - Expandable unit grid with color-coded status dots
-- Unit status changes adjust on-hand balance automatically
+- Numbered battery available quantity derives from units with `AVAILABLE` status
 
 ### Decision Reference
 - D-022: Numbered Bulk Items (see DECISIONS.md)
@@ -344,6 +346,7 @@ Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered 
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-05-05: Camera attachment scope shipped — item detail now labels grouped Attachments, shows SD card slot labels, and keeps attached SD cards out of day-to-day checkout selection while preserving direct scan/search visibility.
 - 2026-04-30: **Items list — screenshot-review polish**. (1) Subtitle hidden when it duplicates the assetTag — kills the doubled "100-400 1 / 100-400 1" rows. (2) Sort indicators now only render on the active sort column or on header hover, dropping the per-column ⇅ noise. (3) Row kebab menu fades in only on row hover or focus. (4) Status breakdown summary chips are now clickable filters that toggle status into the URL filter set; all 5 buckets (Available + Out + Reserved + Maintenance + Retired) always render with zeros greyed, so the strip's information is shape-stable. (5) Density toggle (Compact / Comfortable) added to the page header, persisted to `items-density` localStorage key.
 - 2026-04-30: **Items list — tighter assignee status pill**. The CHECKED_OUT/RESERVED pill is now a single line: `[avatar] STATUS · due-label`. Name moved off the pill into a hover tooltip on the avatar. Status label hover tooltip shows the full due-back date + time. Cleaner visual weight at row density; full information still one hover away.
 - 2026-04-30: **Items list — assignee avatar status + bulk sort fix**. The CHECKED_OUT and RESERVED cells now render a richer status pill: `[avatar] [STATUS label] · [name]` instead of using the requester's name as the status label. API now returns `activeBooking.requesterAvatarUrl`. Bulk-row merging logic updated: serialized items keep server-side sort order (so the user's chosen sort actually wins), bulks are grouped together at the end and sorted alphabetically with numeric awareness so "16-35" sorts before "100-400". Closes the audit's "merged sort silently breaks" finding.
@@ -386,6 +389,7 @@ Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered 
 - 2026-04-06: **Data integrity fixes (4 total):** (1) QR update TOCTOU — catches P2002 instead of pre-check. (2) Delete asset — wrapped in `$transaction`. (3) Generate QR TOCTOU — removed pre-check loop, now catches P2002 with retry. (4) Duplicate asset tag collision — catches P2002 with retry, increased suffix entropy from 12→16 bits, fixed null serialNumber creating "null-COPY-XXX".
 - 2026-04-06: **Kits detail page hardening:** Added 401 redirect on all 6 mutations (save name, save description, add member, remove member, toggle archive, delete). Kits list page already uses `useFetch` hook (has AbortController, 401 handling, visibility refresh).
 - 2026-04-06: **Bulk inventory page hardening:** Added 401 redirect on all 3 mutations (add units, convert to numbered, unit status change). List data already uses `useFetch`.
+- 2026-05-05: **Bulk battery hardening:** Numbered battery units now use derived unit QR scans for kiosk pickup/check-in and available quantity derives from `AVAILABLE` unit status.
 - 2026-04-06: **Accessory operations wrapped in transactions** — Attach, move, and detach now use `$transaction` to prevent TOCTOU races (e.g., concurrent attach of same child to different parents).
 - 2026-04-06: **Export permission corrected** — `/api/assets/export` now uses `requirePermission("asset", "export")` instead of `"asset", "create"`. New `export` action added to permissions map. Same ADMIN/STAFF gate, correct semantics.
 

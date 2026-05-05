@@ -37,7 +37,7 @@ BulkSku           id, name, sku, description, categoryId, locationId,
 BulkStockBalance  id, bulkSkuId, locationId, quantity
 BulkStockMovement id, bulkSkuId, locationId, kind(CHECKOUT|CHECKIN|ADJUSTMENT),
                   quantity, userId, bookingId, notes, createdAt
-BulkSkuUnit       id, bulkSkuId, unitNumber, status(AVAILABLE|CHECKED_OUT|LOST|RETIRED), qrCode
+BulkSkuUnit       id, bulkSkuId, unitNumber, status(AVAILABLE|CHECKED_OUT|LOST|RETIRED)
 ```
 
 ### Bookings
@@ -49,7 +49,7 @@ Booking           id, kind(RESERVATION|CHECKOUT), status(DRAFT|BOOKED|OPEN|COMPL
 
 BookingSerializedItem  id, bookingId, assetId, checkedOutAt, checkedInAt, condition
 BookingBulkItem        id, bookingId, bulkSkuId, quantity, checkedOutQty, checkedInQty
-BookingBulkUnitAllocation id, bookingBulkItemId, bulkSkuUnitId, status
+BookingBulkUnitAllocation id, bookingBulkItemId, bulkSkuUnitId, checkedOutAt, checkedInAt
 AssetAllocation        id, assetId, bookingId, startAt, endAt (availability blocking)
 ```
 

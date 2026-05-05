@@ -18,8 +18,8 @@ export const EQUIPMENT_GUIDANCE_RULES: GuidanceRule[] = [
   {
     id: "body-needs-batteries",
     section: "batteries",
-    message: "Camera body requires batteries \u2014 add batteries before checking out.",
-    level: "requirement",
+    message: "Camera body selected — check compatible battery availability before checkout.",
+    level: "warning",
     condition: (ctx) =>
       ctx.selectedSectionKeys.includes("cameras") &&
       !ctx.selectedSectionKeys.includes("batteries"),

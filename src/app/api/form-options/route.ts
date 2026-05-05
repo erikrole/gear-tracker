@@ -12,6 +12,7 @@ export const GET = withAuth(async () => {
       orderBy: { name: "asc" },
       select: {
         id: true, name: true, category: true, unit: true, locationId: true, binQrCodeValue: true, trackByNumber: true,
+        minThreshold: true,
         categoryRel: { select: { name: true } },
         balances: { select: { onHandQuantity: true } },
         // Available units count for numbered SKUs
@@ -33,6 +34,7 @@ export const GET = withAuth(async () => {
     return {
       id: s.id, name: s.name, category: s.category, unit: s.unit,
       locationId: s.locationId, binQrCodeValue: s.binQrCodeValue, trackByNumber: s.trackByNumber,
+      minThreshold: s.minThreshold,
       categoryName: s.categoryRel?.name ?? null,
       currentQuantity: onHandQuantity,
       availableQuantity,

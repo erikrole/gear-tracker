@@ -30,7 +30,7 @@ Multi-step wizard page (replaced the old side-sheet flow as of 2026-04-09):
 
 **Step 2 — Equipment:**
 1. Full `EquipmentPicker` with section tabs, search, availability conflict markers, QR scan-to-add.
-2. Equipment requirement rules enforced (e.g., camera body → batteries). Hard gate: cannot advance without satisfying requirements.
+2. Equipment guidance warns about compatible battery availability and support gear. Battery units are selected by quantity here; kiosk pickup scans bind the actual numbered units.
 3. On mobile checkout: scan-first UI (camera open by default).
 
 **Step 3 — Confirmation:**
@@ -83,7 +83,7 @@ All section tabs are freely navigable (no forward-lock). Section tabs show selec
 - "Select all available" button selects all items without conflicts or status issues in the visible section.
 - "Deselect section" button clears all selections in the current section.
 - Selected items summary strip shows all selections with remove buttons.
-- Bulk items retain their quantity stepper pattern.
+- Bulk items retain their quantity stepper pattern. Numbered batteries are quantity-only at creation and bind to specific unit numbers at kiosk pickup.
 
 ### Per-Section Search
 - Each section has a persistent search input (switching tabs preserves each section's search term).
@@ -98,7 +98,7 @@ Assets are classified into sections by keyword matching against the asset's `typ
 Context-aware hints appear per section based on what has already been selected in other sections. All matching rules for the active section are shown simultaneously. Implementation: `getActiveGuidance()` in `src/lib/equipment-guidance.ts`.
 
 Current rules:
-- `body-needs-batteries` (warning): "You selected a camera body — don't forget batteries and chargers."
+- `body-needs-batteries` (warning): camera body selected, check compatible battery availability before checkout.
 - `lens-needs-body` (warning): "You've added lenses but no camera body."
 - `audio-with-video` (info): "Don't forget audio gear."
 
@@ -308,3 +308,5 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 - 2026-04-29: **Wizard polish + notes surfaced** — `notes` (10k chars, optional) is now editable in Step 1 textarea, persisted through draft save/load (`/api/drafts` schema updated), and shown in Step 3 confirmation. Step 3 multi-event display gains per-event date, home/away badge, and a `Primary` tag on the chronologically-first event for clarity in 2- and 3-event bookings. Required-field asterisks on title/requester/location/dates. Draft-banner dismissal persists 1h via sessionStorage to reduce nag for users who intentionally abandoned a draft. Inline comment in `BookingWizard.tsx` now states the multi-event contract explicitly (always `eventIds[]`, never `eventId`).
 - 2026-04-30: **Booking + scan hardening wins** — (1) Booking detail condition photos now use `next/image` in `BookingInfoTab` (removed lint bypass for raw `<img>`). (2) `useScanSubmission` and `useBookingActions` now use shared safe JSON parsing helpers from `src/lib/errors.ts` instead of ad-hoc `.json().catch(() => ({}))` swallowing. (3) Added operational DB indexes for `notifications.sent_at`, `override_events.created_at`, and `bulk_stock_balances.bulk_sku_id` (migration `0049_add_operational_indexes`).
 - 2026-05-05: **Event command checkout context** — Missing-gear "Create checkout" links now preserve `requesterUserId` through the booking list redirect into `/checkouts/new`, so the wizard opens for the assigned crew member instead of defaulting back to the current user.
+- 2026-05-05: **Bulk battery creation hardening** — Battery selection remains quantity-only at booking creation. Camera body battery guidance is now a warning, and compatible battery low-stock warnings appear when available units fall below threshold.
+- 2026-05-05: **Camera battery compatibility mapping** — Creation warnings now match the current import snapshot for Sony NP-FZ100 bodies (FX3, A7/A1/A9 family) and Sony BP-U bodies (FX6). Drone/action/JVC battery reporting remains deferred until matching SKUs exist.

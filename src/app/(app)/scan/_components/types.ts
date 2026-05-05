@@ -26,6 +26,7 @@ export type AllocatedUnit = {
 
 export type BulkItemStatus = {
   bulkSkuId: string;
+  binQrCodeValue?: string | null;
   name: string;
   required: number;
   scanned: number;
