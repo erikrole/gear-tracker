@@ -77,7 +77,7 @@
 | ~~Picker improvements (multi-select, scan-to-add)~~ | ~~AREA_CHECKOUTS~~ | ~~—~~ | ~~Shipped 2026-03-15~~ |
 | ~~Calendar source health UI~~ | ~~AREA_EVENTS~~ | ~~—~~ | ~~Shipped 2026-03-19: /settings/calendar-sources — enable/disable, sync status, health badges, error display, add/delete~~ |
 | ~~Shift scheduling (replaces Asana/WhenToWork)~~ | ~~AREA_SHIFTS~~ | ~~—~~ | ~~Shipped 2026-03-16: sport configs, auto-generation, assignment, trade board. V2 shipped 2026-03-26: per-event shift editing, universal assignment, avatar picker (see BRIEF_SHIFT_REDESIGN_V2)~~ |
-| Shift notification channel (email for trade claims) | AREA_SHIFTS | — | V1 = in-app audit only; email deferred |
+| ~~Shift notification channel (email for trade claims)~~ | ~~AREA_SHIFTS~~ | ~~—~~ | ~~Shipped for trade lifecycle events: claimed, completed, approved, declined. Uses existing Resend helper and email notification preferences. Broader assignment emails remain out of scope.~~ |
 | ~~Student availability tracking~~ | ~~AREA_SHIFTS~~ | ~~—~~ | ~~Shipped as weekly recurring unavailability blocks: profile Availability tab, user availability API, assignment conflict indicators, auto-assign/trade conflict notes. Date-specific exceptions remain optional follow-up.~~ |
 | ~~Scheduling + gear deep linking (shiftAssignmentId FK on Booking)~~ | ~~AREA_SHIFTS / AREA_CHECKOUTS~~ | ~~—~~ | ~~Shipped 2026-03-18: shiftAssignmentId FK on Booking, wired through creation APIs~~ |
 
@@ -181,3 +181,4 @@
 - 2026-04-30: Low-effort hardening pass shipped for booking/scan surfaces: replaced raw `<img>` in booking condition photos with `next/image`, centralized safe JSON parse handling in booking/scan client hooks, and added indexes for `notifications.sent_at`, `override_events.created_at`, and `bulk_stock_balances.bulk_sku_id` (migration `0049_add_operational_indexes`). No new gaps opened.
 - 2026-05-05: Reconciled stale GAP-11 status. React Query-backed cross-page caching is already implemented via `src/hooks/use-fetch.ts`, direct `useQuery` hooks, shared `QueryClient`, and selected persisted dashboard/booking caches. No new gap opened; follow-up is cache-key audit, not migration.
 - 2026-05-05: Reconciled stale student availability backlog status. V1 is shipped as recurring weekly availability blocks (`StudentAvailabilityBlock`), user profile Availability tab, `/api/users/[id]/availability`, assignment picker conflict indicators, and conflict notes in auto-assign/trade paths. Date-specific exceptions remain an optional follow-up, not a blocker.
+- 2026-05-05: Shift trade email notification channel shipped for existing trade lifecycle notifications. Emails are best-effort, sent after trade transactions, and respect email notification preferences.

@@ -34,6 +34,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - [x] Hide events: staff can hide irrelevant events from schedule views
 - [x] My Hours stat strip: week/month hours + shift counts displayed on schedule page
 - [x] Student availability: profile Availability tab stores recurring weekly blocks and assignment flows show conflicts
+- [x] Shift trade emails: claimed, completed, approved, and declined trade events send best-effort email companions
 
 ## Information Architecture
 
@@ -113,3 +114,4 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 | 2026-04-27 | **Conflict indicators in assignment picker:** New `GET /api/shifts/[id]/conflicts` endpoint checks `StudentAvailabilityBlock` rows against shift time. `UserAvatarPicker` shows yellow dot + "⚠ conflict" label for conflicted users. `AssignmentCell` fetches conflict map on popover open. | Grid |
 | 2026-05-05 | **Doc sync:** Student availability V1 recorded as shipped. Scope is recurring weekly unavailability blocks, not date-specific exceptions. See `docs/BRIEF_STUDENT_AVAILABILITY_V1.md`. | Docs |
 | 2026-04-27 | **Trade board enhancements:** "My Trades" FilterChip in TradeBoard (filters to trades posted/claimed by current user). "Post for trade" button in ListView expanded shift rows — students can post directly from the schedule list without opening ShiftDetailPanel. | Trades |
+| 2026-05-05 | **Shift trade emails shipped:** Existing trade lifecycle notifications now send best-effort email companions for claimed, completed, approved, and declined trades. Delivery uses the existing Resend helper and respects email notification preferences. | Email |

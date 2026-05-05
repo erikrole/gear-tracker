@@ -199,7 +199,7 @@ Use these questions before adding any feature:
 | Item | Status |
 |---|---|
 | ~~Student availability tracking (weekly recurring unavailability blocks)~~ | ✅ Shipped 2026-04-27 (profile Availability tab + assignment conflict indicators) |
-| Shift email notifications (trade claims via Resend) | ⬜ Deferred |
+| ~~Shift email notifications (trade lifecycle via Resend)~~ | ✅ Shipped 2026-05-05 |
 | ~~Inline dashboard actions (extend/checkin on overdue rows)~~ | ✅ Shipped (extend +1 day on overdue/due rows, convert reservation to checkout) |
 | Cross-page state awareness (eventId propagation, scroll preservation) | ⬜ Planned |
 
@@ -269,3 +269,4 @@ These are tracked here as candidates for future planning cycles:
 - 2026-03-25: Doc sync — marked PD-5 (student KPIs) resolved in §11. Phase B: D-009 escalation marked shipped (was "Not started"). §12 Priority 1 (D-009 acceptance) marked resolved; Kit Management promoted to Priority 1.
 - 2026-03-27: **Alpha → Beta release.** Phase B marked complete. All shipped items updated (dashboard filters, kit integration, React Query, reports charts, search overhaul, favorites UI). Created Phase B+ section for post-Beta polish items (student availability, shift email, inline actions, state awareness). Version bumped to 0.2.0.
 - 2026-05-05: Doc sync — student availability V1 was already shipped as weekly recurring unavailability blocks (`StudentAvailabilityBlock`), user profile Availability tab, and assignment conflict indicators. Phase B+ row updated from deferred to shipped.
+- 2026-05-05: Shift trade email notifications shipped for claimed, completed, approved, and declined trade events using the existing Resend channel.

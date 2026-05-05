@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 import { checkTimeConflict } from "@/lib/services/shift-assignments";
+import { sendShiftTradeEmail, type ShiftTradeEmail } from "@/lib/services/shift-trade-emails";
 
 /* ── Timezone / class-conflict helpers ──────────────────────────────── */
 
@@ -125,7 +126,9 @@ export async function postTrade(
  * Claim an open trade. If no approval required, executes swap immediately.
  */
 export async function claimTrade(tradeId: string, userId: string) {
-  return db.$transaction(async (tx) => {
+  const emailJobs: ShiftTradeEmail[] = [];
+
+  const result = await db.$transaction(async (tx) => {
     const trade = await tx.shiftTrade.findUnique({
       where: { id: tradeId },
       include: {
@@ -184,15 +187,25 @@ export async function claimTrade(tradeId: string, userId: string) {
         },
       });
 
+      const title = "Your trade was claimed";
+      const body = `${updated.claimedBy?.name ?? "Someone"} claimed your ${shift.area} shift for ${eventSummary}. Awaiting staff approval.`;
+
       // Notify poster: someone claimed, pending staff approval
       await notify(
         trade.postedByUserId,
         "trade_claimed",
-        "Your trade was claimed",
-        `${updated.claimedBy?.name ?? "Someone"} claimed your ${shift.area} shift for ${eventSummary}. Awaiting staff approval.`,
+        title,
+        body,
         `trade_claimed_${tradeId}`,
         { tradeId },
       );
+      emailJobs.push({
+        userId: trade.postedByUserId,
+        title,
+        body,
+        eventSummary,
+        area: shift.area,
+      });
 
       return updated;
     }
@@ -222,25 +235,40 @@ export async function claimTrade(tradeId: string, userId: string) {
       },
     });
 
+    const title = "Your trade is done";
+    const body = `${completed.claimedBy?.name ?? "Someone"} took your ${shift.area} shift for ${eventSummary}.`;
+
     // Notify poster: trade completed
     await notify(
       trade.postedByUserId,
       "trade_completed",
-      "Your trade is done",
-      `${completed.claimedBy?.name ?? "Someone"} took your ${shift.area} shift for ${eventSummary}.`,
+      title,
+      body,
       `trade_completed_${tradeId}`,
       { tradeId },
     );
+    emailJobs.push({
+      userId: trade.postedByUserId,
+      title,
+      body,
+      eventSummary,
+      area: shift.area,
+    });
 
     return completed;
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+  await sendShiftTradeEmails(emailJobs);
+  return result;
 }
 
 /**
  * Staff approves a claimed trade → executes swap.
  */
 export async function approveTrade(tradeId: string) {
-  return db.$transaction(async (tx) => {
+  const emailJobs: ShiftTradeEmail[] = [];
+
+  const result = await db.$transaction(async (tx) => {
     const trade = await tx.shiftTrade.findUnique({
       where: { id: tradeId },
       include: {
@@ -271,25 +299,40 @@ export async function approveTrade(tradeId: string) {
     const area = trade.shiftAssignment.shift.area;
     const eventSummary = trade.shiftAssignment.shift.shiftGroup?.event?.summary ?? "your shift";
 
+    const title = "Trade approved";
+    const body = `Your trade for ${area} at ${eventSummary} was approved. You're on the schedule.`;
+
     // Notify claimer: swap is confirmed
     await notify(
       trade.claimedByUserId,
       "trade_approved",
-      "Trade approved",
-      `Your trade for ${area} at ${eventSummary} was approved. You're on the schedule.`,
+      title,
+      body,
       `trade_approved_${tradeId}`,
       { tradeId },
     );
+    emailJobs.push({
+      userId: trade.claimedByUserId,
+      title,
+      body,
+      eventSummary,
+      area,
+    });
 
     return updated;
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+  await sendShiftTradeEmails(emailJobs);
+  return result;
 }
 
 /**
  * Staff declines a claimed trade → back to OPEN.
  */
 export async function declineTrade(tradeId: string) {
-  return db.$transaction(async (tx) => {
+  const emailJobs: ShiftTradeEmail[] = [];
+
+  const result = await db.$transaction(async (tx) => {
     const trade = await tx.shiftTrade.findUnique({
       where: { id: tradeId },
       include: {
@@ -320,18 +363,31 @@ export async function declineTrade(tradeId: string) {
     if (trade.claimedByUserId) {
       const area = trade.shiftAssignment.shift.area;
       const eventSummary = trade.shiftAssignment.shift.shiftGroup?.event?.summary ?? "the event";
+      const title = "Trade claim declined";
+      const body = `Your claim for ${area} at ${eventSummary} was declined. The shift is back on the trade board.`;
+
       await notify(
         trade.claimedByUserId,
         "trade_declined",
-        "Trade claim declined",
-        `Your claim for ${area} at ${eventSummary} was declined. The shift is back on the trade board.`,
+        title,
+        body,
         `trade_declined_${tradeId}_${Date.now()}`,
         { tradeId },
       );
+      emailJobs.push({
+        userId: trade.claimedByUserId,
+        title,
+        body,
+        eventSummary,
+        area,
+      });
     }
 
     return updated;
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+  await sendShiftTradeEmails(emailJobs);
+  return result;
 }
 
 /**
@@ -535,4 +591,17 @@ async function executeSwap(tx: Prisma.TransactionClient, assignmentId: string, t
       conflictNote,
     },
   });
+}
+
+async function sendShiftTradeEmails(jobs: ShiftTradeEmail[]) {
+  if (jobs.length === 0) return;
+
+  await Promise.allSettled(
+    jobs.map((job) =>
+      sendShiftTradeEmail(job).catch((err) => {
+        console.error(`[SHIFT_TRADES] Failed to send trade email to user ${job.userId}:`, err);
+        return false;
+      })
+    )
+  );
 }

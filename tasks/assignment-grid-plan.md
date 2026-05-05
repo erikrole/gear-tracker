@@ -55,7 +55,7 @@ Columns derived from shifts that exist in the loaded month. Typically: VIDEO-FT,
 ### Slice 4 — Trade board enhancements ✅
 - [x] "Post for trade" button in ListView expanded shift rows (students only, on their assigned shift)
 - [x] "My Trades" FilterChip in TradeBoard (shows trades posted/claimed by current user)
-- [ ] Email notification on trade claim/approve (deferred — Phase B)
+- [x] Email notification on trade claim/approve (shipped 2026-05-05; also covers completed/declined trade lifecycle emails)
 
 ## API Reuse
 

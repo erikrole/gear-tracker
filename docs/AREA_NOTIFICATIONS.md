@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Notifications
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-04-23
+- Last Updated: 2026-05-05
 - Status: Active — escalation schedule + iOS tap-through + APNs native push shipped
 - Version: V1.2
 
@@ -42,6 +42,20 @@ Implementation: `src/lib/services/notifications.ts`
 - Channel: IN_APP only (email deferred)
 - Self-cancel: requester is not notified when they cancel their own reservation
 - Implementation: `createReservationLifecycleNotification` in `src/lib/services/notifications.ts`
+
+## Shift Trade Triggers (Implemented 2026-05-05)
+
+| Event | Type | Recipient | Channels |
+|---|---|---|---|
+| Trade claimed, staff approval required | `trade_claimed` | Original poster | In-app + email |
+| Trade completed instantly | `trade_completed` | Original poster | In-app + email |
+| Trade approved by staff | `trade_approved` | Claimer | In-app + email |
+| Trade declined by staff | `trade_declined` | Claimer | In-app + email |
+
+- Email is best-effort and sent after the trade transaction resolves.
+- Email respects `notificationPrefs.channels.email` and `pausedUntil`.
+- Staff-wide claim fanout and direct-assignment emails are out of scope.
+- Implementation: `src/lib/services/shift-trades.ts` + `src/lib/services/shift-trade-emails.ts`
 
 ## Deduplication (Implemented)
 - Key format: `"{bookingId}:{type}"`
@@ -174,3 +188,4 @@ Current behavior:
 - 2026-03-09: Rewritten as V1 spec to formalize implemented escalation schedule, dedup behavior, channel model, and D-009 acceptance requirements.
 - 2026-03-16: Vercel Cron wired (`vercel.json`, `GET /api/cron/notifications`). Resend email service (`src/lib/email.ts`) replaces console.log stub. Dual-channel delivery: in-app + email for all triggers. GAP-6 closed.
 - 2026-03-25: Doc sync — standardized ACs to checkbox format (V1: 5 checked, D-009: 4 checked). Fixed cron schedule claim (was "every 15 minutes", actual is daily 8 AM UTC). Marked email channel as shipped.
+- 2026-05-05: Shift trade lifecycle emails shipped for claimed, completed, approved, and declined trade events. Delivery is best-effort and respects email notification preferences.

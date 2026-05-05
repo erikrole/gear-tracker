@@ -51,7 +51,7 @@
 | Avatar-based picker | Shipped | V2 AC-9 to AC-13 | Visual assignment, search, mobile responsive. |
 | Gear integration (shiftAssignmentId FK) | Shipped | NORTH_STAR Phase A | "Reserve gear" from shift → booking prefill. |
 | Home/away toggle + filtering | Shipped | V1.5 | Schedule page toggle. |
-| Shift email notifications | Deferred | Phase B | In-app audit only. |
+| Shift email notifications | Shipped | AREA_NOTIFICATIONS | Trade lifecycle emails for claimed, completed, approved, and declined events. |
 | Student availability tracking | Shipped | BRIEF_STUDENT_AVAILABILITY_V1 | Recurring weekly unavailability blocks, profile Availability tab, assignment conflict indicators. |
 
 ## Open Gaps & Blockers
@@ -66,7 +66,7 @@ None critical. All shift-related gaps closed:
 
 ## Recommended Actions (prioritized)
 
-1. **[Deferred] Shift email notifications** — Phase B. In-app audit logging complete.
+1. **[Optional] Broader shift assignment emails** — Direct assignment/request emails remain out of scope until there is a concrete operational need.
 
 2. **[Optional] Date-specific availability exceptions** — only add if recurring weekly blocks are not enough operationally.
 
@@ -77,5 +77,5 @@ None critical. All shift-related gaps closed:
 | V1 Core | Complete | 11 slices shipped 2026-03-16. |
 | V2 Redesign | Complete | Per-event editing, universal assignment, avatar picker. Shipped 2026-03-26. |
 | V1.5 Polish | Complete | My hours, week view, hardening, stress test. Shipped 2026-04-03. |
-| Phase B | Partial | Student availability V1 shipped; email notifications deferred. |
+| Phase B | Complete | Student availability V1 and shift trade email notifications shipped. |
 | Phase C | Deferred | Game-Day Readiness Score, templates, recurring patterns, time-clock editing. |

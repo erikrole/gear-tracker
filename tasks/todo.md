@@ -81,7 +81,7 @@ Last updated: 2026-05-05
 
 ## Phase B Backlog (needs briefs before implementation)
 
-- [ ] **Shift email notifications** — V1 = in-app only
+- [x] ~~**Shift email notifications**~~ — Trade lifecycle emails shipped for claimed, completed, approved, and declined trades; broader assignment emails remain out of scope
 - [x] ~~**Student availability tracking**~~ — Shipped as recurring weekly unavailability blocks with profile Availability tab and assignment conflict indicators; date-specific exceptions remain optional follow-up
 - [ ] **Date range grouping** — Connected From/To on booking detail (deferred from Round 3)
 - [ ] **Game-Day Readiness Score** — Aggregate metric per event (deferred from scheduling Slice 5)

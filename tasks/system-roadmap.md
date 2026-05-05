@@ -344,7 +344,7 @@ Independent (no blockers):
     ├──→ CSP header (next.config.ts only)
     ├──→ Cross-page state awareness (URL params, scroll preservation)
     ├──→ Student availability tracking (V1 shipped; optional date-specific exceptions remain)
-    └──→ Shift email notifications (extends Resend infrastructure)
+    └──→ Shift email notifications (shipped for trade lifecycle)
 
 Completed:
     ├── ✅ Reports Promise.allSettled (2026-03-30)
@@ -402,7 +402,7 @@ Deeper Integration (V3-F)
 | Event context propagation (`?eventId=` param) | S | Medium — fewer manual selections in checkout | URL param only |
 | Notification deep-links to booking detail | S | Medium — notifications become actionable | Already partially wired |
 | URL state on Kits/Bulk Inventory filters | S | Medium — filters survive navigation | Add useUrlState to 2 pages |
-| Shift email notifications | S | Low — trade claim emails | Extends Resend |
+| ~~Shift email notifications~~ | S | Shipped — trade lifecycle emails | Extends Resend |
 | Remember last-used filters (localStorage) | S | Medium — fewer clicks per session | Dashboard already does this; extend to items/bookings |
 
 ---
@@ -463,7 +463,7 @@ The V2+/V3 boundary is most likely to blur on:
 | 7 | **CSP header** | S | Low | XSS defense-in-depth; low risk but easy |
 | 8 | **Cross-page state awareness** | M | Medium | Event context, scroll preservation |
 | 9 | ~~**Student availability tracking**~~ | M | Shipped V1 | Weekly recurring blocks + assignment conflict warnings; date-specific exceptions optional |
-| 10 | **Shift email notifications** | S | Low | Extends existing Resend infrastructure |
+| 10 | ~~**Shift email notifications**~~ | S | Shipped | Trade lifecycle emails extend existing Resend infrastructure |
 
 ### Page Decomposition Backlog (Optional)
 

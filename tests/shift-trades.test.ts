@@ -40,14 +40,20 @@ vi.mock("@/lib/services/shift-assignments", () => ({
   checkTimeConflict: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("@/lib/services/shift-trade-emails", () => ({
+  sendShiftTradeEmail: vi.fn().mockResolvedValue(true),
+}));
+
 import { db } from "@/lib/db";
 import { checkTimeConflict } from "@/lib/services/shift-assignments";
+import { sendShiftTradeEmail } from "@/lib/services/shift-trade-emails";
 import { postTrade, claimTrade, approveTrade, declineTrade, cancelTrade } from "@/lib/services/shift-trades";
 
 const mockTx = (db as any)._mockTx;
 
 beforeEach(() => {
   transactionCalls.length = 0;
+  vi.clearAllMocks();
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -140,7 +146,13 @@ describe("claimTrade", () => {
   function openTrade(overrides: Record<string, unknown> = {}) {
     return {
       ...makeShiftTrade({ postedByUserId: "poster-1" }),
-      shiftAssignment: { ...makeShiftAssignment(), shift },
+      shiftAssignment: {
+        ...makeShiftAssignment(),
+        shift: {
+          ...shift,
+          shiftGroup: { event: { summary: "Wisconsin vs Iowa" } },
+        },
+      },
       ...overrides,
     };
   }
@@ -210,6 +222,14 @@ describe("claimTrade", () => {
         data: expect.objectContaining({ status: "CLAIMED", claimedByUserId: "claimer-1" }),
       })
     );
+    expect(sendShiftTradeEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "poster-1",
+        title: "Your trade was claimed",
+        eventSummary: "Wisconsin vs Iowa",
+        area: "Field",
+      })
+    );
   });
 
   it("executes swap immediately when requiresApproval=false", async () => {
@@ -234,6 +254,14 @@ describe("claimTrade", () => {
         data: expect.objectContaining({ status: "COMPLETED" }),
       })
     );
+    expect(sendShiftTradeEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "poster-1",
+        title: "Your trade is done",
+        eventSummary: "Wisconsin vs Iowa",
+        area: "Field",
+      })
+    );
   });
 });
 
@@ -244,7 +272,13 @@ describe("approveTrade", () => {
   it("executes swap on approved trade", async () => {
     const trade = {
       ...makeShiftTrade({ status: "CLAIMED", claimedByUserId: "claimer-1", postedByUserId: "poster-1" }),
-      shiftAssignment: makeShiftAssignment(),
+      shiftAssignment: {
+        ...makeShiftAssignment(),
+        shift: {
+          ...makeShift(),
+          shiftGroup: { event: { summary: "Wisconsin vs Iowa" } },
+        },
+      },
     };
     const assignmentWithShift = {
       ...trade.shiftAssignment,
@@ -263,12 +297,20 @@ describe("approveTrade", () => {
         data: expect.objectContaining({ status: "COMPLETED" }),
       })
     );
+    expect(sendShiftTradeEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "claimer-1",
+        title: "Trade approved",
+        eventSummary: "Wisconsin vs Iowa",
+        area: "Field",
+      })
+    );
   });
 
   it("throws 400 when trade is not CLAIMED", async () => {
     mockTx.shiftTrade.findUnique.mockResolvedValue({
       ...makeShiftTrade({ status: "OPEN" }),
-      shiftAssignment: makeShiftAssignment(),
+      shiftAssignment: { ...makeShiftAssignment(), shift: makeShift() },
     });
     await expect(approveTrade("trade-1")).rejects.toThrow("Only claimed trades");
   });
@@ -276,7 +318,7 @@ describe("approveTrade", () => {
   it("throws 400 when no claimer", async () => {
     mockTx.shiftTrade.findUnique.mockResolvedValue({
       ...makeShiftTrade({ status: "CLAIMED", claimedByUserId: null }),
-      shiftAssignment: makeShiftAssignment(),
+      shiftAssignment: { ...makeShiftAssignment(), shift: makeShift() },
     });
     await expect(approveTrade("trade-1")).rejects.toThrow("no claimer");
   });
@@ -287,7 +329,16 @@ describe("approveTrade", () => {
 // ═════════════════════════════════════════════════════════════════════════════
 describe("declineTrade", () => {
   it("resets claimed trade back to OPEN", async () => {
-    const trade = makeShiftTrade({ status: "CLAIMED" });
+    const trade = {
+      ...makeShiftTrade({ status: "CLAIMED", claimedByUserId: "claimer-1" }),
+      shiftAssignment: {
+        ...makeShiftAssignment(),
+        shift: {
+          ...makeShift(),
+          shiftGroup: { event: { summary: "Wisconsin vs Iowa" } },
+        },
+      },
+    };
     mockTx.shiftTrade.findUnique.mockResolvedValue(trade);
     mockTx.shiftTrade.update.mockResolvedValue({ ...trade, status: "OPEN" });
 
@@ -302,10 +353,21 @@ describe("declineTrade", () => {
         }),
       })
     );
+    expect(sendShiftTradeEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "claimer-1",
+        title: "Trade claim declined",
+        eventSummary: "Wisconsin vs Iowa",
+        area: "Field",
+      })
+    );
   });
 
   it("throws 400 when trade is not CLAIMED", async () => {
-    mockTx.shiftTrade.findUnique.mockResolvedValue(makeShiftTrade({ status: "OPEN" }));
+    mockTx.shiftTrade.findUnique.mockResolvedValue({
+      ...makeShiftTrade({ status: "OPEN" }),
+      shiftAssignment: { ...makeShiftAssignment(), shift: makeShift() },
+    });
     await expect(declineTrade("trade-1")).rejects.toThrow("Only claimed trades");
   });
 });
