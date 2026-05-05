@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-04-09
+- Last Updated: 2026-05-05
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
@@ -26,7 +26,7 @@ Multi-step wizard page (replaced the old side-sheet flow as of 2026-04-09):
 **Step 2 — Equipment:** Full `EquipmentPicker` — browse-first on mobile (no default camera). Equipment requirements enforced.
 **Step 3 — Confirmation:** Summary with thumbnails. Submit → POST `/api/reservations`. Save as `BOOKED`.
 
-**Deep-link parameters:** `?title`, `?startsAt`, `?endsAt`, `?locationId`, `?newFor`, `?eventId`, `?sportCode`, `?draftId`.
+**Deep-link parameters:** `?title`, `?startsAt`, `?endsAt`, `?locationId`, `?newFor`, `?eventId`, `?sportCode`, `?requesterUserId`, `?draftId`.
 
 ### Edit Reservation
 1. Allowed fields depend on role, ownership, and lifecycle state.
@@ -257,3 +257,4 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - 2026-04-06: **Doc sync** — ACs converted to checkbox format. 11/12 checked (AC-8 conflict badges partial). Changelog backfilled for kit integration, overdue sort, list hardening, photo requirement.
 - 2026-04-09: **Booking flow overhaul** — Creation flow moved from side-sheet to full-page 3-step wizard at `/reservations/new`. BookingDetailsSheet gains Equipment tab with full EquipmentPicker in edit mode. `CreateBookingSheet` deleted. Asset thumbnails on all equipment rows. Stress-tested with 8 fixes applied.
 - 2026-04-09: **EquipmentPicker rebuild + hardening** — Same picker rebuild as AREA_CHECKOUTS. Full-row selection, conflict check on selection change, selected shelf, error state surfacing. Reservation wizard at `/reservations/new` shares same picker with proper browse-first UX (no scan gate).
+- 2026-05-05: **Requester deep-link support** — Shared booking wizard now accepts `requesterUserId` as a creation deep-link parameter, preserving requester context from cross-page flows.

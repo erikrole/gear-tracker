@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Dashboard
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-04-06
+- Last Updated: 2026-05-05
 - Status: Active — V3 shipped, reliability + UX polish complete
 - Version: V3
 
@@ -187,3 +187,4 @@ Make dashboard an action console for daily operations, not a reporting screen.
 - 2026-04-09: **Stress test (4 issues found, 4 fixed):** BRK-001: Double-click race on inline actions — added `actionBusyRef` useRef guard to all mutation handlers. BRK-002: Per-item button disabling upgraded to global `acting` boolean (blocks ALL mutation buttons during any mutation). BRK-003: Cross-mutation gap closed — extend/convert and delete-draft now share a unified guard. BRK-004: Missing nudge double-click guard added.
 - 2026-04-24: **MVP audit fixes** — Per-user rate limits on `/api/dashboard` (30/min), `/api/dashboard/stats` (90/min), and `/api/bookings/[id]/nudge` (30/min). Stats endpoint now returns `role`, used by the page for early-render gating so staff-only buttons no longer flash for students on warm cache loads. Overdue banner row converted from `<button>` containing nested `<Link>`/`<Button>` to `<div role="button">` with keyboard handlers — fixes HTML-spec violation and screen-reader confusion.
 - 2026-04-24: **iOS Home audit fixes** — iOS overdue banner now reads `dashboard.overdueItems` (canonical top-N from backend) with the count from `overdueCount`, fixing the prior bug where the banner showed only items that happened to be in the capped my/team checkout lists (count vs banner could disagree, e.g. "12 Overdue" stat vs "2 Overdue Checkouts" banner header). Refresh failures now surface an inline pill instead of being silent. Added all-clear empty state for first-run students. `HomeViewModel.load` replaced its `hasLoaded`-once guard with a 60s freshness window so tab-back triggers a refresh when stale. `AppState.refresh()` switched from the heavy `/api/dashboard` to `/api/dashboard/stats` (now returns `myShiftsCount` too) — saves ~10 DB queries per badge refresh.
+- 2026-05-05: **Cross-page state awareness audit** — Event command and missing-gear checkout flows preserve event context into the booking wizard, and missing-gear checkout now preserves the assigned requester. Dashboard detail interactions already preserve scroll because rows open `BookingDetailsSheet` in-place instead of navigating away.

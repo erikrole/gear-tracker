@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Checkouts
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-04-30
+- Last Updated: 2026-05-05
 - Status: Active — V1 Shipped
 - Version: V1
 
@@ -38,7 +38,7 @@ Multi-step wizard page (replaced the old side-sheet flow as of 2026-04-09):
 2. Submit → POST `/api/checkouts`. 409 conflicts shown inline (returns to Step 2).
 3. Checkout is created with status `PENDING_PICKUP`. Gear must be picked up at a kiosk — no desktop/phone scanning allowed.
 
-**Deep-link parameters:** `?title`, `?startsAt`, `?endsAt`, `?locationId`, `?newFor` (pre-select asset), `?eventId`, `?sportCode`, `?draftId`.
+**Deep-link parameters:** `?title`, `?startsAt`, `?endsAt`, `?locationId`, `?newFor` (pre-select asset), `?eventId`, `?sportCode`, `?requesterUserId`, `?draftId`.
 
 **Draft persistence:** "Save draft & exit" persists via `/api/drafts`. Resumable via `?draftId=`.
 
@@ -307,3 +307,4 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 - 2026-04-24: **Multi-event booking V1 (D-031)** — Checkouts and reservations can now link up to 3 calendar events via the new `BookingEvent` junction table. Wizard Step 1 multi-select with chip strip + cap-enforced rows. `startsAt`/`endsAt` auto-derive min-to-max across selected events with the existing travel buffer. API accepts `eventIds[]` (mutually exclusive with legacy `eventId`); `POST /api/bookings/[id]` response includes `events[]` sorted by ordinal. `Booking.eventId` preserved as the primary (ordinal 0) so all 36+ existing readers keep working unchanged. Migration `0042_booking_events` backfills a junction row for every legacy booking.
 - 2026-04-29: **Wizard polish + notes surfaced** — `notes` (10k chars, optional) is now editable in Step 1 textarea, persisted through draft save/load (`/api/drafts` schema updated), and shown in Step 3 confirmation. Step 3 multi-event display gains per-event date, home/away badge, and a `Primary` tag on the chronologically-first event for clarity in 2- and 3-event bookings. Required-field asterisks on title/requester/location/dates. Draft-banner dismissal persists 1h via sessionStorage to reduce nag for users who intentionally abandoned a draft. Inline comment in `BookingWizard.tsx` now states the multi-event contract explicitly (always `eventIds[]`, never `eventId`).
 - 2026-04-30: **Booking + scan hardening wins** — (1) Booking detail condition photos now use `next/image` in `BookingInfoTab` (removed lint bypass for raw `<img>`). (2) `useScanSubmission` and `useBookingActions` now use shared safe JSON parsing helpers from `src/lib/errors.ts` instead of ad-hoc `.json().catch(() => ({}))` swallowing. (3) Added operational DB indexes for `notifications.sent_at`, `override_events.created_at`, and `bulk_stock_balances.bulk_sku_id` (migration `0049_add_operational_indexes`).
+- 2026-05-05: **Event command checkout context** — Missing-gear "Create checkout" links now preserve `requesterUserId` through the booking list redirect into `/checkouts/new`, so the wizard opens for the assigned crew member instead of defaulting back to the current user.

@@ -69,8 +69,8 @@
 | Kit-to-booking integration | Shipped | GAP-18 | Kit selector, kit badge on detail. |
 | Overdue priority sort | Shipped | AREA_CHECKOUTS changelog | Longest-overdue first in lists. |
 | Deep links from dashboard/items | Shipped | AREA_CHECKOUTS changelog | Auto-fill sport, event, pre-select asset. |
-| Equipment conflict badges on reservation detail | Specced | Reservations AC-8, todo.md | Conflict detection exists in picker but not on booking detail display. |
-| Date range grouping on detail | Mentioned | todo.md | Connected From/To display deferred. |
+| Equipment conflict badges on reservation detail | Shipped | Reservations AC-8, todo.md | Conflict badges verified on reservation detail equipment rows. |
+| Date range grouping on detail | Shipped | BookingInfoTab | Connected start/end display with duration is present in the detail Info tab. |
 
 ## Open Gaps & Blockers
 
@@ -80,7 +80,7 @@
 2. **Photo upload endpoint lacks permission gate** (MEDIUM): `POST /api/checkouts/[id]/photo` — only checks booking exists and is OPEN, doesn't verify user has permission (student ownership or staff+). Should add `requireBookingAction` check.
 
 ### From todo.md
-3. **Reservations AC-8**: Equipment conflict badges on booking detail — conflict detection exists in EquipmentPicker but not surfaced on the booking detail equipment tab. P2 priority.
+3. ~~**Reservations AC-8**~~: Equipment conflict badges on booking detail — **DONE 2026-04-06.** Conflict badges verified on reservation detail equipment rows.
 
 ### From AREA_RESERVATIONS.md
 4. **Reservation ACs not in checkbox format**: 12 acceptance criteria listed as numbered items, not `[x]`/`[ ]`. Unlike AREA_CHECKOUTS (all checked), these haven't been formally verified against the checkbox convention.
@@ -96,9 +96,9 @@
 
 3. ~~**[Medium] Update AREA_RESERVATIONS.md**~~ — **DONE 2026-04-06.** ACs converted to checkbox format (11/12 checked, AC-8 partial). 5 changelog entries backfilled. Last Updated bumped.
 
-4. **[Low] Implement reservation conflict badges** — todo.md P2 item. Surface conflict data from booking detail API on the equipment tab.
+4. ~~**[Low] Implement reservation conflict badges**~~ — **DONE 2026-04-06.** Already reconciled in `todo.md` and `AREA_RESERVATIONS.md`.
 
-5. **[Low] Date range grouping** — Connected From/To display on booking detail. Deferred from UX Round 3.
+5. ~~**[Low] Date range grouping**~~ — **DONE 2026-05-05.** Connected start/end display with duration is already present in `BookingInfoTab`; stale backlog entry reconciled.
 
 ## Roadmap Status
 

@@ -143,6 +143,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
   const initialEventId = searchParams.get("eventId") || undefined;
   const initialSportCode = searchParams.get("sportCode") || undefined;
   const initialDraftId = searchParams.get("draftId") || null;
+  const initialRequesterUserId = searchParams.get("requesterUserId") || undefined;
 
   // ── Form options ──
   const { data: formOpts, isError: formOptsError, refetch: refetchFormOpts } = useFormOptions();
@@ -152,7 +153,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
 
   // ── Current user ──
   const { data: meData } = useCurrentUser();
-  const initialRequester = meData?.id ?? "";
+  const initialRequester = initialRequesterUserId ?? meData?.id ?? "";
 
   // ── Existing drafts (for resume banner) ──
   // Persist dismissal for 1 hour via sessionStorage so it doesn't reappear on every reload.

@@ -137,6 +137,7 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
     const eventId = urlParams.get("eventId");
     const sportCode = urlParams.get("sportCode");
     const draftId = urlParams.get("draftId");
+    const requesterUserId = urlParams.get("requesterUserId");
     if (title) params.set("title", title);
     if (startsAt) params.set("startsAt", startsAt);
     if (endsAt) params.set("endsAt", endsAt);
@@ -145,6 +146,7 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
     if (eventId) params.set("eventId", eventId);
     if (sportCode) params.set("sportCode", sportCode);
     if (draftId) params.set("draftId", draftId);
+    if (requesterUserId) params.set("requesterUserId", requesterUserId);
     const qs = params.toString();
     router.push(qs ? `${base}?${qs}` : base);
   }
