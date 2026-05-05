@@ -59,6 +59,7 @@
 
 ## UX Patterns
 
+- **In-app scan is search-only; checkout/check-in scans happen at kiosks**: Do not frame app scan endpoint risks as staff/student checkout or return execution risk. Operational check-in/out belongs to kiosk flows; the app scan surface is for lookup/search unless the product scope explicitly changes.
 - **Toast messages should confirm WHAT happened**: "Extended to Mar 28" > "Booking extended". Include identifiers.
 - **Success toasts are as important as error toasts**: Silent success erodes confidence.
 - **Error differentiation**: Network errors get `WifiOff` icon + "offline" copy. Server errors get generic icon + "temporary" language.
