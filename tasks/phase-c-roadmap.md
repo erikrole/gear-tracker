@@ -715,21 +715,21 @@ This feature is intentionally broad. Rather than building everything at once (XL
 - `npm run build` check after each tier's changes
 
 ### 9. Availability Tracking
-**Goal:** Users declare availability (daily, weekly, 'until XX' patterns)
-**Current state:** No general availability model. Listed as Phase B deferred feature in GAPS_AND_RISKS.md.
+**Goal:** Extend the shipped weekly availability blocks only if operations need date-specific exceptions or richer overlays.
+**Current state:** V1 is shipped as `StudentAvailabilityBlock`, profile Availability tab, user availability APIs, and assignment conflict indicators. GAPS_AND_RISKS now treats date-specific exceptions as optional follow-up.
 
 **What's needed:**
 - Schema: New `Availability` model (userId, dayOfWeek or specificDate, startTime, endTime, recurrence type: DAILY/WEEKLY/UNTIL, untilDate, notes)
-- API: CRUD `/api/availability` — users manage own, admins view all
+- API: V1 CRUD exists under `/api/users/[id]/availability`; future date-specific exceptions should extend that contract instead of creating a parallel availability surface.
 - UI: "My Availability" page or section in profile — weekly grid editor, date-range blocks
 - UI (admin): Availability overlay on shift assignment — see who's available before assigning
 - Integration: Shift assignment reads the assignee's role automatically — assigning a student makes it a student shift, assigning staff makes it a staff shift. Badge accordingly.
 - Integration: Warn when assigning someone who has marked themselves unavailable
-- **Files:** `prisma/schema.prisma`, `src/app/(app)/availability/` (new) or extend profile page, `src/app/api/availability/` (new), `src/components/ShiftDetailPanel.tsx`
+- **Files:** extend `prisma/schema.prisma`, `src/app/(app)/users/[id]/UserAvailabilityTab.tsx`, `src/app/api/users/[id]/availability/`, and assignment conflict surfaces only if V2 scope is accepted.
 - **Complexity:** L
 
 **Scope clarification — what this feature covers:**
-Availability here means *unavailability declarations* ("I can't work these dates/times"), not a full scheduling preference system. Users mark when they're NOT available; absence of a block = assumed available. This is simpler to implement and matches the stated use case (students declare unavailable dates before assignment).
+Availability here still means *unavailability declarations* ("I can't work these dates/times"), not a full scheduling preference system. V1 covers recurring weekly blocks; any V2 should add one-off date exceptions without replacing the weekly model.
 
 **Schema design:**
 ```prisma

@@ -267,35 +267,34 @@ None. Gear readiness is computed from existing ShiftAssignment ↔ Booking join.
 **Schema**: None — uses existing StudentAreaAssignment, StudentSportAssignment, ShiftAssignment tables.
 
 #### 3b. Student Availability (Student + Staff)
-**What**: Students declare dates they're unavailable. Staff see availability when assigning.
+**Status**: Shipped as V1 recurring weekly unavailability blocks. See `docs/BRIEF_STUDENT_AVAILABILITY_V1.md`.
+
+**What**: Students declare recurring class/work blocks when they're unavailable. Staff see availability conflicts when assigning.
 **Why**: Staff currently ask students verbally about availability. This automates the information exchange and prevents assigning unavailable students.
 
 **Student perspective**: "I can mark when I'm busy so staff don't assign me to events I can't work."
 **Staff perspective**: "I can see who's actually available before I start assigning."
 
-- Student profile section: "My Availability" — mark dates unavailable with optional reason
-- Schedule calendar view: gray overlay on dates where user is unavailable (when "My Shifts" active)
-- ShiftDetailPanel suggestions: exclude unavailable users
-- Staff view in UserAvatarPicker: unavailable users shown with "Unavailable" tag (still assignable with override)
+- User profile section: Availability tab stores weekly blocks with optional labels.
+- Staff/admin can manage any user's blocks; students can manage only their own.
+- Assignment picker shows unavailable/conflict tags and still allows staff override.
+- Auto-assign and trade swaps preserve conflict notes.
 
-**Schema change**: New `StudentAvailability` model:
-```prisma
-model StudentAvailability {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  date      DateTime @db.Date
-  reason    String?
-  createdAt DateTime @default(now()) @map("created_at")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  @@unique([userId, date])
-  @@map("student_availability")
-}
-```
+**Schema**: `StudentAvailabilityBlock` already shipped:
+- `userId`
+- `dayOfWeek`
+- `startsAt`
+- `endsAt`
+- `label`
+- `semesterLabel`
 
 **API**:
-- `GET /api/users/[id]/availability?start=...&end=...`
-- `POST /api/users/[id]/availability` — declare unavailable dates
-- `DELETE /api/users/[id]/availability/[id]` — remove unavailability
+- `GET /api/users/[id]/availability`
+- `POST /api/users/[id]/availability`
+- `DELETE /api/users/[id]/availability/[blockId]`
+- `GET /api/shifts/[id]/conflicts`
+
+**Optional follow-up**: date-specific exceptions and calendar overlays remain future polish, not V1 blockers.
 
 #### 3c. Batch Operations (Staff)
 **What**: Select multiple events and apply bulk actions (regenerate shifts, bulk assign from template).

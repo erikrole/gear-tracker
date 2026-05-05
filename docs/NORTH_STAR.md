@@ -198,7 +198,7 @@ Use these questions before adding any feature:
 ### Phase B+ — Post-Beta Polish
 | Item | Status |
 |---|---|
-| Student availability tracking (declare unavailable dates) | ⬜ Deferred |
+| ~~Student availability tracking (weekly recurring unavailability blocks)~~ | ✅ Shipped 2026-04-27 (profile Availability tab + assignment conflict indicators) |
 | Shift email notifications (trade claims via Resend) | ⬜ Deferred |
 | ~~Inline dashboard actions (extend/checkin on overdue rows)~~ | ✅ Shipped (extend +1 day on overdue/due rows, convert reservation to checkout) |
 | Cross-page state awareness (eventId propagation, scroll preservation) | ⬜ Planned |
@@ -268,3 +268,4 @@ These are tracked here as candidates for future planning cycles:
 - 2026-03-23: Major refresh — Phase A marked complete (student mobile V1, equipment guidance 3 rules, shadcn migration, booking unification, security hardening, 5-pass page audits, scheduling integration all shipped). Phase B updated with shipped items and remaining work. Cleaned closed gaps from section 11. Scrapped B&H from planning priorities; replaced with Kit Management V1 brief. Updated feature suggestions to reflect shipped items (calendar source health, scan-to-add, 3 guidance rules). Added Game-Day Readiness Score and booking templates as candidates.
 - 2026-03-25: Doc sync — marked PD-5 (student KPIs) resolved in §11. Phase B: D-009 escalation marked shipped (was "Not started"). §12 Priority 1 (D-009 acceptance) marked resolved; Kit Management promoted to Priority 1.
 - 2026-03-27: **Alpha → Beta release.** Phase B marked complete. All shipped items updated (dashboard filters, kit integration, React Query, reports charts, search overhaul, favorites UI). Created Phase B+ section for post-Beta polish items (student availability, shift email, inline actions, state awareness). Version bumped to 0.2.0.
+- 2026-05-05: Doc sync — student availability V1 was already shipped as weekly recurring unavailability blocks (`StudentAvailabilityBlock`), user profile Availability tab, and assignment conflict indicators. Phase B+ row updated from deferred to shipped.

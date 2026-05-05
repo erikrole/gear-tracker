@@ -206,9 +206,9 @@ All V2 items shipped. Key deliverables:
 - **User deactivation feature**: Wire up the `User.active` field with admin UI toggle (login blocking is already in place; needs UI + booking migration per `BRIEF_USER_DEACTIVATION_V1.md`)
 
 ##### Student Availability Tracking (Size: M)
-- Students declare unavailable dates
-- Shift auto-generation skips unavailable students
-- Schema: new `StudentAvailability` model (userId, date, reason)
+- V1 shipped: students declare recurring weekly unavailability blocks via `StudentAvailabilityBlock`
+- Shift assignment surfaces availability conflicts; auto-assign/trade paths preserve conflict notes
+- Optional follow-up: date-specific exceptions if recurring weekly blocks are not enough
 
 ##### Shift Email Notifications (Size: S)
 - Email channel for trade claims and shift assignment changes
@@ -343,7 +343,7 @@ Independent (no blockers):
     ├──→ Inline dashboard actions (dashboard already decomposed)
     ├──→ CSP header (next.config.ts only)
     ├──→ Cross-page state awareness (URL params, scroll preservation)
-    ├──→ Student availability tracking (new model + shift gen changes)
+    ├──→ Student availability tracking (V1 shipped; optional date-specific exceptions remain)
     └──→ Shift email notifications (extends Resend infrastructure)
 
 Completed:
@@ -362,7 +362,7 @@ All remaining V2+ items are independent — no sequential blockers.
 | Dashboard decomposition | Game-Day Mode (needs component-level control) | ✅ Complete |
 | Kit-to-booking integration | Automation (kit-based auto-reservations) | ✅ Complete |
 | Scan decomposition | Bulk check-in by scan session | ✅ Complete |
-| Student availability model | Shift automation (skip unavailable students) | V2+ remaining |
+| Student availability model | Shift automation conflict warnings | Shipped V1; date-specific exceptions optional |
 | Historical usage data | Equipment health scoring, peak prediction | Needs time to accumulate |
 
 ### V3 Dependency Graph
@@ -444,7 +444,7 @@ The V2+/V3 boundary is most likely to blur on:
 - **React Query adoption** during V2+ work — resist; `useFetch` is adequate. React Query is V3.
 - **Game-Day Mode** pulled forward because readiness score seems "simple" — requires significant dashboard rework and new data aggregation.
 - **Unified search** expanding into Postgres full-text — client-side is fine for current scale.
-- **Automation** before student availability ships — availability data is prerequisite.
+- **Automation** before availability conflict data is respected — V1 conflict data exists; future automation must continue honoring it.
 
 ---
 
@@ -462,7 +462,7 @@ The V2+/V3 boundary is most likely to blur on:
 | 6 | **Inline dashboard actions** | M | High | Overdue extend/checkin without page navigation |
 | 7 | **CSP header** | S | Low | XSS defense-in-depth; low risk but easy |
 | 8 | **Cross-page state awareness** | M | Medium | Event context, scroll preservation |
-| 9 | **Student availability tracking** | M | Medium | New schema + shift gen changes; unblocks V3 automation |
+| 9 | ~~**Student availability tracking**~~ | M | Shipped V1 | Weekly recurring blocks + assignment conflict warnings; date-specific exceptions optional |
 | 10 | **Shift email notifications** | S | Low | Extends existing Resend infrastructure |
 
 ### Page Decomposition Backlog (Optional)
@@ -483,7 +483,7 @@ These pages work correctly but are candidates for decomposition when touched nex
 | **V3-A** | React Query migration | One page at a time: dashboard → items → checkouts → rest | V2+ complete |
 | **V3-B** | Unified Search V2 | New server endpoint + Cmd+K upgrade | Independent |
 | **V3-C** | Game-Day Mode | Dashboard widget + readiness score API | V3-A (cache) |
-| **V3-D** | Automation | Booking templates, bulk check-in, scheduled notifications | V3-A + student availability |
+| **V3-D** | Automation | Booking templates, bulk check-in, scheduled notifications | V3-A + shipped availability conflict data |
 | **V3-E** | Operational Intelligence | New report endpoints + admin analytics UI | Independent |
 | **V3-F** | Deeper Integration | Event cascade, maintenance, kiosk mode | Each independent |
 
@@ -497,14 +497,14 @@ These pages work correctly but are candidates for decomposition when touched nex
 
 **Should be sequential**:
 - V3-A (React Query) before V3-C (Game-Day Mode)
-- Student availability (V2+) before shift automation (V3-D)
+- Availability conflict data before shift automation (V3-D) — V1 now shipped
 
 ### Effort Estimates
 
 | Size | Definition | Example |
 |------|-----------|---------|
 | **S** | 1-3 hours, 1-3 files | Shift email, reports allSettled, notification deep-links |
-| **M** | 3-8 hours, 3-8 files | Inline dashboard actions, student availability, page decomposition |
+| **M** | 3-8 hours, 3-8 files | Inline dashboard actions, date-specific availability exceptions, page decomposition |
 | **L** | 1-3 days, 8+ files | React Query migration, unified search V2, game-day mode |
 
 ---

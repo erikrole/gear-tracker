@@ -52,25 +52,23 @@
 | Gear integration (shiftAssignmentId FK) | Shipped | NORTH_STAR Phase A | "Reserve gear" from shift → booking prefill. |
 | Home/away toggle + filtering | Shipped | V1.5 | Schedule page toggle. |
 | Shift email notifications | Deferred | Phase B | In-app audit only. |
-| Student availability tracking | Deferred | Phase B | Declare unavailable dates. |
+| Student availability tracking | Shipped | BRIEF_STUDENT_AVAILABILITY_V1 | Recurring weekly unavailability blocks, profile Availability tab, assignment conflict indicators. |
 
 ## Open Gaps & Blockers
 
 None critical. All shift-related gaps closed:
 - ~~GAP-15~~ (schedule monolith) — Closed 2026-03-25 (1,012→117 lines)
 - Shift email deferred to Phase B (tracked in GAPS_AND_RISKS)
-- Student availability deferred to Phase B (tracked in GAPS_AND_RISKS)
+- Student availability V1 shipped as recurring weekly blocks; date-specific exceptions remain optional follow-up.
 
 ### Minor doc drift
-- AREA_SHIFTS.md header says "Last Updated: 2026-03-16" but changelog extends to 2026-04-03. Header date should be bumped.
+- None currently identified.
 
 ## Recommended Actions (prioritized)
 
-1. **[Low] Bump AREA_SHIFTS.md header date** — Last Updated should be 2026-04-03 (latest changelog entry).
+1. **[Deferred] Shift email notifications** — Phase B. In-app audit logging complete.
 
-2. **[Deferred] Shift email notifications** — Phase B. In-app audit logging complete.
-
-3. **[Deferred] Student availability** — Phase B. Core scheduling works without it.
+2. **[Optional] Date-specific availability exceptions** — only add if recurring weekly blocks are not enough operationally.
 
 ## Roadmap Status
 
@@ -79,5 +77,5 @@ None critical. All shift-related gaps closed:
 | V1 Core | Complete | 11 slices shipped 2026-03-16. |
 | V2 Redesign | Complete | Per-event editing, universal assignment, avatar picker. Shipped 2026-03-26. |
 | V1.5 Polish | Complete | My hours, week view, hardening, stress test. Shipped 2026-04-03. |
-| Phase B | Deferred | Email notifications, student availability. |
+| Phase B | Partial | Student availability V1 shipped; email notifications deferred. |
 | Phase C | Deferred | Game-Day Readiness Score, templates, recurring patterns, time-clock editing. |

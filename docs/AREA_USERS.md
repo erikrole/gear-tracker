@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Users
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-04-30
+- Last Updated: 2026-05-05
 - Status: Active
 - Version: V1.2
 
@@ -60,6 +60,11 @@ Use a simple tiered permission model with inheritance so behavior is predictable
 - `ADMIN`: view, edit, discard all drafts.
 - `STAFF`: view, edit, discard all drafts.
 - `STUDENT`: view, edit, discard own drafts only.
+
+### Availability Blocks
+- `ADMIN`: view, add, and remove availability blocks for any user.
+- `STAFF`: view, add, and remove availability blocks for any user.
+- `STUDENT`: view, add, and remove only their own availability blocks.
 
 ## Dashboard Action Visibility Mapping
 1. Dashboard actions are role-filtered per row.
@@ -158,3 +163,4 @@ Use a simple tiered permission model with inheritance so behavior is predictable
   - **UI**: new "Details" card on `/users/[id]` (UserInfoTab.tsx). Field labels switch between "Top Size"/"Clothing Size" by role; bottom size hidden for students. Direct-report autocomplete searches `/api/users?q=…` and lets you pick a User (link) or save a free-text fallback.
   - **`useSaveField` hook** generalized to `useSaveField<T>` so date/number fields reuse the same auto-save UX as text fields.
 - 2026-05-01: **Avatars consolidated (audit fix)** — see `tasks/Avatars-audit.md`. `UserAvatar` now the canonical entry-point for `(name, avatarUrl)` user avatars with 6 semantic sizes (`xs`/`sm`/`default`/`md`/`lg`/`xl`). Migrated 14 raw `<Avatar>+<AvatarImage>+<AvatarFallback>+getInitials` call sites (UserRow, users/[id], LicenseTable, AdminClaimSheet, AssignmentCell, ShiftCoverageCard, EventTravelCard, UserAvatarPicker, ShiftSlotCard ×2, BookingCard, ActivityTimeline, dashboard ShiftAvatarStack). Sidebar kept raw for brand styling. **New: deterministic color-coded fallbacks** (`avatarColorClass(name)` in `src/lib/avatar.ts`, dual-mode palette of 9 hues). **Bugs fixed:** `ShiftSlotCard` pending-request avatar now renders `avatarUrl` (was dropping the photo silently); `AssignmentCell` conflict tint switched from hardcoded `bg-yellow-100/text-yellow-700` to `bg-amber-*` dual-mode (dark-mode invisible before). **Dead code removed:** `Avatar size="lg"` variant; `avatar-group.tsx` (every consumer passed `max={99}` and re-implemented overflow); `dashboard-avatars.tsx` re-export of `UserAvatar`; server-side `assignedUsers[].initials` field on `EventSummary` (web-only; iOS-consumed `requesterInitials` retained on `BookingSummary`/`MyReservation`/`OverdueItem`). **Polish:** profile-page "Remove photo" gated by `useConfirm()`; avatar trigger button gained `aria-label`. ShiftGroupSummary type now exposes `avatarUrl` (server already returned it; web was discarding it). Kiosk dashboard `requesterInitials` consolidated to shared `getInitials()` helper.
+- 2026-05-05: **Student availability doc sync** — user profile Availability tab documented as shipped V1. Students manage only their own recurring weekly unavailability blocks; staff/admin can manage any user. Blocks feed shift assignment conflict indicators. See `docs/BRIEF_STUDENT_AVAILABILITY_V1.md`.

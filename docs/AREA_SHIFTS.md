@@ -1,6 +1,6 @@
 # AREA: Shift Calendar & Scheduling
 
-> Status: **Implemented** | Owner: TBD | Last Updated: 2026-04-07
+> Status: **Implemented** | Owner: TBD | Last Updated: 2026-05-05
 
 ## Purpose
 
@@ -14,6 +14,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - **ShiftGroup**: 1:1 with CalendarEvent, container for all shifts at an event
 - **Premier Events**: Events where students can request to work (requires staff approval)
 - **Trade Board**: Area-filtered board where students post shifts they can't work; other students in the same area can claim them
+- **StudentAvailabilityBlock**: Recurring weekly unavailability block, usually a class schedule conflict, used to warn during shift assignment
 
 ## Acceptance Criteria
 
@@ -32,6 +33,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - [x] Home/away toggle: filterable, neutral-as-away default
 - [x] Hide events: staff can hide irrelevant events from schedule views
 - [x] My Hours stat strip: week/month hours + shift counts displayed on schedule page
+- [x] Student availability: profile Availability tab stores recurring weekly blocks and assignment flows show conflicts
 
 ## Information Architecture
 
@@ -109,4 +111,5 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 | 2026-04-09 | **Schedule page rebuild:** Migrated all custom CSS (`cal-*`, `week-*`, `event-date-*`) to Tailwind. Fixed CalendarView filter bug (was receiving unfiltered entries — home/away, area, coverage filters had no effect). Added missing neutral event color for both CalendarView and WeekView. Fixed `handleHideEvent` stale closure (dep was full data object). Fixed silent failures in ListView `loadUsers` and `handleInlineAssign`. Removed `tableLayout: fixed` + `<colgroup>`. Removed dead `myHours` fetch. Deleted 239 lines of dead CSS from globals.css. | — |
 | 2026-04-27 | **Assignment Grid shipped (`/schedule/assign`):** Month-level shift assignment matrix for staff. Rows = events, columns = area×workerType pairs derived from the month's shift data. Click "+" to assign any user via UserAvatarPicker popover; click avatar to remove. Month nav + sport/area filters. Multi-slot events (same area+workerType > 1 shift) display stacked avatars per cell. Conflict indicator dot shown on assignments with `hasConflict=true`. Accessible via "Assign shifts" button on Schedule page header (staff/admin only). | Grid |
 | 2026-04-27 | **Conflict indicators in assignment picker:** New `GET /api/shifts/[id]/conflicts` endpoint checks `StudentAvailabilityBlock` rows against shift time. `UserAvatarPicker` shows yellow dot + "⚠ conflict" label for conflicted users. `AssignmentCell` fetches conflict map on popover open. | Grid |
+| 2026-05-05 | **Doc sync:** Student availability V1 recorded as shipped. Scope is recurring weekly unavailability blocks, not date-specific exceptions. See `docs/BRIEF_STUDENT_AVAILABILITY_V1.md`. | Docs |
 | 2026-04-27 | **Trade board enhancements:** "My Trades" FilterChip in TradeBoard (filters to trades posted/claimed by current user). "Post for trade" button in ListView expanded shift rows — students can post directly from the schedule list without opening ShiftDetailPanel. | Trades |
