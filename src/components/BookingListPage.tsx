@@ -7,6 +7,7 @@ const BookingDetailsSheet = lazy(() => import("@/components/BookingDetailsSheet"
 import { toast } from "sonner";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
@@ -107,7 +108,7 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
   };
 
   // ── Form options (React Query, shared cache) ──
-  const { data: formOpts } = useFormOptions();
+  const { data: formOpts, isError: formOptionsError, refetch: refetchFormOptions } = useFormOptions();
   const users: FormUser[] = formOpts?.users ?? [];
   const locations: Location[] = formOpts?.locations ?? [];
 
@@ -256,6 +257,25 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
 
       {/* ════════ Filter bar + list ════════ */}
       <Card>
+        {formOptionsError && (
+          <div className="px-4 pt-4">
+            <Alert variant="destructive">
+              <AlertTitle>Filters did not load</AlertTitle>
+              <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+                <span>Location and requester filters may be incomplete until the shared form data loads.</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { void refetchFormOptions(); }}
+                  className="shrink-0"
+                >
+                  Retry
+                </Button>
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
         <BookingFilters
           config={config}
           search={search}

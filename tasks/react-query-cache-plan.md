@@ -1,7 +1,7 @@
 # React Query Cache Follow-Up Plan
 
 Date: 2026-05-05
-Status: Slice 1 shipped
+Status: Slices 1-3 shipped
 
 ## Context
 
@@ -33,9 +33,11 @@ Result: persistence remains limited to `dashboard` and `booking` cache roots. Ad
 
 ## Slice 3: Error-State Consistency
 
-- [ ] Audit React Query direct callers for required error states.
-- [ ] Prioritize shared data required by forms, especially `me`, `form-options`, and picker/search data.
-- [ ] Patch only pages that silently degrade required form inputs to empty arrays.
+- [x] Audit React Query direct callers for required error states.
+- [x] Prioritize shared data required by forms, especially `me`, `form-options`, and picker/search data.
+- [x] Patch only pages that silently degrade required form inputs to empty arrays.
+
+Result: `BookingWizard` already surfaced `form-options` failures. `BookingListPage` was the remaining shared-data consumer that silently rendered empty requester/location filter options, so it now shows a destructive alert with retry when form options fail to load.
 
 ## Verification
 
@@ -49,3 +51,4 @@ Result: persistence remains limited to `dashboard` and `booking` cache roots. Ad
 - Remaining work is cache correctness and consistency, not a system-wide rewrite.
 - Slice 1 removed repeated direct `/api/me` and `/api/form-options` named-key query functions from the app shell, settings layout, schedule assignment page, booking list, booking wizard, booking detail page, and booking details sheet.
 - Slice 2 locked persistence to dashboard and booking detail roots and covered it with `tests/query-client.test.ts`.
+- Slice 3 added a visible retry state for booking list filter metadata failures instead of silently rendering incomplete requester/location filters.
