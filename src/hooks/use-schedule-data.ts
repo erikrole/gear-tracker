@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import type {
   CalendarEvent,
   CalendarEntry,
@@ -148,15 +149,6 @@ async function fetchSchedule(eventsUrl: string, groupsUrl: string, signal?: Abor
   return mergeData(events, groups);
 }
 
-type MeResponse = { user: { id: string; role: string } };
-
-async function fetchMe(): Promise<MeResponse | null> {
-  const r = await fetch("/api/me");
-  if (handleAuthRedirect(r)) return null;
-  if (!r.ok) return null;
-  return r.json();
-}
-
 async function fetchTradeCount(): Promise<number> {
   const r = await fetch("/api/shift-trades?status=OPEN");
   if (!r.ok) return 0;
@@ -209,14 +201,9 @@ export function useScheduleData(): UseScheduleDataResult {
   useEffect(() => { localStorage.setItem(LS_MY_SHIFTS, String(myShiftsOnly)); }, [myShiftsOnly]);
 
   // --- React Query: user info ---
-  const { data: meData } = useQuery({
-    queryKey: ["me"],
-    queryFn: fetchMe,
-    staleTime: 5 * 60_000,
-    refetchOnWindowFocus: false,
-  });
-  const currentUserId = meData?.user?.id ?? "";
-  const currentUserRole = meData?.user?.role ?? "STUDENT";
+  const { data: meData } = useCurrentUser();
+  const currentUserId = meData?.id ?? "";
+  const currentUserRole = meData?.role ?? "STUDENT";
 
   // Set default myShiftsOnly for students
   useEffect(() => {

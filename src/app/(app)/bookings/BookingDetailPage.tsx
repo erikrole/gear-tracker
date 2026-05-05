@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
@@ -31,6 +30,7 @@ import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 
 import { useBookingDetail } from "@/hooks/useBookingDetail";
 import { useBookingActions } from "@/hooks/useBookingActions";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   statusBadgeVariant,
   statusLabel,
@@ -108,16 +108,7 @@ export default function BookingDetailPage({
   }
 
   // Admin role — gates scan/checkin actions (kiosk-only for all other roles)
-  const { data: meData } = useQuery({
-    queryKey: ["me"],
-    queryFn: async ({ signal }) => {
-      const res = await fetch("/api/me", { signal });
-      if (!res.ok) return null;
-      const json = await res.json() as { user?: { role?: string } };
-      return json?.user ?? null;
-    },
-    staleTime: 5 * 60_000,
-  });
+  const { data: meData } = useCurrentUser();
   const isAdmin = meData?.role === "ADMIN";
 
   // Derived

@@ -30,6 +30,8 @@ import type { FormState, FormAction } from "@/components/create-booking/types";
 import { useEventContext } from "@/components/create-booking/use-event-context";
 import { useDraftManagement } from "@/components/create-booking/use-draft-management";
 import { useKitFetching } from "@/components/create-booking/use-kit-fetching";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { useFormOptions } from "@/hooks/use-form-options";
 import { WizardStep1 } from "./WizardStep1";
 import { WizardStep2 } from "./WizardStep2";
 import { WizardStep3 } from "./WizardStep3";
@@ -143,32 +145,13 @@ export function BookingWizard({ kind }: BookingWizardProps) {
   const initialDraftId = searchParams.get("draftId") || null;
 
   // ── Form options ──
-  const { data: formOpts, isError: formOptsError, refetch: refetchFormOpts } = useQuery({
-    queryKey: ["form-options"],
-    queryFn: async ({ signal }) => {
-      const res = await fetch("/api/form-options", { signal });
-      if (!res.ok) throw new Error("Failed to load form options");
-      const json = await res.json();
-      return json?.data ?? null;
-    },
-    staleTime: 5 * 60_000,
-    retry: 2,
-  });
+  const { data: formOpts, isError: formOptsError, refetch: refetchFormOpts } = useFormOptions();
   const users: FormUser[] = formOpts?.users ?? [];
   const locations: Location[] = formOpts?.locations ?? [];
   const bulkSkus: BulkSkuOption[] = formOpts?.bulkSkus ?? [];
 
   // ── Current user ──
-  const { data: meData } = useQuery({
-    queryKey: ["me"],
-    queryFn: async ({ signal }) => {
-      const res = await fetch("/api/me", { signal });
-      if (!res.ok) return null;
-      const json = await res.json();
-      return json?.user ?? null;
-    },
-    staleTime: 5 * 60_000,
-  });
+  const { data: meData } = useCurrentUser();
   const initialRequester = meData?.id ?? "";
 
   // ── Existing drafts (for resume banner) ──

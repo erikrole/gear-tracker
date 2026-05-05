@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-04-30
+- Last Updated: 2026-05-05
 - Status: Living registry — update when shipping features or resolving decisions
 - Purpose: Single file listing every open gap, pending decision, and known risk across all docs
 
@@ -34,7 +34,7 @@
 | ~~GAP-8~~ | ~~Reports page is a navigation dead end — no drill-down to individual bookings/items~~ | ~~AREA_DASHBOARD~~ | ~~Closed~~ | ~~Drill-down links added to MetricCard in checkouts, overdue, and utilization reports 2026-03-24~~ |
 | ~~GAP-9~~ | ~~Dashboard is a monolithic client component — blocks location filter, inline actions, saved filters~~ | ~~AREA_DASHBOARD~~ | ~~Closed~~ | ~~Decomposed: `useDashboardData`, `useDashboardFilters` hooks + 7 leaf components (avatars, chart, overdue, filters, columns, skeleton). Page.tsx reduced from 1004 to ~170 lines (2026-03-24)~~ |
 | ~~GAP-10~~ | ~~Kit management page exists but is empty — confusing for users navigating via sidebar~~ | ~~AREA_CHECKOUTS~~ | ~~Closed~~ | ~~Placeholder card shipped; Kits moved to Admin group with "Soon" badge in sidebar (2026-03-24)~~ |
-| GAP-11 | No cross-page data cache — every navigation triggers full re-fetch | CROSS-CUTTING | Expected | V2 `useFetch` migration complete (all pages use Visibility API refresh). V3: adopt React Query for shared cache + stale-while-revalidate. |
+| ~~GAP-11~~ | ~~No cross-page data cache — every navigation triggers full re-fetch~~ | ~~CROSS-CUTTING~~ | ~~Closed~~ | ~~React Query is already the shared cache layer: `useFetch` is React Query-backed, custom hooks use `useQuery`, and selected dashboard/booking queries persist in localStorage. Reconciled stale gap docs 2026-05-05.~~ |
 | ~~GAP-12~~ | ~~No stale-data detection across browser tabs or after backgrounding~~ | ~~CROSS-CUTTING~~ | ~~Closed~~ | ~~`useFetch` hook includes Page Visibility API refresh; item detail page refreshes on tab focus 2026-03-24~~ |
 | ~~GAP-13~~ | ~~`BRIEF_KIT_MANAGEMENT_V1.md` not written — blocks kit UI implementation (D-020)~~ | ~~AREA_CHECKOUTS~~ | ~~Closed~~ | ~~Brief written 2026-03-24; V1 scope: kit CRUD + member management + derived availability~~ |
 | ~~GAP-14~~ | ~~Scan page is 1,038 lines — monolithic, blocks feature additions~~ | ~~AREA_CHECKOUTS~~ | ~~Closed~~ | ~~Decomposed 2026-03-25: page.tsx 1,038→251 lines. Extracted `useScanSession`, `useScanSubmission` hooks + 4 leaf components (`ScanControls`, `ScanChecklist`, `UnitPickerSheet`, `ItemPreviewSheet`) + shared types~~ |
@@ -179,3 +179,4 @@
 - 2026-04-06: Cross-area ship-readiness audit. Users (22/25), Items (22/25), Checkouts (23/25), Dashboard (24/25). 20+ fixes shipped: session-level active enforcement, deactivation SERIALIZABLE, password reset atomic, QR/delete/generate/duplicate TOCTOU fixes, accessory transactions, booking audit-logs and photo permission gates, 401 hardening on kits + bulk-inventory, export permission corrected, doc sync across 6 AREA docs.
 - 2026-04-09: Hard doc sync pass. **Closed meta-gap: created AREA_KITS.md, AREA_REPORTS.md, AREA_BULK_INVENTORY.md** — 3 shipped features now formally documented. **Updated stale docs:** AREA_ITEMS (added Gap Wizard + item detail header redesign), AREA_USERS (added athlete roster redesign), AREA_MOBILE (added sidebar redesign + booking list migration + design refresh), AREA_KIOSK (AC-1 complete: admin CRUD for kiosk devices shipped). Updated Last Updated dates across all docs. Change log entry added to track doc sync commits. No code gaps identified; all features now have corresponding AREA doc entries.
 - 2026-04-30: Low-effort hardening pass shipped for booking/scan surfaces: replaced raw `<img>` in booking condition photos with `next/image`, centralized safe JSON parse handling in booking/scan client hooks, and added indexes for `notifications.sent_at`, `override_events.created_at`, and `bulk_stock_balances.bulk_sku_id` (migration `0049_add_operational_indexes`). No new gaps opened.
+- 2026-05-05: Reconciled stale GAP-11 status. React Query-backed cross-page caching is already implemented via `src/hooks/use-fetch.ts`, direct `useQuery` hooks, shared `QueryClient`, and selected persisted dashboard/booking caches. No new gap opened; follow-up is cache-key audit, not migration.

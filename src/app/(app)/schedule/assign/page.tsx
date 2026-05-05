@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
 import { PageHeader } from "@/components/PageHeader";
 import { FadeUp } from "@/components/ui/motion";
 import { useAssignmentGrid } from "@/hooks/use-assignment-grid";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import { AssignmentGrid } from "./_components/AssignmentGrid";
 import type { PickerUser } from "@/components/shift-detail/UserAvatarPicker";
 import { SPORT_CODES } from "@/lib/sports";
@@ -37,21 +38,14 @@ async function fetchUsers(): Promise<PickerUser[]> {
 export default function AssignPage() {
   const router = useRouter();
   const grid = useAssignmentGrid();
-  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const { data: currentUser, isLoading: currentUserLoading } = useCurrentUser();
+  const currentUserRole = currentUser?.role ?? null;
 
-  // Gate: redirect non-staff
   useEffect(() => {
-    fetch("/api/me")
-      .then((r) => r.json())
-      .then((j) => {
-        const role: string = j?.user?.role ?? "STUDENT";
-        setCurrentUserRole(role);
-        if (role !== "STAFF" && role !== "ADMIN") {
-          router.replace("/schedule");
-        }
-      })
-      .catch(() => router.replace("/schedule"));
-  }, [router]);
+    if (!currentUserLoading && currentUserRole !== "STAFF" && currentUserRole !== "ADMIN") {
+      router.replace("/schedule");
+    }
+  }, [currentUserLoading, currentUserRole, router]);
 
   const { data: allUsers = [], isLoading: usersLoading } = useQuery({
     queryKey: ["users-picker"],
@@ -77,7 +71,7 @@ export default function AssignPage() {
   }
 
   // Loading state while verifying role
-  if (currentUserRole === null) return null;
+  if (currentUserLoading || currentUserRole === null) return null;
 
   return (
     <FadeUp>

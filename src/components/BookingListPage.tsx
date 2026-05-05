@@ -13,6 +13,8 @@ import { Pagination, PaginationContent, PaginationItem, PaginationNext, Paginati
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { useFormOptions } from "@/hooks/use-form-options";
 
 import {
   SortHeader,
@@ -105,30 +107,12 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
   };
 
   // ── Form options (React Query, shared cache) ──
-  const { data: formOpts } = useQuery({
-    queryKey: ["form-options"],
-    queryFn: async ({ signal }) => {
-      const res = await fetch("/api/form-options", { signal });
-      if (!res.ok) return null;
-      const json = await res.json();
-      return json?.data ?? null;
-    },
-    staleTime: 5 * 60_000,
-  });
+  const { data: formOpts } = useFormOptions();
   const users: FormUser[] = formOpts?.users ?? [];
   const locations: Location[] = formOpts?.locations ?? [];
 
   // ── Current user (React Query, shared cache) ──
-  const { data: meData } = useQuery({
-    queryKey: ["me"],
-    queryFn: async ({ signal }) => {
-      const res = await fetch("/api/me", { signal });
-      if (!res.ok) return null;
-      const json = await res.json();
-      return json?.user ?? null;
-    },
-    staleTime: 5 * 60_000,
-  });
+  const { data: meData } = useCurrentUser();
   const currentUserId = meData?.id ?? "";
   const currentUserRole = meData?.role ?? "";
   // initialRequester is now handled inside the wizard page

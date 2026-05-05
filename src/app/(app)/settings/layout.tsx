@@ -1,48 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SETTINGS_SECTIONS, isSectionVisible } from "@/lib/nav-sections";
 import { SettingsCommand } from "./SettingsCommand";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 const LAST_TAB_STORAGE_KEY = "settings:last-tab";
-
-type AuthState = "loading" | "authorized" | "denied";
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [authState, setAuthState] = useState<AuthState>("loading");
-  const [role, setRole] = useState<string | null>(null);
+  const { data: currentUser, isLoading } = useCurrentUser();
+  const role = currentUser?.role ?? null;
 
   useEffect(() => {
-    let cancelled = false;
-    fetch("/api/me")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((json) => {
-        if (cancelled) return;
-        const r = json?.user?.role;
-        if (r === "ADMIN" || r === "STAFF" || r === "STUDENT") {
-          setRole(r);
-          setAuthState("authorized");
-        } else {
-          // Not signed in — bounce to login.
-          setAuthState("denied");
-          router.replace("/login");
-        }
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setAuthState("denied");
-        router.replace("/login");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [router]);
+    if (!isLoading && !currentUser) router.replace("/login");
+  }, [currentUser, isLoading, router]);
 
   const visibleSections = role
     ? SETTINGS_SECTIONS.filter((s) => isSectionVisible(s, role))
@@ -90,7 +67,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
         })}
       </nav>
 
-      {authState === "loading" ? (
+      {isLoading ? (
         <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
           <div className="sticky top-20 max-lg:static space-y-2">
             <Skeleton className="h-7 w-32" />
@@ -101,7 +78,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
             <Skeleton className="h-32 w-full" />
           </div>
         </div>
-      ) : authState === "authorized" ? (
+      ) : currentUser ? (
         children
       ) : null}
     </>

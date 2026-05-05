@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import {
@@ -81,16 +81,7 @@ export default function BookingDetailsSheet({
   const confirm = useConfirm();
 
   // Admin role — used to gate the manual override return buttons (kiosk handles all check-in/out for other roles)
-  const { data: meData } = useQuery({
-    queryKey: ["me"],
-    queryFn: async ({ signal }) => {
-      const res = await fetch("/api/me", { signal });
-      if (!res.ok) return null;
-      const json = await res.json() as { user?: { role?: string } };
-      return json?.user ?? null;
-    },
-    staleTime: 5 * 60_000,
-  });
+  const { data: meData } = useCurrentUser();
   const isAdmin = meData?.role === "ADMIN";
   const [booking, setBooking] = useState<BookingDetail | null>(null);
   const [loading, setLoading] = useState(true);

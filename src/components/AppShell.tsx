@@ -23,8 +23,7 @@ import {
 } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
 import { STATUS_STYLES } from "@/lib/status-styles";
-
-type User = { id: string; name: string; email: string; role: string; avatarUrl?: string | null };
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 type SearchResult = {
   type: "item" | "checkout" | "reservation" | "user";
@@ -49,23 +48,14 @@ const bottomNavItems = [
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: user, isLoading } = useCurrentUser();
   const [loggingOut, setLoggingOut] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [overdueBadgeCount, setOverdueBadgeCount] = useState(0);
 
-  // Auth check — mount only
   useEffect(() => {
-    fetch("/api/me")
-      .then((res) => {
-        if (!res.ok) throw new Error("Not authenticated");
-        return res.json();
-      })
-      .then((json) => setUser(json.user))
-      .catch(() => router.replace("/login"))
-      .finally(() => setLoading(false));
-  }, [router]);
+    if (!isLoading && !user) router.replace("/login");
+  }, [isLoading, router, user]);
 
   // Badge counts — refresh on navigation so counts stay fresh after user actions
   useEffect(() => {
@@ -227,7 +217,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Spinner className="size-8" />

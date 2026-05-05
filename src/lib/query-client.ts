@@ -2,6 +2,13 @@ import { QueryClient } from "@tanstack/react-query";
 import { persistQueryClient } from "@tanstack/react-query-persist-client";
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 
+const PERSISTED_QUERY_ROOTS = new Set(["dashboard", "booking"]);
+
+export function shouldPersistQueryKey(queryKey: readonly unknown[]) {
+  const rootKey = queryKey[0];
+  return typeof rootKey === "string" && PERSISTED_QUERY_ROOTS.has(rootKey);
+}
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -30,10 +37,7 @@ if (typeof window !== "undefined") {
     persister,
     maxAge: 24 * 60 * 60_000,
     dehydrateOptions: {
-      shouldDehydrateQuery: (query) => {
-        const key = query.queryKey[0];
-        return key === "dashboard" || key === "booking";
-      },
+      shouldDehydrateQuery: (query) => shouldPersistQueryKey(query.queryKey),
     },
   });
 }
