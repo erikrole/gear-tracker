@@ -17,6 +17,7 @@
     "db:migrate:status": "prisma migrate status",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:check": "node scripts/check-migration-prefixes.mjs",
+    "db:check:dupe-allocations": "node --env-file=.env scripts/check-dupe-allocations.mjs",
     "db:setup": "node --env-file=.env scripts/setup-db.mjs",
     "db:seed": "node prisma/seed.mjs",
     "test": "vitest run",
