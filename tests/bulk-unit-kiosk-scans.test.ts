@@ -7,6 +7,7 @@ import {
 function makeTx(overrides: Partial<Record<string, unknown>> = {}) {
   const tx = {
     booking: { findUnique: vi.fn() },
+    bulkSku: { findMany: vi.fn() },
     bulkSkuUnit: { findUnique: vi.fn(), update: vi.fn() },
     bookingBulkUnitAllocation: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
     bookingBulkItem: { update: vi.fn() },
@@ -101,6 +102,63 @@ describe("scanKioskPickupBulkUnit", () => {
       error: "Sony Battery #7 already scanned",
     });
   });
+
+  it("explains when the scanned unit is the wrong battery type", async () => {
+    const tx = makeTx();
+    tx.booking.findUnique.mockResolvedValue(pickupBooking);
+    tx.bulkSku.findMany.mockResolvedValue([
+      pickupBooking.bulkItems[0]!.bulkSku,
+      {
+        id: "sku-2",
+        name: "Canon Battery",
+        category: "Batteries",
+        binQrCodeValue: "canon-battery",
+        trackByNumber: true,
+      },
+    ]);
+
+    const result = await scanKioskPickupBulkUnit(tx, {
+      bookingId: "booking-1",
+      scanValue: "canon-battery-4",
+    });
+
+    expect(result).toEqual({
+      handled: true,
+      success: false,
+      error: "Wrong battery type: scanned Canon Battery #4, but this pickup expects Sony Battery",
+    });
+  });
+
+  it("explains when a pickup unit is already checked out elsewhere", async () => {
+    const tx = makeTx();
+    tx.booking.findUnique.mockResolvedValue(pickupBooking);
+    tx.bulkSkuUnit.findUnique.mockResolvedValue({
+      id: "unit-7",
+      bulkSkuId: "sku-1",
+      unitNumber: 7,
+      status: "CHECKED_OUT",
+      allocations: [{
+        bookingBulkItem: {
+          booking: {
+            title: "Other checkout",
+            requester: { name: "Bucky Badger" },
+          },
+        },
+      }],
+    });
+    tx.bookingBulkUnitAllocation.findUnique.mockResolvedValue(null);
+
+    const result = await scanKioskPickupBulkUnit(tx, {
+      bookingId: "booking-1",
+      scanValue: "94e068d1-7",
+    });
+
+    expect(result).toEqual({
+      handled: true,
+      success: false,
+      error: "Sony Battery #7 is already checked out to Bucky Badger",
+    });
+  });
 });
 
 describe("scanKioskCheckinBulkUnit", () => {
@@ -148,6 +206,79 @@ describe("scanKioskCheckinBulkUnit", () => {
     expect(tx.bookingBulkItem.update).toHaveBeenCalledWith({
       where: { id: "bulk-item-1" },
       data: { checkedInQuantity: { increment: 1 } },
+    });
+  });
+
+  it("explains when a return unit belongs to a different battery SKU", async () => {
+    const tx = makeTx();
+    tx.booking.findUnique.mockResolvedValue({
+      ...pickupBooking,
+      status: "OPEN",
+      bulkItems: [{
+        ...pickupBooking.bulkItems[0],
+        checkedOutQuantity: 5,
+        checkedInQuantity: 0,
+      }],
+    });
+    tx.bulkSku.findMany.mockResolvedValue([
+      pickupBooking.bulkItems[0]!.bulkSku,
+      {
+        id: "sku-2",
+        name: "Canon Battery",
+        category: "Batteries",
+        binQrCodeValue: "canon-battery",
+        trackByNumber: true,
+      },
+    ]);
+
+    const result = await scanKioskCheckinBulkUnit(tx, {
+      bookingId: "booking-1",
+      scanValue: "canon-battery-4",
+    });
+
+    expect(result).toEqual({
+      handled: true,
+      success: false,
+      error: "Wrong battery type: scanned Canon Battery #4, but this return expects Sony Battery",
+    });
+  });
+
+  it("explains when a return unit is checked out on another booking", async () => {
+    const tx = makeTx();
+    tx.booking.findUnique.mockResolvedValue({
+      ...pickupBooking,
+      status: "OPEN",
+      bulkItems: [{
+        ...pickupBooking.bulkItems[0],
+        checkedOutQuantity: 5,
+        checkedInQuantity: 0,
+      }],
+    });
+    tx.bulkSkuUnit.findUnique.mockResolvedValue({
+      id: "unit-7",
+      bulkSkuId: "sku-1",
+      unitNumber: 7,
+      status: "CHECKED_OUT",
+      allocations: [{
+        bookingBulkItem: {
+          booking: {
+            title: "Other checkout",
+            requester: { name: "Bucky Badger" },
+          },
+        },
+      }],
+    });
+    tx.bookingBulkUnitAllocation.findUnique.mockResolvedValue(null);
+
+    const result = await scanKioskCheckinBulkUnit(tx, {
+      bookingId: "booking-1",
+      scanValue: "94e068d1-7",
+    });
+
+    expect(result).toEqual({
+      handled: true,
+      success: false,
+      error: "Sony Battery #7 is checked out on another booking to Bucky Badger",
     });
   });
 });

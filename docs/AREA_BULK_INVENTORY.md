@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Bulk Inventory Management
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-05
+- Last Updated: 2026-05-06
 - Status: Active
 - Version: V1
 
@@ -52,6 +52,22 @@ Track non-serialized (bulk) inventory — quantities of identical items (e.g., 5
   - 401 redirect on all mutations
 - **Loading state:** SkeletonTable while fetching
 - **Empty states:** "No bulk SKUs" or "No results match your search"
+
+### `/bulk-inventory/batteries`
+- **Page:** `src/app/(app)/bulk-inventory/batteries/page.tsx`
+- **Type:** Admin/staff operational cockpit for active numbered battery SKUs
+- **Purpose:** Make day-to-day battery unit management faster without moving batteries out of numbered bulk inventory.
+- **Structure:**
+  1. **Metric strip:** available, checked out, lost, retired, and low-SKU counts.
+  2. **Compatible battery lows:** camera-family battery health derived from active camera inventory and the existing compatibility rules.
+  3. **Checked-out units table:** unit number, battery SKU, holder, booking, due date, and checked-out age.
+  4. **Battery SKU cards:** per-SKU available/out/lost/retired counts and direct unit controls.
+- **Behaviors:**
+  - Only active numbered battery SKUs are shown.
+  - Low stock uses the existing battery rule of max(`minThreshold`, 10).
+  - Compatible battery lows reuse `src/lib/battery-compatibility.ts`; no separate camera-to-battery schema exists.
+  - Unit actions reuse the audited `/api/bulk-skus/[id]/units/[unitNumber]` status endpoint.
+  - Checked-out units are read-only in this surface and must be returned through check-in before status changes.
 
 ## Data Model
 
@@ -146,6 +162,9 @@ See `AREA_ITEMS.md` 2026-04-06 entry for bulk inventory page hardening:
 - [x] AC-6: Change unit status (mark lost, retire, release) with audit trail
 
 ## Change Log
+- 2026-05-06: Battery compatibility lows panel shipped on `/bulk-inventory/batteries`. The cockpit now summarizes low compatible battery families by matching active camera inventory to the existing Sony/Canon/V-mount compatibility rules, then comparing available numbered battery units against each family threshold.
+- 2026-05-06: Battery Unit Cockpit shipped at `/bulk-inventory/batteries`. The Admin nav now exposes a battery-focused operational page for active numbered battery SKUs with available/out/lost/retired counts, low-stock signals, checked-out unit aging, booking/requester context, and direct audited unit status actions. Battery reporting remains deferred in GAP-37.
+- 2026-05-06: Kiosk battery mismatch polish shipped. Derived unit QR handling now checks active numbered battery SKUs beyond the booking SKU list so kiosk pickup/return can explain wrong battery type, already checked-out elsewhere, not checked out on this booking, duplicate scan, and lost/retired unit cases.
 - 2026-05-06: Items Fill gaps now includes active bulk SKUs when counting and assigning missing category or department values, suggests departments from same-category inventory patterns including legacy bulk rows with category text but no `categoryId`, and the Items table receives bulk department metadata from `/api/assets`.
 - 2026-05-05: Battery compatibility mapping aligned to the current import snapshot: Sony NP-FZ100 bodies (FX3, A7/A1/A9 family) and Sony BP-U bodies (FX6) warn against matching numbered battery SKUs. Reporting remains deferred in GAP-37.
 - 2026-05-05: Bulk battery hardening — kiosk pickup/check-in now accepts numbered battery unit QR scans, lookup resolves battery units, and checkout creation warns when compatible battery availability is low.

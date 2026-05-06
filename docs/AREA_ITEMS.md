@@ -30,6 +30,12 @@ Treat physical gear identity as primary, make list and detail views action-orien
 2. User filters by status/category/location/item kind and searches by tagName, productName, brand, model, serial, or tracking code.
 3. User opens row details or row actions.
 
+### Inventory Hygiene
+1. Staff/admin opens `/items/hygiene` from the Admin nav.
+2. The page shows cleanup checks that improve picker, search, checkout, kit, and scan quality.
+3. Each issue card links to the existing repair surface instead of adding new mutation paths.
+4. Slice 1 checks missing category, missing department, missing primary scan code, missing image, duplicate scan identity, retired items still in active kits, camera bodies with no attachments, and active bulk SKUs below threshold.
+
 ### Create Item
 1. User starts `New asset`.
 2. User selects item kind:
@@ -373,6 +379,7 @@ Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered 
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-05-06: **Inventory Hygiene Center shipped** at `/items/hygiene`. The first slice is a read-only staff/admin checklist backed by `GET /api/inventory-hygiene`, covering missing category, missing department, missing primary scan code, missing image, duplicate scan identity, retired items still in active kits, camera bodies without attachments, and low-threshold bulk SKUs. Each sample links to the existing repair surface.
 - 2026-05-06: **Item detail tabs final polish** — Schedule now pairs the month grid with a compact month agenda and quieter calendar chrome. Insights now uses recorded completion audit activity for return-timing when available, labels that metric more honestly, and renders item age in human-readable units. Attachments no longer shows a misleading travel rule on items with no attached children, and its empty state now explains when fixed accessories should be added.
 - 2026-05-06: **Item detail tabs follow-up** — Schedule now uses start, continuation, and end markers so long bookings no longer visually repeat the same title on every occupied day. Past Bookings now receives requester avatar URLs from the item detail API and renders a denser context row with title, requester, range, kind, and status. History now supports scoped backend activity queries, cursor pagination, cleaner legacy audit labels, and quieter field-change output for import metadata.
 - 2026-05-06: **Item detail tab direction pass** — the detail tab rail now removes the redundant Bookings tab, renames Calendar to Schedule, removes visible keyboard shortcut numerals from tab labels, and keeps only meaningful count badges. The Info tab now adds recent Past Bookings under upcoming reservations for quick context. Insights was simplified into lightweight usage signals instead of a dense chart dashboard, History is framed as the complete item touch log including booking activity, Attachments gained stronger operational summary/direction, and Settings now reads as workflow eligibility policy rather than current status control.

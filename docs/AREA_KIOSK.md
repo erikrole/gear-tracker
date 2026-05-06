@@ -4,7 +4,7 @@
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Status: Shipped — iOS canonical (web kiosk deprecated 2026-04-24)
 - Created: 2026-04-07
-- Last Updated: 2026-04-24
+- Last Updated: 2026-05-06
 - Brief: `BRIEF_KIOSK.md`
 - Decision Refs: D-030
 
@@ -98,3 +98,4 @@ Files under `ios/Wisconsin/Kiosk/`:
 | 2026-04-24 | **iOS canonical, web kiosk deprecated.** Deleted `src/app/(kiosk)/kiosk/` (3,400 LOC) — all kiosk surfaces now run in the native iOS app. AREA doc rewritten with explicit Trust Model section. Added camera fallback (DataScannerViewController-backed) for AC-6. Added AC-14: scanned-cart preserved across inactivity reset (mid-flow scans no longer silently lost). Added AC-15: heartbeat and idle-dashboard 401s now route back to activation instead of silently failing. UI polish: shared `Color.kioskRed` extension, first-name+last-initial disambiguation on roster collisions, friendlier activation copy, back-button confirms when scanned items present. |
 | 2026-05-05 | Numbered battery unit hardening: pickup/check-in scan routes now accept derived unit QR values, bind or return one unit at a time, and kiosk scan lookup resolves battery unit status with parent SKU context. |
 | 2026-05-05 | iOS kiosk battery checklist hardening: checkout detail payloads now include pending battery scan slots and checked-out battery units, and pickup confirm blocks until planned battery quantities are scanned. |
+| 2026-05-06 | Battery scan mismatch polish: kiosk pickup/return now distinguishes wrong battery type, unit already checked out elsewhere, unit not checked out on this booking, duplicate pickup scans, and lost/retired units. |

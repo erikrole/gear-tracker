@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getBatteryAvailabilityAlerts } from "@/lib/battery-compatibility";
+import { getBatteryAvailabilityAlerts, getBatteryCompatibilitySummaries } from "@/lib/battery-compatibility";
 
 describe("getBatteryAvailabilityAlerts", () => {
   it("warns when selected camera model has fewer compatible batteries than threshold", () => {
@@ -96,5 +96,46 @@ describe("getBatteryAvailabilityAlerts", () => {
       availableQuantity: 7,
       threshold: 10,
     }));
+  });
+
+  it("summarizes low compatible battery families across camera inventory", () => {
+    const summaries = getBatteryCompatibilitySummaries({
+      cameraAssets: [
+        { brand: "Sony", model: "FX3", type: "Camera Body", categoryName: "Cameras" },
+        { brand: "Sony", model: "A7 IV", type: "Camera Body", categoryName: "Cameras" },
+        { brand: "Sony", model: "FX6", type: "Camera Body", categoryName: "Cameras" },
+      ],
+      bulkSkus: [
+        {
+          id: "np-fz100",
+          name: "Sony NP-FZ100 Battery",
+          category: "Batteries",
+          availableQuantity: 6,
+        },
+        {
+          id: "bp-u",
+          name: "Sony BP-U Battery",
+          category: "Batteries",
+          availableQuantity: 14,
+        },
+      ],
+    });
+
+    expect(summaries).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        ruleId: "sony-np-fz100",
+        cameraCount: 2,
+        batterySkuNames: ["Sony NP-FZ100 Battery"],
+        availableQuantity: 6,
+        threshold: 10,
+        isLow: true,
+      }),
+      expect.objectContaining({
+        ruleId: "sony-bp-u",
+        cameraCount: 1,
+        availableQuantity: 14,
+        isLow: false,
+      }),
+    ]));
   });
 });

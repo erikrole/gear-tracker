@@ -33,6 +33,12 @@ export type BatteryAvailabilityAlert = {
   threshold: number;
 };
 
+export type BatteryCompatibilitySummary = BatteryAvailabilityAlert & {
+  cameraCount: number;
+  batterySkuNames: string[];
+  isLow: boolean;
+};
+
 export const BATTERY_COMPATIBILITY_RULES: BatteryCompatibilityRule[] = [
   {
     id: "sony-np-fz100",
@@ -81,7 +87,7 @@ function haystack(parts: Array<string | null | undefined>) {
   return parts.filter(Boolean).join(" ").toLowerCase();
 }
 
-function isCamera(asset: BatteryCameraLike) {
+export function isBatteryCamera(asset: BatteryCameraLike) {
   const text = haystack([asset.type, asset.categoryName, asset.brand, asset.model]);
   return /\b(cameras?|camcorder|cinema|mirrorless|dslr|bod(?:y|ies))\b/.test(text);
 }
@@ -102,12 +108,26 @@ export function getBatteryAvailabilityAlerts(args: {
   bulkSkus: BatterySkuLike[];
   rules?: BatteryCompatibilityRule[];
 }): BatteryAvailabilityAlert[] {
+  return getBatteryCompatibilitySummaries({
+    cameraAssets: args.selectedAssets,
+    bulkSkus: args.bulkSkus,
+    rules: args.rules,
+  })
+    .filter((summary) => summary.isLow)
+    .map(({ cameraCount: _cameraCount, batterySkuNames: _batterySkuNames, isLow: _isLow, ...alert }) => alert);
+}
+
+export function getBatteryCompatibilitySummaries(args: {
+  cameraAssets: BatteryCameraLike[];
+  bulkSkus: BatterySkuLike[];
+  rules?: BatteryCompatibilityRule[];
+}): BatteryCompatibilitySummary[] {
   const rules = args.rules ?? BATTERY_COMPATIBILITY_RULES;
-  const selectedCameras = args.selectedAssets.filter(isCamera);
-  if (selectedCameras.length === 0) return [];
+  const cameras = args.cameraAssets.filter(isBatteryCamera);
+  if (cameras.length === 0) return [];
 
   return rules.flatMap((rule) => {
-    const matchingCameras = selectedCameras.filter((camera) => {
+    const matchingCameras = cameras.filter((camera) => {
       const text = haystack([camera.brand, camera.model]);
       return rule.cameraModelTerms.some((term) => text.includes(term));
     });
@@ -121,15 +141,18 @@ export function getBatteryAvailabilityAlerts(args: {
 
     const availableQuantity = matchingSkus.reduce((sum, sku) => sum + quantityForSku(sku), 0);
     const threshold = thresholdForSkus(matchingSkus);
-    if (availableQuantity >= threshold) return [];
+    const cameraModels = [...new Set(matchingCameras.map((camera) => camera.model).filter((model): model is string => !!model))];
 
     return [{
       ruleId: rule.id,
       label: rule.label,
-      cameraModels: [...new Set(matchingCameras.map((camera) => camera.model).filter((model): model is string => !!model))],
+      cameraModels,
+      cameraCount: matchingCameras.length,
       batterySkuIds: matchingSkus.map((sku) => sku.id),
+      batterySkuNames: matchingSkus.map((sku) => sku.name),
       availableQuantity,
       threshold,
+      isLow: availableQuantity < threshold,
     }];
   });
 }

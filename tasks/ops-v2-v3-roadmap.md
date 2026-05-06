@@ -23,7 +23,7 @@ Focus on pages people touch daily. V2 should make the shipped model easier to ru
 - Add a battery-focused unit view: available, checked out, lost, retired.
 - Make quick unit actions obvious: mark lost, retire, release.
 - Keep all status changes audit-backed.
-- Add a low compatible batteries panel by camera model.
+- Add a low compatible batteries panel by camera model (shipped 2026-05-06).
 - Keep full reports deferred.
 
 ### Item Detail / Attachments V2
@@ -36,7 +36,7 @@ Focus on pages people touch daily. V2 should make the shipped model easier to ru
 ### Kiosk V2
 
 - Make the battery scan step explicit during pickup.
-- Improve mismatch messages:
+- Improve mismatch messages (shipped 2026-05-06):
   - wrong battery type
   - already checked out
   - not part of this booking

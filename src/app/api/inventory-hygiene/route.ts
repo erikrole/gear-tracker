@@ -1,0 +1,355 @@
+import { withAuth } from "@/lib/api";
+import { db } from "@/lib/db";
+import { ok } from "@/lib/http";
+import { requirePermission } from "@/lib/rbac";
+
+const SAMPLE_LIMIT = 6;
+const DEFAULT_BULK_THRESHOLD = 1;
+
+type HygieneSample = {
+  id: string;
+  label: string;
+  detail: string;
+  href: string;
+};
+
+type DuplicateScanRow = {
+  scan_value: string;
+  occurrences: bigint;
+  examples: Array<{
+    id: string;
+    label: string;
+    source: string;
+  }>;
+};
+
+function assetLabel(asset: { assetTag: string; name: string | null; brand: string; model: string }) {
+  return asset.name?.trim() || [asset.brand, asset.model].filter(Boolean).join(" ").trim() || asset.assetTag;
+}
+
+function assetDetail(asset: {
+  assetTag: string;
+  brand?: string | null;
+  model?: string | null;
+  location?: { name: string } | null;
+  category?: { name: string } | null;
+  department?: { name: string } | null;
+}) {
+  return [
+    asset.assetTag,
+    [asset.brand, asset.model].filter(Boolean).join(" ").trim(),
+    asset.category?.name,
+    asset.department?.name,
+    asset.location?.name,
+  ].filter(Boolean).join(" / ");
+}
+
+function issue(key: string, title: string, description: string, count: number, samples: HygieneSample[]) {
+  return { key, title, description, count, samples };
+}
+
+export const GET = withAuth(async (_req, { user }) => {
+  requirePermission(user.role, "asset", "edit");
+
+  const assetSelect = {
+    id: true,
+    assetTag: true,
+    name: true,
+    brand: true,
+    model: true,
+    category: { select: { name: true } },
+    department: { select: { name: true } },
+    location: { select: { name: true } },
+  };
+
+  const [
+    missingCategoryCount,
+    missingCategoryRows,
+    missingDepartmentCount,
+    missingDepartmentRows,
+    missingScanCodeCount,
+    missingScanCodeRows,
+    missingImageCount,
+    missingImageRows,
+    retiredInKitCount,
+    retiredInKitRows,
+    cameraWithoutAttachmentCount,
+    cameraWithoutAttachmentRows,
+    duplicateRows,
+    bulkRows,
+  ] = await Promise.all([
+    db.asset.count({ where: { categoryId: null } }),
+    db.asset.findMany({
+      where: { categoryId: null },
+      orderBy: { assetTag: "asc" },
+      take: SAMPLE_LIMIT,
+      select: assetSelect,
+    }),
+    db.asset.count({ where: { departmentId: null } }),
+    db.asset.findMany({
+      where: { departmentId: null },
+      orderBy: { assetTag: "asc" },
+      take: SAMPLE_LIMIT,
+      select: assetSelect,
+    }),
+    db.asset.count({
+      where: {
+        OR: [
+          { primaryScanCode: null },
+          { primaryScanCode: "" },
+        ],
+      },
+    }),
+    db.asset.findMany({
+      where: {
+        OR: [
+          { primaryScanCode: null },
+          { primaryScanCode: "" },
+        ],
+      },
+      orderBy: { assetTag: "asc" },
+      take: SAMPLE_LIMIT,
+      select: assetSelect,
+    }),
+    db.asset.count({
+      where: {
+        OR: [
+          { imageUrl: null },
+          { imageUrl: "" },
+        ],
+      },
+    }),
+    db.asset.findMany({
+      where: {
+        OR: [
+          { imageUrl: null },
+          { imageUrl: "" },
+        ],
+      },
+      orderBy: { assetTag: "asc" },
+      take: SAMPLE_LIMIT,
+      select: assetSelect,
+    }),
+    db.asset.count({
+      where: {
+        status: "RETIRED",
+        kitMemberships: { some: { kit: { active: true } } },
+      },
+    }),
+    db.asset.findMany({
+      where: {
+        status: "RETIRED",
+        kitMemberships: { some: { kit: { active: true } } },
+      },
+      orderBy: { assetTag: "asc" },
+      take: SAMPLE_LIMIT,
+      select: {
+        ...assetSelect,
+        kitMemberships: {
+          where: { kit: { active: true } },
+          take: 2,
+          select: { kit: { select: { id: true, name: true } } },
+        },
+      },
+    }),
+    db.asset.count({
+      where: {
+        parentAssetId: null,
+        accessories: { none: {} },
+        OR: [
+          { type: { contains: "camera", mode: "insensitive" } },
+          { type: { contains: "body", mode: "insensitive" } },
+          { category: { name: { contains: "camera", mode: "insensitive" } } },
+        ],
+      },
+    }),
+    db.asset.findMany({
+      where: {
+        parentAssetId: null,
+        accessories: { none: {} },
+        OR: [
+          { type: { contains: "camera", mode: "insensitive" } },
+          { type: { contains: "body", mode: "insensitive" } },
+          { category: { name: { contains: "camera", mode: "insensitive" } } },
+        ],
+      },
+      orderBy: { assetTag: "asc" },
+      take: SAMPLE_LIMIT,
+      select: assetSelect,
+    }),
+    db.$queryRaw<DuplicateScanRow[]>`
+      WITH scan_values AS (
+        SELECT id, asset_tag AS label, 'asset tag' AS source, lower(asset_tag) AS scan_value
+        FROM assets
+        WHERE asset_tag IS NOT NULL AND btrim(asset_tag) <> ''
+        UNION ALL
+        SELECT id, asset_tag AS label, 'QR' AS source, lower(qr_code_value) AS scan_value
+        FROM assets
+        WHERE qr_code_value IS NOT NULL AND btrim(qr_code_value) <> ''
+        UNION ALL
+        SELECT id, asset_tag AS label, 'primary scan' AS source, lower(primary_scan_code) AS scan_value
+        FROM assets
+        WHERE primary_scan_code IS NOT NULL AND btrim(primary_scan_code) <> ''
+      ),
+      duplicate_values AS (
+        SELECT scan_value, count(*) AS occurrences
+        FROM scan_values
+        GROUP BY scan_value
+        HAVING count(DISTINCT id) > 1
+      )
+      SELECT
+        d.scan_value,
+        d.occurrences,
+        jsonb_agg(
+          jsonb_build_object('id', s.id, 'label', s.label, 'source', s.source)
+          ORDER BY s.label, s.source
+        ) AS examples
+      FROM duplicate_values d
+      JOIN scan_values s ON s.scan_value = d.scan_value
+      GROUP BY d.scan_value, d.occurrences
+      ORDER BY d.occurrences DESC, d.scan_value ASC
+      LIMIT ${SAMPLE_LIMIT}
+    `,
+    db.bulkSku.findMany({
+      where: { active: true },
+      orderBy: { name: "asc" },
+      include: {
+        location: { select: { name: true } },
+        categoryRel: { select: { name: true } },
+        balances: { select: { onHandQuantity: true } },
+        units: { select: { status: true } },
+        bookingItems: {
+          where: { booking: { status: "OPEN", kind: "CHECKOUT" } },
+          select: { checkedOutQuantity: true },
+        },
+      },
+    }),
+  ]);
+
+  const lowBulkRows = bulkRows
+    .map((sku) => {
+      const onHand = sku.balances.reduce((sum, balance) => sum + balance.onHandQuantity, 0);
+      const available = sku.trackByNumber
+        ? sku.units.filter((unit) => unit.status === "AVAILABLE").length
+        : Math.max(0, onHand - sku.bookingItems.reduce((sum, item) => sum + (item.checkedOutQuantity ?? 0), 0));
+      const threshold = Math.max(DEFAULT_BULK_THRESHOLD, sku.minThreshold);
+      return { sku, available, threshold };
+    })
+    .filter((row) => row.available < row.threshold);
+
+  const duplicateCount = duplicateRows.length;
+
+  const issues = [
+    issue(
+      "missing-category",
+      "Missing category",
+      "Items without a category are harder to filter, browse, and suggest during booking.",
+      missingCategoryCount,
+      missingCategoryRows.map((asset) => ({
+        id: asset.id,
+        label: assetLabel(asset),
+        detail: assetDetail(asset),
+        href: `/items/${asset.id}`,
+      })),
+    ),
+    issue(
+      "missing-department",
+      "Missing department",
+      "Department gaps weaken ownership, reporting, and cleanup workflows.",
+      missingDepartmentCount,
+      missingDepartmentRows.map((asset) => ({
+        id: asset.id,
+        label: assetLabel(asset),
+        detail: assetDetail(asset),
+        href: `/items/${asset.id}`,
+      })),
+    ),
+    issue(
+      "missing-primary-scan",
+      "Missing primary scan code",
+      "These items have QR text, but no canonical primary scan value for scan-first workflows.",
+      missingScanCodeCount,
+      missingScanCodeRows.map((asset) => ({
+        id: asset.id,
+        label: assetLabel(asset),
+        detail: assetDetail(asset),
+        href: `/items/${asset.id}`,
+      })),
+    ),
+    issue(
+      "missing-image",
+      "Missing image",
+      "Photos make picker, checkout, and item detail confirmation faster.",
+      missingImageCount,
+      missingImageRows.map((asset) => ({
+        id: asset.id,
+        label: assetLabel(asset),
+        detail: assetDetail(asset),
+        href: `/items/${asset.id}`,
+      })),
+    ),
+    issue(
+      "duplicate-scan-identity",
+      "Duplicate scan identity",
+      "The same physical scan value appears across multiple item identities.",
+      duplicateCount,
+      duplicateRows.map((row) => ({
+        id: row.scan_value,
+        label: row.scan_value,
+        detail: `${Number(row.occurrences)} appearances / ${row.examples.slice(0, 3).map((example) => `${example.label} ${example.source}`).join(", ")}`,
+        href: `/items?q=${encodeURIComponent(row.scan_value)}`,
+      })),
+    ),
+    issue(
+      "retired-in-kits",
+      "Retired items still in active kits",
+      "Retired gear should not stay inside active kit presets.",
+      retiredInKitCount,
+      retiredInKitRows.map((asset) => ({
+        id: asset.id,
+        label: assetLabel(asset),
+        detail: `${assetDetail(asset)} / ${asset.kitMemberships.map((membership) => membership.kit.name).join(", ")}`,
+        href: `/items/${asset.id}`,
+      })),
+    ),
+    issue(
+      "camera-missing-attachments",
+      "Camera bodies with no attachments",
+      "Camera systems with no child accessories may be missing cards, cages, or fixed parts.",
+      cameraWithoutAttachmentCount,
+      cameraWithoutAttachmentRows.map((asset) => ({
+        id: asset.id,
+        label: assetLabel(asset),
+        detail: assetDetail(asset),
+        href: `/items/${asset.id}?tab=attachments`,
+      })),
+    ),
+    issue(
+      "low-bulk-stock",
+      "Bulk SKUs below threshold",
+      "Low stock makes picker guidance and day-of fulfillment less reliable.",
+      lowBulkRows.length,
+      lowBulkRows.slice(0, SAMPLE_LIMIT).map(({ sku, available, threshold }) => ({
+        id: sku.id,
+        label: sku.name,
+        detail: `${available} available / ${threshold} threshold / ${sku.categoryRel?.name ?? sku.category} / ${sku.location.name}`,
+        href: `/bulk-inventory/${sku.id}`,
+      })),
+    ),
+  ];
+
+  const totalOpen = issues.reduce((sum, item) => sum + item.count, 0);
+  const criticalCount = issues.filter((item) => item.count > 0).length;
+
+  return ok({
+    data: {
+      generatedAt: new Date().toISOString(),
+      totals: {
+        openIssues: totalOpen,
+        activeChecks: issues.length,
+        checksNeedingWork: criticalCount,
+      },
+      issues,
+    },
+  });
+});

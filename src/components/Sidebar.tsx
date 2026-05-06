@@ -24,6 +24,8 @@ import {
   BellIcon,
   PlusIcon,
   KeyIcon,
+  BatteryChargingIcon,
+  ClipboardCheckIcon,
 } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
@@ -70,6 +72,8 @@ const navGroups: NavGroup[] = [
     adminOnly: true,
     items: [
       { label: "Kits", href: "/kits", icon: BoxIcon },
+      { label: "Batteries", href: "/bulk-inventory/batteries", icon: BatteryChargingIcon },
+      { label: "Hygiene", href: "/items/hygiene", icon: ClipboardCheckIcon },
       { label: "Users", href: "/users", icon: UsersIcon },
       { label: "Reports", href: "/reports", icon: BarChart3Icon },
       { label: "Settings", href: "/settings", icon: SettingsIcon },

@@ -54,7 +54,7 @@
 | GAP-34 | iOS Bookings list lacks status scope filters and column sorting available on web (DRAFT/BOOKED/OPEN/OVERDUE/CANCELLED/COMPLETED, sort) | AREA_MOBILE | Expected | iOS uses `activeOnly: true` only. Acceptable for V1 student bar (AREA_MOBILE focuses on student core flows). Power-user parity deferred. Source: `tasks/audit-bookings-ios.md`. |
 | GAP-35 | iOS Booking detail does not surface per-item conflict badges (web AC-8 from AREA_RESERVATIONS) | AREA_MOBILE | Expected | Needs `/api/availability/check` API client on iOS + per-row badge wiring in `ItemsSection`. Deferred — server-side enforcement is authoritative. Source: `tasks/audit-bookings-ios.md`. |
 | GAP-36 | iOS Item detail does not expose AC-8 admin actions (Duplicate / Retire / Delete / Needs Maintenance) | AREA_MOBILE | Expected | iOS toolbar has favorite + edit (STAFF/ADMIN). The four destructive/lifecycle actions are web-only by design for V1 (V1 mobile is student/operational-first). Tracked for staff-mobile parity. Source: `tasks/audit-items-ios.md`. |
-| GAP-37 | Battery audit/reporting is deferred | AREA_BULK_INVENTORY | Expected | User explicitly deferred reports on 2026-05-05. Future slice should cover missing batteries by unit, loss rate by SKU, unit checkout history, and repeated missing-unit patterns. |
+| GAP-37 | Battery audit/reporting is deferred | AREA_BULK_INVENTORY | Expected | Battery Unit Cockpit shipped 2026-05-06 for day-to-day numbered unit operations. Full reporting remains deferred: missing batteries by unit, loss rate by SKU, unit checkout history, and repeated missing-unit patterns. |
 | ~~GAP-22~~ | ~~`FavoriteItem` model has API but no UI surface — no favorites filter on items list, no favorites page~~ | ~~AREA_ITEMS~~ | ~~Closed~~ | ~~Fully shipped: star column in items DataTable, optimistic toggle on item detail page, "Favorites" filter chip in toolbar, `favorites_only` query param in API. Batched favorite lookup (no N+1).~~ |
 | ~~GAP-23~~ | ~~`StudentSportAssignment` and `StudentAreaAssignment` are read-only display — no CRUD UI for editing assignments~~ | ~~AREA_USERS~~ | ~~Closed~~ | ~~Full CRUD shipped in UserInfoTab.tsx: sport popover multi-select + area popover with primary toggle. Permission-gated (admin/staff can edit, students read-only). APIs: POST/DELETE sport roster + POST/DELETE student-areas.~~ |
 | ~~GAP-24~~ | ~~No dashboard reservation date filter — AC-4 not enforced~~ | ~~AREA_DASHBOARD~~ | ~~Closed~~ | ~~Fixed 2026-03-25: Added 7-day window filter to stats count query. AC-4 enforced.~~ |
@@ -137,6 +137,7 @@
 
 ## Change Log
 - 2026-05-06: Cheqroom import QR repair shipped. The latest 43-row export now cross-checks cleanly against the database; `Codes` is canonical for QR/primary scan, `Barcodes` is retained as source trace/fallback, and no new gap remains open.
+- 2026-05-06: Battery Unit Cockpit shipped as an operational surface under Bulk Inventory. GAP-37 remains open only for deeper battery reporting/trend analysis.
 - 2026-05-05: Added GAP-37 to pin deferred battery audit/reporting after bulk battery kiosk hardening.
 - 2026-03-11: Initial registry created from docs hardening pass. Consolidated from NORTH_STAR.md gaps, DECISIONS.md pending items, and scattered AREA file TODOs.
 - 2026-03-14: Closed GAP-E (bulk items lack individual loss tracking) — D-022 shipped.

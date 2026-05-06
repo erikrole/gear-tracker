@@ -44,6 +44,13 @@ Last updated: 2026-05-06
 
 ## Open Items
 
+### Active Backlog Index (2026-05-06)
+- [ ] **Next recommended slice: Admin Fix Today queue** — Build the daily action queue first so admins stop checking separate pages for overdue gear, pending pickup orphans, offline kiosks, flagged items, low batteries, sync failures, and license expirations.
+- [ ] **Battery follow-through** — Finish the remaining battery workflow polish in Bulk Battery Hardening: explicit kiosk battery scan step, override visibility, booking-create guidance, and optional gear suggestions.
+- [ ] **Admin helpers** — Work through Admin Helper Backlog in this order: Fix Today queue, Kiosk admin cockpit, People offboarding assistant, Inventory hygiene center, Admin exception review, Renewal and expiry calendar, Morning digest.
+- [ ] **Ops V2/V3 deferred work** — Keep deeper battery reporting, inventory health, attachment slot schema, and templates/presets behind slice plans.
+- [ ] **Low-priority systemic gaps** — Keep SystemConfig UI, scan endpoint rate limiting, PENDING_PICKUP auto-expiry, and Game-Day Readiness Score visible but behind daily-ops work.
+
 ### Dashboard Upcoming Events Parity (2026-05-06)
 - [x] **Plan + audit** — Compare Schedule event rows with the dashboard quick view and keep scope read-only.
 - [x] **API/type parity** — Add staffing coverage metadata to dashboard event summaries without changing event behavior.
@@ -212,7 +219,33 @@ Last updated: 2026-05-06
 ### Bulk Battery Hardening (2026-05-05)
 - [x] **Kiosk-scanned numbered batteries** — Treat battery booking as quantity at creation, then bind/return specific numbered units through kiosk unit QR scans. Add low-availability camera-model battery warnings at creation. Verified with focused tests, TypeScript, migration-prefix check, local Next build, and whitespace check.
 - [x] **Kiosk battery client and labels** — Include batteries in iOS kiosk pickup/return checklists, block pickup confirm until planned units are scanned, align compatibility rules to the current import snapshot, and improve Brother P-Touch unit labels. Verified with focused tests, TypeScript, migration-prefix check, local Next build, iOS simulator build, and whitespace check.
-- [ ] **Ops V2/V3 roadmap** — Saved follow-up roadmap in `tasks/ops-v2-v3-roadmap.md`; first recommended slice is Bulk Inventory / Batteries V2.
+- [x] **Battery Unit Cockpit** — Added `/bulk-inventory/batteries` plus an Admin nav entry for active numbered battery SKUs, unit status counts, low-stock signals, checked-out aging, booking/requester context, and audited unit status actions.
+- [x] **Kiosk battery mismatch polish** — Kiosk pickup/return now distinguishes wrong battery type, duplicate scans, units checked out elsewhere, units not checked out on the booking, and lost/retired units.
+- [x] **Battery compatibility lows** — Battery Cockpit now flags low compatible battery families by matching active camera inventory against existing battery compatibility rules.
+- [ ] **Kiosk explicit battery scan step** — Make pickup clearly call out required battery unit scans before confirm, while preserving current unit-binding behavior.
+- [ ] **Kiosk admin override visibility** — Preserve admin override, but make battery-related override use visible and audit-friendly in the pickup flow.
+- [ ] **Booking-create battery guidance polish** — Make compatible battery warnings feel like actionable guidance instead of generic alerts, without requiring unit selection before pickup.
+- [ ] **Booking-create optional gear suggestions** — Suggest compatible support gear such as batteries, media, readers, and cages from selected camera context.
+- [ ] **Attachment management polish** — Improve camera attachment attach, detach, and replace flows while keeping slot identity display-only for now.
+- [ ] **Battery audit/reporting** — Add missing batteries by unit, loss rate by SKU, unit checkout history, repeated missing-unit patterns, and aging checked-out battery reporting.
+- [ ] **Inventory health dashboard** — Add operational health signals for low stock by location, missing camera-system attachments, batteries below threshold by camera family, and retired/lost trends.
+- [ ] **Attachment slot schema decision** — Revisit nullable `attachmentSlot` only if slot filters, required attachment checks, completeness reports, or slot-level maintenance workflows justify schema work.
+- [ ] **Templates/presets** — Add camera kit presets such as FX6 shoot or FX3 shoot that suggest batteries and optional gear while keeping batteries as numbered bulk inventory.
+
+### Admin Helper Backlog (2026-05-06)
+- [ ] **Admin Fix Today queue** — Single admin-only action queue for overdue gear, pending pickup orphans, offline kiosks, damaged/lost/maintenance flags, low batteries, calendar sync failures, and expiring licenses.
+- [x] **Battery unit cockpit** — Shipped `/bulk-inventory/batteries` with available/out/lost/retired counts, aging checked-out units, quick unit actions, and low compatible batteries by camera family.
+- [ ] **Kiosk admin cockpit** — Show each iPad location, active state, last seen, current mode, pending pickup count, failed scan count, stale activation state, and repair actions such as deactivate, regenerate code, clear stuck pickup, and fix wrong-person attribution.
+- [ ] **Admin exception review** — One feed for admin overrides, kiosk-source activity, location exceptions, failed scans, manual releases, retired/lost changes, and destructive actions.
+- [ ] **People offboarding assistant** — On user deactivation, show and resolve open checkouts, upcoming reservations, shift assignments, Photo Mechanic license slots, active sessions, and allowed-email claims tied to that person.
+- [x] **Inventory hygiene center** — Shipped `/items/hygiene` as a staff/admin checklist for missing category, missing department, missing primary scan code, missing image, duplicate scan identity, retired items still in kits, camera bodies with no attachments, and bulk SKUs below threshold.
+- [ ] **Renewal and expiry calendar** — One admin calendar for Photo Mechanic renewals, warranty dates, calendar feed health, expiring credentials, and deadline-based admin attention.
+- [ ] **Admin-only morning digest** — Daily email, push, or in-app summary for overdue count, due today, pickups waiting, kiosk offline, low batteries, expiring licenses, and calendar sync errors.
+
+### Deferred Gaps To Keep Visible (2026-05-06)
+- [ ] **SystemConfig admin surface** — `SystemConfig` has no admin UI; keep deferred until more config keys exist beyond internal escalation settings. Source: GAP-21.
+- [ ] **PENDING_PICKUP auto-expiry** — Decide whether stale pickups should auto-expire after a fixed window or stay manual via Fix Today. Source: GAP-33.
+- [ ] **Mobile staff parity review** — iOS still intentionally lacks some web power-user filters/conflict badges/admin item actions; revisit after web admin helpers settle. Sources: GAP-34, GAP-35, GAP-36.
 
 ### Codex Readiness (2026-05-05)
 - [x] **Worktree hygiene** — classified untracked Codex/agent files, kept useful project-scoped guidance, and removed tracked local `.DS_Store` noise from future diffs
@@ -250,6 +283,8 @@ Last updated: 2026-05-06
 - Camera Attachments shipped: item detail now uses grouped Attachments, SD card slot labels render for tags such as `MBB 17 IV 1A`, scan lookup shows parent/slot context, and docs lock QR-coded batteries to numbered bulk semantics. `npm run build` stopped at remote Prisma migrate deploy; safer local `npx next build` passed.
 - Derived Bulk Unit QR Scans shipped: QR values generated by the numbered bulk QR tab, such as `94e068d1-7`, now submit as one validated numbered unit under the parent SKU without converting batteries into serialized items.
 - Bulk Battery Hardening shipped: kiosk pickup/check-in now scans numbered battery unit QRs one by one, lookup resolves unit QRs, checkout creation warns on low compatible battery availability, and camera-battery guidance is no longer a hard gate.
+- Battery Unit Cockpit shipped: admins/staff now have `/bulk-inventory/batteries` for active numbered battery SKUs, low-stock signals, checked-out aging, booking/requester context, and audited quick unit actions.
+- Kiosk battery mismatch polish shipped: derived unit scans now return operator-specific feedback for wrong battery type, duplicate pickup scan, checked-out elsewhere, not checked out on this booking, and lost/retired unit cases.
 - Kiosk battery client and labels shipped: kiosk detail payloads include battery units in the checklist, pickup confirm blocks unscanned planned battery quantities, the iOS pickup subtitle counts bulk quantities, Brother P-Touch labels emphasize the unit number, and battery reporting is pinned as GAP-37.
 - React Query cache migration was already shipped in code and documented in `docs/NORTH_STAR.md`; stale GAP-11 status is reconciled in `docs/GAPS_AND_RISKS.md`.
 - Cache Slice 1 shipped: repeated `["me"]` and `["form-options"]` query functions now use shared hooks; `npx tsc --noEmit`, `npm run db:migrate:check`, and `npx next build` passed.
