@@ -44,6 +44,67 @@ Last updated: 2026-05-06
 
 ## Open Items
 
+### Dashboard Upcoming Events Parity (2026-05-06)
+- [x] **Plan + audit** — Compare Schedule event rows with the dashboard quick view and keep scope read-only.
+- [x] **API/type parity** — Add staffing coverage metadata to dashboard event summaries without changing event behavior.
+- [x] **Dashboard quick view UI** — Render schedule-style event identity, home/away, location/time, assignment preview, and coverage signals; remove quick-create controls.
+- [x] **Verification + docs** — `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, and `npx next build` passed. `AREA_DASHBOARD.md` and `AREA_EVENTS.md` synced.
+
+### Item Detail Tabs Final Polish (2026-05-06)
+- [x] **Schedule agenda clarity** — Add a month agenda layer and reduce calendar chrome that does not help operators act.
+- [x] **Schedule cancellation correctness** — Keep cancelled bookings out of the calendar grid and month agenda while preserving them in history surfaces.
+- [x] **Schedule bar continuity** — Render month-grid bookings as continuous week-spanning bars instead of split per-day pills.
+- [x] **Quick context cleanup** — Remove cancelled bookings from Past Bookings quick context and keep QR details owned by the QR preview.
+- [x] **Booking preview sheet alignment** — Keep calendar clicks in an in-place preview, but align the sheet header, sections, footer, and action language with the current UI.
+- [x] **Booking preview identity polish** — Add requester and creator avatars so the preview reads as human activity, not only metadata rows.
+- [x] **Insights metric confidence** — Make age human-readable and stop overstating return-timing accuracy.
+- [x] **Attachments empty state** — Fix empty-state rule language so unattached items do not imply they travel with a parent.
+- [x] **Verification + docs** — Run focused checks, live tab checks, and sync `AREA_ITEMS.md`.
+
+### Item Detail Tabs Follow-up (2026-05-06)
+- [x] **Schedule correctness** — Stop rendering the same long booking title on every overlapping calendar day.
+- [x] **Past Bookings context** — Wire requester avatar photos through the item detail API and reduce row text density.
+- [x] **History polish + backend** — Improve the history surface UX and make older activity pagination usable.
+- [x] **Verification + docs** — Run focused checks, live route checks, and sync `AREA_ITEMS.md`.
+
+### Item Detail Tab Direction Pass (2026-05-06)
+- [x] **Tab ownership cleanup** — Remove redundant Bookings tab, rename Calendar to Schedule, and keep tab labels/counts focused.
+- [x] **Info booking context** — Add a quick Past Bookings surface below upcoming reservations for operational context.
+- [x] **Secondary tab direction** — Make History the full touch log, keep Insights lightweight, and strengthen Attachments/Settings structure.
+- [x] **Verification + docs** — Run focused checks and sync `AREA_ITEMS.md`.
+
+### Item Detail Data Form Hardening (2026-05-06)
+- [x] **Shared form guardrails** — Harden inline text, select, date, notes, and QR edit flows against double-submit, stale saving state, and weak disabled states.
+- [x] **PATCH normalization** — Align asset PATCH validation with the detail form by trimming inputs, allowing nullable clearable fields, and preserving DB-required fields.
+- [x] **Form surface polish** — Normalize select/category/date control framing, use gray picker surfaces, convert fiscal year to a year selector, use the shared badge treatment for admin scan identity, and top-align textarea rows.
+- [x] **Local save unblock** — Fix shared API CSRF origin comparison so same-origin localhost PATCH requests are not rejected as cross-origin, while bad origins still return 403.
+- [x] **Verification + docs** — `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, and live dev `curl -I /items/cmmfqwb3l0001ob0lw2khjtzs` passed.
+
+### Item Detail UX/UI Cleanup Slice 4 (2026-05-06)
+- [x] **Scan identity density** — Make the admin scan identity panel use space better while keeping QR, serial, and scan actions obvious.
+- [x] **Verification + docs** — `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, and live dev `curl -I /items/cmmfqwb3l0001ob0lw2khjtzs` passed.
+
+### Item Detail UX/UI Cleanup Slice 3 (2026-05-06)
+- [x] **Header button layout** — Make the item action cluster read as primary workflow first, secondary item actions second, and utilities last.
+- [x] **Freshness row cleanup** — Removed the blocking refresh tooltip and baked date/time into the visible Updated line.
+- [x] **Verification + docs** — `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, and live dev `curl -I /items/cmmfqwb3l0001ob0lw2khjtzs` passed.
+
+### Item Detail UX/UI Cleanup Slice 2 (2026-05-06)
+- [x] **Header identity cleanup** — Drop serial number from the header, make the product subline smarter, and add clearer separators for location/category/department.
+- [x] **Action flow cleanup** — Reduce competing header buttons and make secondary creation actions feel secondary.
+- [x] **Verification + docs** — `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, and live dev `curl -I /items/cmmfqwb3l0001ob0lw2khjtzs` passed.
+
+### Item Detail UX/UI Cleanup Slice 1 (2026-05-06)
+- [x] **Overview hierarchy** — Make the default detail view lead with operational state and keep item metadata as the secondary facts column.
+- [x] **Header simplification** — Reduce decorative weight, clarify derived status, and make action availability explicit.
+- [x] **Tracking identity placement** — Move QR/scan identity into the item facts card instead of a detached admin-only sidebar.
+- [x] **Verification + docs** — `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, and live dev `curl -I /items/cmmfqwb3l0001ob0lw2khjtzs` passed.
+
+### Item Detail Missing Server Chunk Runtime Fix (2026-05-06)
+- [x] **Runtime diagnosis** — Confirmed `Cannot find module './1893.js'` was stale/inconsistent `.next` output, not a current source/build problem.
+- [x] **Narrow fix** — Regenerated the Next server bundle with `npx next build`; the rebuilt runtime loads chunk `1893` through `.next/server/chunks/1893.js`.
+- [x] **Verification + docs** — `npx tsc --noEmit`, `npm run db:migrate:check`, `npx next build`, `git diff --check`, and a local production `curl -I /items/test-runtime-chunk` check passed.
+
 ### Home Dashboard Focused Pass (2026-05-05)
 - [x] **Audit current dashboard surface** — Read area docs, decisions, gaps, schema, API routes, existing audits, and dashboard components before editing.
 - [x] **Framework/debug pass** — Removed stale `/api/reservations/[id]/extend` branch; dashboard extend now uses canonical `/api/bookings/[id]/extend`.
@@ -136,6 +197,12 @@ Last updated: 2026-05-06
 - [x] **Current data repair** — Applied a guarded repair from the 2026-05-06 Cheqroom export: created 2 missing assets, repaired 20 QR values, repaired 23 primary scan values, refreshed duplicate-name rows by source/tracking match, and cross-checked all 43 CSV rows cleanly.
 - [x] **Verification + docs** — `npx tsc --noEmit`, `node --check scripts/import-cheqroom-items.mjs`, `npm run db:migrate:check`, `git diff --check`, and source-aware Prisma cross-check passed. AREA_IMPORTER.md and GAPS_AND_RISKS.md synced.
 
+### Item Detail Hardening + Polish Pass (2026-05-06)
+- [x] **Header resilience** — Wire the detail action busy state into header controls, guard optimistic favorites against rapid repeats, and replace failed-photo blanks with the standard no-photo fallback.
+- [x] **Bookings/calendar polish** — Use the shadcn toggle-group pattern for booking filters and add a mobile calendar list so the tab is useful below desktop width.
+- [x] **Async cleanup** — Cancel stale insights, activity, and attachment-search fetches; preserve 401 redirect handling; and make category/QR save flows always release saving state.
+- [x] **Verification + docs** — `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, and `npx next build` passed. AREA_ITEMS.md synced.
+
 ### Camera Attachments (2026-05-05)
 - [x] **Attachment model implementation** — Treat camera-tied SD cards/cages/fixed parts as non-bookable item attachments and preserve QR-coded batteries as numbered bulk units. Verified with focused tests, TypeScript, migration-prefix check, and local Next build.
 
@@ -154,6 +221,11 @@ Last updated: 2026-05-06
 - [x] **Next optimization plan** — wrote `tasks/react-query-cache-plan.md`; GAP-11 is a cache-key audit follow-up, not a migration
 
 ### Review
+- Dashboard Upcoming Events Parity shipped: the dashboard Upcoming Events card now uses schedule-style read-only coverage metadata from `/api/dashboard`, shows event title, time, location, home/away state, staffing avatars, filled/total coverage, open-slot warnings, and home call time when available. Quick-create controls were removed from the widget, keeping `/schedule` as the management surface. Verification passed for TypeScript, migration-prefix check, whitespace, and local Next build.
+- Item Detail Tabs Final Polish shipped: Schedule now pairs the month grid with a compact agenda row list, continuous week-spanning booking bars, quieter Today control, completed trailing calendar cells, and filters cancelled bookings out of occupied schedule and quick Past Bookings views. QR details are owned by the QR preview instead of a separate visible action. Calendar booking clicks keep users in context with a lighter booking preview sheet that matches the current app chrome, uses requester/creator avatars for human context, and routes deeper work to the full booking page. Insights now uses completion audit activity for return timing when available, labels the metric honestly, and shows item age in years for older gear. Attachments now hides the travel rule when no children exist and explains when fixed accessories should be added. Verification passed for TypeScript, migration-prefix check, whitespace, local route checks, authenticated Chrome DevTools tab checks, and console review.
+- Item Detail Tabs Follow-up shipped: Schedule now uses clickable continuation/end markers instead of repeating long booking names across every occupied day. Past Bookings now pulls requester avatar URLs through the detail API and renders compact rows with title, requester, date range, kind, and status. History now has All / Item updates / Bookings scopes, backend scope filtering, cursor pagination, cleaner legacy audit labels, and quieter import metadata handling. Verified with TypeScript, migration-prefix check, whitespace check, local route checks, and authenticated Chrome DevTools checks on Info, Schedule, and History.
+- Item Detail Tab Direction Pass shipped: the detail tab rail now uses a quieter thin active underline, removes the redundant Bookings tab, renames Calendar to Schedule, and removes visible shortcut numerals. Info now includes Past Bookings beneath upcoming reservations with requester avatars and clearer booking context. Insights is a compact signal view, History is framed around the full item touch log, Attachments has operational summary/direction, and Settings reads as workflow eligibility policy. Verification passed for TypeScript, migration-prefix check, whitespace, local route checks, and `npx next build`.
+- Item Detail Data Form Hardening shipped: shared inline save controls now use a ref guard against rapid duplicate saves, show saving state instead of competing save/cancel controls, disable text/select/date/notes/QR inputs while requests are active, and toast actual save errors. Asset PATCH now trims incoming strings, accepts clearable nullable fields, allows zero-value financial fields, saves department by ID, and parses server error bodies consistently. The shared API CSRF guard now compares against the actual request origin, so localhost item saves are not rejected before auth/permissions while bad origins still return 403. The info card now uses consistent gray picker surfaces for select/category/date/year controls, a year-only Fiscal Year picker, a shared Admin badge, and a top-aligned notes row.
 - Home Dashboard Focused Pass shipped: dashboard rows now use one shared row component, no longer nest action buttons inside clickable row buttons, and use a safer mobile layout with predictable truncation. Filter clear no longer nests a focusable pseudo-button inside the popover trigger. Docs synced in `AREA_DASHBOARD.md`. Verification passed for TypeScript, migration-prefix check, and local Next build; exact `npm run build` remains blocked at remote Prisma migrate deploy.
 - Home Dashboard Follow-up Pass shipped: overdue banner rows now split open/check-in/nudge into sibling controls, saved filter presets now split apply/delete into sibling controls, and the production browser check confirms the app can render `/login`; dashboard visual inspection still needs an authenticated browser session.
 - Home Dashboard Console Polish shipped: stat cards are quieter and section headers now share one component, reducing repeated header styling across My Gear and Team Activity.
@@ -169,6 +241,12 @@ Last updated: 2026-05-06
 - Items Page Hardening Pass shipped: item export, duplicate, maintenance, and retire handlers now release busy state through auth redirects and failures; item-list empty states and pagination now key off merged serialized/bulk rows; selection clears when item type, favorites, attachments, filters, or sort changes; CSV export now honors favorites and the same search fields as the list.
 - Items Page UX/UI Polish Pass shipped: the toolbar now reads as one command bar with advanced filters behind a toggle, header actions share a compact 32px rhythm, the inventory summary is a compact health grid, and item rows/cards lead with tag plus product identity without duplicating serial or department metadata in the name stack.
 - Items Compact + Fill Gaps Upgrade shipped: compact density now removes thumbnails for a plainer shadcn table read, and Fill gaps now preloads a mixed serialized/bulk queue, exposes retryable count/load/save failures, ranks suggestions with same-category department hints including legacy bulk category text, makes no-photo items explicit, and lets staff review skipped items before closing the session.
+- Item Detail UX/UI Cleanup Slice 1 shipped: the default Overview now leads with active checkout/upcoming reservation context, keeps item facts as the secondary right column, moves QR scan identity into the facts card, and quiets the header so derived status plus available actions are easier to read.
+- Item Detail UX/UI Cleanup Slice 2 shipped: serial number left the header, duplicated brand/model sublines collapse when the product name already contains that identity, location/category/department now have clear slash separators, Check out is the primary available action while Reserve stays secondary, and scan identity rows are labeled.
+- Item Detail UX/UI Cleanup Slice 3 shipped: the header action cluster now puts workflow buttons first, keeps Actions with the workflow controls, moves refresh/favorite plus freshness text into a quieter utility row, and removes the blocking freshness tooltip by baking date/time into the Updated line.
+- Item Detail UX/UI Cleanup Slice 4 shipped: the admin scan identity panel now uses a compact inset layout with labeled QR/Serial values, matching copyable mono text, and a larger QR preview that owns the manage/view action without a redundant text button.
+- Item Detail Hardening + Polish Pass shipped: detail header controls now respect action busy state, favorite toggles are rapid-click guarded, failed item photos render the no-photo fallback, mobile calendar shows a booking list instead of a blank grid area, booking filters use the standard toggle-group, and detail tab fetches clean up stale requests.
+- Item Detail Missing Server Chunk Runtime Fix completed: the reported `Cannot find module './1893.js'` error came from stale `.next` server output. Regenerating the Next build produced a coherent `/items/[id]` bundle, and a local production route check returned `200 OK`.
 - Camera Attachments shipped: item detail now uses grouped Attachments, SD card slot labels render for tags such as `MBB 17 IV 1A`, scan lookup shows parent/slot context, and docs lock QR-coded batteries to numbered bulk semantics. `npm run build` stopped at remote Prisma migrate deploy; safer local `npx next build` passed.
 - Derived Bulk Unit QR Scans shipped: QR values generated by the numbered bulk QR tab, such as `94e068d1-7`, now submit as one validated numbered unit under the parent SKU without converting batteries into serialized items.
 - Bulk Battery Hardening shipped: kiosk pickup/check-in now scans numbered battery unit QRs one by one, lookup resolves unit QRs, checkout creation warns on low compatible battery availability, and camera-battery guidance is no longer a hard gate.

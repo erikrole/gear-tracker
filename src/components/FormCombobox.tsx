@@ -131,6 +131,7 @@ interface CategoryComboboxProps {
   disabledLabel?: string;
   /** Button variant for the trigger */
   variant?: "outline" | "ghost";
+  triggerClassName?: string;
 }
 
 export function CategoryCombobox({
@@ -143,6 +144,7 @@ export function CategoryCombobox({
   disabled = false,
   disabledLabel,
   variant = "outline",
+  triggerClassName,
 }: CategoryComboboxProps) {
   const [open, setOpen] = useState(false);
 
@@ -180,7 +182,7 @@ export function CategoryCombobox({
           variant={variant}
           role="combobox"
           aria-expanded={open}
-          className="h-9 w-full justify-between text-sm font-normal"
+          className={cn("h-9 w-full justify-between text-sm font-normal", triggerClassName)}
         >
           {selectedCat ? (
             selectedCat.name

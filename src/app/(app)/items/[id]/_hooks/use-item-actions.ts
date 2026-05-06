@@ -30,18 +30,28 @@ export default function useItemActions({
   const confirmDialog = useConfirm();
   const [actionBusy, setActionBusy] = useState(false);
   const busyRef = useRef(false);
+  const favoriteBusyRef = useRef(false);
 
   const handleToggleFavorite = useCallback(async () => {
-    if (!asset) return;
+    if (!asset || favoriteBusyRef.current) return;
+    favoriteBusyRef.current = true;
     const prev = asset.isFavorited;
     setAsset((a) => a ? { ...a, isFavorited: !prev } : a);
     try {
       const res = await fetch(`/api/assets/${asset.id}/favorite`, { method: "POST" });
-      if (handleAuthRedirect(res)) return;
-      if (!res.ok) throw new Error();
-    } catch {
+      if (handleAuthRedirect(res)) {
+        setAsset((a) => a ? { ...a, isFavorited: prev } : a);
+        return;
+      }
+      if (!res.ok) {
+        const msg = await parseErrorMessage(res, "Failed to update favorite");
+        throw new Error(msg);
+      }
+    } catch (error) {
       setAsset((a) => a ? { ...a, isFavorited: prev } : a);
-      toast.error("Failed to update favorite");
+      toast.error(error instanceof Error ? error.message : "Failed to update favorite");
+    } finally {
+      favoriteBusyRef.current = false;
     }
   }, [asset, setAsset]);
 
@@ -68,8 +78,6 @@ export default function useItemActions({
     try {
       if (action === "print-label") {
         router.push(`/labels?items=${asset.id}`);
-        busyRef.current = false;
-        setActionBusy(false);
         return;
       } else if (action === "duplicate") {
         const res = await fetch(`/api/assets/${asset.id}/duplicate`, { method: "POST" });
@@ -88,7 +96,7 @@ export default function useItemActions({
           confirmLabel: "Retire",
           variant: "danger",
         });
-        if (!ok) { busyRef.current = false; setActionBusy(false); return; }
+        if (!ok) return;
         const res = await fetch(`/api/assets/${asset.id}/retire`, { method: "POST" });
         if (handleAuthRedirect(res)) return;
         if (!res.ok) {
@@ -111,7 +119,7 @@ export default function useItemActions({
           confirmLabel: "Delete",
           variant: "danger",
         });
-        if (!ok) { busyRef.current = false; setActionBusy(false); return; }
+        if (!ok) return;
         const res = await fetch(`/api/assets/${asset.id}`, { method: "DELETE" });
         if (handleAuthRedirect(res)) return;
         if (res.ok) {
@@ -123,9 +131,10 @@ export default function useItemActions({
       }
     } catch {
       toast.error("Network error — please try again.");
+    } finally {
+      busyRef.current = false;
+      setActionBusy(false);
     }
-    busyRef.current = false;
-    setActionBusy(false);
   }
 
   return {

@@ -15,6 +15,10 @@ export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
 
   const url = new URL(req.url);
   const cursor = url.searchParams.get("cursor") || undefined;
+  const scope = url.searchParams.get("scope") || "all";
+  if (!["all", "asset", "booking"].includes(scope)) {
+    throw new HttpError(400, "Invalid activity scope");
+  }
   const limit = Math.min(
     Math.max(1, Number(url.searchParams.get("limit")) || DEFAULT_LIMIT),
     MAX_LIMIT,
@@ -28,15 +32,22 @@ export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
   });
 
   const bookingIdList = bookingIds.map((b: { bookingId: string }) => b.bookingId);
+  const scopedClauses =
+    scope === "asset"
+      ? [{ entityType: "asset", entityId: id }]
+      : scope === "booking"
+        ? (bookingIdList.length > 0 ? [{ entityType: "booking", entityId: { in: bookingIdList } }] : [])
+        : [
+            { entityType: "asset", entityId: id },
+            ...(bookingIdList.length > 0
+              ? [{ entityType: "booking", entityId: { in: bookingIdList } }]
+              : []),
+          ];
+  if (scopedClauses.length === 0) return ok({ data: [], nextCursor: null });
 
   const logs = await db.auditLog.findMany({
     where: {
-      OR: [
-        { entityType: "asset", entityId: id },
-        ...(bookingIdList.length > 0
-          ? [{ entityType: "booking", entityId: { in: bookingIdList } }]
-          : []),
-      ],
+      OR: scopedClauses,
     },
     orderBy: { createdAt: "desc" },
     take: limit + 1,

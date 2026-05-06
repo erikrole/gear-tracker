@@ -11,18 +11,19 @@ import {
   formatStartsIn,
 } from "@/lib/format";
 import type { AssetDetail, ActiveBookingDetail, UpcomingReservation } from "./types";
-import { QRCodeCanvas, QRModal } from "./ItemInfoTab";
 import { useSaveField } from "@/components/SaveableField";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Empty, EmptyDescription } from "@/components/ui/empty";
 import { Switch } from "@/components/ui/switch";
 import { Spinner } from "@/components/ui/spinner";
 import { Label } from "@/components/ui/label";
-import { Check, X } from "lucide-react";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Check, Clock3, ShieldCheck, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { handleAuthRedirect } from "@/lib/errors";
+import { UserAvatar } from "@/components/UserAvatar";
 import {
   Table,
   TableBody,
@@ -118,69 +119,96 @@ export function ActiveBookingCard({
   );
 }
 
-/* ── Tracking Codes Card (sidebar) ─────────────────────── */
+/* ── Shared: Recent Booking Context ────────────────────── */
 
-function TrackingCodesCard({ asset, canEdit, onRefresh, currentUserRole }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void; currentUserRole: string }) {
-  const [showModal, setShowModal] = useState(false);
-  const rawParts = asset.assetTag.split(/[\s]+/).filter(Boolean);
-  // Always 3 lines — pad with blank lines at the top if fewer than 3 parts
-  const tagLines = rawParts.length >= 3
-    ? rawParts.slice(0, 3)
-    : [...Array(3 - rawParts.length).fill(""), ...rawParts];
+function getUniqueBookingHistory(history: AssetDetail["history"]) {
+  const seen = new Set<string>();
+  return history
+    .filter((entry) => {
+      if (seen.has(entry.booking.id)) return false;
+      seen.add(entry.booking.id);
+      return true;
+    })
+    .sort((a, b) => new Date(b.booking.endsAt).getTime() - new Date(a.booking.endsAt).getTime());
+}
 
-  if (currentUserRole !== "ADMIN") return null;
+function formatBookingRange(start: ReturnType<typeof formatDateWithDayTime>, end: ReturnType<typeof formatDateWithDayTime>) {
+  if (start.date === end.date) return `${start.date} / ${start.dayTime} to ${end.dayTime}`;
+  return `${start.date} to ${end.date}`;
+}
+
+export function PastBookingsPreview({
+  history,
+  now,
+  onSelectBooking,
+  limit = 4,
+}: {
+  history: AssetDetail["history"];
+  now: Date;
+  onSelectBooking: (id: string) => void;
+  limit?: number;
+}) {
+  const pastEntries = useMemo(
+    () => getUniqueBookingHistory(history)
+      .filter((entry) => bookingOccupiesSchedule(entry.booking.status))
+      .filter((entry) => new Date(entry.booking.endsAt) < now)
+      .slice(0, limit),
+    [history, limit, now],
+  );
 
   return (
-    <>
-      <Card>
-        <CardHeader>
-          <CardTitle>Tracking Codes</CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 pt-0">
-          <div className="flex gap-1 items-center">
-            <button
-              className="flex items-center bg-black p-1 cursor-pointer shrink-0"
-              onClick={() => setShowModal(true)}
-              title="Click to enlarge QR code"
-            >
-              <div className="flex flex-col items-center justify-center px-3 py-1 min-w-16">
-                {tagLines.map((line, i) => (
-                  <div
-                    key={i}
-                    className="text-[26px] font-[800] text-white tracking-[0.02em] leading-[1.2] text-center"
-                    style={{ fontFamily: '"Gotham XNarrow", "Barlow Condensed", "Arial Narrow", sans-serif' }}
-                  >
-                    {line || "\u00A0"}
+    <Card>
+      <CardHeader>
+        <CardTitle>Past Bookings</CardTitle>
+        {pastEntries.length > 0 && <Badge variant="gray" size="sm">{pastEntries.length}</Badge>}
+      </CardHeader>
+      {pastEntries.length === 0 ? (
+        <Empty className="py-8 border-0">
+          <EmptyDescription>No past bookings for this item yet.</EmptyDescription>
+        </Empty>
+      ) : (
+        <CardContent className="p-0 py-1">
+          {pastEntries.map((entry) => {
+            const booking = entry.booking;
+            const from = formatDateWithDayTime(booking.startsAt);
+            const to = formatDateWithDayTime(booking.endsAt);
+            const status = bookingStatusLabel(booking.status, booking.kind);
+            const range = formatBookingRange(from, to);
+            return (
+              <button
+                key={entry.id}
+                type="button"
+                className="flex min-h-16 w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px] [&+&]:border-t [&+&]:border-border/30"
+                onClick={() => onSelectBooking(booking.id)}
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <UserAvatar
+                    name={booking.requester.name}
+                    avatarUrl={booking.requester.avatarUrl}
+                    size="sm"
+                    className="shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium">{booking.title}</div>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
+                      <span>{booking.requester.name}</span>
+                      <span aria-hidden="true">/</span>
+                      <span>{range}</span>
+                    </div>
                   </div>
-                ))}
-              </div>
-              <div className="shrink-0 leading-none [&_canvas]:block [&_canvas]:invert [&_canvas]:!border-0 [&_canvas]:!rounded-none">
-                <QRCodeCanvas value={asset.qrCodeValue} size={96} margin={0} />
-              </div>
-            </button>
-            <div className="flex flex-col gap-2 min-w-0">
-              <Badge variant="outline" className="gap-2 font-mono text-xs w-[180px] justify-start">
-                <span className="text-muted-foreground uppercase text-[0.6rem] font-semibold tracking-wider shrink-0">QR</span>
-                <span className="truncate">{asset.qrCodeValue}</span>
-              </Badge>
-              {asset.serialNumber && (
-                <Badge variant="outline" className="gap-2 font-mono text-xs w-[180px] justify-start">
-                  <span className="text-muted-foreground uppercase text-[0.6rem] font-semibold tracking-wider shrink-0">SN</span>
-                  <span className="truncate">{asset.serialNumber}</span>
-                </Badge>
-              )}
-            </div>
-          </div>
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <Badge variant={booking.kind === "CHECKOUT" ? "blue" : "purple"} size="sm">
+                    {booking.kind === "CHECKOUT" ? "Checkout" : "Reservation"}
+                  </Badge>
+                  <span className="text-[11px] text-muted-foreground">{status.label}</span>
+                </div>
+              </button>
+            );
+          })}
         </CardContent>
-      </Card>
-      <QRModal
-        asset={asset}
-        canEdit={canEdit}
-        onRefresh={onRefresh}
-        open={showModal}
-        onOpenChange={setShowModal}
-      />
-    </>
+      )}
+    </Card>
   );
 }
 
@@ -228,16 +256,28 @@ function SaveableToggle({
 
 function SettingsCard({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void }) {
   const toggles = [
-    { field: "availableForReservation", label: "Available for reservation", value: asset.availableForReservation, help: "Item is available to be used in reservations" },
-    { field: "availableForCheckout", label: "Available for check out", value: asset.availableForCheckout, help: "Item is available to be used in check-outs" },
-    { field: "availableForCustody", label: "Available for custody", value: asset.availableForCustody, help: "Item can be taken into custody by a user" },
+    { field: "availableForCheckout", label: "Check-out eligible", value: asset.availableForCheckout, help: "Can leave inventory through a checkout workflow." },
+    { field: "availableForReservation", label: "Reservation eligible", value: asset.availableForReservation, help: "Can be reserved for future events or requests." },
+    { field: "availableForCustody", label: "Custody eligible", value: asset.availableForCustody, help: "Can be assigned into a user's custody outside short-term bookings." },
   ];
+  const enabledCount = toggles.filter((toggle) => toggle.value).length;
 
   return (
-    <Card className="border-border/40">
+    <Card className="border-border/40 shadow-none">
       <CardHeader>
-        <CardTitle>Availability</CardTitle>
+        <div>
+          <CardTitle>Workflow Eligibility</CardTitle>
+          <CardDescription>Policy switches for where this item is allowed to appear. Current status stays derived from real bookings.</CardDescription>
+        </div>
+        <Badge variant={enabledCount === 0 ? "red" : enabledCount === toggles.length ? "green" : "orange"} size="sm">
+          {enabledCount}/{toggles.length} enabled
+        </Badge>
       </CardHeader>
+      {!canEdit && (
+        <div className="mx-4 mb-2 rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+          Read-only view. Admins and staff can update eligibility.
+        </div>
+      )}
       <div className="py-1 divide-y divide-border/30">
         {toggles.map((t) => (
           <SaveableToggle
@@ -265,7 +305,15 @@ function SettingsCard({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEd
 
 /* ── Operational Overview (Info tab dashboard cards) ─────── */
 
-export function OperationalOverview({ asset, now, canEdit, onSelectBooking, onRefresh, currentUserRole = "" }: { asset: AssetDetail; now: Date; canEdit: boolean; onSelectBooking: (id: string) => void; onRefresh: () => void; currentUserRole?: string }) {
+export function OperationalOverview({
+  asset,
+  now,
+  onSelectBooking,
+}: {
+  asset: AssetDetail;
+  now: Date;
+  onSelectBooking: (id: string) => void;
+}) {
   const b = asset.activeBooking;
   const reservations = asset.upcomingReservations;
 
@@ -302,14 +350,20 @@ export function OperationalOverview({ asset, now, canEdit, onSelectBooking, onRe
         )}
       </Card>
 
-      {/* Tracking Codes — admin only */}
-      <TrackingCodesCard asset={asset} canEdit={canEdit} onRefresh={onRefresh} currentUserRole={currentUserRole} />
-
+      <PastBookingsPreview
+        history={asset.history}
+        now={now}
+        onSelectBooking={onSelectBooking}
+      />
     </div>
   );
 }
 
 /* ── Booking Status Label ──────────────────────────────── */
+
+function bookingOccupiesSchedule(status: string) {
+  return status !== "CANCELLED";
+}
 
 function bookingStatusLabel(status: string, kind?: "CHECKOUT" | "RESERVATION"): { label: string; variant: "blue" | "purple" | "green" | "gray" | "red" | "orange" } {
   switch (status) {
@@ -453,7 +507,9 @@ export function CalendarTab({ asset, onSelectBooking }: { asset: AssetDetail; on
   const [viewDate, setViewDate] = useState(() => new Date());
 
   const allBookings = useMemo(
-    () => asset.history.map((e) => e.booking),
+    () => asset.history
+      .map((e) => e.booking)
+      .filter((booking) => bookingOccupiesSchedule(booking.status)),
     [asset.history]
   );
 
@@ -477,21 +533,19 @@ export function CalendarTab({ asset, onSelectBooking }: { asset: AssetDetail; on
 
   const monthLabel = viewDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
-  // Map bookings to days: which bookings overlap each day?
-  const dayBookings = useMemo(() => {
-    const map = new Map<number, Array<typeof uniqueBookings[0]>>();
-    for (let d = 1; d <= daysInMonth; d++) {
-      const dayStart = new Date(year, month, d).getTime();
-      const dayEnd = new Date(year, month, d + 1).getTime();
-      const overlapping = uniqueBookings.filter((b) => {
-        const bs = new Date(b.startsAt).getTime();
-        const be = new Date(b.endsAt).getTime();
-        return bs < dayEnd && be > dayStart;
-      });
-      if (overlapping.length > 0) map.set(d, overlapping);
-    }
-    return map;
-  }, [uniqueBookings, year, month, daysInMonth]);
+  type CalendarBooking = (typeof uniqueBookings)[number];
+
+  const monthBookings = useMemo(() => {
+    const monthStart = new Date(year, month, 1).getTime();
+    const monthEnd = new Date(year, month + 1, 1).getTime();
+    return uniqueBookings
+      .filter((b) => {
+        const startsAt = new Date(b.startsAt).getTime();
+        const endsAt = new Date(b.endsAt).getTime();
+        return startsAt < monthEnd && endsAt > monthStart;
+      })
+      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+  }, [uniqueBookings, year, month]);
 
   const today = new Date();
   const isToday = (d: number) => today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
@@ -500,72 +554,203 @@ export function CalendarTab({ asset, onSelectBooking }: { asset: AssetDetail; on
   function nextMonth() { setViewDate(new Date(year, month + 1, 1)); }
   function goToday() { setViewDate(new Date()); }
 
+  function ScheduleAgendaRow({ booking }: { booking: CalendarBooking }) {
+    const starts = formatDateWithDayTime(booking.startsAt);
+    const ends = formatDateWithDayTime(booking.endsAt);
+    const status = bookingStatusLabel(booking.status, booking.kind);
+    return (
+      <button
+        key={booking.id}
+        type="button"
+        className="flex min-h-14 w-full items-center justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
+        onClick={() => onSelectBooking(booking.id)}
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <UserAvatar
+            name={booking.requester.name}
+            avatarUrl={booking.requester.avatarUrl}
+            size="sm"
+            className="shrink-0"
+          />
+          <div className="min-w-0">
+            <div className="truncate text-sm font-medium">{booking.title}</div>
+            <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
+              <span>{booking.requester.name}</span>
+              <span aria-hidden="true">/</span>
+              <span>{formatBookingRange(starts, ends)}</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <Badge variant={booking.kind === "CHECKOUT" ? "blue" : "purple"} size="sm">
+            {booking.kind === "CHECKOUT" ? "Checkout" : "Reservation"}
+          </Badge>
+          <span className="text-[11px] text-muted-foreground">{status.label}</span>
+        </div>
+      </button>
+    );
+  }
+
   // Build grid cells: padding + days
   const cells: Array<{ day: number | null }> = [];
   for (let i = 0; i < startPad; i++) cells.push({ day: null });
   for (let d = 1; d <= daysInMonth; d++) cells.push({ day: d });
+  while (cells.length % 7 !== 0) cells.push({ day: null });
+
+  const weeks: Array<Array<{ day: number | null }>> = [];
+  for (let i = 0; i < cells.length; i += 7) {
+    weeks.push(cells.slice(i, i + 7));
+  }
+
+  type WeekMarker = {
+    booking: CalendarBooking;
+    startCol: number;
+    endCol: number;
+    startsInWeek: boolean;
+    endsInWeek: boolean;
+    lane: number;
+  };
+
+  function getWeekMarkers(week: Array<{ day: number | null }>): WeekMarker[] {
+    const days = week.map((cell) => cell.day).filter((day): day is number => day !== null);
+    if (days.length === 0) return [];
+
+    const firstWeekDay = days[0]!;
+    const lastWeekDay = days[days.length - 1]!;
+    const weekStart = new Date(year, month, firstWeekDay);
+    const weekEnd = new Date(year, month, lastWeekDay + 1);
+
+    return monthBookings
+      .filter((booking) => {
+        const startsAt = new Date(booking.startsAt);
+        const endsAt = new Date(booking.endsAt);
+        return startsAt < weekEnd && endsAt > weekStart;
+      })
+      .map((booking, lane) => {
+        const startsAt = new Date(booking.startsAt);
+        const endsAt = new Date(booking.endsAt);
+        const startDay = startsAt.getFullYear() === year && startsAt.getMonth() === month
+          ? startsAt.getDate()
+          : firstWeekDay;
+        const endDay = endsAt.getFullYear() === year && endsAt.getMonth() === month
+          ? endsAt.getDate()
+          : lastWeekDay;
+        const clampedStartDay = Math.max(startDay, firstWeekDay);
+        const clampedEndDay = Math.min(endDay, lastWeekDay);
+        const startCol = week.findIndex((cell) => cell.day === clampedStartDay) + 1;
+        const endCol = week.findIndex((cell) => cell.day === clampedEndDay) + 1;
+
+        return {
+          booking,
+          startCol,
+          endCol,
+          startsInWeek: startsAt >= weekStart && startsAt < weekEnd,
+          endsInWeek: endsAt > weekStart && endsAt <= weekEnd,
+          lane,
+        };
+      })
+      .filter((marker) => marker.startCol > 0 && marker.endCol > 0)
+      .slice(0, 3);
+  }
 
   return (
     <div className="mt-3.5">
       <Card>
-        <CardHeader>
+        <CardHeader className="flex-row items-center justify-between">
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={prevMonth}>&lsaquo;</Button>
             <CardTitle className="min-w-40 text-center">{monthLabel}</CardTitle>
             <Button variant="outline" size="sm" onClick={nextMonth}>{"\u203a"}</Button>
           </div>
-          <Button variant="outline" size="sm" onClick={goToday}>Today</Button>
+          <Button variant="ghost" size="sm" onClick={goToday}>Today</Button>
         </CardHeader>
-        <CardContent className="p-4">
-          {/* Day headers */}
-          <div className="grid grid-cols-7 gap-px bg-border md:grid max-md:hidden">
-            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-              <div key={d} className="text-center text-xs font-medium text-muted-foreground py-2 bg-background">{d}</div>
-            ))}
-            {cells.map((cell, i) => (
-              <div
-                key={i}
-                className={cn(
-                  cell.day === null
-                    ? "bg-background min-h-20"
-                    : "bg-card min-h-20 p-1 overflow-hidden",
-                  cell.day && isToday(cell.day) && "bg-primary/5",
-                )}
-              >
-                {cell.day && (
-                  <>
-                    <span
-                      className={cn(
-                        "text-xs font-medium text-muted-foreground inline-flex items-center justify-center size-[22px]",
-                        isToday(cell.day) && "bg-destructive text-destructive-foreground rounded-full",
-                      )}
-                    >
-                      {cell.day}
-                    </span>
-                    {dayBookings.get(cell.day)?.slice(0, 3).map((b) => (
-                      <button
-                        key={b.id}
+        <CardContent className="space-y-4 p-4">
+          <div className="overflow-hidden rounded-md border border-border/40 md:block max-md:hidden">
+            <div className="grid grid-cols-7 gap-px bg-border">
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+                <div key={d} className="bg-background py-2 text-center text-xs font-medium text-muted-foreground">{d}</div>
+              ))}
+            </div>
+            <div className="divide-y divide-border/40 bg-border">
+              {weeks.map((week, weekIndex) => {
+                const weekMarkers = getWeekMarkers(week);
+                return (
+                  <div key={weekIndex} className="relative grid grid-cols-7 gap-px">
+                    {week.map((cell, dayIndex) => (
+                      <div
+                        key={`${weekIndex}-${dayIndex}`}
                         className={cn(
-                          "block w-full px-1 py-px text-[10px] font-medium rounded truncate cursor-pointer mb-px leading-[1.4]",
-                          b.kind === "CHECKOUT"
-                            ? "bg-[var(--blue)]/10 text-[var(--blue-text)] hover:bg-[var(--blue)]/20"
-                            : "bg-[var(--purple)]/10 text-[var(--purple-text)] hover:bg-[var(--purple)]/20",
+                          cell.day === null
+                            ? "min-h-24 bg-muted/20"
+                            : "min-h-24 bg-card p-1",
+                          cell.day && isToday(cell.day) && "bg-primary/5",
                         )}
-                        onClick={() => onSelectBooking(b.id)}
-                        title={`${b.kind === "CHECKOUT" ? "CO" : "RES"}: ${b.title} (${b.requester.name})`}
                       >
-                        {b.title}
-                      </button>
+                        {cell.day && (
+                          <span
+                            className={cn(
+                              "relative z-10 inline-flex size-[22px] items-center justify-center text-xs font-medium text-muted-foreground",
+                              isToday(cell.day) && "rounded-full bg-destructive text-destructive-foreground",
+                            )}
+                          >
+                            {cell.day}
+                          </span>
+                        )}
+                      </div>
                     ))}
-                    {(dayBookings.get(cell.day)?.length ?? 0) > 3 && (
-                      <span className="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground">
-                        +{(dayBookings.get(cell.day)?.length ?? 0) - 3} more
-                      </span>
-                    )}
-                  </>
-                )}
+                    <div
+                      className="pointer-events-none absolute inset-x-0 top-9 grid grid-cols-7 px-1"
+                      style={{ gridTemplateRows: `repeat(${Math.max(weekMarkers.length, 1)}, 22px)` }}
+                    >
+                      {weekMarkers.map((marker) => (
+                        <button
+                          key={`${marker.booking.id}-${weekIndex}`}
+                          type="button"
+                          className={cn(
+                            "pointer-events-auto my-px min-w-0 truncate px-2.5 text-left text-[11px] font-medium leading-5 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.04)] transition-[background-color,color,box-shadow] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-1 dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]",
+                            marker.booking.kind === "CHECKOUT"
+                              ? "bg-[var(--blue)]/14 text-[var(--blue-text)] hover:bg-[var(--blue)]/24"
+                              : "bg-[var(--purple)]/14 text-[var(--purple-text)] hover:bg-[var(--purple)]/24",
+                            marker.startsInWeek ? "rounded-l-full" : "rounded-l-none",
+                            marker.endsInWeek ? "rounded-r-full" : "rounded-r-none",
+                          )}
+                          style={{
+                            gridColumn: `${marker.startCol} / ${marker.endCol + 1}`,
+                            gridRow: marker.lane + 1,
+                          }}
+                          onClick={() => onSelectBooking(marker.booking.id)}
+                          title={`${marker.booking.kind === "CHECKOUT" ? "Checkout" : "Reservation"}: ${marker.booking.title} (${marker.booking.requester.name})`}
+                          aria-label={`Open ${marker.booking.title}`}
+                        >
+                          {marker.startsInWeek ? marker.booking.title : ""}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-md border border-border/40">
+            <div className="flex items-center justify-between border-b border-border/40 bg-muted/25 px-3 py-2">
+              <div>
+                <div className="text-sm font-medium">Month Agenda</div>
+                <div className="text-xs text-muted-foreground">Bookings touching {monthLabel}</div>
               </div>
-            ))}
+              {monthBookings.length > 0 && <Badge variant="gray" size="sm">{monthBookings.length}</Badge>}
+            </div>
+            {monthBookings.length === 0 ? (
+              <Empty className="py-8 border-0">
+                <EmptyDescription>No bookings in {monthLabel}.</EmptyDescription>
+              </Empty>
+            ) : (
+              <div className="divide-y divide-border/30">
+                {monthBookings.map((booking) => (
+                  <ScheduleAgendaRow key={booking.id} booking={booking} />
+                ))}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -639,19 +824,16 @@ export function BookingsTab({
       <Card>
         <CardHeader>
           <CardTitle>Booking History</CardTitle>
-          <div className="flex items-center gap-1">
-            {(["all", "checkouts", "reservations"] as const).map((f) => (
-              <Button
-                key={f}
-                variant={filter === f ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setFilter(f)}
-                className="text-xs capitalize"
-              >
-                {f === "all" ? "All" : f === "checkouts" ? "Checkouts" : "Reservations"}
-              </Button>
-            ))}
-          </div>
+          <ToggleGroup
+            type="single"
+            value={filter}
+            onValueChange={(value) => value && setFilter(value as BookingFilter)}
+            className="rounded-md border bg-background p-0.5"
+          >
+            <ToggleGroupItem value="all" className="h-8 px-3 text-xs">All</ToggleGroupItem>
+            <ToggleGroupItem value="checkouts" className="h-8 px-3 text-xs">Checkouts</ToggleGroupItem>
+            <ToggleGroupItem value="reservations" className="h-8 px-3 text-xs">Reservations</ToggleGroupItem>
+          </ToggleGroup>
         </CardHeader>
         {allEntries.length === 0 ? (
           <Empty className="py-8 border-0">
@@ -726,7 +908,27 @@ export function BookingsTab({
 
 export function SettingsTab({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void }) {
   return (
-    <div className="mt-3.5 max-w-lg">
+    <div className="mt-3.5 max-w-2xl">
+      <div className="mb-3 grid gap-2 sm:grid-cols-3">
+        <div className="rounded-md border border-border/40 bg-card px-3 py-2 shadow-none">
+          <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            <ShieldCheck className="size-3.5" aria-hidden="true" />
+            Status Source
+          </div>
+          <div className="mt-1 text-sm font-medium">Derived</div>
+        </div>
+        <div className="rounded-md border border-border/40 bg-card px-3 py-2 shadow-none">
+          <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            <Clock3 className="size-3.5" aria-hidden="true" />
+            Updated
+          </div>
+          <div className="mt-1 text-sm font-medium">{formatDateShort(asset.updatedAt)}</div>
+        </div>
+        <div className="rounded-md border border-border/40 bg-card px-3 py-2 shadow-none">
+          <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Policy</div>
+          <div className="mt-1 text-sm font-medium">{canEdit ? "Editable" : "Read only"}</div>
+        </div>
+      </div>
       <SettingsCard asset={asset} canEdit={canEdit} onRefresh={onRefresh} />
     </div>
   );

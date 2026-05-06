@@ -7,25 +7,41 @@ import { BookingStatus, Prisma } from "@prisma/client";
 import { deriveAssetStatus } from "@/lib/services/status";
 import { createAuditEntry } from "@/lib/audit";
 
+const nullableTrimmedString = (max = 500) =>
+  z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+    z.string().trim().max(max).nullable(),
+  );
+
+const nullableDateString = z.preprocess(
+  (value) => (value === "" ? null : value),
+  z.string().date().nullable(),
+);
+
+const optionalText = z.string().trim();
+
 const patchAssetSchema = z
   .object({
-    assetTag: z.string().min(1).optional(),
-    name: z.string().max(500).nullable().optional(),
-    type: z.string().min(1).optional(),
-    brand: z.string().min(1).optional(),
-    model: z.string().min(1).optional(),
-    serialNumber: z.string().min(1).optional(),
-    qrCodeValue: z.string().min(1).optional(),
-    purchaseDate: z.string().optional(),
-    purchasePrice: z.number().positive().nullable().optional(),
-    warrantyDate: z.string().nullable().optional(),
+    assetTag: z.string().trim().min(1).optional(),
+    name: nullableTrimmedString(500).optional(),
+    type: z.string().trim().min(1).optional(),
+    brand: optionalText.optional(),
+    model: optionalText.optional(),
+    serialNumber: nullableTrimmedString(500).optional(),
+    qrCodeValue: z.string().trim().min(1).optional(),
+    purchaseDate: nullableDateString.optional(),
+    purchasePrice: z.number().nonnegative().nullable().optional(),
+    warrantyDate: nullableDateString.optional(),
     residualValue: z.number().nonnegative().nullable().optional(),
     locationId: z.string().cuid().optional(),
     categoryId: z.string().cuid().nullable().optional(),
     departmentId: z.string().cuid().nullable().optional(),
     status: z.enum(["AVAILABLE", "MAINTENANCE", "RETIRED"]).optional(),
     notes: z.string().max(10000).optional(),
-    linkUrl: z.string().url().nullable().optional(),
+    linkUrl: z.preprocess(
+      (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+      z.string().trim().url().nullable(),
+    ).optional(),
     availableForReservation: z.boolean().optional(),
     availableForCheckout: z.boolean().optional(),
     availableForCustody: z.boolean().optional(),
@@ -53,7 +69,7 @@ export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
       include: {
         booking: {
           include: {
-            requester: { select: { id: true, name: true, email: true } },
+            requester: { select: { id: true, name: true, email: true, avatarUrl: true } },
             location: { select: { id: true, name: true } },
             event: { select: { id: true, summary: true, sportCode: true, opponent: true, isHome: true, startsAt: true, endsAt: true } }
           }
@@ -219,15 +235,19 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
 
   let asset;
   try {
+    const updateData: Prisma.AssetUpdateInput = {
+      ...body,
+      ...(body.purchaseDate !== undefined
+        ? { purchaseDate: body.purchaseDate ? new Date(body.purchaseDate) : null }
+        : {}),
+      ...(body.warrantyDate !== undefined
+        ? { warrantyDate: body.warrantyDate ? new Date(body.warrantyDate) : null }
+        : {}),
+    };
+
     asset = await db.asset.update({
       where: { id: params.id },
-      data: {
-        ...body,
-        ...(body.purchaseDate ? { purchaseDate: new Date(body.purchaseDate) } : {}),
-        ...(body.warrantyDate !== undefined
-          ? { warrantyDate: body.warrantyDate ? new Date(body.warrantyDate) : null }
-          : {}),
-      },
+      data: updateData,
       include: { location: true, category: true, department: { select: { id: true, name: true } } },
     });
   } catch (err) {

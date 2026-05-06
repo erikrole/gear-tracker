@@ -8,13 +8,13 @@ const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsShe
 const ItemInsightsTab = dynamic(() => import("./ItemInsightsTab"), { ssr: false });
 import EmptyState from "@/components/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { FadeUp } from "@/components/ui/motion";
 import ChooseImageModal from "@/components/ChooseImageModal";
 import ItemInfoCard from "./ItemInfoTab";
-import { OperationalOverview, BookingsTab, CalendarTab, SettingsTab } from "./ItemBookingsTab";
+import { OperationalOverview, CalendarTab, SettingsTab } from "./ItemBookingsTab";
 import ActivityFeed from "./ItemHistoryTab";
 import { AccessoriesSection } from "./ItemSettingsTab";
 
@@ -24,12 +24,11 @@ import { ItemHeader } from "./_components/ItemHeader";
 
 /* ── Tab Definitions ──────────────────────────────────────── */
 
-type TabKey = "info" | "bookings" | "calendar" | "insights" | "history" | "accessories" | "settings";
+type TabKey = "info" | "calendar" | "insights" | "history" | "accessories" | "settings";
 
 const tabDefs: Array<{ key: TabKey; label: string }> = [
   { key: "info", label: "Info" },
-  { key: "bookings", label: "Bookings" },
-  { key: "calendar", label: "Calendar" },
+  { key: "calendar", label: "Schedule" },
   { key: "insights", label: "Insights" },
   { key: "history", label: "History" },
   { key: "accessories", label: "Attachments" },
@@ -67,6 +66,7 @@ export default function ItemDetailsPage() {
   } = useItemData(id);
 
   const {
+    actionBusy,
     handleAction,
     handleToggleFavorite,
     saveHeaderField,
@@ -81,7 +81,7 @@ export default function ItemDetailsPage() {
     window.history.replaceState({}, "", url.toString());
   }
 
-  // Keyboard shortcuts: 1-7 to switch tabs
+  // Keyboard shortcuts: 1-6 to switch tabs
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
@@ -196,7 +196,6 @@ export default function ItemDetailsPage() {
   }
 
   // Tab badge counts (derived from loaded asset data)
-  const bookingsCount = (asset?.history?.length ?? 0) + (asset?.activeBooking ? 1 : 0);
   const attachmentsCount = asset?.accessories?.length ?? 0;
 
   return (
@@ -205,6 +204,7 @@ export default function ItemDetailsPage() {
         asset={asset}
         canEdit={canEdit}
         refreshing={refreshing}
+        actionBusy={actionBusy}
         lastRefreshed={lastRefreshed}
         onRefresh={loadAsset}
         onToggleFavorite={handleToggleFavorite}
@@ -216,13 +216,16 @@ export default function ItemDetailsPage() {
       {/* Tabs — sticky on scroll, horizontally scrollable on mobile */}
       <Tabs value={activeTab} onValueChange={(v) => switchTab(v as TabKey)}>
         <TabsList className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm overflow-x-auto scrollbar-hide">
-          {tabDefs.map((tab, i) => {
+          {tabDefs.map((tab) => {
             const count =
-              tab.key === "bookings" ? bookingsCount :
               tab.key === "accessories" ? attachmentsCount :
               0;
             return (
-              <TabsTrigger key={tab.key} value={tab.key} className="shrink-0 gap-1.5 data-[state=active]:border-[var(--wi-red)]">
+              <TabsTrigger
+                key={tab.key}
+                value={tab.key}
+                className="relative shrink-0 gap-1.5 border-b-transparent data-[state=active]:border-b-transparent after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-[var(--wi-red)] after:opacity-0 after:transition-opacity data-[state=active]:after:opacity-100"
+              >
                 <span style={{ fontFamily: "var(--font-heading)", fontWeight: 500 }}>{tab.label}</span>
                 {count > 0 && (
                   <span
@@ -232,13 +235,6 @@ export default function ItemDetailsPage() {
                     {count}
                   </span>
                 )}
-                <span
-                  className="hidden sm:inline-block text-[9px] tabular-nums text-muted-foreground/35"
-                  style={{ fontFamily: "var(--font-mono)" }}
-                  aria-hidden="true"
-                >
-                  {i + 1}
-                </span>
               </TabsTrigger>
             );
           })}
@@ -248,7 +244,12 @@ export default function ItemDetailsPage() {
       {/* Info tab — dashboard layout */}
       {activeTab === "info" && (
         <>
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 mt-3.5">
+          <div className="mt-3.5 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
+            <OperationalOverview
+              asset={asset}
+              now={now}
+              onSelectBooking={setSelectedBookingId}
+            />
             <ItemInfoCard
               asset={asset}
               canEdit={canEdit}
@@ -261,22 +262,11 @@ export default function ItemDetailsPage() {
               onCategoriesChanged={loadCategories}
               onDepartmentsChanged={loadDepartments}
             />
-            <OperationalOverview asset={asset} now={now} canEdit={canEdit} onSelectBooking={setSelectedBookingId} onRefresh={loadAsset} currentUserRole={currentUserRole} />
           </div>
         </>
       )}
 
-      {/* Bookings tab — merged checkouts + reservations */}
-      {activeTab === "bookings" && (
-        <BookingsTab
-          history={asset.history}
-          asset={asset}
-          now={now}
-          onSelectBooking={setSelectedBookingId}
-        />
-      )}
-
-      {/* Calendar tab */}
+      {/* Schedule tab */}
       {activeTab === "calendar" && (
         <CalendarTab asset={asset} onSelectBooking={setSelectedBookingId} />
       )}
@@ -288,8 +278,13 @@ export default function ItemDetailsPage() {
 
       {/* History tab — full activity feed from audit log */}
       {activeTab === "history" && (
-        <Card className="mt-3.5 border-border/40 max-w-3xl">
-          <CardHeader><CardTitle>Activity Log</CardTitle></CardHeader>
+        <Card className="mt-3.5 border-border/40 max-w-4xl shadow-none">
+          <CardHeader>
+            <CardTitle>Item History</CardTitle>
+            <CardDescription>
+              Every audited touch on this item, including item updates and booking activity that involved it.
+            </CardDescription>
+          </CardHeader>
           <CardContent className="p-4">
             <ActivityFeed assetId={asset.id} assetName={asset.name || asset.assetTag} />
           </CardContent>

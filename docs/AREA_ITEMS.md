@@ -46,7 +46,7 @@ Treat physical gear identity as primary, make list and detail views action-orien
 2. Header exposes fast actions (`Reserve`, `Check out`) by permission and policy.
 3. Header status line exposes live operational state with linked booking context when applicable.
 4. `Info` tab opens the default dashboard view with active check-out, upcoming reservations, and editable item information in a split layout.
-5. Additional tabs expose contextual history, calendars, linked workflows, and policy settings.
+5. Additional tabs expose schedule context, lightweight insights, complete touch history, attachments, and policy settings.
 6. The Attachments tab groups child items into SD Cards, Cages and Rigging, and Misc Parts. SD card tags such as `MBB 17 IV 1A` display as camera-slot assignments.
 
 ## Items List Surface (V1)
@@ -160,10 +160,10 @@ Treat physical gear identity as primary, make list and detail views action-orien
 
 ### Tabs
 1. `Info`
-2. `Check Outs`
-3. `Reservations`
-4. `Calendar`
-5. `History`
+2. `Schedule`
+3. `Insights`
+4. `History`
+5. `Attachments`
 6. `Settings`
 
 ### Info Tab Dashboard Layout
@@ -185,13 +185,15 @@ Treat physical gear identity as primary, make list and detail views action-orien
    - Time window
    - Owner
    - Direct link into the reservation record
-4. If no active check-out or upcoming reservation exists, show a clear empty state instead of blank space.
+4. Recent past bookings render below upcoming reservations for quick context without requiring a tab switch.
+   - Rows stay compact, use the requester avatar when available, and prioritize title, requester, date range, booking kind, and status.
+5. If no active check-out, upcoming reservation, or past booking context exists, show a clear empty state instead of blank space.
 
 ### Right Column: Item Information Card
 1. Core metadata fields and editable values by role.
 2. Immutable identity values displayed clearly where edits are restricted.
 3. Empty optional fields render as action-oriented placeholder text in a distinct muted-accent color, for example `Add purchase price`.
-4. Audit-backed edit history remains available via `History` tab.
+4. Audit-backed edit history and booking touches remain available via `History` tab.
 5. `Category` uses a dropdown wired to the canonical category list.
 6. `Link` field is available for item-specific external URL entry.
 7. `Fiscal Year Purchased` uses predetermined dropdown options based on July 1 fiscal-year rollover:
@@ -208,15 +210,40 @@ Treat physical gear identity as primary, make list and detail views action-orien
 5. Tracking code edits must remain auditable.
 
 ### Settings Tab
-1. Settings toggles:
-   - Available for reservation
-   - Available for check out
-   - Available for custody
-2. These toggles represent eligibility policy, not current real-time status.
-3. Toggle help text should make the operational meaning explicit:
-   - Available for reservation: item can be used in reservations
-   - Available for check out: item can be used in check-outs
-   - Available for custody: item can be taken into custody by a user
+1. Settings is the policy surface, not an item-status editor.
+2. Show a small status-source summary so users understand current availability is derived.
+3. Settings toggles:
+   - Check-out eligible
+   - Reservation eligible
+   - Custody eligible
+4. These toggles represent eligibility policy, not current real-time status.
+5. Toggle help text should make the operational meaning explicit:
+   - Check-out eligible: item can leave inventory through check-out workflows
+   - Reservation eligible: item can be reserved for future use
+   - Custody eligible: item can be assigned into custody outside short-term bookings
+
+### Schedule Tab
+1. Month cells show multi-day bookings as continuous week-spanning bars so one booking reads as one schedule block.
+2. Booking bars remain clickable so users can still open the linked booking from any occupied day span.
+3. The tab includes a compact month agenda so the calendar answers which booking is occupying the item, not only that a day is occupied.
+4. Cancelled bookings stay out of the calendar, agenda, and quick Past Bookings context because they no longer occupy the item schedule.
+5. Mobile keeps the agenda-style list so schedule context is usable without relying on the desktop grid.
+6. Clicking a schedule booking opens an in-place preview sheet for quick context; deeper edits belong on the full booking page.
+7. Booking preview identity should use requester/creator avatars where available so the sheet reads as human activity, not only booking metadata.
+
+### Insights Tab
+1. Insights stay lightweight and operational, focused on demand, usage, lifecycle, borrower, and sport signals.
+2. Lifecycle values should use human-readable units, for example item age in years instead of raw day counts for older items.
+3. Return-timing metrics must avoid overstated precision unless backed by a recorded completion/check-in event.
+
+### History Tab
+1. History is the complete item touch log for admins and staff.
+2. Users can scope the feed to:
+   - All activity
+   - Item updates
+   - Booking activity involving this item
+3. Activity loading is paginated with a visible `Load older entries` action.
+4. Timeline rows should translate legacy backend action names into operational language and hide noisy import metadata from field-change pills.
 
 ## Bug Traps and Mitigations
 
@@ -346,6 +373,15 @@ Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered 
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-05-06: **Item detail tabs final polish** — Schedule now pairs the month grid with a compact month agenda and quieter calendar chrome. Insights now uses recorded completion audit activity for return-timing when available, labels that metric more honestly, and renders item age in human-readable units. Attachments no longer shows a misleading travel rule on items with no attached children, and its empty state now explains when fixed accessories should be added.
+- 2026-05-06: **Item detail tabs follow-up** — Schedule now uses start, continuation, and end markers so long bookings no longer visually repeat the same title on every occupied day. Past Bookings now receives requester avatar URLs from the item detail API and renders a denser context row with title, requester, range, kind, and status. History now supports scoped backend activity queries, cursor pagination, cleaner legacy audit labels, and quieter field-change output for import metadata.
+- 2026-05-06: **Item detail tab direction pass** — the detail tab rail now removes the redundant Bookings tab, renames Calendar to Schedule, removes visible keyboard shortcut numerals from tab labels, and keeps only meaningful count badges. The Info tab now adds recent Past Bookings under upcoming reservations for quick context. Insights was simplified into lightweight usage signals instead of a dense chart dashboard, History is framed as the complete item touch log including booking activity, Attachments gained stronger operational summary/direction, and Settings now reads as workflow eligibility policy rather than current status control.
+- 2026-05-06: **Item detail data form hardening** — inline item detail fields now guard against rapid duplicate saves, disable text/select/date/notes/QR inputs while saving, toast actual save errors, use parsed API error messages for relationship saves, and align PATCH normalization with clearable form fields for names, serials, dates, links, and financial values. The local save path now passes same-origin localhost PATCH requests through the shared CSRF guard while preserving 403s for bad origins. The info card also normalizes select/category/date/year control framing with gray picker surfaces, makes Fiscal Year a year-only picker, uses the shared Admin badge style, and top-aligns textarea rows.
+- 2026-05-06: **Item detail UX/UI cleanup slice 4** — the admin scan identity panel now uses a compact inset layout with labeled QR/Serial values, matching copyable mono text, and a larger QR preview that owns the manage/view action without a redundant text button.
+- 2026-05-06: **Item detail UX/UI cleanup slice 3** — header buttons now read as one action cluster with workflow actions first, `Actions` kept with the workflow controls, and refresh/favorite plus date/time freshness text moved into a quieter utility row without a blocking tooltip.
+- 2026-05-06: **Item detail UX/UI cleanup slice 2** — serial number no longer competes with the status in the header, duplicated brand/model sublines collapse when the product name already carries that identity, location/category/department read with explicit separators, Check out is the primary available item action with Reserve secondary, and scan identity rows now label QR vs Serial.
+- 2026-05-06: **Item detail UX/UI cleanup slice 1** — the default Overview now follows the spec: operational state sits first, item facts sit in the right column, and QR/scan identity is inside the item information card instead of a detached admin-only sidebar. The header is quieter, uses the derived status as the lead signal, and makes unavailable Reserve/Check out actions explicit.
+- 2026-05-06: **Item detail hardening and polish pass** — header actions now share the detail action busy state, optimistic favorite toggles are guarded against double-submit, failed item photos fall back to the empty-photo treatment instead of leaving a blank image frame, the mobile calendar tab now shows a month booking list, booking filters use the standard toggle-group control, and detail tab fetches cancel stale requests with consistent 401 handling.
 - 2026-05-06: **Items compact and Fill gaps upgrade** — compact density now removes row thumbnails so the desktop list reads closer to a standard shadcn data table. Fill gaps now treats cleanup as a small mixed serialized/bulk queue with batch prefetch, retryable count/load/save errors, ranked suggestions, same-category department hints that also work for legacy bulk category text, Department-first field ordering, explicit no-photo handling, and a skipped-item review path before closing the session.
 - 2026-05-06: **Items page UX/UI polish pass** — toolbar controls now sit in one command surface with search, item type, favorites, and a collapsible advanced filter row. Header actions now share a compact 32px sizing rhythm. The inventory status summary is a compact health grid instead of a loose chip rail. Desktop rows and mobile cards now put tag/product identity first while keeping serial and duplicate department metadata out of the name stack.
 - 2026-05-06: **Items page hardening pass** — export, duplicate, maintenance, and retire handlers now release busy state from `finally` blocks, including auth redirects and unexpected failures. The list uses merged serialized/bulk rows for empty-state and pagination visibility, clears selected rows when item type/favorites/attachments/sort filters change, and CSV export now honors favorites plus the same extended search fields as the list.

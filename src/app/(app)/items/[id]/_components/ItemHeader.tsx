@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { InlineTitle } from "@/components/InlineTitle";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { PencilIcon, ImageIcon, Copy, Check, RefreshCw, Star, ChevronRight } from "lucide-react";
+import { PencilIcon, ImageIcon, RefreshCw, Star, ChevronRight } from "lucide-react";
 
 import type { AssetDetail } from "../types";
 import { getAttachmentKind, getSdCardSlotLabel } from "@/lib/asset-attachments";
@@ -29,78 +29,46 @@ function StatusLine({ asset }: { asset: AssetDetail }) {
   const s = asset.computedStatus;
   const b = asset.activeBooking;
 
-  if (s === "AVAILABLE") return <Badge variant="green">Available</Badge>;
+  if (s === "AVAILABLE") return <Badge variant="green" className="px-2.5 py-1 text-xs">Available</Badge>;
   if (s === "CHECKED_OUT" && b) {
     const href = `/checkouts/${b.id}`;
     return (
-      <Badge variant="blue" asChild>
+      <Badge variant={b.status === "DRAFT" ? "blue" : "red"} className="px-2.5 py-1 text-xs" asChild>
         <Link href={href} className="no-underline">
-          {b.status === "DRAFT" ? "Checking out" : `Checked out · ${b.requesterName}`}
+          {b.status === "DRAFT" ? "Checking out" : `Checked out by ${b.requesterName}`}
         </Link>
       </Badge>
     );
   }
   if (s === "RESERVED" && b) {
     return (
-      <Badge variant="purple" asChild>
+      <Badge variant="purple" className="px-2.5 py-1 text-xs" asChild>
         <Link href={`/reservations/${b.id}`} className="no-underline">
-          Reserved · {b.requesterName}
+          Reserved by {b.requesterName}
         </Link>
       </Badge>
     );
   }
-  if (s === "MAINTENANCE") return <Badge variant="orange">Maintenance</Badge>;
-  if (s === "RETIRED") return <Badge variant="gray">Retired</Badge>;
-  return <Badge variant="gray">{s}</Badge>;
-}
-
-/* ── Serial Badge (copyable) ────────────────────────────── */
-
-function SerialBadge({ serialNumber }: { serialNumber: string }) {
-  const [copied, setCopied] = useState(false);
-
-  async function handleCopy() {
-    await navigator.clipboard.writeText(serialNumber);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          className="group flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-          style={{ fontFamily: "var(--font-mono)" }}
-          onClick={handleCopy}
-          aria-label={`Copy serial number ${serialNumber}`}
-        >
-          <span className="text-[9px] uppercase tracking-[0.16em] text-muted-foreground/50">SN</span>
-          {serialNumber}
-          {copied ? (
-            <Check className="size-3 text-green-500 shrink-0" />
-          ) : (
-            <Copy className="size-3 opacity-0 group-hover:opacity-60 transition-opacity shrink-0" />
-          )}
-        </button>
-      </TooltipTrigger>
-      <TooltipContent>{copied ? "Copied!" : "Copy serial number"}</TooltipContent>
-    </Tooltip>
-  );
+  if (s === "MAINTENANCE") return <Badge variant="orange" className="px-2.5 py-1 text-xs">Needs maintenance</Badge>;
+  if (s === "RETIRED") return <Badge variant="gray" className="px-2.5 py-1 text-xs">Retired</Badge>;
+  return <Badge variant="gray" className="px-2.5 py-1 text-xs">{s}</Badge>;
 }
 
 /* ── Actions Dropdown ───────────────────────────────────── */
 
 function ActionsMenu({
   asset,
+  disabled,
   onAction,
 }: {
   asset: AssetDetail;
+  disabled?: boolean;
   onAction: (action: string) => void;
 }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm">Actions</Button>
+        <Button variant="outline" size="sm" disabled={disabled}>Actions</Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onSelect={() => onAction("duplicate")}>Duplicate</DropdownMenuItem>
@@ -123,12 +91,19 @@ function ActionsMenu({
   );
 }
 
+function includesLoose(haystack: string, needle: string) {
+  const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const normalizedNeedle = normalize(needle);
+  return normalizedNeedle.length > 0 && normalize(haystack).includes(normalizedNeedle);
+}
+
 /* ── Item Header ────────────────────────────────────────── */
 
 type ItemHeaderProps = {
   asset: AssetDetail;
   canEdit: boolean;
   refreshing: boolean;
+  actionBusy: boolean;
   lastRefreshed: Date | null;
   onRefresh: () => void;
   onToggleFavorite: () => void;
@@ -141,6 +116,7 @@ export function ItemHeader({
   asset,
   canEdit,
   refreshing,
+  actionBusy,
   lastRefreshed,
   onRefresh,
   onToggleFavorite,
@@ -150,35 +126,58 @@ export function ItemHeader({
 }: ItemHeaderProps) {
   const attachmentKind = asset.parentAsset ? getAttachmentKind(asset) : null;
   const slotLabel = asset.parentAsset ? getSdCardSlotLabel(asset, asset.parentAsset.assetTag) : null;
+  const [imageFailed, setImageFailed] = useState(false);
+  const isRetired = asset.computedStatus === "RETIRED";
+  const isMaintenance = asset.computedStatus === "MAINTENANCE";
+  const hasActiveCheckout = asset.computedStatus === "CHECKED_OUT" && asset.activeBooking?.kind === "CHECKOUT";
+  const canReserve = asset.availableForReservation && !isRetired;
+  const canCheckOut = asset.availableForCheckout && !isRetired && !isMaintenance && !hasActiveCheckout;
+  const activeBookingHref = asset.activeBooking
+    ? asset.activeBooking.kind === "RESERVATION"
+      ? `/reservations/${asset.activeBooking.id}`
+      : `/checkouts/${asset.activeBooking.id}`
+    : null;
+  const activeBookingLabel = asset.activeBooking
+    ? asset.activeBooking.kind === "RESERVATION"
+      ? "Open reservation"
+      : "Open checkout"
+    : null;
+  const brandModel = [asset.brand, asset.model].filter(Boolean).join(" ");
+  const productLabel = asset.name || brandModel;
+  const showBrandModel =
+    brandModel &&
+    asset.name &&
+    !includesLoose(asset.name, asset.brand) &&
+    !includesLoose(asset.name, asset.model);
+  const metaParts = [
+    asset.location?.name,
+    asset.category?.name,
+    asset.department?.name,
+  ].filter(Boolean);
+  const updatedAt = asset.updatedAt ? new Date(asset.updatedAt) : null;
+  const updatedLabel = updatedAt
+    ? `Updated ${updatedAt.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      })} at ${updatedAt.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+      })}`
+    : null;
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [asset.imageUrl]);
 
   return (
     <>
-      {/* ── Equipment Manifest Card ─────────────────────────── */}
-      <div className="relative mb-4 rounded-xl border bg-card overflow-hidden">
-        {/* Atmospheric red wash — corner glow */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              "radial-gradient(ellipse 60% 80% at 0% 0%, rgba(160,0,0,0.055) 0%, transparent 60%)",
-          }}
-        />
-
-        {/* Top accent stripe */}
-        <div
-          className="absolute top-0 left-0 right-0 h-[2px]"
-          style={{
-            background:
-              "linear-gradient(90deg, var(--wi-red) 0%, rgba(160,0,0,0.15) 35%, transparent 65%)",
-          }}
-        />
-
-        <div className="relative flex flex-col sm:flex-row gap-4 sm:gap-5 p-5 sm:p-6 pt-[18px]">
-          {/* ── Image ── */}
-          <div className="shrink-0 self-start">
-            {asset.imageUrl ? (
+      <header className="mb-4 rounded-lg border border-border/50 bg-card px-4 py-4 shadow-xs sm:px-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex min-w-0 gap-4">
+            <div className="shrink-0 self-start">
+            {asset.imageUrl && !imageFailed ? (
               <button
-                className={`relative rounded-lg border border-border bg-muted overflow-hidden flex items-center justify-center size-[96px] sm:size-[104px] ${canEdit ? "cursor-pointer" : "cursor-default"} group`}
+                className={`relative flex size-[88px] items-center justify-center overflow-hidden rounded-md border border-border bg-muted shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)] sm:size-[96px] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)] ${canEdit ? "cursor-pointer active:scale-[0.96]" : "cursor-default"} group transition-[border-color,background-color,box-shadow,transform]`}
                 onClick={() => canEdit && onImageModalOpen()}
                 title={canEdit ? "Change image" : undefined}
                 aria-label={canEdit ? `Change image for ${asset.assetTag}` : `Image of ${asset.assetTag}`}
@@ -191,9 +190,7 @@ export function ItemHeader({
                   sizes="104px"
                   className="aspect-square object-cover"
                   unoptimized={!asset.imageUrl.includes(".public.blob.vercel-storage.com")}
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = "none";
-                  }}
+                  onError={() => setImageFailed(true)}
                 />
                 {canEdit && (
                   <div className="absolute inset-0 bg-black/45 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white">
@@ -203,7 +200,7 @@ export function ItemHeader({
               </button>
             ) : canEdit ? (
               <button
-                className="relative rounded-lg border border-dashed border-border bg-muted/40 flex items-center justify-center size-[96px] sm:size-[104px] cursor-pointer hover:border-[var(--wi-red)]/50 hover:bg-[var(--wi-red)]/5 transition-colors group"
+                className="group relative flex size-[88px] cursor-pointer items-center justify-center rounded-md border border-dashed border-border bg-muted/40 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.06)] transition-[border-color,background-color,transform] hover:border-[var(--wi-red)]/50 hover:bg-[var(--wi-red)]/5 active:scale-[0.96] sm:size-[96px] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
                 onClick={onImageModalOpen}
                 title="Add image"
                 aria-label="Add image"
@@ -211,24 +208,26 @@ export function ItemHeader({
                 <ImageIcon className="size-5 text-muted-foreground/40 group-hover:text-muted-foreground/70 transition-colors" />
               </button>
             ) : (
-              <div className="rounded-lg border border-border bg-muted/20 flex items-center justify-center size-[96px] sm:size-[104px]">
+              <div className="flex size-[88px] items-center justify-center rounded-md border border-border bg-muted/20 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.06)] sm:size-[96px] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]">
                 <ImageIcon className="size-5 text-muted-foreground/25" />
               </div>
             )}
-          </div>
+            </div>
 
-          {/* ── Identity block ── */}
-          <div className="flex-1 min-w-0 flex flex-col">
-            {/* Asset tag — primary identifier */}
-            <div
-              className="flex items-baseline gap-2.5 mb-0.5"
-              style={{ fontFamily: "var(--font-heading)" }}
-            >
+            <div className="flex min-w-0 flex-1 flex-col">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <StatusLine asset={asset} />
+              </div>
+
+              <div
+                className="flex items-baseline gap-2.5"
+                style={{ fontFamily: "var(--font-heading)" }}
+              >
               <InlineTitle
                 value={asset.assetTag}
                 canEdit={false}
                 onSave={(v) => onSaveHeaderField("assetTag", v)}
-                className="text-[28px] sm:text-[32px] font-black leading-none tracking-tight"
+                className="text-balance text-[28px] font-black leading-none tracking-tight sm:text-[32px]"
               />
               {asset.metadata?.uwAssetTag && (
                 <span
@@ -238,90 +237,108 @@ export function ItemHeader({
                   UW·{asset.metadata.uwAssetTag}
                 </span>
               )}
-            </div>
+              </div>
 
-            {/* Item name */}
-            <div style={{ fontFamily: "var(--font-heading)" }}>
+              <div style={{ fontFamily: "var(--font-heading)" }}>
               <InlineTitle
-                value={asset.name || ""}
+                value={productLabel}
                 canEdit={false}
                 onSave={(v) => onSaveHeaderField("name", v)}
-                className="text-[14px] font-medium text-muted-foreground leading-tight"
+                className="text-pretty text-[14px] font-medium leading-tight text-muted-foreground"
                 placeholder="Add item name"
               />
-            </div>
+              </div>
 
-            {/* Brand · Model */}
-            {(asset.brand || asset.model) && (
-              <p
-                className="text-[11px] text-muted-foreground/45 mt-1 leading-none"
-                style={{ fontFamily: "var(--font-mono)" }}
-              >
-                {[asset.brand, asset.model].filter(Boolean).join(" · ")}
-              </p>
-            )}
-
-            {/* ── Properties row ── */}
-            <div className="flex items-center gap-3 flex-wrap mt-3">
-              <StatusLine asset={asset} />
-
-              {asset.location && (
-                <span
-                  className="text-[11px] text-muted-foreground/70"
+              {showBrandModel && (
+                <p
+                  className="mt-1 text-[11px] leading-none text-muted-foreground/50"
                   style={{ fontFamily: "var(--font-mono)" }}
                 >
-                  {asset.location.name}
-                </span>
+                  {brandModel}
+                </p>
               )}
-              {asset.category && (
-                <span
-                  className="text-[11px] text-muted-foreground/70"
-                  style={{ fontFamily: "var(--font-mono)" }}
-                >
-                  {asset.category.name}
-                </span>
-              )}
-              {asset.department && (
-                <span
-                  className="text-[11px] text-muted-foreground/70"
-                  style={{ fontFamily: "var(--font-mono)" }}
-                >
-                  {asset.department.name}
-                </span>
-              )}
-              {asset.serialNumber && <SerialBadge serialNumber={asset.serialNumber} />}
+
+              <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground/70">
+                {metaParts.map((part, index) => (
+                  <span key={part} className="inline-flex items-center gap-2">
+                    {index > 0 && (
+                      <span aria-hidden="true" className="text-muted-foreground/30">
+                        /
+                      </span>
+                    )}
+                    <span>{part}</span>
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* ── Actions column ── */}
-          <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 shrink-0 sm:self-start sm:pt-0.5">
-            {/* Utility icons */}
-            <div className="flex items-center gap-1">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-7"
-                    onClick={onRefresh}
-                    disabled={refreshing}
-                    aria-label="Refresh"
-                  >
-                    <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {lastRefreshed
-                    ? `Updated ${lastRefreshed.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
-                    : "Refresh"}
-                </TooltipContent>
-              </Tooltip>
+          <div className="flex flex-col gap-2 lg:min-w-[270px] lg:items-end">
+            <div className="flex flex-wrap items-center gap-1.5 lg:justify-end">
+              {activeBookingHref && activeBookingLabel && (
+                <Button size="sm" variant="default" asChild>
+                  <Link href={activeBookingHref}>{activeBookingLabel}</Link>
+                </Button>
+              )}
+              {canCheckOut ? (
+                <Button size="sm" variant={activeBookingHref ? "outline" : "default"} asChild>
+                  <Link href={`/checkouts?newFor=${asset.id}`}>Check out</Link>
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled
+                  title={
+                    hasActiveCheckout
+                      ? "This item is already checked out"
+                      : isMaintenance
+                        ? "Maintenance items cannot be checked out"
+                        : "Check out is disabled for this item"
+                  }
+                >
+                  Check out
+                </Button>
+              )}
+              {canReserve ? (
+                <Button size="sm" variant="outline" asChild>
+                  <Link href={`/reservations?newFor=${asset.id}`}>Reserve</Link>
+                </Button>
+              ) : (
+                <Button size="sm" variant="outline" disabled title="Reservations are disabled for this item">
+                  Reserve
+                </Button>
+              )}
+              {canEdit && <ActionsMenu asset={asset} disabled={actionBusy} onAction={onAction} />}
+            </div>
+
+            <div className="flex items-center gap-1 text-[10px] leading-none text-muted-foreground/40 lg:justify-end">
+              {updatedLabel && (
+                <span className="hidden sm:inline" style={{ fontFamily: "var(--font-mono)" }}>
+                  {updatedLabel}
+                </span>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 active:scale-[0.96] transition-[background-color,color,box-shadow,transform]"
+                onClick={onRefresh}
+                disabled={refreshing || actionBusy}
+                aria-label={
+                  lastRefreshed
+                    ? `Refresh. Last refreshed ${lastRefreshed.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`
+                    : "Refresh"
+                }
+              >
+                <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
+              </Button>
 
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-7"
+                className="size-8 active:scale-[0.96] transition-[background-color,color,box-shadow,transform]"
                 onClick={onToggleFavorite}
+                disabled={actionBusy}
                 aria-label={asset.isFavorited ? "Remove from favorites" : "Add to favorites"}
               >
                 <Star
@@ -330,48 +347,10 @@ export function ItemHeader({
                   }`}
                 />
               </Button>
-
-              {canEdit && <ActionsMenu asset={asset} onAction={onAction} />}
             </div>
-
-            {/* Primary CTAs */}
-            <div className="flex items-center gap-1.5">
-              <Button
-                size="sm"
-                variant={asset.availableForReservation ? "default" : "outline"}
-                asChild
-              >
-                <Link href={`/reservations?newFor=${asset.id}`}>Reserve</Link>
-              </Button>
-              <Button
-                size="sm"
-                variant={
-                  asset.computedStatus !== "CHECKED_OUT" && asset.availableForCheckout
-                    ? "default"
-                    : "outline"
-                }
-                asChild
-              >
-                <Link href={`/checkouts?newFor=${asset.id}`}>Check out</Link>
-              </Button>
-            </div>
-
-            {/* Last updated — desktop only */}
-            {asset.updatedAt && (
-              <span
-                className="hidden sm:block text-[10px] text-muted-foreground/35 text-right leading-none mt-auto"
-                style={{ fontFamily: "var(--font-mono)" }}
-              >
-                {new Date(asset.updatedAt).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </span>
-            )}
           </div>
         </div>
-      </div>
+      </header>
 
       {/* ── Parent banner ─────────────────────────────────────── */}
       {asset.parentAsset && (

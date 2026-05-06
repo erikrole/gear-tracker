@@ -369,6 +369,17 @@ export const GET = withAuth(async (_req, { user }) => {
     const shifts = e.shiftGroup?.shifts ?? [];
     const totalShiftSlots = shifts.length;
     const filledShiftSlots = shifts.filter((s) => s.assignments.length > 0).length;
+    const coverage = totalShiftSlots > 0
+      ? {
+          total: totalShiftSlots,
+          filled: filledShiftSlots,
+          percentage: Math.round((filledShiftSlots / totalShiftSlots) * 100),
+        }
+      : null;
+    const earliestShift = shifts.reduce<Date | null>((earliest, shift) => {
+      if (!earliest || shift.startsAt < earliest) return shift.startsAt;
+      return earliest;
+    }, null);
     const seenUserIds = new Set<string>();
     const assignedUsers: Array<{ id: string; name: string; avatarUrl: string | null; area: string | null }> = [];
     for (const shift of shifts) {
@@ -395,6 +406,8 @@ export const GET = withAuth(async (_req, { user }) => {
       locationId: e.location?.id ?? null,
       opponent: e.opponent ?? null,
       isHome: e.isHome ?? null,
+      coverage,
+      callTime: e.isHome === true && earliestShift ? earliestShift.toISOString() : null,
       totalShiftSlots,
       filledShiftSlots,
       assignedUsers,

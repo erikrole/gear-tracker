@@ -16,6 +16,7 @@ import { toLocalDateTimeValue } from "./helpers";
 import { CalendarIcon, ClockIcon, UserIcon, MapPinIcon, CalendarCheckIcon, LinkIcon, StickyNoteIcon, TriangleAlert } from "lucide-react";
 import type { BookingDetail, CheckinProgress, ConflictData } from "./types";
 import { InlineDateField } from "./InlineDateField";
+import { UserAvatar } from "@/components/UserAvatar";
 
 type ExtendPreset = { label: string; minutes: number };
 
@@ -148,10 +149,20 @@ export default function BookingOverview({
             />
           </InfoRow>
           <InfoRow icon={UserIcon} label="Requester">
-            {booking.requester?.name ?? "Unknown"}
-            {booking.requester?.email && (
-              <span className="text-muted-foreground font-normal"> ({booking.requester.email})</span>
-            )}
+            <div className="flex min-w-0 items-center gap-2">
+              <UserAvatar
+                name={booking.requester?.name ?? "Unknown"}
+                avatarUrl={booking.requester?.avatarUrl}
+                size="sm"
+                className="shrink-0"
+              />
+              <div className="min-w-0">
+                <div className="truncate">{booking.requester?.name ?? "Unknown"}</div>
+                {booking.requester?.email && (
+                  <div className="truncate text-xs font-normal text-muted-foreground">{booking.requester.email}</div>
+                )}
+              </div>
+            </div>
           </InfoRow>
           <InfoRow icon={MapPinIcon} label="Location">
             {booking.location?.name ?? "\u2014"}
@@ -205,9 +216,17 @@ export default function BookingOverview({
 
       {/* Created by */}
       {booking.creator && (
-        <p className="text-xs text-muted-foreground px-1">
-          Created by {booking.creator.name} on {formatDateTime(booking.createdAt)}
-        </p>
+        <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
+          <UserAvatar
+            name={booking.creator.name}
+            avatarUrl={booking.creator.avatarUrl}
+            size="xs"
+            className="shrink-0"
+          />
+          <span className="min-w-0 truncate">
+            Created by <span className="font-medium text-foreground">{booking.creator.name}</span> on {formatDateTime(booking.createdAt)}
+          </span>
+        </div>
       )}
 
       {/* Return suggestion */}

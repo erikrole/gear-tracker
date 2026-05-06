@@ -67,6 +67,8 @@ export type EventSummary = {
   locationId: string | null;
   opponent: string | null;
   isHome: boolean | null;
+  coverage: { total: number; filled: number; percentage: number } | null;
+  callTime: string | null;
   totalShiftSlots: number;
   filledShiftSlots: number;
   assignedUsers: Array<{ id: string; name: string; avatarUrl: string | null; area: string | null }>;

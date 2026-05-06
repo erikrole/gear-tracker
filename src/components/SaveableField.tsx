@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ export type SaveStatus = "idle" | "saving" | "saved" | "error";
 export function useSaveField<T = string>(onSave: (v: T) => Promise<void>) {
   const [status, setStatus] = useState<SaveStatus>("idle");
   const timerRef = useRef<ReturnType<typeof setTimeout>>(null);
+  const savingRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -25,15 +27,20 @@ export function useSaveField<T = string>(onSave: (v: T) => Promise<void>) {
 
   const save = useCallback(
     async (value: T) => {
+      if (savingRef.current) return;
+      savingRef.current = true;
       if (timerRef.current) clearTimeout(timerRef.current);
       setStatus("saving");
       try {
         await onSave(value);
         setStatus("saved");
         timerRef.current = setTimeout(() => setStatus("idle"), 2000);
-      } catch {
+      } catch (err) {
         setStatus("error");
+        toast.error(err instanceof Error && err.message ? err.message : "Save failed");
         timerRef.current = setTimeout(() => setStatus("idle"), 3000);
+      } finally {
+        savingRef.current = false;
       }
     },
     [onSave],
@@ -41,10 +48,11 @@ export function useSaveField<T = string>(onSave: (v: T) => Promise<void>) {
 
   const reset = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
+    savingRef.current = false;
     setStatus("idle");
   }, []);
 
-  return { status, save, reset };
+  return { status, save, reset, isSaving: status === "saving" };
 }
 
 /* ── SaveStatusIndicator ───────────────────────────────── */
@@ -92,6 +100,7 @@ export function SaveableField({
   onCommit,
   onCancel,
   className,
+  labelClassName,
   htmlFor,
   children,
 }: {
@@ -101,6 +110,7 @@ export function SaveableField({
   onCommit?: () => void;
   onCancel?: () => void;
   className?: string;
+  labelClassName?: string;
   htmlFor?: string;
   children: React.ReactNode;
 }) {
@@ -113,13 +123,13 @@ export function SaveableField({
     >
       <Label
         htmlFor={htmlFor}
-        className="text-sm text-muted-foreground shrink-0 w-[120px]"
+        className={cn("text-sm text-muted-foreground shrink-0 w-[120px]", labelClassName)}
       >
         {label}
       </Label>
       <div className="flex items-center gap-2 flex-1 min-w-0">
         <div className="flex-1 min-w-0">{children}</div>
-        {isDirty && onCommit && onCancel ? (
+        {isDirty && onCommit && onCancel && status !== "saving" ? (
           <div className="flex items-center gap-0.5 shrink-0">
             <Button
               variant="ghost"

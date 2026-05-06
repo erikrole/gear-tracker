@@ -11,6 +11,34 @@ type HandlerCtx<P extends Record<string, string> = Record<string, string>> = {
   params: P;
 };
 
+function assertSameOrigin(req: Request) {
+  const origin = req.headers.get("origin");
+  if (!origin) {
+    const isCronRequest = req.headers.get("authorization")?.startsWith("Bearer ");
+    if (!isCronRequest) {
+      throw new HttpError(403, "Origin header required for mutating requests");
+    }
+    return;
+  }
+
+  const expected = new URL(req.url).origin;
+  if (origin !== expected) {
+    throw new HttpError(403, "Cross-origin request blocked");
+  }
+}
+
+function assertKioskSameOrigin(req: Request) {
+  const origin = req.headers.get("origin");
+  if (!origin) {
+    throw new HttpError(403, "Origin header required for mutating requests");
+  }
+
+  const expected = new URL(req.url).origin;
+  if (origin !== expected) {
+    throw new HttpError(403, "Cross-origin request blocked");
+  }
+}
+
 /**
  * Authenticated API route handler.
  * Wraps try/catch, calls requireAuth(), and resolves dynamic params.
@@ -28,20 +56,7 @@ export function withAuth<P extends Record<string, string> = Record<string, strin
     try {
       // CSRF: validate Origin header on mutating requests
       if (req.method !== "GET" && req.method !== "HEAD") {
-        const origin = req.headers.get("origin");
-        if (!origin) {
-          // Allow cron/internal requests that authenticate via secret instead of session
-          const isCronRequest = req.headers.get("authorization")?.startsWith("Bearer ");
-          if (!isCronRequest) {
-            throw new HttpError(403, "Origin header required for mutating requests");
-          }
-        } else {
-          const host = req.headers.get("host") || req.headers.get("x-forwarded-host");
-          const expected = host ? new URL(`https://${host}`).origin : null;
-          if (expected && origin !== expected) {
-            throw new HttpError(403, "Cross-origin request blocked");
-          }
-        }
+        assertSameOrigin(req);
       }
       const user = await requireAuth();
       const params = (context?.params ? await context.params : {}) as P;
@@ -69,15 +84,7 @@ export function withKiosk<P extends Record<string, string> = Record<string, stri
     try {
       // CSRF: require Origin on mutating requests (matches withAuth).
       if (req.method !== "GET" && req.method !== "HEAD") {
-        const origin = req.headers.get("origin");
-        if (!origin) {
-          throw new HttpError(403, "Origin header required for mutating requests");
-        }
-        const host = req.headers.get("host") || req.headers.get("x-forwarded-host");
-        const expected = host ? new URL(`https://${host}`).origin : null;
-        if (expected && origin !== expected) {
-          throw new HttpError(403, "Cross-origin request blocked");
-        }
+        assertKioskSameOrigin(req);
       }
       const kiosk = await requireKiosk();
       const params = (context?.params ? await context.params : {}) as P;

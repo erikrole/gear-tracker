@@ -47,6 +47,7 @@
 
 ## UI Reliability
 
+- **Dev CSRF origin must use the actual request origin**: Do not hardcode `https://${host}` as the expected origin in shared API wrappers. Local dev pages run on `http://localhost:*`, so mutating requests can be blocked before auth/permission checks. Compare `Origin` to `new URL(req.url).origin` and keep bad-origin requests returning 403.
 - **Distinguish initial load from refresh**: Initial = skeletons. Refresh = keep visible data, show subtle spinner. Use `hasLoadedRef` (not state) to track.
 - **Refresh failure must NOT replace visible data**: Only set `loadError` on initial load. On refresh failure, toast and keep existing data.
 - **AbortController on all filter-driven fetches**: Rapid changes fire concurrent requests. Abort previous before starting new.
@@ -61,6 +62,11 @@
 
 ## UX Patterns
 
+- **Schedule and quick booking context should show occupying bookings, not every historical booking row**: Cancelled bookings belong in history/audit surfaces, but they should not render in item schedule calendars, agendas, or Past Bookings quick context because they no longer reserve or occupy the item.
+- **Multi-day schedule blocks should look continuous**: When a booking occupies several dates, draw one week-spanning bar across date cells instead of separate per-day pills. The visual model should match the operational model.
+- **Calendar detail sheets should preview, not become duplicate detail pages**: From item schedules, keep booking clicks in an in-place sheet for context preservation. Use the sheet for identity, timing, equipment, and recent history, and send deeper edits or long workflows to the full booking page.
+- **Calendar detail views should not repeat long bookings as full labels on every day**: For item-level schedule context, render the booking label at the start/end or in a side list, and use subtle continuation markers for intermediate days. Repeating the same title in every date cell reads as a bug even when the date overlap math is technically correct.
+- **Respect current visual context before broadening scope**: When feedback follows a screenshot of a specific page region, anchor the audit to that visible component first. "Items tab at the top" on item detail means the detail tab rail, not the top-level Items list.
 - **In-app scan is search-only; checkout/check-in scans happen at kiosks**: Do not frame app scan endpoint risks as staff/student checkout or return execution risk. Operational check-in/out belongs to kiosk flows; the app scan surface is for lookup/search unless the product scope explicitly changes.
 - **Toast messages should confirm WHAT happened**: "Extended to Mar 28" > "Booking extended". Include identifiers.
 - **Success toasts are as important as error toasts**: Silent success erodes confidence.

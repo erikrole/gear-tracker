@@ -5,22 +5,17 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { CalendarCheckIcon, CalendarIcon, ClipboardCheckIcon, ClockIcon, InboxIcon, PackageIcon } from "lucide-react";
+import { AlertTriangleIcon, CalendarIcon, ClockIcon, InboxIcon } from "lucide-react";
 import { ScaleIn } from "@/components/ui/motion";
 import { formatDayLabel, formatTimeShort, isDueToday } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
+import { cn } from "@/lib/utils";
 import { ShiftAvatarStack } from "./dashboard-avatars";
 import { DashboardBookingRow, dashboardBookingAccent } from "./booking-row";
 import { DashboardSectionHeader } from "./section-header";
-import type { DashboardData, BookingSummary, CreateBookingContext } from "../dashboard-types";
+import type { DashboardData, BookingSummary } from "../dashboard-types";
 import type { FilteredDashboardData } from "@/hooks/use-dashboard-filters";
 
 type HomeAwayFilter = "all" | "home" | "away";
@@ -34,10 +29,9 @@ type Props = {
   acting: boolean;
   onSelectBooking: (id: string) => void;
   onExtend: (booking: BookingSummary, e: React.MouseEvent) => void;
-  onCreateBooking?: (ctx: CreateBookingContext) => void;
 };
 
-export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, acting, onSelectBooking, onExtend, onCreateBooking }: Props) {
+export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, acting, onSelectBooking, onExtend }: Props) {
   const [homeAwayFilter, setHomeAwayFilter] = useState<HomeAwayFilter>("all");
 
   const filteredEvents = useMemo(() => {
@@ -51,6 +45,29 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
   }, [filtered?.upcomingEvents, data.upcomingEvents, homeAwayFilter]);
 
   const cappedEvents = useMemo(() => filteredEvents.slice(0, 10), [filteredEvents]);
+
+  function eventTitle(e: DashboardData["upcomingEvents"][number]) {
+    if (e.opponent) {
+      return `${e.sportCode ? `${sportLabel(e.sportCode)} ` : ""}${e.isHome === false ? "at" : "vs"} ${e.opponent}`;
+    }
+    return e.sportCode ? sportLabel(e.sportCode) : e.title;
+  }
+
+  function eventBorder(e: DashboardData["upcomingEvents"][number]) {
+    if (e.isHome === true) return "border-l-[var(--green)]";
+    if (e.isHome === false) return "border-l-[var(--orange)]";
+    return "border-l-muted-foreground/30";
+  }
+
+  function eventCoverageBadge(e: DashboardData["upcomingEvents"][number]) {
+    if (!e.coverage) return null;
+    const variant = e.coverage.percentage >= 100 ? "green" : e.coverage.percentage > 0 ? "orange" : "red";
+    return (
+      <Badge variant={variant} size="sm">
+        {e.coverage.filled}/{e.coverage.total}
+      </Badge>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -159,61 +176,36 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
         ) : (
           <CardContent className="p-0 py-1">
             {cappedEvents.map((e) => (
-              <div key={e.id} className="group flex items-center justify-between gap-3 w-full px-4 py-2 transition-colors hover:bg-muted/50 [&+&]:border-t [&+&]:border-border/40 no-underline text-inherit">
-                <Link href={`/events/${e.id}`} className="flex flex-col gap-0.5 min-w-0 no-underline">
-                  <span className="text-sm font-bold text-foreground truncate">
-                    {e.opponent
-                      ? `${e.sportCode ? `${sportLabel(e.sportCode)} ` : ""}${e.isHome === false ? "at" : "vs"} ${e.opponent}`
-                      : e.sportCode ? sportLabel(e.sportCode) : e.title}
+              <div
+                key={e.id}
+                className={cn(
+                  "group flex items-start justify-between gap-3 w-full border-l-[3px] px-4 py-2.5 transition-colors hover:bg-muted/50 [&+&]:border-t [&+&]:border-border/40 no-underline text-inherit",
+                  eventBorder(e),
+                  e.coverage && e.coverage.filled < e.coverage.total && "bg-[var(--red-bg)]/10",
+                )}
+              >
+                <Link href={`/events/${e.id}`} className="flex min-w-0 flex-1 flex-col gap-1 no-underline">
+                  <span className="text-sm font-bold text-foreground truncate">{eventTitle(e)}</span>
+                  <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground leading-snug">
+                    <span>
+                      {formatDayLabel(e.startsAt, now)}{e.allDay ? " \u2013 All day" : `, ${formatTimeShort(e.startsAt)} \u2013 ${formatTimeShort(e.endsAt)}`}
+                    </span>
+                    {e.location && <span className="truncate">{e.location}</span>}
+                    {e.callTime && <span>Call {formatTimeShort(e.callTime)}</span>}
                   </span>
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground leading-snug">
-                    {formatDayLabel(e.startsAt, now)}{e.allDay ? " \u2013 All day" : `, ${formatTimeShort(e.startsAt)} \u2013 ${formatTimeShort(e.endsAt)}`}
-                    {e.location && ` \u00B7 ${e.location}`}
-                  </span>
+                  {e.coverage && e.coverage.filled < e.coverage.total && (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--red-text)]">
+                      <AlertTriangleIcon className="size-3.5" />
+                      {e.coverage.total - e.coverage.filled} open slot{e.coverage.total - e.coverage.filled === 1 ? "" : "s"}
+                    </span>
+                  )}
                 </Link>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
                   <ShiftAvatarStack assignedUsers={e.assignedUsers} totalSlots={e.totalShiftSlots} filledSlots={e.filledShiftSlots} />
-                  {e.isHome === true && <Badge variant="green">Home</Badge>}
-                  {e.isHome === false && <Badge variant="orange">Away</Badge>}
-                  {e.isHome === null && e.opponent && <Badge variant="gray">Neutral</Badge>}
-                  <DropdownMenu>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="size-7 transition-opacity" aria-label="Create booking for this event">
-                            <PackageIcon className="size-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                      </TooltipTrigger>
-                      <TooltipContent>Create booking for this event</TooltipContent>
-                    </Tooltip>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onCreateBooking?.({
-                        kind: "CHECKOUT",
-                        title: e.title,
-                        startsAt: e.startsAt,
-                        endsAt: e.endsAt,
-                        locationId: e.locationId || undefined,
-                        eventId: e.id,
-                        sportCode: e.sportCode || undefined,
-                      })}>
-                        <ClipboardCheckIcon className="mr-2 size-4" />
-                        New checkout
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onCreateBooking?.({
-                        kind: "RESERVATION",
-                        title: e.title,
-                        startsAt: e.startsAt,
-                        endsAt: e.endsAt,
-                        locationId: e.locationId || undefined,
-                        eventId: e.id,
-                        sportCode: e.sportCode || undefined,
-                      })}>
-                        <CalendarCheckIcon className="mr-2 size-4" />
-                        New reservation
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  {eventCoverageBadge(e)}
+                  {e.isHome === true && <Badge variant="green" size="sm">Home</Badge>}
+                  {e.isHome === false && <Badge variant="orange" size="sm">Away</Badge>}
+                  {e.isHome === null && e.opponent && <Badge variant="gray" size="sm">Neutral</Badge>}
                 </div>
               </div>
             ))}

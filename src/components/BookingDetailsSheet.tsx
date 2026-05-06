@@ -11,6 +11,7 @@ import {
   Sheet,
   SheetContent,
   SheetHeader,
+  SheetDescription,
   SheetTitle,
   SheetBody,
   SheetFooter,
@@ -31,6 +32,7 @@ import dynamic from "next/dynamic";
 import type { PickerBulkSku } from "@/components/EquipmentPicker";
 const EquipmentPicker = dynamic(() => import("@/components/EquipmentPicker"), { ssr: false });
 import ActivityTimeline from "@/components/ActivityTimeline";
+import { UserAvatar } from "@/components/UserAvatar";
 import Link from "next/link";
 import { ExternalLinkIcon } from "lucide-react";
 import type {
@@ -57,12 +59,12 @@ function SectionHead({
   right?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-3 px-6 py-3 border-b border-border bg-muted/20">
+    <div className="flex items-center gap-2.5 border-y border-border/40 bg-muted/20 px-6 py-3">
       <span
-        className="h-[18px] w-[3px] shrink-0 rounded-full"
+        className="h-4 w-0.5 shrink-0 rounded-full"
         style={{ backgroundColor: "var(--wi-red)" }}
       />
-      <span className="text-[11px] font-black uppercase tracking-[0.15em] flex-1 text-foreground">
+      <span className="flex-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-foreground">
         {label}
       </span>
       {right}
@@ -546,24 +548,41 @@ export default function BookingDetailsSheet({
 
   return (
     <Sheet open={!!bookingId} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <SheetContent className="sm:max-w-lg flex flex-col">
+      <SheetContent className="flex flex-col sm:max-w-lg">
 
         {/* Header */}
         <SheetHeader>
           <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 flex-1 items-start gap-3">
+              {booking && (
+                <UserAvatar
+                  name={booking.requester?.name ?? "Unknown"}
+                  avatarUrl={booking.requester?.avatarUrl}
+                  size="md"
+                  className="mt-0.5 shrink-0"
+                />
+              )}
+              <div className="min-w-0 flex-1">
               <SheetTitle className="truncate">
                 {booking?.title || "Loading..."}
               </SheetTitle>
+              <SheetDescription className="sr-only">
+                Booking preview with timing, requester, equipment, history, and a link to the full booking page.
+              </SheetDescription>
               {booking && (
-                <p className="text-[11px] text-white/55 mt-0.5 leading-relaxed">
-                  {booking.refNumber && <span className="font-mono">{booking.refNumber}</span>}
-                  {booking.refNumber && " \u00b7 "}
-                  {booking.bookingType}
-                  {booking.requester?.name && ` \u00b7 ${booking.requester.name}`}
-                  {booking.location?.name && ` \u00b7 ${booking.location.name}`}
-                </p>
-              )}
+                  <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs leading-relaxed text-muted-foreground">
+                    {booking.refNumber && <span className="font-mono">{booking.refNumber}</span>}
+                    {booking.refNumber && <span aria-hidden="true">/</span>}
+                    <span>{booking.bookingType}</span>
+                    {booking.location?.name && (
+                      <>
+                        <span aria-hidden="true">/</span>
+                        <span>{booking.location.name}</span>
+                      </>
+                    )}
+                  </p>
+                )}
+              </div>
             </div>
             {booking && (
               <Badge
@@ -577,7 +596,7 @@ export default function BookingDetailsSheet({
         </SheetHeader>
 
         {/* Body — single scrollable column */}
-        <SheetBody className="px-0 py-0 flex flex-col relative">
+        <SheetBody className="relative flex flex-col bg-muted/20 px-0 py-0">
           {loading ? (
             <div className="space-y-3 px-6 py-5">
               <Skeleton className="h-4 w-3/4" />
@@ -671,7 +690,7 @@ export default function BookingDetailsSheet({
             /* ── Normal single-scroll view ── */
             <>
               {/* ─ Details section ─ */}
-              <div className="border-b border-border">
+              <div className="border-b border-border/40 bg-background">
                 <div className="px-6 py-4">
                   <BookingOverview
                     booking={booking}
@@ -688,7 +707,7 @@ export default function BookingDetailsSheet({
               </div>
 
               {/* ─ Equipment section ─ */}
-              <div className="border-b border-border">
+              <div className="border-b border-border/40 bg-background">
                 <SectionHead
                   label={`Equipment${totalEquipItems > 0 ? ` \u00b7 ${totalEquipItems}` : ""}`}
                   right={
@@ -723,7 +742,7 @@ export default function BookingDetailsSheet({
               </div>
 
               {/* ─ History section ─ */}
-              <div>
+              <div className="bg-background">
                 <SectionHead label="History" />
                 <div className="px-6 py-4">
                   <ActivityTimeline
@@ -740,8 +759,7 @@ export default function BookingDetailsSheet({
               {/* ─ Sticky check-in bar — admin override only; kiosk handles all standard returns ─ */}
               {isAdmin && canCheckin && unreturnedCount > 0 && (
                 <div
-                  className="sticky bottom-0 left-0 right-0 z-10 flex items-center gap-4 px-6 py-4 border-t border-white/10"
-                  style={{ backgroundColor: "var(--sidebar-bg)" }}
+                  className="sticky bottom-0 left-0 right-0 z-10 flex items-center gap-4 border-t border-border bg-background px-6 py-4 shadow-[0_-10px_30px_rgba(0,0,0,0.08)]"
                 >
                   <div className="flex flex-col gap-1.5 flex-1 min-w-0">
                     <Progress
@@ -749,20 +767,19 @@ export default function BookingDetailsSheet({
                       className="h-1.5"
                       style={
                         {
-                          "--progress-bg": "rgba(255,255,255,0.12)",
+                          "--progress-bg": "hsl(var(--muted))",
                           "--progress-fill": "var(--wi-red)",
                         } as React.CSSProperties
                       }
                     />
-                    <span className="text-[11px] text-white/55">
+                    <span className="text-[11px] text-muted-foreground">
                       {checkinProgress?.returned ?? 0} of {checkinProgress?.total ?? unreturnedCount} items returned
                     </span>
                   </div>
                   <Button
                     onClick={handleCheckinAll}
                     disabled={checkinLoading}
-                    className="rounded-sm text-white text-xs font-bold uppercase tracking-wider shrink-0 hover:opacity-90 transition-opacity"
-                    style={{ backgroundColor: "var(--wi-red)" }}
+                    className="shrink-0"
                   >
                     {checkinLoading ? "Checking in..." : "Check in all"}
                   </Button>
@@ -774,7 +791,7 @@ export default function BookingDetailsSheet({
 
         {/* Footer */}
         {booking && !editMode && !equipEditMode && (
-          <SheetFooter>
+          <SheetFooter className="bg-background">
             <div className="flex items-center gap-2 w-full">
               {/* Left: Edit + Cancel */}
               {canEdit && (
@@ -798,7 +815,7 @@ export default function BookingDetailsSheet({
               )}
               <Button variant="outline" size="sm" asChild>
                 <Link href={detailHref}>
-                  Full Details <ExternalLinkIcon className="size-3.5 ml-1" />
+                  Open full booking <ExternalLinkIcon className="size-3.5 ml-1" />
                 </Link>
               </Button>
             </div>

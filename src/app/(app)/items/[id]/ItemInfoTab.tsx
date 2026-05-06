@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
@@ -25,6 +26,7 @@ import {
   Check,
   ExternalLink,
   Copy,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -82,6 +84,7 @@ function TextInputField({
   const isDirty = draft.trim() !== value;
 
   async function commit() {
+    if (saveField.isSaving) return;
     const trimmed = draft.trim();
     if (trimmed === value) return;
     await checkDuplicate(trimmed);
@@ -113,7 +116,8 @@ function TextInputField({
             if (e.key === "Escape") cancel();
           }}
           placeholder={placeholder}
-          disabled={!canEdit || readOnly}
+          disabled={!canEdit || readOnly || saveField.isSaving}
+          aria-busy={saveField.isSaving}
           className={cn("h-8 text-sm", mono && "font-mono")}
         />
         {dupWarning && (
@@ -151,6 +155,7 @@ function LinkField({
   const isDirty = draft.trim() !== value;
 
   async function commit() {
+    if (saveField.isSaving) return;
     const trimmed = draft.trim();
     if (trimmed === value) return;
     await saveField.save(trimmed);
@@ -177,7 +182,7 @@ function LinkField({
       onCancel={cancel}
       htmlFor={fieldId}
     >
-      <div className="flex items-center gap-1">
+      <div className="flex h-8 items-center rounded-md border bg-background shadow-xs transition-[border-color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
         <Input
           id={fieldId}
           value={draft}
@@ -187,8 +192,9 @@ function LinkField({
             if (e.key === "Escape") cancel();
           }}
           placeholder={placeholder}
-          disabled={!canEdit}
-          className="h-8 text-sm flex-1"
+          disabled={!canEdit || saveField.isSaving}
+          aria-busy={saveField.isSaving}
+          className="h-7 flex-1 border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
         />
         {value && (
           <>
@@ -197,10 +203,11 @@ function LinkField({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="size-8 shrink-0"
+                  className="size-7 shrink-0 rounded-sm text-muted-foreground hover:text-foreground"
                   onClick={() => window.open(value, "_blank", "noopener")}
+                  disabled={saveField.isSaving}
                 >
-                  <ExternalLink className="size-3.5" />
+                  <ExternalLink className="size-3.5" aria-hidden="true" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Open link</TooltipContent>
@@ -210,13 +217,14 @@ function LinkField({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="size-8 shrink-0"
+                  className="mr-0.5 size-7 shrink-0 rounded-sm text-muted-foreground hover:text-foreground"
                   onClick={copyUrl}
+                  disabled={saveField.isSaving}
                 >
                   {copied ? (
-                    <Check className="size-3.5 text-green-600 dark:text-green-400" />
+                    <Check className="size-3.5 text-green-600 dark:text-green-400" aria-hidden="true" />
                   ) : (
-                    <Copy className="size-3.5" />
+                    <Copy className="size-3.5" aria-hidden="true" />
                   )}
                 </Button>
               </TooltipTrigger>
@@ -250,11 +258,13 @@ function SaveableDatePickerField({
       <DatePicker
         value={dateValue}
         onChange={async (day) => {
+          if (saveField.isSaving) return;
           const iso = day ? format(day, "yyyy-MM-dd") : "";
           if (iso === value) return;
           await saveField.save(iso);
         }}
-        disabled={!canEdit}
+        disabled={!canEdit || saveField.isSaving}
+        className="rounded-md border bg-background shadow-xs [&_input]:h-8"
       />
     </SaveableField>
   );
@@ -290,20 +300,29 @@ function SaveableNativeSelectField({
 
   return (
     <SaveableField label={label} status={saveField.status}>
-      <NativeSelect
-        value={value}
-        onChange={async (e) => {
-          const v = e.target.value;
-          if (v === value) return;
-          await saveField.save(v);
-        }}
-        className="h-8 text-sm"
-      >
-        <option value="">{placeholder || "Select..."}</option>
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
-        ))}
-      </NativeSelect>
+      <div className="relative">
+        <NativeSelect
+          value={value}
+          onChange={async (e) => {
+            if (saveField.isSaving) return;
+            const v = e.target.value;
+            if (v === value) return;
+            await saveField.save(v);
+          }}
+          disabled={saveField.isSaving}
+          aria-busy={saveField.isSaving}
+          className="h-8 appearance-none bg-muted/40 pr-8 text-sm shadow-xs hover:bg-muted/60"
+        >
+          <option value="">{placeholder || "Select..."}</option>
+          {options.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </NativeSelect>
+        <ChevronDown
+          className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+          aria-hidden="true"
+        />
+      </div>
     </SaveableField>
   );
 }
@@ -338,6 +357,7 @@ function SaveableCategoryField({
   }, [creating]);
 
   async function handleCreateCategory() {
+    if (saving || saveField.isSaving) return;
     if (!newCatName.trim()) {
       setCreating(false);
       return;
@@ -353,17 +373,18 @@ function SaveableCategoryField({
       if (res.ok) {
         const json = await res.json();
         onCategoriesChanged();
-        if (json.data?.id) await onSave(json.data.id);
+        if (json.data?.id) await saveField.save(json.data.id);
       } else {
         const msg = await parseErrorMessage(res, "Failed to create category");
         toast.error(msg);
       }
     } catch {
       toast.error("Failed to create category");
+    } finally {
+      setSaving(false);
+      setCreating(false);
+      setNewCatName("");
     }
-    setSaving(false);
-    setCreating(false);
-    setNewCatName("");
   }
 
   return (
@@ -374,7 +395,8 @@ function SaveableCategoryField({
           value={newCatName}
           onChange={(e) => setNewCatName(e.target.value)}
           placeholder="Category name"
-          disabled={saving}
+          disabled={saving || saveField.isSaving}
+          aria-busy={saving || saveField.isSaving}
           onBlur={handleCreateCategory}
           onKeyDown={(e) => {
             if (e.key === "Enter") handleCreateCategory();
@@ -389,6 +411,7 @@ function SaveableCategoryField({
         <CategoryCombobox
           value={currentId}
           onValueChange={async (id) => {
+            if (saveField.isSaving) return;
             if (id === currentId) return;
             await saveField.save(id);
           }}
@@ -396,9 +419,10 @@ function SaveableCategoryField({
           allowClear
           allowCreate
           onCreateRequested={() => setCreating(true)}
-          disabled={!canEdit}
+          disabled={!canEdit || saveField.isSaving}
           disabledLabel={displayName}
           variant={ghost ? "ghost" : "outline"}
+          triggerClassName="h-8 bg-muted/40 pr-8 shadow-xs hover:bg-muted/60 [&>svg]:text-muted-foreground"
         />
       )}
     </SaveableField>
@@ -459,10 +483,31 @@ export function QRModal({
   const [qrDraft, setQrDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const savingRef = useRef(false);
 
-  async function generateQR() {
+  function beginSave() {
+    if (savingRef.current) return false;
+    savingRef.current = true;
     setSaving(true);
     setError("");
+    return true;
+  }
+
+  function endSave() {
+    savingRef.current = false;
+    setSaving(false);
+  }
+
+  useEffect(() => {
+    if (open) {
+      setManualEntry(false);
+      setQrDraft("");
+      setError("");
+    }
+  }, [open]);
+
+  async function generateQR() {
+    if (!beginSave()) return;
     try {
       const res = await fetch(`/api/assets/${asset.id}/generate-qr`, {
         method: "POST",
@@ -471,37 +516,43 @@ export function QRModal({
       if (!res.ok) {
         const msg = await parseErrorMessage(res, "Failed");
         setError(msg);
+        return;
       }
       onRefresh();
     } catch {
-      setError("Network error \u2014 please try again.");
+      setError("Network error. Please try again.");
+    } finally {
+      endSave();
     }
-    setSaving(false);
   }
 
   async function saveManualQR() {
+    if (savingRef.current) return;
     if (!qrDraft.trim()) {
       setManualEntry(false);
       return;
     }
-    setSaving(true);
-    setError("");
-    const res = await fetch(`/api/assets/${asset.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ qrCodeValue: qrDraft.trim() }),
-    });
-    if (handleAuthRedirect(res)) return;
-    if (!res.ok) {
-      const msg = await parseErrorMessage(res, "Failed");
-      setError(msg);
-      setSaving(false);
-      return;
+    if (!beginSave()) return;
+    try {
+      const res = await fetch(`/api/assets/${asset.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ qrCodeValue: qrDraft.trim() }),
+      });
+      if (handleAuthRedirect(res)) return;
+      if (!res.ok) {
+        const msg = await parseErrorMessage(res, "Failed");
+        setError(msg);
+        return;
+      }
+      setManualEntry(false);
+      setQrDraft("");
+      onRefresh();
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      endSave();
     }
-    setSaving(false);
-    setManualEntry(false);
-    setQrDraft("");
-    onRefresh();
   }
 
   return (
@@ -533,6 +584,7 @@ export function QRModal({
                   variant="outline"
                   size="sm"
                   onClick={() => setManualEntry(true)}
+                  disabled={saving}
                 >
                   Enter QR manually
                 </Button>
@@ -544,6 +596,8 @@ export function QRModal({
                     onChange={(e) => setQrDraft(e.target.value)}
                     placeholder="Paste or type QR code..."
                     className="flex-1"
+                    disabled={saving}
+                    aria-busy={saving}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") saveManualQR();
                       if (e.key === "Escape") setManualEntry(false);
@@ -556,7 +610,12 @@ export function QRModal({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setManualEntry(false)}
+                    onClick={() => {
+                      setManualEntry(false);
+                      setQrDraft("");
+                      setError("");
+                    }}
+                    disabled={saving}
                   >
                     Cancel
                   </Button>
@@ -603,6 +662,8 @@ export default function ItemInfoCard({
   onCategoriesChanged: () => void;
   onDepartmentsChanged: () => void;
 }) {
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [copiedScanValue, setCopiedScanValue] = useState<"qr" | "serial" | null>(null);
   const saveField = useCallback(
     async (patchKey: string, value: string) => {
       const body: Record<string, unknown> = {};
@@ -618,7 +679,8 @@ export default function ItemInfoCard({
         const newMeta = { ...currentMeta, [metaKey]: value || undefined };
         body.notes = JSON.stringify(newMeta);
       } else {
-        body[patchKey] = value || null;
+        const nullableKeys = new Set(["name", "serialNumber", "purchaseDate", "warrantyDate", "linkUrl"]);
+        body[patchKey] = nullableKeys.has(patchKey) ? value || null : value;
       }
 
       const res = await fetch(`/api/assets/${asset.id}`, {
@@ -637,11 +699,17 @@ export default function ItemInfoCard({
         const metaKey = patchKey.split(".")[1]!; // guaranteed by startsWith("metadata.") check
         onFieldSaved({ metadata: { ...asset.metadata, [metaKey]: value } });
       } else {
+        const nullableKeys = new Set(["name", "serialNumber", "purchaseDate", "warrantyDate", "linkUrl"]);
+        const numericKeys = new Set(["purchasePrice", "residualValue"]);
+        const nextValue = numericKeys.has(patchKey)
+          ? value
+            ? parseFloat(value)
+            : null
+          : nullableKeys.has(patchKey)
+            ? value || null
+            : value;
         onFieldSaved({
-          [patchKey]:
-            patchKey === "purchasePrice" || patchKey === "residualValue"
-              ? parseFloat(value)
-              : value,
+          [patchKey]: nextValue,
         } as Partial<AssetDetail>);
       }
     },
@@ -655,20 +723,18 @@ export default function ItemInfoCard({
       body: JSON.stringify({ categoryId: categoryId || null }),
     });
     if (handleAuthRedirect(res)) return;
-    if (!res.ok) throw new Error("Failed to save category");
+    if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to save category"));
     onRefresh();
   }
 
-  async function saveDepartment(departmentName: string) {
-    const dept = departments.find((d) => d.name === departmentName);
-    const departmentId = dept?.id || null;
+  async function saveDepartment(departmentId: string) {
     const res = await fetch(`/api/assets/${asset.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ departmentId }),
+      body: JSON.stringify({ departmentId: departmentId || null }),
     });
     if (handleAuthRedirect(res)) return;
-    if (!res.ok) throw new Error("Failed to save department");
+    if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to save department"));
     onRefresh();
   }
 
@@ -679,7 +745,7 @@ export default function ItemInfoCard({
       body: JSON.stringify({ locationId }),
     });
     if (handleAuthRedirect(res)) return;
-    if (!res.ok) throw new Error("Failed to save location");
+    if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to save location"));
     onRefresh();
   }
 
@@ -693,12 +759,101 @@ export default function ItemInfoCard({
     return String(month >= 6 ? year + 1 : year);
   }
 
+  function getFiscalYearOptions() {
+    const today = new Date();
+    const currentFiscalYear = today.getMonth() >= 6 ? today.getFullYear() + 1 : today.getFullYear();
+    const existing = asset.metadata?.fiscalYearPurchased;
+    const years = new Set<string>();
+    for (let year = currentFiscalYear + 2; year >= 2000; year -= 1) {
+      years.add(String(year));
+    }
+    if (existing) years.add(existing);
+    return [...years]
+      .sort((a, b) => Number(b) - Number(a))
+      .map((year) => ({ value: year, label: year }));
+  }
+
+  async function copyScanValue(kind: "qr" | "serial", value: string) {
+    if (!value) return;
+    await navigator.clipboard.writeText(value);
+    setCopiedScanValue(kind);
+    setTimeout(() => setCopiedScanValue(null), 1600);
+  }
+
   return (
     <Card className="details-card border-border/40">
+      <div className="border-b border-border/30 p-3">
+        <div className="flex items-stretch justify-between gap-3 rounded-md bg-muted/30 p-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <div className="text-sm font-semibold">Scan identity</div>
+              <Badge variant="outline" size="sm" className="rounded-sm bg-background font-mono text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+                Admin
+              </Badge>
+            </div>
+            <dl className="mt-3 grid grid-cols-[48px_minmax(0,1fr)] gap-x-2 gap-y-1.5 text-xs">
+              <dt className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground/50">QR</dt>
+              <dd className="min-w-0">
+                {asset.qrCodeValue ? (
+                  <button
+                    type="button"
+                    className="group inline-flex max-w-full items-center gap-1 truncate font-mono text-muted-foreground transition-colors hover:text-foreground"
+                    onClick={() => copyScanValue("qr", asset.qrCodeValue)}
+                    aria-label={`Copy QR code ${asset.qrCodeValue}`}
+                  >
+                    <span className="truncate">{asset.qrCodeValue}</span>
+                    {copiedScanValue === "qr" ? (
+                      <Check className="size-3 shrink-0 text-green-600 dark:text-green-400" />
+                    ) : (
+                      <Copy className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-60 group-focus-visible:opacity-60" />
+                    )}
+                  </button>
+                ) : (
+                  <span className="font-mono text-muted-foreground">No QR code</span>
+                )}
+              </dd>
+              {asset.serialNumber && (
+                <>
+                  <dt className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground/50">Serial</dt>
+                  <dd className="min-w-0">
+                    <button
+                      type="button"
+                      className="group inline-flex max-w-full items-center gap-1 truncate font-mono text-muted-foreground transition-colors hover:text-foreground"
+                      onClick={() => copyScanValue("serial", asset.serialNumber)}
+                      aria-label={`Copy serial number ${asset.serialNumber}`}
+                    >
+                      <span className="truncate">{asset.serialNumber}</span>
+                      {copiedScanValue === "serial" ? (
+                        <Check className="size-3 shrink-0 text-green-600 dark:text-green-400" />
+                      ) : (
+                        <Copy className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-60 group-focus-visible:opacity-60" />
+                      )}
+                    </button>
+                  </dd>
+                </>
+              )}
+            </dl>
+          </div>
+          <div className="flex w-[92px] shrink-0 flex-col items-stretch">
+            <button
+              type="button"
+              className="group flex aspect-square w-full items-center justify-center rounded-md border bg-background p-1 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)] transition-[background-color,box-shadow,transform] hover:bg-muted/50 active:scale-[0.96] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]"
+              onClick={() => setShowQrModal(true)}
+              aria-label={canEdit ? "Open QR code details" : "View QR code"}
+            >
+              {asset.qrCodeValue ? (
+                <QRCodeCanvas value={asset.qrCodeValue} size={76} margin={1} />
+              ) : (
+                <span className="text-xs text-muted-foreground">QR</span>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
       <div className="py-1">
         <div className="grid grid-cols-1 gap-y-0 divide-y divide-border/30">
           <TextInputField
-            label="Name"
+            label="Asset tag"
             value={asset.assetTag}
             canEdit={canEdit}
             onSave={(v) => saveField("assetTag", v)}
@@ -741,8 +896,8 @@ export default function ItemInfoCard({
           />
           <SaveableNativeSelectField
             label="Department"
-            value={asset.department?.name || ""}
-            options={departments.map((d) => ({ value: d.name, label: d.name }))}
+            value={asset.department?.id || ""}
+            options={departments.map((d) => ({ value: d.id, label: d.name }))}
             placeholder="Select department"
             canEdit={canEdit}
             onSave={saveDepartment}
@@ -754,7 +909,6 @@ export default function ItemInfoCard({
             categories={categories}
             onSave={saveCategory}
             onCategoriesChanged={onCategoriesChanged}
-            ghost
           />
           <SaveableNativeSelectField
             label="Location"
@@ -783,10 +937,11 @@ export default function ItemInfoCard({
                   }
                 }}
               />
-              <TextInputField
+              <SaveableNativeSelectField
                 label="Fiscal Year"
                 value={asset.metadata?.fiscalYearPurchased || ""}
-                placeholder="Auto-filled from purchase date"
+                options={getFiscalYearOptions()}
+                placeholder="Select fiscal year"
                 canEdit={canEdit}
                 onSave={(v) => saveField("metadata.fiscalYearPurchased", v)}
               />
@@ -816,6 +971,13 @@ export default function ItemInfoCard({
           />
         </div>
       </div>
+      <QRModal
+        asset={asset}
+        canEdit={canEdit}
+        onRefresh={onRefresh}
+        open={showQrModal}
+        onOpenChange={setShowQrModal}
+      />
     </Card>
   );
 }
@@ -841,6 +1003,7 @@ function NotesField({
   const isDirty = draft.trim() !== (value || "");
 
   async function commit() {
+    if (saveField.isSaving) return;
     const trimmed = draft.trim();
     if (trimmed === (value || "")) return;
     await saveField.save(trimmed);
@@ -858,6 +1021,8 @@ function NotesField({
       isDirty={canEdit && isDirty}
       onCommit={commit}
       onCancel={cancel}
+      className="items-start"
+      labelClassName="pt-2"
     >
       {canEdit ? (
         <Textarea
@@ -867,6 +1032,8 @@ function NotesField({
             if (e.key === "Escape") cancel();
           }}
           placeholder="Add notes..."
+          disabled={saveField.isSaving}
+          aria-busy={saveField.isSaving}
           rows={3}
           className="text-sm resize-none"
         />

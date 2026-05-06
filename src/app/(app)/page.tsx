@@ -336,7 +336,6 @@ export default function DashboardPage() {
               acting={acting !== null}
               onSelectBooking={setSelectedBookingId}
               onExtend={handleExtend}
-              onCreateBooking={handleCreateBooking}
             />
           )}
         </div>

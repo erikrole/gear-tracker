@@ -74,10 +74,9 @@ function SheetContent({
         {...props}
       >
         {children}
-        {/* Close button — white to contrast with dark header */}
         <DialogPrimitive.Close
           data-slot="sheet-close-button"
-          className="absolute top-[18px] right-5 flex size-7 items-center justify-center rounded-sm text-white/60 outline-none transition-colors hover:bg-white/10 hover:text-white focus-visible:ring-[3px] focus-visible:ring-white/30 disabled:pointer-events-none"
+          className="absolute top-[18px] right-5 flex size-7 items-center justify-center rounded-sm text-muted-foreground outline-none transition-[background-color,color,box-shadow] hover:bg-muted hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/30 disabled:pointer-events-none"
         >
           <X className="size-3.5" />
           <span className="sr-only">Close</span>
@@ -91,11 +90,7 @@ function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="sheet-header"
-      className={cn("flex shrink-0 flex-col gap-1 px-6 py-[18px] pr-14", className)}
-      style={{
-        backgroundColor: "var(--sidebar-bg)",
-        borderBottom: "2px solid var(--wi-red)",
-      }}
+      className={cn("flex shrink-0 flex-col gap-1 border-b border-border/40 bg-background px-6 py-[18px] pr-14", className)}
       {...props}
     />
   )
@@ -122,7 +117,7 @@ function SheetTitle({
     <DialogPrimitive.Title
       data-slot="sheet-title"
       className={cn(
-        "text-[13px] font-black uppercase tracking-[0.12em] text-white leading-snug",
+        "text-base font-semibold leading-snug text-foreground",
         className,
       )}
       style={{ fontFamily: "var(--font-heading)" }}
@@ -138,7 +133,7 @@ function SheetDescription({
   return (
     <DialogPrimitive.Description
       data-slot="sheet-description"
-      className={cn("text-[11px] text-white/55 leading-relaxed", className)}
+      className={cn("text-xs leading-relaxed text-muted-foreground", className)}
       {...props}
     />
   )

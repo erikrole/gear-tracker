@@ -35,11 +35,13 @@ function countBookedDays(
 
 function computeWindow(
   bookings: Array<{
+    id: string;
     kind: string;
     status: string;
     startsAt: Date;
     endsAt: Date;
     updatedAt: Date;
+    completedAt: Date | null;
     sportCode: string | null;
     requesterName: string;
   }>,
@@ -125,8 +127,8 @@ function computeWindow(
   let late = 0;
   for (const b of checkouts) {
     if (b.status === "COMPLETED") {
-      // If the booking was completed (updatedAt) after its scheduled end, it was late
-      if (b.updatedAt > b.endsAt) {
+      const completionTime = b.completedAt ?? b.updatedAt;
+      if (completionTime > b.endsAt) {
         late++;
       } else {
         onTime++;
@@ -202,6 +204,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { params }) => {
         booking: {
           select: {
             kind: true,
+            id: true,
             status: true,
             startsAt: true,
             endsAt: true,
@@ -218,14 +221,42 @@ export const GET = withAuth<{ id: string }>(async (_req, { params }) => {
     return NextResponse.json({ error: "Asset not found" }, { status: 404 });
   }
 
+  const bookingIds = Array.from(new Set(rawBookings.map((r) => r.booking.id)));
+  const completionLogs = bookingIds.length > 0
+    ? await db.auditLog.findMany({
+        where: {
+          entityType: "booking",
+          entityId: { in: bookingIds },
+          action: {
+            in: [
+              "checkin_completed",
+              "auto_completed_by_partial_checkin",
+              "auto_completed_by_kiosk_checkin",
+              "auto_completed_by_bulk_checkin",
+            ],
+          },
+        },
+        select: { entityId: true, createdAt: true },
+        orderBy: { createdAt: "desc" },
+      })
+    : [];
+  const completedAtByBooking = new Map<string, Date>();
+  for (const log of completionLogs) {
+    if (!completedAtByBooking.has(log.entityId)) {
+      completedAtByBooking.set(log.entityId, log.createdAt);
+    }
+  }
+
   // Flatten and exclude DRAFT/CANCELLED
   const bookings = rawBookings
     .map((r) => ({
+      id: r.booking.id,
       kind: r.booking.kind,
       status: r.booking.status,
       startsAt: r.booking.startsAt,
       endsAt: r.booking.endsAt,
       updatedAt: r.booking.updatedAt,
+      completedAt: completedAtByBooking.get(r.booking.id) ?? null,
       sportCode: r.booking.sportCode,
       requesterName: r.booking.requester.name,
     }))

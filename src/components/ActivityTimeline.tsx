@@ -295,7 +295,9 @@ function describeAction(
         : context === "booking"
           ? "Created this booking"
           : context === "item"
-            ? "Created this item"
+            ? entry.entityType === "booking"
+              ? "Created booking"
+              : "Created this item"
             : `Created ${target}`;
     case "updated":
     case "update":
@@ -325,6 +327,8 @@ function describeAction(
       return `${reportPrefix}Retired ${target}`;
     case "checkin_completed":
       return `${reportPrefix}Completed check-in`;
+    case "checkin_items":
+      return `${reportPrefix}Checked in items`;
     case "checkout_completed":
       return `${reportPrefix}Completed checkout`;
     case "checkout_scan_completed":
@@ -337,7 +341,10 @@ function describeAction(
     case "items_returned_partial":
       return `${reportPrefix}Some items returned`;
     case "partial_return_recorded":
+    case "partial_checkin":
       return `${reportPrefix}Recorded partial return`;
+    case "auto_completed_by_partial_checkin":
+      return `${reportPrefix}Auto-completed after partial check-in`;
     case "marked_maintenance":
       return `${reportPrefix}Marked as needs maintenance`;
     case "cleared_maintenance":
@@ -368,6 +375,12 @@ function describeAction(
     }
     case "booking.items_qty_changed":
       return `${reportPrefix}Changed item quantities`;
+    case "edit":
+      return context === "item" && entry.entityType === "booking"
+        ? `${reportPrefix}Updated booking`
+        : `${reportPrefix}Updated details`;
+    case "bulk_move_location":
+      return `${reportPrefix}Moved location`;
     case "accessory_attached": {
       const accName = entry.afterJson?.name || entry.afterJson?.accessoryName;
       return accName
@@ -548,7 +561,20 @@ function describeFieldChange(
     before == null || before === "" ? "empty" : String(before);
   const to = after == null || after === "" ? "empty" : String(after);
   if (from === to) return null;
+  if (key === "notes" && (looksLikeImportMetadata(from) || looksLikeImportMetadata(to))) {
+    return null;
+  }
   return { label, from, to };
+}
+
+function looksLikeImportMetadata(value: string): boolean {
+  if (!value.trim().startsWith("{")) return false;
+  try {
+    const parsed = JSON.parse(value) as Record<string, unknown>;
+    return "cheqroomName" in parsed || "fiscalYear" in parsed || "fiscalYearPurchased" in parsed;
+  } catch {
+    return false;
+  }
 }
 
 /** Actions whose `before`/`after` JSON should render as field-change pills. */
