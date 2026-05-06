@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
   compress: true,
   experimental: {
     optimizePackageImports: ["date-fns", "motion"],
+    devtoolSegmentExplorer: false,
   },
   images: {
     remotePatterns: [
@@ -29,7 +30,7 @@ const nextConfig: NextConfig = {
       "default-src 'self'",
       "script-src 'self'",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' blob: data: https://*.public.blob.vercel-storage.com",
+      "img-src 'self' blob: data: https:",
       "font-src 'self' data:",
       "connect-src 'self' https://*.public.blob.vercel-storage.com https://*.sentry.io https://*.ingest.sentry.io",
       "worker-src 'self'",
@@ -52,7 +53,6 @@ const nextConfig: NextConfig = {
       "magnetometer=()",
       "gyroscope=()",
       "accelerometer=()",
-      "ambient-light-sensor=()",
       "autoplay=(self)",
       "encrypted-media=()",
       "fullscreen=(self)",
@@ -61,8 +61,6 @@ const nextConfig: NextConfig = {
       "midi=()",
       "screen-wake-lock=()",
       "web-share=(self)",
-      "interest-cohort=()",
-      "browsing-topics=()",
     ].join(", ");
 
     return [

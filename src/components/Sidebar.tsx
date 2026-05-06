@@ -135,15 +135,6 @@ export default function AppSidebar({
 
   const visibleGroups = navGroups.filter((g) => !g.adminOnly || isAdmin);
 
-  // Build label → sequential number map for trailing item indexes
-  const itemNumberMap = new Map<string, string>();
-  let seq = 1;
-  for (const g of visibleGroups) {
-    for (const item of g.items) {
-      itemNumberMap.set(item.label, String(seq++).padStart(2, "0"));
-    }
-  }
-
   return (
     <Sidebar collapsible="icon" className="border-r-0">
       {user && (
@@ -178,16 +169,19 @@ export default function AppSidebar({
           <div className="mx-3 mb-2 h-px bg-white/[0.07] group-data-[collapsible=icon]:mx-2" />
 
           {/* ── User card ── */}
-          <SidebarMenu className="pb-1 px-2">
+          <SidebarMenu className="pb-1 px-2 group-data-[collapsible=icon]:items-center">
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
                 size="lg"
                 tooltip={user.name}
-                className="hover:bg-white/[0.05] active:bg-white/[0.05] data-[active=true]:bg-white/[0.05]"
+                className="hover:bg-white/[0.05] active:bg-white/[0.05] data-[active=true]:bg-white/[0.05] group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-full"
               >
-                <Link href={`/users/${user.id}`} className="flex items-center gap-2.5">
-                  <Avatar className="size-7 shrink-0 ring-1 ring-white/[0.15] bg-white/[0.08]">
+                <Link
+                  href={`/users/${user.id}`}
+                  className="flex items-center gap-2.5 group-data-[collapsible=icon]:gap-0"
+                >
+                  <Avatar className="size-7 shrink-0 ring-1 ring-white/[0.15] bg-white/[0.08] group-data-[collapsible=icon]:mx-auto">
                     {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
                     <AvatarFallback
                       className="bg-transparent text-white/80 text-[length:var(--text-2xs)] font-bold"
@@ -222,27 +216,26 @@ export default function AppSidebar({
         {visibleGroups.map((group, groupIdx) => (
           <div key={groupIdx}>
             {groupIdx > 0 && (
-              <div className="px-3 py-2.5 group-data-[collapsible=icon]:px-2">
+              <div className="px-3 py-3 group-data-[collapsible=icon]:px-2">
                 {/* Expanded: label flanked by rules */}
                 <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
-                  <div className="h-px flex-1 bg-white/[0.07]" />
+                  <div className="h-px flex-1 bg-white/[0.1]" />
                   <span
-                    className="text-[8.5px] uppercase tracking-[0.28em] text-white/60 select-none"
+                    className="text-[8.5px] uppercase tracking-[0.28em] text-white/70 select-none"
                     style={{ fontFamily: "var(--font-mono)" }}
                   >
                     {group.label}
                   </span>
-                  <div className="h-px flex-1 bg-white/[0.07]" />
+                  <div className="h-px flex-1 bg-white/[0.1]" />
                 </div>
                 {/* Collapsed: just a rule */}
-                <div className="hidden group-data-[collapsible=icon]:block h-px bg-white/[0.07]" />
+                <div className="hidden group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:block group-data-[collapsible=icon]:h-px group-data-[collapsible=icon]:w-6 group-data-[collapsible=icon]:bg-white/[0.12]" />
               </div>
             )}
 
             <SidebarGroup className="px-2 py-0">
               <SidebarMenu className="gap-px">
                 {group.items.map((item) => {
-                  const itemNumber = itemNumberMap.get(item.label)!;
                   const href = item.href;
                   const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);
                   const Icon = item.icon;
@@ -267,24 +260,14 @@ export default function AppSidebar({
                         tooltip={tooltip}
                         className={
                           isActive
-                            ? "data-[active=true]:bg-[var(--wi-red)]/10 data-[active=true]:text-white border-l-2 border-l-[var(--wi-red)] rounded-r-md rounded-l-none pl-[calc(0.5rem-2px)] transition-all duration-150"
-                            : "text-white/45 hover:text-white/85 hover:bg-white/[0.05] border-l-2 border-l-transparent rounded-r-md rounded-l-none pl-[calc(0.5rem-2px)] transition-all duration-150"
+                            ? "data-[active=true]:bg-[var(--wi-red)]/12 data-[active=true]:text-white border-l-2 border-l-[var(--wi-red)] rounded-r-md rounded-l-none pl-[calc(0.5rem-2px)] transition-[background-color,border-color,color,scale] duration-150 active:scale-[0.96] group-data-[collapsible=icon]:rounded-md group-data-[collapsible=icon]:border-l-transparent group-data-[collapsible=icon]:bg-white/[0.08] group-data-[collapsible=icon]:pl-2!"
+                            : "text-white/50 hover:text-white/90 hover:bg-white/[0.055] border-l-2 border-l-transparent rounded-r-md rounded-l-none pl-[calc(0.5rem-2px)] transition-[background-color,border-color,color,scale] duration-150 active:scale-[0.96] group-data-[collapsible=icon]:rounded-md group-data-[collapsible=icon]:pl-2!"
                         }
                       >
                         <Link href={href} aria-current={isActive ? "page" : undefined}>
-                          <Icon />
+                          <Icon className={isActive ? "text-white" : "text-white/55 group-hover/menu-item:text-white/80"} />
                           <span style={{ fontFamily: "var(--font-heading)", fontWeight: 500 }}>
                             {item.label}
-                          </span>
-                          {/* Trailing item index — hidden in collapsed mode */}
-                          <span
-                            className="ml-auto text-[9px] tabular-nums group-data-[collapsible=icon]:hidden"
-                            style={{
-                              fontFamily: "var(--font-mono)",
-                              color: isActive ? "var(--wi-red)" : "rgba(255,255,255,0.55)",
-                            }}
-                          >
-                            {itemNumber}
                           </span>
                         </Link>
                       </SidebarMenuButton>
@@ -303,7 +286,11 @@ export default function AppSidebar({
                         </SidebarMenuBadge>
                       )}
                       {item.quickCreateHref && isAdmin && !badgeCount && (
-                        <SidebarMenuAction asChild showOnHover>
+                        <SidebarMenuAction
+                          asChild
+                          showOnHover
+                          className="right-1 top-0.5 size-7 text-white/45 transition-[background-color,color,opacity,scale] hover:bg-white/[0.08] hover:text-white active:scale-[0.96]"
+                        >
                           <Link
                             href={item.quickCreateHref}
                             aria-label={`New ${item.label.toLowerCase().replace(/s$/, "")}`}
@@ -349,7 +336,7 @@ export default function AppSidebar({
             <SidebarMenuButton
               asChild
               tooltip="Help & support"
-              className="text-white/55 hover:text-white/85 hover:bg-white/[0.05]"
+              className="text-white/55 transition-[background-color,color,scale] duration-150 hover:bg-white/[0.05] hover:text-white/85 active:scale-[0.96]"
             >
               <a href="mailto:erole@athletics.wisc.edu?subject=Wisconsin%20Creative%20gear-tracker%20help">
                 <HelpCircleIcon />
@@ -362,7 +349,7 @@ export default function AppSidebar({
               tooltip={isLoggingOut ? "Logging out…" : "Log out"}
               onClick={onSignOut}
               disabled={isLoggingOut}
-              className="text-white/35 hover:text-white/75 hover:bg-white/[0.05] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="cursor-pointer text-white/35 transition-[background-color,color,scale] duration-150 hover:bg-white/[0.05] hover:text-white/75 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50"
             >
               <LogOutIcon />
               <span>{isLoggingOut ? "Logging out…" : "Log out"}</span>

@@ -1,4 +1,4 @@
-import { Prisma, ShiftTradeStatus } from "@prisma/client";
+import { Prisma, ShiftTradeStatus, type ShiftArea } from "@prisma/client";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
@@ -424,49 +424,47 @@ export async function listTrades(filters: {
   limit?: number;
   offset?: number;
 }) {
-  const where: Record<string, unknown> = {};
+  const where: Prisma.ShiftTradeWhereInput = {};
   if (filters.status) where.status = filters.status;
   if (filters.area) {
     where.shiftAssignment = {
-      shift: { area: filters.area },
+      shift: { area: filters.area as ShiftArea },
     };
   }
 
-  const [total, data] = await Promise.all([
-    db.shiftTrade.count({ where }),
-    db.shiftTrade.findMany({
-      where,
-      take: filters.limit,
-      skip: filters.offset,
-      include: {
-        shiftAssignment: {
-          include: {
-            shift: {
-              include: {
-                shiftGroup: {
-                  include: {
-                    event: {
-                      select: {
-                        id: true,
-                        summary: true,
-                        startsAt: true,
-                        endsAt: true,
-                        sportCode: true,
-                      },
+  const data = await db.shiftTrade.findMany({
+    where,
+    take: filters.limit,
+    skip: filters.offset,
+    include: {
+      shiftAssignment: {
+        include: {
+          shift: {
+            include: {
+              shiftGroup: {
+                include: {
+                  event: {
+                    select: {
+                      id: true,
+                      summary: true,
+                      startsAt: true,
+                      endsAt: true,
+                      sportCode: true,
                     },
                   },
                 },
               },
             },
-            user: { select: { id: true, name: true, primaryArea: true } },
           },
+          user: { select: { id: true, name: true, primaryArea: true } },
         },
-        postedBy: { select: { id: true, name: true } },
-        claimedBy: { select: { id: true, name: true } },
       },
-      orderBy: { postedAt: "desc" },
-    }),
-  ]);
+      postedBy: { select: { id: true, name: true } },
+      claimedBy: { select: { id: true, name: true } },
+    },
+    orderBy: { postedAt: "desc" },
+  });
+  const total = await db.shiftTrade.count({ where });
 
   return { data, total };
 }

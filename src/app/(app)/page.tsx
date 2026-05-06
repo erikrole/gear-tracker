@@ -37,6 +37,14 @@ export default function DashboardPage() {
   // payload finishes loading, so the top of the page is never skeleton-only.
   const { data: liveStats } = useQuery<DashboardStats>({
     queryKey: DASHBOARD_STATS_KEY,
+    queryFn: async ({ signal }) => {
+      const res = await fetch("/api/dashboard/stats", { signal });
+      if (handleAuthRedirect(res, "/")) throw new DOMException("Auth redirect", "AbortError");
+      if (!res.ok) throw new Error("server");
+      const json = await res.json();
+      if (!json?.data) throw new Error("server");
+      return json.data as DashboardStats;
+    },
     enabled: false, // managed by useDashboardData; we just read from cache here
   });
   const stats = data?.stats ?? liveStats?.stats ?? null;
@@ -118,10 +126,7 @@ export default function DashboardPage() {
     setActing(booking.id);
     try {
       const newEnd = new Date(new Date(booking.endsAt).getTime() + 24 * 60 * 60 * 1000);
-      const endpoint = booking.kind === "RESERVATION"
-        ? `/api/reservations/${booking.id}/extend`
-        : `/api/bookings/${booking.id}/extend`;
-      const res = await fetch(endpoint, {
+      const res = await fetch(`/api/bookings/${booking.id}/extend`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ endsAt: newEnd.toISOString() }),

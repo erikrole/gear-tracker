@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -21,7 +21,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { SPORT_CODES } from "@/lib/sports";
-import { parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
 
 type Location = { id: string; name: string };
 
@@ -31,6 +31,8 @@ type Props = {
   onCreated: () => void;
 };
 
+const NONE_LOCATION_VALUE = "__none";
+
 function DateTimeField({
   label,
   date,
@@ -38,6 +40,7 @@ function DateTimeField({
   allDay,
   onDateChange,
   onTimeChange,
+  disabled = false,
 }: {
   label: string;
   date: Date | undefined;
@@ -45,6 +48,7 @@ function DateTimeField({
   allDay: boolean;
   onDateChange: (d: Date | undefined) => void;
   onTimeChange: (t: string) => void;
+  disabled?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-1.5">
@@ -52,7 +56,7 @@ function DateTimeField({
       <div className="flex gap-2">
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" className="flex-1 justify-start font-normal gap-2">
+            <Button variant="outline" className="flex-1 justify-start font-normal gap-2" disabled={disabled}>
               <CalendarIcon className="size-4 shrink-0 text-muted-foreground" />
               {date ? format(date, "MMM d, yyyy") : <span className="text-muted-foreground">Pick a date</span>}
             </Button>
@@ -67,6 +71,7 @@ function DateTimeField({
             value={time}
             onChange={(e) => onTimeChange(e.target.value)}
             className="w-[120px] shrink-0"
+            disabled={disabled}
           />
         )}
       </div>
@@ -89,7 +94,9 @@ function buildDateTime(date: Date | undefined, time: string, allDay: boolean): s
 
 export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [locationsError, setLocationsError] = useState("");
 
   // Form state
   const [title, setTitle] = useState("");
@@ -107,10 +114,28 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
   // Fetch locations when sheet opens
   useEffect(() => {
     if (!open) return;
-    fetch("/api/locations")
-      .then((r) => r.json())
-      .then((j) => setLocations(j.data ?? []))
-      .catch(() => {/* ignore — location field stays empty */});
+    const controller = new AbortController();
+    setLocationsError("");
+
+    async function loadLocations() {
+      try {
+        const res = await fetch("/api/locations", { signal: controller.signal });
+        if (controller.signal.aborted) return;
+        if (handleAuthRedirect(res)) return;
+        if (!res.ok) {
+          setLocationsError("Locations could not be loaded.");
+          return;
+        }
+        const json = await res.json();
+        setLocations(json.data ?? []);
+      } catch (err) {
+        if (isAbortError(err)) return;
+        setLocationsError("Locations could not be loaded.");
+      }
+    }
+
+    loadLocations();
+    return () => controller.abort();
   }, [open]);
 
   function reset() {
@@ -125,10 +150,12 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
     setIsHome("home");
     setOpponent("");
     setError("");
+    setLocationsError("");
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submittingRef.current) return;
     setError("");
 
     const startsAt = buildDateTime(startDate, startTime, allDay);
@@ -139,6 +166,7 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
     if (!endsAt) { setError("End date is required"); return; }
     if (new Date(endsAt) <= new Date(startsAt)) { setError("End must be after start"); return; }
 
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       const res = await fetch("/api/calendar-events", {
@@ -156,6 +184,7 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
         }),
       });
 
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) {
         const msg = await parseErrorMessage(res, "Failed to create event");
         setError(msg);
@@ -169,6 +198,7 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
     } catch {
       setError("Network error — check your connection");
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   }
@@ -191,6 +221,7 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
                 placeholder="e.g. Men's Basketball vs Duke"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
+                disabled={submitting}
                 autoFocus
               />
             </div>
@@ -201,6 +232,7 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
                 id="all-day"
                 checked={allDay}
                 onCheckedChange={(v) => setAllDay(!!v)}
+                disabled={submitting}
               />
               <Label htmlFor="all-day" className="cursor-pointer">All-day event</Label>
             </div>
@@ -217,6 +249,7 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
                 if (d && !endDate) setEndDate(d);
               }}
               onTimeChange={setStartTime}
+              disabled={submitting}
             />
             <DateTimeField
               label="End"
@@ -225,28 +258,40 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
               allDay={allDay}
               onDateChange={setEndDate}
               onTimeChange={setEndTime}
+              disabled={submitting}
             />
 
             {/* Location */}
             <div className="flex flex-col gap-1.5">
               <Label>Location</Label>
-              <Select value={locationId} onValueChange={setLocationId}>
+              <Select
+                value={locationId || NONE_LOCATION_VALUE}
+                onValueChange={(v) => setLocationId(v === NONE_LOCATION_VALUE ? "" : v)}
+                disabled={submitting}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="None" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value={NONE_LOCATION_VALUE}>None</SelectItem>
                   {locations.map((l) => (
                     <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {locationsError && (
+                <p className="text-xs text-muted-foreground">{locationsError}</p>
+              )}
             </div>
 
             {/* Sport (optional) */}
             <div className="flex flex-col gap-1.5">
               <Label>Sport <span className="text-muted-foreground font-normal">(optional)</span></Label>
-              <Select value={sportCode} onValueChange={(v) => setSportCode(v === "__none" ? "" : v)}>
+              <Select
+                value={sportCode || "__none"}
+                onValueChange={(v) => setSportCode(v === "__none" ? "" : v)}
+                disabled={submitting}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="None" />
                 </SelectTrigger>
@@ -264,7 +309,11 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
               <>
                 <div className="flex flex-col gap-1.5">
                   <Label>Location type</Label>
-                  <Select value={isHome} onValueChange={(v) => setIsHome(v as "home" | "away" | "neutral")}>
+                  <Select
+                    value={isHome}
+                    onValueChange={(v) => setIsHome(v as "home" | "away" | "neutral")}
+                    disabled={submitting}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -282,6 +331,7 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
                     placeholder="e.g. Duke"
                     value={opponent}
                     onChange={(e) => setOpponent(e.target.value)}
+                    disabled={submitting}
                   />
                 </div>
               </>
@@ -294,7 +344,7 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
         </SheetBody>
 
         <SheetFooter>
-          <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" type="button" onClick={() => onOpenChange(false)} disabled={submitting}>
             Cancel
           </Button>
           <Button type="submit" form="new-event-form" disabled={submitting}>

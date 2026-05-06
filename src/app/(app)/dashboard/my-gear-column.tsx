@@ -4,14 +4,14 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { ClipboardCheckIcon, CalendarCheckIcon, ClockIcon, ArrowRightCircleIcon } from "lucide-react";
 import { ScaleIn } from "@/components/ui/motion";
-import { cn } from "@/lib/utils";
-import { formatDayLabel, formatDueLabel, formatEventDateTime, formatRelativeTime, formatTimeShort, isDueToday } from "@/lib/format";
+import { formatDayLabel, formatRelativeTime, formatTimeShort, isDueToday } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
-import { UserAvatar } from "@/components/UserAvatar";
 import { GearAvatarStack } from "./dashboard-avatars";
+import { DashboardBookingRow, dashboardBookingAccent } from "./booking-row";
+import { DashboardSectionHeader } from "./section-header";
 import type { DashboardData, BookingSummary, CreateBookingContext } from "../dashboard-types";
 import type { FilteredDashboardData } from "@/hooks/use-dashboard-filters";
 
@@ -49,42 +49,22 @@ export function MyGearColumn({
       {/* My Checkouts */}
       <ScaleIn delay={0}>
       <Card elevation="elevated">
-        <Link href="/checkouts?mine=true" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-lg hover:bg-muted/60 hover:no-underline">
-          <h2 className="text-sm font-semibold text-foreground m-0">My checkouts</h2>
-          <Badge variant="gray" size="sm">{data.myCheckouts.total}</Badge>
-        </Link>
+        <DashboardSectionHeader title="My checkouts" href="/checkouts?mine=true" count={data.myCheckouts.total} />
         {(filtered?.myCheckouts ?? data.myCheckouts.items).length === 0 ? (
           <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-muted-foreground text-sm"><ClipboardCheckIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} checkouts` : "You have no gear checked out"}</div>
         ) : (
           <CardContent className="p-0 py-1">
             {(filtered?.myCheckouts ?? data.myCheckouts.items).map((c) => {
-              const dueLabel = formatDueLabel(c.endsAt, now);
               return (
-                <button
+                <DashboardBookingRow
                   key={c.id}
-                  className={cn(
-                    "group flex items-center justify-between gap-3 w-full px-4 py-2 border-none bg-transparent cursor-pointer text-left transition-colors [&+&]:border-t [&+&]:border-border/40 border-l-[3px] pl-[13px]",
-                    c.isOverdue
-                      ? "border-l-[var(--wi-red)] bg-[var(--wi-red)]/[0.06] dark:bg-[var(--wi-red)]/[0.18] hover:bg-[var(--wi-red)]/10 dark:hover:bg-[var(--wi-red)]/25"
-                      : isDueToday(c.endsAt, now)
-                      ? "border-l-[var(--orange)] bg-[var(--orange)]/[0.04] dark:bg-[var(--orange)]/[0.12] hover:bg-[var(--orange)]/[0.08] dark:hover:bg-[var(--orange)]/[0.18]"
-                      : ownedAccent
-                      ? "border-l-primary hover:bg-muted/50"
-                      : "border-l-[var(--blue)] hover:bg-muted/50"
-                  )}
-                  onClick={() => onSelectBooking(c.id)}
-                >
-                  <div className="flex flex-col gap-0.5 min-w-0">
-                    <span className="text-sm font-bold text-foreground truncate tracking-tight">
-                      {c.title}
-                    </span>
-                    <span className="flex items-center gap-1 text-xs text-muted-foreground leading-snug">
-                      <UserAvatar name={c.requesterName} avatarUrl={c.requesterAvatarUrl} />
-                      {c.requesterName} &ndash; {c.itemCount} item{c.itemCount !== 1 ? "s" : ""}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2.5 shrink-0">
-                    {(c.isOverdue || isDueToday(c.endsAt, now)) && (
+                  booking={c}
+                  now={now}
+                  accent={dashboardBookingAccent(c, now, ownedAccent ? "owned" : "checkout")}
+                  showDueBadge
+                  onSelectBooking={onSelectBooking}
+                  actions={
+                    (c.isOverdue || isDueToday(c.endsAt, now)) ? (
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
@@ -100,16 +80,9 @@ export function MyGearColumn({
                         </TooltipTrigger>
                         <TooltipContent>Extend 1 day</TooltipContent>
                       </Tooltip>
-                    )}
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Badge variant={c.isOverdue ? "red" : isDueToday(c.endsAt, now) ? "orange" : "gray"} size="sm" className="cursor-default">{dueLabel}</Badge>
-                      </TooltipTrigger>
-                      <TooltipContent>{formatEventDateTime(c.startsAt, c.endsAt)}</TooltipContent>
-                    </Tooltip>
-                    <GearAvatarStack items={c.items} totalCount={c.itemCount} />
-                  </div>
-                </button>
+                    ) : null
+                  }
+                />
               );
             })}
             {!activeSport && data.myCheckouts.total > data.myCheckouts.items.length && (
@@ -123,33 +96,19 @@ export function MyGearColumn({
       {/* My Reservations */}
       <ScaleIn delay={0.05}>
       <Card>
-        <Link href="/reservations?mine=true" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-lg hover:bg-muted/60 hover:no-underline">
-          <h2 className="text-sm font-semibold text-foreground m-0">My reservations</h2>
-          <Badge variant="gray" size="sm">{data.myReservations.length}</Badge>
-        </Link>
+        <DashboardSectionHeader title="My reservations" href="/reservations?mine=true" count={data.myReservations.length} />
         {(filtered?.myReservations ?? data.myReservations).length === 0 ? (
           <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-muted-foreground text-sm"><CalendarCheckIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} reservations` : "No reservations coming up"}</div>
         ) : (
           <CardContent className="p-0 py-1">
             {(filtered?.myReservations ?? data.myReservations).map((r) => (
-              <button
+              <DashboardBookingRow
                 key={r.id}
-                className={cn(
-                  "group flex items-center justify-between gap-3 w-full px-4 py-2 border-none bg-transparent cursor-pointer text-left transition-colors [&+&]:border-t [&+&]:border-border/40 border-l-[3px] pl-[13px]",
-                  ownedAccent ? "border-l-primary hover:bg-muted/50" : "border-l-[var(--purple)] hover:bg-muted/50"
-                )}
-                onClick={() => onSelectBooking(r.id)}
-              >
-                <div className="flex flex-col gap-0.5 min-w-0">
-                  <span className="text-sm font-bold text-foreground truncate tracking-tight">
-                    {r.title}
-                  </span>
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground leading-snug">
-                    <UserAvatar name={r.requesterName} avatarUrl={r.requesterAvatarUrl} />
-                    {r.requesterName} &ndash; {r.itemCount} item{r.itemCount !== 1 ? "s" : ""}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2.5 shrink-0">
+                booking={r}
+                now={now}
+                accent={ownedAccent ? "owned" : "reservation"}
+                onSelectBooking={onSelectBooking}
+                actions={
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -165,9 +124,8 @@ export function MyGearColumn({
                     </TooltipTrigger>
                     <TooltipContent>Convert to checkout</TooltipContent>
                   </Tooltip>
-                  <GearAvatarStack items={r.items} totalCount={r.itemCount} />
-                </div>
-              </button>
+                }
+              />
             ))}
             {!activeSport && data.myReservations.length >= 5 && (
               <Link href="/reservations?mine=true" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all &rarr;</Link>
@@ -181,10 +139,7 @@ export function MyGearColumn({
       {(filtered?.myShifts ?? data.myShifts).length > 0 && (
         <ScaleIn delay={0.1}>
         <Card>
-          <Link href="/schedule" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-lg hover:bg-muted/60 hover:no-underline">
-            <h2 className="text-sm font-semibold text-foreground m-0">My shifts</h2>
-            <Badge variant="gray" size="sm">{data.myShifts.length}</Badge>
-          </Link>
+          <DashboardSectionHeader title="My shifts" href="/schedule" count={data.myShifts.length} />
           <CardContent className="p-0 py-1">
             {(filtered?.myShifts ?? data.myShifts).map((s) => {
               const gearLabel = s.gearStatus === "checked_out" ? "Gear out" : s.gearStatus === "reserved" ? "Reserved" : s.gearStatus === "draft" ? "Draft" : null;
@@ -194,7 +149,7 @@ export function MyGearColumn({
               return (
                 <div key={s.id} className="group flex items-center justify-between gap-3 w-full px-4 py-2 transition-colors hover:bg-muted/50 [&+&]:border-t [&+&]:border-border/40">
                   <div className="flex flex-col gap-0.5 min-w-0">
-                    <span className="text-sm font-bold text-foreground truncate tracking-tight">
+                    <span className="text-sm font-bold text-foreground truncate">
                       {s.event.sportCode && <span className="text-xs font-bold mr-1">{sportLabel(s.event.sportCode)}</span>}
                       <span className="text-muted-foreground font-normal">{eventTitle}</span>
                     </span>
@@ -241,15 +196,12 @@ export function MyGearColumn({
       {data.drafts.length > 0 && (
         <ScaleIn delay={0.15}>
         <Card elevation="elevated">
-          <CardHeader className="border-b border-border/50">
-            <CardTitle>Drafts</CardTitle>
-            <Badge variant="gray" size="sm">{data.drafts.length}</Badge>
-          </CardHeader>
+          <DashboardSectionHeader title="Drafts" count={data.drafts.length} />
           <CardContent className="p-0 py-1">
             {data.drafts.map((d) => (
               <div key={d.id} className="group flex items-center justify-between gap-3 w-full px-4 py-2 transition-colors hover:bg-muted/50 [&+&]:border-t [&+&]:border-border/40">
                 <div className="flex flex-col gap-0.5 min-w-0">
-                  <span className="text-sm font-medium text-foreground truncate tracking-tight">
+                  <span className="text-sm font-medium text-foreground truncate">
                     <Badge variant="outline" size="sm" className="mr-1.5">{d.kind === "CHECKOUT" ? "Checkout" : "Reservation"}</Badge>
                     {d.title || "Untitled"}
                   </span>

@@ -29,8 +29,7 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
   const [nudgedIds, setNudgedIds] = useState<Set<string>>(new Set());
   const [nudgingId, setNudgingId] = useState<string | null>(null);
 
-  async function handleNudge(e: React.MouseEvent, bookingId: string) {
-    e.stopPropagation();
+  async function handleNudge(bookingId: string) {
     if (nudgingId) return;
     setNudgingId(bookingId);
     try {
@@ -86,36 +85,38 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
         {overdueItems.map((item) => (
           <div
             key={item.bookingId}
-            role="button"
-            tabIndex={0}
-            className="flex items-center gap-2.5 px-4 py-2.5 cursor-pointer text-inherit w-full text-left transition-colors hover:bg-[var(--wi-red)]/[0.07] border-b border-[var(--wi-red)]/10 last:border-b-0 focus-visible:outline-2 focus-visible:outline-[var(--wi-red)]/50 focus-visible:outline-offset-[-2px]"
-            onClick={() => onSelectBooking(item.bookingId)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onSelectBooking(item.bookingId);
-              }
-            }}
+            className="flex items-center gap-2.5 px-4 py-2.5 text-inherit w-full transition-colors hover:bg-[var(--wi-red)]/[0.07] border-b border-[var(--wi-red)]/10 last:border-b-0"
           >
-            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-              <span className="text-sm font-semibold min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+            <button
+              type="button"
+              className="flex min-w-0 flex-1 flex-col gap-0.5 border-0 bg-transparent p-0 text-left"
+              onClick={() => onSelectBooking(item.bookingId)}
+              aria-label={`Open overdue checkout ${item.bookingTitle}`}
+            >
+              <span className="truncate text-sm font-semibold">
                 {item.bookingTitle}
               </span>
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
                 <UserAvatar name={item.requesterName} avatarUrl={item.requesterAvatarUrl} />
-                {item.requesterName}
+                <span className="truncate">{item.requesterName}</span>
+                {(item.items.length > 0 || item.assetTags.length > 0) && (
+                  <span aria-hidden="true">/</span>
+                )}
                 {item.items.length > 0 && (
-                  <> &middot; <GearAvatarStack items={item.items} totalCount={item.assetTags.length} /></>
+                  <span className="hidden sm:inline-flex">
+                    <GearAvatarStack items={item.items} totalCount={item.assetTags.length} />
+                  </span>
                 )}
                 {item.items.length === 0 && item.assetTags.length > 0 && (
-                  <> &middot; {item.assetTags.join(", ")}</>
+                  <span className="hidden max-w-48 truncate sm:inline">
+                    {item.assetTags.join(", ")}
+                  </span>
                 )}
-                &middot;{" "}
-                <span className="text-[11px] font-bold bg-[var(--wi-red)]/15 text-[var(--wi-red)] px-2 py-0.5 rounded-full whitespace-nowrap">
+                <span className="shrink-0 text-[11px] font-bold bg-[var(--wi-red)]/15 text-[var(--wi-red)] px-2 py-0.5 rounded-full tabular-nums">
                   {formatOverdueElapsed(item.endsAt, now)}
                 </span>
               </span>
-            </div>
+            </button>
             {canAction && (
               <div className="flex items-center gap-1 shrink-0">
                 <Tooltip>
@@ -125,7 +126,6 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
                       size="icon"
                       className="shrink-0 size-8 text-[var(--wi-red)]/60 hover:text-[var(--wi-red)] hover:bg-[var(--wi-red)]/10"
                       asChild
-                      onClick={(e) => e.stopPropagation()}
                     >
                       <Link
                         href={`/scan?checkout=${item.bookingId}&phase=CHECKIN`}
@@ -144,7 +144,7 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
                       size="icon"
                       className="shrink-0 size-8 text-[var(--wi-red)]/60 hover:text-[var(--wi-red)] hover:bg-[var(--wi-red)]/10"
                       disabled={nudgedIds.has(item.bookingId) || nudgingId === item.bookingId}
-                      onClick={(e) => handleNudge(e, item.bookingId)}
+                      onClick={() => handleNudge(item.bookingId)}
                       aria-label={`Nudge ${item.requesterName}`}
                     >
                       {nudgingId === item.bookingId ? (

@@ -15,21 +15,35 @@ import { NextResponse, type NextRequest } from "next/server";
  */
 export function middleware(request: NextRequest) {
   const nonce = generateNonce();
+  const isDevelopment = process.env.NODE_ENV === "development";
+  const scriptSrc = [
+    "'self'",
+    `'nonce-${nonce}'`,
+    "'strict-dynamic'",
+    ...(isDevelopment ? ["'unsafe-eval'"] : []),
+  ].join(" ");
+  const connectSrc = [
+    "'self'",
+    "https://*.public.blob.vercel-storage.com",
+    "https://*.sentry.io",
+    "https://*.ingest.sentry.io",
+    ...(isDevelopment ? ["ws:", "http:"] : []),
+  ].join(" ");
 
   // Mirror the static next.config.ts CSP, but swap script-src/style-src
   // to use the nonce + strict-dynamic. Keep all other directives in sync.
   const csp = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    `script-src ${scriptSrc}`,
     // style-src: keep 'unsafe-inline' for now. React/Next inline style
     // props and hydration styles need it. Mixing nonce + 'unsafe-inline'
     // makes the browser ignore 'unsafe-inline' per CSP spec, breaking
     // every style={...} on the page. Migrating to nonce-styles is a
     // larger refactor — captured in tasks/security-headers-audit.md.
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' blob: data: https://*.public.blob.vercel-storage.com",
+    "img-src 'self' blob: data: https:",
     "font-src 'self' data:",
-    "connect-src 'self' https://*.public.blob.vercel-storage.com https://*.sentry.io https://*.ingest.sentry.io",
+    `connect-src ${connectSrc}`,
     "worker-src 'self'",
     "manifest-src 'self'",
     "frame-ancestors 'none'",

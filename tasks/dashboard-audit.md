@@ -5,6 +5,51 @@
 
 ---
 
+## Focused Pass Addendum - 2026-05-05
+
+### Findings fixed
+
+1. **Dead reservation extend endpoint**
+   - Source: `src/app/(app)/page.tsx`
+   - Finding: `handleExtend` still branched reservations to `/api/reservations/[id]/extend`, but the only shipped extend route is `/api/bookings/[id]/extend`.
+   - Fix: All dashboard extend actions now call `/api/bookings/[id]/extend`.
+
+2. **Nested interactive controls in booking rows**
+   - Source: `src/app/(app)/dashboard/my-gear-column.tsx`, `src/app/(app)/dashboard/team-activity-column.tsx`
+   - Finding: checkout and reservation rows rendered a clickable `<button>` containing inline action `<Button>` controls.
+   - Fix: Shared `DashboardBookingRow` separates the primary row button from row actions.
+
+3. **Nested filter clear control**
+   - Source: `src/app/(app)/dashboard/filter-chips.tsx`
+   - Finding: active-filter clear was a focusable pseudo-button inside the popover trigger `Button`.
+   - Fix: Clear is now its own adjacent shadcn icon button.
+
+4. **Overdue banner row action nesting**
+   - Source: `src/app/(app)/dashboard/overdue-banner.tsx`
+   - Finding: overdue rows used a row-level `role="button"` wrapper while also carrying check-in and nudge actions.
+   - Fix: The overdue row now has a dedicated primary button and sibling action buttons.
+
+5. **Saved preset action nesting**
+   - Source: `src/app/(app)/dashboard/filter-chips.tsx`
+   - Finding: saved filter presets used a clickable badge with a nested delete button.
+   - Fix: Each saved preset now renders as sibling apply and delete buttons.
+
+### UI/structure enhancements
+
+- Shared row rendering for My Gear and Team Activity reduces drift in due/overdue styling, metadata, truncation, and gear avatar behavior.
+- Mobile rows now hide gear avatar stacks at narrow widths and keep titles, requester names, badges, and action buttons from compressing each other.
+- Row metadata uses a simple slash separator instead of inline punctuation entities.
+- Production browser check rendered `/login`; protected dashboard visual inspection is blocked without an authenticated session cookie.
+- Stat cards now read as an operational metric strip instead of a scoreboard: label first, smaller number, subtle link affordance.
+- Dashboard card headers now share `DashboardSectionHeader`, so counts, links, and inline header controls behave consistently.
+- Live browser login is now verified on `localhost:7001`; development CSP permits Next's dev runtime, and development unregisters the production service worker/cache so stale bundles do not break hydration.
+- Shared buttons and toggles now avoid broad `transition-all`, use explicit transition properties, and include `active:scale-[0.96]` for tactile press feedback.
+- Stat cards and booking row primary buttons now expose focus-visible rings for keyboard navigation.
+- Upcoming Events uses the shared section header with a second-line filter action so the title does not truncate in narrow dashboard columns.
+- The dashboard no longer logs the TanStack Query `dashboard-stats` missing-queryFn warning during live browser use.
+
+---
+
 ## What's Smart
 
 1. **Two-endpoint parallel data fetching** (`page.tsx:39-47`, `use-dashboard-data.ts:64-129`)

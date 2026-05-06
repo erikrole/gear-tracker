@@ -74,6 +74,14 @@
 ## Design System (shadcn/ui)
 
 - **`text-muted-foreground` for secondary text** — NOT `text-secondary` (which maps to a background color token).
+- **Collapsed sidebar active states need their own balance rules**: Expanded left rails and padding do not transfer cleanly to icon-only mode. In collapsed sidebars, center the icon affordance first, then use a symmetric active background or dot; do not carry over the expanded red rail.
+- **Collapsed sidebar user cards need explicit centering**: `size="lg"` menu buttons collapse to icon-size squares, but child links can keep expanded flex behavior. Add collapsed `justify-center`, zero the gap, and center the avatar itself so it does not hug an edge.
+- **Mobile one-tap nav requirements do not automatically belong in desktop sidebar**: Scan is a mobile primary action, but desktop has more context-specific scan entry points. Do not add desktop sidebar destinations just to satisfy mobile shell language.
+- **Fully staffed schedule events need compact recognition**: Big assignment cards are useful for filling gaps, but fully covered events should read as rows with an avatar preview. Keep expanded staffing details dense and reserve larger treatments for actual exception handling.
+- **Open schedule slots need readable role intent**: Staff/student need must be visible before assignment, but raw `ST`/`FT` labels are too opaque. Use plain role language such as "Student slot" and grouped needs such as "2 staff, 3 students" while keeping roles mixed in the same event rows.
+- **Role language is not a second color system**: In dense schedule rows, use text to distinguish staff/student needs and reserve color for one primary signal. Stacking area colors, role colors, open-slot red, and icon tints creates visual conflict and overlap.
+- **Do not repeat the same schedule need in one row**: If the event title cluster already states "Needs 4 students", the right-side avatar preview should only show assignment state, such as avatars or "No assignments".
+- **Schedule list column ownership must stay strict**: The event title cluster owns event start/all-day context. The right-side desktop column owns only home call time, not event time, all-day fallback text, or staffing summaries.
 - **Badge variants for all colored labels**: Never hardcode `bg-green-50 text-green-700`. Use Badge variants for dark mode safety.
 - **`text-base md:text-sm` on inputs**: Prevents iOS auto-zoom on focus (requires 16px+ on mobile).
 - **Hover-reveal needs `sm:` prefix**: `sm:opacity-0 sm:group-hover/row:opacity-100` — always visible on touch.
@@ -123,6 +131,7 @@
 ## Process
 
 - **NORTH_STAR.md first**: Read before every session to prevent context drift.
+- **Next devtools errors can be framework overlays, not app bugs**: If dev logs mention `next-devtools/userspace/app/segment-explorer-node.js#SegmentViewNode` missing from the React Client Manifest, treat it as the experimental segment explorer/manifest path first. Disable `experimental.devtoolSegmentExplorer` before chasing unrelated app components.
 - **Doc sync on every commit**: AREA_*.md changelog + GAPS_AND_RISKS.md in the same commit as the feature.
 - **Archive plan files aggressively**: `mv tasks/plan.md tasks/archive/` immediately after ship.
 - **Always verify response shape from the API route**: Read `return ok(...)` before writing client reads. Don't guess.

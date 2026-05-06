@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
-import { ArchiveIcon, ChevronDownIcon, ChevronRightIcon, EyeOffIcon, UserIcon } from "lucide-react";
+import { AlertTriangleIcon, ArchiveIcon, ChevronDownIcon, ChevronRightIcon, EyeOffIcon, UserIcon } from "lucide-react";
 import { toast } from "sonner";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
+import { AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar";
 import { UserAvatarPicker, type PickerUser } from "@/components/shift-detail/UserAvatarPicker";
 import { handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
 import { cn } from "@/lib/utils";
@@ -51,9 +52,74 @@ const AREA_BADGE_VARIANT: Record<string, "green" | "purple" | "orange" | "blue">
   GRAPHICS: "blue",
 };
 
+type RoleTone = "staff" | "student";
+
 function shiftAssignee(shift: Shift) {
   const active = shift.assignments.find((a) => ACTIVE_STATUSES.includes(a.status));
   return active?.user ?? null;
+}
+
+function missingSlotCount(entry: CalendarEntry) {
+  if (!entry.coverage) return 0;
+  return Math.max(entry.coverage.total - entry.coverage.filled, 0);
+}
+
+function isShiftOpen(shift: Shift) {
+  return !shift.assignments.some((a) => ACTIVE_STATUSES.includes(a.status));
+}
+
+function roleToneFromWorkerType(workerType: string): RoleTone {
+  return workerType === "ST" ? "student" : "staff";
+}
+
+function roleToneFromUserRole(role: string): RoleTone {
+  return role === "STUDENT" ? "student" : "staff";
+}
+
+function roleLabel(tone: RoleTone) {
+  return tone === "student" ? "Student" : "Staff";
+}
+
+function roleSlotLabel(workerType: string) {
+  return `${roleLabel(roleToneFromWorkerType(workerType))} slot`;
+}
+
+function openRoleNeeds(entry: CalendarEntry) {
+  return entry.shifts.reduce(
+    (counts, shift) => {
+      if (!isShiftOpen(shift)) return counts;
+      counts[roleToneFromWorkerType(shift.workerType)] += 1;
+      return counts;
+    },
+    { staff: 0, student: 0 },
+  );
+}
+
+function roleNeedText(tone: RoleTone, count: number) {
+  if (tone === "staff") return `${count} staff`;
+  return `${count} student${count === 1 ? "" : "s"}`;
+}
+
+function RoleNeedSummary({ entry, compact = false }: { entry: CalendarEntry; compact?: boolean }) {
+  const needs = openRoleNeeds(entry);
+  const parts = (["staff", "student"] as const).filter((tone) => needs[tone] > 0);
+
+  if (parts.length === 0) return null;
+
+  return (
+    <span className={cn("inline-flex items-center gap-1", compact && "text-[11px]")}>
+      <span className="font-semibold text-[var(--red-text)]">
+        Needs
+      </span>
+      <span className="font-semibold text-muted-foreground">
+        {parts.map((tone) => roleNeedText(tone, needs[tone])).join(", ")}
+      </span>
+    </span>
+  );
+}
+
+function eventStartLabel(entry: CalendarEntry) {
+  return entry.allDay ? "All day" : formatTimeShort(entry.startsAt);
 }
 
 /* ── Coverage fraction badge ── */
@@ -71,6 +137,230 @@ function CoveragePill({ percentage, filled, total }: { percentage: number; fille
         {filled}/{total}
       </Badge>
     </span>
+  );
+}
+
+function formatShiftWindow(entry: CalendarEntry, shift: Shift) {
+  if (entry.isHome !== true) return null;
+  return `${formatTime(shift.startsAt)} – ${formatTime(shift.endsAt)}`;
+}
+
+function AssignmentAvatarGroup({
+  entry,
+  isExpanded,
+}: {
+  entry: CalendarEntry;
+  isExpanded: boolean;
+}) {
+  const assignedUsers = entry.shifts
+    .map(shiftAssignee)
+    .filter((user): user is NonNullable<ReturnType<typeof shiftAssignee>> => Boolean(user));
+  const visibleUsers = assignedUsers.slice(0, 4);
+  const extraCount = assignedUsers.length - visibleUsers.length;
+
+  if (entry.shifts.length === 0) return null;
+
+  return (
+    <div
+      className={cn(
+        "ml-auto flex items-center gap-2 transition-[opacity,scale] duration-150",
+        isExpanded ? "pointer-events-none opacity-0 scale-95" : "opacity-100 scale-100",
+      )}
+      aria-hidden={isExpanded}
+    >
+      <AvatarGroup aria-label={`${assignedUsers.length} assigned people`}>
+        {visibleUsers.map((user) => (
+          <UserAvatar
+            key={user.id}
+            name={user.name}
+            avatarUrl={user.avatarUrl}
+            size="sm"
+            className="border-2 border-background shadow-sm"
+          />
+        ))}
+        {extraCount > 0 && (
+          <AvatarGroupCount>
+            +{extraCount}
+          </AvatarGroupCount>
+        )}
+      </AvatarGroup>
+      {assignedUsers.length === 0 && (
+        <span className="text-[11px] font-medium text-muted-foreground">
+          No assignments
+        </span>
+      )}
+    </div>
+  );
+}
+
+function ShiftRowList({
+  entry,
+  isStaff,
+  pickerUsers,
+  pickerLoading,
+  pickerSearch,
+  assigning,
+  onOpenPicker,
+  onClosePicker,
+  onPickerSearchChange,
+  onInlineAssign,
+  currentUserId,
+  postingTradeId,
+  onPostTrade,
+  onSelectGroup,
+  compact = false,
+}: {
+  entry: CalendarEntry;
+  isStaff: boolean;
+  pickerUsers: PickerUser[];
+  pickerLoading: boolean;
+  pickerSearch: string;
+  assigning: boolean;
+  onOpenPicker: (shiftId: string) => void;
+  onClosePicker: () => void;
+  onPickerSearchChange: (value: string) => void;
+  onInlineAssign: (shiftId: string, userId: string) => void;
+  currentUserId: string;
+  postingTradeId: string | null;
+  onPostTrade?: (assignmentId: string) => void;
+  onSelectGroup: () => void;
+  compact?: boolean;
+}) {
+  return (
+    <div className={cn("flex flex-col", compact ? "gap-2" : "gap-1.5")}>
+      {entry.shifts.map((shift) => {
+        const user = shiftAssignee(shift);
+        const myAssignment = shift.assignments.find(
+          (a) => a.user.id === currentUserId && ACTIVE_STATUSES.includes(a.status),
+        );
+        const shiftTime = formatShiftWindow(entry, shift);
+        const areaLabel = AREA_LABELS[shift.area] ?? shift.area;
+        const assignedLabel = user ? user.name : "Unassigned";
+        const slotLabel = roleSlotLabel(shift.workerType);
+
+        return (
+          <div
+            key={shift.id}
+            className={cn(
+              "min-h-12 rounded-md border border-border/40 bg-background/65 px-3 py-2 shadow-[0_1px_0_rgba(255,255,255,0.04)] transition-[background-color,border-color]",
+              compact ? "flex flex-col gap-2" : "flex items-center gap-3",
+            )}
+          >
+            <div className={cn("flex min-w-0 items-center gap-2", !compact && "w-28 shrink-0")}>
+              <Badge
+                variant={AREA_BADGE_VARIANT[shift.area] ?? "gray"}
+                size="sm"
+              >
+                {areaLabel}
+              </Badge>
+            </div>
+
+            <div className="min-w-0 flex-1">
+              {user ? (
+                <button
+                  type="button"
+                  className="flex min-h-9 w-full items-center gap-2 rounded-md px-1 text-left transition-[background-color,scale] hover:bg-muted/45 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
+                  aria-label={`Open ${areaLabel} shift assigned to ${user.name}`}
+                  onClick={onSelectGroup}
+                >
+                  <UserAvatar
+                    name={user.name}
+                    avatarUrl={user.avatarUrl}
+                  />
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                    {user.name}
+                  </span>
+                  <span className="shrink-0 text-xs font-medium text-muted-foreground">
+                    {roleLabel(roleToneFromUserRole(user.role))}
+                  </span>
+                </button>
+              ) : isStaff ? (
+                <Popover
+                  onOpenChange={(open) => {
+                    if (open) onOpenPicker(shift.id);
+                    else onClosePicker();
+                  }}
+                >
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex min-h-9 w-full items-center gap-2 rounded-md border border-dashed border-muted-foreground/25 px-2 text-left transition-[background-color,border-color,scale] hover:border-muted-foreground/45 hover:bg-muted/45 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
+                      disabled={assigning}
+                      aria-label={`Assign ${areaLabel} ${slotLabel.toLowerCase()}`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex size-6 shrink-0 items-center justify-center rounded-full border-[1.5px] border-dashed border-muted-foreground/35 text-muted-foreground">
+                        <UserIcon className="size-3 opacity-70" />
+                      </div>
+                      <span className="min-w-0 truncate text-sm font-medium text-muted-foreground">
+                        Assign {slotLabel.toLowerCase()}
+                      </span>
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    className="w-64 p-2"
+                    align="start"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <UserAvatarPicker
+                      users={pickerUsers}
+                      loading={pickerLoading}
+                      search={pickerSearch}
+                      onSearchChange={onPickerSearchChange}
+                      onSelect={(userId) => onInlineAssign(shift.id, userId)}
+                      disabled={assigning}
+                    />
+                  </PopoverContent>
+                </Popover>
+              ) : (
+                <button
+                  type="button"
+                  className="flex min-h-9 w-full items-center gap-2 rounded-md px-1 text-left transition-[background-color,scale] hover:bg-muted/45 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
+                  aria-label={`Open unassigned ${areaLabel} shift`}
+                  onClick={onSelectGroup}
+                >
+                  <div className="flex size-6 shrink-0 items-center justify-center rounded-full border-[1.5px] border-dashed border-muted-foreground/30 text-muted-foreground">
+                    <UserIcon className="size-3 opacity-65" />
+                  </div>
+                  <span className="min-w-0 truncate text-sm font-medium text-muted-foreground">
+                    {slotLabel}
+                  </span>
+                </button>
+              )}
+            </div>
+
+            {shiftTime && (
+              <div className={cn("min-w-0", !compact && "w-36 shrink-0")}>
+                <span
+                  className="truncate text-[11px] text-muted-foreground tabular-nums"
+                  style={{ fontFamily: "var(--font-mono)" }}
+                  title={`${assignedLabel} · ${shiftTime}`}
+                >
+                  {shiftTime}
+                </span>
+              </div>
+            )}
+
+            <div className={cn("flex min-h-7", compact ? "justify-start" : "w-24 shrink-0 justify-end")}>
+              {onPostTrade && myAssignment && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 shrink-0 px-2 text-xs text-muted-foreground transition-[background-color,color,scale] hover:text-foreground active:scale-[0.96]"
+                  disabled={postingTradeId === myAssignment.id}
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    onPostTrade(myAssignment.id);
+                  }}
+                >
+                  {postingTradeId === myAssignment.id ? "Posting..." : "Trade"}
+                </Button>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -94,12 +384,12 @@ export function ListView({
 }: ListViewProps) {
 
   // Inline assignment state
-  const [pickerShiftId, setPickerShiftId] = useState<string | null>(null);
   const [allUsers, setAllUsers] = useState<PickerUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const usersLoadedRef = useRef(false);
   const [userSearch, setUserSearch] = useState("");
   const [assigning, setAssigning] = useState(false);
+  const assigningRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const loadUsers = useCallback(async () => {
@@ -118,6 +408,10 @@ export function ListView({
         setAllUsers((json.data ?? []).map((u: { id: string; name: string; role: string; primaryArea: string | null; avatarUrl?: string | null }) => ({
           id: u.id, name: u.name, role: u.role, primaryArea: u.primaryArea, avatarUrl: u.avatarUrl,
         })));
+      } else {
+        usersLoadedRef.current = false;
+        const msg = await parseErrorMessage(res, "Failed to load users");
+        toast.error(msg);
       }
     } catch (err) {
       if (isAbortError(err)) return;
@@ -137,8 +431,23 @@ export function ListView({
   }, [allUsers, userSearch]);
 
   const [postingTradeId, setPostingTradeId] = useState<string | null>(null);
+  const postingTradeRef = useRef<string | null>(null);
+  const coverageGaps = useMemo(() => {
+    let events = 0;
+    let slots = 0;
+    for (const entry of filteredEntries) {
+      const missing = missingSlotCount(entry);
+      if (missing > 0) {
+        events += 1;
+        slots += missing;
+      }
+    }
+    return { events, slots };
+  }, [filteredEntries]);
 
   const handlePostTrade = useCallback(async (assignmentId: string) => {
+    if (postingTradeRef.current) return;
+    postingTradeRef.current = assignmentId;
     setPostingTradeId(assignmentId);
     try {
       const res = await fetch("/api/shift-trades", {
@@ -157,11 +466,14 @@ export function ListView({
     } catch {
       toast.error("Network error — could not post trade");
     } finally {
+      postingTradeRef.current = null;
       setPostingTradeId(null);
     }
   }, [loadData]);
 
   const handleInlineAssign = useCallback(async (shiftId: string, userId: string) => {
+    if (assigningRef.current) return;
+    assigningRef.current = true;
     setAssigning(true);
     try {
       const res = await fetch("/api/shift-assignments", {
@@ -171,7 +483,6 @@ export function ListView({
       });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        setPickerShiftId(null);
         setUserSearch("");
         loadData();
       } else {
@@ -181,7 +492,10 @@ export function ListView({
     } catch {
       toast.error("Network error — could not assign shift");
     }
-    finally { setAssigning(false); }
+    finally {
+      assigningRef.current = false;
+      setAssigning(false);
+    }
   }, [loadData]);
 
   return (
@@ -200,6 +514,16 @@ export function ListView({
               ? `${filteredEntries.length} of ${entries.length}`
               : filteredEntries.length}
           </span>
+          {coverageGaps.slots > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-[var(--red-bg)] px-2 py-0.5 text-[11px] font-semibold text-[var(--red-text)]">
+              <AlertTriangleIcon className="size-3" />
+              <span className="tabular-nums">{coverageGaps.slots}</span>
+              open slot{coverageGaps.slots !== 1 ? "s" : ""}
+              <span className="text-[var(--red-text)]/70">
+                across {coverageGaps.events}
+              </span>
+            </span>
+          )}
         </div>
       </div>
 
@@ -322,7 +646,7 @@ export function ListView({
                           Event
                         </th>
                         <th className="text-left px-4 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border/40">
-                          Time
+                          Call
                         </th>
                       </tr>
                     </thead>
@@ -351,18 +675,15 @@ export function ListView({
                             onHide={
                               onHideEvent ? () => onHideEvent(entry.id) : undefined
                             }
-                            pickerShiftId={pickerShiftId}
                             pickerUsers={filteredUsers}
                             pickerLoading={usersLoading}
                             pickerSearch={userSearch}
                             assigning={assigning}
                             onOpenPicker={(shiftId) => {
-                              setPickerShiftId(shiftId);
                               setUserSearch("");
                               loadUsers();
                             }}
                             onClosePicker={() => {
-                              setPickerShiftId(null);
                               setUserSearch("");
                             }}
                             onPickerSearchChange={setUserSearch}
@@ -394,6 +715,7 @@ export function ListView({
                   : entry.isHome === false
                     ? "border-l-[var(--orange)]"
                     : "border-l-muted-foreground/20";
+              const missingSlots = missingSlotCount(entry);
 
               return (
                 <div
@@ -401,6 +723,7 @@ export function ListView({
                   className={cn(
                     "border-b border-border/50 last:border-b-0 border-l-[3px]",
                     barColor,
+                    missingSlots > 0 && "bg-[var(--red-bg)]/15",
                   )}
                 >
                   <button
@@ -421,21 +744,19 @@ export function ListView({
                             <ChevronRightIcon className="size-3.5 text-muted-foreground shrink-0 mt-0.5" />
                           )
                         )}
-                        {!entry.allDay && (
-                          <span
-                            className="text-[10px] text-muted-foreground/60 tabular-nums font-normal shrink-0"
-                            style={{ fontFamily: "var(--font-mono)" }}
-                          >
-                            {formatTimeShort(entry.startsAt)}
-                          </span>
-                        )}
+                        <span
+                          className="text-[10px] text-muted-foreground/60 tabular-nums font-normal shrink-0"
+                          style={{ fontFamily: entry.allDay ? "var(--font-heading)" : "var(--font-mono)" }}
+                        >
+                          {eventStartLabel(entry)}
+                        </span>
                         {entry.opponent
                           ? `${entry.isHome === false ? "at " : "vs "}${entry.opponent}`
                           : entry.summary}
                       </span>
                       <div className="flex items-center gap-1 flex-shrink-0">
                         {(() => {
-                          const mobileCallTime = entry.shifts.length > 0
+                          const mobileCallTime = entry.isHome === true && entry.shifts.length > 0
                             ? formatTime(entry.shifts.reduce((min, s) => s.startsAt < min ? s.startsAt : min, entry.shifts[0]!.startsAt))
                             : null;
                           return mobileCallTime ? (
@@ -463,12 +784,14 @@ export function ListView({
                             {entry.coverage.filled}/{entry.coverage.total}
                           </Badge>
                         )}
+                        {missingSlots > 0 && (
+                          <RoleNeedSummary entry={entry} />
+                        )}
                       </div>
                     </div>
                     <div className="text-xs text-muted-foreground flex gap-2 flex-wrap pl-5">
                       <span>
                         {formatDateShort(entry.startsAt)}
-                        {entry.allDay && " All day"}
                       </span>
                       {entry.sportCode && (
                         <span>{sportLabel(entry.sportCode)}</span>
@@ -479,59 +802,34 @@ export function ListView({
                           Archived
                         </span>
                       )}
+                      <AssignmentAvatarGroup entry={entry} isExpanded={isExpanded} />
                     </div>
                   </button>
 
                   {isExpanded && entry.shifts.length > 0 && (
-                    <div className="border-t border-border/40">
-                      {entry.shifts.map((shift) => {
-                        const user = shiftAssignee(shift);
-                        return (
-                          <div
-                            key={shift.id}
-                            className="flex items-center gap-3 px-4 py-2.5 pl-8 border-b border-border/30 last:border-b-0 cursor-pointer hover:bg-muted/30 transition-colors focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
-                            tabIndex={0}
-                            role="button"
-                            onClick={() => onSelectGroup(entry.shiftGroupId)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                onSelectGroup(entry.shiftGroupId);
-                              }
-                            }}
-                          >
-                            <div className="flex items-center gap-2 flex-1 min-w-0">
-                              {user ? (
-                                <>
-                                  <UserAvatar
-                                    name={user.name}
-                                    avatarUrl={user.avatarUrl}
-                                  />
-                                  <span className="text-sm truncate">{user.name}</span>
-                                </>
-                              ) : (
-                                <>
-                                  <div className="size-6 rounded-full border-[1.5px] border-dashed border-muted-foreground/30 flex items-center justify-center shrink-0">
-                                    <UserIcon className="size-3 text-muted-foreground/40" />
-                                  </div>
-                                  <span className="text-sm text-muted-foreground">
-                                    Unassigned
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                            <Badge
-                              variant={AREA_BADGE_VARIANT[shift.area] ?? "gray"}
-                              size="sm"
-                            >
-                              {AREA_LABELS[shift.area] ?? shift.area}
-                            </Badge>
-                            {shift.workerType === "FT" && (
-                              <Badge variant="gray" size="sm">FT</Badge>
-                            )}
-                          </div>
-                        );
-                      })}
+                    <div className="border-t border-border/40 px-4 py-3 pl-8">
+                      <ShiftRowList
+                        entry={entry}
+                        isStaff={isStaff}
+                        pickerUsers={filteredUsers}
+                        pickerLoading={usersLoading}
+                        pickerSearch={userSearch}
+                        assigning={assigning}
+                        onOpenPicker={(shiftId) => {
+                          setUserSearch("");
+                          loadUsers();
+                        }}
+                        onClosePicker={() => {
+                          setUserSearch("");
+                        }}
+                        onPickerSearchChange={setUserSearch}
+                        onInlineAssign={handleInlineAssign}
+                        currentUserId={currentUserId}
+                        postingTradeId={postingTradeId}
+                        onPostTrade={isStaff ? undefined : handlePostTrade}
+                        onSelectGroup={() => onSelectGroup(entry.shiftGroupId)}
+                        compact
+                      />
                     </div>
                   )}
                 </div>
@@ -555,7 +853,6 @@ function EventRows({
   onToggle,
   onSelectGroup,
   onHide,
-  pickerShiftId,
   pickerUsers,
   pickerLoading,
   pickerSearch,
@@ -576,7 +873,6 @@ function EventRows({
   onToggle: () => void;
   onSelectGroup: () => void;
   onHide?: () => void;
-  pickerShiftId: string | null;
   pickerUsers: PickerUser[];
   pickerLoading: boolean;
   pickerSearch: string;
@@ -593,13 +889,11 @@ function EventRows({
     ? `${entry.sportCode ? sportLabel(entry.sportCode) + " " : ""}${entry.isHome === true ? "vs " : "at "}${entry.opponent}`
     : entry.summary;
 
-  const timeStr = entry.allDay
-    ? "All day"
-    : `${formatTime(entry.startsAt)} – ${formatTime(entry.endsAt)}`;
-
-  const callTime = entry.shifts.length > 0
+  const callTime = entry.isHome === true && entry.shifts.length > 0
     ? formatTime(entry.shifts.reduce((min, s) => s.startsAt < min ? s.startsAt : min, entry.shifts[0]!.startsAt))
     : null;
+  const missingSlots = missingSlotCount(entry);
+  const needsCoverage = missingSlots > 0;
 
   const borderBar =
     entry.isHome === true
@@ -616,40 +910,42 @@ function EventRows({
           "group/row border-l-[3px] transition-colors",
           borderBar,
           hasShifts ? "cursor-pointer" : "",
-          isExpanded ? "bg-muted/20" : "hover:bg-muted/10",
+          isExpanded
+            ? "bg-muted/20"
+            : needsCoverage
+              ? "bg-[var(--red-bg)]/15 hover:bg-[var(--red-bg)]/25"
+              : "hover:bg-muted/10",
         )}
-        tabIndex={hasShifts ? 0 : undefined}
-        role={hasShifts ? "link" : undefined}
         onClick={hasShifts ? onToggle : undefined}
-        onKeyDown={
-          hasShifts
-            ? (e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onToggle();
-                }
-              }
-            : undefined
-        }
       >
         <td className="pl-3 pr-1 py-3 border-b border-border/20 w-7">
-          {hasShifts &&
-            (isExpanded ? (
-              <ChevronDownIcon className="size-4 text-muted-foreground" />
-            ) : (
-              <ChevronRightIcon className="size-4 text-muted-foreground" />
-            ))}
+          {hasShifts && (
+            <button
+              type="button"
+              aria-label={isExpanded ? "Collapse shifts" : "Expand shifts"}
+              aria-expanded={isExpanded}
+              className="flex size-7 items-center justify-center rounded text-muted-foreground transition-[background-color,color,scale] duration-150 hover:bg-muted hover:text-foreground active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggle();
+              }}
+            >
+              {isExpanded ? (
+                <ChevronDownIcon className="size-4" />
+              ) : (
+                <ChevronRightIcon className="size-4" />
+              )}
+            </button>
+          )}
         </td>
         <td className="px-4 py-3 border-b border-border/20">
           <div className="flex items-center gap-2 flex-wrap">
-            {!entry.allDay && (
-              <span
-                className="text-[11px] text-muted-foreground/60 tabular-nums shrink-0"
-                style={{ fontFamily: "var(--font-mono)" }}
-              >
-                {formatTime(entry.startsAt)}
-              </span>
-            )}
+            <span
+              className="text-[11px] text-muted-foreground/60 tabular-nums shrink-0"
+              style={{ fontFamily: entry.allDay ? "var(--font-heading)" : "var(--font-mono)" }}
+            >
+              {eventStartLabel(entry)}
+            </span>
             <Link
               href={`/events/${entry.id}`}
               className="font-semibold text-sm hover:underline"
@@ -663,6 +959,12 @@ function EventRows({
                 filled={entry.coverage.filled}
                 total={entry.coverage.total}
               />
+            )}
+            {needsCoverage && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--red-bg)] px-2 py-0.5">
+                <AlertTriangleIcon className="size-3" />
+                <RoleNeedSummary entry={entry} />
+              </span>
             )}
             {entry.isPremier && (
               <Badge variant="blue" size="sm">
@@ -683,6 +985,7 @@ function EventRows({
                 Archived
               </span>
             )}
+            <AssignmentAvatarGroup entry={entry} isExpanded={isExpanded} />
             {isStaff && onHide && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -705,133 +1008,53 @@ function EventRows({
           </div>
         </td>
         <td className="px-4 py-3 border-b border-border/20 whitespace-nowrap">
-          <span className="text-sm text-muted-foreground tabular-nums" style={{ fontFamily: "var(--font-mono)" }}>
-            {callTime
-              ? `Call ${callTime}–${formatTime(entry.endsAt)}`
-              : entry.allDay
-                ? "All day"
-                : formatTime(entry.endsAt)}
-          </span>
+          {entry.isHome === true && callTime ? (
+            <span className="text-sm text-muted-foreground tabular-nums" style={{ fontFamily: "var(--font-mono)" }}>
+              {`Call ${callTime}–${formatTime(entry.endsAt)}`}
+            </span>
+          ) : null}
         </td>
       </tr>
 
-      {/* Child shift rows */}
-      {isExpanded &&
-        entry.shifts.map((shift) => {
-          const user = shiftAssignee(shift);
-          const myAssignment = shift.assignments.find(
-            (a) => a.user.id === currentUserId && ACTIVE_STATUSES.includes(a.status),
-          );
-          const isAway = entry.isHome !== true;
-          const shiftTime = isAway
-            ? "—"
-            : `${formatTime(shift.startsAt)} – ${formatTime(shift.endsAt)}`;
-          const isPickerOpen = pickerShiftId === shift.id;
-
-          return (
-            <tr
-              key={shift.id}
-              className="bg-muted/10 hover:bg-muted/25 cursor-pointer transition-colors focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
-              tabIndex={0}
-              role="button"
-              onClick={() => !isPickerOpen && onSelectGroup()}
-              onKeyDown={(e) => {
-                if (!isPickerOpen && (e.key === "Enter" || e.key === " ")) {
-                  e.preventDefault();
-                  onSelectGroup();
-                }
-              }}
-            >
-              <td className="py-2.5 border-b border-border/15"></td>
-              <td className="px-4 py-2.5 border-b border-border/15">
-                <div className="flex items-center gap-2.5 pl-5">
-                  {user ? (
-                    <>
-                      <UserAvatar name={user.name} avatarUrl={user.avatarUrl} />
-                      <span className="text-sm">{user.name}</span>
-                    </>
-                  ) : isStaff ? (
-                    <Popover
-                      open={isPickerOpen}
-                      onOpenChange={(open) => {
-                        if (open) onOpenPicker(shift.id);
-                        else onClosePicker();
-                      }}
-                    >
-                      <PopoverTrigger asChild>
-                        <button
-                          className="flex items-center gap-2 hover:bg-muted/60 rounded px-1.5 py-1 -ml-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          disabled={assigning}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onOpenPicker(shift.id);
-                          }}
-                        >
-                          <div className="size-6 rounded-full border-[1.5px] border-dashed border-muted-foreground/30 flex items-center justify-center shrink-0">
-                            <UserIcon className="size-3 text-muted-foreground/40" />
-                          </div>
-                          <span className="text-sm text-muted-foreground">
-                            Unassigned
-                          </span>
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent
-                        className="w-64 p-2"
-                        align="start"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <UserAvatarPicker
-                          users={pickerUsers}
-                          loading={pickerLoading}
-                          search={pickerSearch}
-                          onSearchChange={onPickerSearchChange}
-                          onSelect={(userId) =>
-                            onInlineAssign(shift.id, userId)
-                          }
-                          disabled={assigning}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  ) : (
-                    <>
-                      <div className="size-6 rounded-full border-[1.5px] border-dashed border-muted-foreground/30 flex items-center justify-center shrink-0">
-                        <UserIcon className="size-3 text-muted-foreground/40" />
-                      </div>
-                      <span className="text-sm text-muted-foreground">
-                        Unassigned
-                      </span>
-                    </>
-                  )}
-                  <Badge
-                    variant={AREA_BADGE_VARIANT[shift.area] ?? "gray"}
-                    size="sm"
-                  >
-                    {AREA_LABELS[shift.area] ?? shift.area}
-                  </Badge>
-                </div>
-              </td>
-              <td className="px-4 py-2.5 border-b border-border/15 whitespace-nowrap">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">{shiftTime}</span>
-                  {onPostTrade && myAssignment && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
-                      disabled={postingTradeId === myAssignment.id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onPostTrade(myAssignment.id);
-                      }}
-                    >
-                      {postingTradeId === myAssignment.id ? "Posting…" : "Post for trade"}
-                    </Button>
-                  )}
-                </div>
-              </td>
-            </tr>
-          );
-        })}
+      {/* Expanded assignment detail */}
+      {isExpanded && (
+        <tr className="bg-muted/10">
+          <td className="border-b border-border/15"></td>
+          <td colSpan={2} className="border-b border-border/15 px-4 py-3">
+            <div className="pl-5">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Assignment detail
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-muted-foreground transition-[background-color,color,scale] hover:text-foreground active:scale-[0.96]"
+                  onClick={onSelectGroup}
+                >
+                  Manage event
+                </Button>
+              </div>
+              <ShiftRowList
+                entry={entry}
+                isStaff={isStaff}
+                pickerUsers={pickerUsers}
+                pickerLoading={pickerLoading}
+                pickerSearch={pickerSearch}
+                assigning={assigning}
+                onOpenPicker={onOpenPicker}
+                onClosePicker={onClosePicker}
+                onPickerSearchChange={onPickerSearchChange}
+                onInlineAssign={onInlineAssign}
+                currentUserId={currentUserId}
+                postingTradeId={postingTradeId}
+                onPostTrade={onPostTrade}
+                onSelectGroup={onSelectGroup}
+              />
+            </div>
+          </td>
+        </tr>
+      )}
     </>
   );
 }

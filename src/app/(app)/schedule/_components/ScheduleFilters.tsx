@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { FilterIcon, ListIcon, CalendarIcon, CalendarDaysIcon, XIcon } from "lucide-react";
+import { useMemo, type ReactNode } from "react";
+import { AlertTriangleIcon, FilterIcon, ListIcon, CalendarIcon, CalendarDaysIcon, XIcon } from "lucide-react";
 import { FilterChip } from "@/components/FilterChip";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -19,7 +19,7 @@ type ScheduleFiltersProps = {
   entries: CalendarEntry[];
 };
 
-const VIEW_MODES: { value: ViewMode; label: string; icon: React.ReactNode }[] = [
+const VIEW_MODES: { value: ViewMode; label: string; icon: ReactNode }[] = [
   { value: "list", label: "List", icon: <ListIcon className="size-3.5" /> },
   { value: "week", label: "Week", icon: <CalendarDaysIcon className="size-3.5" /> },
   { value: "calendar", label: "Calendar", icon: <CalendarIcon className="size-3.5" /> },
@@ -32,6 +32,23 @@ const HOME_AWAY_OPTIONS: { value: HomeAwayFilter; label: string }[] = [
   { value: "neutral", label: "Neutral" },
 ];
 
+function ToolbarGroup({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 max-sm:hidden">
+        {label}
+      </span>
+      {children}
+    </div>
+  );
+}
+
 export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
   const sportOptions = useMemo(() => {
     const codes = new Set(
@@ -43,72 +60,101 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
     }));
   }, [entries]);
 
-  const activeFilterCount = [
+  const popoverFilterCount = [
     filters.sportFilter,
     filters.areaFilter,
-    filters.coverageFilter,
+    filters.coverageFilter === "filled" ? filters.coverageFilter : "",
   ].filter(Boolean).length;
+  const needsStaffCount = entries.filter(
+    (entry) => entry.coverage && entry.coverage.total > entry.coverage.filled,
+  ).length;
+  const needsStaffActive = filters.coverageFilter === "unfilled";
 
   return (
-    <div className="flex flex-row items-center gap-1.5 flex-wrap mb-4 pb-3 border-b border-border/60">
+    <div className="mb-4 rounded-lg border border-border/60 bg-card/80 p-2 shadow-sm">
+      <div className="flex flex-row items-center gap-2 flex-wrap">
       {/* View mode toggle */}
-      <div className="flex items-center rounded-md border border-border overflow-hidden bg-muted/30">
-        {VIEW_MODES.map((mode, i) => {
-          const isActive = filters.viewMode === mode.value;
-          return (
-            <button
-              key={mode.value}
-              onClick={() => filters.setViewMode(mode.value)}
-              aria-pressed={isActive}
-              className={cn(
-                "flex items-center gap-1.5 px-3 h-8 text-[13px] font-medium transition-all",
-                i > 0 && "border-l border-border",
-                isActive
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-background/50",
-              )}
-            >
-              {mode.icon}
-              <span className="max-sm:hidden">{mode.label}</span>
-            </button>
-          );
-        })}
-      </div>
+      <ToolbarGroup label="View">
+        <div className="flex items-center rounded-md border border-border overflow-hidden bg-muted/30">
+          {VIEW_MODES.map((mode, i) => {
+            const isActive = filters.viewMode === mode.value;
+            return (
+              <button
+                key={mode.value}
+                onClick={() => filters.setViewMode(mode.value)}
+                aria-pressed={isActive}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 h-8 text-[13px] font-medium transition-[background-color,color,box-shadow,scale] duration-150 active:scale-[0.96]",
+                  i > 0 && "border-l border-border",
+                  isActive
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/50",
+                )}
+              >
+                {mode.icon}
+                <span className="max-sm:hidden">{mode.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </ToolbarGroup>
 
       {/* Divider */}
       <div className="h-5 w-px bg-border/80 mx-0.5 max-sm:hidden" />
 
       {/* Home / Away filter */}
-      <div className="flex items-center rounded-md border border-border overflow-hidden bg-muted/30">
-        {HOME_AWAY_OPTIONS.map((opt, i) => {
-          const isActive = filters.homeAwayFilter === opt.value;
-          const activeColor =
-            opt.value === "home"
-              ? "bg-[var(--green)]/15 text-[var(--green-text)]"
-              : opt.value === "away"
-                ? "bg-[var(--orange)]/15 text-[var(--orange-text)]"
-                : "bg-background text-foreground";
-          return (
-            <button
-              key={opt.value}
-              onClick={() => filters.setHomeAwayFilter(opt.value)}
-              aria-pressed={isActive}
-              className={cn(
-                "px-2.5 h-8 text-[13px] font-medium transition-all",
-                i > 0 && "border-l border-border",
-                isActive
-                  ? cn(activeColor, "shadow-sm")
-                  : "text-muted-foreground hover:text-foreground hover:bg-background/50",
-              )}
-            >
-              {opt.label}
-            </button>
-          );
-        })}
-      </div>
+      <ToolbarGroup label="Venue">
+        <div className="flex items-center rounded-md border border-border overflow-hidden bg-muted/30">
+          {HOME_AWAY_OPTIONS.map((opt, i) => {
+            const isActive = filters.homeAwayFilter === opt.value;
+            const activeColor =
+              opt.value === "home"
+                ? "bg-[var(--green)]/15 text-[var(--green-text)]"
+                : opt.value === "away"
+                  ? "bg-[var(--orange)]/15 text-[var(--orange-text)]"
+                  : "bg-background text-foreground";
+            return (
+              <button
+                key={opt.value}
+                onClick={() => filters.setHomeAwayFilter(opt.value)}
+                aria-pressed={isActive}
+                className={cn(
+                  "px-2.5 h-8 text-[13px] font-medium transition-[background-color,color,box-shadow,scale] duration-150 active:scale-[0.96]",
+                  i > 0 && "border-l border-border",
+                  isActive
+                    ? cn(activeColor, "shadow-sm")
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/50",
+                )}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      </ToolbarGroup>
 
       {/* Divider */}
       <div className="h-5 w-px bg-border/80 mx-0.5 max-sm:hidden" />
+
+      <ToolbarGroup label="Coverage">
+        <Button
+          variant={needsStaffActive ? "default" : "outline"}
+          size="sm"
+          className={cn(
+            "h-8 gap-1.5 text-[13px]",
+            !needsStaffActive && needsStaffCount > 0 && "border-[var(--red-text)]/25 text-[var(--red-text)] hover:bg-[var(--red-bg)] hover:text-[var(--red-text)]",
+          )}
+          onClick={() => filters.setCoverageFilter(needsStaffActive ? "" : "unfilled")}
+        >
+          <AlertTriangleIcon className="size-3.5" />
+          Needs staff
+          {needsStaffCount > 0 && (
+            <span className="ml-0.5 inline-flex min-w-5 items-center justify-center rounded-full bg-current/10 px-1.5 text-[10px] font-bold tabular-nums">
+              {needsStaffCount}
+            </span>
+          )}
+        </Button>
+      </ToolbarGroup>
 
       {/* My Shifts toggle */}
       <div className="flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-border bg-muted/30">
@@ -148,15 +194,15 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
       <Popover>
         <PopoverTrigger asChild>
           <Button
-            variant={activeFilterCount > 0 ? "default" : "outline"}
+            variant={popoverFilterCount > 0 ? "default" : "outline"}
             size="sm"
             className="h-8 gap-1.5 text-[13px]"
           >
             <FilterIcon className="size-3.5" />
             Filters
-            {activeFilterCount > 0 && (
+            {popoverFilterCount > 0 && (
               <span className="ml-0.5 inline-flex items-center justify-center size-[18px] rounded-full bg-white/20 text-[10px] font-bold">
-                {activeFilterCount}
+                {popoverFilterCount}
               </span>
             )}
           </Button>
@@ -218,6 +264,7 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
           </div>
         </PopoverContent>
       </Popover>
+      </div>
     </div>
   );
 }

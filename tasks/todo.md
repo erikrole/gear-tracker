@@ -44,6 +44,67 @@ Last updated: 2026-05-05
 
 ## Open Items
 
+### Home Dashboard Focused Pass (2026-05-05)
+- [x] **Audit current dashboard surface** — Read area docs, decisions, gaps, schema, API routes, existing audits, and dashboard components before editing.
+- [x] **Framework/debug pass** — Removed stale `/api/reservations/[id]/extend` branch; dashboard extend now uses canonical `/api/bookings/[id]/extend`.
+- [x] **Structure pass** — Extracted shared `DashboardBookingRow` for My Gear and Team Activity booking rows.
+- [x] **UX/UI pass** — Split row navigation from inline action buttons, made filter clear a separate icon button, and tightened row truncation/mobile behavior.
+- [x] **Verification + docs** — `npx tsc --noEmit`, `npm run db:migrate:check`, and `npx next build` passed. Exact `npm run build` stopped at `prisma migrate deploy` schema-engine failure before Next build; remote DB escalation was rejected as unsafe for this dashboard-only pass.
+
+### Home Dashboard Follow-up Pass (2026-05-05)
+- [x] **Overdue banner controls** — Split overdue row navigation from check-in and nudge actions.
+- [x] **Saved filter controls** — Split saved preset apply and delete into sibling controls.
+- [x] **Browser verification** — Production server rendered `/login` cleanly. Protected dashboard visual inspection is blocked without an authenticated session cookie.
+- [x] **Verification + docs** — `npx tsc --noEmit`, `npm run db:migrate:check`, `npx next build`, and `git diff --check` passed.
+
+### Home Dashboard Console Polish (2026-05-05)
+- [x] **Metric strip polish** — Reduced stat-card visual weight and moved labels above numbers for faster scanning.
+- [x] **Section header standardization** — Added shared `DashboardSectionHeader` for dashboard cards with consistent count and affordance treatment.
+- [x] **Verification** — `npx tsc --noEmit`, `npm run db:migrate:check`, `npx next build`, and `git diff --check` passed.
+
+### Home Dashboard Live Browser Polish (2026-05-05)
+- [x] **Local login unblock** — Added gitignored local session env, reset the approved dev admin seed, and fixed dev CSP/service-worker behavior so the login form hydrates instead of falling back to `GET /login?`.
+- [x] **Dev-console cleanup** — Fixed the `dashboard-stats` cache reader by providing a query function, clearing the remaining TanStack Query warning in the live browser.
+- [x] **Interaction polish** — Replaced broad `transition-all` on shared buttons/toggles with explicit transition properties plus `active:scale-[0.96]`, and added focus-visible treatment to dashboard stat/row links.
+- [x] **Responsive header polish** — Let the Upcoming Events header place its Home/Away filter on a second line so the title stays readable in narrow dashboard columns.
+
+### Sidebar Polish Pass (2026-05-05)
+- [x] **Navigation hierarchy** — Removed permanent trailing item index numbers from sidebar nav rows; they added visual load without a shipped shortcut layer.
+- [x] **Interaction polish** — Replaced sidebar `transition-all` usage with explicit transition properties and added `active:scale-[0.96]` to nav buttons and quick-create actions.
+- [x] **Collapsed-state check** — Verified icon-only sidebar mode in the live browser after the nav cleanup.
+- [x] **Shell upgrade pass** — Strengthen section separation and normalize utility action feedback.
+
+### Schedule Page Focused Pass (2026-05-05)
+- [x] **Audit current schedule surface** — Read North Star, shift/events/mobile docs, decisions, gaps, student availability brief, current schedule components, and live dev behavior before editing.
+- [x] **Framework/debug pass** — Cleared live console issues, hardened New Event sheet failure paths, fixed empty Select values, and kept legacy HTTPS thumbnails compatible with CSP.
+- [x] **UX/UI pass** — Tightened schedule toolbar interaction feedback, removed row-as-link semantics from the desktop list, and added rapid-click guards to inline assignment/trade actions.
+- [x] **Verification + docs** — `npx tsc --noEmit`, `npx vitest run tests/query-client.test.ts`, `npm run db:migrate:check`, `git diff --check`, `npx next build`, and live Arc schedule/New Event checks passed.
+
+### Schedule Command Bar + Coverage Pass (2026-05-05)
+- [x] **Command bar hierarchy** — Promote view, venue, coverage, and secondary filters into clearer groups so the staff-critical coverage filter is not buried.
+- [x] **Coverage-first list treatment** — Make under-covered events easier to scan with gap counts, stronger coverage copy, and subtle row emphasis.
+- [x] **Verification + docs** — Run focused TypeScript/whitespace checks, verify `/schedule` live in Arc, and sync shift docs.
+
+### Schedule Readiness Polish Pass (2026-05-05)
+- [x] **Operational snapshot** — Add compact readiness metrics so staff can see events, open slots, my shifts, and trade-board state without scanning rows.
+- [x] **Surface polish** — Tighten the schedule surface so filters, metrics, and list read as one workflow rather than separate controls.
+- [x] **Verification + docs** — Run focused checks, verify `/schedule` live in Arc, and sync shift docs.
+
+### Schedule Inline Assignment Matrix Pass (2026-05-05)
+- [x] **Expanded event matrix** — Replace repeated expanded shift rows with an event-level slot matrix that groups staffing work into scannable assignment tiles.
+- [x] **Inline actions** — Preserve staff assignment from open slots and student post-for-trade actions without nesting interactive controls in clickable rows.
+- [x] **Verification + docs** — Run focused checks, verify `/schedule` live in Arc, and sync shift docs.
+
+### Schedule Collapsed Staffing Preview Pass (2026-05-05)
+- [x] **Collapsed avatar group** — Add a shadcn-style avatar group to collapsed event rows so fully staffed events read at a glance.
+- [x] **Expanded row detail** — Replace large expanded slot cards with polished dense rows that preserve assignment and trade actions.
+- [x] **Verification + docs** — `npx tsc --noEmit`, `git diff --check`, and live Arc `/schedule` checks passed, including the expanded assign-slot popover.
+
+### Schedule Role Language Polish (2026-05-05)
+- [x] **Role-aware needs** — Replace raw `ST`/`FT` labels with readable staff/student slot language and grouped open-need summaries.
+- [x] **Travel event cleanup** — Remove away/neutral call-time placeholders from collapsed and expanded schedule rows.
+- [x] **Verification + docs** — `npx tsc --noEmit`, `git diff --check`, and live Arc `/schedule` checks passed, including the expanded assign-slot popover.
+
 ### Camera Attachments (2026-05-05)
 - [x] **Attachment model implementation** — Treat camera-tied SD cards/cages/fixed parts as non-bookable item attachments and preserve QR-coded batteries as numbered bulk units. Verified with focused tests, TypeScript, migration-prefix check, and local Next build.
 
@@ -53,6 +114,7 @@ Last updated: 2026-05-05
 ### Bulk Battery Hardening (2026-05-05)
 - [x] **Kiosk-scanned numbered batteries** — Treat battery booking as quantity at creation, then bind/return specific numbered units through kiosk unit QR scans. Add low-availability camera-model battery warnings at creation. Verified with focused tests, TypeScript, migration-prefix check, local Next build, and whitespace check.
 - [x] **Kiosk battery client and labels** — Include batteries in iOS kiosk pickup/return checklists, block pickup confirm until planned units are scanned, align compatibility rules to the current import snapshot, and improve Brother P-Touch unit labels. Verified with focused tests, TypeScript, migration-prefix check, local Next build, iOS simulator build, and whitespace check.
+- [ ] **Ops V2/V3 roadmap** — Saved follow-up roadmap in `tasks/ops-v2-v3-roadmap.md`; first recommended slice is Bulk Inventory / Batteries V2.
 
 ### Codex Readiness (2026-05-05)
 - [x] **Worktree hygiene** — classified untracked Codex/agent files, kept useful project-scoped guidance, and removed tracked local `.DS_Store` noise from future diffs
@@ -61,6 +123,17 @@ Last updated: 2026-05-05
 - [x] **Next optimization plan** — wrote `tasks/react-query-cache-plan.md`; GAP-11 is a cache-key audit follow-up, not a migration
 
 ### Review
+- Home Dashboard Focused Pass shipped: dashboard rows now use one shared row component, no longer nest action buttons inside clickable row buttons, and use a safer mobile layout with predictable truncation. Filter clear no longer nests a focusable pseudo-button inside the popover trigger. Docs synced in `AREA_DASHBOARD.md`. Verification passed for TypeScript, migration-prefix check, and local Next build; exact `npm run build` remains blocked at remote Prisma migrate deploy.
+- Home Dashboard Follow-up Pass shipped: overdue banner rows now split open/check-in/nudge into sibling controls, saved filter presets now split apply/delete into sibling controls, and the production browser check confirms the app can render `/login`; dashboard visual inspection still needs an authenticated browser session.
+- Home Dashboard Console Polish shipped: stat cards are quieter and section headers now share one component, reducing repeated header styling across My Gear and Team Activity.
+- Home Dashboard Live Browser Polish shipped: local login now works on `localhost:7001`, the dashboard renders without the Next dev issue badge, buttons/toggles have explicit tactile transitions, and the Upcoming Events header stays readable in narrow columns.
+- Sidebar Polish Pass shipped: sidebar nav rows are quieter without permanent index numbers, icon states are clearer, hover/active transitions are explicit, and collapsed mode was checked live.
+- Schedule Page Focused Pass shipped: New Event no longer relies on invalid empty Select values, location loading and event creation redirect/error paths are explicit, schedule row expansion uses a real expand control instead of a focusable row-link hybrid, inline schedule mutations have ref-backed duplicate-submit guards, and the live Arc console is down to normal dev noise after a reload.
+- Schedule Command Bar + Coverage Pass shipped: Needs staff is now a first-class schedule command, secondary filters keep their own count, the list header/rows surface open-slot coverage gaps without requiring the shift panel, and the live shift-trades reload error is cleared.
+- Schedule Readiness Polish Pass shipped: schedule now opens with an operational snapshot for open slots, ready events, my shifts, open trades, and next visible call time before the date-grouped list.
+- Schedule Inline Assignment Matrix Pass shipped: expanded events now show one scannable slot matrix, staff can assign open slots directly from each tile, students keep inline trade posting, and the event manager is exposed as one clear action instead of relying on row-click behavior.
+- Schedule Collapsed Staffing Preview Pass shipped: collapsed rows now show assigned-staff avatar groups and open-slot counts, those previews fade on expand, and expanded content returns to dense assignment rows for fully staffed events.
+- Schedule Role Language Polish shipped: schedule rows now state staff/student needs in plain language, keep event start/all-day context with the event title, keep expanded role labels neutral to avoid competing color systems, avoid repeating the same need in the collapsed avatar preview, and reserve the right column for real home call times.
 - Camera Attachments shipped: item detail now uses grouped Attachments, SD card slot labels render for tags such as `MBB 17 IV 1A`, scan lookup shows parent/slot context, and docs lock QR-coded batteries to numbered bulk semantics. `npm run build` stopped at remote Prisma migrate deploy; safer local `npx next build` passed.
 - Derived Bulk Unit QR Scans shipped: QR values generated by the numbered bulk QR tab, such as `94e068d1-7`, now submit as one validated numbered unit under the parent SKU without converting batteries into serialized items.
 - Bulk Battery Hardening shipped: kiosk pickup/check-in now scans numbered battery unit QRs one by one, lookup resolves unit QRs, checkout creation warns on low compatible battery availability, and camera-battery guidance is no longer a hard gate.

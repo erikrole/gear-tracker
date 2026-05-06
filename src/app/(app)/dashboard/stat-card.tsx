@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowUpRightIcon } from "lucide-react";
 
 type StatCardProps = {
   href: string;
@@ -26,7 +27,7 @@ export function StatCard({ href, value, label, accent }: StatCardProps) {
   return (
     <Link
       href={href}
-      className={`relative flex flex-col justify-between px-4 py-3.5 md:py-4 bg-card border rounded-lg no-underline overflow-hidden transition-colors hover:bg-muted/40 ${a ? a.card : "border-border"}`}
+      className={`group relative flex min-h-20 flex-col justify-between overflow-hidden rounded-lg border bg-card px-4 py-3 no-underline outline-none transition-[background-color,border-color,box-shadow,scale] hover:bg-muted/40 active:scale-[0.96] focus-visible:ring-[3px] focus-visible:ring-ring/50 ${a ? a.card : "border-border"}`}
     >
       {/* Left accent bar */}
       {a && (
@@ -36,17 +37,20 @@ export function StatCard({ href, value, label, accent }: StatCardProps) {
         />
       )}
 
+      <span className="flex items-center justify-between gap-2">
+        <span
+          className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground/70"
+          style={{ fontFamily: "var(--font-mono)" }}
+        >
+          {label}
+        </span>
+        <ArrowUpRightIcon className="text-muted-foreground/40 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+      </span>
       <span
-        className={`text-[38px] md:text-[46px] font-black leading-none tabular-nums ${a ? a.num : "text-foreground"}`}
+        className={`text-[30px] font-black leading-none tabular-nums md:text-[34px] ${a ? a.num : "text-foreground"}`}
         style={{ fontFamily: "var(--font-heading)" }}
       >
         {value}
-      </span>
-      <span
-        className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground/60 mt-2"
-        style={{ fontFamily: "var(--font-mono)" }}
-      >
-        {label}
       </span>
     </Link>
   );

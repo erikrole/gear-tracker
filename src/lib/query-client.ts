@@ -37,7 +37,8 @@ if (typeof window !== "undefined") {
     persister,
     maxAge: 24 * 60 * 60_000,
     dehydrateOptions: {
-      shouldDehydrateQuery: (query) => shouldPersistQueryKey(query.queryKey),
+      shouldDehydrateQuery: (query) =>
+        query.state.status === "success" && shouldPersistQueryKey(query.queryKey),
     },
   });
 }

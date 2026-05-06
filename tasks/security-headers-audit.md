@@ -5,6 +5,7 @@ Date: 2026-05-03 · Reference: Mozilla Observatory, OWASP Secure Headers, securi
 ## Shipped (commit pending)
 
 - **CSP tightened** — added `form-action 'self'`, `base-uri 'none'`, `object-src 'none'`, `upgrade-insecure-requests`, `worker-src 'self'`, `manifest-src 'self'`. Narrowed `img-src` from `https:` to `'self' blob: data: https://*.public.blob.vercel-storage.com`. Added Vercel Blob to `connect-src` so client uploads work.
+- **2026-05-05 adjustment** — `img-src` now allows `https:` again because imported legacy item thumbnails intentionally render as unoptimized external image URLs until the import backfill moves them into Vercel Blob. Script and connect policies remain narrowed.
 - **COOP / CORP** — `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Resource-Policy: same-origin`.
 - **Permissions-Policy expanded** — explicitly denies USB, Serial, Bluetooth, Payment, sensors, FLoC/Topics, etc.
 - **Auth pages `Cache-Control: no-store`** — login/register/forgot-password/reset-password.

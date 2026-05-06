@@ -15,11 +15,11 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { CalendarCheckIcon, CalendarIcon, ClipboardCheckIcon, ClockIcon, InboxIcon, PackageIcon } from "lucide-react";
 import { ScaleIn } from "@/components/ui/motion";
-import { cn } from "@/lib/utils";
-import { formatDayLabel, formatDueLabel, formatEventDateTime, formatTimeShort, isDueToday } from "@/lib/format";
+import { formatDayLabel, formatTimeShort, isDueToday } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
-import { UserAvatar } from "@/components/UserAvatar";
-import { GearAvatarStack, ShiftAvatarStack } from "./dashboard-avatars";
+import { ShiftAvatarStack } from "./dashboard-avatars";
+import { DashboardBookingRow, dashboardBookingAccent } from "./booking-row";
+import { DashboardSectionHeader } from "./section-header";
 import type { DashboardData, BookingSummary, CreateBookingContext } from "../dashboard-types";
 import type { FilteredDashboardData } from "@/hooks/use-dashboard-filters";
 
@@ -59,40 +59,22 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
       {/* Team Checkouts */}
       <ScaleIn delay={0}>
       <Card elevation="elevated">
-        <Link href="/bookings?tab=checkouts" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-lg hover:bg-muted/60 hover:no-underline">
-          <h2 className="text-sm font-semibold text-foreground m-0">Checked out</h2>
-          <Badge variant="gray" size="sm">{data.teamCheckouts.total}</Badge>
-        </Link>
+        <DashboardSectionHeader title="Checked out" href="/bookings?tab=checkouts" count={data.teamCheckouts.total} />
         {(filtered?.teamCheckouts ?? data.teamCheckouts.items).length === 0 ? (
           <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-muted-foreground text-sm"><InboxIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} checkouts` : "No team checkouts right now"}</div>
         ) : (
           <CardContent className="p-0 py-1">
             {(filtered?.teamCheckouts ?? data.teamCheckouts.items).map((c) => {
-              const dueLabel = formatDueLabel(c.endsAt, now);
               return (
-                <button
+                <DashboardBookingRow
                   key={c.id}
-                  className={cn(
-                    "group flex items-center justify-between gap-3 w-full px-4 py-2 border-none bg-transparent cursor-pointer text-left transition-colors [&+&]:border-t [&+&]:border-border/40 border-l-[3px] pl-[13px]",
-                    c.isOverdue
-                      ? "border-l-[var(--wi-red)] bg-[var(--wi-red)]/[0.06] dark:bg-[var(--wi-red)]/[0.18] hover:bg-[var(--wi-red)]/10 dark:hover:bg-[var(--wi-red)]/25"
-                      : isDueToday(c.endsAt, now)
-                      ? "border-l-[var(--orange)] bg-[var(--orange)]/[0.04] dark:bg-[var(--orange)]/[0.12] hover:bg-[var(--orange)]/[0.08] dark:hover:bg-[var(--orange)]/[0.18]"
-                      : "border-l-[var(--blue)] hover:bg-muted/50"
-                  )}
-                  onClick={() => onSelectBooking(c.id)}
-                >
-                  <div className="flex flex-col gap-0.5 min-w-0">
-                    <span className="text-sm font-bold text-foreground truncate tracking-tight">
-                      {c.title}
-                    </span>
-                    <span className="flex items-center gap-1 text-xs text-muted-foreground leading-snug">
-                      <UserAvatar name={c.requesterName} avatarUrl={c.requesterAvatarUrl} />
-                      {c.requesterName} &ndash; {c.itemCount} item{c.itemCount !== 1 ? "s" : ""}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2.5 shrink-0">
-                    {isStaff && (c.isOverdue || isDueToday(c.endsAt, now)) && (
+                  booking={c}
+                  now={now}
+                  accent={dashboardBookingAccent(c, now, "checkout")}
+                  showDueBadge
+                  onSelectBooking={onSelectBooking}
+                  actions={
+                    isStaff && (c.isOverdue || isDueToday(c.endsAt, now)) ? (
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
@@ -108,16 +90,9 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
                         </TooltipTrigger>
                         <TooltipContent>Extend 1 day</TooltipContent>
                       </Tooltip>
-                    )}
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Badge variant={c.isOverdue ? "red" : isDueToday(c.endsAt, now) ? "orange" : "gray"} size="sm" className="cursor-default">{dueLabel}</Badge>
-                      </TooltipTrigger>
-                      <TooltipContent>{formatEventDateTime(c.startsAt, c.endsAt)}</TooltipContent>
-                    </Tooltip>
-                    <GearAvatarStack items={c.items} totalCount={c.itemCount} />
-                  </div>
-                </button>
+                    ) : null
+                  }
+                />
               );
             })}
             {!activeSport && data.teamCheckouts.total > data.teamCheckouts.items.length && (
@@ -131,31 +106,19 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
       {/* Team Reservations */}
       <ScaleIn delay={0.05}>
       <Card>
-        <Link href="/bookings?tab=reservations" className="flex items-center justify-between px-4 py-3 border-b border-border/50 no-underline text-inherit cursor-pointer transition-colors rounded-t-lg hover:bg-muted/60 hover:no-underline">
-          <h2 className="text-sm font-semibold text-foreground m-0">Reserved</h2>
-          <Badge variant="gray" size="sm">{data.teamReservations.total}</Badge>
-        </Link>
+        <DashboardSectionHeader title="Reserved" href="/bookings?tab=reservations" count={data.teamReservations.total} />
         {(filtered?.teamReservations ?? data.teamReservations.items).length === 0 ? (
           <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-muted-foreground text-sm"><InboxIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} reservations` : "No team reservations right now"}</div>
         ) : (
           <CardContent className="p-0 py-1">
             {(filtered?.teamReservations ?? data.teamReservations.items).map((r) => (
-              <button
+              <DashboardBookingRow
                 key={r.id}
-                className="group flex items-center justify-between gap-3 w-full px-4 py-2 border-none bg-transparent cursor-pointer text-left transition-colors hover:bg-muted/50 [&+&]:border-t [&+&]:border-border/40 border-l-[3px] pl-[13px] border-l-[var(--purple)]"
-                onClick={() => onSelectBooking(r.id)}
-              >
-                <div className="flex flex-col gap-0.5 min-w-0">
-                  <span className="text-sm font-bold text-foreground truncate tracking-tight">
-                    {r.title}
-                  </span>
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground leading-snug">
-                    <UserAvatar name={r.requesterName} avatarUrl={r.requesterAvatarUrl} />
-                    {r.requesterName} &ndash; {r.itemCount} item{r.itemCount !== 1 ? "s" : ""}
-                  </span>
-                </div>
-                <GearAvatarStack items={r.items} totalCount={r.itemCount} />
-              </button>
+                booking={r}
+                now={now}
+                accent="reservation"
+                onSelectBooking={onSelectBooking}
+              />
             ))}
             {!activeSport && data.teamReservations.total > data.teamReservations.items.length && (
               <Link href="/bookings?tab=reservations" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all {data.teamReservations.total} &rarr;</Link>
@@ -168,21 +131,24 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
       {/* Upcoming Events */}
       <ScaleIn delay={0.1}>
       <Card>
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
-          <Link href="/schedule" className="no-underline text-inherit hover:no-underline">
-            <h2 className="text-sm font-semibold text-foreground m-0">Upcoming events</h2>
-          </Link>
-          <ToggleGroup
-            type="single"
-            value={homeAwayFilter}
-            onValueChange={(v) => v && setHomeAwayFilter(v as HomeAwayFilter)}
-            aria-label="Home or away filter"
-          >
-            <ToggleGroupItem value="all" className="text-xs px-2 py-1">All</ToggleGroupItem>
-            <ToggleGroupItem value="home" className="text-xs px-2 py-1">Home</ToggleGroupItem>
-            <ToggleGroupItem value="away" className="text-xs px-2 py-1">Away</ToggleGroupItem>
-          </ToggleGroup>
-        </div>
+        <DashboardSectionHeader
+          title="Upcoming events"
+          href="/schedule"
+          className="grid-cols-1 gap-y-2"
+          actionClassName="col-start-1 row-start-2 justify-self-start"
+          action={
+            <ToggleGroup
+              type="single"
+              value={homeAwayFilter}
+              onValueChange={(v) => v && setHomeAwayFilter(v as HomeAwayFilter)}
+              aria-label="Home or away filter"
+            >
+              <ToggleGroupItem value="all" className="text-xs px-2 py-1">All</ToggleGroupItem>
+              <ToggleGroupItem value="home" className="text-xs px-2 py-1">Home</ToggleGroupItem>
+              <ToggleGroupItem value="away" className="text-xs px-2 py-1">Away</ToggleGroupItem>
+            </ToggleGroup>
+          }
+        />
         {cappedEvents.length === 0 ? (
           <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-muted-foreground text-sm">
             <CalendarIcon className="size-6 opacity-40" />
@@ -195,7 +161,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
             {cappedEvents.map((e) => (
               <div key={e.id} className="group flex items-center justify-between gap-3 w-full px-4 py-2 transition-colors hover:bg-muted/50 [&+&]:border-t [&+&]:border-border/40 no-underline text-inherit">
                 <Link href={`/events/${e.id}`} className="flex flex-col gap-0.5 min-w-0 no-underline">
-                  <span className="text-sm font-bold text-foreground truncate tracking-tight">
+                  <span className="text-sm font-bold text-foreground truncate">
                     {e.sportCode && <span className="text-xs font-bold mr-1">{sportLabel(e.sportCode)}</span>}
                     {e.opponent ? <span className="text-muted-foreground font-normal">vs {e.opponent}</span> : (!e.sportCode ? e.title : "")}
                   </span>

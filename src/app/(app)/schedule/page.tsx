@@ -22,6 +22,7 @@ import { WeekView } from "./_components/WeekView";
 import { classifyError, handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
 import { ListView } from "./_components/ListView";
 import { NewEventSheet } from "./_components/NewEventSheet";
+import { ScheduleReadiness } from "./_components/ScheduleReadiness";
 
 const ShiftDetailPanel = dynamic(
   () => import("@/components/ShiftDetailPanel"),
@@ -96,6 +97,13 @@ export default function SchedulePage() {
 
       {/* View toggle + filters */}
       <ScheduleFilters filters={data.filters} entries={data.entries} />
+
+      <ScheduleReadiness
+        entries={data.entries}
+        filteredEntries={data.filteredEntries}
+        currentUserId={data.currentUserId}
+        openTradeCount={data.openTradeCount}
+      />
 
       {/* Calendar View */}
       {data.filters.viewMode === "calendar" && (
