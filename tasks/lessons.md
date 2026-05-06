@@ -82,6 +82,9 @@
 - **Role language is not a second color system**: In dense schedule rows, use text to distinguish staff/student needs and reserve color for one primary signal. Stacking area colors, role colors, open-slot red, and icon tints creates visual conflict and overlap.
 - **Do not repeat the same schedule need in one row**: If the event title cluster already states "Needs 4 students", the right-side avatar preview should only show assignment state, such as avatars or "No assignments".
 - **Schedule list column ownership must stay strict**: The event title cluster owns event start/all-day context. The right-side desktop column owns only home call time, not event time, all-day fallback text, or staffing summaries.
+- **Items row identity should stay physically scannable**: Do not add serial numbers or duplicate column-owned fields into the primary item row stack by default. Lead with tag and product identity; keep Department visible in its own column because it should be populated for every item.
+- **Clear controls must be siblings of trigger buttons**: Never put an icon clear `<button>` inside a shadcn/Radix trigger button. Use a segmented wrapper with the trigger and clear button as siblings to avoid nested-button hydration errors.
+- **PWA manifest icons need declared real sizes**: Do not point the web manifest at a small brand logo with `sizes: "any"`. Use purpose-built 192/512 app icons so Chrome does not reject the manifest icon.
 - **Badge variants for all colored labels**: Never hardcode `bg-green-50 text-green-700`. Use Badge variants for dark mode safety.
 - **`text-base md:text-sm` on inputs**: Prevents iOS auto-zoom on focus (requires 16px+ on mobile).
 - **Hover-reveal needs `sm:` prefix**: `sm:opacity-0 sm:group-hover/row:opacity-100` — always visible on touch.

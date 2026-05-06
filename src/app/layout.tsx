@@ -17,7 +17,10 @@ export const metadata: Metadata = {
     title: "Wisconsin Creative",
   },
   icons: {
-    icon: "/Badgers.png",
+    icon: [
+      { url: "/icon-192.svg", sizes: "192x192", type: "image/svg+xml" },
+      { url: "/icon-512.svg", sizes: "512x512", type: "image/svg+xml" },
+    ],
     apple: "/Badgers.png",
   },
 };

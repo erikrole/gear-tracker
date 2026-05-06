@@ -122,6 +122,12 @@ function eventStartLabel(entry: CalendarEntry) {
   return entry.allDay ? "All day" : formatTimeShort(entry.startsAt);
 }
 
+function callWindowLabel(startIso: string, endIso: string) {
+  const start = formatTime(startIso);
+  const end = formatTime(endIso);
+  return start === end ? `Call ${start}` : `Call ${start}–${end}`;
+}
+
 /* ── Coverage fraction badge ── */
 function CoveragePill({ percentage, filled, total }: { percentage: number; filled: number; total: number }) {
   const variant = coverageVariant(percentage);
@@ -1010,7 +1016,7 @@ function EventRows({
         <td className="px-4 py-3 border-b border-border/20 whitespace-nowrap">
           {entry.isHome === true && callTime ? (
             <span className="text-sm text-muted-foreground tabular-nums" style={{ fontFamily: "var(--font-mono)" }}>
-              {`Call ${callTime}–${formatTime(entry.endsAt)}`}
+              {callWindowLabel(entry.shifts.reduce((min, s) => s.startsAt < min ? s.startsAt : min, entry.shifts[0]!.startsAt), entry.endsAt)}
             </span>
           ) : null}
         </td>

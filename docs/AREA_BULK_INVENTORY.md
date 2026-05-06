@@ -146,6 +146,7 @@ See `AREA_ITEMS.md` 2026-04-06 entry for bulk inventory page hardening:
 - [x] AC-6: Change unit status (mark lost, retire, release) with audit trail
 
 ## Change Log
+- 2026-05-06: Items Fill gaps now includes active bulk SKUs when counting and assigning missing category or department values, suggests departments from same-category inventory patterns including legacy bulk rows with category text but no `categoryId`, and the Items table receives bulk department metadata from `/api/assets`.
 - 2026-05-05: Battery compatibility mapping aligned to the current import snapshot: Sony NP-FZ100 bodies (FX3, A7/A1/A9 family) and Sony BP-U bodies (FX6) warn against matching numbered battery SKUs. Reporting remains deferred in GAP-37.
 - 2026-05-05: Bulk battery hardening — kiosk pickup/check-in now accepts numbered battery unit QR scans, lookup resolves battery units, and checkout creation warns when compatible battery availability is low.
 - 2026-05-05: Numbered bulk unit QR scans shipped — values like `94e068d1-7` resolve to the parent SKU and unit #7 without opening the picker.

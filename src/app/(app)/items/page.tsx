@@ -96,7 +96,19 @@ export default function ItemsPage() {
   // Clear selection when page/filters change
   useEffect(() => {
     setRowSelection({});
-  }, [query.page, filters.debouncedSearch, filters.statusKey, filters.locationKey, filters.categoryKey, filters.brandKey, filters.departmentKey]);
+  }, [
+    query.page,
+    filters.debouncedSearch,
+    filters.statusKey,
+    filters.locationKey,
+    filters.categoryKey,
+    filters.brandKey,
+    filters.departmentKey,
+    filters.showAccessories,
+    filters.favoritesOnly,
+    filters.itemType,
+    filters.sortKey,
+  ]);
 
   const selectedIds = Object.keys(rowSelection).filter((k) => rowSelection[k]);
   const selectedCount = selectedIds.length;
@@ -170,7 +182,7 @@ export default function ItemsPage() {
           createdAt: "",
           location: { id: b.locationId, name: b.locationName },
           category: b.categoryId ? { id: b.categoryId, name: b.category } : null,
-          department: null,
+          department: b.departmentId && b.departmentName ? { id: b.departmentId, name: b.departmentName } : null,
           imageUrl: b.imageUrl,
           activeBooking: null,
           isFavorited: false,
@@ -192,7 +204,9 @@ export default function ItemsPage() {
       a.assetTag.localeCompare(b.assetTag, undefined, { numeric: true, sensitivity: "base" })
     );
     return [...serializedItems, ...bulkAssets];
-  }, [query.items, query.bulkItems, filters.itemType]);
+  }, [query.items, query.bulkItems, filters.itemType, filters.sortKey]);
+
+  const visibleRowCount = mergedData.length;
 
   // Optimistic favorite toggle
   const handleToggleFavorite = useCallback(async (asset: Asset) => {
@@ -226,6 +240,7 @@ export default function ItemsPage() {
       filters.brandKey.split(",").filter(Boolean).forEach((v) => params.append("brand", v));
       filters.departmentKey.split(",").filter(Boolean).forEach((v) => params.append("department_id", v));
       if (filters.showAccessories) params.set("show_accessories", "true");
+      if (filters.favoritesOnly) params.set("favorites_only", "true");
 
       const res = await fetch(`/api/assets/export?${params}`);
       if (handleAuthRedirect(res)) return;
@@ -246,8 +261,9 @@ export default function ItemsPage() {
       }
     } catch {
       toast.error("Export failed");
+    } finally {
+      setExporting(false);
     }
-    setExporting(false);
   }, [filters]);
 
   const handleRowAction = useCallback(async (action: string, asset: Asset) => {
@@ -270,9 +286,10 @@ export default function ItemsPage() {
           }
         } catch {
           toast.error("Network error — could not duplicate item");
+        } finally {
+          busyRef.current = false;
+          setActionBusy(false);
         }
-        busyRef.current = false;
-        setActionBusy(false);
         break;
       case "maintenance":
         busyRef.current = true;
@@ -288,9 +305,10 @@ export default function ItemsPage() {
           }
         } catch {
           toast.error("Network error — could not update item");
+        } finally {
+          busyRef.current = false;
+          setActionBusy(false);
         }
-        busyRef.current = false;
-        setActionBusy(false);
         break;
       case "retire":
         setRetireTarget(asset);
@@ -313,15 +331,16 @@ export default function ItemsPage() {
       }
     } catch {
       toast.error("Network error — could not retire item");
+    } finally {
+      setRetireTarget(null);
+      busyRef.current = false;
+      setActionBusy(false);
     }
-    setRetireTarget(null);
-    busyRef.current = false;
-    setActionBusy(false);
   }
 
   const columns = useMemo(
-    () => getColumns({ canEdit: options.canEdit, onRowAction: handleRowAction, onToggleFavorite: handleToggleFavorite }),
-    [options.canEdit, handleRowAction, handleToggleFavorite]
+    () => getColumns({ canEdit: options.canEdit, density, onRowAction: handleRowAction, onToggleFavorite: handleToggleFavorite }),
+    [options.canEdit, density, handleRowAction, handleToggleFavorite]
   );
 
   // Helper to set filter and reset page
@@ -358,8 +377,8 @@ export default function ItemsPage() {
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            size="icon"
-            className="hidden sm:flex size-9"
+            size="icon-sm"
+            className="hidden sm:flex"
             onClick={() => setDensity((d) => (d === "compact" ? "comfortable" : "compact"))}
             aria-label={density === "compact" ? "Switch to comfortable density" : "Switch to compact density"}
             title={density === "compact" ? "Comfortable density" : "Compact density"}
@@ -368,15 +387,27 @@ export default function ItemsPage() {
           </Button>
           {options.canEdit && (
             <>
-              <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting} className="hidden sm:flex" aria-label={exporting ? "Exporting items" : "Export items to CSV"}>
-                <Download className="size-4 mr-1.5" aria-hidden="true" />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExport}
+                disabled={exporting}
+                className="hidden min-w-[86px] sm:flex"
+                aria-label={exporting ? "Exporting items" : "Export items to CSV"}
+              >
+                <Download className="size-3.5" aria-hidden="true" />
                 {exporting ? "Exporting…" : "Export"}
               </Button>
-              <Button variant="outline" size="sm" className="hidden sm:flex" onClick={() => setShowGapWizard(true)}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="hidden min-w-[86px] sm:flex"
+                onClick={() => setShowGapWizard(true)}
+              >
                 Fill gaps
               </Button>
-              <Button variant="outline" asChild><Link href="/import">Import</Link></Button>
-              <Button onClick={() => setShowCreate(true)}>New item</Button>
+              <Button variant="outline" size="sm" className="min-w-[76px]" asChild><Link href="/import">Import</Link></Button>
+              <Button size="sm" className="min-w-[92px]" onClick={() => setShowCreate(true)}>New item</Button>
             </>
           )}
         </div>
@@ -384,64 +415,60 @@ export default function ItemsPage() {
 
       {/* Inventory summary bar */}
       {query.statusBreakdown && !query.loading && (
-        <div className="flex items-center gap-5 mb-5 pb-4 border-b border-border/40 flex-wrap">
-          {/* Primary count */}
-          <div className="flex items-baseline gap-1.5">
-            <span
-              className="text-[28px] font-black leading-none tracking-tight"
-              style={{ fontFamily: "var(--font-heading)" }}
-            >
-              {query.total}
-            </span>
-            <span
-              className="text-[9.5px] uppercase tracking-[0.2em] text-muted-foreground/45"
-              style={{ fontFamily: "var(--font-mono)" }}
-            >
-              items
-            </span>
+        <div className="mb-4 grid gap-2 rounded-md border border-border/60 bg-muted/20 p-2 sm:grid-cols-[1.2fr_repeat(5,minmax(0,1fr))]">
+          <div className="flex min-h-14 items-center justify-between rounded-sm bg-background px-3 shadow-xs sm:justify-start sm:gap-3">
+            <div>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Inventory</div>
+              <div className="mt-0.5 flex items-baseline gap-1.5">
+                <span className="text-2xl font-black leading-none tabular-nums" style={{ fontFamily: "var(--font-heading)" }}>
+                  {query.total}
+                </span>
+                <span className="text-xs text-muted-foreground">items</span>
+              </div>
+            </div>
           </div>
 
-          {/* Status breakdown — clickable chips, always 5 buckets (zeros greyed) */}
-          <div className="hidden sm:block h-5 w-px bg-border/50 shrink-0" aria-hidden="true" />
-          <div className="flex items-center gap-4 flex-wrap">
-            {(
-              [
-                { value: "AVAILABLE", count: query.statusBreakdown.available, label: "available", dotClass: STATUS_STYLES.green.dot },
-                { value: "CHECKED_OUT", count: query.statusBreakdown.checkedOut, label: "out", dotClass: STATUS_STYLES.blue.dot },
-                { value: "RESERVED", count: query.statusBreakdown.reserved, label: "reserved", dotClass: STATUS_STYLES.purple.dot },
-                { value: "MAINTENANCE", count: query.statusBreakdown.maintenance, label: "maintenance", dotClass: STATUS_STYLES.orange.dot },
-                { value: "RETIRED", count: query.statusBreakdown.retired, label: "retired", dotClass: STATUS_STYLES.gray.dot },
-              ] as const
-            ).map((bucket) => {
-              const isActive = filters.statusFilter.has(bucket.value);
-              const isZero = bucket.count === 0;
-              return (
-                <button
-                  key={bucket.value}
-                  type="button"
-                  onClick={() => {
-                    const next = new Set(filters.statusFilter);
-                    if (next.has(bucket.value)) next.delete(bucket.value);
-                    else next.add(bucket.value);
-                    filters.setStatusFilter(next);
-                    query.setPage(0);
-                  }}
-                  aria-pressed={isActive}
-                  className={`flex items-center gap-1.5 rounded-md px-1.5 py-0.5 -mx-1.5 transition-colors hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring ${
-                    isActive ? "bg-muted" : ""
-                  } ${isZero ? "opacity-40" : ""}`}
-                >
-                  <span className={`size-1.5 rounded-full shrink-0 ${bucket.dotClass}`} aria-hidden="true" />
-                  <span className="text-[13px] font-semibold tabular-nums" style={{ fontFamily: "var(--font-heading)" }}>
+          {(
+            [
+              { value: "AVAILABLE", count: query.statusBreakdown.available, label: "Available", dotClass: STATUS_STYLES.green.dot },
+              { value: "CHECKED_OUT", count: query.statusBreakdown.checkedOut, label: "Out", dotClass: STATUS_STYLES.blue.dot },
+              { value: "RESERVED", count: query.statusBreakdown.reserved, label: "Reserved", dotClass: STATUS_STYLES.purple.dot },
+              { value: "MAINTENANCE", count: query.statusBreakdown.maintenance, label: "Maintenance", dotClass: STATUS_STYLES.orange.dot },
+              { value: "RETIRED", count: query.statusBreakdown.retired, label: "Retired", dotClass: STATUS_STYLES.gray.dot },
+            ] as const
+          ).map((bucket) => {
+            const isActive = filters.statusFilter.has(bucket.value);
+            const isZero = bucket.count === 0;
+            return (
+              <button
+                key={bucket.value}
+                type="button"
+                onClick={() => {
+                  const next = new Set(filters.statusFilter);
+                  if (next.has(bucket.value)) next.delete(bucket.value);
+                  else next.add(bucket.value);
+                  filters.setStatusFilter(next);
+                  query.setPage(0);
+                }}
+                aria-pressed={isActive}
+                className={`group flex min-h-14 items-center justify-between rounded-sm border px-3 text-left shadow-xs transition-[background-color,border-color,box-shadow,transform] hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring active:scale-[0.98] ${
+                  isActive
+                    ? "border-primary/40 bg-primary/5 shadow-[inset_3px_0_0_hsl(var(--primary))]"
+                    : "border-transparent bg-background"
+                } ${isZero ? "opacity-55" : ""}`}
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <span className={`size-1.5 shrink-0 rounded-full ${bucket.dotClass}`} aria-hidden="true" />
+                    <span className="truncate">{bucket.label}</span>
+                  </div>
+                  <div className="mt-0.5 text-xl font-bold leading-none tabular-nums" style={{ fontFamily: "var(--font-heading)" }}>
                     {bucket.count}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground/70" style={{ fontFamily: "var(--font-mono)" }}>
-                    {bucket.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -487,7 +514,7 @@ export default function ItemsPage() {
                     <TableCell><Skeleton className="size-4" /></TableCell>
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <Skeleton className="size-9 rounded-md shrink-0" />
+                        {density !== "compact" && <Skeleton className="size-9 rounded-md shrink-0" />}
                         <div className="flex flex-col gap-1.5 flex-1">
                           <Skeleton className="h-4" style={{ width: `${55 + (r % 3) * 15}%` }} />
                           <Skeleton className="h-3" style={{ width: `${35 + (r % 4) * 10}%` }} />
@@ -523,7 +550,7 @@ export default function ItemsPage() {
           </>
         ) : query.loadError ? (
           <EmptyState icon="box" title="Failed to load items" description="Something went wrong loading your inventory." actionLabel="Retry" onAction={query.reload} />
-        ) : query.items.length === 0 && !filters.hasActiveFilters && !filters.debouncedSearch ? (
+        ) : visibleRowCount === 0 && !filters.hasActiveFilters && !filters.debouncedSearch ? (
           <EmptyState
             icon="box"
             title="No items in inventory yet"
@@ -531,7 +558,7 @@ export default function ItemsPage() {
             actionLabel={options.canEdit ? "New item" : undefined}
             onAction={options.canEdit ? () => setShowCreate(true) : undefined}
           />
-        ) : query.items.length === 0 ? (
+        ) : visibleRowCount === 0 ? (
           <EmptyState
             icon="search"
             title="No items match your filters"
@@ -601,7 +628,7 @@ export default function ItemsPage() {
         )}
 
         {/* Pagination footer */}
-        {!query.loading && !query.loadError && query.items.length > 0 && (
+        {!query.loading && !query.loadError && visibleRowCount > 0 && (
           <ItemsPagination
             total={query.total}
             page={query.page}

@@ -227,6 +227,7 @@ export function statusBadge(asset: Asset) {
 
 type ColumnMeta = {
   canEdit: boolean;
+  density?: "compact" | "comfortable";
   onRowAction?: (action: string, asset: Asset) => void;
   onToggleFavorite?: (asset: Asset) => void;
 };
@@ -303,18 +304,26 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
       enableSorting: true,
       cell: ({ row }) => {
         const item = row.original;
+        const isCompact = meta.density === "compact";
         const rawSubtitle = item.name || [item.brand, item.model].filter(Boolean).join(" ");
-        // Hide subtitle when it duplicates the assetTag (case-insensitive, trimmed) — pure noise.
+        // Hide subtitle when it duplicates the assetTag.
         const subtitle =
           rawSubtitle && rawSubtitle.trim().toLowerCase() !== item.assetTag.trim().toLowerCase()
             ? rawSubtitle
             : null;
         return (
-          <div className="flex items-center gap-3 min-w-0">
-            <AssetImage src={item.imageUrl} alt={item.assetTag} size={36} />
-            <div className="flex flex-col min-w-0">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="font-semibold truncate" style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{item.assetTag}</span>
+          <div className="flex min-w-0 items-center gap-3">
+            {!isCompact && (
+              <AssetImage src={item.imageUrl} alt={item.assetTag} size={40} className="rounded-lg" />
+            )}
+            <div className={isCompact ? "flex min-w-0 items-center gap-2" : "flex min-w-0 flex-col gap-0.5"}>
+              <div className="flex min-w-0 items-center gap-1.5">
+                <span
+                  className={isCompact ? "truncate text-sm font-medium leading-tight" : "truncate text-[15px] font-semibold leading-tight"}
+                  style={{ fontFamily: "var(--font-heading)", fontWeight: isCompact ? 600 : 650 }}
+                >
+                  {item.assetTag}
+                </span>
                 {(item._count?.accessories ?? 0) > 0 && (
                   <Badge variant="secondary" size="sm" className="shrink-0 rounded-sm px-1 font-normal">
                     +{item._count!.accessories}
@@ -322,7 +331,9 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
                 )}
               </div>
               {subtitle && (
-                <div className="text-xs text-muted-foreground truncate">{subtitle}</div>
+                <div className={isCompact ? "max-w-[280px] truncate text-xs text-muted-foreground" : "max-w-[360px] truncate text-xs text-muted-foreground"}>
+                  {subtitle}
+                </div>
               )}
             </div>
           </div>
@@ -345,7 +356,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
       id: "category",
       accessorFn: (row) => row.category?.name || row.type,
       cell: ({ row }) => (
-        <span className="truncate block">{row.original.category?.name || row.original.type}</span>
+        <span className="block truncate text-sm text-foreground/85">{row.original.category?.name || row.original.type}</span>
       ),
       enableSorting: true,
     },
@@ -354,7 +365,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
       id: "department",
       accessorFn: (row) => row.department?.name ?? "",
       cell: ({ row }) => (
-        <span className="truncate block">{row.original.department?.name ?? "—"}</span>
+        <span className="block truncate text-sm text-muted-foreground">{row.original.department?.name ?? "—"}</span>
       ),
       enableSorting: true,
     },
@@ -363,7 +374,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
       id: "location",
       accessorFn: (row) => row.location.name,
       cell: ({ row }) => (
-        <span className="truncate block">{row.original.location.name}</span>
+        <span className="block truncate text-sm font-medium text-foreground/85">{row.original.location.name}</span>
       ),
       enableSorting: true,
     },

@@ -162,8 +162,9 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
               <div key={e.id} className="group flex items-center justify-between gap-3 w-full px-4 py-2 transition-colors hover:bg-muted/50 [&+&]:border-t [&+&]:border-border/40 no-underline text-inherit">
                 <Link href={`/events/${e.id}`} className="flex flex-col gap-0.5 min-w-0 no-underline">
                   <span className="text-sm font-bold text-foreground truncate">
-                    {e.sportCode && <span className="text-xs font-bold mr-1">{sportLabel(e.sportCode)}</span>}
-                    {e.opponent ? <span className="text-muted-foreground font-normal">vs {e.opponent}</span> : (!e.sportCode ? e.title : "")}
+                    {e.opponent
+                      ? `${e.sportCode ? `${sportLabel(e.sportCode)} ` : ""}${e.isHome === false ? "at" : "vs"} ${e.opponent}`
+                      : e.sportCode ? sportLabel(e.sportCode) : e.title}
                   </span>
                   <span className="flex items-center gap-1 text-xs text-muted-foreground leading-snug">
                     {formatDayLabel(e.startsAt, now)}{e.allDay ? " \u2013 All day" : `, ${formatTimeShort(e.startsAt)} \u2013 ${formatTimeShort(e.endsAt)}`}

@@ -40,6 +40,8 @@ export type BulkItem = {
   locationName: string;
   locationId: string;
   categoryId: string | null;
+  departmentId: string | null;
+  departmentName: string | null;
   binQrCodeValue: string;
 };
 

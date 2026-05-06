@@ -61,7 +61,7 @@ export function DataTable({
 }: DataTableProps) {
   const densityClass =
     density === "compact"
-      ? "[&_td]:py-1 [&_td]:px-3 [&_th]:h-8 [&_th]:px-3"
+      ? "[&_td]:py-1 [&_td]:px-3 [&_th]:h-8 [&_th]:px-3 [&_tbody_tr]:h-10"
       : "";
   const router = useRouter();
 
@@ -88,7 +88,7 @@ export function DataTable({
   return (
     <div className="space-y-2">
       {(toolbar || bulkBar) && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-stretch">
           {bulkBar || toolbar}
         </div>
       )}
@@ -101,7 +101,7 @@ export function DataTable({
         )}
 
         {/* Mobile card layout */}
-        <div className="sm:hidden divide-y">
+        <div className="divide-y sm:hidden">
           {table.getRowModel().rows.length === 0 ? (
             <div className="px-4 py-10 text-center text-sm text-muted-foreground">
               No items match your filters.
@@ -110,6 +110,8 @@ export function DataTable({
             table.getRowModel().rows.map((row) => {
               const item = row.original;
               const subtitle = item.name || [item.brand, item.model].filter(Boolean).join(" ");
+              const product = [item.brand, item.model].filter(Boolean).join(" ");
+              const showProductMeta = product && product.trim().toLowerCase() !== subtitle.trim().toLowerCase();
               const meta = [item.location?.name, item.category?.name || item.type]
                 .filter(Boolean)
                 .join(" · ");
@@ -118,7 +120,7 @@ export function DataTable({
                 <div
                   key={row.id}
                   data-state={row.getIsSelected() ? "selected" : undefined}
-                  className="flex items-start gap-3 px-3 py-3 active:bg-muted/50 data-[state=selected]:bg-muted/40"
+                  className="flex items-start gap-3 px-3 py-3 transition-colors active:bg-muted/50 data-[state=selected]:bg-muted/40"
                   role="button"
                   tabIndex={0}
                   aria-label={`View ${item.assetTag}`}
@@ -148,18 +150,27 @@ export function DataTable({
                       aria-label={`Select ${item.assetTag}`}
                     />
                   </div>
-                  <AssetImage src={item.imageUrl} alt={item.assetTag} size={44} className="shrink-0" />
+                  {density !== "compact" && (
+                    <AssetImage src={item.imageUrl} alt={item.assetTag} size={48} className="shrink-0 rounded-lg" />
+                  )}
                   <div className="min-w-0 flex-1">
-                    <div className="font-semibold truncate" style={{ fontFamily: "var(--font-heading)" }}>
-                      {item.assetTag}
+                    <div className="flex min-w-0 items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="truncate text-[15px] font-semibold leading-tight" style={{ fontFamily: "var(--font-heading)" }}>
+                          {item.assetTag}
+                        </div>
+                        {subtitle && (
+                          <div className="mt-0.5 truncate text-xs text-muted-foreground">{subtitle}</div>
+                        )}
+                      </div>
+                      <div className="shrink-0">{statusBadge(item)}</div>
                     </div>
-                    {subtitle && (
-                      <div className="text-xs text-muted-foreground truncate">{subtitle}</div>
-                    )}
-                    <div className="mt-1.5 flex items-center gap-2 flex-wrap">
-                      {statusBadge(item)}
+                    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                      {showProductMeta && (
+                        <span className="truncate text-[11px] font-medium text-foreground/80">{product}</span>
+                      )}
                       {meta && (
-                        <span className="text-[11px] text-muted-foreground/80 truncate">{meta}</span>
+                        <span className="truncate text-[11px] text-muted-foreground/80">{meta}</span>
                       )}
                     </div>
                   </div>
@@ -181,7 +192,7 @@ export function DataTable({
                     <TableHead
                       key={header.id}
                       className={cn(
-                        "h-10 select-none group/th",
+                        "h-10 select-none text-[11px] uppercase tracking-wide text-muted-foreground group/th",
                         canSort && "cursor-pointer hover:bg-muted/80"
                       )}
                       onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
@@ -212,7 +223,7 @@ export function DataTable({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() ? "selected" : undefined}
-                  className="group/row cursor-pointer focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
+                  className="group/row cursor-pointer transition-colors hover:bg-muted/35 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
                   tabIndex={0}
                   role="row"
                   aria-label={`View ${row.original.assetTag}`}

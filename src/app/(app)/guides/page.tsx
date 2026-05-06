@@ -70,6 +70,8 @@ export default function GuidesPage() {
       <div className="relative max-w-sm">
         <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
         <Input
+          id="guides-search"
+          name="guides-search"
           placeholder="Search guides…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}

@@ -11,6 +11,7 @@ export const GET = withAuth(async (req, { user }) => {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q")?.trim();
   const showAccessories = searchParams.get("show_accessories") === "true";
+  const favoritesOnly = searchParams.get("favorites_only") === "true";
   const statusParams = searchParams.getAll("status").filter(Boolean);
   const locationIds = searchParams.getAll("location_id").filter(Boolean);
   const categoryIds = searchParams.getAll("category_id").filter(Boolean);
@@ -19,6 +20,7 @@ export const GET = withAuth(async (req, { user }) => {
 
   const baseWhere: Prisma.AssetWhereInput = {
     ...(!showAccessories ? { parentAssetId: null } : {}),
+    ...(favoritesOnly ? { favoritedBy: { some: { userId: user.id } } } : {}),
     ...(locationIds.length === 1 ? { locationId: locationIds[0] } : {}),
     ...(locationIds.length > 1 ? { locationId: { in: locationIds } } : {}),
     ...(categoryIds.length === 1 ? { categoryId: categoryIds[0] } : {}),
@@ -38,6 +40,10 @@ export const GET = withAuth(async (req, { user }) => {
             { model: { contains: q, mode: "insensitive" as const } },
             { serialNumber: { contains: q, mode: "insensitive" as const } },
             { name: { contains: q, mode: "insensitive" as const } },
+            { notes: { contains: q, mode: "insensitive" as const } },
+            { category: { name: { contains: q, mode: "insensitive" as const } } },
+            { location: { name: { contains: q, mode: "insensitive" as const } } },
+            { department: { name: { contains: q, mode: "insensitive" as const } } },
           ]
         }
       : {})

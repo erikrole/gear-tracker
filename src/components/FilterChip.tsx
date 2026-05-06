@@ -15,6 +15,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { ChevronDown, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export function FilterChip({
   label,
@@ -36,32 +37,36 @@ export function FilterChip({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className={`h-7 gap-1 text-xs rounded-full ${
-            active
-              ? "bg-muted/80 border-border"
-              : "text-muted-foreground"
-          }`}
-        >
-          <span className="font-medium">{label}{active && ":"}</span>
-          {active && <span className="font-semibold text-foreground">{displayValue || value}</span>}
-          {active ? (
-            <button
-              type="button"
-              aria-label={`Clear ${label} filter`}
-              className="ml-0.5 -mr-0.5 p-1 hover:text-foreground transition-colors rounded-full"
-              onClick={(e) => { e.stopPropagation(); onClear(); setOpen(false); }}
-            >
-              <X className="size-3" />
-            </button>
-          ) : (
-            <ChevronDown className="size-3 opacity-50" />
-          )}
-        </Button>
-      </PopoverTrigger>
+      <div
+        className={cn(
+          "inline-flex h-7 overflow-hidden rounded-full border border-input bg-background shadow-xs",
+          active ? "bg-muted/80 border-border" : "text-muted-foreground",
+        )}
+      >
+        <PopoverTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-full gap-1 rounded-none border-0 px-3 text-xs shadow-none hover:bg-muted/60"
+          >
+            <span className="font-medium">{label}{active && ":"}</span>
+            {active && <span className="font-semibold text-foreground">{displayValue || value}</span>}
+            {!active && <ChevronDown className="size-3 opacity-50" />}
+          </Button>
+        </PopoverTrigger>
+        {active && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label={`Clear ${label} filter`}
+            className="h-full w-7 rounded-none border-l border-border/50 text-muted-foreground shadow-none transition-[background-color,color,scale] hover:bg-muted hover:text-foreground active:scale-[0.96]"
+            onClick={() => { onClear(); setOpen(false); }}
+          >
+            <X className="size-3" />
+          </Button>
+        )}
+      </div>
       <PopoverContent align="start" sideOffset={4} className="w-auto min-w-[140px] p-0">
         <Command>
           <CommandList className="max-h-[240px]">

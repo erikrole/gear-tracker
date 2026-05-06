@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Items
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-05
+- Last Updated: 2026-05-06
 - Status: Active
 - Version: V1
 
@@ -54,7 +54,7 @@ Treat physical gear identity as primary, make list and detail views action-orien
 ### Top Bar Actions
 1. `New asset` visible to `ADMIN` and `STAFF`.
 2. `Import` visible to `ADMIN` and `STAFF`.
-3. `Export` visible to `ADMIN` and `STAFF`; hidden for `STUDENT`. **(Deferred — not yet implemented)**
+3. `Export` visible to `ADMIN` and `STAFF`; hidden for `STUDENT`. Downloads the current filtered CSV view.
 4. `Customize overview` deferred — not in V1.
 
 ### Filters and Controls
@@ -346,6 +346,9 @@ Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered 
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-05-06: **Items compact and Fill gaps upgrade** — compact density now removes row thumbnails so the desktop list reads closer to a standard shadcn data table. Fill gaps now treats cleanup as a small mixed serialized/bulk queue with batch prefetch, retryable count/load/save errors, ranked suggestions, same-category department hints that also work for legacy bulk category text, Department-first field ordering, explicit no-photo handling, and a skipped-item review path before closing the session.
+- 2026-05-06: **Items page UX/UI polish pass** — toolbar controls now sit in one command surface with search, item type, favorites, and a collapsible advanced filter row. Header actions now share a compact 32px sizing rhythm. The inventory status summary is a compact health grid instead of a loose chip rail. Desktop rows and mobile cards now put tag/product identity first while keeping serial and duplicate department metadata out of the name stack.
+- 2026-05-06: **Items page hardening pass** — export, duplicate, maintenance, and retire handlers now release busy state from `finally` blocks, including auth redirects and unexpected failures. The list uses merged serialized/bulk rows for empty-state and pagination visibility, clears selected rows when item type/favorites/attachments/sort filters change, and CSV export now honors favorites plus the same extended search fields as the list.
 - 2026-05-05: Camera attachment scope shipped — item detail now labels grouped Attachments, shows SD card slot labels, and keeps attached SD cards out of day-to-day checkout selection while preserving direct scan/search visibility.
 - 2026-04-30: **Items list — screenshot-review polish**. (1) Subtitle hidden when it duplicates the assetTag — kills the doubled "100-400 1 / 100-400 1" rows. (2) Sort indicators now only render on the active sort column or on header hover, dropping the per-column ⇅ noise. (3) Row kebab menu fades in only on row hover or focus. (4) Status breakdown summary chips are now clickable filters that toggle status into the URL filter set; all 5 buckets (Available + Out + Reserved + Maintenance + Retired) always render with zeros greyed, so the strip's information is shape-stable. (5) Density toggle (Compact / Comfortable) added to the page header, persisted to `items-density` localStorage key.
 - 2026-04-30: **Items list — tighter assignee status pill**. The CHECKED_OUT/RESERVED pill is now a single line: `[avatar] STATUS · due-label`. Name moved off the pill into a hover tooltip on the avatar. Status label hover tooltip shows the full due-back date + time. Cleaner visual weight at row density; full information still one hover away.
@@ -397,7 +400,7 @@ Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered 
 - 2026-04-09: **Items list stress test (6 fixes)** — (1) Stale closure on `actionBusy` replaced with ref guard to prevent double-execute on rapid clicks. (2) 401 handling added to all 6 mutation paths (favorite, duplicate, maintenance, retire, export, bulk) via `handleAuthRedirect`. (3) Favorite API TOCTOU fixed — catch P2002 on concurrent toggle, use `deleteMany` for concurrent unfavorite. (4) Maintenance API TOCTOU fixed — read-then-toggle wrapped in SERIALIZABLE transaction. (5) Bulk action dialog buttons disabled during busy. (6) Bulk action bar kits fetch gets AbortController cleanup.
 - 2026-04-09: **Item detail pages rebuilt** — (1) Stale actionBusy closure in use-item-actions fixed with ref guard. (2) 401 handling added to all 15 mutation paths across 5 files (field saves, category/dept/location, QR generate/manual, settings toggles, accessory attach/detach, favorite, duplicate, retire, maintenance, delete). (3) Dead `details-grid` CSS class replaced with Tailwind grid. (4) CSS vars (`--text-tertiary`, `--accent`, `--accent-soft`) replaced with Tailwind tokens. (5) `text-secondary` (background token) corrected to `text-muted-foreground`. (6) Unstable `toast` removed from useCallback deps in use-item-data.
 - 2026-04-09: **Item detail header redesign** (commit 37d127b) — "Equipment manifest" aesthetic. Replaces flat header with card-based design: top red accent stripe, atmospheric corner glow, Gotham typography for asset tag (weight 900) and name, mono brand/model/serial lines, refined property pills row with status badge and vertical divider. Tab bar labels updated to Gotham Medium with mono shortcut indicators. File modified: `ItemHeader.tsx` (392→275 lines; refactored for brand identity).
-- 2026-04-09: **Gap Wizard shipped** (commit 3f4ca67) — One-by-one dialog for assigning missing category or department to items. Reachable via "Fill gaps" button in items page header. Shows upfront count of items missing each field. Walks through items one-by-one: user can assign value via picker, skip to next, or stop. API: `GET /api/assets?missingField=category|department` returns count and data, `PATCH /api/assets/[id]` to assign. New file: `gap-wizard-dialog.tsx` (320 lines). Imports `CategoryCombobox`, `FormCombobox`, `AssetImage`.
+- 2026-04-09: **Gap Wizard shipped** (commit 3f4ca67) — One-by-one dialog for assigning missing category or department to items. Reachable via "Fill gaps" button in items page header. Shows upfront count of items missing each field. Walks through items one-by-one: user can assign value via picker, skip to next, or stop. API: `GET /api/assets?missing=category|department` returns count and data, `PATCH /api/assets/[id]` to assign. New file: `gap-wizard-dialog.tsx` (320 lines). Imports `CategoryCombobox`, `FormCombobox`, `AssetImage`.
 
 ## Roadmaps
 - **Items list page**: `tasks/items-roadmap.md` — V1 polish, V2 enhanced UX, V3 advanced features

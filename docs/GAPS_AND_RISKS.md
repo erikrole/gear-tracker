@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-05
+- Last Updated: 2026-05-06
 - Status: Living registry — update when shipping features or resolving decisions
 - Purpose: Single file listing every open gap, pending decision, and known risk across all docs
 
@@ -136,6 +136,7 @@
 ---
 
 ## Change Log
+- 2026-05-06: Cheqroom import QR repair shipped. The latest 43-row export now cross-checks cleanly against the database; `Codes` is canonical for QR/primary scan, `Barcodes` is retained as source trace/fallback, and no new gap remains open.
 - 2026-05-05: Added GAP-37 to pin deferred battery audit/reporting after bulk battery kiosk hardening.
 - 2026-03-11: Initial registry created from docs hardening pass. Consolidated from NORTH_STAR.md gaps, DECISIONS.md pending items, and scattered AREA file TODOs.
 - 2026-03-14: Closed GAP-E (bulk items lack individual loss tracking) — D-022 shipped.

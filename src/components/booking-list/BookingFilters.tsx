@@ -54,6 +54,8 @@ export function BookingFilters({
         {config.labelPlural.toLowerCase()}
       </CardTitle>
       <Input
+        id={`${config.kind.toLowerCase()}-booking-search`}
+        name={`${config.kind.toLowerCase()}-booking-search`}
         type="text"
         className="flex-1 min-w-[120px] max-w-full max-md:flex-[1_1_100%] max-md:min-w-0"
         placeholder="Search by title or requester..."

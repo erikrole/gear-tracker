@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Importer
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-03-25
+- Last Updated: 2026-05-06
 - Status: Active
 - Version: V1
 
@@ -68,8 +68,8 @@ No column is discarded.
 - `Image Url` -> `imageUrl` (if valid URL)
 
 ### Tracking and Identifiers
-- `Codes` -> tracking code list (normalized token split)
-- `Barcodes` -> tracking code list (barcode type)
+- `Codes` -> primary Cheqroom QR/scan value when present
+- `Barcodes` -> fallback scan value and source trace field
 - `Serial number` -> `serialNumber`
 - `UW Asset Tag` -> `uwAssetTag`
 - `Id` -> `sourceExternalId` (Cheqroom id)
@@ -117,7 +117,7 @@ No column is discarded.
 ## Dedup and Upsert Strategy
 1. Primary matching key order:
    - `sourceExternalId` (Cheqroom id)
-   - tracking code (`Codes`/`Barcodes`)
+   - tracking code (`Codes` first, then `Barcodes`)
    - `serialNumber`
    - `tagName`
 2. Import mode options:
@@ -207,3 +207,4 @@ No column is discarded.
 - 2026-03-15: Import API rewritten with batched DB operations (≤15 calls for 181 rows). Added column mapping UI step with Cheqroom auto-detect + manual override. Duplicate detection by assetTag + serialNumber with create/update/skip preview. Re-import safe (reuses existing qrCodeValue).
 - 2026-03-25: Doc sync — standardized ACs to checkbox format, all 6 checked.
 - 2026-04-07: Hardening pass — import page multi-step flow hardened with handleAuthRedirect(returnTo) + classifyError + isAbortError on preview and import fetches. Network vs server errors now distinguished. Hardening score 2/5 → 4/5.
+- 2026-05-06: Cheqroom QR repair — importer now treats `Codes` as the canonical QR/primary scan value before `Barcodes`, preserves both source values in `sourcePayload`, updates existing QR values when no unique-owner conflict exists, and normalizes date-like timestamps to UTC day boundaries.

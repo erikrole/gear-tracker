@@ -1,6 +1,6 @@
 # Task Queue
 
-Last updated: 2026-05-05
+Last updated: 2026-05-06
 
 **Current release**: Beta — CalVer versioning adopted.
 **Release workflow**: `npm run release` creates CalVer tag + GitHub Release.
@@ -105,6 +105,37 @@ Last updated: 2026-05-05
 - [x] **Travel event cleanup** — Remove away/neutral call-time placeholders from collapsed and expanded schedule rows.
 - [x] **Verification + docs** — `npx tsc --noEmit`, `git diff --check`, and live Arc `/schedule` checks passed, including the expanded assign-slot popover.
 
+### Cross-Page DevTools Cleanup (2026-05-06)
+- [x] **Filter chip HTML validity** — Split active filter clear controls into sibling buttons so booking/status filters no longer render nested buttons.
+- [x] **Manifest icon cleanup** — Pointed app manifest metadata at the existing 192/512 SVG icons instead of declaring the 72px Badgers logo as any-size.
+- [x] **Search field identifiers** — Added stable `id`/`name` attributes to the visible search fields flagged by Chrome DevTools.
+- [x] **Dashboard/schedule copy cleanup** — Fixed dashboard event title spacing/home-away language and removed zero-duration call ranges from schedule rows.
+- [x] **Verification + docs** — `npx tsc --noEmit`, `git diff --check`, and Chrome DevTools MCP smoke checks passed on dashboard, schedule, bookings, items, users, and guides.
+
+### Items Page Hardening Pass (2026-05-06)
+- [x] **Audit current items surface** — Read item docs, decisions, gaps, schema, existing item audits, and current list/detail files before editing.
+- [x] **Async action resilience** — Make item export, duplicate, maintenance, and retire handlers always release busy state, including auth redirects and unexpected failures.
+- [x] **Filter/list correctness** — Keep selection and empty states aligned with item type, favorites, attachment filters, sorting, and mixed serialized/bulk result sets.
+- [x] **Export filter parity** — Keep CSV export aligned with the visible list filters where the export route supports them.
+- [x] **Verification + docs** — `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, and `npx next build` passed. AREA_ITEMS.md synced.
+
+### Items Page UX/UI Polish Pass (2026-05-06)
+- [x] **Command bar hierarchy** — Restructure search, view filters, advanced filters, favorites, clear actions, and header action sizing so the toolbar reads as one workflow.
+- [x] **Operational telemetry** — Rework the status summary strip so it scans like inventory health instead of a second toolbar.
+- [x] **Row hierarchy** — Improve desktop rows and mobile cards so tag identity, product metadata, status, location, and category have clearer priority.
+- [x] **Verification + docs** — `npx tsc --noEmit` and `git diff --check` passed. AREA_ITEMS.md synced.
+
+### Items Compact + Fill Gaps Upgrade (2026-05-06)
+- [x] **Compact table mode** — Make compact mode read like a plain shadcn data table by removing row thumbnails and tightening row rhythm.
+- [x] **Fill gaps queue** — Make the gap wizard more resilient with batch prefetch, retryable failures, smarter same-category suggestions, explicit no-photo handling, skipped-item review, and mixed serialized/bulk gap cleanup.
+- [x] **Verification + docs** — `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, Chrome for Testing Fill gaps layout checks, and a read-only Prisma data check for legacy bulk category-name department hints passed. AREA_ITEMS.md and AREA_BULK_INVENTORY.md synced.
+
+### Cheqroom Import QR Repair (2026-05-06)
+- [x] **Importer QR precedence** — Use Cheqroom `Codes` as the primary QR/scan value before `Barcodes`, and preserve both source values for traceability.
+- [x] **Re-import repair path** — Let upserts repair existing QR/primary scan values when there is no unique-owner conflict.
+- [x] **Current data repair** — Applied a guarded repair from the 2026-05-06 Cheqroom export: created 2 missing assets, repaired 20 QR values, repaired 23 primary scan values, refreshed duplicate-name rows by source/tracking match, and cross-checked all 43 CSV rows cleanly.
+- [x] **Verification + docs** — `npx tsc --noEmit`, `node --check scripts/import-cheqroom-items.mjs`, `npm run db:migrate:check`, `git diff --check`, and source-aware Prisma cross-check passed. AREA_IMPORTER.md and GAPS_AND_RISKS.md synced.
+
 ### Camera Attachments (2026-05-05)
 - [x] **Attachment model implementation** — Treat camera-tied SD cards/cages/fixed parts as non-bookable item attachments and preserve QR-coded batteries as numbered bulk units. Verified with focused tests, TypeScript, migration-prefix check, and local Next build.
 
@@ -134,6 +165,10 @@ Last updated: 2026-05-05
 - Schedule Inline Assignment Matrix Pass shipped: expanded events now show one scannable slot matrix, staff can assign open slots directly from each tile, students keep inline trade posting, and the event manager is exposed as one clear action instead of relying on row-click behavior.
 - Schedule Collapsed Staffing Preview Pass shipped: collapsed rows now show assigned-staff avatar groups and open-slot counts, those previews fade on expand, and expanded content returns to dense assignment rows for fully staffed events.
 - Schedule Role Language Polish shipped: schedule rows now state staff/student needs in plain language, keep event start/all-day context with the event title, keep expanded role labels neutral to avoid competing color systems, avoid repeating the same need in the collapsed avatar preview, and reserve the right column for real home call times.
+- Cross-Page DevTools Cleanup shipped: active filter clears no longer nest buttons, manifest icons use correctly declared app assets, search inputs have stable identifiers, dashboard event titles read cleanly, and schedule call ranges no longer repeat identical start/end times. Authenticated Chrome DevTools checks are clean on dashboard, schedule, bookings, items, users, and guides; abort/retry fetches remain intentional stale-request cancellation.
+- Items Page Hardening Pass shipped: item export, duplicate, maintenance, and retire handlers now release busy state through auth redirects and failures; item-list empty states and pagination now key off merged serialized/bulk rows; selection clears when item type, favorites, attachments, filters, or sort changes; CSV export now honors favorites and the same search fields as the list.
+- Items Page UX/UI Polish Pass shipped: the toolbar now reads as one command bar with advanced filters behind a toggle, header actions share a compact 32px rhythm, the inventory summary is a compact health grid, and item rows/cards lead with tag plus product identity without duplicating serial or department metadata in the name stack.
+- Items Compact + Fill Gaps Upgrade shipped: compact density now removes thumbnails for a plainer shadcn table read, and Fill gaps now preloads a mixed serialized/bulk queue, exposes retryable count/load/save failures, ranks suggestions with same-category department hints including legacy bulk category text, makes no-photo items explicit, and lets staff review skipped items before closing the session.
 - Camera Attachments shipped: item detail now uses grouped Attachments, SD card slot labels render for tags such as `MBB 17 IV 1A`, scan lookup shows parent/slot context, and docs lock QR-coded batteries to numbered bulk semantics. `npm run build` stopped at remote Prisma migrate deploy; safer local `npx next build` passed.
 - Derived Bulk Unit QR Scans shipped: QR values generated by the numbered bulk QR tab, such as `94e068d1-7`, now submit as one validated numbered unit under the parent SKU without converting batteries into serialized items.
 - Bulk Battery Hardening shipped: kiosk pickup/check-in now scans numbered battery unit QRs one by one, lookup resolves unit QRs, checkout creation warns on low compatible battery availability, and camera-battery guidance is no longer a hard gate.

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { AlertCircle, ImageOff, Package, RotateCcw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -14,18 +15,28 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AssetImage } from "@/components/AssetImage";
 import { CategoryCombobox, FormCombobox } from "@/components/FormCombobox";
-import { handleAuthRedirect } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import type { CategoryOption } from "@/types/category";
 
 type GapField = "category" | "department";
+type Stage = "pick" | "wizard" | "done";
 
 type GapItem = {
+  kind?: "asset" | "bulk";
   id: string;
   assetTag: string;
   name: string | null;
   brand: string;
   model: string;
   imageUrl: string | null;
+  suggestedDepartmentId?: string | null;
+};
+
+type GapSuggestion = {
+  id: string;
+  name: string;
+  score: number;
+  reason: string;
 };
 
 interface Props {
@@ -36,284 +47,418 @@ interface Props {
   onAssigned?: () => void;
 }
 
+const GAP_FIELDS: GapField[] = ["department", "category"];
+const QUEUE_LIMIT = 8;
+
 export function GapWizardDialog({ open, onOpenChange, categories, departments, onAssigned }: Props) {
-  const [stage, setStage] = useState<"pick" | "wizard" | "done">("pick");
+  const [stage, setStage] = useState<Stage>("pick");
   const [field, setField] = useState<GapField | null>(null);
   const [counts, setCounts] = useState<{ category: number | null; department: number | null }>({
     category: null,
     department: null,
   });
-  const [item, setItem] = useState<GapItem | null>(null);
-  const [total, setTotal] = useState(0);
-  const [skipped, setSkipped] = useState(0);
+  const [countError, setCountError] = useState<string | null>(null);
+  const [queue, setQueue] = useState<GapItem[]>([]);
+  const [skippedItems, setSkippedItems] = useState<GapItem[]>([]);
   const [assigned, setAssigned] = useState(0);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [selectedValue, setSelectedValue] = useState("");
+  const [reviewingSkipped, setReviewingSkipped] = useState(false);
+  const [sessionTotal, setSessionTotal] = useState<number | null>(null);
 
-  // Fetch missing-field counts for the pick screen
-  useEffect(() => {
-    if (!open) return;
+  const item = queue[0] ?? null;
+
+  const loadCounts = useCallback(async () => {
+    setCountError(null);
     setCounts({ category: null, department: null });
-    Promise.all([
-      fetch("/api/assets?missing=category&limit=1")
-        .then((r) => (r.ok ? r.json() : null))
-        .then((j) => j?.total ?? 0)
-        .catch(() => 0),
-      fetch("/api/assets?missing=department&limit=1")
-        .then((r) => (r.ok ? r.json() : null))
-        .then((j) => j?.total ?? 0)
-        .catch(() => 0),
-    ]).then(([cat, dep]) => setCounts({ category: cat, department: dep }));
-  }, [open]);
+    try {
+      const fetchCount = async (gap: GapField) => {
+        const res = await fetch(`/api/assets?missing=${gap}&limit=1`);
+        if (handleAuthRedirect(res)) return 0;
+        if (!res.ok) throw new Error(await parseErrorMessage(res, `Failed to count missing ${gap}`));
+        const json = await res.json();
+        return Number(json.total ?? 0);
+      };
+      const [category, department] = await Promise.all([
+        fetchCount("category"),
+        fetchCount("department"),
+      ]);
+      setCounts({ category, department });
+    } catch (err) {
+      setCounts({ category: 0, department: 0 });
+      setCountError(err instanceof Error ? err.message : "Could not count data gaps");
+    }
+  }, []);
 
-  // Reset when dialog closes
+  useEffect(() => {
+    if (open) void loadCounts();
+  }, [loadCounts, open]);
+
   useEffect(() => {
     if (!open) {
       setStage("pick");
       setField(null);
-      setSkipped(0);
+      setQueue([]);
+      setSkippedItems([]);
       setAssigned(0);
       setSelectedValue("");
-      setItem(null);
+      setLoading(false);
+      setSaving(false);
+      setLoadError(null);
+      setSaveError(null);
+      setReviewingSkipped(false);
+      setSessionTotal(null);
     }
   }, [open]);
 
-  const fetchCurrent = useCallback(async (f: GapField, skipCount: number) => {
+  const loadQueue = useCallback(async (gap: GapField, offset: number) => {
     setLoading(true);
+    setLoadError(null);
     try {
-      const res = await fetch(`/api/assets?missing=${f}&limit=1&offset=${skipCount}`);
+      const res = await fetch(`/api/assets?missing=${gap}&limit=${QUEUE_LIMIT}&offset=${offset}`);
       if (handleAuthRedirect(res)) return;
+      if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to load items"));
       const json = await res.json();
-      const newTotal: number = json.total ?? 0;
-      setTotal(newTotal);
       const items: GapItem[] = json.data ?? [];
-      if (items.length === 0 || skipCount >= newTotal) {
+      const total = Number(json.total ?? 0);
+      setCounts((prev) => ({ ...prev, [gap]: total }));
+      if (offset === 0 && !reviewingSkipped) setSessionTotal(total);
+      if (items.length === 0) {
+        setQueue([]);
         setStage("done");
       } else {
-        setItem(items[0] ?? null);
+        setQueue(items);
         setSelectedValue("");
       }
+    } catch (err) {
+      setQueue([]);
+      setLoadError(err instanceof Error ? err.message : "Could not load the next item");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [reviewingSkipped]);
 
   const startWizard = useCallback(
-    (f: GapField) => {
-      setField(f);
+    (gap: GapField) => {
+      setField(gap);
       setStage("wizard");
-      setSkipped(0);
+      setQueue([]);
+      setSkippedItems([]);
       setAssigned(0);
-      fetchCurrent(f, 0);
+      setSelectedValue("");
+      setReviewingSkipped(false);
+      setSessionTotal(counts[gap]);
+      void loadQueue(gap, 0);
     },
-    [fetchCurrent]
+    [counts, loadQueue]
+  );
+
+  const finishOrContinue = useCallback(
+    (nextQueue: GapItem[], nextSkippedItems: GapItem[]) => {
+      if (!field) return;
+      setQueue(nextQueue);
+      setSelectedValue("");
+
+      if (nextQueue.length > 0) return;
+      if (reviewingSkipped) {
+        setStage("done");
+        return;
+      }
+      void loadQueue(field, nextSkippedItems.length);
+    },
+    [field, loadQueue, reviewingSkipped]
   );
 
   const handleSkip = useCallback(() => {
-    if (!field || !item) return;
-    const newSkipped = skipped + 1;
-    setSkipped(newSkipped);
-    if (newSkipped >= total) {
-      setStage("done");
-    } else {
-      fetchCurrent(field, newSkipped);
-    }
-  }, [field, item, skipped, total, fetchCurrent]);
+    if (!item) return;
+    const nextQueue = queue.slice(1);
+    const nextSkippedItems = [...skippedItems, item];
+    setSkippedItems(nextSkippedItems);
+    finishOrContinue(nextQueue, nextSkippedItems);
+  }, [finishOrContinue, item, queue, skippedItems]);
 
   const handleAssign = useCallback(async () => {
     if (!field || !item || !selectedValue) return;
     setSaving(true);
+    setSaveError(null);
     try {
-      const body = field === "category" ? { categoryId: selectedValue } : { departmentId: selectedValue };
-      const res = await fetch(`/api/assets/${item.id}`, {
+      const isBulk = item.kind === "bulk";
+      const body =
+        field === "category"
+          ? {
+              categoryId: selectedValue,
+              ...(isBulk ? { category: categories.find((category) => category.id === selectedValue)?.name ?? item.name ?? "general" } : {}),
+            }
+          : { departmentId: selectedValue };
+      const res = await fetch(isBulk ? `/api/bulk-skus/${item.id}` : `/api/assets/${item.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       if (handleAuthRedirect(res)) return;
-      if (!res.ok) {
-        toast.error("Failed to update item");
-        return;
-      }
-      const newAssigned = assigned + 1;
-      setAssigned(newAssigned);
+      if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to update item"));
+
+      setAssigned((value) => value + 1);
+      setCounts((prev) => ({
+        ...prev,
+        [field]: Math.max(0, (prev[field] ?? 1) - 1),
+      }));
       onAssigned?.();
-      // The assigned item drops out of the missing set; total decreases by 1
-      const newTotal = total - 1;
-      if (skipped >= newTotal) {
-        setStage("done");
-      } else {
-        fetchCurrent(field, skipped);
-      }
+      const nextQueue = queue.slice(1);
+      finishOrContinue(nextQueue, skippedItems);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to update item";
+      setSaveError(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
-  }, [field, item, selectedValue, assigned, skipped, total, fetchCurrent, onAssigned]);
+  }, [categories, field, finishOrContinue, item, onAssigned, queue, selectedValue, skippedItems]);
 
   const handlePickAnother = useCallback(() => {
     setStage("pick");
     setField(null);
-    setSkipped(0);
-    setAssigned(0);
+    setQueue([]);
+    setSkippedItems([]);
     setSelectedValue("");
-    setItem(null);
-    // Re-fetch counts
-    setCounts({ category: null, department: null });
-    Promise.all([
-      fetch("/api/assets?missing=category&limit=1")
-        .then((r) => (r.ok ? r.json() : null))
-        .then((j) => j?.total ?? 0)
-        .catch(() => 0),
-      fetch("/api/assets?missing=department&limit=1")
-        .then((r) => (r.ok ? r.json() : null))
-        .then((j) => j?.total ?? 0)
-        .catch(() => 0),
-    ]).then(([cat, dep]) => setCounts({ category: cat, department: dep }));
-  }, []);
+    setReviewingSkipped(false);
+    setSessionTotal(null);
+    void loadCounts();
+  }, [loadCounts]);
 
-  const departmentOptions = departments.map((d) => ({ value: d.id, label: d.name }));
-  const remaining = Math.max(0, total - skipped);
+  const handleReviewSkipped = useCallback(() => {
+    if (skippedItems.length === 0) return;
+    setQueue(skippedItems);
+    setSkippedItems([]);
+    setSelectedValue("");
+    setReviewingSkipped(true);
+    setSessionTotal(skippedItems.length);
+    setStage("wizard");
+  }, [skippedItems]);
 
-  // Infer top suggestions by bidirectional word matching:
-  // item words in option name, AND option words in item text
-  const suggestions = useMemo(() => {
+  const departmentOptions = useMemo(
+    () => departments.map((d) => ({ value: d.id, label: d.name })),
+    [departments]
+  );
+
+  const categoryLabels = useMemo(() => {
+    const byId = new Map(categories.map((category) => [category.id, category]));
+    return new Map(
+      categories.map((category) => {
+        const parent = category.parentId ? byId.get(category.parentId) : null;
+        return [category.id, parent ? `${parent.name} / ${category.name}` : category.name];
+      })
+    );
+  }, [categories]);
+
+  const suggestions = useMemo<GapSuggestion[]>(() => {
     if (!item || !field) return [];
 
-    // Extract meaningful words from the item — skip pure numbers and short tokens
-    const itemWords = [item.assetTag, item.name, item.brand, item.model]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase()
-      .split(/[\s/\-_,.()+]+/)
-      .filter((w) => w.length > 2 && !/^\d+$/.test(w));
-
+    const currentItem = item;
+    const itemWords = tokenize([currentItem.assetTag, currentItem.name, currentItem.brand, currentItem.model].filter(Boolean).join(" "));
     const itemText = itemWords.join(" ");
 
-    function scoreOption(name: string) {
-      const optWords = name.toLowerCase().split(/[\s/\-_,.()+]+/).filter((w) => w.length > 2);
-      // Forward: option word found in item text
-      const forward = optWords.filter((w) => itemText.includes(w)).length;
-      // Reverse: item word found in option name
-      const reverse = itemWords.filter((w) => name.toLowerCase().includes(w)).length;
-      return forward + reverse;
+    function buildSuggestion(id: string, name: string): GapSuggestion | null {
+      const optionWords = tokenize(name);
+      const matches = optionWords.filter((word) => itemText.includes(word));
+      const reverseMatches = itemWords.filter((word) => name.toLowerCase().includes(word));
+      const exactProductHit = [currentItem.name, `${currentItem.brand} ${currentItem.model}`]
+        .filter(Boolean)
+        .some((value) => value!.trim().length > 0 && name.toLowerCase().includes(value!.trim().toLowerCase()));
+      const categoryPatternHit = field === "department" && currentItem.suggestedDepartmentId === id;
+      const score = matches.length * 2 + reverseMatches.length + (exactProductHit ? 4 : 0) + (categoryPatternHit ? 8 : 0);
+      if (score === 0) return null;
+      const reason = categoryPatternHit
+        ? "Similar category items"
+        : [...new Set([...matches, ...reverseMatches])].slice(0, 3).join(", ");
+      return { id, name, score, reason };
     }
 
-    if (field === "category") {
-      return categories
-        .map((cat) => ({ id: cat.id, name: cat.name, score: scoreOption(cat.name) }))
-        .filter(({ score }) => score > 0)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 4);
-    } else {
-      return departments
-        .map((dep) => ({ id: dep.id, name: dep.name, score: scoreOption(dep.name) }))
-        .filter(({ score }) => score > 0)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 4);
-    }
-  }, [item, field, categories, departments]);
+    const source =
+      field === "category"
+        ? categories.map((category) => ({
+            id: category.id,
+            name: categoryLabels.get(category.id) ?? category.name,
+          }))
+        : departments;
+
+    return source
+      .map((option) => buildSuggestion(option.id, option.name))
+      .filter((suggestion): suggestion is GapSuggestion => Boolean(suggestion))
+      .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+      .slice(0, 4);
+  }, [categories, categoryLabels, departments, field, item]);
+
+  const activeCount = field ? counts[field] : null;
+  const currentPosition = sessionTotal
+    ? Math.min(sessionTotal, assigned + skippedItems.length + 1)
+    : null;
+  const remainingLabel = reviewingSkipped
+    ? `${queue.length} skipped item${queue.length !== 1 ? "s" : ""} to review`
+    : activeCount === null
+      ? "Loading..."
+      : `${activeCount} open gap${activeCount !== 1 ? "s" : ""}`;
+  const progressLabel = currentPosition && sessionTotal
+    ? `${currentPosition} of ${sessionTotal}`
+    : remainingLabel;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        {/* ── Pick field ── */}
+      <DialogContent className="max-w-xl">
         {stage === "pick" && (
           <>
             <DialogHeader>
               <DialogTitle>Fill data gaps</DialogTitle>
               <DialogDescription>
-                Pick a field to fill in — items missing it will appear one at a time.
+                Pick the missing field to clean up. Department is listed first because every item should have one.
               </DialogDescription>
             </DialogHeader>
-            <div className="flex flex-col gap-2 mt-1">
-              {(["category", "department"] as GapField[]).map((f) => {
-                const count = counts[f];
-                const label = f === "category" ? "Category" : "Department";
+
+            {countError && (
+              <div className="flex items-center justify-between gap-3 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                <span className="flex min-w-0 items-center gap-2">
+                  <AlertCircle className="size-4 shrink-0" />
+                  <span className="truncate">{countError}</span>
+                </span>
+                <Button variant="outline" size="sm" onClick={loadCounts}>
+                  <RotateCcw className="size-3.5" />
+                  Retry
+                </Button>
+              </div>
+            )}
+
+            <div className="mt-1 grid gap-2 sm:grid-cols-2">
+              {GAP_FIELDS.map((gap) => {
+                const count = counts[gap];
+                const label = gap === "category" ? "Category" : "Department";
                 const isEmpty = count === 0;
+                const isLoading = count === null;
                 return (
-                  <button
-                    key={f}
-                    onClick={() => !isEmpty && count !== null ? startWizard(f) : undefined}
-                    disabled={count === null || isEmpty}
-                    className="flex items-center justify-between rounded-lg border p-4 text-left transition-colors hover:bg-muted/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  <Button
+                    key={gap}
+                    type="button"
+                    variant="outline"
+                    onClick={() => !isEmpty && !isLoading ? startWizard(gap) : undefined}
+                    disabled={isLoading || isEmpty || !!countError}
+                    className="h-auto justify-between gap-3 rounded-md p-4 text-left active:scale-[0.96] transition-transform"
                   >
-                    <div>
-                      <div className="font-medium text-sm">{label}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">
-                        {count === null
-                          ? "Counting…"
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium">{label}</span>
+                      <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                        {isLoading
+                          ? "Counting..."
                           : isEmpty
-                          ? "All items have a value"
-                          : `${count} item${count !== 1 ? "s" : ""} missing`}
-                      </div>
-                    </div>
-                    {count !== null && !isEmpty && (
-                      <Badge variant="secondary">{count}</Badge>
-                    )}
-                  </button>
+                            ? "All items have a value"
+                            : `${count} item${count !== 1 ? "s" : ""} missing`}
+                      </span>
+                    </span>
+                    {!isLoading && !isEmpty && <Badge variant="secondary">{count}</Badge>}
+                  </Button>
                 );
               })}
             </div>
           </>
         )}
 
-        {/* ── Wizard ── */}
         {stage === "wizard" && field && (
           <>
             <DialogHeader>
-              <DialogTitle>Assign {field === "category" ? "category" : "department"}</DialogTitle>
+              <DialogTitle>Assign {field}</DialogTitle>
               <DialogDescription>
-                {loading
-                  ? "Loading…"
-                  : `${remaining} remaining · ${assigned} assigned this session`}
+                {loading ? "Loading..." : `${progressLabel} - ${assigned} assigned this session`}
               </DialogDescription>
             </DialogHeader>
 
-            {loading || !item ? (
+            {loadError ? (
+              <div className="flex flex-col gap-3 rounded-md border border-destructive/30 bg-destructive/5 p-4">
+                <div className="flex items-start gap-2 text-sm text-destructive">
+                  <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                  <div>
+                    <div className="font-medium">Could not load the next item</div>
+                    <div className="mt-0.5 text-xs opacity-90">{loadError}</div>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={handlePickAnother}>Back</Button>
+                  <Button onClick={() => field && loadQueue(field, skippedItems.length)}>
+                    <RotateCcw className="size-3.5" />
+                    Retry
+                  </Button>
+                </div>
+              </div>
+            ) : loading || !item ? (
               <div className="flex flex-col gap-4 py-3">
-                <Skeleton className="h-20 w-full rounded-lg" />
+                <Skeleton className="h-20 w-full rounded-md" />
                 <Skeleton className="h-9 w-full" />
               </div>
             ) : (
-              <div className="flex flex-col gap-5 py-2">
-                {/* Item card */}
-                <div className="flex items-center gap-4 rounded-lg border p-4">
-                  <AssetImage src={item.imageUrl} alt={item.assetTag} size={56} className="shrink-0" />
-                  <div className="min-w-0">
-                    <div className="font-medium truncate">{item.assetTag}</div>
-                    <div className="text-sm text-muted-foreground truncate">
-                      {[item.brand, item.model].filter(Boolean).join(" ")}
+              <div className="flex flex-col gap-5 py-1">
+                <div className="rounded-lg border bg-muted/20 p-3 shadow-xs">
+                  <div className="flex items-start gap-3">
+                    <GapItemImage item={item} />
+                    <div className="min-w-0">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <div className="truncate text-sm font-semibold" style={{ fontFamily: "var(--font-heading)" }}>
+                          {item.assetTag}
+                        </div>
+                        <Badge variant="secondary" className="h-5 shrink-0 px-1.5 text-[10px]">
+                          {getKindLabel(item)}
+                        </Badge>
+                      </div>
+                      <div className="mt-1 truncate text-sm text-muted-foreground">
+                        {getProductLine(item)}
+                      </div>
+                      {item.name && (
+                        <div className="mt-0.5 truncate text-xs text-muted-foreground">{item.name}</div>
+                      )}
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {!item.imageUrl && (
+                          <Badge variant="outline" className="h-5 px-1.5 text-[10px] text-muted-foreground">
+                            No photo
+                          </Badge>
+                        )}
+                        <Badge variant="outline" className="h-5 px-1.5 text-[10px] text-muted-foreground">
+                          Needs {field}
+                        </Badge>
+                      </div>
                     </div>
-                    {item.name && (
-                      <div className="text-xs text-muted-foreground truncate mt-0.5">{item.name}</div>
-                    )}
                   </div>
                 </div>
 
-                {/* Quick suggestions */}
                 {suggestions.length > 0 && (
                   <div className="flex flex-col gap-2">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Suggested</span>
+                    <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      <Sparkles className="size-3.5" aria-hidden="true" />
+                      Suggested matches
+                    </span>
                     <div className="flex flex-wrap gap-2">
-                      {suggestions.map((s) => (
-                        <button
-                          key={s.id}
-                          onClick={() => setSelectedValue(s.id)}
-                          className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
-                            selectedValue === s.id
-                              ? "border-primary bg-primary text-primary-foreground"
-                              : "border-border bg-background hover:bg-muted"
-                          }`}
+                      {suggestions.map((suggestion, index) => (
+                        <Button
+                          key={suggestion.id}
+                          type="button"
+                          variant={selectedValue === suggestion.id ? "default" : "outline"}
+                          size="sm"
+                          className="h-8 gap-1.5 rounded-md active:scale-[0.96] transition-transform"
+                          onClick={() => setSelectedValue(suggestion.id)}
+                          title={suggestion.reason ? `Matched: ${suggestion.reason}` : undefined}
                         >
-                          {s.name}
-                        </button>
+                          {suggestion.name}
+                          {index === 0 && <Badge variant="secondary" className="h-4 px-1 text-[10px]">Best</Badge>}
+                        </Button>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* Picker */}
+                {suggestions.length === 0 && (
+                  <div className="rounded-md border border-dashed bg-muted/15 px-3 py-2 text-xs text-muted-foreground">
+                    No confident match. Choose a value or skip for later.
+                  </div>
+                )}
+
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-medium capitalize">{field}</label>
                   {field === "category" ? (
@@ -327,25 +472,27 @@ export function GapWizardDialog({ open, onOpenChange, categories, departments, o
                       value={selectedValue}
                       onValueChange={setSelectedValue}
                       options={departmentOptions}
-                      placeholder="Select department…"
+                      placeholder="Select department..."
                     />
+                  )}
+                  {saveError && (
+                    <div className="flex items-center gap-1.5 text-xs text-destructive">
+                      <AlertCircle className="size-3.5" />
+                      {saveError}
+                    </div>
                   )}
                 </div>
 
-                {/* Actions */}
                 <div className="flex items-center justify-between gap-2 pt-1">
                   <Button variant="ghost" onClick={handleSkip} disabled={saving}>
                     Skip
                   </Button>
                   <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setStage("done")}>
+                    <Button variant="outline" onClick={() => setStage("done")} disabled={saving}>
                       Stop
                     </Button>
-                    <Button
-                      onClick={handleAssign}
-                      disabled={!selectedValue || saving}
-                    >
-                      {saving ? "Saving…" : "Assign & next"}
+                    <Button onClick={handleAssign} disabled={!selectedValue || saving}>
+                      {saving ? "Saving..." : "Assign & next"}
                     </Button>
                   </div>
                 </div>
@@ -354,22 +501,26 @@ export function GapWizardDialog({ open, onOpenChange, categories, departments, o
           </>
         )}
 
-        {/* ── Done ── */}
         {stage === "done" && (
           <>
             <DialogHeader>
-              <DialogTitle>All done</DialogTitle>
+              <DialogTitle>{skippedItems.length > 0 ? "Review skipped items?" : "All done"}</DialogTitle>
               <DialogDescription>
                 {assigned > 0
-                  ? `You assigned ${assigned} item${assigned !== 1 ? "s" : ""}.`
+                  ? `Assigned ${assigned} item${assigned !== 1 ? "s" : ""}.`
                   : "No items were changed."}
-                {skipped > 0 && ` ${skipped} skipped.`}
+                {skippedItems.length > 0 && ` ${skippedItems.length} skipped item${skippedItems.length !== 1 ? "s" : ""} remain in this session.`}
               </DialogDescription>
             </DialogHeader>
-            <div className="flex justify-end gap-2 mt-2">
+            <div className="mt-2 flex justify-end gap-2">
               <Button variant="outline" onClick={handlePickAnother}>
                 Fill another gap
               </Button>
+              {skippedItems.length > 0 && (
+                <Button variant="outline" onClick={handleReviewSkipped}>
+                  Review skipped
+                </Button>
+              )}
               <Button onClick={() => onOpenChange(false)}>Close</Button>
             </div>
           </>
@@ -378,3 +529,61 @@ export function GapWizardDialog({ open, onOpenChange, categories, departments, o
     </Dialog>
   );
 }
+
+function GapItemImage({ item }: { item: GapItem }) {
+  if (item.imageUrl) {
+    return (
+      <AssetImage
+        src={item.imageUrl}
+        alt={item.assetTag}
+        size={64}
+        className="shrink-0 rounded-md"
+      />
+    );
+  }
+
+  return (
+    <div
+      className="flex size-16 shrink-0 flex-col items-center justify-center gap-1 rounded-md border border-border bg-background text-muted-foreground"
+      role="img"
+      aria-label={`${item.assetTag} has no photo`}
+    >
+      {item.kind === "bulk" ? (
+        <Package className="size-4" aria-hidden="true" />
+      ) : (
+        <ImageOff className="size-4" aria-hidden="true" />
+      )}
+      <span className="text-[10px] font-medium leading-none">No photo</span>
+    </div>
+  );
+}
+
+function getKindLabel(item: GapItem) {
+  return item.kind === "bulk" ? "Bulk SKU" : "Serialized";
+}
+
+function getProductLine(item: GapItem) {
+  const product = [item.brand, item.model].filter(Boolean).join(" ").trim();
+  if (product && product !== "Bulk SKU") return product;
+  return item.kind === "bulk" ? "Bulk inventory" : "No product metadata";
+}
+
+function tokenize(value: string): string[] {
+  return value
+    .toLowerCase()
+    .split(/[\s/_,.()+-]+/)
+    .map((word) => word.trim())
+    .filter((word) => word.length > 2 && !/^\d+$/.test(word) && !STOP_WORDS.has(word));
+}
+
+const STOP_WORDS = new Set([
+  "and",
+  "the",
+  "for",
+  "with",
+  "kit",
+  "set",
+  "item",
+  "gear",
+  "camera",
+]);

@@ -57,7 +57,7 @@ function normalize(content) {
     const name = getValue(record, "Name", "name", "asset_tag");
     const assetTag = getValue(record, "UW Asset Tag") || name || `import-${sourceId || index}`;
     const serialNumber = getValue(record, "Serial number", "serial_number") || `cheqroom-${sourceId || assetTag}`;
-    const qrCodeValue = getValue(record, "Barcodes", "Codes", "qr_code_value") || `cheqroom-qr-${sourceId || assetTag}`;
+    const qrCodeValue = getValue(record, "Codes", "Barcodes", "qr_code_value") || `cheqroom-qr-${sourceId || assetTag}`;
 
     const notes = JSON.stringify({
       cheqroomId: sourceId || undefined,

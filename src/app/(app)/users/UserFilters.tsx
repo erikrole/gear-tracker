@@ -56,6 +56,8 @@ export default function UserFilters({
     <div className="space-y-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <Input
+          id="users-search"
+          name="users-search"
           className="h-8 sm:max-w-sm"
           type="text"
           placeholder="Search by name or email..."

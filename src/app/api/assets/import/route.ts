@@ -198,9 +198,9 @@ function parseRows(content: string, userMapping?: ColumnMapping): {
       getMapped(record, mapping, "serialNumber") ||
       `auto-${sourceId || assetTag}`;
 
-    const barcodes = getMapped(record, mapping, "barcodes");
     const codes = getMapped(record, mapping, "codes");
-    const primaryScanCode = barcodes || codes || "";
+    const barcodes = getMapped(record, mapping, "barcodes");
+    const primaryScanCode = codes || barcodes || "";
     const qrCodeValue = primaryScanCode || `bg://item/${assetTag}`;
 
     const locationName = getMapped(record, mapping, "locationName");
@@ -217,8 +217,10 @@ function parseRows(content: string, userMapping?: ColumnMapping): {
         sourcePayload[header] = value.trim();
       }
     }
-    // Also preserve mapped-but-not-stored fields for traceability
+    // Also preserve mapped tracking/source fields for traceability.
     if (sourceId) sourcePayload["sourceId"] = sourceId;
+    if (codes) sourcePayload["cheqroomCodes"] = codes;
+    if (barcodes) sourcePayload["cheqroomBarcodes"] = barcodes;
     const flagVal = getMapped(record, mapping, "flag");
     if (flagVal) sourcePayload["flag"] = flagVal;
     const geoVal = getMapped(record, mapping, "geo");
@@ -264,8 +266,14 @@ function parseRows(content: string, userMapping?: ColumnMapping): {
 
 function parseDate(raw: string): Date | null {
   if (!raw) return null;
+  const dateOnly = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:\s+00:00:00)?$/);
+  if (dateOnly) {
+    const [, year, month, day] = dateOnly;
+    return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  }
   const d = new Date(raw);
-  return Number.isNaN(d.getTime()) ? null : d;
+  if (Number.isNaN(d.getTime())) return null;
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 }
 
 function parseCurrency(raw: string): number | undefined {
@@ -308,7 +316,7 @@ function buildAssetData(
     uwAssetTag: row.uwAssetTag || null,
     linkUrl: row.link || null,
     notes: JSON.stringify(notesPayload),
-    // D-014: sourcePayload stores only unmapped CSV columns (lossless preservation)
+    // D-014: sourcePayload stores unmapped columns plus mapped source identifiers for traceability.
     sourcePayload: Object.keys(row.sourcePayload).length > 0 ? row.sourcePayload : undefined,
   };
 }
@@ -452,21 +460,34 @@ export const POST = withAuth(async (req, { user }) => {
   }
 
   // 2. Batch: find existing assets by serialNumber + assetTag (1 call)
-  const allSerials = validRows.map((r) => r.serialNumber);
-  const allTags = validRows.map((r) => r.assetTag);
+  const allSerials = validRows.map((r) => r.serialNumber).filter(Boolean);
+  const allTags = validRows.map((r) => r.assetTag).filter(Boolean);
+  const allScanValues = [
+    ...new Set(
+      validRows
+        .flatMap((r) => [r.qrCodeValue, r.primaryScanCode])
+        .filter((value): value is string => Boolean(value))
+    ),
+  ];
 
   const existingAssets = await db.asset.findMany({
     where: {
       OR: [
-        { serialNumber: { in: allSerials } },
-        { assetTag: { in: allTags } },
+        { serialNumber: { in: allSerials.length > 0 ? allSerials : ["__none__"] } },
+        { assetTag: { in: allTags.length > 0 ? allTags : ["__none__"] } },
+        { qrCodeValue: { in: allScanValues.length > 0 ? allScanValues : ["__none__"] } },
+        { primaryScanCode: { in: allScanValues.length > 0 ? allScanValues : ["__none__"] } },
       ],
     },
-    select: { id: true, serialNumber: true, assetTag: true, qrCodeValue: true },
+    select: { id: true, serialNumber: true, assetTag: true, qrCodeValue: true, primaryScanCode: true },
   });
 
-  const existingBySerial = new Map(existingAssets.map((a) => [a.serialNumber, a]));
+  const existingBySerial = new Map(existingAssets.filter((a) => a.serialNumber).map((a) => [a.serialNumber, a]));
   const existingByTag = new Map(existingAssets.map((a) => [a.assetTag, a]));
+  const existingByQr = new Map(existingAssets.map((a) => [a.qrCodeValue, a]));
+  const existingByPrimaryScan = new Map(
+    existingAssets.filter((a) => a.primaryScanCode).map((a) => [a.primaryScanCode!, a])
+  );
 
   // 3. Split rows into creates vs updates, and separate bulk items
   const toCreate: Array<ReturnType<typeof buildAssetData>> = [];
@@ -491,16 +512,29 @@ export const POST = withAuth(async (req, { user }) => {
 
     const departmentId = row.departmentName ? deptMap.get(row.departmentName) ?? null : null;
 
-    const existing = existingBySerial.get(row.serialNumber) ?? existingByTag.get(row.assetTag);
+    const existing =
+      existingBySerial.get(row.serialNumber) ??
+      existingByTag.get(row.assetTag) ??
+      existingByQr.get(row.qrCodeValue) ??
+      existingByPrimaryScan.get(row.primaryScanCode);
 
     if (existing) {
       if (importMode === "create_only") {
         // Skip existing items in create-only mode
         continue;
       }
-      // Update: reuse existing qrCodeValue to avoid unique constraint conflicts
+      const qrOwner = existingByQr.get(row.qrCodeValue);
+      const scanOwner = row.primaryScanCode ? existingByPrimaryScan.get(row.primaryScanCode) : null;
+      if ((qrOwner && qrOwner.id !== existing.id) || (scanOwner && scanOwner.id !== existing.id)) {
+        importErrors.push({
+          line: row.line,
+          assetTag: row.assetTag,
+          error: "Tracking code already belongs to another asset",
+        });
+        continue;
+      }
       const data = buildAssetData(row, locationId, departmentId);
-      const { serialNumber: _sn, qrCodeValue: _qr, ...updateData } = data;
+      const { serialNumber: _sn, ...updateData } = data;
       toUpdate.push({ id: existing.id, data: updateData });
       updatedCount += 1;
     } else {

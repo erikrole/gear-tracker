@@ -72,6 +72,7 @@ export const GET = withAuth(async (req, { user }) => {
   const brandParams = searchParams.getAll("brand").map((b) => b.trim()).filter(Boolean);
   const departmentIds = searchParams.getAll("department_id").filter(Boolean);
   const missingField = searchParams.get("missing"); // "category" | "department"
+  const { limit, offset } = parsePagination(searchParams);
 
   // Server-side sorting: ?sort=brand&order=desc or ?sort=-brand
   const sortParam = searchParams.get("sort") ?? "";
@@ -152,7 +153,158 @@ export const GET = withAuth(async (req, { user }) => {
     });
   }
 
-  const { limit, offset } = parsePagination(searchParams);
+  if (missingField === "category" || missingField === "department") {
+    const [assetGaps, bulkGaps] = await Promise.all([
+      db.asset.findMany({
+        where,
+        orderBy,
+        select: {
+          id: true,
+          assetTag: true,
+          name: true,
+          brand: true,
+          model: true,
+          categoryId: true,
+          category: { select: { name: true } },
+          imageUrl: true,
+        },
+      }),
+      db.bulkSku.findMany({
+        where: {
+          active: true,
+          ...(locationIds.length === 1 ? { locationId: locationIds[0] } : {}),
+          ...(locationIds.length > 1 ? { locationId: { in: locationIds } } : {}),
+          ...(missingField === "category" ? { categoryId: null } : {}),
+          ...(missingField === "department" ? { departmentId: null } : {}),
+          ...(q ? {
+            OR: [
+              { name: { contains: q, mode: "insensitive" as const } },
+              { category: { contains: q, mode: "insensitive" as const } },
+            ],
+          } : {}),
+        },
+        orderBy: { name: "asc" },
+        select: {
+          id: true,
+          name: true,
+          category: true,
+          categoryId: true,
+          imageUrl: true,
+        },
+      }),
+    ]);
+
+    const departmentSuggestionByCategory = new Map<string, string>();
+    if (missingField === "department") {
+      const categoryIds = [
+        ...new Set(
+          [
+            ...assetGaps.map((asset) => asset.categoryId),
+            ...bulkGaps.map((sku) => sku.categoryId),
+          ].filter((id): id is string => Boolean(id))
+        ),
+      ];
+      const categoryNames = [
+        ...new Set(
+          bulkGaps
+            .map((sku) => sku.category)
+            .filter((name): name is string => Boolean(name?.trim()))
+        ),
+      ];
+
+      if (categoryIds.length > 0 || categoryNames.length > 0) {
+        const assetSourceWhere: Prisma.AssetWhereInput = {
+          departmentId: { not: null },
+          OR: [
+            ...(categoryIds.length > 0 ? [{ categoryId: { in: categoryIds } }] : []),
+            ...(categoryNames.length > 0
+              ? [{ category: { name: { in: categoryNames, mode: "insensitive" as const } } }]
+              : []),
+          ],
+        };
+        const bulkSourceWhere: Prisma.BulkSkuWhereInput = {
+          departmentId: { not: null },
+          OR: [
+            ...(categoryIds.length > 0 ? [{ categoryId: { in: categoryIds } }] : []),
+            ...(categoryNames.length > 0
+              ? [{ category: { in: categoryNames, mode: "insensitive" as const } }]
+              : []),
+          ],
+        };
+        const [assetSources, bulkSources] = await Promise.all([
+          db.asset.findMany({
+            where: assetSourceWhere,
+            select: { categoryId: true, category: { select: { name: true } }, departmentId: true },
+          }),
+          db.bulkSku.findMany({
+            where: bulkSourceWhere,
+            select: { categoryId: true, category: true, departmentId: true },
+          }),
+        ]);
+
+        const counts = new Map<string, Map<string, number>>();
+        for (const source of assetSources) {
+          if (!source.departmentId) continue;
+          for (const key of getCategorySuggestionKeys(source.categoryId, source.category?.name ?? null)) {
+            const categoryCounts = counts.get(key) ?? new Map<string, number>();
+            categoryCounts.set(source.departmentId, (categoryCounts.get(source.departmentId) ?? 0) + 1);
+            counts.set(key, categoryCounts);
+          }
+        }
+        for (const source of bulkSources) {
+          if (!source.departmentId) continue;
+          for (const key of getCategorySuggestionKeys(source.categoryId, source.category)) {
+            const categoryCounts = counts.get(key) ?? new Map<string, number>();
+            categoryCounts.set(source.departmentId, (categoryCounts.get(source.departmentId) ?? 0) + 1);
+            counts.set(key, categoryCounts);
+          }
+        }
+
+        for (const [categoryKey, categoryCounts] of counts) {
+          const [departmentId] = [...categoryCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0] ?? [];
+          if (departmentId) departmentSuggestionByCategory.set(categoryKey, departmentId);
+        }
+      }
+    }
+
+    const gapItems = [
+      ...assetGaps.map((asset) => ({
+        kind: "asset" as const,
+        id: asset.id,
+        assetTag: asset.assetTag,
+        name: asset.name,
+        brand: asset.brand,
+        model: asset.model,
+        imageUrl: asset.imageUrl,
+        suggestedDepartmentId: departmentSuggestionByCategory.get(getCategorySuggestionKey(asset.categoryId, asset.category?.name ?? null) ?? "") ?? null,
+      })),
+      ...bulkGaps.map((sku) => ({
+        kind: "bulk" as const,
+        id: sku.id,
+        assetTag: sku.name,
+        name: sku.category,
+        brand: "Bulk",
+        model: "SKU",
+        imageUrl: sku.imageUrl,
+        suggestedDepartmentId: departmentSuggestionByCategory.get(getCategorySuggestionKey(sku.categoryId, sku.category) ?? "") ?? null,
+      })),
+    ].sort((a, b) => a.assetTag.localeCompare(b.assetTag, undefined, { numeric: true, sensitivity: "base" }));
+
+    return ok({
+      data: gapItems.slice(offset, offset + limit),
+      bulkItems: [],
+      total: gapItems.length,
+      limit,
+      offset,
+      statusBreakdown: {
+        available: 0,
+        checkedOut: 0,
+        reserved: 0,
+        maintenance: 0,
+        retired: 0,
+      },
+    });
+  }
 
   const [rawData, total] = await Promise.all([
     db.asset.findMany({
@@ -204,6 +356,8 @@ export const GET = withAuth(async (req, { user }) => {
     locationName: string;
     locationId: string;
     categoryId: string | null;
+    departmentId: string | null;
+    departmentName: string | null;
     binQrCodeValue: string;
   }> = [];
 
@@ -214,6 +368,8 @@ export const GET = withAuth(async (req, { user }) => {
       ...(locationIds.length > 1 ? { locationId: { in: locationIds } } : {}),
       ...(categoryIds.length === 1 ? { categoryId: categoryIds[0] } : {}),
       ...(categoryIds.length > 1 ? { categoryId: { in: categoryIds } } : {}),
+      ...(departmentIds.length === 1 ? { departmentId: departmentIds[0] } : {}),
+      ...(departmentIds.length > 1 ? { departmentId: { in: departmentIds } } : {}),
       ...(q ? {
         OR: [
           { name: { contains: q, mode: "insensitive" as const } },
@@ -226,6 +382,7 @@ export const GET = withAuth(async (req, { user }) => {
       where: bulkWhere,
       include: {
         location: { select: { name: true } },
+        department: { select: { id: true, name: true } },
         balances: { select: { onHandQuantity: true } },
         bookingItems: {
           where: { booking: { status: "OPEN", kind: "CHECKOUT" } },
@@ -250,6 +407,8 @@ export const GET = withAuth(async (req, { user }) => {
         locationName: sku.location.name,
         locationId: sku.locationId,
         categoryId: sku.categoryId,
+        departmentId: sku.departmentId,
+        departmentName: sku.department?.name ?? null,
         binQrCodeValue: sku.binQrCodeValue,
       };
     });
@@ -314,6 +473,18 @@ async function attachActiveBookings<T extends { id: string; computedStatus: stri
   }
 
   return assets.map((a) => ({ ...a, activeBooking: bookingByAsset.get(a.id) ?? null }));
+}
+
+function getCategorySuggestionKey(categoryId: string | null, categoryName: string | null) {
+  return getCategorySuggestionKeys(categoryId, categoryName)[0] ?? null;
+}
+
+function getCategorySuggestionKeys(categoryId: string | null, categoryName: string | null) {
+  const keys: string[] = [];
+  if (categoryId) keys.push(`id:${categoryId}`);
+  const normalizedName = categoryName?.trim().toLowerCase();
+  if (normalizedName) keys.push(`name:${normalizedName}`);
+  return keys;
 }
 
 export const POST = withAuth(async (req, { user }) => {
