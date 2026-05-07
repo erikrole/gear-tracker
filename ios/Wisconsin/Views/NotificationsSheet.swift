@@ -204,14 +204,20 @@ private struct NotificationRow: View {
     let notification: AppNotification
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        let tone = notification.type.notifTone
+        return HStack(alignment: .top, spacing: 12) {
             ZStack {
+                // Web parity: icon circle is tinted by notification *type*
+                // (orange for overdue, green for gear-up, blue for trade
+                // claimed/approved, red for trade declined/expired). Read
+                // state is signaled by the unread dot on the right, not by
+                // graying the icon.
                 Circle()
-                    .fill(notification.isUnread ? Color.accentColor.opacity(0.12) : Color(.systemGray6))
+                    .fill(tone.map { Color.statusBackground($0) } ?? Color(.systemGray6))
                     .frame(width: 36, height: 36)
                 Image(systemName: notification.type.notifIcon)
                     .font(.system(size: 15))
-                    .foregroundStyle(notification.isUnread ? Color.accentColor : .secondary)
+                    .foregroundStyle(tone.map { Color.statusText($0) } ?? Color.secondary)
             }
             .accessibilityHidden(true)
 
@@ -266,6 +272,20 @@ private extension String {
         if hasPrefix("reservation_pickup_ready") { return "bag.badge.questionmark" }
         if hasPrefix("reservation_cancelled") { return "calendar.badge.minus" }
         return "bell"
+    }
+
+    /// Type → status tone, mirroring `notifIconBg` in `src/app/(app)/notifications/page.tsx`.
+    /// `nil` falls back to the muted gray pairing.
+    var notifTone: StatusTone? {
+        if hasPrefix("checkout_due") || hasPrefix("checkout_overdue") { return .orange }
+        if hasPrefix("checkin_item_damaged") || hasPrefix("checkin_item_lost") { return .red }
+        if self == "trade_claimed" || self == "trade_approved" { return .blue }
+        if self == "trade_declined" || self == "trade_expired" { return .red }
+        if hasPrefix("shift_gear_up") { return .green }
+        if hasPrefix("low_stock") { return .orange }
+        if hasPrefix("reservation_booked") || hasPrefix("reservation_pickup_ready") { return .purple }
+        if hasPrefix("reservation_cancelled") { return .red }
+        return nil
     }
 }
 
