@@ -17,6 +17,8 @@ export function usePickerSearch({
   onlyAvailable,
 }: UsePickerSearchParams) {
   const [sectionResults, setSectionResults] = useState<PickerAsset[]>([]);
+  const [total, setTotal] = useState(0);
+  const [sectionCounts, setSectionCounts] = useState<Record<string, number> | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState(false);
   const searchAbortRef = useRef<AbortController | null>(null);
@@ -41,15 +43,19 @@ export function usePickerSearch({
         const json = await res.json();
         const data = json.data as { assets: PickerAsset[]; total: number; sectionCounts: Record<string, number> | null };
         setSectionResults(data.assets);
+        setTotal(data.total);
+        setSectionCounts(data.sectionCounts);
       } else {
         setSearchError(true);
         setSectionResults([]);
+        setTotal(0);
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       toast.error("Failed to load equipment — check your connection and try again.");
       setSearchError(true);
       setSectionResults([]);
+      setTotal(0);
     }
     if (!controller.signal.aborted) setSearchLoading(false);
   }, []);
@@ -71,5 +77,5 @@ export function usePickerSearch({
     };
   }, []);
 
-  return { sectionResults, searchLoading, searchError };
+  return { sectionResults, total, sectionCounts, searchLoading, searchError };
 }

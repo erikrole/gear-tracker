@@ -117,7 +117,7 @@ export const GET = withAuth(async (req, { user }) => {
     }
   })();
 
-  const [data, total, active, inactive, roleGroups] = await Promise.all([
+  const [data, total, active, inactive, missingPhotos, roleGroups] = await Promise.all([
     db.user.findMany({
       where,
       orderBy,
@@ -130,6 +130,7 @@ export const GET = withAuth(async (req, { user }) => {
     db.user.count({ where }),
     db.user.count({ where: { AND: [where, { active: true }] } }),
     db.user.count({ where: { AND: [where, { active: false }] } }),
+    db.user.count({ where: { AND: [where, { avatarUrl: null }] } }),
     db.user.groupBy({
       by: ["role"],
       where,
@@ -169,6 +170,7 @@ export const GET = withAuth(async (req, { user }) => {
       total,
       active,
       inactive,
+      missingPhotos,
       byRole,
     },
   });

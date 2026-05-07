@@ -92,6 +92,7 @@ export type ListResponse = {
     total: number;
     active: number;
     inactive: number;
+    missingPhotos: number;
     byRole: Record<Role, number>;
   };
 };

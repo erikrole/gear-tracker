@@ -72,13 +72,13 @@ export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
     phase === "CHECKIN"
       ? db.checkinItemReport.findMany({
           where: { bookingId: id },
-          select: { assetId: true, type: true, description: true },
+          select: { assetId: true, type: true, description: true, imageUrl: true },
         })
       : Promise.resolve([]),
   ]);
 
   const reportMap = new Map(
-    checkinReports.map((r) => [r.assetId, { type: r.type, description: r.description }])
+    checkinReports.map((r) => [r.assetId, { type: r.type, description: r.description, imageUrl: r.imageUrl }])
   );
 
   const scannedAssetIds = new Set(

@@ -52,6 +52,45 @@ const tabDefs: Array<{ key: TabKey; label: string }> = [
   { key: "availability", label: "Availability" },
 ];
 
+async function resizeAvatarFile(file: File): Promise<File> {
+  if (file.type === "image/gif" || !file.type.startsWith("image/")) return file;
+
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new window.Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("Image could not be loaded"));
+      img.src = objectUrl;
+    });
+    const size = 512;
+    const sourceSize = Math.min(image.naturalWidth, image.naturalHeight);
+    if (sourceSize <= 0) return file;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+
+    const sx = Math.floor((image.naturalWidth - sourceSize) / 2);
+    const sy = Math.floor((image.naturalHeight - sourceSize) / 2);
+    ctx.drawImage(image, sx, sy, sourceSize, sourceSize, 0, 0, size, size);
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, "image/webp", 0.88);
+    });
+    if (!blob || blob.size >= file.size) return file;
+
+    const name = file.name.replace(/\.[^.]+$/, "") || "avatar";
+    return new File([blob], `${name}.webp`, { type: "image/webp" });
+  } catch {
+    return file;
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 /* ── Main Page ─────────────────────────────────────────── */
 
 export default function UserDetailPage() {
@@ -126,21 +165,24 @@ export default function UserDetailPage() {
   async function uploadAvatar(file: File) {
     setUploadingAvatar(true);
     try {
+      const uploadFile = await resizeAvatarFile(file);
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", uploadFile);
       const res = await fetch(`/api/users/${id}/avatar`, { method: "POST", body: formData });
       if (handleAuthRedirect(res)) return;
-      const json = await res.json();
       if (!res.ok) {
-        toast.error(json.error || "Failed to upload avatar");
+        const msg = await parseErrorMessage(res, "Failed to upload avatar");
+        toast.error(msg);
       } else {
+        const json = await res.json();
         setUserOverrides((prev) => ({ ...prev, avatarUrl: json.data?.avatarUrl ?? null }));
         toast.success("Avatar updated");
       }
     } catch {
       toast.error("Network error");
+    } finally {
+      setUploadingAvatar(false);
     }
-    setUploadingAvatar(false);
   }
 
   async function removeAvatar() {

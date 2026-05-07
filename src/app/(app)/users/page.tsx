@@ -71,7 +71,7 @@ function SortableHead({
   );
 }
 
-function RosterSummary({ stats }: { stats: NonNullable<ListResponse["stats"]> }) {
+function RosterSummary({ stats, canEdit }: { stats: NonNullable<ListResponse["stats"]>; canEdit: boolean }) {
   const buckets = [
     { label: "Total", value: stats.total },
     { label: "Active", value: stats.active },
@@ -82,6 +82,10 @@ function RosterSummary({ stats }: { stats: NonNullable<ListResponse["stats"]> })
 
   if (stats.inactive > 0) {
     buckets.splice(2, 0, { label: "Inactive", value: stats.inactive });
+  }
+
+  if (canEdit && stats.missingPhotos > 0) {
+    buckets.push({ label: "No photos", value: stats.missingPhotos });
   }
 
   return (
@@ -262,7 +266,7 @@ export default function UsersPage() {
         />
 
         {stats && !isInitialLoad && !loadError && (
-          <RosterSummary stats={stats} />
+          <RosterSummary stats={stats} canEdit={canEdit} />
         )}
 
         {isInitialLoad ? (

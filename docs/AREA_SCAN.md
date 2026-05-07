@@ -62,6 +62,7 @@ src/components/
 
 | Date | Change |
 |---|---|
+| 2026-05-07 | Check-in damaged/lost item reports can now include optional photo evidence, and checklist rows show a photo badge when evidence exists |
 | 2026-05-05 | Kiosk battery unit scans: pickup/check-in can scan one numbered battery unit at a time, and kiosk lookup resolves unit QR values to parent SKU and unit status |
 | 2026-05-05 | Numbered bulk unit QR scans: values like `94e068d1-7` resolve to the parent bulk SKU and unit #7, bypassing the picker while preserving server-side unit validation |
 | 2026-05-05 | Camera attachment lookup polish: lookup preview labels attached items with parent camera context and SD card slot labels when tags follow the `1A` convention |

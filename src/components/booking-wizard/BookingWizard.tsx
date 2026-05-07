@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 import { EQUIPMENT_SECTIONS, classifyAssetType } from "@/lib/equipment-sections";
 import { getUnsatisfiedRequirements } from "@/lib/equipment-guidance";
 import type { EquipmentSectionKey } from "@/lib/equipment-sections";
-import type { BulkSelection } from "@/components/EquipmentPicker";
+import type { BulkSelection, EquipmentPickerSelectionState } from "@/components/EquipmentPicker";
 import {
   roundTo15Min,
   toLocalDateTimeValue,
@@ -59,8 +59,8 @@ const CHECKOUT_CONFIG: WizardConfig = {
   kind: "CHECKOUT",
   apiBase: "/api/checkouts",
   label: "checkout",
-  actionLabel: "Pick up now",
-  actionLabelProgress: "Picking up\u2026",
+  actionLabel: "Create pickup",
+  actionLabelProgress: "Creating\u2026",
   requesterLabel: "Checked out to",
   startLabel: "Pickup",
   endLabel: "Return by",
@@ -77,6 +77,15 @@ const RESERVATION_CONFIG: WizardConfig = {
   startLabel: "Start",
   endLabel: "End",
   defaultTieToEvent: true,
+};
+
+const EMPTY_PICKER_SELECTION_STATE: EquipmentPickerSelectionState = {
+  totalSelected: 0,
+  resolvedAssetCount: 0,
+  bulkQuantity: 0,
+  unresolvedAssetCount: 0,
+  conflictCount: 0,
+  checkingAvailability: false,
 };
 
 /* ───── Form reducer ───── */
@@ -220,6 +229,13 @@ export function BookingWizard({ kind }: BookingWizardProps) {
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>(initialAssetIds ?? []);
   const [selectedBulkItems, setSelectedBulkItems] = useState<BulkSelection[]>([]);
   const [selectedAssetDetails, setSelectedAssetDetails] = useState<AvailableAsset[]>([]);
+  const [pickerSelectionState, setPickerSelectionState] = useState<EquipmentPickerSelectionState>(
+    EMPTY_PICKER_SELECTION_STATE,
+  );
+  const resolvedSelectedAssetIds = useMemo(
+    () => selectedAssetDetails.map((asset) => asset.id),
+    [selectedAssetDetails],
+  );
   const [activeSection, setActiveSection] = useState<EquipmentSectionKey>(EQUIPMENT_SECTIONS[0]!.key);
 
   // ── Kit state ──
@@ -242,7 +258,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
     draftId,
     open: true,
     form,
-    selectedAssetIds,
+    selectedAssetIds: resolvedSelectedAssetIds,
     selectedBulkItems,
     dispatch,
     setSelectedAssetIds,
@@ -276,7 +292,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
   }, [selectedAssetDetails, selectedBulkItems]);
 
   // ── Item count ──
-  const itemCount = selectedAssetIds.length + selectedBulkItems.reduce((sum, b) => sum + b.quantity, 0);
+  const itemCount = selectedAssetDetails.length + selectedBulkItems.reduce((sum, b) => sum + b.quantity, 0);
 
   // ── Warn before unload ──
   useEffect(() => {
@@ -314,6 +330,17 @@ export function BookingWizard({ kind }: BookingWizardProps) {
       setCreateError("");
       setStep(2);
     } else if (step === 2) {
+      if (itemCount === 0 && pickerSelectionState.unresolvedAssetCount > 0) {
+        setCreateError("Remove unavailable selected items or pick replacement equipment before review");
+        return;
+      }
+      if (itemCount > 0) {
+        const error = validateStep2();
+        if (error) { setCreateError(error); return; }
+        setCreateError("");
+        setStep(3);
+        return;
+      }
       const sectionIdx = EQUIPMENT_SECTIONS.findIndex((s) => s.key === activeSection);
       if (sectionIdx < EQUIPMENT_SECTIONS.length - 1) {
         setCreateError("");
@@ -325,6 +352,24 @@ export function BookingWizard({ kind }: BookingWizardProps) {
       setCreateError("");
       setStep(3);
     }
+  }
+
+  function getStep2PrimaryLabel() {
+    if (itemCount > 0) {
+      const itemLabel = `${itemCount} item${itemCount !== 1 ? "s" : ""}`;
+      if (pickerSelectionState.conflictCount > 0) return `Review with warnings (${itemLabel})`;
+      return `Review (${itemLabel})`;
+    }
+    if (pickerSelectionState.unresolvedAssetCount > 0) {
+      return pickerSelectionState.unresolvedAssetCount === 1
+        ? "Remove unavailable item"
+        : "Remove unavailable items";
+    }
+    const idx = EQUIPMENT_SECTIONS.findIndex((s) => s.key === activeSection);
+    if (idx < EQUIPMENT_SECTIONS.length - 1) {
+      return `Browse ${EQUIPMENT_SECTIONS[idx + 1]!.label} →`;
+    }
+    return "Review";
   }
 
   function handleBack() {
@@ -346,7 +391,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
       locationId: form.locationId,
       startsAt: new Date(form.startsAt).toISOString(),
       endsAt: new Date(form.endsAt).toISOString(),
-      serializedAssetIds: selectedAssetIds,
+      serializedAssetIds: resolvedSelectedAssetIds,
       bulkItems: selectedBulkItems,
     };
 
@@ -600,6 +645,9 @@ export function BookingWizard({ kind }: BookingWizardProps) {
           selectedBulkItems={selectedBulkItems}
           setSelectedBulkItems={setSelectedBulkItems}
           onSelectedAssetsChange={setSelectedAssetDetails}
+          onSelectionStateChange={setPickerSelectionState}
+          selectionState={pickerSelectionState}
+          itemCount={itemCount}
           activeSection={activeSection}
           onActiveSectionChange={setActiveSection}
         />
@@ -657,13 +705,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
               size="sm"
               className="text-xs font-bold uppercase tracking-wider"
             >
-              {step === 2 && (() => {
-                const idx = EQUIPMENT_SECTIONS.findIndex((s) => s.key === activeSection);
-                if (idx < EQUIPMENT_SECTIONS.length - 1) {
-                  return `Browse ${EQUIPMENT_SECTIONS[idx + 1]!.label} →`;
-                }
-                return `Review${itemCount > 0 ? ` (${itemCount} item${itemCount !== 1 ? "s" : ""})` : ""}`;
-              })()}
+              {step === 2 && getStep2PrimaryLabel()}
               {step === 1 && "Next \u2192"}
             </Button>
           )}

@@ -3,6 +3,7 @@ export type ScanMode = "lookup" | "checkout" | "checkin";
 export type ItemReport = {
   type: "DAMAGED" | "LOST";
   description?: string;
+  imageUrl?: string | null;
 };
 
 export type SerializedItemStatus = {

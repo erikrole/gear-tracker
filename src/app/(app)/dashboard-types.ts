@@ -133,6 +133,7 @@ export type FlaggedItem = {
   type: "DAMAGED" | "LOST" | "MAINTENANCE";
   bookingTitle: string | null;
   reportedBy: string | null;
+  imageUrl?: string | null;
   createdAt: string;
 };
 

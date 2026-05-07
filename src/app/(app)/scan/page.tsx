@@ -75,26 +75,37 @@ export default function ScanPage() {
   const [reportLostTarget, setReportLostTarget] = useState<SerializedItemStatus | null>(null);
   const [reportSubmitting, setReportSubmitting] = useState(false);
 
-  const submitReport = useCallback(async (assetId: string, type: "DAMAGED" | "LOST", description?: string) => {
+  const submitReport = useCallback(async (assetId: string, type: "DAMAGED" | "LOST", description?: string, file?: File | null) => {
     if (!checkoutId) return;
     setReportSubmitting(true);
     try {
+      const body = file
+        ? (() => {
+            const formData = new FormData();
+            formData.append("assetId", assetId);
+            formData.append("type", type);
+            if (description) formData.append("description", description);
+            formData.append("file", file);
+            return formData;
+          })()
+        : JSON.stringify({ assetId, type, description });
       const res = await fetch(`/api/checkouts/${checkoutId}/checkin-report`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ assetId, type, description }),
+        ...(file ? {} : { headers: { "Content-Type": "application/json" } }),
+        body,
       });
       if (!res.ok) {
         const msg = await parseErrorMessage(res, "Failed to submit report");
         toast.error(msg);
         return;
       }
+      const report = await res.json() as { imageUrl?: string | null };
       // Optimistically update the local scan status
       session.setScanStatus((prev) => {
         if (!prev) return prev;
         const updatedItems = prev.serializedItems.map((item) =>
           item.assetId === assetId
-            ? { ...item, report: { type, description }, ...(type === "LOST" ? {} : {}) }
+            ? { ...item, report: { type, description, imageUrl: report.imageUrl ?? null } }
             : item
         );
         const lostCount = updatedItems.filter((i) => i.report?.type === "LOST").length;
@@ -324,8 +335,8 @@ export default function ScanPage() {
         open={!!reportDamageTarget}
         onOpenChange={(v) => { if (!v) setReportDamageTarget(null); }}
         assetTag={reportDamageTarget?.assetTag ?? ""}
-        onConfirm={(description) => {
-          if (reportDamageTarget) submitReport(reportDamageTarget.assetId, "DAMAGED", description);
+        onConfirm={(description, file) => {
+          if (reportDamageTarget) submitReport(reportDamageTarget.assetId, "DAMAGED", description, file);
         }}
         submitting={reportSubmitting}
       />

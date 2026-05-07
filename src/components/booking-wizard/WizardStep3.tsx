@@ -2,10 +2,16 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AssetImage } from "@/components/AssetImage";
 import { UserAvatar } from "@/components/UserAvatar";
-import { MapPinIcon, SmartphoneIcon } from "lucide-react";
+import {
+  CalendarClockIcon,
+  CheckCircle2Icon,
+  ClipboardCheckIcon,
+  MapPinIcon,
+  SmartphoneIcon,
+} from "lucide-react";
 import { SectionHeading } from "@/components/form-layout";
 import { sportLabel } from "@/lib/sports";
 import { formatChipTime, formatDateTime } from "@/lib/format";
@@ -33,6 +39,28 @@ type Props = {
   bulkSkus: BulkSkuOption[];
   itemCount: number;
 };
+
+function HandoffFact({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-w-0 items-start gap-2 rounded-sm border border-border/60 bg-background px-3 py-2.5">
+      <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+      <div className="min-w-0">
+        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+          {label}
+        </p>
+        <div className="mt-0.5 text-sm font-semibold text-foreground">{value}</div>
+      </div>
+    </div>
+  );
+}
 
 function SummaryRow({
   label,
@@ -63,6 +91,8 @@ export function WizardStep3({
 }: Props) {
   const locationName = locations.find((l) => l.id === form.locationId)?.name || "";
   const requester = users.find((u) => u.id === form.requester);
+  const isCheckout = config.kind === "CHECKOUT";
+  const requesterName = requester?.name || "the requester";
 
   const bulkDisplay = selectedBulkItems.map((bi) => {
     const sku = bulkSkus.find((s) => s.id === bi.bulkSkuId);
@@ -76,8 +106,51 @@ export function WizardStep3({
       <div className="flex flex-col gap-1 border-b border-border pb-5">
         <SectionHeading>Confirm {config.label}</SectionHeading>
         <p className="text-sm text-muted-foreground">
-          Review everything before you submit.
+          {isCheckout
+            ? "Create the pickup, then finish custody at the kiosk."
+            : "Confirm the reservation window before gear is held."}
         </p>
+      </div>
+
+      {/* ── Handoff outcome ── */}
+      <div className="rounded-md border border-border/60 bg-card/70 p-3 shadow-xs">
+        <div className="flex items-start gap-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-green-500/[0.08] text-green-600">
+            <CheckCircle2Icon className="size-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-base font-semibold text-balance">
+                {isCheckout ? "Ready for kiosk pickup" : "Ready to reserve"}
+              </h3>
+              <Badge variant={isCheckout ? "red" : "blue"} size="sm">
+                {isCheckout ? "Pickup required" : "Confirmed later"}
+              </Badge>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground text-pretty">
+              {isCheckout
+                ? `${requesterName} will pick up at ${locationName || "the selected location"} and scan each item at the kiosk before the checkout becomes active.`
+                : `${requesterName} will have this gear held for the selected window. Staff can start the checkout from the reservation when handoff begins.`}
+            </p>
+          </div>
+        </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          <HandoffFact
+            icon={isCheckout ? SmartphoneIcon : CalendarClockIcon}
+            label={isCheckout ? "Next step" : "Status after submit"}
+            value={isCheckout ? "Kiosk scan" : "Confirmed"}
+          />
+          <HandoffFact
+            icon={MapPinIcon}
+            label={isCheckout ? "Pickup location" : "Location"}
+            value={locationName || "Selected location"}
+          />
+          <HandoffFact
+            icon={isCheckout ? ClipboardCheckIcon : CalendarClockIcon}
+            label={isCheckout ? "Due back" : "Starts"}
+            value={isCheckout ? formatDateTime(form.endsAt) : formatDateTime(form.startsAt)}
+          />
+        </div>
       </div>
 
       {/* ── Booking details ── */}
@@ -231,9 +304,10 @@ export function WizardStep3({
       {config.kind === "CHECKOUT" && (
         <Alert>
           <SmartphoneIcon />
+          <AlertTitle>Pickup is not complete yet</AlertTitle>
           <AlertDescription>
-            Gear pickup must happen at a kiosk. After submitting, the requester should go to the
-            equipment kiosk and scan each item to complete the checkout.
+            Submitting creates a pending pickup. The requester still needs to scan the planned
+            items at the equipment kiosk before custody starts.
           </AlertDescription>
         </Alert>
       )}

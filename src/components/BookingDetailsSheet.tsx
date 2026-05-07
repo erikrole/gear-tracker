@@ -674,6 +674,7 @@ export default function BookingDetailsSheet({
                 startsAt={booking.startsAt}
                 endsAt={booking.endsAt}
                 locationId={booking.location.id}
+                excludeBookingId={booking.id}
               />
               <div className="flex gap-2">
                 <Button disabled={equipSaving} onClick={handleEquipSave}>

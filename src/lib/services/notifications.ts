@@ -431,6 +431,7 @@ export async function notifyItemReport(args: {
   itemDescription: string;
   reportType: "DAMAGED" | "LOST";
   damageDescription?: string;
+  evidenceImageUrl?: string;
   reporterName: string;
 }): Promise<void> {
   const supervisors = await db.user.findMany({
@@ -459,6 +460,7 @@ export async function notifyItemReport(args: {
       assetTag: args.assetTag,
       reportType: args.reportType,
       reporterName: args.reporterName,
+      ...(args.evidenceImageUrl ? { evidenceImageUrl: args.evidenceImageUrl } : {}),
     },
     channel: "IN_APP" as const,
     sentAt: now,

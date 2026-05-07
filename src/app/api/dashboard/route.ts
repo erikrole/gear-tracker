@@ -539,6 +539,7 @@ export const GET = withAuth(async (_req, { user }) => {
           type: r.type as "DAMAGED" | "LOST",
           bookingTitle: r.booking.title,
           reportedBy: r.reportedBy.name,
+          imageUrl: r.imageUrl ?? null,
           createdAt: r.createdAt.toISOString(),
         })),
         ...maintenanceAssets.map((a) => ({

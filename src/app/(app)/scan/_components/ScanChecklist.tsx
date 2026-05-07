@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Flag, AlertTriangle, Package, QrCode, Barcode } from "lucide-react";
+import { Flag, AlertTriangle, Package, QrCode, Barcode, ImageIcon } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import type { ScanMode, ScanStatus, SerializedItemStatus } from "./types";
 
@@ -133,6 +133,12 @@ export function ScanChecklist({
                       <div className="flex items-center gap-1 mt-0.5">
                         {isDamaged && <Badge variant="orange" size="sm">Damaged</Badge>}
                         {isLost && <Badge variant="red" size="sm">Lost</Badge>}
+                        {item.report?.imageUrl && (
+                          <Badge variant="secondary" size="sm" className="gap-1">
+                            <ImageIcon className="size-3" />
+                            Photo
+                          </Badge>
+                        )}
                       </div>
                     )}
                   </div>

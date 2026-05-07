@@ -13,25 +13,27 @@ type UseConflictCheckParams = {
   startsAt?: string;
   endsAt?: string;
   locationId?: string;
-  selectedAssetIds: string[];
+  assetIds: string[];
+  excludeBookingId?: string;
 };
 
 /**
- * Checks for scheduling conflicts when assets are selected within a booking window.
- * Re-fires whenever selectedAssetIds, dates, or location change (debounced 400ms).
+ * Checks scheduling conflicts for a batched set of assets within a booking window.
+ * Re-fires whenever asset IDs, dates, location, or excluded booking change.
  */
 export function useConflictCheck({
   startsAt,
   endsAt,
   locationId,
-  selectedAssetIds,
+  assetIds,
+  excludeBookingId,
 }: UseConflictCheckParams) {
   const [conflicts, setConflicts] = useState<Map<string, ConflictInfo>>(new Map());
   const [checking, setChecking] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(null);
 
-  const check = useCallback(async (ids: string[], start: string, end: string, loc: string) => {
+  const check = useCallback(async (ids: string[], start: string, end: string, loc: string, excludeId?: string) => {
     if (ids.length === 0) { setConflicts(new Map()); return; }
     abortRef.current?.abort();
     const ctrl = new AbortController();
@@ -47,6 +49,7 @@ export function useConflictCheck({
           endsAt: new Date(end).toISOString(),
           serializedAssetIds: ids,
           bulkItems: [],
+          ...(excludeId ? { excludeBookingId: excludeId } : {}),
         }),
         signal: ctrl.signal,
       });
@@ -72,13 +75,13 @@ export function useConflictCheck({
     if (!startsAt || !endsAt || !locationId) { setConflicts(new Map()); return; }
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
-      check(selectedAssetIds, startsAt, endsAt, locationId);
+      check(assetIds, startsAt, endsAt, locationId, excludeBookingId);
     }, 400);
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startsAt, endsAt, locationId, selectedAssetIds.join(","), check]);
+  }, [startsAt, endsAt, locationId, excludeBookingId, assetIds.join(","), check]);
 
   // Abort on unmount
   useEffect(() => () => abortRef.current?.abort(), []);

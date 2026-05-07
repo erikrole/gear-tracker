@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangleIcon, WrenchIcon } from "lucide-react";
+import { AlertTriangleIcon, ImageIcon, WrenchIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { FlaggedItem } from "../dashboard-types";
 
@@ -81,6 +81,12 @@ export function FlaggedItemsBanner({ items }: Props) {
               <Badge variant={cfg.variant} size="sm" className="shrink-0">
                 {cfg.label}
               </Badge>
+              {item.imageUrl && (
+                <Badge variant="secondary" size="sm" className="shrink-0 gap-1">
+                  <ImageIcon className="size-3" />
+                  Photo
+                </Badge>
+              )}
               {item.bookingTitle && (
                 <span
                   className="text-[10.5px] text-muted-foreground/50 truncate ml-auto hidden sm:inline"

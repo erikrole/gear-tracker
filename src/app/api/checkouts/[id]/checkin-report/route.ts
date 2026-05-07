@@ -6,6 +6,55 @@ import { requireBookingAction } from "@/lib/services/booking-rules";
 import { createAuditEntry } from "@/lib/audit";
 import { checkinReportSchema } from "@/lib/validation";
 import { notifyItemReport } from "@/lib/services/notifications";
+import { deleteImage, isBlobUrl, validateImage } from "@/lib/blob";
+import { put } from "@vercel/blob";
+
+const IMAGE_CONTENT_TYPES: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+};
+
+async function readReportPayload(req: Request) {
+  const contentType = req.headers.get("content-type") ?? "";
+  if (!contentType.includes("multipart/form-data")) {
+    return {
+      parsed: checkinReportSchema.safeParse(await req.json()),
+      file: null as File | null,
+    };
+  }
+
+  const formData = await req.formData();
+  const rawDescription = formData.get("description");
+  const rawFile = formData.get("file");
+  return {
+    parsed: checkinReportSchema.safeParse({
+      assetId: formData.get("assetId"),
+      type: formData.get("type"),
+      description: typeof rawDescription === "string" && rawDescription.trim()
+        ? rawDescription
+        : undefined,
+    }),
+    file: rawFile instanceof File && rawFile.size > 0 ? rawFile : null,
+  };
+}
+
+async function uploadReportImage(file: File, bookingId: string, assetId: string) {
+  const validationError = validateImage(file);
+  if (validationError) throw new HttpError(400, validationError);
+
+  const ext = IMAGE_CONTENT_TYPES[file.type] ?? "jpg";
+  const blob = await put(
+    `checkin-reports/${bookingId}/${assetId}/${Date.now()}.${ext}`,
+    file.stream(),
+    {
+      access: "public",
+      contentType: file.type,
+    },
+  );
+  return blob.url;
+}
 
 /**
  * POST /api/checkouts/[id]/checkin-report
@@ -19,8 +68,7 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
 
   const booking = await requireBookingAction(id, user, "checkin", BookingKind.CHECKOUT);
 
-  const body = await req.json();
-  const parsed = checkinReportSchema.safeParse(body);
+  const { parsed, file } = await readReportPayload(req);
   if (!parsed.success) {
     throw new HttpError(400, parsed.error.issues[0]?.message ?? "Invalid input");
   }
@@ -53,6 +101,12 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
     }
   }
 
+  const existingReport = await db.checkinItemReport.findUnique({
+    where: { bookingId_assetId: { bookingId: id, assetId } },
+    select: { imageUrl: true },
+  });
+  const imageUrl = file ? await uploadReportImage(file, id, assetId) : undefined;
+
   // Upsert the report (unique on bookingId + assetId)
   const report = await db.checkinItemReport.upsert({
     where: { bookingId_assetId: { bookingId: id, assetId } },
@@ -61,14 +115,20 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
       assetId,
       type: type as CheckinReportType,
       description,
+      imageUrl: imageUrl ?? null,
       reportedById: user.id,
     },
     update: {
       type: type as CheckinReportType,
       description,
+      ...(imageUrl ? { imageUrl } : {}),
       reportedById: user.id,
     },
   });
+
+  if (imageUrl && existingReport?.imageUrl && isBlobUrl(existingReport.imageUrl)) {
+    await deleteImage(existingReport.imageUrl).catch(() => {});
+  }
 
   // Notify supervisors (fire-and-forget to avoid blocking the response)
   const itemDesc = `${bookingItem.asset.brand} ${bookingItem.asset.model}`;
@@ -80,6 +140,7 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
     itemDescription: itemDesc,
     reportType: type as "DAMAGED" | "LOST",
     damageDescription: description,
+    evidenceImageUrl: report.imageUrl ?? undefined,
     reporterName: user.name,
   }).catch((err) => {
     console.error("[REPORT] Failed to send supervisor notifications:", err);
@@ -91,12 +152,13 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
     entityType: "booking",
     entityId: id,
     action: `checkin_report_${type.toLowerCase()}`,
-    after: { assetId, assetTag: bookingItem.asset.assetTag, description },
+    after: { assetId, assetTag: bookingItem.asset.assetTag, description, imageUrl: report.imageUrl },
   });
 
   return ok({
     id: report.id,
     type: report.type,
     description: report.description,
+    imageUrl: report.imageUrl,
   });
 });
