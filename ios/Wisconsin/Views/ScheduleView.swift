@@ -381,7 +381,7 @@ struct ScheduleView: View {
         if displayedGroups.isEmpty && myShiftsOnly {
             ContentUnavailableView(
                 "No shifts assigned to you",
-                systemImage: "person",
+                systemImage: "calendar",
                 description: Text("Your schedule will show up here when staff confirm.")
             )
         } else {
