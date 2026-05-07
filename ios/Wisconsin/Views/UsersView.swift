@@ -89,7 +89,11 @@ struct UsersView: View {
     @State private var vm = UsersViewModel()
 
     var body: some View {
-        NavigationStack {
+        // Apple's recommended pattern for binding to an @Observable model:
+        // shadow `vm` with a @Bindable wrapper for the duration of body so
+        // the dynamic-member subscript resolves cleanly.
+        @Bindable var vm = vm
+        return NavigationStack {
             content
                 .navigationTitle("Users")
                 .searchable(text: $vm.searchText, prompt: "Search by name or email…")

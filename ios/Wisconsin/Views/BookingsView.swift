@@ -132,7 +132,9 @@ struct BookingsView: View {
     }
 
     var body: some View {
-        NavigationStack(path: $navigationPath) {
+        // Apple's recommended pattern for binding to an @Observable model.
+        @Bindable var vm = vm
+        return NavigationStack(path: $navigationPath) {
             Group {
                 if let error = vm.error, vm.bookings.isEmpty {
                     ContentUnavailableView {
