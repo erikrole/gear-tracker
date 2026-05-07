@@ -116,7 +116,7 @@ struct ItemsView: View {
             Group {
                 if let error = vm.error, vm.assets.isEmpty {
                     ContentUnavailableView {
-                        Label("Error", systemImage: "exclamationmark.triangle")
+                        Label("Couldn't load items", systemImage: "exclamationmark.triangle")
                     } description: {
                         Text(error)
                     } actions: {

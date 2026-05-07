@@ -136,7 +136,7 @@ struct BookingsView: View {
             Group {
                 if let error = vm.error, vm.bookings.isEmpty {
                     ContentUnavailableView {
-                        Label("Error", systemImage: "exclamationmark.triangle")
+                        Label("Couldn't load bookings", systemImage: "exclamationmark.triangle")
                     } description: {
                         Text(error)
                     } actions: {
@@ -154,7 +154,7 @@ struct BookingsView: View {
                 } else if vm.bookings.isEmpty {
                     ContentUnavailableView(
                         emptyTitle,
-                        systemImage: "tray",
+                        systemImage: "archivebox",
                         description: Text(emptyDescription)
                     )
                 } else {

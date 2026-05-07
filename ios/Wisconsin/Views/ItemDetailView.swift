@@ -33,7 +33,7 @@ struct ItemDetailView: View {
                 ItemDetailSkeleton()
             } else if let error, asset == nil {
                 ContentUnavailableView {
-                    Label("Error", systemImage: "exclamationmark.triangle")
+                    Label("Couldn't load item", systemImage: "exclamationmark.triangle")
                 } description: {
                     Text(error)
                 } actions: {
@@ -290,6 +290,16 @@ private struct ItemHeroCard: View {
 
                     AssetStatusBadge(status: asset.computedStatus)
                         .padding(.top, 3)
+
+                    // "Can I grab this right now?" — one-line answer that
+                    // mirrors the at-a-glance info the item list already gives.
+                    if let snapshot = availabilitySnapshot(for: asset) {
+                        Text(snapshot)
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                            .padding(.top, 2)
+                    }
                 }
                 Spacer(minLength: 0)
             }
@@ -373,6 +383,28 @@ private struct ItemDetailsCard: View {
     }
 }
 
+/// Builds the one-line "can I grab this?" snapshot shown on the hero card.
+/// Matches the vocabulary the item list already uses, with a relative time
+/// hint pulled from `Date.countdownLabel`.
+private func availabilitySnapshot(for asset: AssetDetail) -> String? {
+    if let booking = asset.activeBooking {
+        let countdown = Date.countdownLabel(for: booking.endsAt)
+        return "\(booking.requesterName) · \(countdown.lowercased())"
+    }
+    switch asset.computedStatus {
+    case .available:
+        if let next = asset.upcomingReservations.first {
+            let when = next.startsAt.formatted(date: .abbreviated, time: .shortened)
+            return "Available — next reserved \(when)"
+        }
+        return "Available"
+    case .maintenance: return "Out for maintenance"
+    case .retired:     return "Retired from service"
+    case .unknown, .checkedOut, .reserved:
+        return nil
+    }
+}
+
 // MARK: - Active booking card
 
 private struct ActiveBookingCard: View {
@@ -381,11 +413,12 @@ private struct ActiveBookingCard: View {
     private var isReservation: Bool { booking.kind == "RESERVATION" }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        let headerTone: StatusTone = isReservation ? .purple : .blue
+        return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 Image(systemName: isReservation ? "calendar.badge.clock" : "arrow.right.circle.fill")
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(isReservation ? .purple : .blue)
+                    .foregroundStyle(Color.statusText(headerTone))
                 Text(isReservation ? "Active Reservation" : "Checked Out")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
@@ -407,7 +440,7 @@ private struct ActiveBookingCard: View {
                             systemImage: booking.isOverdue ? "exclamationmark.triangle.fill" : "clock"
                         )
                         .font(.caption2)
-                        .foregroundStyle(booking.isOverdue ? AnyShapeStyle(.red) : AnyShapeStyle(.tertiary))
+                        .foregroundStyle(booking.isOverdue ? AnyShapeStyle(Color.statusText(.red)) : AnyShapeStyle(.tertiary))
                     }
                     Spacer()
                     Image(systemName: "chevron.right")

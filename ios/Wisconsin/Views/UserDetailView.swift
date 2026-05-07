@@ -16,7 +16,7 @@ struct UserDetailView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let error, detail == nil {
                 ContentUnavailableView {
-                    Label("Error", systemImage: "exclamationmark.triangle")
+                    Label("Couldn't load profile", systemImage: "exclamationmark.triangle")
                 } description: {
                     Text(error)
                 } actions: {

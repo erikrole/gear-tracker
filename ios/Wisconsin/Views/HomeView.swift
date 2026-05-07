@@ -67,7 +67,7 @@ struct HomeView: View {
             .allowsHitTesting(false)
         } else if let error = vm.error, vm.dashboard == nil {
             ContentUnavailableView {
-                Label("Error", systemImage: "exclamationmark.triangle")
+                Label("Couldn't load dashboard", systemImage: "exclamationmark.triangle")
             } description: {
                 Text(error)
             } actions: {

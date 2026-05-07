@@ -61,7 +61,7 @@ struct TradeBoardSheet: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if let error = vm.error, vm.trades.isEmpty {
                     ContentUnavailableView {
-                        Label("Error", systemImage: "exclamationmark.triangle")
+                        Label("Couldn't load trades", systemImage: "exclamationmark.triangle")
                     } description: { Text(error) } actions: {
                         Button("Retry") { Task { await vm.load() } }
                             .buttonStyle(.borderedProminent)

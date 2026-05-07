@@ -37,7 +37,7 @@ struct AssignStudentSheet: View {
                 } else if filteredUsers.isEmpty {
                     ContentUnavailableView(
                         search.isEmpty ? "No users found" : "No matches",
-                        systemImage: "person.3",
+                        systemImage: "person.2",
                         description: Text(search.isEmpty ? "No users available to assign." : "Try a different name.")
                     )
                 } else {

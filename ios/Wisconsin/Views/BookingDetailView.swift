@@ -27,7 +27,7 @@ struct BookingDetailView: View {
                 BookingDetailSkeleton()
             } else if let error, booking == nil {
                 ContentUnavailableView {
-                    Label("Error", systemImage: "exclamationmark.triangle")
+                    Label("Couldn't load booking", systemImage: "exclamationmark.triangle")
                 } description: {
                     Text(error)
                 } actions: {

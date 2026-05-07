@@ -73,7 +73,7 @@ struct NotificationsSheet: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if let error = vm.error, vm.notifications.isEmpty {
                     ContentUnavailableView {
-                        Label("Error", systemImage: "exclamationmark.triangle")
+                        Label("Couldn't load notifications", systemImage: "exclamationmark.triangle")
                     } description: {
                         Text(error)
                     } actions: {
@@ -83,7 +83,7 @@ struct NotificationsSheet: View {
                 } else if vm.notifications.isEmpty {
                     ContentUnavailableView(
                         "All caught up",
-                        systemImage: "bell.slash",
+                        systemImage: "bell",
                         description: Text("No notifications to show.")
                     )
                 } else {
