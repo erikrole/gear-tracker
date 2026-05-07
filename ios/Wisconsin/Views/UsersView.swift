@@ -94,6 +94,8 @@ struct UsersView: View {
                 .navigationTitle("Users")
                 .searchable(text: $vm.searchText, prompt: "Search by name or email…")
                 .onChange(of: vm.searchText) { vm.onSearchChange() }
+                .onChange(of: vm.selectedRole) { Task { await vm.load(reset: true) } }
+                .onChange(of: vm.includeInactive) { Task { await vm.load(reset: true) } }
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         filterMenu
@@ -181,27 +183,19 @@ struct UsersView: View {
 
     private var filterMenu: some View {
         Menu {
-            Section("Role") {
-                Button {
-                    vm.selectedRole = nil
-                    Task { await vm.load(reset: true) }
-                } label: {
-                    Label("All roles", systemImage: vm.selectedRole == nil ? "checkmark" : "")
-                }
+            // Picker inside Menu renders the checkmark for the selected tag
+            // automatically — no `systemImage: cond ? "checkmark" : ""` hack
+            // (which logs "No symbol named ''" warnings every render).
+            Picker("Role", selection: $vm.selectedRole) {
+                Text("All roles").tag(String?.none)
                 ForEach(["ADMIN", "STAFF", "STUDENT"], id: \.self) { role in
-                    Button {
-                        vm.selectedRole = role
-                        Task { await vm.load(reset: true) }
-                    } label: {
-                        Label(role.capitalized, systemImage: vm.selectedRole == role ? "checkmark" : "")
-                    }
+                    Text(role.capitalized).tag(String?.some(role))
                 }
             }
 
             Section {
                 Button {
                     vm.includeInactive.toggle()
-                    Task { await vm.load(reset: true) }
                 } label: {
                     Label(
                         vm.includeInactive ? "Hide inactive" : "Show inactive",
