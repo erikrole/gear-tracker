@@ -142,6 +142,13 @@ struct AssetAccessory: Codable, Identifiable, Hashable {
     var displayName: String { [brand, model].joined(separator: " ") }
 }
 
+/// Free-form asset metadata parsed out of the legacy `notes` JSON column on
+/// the server. iOS only decodes the fields the floor surface uses; ignore the
+/// rest so future server additions don't break the build.
+struct AssetMetadata: Codable, Hashable {
+    let uwAssetTag: String?
+}
+
 struct AssetDetail: Codable, Identifiable, Hashable {
     let id: String
     let assetTag: String?
@@ -150,6 +157,8 @@ struct AssetDetail: Codable, Identifiable, Hashable {
     let model: String
     let serialNumber: String?
     let imageUrl: String?
+    let qrCodeValue: String?
+    let linkUrl: String?
     let computedStatus: AssetComputedStatus
     let location: AssetLocation
     let category: AssetCategory?
@@ -158,6 +167,7 @@ struct AssetDetail: Codable, Identifiable, Hashable {
     let upcomingReservations: [UpcomingReservation]
     let parentAsset: AssetParentLink?
     let accessories: [AssetAccessory]?
+    let metadata: AssetMetadata?
     let purchaseDate: String?
     let purchasePrice: String?   // Prisma Decimal serializes as string
     let residualValue: String?

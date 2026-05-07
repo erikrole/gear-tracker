@@ -47,7 +47,7 @@ struct ItemDetailView: View {
                             ParentLinkCard(parent: parent)
                         }
                         ItemHeroCard(asset: asset)
-                        ItemDetailsCard(asset: asset)
+                        ItemDetailsCard(asset: asset, canSeeProcurement: canEditAsset)
                         if let booking = asset.activeBooking {
                             ActiveBookingCard(booking: booking)
                         }
@@ -306,6 +306,33 @@ private struct ItemHeroCard: View {
                             .lineLimit(2)
                             .padding(.top, 2)
                     }
+
+                    // QR sticker code — mirrors the small QR chip web shows
+                    // in the item header. Tap copies the value so staff
+                    // can paste into the kiosk or a relink form.
+                    if let qr = asset.qrCodeValue, !qr.isEmpty {
+                        Button {
+                            UIPasteboard.general.string = qr
+                            Haptics.tap()
+                        } label: {
+                            HStack(spacing: 5) {
+                                Image(systemName: "qrcode")
+                                    .font(.caption2.weight(.semibold))
+                                Text(qr)
+                                    .font(.system(.caption2, design: .monospaced))
+                                Image(systemName: "doc.on.doc")
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color(.tertiarySystemFill), in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("QR code \(qr), tap to copy")
+                        .padding(.top, 2)
+                    }
                 }
                 Spacer(minLength: 0)
             }
@@ -334,11 +361,16 @@ private struct ItemHeroCard: View {
 
 private struct ItemDetailsCard: View {
     let asset: AssetDetail
+    /// Web gates purchase date / fiscal year / price / product link to non-
+    /// students under the "Procurement" section. iOS mirrors that gate via
+    /// canEditAsset, which is already STAFF+ADMIN-only.
+    let canSeeProcurement: Bool
 
     private struct Row {
         let label: String
         let value: String
         var mono: Bool = false
+        var link: URL? = nil
     }
 
     private var rows: [Row] {
@@ -347,13 +379,21 @@ private struct ItemDetailsCard: View {
         if let cat = asset.category { result.append(Row(label: "Category", value: cat.name)) }
         if let dept = asset.department { result.append(Row(label: "Department", value: dept.name)) }
         if let serial = asset.serialNumber { result.append(Row(label: "Serial", value: serial, mono: true)) }
-        if let raw = asset.purchaseDate,
-           let date = ISO8601DateFormatter().date(from: raw) {
-            result.append(Row(label: "Purchased", value: date.formatted(date: .abbreviated, time: .omitted)))
+        if let uwTag = asset.metadata?.uwAssetTag, !uwTag.isEmpty {
+            result.append(Row(label: "UW Asset Tag", value: uwTag, mono: true))
         }
-        if let price = asset.purchasePrice.flatMap(Double.init) {
-            let formatted = price.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD"))
-            result.append(Row(label: "Purchase Price", value: formatted))
+        if canSeeProcurement {
+            if let raw = asset.purchaseDate,
+               let date = ISO8601DateFormatter().date(from: raw) {
+                result.append(Row(label: "Purchased", value: date.formatted(date: .abbreviated, time: .omitted)))
+            }
+            if let price = asset.purchasePrice.flatMap(Double.init) {
+                let formatted = price.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD"))
+                result.append(Row(label: "Purchase Price", value: formatted))
+            }
+            if let raw = asset.linkUrl, !raw.isEmpty, let url = URL(string: raw) {
+                result.append(Row(label: "Link", value: url.host ?? raw, link: url))
+            }
         }
         return result
     }
@@ -365,18 +405,9 @@ private struct ItemDetailsCard: View {
                     if index > 0 {
                         Divider().padding(.leading, 14)
                     }
-                    HStack {
-                        Text(row.label)
-                            .font(.subheadline)
-                            .foregroundStyle(.primary)
-                        Spacer()
-                        Text(row.value)
-                            .font(row.mono ? .system(.subheadline, design: .monospaced) : .subheadline)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 11)
+                    rowContent(row)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 11)
                 }
             }
         }
@@ -386,6 +417,39 @@ private struct ItemDetailsCard: View {
             RoundedRectangle(cornerRadius: 16)
                 .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
         )
+    }
+
+    @ViewBuilder
+    private func rowContent(_ row: Row) -> some View {
+        if let url = row.link {
+            Link(destination: url) {
+                HStack {
+                    Text(row.label)
+                        .font(.subheadline)
+                        .foregroundStyle(.primary)
+                    Spacer()
+                    Text(row.value)
+                        .font(.subheadline)
+                        .foregroundStyle(Color.statusText(.blue))
+                        .lineLimit(1)
+                    Image(systemName: "arrow.up.right.square")
+                        .font(.caption2)
+                        .foregroundStyle(Color.statusText(.blue))
+                }
+            }
+            .accessibilityLabel("\(row.label) — opens in browser")
+        } else {
+            HStack {
+                Text(row.label)
+                    .font(.subheadline)
+                    .foregroundStyle(.primary)
+                Spacer()
+                Text(row.value)
+                    .font(row.mono ? .system(.subheadline, design: .monospaced) : .subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
     }
 }
 
