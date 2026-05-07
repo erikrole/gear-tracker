@@ -251,6 +251,12 @@ private struct HeaderSection: View {
         booking.status == .open && booking.endsAt < .now
     }
 
+    /// Web parity: a live "DUE BACK IN …" / "OVERDUE BY …" badge for active
+    /// checkouts. Reads the same vocabulary `formatCountdown` returns on web.
+    private var showsCountdown: Bool {
+        booking.status == .open
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -260,6 +266,22 @@ private struct HeaderSection: View {
                     Text(ref)
                         .font(.system(.caption, design: .monospaced))
                         .foregroundStyle(.secondary)
+                }
+            }
+            if showsCountdown {
+                // 30s tick: minute-precision label means at most 30s of staleness
+                // without the cost of per-second redraws.
+                TimelineView(.periodic(from: .now, by: 30)) { context in
+                    let urgency = Date.bookingUrgency(
+                        startsAt: booking.startsAt,
+                        endsAt: booking.endsAt,
+                        now: context.date
+                    )
+                    StatusPill(
+                        label: Date.countdownLabel(for: booking.endsAt, now: context.date),
+                        tone: urgency.tone,
+                        emphasized: true
+                    )
                 }
             }
             if isOverdue {
