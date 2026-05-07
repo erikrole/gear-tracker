@@ -101,7 +101,7 @@ struct UserDetailView: View {
                     Text(detail.name)
                         .font(.headline)
                     Text(detail.email)
-                        .font(.subheadline)
+                        .font(.system(.subheadline, design: .monospaced))
                         .foregroundStyle(.secondary)
                     HStack(spacing: 6) {
                         StatusPill.role(detail.role)

@@ -235,7 +235,7 @@ private struct UserListRow: View {
                     }
                 }
                 Text(user.email)
-                    .font(.caption)
+                    .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                 if let secondary = secondaryLine {

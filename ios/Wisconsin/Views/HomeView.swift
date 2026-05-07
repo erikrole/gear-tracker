@@ -282,10 +282,21 @@ private struct StatStrip: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            StatCell(value: stats.overdue, label: "Overdue", isAlert: stats.overdue > 0, onTap: onTap)
-            StatCell(value: stats.dueToday, label: "Due Today", isAlert: stats.dueToday > 0, onTap: onTap)
-            StatCell(value: stats.checkedOut, label: "Checked Out", isAlert: false, onTap: onTap)
-            StatCell(value: stats.reserved, label: "Reserved", isAlert: false, onTap: onTap)
+            // Tones mirror the web's status taxonomy:
+            //   red    = Overdue
+            //   orange = Due Today (warning)
+            //   blue   = Checked Out
+            //   purple = Reserved
+            // Cells with a non-zero value light up; zero stays neutral so the
+            // strip doesn't shout when there's nothing to act on.
+            StatCell(value: stats.overdue, label: "Overdue",
+                     tone: stats.overdue > 0 ? .red : nil, onTap: onTap)
+            StatCell(value: stats.dueToday, label: "Due Today",
+                     tone: stats.dueToday > 0 ? .orange : nil, onTap: onTap)
+            StatCell(value: stats.checkedOut, label: "Checked Out",
+                     tone: stats.checkedOut > 0 ? .blue : nil, onTap: onTap)
+            StatCell(value: stats.reserved, label: "Reserved",
+                     tone: stats.reserved > 0 ? .purple : nil, onTap: onTap)
         }
     }
 }
@@ -293,7 +304,7 @@ private struct StatStrip: View {
 private struct StatCell: View {
     let value: Int
     let label: String
-    let isAlert: Bool
+    let tone: StatusTone?
     let onTap: () -> Void
     @State private var hapticTrigger = false
 
@@ -305,7 +316,8 @@ private struct StatCell: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("\(value)")
                     .font(.title.weight(.bold))
-                    .foregroundStyle(isAlert ? Color.red : Color.primary)
+                    .monospacedDigit()
+                    .foregroundStyle(tone.map { Color.statusText($0) } ?? Color.primary)
                     .contentTransition(.numericText())
                 Text(label)
                     .font(.caption2)

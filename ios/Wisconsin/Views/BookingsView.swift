@@ -273,12 +273,7 @@ struct StatusBadge: View {
     var kind: BookingKind = .unknown
 
     var body: some View {
-        Text(labelText)
-            .font(.caption2.weight(.semibold))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(badgeColor.opacity(0.15), in: Capsule())
-            .foregroundStyle(badgeColor)
+        StatusPill(label: labelText, tone: tone)
     }
 
     private var labelText: String {
@@ -286,15 +281,15 @@ struct StatusBadge: View {
         return status.label
     }
 
-    private var badgeColor: Color {
+    private var tone: StatusTone {
         switch status {
-        case .draft: .gray
-        case .booked: kind == .reservation ? .purple : .blue
-        case .pendingPickup: .orange
-        case .open: .blue
-        case .completed: .gray
-        case .cancelled: .gray
-        case .unknown: .gray
+        case .draft: return .gray
+        case .booked: return kind == .reservation ? .purple : .blue
+        case .pendingPickup: return .orange
+        case .open: return .blue
+        case .completed: return .gray
+        case .cancelled: return .gray
+        case .unknown: return .gray
         }
     }
 }
