@@ -265,6 +265,19 @@ struct ItemsView: View {
 struct AssetRow: View {
     let asset: Asset
 
+    /// Mirrors web's `BookingDetailPage`/columns subtitle logic: when the
+    /// asset tag is the primary, the subtitle is the custom name (when set)
+    /// or brand+model — but only if it isn't just a casing/whitespace
+    /// duplicate of the tag itself.
+    private var subtitleWhenTagIsPrimary: String? {
+        guard let tag = asset.assetTag else { return nil }
+        let candidate = asset.name?.isEmpty == false ? asset.name! : asset.displayName
+        let normalized = candidate.trimmingCharacters(in: .whitespaces).lowercased()
+        let normalizedTag = tag.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !normalized.isEmpty, normalized != normalizedTag else { return nil }
+        return candidate
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             AssetThumbnail(imageUrl: asset.imageUrl, size: 44)
@@ -276,6 +289,15 @@ struct AssetRow: View {
                     Text(tag)
                         .font(.system(.subheadline, design: .monospaced).weight(.medium))
                         .lineLimit(1)
+                    // Web parity: when the tag is the primary, brand/model
+                    // (or a custom name) reads as the subtitle — but only when
+                    // it's not just a duplicate of the tag.
+                    if let subtitle = subtitleWhenTagIsPrimary {
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
                 } else {
                     Text(asset.displayName)
                         .font(.subheadline.weight(.medium))
