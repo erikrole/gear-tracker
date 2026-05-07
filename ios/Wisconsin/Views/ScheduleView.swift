@@ -257,29 +257,24 @@ struct ScheduleView: View {
                         viewMode = viewMode == .list ? .calendar : .list
                     } label: {
                         Image(systemName: viewMode == .list ? "calendar" : "list.bullet")
-                            .font(.subheadline.weight(.semibold))
-                            .frame(width: 36, height: 36)
+                            .frame(minWidth: 44, minHeight: 44)
                     }
-                    .buttonStyle(.glass)
-                    .tint(.primary)
                     .accessibilityLabel(viewMode == .list ? "Switch to calendar view" : "Switch to list view")
                     .sensoryFeedback(.selection, trigger: viewMode)
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     if viewMode == .list {
+                        // Web parity: list view's "Past" toggle includes already-
+                        // ended events. Status-blue tint when on, plain icon when off
+                        // — iOS 26 toolbar applies its own glass material.
                         Button {
                             vm.includePast.toggle()
                             Task { await vm.load(forceRefresh: true) }
                         } label: {
                             Image(systemName: vm.includePast ? "clock.arrow.circlepath" : "clock")
-                                .font(.subheadline.weight(.semibold))
-                                .frame(width: 36, height: 36)
+                                .frame(minWidth: 44, minHeight: 44)
+                                .foregroundStyle(vm.includePast ? Color.statusText(.blue) : Color.primary)
                         }
-                        // Web parity: list view's "Past" toggle includes already-
-                        // ended events. Glass + blue tint matches the other
-                        // active-state toolbar controls.
-                        .buttonStyle(.glass)
-                        .tint(vm.includePast ? Color.statusText(.blue) : .primary)
                         .accessibilityLabel(vm.includePast ? "Showing past events" : "Show past events")
                         .sensoryFeedback(.selection, trigger: vm.includePast)
                     }
@@ -287,13 +282,9 @@ struct ScheduleView: View {
                         myShiftsOnly.toggle()
                     } label: {
                         Image(systemName: myShiftsOnly ? "person.fill" : "person")
-                            .font(.subheadline.weight(.semibold))
-                            .frame(width: 36, height: 36)
+                            .frame(minWidth: 44, minHeight: 44)
+                            .foregroundStyle(myShiftsOnly ? Color.statusText(.blue) : Color.primary)
                     }
-                    // Liquid Glass: matches the Mine toggle on the Bookings tab
-                    // so iOS-wide "show only mine" controls feel identical.
-                    .buttonStyle(.glass)
-                    .tint(myShiftsOnly ? Color.statusText(.blue) : .primary)
                     .accessibilityLabel(myShiftsOnly ? "Showing my shifts only" : "Show my shifts only")
                     .sensoryFeedback(.selection, trigger: myShiftsOnly)
 
