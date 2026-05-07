@@ -357,7 +357,7 @@ struct CreateBookingSheet: View {
                 if let error = vm.error {
                     Text(error)
                         .font(.footnote)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Color.statusText(.red))
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 4)
                 }
@@ -480,7 +480,7 @@ struct AssetPickerRow: View {
                     if isConflicted {
                         Label("Scheduling conflict", systemImage: "exclamationmark.triangle.fill")
                             .font(.caption2)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Color.statusText(.orange))
                     }
                 }
 

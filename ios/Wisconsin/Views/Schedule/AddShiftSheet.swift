@@ -58,7 +58,7 @@ struct AddShiftSheet: View {
                 }
                 if let error {
                     Section {
-                        Text(error).font(.footnote).foregroundStyle(.red)
+                        Text(error).font(.footnote).foregroundStyle(Color.statusText(.red))
                     }
                 }
             }

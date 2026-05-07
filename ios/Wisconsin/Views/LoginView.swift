@@ -154,7 +154,7 @@ struct LoginView: View {
                 if let error = session.error {
                     Text(error)
                         .font(.footnote)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Color.statusText(.red))
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
                 }

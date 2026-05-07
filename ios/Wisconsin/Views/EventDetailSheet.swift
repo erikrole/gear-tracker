@@ -738,12 +738,7 @@ struct ShiftRow: View {
                                     .foregroundStyle(Color.accentColor)
                             }
                             if assignment.status == "REQUESTED" {
-                                Text("Pending")
-                                    .font(.caption2.weight(.semibold))
-                                    .padding(.horizontal, 5)
-                                    .padding(.vertical, 1)
-                                    .background(Color.orange.opacity(0.15), in: Capsule())
-                                    .foregroundStyle(.orange)
+                                StatusPill(label: "Pending", tone: .orange)
                             }
                         }
                         if canManageShifts && assignment.status == "REQUESTED" {
@@ -752,13 +747,13 @@ struct ShiftRow: View {
                                     Button("Approve") { onApprove(assignment) }
                                         .buttonStyle(.bordered)
                                         .controlSize(.mini)
-                                        .tint(.green)
+                                        .tint(Color.statusText(.green))
                                 }
                                 if let onDecline {
                                     Button("Decline") { onDecline(assignment) }
                                         .buttonStyle(.borderless)
                                         .controlSize(.mini)
-                                        .foregroundStyle(.red)
+                                        .foregroundStyle(Color.statusText(.red))
                                 }
                             }
                         }

@@ -12,8 +12,8 @@ struct BannerView: View {
         var background: AnyShapeStyle {
             switch self {
             case .info:    return AnyShapeStyle(.regularMaterial)
-            case .warning: return AnyShapeStyle(Color.orange.gradient)
-            case .error:   return AnyShapeStyle(Color.red.gradient)
+            case .warning: return AnyShapeStyle(Color.statusText(.orange).gradient)
+            case .error:   return AnyShapeStyle(Color.statusText(.red).gradient)
             }
         }
 

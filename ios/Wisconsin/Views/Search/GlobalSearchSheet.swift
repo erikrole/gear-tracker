@@ -147,7 +147,7 @@ struct GlobalSearchSheet: View {
                             recentSearches = []
                             UserDefaults.standard.removeObject(forKey: "recentSearches")
                         }
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Color.statusText(.red))
                         .font(.subheadline)
                     }
                 }

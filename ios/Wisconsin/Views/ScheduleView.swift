@@ -865,7 +865,7 @@ struct EventRow: View {
                     if let isHome = event.isHome {
                         Text(isHome ? "Home" : "Away")
                             .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(isHome ? Color.green : Color.orange)
+                            .foregroundStyle(isHome ? Color.statusText(.green) : Color.statusText(.orange))
                     }
                     if let weather = weatherData {
                         WeatherBadge(data: weather)

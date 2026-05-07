@@ -43,14 +43,16 @@ struct BookingResultRow: View {
     let booking: Booking
 
     var body: some View {
-        HStack(spacing: 12) {
+        // Booking kind → status taxonomy: checkout = blue (active), reservation = purple (planned).
+        let kindTone: StatusTone = booking.kind == .checkout ? .blue : .purple
+        return HStack(spacing: 12) {
             ZStack {
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(booking.kind == .checkout ? Color.blue.opacity(0.1) : Color.purple.opacity(0.1))
+                    .fill(Color.statusBackground(kindTone))
                     .frame(width: 40, height: 40)
                 Image(systemName: booking.kind == .checkout ? "arrow.up.circle" : "calendar")
                     .font(.system(size: 16))
-                    .foregroundStyle(booking.kind == .checkout ? Color.blue : Color.purple)
+                    .foregroundStyle(Color.statusText(kindTone))
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(booking.title)

@@ -56,7 +56,7 @@ struct PostTradeSheet: View {
                 if let error {
                     Section {
                         Text(error)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Color.statusText(.red))
                             .font(.caption)
                     }
                 }
