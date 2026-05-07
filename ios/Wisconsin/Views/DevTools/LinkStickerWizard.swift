@@ -431,7 +431,7 @@ private struct ConfirmStepView: View {
                     LabeledContent("Scanned Code") {
                         Text(scannedCode)
                             .font(.system(.subheadline, design: .monospaced))
-                            .foregroundStyle(.green)
+                            .foregroundStyle(Color.statusText(.green))
                             .lineLimit(1)
                             .truncationMode(.middle)
                     }
@@ -440,7 +440,7 @@ private struct ConfirmStepView: View {
                 if let err = saveError {
                     Section {
                         Label(err, systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Color.statusText(.red))
                             .font(.subheadline)
                     }
                 }
@@ -500,7 +500,7 @@ private struct SuccessStepView: View {
             VStack(spacing: 16) {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 64))
-                    .foregroundStyle(.green)
+                    .foregroundStyle(Color.statusText(.green))
                 Text("Linked!")
                     .font(.title.weight(.bold))
                 Text("\(Text(scannedCode).fontDesign(.monospaced)) → \(Text(asset.displayName).bold())")

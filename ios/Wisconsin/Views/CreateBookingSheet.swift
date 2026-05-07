@@ -380,7 +380,7 @@ struct CreateBookingSheet: View {
                     let count = vm.selectedAssetIds.count
                     Label("\(count) item\(count == 1 ? "" : "s") selected", systemImage: "checkmark.circle.fill")
                         .font(.subheadline)
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(Color.statusText(.blue))
                 }
             }
 
@@ -578,7 +578,7 @@ struct OptionPickerView: View {
                         if selection == option.id {
                             Image(systemName: "checkmark")
                                 .fontWeight(.semibold)
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(Color.statusText(.blue))
                         }
                     }
                 }
