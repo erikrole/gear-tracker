@@ -254,7 +254,11 @@ struct ScheduleView: View {
                         viewMode = viewMode == .list ? .calendar : .list
                     } label: {
                         Image(systemName: viewMode == .list ? "calendar" : "list.bullet")
+                            .font(.subheadline.weight(.semibold))
+                            .frame(width: 36, height: 36)
                     }
+                    .buttonStyle(.glass)
+                    .tint(.primary)
                     .accessibilityLabel(viewMode == .list ? "Switch to calendar view" : "Switch to list view")
                     .sensoryFeedback(.selection, trigger: viewMode)
                 }
@@ -263,9 +267,13 @@ struct ScheduleView: View {
                         myShiftsOnly.toggle()
                     } label: {
                         Image(systemName: myShiftsOnly ? "person.fill" : "person")
-                            .foregroundStyle(myShiftsOnly ? Color.accentColor : .primary)
-                            .frame(minWidth: 44, minHeight: 44)
+                            .font(.subheadline.weight(.semibold))
+                            .frame(width: 36, height: 36)
                     }
+                    // Liquid Glass: matches the Mine toggle on the Bookings tab
+                    // so iOS-wide "show only mine" controls feel identical.
+                    .buttonStyle(.glass)
+                    .tint(myShiftsOnly ? Color.statusText(.blue) : .primary)
                     .accessibilityLabel(myShiftsOnly ? "Showing my shifts only" : "Show my shifts only")
                     .sensoryFeedback(.selection, trigger: myShiftsOnly)
 
