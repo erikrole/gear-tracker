@@ -43,12 +43,18 @@ struct ItemDetailView: View {
             } else if let asset {
                 ScrollView {
                     VStack(spacing: 12) {
+                        if let parent = asset.parentAsset {
+                            ParentLinkCard(parent: parent)
+                        }
                         ItemHeroCard(asset: asset)
                         ItemDetailsCard(asset: asset)
                         if let booking = asset.activeBooking {
                             ActiveBookingCard(booking: booking)
                         }
                         UpcomingReservationsCard(reservations: asset.upcomingReservations)
+                        if let accessories = asset.accessories, !accessories.isEmpty {
+                            AccessoriesCard(accessories: accessories)
+                        }
                         if let notes = asset.notes, !notes.isEmpty {
                             NotesCard(notes: notes)
                         }
@@ -512,6 +518,114 @@ private struct UpcomingReservationsCard: View {
                         .padding(10)
                         .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10))
                     }
+                }
+            }
+        }
+        .padding(14)
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
+        )
+    }
+}
+
+// MARK: - Parent link card
+
+/// Shown above the hero when this asset is itself an accessory — a tap leads
+/// back to the parent gear so floor users can answer "what does this cable
+/// belong to?" in one tap.
+private struct ParentLinkCard: View {
+    let parent: AssetParentLink
+
+    var body: some View {
+        NavigationLink(destination: ItemDetailView(assetId: parent.id)) {
+            HStack(spacing: 10) {
+                Image(systemName: "link")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Part of")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+                        .tracking(0.04)
+                    HStack(spacing: 6) {
+                        Text(parent.assetTag)
+                            .font(.system(.subheadline, design: .monospaced).weight(.medium))
+                        Text(parent.name ?? parent.displayName)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(12)
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Accessories card
+
+/// Renders child accessories on this asset's detail — answers "what comes
+/// with this kit?" on the floor. Each row is tappable and pushes the child's
+/// detail view, so users can drill into a specific cable or battery without
+/// going back to the items list.
+private struct AccessoriesCard: View {
+    let accessories: [AssetAccessory]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "shippingbox")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text("Accessories")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                    .tracking(0.04)
+                Spacer()
+                Text("\(accessories.count)")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.tertiary)
+            }
+
+            VStack(spacing: 6) {
+                ForEach(accessories) { acc in
+                    NavigationLink(destination: ItemDetailView(assetId: acc.id)) {
+                        HStack(spacing: 10) {
+                            AssetThumbnail(imageUrl: acc.imageUrl, size: 36)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(acc.assetTag)
+                                    .font(.system(.subheadline, design: .monospaced).weight(.medium))
+                                    .foregroundStyle(.primary)
+                                Text(acc.name ?? acc.displayName)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding(10)
+                        .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10))
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }

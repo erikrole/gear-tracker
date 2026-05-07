@@ -112,6 +112,36 @@ struct UpcomingReservation: Codable, Identifiable {
     var id: String { bookingId }
 }
 
+/// Compact link to a parent asset — the gear this accessory is attached to
+/// (e.g., the camera body that owns this charger). Mirrors the `parentAsset`
+/// field on `/api/assets/[id]`.
+struct AssetParentLink: Codable, Hashable {
+    let id: String
+    let assetTag: String
+    let name: String?
+    let brand: String
+    let model: String
+
+    var displayName: String { [brand, model].joined(separator: " ") }
+}
+
+/// One accessory hanging off this asset — same shape the web detail page reads
+/// from `/api/assets/[id]`'s `accessories` array. The `type` is the catalog
+/// type (CAMERA / LENS / CABLE / etc.) so we can label children semantically.
+struct AssetAccessory: Codable, Identifiable, Hashable {
+    let id: String
+    let assetTag: String
+    let name: String?
+    let brand: String
+    let model: String
+    let serialNumber: String
+    let status: String
+    let type: String
+    let imageUrl: String?
+
+    var displayName: String { [brand, model].joined(separator: " ") }
+}
+
 struct AssetDetail: Codable, Identifiable, Hashable {
     let id: String
     let assetTag: String?
@@ -126,6 +156,8 @@ struct AssetDetail: Codable, Identifiable, Hashable {
     let department: AssetDepartment?
     let activeBooking: AssetActiveBooking?
     let upcomingReservations: [UpcomingReservation]
+    let parentAsset: AssetParentLink?
+    let accessories: [AssetAccessory]?
     let purchaseDate: String?
     let purchasePrice: String?   // Prisma Decimal serializes as string
     let residualValue: String?
