@@ -208,9 +208,14 @@ struct BookingsView: View {
                         Task { await vm.load(reset: true) }
                     } label: {
                         Image(systemName: vm.mineOnly ? "person.fill" : "person")
-                            .frame(minWidth: 44, minHeight: 44)
-                            .foregroundStyle(vm.mineOnly ? Color.statusText(.blue) : Color.primary)
+                            .font(.subheadline.weight(.semibold))
+                            .frame(width: 36, height: 36)
                     }
+                    // Liquid Glass: interactive toolbar control. Active state
+                    // tints with the status-blue token so it reads as a real
+                    // selection, not just a pressed state.
+                    .buttonStyle(.glass)
+                    .tint(vm.mineOnly ? Color.statusText(.blue) : .primary)
                     .accessibilityLabel(vm.mineOnly ? "Showing my bookings" : "Show only my bookings")
                     .sensoryFeedback(.selection, trigger: vm.mineOnly)
                 }
