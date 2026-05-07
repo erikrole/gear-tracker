@@ -256,7 +256,7 @@ struct BookingRow: View {
                     Image(systemName: isOverdue ? "exclamationmark.circle.fill" : "clock")
                         .font(.caption2)
                 }
-                .foregroundStyle(isOverdue ? AnyShapeStyle(Color.red) : AnyShapeStyle(.tertiary))
+                .foregroundStyle(isOverdue ? AnyShapeStyle(Color.statusText(.red)) : AnyShapeStyle(.tertiary))
             } else {
                 Text("From \(booking.startsAt.formatted(date: .abbreviated, time: .omitted))")
                     .font(.caption2)

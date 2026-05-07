@@ -365,7 +365,7 @@ private struct OverdueBanner: View {
             Label("\(totalCount) Overdue Checkout\(totalCount == 1 ? "" : "s")",
                   systemImage: "exclamationmark.triangle.fill")
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.red)
+                .foregroundStyle(Color.statusText(.red))
 
             ForEach(items) { item in
                 NavigationLink(value: item.bookingId) {
@@ -382,7 +382,7 @@ private struct OverdueBanner: View {
                         Spacer()
                         Text(item.endsAt.overdueLabel)
                             .font(.caption.weight(.medium))
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Color.statusText(.red))
                     }
                 }
                 .buttonStyle(.plain)
@@ -399,10 +399,10 @@ private struct OverdueBanner: View {
             }
         }
         .padding(14)
-        .background(Color.red.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+        .background(Color.statusBackground(.red), in: RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(Color.red.opacity(0.18), lineWidth: 1)
+                .strokeBorder(Color.statusText(.red).opacity(0.2), lineWidth: 1)
         )
     }
 }
@@ -415,7 +415,7 @@ private struct RefreshFailurePill: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.circle.fill")
-                .foregroundStyle(.orange)
+                .foregroundStyle(Color.statusText(.orange))
             VStack(alignment: .leading, spacing: 1) {
                 Text("Couldn't refresh")
                     .font(.caption.weight(.semibold))
@@ -427,7 +427,7 @@ private struct RefreshFailurePill: View {
             Spacer()
         }
         .padding(10)
-        .background(Color.orange.opacity(0.10), in: RoundedRectangle(cornerRadius: 10))
+        .background(Color.statusBackground(.orange), in: RoundedRectangle(cornerRadius: 10))
     }
 }
 
@@ -438,7 +438,7 @@ private struct AllClearEmptyState: View {
         VStack(spacing: 10) {
             Image(systemName: "checkmark.seal.fill")
                 .font(.system(size: 36))
-                .foregroundStyle(.green)
+                .foregroundStyle(Color.statusText(.green))
             Text("You're all set")
                 .font(.headline)
             Text("Open the Scan tab to check out gear.")
@@ -530,10 +530,10 @@ struct BookingSummaryRow: View {
     let summary: BookingSummary
 
     private var barColor: Color {
-        if summary.isOverdue { return .red }
+        if summary.isOverdue { return Color.statusText(.red) }
         switch summary.status {
         case .open: return .accentColor
-        case .booked, .pendingPickup: return .green
+        case .booked, .pendingPickup: return Color.statusText(.green)
         default: return Color(.systemGray4)
         }
     }
@@ -563,7 +563,7 @@ struct BookingSummaryRow: View {
                     if summary.isOverdue {
                         Text(summary.endsAt.overdueLabel)
                             .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Color.statusText(.red))
                     } else {
                         Text("Due \(summary.endsAt.formatted(date: .abbreviated, time: .shortened))")
                             .font(.caption2)
@@ -591,11 +591,11 @@ struct BookingSummaryRow: View {
     private var initialsCircle: some View {
         ZStack {
             Circle()
-                .fill(summary.isOverdue ? Color.red.opacity(0.12) : Color.accentColor.opacity(0.1))
+                .fill(summary.isOverdue ? Color.statusBackground(.red) : Color.accentColor.opacity(0.1))
                 .frame(width: 36, height: 36)
             Text(summary.requesterInitials)
                 .font(.caption2.weight(.semibold))
-                .foregroundStyle(summary.isOverdue ? Color.red : Color.accentColor)
+                .foregroundStyle(summary.isOverdue ? Color.statusText(.red) : Color.accentColor)
         }
     }
 }
@@ -641,7 +641,7 @@ private struct DashboardShiftRow: View {
                     if shift.hasGear {
                         Label(shift.gearLabel, systemImage: "checkmark.circle.fill")
                             .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.green)
+                            .foregroundStyle(Color.statusText(.green))
                     }
                 }
                 Spacer()
@@ -662,8 +662,8 @@ private struct EventSummaryRow: View {
 
     private var barColor: Color {
         switch event.isHome {
-        case true: return .green
-        case false: return .orange
+        case true: return Color.statusText(.green)
+        case false: return Color.statusText(.orange)
         case nil: return Color(.systemGray4)
         }
     }
@@ -700,8 +700,8 @@ private struct EventSummaryRow: View {
                             Text("\(event.filledShiftSlots)/\(event.totalShiftSlots) crew")
                                 .font(.caption)
                                 .foregroundStyle(
-                                    event.coveragePct >= 100 ? .green :
-                                    event.coveragePct > 0 ? .orange : .red
+                                    event.coveragePct >= 100 ? Color.statusText(.green) :
+                                    event.coveragePct > 0 ? Color.statusText(.orange) : Color.statusText(.red)
                                 )
                         }
                     }
@@ -712,7 +712,7 @@ private struct EventSummaryRow: View {
                 if let isHome = event.isHome {
                     Text(isHome ? "Home" : "Away")
                         .font(.caption2.weight(.medium))
-                        .foregroundStyle(isHome ? .green : .orange)
+                        .foregroundStyle(isHome ? Color.statusText(.green) : Color.statusText(.orange))
                 }
             }
             .padding(.vertical, 3)
@@ -732,7 +732,7 @@ private struct FlaggedItemsBanner: View {
             Label("\(items.count) Flagged Item\(items.count == 1 ? "" : "s")",
                   systemImage: "flag.fill")
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.orange)
+                .foregroundStyle(Color.statusText(.orange))
 
             ForEach(items) { item in
                 HStack {
@@ -761,8 +761,8 @@ private struct FlaggedItemsBanner: View {
             }
         }
         .padding(14)
-        .background(Color.orange.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.orange.opacity(0.18), lineWidth: 1))
+        .background(Color.statusBackground(.orange), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.statusText(.orange).opacity(0.2), lineWidth: 1))
     }
 }
 
@@ -775,7 +775,7 @@ private struct LostBulkUnitsBanner: View {
         VStack(alignment: .leading, spacing: 10) {
             Label("Lost Bulk Units", systemImage: "exclamationmark.triangle.fill")
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.red)
+                .foregroundStyle(Color.statusText(.red))
 
             ForEach(items, id: \.skuName) { item in
                 HStack {
@@ -785,13 +785,13 @@ private struct LostBulkUnitsBanner: View {
                     Spacer()
                     Text("\(item.count) missing")
                         .font(.caption.weight(.medium))
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Color.statusText(.red))
                 }
             }
         }
         .padding(14)
-        .background(Color.red.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.red.opacity(0.18), lineWidth: 1))
+        .background(Color.statusBackground(.red), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.statusText(.red).opacity(0.2), lineWidth: 1))
     }
 }
 
