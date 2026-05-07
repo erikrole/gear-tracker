@@ -19,6 +19,11 @@ Single Settings surface for both **personal preferences** (visible to every auth
 
 ## Sub-Pages
 
+### Overview (`/settings`)
+- Role-aware control map for every visible settings section.
+- Groups settings into Personal, People, Inventory, Scheduling, Devices, and System with short descriptions.
+- Preserves the previous last-tab behavior as a "Resume" action instead of immediately redirecting.
+
 ### Notifications (`/settings/notifications`) — Personal
 - "Quiet hours" pause (1 hour / 1 day / 1 week) — sets `pausedUntil` on the user's prefs row; while active, all email + push delivery skips. The in-app inbox always continues.
 - Channel toggles: Email and Push (master switches per channel). Disabled while a pause is active.
@@ -37,6 +42,14 @@ Single Settings surface for both **personal preferences** (visible to every auth
 - Search filters the tree (preserves parent nodes for structure).
 - Sort toggles A→Z / Z→A.
 - Delete is guarded: blocked if category has items or children.
+- Duplicate names are blocked within the same tree level, and rows show last audit actor/time when audit history exists.
+
+### Departments (`/settings/departments`)
+- Staff/admin catalog of inventory ownership groups used by item forms, filters, bulk SKUs, and utilization reports.
+- Add a department, inline rename by clicking the name, and deactivate/reactivate without breaking existing item or bulk references.
+- Active departments appear in new item and bulk SKU pickers; inactive departments are hidden from pickers but remain on existing records.
+- Usage counts show how many serialized items and bulk SKUs still reference each department.
+- Rows show the last audit actor/time when audit history exists.
 
 ### Sports (`/settings/sports`)
 - Toggle sports active/inactive for shift generation.
@@ -105,6 +118,7 @@ Single Settings surface for both **personal preferences** (visible to every auth
 - [x] AC-8: Calendar sources: enable/disable, sync status, health badges, add/delete
 - [x] AC-9: Venue mappings: admin-only CRUD with regex validation
 - [x] AC-10: Allowed emails: add/delete with role pre-assignment, registration gating enforced
+- [x] AC-11: Departments: staff/admin CRUD surface for inventory ownership groups
 
 ## Breadcrumb Roadmap
 
@@ -135,3 +149,7 @@ All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-j
 - 2026-04-25: IA — Settings is no longer admin-only. New top-of-nav **Personal** group hosts user-preference tabs that every authenticated user sees, including STUDENTs. First entry is **Appearance** (Light / Dark / System theme picker, saved to `localStorage:theme`, mirrors the cold-load script in `src/app/layout.tsx`). Layout auth gate relaxed from "ADMIN | STAFF" to "any authenticated role"; non-auth users still bounce to `/login`. The `/settings` index now picks the user's last-visited tab if their role still has access, otherwise falls back to the first section their role can see (so a STUDENT lands on Appearance, not Categories). `SettingsRole` is now a tri-state with rank ordering (STUDENT < STAFF < ADMIN); `isSectionVisible` uses the rank instead of two ad-hoc cases. Notifications preferences are the next planned Personal tab — needs schema work and is tracked separately.
 - 2026-04-25: P2 — Test-before-save affordances. Calendar Sources Add form has a "Test" button next to the URL input that probes the feed via new `POST /api/calendar-sources/test` (8s timeout, 5 MB cap, 10 probes/min/user). Result panel reports reachability, content type, byte size, parsed event count, and the first three event summaries — admins see whether they pasted a valid feed before committing. Venue Mappings Add form pairs the pattern input with a live regex tester: a sample-text box + immediate "✓ Matches X" / "✗ Does not match" / "✗ Invalid regex: Y" feedback, all client-side.
 - 2026-04-25: P2 — settings IA + density pass. `SETTINGS_SECTIONS` now carries `group` (People · Inventory · Scheduling · Devices · System) and `description` + `keywords` for each section. The tab nav is reordered into those groups with thin dividers between them. The `/settings/bookings` tab is relabeled to **Extend Presets** (route unchanged for compatibility). New ⌘K / `/` search palette (`SettingsCommand`) opens a CommandDialog over the visible-to-this-role sections; matches by label, description, and keyword aliases (so admins can find pages by intent — e.g. "allowlist", "cron", "home venue"). Sidebar density: every settings sub-page bumped from `max-md:` to `max-lg:` — the 260px decorative sidebar collapses to a one-line subhead at <1024px, giving 13" laptops more horizontal room for the actual table without rewriting any layout.
+- 2026-05-06: Ownership pass - added `/settings/departments` under Inventory so staff/admins can manage department names and active state from Settings instead of relying on import side effects or item forms. Department APIs now support include-inactive reads with serialized/bulk usage counts plus PATCH rename/deactivate/reactivate with audit logging and settings rate limits. Extend Presets now accepts an empty saved list, matching the UI's "custom option only" empty state.
+- 2026-05-06: Ownership pass slice 2 - `/settings` now renders a role-aware control map instead of immediately redirecting to the last visited tab. The previous last-tab behavior is preserved as a Resume action so direct Settings navigation is useful while still supporting fast return workflows.
+- 2026-05-06: Ownership pass slice 3 - Departments now show last-edited audit context, matching the higher-signal admin catalog pattern from Locations and Allowed Emails. Department create now writes first and handles Prisma unique conflicts, preserving inactive reactivation behavior without a find-then-create race.
+- 2026-05-06: Ownership pass slice 4 - Categories adopted the useful catalog hardening without adding a new active-state model. Category create/rename now trims names, blocks same-level duplicates with clear 409s, prevents moving a category under its own descendant, and surfaces last-edited audit context in the tree.

@@ -10,7 +10,8 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { FadeUp } from "@/components/ui/motion";
 import { useFetch } from "@/hooks/use-fetch";
-import { handleAuthRedirect, classifyError, isAbortError } from "@/lib/errors";
+import { useLastAudit } from "@/hooks/use-last-audit";
+import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage } from "@/lib/errors";
 import type { Category } from "./types";
 import { buildTree } from "./types";
 import CategoryRow from "./CategoryRow";
@@ -27,6 +28,7 @@ export default function CategoriesPage() {
   const [newName, setNewName] = useState("");
   const [creatingRoot, setCreatingRoot] = useState(false);
   const addRef = useRef<HTMLInputElement>(null);
+  const lastEdited = useLastAudit("category", (categories ?? []).map((category) => category.id));
 
   useEffect(() => { if (adding) addRef.current?.focus(); }, [adding]);
 
@@ -41,6 +43,12 @@ export default function CategoriesPage() {
         body: JSON.stringify({ name: newName.trim() }),
       });
       if (handleAuthRedirect(res, "/settings/categories")) return;
+      if (!res.ok) {
+        const msg = await parseErrorMessage(res, "Failed to create category");
+        toast.error(msg);
+        return;
+      }
+      toast.success(`Added "${newName.trim()}"`);
       setNewName("");
       setAdding(false);
       reload();
@@ -48,8 +56,9 @@ export default function CategoriesPage() {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
       toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to create category \u2014 please try again");
+    } finally {
+      setCreatingRoot(false);
     }
-    setCreatingRoot(false);
   }
 
   let tree = buildTree(categories ?? []);
@@ -189,7 +198,13 @@ export default function CategoriesPage() {
                 </div>
               ) : (
                 tree.map((node) => (
-                  <CategoryRow key={node.id} node={node} depth={0} onRefresh={reload} />
+                  <CategoryRow
+                    key={node.id}
+                    node={node}
+                    depth={0}
+                    lastEdited={lastEdited}
+                    onRefresh={reload}
+                  />
                 ))
               )}
             </div>

@@ -2,8 +2,10 @@
 
 import { SPORT_CODES } from "@/lib/sports";
 import { FilterChip } from "@/components/FilterChip";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CardHeader, CardTitle } from "@/components/ui/card";
+import { XIcon } from "lucide-react";
 import type { BookingListConfig, StatusOption, Location, FormUser } from "./types";
 
 export type BookingFiltersProps = {
@@ -43,14 +45,16 @@ export function BookingFilters({
   onUserFilterChange,
   users,
 }: BookingFiltersProps) {
+  const title = statusFilter
+    ? config.statusOptions.find((s) => s.value === statusFilter)?.label ?? "Filtered"
+    : specialFilter
+      ? specialFilter === "overdue" ? "Overdue" : "Due today"
+      : config.scopeLabel ?? "All";
+
   return (
     <CardHeader className="!flex !flex-row items-center gap-2.5 flex-nowrap max-md:flex-wrap">
       <CardTitle style={{ margin: 0, whiteSpace: "nowrap" }}>
-        {statusFilter
-          ? config.statusOptions.find((s) => s.value === statusFilter)?.label ?? "Filtered"
-          : specialFilter
-            ? specialFilter === "overdue" ? "Overdue" : "Due today"
-            : "All"}{" "}
+        {title}{" "}
         {config.labelPlural.toLowerCase()}
       </CardTitle>
       <Input
@@ -65,16 +69,18 @@ export function BookingFilters({
       />
       <div className="flex gap-2 flex-nowrap items-center shrink-0 max-md:flex-wrap max-md:w-full">
         {specialFilter ? (
-          <button
+          <Button
             type="button"
-            className="inline-flex items-center gap-1.5 py-1 px-3 rounded-full border border-[var(--text-muted)] bg-[var(--accent-soft)] text-sm font-medium text-[var(--text)] cursor-pointer transition-all whitespace-nowrap min-h-8 hover:bg-[var(--border-light)] hover:border-[var(--text-secondary)]"
+            variant="outline"
+            size="sm"
+            className="h-8 rounded-full px-3 text-xs"
             onClick={() => onSpecialFilterChange("")}
             aria-label={`Clear ${specialFilter === "overdue" ? "overdue" : "due today"} filter`}
           >
             <span className="font-medium">Showing:</span>
             <span className="font-semibold">{specialFilter === "overdue" ? "Overdue" : "Due today"}</span>
-            <span className="text-base leading-none ml-0.5 opacity-60 hover:opacity-100 cursor-pointer">&times;</span>
-          </button>
+            <XIcon className="size-3 opacity-60" aria-hidden="true" />
+          </Button>
         ) : (
           <FilterChip
             label="Status"
@@ -115,9 +121,11 @@ export function BookingFilters({
           />
         )}
         {(statusFilter || sportFilter || locationFilter || userFilter || specialFilter) && (
-          <button
+          <Button
             type="button"
-            className="text-xs text-muted-foreground hover:text-foreground cursor-pointer bg-transparent border-none font-medium whitespace-nowrap"
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
             onClick={() => {
               onStatusFilterChange("");
               onSportFilterChange("");
@@ -127,7 +135,7 @@ export function BookingFilters({
             }}
           >
             Clear all
-          </button>
+          </Button>
         )}
       </div>
     </CardHeader>

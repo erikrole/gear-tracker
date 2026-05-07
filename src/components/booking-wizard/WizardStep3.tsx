@@ -2,9 +2,11 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AssetImage } from "@/components/AssetImage";
 import { UserAvatar } from "@/components/UserAvatar";
 import { MapPinIcon, SmartphoneIcon } from "lucide-react";
+import { SectionHeading } from "@/components/form-layout";
 import { sportLabel } from "@/lib/sports";
 import { formatChipTime, formatDateTime } from "@/lib/format";
 import type { BulkSelection } from "@/components/EquipmentPicker";
@@ -68,23 +70,12 @@ export function WizardStep3({
   });
 
   return (
-    <div className="space-y-7">
+    <div className="flex flex-col gap-7">
 
       {/* ── Header ── */}
-      <div className="pb-5 border-b border-border">
-        <p
-          className="text-[10px] font-bold uppercase tracking-[0.2em] mb-1"
-          style={{ color: "var(--wi-red)" }}
-        >
-          Step 3 of 3
-        </p>
-        <h2
-          className="text-2xl font-black uppercase leading-none"
-          style={{ fontFamily: "var(--font-heading)" }}
-        >
-          Confirm {config.label}
-        </h2>
-        <p className="text-sm text-muted-foreground mt-1.5">
+      <div className="flex flex-col gap-1 border-b border-border pb-5">
+        <SectionHeading>Confirm {config.label}</SectionHeading>
+        <p className="text-sm text-muted-foreground">
           Review everything before you submit.
         </p>
       </div>
@@ -176,18 +167,10 @@ export function WizardStep3({
       </div>
 
       {/* ── Equipment ── */}
-      <div>
-        <div className="flex items-center gap-2.5 mb-3">
-          <span
-            className="h-[18px] w-[3px] shrink-0 rounded-full"
-            style={{ backgroundColor: "var(--wi-red)" }}
-          />
-          <h3
-            className="text-[11px] font-black uppercase tracking-[0.15em]"
-          >
-            Equipment
-          </h3>
-          <span className="text-[10px] font-bold text-muted-foreground ml-auto">
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-2.5">
+          <SectionHeading>Equipment</SectionHeading>
+          <span className="ml-auto text-[10px] font-bold text-muted-foreground">
             {itemCount} item{itemCount !== 1 ? "s" : ""}
           </span>
         </div>
@@ -246,22 +229,13 @@ export function WizardStep3({
 
       {/* ── Kiosk pickup notice (CHECKOUT only) ── */}
       {config.kind === "CHECKOUT" && (
-        <div
-          className="flex items-start gap-3 rounded-sm px-4 py-3.5 border"
-          style={{
-            backgroundColor: "color-mix(in srgb, var(--wi-red) 5%, transparent)",
-            borderColor: "color-mix(in srgb, var(--wi-red) 20%, transparent)",
-          }}
-        >
-          <SmartphoneIcon
-            className="size-4 shrink-0 mt-0.5"
-            style={{ color: "var(--wi-red)" }}
-          />
-          <p className="text-sm text-foreground">
+        <Alert>
+          <SmartphoneIcon />
+          <AlertDescription>
             Gear pickup must happen at a kiosk. After submitting, the requester should go to the
             equipment kiosk and scan each item to complete the checkout.
-          </p>
-        </div>
+          </AlertDescription>
+        </Alert>
       )}
     </div>
   );

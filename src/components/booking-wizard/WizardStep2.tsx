@@ -6,6 +6,7 @@ import type { BulkSelection } from "@/components/EquipmentPicker";
 import type { EquipmentSectionKey } from "@/lib/equipment-sections";
 import type { AvailableAsset, BulkSkuOption } from "@/components/booking-list/types";
 import type { FormState } from "@/components/create-booking/types";
+import { SectionHeading } from "@/components/form-layout";
 
 type Props = {
   kind: "CHECKOUT" | "RESERVATION";
@@ -33,24 +34,14 @@ export function WizardStep2({
   onActiveSectionChange,
 }: Props) {
   return (
-    <div className="space-y-4">
-      <div className="flex items-start gap-3">
-        <span
-          className="mt-0.5 h-[18px] w-[3px] shrink-0 rounded-full"
-          style={{ backgroundColor: "var(--wi-red)" }}
-        />
-        <div>
-          <h2
-            className="text-[11px] font-black uppercase tracking-[0.15em] text-foreground mb-1"
-          >
-            Select Equipment
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {kind === "CHECKOUT"
-              ? "Pick the gear to check out. Items will be scanned at pickup to confirm."
-              : "Browse and reserve the equipment you\u2019ll need."}
-          </p>
-        </div>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1">
+        <SectionHeading>Select equipment</SectionHeading>
+        <p className="text-sm text-muted-foreground">
+          {kind === "CHECKOUT"
+            ? "Pick the gear to check out. Items will be scanned at pickup to confirm."
+            : "Browse and reserve the equipment you\u2019ll need."}
+        </p>
       </div>
 
       <EquipmentPicker

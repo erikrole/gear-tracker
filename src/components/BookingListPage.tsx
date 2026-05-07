@@ -60,13 +60,15 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
     params.set("offset", String(page * limit));
     if (search) params.set("q", search);
     if (sort) params.set("sort", sort);
+    if (config.activeOnly) params.set("active", "true");
+    if (config.pastOnly) params.set("past", "true");
     if (specialFilter) params.set("filter", specialFilter);
     if (!specialFilter && statusFilter) params.set("status", statusFilter);
     if (config.hasSportFilter && sportFilter) params.set("sport_code", sportFilter);
     if (locationFilter) params.set("location_id", locationFilter);
     if (userFilter) params.set("requester_id", userFilter);
     return `${config.apiBase}?${params}`;
-  }, [page, search, sort, statusFilter, sportFilter, locationFilter, userFilter, specialFilter, config.apiBase, config.hasSportFilter]);
+  }, [page, search, sort, statusFilter, sportFilter, locationFilter, userFilter, specialFilter, config.apiBase, config.activeOnly, config.pastOnly, config.hasSportFilter]);
 
   const { data: listData, isLoading: loading, isFetching, isError, refetch } = useQuery<ListResponse>({
     queryKey: ["bookingList", config.kind, listUrl],
@@ -229,6 +231,8 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
   // ── Derived ──
 
   const totalPages = Math.ceil(total / limit);
+  const hasUserFilters = !!search || !!statusFilter || !!sportFilter || !!locationFilter || !!userFilter || !!specialFilter;
+  const scopedLabel = config.scopeLabel ? `${config.scopeLabel.toLowerCase()} ` : "";
 
   const sportCodesInUse = useMemo(() => {
     if (!config.hasSportFilter) return [];
@@ -311,12 +315,14 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
         ) : items.length === 0 ? (
           <EmptyState
             icon="clipboard"
-            title={search || statusFilter || sportFilter || locationFilter || userFilter || specialFilter
+            title={hasUserFilters
               ? `No ${config.labelPlural.toLowerCase()} match your filters`
-              : `No ${config.labelPlural.toLowerCase()} yet`}
-            description={search || statusFilter || sportFilter || locationFilter || userFilter || specialFilter
+              : `No ${scopedLabel}${config.labelPlural.toLowerCase()} yet`}
+            description={hasUserFilters
               ? "Try a different search term or clear filters to see all results."
-              : `${config.label.charAt(0).toUpperCase() + config.label.slice(1)}s you create will appear here.`}
+              : config.pastOnly
+                ? `Completed and cancelled ${config.labelPlural.toLowerCase()} will appear here.`
+                : `${config.label.charAt(0).toUpperCase() + config.label.slice(1)}s you create will appear here.`}
           />
         ) : (
           <>

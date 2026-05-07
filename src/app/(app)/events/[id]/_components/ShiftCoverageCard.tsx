@@ -225,14 +225,17 @@ export function ShiftCoverageCard({
           {isStaffOrAdmin && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
                   onClick={() => handleRemove(activeAssignment.id)}
                   disabled={isActing || inlineActing !== null}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                  className="text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
                   aria-label="Remove assignment"
                 >
                   <XIcon className="size-3.5" />
-                </button>
+                </Button>
               </TooltipTrigger>
               <TooltipContent>Remove assignment</TooltipContent>
             </Tooltip>
@@ -252,8 +255,11 @@ export function ShiftCoverageCard({
         }}
       >
         <PopoverTrigger asChild>
-          <button
-            className="group flex items-center gap-1.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors text-sm disabled:pointer-events-none"
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="group h-8 justify-start gap-1.5 px-1.5 text-muted-foreground/60 hover:text-muted-foreground"
             disabled={isActing || inlineActing !== null}
           >
             {isActing ? <span className="text-xs">Assigning…</span> : (
@@ -264,7 +270,7 @@ export function ShiftCoverageCard({
                 <span className="group-hover:text-muted-foreground/80">Assign</span>
               </>
             )}
-          </button>
+          </Button>
         </PopoverTrigger>
         <PopoverContent className="w-64 p-2" align="start">
           <UserAvatarPicker
@@ -289,11 +295,11 @@ export function ShiftCoverageCard({
       return (
         <Popover open={requestsShiftId === shift.id} onOpenChange={(open) => setRequestsShiftId(open ? shift.id : null)}>
           <PopoverTrigger asChild>
-            <button>
+            <Button type="button" variant="ghost" size="sm" className="h-7 px-1.5">
               <Badge variant="orange" className="cursor-pointer">
                 {pendingRequests.length} req
               </Badge>
-            </button>
+            </Button>
           </PopoverTrigger>
           <PopoverContent className="w-64 p-3" align="start">
             <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Pending requests</p>
@@ -342,17 +348,20 @@ export function ShiftCoverageCard({
         <PopoverTrigger asChild>
           <Tooltip>
             <TooltipTrigger asChild>
-              <button
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
                 onClick={() => {
                   if (hasAssignment) setDeleteConfirmId(shift.id);
                   else handleDeleteShift(shift.id, false);
                 }}
                 disabled={inlineActing !== null}
-                className="text-muted-foreground/40 hover:text-destructive transition-colors disabled:pointer-events-none"
+                className="text-muted-foreground/40 hover:text-destructive"
                 aria-label="Remove shift"
               >
                 <XIcon className="size-3.5" />
-              </button>
+              </Button>
             </TooltipTrigger>
             <TooltipContent>Remove shift</TooltipContent>
           </Tooltip>

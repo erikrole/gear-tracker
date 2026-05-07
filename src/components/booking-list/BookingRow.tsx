@@ -117,7 +117,7 @@ export function BookingTableRow({
         </TableCell>
         <TableCell className="hidden md:table-cell">
           <span className="text-[12px] text-muted-foreground/60 tabular-nums" style={{ fontFamily: "var(--font-mono)" }}>
-            {(item.serializedItems?.length ?? 0) + (item.bulkItems?.length ?? 0)}
+            {(item.serializedItems?.length ?? 0) + (item.bulkItems?.reduce((sum, bulkItem) => sum + (bulkItem.plannedQuantity || 0), 0) ?? 0)}
           </span>
         </TableCell>
         <TableCell onClick={(e) => e.stopPropagation()}>

@@ -1,31 +1,21 @@
 "use client";
 
-import { UserIcon } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { UserAvatar } from "@/components/UserAvatar";
+import { ItemThumbnailStack } from "@/components/ItemThumbnailStack";
+import { UserAvatarGroup, type UserAvatarGroupUser } from "@/components/UserAvatarGroup";
 import type { ItemThumb, EventSummary } from "../dashboard-types";
 
 export function GearAvatarStack({ items, totalCount }: { items: ItemThumb[]; totalCount: number }) {
-  if (totalCount === 0) return null;
-  const overflow = totalCount - items.length;
   return (
-    <div className="flex -space-x-2">
-      {items.map((item) => (
-        <Avatar key={item.id} size="sm" className="ring-2 ring-background bg-muted">
-          {item.imageUrl ? (
-            <AvatarImage src={item.imageUrl} alt={item.name || "Item"} />
-          ) : (
-            <AvatarFallback className="text-[10px]">{(item.name || "?")[0]!.toUpperCase()}</AvatarFallback>
-          )}
-        </Avatar>
-      ))}
-      {overflow > 0 && (
-        <Avatar size="sm" className="ring-2 ring-background">
-          <AvatarFallback className="text-[10px] bg-muted">+{overflow}</AvatarFallback>
-        </Avatar>
-      )}
-    </div>
+    <ItemThumbnailStack
+      items={items.map((item) => ({
+        id: item.id,
+        name: item.name || "Item",
+        imageUrl: item.imageUrl,
+      }))}
+      totalCount={totalCount}
+      max={items.length}
+      surfaceClassName="border-background bg-muted"
+    />
   );
 }
 
@@ -36,53 +26,24 @@ const AREA_LABELS: Record<string, string> = {
   COMMS: "Comms",
 };
 
-export function ShiftAvatarStack({ assignedUsers, totalSlots, filledSlots }: { assignedUsers: EventSummary["assignedUsers"]; totalSlots: number; filledSlots: number }) {
-  if (totalSlots === 0) return null;
-  const emptySlots = Math.max(0, totalSlots - filledSlots);
-  const maxShow = 5;
-  const showUsers = assignedUsers.slice(0, maxShow);
-  const showEmpty = Math.min(emptySlots, maxShow - showUsers.length);
-  const overflow = assignedUsers.length + emptySlots - maxShow;
-  return (
-    <div className="flex -space-x-2">
-      {showUsers.map((u) => {
-        const areaLabel = u.area ? AREA_LABELS[u.area] ?? u.area : null;
-        const tooltipText = areaLabel ? `${u.name} — ${areaLabel}` : u.name;
-        return (
-          <Tooltip key={u.id}>
-            <TooltipTrigger asChild>
-              <span className="cursor-default">
-                <UserAvatar
-                  name={u.name}
-                  avatarUrl={u.avatarUrl}
-                  size="sm"
-                  className="ring-2 ring-background"
-                />
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>{tooltipText}</TooltipContent>
-          </Tooltip>
-        );
-      })}
-      {Array.from({ length: showEmpty }).map((_, i) => (
-        <EmptySlotAvatar key={`empty-${i}`} />
-      ))}
-      {overflow > 0 && (
-        <Avatar size="sm" className="ring-2 ring-background">
-          <AvatarFallback className="text-[10px] bg-muted">+{overflow}</AvatarFallback>
-        </Avatar>
-      )}
-    </div>
-  );
-}
+export function ShiftAvatarStack({ assignedUsers }: { assignedUsers: EventSummary["assignedUsers"] }) {
+  if (assignedUsers.length === 0) return null;
 
-/** Standardized empty shift slot placeholder */
-export function EmptySlotAvatar({ size = "sm" }: { size?: "sm" | "default" }) {
+  const users: UserAvatarGroupUser[] = assignedUsers.map((u) => {
+    const areaLabel = u.area ? AREA_LABELS[u.area] ?? u.area : null;
+    return {
+      id: u.id,
+      name: u.name,
+      avatarUrl: u.avatarUrl,
+      label: areaLabel ? `${u.name} · ${areaLabel}` : u.name,
+    };
+  });
+
   return (
-    <Avatar size={size} className="ring-2 ring-background">
-      <AvatarFallback className="border-2 border-dashed border-muted-foreground/30 bg-transparent">
-        <UserIcon className="size-3 text-muted-foreground/40" />
-      </AvatarFallback>
-    </Avatar>
+    <UserAvatarGroup
+      users={users}
+      max={5}
+      avatarClassName="ring-0"
+    />
   );
 }

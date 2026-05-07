@@ -71,6 +71,37 @@ function SortableHead({
   );
 }
 
+function RosterSummary({ stats }: { stats: NonNullable<ListResponse["stats"]> }) {
+  const buckets = [
+    { label: "Total", value: stats.total },
+    { label: "Active", value: stats.active },
+    { label: "Students", value: stats.byRole.STUDENT },
+    { label: "Staff", value: stats.byRole.STAFF },
+    { label: "Admins", value: stats.byRole.ADMIN },
+  ];
+
+  if (stats.inactive > 0) {
+    buckets.splice(2, 0, { label: "Inactive", value: stats.inactive });
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-2 rounded-md border border-border/60 bg-muted/20 p-2 sm:grid-cols-3 lg:grid-cols-5">
+      {buckets.map((bucket) => (
+        <div key={bucket.label} className="flex min-h-14 items-center justify-between rounded-sm bg-background px-3 shadow-xs">
+          <div className="min-w-0">
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              {bucket.label}
+            </div>
+            <div className="mt-0.5 text-xl font-bold leading-none tabular-nums" style={{ fontFamily: "var(--font-heading)" }}>
+              {bucket.value.toLocaleString()}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ── Page Component ────────────────────────────────────── */
 
 export default function UsersPage() {
@@ -121,6 +152,7 @@ export default function UsersPage() {
 
   const users = listData?.data ?? [];
   const total = listData?.total ?? 0;
+  const stats = listData?.stats;
 
   // Form options
   const { data: formOptions } = useFetch<{ locations: Location[] }>({
@@ -197,7 +229,8 @@ export default function UsersPage() {
         open={showCreate}
         onOpenChange={setShowCreate}
         locations={locations}
-        onCreated={reload}
+        currentUserRole={currentUserRole}
+        onCreated={() => reload()}
       />
 
       {/* Users List */}
@@ -227,6 +260,10 @@ export default function UsersPage() {
             setShowInactive(false);
           }}
         />
+
+        {stats && !isInitialLoad && !loadError && (
+          <RosterSummary stats={stats} />
+        )}
 
         {isInitialLoad ? (
           <div className="rounded-md border">

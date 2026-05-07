@@ -46,6 +46,7 @@ export type StatusOption = { value: string; label: string };
 export type ContextMenuExtra = {
   action: string;
   label: string;
+  kind?: "CHECKOUT" | "RESERVATION";
   danger?: boolean;
   opensSheet?: boolean;
   handler?: (bookingId: string, items: BookingItem[], reload: () => Promise<void>, setItems?: (updater: (items: BookingItem[]) => BookingItem[]) => void) => void | Promise<void>;
@@ -70,6 +71,9 @@ export type BookingListConfig = {
   statusOptions: StatusOption[];
   defaultTieToEvent: boolean;
   hasSportFilter: boolean;
+  activeOnly?: boolean;
+  pastOnly?: boolean;
+  scopeLabel?: string;
   overdueStatus: string;
   /** Status filter applied by default (e.g. "OPEN" to hide completed/cancelled) */
   defaultStatusFilter?: string;

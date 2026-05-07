@@ -10,6 +10,7 @@ import {
 import type { FormAction } from "./types";
 
 const MAX_SELECTED_EVENTS = 3;
+const BOOKING_EVENT_LOOKAHEAD_DAYS = 30;
 
 /** Derive auto-fill fields from the chronologically-first event in the list. */
 function deriveFromPrimary(events: CalendarEvent[], sport: string) {
@@ -64,10 +65,10 @@ export function useEventContext({
     setEventsLoading(true);
     const controller = new AbortController();
     const now = new Date();
-    const in3 = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+    const rangeEnd = new Date(now.getTime() + BOOKING_EVENT_LOOKAHEAD_DAYS * 24 * 60 * 60 * 1000);
     const params = new URLSearchParams({
       startDate: now.toISOString(),
-      endDate: in3.toISOString(),
+      endDate: rangeEnd.toISOString(),
       limit: "30",
     });
     if (sport) params.set("sportCode", sport);

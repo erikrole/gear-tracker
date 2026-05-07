@@ -85,11 +85,11 @@ describe("createBooking", () => {
     expectSerializableIsolation(transactionCalls, 0);
   });
 
-  it("creates a CHECKOUT with OPEN status", async () => {
+  it("creates a CHECKOUT with PENDING_PICKUP status", async () => {
     await createBooking(baseInput({ kind: "CHECKOUT" }));
     expect(mockTx.booking.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ kind: "CHECKOUT", status: "OPEN" }),
+        data: expect.objectContaining({ kind: "CHECKOUT", status: "PENDING_PICKUP" }),
       })
     );
   });

@@ -13,6 +13,7 @@ const saveDraftSchema = z.object({
   startsAt: z.string().optional(),
   endsAt: z.string().optional(),
   eventId: z.string().cuid().nullable().optional(),
+  eventIds: z.array(z.string().cuid()).max(3).optional(),
   sportCode: z.string().max(10).optional(),
   notes: z.string().max(10000).optional(),
   serializedAssetIds: z.array(z.string().cuid()).default([]),
@@ -20,6 +21,39 @@ const saveDraftSchema = z.object({
     .array(z.object({ bulkSkuId: z.string().cuid(), quantity: z.number().int().positive() }))
     .default([]),
 });
+
+function dedupeIds(ids: string[]) {
+  return Array.from(new Set(ids));
+}
+
+async function resolveDraftEventLinks(tx: Prisma.TransactionClient, body: z.infer<typeof saveDraftSchema>) {
+  if (body.eventId && body.eventIds && body.eventIds.length > 0) {
+    throw new HttpError(400, "Provide either eventId or eventIds, not both");
+  }
+
+  const requestedEventIds = body.eventIds && body.eventIds.length > 0
+    ? dedupeIds(body.eventIds)
+    : body.eventId ? [body.eventId] : [];
+
+  if (requestedEventIds.length === 0) {
+    return { primaryEventId: null, sortedEventIds: [] as string[] };
+  }
+
+  const events = await tx.calendarEvent.findMany({
+    where: { id: { in: requestedEventIds } },
+    select: { id: true, startsAt: true },
+  });
+
+  if (events.length !== requestedEventIds.length) {
+    throw new HttpError(400, "One or more eventIds do not exist");
+  }
+
+  const sortedEventIds = events
+    .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
+    .map((event) => event.id);
+
+  return { primaryEventId: sortedEventIds[0] ?? null, sortedEventIds };
+}
 
 /** GET /api/drafts — list current user's drafts */
 export const GET = withAuth(async (_req, { user }) => {
@@ -66,7 +100,6 @@ export const POST = withAuth(async (req, { user }) => {
     startsAt,
     endsAt,
     createdBy: user.id,
-    eventId: body.eventId ?? null,
     sportCode: body.sportCode ?? null,
     notes: body.notes ?? null,
   };
@@ -83,10 +116,12 @@ export const POST = withAuth(async (req, { user }) => {
     }
 
     await db.$transaction(async (tx) => {
-      await tx.booking.update({ where: { id: body.id! }, data: bookingData });
-      // Replace items
+      const { primaryEventId, sortedEventIds } = await resolveDraftEventLinks(tx, body);
+      await tx.booking.update({ where: { id: body.id! }, data: { ...bookingData, eventId: primaryEventId } });
+      // Replace items and event links
       await tx.bookingSerializedItem.deleteMany({ where: { bookingId: body.id! } });
       await tx.bookingBulkItem.deleteMany({ where: { bookingId: body.id! } });
+      await tx.bookingEvent.deleteMany({ where: { bookingId: body.id! } });
       if (body.serializedAssetIds.length > 0) {
         await tx.bookingSerializedItem.createMany({
           data: body.serializedAssetIds.map((assetId) => ({
@@ -102,6 +137,15 @@ export const POST = withAuth(async (req, { user }) => {
             bookingId: body.id!,
             bulkSkuId: bi.bulkSkuId,
             plannedQuantity: bi.quantity,
+          })),
+        });
+      }
+      if (sortedEventIds.length > 0) {
+        await tx.bookingEvent.createMany({
+          data: sortedEventIds.map((eventId, ordinal) => ({
+            bookingId: body.id!,
+            eventId,
+            ordinal,
           })),
         });
       }
@@ -110,7 +154,8 @@ export const POST = withAuth(async (req, { user }) => {
   } else {
     // Create new draft
     const draft = await db.$transaction(async (tx) => {
-      const booking = await tx.booking.create({ data: bookingData });
+      const { primaryEventId, sortedEventIds } = await resolveDraftEventLinks(tx, body);
+      const booking = await tx.booking.create({ data: { ...bookingData, eventId: primaryEventId } });
       if (body.serializedAssetIds.length > 0) {
         await tx.bookingSerializedItem.createMany({
           data: body.serializedAssetIds.map((assetId) => ({
@@ -126,6 +171,15 @@ export const POST = withAuth(async (req, { user }) => {
             bookingId: booking.id,
             bulkSkuId: bi.bulkSkuId,
             plannedQuantity: bi.quantity,
+          })),
+        });
+      }
+      if (sortedEventIds.length > 0) {
+        await tx.bookingEvent.createMany({
+          data: sortedEventIds.map((eventId, ordinal) => ({
+            bookingId: booking.id,
+            eventId,
+            ordinal,
           })),
         });
       }

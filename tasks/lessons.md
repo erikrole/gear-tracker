@@ -62,6 +62,10 @@
 
 ## UX Patterns
 
+- **All means active unless the UI explicitly says history/past**: On operational booking surfaces, the default "All" scope should exclude completed/cancelled records. Put past work behind an explicit toggle/filter so the main workflow stays current.
+- **Gear Tracker web is not phone-first**: Treat phone-width web checks as smoke tests for broken wrapping or inaccessible controls only. The iOS app owns phone workflows, so web UI polish should prioritize desktop and tablet operator surfaces unless the user explicitly asks for mobile web.
+- **Users Availability is student-only**: Do not show the Availability tab on staff/admin profiles. Availability blocks model student class/unavailability conflicts for shift assignment, not staff/admin profile metadata.
+- **User direct report is admin-editable, including own profile**: Do not block direct-report editing just because an admin is viewing themself. Self-profile restrictions should follow API permission shape, not a blanket `!isSelf` UI rule.
 - **Schedule and quick booking context should show occupying bookings, not every historical booking row**: Cancelled bookings belong in history/audit surfaces, but they should not render in item schedule calendars, agendas, or Past Bookings quick context because they no longer reserve or occupy the item.
 - **Multi-day schedule blocks should look continuous**: When a booking occupies several dates, draw one week-spanning bar across date cells instead of separate per-day pills. The visual model should match the operational model.
 - **Calendar detail sheets should preview, not become duplicate detail pages**: From item schedules, keep booking clicks in an in-place sheet for context preservation. Use the sheet for identity, timing, equipment, and recent history, and send deeper edits or long workflows to the full booking page.
@@ -92,6 +96,7 @@
 - **Clear controls must be siblings of trigger buttons**: Never put an icon clear `<button>` inside a shadcn/Radix trigger button. Use a segmented wrapper with the trigger and clear button as siblings to avoid nested-button hydration errors.
 - **PWA manifest icons need declared real sizes**: Do not point the web manifest at a small brand logo with `sizes: "any"`. Use purpose-built 192/512 app icons so Chrome does not reject the manifest icon.
 - **Badge variants for all colored labels**: Never hardcode `bg-green-50 text-green-700`. Use Badge variants for dark mode safety.
+- **People avatars and item thumbnails are separate primitives**: Use `UserAvatar`/`UserAvatarGroup` for people and a thumbnail stack for gear/media. Do not use `Avatar` as a generic circular image bucket unless the visual is truly a person identity.
 - **`text-base md:text-sm` on inputs**: Prevents iOS auto-zoom on focus (requires 16px+ on mobile).
 - **Hover-reveal needs `sm:` prefix**: `sm:opacity-0 sm:group-hover/row:opacity-100` — always visible on touch.
 - **`-webkit-tap-highlight-color: transparent`** on all interactive elements. Global rule.
@@ -128,6 +133,8 @@
 - **Input styling**: `border-transparent bg-transparent shadow-none hover:bg-muted/60 hover:border-border/50 focus-visible:bg-background focus-visible:border-ring focus-visible:shadow-xs`
 - **No double breadcrumbs**: AppShell handles it. Pages should NOT render their own.
 - **URL-synced tabs**: `useSearchParams` to hydrate, `replaceState` to sync. Don't use `router.push`.
+- **Detail tab rails should match Items detail unless there is a product reason not to**: Use the same overflow-safe shadcn TabsList and Wisconsin-red active underline for peer detail pages.
+- **Page-level tabs and view switches should match peer patterns**: Avoid one-off tab/button chrome on list pages. Use the established shadcn Tabs underline pattern for tab rails and ToggleGroup for view-mode switches unless the workflow has a clear reason to differ.
 
 ## Testing
 

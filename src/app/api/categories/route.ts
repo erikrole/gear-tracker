@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok, cachedOk, HttpError } from "@/lib/http";
@@ -7,7 +8,7 @@ import { createAuditEntry } from "@/lib/audit";
 import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 const createSchema = z.object({
-  name: z.string().min(1).max(100),
+  name: z.string().trim().min(1).max(100),
   parentId: z.string().cuid().nullable().optional(),
 });
 
@@ -54,27 +55,43 @@ export const POST = withAuth(async (req, { user }) => {
   await enforceRateLimit(`categories:write:${user.id}`, SETTINGS_MUTATION_LIMIT);
 
   const body = createSchema.parse(await req.json());
+  const parentId = body.parentId ?? null;
 
-  if (body.parentId) {
-    const parent = await db.category.findUnique({ where: { id: body.parentId } });
+  if (parentId) {
+    const parent = await db.category.findUnique({ where: { id: parentId } });
     if (!parent) throw new HttpError(404, "Parent category not found");
   }
 
-  const category = await db.category.create({
-    data: {
-      name: body.name,
-      parentId: body.parentId ?? null,
-    },
+  const duplicate = await db.category.findFirst({
+    where: { name: body.name, parentId },
   });
+  if (duplicate) throw new HttpError(409, "Category already exists in this level");
 
-  await createAuditEntry({
-    actorId: user.id,
-    actorRole: user.role,
-    entityType: "category",
-    entityId: category.id,
-    action: "created",
-    after: { name: category.name, parentId: category.parentId },
-  });
+  try {
+    const category = await db.category.create({
+      data: {
+        name: body.name,
+        parentId,
+      },
+    });
 
-  return ok({ data: category }, 201);
+    await createAuditEntry({
+      actorId: user.id,
+      actorRole: user.role,
+      entityType: "category",
+      entityId: category.id,
+      action: "created",
+      after: { name: category.name, parentId: category.parentId },
+    });
+
+    return ok({ data: category }, 201);
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError
+      && error.code === "P2002"
+    ) {
+      throw new HttpError(409, "Category already exists in this level");
+    }
+    throw error;
+  }
 });

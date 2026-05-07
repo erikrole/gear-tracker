@@ -1,8 +1,9 @@
+import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { X } from "lucide-react";
+import { SearchIcon, SlidersHorizontal, X } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -49,23 +50,82 @@ export default function UserFilters({
   onShowInactiveChange: (v: boolean) => void;
   onClearAll: () => void;
 }) {
-  const hasFilters =
-    !!roleFilter || !!locationFilter || !!yearFilter || !!sportFilter || !!areaFilter;
+  const [filtersOpen, setFiltersOpen] = useState(
+    !!roleFilter || !!locationFilter || !!yearFilter || !!sportFilter || !!areaFilter || showInactive,
+  );
+  const previousFilterCountRef = useRef(0);
+  const activeFilterCount =
+    (roleFilter ? 1 : 0) +
+    (locationFilter ? 1 : 0) +
+    (areaFilter ? 1 : 0) +
+    (yearFilter ? 1 : 0) +
+    (sportFilter ? 1 : 0) +
+    (showInactive ? 1 : 0);
+  const hasFilters = activeFilterCount > 0;
+
+  useEffect(() => {
+    if (previousFilterCountRef.current > 0 && activeFilterCount === 0) {
+      setFiltersOpen(false);
+    }
+    previousFilterCountRef.current = activeFilterCount;
+  }, [activeFilterCount]);
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <Input
-          id="users-search"
-          name="users-search"
-          className="h-8 sm:max-w-sm"
-          type="text"
-          placeholder="Search by name or email..."
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-          aria-label="Search users"
-        />
+    <div className="flex w-full flex-col gap-2 rounded-md border border-border/60 bg-card/70 p-2 shadow-xs">
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+        <div className="relative min-w-0 flex-1">
+          <Input
+            id="users-search"
+            name="users-search"
+            className="peer h-9 pl-9 pr-9 text-base md:text-sm"
+            type="text"
+            placeholder="Search name or email"
+            value={search}
+            onChange={(e) => onSearchChange(e.target.value)}
+            aria-label="Search users"
+          />
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center justify-center pl-3 text-muted-foreground/80 peer-disabled:opacity-50">
+            <SearchIcon size={16} />
+          </div>
+          {search && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              className="absolute inset-y-0 right-1.5 my-auto text-muted-foreground/80 hover:text-foreground"
+              onClick={() => onSearchChange("")}
+              aria-label="Clear search"
+            >
+              <X size={14} />
+            </Button>
+          )}
+        </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant={filtersOpen || activeFilterCount > 0 ? "secondary" : "outline"}
+            size="sm"
+            className="h-9 gap-1.5 active:scale-[0.96] transition-transform"
+            onClick={() => setFiltersOpen((open) => !open)}
+            aria-expanded={filtersOpen}
+          >
+            <SlidersHorizontal className="size-3.5" />
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="rounded-sm bg-background px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-foreground">
+                {activeFilterCount}
+              </span>
+            )}
+          </Button>
+          {hasFilters && (
+            <Button variant="ghost" size="sm" className="h-9 gap-1.5 active:scale-[0.96] transition-transform" onClick={onClearAll}>
+              Clear
+              <X className="size-4" />
+            </Button>
+          )}
+        </div>
+      </div>
+      {filtersOpen && (
+        <div className="flex flex-wrap items-center gap-2 border-t border-border/50 pt-2">
           <Select value={roleFilter || "__all__"} onValueChange={(v) => onRoleChange(v === "__all__" ? "" : v)}>
             <SelectTrigger size="sm" className="w-[130px]">
               <SelectValue placeholder="All roles" />
@@ -132,42 +192,45 @@ export default function UserFilters({
             </Label>
           </div>
         </div>
-      </div>
+      )}
       {hasFilters && (
         <div className="flex items-center gap-2 flex-wrap">
           {roleFilter && (
-            <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs" onClick={() => onRoleChange("")}>
+            <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs active:scale-[0.96] transition-transform" onClick={() => onRoleChange("")}>
               Role: {ROLE_OPTIONS.find((o) => o.value === roleFilter)?.label}
               <X className="size-3" />
             </Button>
           )}
           {locationFilter && (
-            <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs" onClick={() => onLocationChange("")}>
+            <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs active:scale-[0.96] transition-transform" onClick={() => onLocationChange("")}>
               Location: {locations.find((l) => l.id === locationFilter)?.name}
               <X className="size-3" />
             </Button>
           )}
           {areaFilter && (
-            <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs" onClick={() => onAreaChange("")}>
+            <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs active:scale-[0.96] transition-transform" onClick={() => onAreaChange("")}>
               Area: {AREA_LABELS[areaFilter] ?? areaFilter}
               <X className="size-3" />
             </Button>
           )}
           {yearFilter && (
-            <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs" onClick={() => onYearChange("")}>
+            <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs active:scale-[0.96] transition-transform" onClick={() => onYearChange("")}>
               Year: {STUDENT_YEAR_OPTIONS.find((o) => o.value === yearFilter)?.label ?? yearFilter}
               <X className="size-3" />
             </Button>
           )}
           {sportFilter && (
-            <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs" onClick={() => onSportChange("")}>
+            <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs active:scale-[0.96] transition-transform" onClick={() => onSportChange("")}>
               Sport: {sportLabel(sportFilter)}
               <X className="size-3" />
             </Button>
           )}
-          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onClearAll}>
-            Clear all
-          </Button>
+          {showInactive && (
+            <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs active:scale-[0.96] transition-transform" onClick={() => onShowInactiveChange(false)}>
+              Showing inactive
+              <X className="size-3" />
+            </Button>
+          )}
         </div>
       )}
     </div>

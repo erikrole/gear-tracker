@@ -1,0 +1,182 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("@/lib/auth", () => ({
+  requireAuth: vi.fn(),
+}));
+
+const mockTx = {
+  calendarEvent: { findMany: vi.fn() },
+  booking: { create: vi.fn(), update: vi.fn() },
+  bookingSerializedItem: { deleteMany: vi.fn(), createMany: vi.fn() },
+  bookingBulkItem: { deleteMany: vi.fn(), createMany: vi.fn() },
+  bookingEvent: { deleteMany: vi.fn(), createMany: vi.fn() },
+};
+
+vi.mock("@/lib/db", () => ({
+  db: {
+    $transaction: vi.fn(async (fn: (tx: typeof mockTx) => Promise<unknown>) => fn(mockTx)),
+    booking: {
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      delete: vi.fn(),
+    },
+    location: { findFirst: vi.fn() },
+  },
+}));
+
+vi.mock("@/lib/audit", () => ({
+  createAuditEntry: vi.fn(),
+}));
+
+vi.mock("@sentry/nextjs", () => ({
+  captureException: vi.fn(),
+}));
+
+import { requireAuth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { POST } from "@/app/api/drafts/route";
+import { GET } from "@/app/api/drafts/[id]/route";
+
+const user = {
+  id: "cm000000000000000000000001",
+  email: "admin@test.com",
+  name: "Admin",
+  role: "ADMIN" as const,
+  avatarUrl: null,
+};
+
+const noParams = { params: Promise.resolve({}) };
+const draftParams = { params: Promise.resolve({ id: "cm000000000000000000000010" }) };
+
+function makePostRequest(body: Record<string, unknown>) {
+  return new Request("https://app.example.com/api/drafts", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      host: "app.example.com",
+      origin: "https://app.example.com",
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+function makeGetRequest() {
+  return new Request("https://app.example.com/api/drafts/cm000000000000000000000010", {
+    method: "GET",
+    headers: { host: "app.example.com" },
+  });
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(requireAuth).mockResolvedValue(user);
+  vi.mocked(db.location.findFirst).mockResolvedValue({ id: "cm000000000000000000000002" } as any);
+});
+
+describe("POST /api/drafts", () => {
+  it("persists multi-event draft links in chronological order", async () => {
+    const lateEventId = "cm000000000000000000000101";
+    const earlyEventId = "cm000000000000000000000102";
+    mockTx.calendarEvent.findMany.mockResolvedValue([
+      { id: lateEventId, startsAt: new Date("2026-06-02T20:00:00Z") },
+      { id: earlyEventId, startsAt: new Date("2026-05-30T20:00:00Z") },
+    ]);
+    mockTx.booking.create.mockResolvedValue({ id: "cm000000000000000000000010" });
+
+    const res = await POST(
+      makePostRequest({
+        kind: "RESERVATION",
+        title: "Regional road trip",
+        eventIds: [lateEventId, earlyEventId, earlyEventId],
+      }),
+      noParams,
+    );
+
+    expect(res.status).toBe(201);
+    expect(mockTx.booking.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ eventId: earlyEventId }),
+    });
+    expect(mockTx.bookingEvent.createMany).toHaveBeenCalledWith({
+      data: [
+        { bookingId: "cm000000000000000000000010", eventId: earlyEventId, ordinal: 0 },
+        { bookingId: "cm000000000000000000000010", eventId: lateEventId, ordinal: 1 },
+      ],
+    });
+  });
+
+  it("rejects payloads that mix legacy eventId with eventIds", async () => {
+    const res = await POST(
+      makePostRequest({
+        kind: "CHECKOUT",
+        eventId: "cm000000000000000000000101",
+        eventIds: ["cm000000000000000000000102"],
+      }),
+      noParams,
+    );
+
+    expect(res.status).toBe(400);
+    expect(mockTx.booking.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /api/drafts/[id]", () => {
+  it("returns ordered linked events for draft resume", async () => {
+    vi.mocked(db.booking.findFirst).mockResolvedValue({
+      id: "cm000000000000000000000010",
+      kind: "RESERVATION",
+      title: "Regional road trip",
+      requesterUserId: user.id,
+      locationId: "cm000000000000000000000002",
+      location: { id: "cm000000000000000000000002", name: "Camp Randall" },
+      startsAt: new Date("2026-05-30T18:00:00Z"),
+      endsAt: new Date("2026-06-02T23:00:00Z"),
+      eventId: "cm000000000000000000000102",
+      event: null,
+      events: [
+        {
+          ordinal: 0,
+          event: {
+            id: "cm000000000000000000000102",
+            summary: "Regional opener",
+            startsAt: new Date("2026-05-30T20:00:00Z"),
+            endsAt: new Date("2026-05-30T22:00:00Z"),
+            sportCode: "SB",
+            isHome: false,
+            opponent: "Minnesota",
+            rawLocationText: "Minneapolis",
+            location: null,
+          },
+        },
+        {
+          ordinal: 1,
+          event: {
+            id: "cm000000000000000000000101",
+            summary: "Regional final",
+            startsAt: new Date("2026-06-02T20:00:00Z"),
+            endsAt: new Date("2026-06-02T22:00:00Z"),
+            sportCode: "SB",
+            isHome: false,
+            opponent: "Iowa",
+            rawLocationText: "Minneapolis",
+            location: null,
+          },
+        },
+      ],
+      sportCode: "SB",
+      notes: null,
+      serializedItems: [],
+      bulkItems: [],
+      updatedAt: new Date("2026-05-07T02:00:00Z"),
+    } as any);
+
+    const res = await GET(makeGetRequest(), draftParams);
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data.events.map((event: { id: string }) => event.id)).toEqual([
+      "cm000000000000000000000102",
+      "cm000000000000000000000101",
+    ]);
+    expect(body.data.events[0].startsAt).toBe("2026-05-30T20:00:00.000Z");
+  });
+});

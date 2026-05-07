@@ -15,6 +15,18 @@ function parseStatusParam(value: string | null): BookingStatus | undefined {
   return value as BookingStatus;
 }
 
+const ACTIVE_BOOKING_STATUSES = [
+  BookingStatus.DRAFT,
+  BookingStatus.BOOKED,
+  BookingStatus.PENDING_PICKUP,
+  BookingStatus.OPEN,
+];
+
+const PAST_BOOKING_STATUSES = [
+  BookingStatus.COMPLETED,
+  BookingStatus.CANCELLED,
+];
+
 const bookingListInclude = {
   location: { select: { id: true, name: true } },
   requester: { select: { id: true, name: true, email: true, avatarUrl: true } },
@@ -41,6 +53,8 @@ export const GET = withAuth(async (req, { user }) => {
   const q = searchParams.get("q")?.trim();
   const filter = searchParams.get("filter");
   const status = parseStatusParam(searchParams.get("status"));
+  const activeOnly = searchParams.get("active") === "true";
+  const pastOnly = searchParams.get("past") === "true";
   const locationId = searchParams.get("location_id");
   const sportCode = searchParams.get("sport_code");
   const requesterId = searchParams.get("requester_id");
@@ -51,7 +65,13 @@ export const GET = withAuth(async (req, { user }) => {
 
   const where: Prisma.BookingWhereInput = {
     // No `kind` filter — returns both CHECKOUT and RESERVATION
-    ...(status ? { status } : {}),
+    ...(status
+      ? { status }
+      : activeOnly
+        ? { status: { in: ACTIVE_BOOKING_STATUSES } }
+        : pastOnly
+          ? { status: { in: PAST_BOOKING_STATUSES } }
+          : {}),
     ...(filter === "overdue"
       ? { endsAt: { lt: now }, status: { in: ["OPEN", "BOOKED"] } }
       : filter === "due-today"

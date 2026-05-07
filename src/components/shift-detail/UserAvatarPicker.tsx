@@ -1,4 +1,6 @@
 import { UserAvatar } from "@/components/UserAvatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -42,6 +44,8 @@ export function UserAvatarPicker({
   return (
     <>
       <Input
+        id="user-avatar-picker-search"
+        name="user-avatar-picker-search"
         type="text"
         className="mb-2 h-8 text-xs"
         placeholder="Search all users..."
@@ -56,34 +60,38 @@ export function UserAvatarPicker({
           {search ? "No matching users." : "No active users found."}
         </p>
       ) : (
-        <ScrollArea className="max-h-52 space-y-0.5">
+        <ScrollArea className="max-h-52">
           {users.map((u) => {
             const conflict = conflictMap?.[u.id];
             return (
-              <button
+              <Button
                 key={u.id}
-                className="w-full flex items-center gap-2 p-1.5 rounded-md text-left text-sm hover:bg-accent transition-colors disabled:opacity-50"
+                type="button"
+                variant="ghost"
+                className="h-auto w-full justify-start gap-2 p-1.5 text-left text-sm hover:bg-accent disabled:opacity-50"
                 onClick={() => onSelect(u.id)}
                 disabled={disabled}
                 title={conflict ?? undefined}
               >
                 <div className="relative shrink-0">
-                  <UserAvatar name={u.name} avatarUrl={u.avatarUrl} size="default" />
-                  {conflict && (
-                    <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-amber-400 border border-background" />
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-medium text-xs">{u.name}</div>
-                  <div className="text-[10px] text-muted-foreground">
-                    {u.role === "STUDENT" ? "Student" : "Staff"}
-                    {u.primaryArea ? ` · ${AREA_LABELS[u.primaryArea] ?? u.primaryArea}` : ""}
-                    {conflict && (
-                      <span className="ml-1 text-yellow-600 font-medium">⚠ conflict</span>
-                    )}
-                  </div>
-                </div>
-              </button>
+	                  <UserAvatar name={u.name} avatarUrl={u.avatarUrl} size="default" />
+	                  {conflict && (
+	                    <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full border border-background bg-[var(--orange)]" />
+	                  )}
+	                </div>
+	                <div className="min-w-0 flex-1">
+	                  <div className="truncate font-medium text-xs">{u.name}</div>
+	                  <div className="flex min-w-0 items-center gap-1 text-[10px] text-muted-foreground">
+	                    {u.role === "STUDENT" ? "Student" : "Staff"}
+	                    {u.primaryArea ? ` · ${AREA_LABELS[u.primaryArea] ?? u.primaryArea}` : ""}
+	                    {conflict && (
+	                      <Badge variant="orange" size="sm" className="ml-1 px-1 py-0 text-[9px]">
+	                        Conflict
+	                      </Badge>
+	                    )}
+	                  </div>
+	                </div>
+	              </Button>
             );
           })}
         </ScrollArea>

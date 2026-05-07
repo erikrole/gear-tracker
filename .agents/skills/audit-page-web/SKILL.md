@@ -225,3 +225,4 @@ If the user says "fix all", treat that as approval for every P0 and P1 only — 
 - Not a feature-add pass — gaps in `AREA_<PAGE>.md` are flagged, not extended
 - Not a perf optimization sweep unless perf is a P0/P1
 - Not iOS — use `audit-page-ios` for that
+- Not a full page ownership pass. If the user asks to take a page end to end, touch every surface, run UX/UI/consistency/hardening work, compare peer pages, implement improvements, or flag patterns other pages should adopt, use `page-ownership-pass`.

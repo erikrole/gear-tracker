@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { UserDetail, Location, Role } from "../types";
 import { deriveStudentYear, STUDENT_YEAR_OPTIONS } from "../types";
@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { AlertCircle, Briefcase, CalendarDays, CameraIcon, Copy, GraduationCap, KeyRound, TrashIcon, UserRound } from "lucide-react";
+import { AlertCircle, Briefcase, CalendarDays, CameraIcon, ChevronDown, Copy, GraduationCap, KeyRound, Shield, TrashIcon, UserRound } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { formatDateFull } from "@/lib/format";
 import { FadeUp } from "@/components/ui/motion";
@@ -56,9 +56,13 @@ const tabDefs: Array<{ key: TabKey; label: string }> = [
 
 export default function UserDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const { setBreadcrumbLabel } = useBreadcrumbLabel();
 
-  const [activeTab, setActiveTab] = useState<TabKey>("info");
+  const initialTab = (searchParams.get("tab") as TabKey) || "info";
+  const [activeTab, setActiveTab] = useState<TabKey>(
+    tabDefs.some((tab) => tab.key === initialTab) ? initialTab : "info",
+  );
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [togglingActive, setTogglingActive] = useState(false);
   const [resetPwDialog, setResetPwDialog] = useState(false);
@@ -104,6 +108,20 @@ export default function UserDetailPage() {
   const isSelf = currentUserId != null && currentUserId === id;
   const isStaffOrAdmin = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
   const canEdit = isSelf || isStaffOrAdmin;
+
+  function switchTab(tab: TabKey) {
+    setActiveTab(tab);
+    const url = new URL(window.location.href);
+    if (tab === "info") url.searchParams.delete("tab");
+    else url.searchParams.set("tab", tab);
+    window.history.replaceState({}, "", url.toString());
+  }
+
+  useEffect(() => {
+    if (user && user.role !== "STUDENT" && activeTab === "availability") {
+      switchTab("info");
+    }
+  }, [activeTab, user]);
 
   async function uploadAvatar(file: File) {
     setUploadingAvatar(true);
@@ -259,17 +277,22 @@ export default function UserDetailPage() {
     );
   }
 
+  const profile = effectiveUser ?? user;
+  const availableTabs = profile.role === "STUDENT"
+    ? tabDefs
+    : tabDefs.filter((tab) => tab.key !== "availability");
+
   return (
     <FadeUp>
       {/* ── Profile hero ── */}
-      <div className="relative mb-8 rounded-xl border bg-card overflow-hidden">
+      <div className="relative mb-5 rounded-xl border bg-card overflow-hidden">
         {/* Atmospheric red wash — very subtle */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{ background: "radial-gradient(ellipse at 0% 0%, rgba(160,0,0,0.045) 0%, transparent 55%)" }}
         />
 
-        <div className="relative flex flex-col sm:flex-row sm:items-center gap-5 p-6 sm:p-7">
+        <div className="relative flex flex-col sm:flex-row sm:items-center gap-5 p-5 sm:p-6">
           {/* Avatar */}
           <div className="shrink-0">
             {isSelf ? (
@@ -289,12 +312,12 @@ export default function UserDetailPage() {
                   <DropdownMenuTrigger asChild disabled={uploadingAvatar}>
                     <button
                       type="button"
-                      aria-label={user.avatarUrl ? "Change profile photo" : "Upload profile photo"}
+                      aria-label={profile.avatarUrl ? "Change profile photo" : "Upload profile photo"}
                       className="relative group rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
                       <UserAvatar
-                        name={user.name}
-                        avatarUrl={user.avatarUrl}
+                        name={profile.name}
+                        avatarUrl={profile.avatarUrl}
                         size="xl"
                         className="cursor-pointer ring-2 ring-border ring-offset-2 ring-offset-card"
                       />
@@ -307,15 +330,15 @@ export default function UserDetailPage() {
                       </div>
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
-                      <CameraIcon className="mr-2 size-4" />
-                      {user.avatarUrl ? "Change photo" : "Upload photo"}
-                    </DropdownMenuItem>
-                    {user.avatarUrl && (
-                      <DropdownMenuItem variant="destructive" onClick={removeAvatar}>
-                        <TrashIcon className="mr-2 size-4" />
-                        Remove photo
+	                  <DropdownMenuContent align="start">
+	                    <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+	                      <CameraIcon className="mr-2 size-4" />
+	                      {profile.avatarUrl ? "Change photo" : "Upload photo"}
+	                    </DropdownMenuItem>
+	                    {profile.avatarUrl && (
+	                      <DropdownMenuItem variant="destructive" onClick={removeAvatar}>
+	                        <TrashIcon className="mr-2 size-4" />
+	                        Remove photo
                       </DropdownMenuItem>
                     )}
                   </DropdownMenuContent>
@@ -323,8 +346,8 @@ export default function UserDetailPage() {
               </>
             ) : (
               <UserAvatar
-                name={user.name}
-                avatarUrl={user.avatarUrl}
+                name={profile.name}
+                avatarUrl={profile.avatarUrl}
                 size="xl"
                 className="ring-2 ring-border ring-offset-2 ring-offset-card"
               />
@@ -337,53 +360,53 @@ export default function UserDetailPage() {
               className="text-[28px] sm:text-[32px] leading-none tracking-tight mb-0"
               style={{ fontFamily: "var(--font-heading)", fontWeight: 800 }}
             >
-              {isSelf ? "My Profile" : user.name}
+              {isSelf ? "My Profile" : profile.name}
             </h1>
             <div className="mt-2.5 space-y-1">
               <p
                 className="text-[12px] text-muted-foreground leading-none"
                 style={{ fontFamily: "var(--font-mono)" }}
               >
-                {user.email}
+                {profile.email}
               </p>
-              {user.role !== "STUDENT" && user.title && (
+              {profile.role !== "STUDENT" && profile.title && (
                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Briefcase className="size-3 shrink-0" />
-                  {user.title}
+                  {profile.title}
                 </p>
               )}
-              {user.role === "STUDENT" && (() => {
-                const y = deriveStudentYear(user.gradYear, user.studentYearOverride);
+              {profile.role === "STUDENT" && (() => {
+                const y = deriveStudentYear(profile.gradYear, profile.studentYearOverride);
                 if (!y) return null;
                 const label = STUDENT_YEAR_OPTIONS.find((o) => o.value === y)?.label ?? y;
                 return (
                   <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <GraduationCap className="size-3 shrink-0" />
                     {label}
-                    {user.gradYear ? ` · Class of ${user.gradYear}` : ""}
+                    {profile.gradYear ? ` · Class of ${profile.gradYear}` : ""}
                   </p>
                 );
               })()}
-              {(user.directReport || user.directReportName) && (
+              {(profile.directReport || profile.directReportName) && (
                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <UserRound className="size-3 shrink-0" />
                   Reports to{" "}
-                  {user.directReport ? (
+                  {profile.directReport ? (
                     <Link
-                      href={`/users/${user.directReport.id}`}
+                      href={`/users/${profile.directReport.id}`}
                       className="hover:underline"
                     >
-                      {user.directReport.name}
+                      {profile.directReport.name}
                     </Link>
                   ) : (
-                    <span>{user.directReportName} <span className="text-[10px] uppercase tracking-wide opacity-70">external</span></span>
+                    <span>{profile.directReportName} <span className="text-[10px] uppercase tracking-wide opacity-70">external</span></span>
                   )}
                 </p>
               )}
-              {user.createdAt && (
+              {profile.createdAt && (
                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <CalendarDays className="size-3 shrink-0" />
-                  Member since {formatDateFull(user.createdAt)}
+                  Member since {formatDateFull(profile.createdAt)}
                 </p>
               )}
             </div>
@@ -391,18 +414,24 @@ export default function UserDetailPage() {
 
           {/* Badges + admin controls */}
           <div className="flex items-center gap-2 flex-wrap sm:self-start sm:mt-0.5">
-            <RoleBadge role={user.role} />
-            {user.active === false && (
+            <RoleBadge role={profile.role} />
+            {profile.active === false && (
               <Badge variant="outline" className="text-muted-foreground">Inactive</Badge>
             )}
             {currentUserRole === "ADMIN" && !isSelf && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">Admin</Button>
+                  <Button variant="outline" size="sm" className="gap-1.5" disabled={togglingActive}>
+                    <Shield className="size-3.5" />
+                    Admin actions
+                    <ChevronDown className="size-3.5 opacity-70" />
+                  </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={toggleActive}>
-                    {user.active !== false ? "Deactivate user" : "Activate user"}
+                  <DropdownMenuItem onClick={toggleActive} disabled={togglingActive}>
+                    {togglingActive
+                      ? "Updating status..."
+                      : profile.active !== false ? "Deactivate user" : "Activate user"}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setResetPwDialog(true)}>
                     <KeyRound className="mr-2 size-4" />
@@ -425,12 +454,13 @@ export default function UserDetailPage() {
             <AlertDialogDescription>
               {tempPassword ? (
                 <div className="space-y-3">
-                  <p>New temporary password for <strong>{user.name}</strong>:</p>
+                  <p>New temporary password for <strong>{profile.name}</strong>:</p>
                   <div className="flex items-center gap-2">
                     <Input value={tempPassword} readOnly className="font-mono" />
                     <Button
                       variant="outline"
                       size="icon"
+                      aria-label="Copy temporary password"
                       onClick={() => {
                         navigator.clipboard.writeText(tempPassword);
                         toast.success("Copied to clipboard");
@@ -442,7 +472,7 @@ export default function UserDetailPage() {
                   <p className="text-xs">This password is shown only once. The user&apos;s existing sessions have been invalidated.</p>
                 </div>
               ) : (
-                <>This will generate a new temporary password for <strong>{user.name}</strong> and invalidate all their current sessions.</>
+                <>This will generate a new temporary password for <strong>{profile.name}</strong> and invalidate all their current sessions.</>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -462,11 +492,15 @@ export default function UserDetailPage() {
       </AlertDialog>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)} className="mt-1">
-        <TabsList>
-          {tabDefs.map((tab) => (
-            <TabsTrigger key={tab.key} value={tab.key}>
-              {tab.label}
+      <Tabs value={activeTab} onValueChange={(v) => switchTab(v as TabKey)}>
+        <TabsList className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm overflow-x-auto scrollbar-hide">
+          {availableTabs.map((tab) => (
+            <TabsTrigger
+              key={tab.key}
+              value={tab.key}
+              className="relative shrink-0 gap-1.5 border-b-transparent data-[state=active]:border-b-transparent after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-[var(--wi-red)] after:opacity-0 after:transition-opacity data-[state=active]:after:opacity-100"
+            >
+              <span style={{ fontFamily: "var(--font-heading)", fontWeight: 500 }}>{tab.label}</span>
             </TabsTrigger>
           ))}
         </TabsList>
@@ -487,7 +521,7 @@ export default function UserDetailPage() {
         <UserActivityTab userId={user.id} />
       )}
 
-      {activeTab === "availability" && (
+      {activeTab === "availability" && profile.role === "STUDENT" && (
         <UserAvailabilityTab userId={user.id} canEdit={canEdit} />
       )}
     </FadeUp>

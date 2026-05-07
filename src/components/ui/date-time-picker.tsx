@@ -23,6 +23,7 @@ function roundTo15(minutes: number) {
 }
 
 type DateTimePickerProps = {
+  id?: string
   value: Date | undefined
   onChange: (date: Date) => void
   minDate?: Date
@@ -31,6 +32,7 @@ type DateTimePickerProps = {
 }
 
 function DateTimePicker({
+  id,
   value,
   onChange,
   minDate,
@@ -66,6 +68,7 @@ function DateTimePicker({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          id={id}
           variant="outline"
           className={cn(
             "w-full justify-start text-left font-normal",

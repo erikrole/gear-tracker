@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Checkouts
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-05
+- Last Updated: 2026-05-07
 - Status: Active — V1 Shipped
 - Version: V1
 
@@ -40,7 +40,7 @@ Multi-step wizard page (replaced the old side-sheet flow as of 2026-04-09):
 
 **Deep-link parameters:** `?title`, `?startsAt`, `?endsAt`, `?locationId`, `?newFor` (pre-select asset), `?eventId`, `?sportCode`, `?requesterUserId`, `?draftId`.
 
-**Draft persistence:** "Save draft & exit" persists via `/api/drafts`. Resumable via `?draftId=`.
+**Draft persistence:** "Save draft & exit" persists via `/api/drafts`. Resumable via `?draftId=`. Multi-event drafts persist ordered `BookingEvent` links, return ordered `events[]` on resume, and keep `Booking.eventId` as the chronologically first linked event for legacy readers.
 
 ### Edit Checkout
 1. User opens checkout detail via BookingDetailsSheet.
@@ -311,3 +311,8 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 - 2026-05-05: **Bulk battery creation hardening** — Battery selection remains quantity-only at booking creation. Camera body battery guidance is now a warning, and compatible battery low-stock warnings appear when available units fall below threshold.
 - 2026-05-05: **Camera battery compatibility mapping** — Creation warnings now match the current import snapshot for Sony NP-FZ100 bodies (FX3, A7/A1/A9 family) and Sony BP-U bodies (FX6). The same compatibility rules also feed the admin Battery Cockpit low-family panel as of 2026-05-06. Drone/action/JVC battery reporting remains deferred until matching SKUs exist.
 - 2026-05-06: **Booking filter HTML cleanup** — Shared `FilterChip` active clear controls are now sibling buttons instead of nested buttons inside the popover trigger, clearing the booking-list hydration warning. Booking search fields now carry stable `id`/`name` attributes.
+- 2026-05-06: **Bookings ownership pass** — `/bookings` tab changes now update URL state for shareable All/Checkouts/Reservations views. The All tab is active-only by default (`DRAFT`, `BOOKED`, `PENDING_PICKUP`, `OPEN`) until a separate past toggle is shipped, and it uses each row's real checkout/reservation kind for allowed actions. Desktop equipment counts now include bulk planned quantities instead of counting one bulk SKU as one item. The page-level tabs and view switcher now match the local shadcn tab underline and ToggleGroup patterns.
+- 2026-05-07: **Avatar and shadcn cleanup** — Booking cards now render equipment through the shared item thumbnail stack instead of person-avatar primitives, and booking list filter clears use shadcn `Button` variants instead of one-off raw buttons.
+- 2026-05-07: **Bookings past-scope toggle** — `/bookings` now has a URL-backed Active/Past scope. The All tab remains active-only by default through `active=true`; switching to Past sends `past=true` through combined, checkout, and reservation list APIs so completed/cancelled records are intentionally separated from daily active work.
+- 2026-05-07: **Booking creation ownership pass** — `/checkouts/new` now uses the documented 30-day event picker window in the browser, and draft save/resume preserves multi-event links through `/api/drafts` so interrupted event-linked checkouts reopen with their selected events intact.
+- 2026-05-07: **Booking creation shadcn alignment** — Checkout creation now follows the Items list standard more closely: shared `PageHeader`, shadcn `Switch`/`Button`/`Badge` primitives, item-form section headings and rows, quiet bordered card surfaces, exact transitions, and browser-clean field labels.

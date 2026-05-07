@@ -76,6 +76,14 @@ export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSection> = [
     description: "Hierarchical categories for organizing equipment.",
     keywords: ["taxonomy", "tree", "subcategory"],
   },
+  {
+    href: "/settings/departments",
+    label: "Departments",
+    requiredRole: "STAFF",
+    group: "Inventory",
+    description: "Inventory ownership groups used by item forms, filters, and reports.",
+    keywords: ["ownership", "team", "unit", "reporting", "items"],
+  },
   // Scheduling
   {
     href: "/settings/calendar-sources",

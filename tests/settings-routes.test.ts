@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { Prisma } from "@prisma/client";
 
 // ─── Mock modules ───────────────────────────────────────────────────────────
 vi.mock("@/lib/auth", () => ({
@@ -15,6 +16,12 @@ vi.mock("@/lib/db", () => ({
     systemConfig: {
       findUnique: vi.fn(),
       upsert: vi.fn(),
+    },
+    department: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
     },
   },
 }));
@@ -37,6 +44,17 @@ import {
   GET as getExtendPresets,
   PUT as putExtendPresets,
 } from "@/app/api/settings/extend-presets/route";
+import {
+  GET as getDepartments,
+  POST as postDepartment,
+} from "@/app/api/departments/route";
+import {
+  PATCH as patchDepartment,
+} from "@/app/api/departments/[id]/route";
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 const adminUser = {
   id: "admin-1",
@@ -84,6 +102,18 @@ function makePatchRequest(body: Record<string, unknown>, url = "https://app.exam
 function makePutRequest(body: Record<string, unknown>, url = "https://app.example.com/api/settings/extend-presets") {
   return new Request(url, {
     method: "PUT",
+    headers: {
+      "content-type": "application/json",
+      host: "app.example.com",
+      origin: "https://app.example.com",
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+function makePostRequest(body: Record<string, unknown>, url = "https://app.example.com/api/departments") {
+  return new Request(url, {
+    method: "POST",
     headers: {
       "content-type": "application/json",
       host: "app.example.com",
@@ -310,15 +340,18 @@ describe("PUT /api/settings/extend-presets", () => {
     expect(res.status).toBe(403);
   });
 
-  it("returns 400 for empty presets array", async () => {
+  it("allows an empty presets array for custom-only extension", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
+    vi.mocked(db.systemConfig.upsert).mockResolvedValue({} as any);
 
     const res = await putExtendPresets(
       makePutRequest({ presets: [] }),
       noParams
     );
 
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data.presets).toEqual([]);
   });
 
   it("returns 400 for invalid minutes (negative)", async () => {
@@ -341,5 +374,129 @@ describe("PUT /api/settings/extend-presets", () => {
     );
 
     expect(res.status).toBe(400);
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Departments settings routes
+// ═════════════════════════════════════════════════════════════════════════════
+describe("Departments settings routes", () => {
+  it("returns active departments by default", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(staffUser);
+    vi.mocked(db.department.findMany).mockResolvedValue([
+      { id: "dept-1", name: "Video", active: true, _count: { assets: 2, bulkSkus: 1 } },
+    ] as any);
+
+    const res = await getDepartments(makeGetRequest("https://app.example.com/api/departments"), noParams);
+
+    expect(res.status).toBe(200);
+    expect(db.department.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { active: true },
+    }));
+  });
+
+  it("includes inactive departments when requested", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(staffUser);
+    vi.mocked(db.department.findMany).mockResolvedValue([]);
+
+    const res = await getDepartments(makeGetRequest("https://app.example.com/api/departments?includeInactive=1"), noParams);
+
+    expect(res.status).toBe(200);
+    expect(db.department.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: {},
+    }));
+  });
+
+  it("creates a department for STAFF", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(staffUser);
+    vi.mocked(db.department.create).mockResolvedValue({ id: "dept-1", name: "Video" } as any);
+
+    const res = await postDepartment(makePostRequest({ name: "  Video  " }), noParams);
+
+    expect(res.status).toBe(201);
+    expect(db.department.create).toHaveBeenCalledWith({ data: { name: "Video" } });
+    expect(db.department.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("reactivates an inactive department when create hits the unique constraint", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(staffUser);
+    const uniqueError = new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+      code: "P2002",
+      clientVersion: "test",
+      meta: { target: ["name"] },
+    });
+    vi.mocked(db.department.create).mockRejectedValue(uniqueError);
+    vi.mocked(db.department.findUnique).mockResolvedValue({
+      id: "dept-1",
+      name: "Video",
+      active: false,
+    } as any);
+    vi.mocked(db.department.update).mockResolvedValue({
+      id: "dept-1",
+      name: "Video",
+      active: true,
+    } as any);
+
+    const res = await postDepartment(makePostRequest({ name: "Video" }), noParams);
+
+    expect(res.status).toBe(200);
+    expect(db.department.update).toHaveBeenCalledWith({
+      where: { id: "dept-1" },
+      data: { active: true },
+    });
+  });
+
+  it("returns 409 when create hits an active duplicate", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(staffUser);
+    const uniqueError = new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+      code: "P2002",
+      clientVersion: "test",
+      meta: { target: ["name"] },
+    });
+    vi.mocked(db.department.create).mockRejectedValue(uniqueError);
+    vi.mocked(db.department.findUnique).mockResolvedValue({
+      id: "dept-1",
+      name: "Video",
+      active: true,
+    } as any);
+
+    const res = await postDepartment(makePostRequest({ name: "Video" }), noParams);
+
+    expect(res.status).toBe(409);
+    expect(db.department.update).not.toHaveBeenCalled();
+  });
+
+  it("blocks STUDENT department creation", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(studentUser);
+
+    const res = await postDepartment(makePostRequest({ name: "Video" }), noParams);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("renames and deactivates a department for STAFF", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(staffUser);
+    vi.mocked(db.department.findUnique).mockResolvedValue({
+      id: "dept-1",
+      name: "Video",
+      active: true,
+    } as any);
+    vi.mocked(db.department.update).mockResolvedValue({
+      id: "dept-1",
+      name: "Production",
+      active: false,
+      _count: { assets: 2, bulkSkus: 0 },
+    } as any);
+
+    const res = await patchDepartment(
+      makePatchRequest({ name: "Production", active: false }, "https://app.example.com/api/departments/dept-1"),
+      { params: Promise.resolve({ id: "dept-1" }) }
+    );
+
+    expect(res.status).toBe(200);
+    expect(db.department.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "dept-1" },
+      data: { name: "Production", active: false },
+    }));
   });
 });

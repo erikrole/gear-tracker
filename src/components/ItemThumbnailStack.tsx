@@ -1,0 +1,72 @@
+"use client";
+
+import { cn } from "@/lib/utils";
+
+export type ItemThumbnailStackItem = {
+  id: string;
+  name: string;
+  imageUrl?: string | null;
+  fallback?: string | null;
+};
+
+export function ItemThumbnailStack({
+  items,
+  totalCount,
+  max = 3,
+  className,
+  surfaceClassName = "border-background bg-muted",
+}: {
+  items: ItemThumbnailStackItem[];
+  totalCount: number;
+  max?: number;
+  className?: string;
+  surfaceClassName?: string;
+}) {
+  if (totalCount === 0) return null;
+
+  const visibleItems = items.slice(0, max);
+  const overflow = totalCount - visibleItems.length;
+
+  return (
+    <div
+      className={cn("flex items-center -space-x-2", className)}
+      aria-label={`${totalCount} gear ${totalCount === 1 ? "item" : "items"}`}
+    >
+      {visibleItems.map((item) => {
+        const fallback = item.fallback ?? item.name[0] ?? "?";
+        return (
+          <span
+            key={item.id}
+            className={cn(
+              "flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 text-[9px] font-semibold text-muted-foreground",
+              surfaceClassName,
+            )}
+            title={item.name}
+            aria-label={item.name}
+          >
+            {item.imageUrl ? (
+              <span
+                className="size-full bg-cover bg-center"
+                style={{ backgroundImage: `url(${item.imageUrl})` }}
+                aria-hidden="true"
+              />
+            ) : (
+              fallback.toUpperCase()
+            )}
+          </span>
+        );
+      })}
+      {overflow > 0 && (
+        <span
+          className={cn(
+            "flex size-6 shrink-0 items-center justify-center rounded-full border-2 text-[10px] font-semibold text-muted-foreground",
+            surfaceClassName,
+          )}
+          aria-label={`${overflow} more gear ${overflow === 1 ? "item" : "items"}`}
+        >
+          +{overflow > 99 ? "99" : overflow}
+        </span>
+      )}
+    </div>
+  );
+}

@@ -63,6 +63,7 @@ export async function listBookings(
   const toDate = parseSearchDate(searchParams.get("to"), "to");
 
   const activeOnly = searchParams.get("active") === "true";
+  const pastOnly = searchParams.get("past") === "true";
 
   const where: Prisma.BookingWhereInput = {
     kind,
@@ -72,6 +73,8 @@ export async function listBookings(
       ? { status: statusParam }
       : extraWhere?.status === undefined && activeOnly
         ? { status: { notIn: [BookingStatus.COMPLETED, BookingStatus.CANCELLED] } }
+        : extraWhere?.status === undefined && pastOnly
+          ? { status: { in: [BookingStatus.COMPLETED, BookingStatus.CANCELLED] } }
         : {}),
     ...(searchParams.get("location_id") ? { locationId: searchParams.get("location_id")! } : {}),
     ...(searchParams.get("sport_code") ? { sportCode: searchParams.get("sport_code")! } : {}),

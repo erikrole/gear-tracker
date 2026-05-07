@@ -5,18 +5,32 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 export function FormRow({
   label,
   required,
+  htmlFor,
   children,
 }: {
   label: string;
   required?: boolean;
+  htmlFor?: string;
   children: React.ReactNode;
 }) {
+  const labelContent = (
+    <>
+      {label}
+      {required && <span className="text-destructive ml-0.5">*</span>}
+    </>
+  );
+
   return (
     <div className="grid grid-cols-[140px_1fr] items-start gap-1">
-      <Label className="pt-2.5 text-sm font-medium">
-        {label}
-        {required && <span className="text-destructive ml-0.5">*</span>}
-      </Label>
+      {htmlFor ? (
+        <Label htmlFor={htmlFor} className="pt-2.5 text-sm font-medium">
+          {labelContent}
+        </Label>
+      ) : (
+        <span className="pt-2.5 text-sm font-medium">
+          {labelContent}
+        </span>
+      )}
       <div>{children}</div>
     </div>
   );
@@ -25,18 +39,32 @@ export function FormRow({
 export function FormRow2Col({
   label,
   required,
+  htmlFor,
   children,
 }: {
   label?: string;
   required?: boolean;
+  htmlFor?: string;
   children: React.ReactNode;
 }) {
+  const labelContent = (
+    <>
+      {label}
+      {required && <span className="text-destructive ml-0.5">*</span>}
+    </>
+  );
+
   return (
     <div className="grid grid-cols-[140px_1fr] items-start gap-1">
-      <Label className="pt-2.5 text-sm font-medium">
-        {label}
-        {required && <span className="text-destructive ml-0.5">*</span>}
-      </Label>
+      {htmlFor ? (
+        <Label htmlFor={htmlFor} className="pt-2.5 text-sm font-medium">
+          {labelContent}
+        </Label>
+      ) : (
+        <span className="pt-2.5 text-sm font-medium">
+          {labelContent}
+        </span>
+      )}
       <div className="grid grid-cols-2 gap-3">{children}</div>
     </div>
   );

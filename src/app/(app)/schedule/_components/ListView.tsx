@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar";
+import { UserAvatarGroup } from "@/components/UserAvatarGroup";
 import { UserAvatarPicker, type PickerUser } from "@/components/shift-detail/UserAvatarPicker";
 import { handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
 import { cn } from "@/lib/utils";
@@ -161,8 +161,6 @@ function AssignmentAvatarGroup({
   const assignedUsers = entry.shifts
     .map(shiftAssignee)
     .filter((user): user is NonNullable<ReturnType<typeof shiftAssignee>> => Boolean(user));
-  const visibleUsers = assignedUsers.slice(0, 4);
-  const extraCount = assignedUsers.length - visibleUsers.length;
 
   if (entry.shifts.length === 0) return null;
 
@@ -174,27 +172,7 @@ function AssignmentAvatarGroup({
       )}
       aria-hidden={isExpanded}
     >
-      <AvatarGroup aria-label={`${assignedUsers.length} assigned people`}>
-        {visibleUsers.map((user) => (
-          <UserAvatar
-            key={user.id}
-            name={user.name}
-            avatarUrl={user.avatarUrl}
-            size="sm"
-            className="border-2 border-background shadow-sm"
-          />
-        ))}
-        {extraCount > 0 && (
-          <AvatarGroupCount>
-            +{extraCount}
-          </AvatarGroupCount>
-        )}
-      </AvatarGroup>
-      {assignedUsers.length === 0 && (
-        <span className="text-[11px] font-medium text-muted-foreground">
-          No assignments
-        </span>
-      )}
+      <UserAvatarGroup users={assignedUsers} max={4} />
     </div>
   );
 }

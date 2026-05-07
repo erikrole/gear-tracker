@@ -50,13 +50,13 @@ function MenuItems({
   Item: React.ComponentType<{ children?: React.ReactNode; className?: string; onSelect?: () => void; disabled?: boolean }>;
 }) {
   const actor = { id: currentUserId, role: currentUserRole };
-  const kindForActions = config.kind === "CHECKOUT" || config.kind === "RESERVATION" ? config.kind : null;
+  const kindForActions = config.kind === "CHECKOUT" || config.kind === "RESERVATION" ? config.kind : item.kind;
   const allowed = new Set(
-    kindForActions ? getAllowedBookingActions(actor, {
+    getAllowedBookingActions(actor, {
       status: item.status,
       requester: item.requester,
       createdBy: item.createdBy,
-    }, kindForActions) : []
+    }, kindForActions)
   );
 
   return (
@@ -82,7 +82,7 @@ function MenuItems({
       )}
 
       {config.contextMenuExtras.map((extra) =>
-        allowed.has(extra.action) ? (
+        allowed.has(extra.action) && (!extra.kind || extra.kind === item.kind) ? (
           <React.Fragment key={extra.action}>
             <Separator />
             <Item

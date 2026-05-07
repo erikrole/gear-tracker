@@ -11,9 +11,13 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/PageHeader";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { handleAuthRedirect } from "@/lib/errors";
+import { cn } from "@/lib/utils";
 import { EQUIPMENT_SECTIONS, classifyAssetType } from "@/lib/equipment-sections";
 import { getUnsatisfiedRequirements } from "@/lib/equipment-guidance";
 import type { EquipmentSectionKey } from "@/lib/equipment-sections";
@@ -444,31 +448,18 @@ export function BookingWizard({ kind }: BookingWizardProps) {
     <div className="mx-auto max-w-2xl px-4 py-6 md:py-10">
 
       {/* ── Header ── */}
-      <div className="mb-8">
-        <div className="flex items-start justify-between gap-4 mb-2">
-          <h1
-            className="text-[2rem] font-black uppercase leading-none tracking-tight"
-            style={{ fontFamily: "var(--font-heading)" }}
-          >
-            New {config.label}
-          </h1>
-          <span
-            className="shrink-0 mt-1 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.2em] border"
-            style={
-              kind === "CHECKOUT"
-                ? { borderColor: "var(--wi-red)", color: "var(--wi-red)" }
-                : { borderColor: "var(--blue)", color: "var(--blue)" }
-            }
-          >
-            {kind}
-          </span>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          {kind === "CHECKOUT"
+      <PageHeader
+        title={`New ${config.label}`}
+        description={
+          kind === "CHECKOUT"
             ? "Check out equipment for immediate pickup. Items will be scanned at pickup."
-            : "Reserve equipment for later. Browse and pick the gear you need."}
-        </p>
-      </div>
+            : "Reserve equipment for later. Browse and pick the gear you need."
+        }
+      >
+        <Badge variant={kind === "CHECKOUT" ? "red" : "blue"} size="sm">
+          {kind === "CHECKOUT" ? "Checkout" : "Reservation"}
+        </Badge>
+      </PageHeader>
 
       {/* ── Existing drafts banner ── */}
       {!draftBannerDismissed && existingDrafts.length > 0 && (
@@ -482,14 +473,15 @@ export function BookingWizard({ kind }: BookingWizardProps) {
                   : `You have ${existingDrafts.length} unfinished drafts`}
               </span>
             </div>
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon-xs"
               onClick={dismissDraftBanner}
-              className="text-muted-foreground hover:text-foreground transition-colors"
               aria-label="Dismiss"
             >
-              <XIcon className="size-3.5" />
-            </button>
+              <XIcon />
+            </Button>
           </div>
           <div className="divide-y divide-border">
             {existingDrafts.slice(0, 3).map((d) => (
@@ -515,80 +507,69 @@ export function BookingWizard({ kind }: BookingWizardProps) {
 
       {/* ── Step progress ── */}
       <div
-        className="grid grid-cols-3 border border-border mb-8 overflow-hidden"
-        style={{ borderRadius: "4px" }}
+        className="mb-8 grid grid-cols-3 gap-1 rounded-md border border-border/60 bg-card/70 p-1 shadow-xs"
         role="navigation"
         aria-label="Wizard steps"
       >
-        {steps.map((s, i) => {
+        {steps.map((s) => {
           const isActive = step === s.step;
           const isDone = step > s.step;
           const isLocked = s.step > step;
           return (
-            <button
+            <Button
               key={s.step}
               type="button"
+              variant={isActive ? "default" : "ghost"}
               disabled={isLocked}
               onClick={() => { if (isDone) { setCreateError(""); setStep(s.step); } }}
-              className={[
-                "relative flex items-center gap-2 px-4 py-3 text-left transition-colors",
-                i < steps.length - 1 ? "border-r border-border" : "",
-                isActive ? "bg-foreground text-background" : "",
-                isDone ? "cursor-pointer hover:bg-muted/60" : "",
-                isLocked ? "cursor-default" : "",
-              ].join(" ")}
+              className={cn(
+                "h-auto justify-start rounded-sm px-3 py-2.5 text-left",
+                isDone && "hover:bg-muted/60",
+                isLocked && "cursor-default",
+              )}
             >
               {/* Step number / check */}
               <span
-                className={[
+                className={cn(
                   "flex size-5 shrink-0 items-center justify-center text-[11px] font-black",
-                  isActive ? "text-background" : "",
-                  isDone ? "" : "",
-                  isLocked ? "opacity-30" : "",
-                ].join(" ")}
-                style={isDone ? { color: "var(--wi-red)" } : undefined}
+                  isLocked && "opacity-30",
+                )}
               >
-                {isDone ? <CheckIcon className="size-3.5" /> : s.step}
+                {isDone ? <CheckIcon /> : s.step}
               </span>
 
               {/* Label */}
               <span
-                className={[
+                className={cn(
                   "text-[11px] font-bold uppercase tracking-wider",
-                  isLocked ? "opacity-30" : "",
-                ].join(" ")}
+                  isLocked && "opacity-30",
+                )}
               >
                 {s.label}
               </span>
-
-              {/* Active bottom bar */}
-              {isActive && (
-                <span
-                  className="absolute bottom-0 left-0 right-0 h-0.5"
-                  style={{ backgroundColor: "var(--wi-red)" }}
-                />
-              )}
-            </button>
+            </Button>
           );
         })}
       </div>
 
       {/* ── Form options error ── */}
       {formOptsError && (
-        <div className="flex items-center justify-between gap-3 rounded-sm border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-sm text-destructive mb-5">
-          <span>Failed to load form data. Dropdowns may be empty.</span>
+        <Alert variant="destructive" className="mb-5">
+          <AlertDescription className="flex items-center justify-between gap-3">
+            <span>Failed to load form data. Dropdowns may be empty.</span>
           <Button variant="outline" size="sm" onClick={() => refetchFormOpts()} className="shrink-0">
             Retry
           </Button>
-        </div>
+          </AlertDescription>
+        </Alert>
       )}
 
       {/* ── Error banner ── */}
       {createError && (
-        <div className="flex items-start gap-2.5 rounded-sm border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-sm text-destructive mb-5">
-          <AlertCircleIcon className="size-4 shrink-0 mt-0.5" />
-          <span>{createError}</span>
-        </div>
+        <Alert variant="destructive" className="mb-5">
+          <AlertCircleIcon />
+          <AlertDescription>{createError}</AlertDescription>
+        </Alert>
       )}
 
       {/* ── Step content ── */}
@@ -644,7 +625,8 @@ export function BookingWizard({ kind }: BookingWizardProps) {
             <Button
               variant="outline"
               onClick={handleBack}
-              className="rounded-sm text-xs font-bold uppercase tracking-wider"
+              size="sm"
+              className="text-xs font-bold uppercase tracking-wider"
             >
               ← Back
             </Button>
@@ -652,7 +634,9 @@ export function BookingWizard({ kind }: BookingWizardProps) {
           {step === 1 && (
             <Button
               variant="ghost"
+              size="sm"
               disabled={savingDraft}
+              loading={savingDraft}
               onClick={async () => {
                 setSavingDraft(true);
                 await saveDraft();
@@ -670,7 +654,8 @@ export function BookingWizard({ kind }: BookingWizardProps) {
           {step < 3 && (
             <Button
               onClick={handleNext}
-              className="rounded-sm bg-foreground text-background hover:bg-foreground/85 text-xs font-bold uppercase tracking-wider px-5"
+              size="sm"
+              className="text-xs font-bold uppercase tracking-wider"
             >
               {step === 2 && (() => {
                 const idx = EQUIPMENT_SECTIONS.findIndex((s) => s.key === activeSection);
@@ -686,8 +671,10 @@ export function BookingWizard({ kind }: BookingWizardProps) {
             <Button
               onClick={handleSubmit}
               disabled={submitting}
-              className="rounded-sm text-white text-xs font-bold uppercase tracking-wider px-5 hover:opacity-90 transition-opacity"
-              style={{ backgroundColor: "var(--wi-red)" }}
+              loading={submitting}
+              variant="brand"
+              size="sm"
+              className="text-xs font-bold uppercase tracking-wider"
             >
               {submitting ? config.actionLabelProgress : config.actionLabel}
               {itemCount > 0 && ` (${itemCount})`}

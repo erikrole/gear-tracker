@@ -25,7 +25,7 @@ const presetSchema = z.object({
 });
 
 const putSchema = z.object({
-  presets: z.array(presetSchema).min(1).max(10),
+  presets: z.array(presetSchema).max(10),
 });
 
 /**

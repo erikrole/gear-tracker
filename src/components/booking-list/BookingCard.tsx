@@ -3,7 +3,8 @@
 import { formatDuration, getStatusVisual, type BookingItem } from "./types";
 import { cn } from "@/lib/utils";
 import { BookingContextMenuWrapper, BookingOverflowMenu, type BookingMenuProps } from "./BookingContextMenu";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { ItemThumbnailStack } from "@/components/ItemThumbnailStack";
 import { UserAvatar } from "@/components/UserAvatar";
 import { MoreHorizontalIcon } from "lucide-react";
 
@@ -18,7 +19,7 @@ function formatCardTime(iso: string) {
   return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).toLowerCase();
 }
 
-/* ───── Gear avatar stack ───── */
+/* ───── Gear thumbnail stack ───── */
 
 function GearAvatarStack({ items, bulkItems }: {
   items: BookingItem["serializedItems"];
@@ -26,29 +27,17 @@ function GearAvatarStack({ items, bulkItems }: {
 }) {
   const totalBulk = bulkItems?.reduce((sum, bi) => sum + (bi.plannedQuantity || 1), 0) ?? 0;
   const totalCount = (items?.length ?? 0) + totalBulk;
-  const shown = items?.slice(0, 3) ?? [];
-  const overflow = totalCount - shown.length;
-
-  if (totalCount === 0) return null;
-
   return (
-    <div className="flex items-center -space-x-2">
-      {shown.map((si) => (
-        <Avatar key={si.asset.assetTag} size="sm" className="border-2 border-card bg-muted">
-          {si.asset.imageUrl ? (
-            <AvatarImage src={si.asset.imageUrl} alt={si.asset.assetTag} />
-          ) : null}
-          <AvatarFallback className="text-[9px] font-semibold bg-muted text-muted-foreground">
-            {si.asset.brand?.[0] ?? si.asset.assetTag?.[0] ?? "?"}
-          </AvatarFallback>
-        </Avatar>
-      ))}
-      {overflow > 0 && (
-        <span className="flex items-center justify-center size-6 rounded-full border-2 border-card bg-[var(--elevated)] text-[10px] font-semibold text-muted-foreground">
-          +{overflow > 99 ? "99" : overflow}
-        </span>
-      )}
-    </div>
+    <ItemThumbnailStack
+      items={(items ?? []).map((si) => ({
+        id: si.asset.assetTag,
+        name: [si.asset.brand, si.asset.model, si.asset.assetTag].filter(Boolean).join(" ") || si.asset.assetTag,
+        imageUrl: si.asset.imageUrl,
+        fallback: si.asset.brand?.[0] ?? si.asset.assetTag?.[0] ?? "?",
+      }))}
+      totalCount={totalCount}
+      surfaceClassName="border-card bg-muted"
+    />
   );
 }
 
@@ -182,12 +171,15 @@ export function BookingCard({ item, overdueStatus, onClick, menuProps }: Booking
           onClick={(e) => e.stopPropagation()}
         >
           <BookingOverflowMenu item={item} {...menuProps}>
-            <button
-              className="flex items-center justify-center size-7 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              className="text-muted-foreground hover:text-foreground"
               aria-label="More actions"
             >
               <MoreHorizontalIcon className="size-4" />
-            </button>
+            </Button>
           </BookingOverflowMenu>
         </div>
       </div>

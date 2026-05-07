@@ -5,7 +5,9 @@ import Link from "next/link";
 import { CornerDownRightIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/ConfirmDialog";
-import { handleAuthRedirect, classifyError, isAbortError } from "@/lib/errors";
+import { LastEditedHint } from "@/components/LastEditedHint";
+import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage } from "@/lib/errors";
+import type { LastAuditMap } from "@/hooks/use-last-audit";
 import type { TreeNode } from "./types";
 import KebabMenu from "./KebabMenu";
 import { Badge } from "@/components/ui/badge";
@@ -14,10 +16,12 @@ import { Input } from "@/components/ui/input";
 export default function CategoryRow({
   node,
   depth,
+  lastEdited,
   onRefresh,
 }: {
   node: TreeNode;
   depth: number;
+  lastEdited: LastAuditMap;
   onRefresh: () => void;
 }) {
   const confirm = useConfirm();
@@ -53,14 +57,16 @@ export default function CategoryRow({
         toast.success(`Renamed to "${newName.trim()}"`);
         onRefresh();
       } else {
-        toast.error("Failed to rename");
+        const msg = await parseErrorMessage(res, "Failed to rename");
+        toast.error(msg);
       }
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
       toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to rename");
+    } finally {
+      setSavingRename(false);
     }
-    setSavingRename(false);
   }
 
   async function saveSub() {
@@ -79,14 +85,16 @@ export default function CategoryRow({
         setAddingSub(false);
         onRefresh();
       } else {
-        toast.error("Failed to create subcategory");
+        const msg = await parseErrorMessage(res, "Failed to create subcategory");
+        toast.error(msg);
       }
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
       toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to create subcategory");
+    } finally {
+      setSavingSub(false);
     }
-    setSavingSub(false);
   }
 
   async function handleDelete() {
@@ -112,8 +120,9 @@ export default function CategoryRow({
       if (isAbortError(err)) return;
       const kind = classifyError(err);
       toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to delete");
+    } finally {
+      setDeleting(false);
     }
-    setDeleting(false);
   }
 
   const isChild = depth > 0;
@@ -139,12 +148,15 @@ export default function CategoryRow({
               className={`w-[min(200px,100%)] h-8 ${isChild ? "font-normal" : "font-semibold"} ${savingRename ? "opacity-60" : ""}`}
             />
           ) : (
-            <Link
-              href={`/items?category=${node.id}`}
-              className="no-underline text-foreground hover:text-[var(--wi-red)] transition-colors"
-            >
-              {node.name}
-            </Link>
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <Link
+                href={`/items?category=${node.id}`}
+                className="no-underline text-foreground hover:text-[var(--wi-red)] transition-colors"
+              >
+                {node.name}
+              </Link>
+              <LastEditedHint info={lastEdited[node.id]} />
+            </div>
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -187,7 +199,13 @@ export default function CategoryRow({
       )}
 
       {node.children.map((child) => (
-        <CategoryRow key={child.id} node={child} depth={depth + 1} onRefresh={onRefresh} />
+        <CategoryRow
+          key={child.id}
+          node={child}
+          depth={depth + 1}
+          lastEdited={lastEdited}
+          onRefresh={onRefresh}
+        />
       ))}
     </>
   );

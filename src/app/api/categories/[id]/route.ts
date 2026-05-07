@@ -7,8 +7,10 @@ import { createAuditEntry } from "@/lib/audit";
 import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 const updateSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
+  name: z.string().trim().min(1).max(100).optional(),
   parentId: z.string().cuid().nullable().optional(),
+}).refine((body) => body.name !== undefined || body.parentId !== undefined, {
+  message: "No fields to update",
 });
 
 export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
@@ -24,6 +26,36 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   if (body.parentId === id) {
     throw new HttpError(400, "Category cannot be its own parent");
   }
+
+  if (body.parentId) {
+    let parent = await db.category.findUnique({
+      where: { id: body.parentId },
+      select: { id: true, parentId: true },
+    });
+    if (!parent) throw new HttpError(404, "Parent category not found");
+
+    while (parent.parentId) {
+      if (parent.parentId === id) {
+        throw new HttpError(400, "Category cannot be moved under one of its subcategories");
+      }
+      parent = await db.category.findUnique({
+        where: { id: parent.parentId },
+        select: { id: true, parentId: true },
+      });
+      if (!parent) break;
+    }
+  }
+
+  const nextName = body.name ?? existing.name;
+  const nextParentId = body.parentId !== undefined ? body.parentId : existing.parentId;
+  const duplicate = await db.category.findFirst({
+    where: {
+      id: { not: id },
+      name: nextName,
+      parentId: nextParentId,
+    },
+  });
+  if (duplicate) throw new HttpError(409, "Category already exists in this level");
 
   const category = await db.category.update({
     where: { id },

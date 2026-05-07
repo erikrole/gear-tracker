@@ -80,7 +80,7 @@ export default function BookingSettingsPage() {
   }
 
   async function save() {
-    if (saving || presets.length === 0) return;
+    if (saving) return;
     // Validate all labels are non-empty
     if (presets.some((p) => !p.label.trim())) {
       toast.error("All presets need a label");

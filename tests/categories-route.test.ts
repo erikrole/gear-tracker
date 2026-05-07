@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { Prisma } from "@prisma/client";
 
 // ─── Mock modules ───────────────────────────────────────────────────────────
 vi.mock("@/lib/auth", () => ({
@@ -10,13 +11,19 @@ vi.mock("@/lib/db", () => ({
     category: {
       findMany: vi.fn(),
       findUnique: vi.fn(),
+      findFirst: vi.fn(),
       create: vi.fn(),
+      update: vi.fn(),
+      count: vi.fn(),
+      delete: vi.fn(),
     },
     asset: {
       groupBy: vi.fn(),
+      count: vi.fn(),
     },
     bulkSku: {
       groupBy: vi.fn(),
+      count: vi.fn(),
     },
   },
 }));
@@ -32,6 +39,14 @@ vi.mock("@sentry/nextjs", () => ({
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { GET, POST } from "@/app/api/categories/route";
+import {
+  PATCH,
+  DELETE,
+} from "@/app/api/categories/[id]/route";
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 const adminUser = {
   id: "admin-1",
@@ -76,7 +91,30 @@ function makePostRequest(body: Record<string, unknown>) {
   });
 }
 
+function makePatchRequest(body: Record<string, unknown>, id = "cm123456789012345678901234") {
+  return new Request(`https://app.example.com/api/categories/${id}`, {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json",
+      host: "app.example.com",
+      origin: "https://app.example.com",
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+function makeDeleteRequest(id = "cm123456789012345678901234") {
+  return new Request(`https://app.example.com/api/categories/${id}`, {
+    method: "DELETE",
+    headers: {
+      host: "app.example.com",
+      origin: "https://app.example.com",
+    },
+  });
+}
+
 const noParams = { params: Promise.resolve({}) };
+const categoryParams = { params: Promise.resolve({ id: "cm123456789012345678901234" }) };
 
 // ═════════════════════════════════════════════════════════════════════════════
 // GET /api/categories
@@ -129,6 +167,7 @@ describe("GET /api/categories", () => {
 describe("POST /api/categories", () => {
   it("creates a new root category for ADMIN", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
+    vi.mocked(db.category.findFirst).mockResolvedValue(null);
     vi.mocked(db.category.create).mockResolvedValue({
       id: "cat-new",
       name: "Lighting",
@@ -136,13 +175,16 @@ describe("POST /api/categories", () => {
     } as any);
 
     const res = await POST(
-      makePostRequest({ name: "Lighting" }),
+      makePostRequest({ name: "  Lighting  " }),
       noParams
     );
 
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.data.name).toBe("Lighting");
+    expect(db.category.create).toHaveBeenCalledWith({
+      data: { name: "Lighting", parentId: null },
+    });
   });
 
   it("creates a child category with valid parentId", async () => {
@@ -151,6 +193,7 @@ describe("POST /api/categories", () => {
       id: "cm123456789012345678901234",
       name: "Equipment",
     } as any);
+    vi.mocked(db.category.findFirst).mockResolvedValue(null);
     vi.mocked(db.category.create).mockResolvedValue({
       id: "cm234567890123456789012345",
       name: "Lenses",
@@ -177,6 +220,41 @@ describe("POST /api/categories", () => {
     expect(res.status).toBe(404);
     const body = await res.json();
     expect(body.error).toContain("Parent category not found");
+  });
+
+  it("returns 409 when a category already exists in the same level", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(adminUser);
+    vi.mocked(db.category.findFirst).mockResolvedValue({
+      id: "cat-existing",
+      name: "Lighting",
+      parentId: null,
+    } as any);
+
+    const res = await POST(
+      makePostRequest({ name: "Lighting" }),
+      noParams
+    );
+
+    expect(res.status).toBe(409);
+    expect(db.category.create).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when create hits a unique constraint", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(adminUser);
+    vi.mocked(db.category.findFirst).mockResolvedValue(null);
+    const uniqueError = new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+      code: "P2002",
+      clientVersion: "test",
+      meta: { target: ["name", "parentId"] },
+    });
+    vi.mocked(db.category.create).mockRejectedValue(uniqueError);
+
+    const res = await POST(
+      makePostRequest({ name: "Lighting" }),
+      noParams
+    );
+
+    expect(res.status).toBe(409);
   });
 
   it("returns 403 for STUDENT", async () => {
@@ -210,5 +288,113 @@ describe("POST /api/categories", () => {
     );
 
     expect(res.status).toBe(400);
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// PATCH /api/categories/[id]
+// ═════════════════════════════════════════════════════════════════════════════
+describe("PATCH /api/categories/[id]", () => {
+  it("renames a category with trimmed input", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(staffUser);
+    vi.mocked(db.category.findUnique).mockResolvedValue({
+      id: "cm123456789012345678901234",
+      name: "Cameras",
+      parentId: null,
+    } as any);
+    vi.mocked(db.category.findFirst).mockResolvedValue(null);
+    vi.mocked(db.category.update).mockResolvedValue({
+      id: "cm123456789012345678901234",
+      name: "Camera Bodies",
+      parentId: null,
+    } as any);
+
+    const res = await PATCH(
+      makePatchRequest({ name: "  Camera Bodies  " }),
+      categoryParams
+    );
+
+    expect(res.status).toBe(200);
+    expect(db.category.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "cm123456789012345678901234" },
+      data: { name: "Camera Bodies" },
+    }));
+  });
+
+  it("returns 400 for an empty patch body", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(staffUser);
+
+    const res = await PATCH(
+      makePatchRequest({}),
+      categoryParams
+    );
+
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 409 when rename would duplicate a sibling", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(staffUser);
+    vi.mocked(db.category.findUnique).mockResolvedValue({
+      id: "cm123456789012345678901234",
+      name: "Cameras",
+      parentId: null,
+    } as any);
+    vi.mocked(db.category.findFirst).mockResolvedValue({
+      id: "cm234567890123456789012345",
+      name: "Lighting",
+      parentId: null,
+    } as any);
+
+    const res = await PATCH(
+      makePatchRequest({ name: "Lighting" }),
+      categoryParams
+    );
+
+    expect(res.status).toBe(409);
+    expect(db.category.update).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when moving a category under its descendant", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(staffUser);
+    vi.mocked(db.category.findUnique)
+      .mockResolvedValueOnce({
+        id: "cm123456789012345678901234",
+        name: "Cameras",
+        parentId: null,
+      } as any)
+      .mockResolvedValueOnce({
+        id: "cm234567890123456789012345",
+        parentId: "cm123456789012345678901234",
+      } as any);
+
+    const res = await PATCH(
+      makePatchRequest({ parentId: "cm234567890123456789012345" }),
+      categoryParams
+    );
+
+    expect(res.status).toBe(400);
+    expect(db.category.update).not.toHaveBeenCalled();
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// DELETE /api/categories/[id]
+// ═════════════════════════════════════════════════════════════════════════════
+describe("DELETE /api/categories/[id]", () => {
+  it("deletes an unused leaf category", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(adminUser);
+    vi.mocked(db.category.findUnique).mockResolvedValue({
+      id: "cm123456789012345678901234",
+      name: "Cameras",
+      parentId: null,
+    } as any);
+    vi.mocked(db.asset.count).mockResolvedValue(0);
+    vi.mocked(db.bulkSku.count).mockResolvedValue(0);
+    vi.mocked(db.category.count).mockResolvedValue(0);
+    vi.mocked(db.category.delete).mockResolvedValue({} as any);
+
+    const res = await DELETE(makeDeleteRequest(), categoryParams);
+
+    expect(res.status).toBe(200);
   });
 });

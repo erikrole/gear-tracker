@@ -24,13 +24,47 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
           bulkSku: { select: { id: true, name: true, unit: true } },
         },
       },
-      event: { select: { id: true, summary: true, sportCode: true } },
+      event: {
+        select: {
+          id: true,
+          summary: true,
+          startsAt: true,
+          endsAt: true,
+          sportCode: true,
+          isHome: true,
+          opponent: true,
+          rawLocationText: true,
+          location: { select: { id: true, name: true } },
+        },
+      },
+      events: {
+        orderBy: { ordinal: "asc" },
+        include: {
+          event: {
+            select: {
+              id: true,
+              summary: true,
+              startsAt: true,
+              endsAt: true,
+              sportCode: true,
+              isHome: true,
+              opponent: true,
+              rawLocationText: true,
+              location: { select: { id: true, name: true } },
+            },
+          },
+        },
+      },
     },
   });
 
   if (!draft) {
     throw new HttpError(404, "Draft not found");
   }
+
+  const linkedEvents = draft.events.length > 0
+    ? draft.events.map((link) => link.event)
+    : draft.event ? [draft.event] : [];
 
   return ok({
     data: {
@@ -43,6 +77,11 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
       startsAt: draft.startsAt.toISOString(),
       endsAt: draft.endsAt.toISOString(),
       eventId: draft.eventId,
+      events: linkedEvents.map((event) => ({
+        ...event,
+        startsAt: event.startsAt.toISOString(),
+        endsAt: event.endsAt.toISOString(),
+      })),
       sportCode: draft.sportCode,
       notes: draft.notes ?? "",
       serializedAssetIds: draft.serializedItems.map((si) => si.assetId),

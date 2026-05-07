@@ -88,6 +88,12 @@ export type ListResponse = {
   total: number;
   limit: number;
   offset: number;
+  stats?: {
+    total: number;
+    active: number;
+    inactive: number;
+    byRole: Record<Role, number>;
+  };
 };
 
 export type SortKey = "name" | "name_desc" | "role" | "role_desc" | "email" | "email_desc" | "";

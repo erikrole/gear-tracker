@@ -69,6 +69,10 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
     );
   }
 
+  function shouldShowOpenSlotText(e: DashboardData["upcomingEvents"][number]) {
+    return Boolean(e.coverage && e.coverage.filled > 0 && e.coverage.filled < e.coverage.total);
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground/60 pl-0.5" style={{ fontFamily: "var(--font-mono)" }}>Team Activity</span>
@@ -193,7 +197,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
                     {e.location && <span className="truncate">{e.location}</span>}
                     {e.callTime && <span>Call {formatTimeShort(e.callTime)}</span>}
                   </span>
-                  {e.coverage && e.coverage.filled < e.coverage.total && (
+                  {shouldShowOpenSlotText(e) && e.coverage && (
                     <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--red-text)]">
                       <AlertTriangleIcon className="size-3.5" />
                       {e.coverage.total - e.coverage.filled} open slot{e.coverage.total - e.coverage.filled === 1 ? "" : "s"}
@@ -201,7 +205,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
                   )}
                 </Link>
                 <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-                  <ShiftAvatarStack assignedUsers={e.assignedUsers} totalSlots={e.totalShiftSlots} filledSlots={e.filledShiftSlots} />
+                  <ShiftAvatarStack assignedUsers={e.assignedUsers} />
                   {eventCoverageBadge(e)}
                   {e.isHome === true && <Badge variant="green" size="sm">Home</Badge>}
                   {e.isHome === false && <Badge variant="orange" size="sm">Away</Badge>}

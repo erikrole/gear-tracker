@@ -1,10 +1,13 @@
 "use client";
 
 import type { Dispatch, SetStateAction } from "react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -12,9 +15,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ClockIcon, BoxesIcon, CheckIcon, XIcon } from "lucide-react";
+import { ClockIcon, CheckIcon, XIcon } from "lucide-react";
 import { SPORT_CODES, sportLabel } from "@/lib/sports";
 import { formatChipTime } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { FormRow, FormRow2Col, SectionHeading } from "@/components/form-layout";
 import {
   toLocalDateTimeValue,
   formatDate,
@@ -47,44 +52,6 @@ type Props = {
   toggleEvent: (ev: CalendarEvent) => { ok: boolean; reason?: string };
 };
 
-function FieldLabel({
-  children,
-  required = false,
-}: {
-  children: React.ReactNode;
-  required?: boolean;
-}) {
-  return (
-    <span className="block text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1.5">
-      {children}
-      {required && <span className="ml-1 text-destructive">*</span>}
-    </span>
-  );
-}
-
-function SectionHeader({
-  children,
-  right,
-}: {
-  children: React.ReactNode;
-  right?: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center gap-3 mb-5">
-      <span
-        className="h-[18px] w-[3px] shrink-0 rounded-full"
-        style={{ backgroundColor: "var(--wi-red)" }}
-      />
-      <h2
-        className="text-[11px] font-black uppercase tracking-[0.15em] text-foreground flex-1"
-      >
-        {children}
-      </h2>
-      {right}
-    </div>
-  );
-}
-
 export function WizardStep1({
   form,
   dispatch,
@@ -102,45 +69,35 @@ export function WizardStep1({
   const selectedEventIds = new Set(form.selectedEvents.map((e) => e.id));
   const atCap = form.selectedEvents.length >= 3;
   return (
-    <div className="space-y-10">
+    <div className="flex flex-col gap-10">
 
       {/* ═══ Event Section ═══ */}
-      <section>
-        <SectionHeader
-          right={
-            <button
-              type="button"
-              onClick={() => dispatch({ type: "SET_TIE_TO_EVENT", value: !form.tieToEvent })}
-              className={[
-                "relative h-5 w-9 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                form.tieToEvent ? "" : "bg-muted",
-              ].join(" ")}
-              style={form.tieToEvent ? { backgroundColor: "var(--wi-red)" } : undefined}
-              aria-label="Link to event"
-              aria-pressed={form.tieToEvent}
-            >
-              <span
-                className={[
-                  "absolute top-0.5 left-0.5 size-4 rounded-full bg-white shadow-sm transition-transform",
-                  form.tieToEvent ? "translate-x-4" : "translate-x-0",
-                ].join(" ")}
-              />
-            </button>
-          }
-        >
-          Link to Event
-        </SectionHeader>
+      <section className="flex flex-col gap-4">
+        <div className="flex items-center justify-between gap-3">
+          <SectionHeading>Event context</SectionHeading>
+          <div className="flex h-9 items-center gap-2 rounded-md border border-border/70 bg-background px-3">
+            <Switch
+              id="booking-link-to-event"
+              checked={form.tieToEvent}
+              onCheckedChange={(value) => dispatch({ type: "SET_TIE_TO_EVENT", value })}
+            />
+            <Label htmlFor="booking-link-to-event" className="cursor-pointer whitespace-nowrap text-xs text-muted-foreground">
+              Link to event
+            </Label>
+          </div>
+        </div>
 
         {form.tieToEvent && (
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4 rounded-md border border-border/60 bg-card/70 p-2 shadow-xs">
             {/* Sport filter */}
-            <div>
-              <FieldLabel>Filter by sport</FieldLabel>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="booking-sport-filter-trigger" className="text-sm font-medium">Filter by sport</Label>
               <Select
+                name="booking-sport-filter"
                 value={form.sport || "__all__"}
                 onValueChange={(v) => dispatch({ type: "SET_SPORT", value: v === "__all__" ? "" : v })}
               >
-                <SelectTrigger>
+                <SelectTrigger id="booking-sport-filter-trigger">
                   <SelectValue placeholder="All sports" />
                 </SelectTrigger>
                 <SelectContent>
@@ -158,11 +115,13 @@ export function WizardStep1({
             {form.selectedEvents.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {form.selectedEvents.map((ev) => (
-                  <button
+                  <Button
                     key={ev.id}
                     type="button"
+                    variant="secondary"
+                    size="xs"
                     onClick={() => toggleEvent(ev)}
-                    className="group inline-flex items-center gap-1 rounded-full bg-muted hover:bg-destructive/10 text-foreground px-2.5 py-1 text-xs transition-colors"
+                    className="rounded-full"
                     aria-label={`Remove ${ev.opponent ?? ev.summary}`}
                   >
                     <span className="font-medium">
@@ -170,17 +129,17 @@ export function WizardStep1({
                       {" · "}
                       {ev.opponent ?? ev.summary}
                     </span>
-                    <XIcon className="size-3 text-muted-foreground group-hover:text-destructive" />
-                  </button>
+                    <XIcon />
+                  </Button>
                 ))}
               </div>
             )}
 
             {/* Events list */}
-            <div>
-              <FieldLabel>
-                Upcoming events — next 3 days{form.sport ? ` \u00b7 ${sportLabel(form.sport)}` : ""}
-              </FieldLabel>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium">
+                Upcoming events — next 30 days{form.sport ? ` \u00b7 ${sportLabel(form.sport)}` : ""}
+              </span>
 
               {eventsLoading ? (
                 <div className="py-6 text-center text-sm text-muted-foreground">
@@ -200,36 +159,36 @@ export function WizardStep1({
                     const selected = selectedEventIds.has(ev.id);
                     const disabled = !selected && atCap;
                     return (
-                      <button
+                      <Button
                         key={ev.id}
                         type="button"
+                        variant={selected ? "default" : "ghost"}
                         onClick={() => toggleEvent(ev)}
                         disabled={disabled}
                         aria-pressed={selected}
-                        className={[
-                          "group flex w-full items-center gap-3 rounded-[3px] px-3 py-2.5 text-left transition-all max-md:min-h-[44px]",
+                        className={cn(
+                          "group h-auto min-h-11 w-full justify-start gap-3 rounded-sm px-3 py-2.5 text-left",
                           selected
-                            ? "text-white"
+                            ? "text-primary-foreground hover:bg-primary/90"
                             : disabled
                               ? "opacity-40 cursor-not-allowed"
                               : "hover:bg-muted/60",
-                        ].join(" ")}
-                        style={selected ? { backgroundColor: "var(--wi-red)" } : undefined}
+                        )}
                       >
                         {/* Match info — sport name inline, no chip */}
                         <div className="min-w-0 flex-1">
                           <div
-                            className={[
+                            className={cn(
                               "text-sm font-semibold truncate",
-                              selected ? "text-white" : "text-foreground",
-                            ].join(" ")}
+                              selected ? "text-primary-foreground" : "text-foreground",
+                            )}
                           >
                             {ev.sportCode && (
                               <span
-                                className={[
+                                className={cn(
                                   "font-normal",
-                                  selected ? "text-white/75" : "text-muted-foreground",
-                                ].join(" ")}
+                                  selected ? "text-primary-foreground/75" : "text-muted-foreground",
+                                )}
                               >
                                 {sportLabel(ev.sportCode)}
                                 {ev.opponent ? " \u00b7 " : ""}
@@ -242,10 +201,10 @@ export function WizardStep1({
                             )}
                           </div>
                           <div
-                            className={[
+                            className={cn(
                               "text-xs mt-0.5 truncate",
-                              selected ? "text-white/70" : "text-muted-foreground",
-                            ].join(" ")}
+                              selected ? "text-primary-foreground/70" : "text-muted-foreground",
+                            )}
                           >
                             {formatDate(ev.startsAt)}
                             {ev.rawLocationText ? ` \u00b7 ${ev.rawLocationText}` : ""}
@@ -268,9 +227,9 @@ export function WizardStep1({
 
                         {/* Selected check */}
                         {selected && (
-                          <CheckIcon className="size-4 shrink-0 text-white ml-0.5" />
+                          <CheckIcon className="size-4 shrink-0 text-primary-foreground ml-0.5" />
                         )}
-                      </button>
+                      </Button>
                     );
                   })}
                 </div>
@@ -282,8 +241,7 @@ export function WizardStep1({
         {/* Shift context banner (primary event) */}
         {myShiftForEvent && form.selectedEvents.length > 0 && (
           <div
-            className="flex items-center gap-3 mt-4 px-3 py-2.5 rounded-r-sm bg-muted/40 border-l-[3px]"
-            style={{ borderLeftColor: "var(--wi-red)" }}
+            className="flex items-center gap-3 rounded-r-sm border-l-[3px] border-l-primary bg-muted/40 px-3 py-2.5"
           >
             <ClockIcon className="size-3.5 shrink-0 text-muted-foreground" />
             <div className="min-w-0 flex-1">
@@ -322,32 +280,35 @@ export function WizardStep1({
       </section>
 
       {/* ═══ Booking Details Section ═══ */}
-      <section>
-        <SectionHeader>Booking Details</SectionHeader>
+      <section className="flex flex-col gap-4">
+        <SectionHeading>Booking details</SectionHeading>
 
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4 rounded-md border border-border/60 bg-card/70 p-2 shadow-xs">
           {/* Title */}
-          <div>
-            <FieldLabel required>
-              Booking name{form.tieToEvent && form.selectedEvents.length > 0 ? " \u2014 auto-filled from event" : ""}
-            </FieldLabel>
+          <FormRow
+            label={form.tieToEvent && form.selectedEvents.length > 0 ? "Booking name — auto-filled" : "Booking name"}
+            required
+            htmlFor="booking-title"
+          >
             <Input
+              id="booking-title"
+              name="booking-title"
               value={form.title}
               onChange={(e) => dispatch({ type: "SET_TITLE", value: e.target.value })}
               placeholder={form.tieToEvent ? "Select an event above\u2026" : "e.g. Game day equipment"}
               required
             />
-          </div>
+          </FormRow>
 
           {/* Sport (when not tied to event) */}
           {!form.tieToEvent && (
-            <div>
-              <FieldLabel>Sport (optional)</FieldLabel>
+            <FormRow label="Sport" htmlFor="booking-sport-trigger">
               <Select
+                name="booking-sport"
                 value={form.sport || "__none__"}
                 onValueChange={(v) => dispatch({ type: "SET_SPORT", value: v === "__none__" ? "" : v })}
               >
-                <SelectTrigger>
+                <SelectTrigger id="booking-sport-trigger">
                   <SelectValue placeholder="None" />
                 </SelectTrigger>
                 <SelectContent>
@@ -359,19 +320,20 @@ export function WizardStep1({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </FormRow>
           )}
 
           {/* Requester + Location (2-col on sm+) */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <FieldLabel required>{config.requesterLabel}</FieldLabel>
+          <FormRow2Col label="Owner / location" required>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="booking-requester-trigger" className="text-xs text-muted-foreground">{config.requesterLabel}</Label>
               <Select
+                name="booking-requester"
                 value={form.requester}
                 onValueChange={(v) => dispatch({ type: "SET_REQUESTER", value: v })}
                 required
               >
-                <SelectTrigger>
+                <SelectTrigger id="booking-requester-trigger">
                   <SelectValue placeholder="Select\u2026" />
                 </SelectTrigger>
                 <SelectContent>
@@ -384,14 +346,15 @@ export function WizardStep1({
               </Select>
             </div>
 
-            <div>
-              <FieldLabel required>Location</FieldLabel>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="booking-location-trigger" className="text-xs text-muted-foreground">Location</Label>
               <Select
+                name="booking-location"
                 value={form.locationId}
                 onValueChange={(v) => dispatch({ type: "SET_LOCATION_ID", value: v })}
                 required
               >
-                <SelectTrigger>
+                <SelectTrigger id="booking-location-trigger">
                   <SelectValue placeholder="Select\u2026" />
                 </SelectTrigger>
                 <SelectContent>
@@ -403,22 +366,17 @@ export function WizardStep1({
                 </SelectContent>
               </Select>
             </div>
-          </div>
+          </FormRow2Col>
 
           {/* Kit (optional) */}
           {kits.length > 0 && (
-            <div>
-              <FieldLabel>
-                <span className="inline-flex items-center gap-1.5">
-                  <BoxesIcon className="size-3" />
-                  Kit (optional)
-                </span>
-              </FieldLabel>
+            <FormRow label="Kit" htmlFor="booking-kit-trigger">
               <Select
+                name="booking-kit"
                 value={kitId || "__none__"}
                 onValueChange={(v) => setKitId(v === "__none__" ? "" : v)}
               >
-                <SelectTrigger>
+                <SelectTrigger id="booking-kit-trigger">
                   <SelectValue placeholder="None" />
                 </SelectTrigger>
                 <SelectContent>
@@ -430,40 +388,43 @@ export function WizardStep1({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </FormRow>
           )}
 
           {/* Dates (2-col) */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <FieldLabel required>{config.startLabel}</FieldLabel>
+          <FormRow2Col label={`${config.startLabel} / ${config.endLabel}`} required>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="booking-starts-at" className="text-xs text-muted-foreground">{config.startLabel}</Label>
               <DateTimePicker
+                id="booking-starts-at"
                 value={form.startsAt ? new Date(form.startsAt) : undefined}
                 onChange={(d) => dispatch({ type: "SET_STARTS_AT", value: toLocalDateTimeValue(d) })}
                 placeholder="Start date & time"
               />
             </div>
-            <div>
-              <FieldLabel required>{config.endLabel}</FieldLabel>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="booking-ends-at" className="text-xs text-muted-foreground">{config.endLabel}</Label>
               <DateTimePicker
+                id="booking-ends-at"
                 value={form.endsAt ? new Date(form.endsAt) : undefined}
                 onChange={(d) => dispatch({ type: "SET_ENDS_AT", value: toLocalDateTimeValue(d) })}
                 placeholder="End date & time"
               />
             </div>
-          </div>
+          </FormRow2Col>
 
           {/* Notes (optional) */}
-          <div>
-            <FieldLabel>Notes (optional)</FieldLabel>
+          <FormRow label="Notes" htmlFor="booking-notes">
             <Textarea
+              id="booking-notes"
+              name="booking-notes"
               value={form.notes}
               onChange={(e) => dispatch({ type: "SET_NOTES", value: e.target.value })}
               placeholder="Anything pickup or return crew should know — e.g. “VIP setup”, “Return by 6pm”"
               rows={3}
               maxLength={10000}
             />
-          </div>
+          </FormRow>
         </div>
       </section>
 

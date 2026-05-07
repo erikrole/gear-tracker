@@ -10,7 +10,7 @@ import { z } from "zod";
 
 const createUserSchema = z.object({
   name: z.string().trim().min(1).max(100),
-  email: z.string().email(),
+  email: z.string().trim().email(),
   password: z.string().min(8).max(128),
   role: roleSchema.default("STAFF"),
   locationId: z.string().cuid().nullable().optional()
@@ -117,7 +117,7 @@ export const GET = withAuth(async (req, { user }) => {
     }
   })();
 
-  const [data, total] = await Promise.all([
+  const [data, total, active, inactive, roleGroups] = await Promise.all([
     db.user.findMany({
       where,
       orderBy,
@@ -128,7 +128,23 @@ export const GET = withAuth(async (req, { user }) => {
       },
     }),
     db.user.count({ where }),
+    db.user.count({ where: { AND: [where, { active: true }] } }),
+    db.user.count({ where: { AND: [where, { active: false }] } }),
+    db.user.groupBy({
+      by: ["role"],
+      where,
+      _count: { _all: true },
+    }),
   ]);
+
+  const byRole = {
+    ADMIN: 0,
+    STAFF: 0,
+    STUDENT: 0,
+  };
+  for (const group of roleGroups) {
+    byRole[group.role] = group._count._all;
+  }
 
   return ok({
     data: data.map((u) => ({
@@ -149,6 +165,12 @@ export const GET = withAuth(async (req, { user }) => {
     total,
     limit,
     offset,
+    stats: {
+      total,
+      active,
+      inactive,
+      byRole,
+    },
   });
 });
 

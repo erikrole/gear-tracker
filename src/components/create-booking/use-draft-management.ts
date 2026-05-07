@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } fr
 import { toast } from "sonner";
 import { toLocalDateTimeValue } from "../booking-list/types";
 import type { BulkSelection } from "@/components/EquipmentPicker";
-import type { AvailableAsset, BookingListConfig } from "../booking-list/types";
+import type { AvailableAsset, BookingListConfig, CalendarEvent } from "../booking-list/types";
 import type { FormState, FormAction } from "./types";
 
 export function useDraftManagement({
@@ -53,6 +53,10 @@ export function useDraftManagement({
         if (d.endsAt) draft.endsAt = toLocalDateTimeValue(new Date(d.endsAt));
         if (d.sportCode) draft.sport = d.sportCode;
         if (typeof d.notes === "string") draft.notes = d.notes;
+        if (d.events?.length) {
+          draft.tieToEvent = true;
+          draft.selectedEvents = d.events as CalendarEvent[];
+        }
         dispatch({ type: "LOAD_DRAFT", draft });
         if (d.serializedAssetIds?.length) setSelectedAssetIds(d.serializedAssetIds);
         if (d.bulkItems?.length) {

@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-05
+- Last Updated: 2026-05-07
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
@@ -22,11 +22,13 @@ Keep reservation planning and checkout execution unified, predictable, and safe 
 ### Create Reservation (Wizard — `/reservations/new`)
 Multi-step wizard page (replaced the old side-sheet flow as of 2026-04-09):
 
-**Step 1 — Context & Details:** Event tie-in (optional), title, requester, location, kit, start/end dates.
+**Step 1 — Context & Details:** Event tie-in (optional), title, requester, location, kit, start/end dates. Event picker uses the next 30 days and supports up to 3 linked events.
 **Step 2 — Equipment:** Full `EquipmentPicker` — browse-first on mobile (no default camera). Equipment requirements enforced.
 **Step 3 — Confirmation:** Summary with thumbnails. Submit → POST `/api/reservations`. Save as `BOOKED`.
 
 **Deep-link parameters:** `?title`, `?startsAt`, `?endsAt`, `?locationId`, `?newFor`, `?eventId`, `?sportCode`, `?requesterUserId`, `?draftId`.
+
+**Draft persistence:** "Save draft & exit" persists via `/api/drafts`. Resumable via `?draftId=`. Multi-event drafts persist ordered `BookingEvent` links, return ordered `events[]` on resume, and keep `Booking.eventId` as the chronologically first linked event for legacy readers.
 
 ### Edit Reservation
 1. Allowed fields depend on role, ownership, and lifecycle state.
@@ -258,3 +260,8 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - 2026-04-09: **Booking flow overhaul** — Creation flow moved from side-sheet to full-page 3-step wizard at `/reservations/new`. BookingDetailsSheet gains Equipment tab with full EquipmentPicker in edit mode. `CreateBookingSheet` deleted. Asset thumbnails on all equipment rows. Stress-tested with 8 fixes applied.
 - 2026-04-09: **EquipmentPicker rebuild + hardening** — Same picker rebuild as AREA_CHECKOUTS. Full-row selection, conflict check on selection change, selected shelf, error state surfacing. Reservation wizard at `/reservations/new` shares same picker with proper browse-first UX (no scan gate).
 - 2026-05-05: **Requester deep-link support** — Shared booking wizard now accepts `requesterUserId` as a creation deep-link parameter, preserving requester context from cross-page flows.
+- 2026-05-06: **Bookings ownership pass** — `/bookings` tab changes now persist to URL state. The All tab is active-only by default (`DRAFT`, `BOOKED`, `PENDING_PICKUP`, `OPEN`) until a separate past toggle is shipped, and it evaluates row actions from each booking's actual kind so reservation actions remain available outside the Reservations-only tab. Desktop equipment counts now include bulk planned quantities, and page-level tabs/view controls now match peer shadcn patterns.
+- 2026-05-07: **Avatar and shadcn cleanup** — Shared booking cards now use item thumbnail stacks for equipment and shadcn `Button` variants for filter clear actions, keeping reservation list chrome aligned with checkout list chrome.
+- 2026-05-07: **Bookings past-scope toggle** — The unified `/bookings` page now separates Active and Past records with one URL-backed scope. Active keeps the All tab constrained to non-terminal booking statuses; Past sends `past=true` through combined, checkout, and reservation list APIs to show completed/cancelled records intentionally.
+- 2026-05-07: **Booking creation ownership pass** — `/reservations/new` now uses the documented 30-day event picker window in the browser, and draft save/resume preserves multi-event links through `/api/drafts` so interrupted event-linked reservations reopen with their selected events intact.
+- 2026-05-07: **Booking creation shadcn alignment** — Reservation creation now follows the Items list standard more closely: shared `PageHeader`, shadcn `Switch`/`Button`/`Badge` primitives, item-form section headings and rows, quiet bordered card surfaces, exact transitions, and browser-clean field labels.
