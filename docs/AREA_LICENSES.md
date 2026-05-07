@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Photo Mechanic license pool
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-04-24
+- Last Updated: 2026-05-07
 - Status: Active — 2-slot model, expiry tracking, unknown occupants, CSV export shipped
 - Version: V2
 
@@ -44,8 +44,10 @@ Replace the Google Sheet at `licenses.xlsx` with an in-app pool that mirrors how
 | GET | `/api/licenses` | `license:view` | List codes with active claims (admin sees retired too) |
 | POST | `/api/licenses` | `license:manage` | Create one code (with optional accountEmail/expiresAt) |
 | POST | `/api/licenses/bulk` | `license:manage` | Bulk-create from newline-separated codes |
+| PATCH | `/api/licenses/bulk` | `license:manage` | Bulk-renew visible active codes with one shared expiry date |
 | GET | `/api/licenses/export` | `license:manage` | Download CSV of all codes |
 | GET | `/api/licenses/my` | `license:view` | Current user's active claim (if any) |
+| GET | `/api/licenses/my/history` | `license:view` | Current user's recent claim/return history without revealing released codes |
 | PATCH | `/api/licenses/[id]` | `license:manage` | Update label / accountEmail / expiresAt / retire |
 | DELETE | `/api/licenses/[id]` | `license:manage` | Permanent delete (must have 0 active claims) |
 | POST | `/api/licenses/[id]/claim` | `license:claim` | Student claims a slot |
@@ -58,12 +60,14 @@ Replace the Google Sheet at `licenses.xlsx` with an in-app pool that mirrors how
 - Page: `src/app/(app)/licenses/page.tsx`
 - Components:
   - `MyLicensePanel.tsx` — student banner showing their active code with copy + return
+  - `MyLicenseHistoryDialog.tsx` — user-visible recent claim/return history from the active-license banner
   - `LicenseTable.tsx` — main table, masked codes for non-holders, expiry tooltips
   - `ConfirmClaimDialog.tsx` — student claim confirmation, copies code on success
   - `ReleaseDialog.tsx` — student return confirmation
   - `AdminClaimSheet.tsx` — admin detail sheet (slots, occupant, details, danger zone, history)
   - `AddLicenseDialog.tsx` — single-code add with accountEmail + expiry
   - `BulkAddSheet.tsx` — paste many codes at once
+  - `BulkRenewDialog.tsx` — admin renewal dialog for expiring/expired visible codes or all visible active codes
 
 ### Visual states
 - AVAILABLE row: tinted green, `cursor-pointer` if user has no claim
@@ -104,17 +108,21 @@ Implementation: `processLicenseNags` and `processExpiryWarnings` in `src/lib/ser
 - [x] Expiring licenses (≤30d) show yellow badge; expired show red
 - [x] Admins receive in-app + push notification 14d before expiry, monthly thereafter
 - [x] Admin sheet shows full claim history including releases and unknown occupants
+- [x] Admins can bulk-renew expiring/expired visible codes or all visible active codes
+- [x] Users can view their own recent claim/return history without exposing released codes
 - [x] Students cannot hold more than one slot across all codes
 - [x] Codes are masked to non-holders/non-admins
 - [x] Destructive actions (delete, retire) require confirmation
 - [x] CSV export available to admins
 
 ## Known Gaps / Deferred
-- No bulk renewal (admin must update `expiresAt` per code)
 - No history pagination (loads all claims for a code in one fetch — fine for current volume <50/code)
-- No per-user "license usage" report (only the in-sheet history per code)
+- No full admin per-user license usage report beyond the user's own recent history and per-code admin history
 
 ## Change Log
+- **2026-05-07 (User history)**: Added `/api/licenses/my/history` and a user-facing License history dialog from the active-license banner. The dialog shows recent claim/return timing while keeping released license codes hidden.
+- **2026-05-07 (Bulk renewal)**: Added admin bulk renewal for expiring/expired visible codes or all visible active codes via `PATCH /api/licenses/bulk`, with rate limiting and audit logging.
+- **2026-05-07 (Ownership pass)**: Added a compact license health summary for active codes, slot usage, open slots, expiring codes, and retired codes; fixed student-owned table rows so they no longer expose a dead click/keyboard path; corrected partial-row action labels for assistive tech; added an explicit hidden-retired empty state when no active codes are visible.
 - **2026-04-24 (MVP polish)** — Per-user rate limits on claim/release/bulk/occupy/export; serializable-isolation transactions on `claimCode`/`addUnknownOccupant` to close concurrent-claim race; `LicenseCodeClaim.user` FK now `SET NULL` (migration 0044) so deleting users with claim history is safe; admin per-claim and "release all" now confirm via AlertDialog; list-fetch error surfaces a Retry empty-state instead of looking like an empty pool; BulkAddSheet now accepts shared `accountEmail` + `expiresAt`; "Mark slot occupied" input has a proper Label; footer hint hidden when user already holds a slot.
 - **2026-04-24 (V2)** — Two-slot model, expiry, unknown occupants, CSV export, expiry push notifications, full UI polish + danger-zone confirmations
 - **2026-04-23 (V1)** — Original single-slot pool with claim/release, 2-day nag push, claim history

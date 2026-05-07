@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, Check, KeyRound, LogOut, AlertTriangle } from "lucide-react";
+import { Copy, Check, Clock3, KeyRound, LogOut, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatRelativeTime } from "@/lib/format";
 import type { MyLicense } from "./types";
 import { ReleaseDialog } from "./ReleaseDialog";
+import { MyLicenseHistoryDialog } from "./MyLicenseHistoryDialog";
 
 type Props = {
   license: MyLicense;
@@ -18,6 +19,7 @@ type Props = {
 export function MyLicensePanel({ license, isStaff, onReleased }: Props) {
   const [copied, setCopied] = useState(false);
   const [showRelease, setShowRelease] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   async function handleCopy() {
     await navigator.clipboard.writeText(license.code);
@@ -53,6 +55,10 @@ export function MyLicensePanel({ license, isStaff, onReleased }: Props) {
               </span>
             )}
             <div className="flex items-center gap-2 shrink-0">
+              <Button variant="outline" size="sm" onClick={() => setShowHistory(true)} className="gap-1.5">
+                <Clock3 className="size-3.5" />
+                History
+              </Button>
               <Button variant="outline" size="sm" onClick={handleCopy} className="gap-1.5">
                 {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
                 {copied ? "Copied" : "Copy"}
@@ -93,6 +99,7 @@ export function MyLicensePanel({ license, isStaff, onReleased }: Props) {
         licenseId={license.id}
         onReleased={onReleased}
       />
+      <MyLicenseHistoryDialog open={showHistory} onOpenChange={setShowHistory} />
     </>
   );
 }

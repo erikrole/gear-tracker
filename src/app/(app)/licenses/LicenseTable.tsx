@@ -157,8 +157,7 @@ export function LicenseTable({
             const claimable = code.status === "AVAILABLE" || code.status === "PARTIAL";
             const studentCanClaim = claimable && !hasMyLicense;
             const adminCanInspect = isAdmin && code.status !== "RETIRED";
-            const studentCanRelease = isOwn;
-            const isClickable = studentCanClaim || studentCanRelease || adminCanInspect;
+            const isClickable = studentCanClaim || adminCanInspect;
 
             const rowClass = cn(
               "transition-colors",
@@ -179,6 +178,7 @@ export function LicenseTable({
             }
 
             const displayCode = isAdmin || isOwn ? code.code : MASKED_CODE;
+            const rowActionLabel = studentCanClaim ? "Claim" : "Inspect";
 
             return (
               <TableRow
@@ -186,7 +186,7 @@ export function LicenseTable({
                 className={cn(rowClass, isClickable && "focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]")}
                 onClick={handleClick}
                 tabIndex={isClickable ? 0 : undefined}
-                aria-label={isClickable ? `${code.status === "AVAILABLE" ? "Claim" : "Inspect"} license ${displayCode}` : undefined}
+                aria-label={isClickable ? `${rowActionLabel} license ${displayCode}` : undefined}
                 onKeyDown={isClickable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleClick(); } } : undefined}
               >
                 <TableCell>

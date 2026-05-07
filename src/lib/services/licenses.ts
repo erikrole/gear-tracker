@@ -298,11 +298,40 @@ export async function updateCodeDetails(
   return db.licenseCode.update({ where: { id: codeId }, data });
 }
 
+export async function bulkRenewCodes(codeIds: string[], expiresAt: Date): Promise<{ updated: number }> {
+  const result = await db.licenseCode.updateMany({
+    where: {
+      id: { in: codeIds },
+      status: { not: LicenseCodeStatus.RETIRED },
+    },
+    data: { expiresAt },
+  });
+
+  return { updated: result.count };
+}
+
 export async function getClaimHistory(codeId: string) {
   return db.licenseCodeClaim.findMany({
     where: { licenseCodeId: codeId },
     include: { user: { select: { id: true, name: true, avatarUrl: true } } },
     orderBy: { claimedAt: "desc" },
+  });
+}
+
+export async function getClaimHistoryForUser(userId: string) {
+  return db.licenseCodeClaim.findMany({
+    where: { userId },
+    include: {
+      licenseCode: {
+        select: {
+          id: true,
+          label: true,
+          expiresAt: true,
+        },
+      },
+    },
+    orderBy: { claimedAt: "desc" },
+    take: 25,
   });
 }
 
