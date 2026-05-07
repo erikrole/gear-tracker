@@ -40,6 +40,9 @@ final class ScheduleViewModel {
     var isLoading = false
     var error: String?
     var refreshError: String?
+    /// When true, the load also pulls events whose end time is in the past —
+    /// matches the "Past" toggle the web schedule's list view exposes.
+    var includePast = false
     private var hasLoaded = false
 
     var shiftsByEventId: [String: MyShift] = [:]
@@ -80,7 +83,7 @@ final class ScheduleViewModel {
         if events.isEmpty { error = nil }
         refreshError = nil
         do {
-            async let eventsTask = APIClient.shared.calendarEvents()
+            async let eventsTask = APIClient.shared.calendarEvents(includePast: includePast)
             async let shiftsTask = APIClient.shared.myShifts()
             let (fetchedEvents, fetchedShifts) = try await (eventsTask, shiftsTask)
             events = fetchedEvents
@@ -263,6 +266,23 @@ struct ScheduleView: View {
                     .sensoryFeedback(.selection, trigger: viewMode)
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {
+                    if viewMode == .list {
+                        Button {
+                            vm.includePast.toggle()
+                            Task { await vm.load(forceRefresh: true) }
+                        } label: {
+                            Image(systemName: vm.includePast ? "clock.arrow.circlepath" : "clock")
+                                .font(.subheadline.weight(.semibold))
+                                .frame(width: 36, height: 36)
+                        }
+                        // Web parity: list view's "Past" toggle includes already-
+                        // ended events. Glass + blue tint matches the other
+                        // active-state toolbar controls.
+                        .buttonStyle(.glass)
+                        .tint(vm.includePast ? Color.statusText(.blue) : .primary)
+                        .accessibilityLabel(vm.includePast ? "Showing past events" : "Show past events")
+                        .sensoryFeedback(.selection, trigger: vm.includePast)
+                    }
                     Button {
                         myShiftsOnly.toggle()
                     } label: {
