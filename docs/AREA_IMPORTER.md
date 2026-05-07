@@ -208,3 +208,4 @@ No column is discarded.
 - 2026-03-25: Doc sync — standardized ACs to checkbox format, all 6 checked.
 - 2026-04-07: Hardening pass — import page multi-step flow hardened with handleAuthRedirect(returnTo) + classifyError + isAbortError on preview and import fetches. Network vs server errors now distinguished. Hardening score 2/5 → 4/5.
 - 2026-05-06: Cheqroom QR repair — importer now treats `Codes` as the canonical QR/primary scan value before `Barcodes`, preserves both source values in `sourcePayload`, updates existing QR values when no unique-owner conflict exists, and normalizes date-like timestamps to UTC day boundaries.
+- 2026-05-07: Import image hardening — Cheqroom image header variants now map to `imageUrl`, mapped image URLs are preserved in `sourcePayload`, upserts no longer clear existing item photos when a later import row has no image, and bulk SKU imports preserve image URLs.

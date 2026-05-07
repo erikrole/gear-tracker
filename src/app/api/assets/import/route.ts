@@ -65,6 +65,12 @@ const CHEQROOM_PRESET: Record<string, string> = {
   "Department": "department",
   "Kit": "kitName",
   "Image Url": "imageUrl",
+  "Image URL": "imageUrl",
+  "Image url": "imageUrl",
+  "Image": "imageUrl",
+  "Photo Url": "imageUrl",
+  "Photo URL": "imageUrl",
+  "Photo": "imageUrl",
   "image_url": "imageUrl",
   "UW Asset Tag": "uwAssetTag",
   "uw_asset_tag": "uwAssetTag",
@@ -202,6 +208,7 @@ function parseRows(content: string, userMapping?: ColumnMapping): {
     const barcodes = getMapped(record, mapping, "barcodes");
     const primaryScanCode = codes || barcodes || "";
     const qrCodeValue = primaryScanCode || `bg://item/${assetTag}`;
+    const imageUrl = getMapped(record, mapping, "imageUrl");
 
     const locationName = getMapped(record, mapping, "locationName");
     if (!locationName) errors.push("Missing location");
@@ -221,6 +228,7 @@ function parseRows(content: string, userMapping?: ColumnMapping): {
     if (sourceId) sourcePayload["sourceId"] = sourceId;
     if (codes) sourcePayload["cheqroomCodes"] = codes;
     if (barcodes) sourcePayload["cheqroomBarcodes"] = barcodes;
+    if (imageUrl) sourcePayload["cheqroomImageUrl"] = imageUrl;
     const flagVal = getMapped(record, mapping, "flag");
     if (flagVal) sourcePayload["flag"] = flagVal;
     const geoVal = getMapped(record, mapping, "geo");
@@ -534,7 +542,10 @@ export const POST = withAuth(async (req, { user }) => {
         continue;
       }
       const data = buildAssetData(row, locationId, departmentId);
-      const { serialNumber: _sn, ...updateData } = data;
+      const { serialNumber: _sn, ...updateDataWithImage } = data;
+      const updateData = row.imageUrl
+        ? updateDataWithImage
+        : (({ imageUrl: _imageUrl, ...rest }) => rest)(updateDataWithImage);
       toUpdate.push({ id: existing.id, data: updateData });
       updatedCount += 1;
     } else {
@@ -570,10 +581,12 @@ export const POST = withAuth(async (req, { user }) => {
             unit: "each",
             locationId,
             binQrCodeValue: binQr,
+            imageUrl: row.imageUrl || null,
           },
           update: {
             name: row.name || row.assetTag,
             category: row.type || "consumable",
+            ...(row.imageUrl ? { imageUrl: row.imageUrl } : {}),
           },
         });
         await tx.bulkStockBalance.upsert({

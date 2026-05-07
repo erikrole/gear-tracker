@@ -514,7 +514,7 @@ export default function ItemsPage() {
                     <TableCell><Skeleton className="size-4" /></TableCell>
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        {density !== "compact" && <Skeleton className="size-9 rounded-md shrink-0" />}
+                        <Skeleton className={density === "compact" ? "size-8 rounded-md shrink-0" : "size-9 rounded-md shrink-0"} />
                         <div className="flex flex-col gap-1.5 flex-1">
                           <Skeleton className="h-4" style={{ width: `${55 + (r % 3) * 15}%` }} />
                           <Skeleton className="h-3" style={{ width: `${35 + (r % 4) * 10}%` }} />

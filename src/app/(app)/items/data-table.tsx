@@ -150,9 +150,12 @@ export function DataTable({
                       aria-label={`Select ${item.assetTag}`}
                     />
                   </div>
-                  {density !== "compact" && (
-                    <AssetImage src={item.imageUrl} alt={item.assetTag} size={48} className="shrink-0 rounded-lg" />
-                  )}
+                  <AssetImage
+                    src={item.imageUrl}
+                    alt={item.assetTag}
+                    size={density === "compact" ? 40 : 48}
+                    className="shrink-0 rounded-lg"
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="flex min-w-0 items-start justify-between gap-2">
                       <div className="min-w-0">

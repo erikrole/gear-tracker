@@ -313,9 +313,12 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
             : null;
         return (
           <div className="flex min-w-0 items-center gap-3">
-            {!isCompact && (
-              <AssetImage src={item.imageUrl} alt={item.assetTag} size={40} className="rounded-lg" />
-            )}
+            <AssetImage
+              src={item.imageUrl}
+              alt={item.assetTag}
+              size={isCompact ? 32 : 40}
+              className={isCompact ? "rounded-md" : "rounded-lg"}
+            />
             <div className={isCompact ? "flex min-w-0 items-center gap-2" : "flex min-w-0 flex-col gap-0.5"}>
               <div className="flex min-w-0 items-center gap-1.5">
                 <span
