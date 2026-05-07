@@ -389,10 +389,21 @@ final class APIClient {
 
     // MARK: - Users
 
-    func users(search: String? = nil, limit: Int = 10) async throws -> PaginatedResponse<AppUser> {
+    func users(
+        search: String? = nil,
+        role: String? = nil,
+        includeInactive: Bool = false,
+        limit: Int = 50,
+        offset: Int = 0
+    ) async throws -> PaginatedResponse<AppUser> {
         var components = URLComponents(url: baseURL.appendingPathComponent("/api/users"), resolvingAgainstBaseURL: false)!
-        var items: [URLQueryItem] = [.init(name: "limit", value: "\(limit)")]
+        var items: [URLQueryItem] = [
+            .init(name: "limit", value: "\(limit)"),
+            .init(name: "offset", value: "\(offset)"),
+        ]
         if let search, !search.isEmpty { items.append(.init(name: "q", value: search)) }
+        if let role, !role.isEmpty { items.append(.init(name: "role", value: role)) }
+        if includeInactive { items.append(.init(name: "active", value: "all")) }
         components.queryItems = items
         var req = URLRequest(url: components.url!)
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")

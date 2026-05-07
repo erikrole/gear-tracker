@@ -112,6 +112,7 @@ Use a simple tiered permission model with inheritance so behavior is predictable
 6. Ensure audit logs include actor role, target owner, and exception metadata.
 
 ## Change Log
+- 2026-05-07: iOS Users tab (parity slice 1). New `UsersView.swift` lists users with debounced search, role filter (Admin/Staff/Student), show-inactive toggle, infinite-scroll pagination (50/page). Tap pushes existing `UserDetailView` via `UserRouteId` wrapper to avoid colliding with UserDetailView's String-typed booking destination. `AppUser` model + `APIClient.users()` extended to match `/api/users` payload (role, primaryArea, title, active, gradYear, studentYearOverride). New 6th tab "Users" added to `AppTabView`. See `AREA_MOBILE.md` for context.
 - 2026-03-01: Initial file created as access-control scope.
 - 2026-03-01: Renamed area to Users and expanded student read visibility.
 - 2026-03-01: Finalized delete policy, role management scope, and location exception policy.

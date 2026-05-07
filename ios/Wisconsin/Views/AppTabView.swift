@@ -31,6 +31,10 @@ struct AppTabView: View {
             }
             .badge(appState.myShiftCount)
             .accessibilityLabel(appState.myShiftCount > 0 ? "Schedule, \(appState.myShiftCount) upcoming shifts" : "Schedule")
+
+            Tab("Users", systemImage: "person.2", value: 5) {
+                UsersView()
+            }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
         .safeAreaInset(edge: .top, spacing: 0) {

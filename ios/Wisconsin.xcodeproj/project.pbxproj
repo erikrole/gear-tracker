@@ -45,6 +45,7 @@
 		795277BA3B90A0AB27B5C672 /* GearStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAD4EC3F211EACBB157F7DDE /* GearStore.swift */; };
 		81413B070B47866D2C7DB337 /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0189482D68508F45B086F46F /* SessionStore.swift */; };
 		889D5483CAC2EA6C8E25DDFD /* ShiftTradeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC21A466188CE0D3011728F2 /* ShiftTradeModels.swift */; };
+		8AD8110B0A79C58084C6CB22 /* UsersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F94CA79BF538DBB6FF7F225 /* UsersView.swift */; };
 		8F4B17907F06BDF713664001 /* KioskCheckoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3700D2B2FAE801DC2FF0F1ED /* KioskCheckoutView.swift */; };
 		904A4A8C645FFEB4CD2AA971 /* ExtendBookingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B0058FB3644F501479BA0D5 /* ExtendBookingSheet.swift */; };
 		96DAC20EB887DA3916DEE474 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38065600FA5A1C1AC4C8CC2F /* AppState.swift */; };
@@ -114,6 +115,7 @@
 		80CA4880F08046F8E23F079B /* ItemDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemDetailView.swift; sourceTree = "<group>"; };
 		843772771897AABEF8DD1F93 /* BannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BannerView.swift; sourceTree = "<group>"; };
 		87AF393E027CAF24A08F414E /* WeatherKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WeatherKit.framework; path = System/Library/Frameworks/WeatherKit.framework; sourceTree = SDKROOT; };
+		8F94CA79BF538DBB6FF7F225 /* UsersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsersView.swift; sourceTree = "<group>"; };
 		93A02FB7D1B8ADC547189F1A /* ScanPrePromptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanPrePromptView.swift; sourceTree = "<group>"; };
 		96636E404DEEEDA5C6046ADB /* AddShiftSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddShiftSheet.swift; sourceTree = "<group>"; };
 		9CDE77AE37C01B8DA663C7CE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -316,6 +318,7 @@
 				37FF31264347D4D6932C4DBB /* ScanView.swift */,
 				74157D1DF3F4EF9F53F70494 /* ScheduleView.swift */,
 				6B64F325136AF7626ECECE8C /* UserDetailView.swift */,
+				8F94CA79BF538DBB6FF7F225 /* UsersView.swift */,
 				4E310D05AC0591B9C424B405 /* Components */,
 				7F8F46234DBAD63AE7CDEB70 /* DevTools */,
 				CD10799A1237302B1D05E01C /* Schedule */,
@@ -464,6 +467,7 @@
 				1C2E6D4D0BA7A114FB6E9DB7 /* Toast.swift in Sources */,
 				A9264F994D67157C3DD7FCD3 /* TradeBoardSheet.swift in Sources */,
 				6A29F42A3F64F9E6FDD5EB53 /* UserDetailView.swift in Sources */,
+				8AD8110B0A79C58084C6CB22 /* UsersView.swift in Sources */,
 				390F43409B451AAB78D2D0C9 /* WisconsinApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

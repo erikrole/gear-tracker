@@ -131,6 +131,11 @@ struct AppUser: Codable, Identifiable {
     let role: String
     let location: String?
     let avatarUrl: String?
+    let primaryArea: String?
+    let title: String?
+    let active: Bool?
+    let gradYear: Int?
+    let studentYearOverride: String?
 }
 
 struct AppUserDetail: Codable, Identifiable {
