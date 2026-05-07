@@ -381,7 +381,8 @@ private struct BulkSection: View {
         VStack(alignment: .leading, spacing: 8) {
             SectionHeader(title: "Consumables", count: items.count)
             ForEach(items) { item in
-                HStack {
+                HStack(spacing: 10) {
+                    BulkThumbnail(imageUrl: item.bulkSku.imageUrl, size: 40)
                     Text(item.bulkSku.name)
                         .font(.subheadline)
                     Spacer()
@@ -391,6 +392,43 @@ private struct BulkSection: View {
                 }
             }
         }
+    }
+}
+
+/// Bulk SKU thumbnail with a neutral placeholder when no image is set —
+/// mirrors web's `bulkSku.imageUrl ? <ItemThumbnail/> : <ImageIcon/>` pattern.
+private struct BulkThumbnail: View {
+    let imageUrl: String?
+    let size: CGFloat
+
+    var body: some View {
+        if let urlString = imageUrl, let url = URL(string: urlString) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().scaledToFill()
+                default:
+                    placeholder
+                }
+            }
+            .frame(width: size, height: size)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(Color(.separator), lineWidth: 0.5)
+            )
+        } else {
+            placeholder
+                .frame(width: size, height: size)
+                .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 6))
+        }
+    }
+
+    private var placeholder: some View {
+        Image(systemName: "shippingbox")
+            .font(.system(size: 16))
+            .foregroundStyle(.tertiary)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

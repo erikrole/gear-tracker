@@ -83,6 +83,7 @@ struct BulkSku: Codable, Identifiable {
     let id: String
     let name: String
     let unit: String?
+    let imageUrl: String?
 }
 
 struct BookingBulkItem: Codable, Identifiable {

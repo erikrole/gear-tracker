@@ -16,6 +16,10 @@ final class BookingsViewModel {
     var searchText = ""
     var tab: BookingTab = .reservations
     var hasMore = true
+    /// "Mine" filter — when on, list only shows bookings the current user
+    /// requested. Mirrors the staff floor pattern of "what's mine right now".
+    var mineOnly = false
+    var currentUserId: String?
 
     private var offset = 0
     private let limit = 30
@@ -40,8 +44,9 @@ final class BookingsViewModel {
             offset = 0
             hasMore = true
             pageError = nil
-            // Seed from cache immediately on unfiltered first-page load
-            if searchText.isEmpty {
+            // Seed from cache immediately on unfiltered first-page load.
+            // Skip when "Mine" is on — cache contains everyone's bookings.
+            if searchText.isEmpty && !mineOnly {
                 let kindKey = tab == .reservations ? "RESERVATION" : "CHECKOUT"
                 let cached = GearStore.shared.cachedBookings(kind: kindKey)
                 if !cached.isEmpty { bookings = cached.map(\.asBooking) }
@@ -51,11 +56,12 @@ final class BookingsViewModel {
         if reset { error = nil }
         do {
             let search = searchText.isEmpty ? nil : searchText
+            let requesterId = mineOnly ? currentUserId : nil
             let result: PaginatedResponse<Booking> = switch tab {
             case .reservations:
-                try await APIClient.shared.reservations(activeOnly: true, search: search, limit: limit, offset: offset)
+                try await APIClient.shared.reservations(activeOnly: true, search: search, requesterId: requesterId, limit: limit, offset: offset)
             case .checkouts:
-                try await APIClient.shared.checkouts(activeOnly: true, search: search, limit: limit, offset: offset)
+                try await APIClient.shared.checkouts(activeOnly: true, search: search, requesterId: requesterId, limit: limit, offset: offset)
             }
             if Task.isCancelled { isLoading = false; return }
             if reset { bookings = result.data } else { bookings += result.data }
@@ -63,7 +69,7 @@ final class BookingsViewModel {
             hasMore = offset < result.total
             pageError = nil
             lastLoadedAt = Date()
-            if reset && offset == result.data.count && searchText.isEmpty {
+            if reset && offset == result.data.count && searchText.isEmpty && !mineOnly {
                 GearStore.shared.seedBookings(result.data)
             }
         } catch is CancellationError {
@@ -113,7 +119,16 @@ struct BookingsView: View {
 
     private var emptyTitle: String {
         guard vm.searchText.isEmpty else { return "No Results" }
+        if vm.mineOnly {
+            return vm.tab == .reservations ? "No Reservations" : "No Checkouts"
+        }
         return vm.tab == .reservations ? "No Active Reservations" : "No Active Checkouts"
+    }
+
+    private var emptyDescription: String {
+        if !vm.searchText.isEmpty { return "No results for \"\(vm.searchText)\"." }
+        if vm.mineOnly { return "Nothing checked out or reserved by you." }
+        return "No active bookings here."
     }
 
     var body: some View {
@@ -140,7 +155,7 @@ struct BookingsView: View {
                     ContentUnavailableView(
                         emptyTitle,
                         systemImage: "tray",
-                        description: Text(vm.searchText.isEmpty ? "No active bookings here." : "No results for \"\(vm.searchText)\".")
+                        description: Text(emptyDescription)
                     )
                 } else {
                     List {
@@ -185,6 +200,18 @@ struct BookingsView: View {
             .onChange(of: vm.searchText) { vm.onSearchChange() }
             .onChange(of: vm.tab) { Task { await vm.load(reset: true) } }
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        vm.mineOnly.toggle()
+                        Task { await vm.load(reset: true) }
+                    } label: {
+                        Image(systemName: vm.mineOnly ? "person.fill" : "person")
+                            .frame(minWidth: 44, minHeight: 44)
+                            .foregroundStyle(vm.mineOnly ? Color.statusText(.blue) : Color.primary)
+                    }
+                    .accessibilityLabel(vm.mineOnly ? "Showing my bookings" : "Show only my bookings")
+                    .sensoryFeedback(.selection, trigger: vm.mineOnly)
+                }
                 if vm.tab == .reservations && canCreate {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button { showCreate = true } label: {
@@ -213,7 +240,10 @@ struct BookingsView: View {
                 }
             }
             .refreshable { await vm.load(reset: true) }
-            .task { await vm.load(reset: true) }
+            .task {
+                vm.currentUserId = session.currentUser?.id
+                await vm.load(reset: true)
+            }
             .navigationDestination(for: Booking.self) { booking in
                 BookingDetailView(bookingId: booking.id)
             }
