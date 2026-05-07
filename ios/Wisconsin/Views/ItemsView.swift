@@ -270,9 +270,17 @@ struct AssetRow: View {
             AssetThumbnail(imageUrl: asset.imageUrl, size: 44)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(asset.assetTag ?? asset.displayName)
-                    .font(.subheadline.weight(.medium))
-                    .lineLimit(1)
+                // Asset tag is an ID — render in SF Mono to match web's font-mono
+                // treatment for asset tags. Fallback (brand+model) stays in SF Pro.
+                if let tag = asset.assetTag {
+                    Text(tag)
+                        .font(.system(.subheadline, design: .monospaced).weight(.medium))
+                        .lineLimit(1)
+                } else {
+                    Text(asset.displayName)
+                        .font(.subheadline.weight(.medium))
+                        .lineLimit(1)
+                }
                 HStack(spacing: 4) {
                     if let cat = asset.category {
                         Text(cat.name)

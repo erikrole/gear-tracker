@@ -59,7 +59,7 @@ struct BookingDetailView: View {
                         if let errorMsg = error {
                             Text(errorMsg)
                                 .font(.footnote)
-                                .foregroundStyle(.red)
+                                .foregroundStyle(Color.statusText(.red))
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
@@ -181,7 +181,7 @@ struct EditBookingSheet: View {
                             .lineLimit(3...6)
                     }
                     if let error {
-                        Text(error).foregroundStyle(.red).font(.footnote)
+                        Text(error).foregroundStyle(Color.statusText(.red)).font(.footnote)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 4)
                     }
@@ -258,7 +258,7 @@ private struct HeaderSection: View {
                 Spacer()
                 if let ref = booking.refNumber {
                     Text(ref)
-                        .font(.caption)
+                        .font(.system(.caption, design: .monospaced))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -269,7 +269,7 @@ private struct HeaderSection: View {
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(.systemRed), in: RoundedRectangle(cornerRadius: 8))
+                    .background(Color.statusText(.red), in: RoundedRectangle(cornerRadius: 8))
             }
             if let event = booking.event, let summary = event.summary {
                 Text(summary)
@@ -283,7 +283,7 @@ private struct HeaderSection: View {
                 VStack(alignment: .leading) {
                     Text(booking.startsAt.formatted(date: .complete, time: .shortened))
                     Text("to \(booking.endsAt.formatted(date: .abbreviated, time: .shortened))")
-                        .foregroundStyle(isOverdue ? .red : .secondary)
+                        .foregroundStyle(isOverdue ? Color.statusText(.red) : Color.secondary)
                 }
             } icon: {
                 Image(systemName: "calendar")
@@ -305,18 +305,21 @@ private struct RequesterSection: View {
             Text(booking.requester.name)
                 .font(.body)
             Text(booking.requester.email)
-                .font(.footnote)
+                .font(.system(.footnote, design: .monospaced))
                 .foregroundStyle(.secondary)
         }
     }
 }
 
-private func allocationLabel(_ status: String) -> (String, Color) {
+/// Maps an allocation status to (label, tone) using the same vocabulary the
+/// web uses in `src/lib/status-styles.ts` — checked-out gear = blue,
+/// returned = gray, pending/draft = orange.
+private func allocationLabel(_ status: String) -> (label: String, tone: StatusTone) {
     switch status.lowercased() {
     case "active": return ("Out", .blue)
     case "returned": return ("Returned", .gray)
     case "draft": return ("Pending", .orange)
-    default: return (status.capitalized, .secondary)
+    default: return (status.capitalized, .gray)
     }
 }
 
@@ -334,19 +337,14 @@ private struct ItemsSection: View {
                             .font(.subheadline)
                         if let tag = item.asset.assetTag {
                             Text(tag)
-                                .font(.caption)
+                                .font(.system(.caption, design: .monospaced))
                                 .foregroundStyle(.secondary)
                         }
                     }
                     Spacer()
                     if let status = item.allocationStatus {
-                        let (label, color) = allocationLabel(status)
-                        Text(label)
-                            .font(.caption2.weight(.medium))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(color.opacity(0.12), in: Capsule())
-                            .foregroundStyle(color)
+                        let allocation = allocationLabel(status)
+                        StatusPill(label: allocation.label, tone: allocation.tone)
                     }
                 }
             }

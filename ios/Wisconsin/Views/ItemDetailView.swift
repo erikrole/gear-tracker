@@ -179,7 +179,7 @@ struct EditAssetSheet: View {
                     }
                     if let error {
                         Text(error)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Color.statusText(.red))
                             .font(.footnote)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 4)
@@ -439,7 +439,7 @@ private struct UpcomingReservationsCard: View {
             HStack(spacing: 6) {
                 Image(systemName: "calendar")
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.purple)
+                    .foregroundStyle(Color.statusText(.purple))
                 Text("Upcoming Reservations")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
