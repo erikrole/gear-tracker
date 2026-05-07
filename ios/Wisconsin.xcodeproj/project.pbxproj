@@ -16,6 +16,7 @@
 		12BE5380A72CE66E23CA39CD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 592769886AB12F6A842CC8CF /* Assets.xcassets */; };
 		1AC641AD94A229A52FE17AE0 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ED3D57FAA3E94281C3FF27C /* APIClient.swift */; };
 		1C2E6D4D0BA7A114FB6E9DB7 /* Toast.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D900B3FE267BAB0F0904D07 /* Toast.swift */; };
+		1E84624B222CD81665D2EC79 /* StatusPill.swift in Sources */ = {isa = PBXBuildFile; fileRef = A97E29E06DBD7A4474F9E66A /* StatusPill.swift */; };
 		237DD2AF7BCC2631721C737C /* CreateBookingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F3FA2D4C06E966E6BA030B /* CreateBookingSheet.swift */; };
 		23D18DF0CCE1DFC0E4CAD69E /* ScanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37FF31264347D4D6932C4DBB /* ScanView.swift */; };
 		24A80894586E46E13F2E4E41 /* KioskStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA38BB094C95612DBF9F1C24 /* KioskStore.swift */; };
@@ -124,6 +125,7 @@
 		9E58906A0DD7BCF5024161BE /* NotificationsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsSheet.swift; sourceTree = "<group>"; };
 		A16A76819006E71CB2219DB9 /* Wisconsin.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Wisconsin.entitlements; sourceTree = "<group>"; };
 		A9374732F63AA4EA283094F0 /* AssignStudentSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssignStudentSheet.swift; sourceTree = "<group>"; };
+		A97E29E06DBD7A4474F9E66A /* StatusPill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusPill.swift; sourceTree = "<group>"; };
 		AD7494E64F4395E73A7AA6C1 /* SearchResultRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchResultRow.swift; sourceTree = "<group>"; };
 		B208F1EB8DD4DA49DADC1CAB /* AppTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTabView.swift; sourceTree = "<group>"; };
 		BA04562F7C424114F304B494 /* BookingDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingDetailView.swift; sourceTree = "<group>"; };
@@ -187,6 +189,7 @@
 			children = (
 				843772771897AABEF8DD1F93 /* BannerView.swift */,
 				468E248680EC5A61BEC1EE38 /* Skeleton.swift */,
+				A97E29E06DBD7A4474F9E66A /* StatusPill.swift */,
 				0D900B3FE267BAB0F0904D07 /* Toast.swift */,
 			);
 			path = Components;
@@ -467,6 +470,7 @@
 				81413B070B47866D2C7DB337 /* SessionStore.swift in Sources */,
 				889D5483CAC2EA6C8E25DDFD /* ShiftTradeModels.swift in Sources */,
 				5BFCE075814954BB59669481 /* Skeleton.swift in Sources */,
+				1E84624B222CD81665D2EC79 /* StatusPill.swift in Sources */,
 				BA09B1B0BD9687C63E73E59D /* ThumbnailLoader.swift in Sources */,
 				1C2E6D4D0BA7A114FB6E9DB7 /* Toast.swift in Sources */,
 				A9264F994D67157C3DD7FCD3 /* TradeBoardSheet.swift in Sources */,

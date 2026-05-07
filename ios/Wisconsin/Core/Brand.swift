@@ -28,3 +28,100 @@ extension Color {
     /// Slightly lighter surface for disabled / secondary surfaces on the dark band.
     static let brandSurfaceDim = Color(red: 0.18, green: 0.18, blue: 0.18)
 }
+
+// MARK: - Semantic status palette (mirrors web tokens in src/app/globals.css)
+//
+// Web uses paired bg/text tokens for status badges:
+//   --green / --green-bg / --green-text  (Available)
+//   --blue  / --blue-bg  / --blue-text   (Checked out, STAFF)
+//   --red   / --red-bg   / --red-text    (Overdue)
+//   --purple/ --purple-bg/ --purple-text (Reserved, ADMIN)
+//   --orange/ --orange-bg/ --orange-text (Maintenance)
+//   --gray  → bg-muted / text-muted-foreground (Retired, Inactive, STUDENT)
+//
+// iOS picks dark-mode adaptive values per Apple HIG contrast guidance:
+// the darker `text` tone is used for typography, the soft `bg` for fills.
+
+/// Semantic status color identity — same vocabulary the web uses.
+enum StatusTone: String, CaseIterable {
+    case green, blue, red, purple, orange, gray
+
+    /// Maps a role string to the same tone the web's `RoleBadge` uses.
+    static func forRole(_ role: String) -> StatusTone {
+        switch role {
+        case "ADMIN": return .purple
+        case "STAFF": return .blue
+        case "STUDENT": return .gray
+        default: return .gray
+        }
+    }
+}
+
+extension Color {
+    /// Foreground/text color for a status tone — matches web `--{tone}-text`.
+    static func statusText(_ tone: StatusTone) -> Color {
+        switch tone {
+        case .green:
+            return Color(UIColor(dynamicProvider: { $0.userInterfaceStyle == .dark
+                ? UIColor(red: 0.32, green: 0.85, blue: 0.45, alpha: 1)
+                : UIColor(red: 0.086, green: 0.639, blue: 0.290, alpha: 1) // #16a34a
+            }))
+        case .blue:
+            return Color(UIColor(dynamicProvider: { $0.userInterfaceStyle == .dark
+                ? UIColor(red: 0.40, green: 0.65, blue: 1.0, alpha: 1)
+                : UIColor(red: 0.149, green: 0.388, blue: 0.922, alpha: 1) // #2563eb
+            }))
+        case .red:
+            return Color(UIColor(dynamicProvider: { $0.userInterfaceStyle == .dark
+                ? UIColor(red: 1.0, green: 0.40, blue: 0.40, alpha: 1)
+                : UIColor(red: 0.863, green: 0.149, blue: 0.149, alpha: 1) // #dc2626
+            }))
+        case .purple:
+            return Color(UIColor(dynamicProvider: { $0.userInterfaceStyle == .dark
+                ? UIColor(red: 0.70, green: 0.55, blue: 1.0, alpha: 1)
+                : UIColor(red: 0.486, green: 0.227, blue: 0.929, alpha: 1) // #7c3aed
+            }))
+        case .orange:
+            return Color(UIColor(dynamicProvider: { $0.userInterfaceStyle == .dark
+                ? UIColor(red: 1.0, green: 0.70, blue: 0.30, alpha: 1)
+                : UIColor(red: 0.851, green: 0.467, blue: 0.024, alpha: 1) // #d97706
+            }))
+        case .gray:
+            return Color.secondary
+        }
+    }
+
+    /// Background fill for a status tone — matches web `--{tone}-bg`.
+    /// Dark-mode mixes the text color at low alpha so contrast holds.
+    static func statusBackground(_ tone: StatusTone) -> Color {
+        switch tone {
+        case .green:
+            return Color(UIColor(dynamicProvider: { $0.userInterfaceStyle == .dark
+                ? UIColor(red: 0.32, green: 0.85, blue: 0.45, alpha: 0.18)
+                : UIColor(red: 0.941, green: 0.992, blue: 0.957, alpha: 1) // #f0fdf4
+            }))
+        case .blue:
+            return Color(UIColor(dynamicProvider: { $0.userInterfaceStyle == .dark
+                ? UIColor(red: 0.40, green: 0.65, blue: 1.0, alpha: 0.18)
+                : UIColor(red: 0.937, green: 0.965, blue: 1.0, alpha: 1) // #eff6ff
+            }))
+        case .red:
+            return Color(UIColor(dynamicProvider: { $0.userInterfaceStyle == .dark
+                ? UIColor(red: 1.0, green: 0.40, blue: 0.40, alpha: 0.18)
+                : UIColor(red: 0.996, green: 0.949, blue: 0.949, alpha: 1) // #fef2f2
+            }))
+        case .purple:
+            return Color(UIColor(dynamicProvider: { $0.userInterfaceStyle == .dark
+                ? UIColor(red: 0.70, green: 0.55, blue: 1.0, alpha: 0.18)
+                : UIColor(red: 0.961, green: 0.953, blue: 1.0, alpha: 1) // #f5f3ff
+            }))
+        case .orange:
+            return Color(UIColor(dynamicProvider: { $0.userInterfaceStyle == .dark
+                ? UIColor(red: 1.0, green: 0.70, blue: 0.30, alpha: 0.18)
+                : UIColor(red: 1.0, green: 0.984, blue: 0.922, alpha: 1) // #fffbeb
+            }))
+        case .gray:
+            return Color.secondary.opacity(0.12)
+        }
+    }
+}

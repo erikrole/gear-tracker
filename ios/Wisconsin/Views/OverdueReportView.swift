@@ -73,7 +73,7 @@ struct OverdueReportView: View {
         List {
             Section {
                 summaryRow(report)
-                    .listRowBackground(Color.red.opacity(0.06))
+                    .listRowBackground(Color.statusBackground(.red))
             }
             if let stale = vm.error, vm.report != nil {
                 Section {
@@ -105,7 +105,7 @@ struct OverdueReportView: View {
             metric(value: "\(report.leaderboard.count)", label: report.leaderboard.count == 1 ? "Person" : "People")
             Spacer()
             Image(systemName: "exclamationmark.circle.fill")
-                .foregroundStyle(.red)
+                .foregroundStyle(Color.statusText(.red))
                 .font(.title2)
         }
         .padding(.vertical, 4)
@@ -116,7 +116,7 @@ struct OverdueReportView: View {
             Text(value)
                 .font(.title3.weight(.semibold))
                 .monospacedDigit()
-                .foregroundStyle(.red)
+                .foregroundStyle(Color.statusText(.red))
             Text(label.uppercased())
                 .font(.caption2.weight(.semibold))
                 .tracking(0.5)
@@ -139,10 +139,10 @@ struct OverdueReportView: View {
                         .foregroundStyle(.primary)
                     Text(formatOverdue(entry.totalOverdueHours) + " total")
                         .font(.caption)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Color.statusText(.red))
                 }
                 Spacer(minLength: 8)
-                CountPill(count: entry.overdueCount)
+                StatusPill(label: "\(entry.overdueCount)", tone: .red)
                 Image(systemName: expanded.contains(entry.userId) ? "chevron.up" : "chevron.down")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.tertiary)
@@ -164,7 +164,7 @@ struct OverdueReportView: View {
                 Spacer()
                 Text(formatOverdue(booking.overdueHours))
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Color.statusText(.red))
                     .monospacedDigit()
             }
             Text(secondaryLine(for: booking))
@@ -203,16 +203,3 @@ struct OverdueReportView: View {
     }
 }
 
-private struct CountPill: View {
-    let count: Int
-
-    var body: some View {
-        Text("\(count)")
-            .font(.caption2.weight(.bold))
-            .monospacedDigit()
-            .foregroundStyle(.white)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(Color.red, in: Capsule())
-    }
-}

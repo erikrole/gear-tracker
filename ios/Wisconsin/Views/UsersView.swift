@@ -231,15 +231,7 @@ private struct UserListRow: View {
                         .font(.subheadline.weight(.semibold))
                         .lineLimit(1)
                     if user.active == false {
-                        Text("Inactive")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 4)
-                                    .stroke(Color.secondary.opacity(0.4), lineWidth: 0.5)
-                            )
+                        StatusPill(label: "Inactive", tone: .gray)
                     }
                 }
                 Text(user.email)
@@ -254,7 +246,7 @@ private struct UserListRow: View {
                 }
             }
             Spacer(minLength: 8)
-            RolePill(role: user.role)
+            StatusPill.role(user.role)
         }
         .padding(.vertical, 4)
     }
@@ -302,28 +294,6 @@ private struct UserListRow: View {
         case "SENIOR": return "Senior"
         case "GRAD": return "Grad"
         default: return nil
-        }
-    }
-}
-
-private struct RolePill: View {
-    let role: String
-
-    var body: some View {
-        Text(role.capitalized)
-            .font(.caption2.weight(.semibold))
-            .foregroundStyle(color)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(color.opacity(0.12), in: Capsule())
-    }
-
-    private var color: Color {
-        switch role {
-        case "ADMIN": return .purple
-        case "STAFF": return .blue
-        case "STUDENT": return .green
-        default: return .secondary
         }
     }
 }

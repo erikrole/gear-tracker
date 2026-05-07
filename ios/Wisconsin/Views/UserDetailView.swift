@@ -86,15 +86,16 @@ struct UserDetailView: View {
     }
 
     private func profileHeader(_ detail: AppUserDetail) -> some View {
-        FormCard {
+        let tone = StatusTone.forRole(detail.role)
+        return FormCard {
             HStack(spacing: 16) {
                 ZStack {
                     Circle()
-                        .fill(Color.purple.opacity(0.12))
+                        .fill(Color.statusBackground(tone))
                         .frame(width: 56, height: 56)
                     Text(detail.name.searchInitials)
                         .font(.title3.weight(.semibold))
-                        .foregroundStyle(.purple)
+                        .foregroundStyle(Color.statusText(tone))
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(detail.name)
@@ -103,12 +104,7 @@ struct UserDetailView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     HStack(spacing: 6) {
-                        Text(detail.role.lowercased().capitalized)
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.purple)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.purple.opacity(0.1), in: Capsule())
+                        StatusPill.role(detail.role)
                         if let loc = detail.location {
                             Text(loc)
                                 .font(.caption)
