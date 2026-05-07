@@ -307,6 +307,14 @@ final class APIClient {
         return resp.data
     }
 
+    // MARK: - Reports
+
+    /// `/api/reports/overdue` returns the report shape directly (no `data` envelope).
+    func overdueReport() async throws -> OverdueReport {
+        let req = request(path: "/api/reports/overdue")
+        return try await perform(req)
+    }
+
     // MARK: - Assets
 
     func assets(

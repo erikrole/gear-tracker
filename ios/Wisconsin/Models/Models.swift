@@ -152,6 +152,32 @@ struct AppUserDetail: Codable, Identifiable {
     let createdAt: String?
 }
 
+// MARK: - Reports
+
+struct OverdueBookingSummary: Codable, Identifiable {
+    let id: String
+    let title: String
+    let endsAt: String
+    let overdueHours: Int
+    let location: String
+    let itemCount: Int
+    let items: [String]
+}
+
+struct OverdueLeaderboardEntry: Codable, Identifiable {
+    let userId: String
+    let name: String
+    let overdueCount: Int
+    let totalOverdueHours: Int
+    let bookings: [OverdueBookingSummary]?
+    var id: String { userId }
+}
+
+struct OverdueReport: Codable {
+    let totalOverdueBookings: Int
+    let leaderboard: [OverdueLeaderboardEntry]
+}
+
 // MARK: - API Responses
 
 struct PaginatedResponse<T: Codable>: Codable {

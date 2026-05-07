@@ -175,12 +175,25 @@ enum ProfileDestination: Hashable {
 }
 
 private struct ProfileDestinationView: View {
+    @Environment(SessionStore.self) private var session
     let destination: ProfileDestination
 
+    private var isStaffOrAdmin: Bool {
+        let role = session.currentUser?.role ?? ""
+        return role == "ADMIN" || role == "STAFF"
+    }
+
     var body: some View {
-        // Per-destination jumps stay simple: dismiss profile and let the
-        // tab destination take over. The actual filtered views live on the
-        // Schedule and Bookings tabs.
+        Group {
+            if destination == .overdueBookings && isStaffOrAdmin {
+                OverdueReportView()
+            } else {
+                placeholder
+            }
+        }
+    }
+
+    private var placeholder: some View {
         VStack(spacing: 12) {
             Image(systemName: destination == .upcomingShifts ? "calendar" : "calendar.badge.exclamationmark")
                 .font(.largeTitle)
