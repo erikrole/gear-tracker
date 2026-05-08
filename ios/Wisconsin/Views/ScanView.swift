@@ -6,6 +6,9 @@ struct ScanView: View {
     @State private var isScanning = true
     @State private var isSearching = false
     @State private var results: SearchResults?
+    @State private var resultError: String?
+    @State private var showManualEntry = false
+    @State private var torchOn = false
     @State private var navigationPath = NavigationPath()
     @State private var cameraAuth: AVAuthorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -29,6 +32,15 @@ struct ScanView: View {
                     if phase == .active {
                         cameraAuth = AVCaptureDevice.authorizationStatus(for: .video)
                     }
+                    // Force-off torch when leaving the foreground.
+                    if phase != .active {
+                        torchOn = false
+                        setTorch(false)
+                    }
+                }
+                .onDisappear {
+                    torchOn = false
+                    setTorch(false)
                 }
         }
     }
@@ -65,44 +77,168 @@ struct ScanView: View {
                 )
             }
 
-            if isSearching {
-                ProgressView()
-                    .padding(16)
-                    .background(.ultraThinMaterial, in: Circle())
-                    .padding(.bottom, 48)
+            // Bottom overlay: torch + manual-entry buttons + searching indicator.
+            // Skipped for VoiceOver users (the manual-entry view is the whole surface).
+            if !voiceOverEnabled, cameraAuth == .authorized, DataScannerViewController.isSupported {
+                bottomOverlay
             }
         }
         .sheet(isPresented: Binding(
-            get: { results != nil },
+            get: { results != nil || resultError != nil },
             set: { presented in
                 if !presented {
                     results = nil
+                    resultError = nil
                     isScanning = true
                 }
             }
         )) {
-            if let results {
-                ScanResultSheet(results: results, navigationPath: $navigationPath)
-                    .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
-                    .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+            ScanResultSheet(
+                results: results ?? SearchResults(),
+                error: resultError,
+                navigationPath: $navigationPath,
+                onTypeCode: {
+                    results = nil
+                    resultError = nil
+                    showManualEntry = true
+                },
+                onRetry: { code in
+                    handleScan(code)
+                }
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+        }
+        .sheet(isPresented: $showManualEntry) {
+            ScanManualEntrySheet { code in
+                showManualEntry = false
+                handleScan(code)
             }
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+        }
+    }
+
+    private var bottomOverlay: some View {
+        HStack(spacing: 12) {
+            // Torch toggle — disabled when device has no torch (front camera, sim).
+            Button {
+                let next = !torchOn
+                torchOn = next
+                setTorch(next)
+                Haptics.tap()
+            } label: {
+                Image(systemName: torchOn ? "bolt.fill" : "bolt.slash")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(torchOn ? .yellow : .white)
+                    .frame(width: 44, height: 44)
+                    .background(.ultraThinMaterial, in: Circle())
+            }
+            .accessibilityLabel(torchOn ? "Turn flashlight off" : "Turn flashlight on")
+            .disabled(!hasTorch)
+            .opacity(hasTorch ? 1 : 0.4)
+
+            Spacer()
+
+            if isSearching {
+                HStack(spacing: 8) {
+                    ProgressView().tint(.white)
+                    Text("Looking up…")
+                        .font(.subheadline)
+                        .foregroundStyle(.white)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(.ultraThinMaterial, in: Capsule())
+                .transition(.opacity)
+            }
+
+            Spacer()
+
+            Button {
+                showManualEntry = true
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "keyboard")
+                    Text("Type code")
+                }
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 14)
+                .frame(height: 44)
+                .background(.ultraThinMaterial, in: Capsule())
+            }
+            .accessibilityLabel("Type code instead")
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 32)
+    }
+
+    private var hasTorch: Bool {
+        AVCaptureDevice.default(for: .video)?.hasTorch ?? false
+    }
+
+    private func setTorch(_ on: Bool) {
+        guard let device = AVCaptureDevice.default(for: .video), device.hasTorch else { return }
+        do {
+            try device.lockForConfiguration()
+            device.torchMode = on ? .on : .off
+            device.unlockForConfiguration()
+        } catch {
+            // Best-effort: torch lock failure is non-fatal (another app may hold it).
         }
     }
 
     private func handleScan(_ value: String) {
+        let code = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !code.isEmpty else { return }
+
         isScanning = false
         isSearching = true
+        resultError = nil
+        results = nil
+
         Task {
             defer { isSearching = false }
-            let outcome = (try? await SearchService.shared.search(query: value, rawScan: value)) ?? SearchResults()
-            results = outcome
-            if outcome.isEmpty {
-                Haptics.warning()
-            } else {
-                Haptics.success()
+            do {
+                let outcome = try await SearchService.shared.search(query: code, rawScan: code)
+                if let single = singleAssetMatch(in: outcome) {
+                    // Fast path: one unambiguous asset → jump straight to detail.
+                    Haptics.success()
+                    navigationPath.append(single)
+                    // Re-arm the scanner for the next item.
+                    isScanning = true
+                    return
+                }
+                results = outcome
+                if outcome.isEmpty {
+                    Haptics.warning()
+                } else {
+                    Haptics.success()
+                }
+                // Re-enable scanning so a NEW code can fire while the sheet sits at .medium.
+                // The Coordinator's `lastScanned` already prevents same-code re-fires.
+                isScanning = true
+            } catch {
+                let message = (error as? APIError)?.errorDescription
+                    ?? "Couldn't reach the server. Try again in a moment."
+                resultError = message
+                Haptics.error()
+                isScanning = true
             }
         }
+    }
+
+    /// Returns the asset if the result set is a single asset and nothing else —
+    /// the canonical "scanned a sticker, got one item" case.
+    private func singleAssetMatch(in results: SearchResults) -> Asset? {
+        guard results.items.count == 1,
+              results.reservations.isEmpty,
+              results.checkouts.isEmpty,
+              results.users.isEmpty
+        else { return nil }
+        return results.items.first
     }
 }
 
@@ -162,6 +298,58 @@ private struct ScanManualEntryView: View {
     }
 }
 
+// MARK: - Sighted manual-entry sheet
+
+/// Sheet variant of manual entry for sighted users — shown when they tap
+/// "Type code" in the bottom overlay or "Type code instead" inside an
+/// empty / error result sheet.
+struct ScanManualEntrySheet: View {
+    let onSubmit: (String) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var code = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 16) {
+                TextField("Asset tag, sticker code, or ref number", text: $code)
+                    .textFieldStyle(.roundedBorder)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .submitLabel(.search)
+                    .focused($focused)
+                    .onSubmit(submit)
+
+                Button("Look up") { submit() }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .frame(maxWidth: .infinity)
+                    .disabled(code.trimmingCharacters(in: .whitespaces).isEmpty)
+
+                Spacer()
+            }
+            .padding()
+            .navigationTitle("Type code")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
+        .onAppear {
+            // Tiny delay so the focus survives the sheet animation.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { focused = true }
+        }
+    }
+
+    private func submit() {
+        let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        onSubmit(trimmed)
+    }
+}
+
 // MARK: - Scanner wrapper
 
 private struct DataScannerRepresentable: UIViewControllerRepresentable {
@@ -217,12 +405,17 @@ private struct DataScannerRepresentable: UIViewControllerRepresentable {
 /// stays live and the next scan can happen without dismissing manually.
 private struct ScanResultSheet: View {
     let results: SearchResults
+    let error: String?
     @Binding var navigationPath: NavigationPath
+    var onTypeCode: () -> Void
+    var onRetry: (String) -> Void
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         Group {
-            if results.isEmpty {
+            if let error {
+                errorState(message: error)
+            } else if results.isEmpty {
                 emptyState
             } else {
                 ScrollView { resultRows }
@@ -236,6 +429,28 @@ private struct ScanResultSheet: View {
             Label("Nothing found", systemImage: "qrcode.viewfinder")
         } description: {
             Text("This code isn't linked to any item yet.")
+        } actions: {
+            Button {
+                onTypeCode()
+            } label: {
+                Label("Type code instead", systemImage: "keyboard")
+            }
+            .buttonStyle(.bordered)
+        }
+    }
+
+    private func errorState(message: String) -> some View {
+        ContentUnavailableView {
+            Label("Couldn't look that up", systemImage: "wifi.exclamationmark")
+        } description: {
+            Text(message)
+        } actions: {
+            Button {
+                onTypeCode()
+            } label: {
+                Label("Type code instead", systemImage: "keyboard")
+            }
+            .buttonStyle(.bordered)
         }
     }
 
