@@ -42,6 +42,7 @@ struct HomeView: View {
     @State private var showProfile = false
     @State private var navigationPath = NavigationPath()
     @State private var pendingBookingId: String?
+    @State private var pendingAssetId: String?
     @State private var pendingShowTrades = false
     @State private var selectedScheduleEvent: ScheduleEvent?
     @Environment(AppState.self) private var appState
@@ -239,6 +240,9 @@ struct HomeView: View {
             .navigationDestination(for: String.self) { id in
                 BookingDetailView(bookingId: id)
             }
+            .navigationDestination(for: AssetRouteId.self) { route in
+                ItemDetailView(assetId: route.id)
+            }
             .overlay(alignment: .bottomTrailing) {
                 FloatingSearchButton(isPresented: $showSearch)
                     .padding(.trailing, 20)
@@ -253,6 +257,10 @@ struct HomeView: View {
                     navigationPath.append(id)
                     pendingBookingId = nil
                 }
+                if let assetId = pendingAssetId {
+                    navigationPath.append(AssetRouteId(id: assetId))
+                    pendingAssetId = nil
+                }
                 if pendingShowTrades {
                     pendingShowTrades = false
                     showTrades = true
@@ -260,7 +268,8 @@ struct HomeView: View {
             }) {
                 NotificationsSheet(
                     onSelectBooking: { id in pendingBookingId = id },
-                    onSelectTrades: { pendingShowTrades = true }
+                    onSelectTrades: { pendingShowTrades = true },
+                    onSelectAsset: { id in pendingAssetId = id }
                 )
             }
             .sheet(isPresented: $showTrades) {

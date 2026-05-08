@@ -8,12 +8,14 @@ final class NotificationsViewModel {
     var total = 0
     var isLoading = false
     var error: String?
+    var pageError: String?
     private let pageSize = 20
 
     func load() async {
         guard !isLoading else { return }
         isLoading = true
         error = nil
+        pageError = nil
         defer { isLoading = false }
         do {
             let resp = try await APIClient.shared.notifications(limit: pageSize, offset: 0)
@@ -28,11 +30,17 @@ final class NotificationsViewModel {
     func loadMore() async {
         guard !isLoading, notifications.count < total else { return }
         isLoading = true
+        pageError = nil
         defer { isLoading = false }
         do {
             let resp = try await APIClient.shared.notifications(limit: pageSize, offset: notifications.count)
             notifications.append(contentsOf: resp.data)
-        } catch {}
+        } catch {
+            // Surface page errors so a Retry affordance can render in the
+            // sentinel row — silent `try?` left users staring at an
+            // unchanging list with no signal.
+            pageError = error.localizedDescription
+        }
     }
 
     func markRead(id: String) async {
@@ -60,10 +68,12 @@ private extension AppNotification {
 struct NotificationsSheet: View {
     var onSelectBooking: ((String) -> Void)?
     var onSelectTrades: (() -> Void)?
+    var onSelectAsset: ((String) -> Void)?
 
     @State private var vm = NotificationsViewModel()
     @Environment(\.dismiss) private var dismiss
     @State private var markAllHaptic = false
+    @State private var swipeMarkHaptic = false
 
     var body: some View {
         NavigationStack {
@@ -125,50 +135,112 @@ struct NotificationsSheet: View {
                         .swipeActions(edge: .leading) {
                             if notif.isUnread {
                                 Button {
+                                    swipeMarkHaptic.toggle()
                                     Task { await vm.markRead(id: notif.id) }
                                 } label: {
                                     Label("Mark Read", systemImage: "checkmark")
                                 }
                                 .tint(.accentColor)
+                                .accessibilityLabel("Mark as read")
                             }
                         }
                         .swipeActions(edge: .trailing) {
                             if notif.isUnread {
                                 Button {
+                                    swipeMarkHaptic.toggle()
                                     Task { await vm.markRead(id: notif.id) }
                                 } label: {
                                     Label("Mark Read", systemImage: "checkmark")
                                 }
                                 .tint(.accentColor)
+                                .accessibilityLabel("Mark as read")
                             }
                         }
                     }
                 }
             }
-            if vm.notifications.count < vm.total {
+            // Infinite-scroll sentinel row — fires `loadMore` on appear,
+            // surfaces a Retry button on `pageError`. Matches items + bookings
+            // list pagination pattern.
+            if vm.notifications.count < vm.total || vm.pageError != nil {
                 Section {
-                    Button("Load More") {
-                        Task { await vm.loadMore() }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .foregroundStyle(Color.accentColor)
+                    paginationSentinel
                 }
+                .listRowBackground(Color.clear)
             }
         }
         .listStyle(.insetGrouped)
         .refreshable { await vm.load() }
+        .sensoryFeedback(.selection, trigger: swipeMarkHaptic)
+    }
+
+    @ViewBuilder
+    private var paginationSentinel: some View {
+        if let pageError = vm.pageError {
+            HStack {
+                Text(pageError)
+                    .font(.footnote)
+                    .foregroundStyle(Color.statusText(.red))
+                    .lineLimit(2)
+                Spacer()
+                Button("Retry") {
+                    Task { await vm.loadMore() }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+            .padding(.vertical, 4)
+        } else {
+            HStack {
+                Spacer()
+                ProgressView()
+                Spacer()
+            }
+            .padding(.vertical, 8)
+            .task(id: vm.notifications.count) {
+                // Auto-load the next page when this row appears AND we
+                // haven't already loaded it. The id-keyed task re-fires on
+                // every page boundary so subsequent pages chain.
+                if vm.notifications.count < vm.total && vm.pageError == nil {
+                    await vm.loadMore()
+                }
+            }
+        }
     }
 
     private func handleTap(_ notif: AppNotification) {
         Task { await vm.markRead(id: notif.id) }
+
+        // Booking-related types → booking detail (covers checkout_due/overdue,
+        // reservation_*, trade_* with bookingId in payload).
         if let bookingId = notif.payload?.effectiveBookingId {
             onSelectBooking?(bookingId)
             dismiss()
-        } else if notif.type.hasPrefix("trade_") {
+            return
+        }
+
+        // Trade types without an effectiveBookingId → trade board.
+        if notif.type.hasPrefix("trade_") {
             onSelectTrades?()
             dismiss()
+            return
         }
-        // shift_gear_up, low_stock: mark-read only, no navigation target yet
+
+        // Asset-related types → asset detail. Damage / lost / low-stock all
+        // carry assetId; routing there puts the staffer one tap from action.
+        if let assetId = notif.payload?.assetId, isAssetTargetedType(notif.type) {
+            onSelectAsset?(assetId)
+            dismiss()
+            return
+        }
+        // shift_gear_up and other no-target types: mark-read only (handled
+        // above), no navigation.
+    }
+
+    private func isAssetTargetedType(_ type: String) -> Bool {
+        type.hasPrefix("checkin_item_damaged")
+            || type.hasPrefix("checkin_item_lost")
+            || type.hasPrefix("low_stock")
     }
 
     private var groupedSections: [(String, [AppNotification])] {

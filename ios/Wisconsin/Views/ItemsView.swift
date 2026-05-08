@@ -6,6 +6,14 @@ struct BookingRouteId: Hashable {
     let id: String
 }
 
+/// Hashable wrapper so navigation can distinguish a "go to asset detail"
+/// route from arbitrary String values pushed onto the path. Used by the
+/// notifications sheet to route damage / lost / low-stock notifications
+/// to the right asset.
+struct AssetRouteId: Hashable {
+    let id: String
+}
+
 @MainActor
 @Observable
 final class ItemsViewModel {
