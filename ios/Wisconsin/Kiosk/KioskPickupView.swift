@@ -1,7 +1,9 @@
 import SwiftUI
+import UIKit
 
 struct KioskPickupView: View {
     @Environment(KioskStore.self) private var store
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let bookingId: String
     let userId: String
 
@@ -12,11 +14,18 @@ struct KioskPickupView: View {
     @State private var isConfirming = false
     @State private var error: String?
     @State private var showCamera = false
+    @State private var lastConfirmedId: String?
 
-    enum ScanFeedback {
+    enum ScanFeedback: Equatable {
         case success(String)
         case error(String)
         case alreadyConfirmed(String)
+
+        var message: String {
+            switch self {
+            case .success(let s), .error(let s), .alreadyConfirmed(let s): return s
+            }
+        }
     }
 
     private var totalItems: Int { detail?.items.count ?? 0 }
@@ -38,6 +47,8 @@ struct KioskPickupView: View {
         .task { await loadDetail() }
         .sheet(isPresented: $showCamera) {
             KioskBarcodeCameraView(
+                feedbackMessage: lastResult?.message,
+                feedbackTone: cameraTone(for: lastResult),
                 onScan: { value in handleScan(value) },
                 onCancel: { showCamera = false }
             )
@@ -56,6 +67,7 @@ struct KioskPickupView: View {
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
+                .accessibilityLabel("Back to roster")
                 Spacer()
                 Text("Pickup")
                     .font(.title3.bold())
@@ -68,6 +80,7 @@ struct KioskPickupView: View {
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
+                .accessibilityLabel("Use camera to scan instead")
             }
 
             Spacer()
@@ -76,64 +89,83 @@ struct KioskPickupView: View {
                 ProgressView().tint(.white)
             } else {
                 VStack(spacing: 20) {
-                    // Progress ring
-                    ZStack {
-                        Circle()
-                            .stroke(Color.white.opacity(0.1), lineWidth: 8)
-                        Circle()
-                            .trim(from: 0, to: totalItems > 0 ? CGFloat(confirmedCount) / CGFloat(totalItems) : 0)
-                            .stroke(allConfirmed ? Color.green : Color.kioskRed, style: StrokeStyle(lineWidth: 8, lineCap: .round))
-                            .rotationEffect(.degrees(-90))
-                            .animation(.spring(response: 0.4), value: confirmedCount)
-                        VStack(spacing: 2) {
-                            Text("\(confirmedCount)")
-                                .font(.system(size: 40, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white)
-                            Text("of \(totalItems)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .frame(width: 140, height: 140)
-
+                    progressRing
                     Text(allConfirmed ? "All items confirmed" : "Scan each item to confirm pickup")
                         .font(.subheadline)
-                        .foregroundStyle(allConfirmed ? .green : .secondary)
+                        .foregroundStyle(allConfirmed ? Color.statusText(.green) : .secondary)
                         .multilineTextAlignment(.center)
 
                     if let result = lastResult {
                         FeedbackBanner(result: result)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
-                            .animation(.spring(response: 0.3), value: lastResult != nil)
+                            .animation(reduceMotion ? nil : .spring(response: 0.3), value: lastResult)
                     }
                 }
             }
 
             Spacer()
 
-            Button {
-                confirmPickup()
-            } label: {
-                HStack {
-                    Text(isConfirming ? "Confirming..." : "Confirm Pickup")
-                        .font(.headline)
-                    if isConfirming { ProgressView().tint(.white).scaleEffect(0.8) }
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(
-                    (!allConfirmed || isConfirming) ? Color.white.opacity(0.1) : Color.green,
-                    in: RoundedRectangle(cornerRadius: 14)
-                )
-            }
-            .buttonStyle(.plain)
-            .disabled(!allConfirmed || isConfirming)
-            .padding(.horizontal, 32)
-            .padding(.bottom, 32)
+            confirmButton
         }
         .padding(.horizontal, 32)
         .padding(.top, 20)
         .frame(maxWidth: .infinity)
+    }
+
+    private var progressRing: some View {
+        ZStack {
+            Circle()
+                .stroke(Color.white.opacity(0.1), lineWidth: 8)
+            Circle()
+                .trim(from: 0, to: totalItems > 0 ? CGFloat(confirmedCount) / CGFloat(totalItems) : 0)
+                .stroke(allConfirmed ? Color.statusText(.green) : Color.kioskRed, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .animation(reduceMotion ? nil : .spring(response: 0.4), value: confirmedCount)
+            VStack(spacing: 2) {
+                Text("\(confirmedCount)")
+                    .font(.system(size: 40, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .contentTransition(.numericText())
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: confirmedCount)
+                    .monospacedDigit()
+                Text("of \(totalItems)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(width: 140, height: 140)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(confirmedCount) of \(totalItems) items confirmed")
+    }
+
+    private var confirmButton: some View {
+        Button {
+            confirmPickup()
+        } label: {
+            HStack {
+                Text(isConfirming ? "Confirming..." : "Confirm Pickup")
+                    .font(.headline)
+                if isConfirming { ProgressView().tint(.white).scaleEffect(0.8) }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(
+                (!allConfirmed || isConfirming) ? Color.white.opacity(0.1) : Color.statusText(.green),
+                in: RoundedRectangle(cornerRadius: 14)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(!allConfirmed || isConfirming)
+        .padding(.horizontal, 32)
+        .padding(.bottom, 32)
+        .accessibilityLabel(confirmAccessibilityLabel)
+    }
+
+    private var confirmAccessibilityLabel: String {
+        if isConfirming { return "Confirming pickup" }
+        if allConfirmed { return "Confirm Pickup, \(totalItems) item\(totalItems == 1 ? "" : "s")" }
+        let remaining = totalItems - confirmedCount
+        return "Scan \(remaining) more item\(remaining == 1 ? "" : "s") before confirming"
     }
 
     // MARK: - Checklist Panel
@@ -155,11 +187,24 @@ struct KioskPickupView: View {
             Divider().background(Color.white.opacity(0.1))
 
             if let items = detail?.items {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(items) { item in
-                            PickupItemRow(item: item, confirmed: confirmedIds.contains(item.id))
-                            Divider().background(Color.white.opacity(0.06))
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            ForEach(items) { item in
+                                PickupItemRow(item: item, confirmed: confirmedIds.contains(item.id))
+                                    .id(item.id)
+                                Divider().background(Color.white.opacity(0.06))
+                            }
+                        }
+                    }
+                    .onChange(of: lastConfirmedId) { _, newId in
+                        guard let newId else { return }
+                        if reduceMotion {
+                            proxy.scrollTo(newId, anchor: .center)
+                        } else {
+                            withAnimation(.easeOut(duration: 0.25)) {
+                                proxy.scrollTo(newId, anchor: .center)
+                            }
                         }
                     }
                 }
@@ -167,10 +212,23 @@ struct KioskPickupView: View {
                 Spacer()
                 ProgressView().tint(.white).frame(maxWidth: .infinity)
                 Spacer()
-            }
-
-            if let error {
-                Text(error).foregroundStyle(.red).font(.caption).padding()
+            } else if let error {
+                // Detail-load error (not confirm error — confirm errors flow
+                // through showFeedback so they appear next to the progress ring).
+                VStack(spacing: 10) {
+                    Image(systemName: "wifi.exclamationmark")
+                        .font(.title)
+                        .foregroundStyle(Color.statusText(.red))
+                    Text(error)
+                        .foregroundStyle(.white)
+                        .font(.subheadline)
+                        .multilineTextAlignment(.center)
+                    Button("Try again") { Task { await loadDetail() } }
+                        .buttonStyle(.bordered)
+                        .tint(.white)
+                }
+                .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .background(Color.white.opacity(0.02))
@@ -178,7 +236,21 @@ struct KioskPickupView: View {
 
     // MARK: - Logic
 
+    private func cameraTone(for feedback: ScanFeedback?) -> KioskBarcodeCameraView.Tone? {
+        switch feedback {
+        case .success:          .success
+        case .alreadyConfirmed: .warning
+        case .error:            .error
+        case nil:               nil
+        }
+    }
+
     private func handleScan(_ value: String) {
+        guard !isConfirming else {
+            showFeedback(.error("Hold on — confirming pickup"))
+            return
+        }
+
         store.resetInactivity()
         guard let items = detail?.items else { return }
 
@@ -190,6 +262,7 @@ struct KioskPickupView: View {
                         showFeedback(.alreadyConfirmed("\(item.tagName) already confirmed"))
                     } else {
                         confirmedIds.insert(item.id)
+                        lastConfirmedId = item.id
                         showFeedback(.success(item.name))
                     }
                 } else {
@@ -197,13 +270,20 @@ struct KioskPickupView: View {
                     showFeedback(.error(result.error ?? (isInBooking ? "Already confirmed" : "Not in this pickup")))
                 }
             } catch {
-                showFeedback(.error("Scan failed"))
+                let message = (error as? APIError)?.errorDescription ?? "Scan failed"
+                showFeedback(.error(message))
             }
         }
     }
 
     private func showFeedback(_ feedback: ScanFeedback) {
         withAnimation { lastResult = feedback }
+        switch feedback {
+        case .success:          Haptics.success()
+        case .alreadyConfirmed: Haptics.warning()
+        case .error:            Haptics.error()
+        }
+        UIAccessibility.post(notification: .announcement, argument: feedback.message)
         Task {
             try? await Task.sleep(nanoseconds: 3_000_000_000)
             withAnimation { lastResult = nil }
@@ -216,9 +296,12 @@ struct KioskPickupView: View {
         Task {
             do {
                 try await KioskAPI.shared.kioskPickupConfirm(bookingId: bookingId, actorId: userId)
+                Haptics.success()
                 store.screen = .success("Pickup confirmed! \(confirmedCount) items checked out.")
             } catch {
-                self.error = "Could not confirm pickup. Please try again."
+                let message = (error as? APIError)?.errorDescription
+                    ?? "Could not confirm pickup. Please try again."
+                showFeedback(.error(message))
             }
             isConfirming = false
         }
@@ -226,10 +309,11 @@ struct KioskPickupView: View {
 
     private func loadDetail() async {
         isLoading = true
+        error = nil
         do {
             detail = try await KioskAPI.shared.kioskCheckoutDetail(id: bookingId)
         } catch {
-            self.error = "Could not load pickup details."
+            self.error = (error as? APIError)?.errorDescription ?? "Could not load pickup details."
         }
         isLoading = false
     }
@@ -244,9 +328,10 @@ private struct PickupItemRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: confirmed ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(confirmed ? .green : Color.white.opacity(0.3))
+                .foregroundStyle(confirmed ? Color.statusText(.green) : Color.white.opacity(0.3))
                 .font(.title3)
                 .frame(width: 28)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.name)
                     .font(.subheadline)
@@ -260,6 +345,8 @@ private struct PickupItemRow: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
         .animation(.spring(response: 0.25), value: confirmed)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(item.name), tag \(item.tagName), \(confirmed ? "confirmed" : "pending")")
     }
 }
 
@@ -268,7 +355,7 @@ private struct FeedbackBanner: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: icon)
+            Image(systemName: icon).accessibilityHidden(true)
             Text(message).font(.subheadline.weight(.medium))
         }
         .foregroundStyle(color)
@@ -276,25 +363,22 @@ private struct FeedbackBanner: View {
         .padding(.vertical, 12)
         .background(color.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(color.opacity(0.4), lineWidth: 1))
+        .accessibilityElement(children: .combine)
     }
 
     private var icon: String {
         switch result {
-        case .success: return "checkmark.circle.fill"
-        case .error: return "xmark.circle.fill"
+        case .success:          return "checkmark.circle.fill"
+        case .error:            return "xmark.circle.fill"
         case .alreadyConfirmed: return "exclamationmark.triangle.fill"
         }
     }
-    private var message: String {
-        switch result {
-        case .success(let s), .error(let s), .alreadyConfirmed(let s): return s
-        }
-    }
+    private var message: String { result.message }
     private var color: Color {
         switch result {
-        case .success: return .green
-        case .error: return .red
-        case .alreadyConfirmed: return .orange
+        case .success:          return Color.statusText(.green)
+        case .error:            return Color.statusText(.red)
+        case .alreadyConfirmed: return Color.statusText(.orange)
         }
     }
 }

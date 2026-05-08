@@ -116,9 +116,14 @@ struct KioskAPI {
 
     func kioskPickupConfirm(bookingId: String, actorId: String) async throws {
         struct Body: Encodable { let actorId: String }
+        struct Response: Decodable { let success: Bool; let bookingId: String }
         var req = request(path: "/api/kiosk/pickup/\(bookingId)/confirm", method: "POST")
         req.httpBody = try JSONEncoder().encode(Body(actorId: actorId))
-        _ = try? await session.data(for: req)
+        // Route through `perform` so 401/404/409/5xx propagate as APIError —
+        // the prior `try?` swallowed every failure mode and produced phantom
+        // successes (booking stayed PENDING_PICKUP server-side, kiosk showed
+        // the confirmation screen).
+        let _: Response = try await perform(req)
     }
 
     // MARK: - Internals
