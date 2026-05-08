@@ -184,6 +184,9 @@ Current behavior:
 | `EMAIL_FROM` | No | From address for transactional email. Default: `Gear Tracker <noreply@gear-tracker.app>` |
 
 ## Change Log
+- 2026-05-08: API hardening Wave 13. Notification count polling is now actor-rate-limited and uses short private caching.
+- 2026-05-08: API hardening Wave 6. Cron routes now share `withCron()` for timing-safe `CRON_SECRET` bearer validation instead of each endpoint carrying its own auth comparison.
+- 2026-05-08: API hardening Wave 5. Shift gear-up nudges now validate active future assignments and apply layered rate limits per actor, target assignment, and recipient before creating notification/audit rows. Focused tests cover student denial, inactive assignment rejection, and rate-limit enforcement.
 - 2026-03-01: Initial stub created.
 - 2026-03-09: Rewritten as V1 spec to formalize implemented escalation schedule, dedup behavior, channel model, and D-009 acceptance requirements.
 - 2026-03-16: Vercel Cron wired (`vercel.json`, `GET /api/cron/notifications`). Resend email service (`src/lib/email.ts`) replaces console.log stub. Dual-channel delivery: in-app + email for all triggers. GAP-6 closed.

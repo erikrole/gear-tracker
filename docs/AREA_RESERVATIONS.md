@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-07
+- Last Updated: 2026-05-08
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
@@ -16,6 +16,8 @@ Keep reservation planning and checkout execution unified, predictable, and safe 
 3. Transition from `BOOKED` to `OPEN` represents active handoff start.
 4. Cancel and archive patterns are used in V1. No hard delete.
 5. Role and ownership controls follow `AREA_USERS.md`.
+6. Availability checks treat overlapping `PENDING_PICKUP` checkout allocations as committed gear and subtract overlapping `BOOKED` bulk reservation quantities from available bulk stock.
+7. Booking windows are half-open for availability: `endsAt === next.startsAt` is allowed, while any positive overlap is blocked.
 
 ## V1 Workflow
 
@@ -270,3 +272,8 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - 2026-05-07: **Booking creation stale selection recovery** — Reservation creation now surfaces unresolved deep-linked or draft asset IDs as removable unavailable rows, and unresolved serialized assets no longer count toward review readiness, confirmation totals, draft saves, or create payloads.
 - 2026-05-07: **Booking creation Step 2 UX polish** — Reservation creation Step 2 now shows a compact valid/warning/unavailable selection summary and uses state-aware footer copy such as "Review with warnings" or "Remove unavailable item" so requester recovery and staff review paths stay clear.
 - 2026-05-07: **Booking creation final-screen polish** — Reservation confirmation now leads with confirmed-for-later language, location, start timing, and the staff handoff expectation that checkout begins from the reservation when gear changes custody.
+- 2026-05-08: **API hardening Wave 11** — Reservation duplicate now re-checks that the loaded source is still BOOKED before creating a copy, while conversion was re-verified to validate `sourceReservationId` inside `createBooking`'s SERIALIZABLE transaction.
+- 2026-05-08: **API hardening Wave 13** — Shared booking edit hardening now applies to reservations: indexed search, required optimistic-lock headers, full before snapshots in edit audits, and 30-day stale draft pruning.
+- 2026-05-08: **Busy-day availability stress** — Live API smoke created overlapping checkouts/reservations and confirmed serialized conflicts block against `PENDING_PICKUP` checkouts, non-overlapping same-asset reservations pass, exact pickup handoff edges are allowed, one-minute overruns fail, and overlapping bulk reservations fail once existing `BOOKED` commitments consume available quantity.
+- 2026-05-08: **Future booking context** — Availability checks now return the next future serialized commitment per item, and reservation creation/edit plus reservation equipment rows surface a blue "Back before" badge with the exact next needed time.
+- 2026-05-08: **Turnaround risk guard** — Availability checks now return advisory serialized and bulk turnaround risks, and reservation creation/edit plus reservation equipment rows surface compact "Turnaround" warnings for short handoffs, next-use location transfers, recent damage/lost reports, and tight future bulk bookings.

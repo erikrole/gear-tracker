@@ -22,9 +22,57 @@ export type AvailabilityResult = {
     assetId: string;
     status: string;
   }>;
+  upcomingCommitments: Array<{
+    assetId: string;
+    bookingId: string;
+    bookingTitle?: string;
+    startsAt: Date;
+    endsAt: Date;
+    status: BookingStatus;
+    nextLocationId?: string | null;
+    nextLocationName?: string | null;
+  }>;
+  turnaroundRisks: Array<{
+    assetId: string;
+    code: "SHORT_TURNAROUND" | "LOCATION_TRANSFER" | "RECENT_CHECKIN_REPORT";
+    severity: "warning" | "critical";
+    message: string;
+    bookingId?: string;
+    bookingTitle?: string;
+    startsAt?: Date;
+    gapMinutes?: number;
+    nextLocationName?: string | null;
+    reportType?: "DAMAGED" | "LOST";
+    reportCreatedAt?: Date;
+  }>;
+  bulkTurnaroundRisks: Array<{
+    bulkSkuId: string;
+    code: "BULK_SHORT_TURNAROUND";
+    severity: "warning";
+    message: string;
+    bookingId: string;
+    bookingTitle?: string;
+    startsAt: Date;
+    gapMinutes: number;
+    plannedQuantity: number;
+  }>;
 };
 
-const activeBookingStatuses = [BookingStatus.BOOKED, BookingStatus.OPEN];
+const serializedBlockingStatuses = [
+  BookingStatus.BOOKED,
+  BookingStatus.PENDING_PICKUP,
+  BookingStatus.OPEN,
+];
+const bulkReservationCommitmentStatuses = [BookingStatus.BOOKED];
+const turnaroundWarningWindowMs = 12 * 60 * 60 * 1000;
+const recentCheckinReportWindowMs = 30 * 24 * 60 * 60 * 1000;
+
+function formatDuration(minutes: number) {
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+}
 
 export async function checkSerializedConflicts(
   tx: Prisma.TransactionClient | PrismaClient,
@@ -44,7 +92,7 @@ export async function checkSerializedConflicts(
       assetId: { in: args.serializedAssetIds },
       active: true,
       booking: {
-        status: { in: activeBookingStatuses }
+        status: { in: serializedBlockingStatuses }
       },
       startsAt: { lt: args.endsAt },
       endsAt: { gt: args.startsAt },
@@ -112,11 +160,230 @@ export async function checkAssetStatuses(
   return [...unavailable, ...unavailableFromMissing];
 }
 
+export async function checkUpcomingSerializedCommitments(
+  tx: Prisma.TransactionClient | PrismaClient,
+  args: {
+    serializedAssetIds: string[];
+    endsAt: Date;
+    excludeBookingId?: string;
+  }
+): Promise<AvailabilityResult["upcomingCommitments"]> {
+  if (args.serializedAssetIds.length === 0) {
+    return [];
+  }
+
+  const commitments = await tx.assetAllocation.findMany({
+    where: {
+      assetId: { in: args.serializedAssetIds },
+      active: true,
+      startsAt: { gte: args.endsAt },
+      booking: {
+        status: { in: serializedBlockingStatuses },
+      },
+      ...(args.excludeBookingId ? { bookingId: { not: args.excludeBookingId } } : {}),
+    },
+    orderBy: [
+      { assetId: "asc" },
+      { startsAt: "asc" },
+    ],
+    select: {
+      assetId: true,
+      bookingId: true,
+      startsAt: true,
+      endsAt: true,
+      booking: {
+        select: {
+          title: true,
+          status: true,
+          location: { select: { id: true, name: true } },
+        },
+      },
+    },
+  });
+
+  const nextByAsset = new Map<string, AvailabilityResult["upcomingCommitments"][number]>();
+  for (const item of commitments) {
+    if (nextByAsset.has(item.assetId)) continue;
+    nextByAsset.set(item.assetId, {
+      assetId: item.assetId,
+      bookingId: item.bookingId,
+      bookingTitle: item.booking.title,
+      startsAt: item.startsAt,
+      endsAt: item.endsAt,
+      status: item.booking.status,
+      nextLocationId: item.booking.location?.id ?? null,
+      nextLocationName: item.booking.location?.name ?? null,
+    });
+  }
+
+  return Array.from(nextByAsset.values());
+}
+
+export async function checkSerializedTurnaroundRisks(
+  tx: Prisma.TransactionClient | PrismaClient,
+  args: {
+    serializedAssetIds: string[];
+    locationId: string;
+    endsAt: Date;
+    upcomingCommitments: AvailabilityResult["upcomingCommitments"];
+    now?: Date;
+  }
+): Promise<AvailabilityResult["turnaroundRisks"]> {
+  if (args.serializedAssetIds.length === 0) {
+    return [];
+  }
+
+  const now = args.now ?? new Date();
+  const recentReports = await tx.checkinItemReport.findMany({
+    where: {
+      assetId: { in: args.serializedAssetIds },
+      createdAt: { gte: new Date(now.getTime() - recentCheckinReportWindowMs) },
+    },
+    orderBy: { createdAt: "desc" },
+    select: {
+      assetId: true,
+      type: true,
+      createdAt: true,
+      booking: { select: { id: true, title: true } },
+    },
+  });
+
+  const latestReportByAsset = new Map<string, (typeof recentReports)[number]>();
+  for (const report of recentReports) {
+    if (!latestReportByAsset.has(report.assetId)) {
+      latestReportByAsset.set(report.assetId, report);
+    }
+  }
+
+  const risks: AvailabilityResult["turnaroundRisks"] = [];
+  for (const commitment of args.upcomingCommitments) {
+    const gapMs = commitment.startsAt.getTime() - args.endsAt.getTime();
+    if (gapMs >= 0 && gapMs <= turnaroundWarningWindowMs) {
+      const gapMinutes = Math.max(0, Math.round(gapMs / 60_000));
+      risks.push({
+        assetId: commitment.assetId,
+        code: "SHORT_TURNAROUND",
+        severity: "warning",
+        message: `Only ${formatDuration(gapMinutes)} until next use`,
+        bookingId: commitment.bookingId,
+        bookingTitle: commitment.bookingTitle,
+        startsAt: commitment.startsAt,
+        gapMinutes,
+      });
+    }
+
+    if (commitment.nextLocationId && commitment.nextLocationId !== args.locationId) {
+      risks.push({
+        assetId: commitment.assetId,
+        code: "LOCATION_TRANSFER",
+        severity: "warning",
+        message: commitment.nextLocationName
+          ? `Next use is at ${commitment.nextLocationName}; confirm transfer time`
+          : "Next use is at another location; confirm transfer time",
+        bookingId: commitment.bookingId,
+        bookingTitle: commitment.bookingTitle,
+        startsAt: commitment.startsAt,
+        nextLocationName: commitment.nextLocationName,
+      });
+    }
+  }
+
+  for (const [assetId, report] of latestReportByAsset) {
+    risks.push({
+      assetId,
+      code: "RECENT_CHECKIN_REPORT",
+      severity: report.type === "LOST" ? "critical" : "warning",
+      message: report.type === "LOST"
+        ? "Recent lost report on this item"
+        : "Recent damage report on this item",
+      bookingId: report.booking.id,
+      bookingTitle: report.booking.title,
+      reportType: report.type,
+      reportCreatedAt: report.createdAt,
+    });
+  }
+
+  return risks.sort((a, b) => {
+    const severityRank = (risk: AvailabilityResult["turnaroundRisks"][number]) => risk.severity === "critical" ? 0 : 1;
+    return severityRank(a) - severityRank(b) || a.assetId.localeCompare(b.assetId) || a.code.localeCompare(b.code);
+  });
+}
+
+export async function checkBulkTurnaroundRisks(
+  tx: Prisma.TransactionClient | PrismaClient,
+  args: {
+    locationId: string;
+    bulkItems: BulkRequest[];
+    endsAt: Date;
+    excludeBookingId?: string;
+  }
+): Promise<AvailabilityResult["bulkTurnaroundRisks"]> {
+  if (args.bulkItems.length === 0) {
+    return [];
+  }
+
+  const futureRows = await tx.bookingBulkItem.findMany({
+    where: {
+      bulkSkuId: { in: args.bulkItems.map((item) => item.bulkSkuId) },
+      booking: {
+        status: { in: bulkReservationCommitmentStatuses },
+        startsAt: { gte: args.endsAt },
+        ...(args.excludeBookingId ? { id: { not: args.excludeBookingId } } : {}),
+      },
+    },
+    orderBy: [
+      { bulkSkuId: "asc" },
+      { booking: { startsAt: "asc" } },
+    ],
+    select: {
+      bulkSkuId: true,
+      plannedQuantity: true,
+      bookingId: true,
+      booking: {
+        select: {
+          title: true,
+          startsAt: true,
+          locationId: true,
+        },
+      },
+    },
+  });
+
+  const nextBySku = new Map<string, (typeof futureRows)[number]>();
+  for (const row of futureRows) {
+    if (row.booking.locationId !== args.locationId) continue;
+    if (!nextBySku.has(row.bulkSkuId)) nextBySku.set(row.bulkSkuId, row);
+  }
+
+  const risks: AvailabilityResult["bulkTurnaroundRisks"] = [];
+  for (const row of nextBySku.values()) {
+    const gapMs = row.booking.startsAt.getTime() - args.endsAt.getTime();
+    if (gapMs < 0 || gapMs > turnaroundWarningWindowMs) continue;
+    const gapMinutes = Math.max(0, Math.round(gapMs / 60_000));
+    risks.push({
+      bulkSkuId: row.bulkSkuId,
+      code: "BULK_SHORT_TURNAROUND",
+      severity: "warning",
+      message: `Only ${formatDuration(gapMinutes)} until next bulk booking needs ${row.plannedQuantity}`,
+      bookingId: row.bookingId,
+      bookingTitle: row.booking.title,
+      startsAt: row.booking.startsAt,
+      gapMinutes,
+      plannedQuantity: row.plannedQuantity,
+    });
+  }
+
+  return risks;
+}
+
 export async function checkBulkShortages(
   tx: Prisma.TransactionClient | PrismaClient,
   args: {
     locationId: string;
     bulkItems: BulkRequest[];
+    startsAt: Date;
+    endsAt: Date;
+    excludeBookingId?: string;
   }
 ): Promise<AvailabilityResult["shortages"]> {
   if (args.bulkItems.length === 0) {
@@ -135,10 +402,29 @@ export async function checkBulkShortages(
   });
 
   const balanceMap = new Map(balanceRows.map((row) => [row.bulkSkuId, row.onHandQuantity]));
+  const committedRows = await tx.bookingBulkItem.groupBy({
+    by: ["bulkSkuId"],
+    where: {
+      bulkSkuId: { in: args.bulkItems.map((item) => item.bulkSkuId) },
+      booking: {
+        status: { in: bulkReservationCommitmentStatuses },
+        locationId: args.locationId,
+        startsAt: { lt: args.endsAt },
+        endsAt: { gt: args.startsAt },
+        ...(args.excludeBookingId ? { id: { not: args.excludeBookingId } } : {}),
+      },
+    },
+    _sum: { plannedQuantity: true },
+  });
+  const committedMap = new Map(
+    committedRows.map((row) => [row.bulkSkuId, row._sum.plannedQuantity ?? 0]),
+  );
 
   return args.bulkItems
     .map((item) => {
-      const available = balanceMap.get(item.bulkSkuId) ?? 0;
+      const onHand = balanceMap.get(item.bulkSkuId) ?? 0;
+      const committed = committedMap.get(item.bulkSkuId) ?? 0;
+      const available = Math.max(0, onHand - committed);
       return {
         bulkSkuId: item.bulkSkuId,
         requested: item.quantity,
@@ -156,7 +442,8 @@ export type BulkAvailabilityEntry = {
 
 /**
  * For each bulk SKU at a location, compute how many units are committed
- * to overlapping BOOKED/OPEN bookings in the given date window.
+ * to overlapping booked reservations in the given date window. Checkout demand
+ * is already represented by on-hand stock movements.
  */
 export async function getBulkAvailability(
   tx: Prisma.TransactionClient | PrismaClient,
@@ -183,7 +470,7 @@ export async function getBulkAvailability(
     where: {
       bulkSkuId: { in: skuIds },
       booking: {
-        status: { in: activeBookingStatuses },
+        status: { in: bulkReservationCommitmentStatuses },
         locationId: args.locationId,
         startsAt: { lt: args.endsAt },
         endsAt: { gt: args.startsAt },
@@ -222,7 +509,7 @@ export async function checkAvailability(
     bookingKind?: BookingKind;
   }
 ): Promise<AvailabilityResult> {
-  const [conflicts, shortages, unavailableAssets] = await Promise.all([
+  const [conflicts, shortages, unavailableAssets, upcomingCommitments, bulkTurnaroundRisks] = await Promise.all([
     checkSerializedConflicts(tx, {
       serializedAssetIds: args.serializedAssetIds,
       startsAt: args.startsAt,
@@ -231,13 +518,33 @@ export async function checkAvailability(
     }),
     checkBulkShortages(tx, {
       locationId: args.locationId,
-      bulkItems: args.bulkItems
+      bulkItems: args.bulkItems,
+      startsAt: args.startsAt,
+      endsAt: args.endsAt,
+      excludeBookingId: args.excludeBookingId,
     }),
     checkAssetStatuses(tx, {
       serializedAssetIds: args.serializedAssetIds,
       bookingKind: args.bookingKind,
-    })
+    }),
+    checkUpcomingSerializedCommitments(tx, {
+      serializedAssetIds: args.serializedAssetIds,
+      endsAt: args.endsAt,
+      excludeBookingId: args.excludeBookingId,
+    }),
+    checkBulkTurnaroundRisks(tx, {
+      locationId: args.locationId,
+      bulkItems: args.bulkItems,
+      endsAt: args.endsAt,
+      excludeBookingId: args.excludeBookingId,
+    }),
   ]);
+  const turnaroundRisks = await checkSerializedTurnaroundRisks(tx, {
+    serializedAssetIds: args.serializedAssetIds,
+    locationId: args.locationId,
+    endsAt: args.endsAt,
+    upcomingCommitments,
+  });
 
-  return { conflicts, shortages, unavailableAssets };
+  return { conflicts, shortages, unavailableAssets, upcomingCommitments, turnaroundRisks, bulkTurnaroundRisks };
 }

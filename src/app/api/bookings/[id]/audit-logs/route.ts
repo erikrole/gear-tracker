@@ -1,5 +1,5 @@
 import { withAuth } from "@/lib/api";
-import { ok } from "@/lib/http";
+import { HttpError, ok } from "@/lib/http";
 import { db } from "@/lib/db";
 import { requireBookingAction } from "@/lib/services/booking-rules";
 
@@ -16,6 +16,16 @@ export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
   await requireBookingAction(id, user, "view");
   const url = new URL(req.url);
   const cursor = url.searchParams.get("cursor");
+
+  if (cursor) {
+    const cursorLog = await db.auditLog.findFirst({
+      where: { id: cursor, entityType: "booking", entityId: id },
+      select: { id: true },
+    });
+    if (!cursorLog) {
+      throw new HttpError(400, "Invalid audit cursor");
+    }
+  }
 
   const logs = await db.auditLog.findMany({
     where: { entityType: "booking", entityId: id },

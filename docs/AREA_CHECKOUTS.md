@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Checkouts
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-07
+- Last Updated: 2026-05-08
 - Status: Active — V1 Shipped
 - Version: V1
 
@@ -16,6 +16,8 @@ Optimize handoff and return execution so daily operators can move fast without d
 3. Event link is optional for ad hoc checkouts.
 4. Status and availability logic remain derived from allocations, never authoritative stored status.
 5. Role and ownership controls follow `AREA_USERS.md`.
+6. `PENDING_PICKUP` checkout allocations block overlapping serialized-item reservations and checkouts because custody has not transferred yet but the gear is already committed.
+7. Booking windows are half-open for availability: a booking ending exactly when the next pickup/reservation starts is allowed; any overrun past that start time conflicts.
 
 ## V1 Workflow
 
@@ -107,7 +109,10 @@ Adding new rules: add entries to `EQUIPMENT_GUIDANCE_RULES` array in `src/lib/eq
 ### Availability Preview Badges
 When a booking date window is set (startsAt/endsAt), the picker calls `POST /api/availability/check` with all asset IDs to detect scheduling conflicts. Results are shown as:
 - Amber conflict badge on each conflicting item row with booking title and date range.
+- Blue "Back before" badge when an item is free for the selected window but already needed by the next future booking.
+- Orange/red "Turnaround" badge when a technically valid booking has operational risk: short time until next use, next use at another location, recent damage/lost report, or tight future bulk commitment.
 - Conflicting items remain selectable (staff may need to override) but show warning styling.
+- Future-booking context also appears in the booking detail Equipment tab for active checkouts so extend decisions show the next needed time before action.
 - Badges update automatically when the date range changes (debounced 500ms).
 - When no dates are set, falls back to current derived-status dots only.
 
@@ -142,6 +147,7 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[CHECKOUT
 ### `PENDING_PICKUP`
 - Created on desktop wizard submit
 - Allocations and bulk stock held immediately
+- Kiosk pickup requires successful scan evidence for every serialized item before confirmation can transition the checkout to `OPEN`.
 - Allowed actions:
   - View
   - Edit (staff+/owner)
@@ -322,3 +328,8 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 - 2026-05-07: **Booking creation Step 2 UX polish** — Checkout creation Step 2 now shows a compact valid/warning/unavailable selection summary and uses state-aware footer copy such as "Review with warnings" or "Remove unavailable item" so students get clearer recovery and staff keep a faster review path.
 - 2026-05-07: **Booking creation final-screen polish** — Checkout confirmation now leads with kiosk handoff expectations, pickup location, due-back timing, and a clearer pending-pickup notice. The submit button now says "Create pickup" because custody still starts at kiosk scan.
 - 2026-05-07: **Check-in report photo evidence** — Damaged/lost item reports can include optional photo evidence stored on `CheckinItemReport.imageUrl`; this supports exception review without restoring the scrubbed checkout/check-in condition-photo gates.
+- 2026-05-08: **API hardening Wave 13** — Booking search now has trigram indexes, booking edits require `If-Unmodified-Since` conflict headers, edit audits store a full before snapshot, draft listing prunes drafts older than 30 days, check-in reports dedupe rapid repeats, and failed report persistence cleans newly uploaded evidence blobs.
+- 2026-05-08: **Kiosk pickup scan guard** — Pickup confirmation now requires successful serialized checkout scan evidence for every serialized item, and kiosk scan lookup recognizes asset tag, primary scan code, QR value, `qr-` fallback, and serial number values. Browser/API smoke verified confirm-without-scan returns 409, serial scan succeeds, confirm opens the checkout, and cleanup restores the item to available.
+- 2026-05-08: **Busy-day availability stress** — Live overlap smoke verified overlapping reservations/checkouts now block on `BOOKED`, `PENDING_PICKUP`, and `OPEN` serialized allocations, while non-overlapping same-day reservations still pass. Exact handoff boundaries are half-open: ending exactly at the next pickup/start is allowed, while ending one minute late conflicts. Bulk reservation commitments now subtract overlapping `BOOKED` reservation quantities from on-hand availability before create.
+- 2026-05-08: **Future booking context** — Availability checks now return the next future serialized commitment per item, and checkout creation/edit plus active checkout equipment rows surface a blue "Back before" badge with the exact next needed time.
+- 2026-05-08: **Turnaround risk guard** — Availability checks now return advisory serialized and bulk turnaround risks, and checkout creation/edit plus active checkout equipment rows surface compact "Turnaround" warnings for short handoffs, next-use location transfers, recent damage/lost reports, and tight future bulk bookings.

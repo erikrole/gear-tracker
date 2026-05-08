@@ -1,7 +1,7 @@
 import { withAuth } from "@/lib/api";
 import { getBatteryCompatibilitySummaries } from "@/lib/battery-compatibility";
 import { db } from "@/lib/db";
-import { ok } from "@/lib/http";
+import { cachedOk } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 
 const BATTERY_TERMS = [
@@ -19,13 +19,17 @@ const BATTERY_TERMS = [
   "gold mount",
 ];
 
+const BATTERY_TERM_PATTERNS = BATTERY_TERMS.map((term) =>
+  new RegExp(`(^|[^a-z0-9])${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z0-9]|$)`, "i")
+);
+
 function isBatterySku(sku: {
   name: string;
   category: string;
   categoryRel: { name: string } | null;
 }) {
   const text = [sku.name, sku.category, sku.categoryRel?.name ?? ""].join(" ").toLowerCase();
-  return BATTERY_TERMS.some((term) => text.includes(term));
+  return BATTERY_TERM_PATTERNS.some((pattern) => pattern.test(text));
 }
 
 function daysSince(value: Date | null | undefined, now: Date) {
@@ -173,5 +177,5 @@ export const GET = withAuth(async (_req, { user }) => {
     .filter((summary) => summary.isLow)
     .sort((a, b) => (a.availableQuantity - a.threshold) - (b.availableQuantity - b.threshold));
 
-  return ok({ data: { totals, skus, compatibility } });
+  return cachedOk({ data: { totals, skus, compatibility } });
 });

@@ -31,6 +31,9 @@ vi.mock("@/lib/services/availability", () => ({
     conflicts: [],
     shortages: [],
     unavailableAssets: [],
+    upcomingCommitments: [],
+    turnaroundRisks: [],
+    bulkTurnaroundRisks: [],
   }),
 }));
 
@@ -94,6 +97,9 @@ beforeEach(() => {
     conflicts: [],
     shortages: [],
     unavailableAssets: [],
+    upcomingCommitments: [],
+    turnaroundRisks: [],
+    bulkTurnaroundRisks: [],
   });
 });
 
@@ -139,6 +145,9 @@ describe("updateReservation", () => {
       conflicts: [{ assetId: "a-1", conflictingBookingId: "b-other", startsAt: new Date(), endsAt: new Date() }],
       shortages: [],
       unavailableAssets: [],
+      upcomingCommitments: [],
+      turnaroundRisks: [],
+      bulkTurnaroundRisks: [],
     });
 
     await expect(
@@ -239,6 +248,9 @@ describe("updateCheckout", () => {
       conflicts: [{ assetId: "a-1", conflictingBookingId: "b-other", startsAt: new Date(), endsAt: new Date() }],
       shortages: [],
       unavailableAssets: [],
+      upcomingCommitments: [],
+      turnaroundRisks: [],
+      bulkTurnaroundRisks: [],
     });
 
     await expect(

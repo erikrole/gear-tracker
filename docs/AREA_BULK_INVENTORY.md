@@ -162,6 +162,9 @@ See `AREA_ITEMS.md` 2026-04-06 entry for bulk inventory page hardening:
 - [x] AC-6: Change unit status (mark lost, retire, release) with audit trail
 
 ## Change Log
+- 2026-05-08: API hardening Wave 13. Battery cockpit reads now use short private caching, battery SKU detection uses term-boundary matching, and license/bulk history-style endpoints stay bounded.
+- 2026-05-08: API hardening Wave 12. Bulk asset maintenance toggles now run under SERIALIZABLE isolation with transaction-local audit rows, and bulk SKU activity cursors must belong to the requested SKU or unit audit scope before pagination continues.
+- 2026-05-08: API hardening Wave 11. Bulk stock adjustments now bound both request deltas and resulting on-hand quantities to prevent overflow-scale inventory counts; numbered-unit status updates were re-verified as SERIALIZABLE read/update/balance operations.
 - 2026-05-06: Battery compatibility lows panel shipped on `/bulk-inventory/batteries`. The cockpit now summarizes low compatible battery families by matching active camera inventory to the existing Sony/Canon/V-mount compatibility rules, then comparing available numbered battery units against each family threshold.
 - 2026-05-06: Battery Unit Cockpit shipped at `/bulk-inventory/batteries`. The Admin nav now exposes a battery-focused operational page for active numbered battery SKUs with available/out/lost/retired counts, low-stock signals, checked-out unit aging, booking/requester context, and direct audited unit status actions. Battery reporting remains deferred in GAP-37.
 - 2026-05-06: Kiosk battery mismatch polish shipped. Derived unit QR handling now checks active numbered battery SKUs beyond the booking SKU list so kiosk pickup/return can explain wrong battery type, already checked-out elsewhere, not checked out on this booking, duplicate scan, and lost/retired unit cases.

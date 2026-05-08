@@ -116,10 +116,12 @@ Implementation: `processLicenseNags` and `processExpiryWarnings` in `src/lib/ser
 - [x] CSV export available to admins
 
 ## Known Gaps / Deferred
-- No history pagination (loads all claims for a code in one fetch — fine for current volume <50/code)
+- No full history pagination UI yet; API history reads are bounded.
 - No full admin per-user license usage report beyond the user's own recent history and per-code admin history
 
 ## Change Log
+- **2026-05-08 (API hardening Wave 13)**: Code and personal claim history endpoints now apply bounded pagination instead of returning unbounded claim sets.
+- **2026-05-08 (API hardening Wave 8)**: CSV export now uses shared formula-safe escaping so holder names and unknown occupant labels that begin with spreadsheet formula characters are exported as inert text.
 - **2026-05-07 (User history)**: Added `/api/licenses/my/history` and a user-facing License history dialog from the active-license banner. The dialog shows recent claim/return timing while keeping released license codes hidden.
 - **2026-05-07 (Bulk renewal)**: Added admin bulk renewal for expiring/expired visible codes or all visible active codes via `PATCH /api/licenses/bulk`, with rate limiting and audit logging.
 - **2026-05-07 (Ownership pass)**: Added a compact license health summary for active codes, slot usage, open slots, expiring codes, and retired codes; fixed student-owned table rows so they no longer expose a dead click/keyboard path; corrected partial-row action labels for assistive tech; added an explicit hidden-retired empty state when no active codes are visible.

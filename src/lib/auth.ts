@@ -18,6 +18,7 @@ export type AuthUser = {
 
 const SESSION_12H_MS = 1000 * 60 * 60 * 12;
 const SESSION_30D_MS = 1000 * 60 * 60 * 24 * 30;
+const KIOSK_SESSION_7D_MS = 1000 * 60 * 60 * 24 * 7;
 
 export async function tokenHash(token: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -119,12 +120,12 @@ export type KioskContext = {
 
 /**
  * Create a kiosk session. Called after activation code is validated.
- * Sets a long-lived HTTP-only cookie (30 days).
+ * Sets a long-lived HTTP-only cookie (7 days).
  */
 export async function createKioskSession(kioskId: string): Promise<string> {
   const raw = randomHex(64);
   const hashed = await tokenHash(raw);
-  const expiresAt = new Date(Date.now() + SESSION_30D_MS);
+  const expiresAt = new Date(Date.now() + KIOSK_SESSION_7D_MS);
 
   await db.kioskDevice.update({
     where: { id: kioskId },

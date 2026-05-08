@@ -59,6 +59,7 @@ Files under `ios/Wisconsin/Kiosk/`:
   - `POST /scan-lookup` — read-only item-by-tag lookup
 - Numbered battery units scan through the same pickup/check-in endpoints with derived values like `{binQrCodeValue}-{unitNumber}`. Pickup binds the unit to the booking; check-in returns only the scanned unit.
 - Pickup and return detail payloads include numbered battery units in the same `items` checklist used by serialized assets, so the native iOS screens count batteries before allowing pickup/return actions.
+- Serialized pickup confirmation now requires a successful `CHECKOUT` scan event for each serialized asset on the booking. Kiosk scan lookup accepts asset tag, primary scan code, QR value, `qr-` fallback, and serial number values.
 - **Auth helpers:** `withKiosk()` (`src/lib/api.ts`) and `requireKiosk()` (`src/lib/auth.ts`) validate the kiosk-session cookie, refresh `lastSeenAt`, throw 401 if inactive/deactivated.
 
 ## Acceptance Criteria
@@ -99,3 +100,6 @@ Files under `ios/Wisconsin/Kiosk/`:
 | 2026-05-05 | Numbered battery unit hardening: pickup/check-in scan routes now accept derived unit QR values, bind or return one unit at a time, and kiosk scan lookup resolves battery unit status with parent SKU context. |
 | 2026-05-05 | iOS kiosk battery checklist hardening: checkout detail payloads now include pending battery scan slots and checked-out battery units, and pickup confirm blocks until planned battery quantities are scanned. |
 | 2026-05-06 | Battery scan mismatch polish: kiosk pickup/return now distinguishes wrong battery type, unit already checked out elsewhere, unit not checked out on this booking, duplicate pickup scans, and lost/retired units. |
+| 2026-05-08 | API hardening Wave 11: activation now uses tighter IP and per-code rate limits, and kiosk scan lookup applies per-device minute/hour limits before item lookup. |
+| 2026-05-08 | API hardening Wave 13: kiosk sessions now expire after 7 days, heartbeat is capped to 1/min/device, and student lookup is rate-limited per kiosk/IP plus per student. |
+| 2026-05-08 | Pickup integrity hardening: serialized pickup scans now write scan evidence, pickup confirmation blocks until all serialized assets have successful checkout scans, and serial-number scanner input is accepted. |

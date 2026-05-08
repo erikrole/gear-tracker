@@ -4,7 +4,7 @@ import { ok, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 import { z } from "zod";
-import { ShiftArea, ShiftWorkerType } from "@prisma/client";
+import { Prisma, ShiftArea, ShiftWorkerType } from "@prisma/client";
 
 const addShiftSchema = z.object({
   area: z.nativeEnum(ShiftArea),
@@ -48,7 +48,7 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
     });
 
     return shift;
-  });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
   await createAuditEntry({
     actorId: user.id,

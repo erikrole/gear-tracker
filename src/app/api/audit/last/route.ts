@@ -2,6 +2,7 @@ import { z } from "zod";
 import { withAuth } from "@/lib/api";
 import { ok } from "@/lib/http";
 import { db } from "@/lib/db";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 /**
  * Entity types STAFF may query. Restricted to settings-surface types so
@@ -36,6 +37,8 @@ const bodySchema = z.object({
  * Returns a map keyed by entityId. Missing entries simply omit that key.
  */
 export const POST = withAuth(async (req, { user }) => {
+  await enforceRateLimit(`audit:last:${user.id}`, { max: 30, windowMs: 60_000 });
+
   // Coarse role gate — the audit log surfaces actor identity which is
   // admin/staff information, not for STUDENT.
   if (user.role !== "ADMIN" && user.role !== "STAFF") {

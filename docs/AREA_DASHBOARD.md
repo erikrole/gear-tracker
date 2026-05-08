@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Dashboard
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-05
+- Last Updated: 2026-05-08
 - Status: Active — V3 shipped, reliability + UX polish complete
 - Version: V3
 
@@ -164,6 +164,7 @@ Make dashboard an action console for daily operations, not a reporting screen.
 7. Add regression tests for permissions, window filtering (7 days), and overdue consistency.
 
 ## Change Log
+- 2026-05-08: API hardening Wave 2. Dashboard and lightweight dashboard-stats API reads now use partial-failure handling for parallel query bundles. One failed side query falls back to an empty count/list, logs the failed segment, and returns `partialFailures` metadata instead of crashing the whole dashboard payload.
 - 2026-03-01: Rewritten as concrete V1 ops-first dashboard spec with no standalone upcoming-events section.
 - 2026-03-01: Added permission model and draft-system requirements.
 - 2026-03-02: Linked dashboard mobile behavior to shared `AREA_MOBILE.md` contract.
@@ -195,3 +196,4 @@ Make dashboard an action console for daily operations, not a reporting screen.
 - 2026-05-06: **DevTools cleanup pass**: Upcoming event titles now keep sport and home/away text separated for both visual and accessibility output. Authenticated Chrome DevTools smoke testing found no dashboard API failures; remaining abort/retry entries are intentional stale-request cancellation during dev remounts.
 - 2026-05-06: **Upcoming Events quick-view parity**: Dashboard upcoming events now carry schedule-style read-only coverage metadata from `/api/dashboard` and render event identity, time/location, home/away state, staffing avatars, coverage count, open-slot warning, and home call time where available. Quick-create booking controls were removed from the widget; `/schedule` remains the full management surface.
 - 2026-05-07: **Avatar stack cleanup**: Dashboard gear previews now use a shared item thumbnail stack, while assigned-staff previews use the shared people avatar group with consistent tooltip and overflow behavior.
+- 2026-05-08: **API hardening Wave 13**: Dashboard stats polling allowance increased to 180/min/user so 30s mobile refresh cadences have headroom without removing abuse protection.

@@ -126,7 +126,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   if (body.active !== undefined) {
     // Deactivation requires atomic check + cancel + session cleanup
     if (body.active === false && target.active === true) {
-      const cancelledIds = await db.$transaction(async (tx) => {
+      const deactivationResult = await db.$transaction(async (tx) => {
         // Re-check OPEN checkouts inside transaction to prevent TOCTOU
         const openCheckouts = await tx.booking.count({
           where: {
@@ -163,11 +163,18 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
 
         // Invalidate all existing sessions so deactivated user is immediately locked out
         await tx.session.deleteMany({ where: { userId: id } });
+        const directReportCleanup = await tx.user.updateMany({
+          where: { directReportId: id },
+          data: { directReportId: null },
+        });
 
-        return toCancel.map((b) => b.id);
+        return {
+          cancelledIds: toCancel.map((b) => b.id),
+          directReportsCleared: directReportCleanup.count,
+        };
       }, { isolationLevel: "Serializable" });
 
-      if (cancelledIds.length > 0) {
+      if (deactivationResult.cancelledIds.length > 0 || deactivationResult.directReportsCleared > 0) {
         await createAuditEntry({
           actorId: user.id,
           actorRole: user.role,
@@ -175,8 +182,9 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
           entityId: id,
           action: "deactivation_cancelled_bookings",
           after: {
-            cancelledBookingIds: cancelledIds,
-            cancelledCount: cancelledIds.length,
+            cancelledBookingIds: deactivationResult.cancelledIds,
+            cancelledCount: deactivationResult.cancelledIds.length,
+            directReportsCleared: deactivationResult.directReportsCleared,
           },
         });
       }

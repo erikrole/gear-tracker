@@ -1,15 +1,9 @@
 import { NextResponse } from "next/server";
-import { timingSafeEqual } from "crypto";
-import { withHandler } from "@/lib/api";
+import { withCron } from "@/lib/cron";
 import { db } from "@/lib/db";
 import { syncCalendarSource } from "@/lib/services/calendar-sync";
 import { generateShiftsForNewEvents } from "@/lib/services/shift-generation";
 import { expireOpenTrades } from "@/lib/services/shift-trades";
-
-function safeCompare(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
-}
 
 /**
  * Nightly 3 AM Central refresh (08:00 UTC):
@@ -20,19 +14,7 @@ function safeCompare(a: string, b: string): boolean {
  * Events and shifts are never deleted by this job — archiving only sets
  * archivedAt so the records remain visible in the calendar and schedule.
  */
-export const GET = withHandler(async (req) => {
-  const authHeader = req.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret) {
-    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });
-  }
-
-  const token = authHeader?.replace("Bearer ", "") ?? "";
-  if (!safeCompare(token, cronSecret)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withCron(async () => {
   const now = new Date();
   const syncResults: Array<{
     sourceId: string;

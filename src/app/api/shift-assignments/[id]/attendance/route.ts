@@ -2,6 +2,7 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
+import { createAuditEntry } from "@/lib/audit";
 import { z } from "zod";
 
 const schema = z.object({
@@ -16,7 +17,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
 
   const existing = await db.shiftAssignment.findUnique({
     where: { id },
-    select: { id: true },
+    select: { id: true, attended: true },
   });
   if (!existing) throw new HttpError(404, "Assignment not found");
 
@@ -24,6 +25,16 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     where: { id },
     data: { attended },
     select: { id: true, attended: true },
+  });
+
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "shift_assignment",
+    entityId: id,
+    action: "attendance_updated",
+    before: { attended: existing.attended },
+    after: { attended: updated.attended },
   });
 
   return ok({ data: updated });

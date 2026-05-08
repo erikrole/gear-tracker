@@ -45,7 +45,8 @@ export const POST = withHandler(async (req) => {
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role
+      role: user.role,
+      forcePasswordChange: user.forcePasswordChange,
     }
   });
 });

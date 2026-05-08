@@ -4,7 +4,7 @@ import { validateImage, deleteImage, isBlobUrl } from "@/lib/blob";
 import { put } from "@vercel/blob";
 import { db } from "@/lib/db";
 import { createAuditEntry } from "@/lib/audit";
-import { enforceRateLimit } from "@/lib/rate-limit";
+import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 
 function assertCanManage(actorId: string, actorRole: string, targetId: string) {
   if (actorId === targetId) return;
@@ -18,6 +18,7 @@ function assertCanManage(actorId: string, actorRole: string, targetId: string) {
 export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   const { id } = params;
   assertCanManage(user.id, user.role, id);
+  await enforceRateLimit(`avatar:ip:${getClientIp(req)}`, { max: 60, windowMs: 60 * 60_000 });
   await enforceRateLimit(`avatar:${user.id}`, { max: 10, windowMs: 60 * 60_000 });
 
   const target = await db.user.findUnique({

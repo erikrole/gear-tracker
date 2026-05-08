@@ -54,7 +54,11 @@ export const DELETE = withAuth<{ id: string; shiftId: string }>(async (req, { us
       data: { manuallyEdited: true },
     });
 
-    return { area: shift.area, workerType: shift.workerType };
+    return {
+      area: shift.area,
+      workerType: shift.workerType,
+      activeAssignmentCount: shift.assignments.length,
+    };
   });
 
   await createAuditEntry({
@@ -63,7 +67,13 @@ export const DELETE = withAuth<{ id: string; shiftId: string }>(async (req, { us
     entityType: "shift",
     entityId: shiftId,
     action: "shift_removed",
-    before: { area: result.area, workerType: result.workerType, shiftGroupId: id },
+    before: {
+      area: result.area,
+      workerType: result.workerType,
+      shiftGroupId: id,
+      force,
+      activeAssignmentCount: result.activeAssignmentCount,
+    },
   });
 
   return ok({ data: { id: shiftId, removed: true } });

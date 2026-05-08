@@ -19,14 +19,33 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import {
+  Archive,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Copy,
+  ExternalLink,
+  Printer,
+  Star,
+  Wrench,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { Asset } from "./columns";
 import { statusBadge } from "./columns";
-import { getItemHref } from "./lib/item-href";
+import { getItemHref, isBulkRowId } from "./lib/item-href";
 import { AssetImage } from "@/components/AssetImage";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
 export type Density = "compact" | "comfortable";
 
@@ -41,8 +60,106 @@ interface DataTableProps {
   onSortingChange: (sorting: SortingState) => void;
   refreshing?: boolean;
   density?: Density;
+  canEdit?: boolean;
+  actionBusy?: boolean;
+  onRowAction?: (action: string, asset: Asset) => void;
+  onToggleFavorite?: (asset: Asset) => void;
   toolbar?: ReactNode;
   bulkBar?: ReactNode;
+}
+
+function RowContextMenu({
+  item,
+  selected,
+  canEdit,
+  actionBusy,
+  onOpen,
+  onToggleSelected,
+  onRowAction,
+  onToggleFavorite,
+  children,
+}: {
+  item: Asset;
+  selected: boolean;
+  canEdit: boolean;
+  actionBusy: boolean;
+  onOpen: (newTab?: boolean) => void;
+  onToggleSelected: () => void;
+  onRowAction?: (action: string, asset: Asset) => void;
+  onToggleFavorite?: (asset: Asset) => void;
+  children: ReactNode;
+}) {
+  const isBulk = isBulkRowId(item.id);
+  const canMutateSerialized = canEdit && !isBulk;
+
+  async function copyTag() {
+    try {
+      await navigator.clipboard.writeText(item.assetTag);
+      toast.success(`Copied ${item.assetTag}`);
+    } catch {
+      toast.error("Could not copy item tag");
+    }
+  }
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+      <ContextMenuContent className="w-52">
+        <ContextMenuLabel className="truncate text-xs text-muted-foreground">
+          {item.assetTag}
+        </ContextMenuLabel>
+        <ContextMenuSeparator />
+        <ContextMenuItem onSelect={() => onOpen()}>
+          <ExternalLink />
+          Open
+        </ContextMenuItem>
+        <ContextMenuItem onSelect={() => onOpen(true)}>
+          <ExternalLink />
+          Open in new tab
+        </ContextMenuItem>
+        <ContextMenuItem onSelect={onToggleSelected}>
+          {selected ? "Deselect row" : "Select row"}
+        </ContextMenuItem>
+        <ContextMenuItem onSelect={copyTag}>
+          <Copy />
+          Copy tag
+        </ContextMenuItem>
+        {!isBulk && (
+          <ContextMenuItem onSelect={() => onToggleFavorite?.(item)}>
+            <Star className={item.isFavorited ? "fill-current" : undefined} />
+            {item.isFavorited ? "Remove favorite" : "Add favorite"}
+          </ContextMenuItem>
+        )}
+        {!isBulk && (
+          <ContextMenuItem onSelect={() => onRowAction?.("print-label", item)}>
+            <Printer />
+            Print label
+          </ContextMenuItem>
+        )}
+        {canMutateSerialized && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem disabled={actionBusy} onSelect={() => onRowAction?.("duplicate", item)}>
+              <Copy />
+              Duplicate
+            </ContextMenuItem>
+            <ContextMenuItem disabled={actionBusy} onSelect={() => onRowAction?.("maintenance", item)}>
+              <Wrench />
+              {item.status === "MAINTENANCE" ? "Clear maintenance" : "Needs maintenance"}
+            </ContextMenuItem>
+            <ContextMenuItem
+              disabled={actionBusy}
+              variant="destructive"
+              onSelect={() => onRowAction?.("retire", item)}
+            >
+              <Archive />
+              Retire
+            </ContextMenuItem>
+          </>
+        )}
+      </ContextMenuContent>
+    </ContextMenu>
+  );
 }
 
 export function DataTable({
@@ -56,6 +173,10 @@ export function DataTable({
   onSortingChange,
   refreshing = false,
   density = "comfortable",
+  canEdit = false,
+  actionBusy = false,
+  onRowAction,
+  onToggleFavorite,
   toolbar,
   bulkBar,
 }: DataTableProps) {
@@ -116,68 +237,80 @@ export function DataTable({
                 .filter(Boolean)
                 .join(" · ");
               const href = getItemHref(item.id);
+              const openItem = (newTab = false) => {
+                if (newTab) window.open(href, "_blank", "noopener");
+                else router.push(href);
+              };
               return (
-                <div
+                <RowContextMenu
                   key={row.id}
-                  data-state={row.getIsSelected() ? "selected" : undefined}
-                  className="flex items-start gap-3 px-3 py-3 transition-colors active:bg-muted/50 data-[state=selected]:bg-muted/40"
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`View ${item.assetTag}`}
-                  onClick={(e) => {
-                    if ((e.target as HTMLElement).closest("[data-no-row-click]")) return;
-                    if (e.metaKey || e.ctrlKey || e.button === 1) {
-                      window.open(href, "_blank", "noopener");
-                    } else {
-                      router.push(href);
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      router.push(href);
-                    }
-                  }}
+                  item={item}
+                  selected={row.getIsSelected()}
+                  canEdit={canEdit}
+                  actionBusy={actionBusy}
+                  onOpen={openItem}
+                  onToggleSelected={() => row.toggleSelected(!row.getIsSelected())}
+                  onRowAction={onRowAction}
+                  onToggleFavorite={onToggleFavorite}
                 >
                   <div
-                    data-no-row-click
-                    className="-m-1 p-1 self-center"
-                    onClick={(e) => e.stopPropagation()}
+                    data-state={row.getIsSelected() ? "selected" : undefined}
+                    className="flex items-start gap-3 px-3 py-3 transition-colors active:bg-muted/50 data-[state=selected]:bg-muted/40"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`View ${item.assetTag}`}
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest("[data-no-row-click]")) return;
+                      if (e.metaKey || e.ctrlKey || e.button === 1) openItem(true);
+                      else openItem();
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        router.push(href);
+                      }
+                    }}
                   >
-                    <Checkbox
-                      checked={row.getIsSelected()}
-                      onCheckedChange={(v) => row.toggleSelected(!!v)}
-                      aria-label={`Select ${item.assetTag}`}
+                    <div
+                      data-no-row-click
+                      className="-m-1 p-1 self-center"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Checkbox
+                        checked={row.getIsSelected()}
+                        onCheckedChange={(v) => row.toggleSelected(!!v)}
+                        aria-label={`Select ${item.assetTag}`}
+                      />
+                    </div>
+                    <AssetImage
+                      src={item.imageUrl}
+                      alt={item.assetTag}
+                      size={density === "compact" ? 40 : 48}
+                      className="shrink-0 rounded-lg"
                     />
-                  </div>
-                  <AssetImage
-                    src={item.imageUrl}
-                    alt={item.assetTag}
-                    size={density === "compact" ? 40 : 48}
-                    className="shrink-0 rounded-lg"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex min-w-0 items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="truncate text-[15px] font-semibold leading-tight" style={{ fontFamily: "var(--font-heading)" }}>
-                          {item.assetTag}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="truncate text-[15px] font-semibold leading-tight" style={{ fontFamily: "var(--font-heading)" }}>
+                            {item.assetTag}
+                          </div>
+                          {subtitle && (
+                            <div className="mt-0.5 truncate text-xs text-muted-foreground">{subtitle}</div>
+                          )}
                         </div>
-                        {subtitle && (
-                          <div className="mt-0.5 truncate text-xs text-muted-foreground">{subtitle}</div>
+                        <div className="shrink-0">{statusBadge(item)}</div>
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                        {showProductMeta && (
+                          <span className="truncate text-[11px] font-medium text-foreground/80">{product}</span>
+                        )}
+                        {meta && (
+                          <span className="truncate text-[11px] text-muted-foreground/80">{meta}</span>
                         )}
                       </div>
-                      <div className="shrink-0">{statusBadge(item)}</div>
-                    </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-                      {showProductMeta && (
-                        <span className="truncate text-[11px] font-medium text-foreground/80">{product}</span>
-                      )}
-                      {meta && (
-                        <span className="truncate text-[11px] text-muted-foreground/80">{meta}</span>
-                      )}
                     </div>
                   </div>
-                </div>
+                </RowContextMenu>
               );
             })
           )}
@@ -222,31 +355,46 @@ export function DataTable({
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() ? "selected" : undefined}
-                  className="group/row cursor-pointer transition-colors hover:bg-muted/35 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
-                  tabIndex={0}
-                  role="row"
-                  aria-label={`View ${row.original.assetTag}`}
-                  onClick={(e) => {
-                    const href = getItemHref(row.original.id);
-                    if (e.metaKey || e.ctrlKey || e.button === 1) {
-                      window.open(href, "_blank", "noopener");
-                    } else {
-                      router.push(href);
-                    }
-                  }}
-                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); router.push(getItemHref(row.original.id)); } }}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+              table.getRowModel().rows.map((row) => {
+                const item = row.original;
+                const href = getItemHref(item.id);
+                const openItem = (newTab = false) => {
+                  if (newTab) window.open(href, "_blank", "noopener");
+                  else router.push(href);
+                };
+                return (
+                  <RowContextMenu
+                    key={row.id}
+                    item={item}
+                    selected={row.getIsSelected()}
+                    canEdit={canEdit}
+                    actionBusy={actionBusy}
+                    onOpen={openItem}
+                    onToggleSelected={() => row.toggleSelected(!row.getIsSelected())}
+                    onRowAction={onRowAction}
+                    onToggleFavorite={onToggleFavorite}
+                  >
+                    <TableRow
+                      data-state={row.getIsSelected() ? "selected" : undefined}
+                      className="group/row cursor-pointer transition-colors hover:bg-muted/35 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
+                      tabIndex={0}
+                      role="row"
+                      aria-label={`View ${item.assetTag}`}
+                      onClick={(e) => {
+                        if (e.metaKey || e.ctrlKey || e.button === 1) openItem(true);
+                        else openItem();
+                      }}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); router.push(href); } }}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  </RowContextMenu>
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">

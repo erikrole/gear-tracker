@@ -2,6 +2,7 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
+import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 import { z } from "zod";
 
 const createBlockSchema = z.object({
@@ -35,6 +36,7 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   if (user.role === "STUDENT" && user.id !== id) {
     throw new HttpError(403, "Forbidden");
   }
+  await enforceRateLimit(`availability:${user.id}`, SETTINGS_MUTATION_LIMIT);
 
   // Confirm target user exists
   const target = await db.user.findUnique({ where: { id }, select: { id: true } });

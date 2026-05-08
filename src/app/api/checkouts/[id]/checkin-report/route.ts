@@ -15,6 +15,7 @@ const IMAGE_CONTENT_TYPES: Record<string, string> = {
   "image/webp": "webp",
   "image/gif": "gif",
 };
+const REPORT_DEDUP_WINDOW_MS = 5_000;
 
 async function readReportPayload(req: Request) {
   const contentType = req.headers.get("content-type") ?? "";
@@ -103,28 +104,40 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
 
   const existingReport = await db.checkinItemReport.findUnique({
     where: { bookingId_assetId: { bookingId: id, assetId } },
-    select: { imageUrl: true },
+    select: { imageUrl: true, createdAt: true },
   });
+  if (existingReport && Date.now() - existingReport.createdAt.getTime() < REPORT_DEDUP_WINDOW_MS) {
+    throw new HttpError(409, "A report for this item was just submitted. Wait a moment before updating it.");
+  }
+
   const imageUrl = file ? await uploadReportImage(file, id, assetId) : undefined;
 
   // Upsert the report (unique on bookingId + assetId)
-  const report = await db.checkinItemReport.upsert({
-    where: { bookingId_assetId: { bookingId: id, assetId } },
-    create: {
-      bookingId: id,
-      assetId,
-      type: type as CheckinReportType,
-      description,
-      imageUrl: imageUrl ?? null,
-      reportedById: user.id,
-    },
-    update: {
-      type: type as CheckinReportType,
-      description,
-      ...(imageUrl ? { imageUrl } : {}),
-      reportedById: user.id,
-    },
-  });
+  let report;
+  try {
+    report = await db.checkinItemReport.upsert({
+      where: { bookingId_assetId: { bookingId: id, assetId } },
+      create: {
+        bookingId: id,
+        assetId,
+        type: type as CheckinReportType,
+        description,
+        imageUrl: imageUrl ?? null,
+        reportedById: user.id,
+      },
+      update: {
+        type: type as CheckinReportType,
+        description,
+        ...(imageUrl ? { imageUrl } : {}),
+        reportedById: user.id,
+      },
+    });
+  } catch (err) {
+    if (imageUrl && isBlobUrl(imageUrl)) {
+      await deleteImage(imageUrl).catch(() => {});
+    }
+    throw err;
+  }
 
   if (imageUrl && existingReport?.imageUrl && isBlobUrl(existingReport.imageUrl)) {
     await deleteImage(existingReport.imageUrl).catch(() => {});

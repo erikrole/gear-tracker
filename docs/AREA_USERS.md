@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Users
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-07
+- Last Updated: 2026-05-08
 - Status: Active
 - Version: V1.2
 
@@ -112,6 +112,10 @@ Use a simple tiered permission model with inheritance so behavior is predictable
 6. Ensure audit logs include actor role, target owner, and exception metadata.
 
 ## Change Log
+- 2026-05-08: API hardening Wave 9. Registration allowlist adds now treat already-registered or already-allowlisted emails as generic skipped successes, preventing the admin endpoint from acting as a roster membership oracle.
+- 2026-05-08: API hardening Wave 8. User CSV export now uses shared formula-safe escaping so names and profile fields that begin with spreadsheet formula characters export as inert text.
+- 2026-05-08: API hardening Wave 3. User export now redacts staff/admin athletics email and phone fields for STAFF exports, org chart reporting hierarchy is STAFF/ADMIN-only, and `/api/form-options` no longer returns email or the full active-user directory to STUDENT callers.
+- 2026-05-08: API hardening Wave 1. Self-service password changes now update the password hash and invalidate existing sessions in one transaction. Password reset now consumes the reset token inside a SERIALIZABLE transaction before updating the hash, deleting remaining reset tokens, and invalidating sessions, closing the token reuse race noted by the API hardening audit.
 - 2026-05-07: iOS Users tab (parity slice 1). New `UsersView.swift` lists users with debounced search, role filter (Admin/Staff/Student), show-inactive toggle, infinite-scroll pagination (50/page). Tap pushes existing `UserDetailView` via `UserRouteId` wrapper to avoid colliding with UserDetailView's String-typed booking destination. `AppUser` model + `APIClient.users()` extended to match `/api/users` payload (role, primaryArea, title, active, gradYear, studentYearOverride). New 6th tab "Users" added to `AppTabView`. See `AREA_MOBILE.md` for context.
 - 2026-03-01: Initial file created as access-control scope.
 - 2026-03-01: Renamed area to Users and expanded student read visibility.
@@ -169,3 +173,5 @@ Use a simple tiered permission model with inheritance so behavior is predictable
 - 2026-05-07: Users detail ownership slice shipped. `/users/[id]` tabs are now URL-backed, match the Items detail tab rail, and expose Availability only on student profiles. The profile hero reflects optimistic avatar/status updates, admin actions use a clearer labeled dropdown with disabled status handling, password-copy control has an explicit accessible label, admin self-profile direct-report editing remains available, and assignment controls no longer nest removable buttons inside popover triggers.
 - 2026-05-07: Add User ownership slice shipped. The create-user dialog now explains the post-create handoff, generates a temporary password with copy/regenerate controls, mirrors server role restrictions by hiding Admin creation from non-admins, shows form-level API errors, lowercases trimmed emails at the API boundary, and routes directly to the new profile for detail completion.
 - 2026-05-07: Avatar polish shipped. Profile photo uploads are center-cropped and resized client-side before upload, and staff/admin roster stats now include a missing-photo cue for the current filtered user set.
+- 2026-05-08: API hardening Wave 11. Admin-issued password resets now set `forcePasswordChange`, invalidate existing sessions, include that marker in audit/response payloads, and self-service password changes clear the marker.
+- 2026-05-08: API hardening Wave 13. Availability writes are rate-limited, avatar uploads now layer IP and actor throttles, deactivation clears direct-report references inside the same Serializable cleanup, and user activity cursors must belong to the requested user's audit scope.

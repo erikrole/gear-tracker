@@ -4,7 +4,7 @@ import { ok } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
 
 export const GET = withAuth(async (_req, { user }) => {
-  requireRole(user.role, ["ADMIN", "STAFF", "STUDENT"]);
+  requireRole(user.role, ["ADMIN", "STAFF"]);
 
   const rows = await db.user.findMany({
     where: { active: true },

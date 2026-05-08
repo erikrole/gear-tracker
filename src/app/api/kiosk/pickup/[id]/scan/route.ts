@@ -23,7 +23,7 @@ export const POST = withKiosk<{ id: string }>(async (req, { params }) => {
 
   const booking = await db.booking.findUnique({
     where: { id: params.id },
-    select: { id: true, status: true, kind: true },
+    select: { id: true, status: true, kind: true, requesterUserId: true },
   });
 
   if (!booking || booking.kind !== "CHECKOUT" || booking.status !== "PENDING_PICKUP") {
@@ -47,6 +47,19 @@ export const POST = withKiosk<{ id: string }>(async (req, { params }) => {
   if (!bookingItem) {
     return ok({ success: false, error: `${asset.assetTag} is not in this checkout` });
   }
+
+  await db.scanEvent.create({
+    data: {
+      bookingId: booking.id,
+      actorUserId: booking.requesterUserId,
+      scanType: "SERIALIZED",
+      scanValue,
+      success: true,
+      phase: "CHECKOUT",
+      assetId: asset.id,
+      deviceContext: req.headers.get("user-agent") ?? "kiosk",
+    },
+  });
 
   return ok({
     success: true,

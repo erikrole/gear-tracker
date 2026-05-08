@@ -26,6 +26,71 @@ type ConflictInfo = {
   endsAt: string;
 };
 
+type UpcomingCommitmentInfo = {
+  assetId: string;
+  bookingId: string;
+  bookingTitle?: string;
+  startsAt: string;
+  endsAt: string;
+  status: string;
+  nextLocationId?: string | null;
+  nextLocationName?: string | null;
+};
+
+type TurnaroundRiskInfo = {
+  assetId: string;
+  code: "SHORT_TURNAROUND" | "LOCATION_TRANSFER" | "RECENT_CHECKIN_REPORT";
+  severity: "warning" | "critical";
+  message: string;
+  bookingId?: string;
+  bookingTitle?: string;
+  startsAt?: string;
+  gapMinutes?: number;
+  nextLocationName?: string | null;
+  reportType?: "DAMAGED" | "LOST";
+  reportCreatedAt?: string;
+};
+
+type BulkTurnaroundRiskInfo = {
+  bulkSkuId: string;
+  code: "BULK_SHORT_TURNAROUND";
+  severity: "warning";
+  message: string;
+  bookingId: string;
+  bookingTitle?: string;
+  startsAt: string;
+  gapMinutes: number;
+  plannedQuantity: number;
+};
+
+function formatUpcomingStart(startsAt: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(startsAt));
+}
+
+function upcomingCommitmentLabel(commitment: UpcomingCommitmentInfo) {
+  return `Back before ${formatUpcomingStart(commitment.startsAt)}`;
+}
+
+function primaryRisk<T extends { severity: "warning" | "critical" }>(risks: T[] | undefined) {
+  if (!risks || risks.length === 0) return undefined;
+  return risks.find((risk) => risk.severity === "critical") ?? risks[0];
+}
+
+function riskLabel(risks: Array<{ message: string; severity: "warning" | "critical" }> | undefined) {
+  const risk = primaryRisk(risks);
+  if (!risk) return null;
+  return risks && risks.length > 1 ? `${risk.message} +${risks.length - 1}` : risk.message;
+}
+
+function riskTitle(risks: Array<{ message: string }> | undefined) {
+  return risks?.map((risk) => risk.message).join(" · ") || "Turnaround risk";
+}
+
 export default function BookingEquipmentTab({
   booking,
   onCheckinBulk,
@@ -57,13 +122,19 @@ export default function BookingEquipmentTab({
   const showProgress = isCheckout && totalReturned > 0 && totalOut > 0;
 
   // ── Conflict checking for active bookings ──
-  const isActive = booking.status === "BOOKED" || booking.status === "DRAFT";
+  const isActive = ["BOOKED", "DRAFT", "PENDING_PICKUP", "OPEN"].includes(booking.status);
   const [conflicts, setConflicts] = useState<Map<string, ConflictInfo>>(new Map());
+  const [upcomingCommitments, setUpcomingCommitments] = useState<Map<string, UpcomingCommitmentInfo>>(new Map());
+  const [turnaroundRisks, setTurnaroundRisks] = useState<Map<string, TurnaroundRiskInfo[]>>(new Map());
+  const [bulkTurnaroundRisks, setBulkTurnaroundRisks] = useState<Map<string, BulkTurnaroundRiskInfo[]>>(new Map());
   const abortRef = useRef<AbortController | null>(null);
 
   const fetchConflicts = useCallback(async () => {
     if (!isActive || booking.serializedItems.length === 0) {
       setConflicts(new Map());
+      setUpcomingCommitments(new Map());
+      setTurnaroundRisks(new Map());
+      setBulkTurnaroundRisks(new Map());
       return;
     }
     abortRef.current?.abort();
@@ -80,7 +151,10 @@ export default function BookingEquipmentTab({
           startsAt: booking.startsAt,
           endsAt: booking.endsAt,
           serializedAssetIds: booking.serializedItems.map((i) => i.asset.id),
-          bulkItems: [],
+          bulkItems: booking.bulkItems.map((item) => ({
+            bulkSkuId: item.bulkSku.id,
+            quantity: item.plannedQuantity,
+          })),
           excludeBookingId: booking.id,
         }),
       });
@@ -88,11 +162,14 @@ export default function BookingEquipmentTab({
       const json = await res.json();
       const data = json.data as {
         conflicts?: Array<{ assetId: string; conflictingBookingTitle?: string; startsAt: string; endsAt: string }>;
+        upcomingCommitments?: UpcomingCommitmentInfo[];
+        turnaroundRisks?: TurnaroundRiskInfo[];
+        bulkTurnaroundRisks?: BulkTurnaroundRiskInfo[];
       };
-      const map = new Map<string, ConflictInfo>();
+      const conflictMap = new Map<string, ConflictInfo>();
       if (data.conflicts) {
         for (const c of data.conflicts) {
-          map.set(c.assetId, {
+          conflictMap.set(c.assetId, {
             assetId: c.assetId,
             conflictingBookingTitle: c.conflictingBookingTitle,
             startsAt: c.startsAt,
@@ -100,7 +177,22 @@ export default function BookingEquipmentTab({
           });
         }
       }
-      setConflicts(map);
+      const upcomingMap = new Map<string, UpcomingCommitmentInfo>();
+      for (const c of data.upcomingCommitments ?? []) {
+        upcomingMap.set(c.assetId, c);
+      }
+      const riskMap = new Map<string, TurnaroundRiskInfo[]>();
+      for (const risk of data.turnaroundRisks ?? []) {
+        riskMap.set(risk.assetId, [...(riskMap.get(risk.assetId) ?? []), risk]);
+      }
+      const bulkRiskMap = new Map<string, BulkTurnaroundRiskInfo[]>();
+      for (const risk of data.bulkTurnaroundRisks ?? []) {
+        bulkRiskMap.set(risk.bulkSkuId, [...(bulkRiskMap.get(risk.bulkSkuId) ?? []), risk]);
+      }
+      setConflicts(conflictMap);
+      setUpcomingCommitments(upcomingMap);
+      setTurnaroundRisks(riskMap);
+      setBulkTurnaroundRisks(bulkRiskMap);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       toast.error("Failed to check equipment conflicts — try refreshing.");
@@ -191,6 +283,8 @@ export default function BookingEquipmentTab({
                 item={item}
                 isCheckout={isCheckout}
                 conflict={conflicts.get(item.asset.id)}
+                upcoming={upcomingCommitments.get(item.asset.id)}
+                risks={turnaroundRisks.get(item.asset.id)}
               />
             ))}
             {filteredBulk.map((item) => (
@@ -200,6 +294,7 @@ export default function BookingEquipmentTab({
                 isCheckout={isCheckout}
                 onCheckinBulk={onCheckinBulk}
                 actionLoading={actionLoading}
+                risks={bulkTurnaroundRisks.get(item.bulkSku.id)}
               />
             ))}
           </div>
@@ -221,12 +316,18 @@ function SerializedRow({
   item,
   isCheckout,
   conflict,
+  upcoming,
+  risks,
 }: {
   item: SerializedItem;
   isCheckout: boolean;
   conflict?: ConflictInfo;
+  upcoming?: UpcomingCommitmentInfo;
+  risks?: TurnaroundRiskInfo[];
 }) {
   const returned = item.allocationStatus === "returned";
+  const risk = primaryRisk(risks);
+  const riskText = riskLabel(risks);
 
   return (
     <div className={`group/row flex items-center gap-3 px-3 py-2.5 rounded-md ${returned ? "opacity-60" : "hover:bg-muted/50"}`}>
@@ -256,6 +357,17 @@ function SerializedRow({
             <span className="ml-1.5 font-mono">{item.asset.serialNumber}</span>
           )}
         </div>
+        {upcoming && !conflict && !returned && (
+          <div className="truncate text-[10px] text-blue-600 dark:text-blue-400">
+            {upcomingCommitmentLabel(upcoming)}
+            {upcoming.bookingTitle ? ` · ${upcoming.bookingTitle}` : ""}
+          </div>
+        )}
+        {riskText && !conflict && !returned && (
+          <div className={`truncate text-[10px] ${risk?.severity === "critical" ? "text-red-600 dark:text-red-400" : "text-orange-600 dark:text-orange-400"}`}>
+            {riskText}
+          </div>
+        )}
       </div>
 
       {/* Status + row actions */}
@@ -267,6 +379,28 @@ function SerializedRow({
               : "Scheduling conflict"
           }>
             Conflict
+          </Badge>
+        )}
+        {upcoming && !conflict && !returned && (
+          <Badge
+            variant="blue"
+            size="sm"
+            title={
+              upcoming.bookingTitle
+                ? `Needed next for ${upcoming.bookingTitle}`
+                : "Needed next by another booking"
+            }
+          >
+            Next use
+          </Badge>
+        )}
+        {risk && !conflict && !returned && (
+          <Badge
+            variant={risk.severity === "critical" ? "red" : "orange"}
+            size="sm"
+            title={riskTitle(risks)}
+          >
+            Turnaround
           </Badge>
         )}
         {returned && (
@@ -299,11 +433,13 @@ function BulkRow({
   isCheckout,
   onCheckinBulk,
   actionLoading,
+  risks,
 }: {
   item: BulkItem;
   isCheckout: boolean;
   onCheckinBulk?: (bulkItemId: string, quantity: number) => Promise<boolean>;
   actionLoading?: string | null;
+  risks?: BulkTurnaroundRiskInfo[];
 }) {
   const outQty = item.checkedOutQuantity ?? item.plannedQuantity;
   const inQty = item.checkedInQuantity ?? 0;
@@ -311,6 +447,7 @@ function BulkRow({
   const remaining = outQty - inQty;
   const canReturn = isCheckout && !allReturned && remaining > 0 && !!onCheckinBulk;
   const isLoading = actionLoading === `bulk-${item.id}`;
+  const riskText = riskLabel(risks);
 
   return (
     <div className={`group/row flex items-center gap-3 px-3 py-2.5 rounded-md ${allReturned ? "opacity-60" : "hover:bg-muted/50"}`}>
@@ -343,10 +480,20 @@ function BulkRow({
             : `Qty: ${isCheckout ? outQty : item.plannedQuantity}`}{" "}
           <span className="text-muted-foreground/60">{item.bulkSku.unit}</span>
         </div>
+        {riskText && !allReturned && (
+          <div className="truncate text-[10px] text-orange-600 dark:text-orange-400">
+            {riskText}
+          </div>
+        )}
       </div>
 
       {/* Status + Return All button */}
       <div className="shrink-0 flex items-center gap-2">
+        {risks && risks.length > 0 && !allReturned && (
+          <Badge variant="orange" size="sm" title={riskTitle(risks)}>
+            Turnaround
+          </Badge>
+        )}
         {allReturned ? (
           <span className="text-xs font-medium text-[var(--green-text)]">
             Returned

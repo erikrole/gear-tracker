@@ -6,14 +6,12 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { db } from "@/lib/db";
 import { Prisma, type StudentYear } from "@prisma/client";
 import { sportLabel } from "@/lib/sports";
+import { csvField } from "@/lib/csv";
 
 const EXPORT_LIMIT = { max: 5, windowMs: 60_000 };
 
-function csvField(value: string | number | null | undefined): string {
-  if (value == null) return "";
-  const s = String(value);
-  if (/[,"\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
+function canExportSensitiveContact(actorRole: string, targetRole: string): boolean {
+  return actorRole === "ADMIN" || targetRole === "STUDENT";
 }
 
 // Derive student year from grad year using Sept→Aug academic calendar.
@@ -122,12 +120,13 @@ export const GET = withAuth(async (req, { user }) => {
       .map((a) => `${a.area}${a.isPrimary ? "*" : ""}`)
       .join(" ");
     const sports = u.sportAssignments.map((s) => sportLabel(s.sportCode)).join(" ");
+    const includeSensitiveContact = canExportSensitiveContact(user.role, u.role);
     return [
       csvField(u.name),
       csvField(u.role),
       csvField(u.email),
-      csvField(u.athleticsEmail),
-      csvField(u.phone),
+      csvField(includeSensitiveContact ? u.athleticsEmail : null),
+      csvField(includeSensitiveContact ? u.phone : null),
       csvField(u.title),
       csvField(year),
       csvField(u.gradYear),

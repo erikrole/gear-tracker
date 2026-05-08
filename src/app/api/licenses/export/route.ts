@@ -4,15 +4,9 @@ import { HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { listAllCodes } from "@/lib/services/licenses";
+import { csvField } from "@/lib/csv";
 
 const EXPORT_LIMIT = { max: 5, windowMs: 60_000 };
-
-function csvField(value: string | null | undefined): string {
-  if (value == null) return "";
-  const s = String(value);
-  if (/[,"\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
-}
 
 export const GET = withAuth(async (_req, { user }) => {
   requirePermission(user.role, "license", "manage");

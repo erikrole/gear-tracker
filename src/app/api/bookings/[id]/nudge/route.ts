@@ -14,7 +14,7 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   // requireBookingAction checks: staff+ role, OPEN status, CHECKOUT kind
   const booking = await requireBookingAction(params.id, user, "nudge");
 
-  const isOverdue = booking.endsAt < new Date();
+  const isOverdue = booking.endsAt <= new Date();
   if (!isOverdue) {
     throw new HttpError(400, "Booking is not overdue");
   }

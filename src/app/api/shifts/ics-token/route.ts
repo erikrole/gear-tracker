@@ -3,6 +3,7 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
 import { createAuditEntry } from "@/lib/audit";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 // Returns the current user's existing ICS token (null if none generated yet).
 export const GET = withAuth(async (_req, { user }) => {
@@ -18,6 +19,7 @@ export const GET = withAuth(async (_req, { user }) => {
 // calendar feed (Google Calendar shared with a household, screenshot in
 // Slack, etc.), this is the recovery path.
 export const POST = withAuth(async (_req, { user }) => {
+  await enforceRateLimit(`shifts:ics-token:${user.id}`, { max: 5, windowMs: 60 * 60_000 });
   const token = randomBytes(24).toString("hex");
   await db.user.update({
     where: { id: user.id },

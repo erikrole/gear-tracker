@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { Role } from "@prisma/client";
+import { sanitizeJsonStrings } from "@/lib/sanitize";
 
 function slugify(title: string): string {
   return title
@@ -99,7 +100,7 @@ export async function createGuide(data: {
       title: data.title,
       slug,
       category: data.category,
-      content: data.content as never,
+      content: sanitizeJsonStrings(data.content) as never,
       published: data.published ?? false,
       authorId: data.authorId,
     },
@@ -153,7 +154,7 @@ export async function updateGuide(
       ...(patch.title !== undefined && { title: patch.title }),
       ...(slug !== undefined && { slug }),
       ...(patch.category !== undefined && { category: patch.category }),
-      ...(patch.content !== undefined && { content: patch.content as never }),
+      ...(patch.content !== undefined && { content: sanitizeJsonStrings(patch.content) as never }),
       ...(patch.published !== undefined && { published: patch.published }),
     },
     include: { author: { select: { id: true, name: true } } },

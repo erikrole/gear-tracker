@@ -1,13 +1,7 @@
 import { NextResponse } from "next/server";
-import { timingSafeEqual } from "crypto";
-import { withHandler } from "@/lib/api";
+import { withCron } from "@/lib/cron";
 import { db } from "@/lib/db";
 import { AUDIT_RETENTION_DAYS } from "@/lib/audit";
-
-function safeCompare(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
-}
 
 /**
  * Retention policy: delete audit log entries older than AUDIT_RETENTION_DAYS.
@@ -19,22 +13,7 @@ function safeCompare(a: string, b: string): boolean {
  */
 const BATCH_SIZE = 1000;
 
-export const GET = withHandler(async (req) => {
-  const authHeader = req.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret) {
-    return NextResponse.json(
-      { error: "CRON_SECRET not configured" },
-      { status: 500 },
-    );
-  }
-
-  const token = authHeader?.replace("Bearer ", "") ?? "";
-  if (!safeCompare(token, cronSecret)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export const GET = withCron(async () => {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - AUDIT_RETENTION_DAYS);
 

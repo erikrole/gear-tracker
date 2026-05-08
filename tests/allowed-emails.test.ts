@@ -180,7 +180,7 @@ describe("POST /api/allowed-emails (single)", () => {
     );
   });
 
-  it("returns 409 when user with email is already registered", async () => {
+  it("returns a generic success skip when user with email is already registered", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
     vi.mocked(db.user.findUnique).mockResolvedValue({ id: "existing-user" } as any);
 
@@ -189,9 +189,14 @@ describe("POST /api/allowed-emails (single)", () => {
       noParams
     );
 
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(201);
     const body = await res.json();
-    expect(body.error).toContain("already registered");
+    expect(body).toEqual({
+      email: "existing@uw.edu",
+      role: "STUDENT",
+      skipped: true,
+    });
+    expect(db.allowedEmail.create).not.toHaveBeenCalled();
   });
 
   it("STAFF cannot add STAFF-role entries", async () => {
@@ -265,7 +270,7 @@ describe("POST /api/allowed-emails (bulk)", () => {
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.created).toBe(1);
-    expect(body.skipped).toContain("existing@uw.edu");
+    expect(body.skipped).toBe(1);
   });
 
   it("STAFF cannot bulk-add STAFF-role entries", async () => {

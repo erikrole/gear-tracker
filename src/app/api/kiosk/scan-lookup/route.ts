@@ -1,12 +1,15 @@
 import { db } from "@/lib/db";
 import { withKiosk } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
+import { enforceRateLimit } from "@/lib/rate-limit";
 import { findAssetByScanValue } from "@/lib/services/kiosk-scan";
 import { findBulkUnitByScanValue } from "@/lib/services/bulk-unit-scans";
 import { scanLookupBody } from "@/lib/schemas/kiosk";
 
 /** Look up an item by QR code or asset tag */
-export const POST = withKiosk(async (req) => {
+export const POST = withKiosk(async (req, { kiosk }) => {
+  await enforceRateLimit(`kiosk:scan-lookup:${kiosk.kioskId}`, { max: 120, windowMs: 60_000 });
+  await enforceRateLimit(`kiosk:scan-lookup:${kiosk.kioskId}:hour`, { max: 1_000, windowMs: 60 * 60_000 });
   const { scanValue } = scanLookupBody.parse(await req.json());
 
   const asset = await findAssetByScanValue(scanValue, {

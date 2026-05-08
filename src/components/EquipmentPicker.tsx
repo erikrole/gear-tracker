@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { usePickerSearch } from "@/components/equipment-picker/use-picker-search";
-import { useConflictCheck, type ConflictInfo } from "@/components/equipment-picker/use-conflict-check";
+import {
+  useConflictCheck,
+  type BulkTurnaroundRiskInfo,
+  type ConflictInfo,
+  type TurnaroundRiskInfo,
+  type UpcomingCommitmentInfo,
+} from "@/components/equipment-picker/use-conflict-check";
 import {
   EQUIPMENT_SECTIONS,
   classifyAssetType,
@@ -119,7 +125,41 @@ export type EquipmentPickerProps = {
   onActiveSectionChange?: (section: EquipmentSectionKey) => void;
 };
 
-export { type ConflictInfo };
+export { type BulkTurnaroundRiskInfo, type ConflictInfo, type TurnaroundRiskInfo, type UpcomingCommitmentInfo };
+
+function formatUpcomingStart(startsAt: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(startsAt));
+}
+
+function upcomingCommitmentLabel(commitment: UpcomingCommitmentInfo) {
+  return `Back before ${formatUpcomingStart(commitment.startsAt)}`;
+}
+
+function upcomingCommitmentTitle(commitment: UpcomingCommitmentInfo) {
+  return commitment.bookingTitle
+    ? `Needed next for ${commitment.bookingTitle}`
+    : "Needed next by another booking";
+}
+
+function primaryRisk<T extends { severity: "warning" | "critical" }>(risks: T[] | undefined) {
+  if (!risks || risks.length === 0) return undefined;
+  return risks.find((risk) => risk.severity === "critical") ?? risks[0];
+}
+
+function riskLabel(risks: Array<{ message: string; severity: "warning" | "critical" }> | undefined) {
+  const risk = primaryRisk(risks);
+  if (!risk) return null;
+  return risks && risks.length > 1 ? `${risk.message} +${risks.length - 1}` : risk.message;
+}
+
+function riskTitle(risks: Array<{ message: string }> | undefined) {
+  return risks?.map((risk) => risk.message).join(" · ") || "Turnaround risk";
+}
 
 /* ───── Component ───── */
 
@@ -192,15 +232,42 @@ export default function EquipmentPicker({
     onlyAvailable,
   });
 
+  const bulkById = useMemo(() => new Map(bulkSkus.map((s) => [s.id, s])), [bulkSkus]);
+  const bulkBySection = useMemo(() => groupBulkBySection(bulkSkus), [bulkSkus]);
+
+  // ── Section data ──
+  const sectionBulk = useMemo(() => {
+    const q = sectionSearch.toLowerCase();
+    return (bulkBySection[activeSection] || []).filter((s) =>
+      !q || s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q)
+    );
+  }, [bulkBySection, activeSection, sectionSearch]);
+
   const conflictPreviewAssetIds = useMemo(() => {
     return Array.from(new Set([...sectionResults.map((asset) => asset.id), ...selectedAssetIds]));
   }, [sectionResults, selectedAssetIds]);
 
-  const { conflicts, checking: conflictsLoading } = useConflictCheck({
+  const bulkPreviewItems = useMemo(() => {
+    const quantities = new Map<string, number>();
+    for (const item of selectedBulkItems) quantities.set(item.bulkSkuId, item.quantity);
+    for (const sku of sectionBulk) {
+      if (!quantities.has(sku.id)) quantities.set(sku.id, 1);
+    }
+    return Array.from(quantities, ([bulkSkuId, quantity]) => ({ bulkSkuId, quantity }));
+  }, [sectionBulk, selectedBulkItems]);
+
+  const {
+    conflicts,
+    upcomingCommitments,
+    turnaroundRisks,
+    bulkTurnaroundRisks,
+    checking: conflictsLoading,
+  } = useConflictCheck({
     startsAt,
     endsAt,
     locationId,
     assetIds: conflictPreviewAssetIds,
+    bulkItems: bulkPreviewItems,
     excludeBookingId,
   });
 
@@ -249,17 +316,7 @@ export default function EquipmentPicker({
     return m;
   }, [sectionResults, selectedAssetsCache, cacheVersion]);
 
-  const bulkById = useMemo(() => new Map(bulkSkus.map((s) => [s.id, s])), [bulkSkus]);
-  const bulkBySection = useMemo(() => groupBulkBySection(bulkSkus), [bulkSkus]);
   const selectedIdSet = useMemo(() => new Set(selectedAssetIds), [selectedAssetIds]);
-
-  // ── Section data ──
-  const sectionBulk = useMemo(() => {
-    const q = sectionSearch.toLowerCase();
-    return (bulkBySection[activeSection] || []).filter((s) =>
-      !q || s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q)
-    );
-  }, [bulkBySection, activeSection, sectionSearch]);
 
   const visibleAvailableAssetIds = useMemo(() => {
     return sectionResults
@@ -608,6 +665,10 @@ export default function EquipmentPicker({
             {sectionResults.map((asset, index) => {
               const isSelected = selectedIdSet.has(asset.id);
               const conflict = conflicts.get(asset.id);
+              const upcoming = upcomingCommitments.get(asset.id);
+              const risks = turnaroundRisks.get(asset.id);
+              const risk = primaryRisk(risks);
+              const riskText = riskLabel(risks);
               const isAvailable = asset.computedStatus === "AVAILABLE";
               const isUnavailable = !isAvailable && !isSelected;
               const holder = asset.currentHolder;
@@ -654,16 +715,54 @@ export default function EquipmentPicker({
                             {holder.endsAt && ` · Returns ${new Date(holder.endsAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
                           </p>
                         )}
+                        {upcoming && !conflict && !isUnavailable && (
+                          <p className="mt-0.5 truncate text-[10px] text-blue-600 dark:text-blue-400">
+                            {upcomingCommitmentLabel(upcoming)}
+                            {upcoming.bookingTitle ? ` · ${upcoming.bookingTitle}` : ""}
+                          </p>
+                        )}
+                        {riskText && !conflict && !isUnavailable && (
+                          <p className={cn(
+                            "mt-0.5 truncate text-[10px]",
+                            risk?.severity === "critical"
+                              ? "text-red-600 dark:text-red-400"
+                              : "text-orange-600 dark:text-orange-400",
+                          )}>
+                            {riskText}
+                          </p>
+                        )}
                       </button>
                     </ItemContent>
                     <ItemActions className="ml-auto">
-                      {isUnavailable && !holder ? (
+                      {isUnavailable && !holder && (
                         <Badge variant="secondary" size="sm" className="shrink-0">
                           {asset.computedStatus.replace(/_/g, " ").toLowerCase()}
                         </Badge>
-                      ) : conflict ? (
+                      )}
+                      {conflict && (
                         <Badge variant="orange" size="sm" className="shrink-0">Conflict</Badge>
-                      ) : isSelected ? (
+                      )}
+                      {!conflict && upcoming && (
+                        <Badge
+                          variant="blue"
+                          size="sm"
+                          className="shrink-0"
+                          title={upcomingCommitmentTitle(upcoming)}
+                        >
+                          Next use
+                        </Badge>
+                      )}
+                      {!conflict && risk && (
+                        <Badge
+                          variant={risk.severity === "critical" ? "red" : "orange"}
+                          size="sm"
+                          className="shrink-0"
+                          title={riskTitle(risks)}
+                        >
+                          Turnaround
+                        </Badge>
+                      )}
+                      {isSelected && !conflict ? (
                         <CheckCircle2Icon className="size-5 shrink-0 text-green-500" />
                       ) : null}
                     </ItemActions>
@@ -677,6 +776,8 @@ export default function EquipmentPicker({
               const available = sku.availableQuantity ?? sku.currentQuantity;
               const noneAvailable = available === 0;
               const hasSeparator = sectionResults.length > 0 || index > 0;
+              const risks = bulkTurnaroundRisks.get(sku.id);
+              const riskText = riskLabel(risks);
 
               return (
                 <div key={sku.id}>
@@ -697,8 +798,18 @@ export default function EquipmentPicker({
                       <ItemDescription className={cn("text-xs", noneAvailable && "text-destructive")}>
                         {noneAvailable ? "None available" : `${available} available`}
                       </ItemDescription>
+                      {riskText && (
+                        <p className="mt-0.5 truncate text-[10px] text-orange-600 dark:text-orange-400">
+                          {riskText}
+                        </p>
+                      )}
                     </ItemContent>
                     <ItemActions className="ml-auto">
+                      {risks && risks.length > 0 && (
+                        <Badge variant="orange" size="sm" className="shrink-0" title={riskTitle(risks)}>
+                          Turnaround
+                        </Badge>
+                      )}
                       <Button
                         type="button"
                         variant="outline"
@@ -757,10 +868,46 @@ export default function EquipmentPicker({
                   <ItemContent>
                     <ItemTitle className="truncate">{asset.assetTag}</ItemTitle>
                     <ItemDescription className="truncate text-xs">{asset.brand} {asset.model}</ItemDescription>
+                    {upcomingCommitments.has(asset.id) && !conflicts.has(asset.id) && (
+                      <p className="truncate text-[10px] text-blue-600 dark:text-blue-400">
+                        {upcomingCommitmentLabel(upcomingCommitments.get(asset.id)!)}
+                        {upcomingCommitments.get(asset.id)!.bookingTitle ? ` · ${upcomingCommitments.get(asset.id)!.bookingTitle}` : ""}
+                      </p>
+                    )}
+                    {turnaroundRisks.has(asset.id) && !conflicts.has(asset.id) && (
+                      <p className={cn(
+                        "truncate text-[10px]",
+                        primaryRisk(turnaroundRisks.get(asset.id))?.severity === "critical"
+                          ? "text-red-600 dark:text-red-400"
+                          : "text-orange-600 dark:text-orange-400",
+                      )}>
+                        {riskLabel(turnaroundRisks.get(asset.id))}
+                      </p>
+                    )}
                   </ItemContent>
                   <ItemActions>
                     {conflicts.has(asset.id) && (
                       <Badge variant="orange" size="sm" className="shrink-0">Conflict</Badge>
+                    )}
+                    {upcomingCommitments.has(asset.id) && !conflicts.has(asset.id) && (
+                      <Badge
+                        variant="blue"
+                        size="sm"
+                        className="shrink-0"
+                        title={upcomingCommitmentTitle(upcomingCommitments.get(asset.id)!)}
+                      >
+                        Next use
+                      </Badge>
+                    )}
+                    {turnaroundRisks.has(asset.id) && !conflicts.has(asset.id) && (
+                      <Badge
+                        variant={primaryRisk(turnaroundRisks.get(asset.id))?.severity === "critical" ? "red" : "orange"}
+                        size="sm"
+                        className="shrink-0"
+                        title={riskTitle(turnaroundRisks.get(asset.id))}
+                      >
+                        Turnaround
+                      </Badge>
                     )}
                     <Button
                       type="button"
@@ -809,6 +956,7 @@ export default function EquipmentPicker({
               const sku = bulkById.get(item.bulkSkuId);
               if (!sku) return null;
               const previousRows = resolvedSelectedAssets.length + unresolvedSelectedAssetIds.length + index;
+              const risks = bulkTurnaroundRisks.get(item.bulkSkuId);
               return (
                 <div key={item.bulkSkuId}>
                   {previousRows > 0 && <ItemSeparator />}
@@ -819,8 +967,18 @@ export default function EquipmentPicker({
                     <ItemContent>
                       <ItemTitle className="truncate">{sku.name}</ItemTitle>
                       <ItemDescription className="text-xs">x {item.quantity}</ItemDescription>
+                      {risks && risks.length > 0 && (
+                        <p className="truncate text-[10px] text-orange-600 dark:text-orange-400">
+                          {riskLabel(risks)}
+                        </p>
+                      )}
                     </ItemContent>
                     <ItemActions>
+                      {risks && risks.length > 0 && (
+                        <Badge variant="orange" size="sm" className="shrink-0" title={riskTitle(risks)}>
+                          Turnaround
+                        </Badge>
+                      )}
                       <Button
                         type="button"
                         variant="ghost"

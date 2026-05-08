@@ -3,10 +3,13 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/rbac";
 import { buildDerivedStatusWhere, enrichAssetsWithStatusFromLoaded } from "@/lib/services/status";
+import { enforceRateLimit } from "@/lib/rate-limit";
+import { csvField } from "@/lib/csv";
 import type { Prisma } from "@prisma/client";
 
 export const GET = withAuth(async (req, { user }) => {
   requirePermission(user.role, "asset", "export");
+  await enforceRateLimit(`asset:export:${user.id}`, { max: 10, windowMs: 60_000 });
 
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q")?.trim();
@@ -78,17 +81,17 @@ export const GET = withAuth(async (req, { user }) => {
   // Build CSV
   const headers = ["Asset Tag", "Name", "Brand", "Model", "Serial Number", "Status", "Category", "Department", "Location", "Purchase Date", "Purchase Price"];
   const rows = assets.map((a) => [
-    csvEscape(a.assetTag),
-    csvEscape(a.name || ""),
-    csvEscape(a.brand),
-    csvEscape(a.model),
-    csvEscape(a.serialNumber || ""),
-    csvEscape(a.computedStatus),
-    csvEscape(a.category?.name || ""),
-    csvEscape(a.department?.name || ""),
-    csvEscape(a.location?.name || ""),
-    csvEscape(a.purchaseDate ? new Date(a.purchaseDate).toISOString().slice(0, 10) : ""),
-    a.purchasePrice != null ? String(a.purchasePrice) : "",
+    csvField(a.assetTag),
+    csvField(a.name || ""),
+    csvField(a.brand),
+    csvField(a.model),
+    csvField(a.serialNumber || ""),
+    csvField(a.computedStatus),
+    csvField(a.category?.name || ""),
+    csvField(a.department?.name || ""),
+    csvField(a.location?.name || ""),
+    csvField(a.purchaseDate ? new Date(a.purchaseDate).toISOString().slice(0, 10) : ""),
+    csvField(a.purchasePrice != null ? String(a.purchasePrice) : ""),
   ]);
 
   const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
@@ -104,10 +107,3 @@ export const GET = withAuth(async (req, { user }) => {
     },
   });
 });
-
-function csvEscape(value: string): string {
-  if (value.includes(",") || value.includes('"') || value.includes("\n")) {
-    return `"${value.replace(/"/g, '""')}"`;
-  }
-  return value;
-}

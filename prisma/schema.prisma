@@ -86,6 +86,7 @@ model User {
   name                 String
   email                String                     @unique
   passwordHash         String                     @map("password_hash")
+  forcePasswordChange  Boolean                    @default(false) @map("force_password_change")
   role                 Role
   active               Boolean                    @default(true)
   phone                String?
@@ -601,16 +602,19 @@ enum CalendarEventStatus {
 }
 
 model CalendarSource {
-  id            String          @id @default(cuid())
-  name          String
-  url           String
-  enabled       Boolean         @default(true)
-  lastFetchedAt DateTime?       @map("last_fetched_at")
-  lastError     String?         @map("last_error")
-  createdAt     DateTime        @default(now()) @map("created_at")
-  updatedAt     DateTime        @updatedAt @map("updated_at")
-  events        CalendarEvent[]
+  id             String          @id @default(cuid())
+  name           String
+  url            String
+  enabled        Boolean         @default(true)
+  lastFetchedAt  DateTime?       @map("last_fetched_at")
+  lastError      String?         @map("last_error")
+  syncLeaseUntil DateTime?       @map("sync_lease_until")
+  syncLeaseOwner String?         @map("sync_lease_owner")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  events         CalendarEvent[]
 
+  @@index([syncLeaseUntil])
   @@map("calendar_sources")
 }
 

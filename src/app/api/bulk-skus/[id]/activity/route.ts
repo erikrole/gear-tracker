@@ -19,14 +19,23 @@ export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
     Math.max(1, Number(url.searchParams.get("limit")) || DEFAULT_LIMIT),
     MAX_LIMIT,
   );
+  const activityWhere = {
+    OR: [
+      { entityType: "bulk_sku", entityId: id },
+      { entityType: "bulk_sku_unit", entityId: { startsWith: `${id}#` } },
+    ],
+  };
+
+  if (cursor) {
+    const cursorLog = await db.auditLog.findFirst({
+      where: { id: cursor, ...activityWhere },
+      select: { id: true },
+    });
+    if (!cursorLog) throw new HttpError(400, "Invalid activity cursor");
+  }
 
   const logs = await db.auditLog.findMany({
-    where: {
-      OR: [
-        { entityType: "bulk_sku", entityId: id },
-        { entityType: "bulk_sku_unit", entityId: { startsWith: `${id}#` } },
-      ],
-    },
+    where: activityWhere,
     orderBy: { createdAt: "desc" },
     take: limit + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),

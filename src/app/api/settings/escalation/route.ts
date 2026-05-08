@@ -66,7 +66,7 @@ export const PATCH = withAuth(async (req, { user }) => {
       entityType: "system_config",
       entityId: "escalation",
       action: "escalation_config_updated",
-      before: before ?? undefined,
+      before: before ?? { existed: false },
       after: { maxNotificationsPerBooking: cap },
     });
     return ok({ maxNotificationsPerBooking: cap });

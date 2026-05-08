@@ -24,7 +24,19 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
       status: true,
       kind: true,
       title: true,
-      serializedItems: { select: { id: true } },
+      serializedItems: {
+        select: {
+          assetId: true,
+          asset: { select: { assetTag: true, name: true } },
+        },
+      },
+      scanEvents: {
+        where: {
+          success: true,
+          assetId: { not: null },
+        },
+        select: { assetId: true, phase: true },
+      },
       bulkItems: {
         select: {
           plannedQuantity: true,
@@ -41,6 +53,19 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
 
   if (booking.status !== "PENDING_PICKUP") {
     throw new HttpError(409, `Cannot confirm pickup — booking is in ${booking.status} state`);
+  }
+
+  const scannedSerializedAssetIds = new Set(
+    booking.scanEvents
+      .filter((event) => event.phase === "CHECKOUT")
+      .map((event) => event.assetId),
+  );
+  const missingSerialized = booking.serializedItems.find(
+    (item) => !scannedSerializedAssetIds.has(item.assetId),
+  );
+  if (missingSerialized) {
+    const label = missingSerialized.asset.name || missingSerialized.asset.assetTag;
+    throw new HttpError(409, `Scan ${label} before confirming pickup`);
   }
 
   const incompleteBulk = booking.bulkItems.find(

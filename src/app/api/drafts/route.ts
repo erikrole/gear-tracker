@@ -26,6 +26,10 @@ function dedupeIds(ids: string[]) {
   return Array.from(new Set(ids));
 }
 
+function draftExpiryCutoff(now = new Date()) {
+  return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+}
+
 async function resolveDraftEventLinks(tx: Prisma.TransactionClient, body: z.infer<typeof saveDraftSchema>) {
   if (body.eventId && body.eventIds && body.eventIds.length > 0) {
     throw new HttpError(400, "Provide either eventId or eventIds, not both");
@@ -57,8 +61,12 @@ async function resolveDraftEventLinks(tx: Prisma.TransactionClient, body: z.infe
 
 /** GET /api/drafts — list current user's drafts */
 export const GET = withAuth(async (_req, { user }) => {
+  await db.booking.deleteMany({
+    where: { status: "DRAFT", createdBy: user.id, updatedAt: { lt: draftExpiryCutoff() } },
+  });
+
   const drafts = await db.booking.findMany({
-    where: { status: "DRAFT", createdBy: user.id },
+    where: { status: "DRAFT", createdBy: user.id, updatedAt: { gte: draftExpiryCutoff() } },
     orderBy: { updatedAt: "desc" },
     take: 10,
     include: {

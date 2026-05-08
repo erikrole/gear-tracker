@@ -12,6 +12,7 @@ const updateSchema = z.object({
 }).refine((body) => body.name !== undefined || body.parentId !== undefined, {
   message: "No fields to update",
 });
+const MAX_CATEGORY_PARENT_DEPTH = 25;
 
 export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "category", "edit");
@@ -34,7 +35,12 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     });
     if (!parent) throw new HttpError(404, "Parent category not found");
 
+    let depth = 0;
     while (parent.parentId) {
+      depth += 1;
+      if (depth > MAX_CATEGORY_PARENT_DEPTH) {
+        throw new HttpError(400, "Category parent chain is too deep");
+      }
       if (parent.parentId === id) {
         throw new HttpError(400, "Category cannot be moved under one of its subcategories");
       }

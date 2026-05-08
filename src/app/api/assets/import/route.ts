@@ -501,6 +501,8 @@ export const POST = withAuth(async (req, { user }) => {
   const toCreate: Array<ReturnType<typeof buildAssetData>> = [];
   const toUpdate: Array<{ id: string; data: Record<string, unknown> }> = [];
   const bulkRows: Array<{ row: NormalizedRow; locationId: string }> = [];
+  const seenCreateAssetTags = new Set<string>();
+  const seenCreateScanValues = new Set<string>();
   let createdCount = 0;
   let updatedCount = 0;
   let bulkCreatedCount = 0;
@@ -549,6 +551,26 @@ export const POST = withAuth(async (req, { user }) => {
       toUpdate.push({ id: existing.id, data: updateData });
       updatedCount += 1;
     } else {
+      if (seenCreateAssetTags.has(row.assetTag)) {
+        importErrors.push({
+          line: row.line,
+          assetTag: row.assetTag,
+          error: "Duplicate asset tag in import file",
+        });
+        continue;
+      }
+      const rowScanValues = [row.qrCodeValue, row.primaryScanCode].filter((value): value is string => Boolean(value));
+      const duplicateScanValue = rowScanValues.find((value) => seenCreateScanValues.has(value));
+      if (duplicateScanValue) {
+        importErrors.push({
+          line: row.line,
+          assetTag: row.assetTag,
+          error: `Duplicate tracking code in import file: ${duplicateScanValue}`,
+        });
+        continue;
+      }
+      seenCreateAssetTags.add(row.assetTag);
+      for (const value of rowScanValues) seenCreateScanValues.add(value);
       toCreate.push(buildAssetData(row, locationId, departmentId));
       createdCount += 1;
     }
@@ -561,7 +583,7 @@ export const POST = withAuth(async (req, { user }) => {
   await db.$transaction(async (tx) => {
     // 4. Create new assets
     if (toCreate.length > 0) {
-      await tx.asset.createMany({ data: toCreate, skipDuplicates: true });
+      await tx.asset.createMany({ data: toCreate });
     }
 
     // 5. Update existing assets

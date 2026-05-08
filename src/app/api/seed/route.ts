@@ -7,17 +7,28 @@ import { ok, HttpError } from "@/lib/http";
  * POST /api/seed
  * Bootstraps an admin account against the first available home venue.
  * Canonical location seeding lives in prisma/seed.mjs — run that first.
- * In production, requires ADMIN auth. In development, allows unauthenticated access
- * for initial setup (before any users exist).
+ * Disabled unless SEED_ENDPOINT_ENABLED=true. When enabled in production, requires
+ * ADMIN auth. In development, allows unauthenticated access for initial setup.
  */
-export const POST = process.env.NODE_ENV === "production"
-  ? withAuth(async (_req, { user }) => {
-      if (user.role !== "ADMIN") throw new HttpError(403, "Admin only");
-      return runSeed();
-    })
-  : withHandler(async () => {
-      return runSeed();
-    });
+const seedEndpointEnabled = process.env.SEED_ENDPOINT_ENABLED === "true";
+
+async function assertSeedEnabled() {
+  if (!seedEndpointEnabled) {
+    throw new HttpError(404, "Not found");
+  }
+}
+
+export const POST =
+  process.env.NODE_ENV === "production"
+    ? withAuth(async (_req, { user }) => {
+        await assertSeedEnabled();
+        if (user.role !== "ADMIN") throw new HttpError(403, "Admin only");
+        return runSeed();
+      })
+    : withHandler(async () => {
+        await assertSeedEnabled();
+        return runSeed();
+      });
 
 async function runSeed() {
   const location = await db.location.findFirst({

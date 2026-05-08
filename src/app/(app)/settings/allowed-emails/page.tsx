@@ -127,11 +127,11 @@ export default function AllowedEmailsPage() {
       if (res.ok) {
         const json = await res.json();
         const created = (json.created as number) ?? 0;
-        const skipped = (json.skipped as string[]) ?? [];
-        if (created > 0 && skipped.length === 0) {
+        const skipped = (json.skipped as number) ?? 0;
+        if (created > 0 && skipped === 0) {
           toast.success(`Added ${created} email${created === 1 ? "" : "s"} to allowlist`);
         } else if (created > 0) {
-          toast.success(`Added ${created}; skipped ${skipped.length} already on allowlist or registered`);
+          toast.success(`Added ${created}; skipped ${skipped} already on allowlist or registered`);
         } else {
           toast.message("All emails were already on the allowlist or registered.");
         }

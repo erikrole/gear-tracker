@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Items
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-06
+- Last Updated: 2026-05-08
 - Status: Active
 - Version: V1
 
@@ -379,6 +379,7 @@ Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered 
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-05-08: API hardening Wave 2. `/api/items-page-init` and `/api/inventory-hygiene` now use partial-failure handling for parallel reference and checklist queries. Failed side queries fall back to empty data, log the failed segment, and return `partialFailures` metadata instead of taking down the entire items list bootstrap or hygiene checklist.
 - 2026-05-06: **Inventory Hygiene Center shipped** at `/items/hygiene`. The first slice is a read-only staff/admin checklist backed by `GET /api/inventory-hygiene`, covering missing category, missing department, missing primary scan code, missing image, duplicate scan identity, retired items still in active kits, camera bodies without attachments, and low-threshold bulk SKUs. Each sample links to the existing repair surface.
 - 2026-05-06: **Item detail tabs final polish** — Schedule now pairs the month grid with a compact month agenda and quieter calendar chrome. Insights now uses recorded completion audit activity for return-timing when available, labels that metric more honestly, and renders item age in human-readable units. Attachments no longer shows a misleading travel rule on items with no attached children, and its empty state now explains when fixed accessories should be added.
 - 2026-05-06: **Item detail tabs follow-up** — Schedule now uses start, continuation, and end markers so long bookings no longer visually repeat the same title on every occupied day. Past Bookings now receives requester avatar URLs from the item detail API and renders a denser context row with title, requester, range, kind, and status. History now supports scoped backend activity queries, cursor pagination, cleaner legacy audit labels, and quieter field-change output for import metadata.
@@ -444,7 +445,11 @@ Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered 
 - 2026-04-09: **Item detail pages rebuilt** — (1) Stale actionBusy closure in use-item-actions fixed with ref guard. (2) 401 handling added to all 15 mutation paths across 5 files (field saves, category/dept/location, QR generate/manual, settings toggles, accessory attach/detach, favorite, duplicate, retire, maintenance, delete). (3) Dead `details-grid` CSS class replaced with Tailwind grid. (4) CSS vars (`--text-tertiary`, `--accent`, `--accent-soft`) replaced with Tailwind tokens. (5) `text-secondary` (background token) corrected to `text-muted-foreground`. (6) Unstable `toast` removed from useCallback deps in use-item-data.
 - 2026-04-09: **Item detail header redesign** (commit 37d127b) — "Equipment manifest" aesthetic. Replaces flat header with card-based design: top red accent stripe, atmospheric corner glow, Gotham typography for asset tag (weight 900) and name, mono brand/model/serial lines, refined property pills row with status badge and vertical divider. Tab bar labels updated to Gotham Medium with mono shortcut indicators. File modified: `ItemHeader.tsx` (392→275 lines; refactored for brand identity).
 - 2026-04-09: **Gap Wizard shipped** (commit 3f4ca67) — One-by-one dialog for assigning missing category or department to items. Reachable via "Fill gaps" button in items page header. Shows upfront count of items missing each field. Walks through items one-by-one: user can assign value via picker, skip to next, or stop. API: `GET /api/assets?missing=category|department` returns count and data, `PATCH /api/assets/[id]` to assign. New file: `gap-wizard-dialog.tsx` (320 lines). Imports `CategoryCombobox`, `FormCombobox`, `AssetImage`.
+- 2026-05-07: **Items list context menu** — Right-clicking item rows now opens a row context menu with open, open-in-new-tab, select, copy tag, favorite, print label, and staff/admin lifecycle actions. Bulk rows keep safe open/copy/select actions only, so serialized-only mutations are not exposed for bulk inventory records.
 - 2026-05-07: **Item row photo visibility fix** — Item list rows now keep the thumbnail slot visible in both comfortable and compact density; importer upserts no longer clear existing asset photos when the source row lacks an image URL.
+- 2026-05-08: **API hardening Wave 10** — Asset retire now reads current status, writes `RETIRED`, and records audit metadata inside one SERIALIZABLE transaction. Favorite toggles now use explicit `asset.favorite` permission and verify the asset exists before creating or deleting the favorite row.
+- 2026-05-08: **API hardening Wave 12** — Asset import now reports duplicate asset tags/tracking codes instead of silently skipping create conflicts, item CSV export is actor-rate-limited and formula-safe, picker search caps at 100 rows, and external image mirroring uses an explicit 5s timeout.
+- 2026-05-08: **API hardening Wave 13** — Asset brand reference reads now use short private caching, item activity uses the explicit `asset.audit` permission, and the permission map includes `asset.audit` for ADMIN/STAFF.
 
 ## Roadmaps
 - **Items list page**: `tasks/items-roadmap.md` — V1 polish, V2 enhanced UX, V3 advanced features

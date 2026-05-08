@@ -14,6 +14,7 @@ import { sectionWhere, ALL_SECTION_KEYS } from "@/lib/equipment-section-filters"
 import type { EquipmentSectionKey } from "@/lib/equipment-sections";
 
 const VALID_SECTIONS = new Set<string>(ALL_SECTION_KEYS);
+const MAX_PICKER_LIMIT = 100;
 
 const pickerSelect = {
   id: true,
@@ -46,7 +47,9 @@ export const GET = withAuth(async (req, { user }) => {
 
   const ids = idsParam ? idsParam.split(",").filter(Boolean) : undefined;
 
-  const { limit, offset } = parsePagination(searchParams);
+  const parsed = parsePagination(searchParams);
+  const limit = Math.min(parsed.limit, MAX_PICKER_LIMIT);
+  const offset = parsed.offset;
 
   // Build WHERE clause
   const conditions: Prisma.AssetWhereInput[] = [

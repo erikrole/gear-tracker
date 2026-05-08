@@ -118,7 +118,7 @@ export const updateBulkUnitSchema = z.object({
 });
 
 export const adjustBulkSchema = z.object({
-  quantityDelta: z.number().int().refine((x) => x !== 0, "quantityDelta cannot be 0"),
+  quantityDelta: z.number().int().min(-1_000_000).max(1_000_000).refine((x) => x !== 0, "quantityDelta cannot be 0"),
   reason: z.string().min(3).max(500)
 });
 

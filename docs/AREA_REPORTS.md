@@ -119,6 +119,8 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - [x] AC-6: Audit report with event log viewer (ADMIN only)
 
 ## Change Log
+- 2026-05-08: API hardening Wave 13. Audit and scan reports now use shared pagination parsing, dashboard stats polling has a mobile-friendly rate limit, and audit last-lookups are rate-limited by actor.
+- 2026-05-08: API hardening Wave 11. Checkout reports now reject lookbacks outside 1-366 days before aggregation, and booking audit-log pagination validates cursors against the requested booking before returning another page.
 - 2026-05-07: iOS Overdue report. First report ported to iOS as a stripped-down floor view: leaderboard sorted by total overdue time, expandable per-person, tap-through to booking detail. Chart + CSV deliberately omitted — those stay on web (per "iOS = day-to-day ops, web = power user" rule). Server enforces `report:view` = ADMIN/STAFF; client also gates Profile entry point. See `AREA_MOBILE.md` for context.
 - 2026-03-15: Reports V1 shipped — 6 report pages (utilization, checkouts, overdue, scans, bulk-losses, audit). Tab navigation. Metrics cards. Charts (recharts). Filters. Table lists. Date range pickers. Empty states + error handling.
 - 2026-04-09: Design refresh (Phase 3) — Linear/Notion refresh applied: one-off error div → Alert component, inline styles → Tailwind, legacy CSS removed. Text-secondary → text-muted-foreground. Doc sync.

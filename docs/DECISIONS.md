@@ -584,7 +584,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - Decision:
   - New `KioskDevice` model — separate from User/Session.
   - Admin generates 6-digit activation code; iPad enters code to pair.
-  - Device gets long-lived session token (30 days) stored as HTTP-only cookie.
+  - Device gets long-lived session token (7 days) stored as HTTP-only cookie.
   - `requireKiosk()` auth helper validates device token, returns `{ kioskId, locationId }`.
   - Student identity passed as `actorId` parameter on each API call (tap avatar, no password).
   - Booking/audit records include `source: "KIOSK"` metadata + kioskDeviceId.

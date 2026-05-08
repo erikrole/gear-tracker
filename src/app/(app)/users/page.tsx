@@ -216,11 +216,13 @@ export default function UsersPage() {
             </a>
           </Button>
         )}
-        <Button asChild variant="outline" size="sm">
-          <Link href="/users/org-chart">
-            <Network className="mr-1 size-4" /> Org chart
-          </Link>
-        </Button>
+        {canEdit && (
+          <Button asChild variant="outline" size="sm">
+            <Link href="/users/org-chart">
+              <Network className="mr-1 size-4" /> Org chart
+            </Link>
+          </Button>
+        )}
         {canEdit && (
           <Button onClick={() => setShowCreate(true)}>
             Add user

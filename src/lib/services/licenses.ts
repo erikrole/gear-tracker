@@ -310,15 +310,16 @@ export async function bulkRenewCodes(codeIds: string[], expiresAt: Date): Promis
   return { updated: result.count };
 }
 
-export async function getClaimHistory(codeId: string) {
+export async function getClaimHistory(codeId: string, limit = 50) {
   return db.licenseCodeClaim.findMany({
     where: { licenseCodeId: codeId },
     include: { user: { select: { id: true, name: true, avatarUrl: true } } },
     orderBy: { claimedAt: "desc" },
+    take: limit,
   });
 }
 
-export async function getClaimHistoryForUser(userId: string) {
+export async function getClaimHistoryForUser(userId: string, limit = 25) {
   return db.licenseCodeClaim.findMany({
     where: { userId },
     include: {
@@ -331,7 +332,7 @@ export async function getClaimHistoryForUser(userId: string) {
       },
     },
     orderBy: { claimedAt: "desc" },
-    take: 25,
+    take: limit,
   });
 }
 

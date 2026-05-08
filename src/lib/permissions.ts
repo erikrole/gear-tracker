@@ -26,8 +26,10 @@ export const PERMISSIONS: Record<string, Record<string, Role[]>> = {
     import: ["ADMIN", "STAFF"],
     maintenance: ["ADMIN", "STAFF"],
     retire: ["ADMIN", "STAFF"],
+    favorite: ["ADMIN", "STAFF", "STUDENT"],
     generate_qr: ["ADMIN", "STAFF"],
     export: ["ADMIN", "STAFF"],
+    audit: ["ADMIN", "STAFF"],
   },
   category: {
     view: ["ADMIN", "STAFF", "STUDENT"],
@@ -90,6 +92,7 @@ export const PERMISSIONS: Record<string, Record<string, Role[]>> = {
     create: ["ADMIN", "STAFF"],
     edit: ["ADMIN", "STAFF"],
     delete: ["ADMIN", "STAFF"],
+    manage: ["ADMIN", "STAFF"],
   },
   shift_assignment: {
     view: ["ADMIN", "STAFF", "STUDENT"],

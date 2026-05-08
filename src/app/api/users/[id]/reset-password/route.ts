@@ -24,7 +24,7 @@ export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
 
   // Atomic: update password + invalidate sessions together
   await db.$transaction([
-    db.user.update({ where: { id }, data: { passwordHash } }),
+    db.user.update({ where: { id }, data: { passwordHash, forcePasswordChange: true } }),
     db.session.deleteMany({ where: { userId: id } }),
   ]);
 
@@ -34,8 +34,8 @@ export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
     entityType: "user",
     entityId: id,
     action: "password_reset",
-    after: { resetBy: user.name },
+    after: { resetBy: user.name, forcePasswordChange: true },
   });
 
-  return ok({ data: { temporaryPassword: tempPassword } });
+  return ok({ data: { temporaryPassword: tempPassword, forcePasswordChange: true } });
 });

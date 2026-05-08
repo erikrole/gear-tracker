@@ -48,6 +48,18 @@ function issue(key: string, title: string, description: string, count: number, s
   return { key, title, description, count, samples };
 }
 
+function settledValue<T>(
+  result: PromiseSettledResult<T>,
+  fallback: T,
+  label: string,
+  partialFailures: string[],
+): T {
+  if (result.status === "fulfilled") return result.value;
+  console.error(`[inventory-hygiene] ${label} failed`, result.reason);
+  partialFailures.push(label);
+  return fallback;
+}
+
 export const GET = withAuth(async (_req, { user }) => {
   requirePermission(user.role, "asset", "edit");
 
@@ -63,21 +75,21 @@ export const GET = withAuth(async (_req, { user }) => {
   };
 
   const [
-    missingCategoryCount,
-    missingCategoryRows,
-    missingDepartmentCount,
-    missingDepartmentRows,
-    missingScanCodeCount,
-    missingScanCodeRows,
-    missingImageCount,
-    missingImageRows,
-    retiredInKitCount,
-    retiredInKitRows,
-    cameraWithoutAttachmentCount,
-    cameraWithoutAttachmentRows,
-    duplicateRows,
-    bulkRows,
-  ] = await Promise.all([
+    missingCategoryCountResult,
+    missingCategoryRowsResult,
+    missingDepartmentCountResult,
+    missingDepartmentRowsResult,
+    missingScanCodeCountResult,
+    missingScanCodeRowsResult,
+    missingImageCountResult,
+    missingImageRowsResult,
+    retiredInKitCountResult,
+    retiredInKitRowsResult,
+    cameraWithoutAttachmentCountResult,
+    cameraWithoutAttachmentRowsResult,
+    duplicateRowsResult,
+    bulkRowsResult,
+  ] = await Promise.allSettled([
     db.asset.count({ where: { categoryId: null } }),
     db.asset.findMany({
       where: { categoryId: null },
@@ -225,6 +237,46 @@ export const GET = withAuth(async (_req, { user }) => {
       },
     }),
   ]);
+  const partialFailures: string[] = [];
+  const assetRowsFallback: Array<{
+    id: string;
+    assetTag: string;
+    name: string | null;
+    brand: string;
+    model: string;
+    category: { name: string } | null;
+    department: { name: string } | null;
+    location: { name: string } | null;
+  }> = [];
+  const retiredRowsFallback: Array<(typeof assetRowsFallback)[number] & {
+    kitMemberships: Array<{ kit: { id: string; name: string } }>;
+  }> = [];
+  const bulkRowsFallback: Array<{
+    id: string;
+    name: string;
+    category: string;
+    trackByNumber: boolean;
+    minThreshold: number;
+    location: { name: string };
+    categoryRel: { name: string } | null;
+    balances: Array<{ onHandQuantity: number }>;
+    units: Array<{ status: string }>;
+    bookingItems: Array<{ checkedOutQuantity: number | null }>;
+  }> = [];
+  const missingCategoryCount = settledValue(missingCategoryCountResult, 0, "missingCategoryCount", partialFailures);
+  const missingCategoryRows = settledValue(missingCategoryRowsResult, assetRowsFallback, "missingCategoryRows", partialFailures);
+  const missingDepartmentCount = settledValue(missingDepartmentCountResult, 0, "missingDepartmentCount", partialFailures);
+  const missingDepartmentRows = settledValue(missingDepartmentRowsResult, assetRowsFallback, "missingDepartmentRows", partialFailures);
+  const missingScanCodeCount = settledValue(missingScanCodeCountResult, 0, "missingScanCodeCount", partialFailures);
+  const missingScanCodeRows = settledValue(missingScanCodeRowsResult, assetRowsFallback, "missingScanCodeRows", partialFailures);
+  const missingImageCount = settledValue(missingImageCountResult, 0, "missingImageCount", partialFailures);
+  const missingImageRows = settledValue(missingImageRowsResult, assetRowsFallback, "missingImageRows", partialFailures);
+  const retiredInKitCount = settledValue(retiredInKitCountResult, 0, "retiredInKitCount", partialFailures);
+  const retiredInKitRows = settledValue(retiredInKitRowsResult, retiredRowsFallback, "retiredInKitRows", partialFailures);
+  const cameraWithoutAttachmentCount = settledValue(cameraWithoutAttachmentCountResult, 0, "cameraWithoutAttachmentCount", partialFailures);
+  const cameraWithoutAttachmentRows = settledValue(cameraWithoutAttachmentRowsResult, assetRowsFallback, "cameraWithoutAttachmentRows", partialFailures);
+  const duplicateRows = settledValue(duplicateRowsResult, [] as DuplicateScanRow[], "duplicateRows", partialFailures);
+  const bulkRows = settledValue(bulkRowsResult, bulkRowsFallback, "bulkRows", partialFailures);
 
   const lowBulkRows = bulkRows
     .map((sku) => {
@@ -350,6 +402,7 @@ export const GET = withAuth(async (_req, { user }) => {
         checksNeedingWork: criticalCount,
       },
       issues,
+      partialFailures,
     },
   });
 });

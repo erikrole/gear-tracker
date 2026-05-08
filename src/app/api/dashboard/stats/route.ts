@@ -4,7 +4,19 @@ import { HttpError, ok } from "@/lib/http";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { Prisma } from "@prisma/client";
 
-const STATS_LIMIT = { max: 90, windowMs: 60_000 };
+const STATS_LIMIT = { max: 180, windowMs: 60_000 };
+
+function settledValue<T>(
+  result: PromiseSettledResult<T>,
+  fallback: T,
+  label: string,
+  partialFailures: string[],
+): T {
+  if (result.status === "fulfilled") return result.value;
+  console.error(`[dashboard/stats] ${label} failed`, result.reason);
+  partialFailures.push(label);
+  return fallback;
+}
 
 // Lightweight stats-only endpoint — runs the single aggregated SQL query and
 // returns nothing else. Used by the dashboard to keep stat cards and the overdue
@@ -33,7 +45,7 @@ export const GET = withAuth(async (_req, { user }) => {
     due_today: bigint;
   };
 
-  const [counts, myShiftsCount] = await Promise.all([
+  const [countsResult, myShiftsCountResult] = await Promise.allSettled([
     db.$queryRaw<CountRow[]>(Prisma.sql`
       SELECT
         COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN') AS total_checked_out,
@@ -58,6 +70,24 @@ export const GET = withAuth(async (_req, { user }) => {
       },
     }),
   ]);
+  const partialFailures: string[] = [];
+  const counts = settledValue<CountRow[]>(
+    countsResult,
+    [{
+      team_checkouts: 0n,
+      team_checkouts_overdue: 0n,
+      team_reservations: 0n,
+      my_checkouts: 0n,
+      my_overdue: 0n,
+      total_checked_out: 0n,
+      total_overdue: 0n,
+      total_reserved: 0n,
+      due_today: 0n,
+    }],
+    "counts",
+    partialFailures,
+  );
+  const myShiftsCount = settledValue(myShiftsCountResult, 0, "myShiftsCount", partialFailures);
   const c = counts[0];
   if (!c) throw new HttpError(500, "Stats counts query returned no rows");
 
@@ -78,5 +108,6 @@ export const GET = withAuth(async (_req, { user }) => {
       teamReservationsTotal: Number(c.team_reservations),
       myShiftsCount,
     },
+    partialFailures,
   });
 });

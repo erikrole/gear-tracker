@@ -40,6 +40,9 @@ vi.mock("@/lib/services/availability", () => ({
     conflicts: [],
     shortages: [],
     unavailableAssets: [],
+    upcomingCommitments: [],
+    turnaroundRisks: [],
+    bulkTurnaroundRisks: [],
   }),
 }));
 
@@ -126,6 +129,9 @@ describe("createBooking", () => {
       conflicts: [{ assetId: "a-1", conflictingBookingId: "b-other", startsAt: new Date(), endsAt: new Date() }],
       shortages: [],
       unavailableAssets: [],
+      upcomingCommitments: [],
+      turnaroundRisks: [],
+      bulkTurnaroundRisks: [],
     });
 
     await expect(createBooking(baseInput({ serializedAssetIds: ["a-1"] }))).rejects.toThrow("Availability conflict");
@@ -136,6 +142,9 @@ describe("createBooking", () => {
       conflicts: [],
       shortages: [{ bulkSkuId: "sku-1", requested: 10, available: 2 }],
       unavailableAssets: [],
+      upcomingCommitments: [],
+      turnaroundRisks: [],
+      bulkTurnaroundRisks: [],
     });
 
     await expect(createBooking(baseInput({

@@ -13,6 +13,12 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
   requireRole(user.role, ["ADMIN", "STAFF", "STUDENT"]);
   const { id } = params;
 
+  const event = await db.calendarEvent.findUnique({
+    where: { id },
+    select: { id: true },
+  });
+  if (!event) throw new HttpError(404, "Event not found");
+
   const members = await db.eventTravelMember.findMany({
     where: { eventId: id },
     include: {

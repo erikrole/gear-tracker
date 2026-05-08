@@ -42,6 +42,18 @@ describe("requirePermission", () => {
   it("passes for STUDENT on booking.create", () => {
     expect(() => requirePermission("STUDENT" as any, "booking", "create")).not.toThrow();
   });
+
+  it("passes for STAFF on shift.manage", () => {
+    expect(() => requirePermission("STAFF" as any, "shift", "manage")).not.toThrow();
+  });
+
+  it("throws 403 for STUDENT on shift.manage", () => {
+    expect(() => requirePermission("STUDENT" as any, "shift", "manage")).toThrow("Forbidden");
+  });
+
+  it("passes for STUDENT on asset.favorite", () => {
+    expect(() => requirePermission("STUDENT" as any, "asset", "favorite")).not.toThrow();
+  });
 });
 
 describe("getAllowedRoles", () => {
@@ -64,7 +76,8 @@ describe("PERMISSIONS map completeness", () => {
     "user", "asset", "category", "booking", "checkout",
     "bulk_sku", "calendar_source", "location", "location_mapping",
     "report", "notification", "diagnostics", "shift", "shift_assignment",
-    "sport_config", "student_sport", "student_area", "shift_trade", "kit",
+    "sport_config", "student_sport", "student_area", "shift_trade",
+    "allowed_email", "kit", "kiosk_device", "guide", "license",
   ];
 
   it("has all expected resources", () => {

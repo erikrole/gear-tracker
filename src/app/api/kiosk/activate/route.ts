@@ -16,12 +16,13 @@ import { createSystemAuditEntry } from "@/lib/audit";
  */
 export const POST = withHandler(async (req) => {
   const ip = getClientIp(req);
-  await enforceRateLimit(`kiosk:activate:${ip}`, { max: 10, windowMs: 15 * 60_000 });
+  await enforceRateLimit(`kiosk:activate:${ip}`, { max: 5, windowMs: 15 * 60_000 });
 
   const { code } = activateBody.parse(await req.json());
+  const hashedCode = await tokenHash(code);
+  await enforceRateLimit(`kiosk:activate:code:${hashedCode}`, { max: 5, windowMs: 60 * 60_000 });
 
   // Hash the code and look up device
-  const hashedCode = await tokenHash(code);
   const device = await db.kioskDevice.findUnique({
     where: { activationCode: hashedCode },
     include: { location: { select: { id: true, name: true } } },

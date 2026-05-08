@@ -14,6 +14,7 @@ const createSourceSchema = z.object({
 export const GET = withAuth(async () => {
   const sources = await db.calendarSource.findMany({
     orderBy: { name: "asc" },
+    take: 100,
     include: { _count: { select: { events: true } } }
   });
   return ok({ data: sources });

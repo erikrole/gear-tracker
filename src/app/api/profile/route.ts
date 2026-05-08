@@ -61,10 +61,15 @@ export const PATCH = withAuth(async (req, { user }) => {
     }
 
     const nextHash = await hashPassword(payload.newPassword);
-    await db.user.update({
-      where: { id: user.id },
-      data: { passwordHash: nextHash }
-    });
+    await db.$transaction([
+      db.user.update({
+        where: { id: user.id },
+        data: { passwordHash: nextHash, forcePasswordChange: false }
+      }),
+      db.session.deleteMany({
+        where: { userId: user.id },
+      }),
+    ]);
 
     await createAuditEntry({
       actorId: user.id,

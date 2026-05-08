@@ -127,6 +127,7 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages.
 
 ## Change Log
+- 2026-05-08: API hardening Wave 9. Allowed Emails add/bulk-add no longer reveals registered or already-allowlisted addresses via 409s or skipped-address lists; duplicate inputs return generic skipped success/counts.
 - 2026-03-17: Initial area doc created. Settings layout upgraded to tab navigation pattern. Sports page extracted into ShiftConfigTable + RosterPanel + types. Categories page extracted into CategoryRow + KebabMenu + types + tree utils. Mobile card layouts added for sports and roster. Role badges standardized (ADMIN=purple, STAFF=blue, STUDENT=gray). Escalation and Database pages polished with data-table-wrap for mobile scroll. Sidebar titles normalized to h2 (layout provides h1).
 - 2026-03-19: Calendar source health UI shipped (`/settings/calendar-sources`) — enable/disable toggle, sync status badges, error display, add/delete sources.
 - 2026-03-24: Venue mappings shipped (`/settings/venue-mappings`) — admin-only regex-to-location mapping, pattern validation, priority tie-breaking (D-027).
@@ -153,3 +154,4 @@ All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-j
 - 2026-05-06: Ownership pass slice 2 - `/settings` now renders a role-aware control map instead of immediately redirecting to the last visited tab. The previous last-tab behavior is preserved as a Resume action so direct Settings navigation is useful while still supporting fast return workflows.
 - 2026-05-06: Ownership pass slice 3 - Departments now show last-edited audit context, matching the higher-signal admin catalog pattern from Locations and Allowed Emails. Department create now writes first and handles Prisma unique conflicts, preserving inactive reactivation behavior without a find-then-create race.
 - 2026-05-06: Ownership pass slice 4 - Categories adopted the useful catalog hardening without adding a new active-state model. Category create/rename now trims names, blocks same-level duplicates with clear 409s, prevents moving a category under its own descendant, and surfaces last-edited audit context in the tree.
+- 2026-05-08: API hardening Wave 13 - Category parent checks now have a bounded depth cap, system-config audit rows include an explicit first-create `before` state, and audit last-lookups are rate-limited by actor.

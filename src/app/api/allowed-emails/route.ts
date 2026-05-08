@@ -112,7 +112,7 @@ export const POST = withAuth(async (req, { user }) => {
     }
 
     return ok(
-      { created: toCreate.length, skipped: skipped.map((e) => e.email) },
+      { created: toCreate.length, skipped: skipped.length },
       201
     );
   }
@@ -128,7 +128,7 @@ export const POST = withAuth(async (req, { user }) => {
 
   const existingUser = await db.user.findUnique({ where: { email } });
   if (existingUser) {
-    throw new HttpError(409, "A user with this email is already registered");
+    return ok({ email, role, skipped: true }, 201);
   }
 
   let entry;
@@ -141,7 +141,7 @@ export const POST = withAuth(async (req, { user }) => {
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
-      throw new HttpError(409, "This email is already on the allowlist");
+      return ok({ email, role, skipped: true }, 201);
     }
     throw error;
   }

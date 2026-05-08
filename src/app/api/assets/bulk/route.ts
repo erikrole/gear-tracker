@@ -1,9 +1,10 @@
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
-import { createAuditEntries } from "@/lib/audit";
+import { createAuditEntries, createAuditEntriesTx } from "@/lib/audit";
 
 const bulkSchema = z
   .object({
@@ -132,28 +133,32 @@ export const POST = withAuth(async (req, { user }) => {
         }))
     );
   } else if (action === "maintenance") {
-    // Toggle: MAINTENANCE → AVAILABLE, others → MAINTENANCE
-    const toMaintenance = assets.filter((a) => a.status !== "MAINTENANCE");
-    const toAvailable = assets.filter((a) => a.status === "MAINTENANCE");
+    updated = await db.$transaction(async (tx) => {
+      const currentAssets = await tx.asset.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, status: true },
+      });
+      const toMaintenance = currentAssets.filter((a) => a.status !== "MAINTENANCE");
+      const toAvailable = currentAssets.filter((a) => a.status === "MAINTENANCE");
 
-    const [r1, r2] = await Promise.all([
-      toMaintenance.length > 0
-        ? db.asset.updateMany({
-            where: { id: { in: toMaintenance.map((a) => a.id) } },
-            data: { status: "MAINTENANCE" },
-          })
-        : { count: 0 },
-      toAvailable.length > 0
-        ? db.asset.updateMany({
-            where: { id: { in: toAvailable.map((a) => a.id) } },
-            data: { status: "AVAILABLE" },
-          })
-        : { count: 0 },
-    ]);
-    updated = r1.count + r2.count;
+      const [r1, r2] = await Promise.all([
+        toMaintenance.length > 0
+          ? tx.asset.updateMany({
+              where: { id: { in: toMaintenance.map((a) => a.id) } },
+              data: { status: "MAINTENANCE" },
+            })
+          : { count: 0 },
+        toAvailable.length > 0
+          ? tx.asset.updateMany({
+              where: { id: { in: toAvailable.map((a) => a.id) } },
+              data: { status: "AVAILABLE" },
+            })
+          : { count: 0 },
+      ]);
 
-    await createAuditEntries(
-      assets.map((asset) => {
+      await createAuditEntriesTx(
+        tx,
+        currentAssets.map((asset) => {
         const newStatus = asset.status === "MAINTENANCE" ? "AVAILABLE" : "MAINTENANCE";
         return {
           actorId: user.id,
@@ -164,8 +169,11 @@ export const POST = withAuth(async (req, { user }) => {
           before: { status: asset.status },
           after: { status: newStatus },
         };
-      })
-    );
+        })
+      );
+
+      return r1.count + r2.count;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   } else if (action === "delete") {
     requirePermission(user.role, "asset", "delete");
 

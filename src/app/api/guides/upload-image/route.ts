@@ -6,6 +6,12 @@ import { checkRateLimit } from "@/lib/rate-limit";
 
 const UPLOAD_LIMIT = { max: 30, windowMs: 5 * 60_000 };
 
+function sanitizeFileName(name: string) {
+  const leaf = name.split(/[\\/]/).pop() || "image";
+  const sanitized = leaf.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-").slice(0, 120);
+  return sanitized || "image";
+}
+
 export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "guide", "edit");
 
@@ -30,7 +36,7 @@ export const POST = withAuth(async (req, { user }) => {
     throw new HttpError(413, "Image too large (max 10MB)");
   }
 
-  const blob = await put(`guides/${Date.now()}-${file.name}`, file, {
+  const blob = await put(`guides/${Date.now()}-${sanitizeFileName(file.name)}`, file, {
     access: "public",
   });
 

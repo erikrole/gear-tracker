@@ -1,11 +1,13 @@
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
   if (user.role === "STUDENT") {
     throw new HttpError(403, "Staff or admin access required");
   }
+  await enforceRateLimit(`calendar-command:${user.id}`, { max: 60, windowMs: 60_000 });
 
   const eventId = params.id;
 
@@ -47,6 +49,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
         shiftAssignmentId: true,
         requester: { select: { id: true, name: true } },
       },
+      take: 500,
     }),
   ]);
 

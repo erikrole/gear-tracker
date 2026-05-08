@@ -1,6 +1,7 @@
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok, parsePagination } from "@/lib/http";
+import { createAuditEntry } from "@/lib/audit";
 
 export const GET = withAuth(async (req) => {
   const { searchParams } = new URL(req.url);
@@ -76,6 +77,22 @@ export const POST = withAuth(async (req, { user }) => {
     },
     include: {
       location: { select: { id: true, name: true } },
+    },
+  });
+
+  await createAuditEntry({
+    actorId: user.id,
+    actorRole: user.role,
+    entityType: "calendar_event",
+    entityId: event.id,
+    action: "calendar_event_created",
+    after: {
+      summary: event.summary,
+      startsAt: event.startsAt.toISOString(),
+      endsAt: event.endsAt.toISOString(),
+      locationId: event.locationId,
+      sportCode: event.sportCode,
+      isHome: event.isHome,
     },
   });
 

@@ -1,9 +1,14 @@
 import { db } from "@/lib/db";
 import { withKiosk } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
+import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 
 /** Get a student's active checkouts, pending pickups, and upcoming reservations */
-export const GET = withKiosk<{ userId: string }>(async (_req, { kiosk, params }) => {
+export const GET = withKiosk<{ userId: string }>(async (req, { kiosk, params }) => {
+  const ip = getClientIp(req);
+  await enforceRateLimit(`kiosk:student:${kiosk.kioskId}:${ip}`, { max: 120, windowMs: 60_000 });
+  await enforceRateLimit(`kiosk:student:${kiosk.kioskId}:${ip}:${params.userId}`, { max: 30, windowMs: 60_000 });
+
   const user = await db.user.findUnique({
     where: { id: params.userId },
     select: { id: true, active: true, locationId: true },

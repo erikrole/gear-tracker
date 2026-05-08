@@ -6,6 +6,8 @@ import { requirePermission } from "@/lib/rbac";
 import { adjustBulkSchema } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
 
+const MAX_ON_HAND_QUANTITY = 1_000_000;
+
 export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "bulk_sku", "adjust");
   const body = adjustBulkSchema.parse(await req.json());
@@ -29,6 +31,9 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
     const next = current + body.quantityDelta;
     if (next < 0) {
       throw new HttpError(409, `Adjustment would drop stock below zero. Current: ${current}`);
+    }
+    if (next > MAX_ON_HAND_QUANTITY) {
+      throw new HttpError(400, `Adjustment would exceed the maximum stock quantity of ${MAX_ON_HAND_QUANTITY}.`);
     }
 
     await tx.bulkStockBalance.upsert({

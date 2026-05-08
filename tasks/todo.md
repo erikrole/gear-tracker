@@ -1,6 +1,6 @@
 # Task Queue
 
-Last updated: 2026-05-07
+Last updated: 2026-05-08
 
 **Current release**: Beta — CalVer versioning adopted.
 **Release workflow**: `npm run release` creates CalVer tag + GitHub Release.
@@ -43,6 +43,108 @@ Last updated: 2026-05-07
 ---
 
 ## Open Items
+
+### Scan Route Gate Contract Slice (2026-05-08)
+- [x] **Stale scan-rate-limit correction** — Verify the regular app checkout/check-in scan endpoints are kiosk-gated 403 stubs, so the old per-session rate-limit TODO no longer describes an active execution path.
+- [x] **Verification + docs** — Add a regression contract, sync scan docs and the task registry, then rerun the safe verification gates.
+
+### Public Endpoint Abuse Contract Testing Slice (2026-05-08)
+- [x] **Public abuse-control inventory** — Add a static regression that every intentionally public unauthenticated API route is either rate-limited by client IP or explicitly disabled behind the seed endpoint gate.
+- [x] **Verification + docs** — Run focused contract tests plus the safe verification gates and document the coverage.
+
+### High-Impact Regression Testing Slice (2026-05-08)
+- [x] **RBAC route contract matrix** — Add a static regression that verifies every route-level `requirePermission()` call references a defined permission.
+- [x] **Booking lifecycle route contracts** — Add focused route tests for required optimistic locking, stale edit rejection, and checkout/reservation update dispatch.
+- [x] **Verification + docs** — Run focused tests, TypeScript, migration-prefix, whitespace, and build checks; sync docs with coverage benefits.
+
+### API Wrapper Contract Testing Slice (2026-05-08)
+- [x] **Route wrapper inventory** — Add a static regression that every exported API HTTP method is wrapped by `withAuth`, `withKiosk`, `withHandler`, or `withCron`, including shared handler aliases.
+- [x] **Verification + docs** — Run focused contract tests plus the safe verification gates and document the coverage.
+
+### API Hardening Wave 13 (2026-05-08)
+- [x] **Booking/check-in hardening** — Verify booking search indexes, tighten conflict expectations, add damage-report dedup, and reduce orphan-photo risk.
+- [x] **Kiosk/user/calendar/report bounds** — Add rate limits, cursor validation, result caps, and list caps across remaining hot read/write routes.
+- [x] **Shift/catalog/license/upload bounds** — Add Serializable isolation, rate limits, filename sanitization, and bounded histories.
+- [x] **Regression coverage + docs** — Add focused tests, close audit bullets, sync area docs, and run safe checks.
+
+### API Hardening Wave 12 (2026-05-08)
+- [x] **Import conflict feedback** — Stop silently masking asset tag or scan-code conflicts during asset import.
+- [x] **Asset/bulk route bounds** — Add rate limits, limit caps, timeout guards, and transaction isolation where missing.
+- [x] **Bulk list/activity hardening** — Verify list balance loading is already batched and scope activity cursors to their SKU.
+- [x] **Regression coverage + docs** — Add focused tests, close audit bullets, sync area docs, and run safe checks.
+
+### API Hardening Wave 11 (2026-05-08)
+- [x] **Admin reset-password containment** — Stop returning reusable temp-password state without a forced-change marker.
+- [x] **Bulk inventory mutation bounds** — Add upper quantity bounds and verify numbered-unit status updates are already transactional.
+- [x] **Reservation race guards** — Confirm convert re-checks status inside `createBooking` and block duplicate from terminal reservations after reload.
+- [x] **Report/audit/kiosk request bounds** — Cap report lookback, bound audit-log cursors to the booking, and harden kiosk enumeration/activation rate limits.
+- [x] **Shift regenerate auditability** — Correct stale finding: regenerate adds missing shifts only, skips manual groups, and already audits added count.
+- [x] **Regression coverage + docs** — Add focused tests, close the audit bullets, sync area docs, and run safe checks.
+
+### API Hardening Wave 10 (2026-05-08)
+- [x] **Shift ICS public feed bounds** — Reject malformed tokens, rate-limit by IP and token, serve only active-user feeds, and cap assignment reads to a 500-row rolling calendar window.
+- [x] **Calendar source sync lease** — Add database-backed per-source sync lease fields and guard manual sync plus post-sync shift generation from concurrent execution.
+- [x] **Asset lifecycle/favorite hardening** — Move retire read/update/audit into one SERIALIZABLE transaction and add explicit `asset.favorite` permission plus asset existence validation.
+- [x] **Regression coverage** — Add focused tests for ICS feed hardening, sync lease behavior, asset action hardening, and `asset.favorite` RBAC.
+- [x] **Verification + docs** — Sync area docs/audit registry and run safe checks.
+
+### API Hardening Wave 9 (2026-05-08)
+- [x] **Allowed-email enumeration guard** — Return generic skip success for already-registered or already-allowlisted emails instead of revealing membership via 409 or skipped email lists.
+- [x] **Allowed-email regression coverage** — Update route tests for generic skip behavior.
+- [x] **Verification + docs** — Sync users/settings docs and run safe checks.
+
+### API Hardening Wave 8 (2026-05-08)
+- [x] **License CSV injection guard** — Add shared CSV escaping that neutralizes formula-like values and apply it to license and user exports.
+- [x] **CSV helper regression coverage** — Cover formula prefixes plus quoting for commas, quotes, and newlines.
+- [x] **Verification + docs** — Sync license hardening docs and run safe checks.
+
+### API Hardening Wave 7 (2026-05-08)
+- [x] **Guide content sanitization** — Sanitize guide BlockNote JSON recursively before create/update storage.
+- [x] **Guide sanitizer regression coverage** — Cover scriptable string stripping and prototype-pollution key removal.
+- [x] **Verification + docs** — Sync guide hardening docs and run safe checks.
+
+### API Hardening Wave 6 (2026-05-08)
+- [x] **Cron auth wrapper** — Extract shared `withCron()` bearer-token validation and migrate all cron routes to it.
+- [x] **Cron auth regression coverage** — Cover missing secret, bad token, and accepted token behavior.
+- [x] **Verification + docs** — Sync cron hardening docs and run safe checks.
+
+### API Hardening Wave 5 (2026-05-08)
+- [x] **Nudge spam scope** — Add active-assignment validation plus per-actor hourly, per-assignment, and per-recipient nudge rate limits.
+- [x] **Nudge regression coverage** — Cover student denial, inactive assignment rejection, and layered rate-limit calls.
+- [x] **Verification + docs** — Sync notification hardening docs and run safe checks.
+
+### API Hardening Wave 4 (2026-05-08)
+- [x] **Calendar travel roster scope** — Rejected the read-access finding: students are allowed to see staffing/travel roster context for all events; route now only verifies the event exists before listing.
+- [x] **Calendar travel mutation guard coverage** — Add regressions proving STUDENT cannot add or remove event travel members.
+- [x] **Verification + docs** — Sync hardening docs and run safe checks.
+
+### API Hardening Wave 3 (2026-05-08)
+- [x] **User export PII scope** — Redact staff/admin athletics email and phone fields from STAFF exports while preserving ADMIN full export and student operational contact rows.
+- [x] **Org chart hierarchy scope** — Restrict org chart API and nav entry to STAFF/ADMIN so STUDENT callers cannot read direct-report chains.
+- [x] **Form-options directory scope** — Stop returning email and limit STUDENT callers to their own user option instead of the full active-user directory.
+- [x] **Verification + docs** — Add focused regression coverage, sync docs, and run safe checks.
+
+### API Hardening Wave 2 (2026-05-08)
+- [x] **Dashboard read resilience** — Convert dashboard, dashboard-stats, inventory hygiene, and items-page-init query bundles to partial-failure handling.
+- [x] **Mutation audit coverage** — Add audit entries for shift attendance, event creation, event visibility, and force-delete metadata.
+- [x] **Verification + docs** — Add focused coverage where useful, sync docs, and run safe checks.
+
+### API Hardening Wave 1 (2026-05-08)
+- [x] **Profile password sessions** — Make self-service password changes update the hash and invalidate existing sessions atomically.
+- [x] **Reset token consumption** — Consume reset tokens inside the transaction so a concurrent request cannot reuse the same token window.
+- [x] **Seed route hard gate** — Disable `/api/seed` unless explicitly enabled, and keep production/admin gating as a second layer.
+- [x] **Shift permission contract** — Add the missing `shift.manage` permission used by shift group and travel mutation routes.
+- [x] **Verification + docs** — Add focused tests, sync hardening docs, and run safe checks.
+
+### Next.js May 2026 Security Patch (2026-05-08)
+- [x] **Patch dependency floor** — Updated Next.js to `15.5.16` and aligned React packages to `19.2.6`.
+- [x] **Verify runtime dependency tree** — Confirmed installed `next@15.5.16`, `react@19.2.6`, and `react-dom@19.2.6` after lockfile refresh.
+- [x] **Verification + docs** — `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, `npx next build`, and `npm audit --omit=dev` completed; audit still reports Next's nested PostCSS advisory until upstream Next updates that dependency.
+
+### Items List Context Menu (2026-05-07)
+- [x] **Row context menu** — Add right-click actions for open, open in new tab, select/deselect, copy tag, favorite, print label, duplicate, maintenance, and retire.
+- [x] **Bulk row guardrails** — Keep bulk inventory rows on safe navigation/copy/selection actions and remove serialized-only mutations from the existing kebab menu.
+- [x] **Verification + docs** — `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, and `npx next build` passed. `AREA_ITEMS.md` synced.
 
 ### Damage Report Photos + Avatar Polish (2026-05-07)
 - [x] **Report photo evidence** — Add optional photo evidence to damaged/lost check-in reports without restoring scrubbed checkout/check-in condition-photo gates.
@@ -280,6 +382,7 @@ Last updated: 2026-05-07
 - [x] **Next optimization plan** — wrote `tasks/react-query-cache-plan.md`; GAP-11 is a cache-key audit follow-up, not a migration
 
 ### Review
+- Next.js May 2026 Security Patch shipped: package and lockfile now pin the patched 15.x framework floor (`next@15.5.16`) plus React `19.2.6`, matching the disclosed React Server Components patch floor. The local dependency tree confirms those installed versions, and the production Next build compiled successfully on `Next.js 15.5.16`. `npm audit --omit=dev` still reports the separate nested `next -> postcss@8.4.31` moderate advisory; a scoped override made npm mark the Next dependency invalid, so that was backed out and left for an upstream Next release.
 - Page Ownership Skill shipped: added a project skill for end-to-end web page and page-slice execution passes, including orientation, peer comparison, structure/UX/UI/consistency/hardening lenses, verification, docs sync, and propagation candidates. `audit-page-web` now points full-page implementation requests at the new skill while staying a diagnostic readiness audit. Verification passed for frontmatter/heading scan and `git diff --check`.
 - Dashboard Upcoming Events Parity shipped: the dashboard Upcoming Events card now uses schedule-style read-only coverage metadata from `/api/dashboard`, shows event title, time, location, home/away state, staffing avatars, filled/total coverage, open-slot warnings, and home call time when available. Quick-create controls were removed from the widget, keeping `/schedule` as the management surface. Verification passed for TypeScript, migration-prefix check, whitespace, and local Next build.
 - Item Detail Tabs Final Polish shipped: Schedule now pairs the month grid with a compact agenda row list, continuous week-spanning booking bars, quieter Today control, completed trailing calendar cells, and filters cancelled bookings out of occupied schedule and quick Past Bookings views. QR details are owned by the QR preview instead of a separate visible action. Calendar booking clicks keep users in context with a lighter booking preview sheet that matches the current app chrome, uses requester/creator avatars for human context, and routes deeper work to the full booking page. Insights now uses completion audit activity for return timing when available, labels the metric honestly, and shows item age in years for older gear. Attachments now hides the travel rule when no children exist and explains when fixed accessories should be added. Verification passed for TypeScript, migration-prefix check, whitespace, local route checks, authenticated Chrome DevTools tab checks, and console review.
@@ -321,6 +424,10 @@ Last updated: 2026-05-07
 - Bookings Past Scope shipped: `/bookings` now keeps Active and Past as explicit URL-backed scopes. All active requests send `active=true`, Past requests send `past=true` across combined, checkout, and reservation list APIs, and the list copy names the current scope. Verified with typecheck, focused checkout tests, migration-prefix check, diff check, Next build, and authenticated DevTools network/console smoke.
 - Booking Creation Step 2 UX Polish shipped: the shared checkout/reservation picker now reports valid, warning, unavailable, and checking counts to the wizard, Step 2 shows those counts in one compact status strip, and the footer CTA now names warning and unresolved states before review.
 - Booking Creation Final Screen Polish shipped: Step 3 now leads with role-clear handoff language for checkout versus reservation, shows next step/location/timing facts, and uses "Create pickup" so checkout creation does not imply kiosk custody already happened.
+- Kiosk Pickup Scan Guard shipped: live staff checkout smoke found that failed serialized scans did not block pickup confirmation. Kiosk pickup scans now record successful serialized scan evidence, confirmation blocks until every serialized item has that evidence, serial-number scanner input resolves through kiosk lookup, and the smoke checkout/kiosk test data was cleaned up. Verified with focused route tests, full Vitest, TypeScript, migration-prefix check, whitespace check, production Next build, and live API smoke.
+- Busy Day Availability Stress shipped: mocked a same-day run of overlapping reservations, pending-pickup checkout, non-overlapping reuse, exact handoff edges, and bulk media commitments through the live API. Fixed the two edge cases it exposed: `PENDING_PICKUP` serialized allocations now block overlapping bookings, and overlapping `BOOKED` bulk reservations reduce available quantity before create. Confirmed `endsAt === next.startsAt` is allowed while one-minute overrun fails. All temporary stress bookings were cancelled during cleanup.
+- Future Booking Context shipped: `/api/availability/check` now returns the next future serialized commitment for selected assets, and the shared picker plus booking Equipment tab show exact "Back before" timing so staff can see when an item is needed next before extending or editing.
+- Turnaround Risk Guard shipped: availability preview now stays advisory but calls out short handoff windows, next-use location transfers, recent damage/lost check-in reports, and tight future bulk bookings directly on serialized and bulk rows.
 
 ### Reservations (P2)
 - [x] ~~**Resolve equipment conflict badges**~~ (AC-8) — Already implemented in `BookingEquipmentTab.tsx:53-106`. Fetches conflicts for BOOKED/DRAFT bookings. Verified 2026-04-06.
@@ -339,7 +446,7 @@ Last updated: 2026-05-07
 
 ## Scan Flow — Low Priority (from 2026-04-09 stress test)
 - [x] ~~**Admin override detail logging**~~ — Shipped 2026-04-14: `createAdminOverride` now queries the active scan session, calls `buildScanCompletionState`, and stores `bypassed.missingSerialized`, `bypassed.missingBulk`, `bypassed.missingUnits`, and `bypassed.phase` in the `details` field of both the `OverrideEvent` and the audit entry.
-- [ ] **Server-side rate limiting on scan endpoints** — `/api/checkouts/[id]/scan` and `/checkin-scan` have no per-session rate limit. Client-side 1s debounce is the only guard. Migrate to Upstash KV rate limiter when user base grows (tracked in GAP-32).
+- [x] ~~**Server-side rate limiting on scan endpoints**~~ — Reconciled 2026-05-08: `/api/checkouts/[id]/scan` and `/checkin-scan` are kiosk-gated 403 stubs, so the old per-session rate-limit risk no longer applies to an active execution path. Kiosk scan execution remains under `withKiosk`; broader Redis/Upstash migration remains tracked by GAP-32.
 - [x] ~~**Device context never sent from client**~~ — Shipped 2026-04-14: `use-scan-submission.ts` now sends `deviceContext: navigator.userAgent` on all scan POST requests (both `submitScan` and the numbered-bulk inline fetch).
 
 ---

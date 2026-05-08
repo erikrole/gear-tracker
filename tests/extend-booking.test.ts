@@ -30,6 +30,9 @@ vi.mock("@/lib/services/availability", () => ({
     conflicts: [],
     shortages: [],
     unavailableAssets: [],
+    upcomingCommitments: [],
+    turnaroundRisks: [],
+    bulkTurnaroundRisks: [],
   }),
 }));
 
@@ -69,6 +72,9 @@ beforeEach(() => {
     conflicts: [],
     shortages: [],
     unavailableAssets: [],
+    upcomingCommitments: [],
+    turnaroundRisks: [],
+    bulkTurnaroundRisks: [],
   });
 });
 
@@ -146,6 +152,9 @@ describe("extendBooking", () => {
       conflicts: [{ assetId: "a-1", conflictingBookingId: "b-other", startsAt: new Date(), endsAt: new Date() }],
       shortages: [],
       unavailableAssets: [],
+      upcomingCommitments: [],
+      turnaroundRisks: [],
+      bulkTurnaroundRisks: [],
     });
 
     await expect(extendBooking("b-1", "actor-1", newEnd)).rejects.toThrow("Conflicts");

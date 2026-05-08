@@ -272,6 +272,9 @@ export default function ItemsPage() {
       case "open":
         router.push(getItemHref(asset.id));
         break;
+      case "print-label":
+        router.push(`/labels?items=${asset.id}`);
+        break;
       case "duplicate":
         busyRef.current = true;
         setActionBusy(true);
@@ -578,6 +581,10 @@ export default function ItemsPage() {
             onSortingChange={(next) => { filters.setSorting(next); query.setPage(0); }}
             refreshing={query.refreshing}
             density={density}
+            canEdit={options.canEdit}
+            actionBusy={actionBusy}
+            onRowAction={handleRowAction}
+            onToggleFavorite={handleToggleFavorite}
             toolbar={
               <ItemsToolbar
                 searchInputRef={searchInputRef}

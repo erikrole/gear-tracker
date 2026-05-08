@@ -14,3 +14,26 @@ export function sanitizeText(input: string): string {
     // Collapse excessive whitespace (prevents layout attacks)
     .replace(/\s{20,}/g, " ".repeat(20));
 }
+
+export function sanitizeJsonStrings(value: unknown): unknown {
+  if (typeof value === "string") {
+    return sanitizeText(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeJsonStrings(item));
+  }
+
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [key, nested] of Object.entries(value)) {
+      if (key === "__proto__" || key === "constructor" || key === "prototype") {
+        continue;
+      }
+      out[key] = sanitizeJsonStrings(nested);
+    }
+    return out;
+  }
+
+  return value;
+}

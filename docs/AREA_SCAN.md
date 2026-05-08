@@ -50,8 +50,8 @@ src/components/
 |---|---|---|
 | `/api/checkouts/{id}/scan-status` | GET | Load checklist state |
 | `/api/checkouts/{id}/start-scan-session` | POST | Create audit session |
-| `/api/checkouts/{id}/scan` | POST | Submit checkout scan |
-| `/api/checkouts/{id}/checkin-scan` | POST | Submit check-in scan |
+| `/api/checkouts/{id}/scan` | POST | Kiosk-gated stub for legacy app checkout scan requests |
+| `/api/checkouts/{id}/checkin-scan` | POST | Kiosk-gated stub for legacy app check-in scan requests |
 | `/api/checkouts/{id}/complete-checkout` | POST | Finalize checkout |
 | `/api/checkouts/{id}/complete-checkin` | POST | Finalize check-in |
 | `/api/bulk-skus/{id}/units` | GET | Fetch units for unit picker |
@@ -62,6 +62,7 @@ src/components/
 
 | Date | Change |
 |---|---|
+| 2026-05-08 | Reconciled stale scan endpoint rate-limit TODO: regular app checkout/check-in scan routes are kiosk-gated 403 stubs, and a static contract now protects that boundary |
 | 2026-05-07 | Check-in damaged/lost item reports can now include optional photo evidence, and checklist rows show a photo badge when evidence exists |
 | 2026-05-05 | Kiosk battery unit scans: pickup/check-in can scan one numbered battery unit at a time, and kiosk lookup resolves unit QR values to parent SKU and unit status |
 | 2026-05-05 | Numbered bulk unit QR scans: values like `94e068d1-7` resolve to the parent bulk SKU and unit #7, bypassing the picker while preserving server-side unit validation |

@@ -3,9 +3,11 @@ import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { autoAssignShiftGroup } from "@/lib/services/auto-assign";
+import { enforceRateLimit } from "@/lib/rate-limit";
 
 export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
   requirePermission(user.role, "shift", "manage");
+  await enforceRateLimit(`shift:auto-assign:${user.id}`, { max: 10, windowMs: 60_000 });
   const { id } = params;
 
   const group = await db.shiftGroup.findUnique({

@@ -33,27 +33,35 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   // Fetch current state for before-snapshot and kind detection
   const detail = await getBookingDetail(id);
 
-  // Optimistic locking: reject if client's snapshot is stale.
-  // Header is opt-in — UIs that track updatedAt should always send it.
-  // Clients that omit the header bypass conflict detection (last-write-wins).
+  // Optimistic locking: every edit client must send the snapshot it edited.
   const ifUnmodified = req.headers.get("if-unmodified-since");
-  if (ifUnmodified && detail.updatedAt) {
-    const clientTs = new Date(ifUnmodified).getTime();
-    const serverTs = new Date(detail.updatedAt).getTime();
-    if (!Number.isNaN(clientTs) && clientTs < serverTs) {
-      throw new HttpError(409, "This booking was modified by someone else. Please refresh and try again.");
-    }
+  if (!ifUnmodified) {
+    throw new HttpError(428, "Missing If-Unmodified-Since header. Refresh and try again.");
+  }
+  const clientTs = new Date(ifUnmodified).getTime();
+  const serverTs = Math.floor(new Date(detail.updatedAt).getTime() / 1000) * 1000;
+  if (Number.isNaN(clientTs)) {
+    throw new HttpError(400, "Invalid If-Unmodified-Since header.");
+  }
+  if (clientTs < serverTs) {
+    throw new HttpError(409, "This booking was modified by someone else. Please refresh and try again.");
   }
 
   await requireBookingAction(id, user, "edit");
 
-  // Build before-snapshot from fields being changed
-  const beforeSnapshot: Record<string, unknown> = {};
-  for (const key of Object.keys(body) as Array<keyof typeof body>) {
-    if (body[key] !== undefined) {
-      beforeSnapshot[key] = (detail as Record<string, unknown>)[key];
-    }
-  }
+  const beforeSnapshot = {
+    title: detail.title,
+    requesterUserId: detail.requesterUserId,
+    locationId: detail.locationId,
+    startsAt: detail.startsAt,
+    endsAt: detail.endsAt,
+    serializedAssetIds: detail.serializedItems.map((item) => item.assetId),
+    bulkItems: detail.bulkItems.map((item) => ({
+      bulkSkuId: item.bulkSkuId,
+      plannedQuantity: item.plannedQuantity,
+    })),
+    notes: detail.notes,
+  };
 
   if (detail.kind === "RESERVATION") {
     await updateReservation(id, user.id, {

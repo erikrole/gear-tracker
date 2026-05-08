@@ -5,6 +5,7 @@
 
 ## Security & Authorization
 
+- **Role scope is not the same as product scope**: When closing an authorization leak, preserve legitimate role-specific use cases. For travel rosters, students are allowed to see staffing/travel context for all events; the protection boundary is mutation rights, not read visibility.
 - **SERIALIZABLE on all mutation transactions**: Booking, scan, shift, and trade services all need `isolationLevel: Serializable`. Audit the definition of "all" — blind spots hide in less-obvious services.
 - **TOCTOU on unique constraints**: Never rely on `findUnique` before `create` for uniqueness. Catch Prisma `P2002` and return 409. The DB constraint is the source of truth.
 - **Bulk endpoints must mirror single-endpoint auth guards**: When writing a bulk alternative, grep the single path for all authorization checks and replicate each one.

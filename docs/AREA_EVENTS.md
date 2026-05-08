@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Events
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-04-06
+- Last Updated: 2026-05-08
 - Status: Active
 
 ## Direction
@@ -29,6 +29,7 @@ Make athletics schedule data the operational backbone for booking and checkout w
 10. **Unified Schedule page** — merged `/events` + old `/schedule` into single `/schedule` page. List view with date-grouped events + coverage badges. Calendar view with month grid + coverage indicator dots. Unified filters (sport, area, coverage, past events). Trade Board as tab. ShiftDetailPanel integration. Old `/events` page removed (detail page `/events/[id]` unchanged). Sidebar shows single "Schedule" entry.
 11. **Venue Mappings moved to Settings** — `/settings/venue-mappings` page with add/delete/list. Removed from events page.
 12. Calendar Sources management remains at `/settings/calendar-sources` (unchanged).
+13. Manual Calendar Source sync uses a short database-backed per-source lease, so concurrent sync clicks return 409 instead of running duplicate external fetch and shift-generation work.
 
 ## Next
 1. Better normalization for opponent and venue fields.
@@ -67,6 +68,10 @@ Make athletics schedule data the operational backbone for booking and checkout w
 4. Fallback behavior for incomplete events is implemented — treat event context as non-blocking metadata on all booking flows.
 
 ## Change Log
+- 2026-05-08: API hardening Wave 13. Booking calendar reads now validate/cap date ranges and return at most 500 bookings, command-center event context is rate-limited with a 500-booking cap, and calendar source listing is capped at 100 rows.
+- 2026-05-08: API hardening Wave 10. Manual calendar source sync now acquires and releases a source-scoped database lease around ICS fetch plus post-sync shift generation, closing the concurrent manual sync gap.
+- 2026-05-08: API hardening Wave 4. Confirmed away-event travel rosters are intentionally visible to students as staffing context. The API now checks event existence before listing and focused regressions cover student read access plus student denial on add/remove.
+- 2026-05-08: API hardening Wave 2. Manual event creation and event visibility changes now write audit entries with actor role and before/after metadata, closing the event-side audit gap from the API hardening pass.
 - 2026-03-01: Initial standalone area scope created.
 - 2026-03-02: Added explicit dashboard-scope boundary and mobile/dashboard dependency alignment.
 - 2026-03-09: Expanded "Now" to reflect shipped implementation: source deletion, upcoming-default filter, sync hardening, batch DB ops, production diagnostics. Added enable/disable and sync health UI to Next.

@@ -1,11 +1,19 @@
 import { Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { ok } from "@/lib/http";
+import { HttpError, ok } from "@/lib/http";
+import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 
 export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
+  requirePermission(user.role, "asset", "favorite");
+
   const { id } = params;
+  const asset = await db.asset.findUnique({
+    where: { id },
+    select: { id: true },
+  });
+  if (!asset) throw new HttpError(404, "Asset not found");
 
   // Toggle: if exists, delete; if not, create
   const existing = await db.favoriteItem.findUnique({

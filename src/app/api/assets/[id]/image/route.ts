@@ -96,7 +96,7 @@ export const PUT = withAuth<{ id: string }>(async (req, { user, params }) => {
   if (!asset) throw new HttpError(404, "Asset not found");
 
   // Download external image to Vercel Blob so we control hosting
-  const blobUrl = await downloadImageToBlob(url, id);
+  const blobUrl = await downloadImageToBlob(url, id, 5000);
   if (!blobUrl) {
     throw new HttpError(400, "Could not download image from that URL");
   }

@@ -1,9 +1,9 @@
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { ok } from "@/lib/http";
+import { HttpError, ok } from "@/lib/http";
 import { createAuditEntry } from "@/lib/audit";
 import { createBooking } from "@/lib/services/bookings";
-import { BookingKind } from "@prisma/client";
+import { BookingKind, BookingStatus } from "@prisma/client";
 import { requireBookingAction } from "@/lib/services/booking-rules";
 
 /**
@@ -26,6 +26,9 @@ export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
       bulkItems: true,
     },
   });
+  if (source.status !== BookingStatus.BOOKED) {
+    throw new HttpError(400, `Cannot duplicate a ${source.status.toLowerCase()} reservation`);
+  }
 
   const duplicate = await createBooking({
     kind: "RESERVATION",

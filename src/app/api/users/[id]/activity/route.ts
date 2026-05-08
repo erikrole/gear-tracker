@@ -25,15 +25,26 @@ export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
     Math.max(1, Number(url.searchParams.get("limit")) || DEFAULT_LIMIT),
     MAX_LIMIT,
   );
+  const activityWhere = {
+    OR: [
+      { entityType: "user", entityId: id },
+      { actorUserId: id },
+    ],
+  };
+
+  if (cursor) {
+    const scopedCursor = await db.auditLog.findFirst({
+      where: { id: cursor, ...activityWhere },
+      select: { id: true },
+    });
+    if (!scopedCursor) {
+      throw new HttpError(400, "Invalid activity cursor");
+    }
+  }
 
   // Fetch one extra to detect if there are more entries
   const logs = await db.auditLog.findMany({
-    where: {
-      OR: [
-        { entityType: "user", entityId: id },
-        { actorUserId: id },
-      ],
-    },
+    where: activityWhere,
     orderBy: { createdAt: "desc" },
     take: limit + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),

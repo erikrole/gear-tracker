@@ -14,6 +14,12 @@ export const GET = withAuth(async (req) => {
 
   const fromDate = new Date(from);
   const toDate = new Date(to);
+  if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime()) || fromDate >= toDate) {
+    throw new HttpError(400, "Invalid calendar range");
+  }
+  if (toDate.getTime() - fromDate.getTime() > 366 * 24 * 60 * 60 * 1000) {
+    throw new HttpError(400, "Calendar range cannot exceed 366 days");
+  }
 
   const where: Prisma.BookingWhereInput = {
     startsAt: { lt: toDate },
@@ -48,7 +54,8 @@ export const GET = withAuth(async (req) => {
         },
       },
     },
-    orderBy: { startsAt: "asc" }
+    orderBy: { startsAt: "asc" },
+    take: 500
   });
 
   return ok({ data });

@@ -13,6 +13,18 @@ const sortOverdueFirst = (a: { isOverdue: boolean; endsAt: string }, b: { isOver
   return new Date(a.endsAt).getTime() - new Date(b.endsAt).getTime();
 };
 
+function settledValue<T>(
+  result: PromiseSettledResult<T>,
+  fallback: T,
+  label: string,
+  partialFailures: string[],
+): T {
+  if (result.status === "fulfilled") return result.value;
+  console.error(`[dashboard] ${label} failed`, result.reason);
+  partialFailures.push(label);
+  return fallback;
+}
+
 // Prioritize bodies and lenses in gear avatar display
 function sortItemsByCategory(
   items: Array<{ asset: { id: string; name: string | null; imageUrl: string | null; category: { name: string } | null } }>,
@@ -116,29 +128,29 @@ export const GET = withAuth(async (_req, { user }) => {
   `);
 
   const [
-    counts,
+    countsResult,
     // Team: checkouts excluding current user
-    teamCheckoutsRaw,
+    teamCheckoutsRawResult,
     // Team: reservations excluding current user
-    teamReservationsRaw,
+    teamReservationsRawResult,
     // My checkouts (booking-level)
-    myCheckoutsRaw,
+    myCheckoutsRawResult,
     // Upcoming events (next 7 days)
-    upcomingEvents,
+    upcomingEventsResult,
     // Personal: my reservations
-    myReservations,
+    myReservationsResult,
     // Overdue: top items for banner
-    topOverdue,
+    topOverdueResult,
     // Drafts: current user's in-progress work
-    myDrafts,
+    myDraftsResult,
     // My shift assignments
-    myShiftsRaw,
+    myShiftsRawResult,
     // Flagged items: recent damage/lost reports + maintenance assets
-    recentReports,
-    maintenanceAssets,
+    recentReportsResult,
+    maintenanceAssetsResult,
     // Lost bulk units summary (admin only)
-    lostBulkUnitsRaw,
-  ] = await Promise.all([
+    lostBulkUnitsRawResult,
+  ] = await Promise.allSettled([
     countsPromise,
     // Team checkouts (excl. me)
     db.booking.findMany({
@@ -302,12 +314,103 @@ export const GET = withAuth(async (_req, { user }) => {
         })
       : Promise.resolve([]),
   ]);
+  const partialFailures: string[] = [];
+  const zeroCounts: CountRow[] = [{
+    team_checkouts: 0n,
+    team_checkouts_overdue: 0n,
+    team_reservations: 0n,
+    my_checkouts: 0n,
+    my_overdue: 0n,
+    total_checked_out: 0n,
+    total_overdue: 0n,
+    total_reserved: 0n,
+    due_today: 0n,
+  }];
+  const bookingRowsFallback: Array<Parameters<typeof toBookingSummary>[0]> = [];
+  const counts = settledValue(countsResult, zeroCounts, "counts", partialFailures);
+  const teamCheckoutsRaw = settledValue(teamCheckoutsRawResult, bookingRowsFallback, "teamCheckouts", partialFailures);
+  const teamReservationsRaw = settledValue(teamReservationsRawResult, bookingRowsFallback, "teamReservations", partialFailures);
+  const myCheckoutsRaw = settledValue(myCheckoutsRawResult, bookingRowsFallback, "myCheckouts", partialFailures);
+  const upcomingEvents = settledValue(upcomingEventsResult, [] as Array<{
+    id: string;
+    summary: string;
+    sportCode: string | null;
+    startsAt: Date;
+    endsAt: Date;
+    allDay: boolean;
+    location: { id: string; name: string } | null;
+    opponent: string | null;
+    isHome: boolean | null;
+    shiftGroup: {
+      shifts: Array<{
+        area: string;
+        startsAt: Date;
+        assignments: Array<{ user: { id: string; name: string; avatarUrl: string | null } }>;
+      }>;
+    } | null;
+  }>, "upcomingEvents", partialFailures);
+  const myReservations = settledValue(myReservationsResult, bookingRowsFallback, "myReservations", partialFailures);
+  const topOverdue = settledValue(topOverdueResult, [] as Array<{
+    id: string;
+    title: string;
+    requester: { name: string; avatarUrl: string | null };
+    serializedItems: Array<{ asset: { id: string; assetTag: string; name: string | null; imageUrl: string | null } }>;
+    endsAt: Date;
+  }>, "topOverdue", partialFailures);
+  const myDrafts = settledValue(myDraftsResult, [] as Array<{
+    id: string;
+    kind: string;
+    title: string;
+    updatedAt: Date;
+    _count: { serializedItems: number; bulkItems: number };
+  }>, "myDrafts", partialFailures);
+  const myShiftsRaw = settledValue(myShiftsRawResult, [] as Array<{
+    id: string;
+    shift: {
+      area: string;
+      workerType: string;
+      startsAt: Date;
+      endsAt: Date;
+      shiftGroup: {
+        event: {
+          id: string;
+          summary: string;
+          startsAt: Date;
+          endsAt: Date;
+          sportCode: string | null;
+          opponent: string | null;
+          isHome: boolean | null;
+          locationId: string | null;
+          location: { id: string; name: string } | null;
+        };
+      };
+    };
+  }>, "myShifts", partialFailures);
+  const recentReports = settledValue(recentReportsResult, [] as Array<{
+    id: string;
+    type: string;
+    imageUrl: string | null;
+    createdAt: Date;
+    asset: { id: string; assetTag: string; name: string | null };
+    booking: { title: string };
+    reportedBy: { name: string };
+  }>, "recentReports", partialFailures);
+  const maintenanceAssets = settledValue(maintenanceAssetsResult, [] as Array<{
+    id: string;
+    assetTag: string;
+    name: string | null;
+    updatedAt: Date;
+  }>, "maintenanceAssets", partialFailures);
+  const lostBulkUnitsRaw = settledValue(lostBulkUnitsRawResult, [] as Array<{
+    bulkSkuId: string;
+    _count: { id: number };
+  }>, "lostBulkUnits", partialFailures);
 
   const shiftEventIds = [...new Set(myShiftsRaw.map((a) => a.shift.shiftGroup.event.id))];
   const lostSkuIds = lostBulkUnitsRaw.map((r) => r.bulkSkuId);
 
   // Run the two post-parallel dependent queries concurrently
-  const [shiftGearBookings, lostBulkSkuNames] = await Promise.all([
+  const [shiftGearBookingsResult, lostBulkSkuNamesResult] = await Promise.allSettled([
     shiftEventIds.length > 0
       ? db.booking.findMany({
           where: {
@@ -333,6 +436,16 @@ export const GET = withAuth(async (_req, { user }) => {
         })
       : Promise.resolve([]),
   ]);
+  const shiftGearBookings = settledValue(shiftGearBookingsResult, [] as Array<{
+    eventId: string | null;
+    status: string;
+    serializedItems: Array<{ asset: { id: string; name: string | null; imageUrl: string | null; category: { name: string } | null } }>;
+    _count: { serializedItems: number; bulkItems: number };
+  }>, "shiftGearBookings", partialFailures);
+  const lostBulkSkuNames = settledValue(lostBulkSkuNamesResult, [] as Array<{
+    id: string;
+    name: string;
+  }>, "lostBulkSkuNames", partialFailures);
 
   // Resolve lost bulk unit SKU names
   let lostBulkUnits: Array<{ skuName: string; count: number }> = [];
@@ -553,6 +666,7 @@ export const GET = withAuth(async (_req, { user }) => {
           createdAt: a.updatedAt.toISOString(),
         })),
       ],
+      partialFailures,
     },
   });
 });

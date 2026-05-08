@@ -20,7 +20,16 @@ export async function findAssetByScanValue<S extends AssetSelect>(
   }
 
   return db.asset.findFirst({
-    where: { assetTag: { equals: trimmed, mode: "insensitive" } },
+    where: {
+      OR: [
+        { assetTag: { equals: trimmed, mode: "insensitive" } },
+        { primaryScanCode: { equals: trimmed, mode: "insensitive" } },
+        { primaryScanCode: { equals: `qr-${trimmed}`, mode: "insensitive" } },
+        { qrCodeValue: { equals: trimmed, mode: "insensitive" } },
+        { qrCodeValue: { equals: `qr-${trimmed}`, mode: "insensitive" } },
+        { serialNumber: { equals: trimmed, mode: "insensitive" } },
+      ],
+    },
     select,
   }) as Promise<Prisma.AssetGetPayload<{ select: S }> | null>;
 }

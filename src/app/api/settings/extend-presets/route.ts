@@ -49,6 +49,7 @@ export const PUT = withAuth(async (req, { user }) => {
   const body = putSchema.parse(await req.json());
 
   const jsonValue = JSON.parse(JSON.stringify(body.presets));
+  const existing = await db.systemConfig.findUnique({ where: { key: CONFIG_KEY } });
   await db.systemConfig.upsert({
     where: { key: CONFIG_KEY },
     create: { key: CONFIG_KEY, value: jsonValue },
@@ -61,6 +62,7 @@ export const PUT = withAuth(async (req, { user }) => {
     entityType: "system_config",
     entityId: CONFIG_KEY,
     action: "extend_presets_updated",
+    before: (existing?.value as Record<string, unknown> | undefined) ?? { existed: false },
     after: { presets: body.presets },
   });
 

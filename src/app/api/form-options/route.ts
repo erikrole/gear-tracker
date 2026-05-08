@@ -2,11 +2,15 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { cachedOk } from "@/lib/http";
 
-export const GET = withAuth(async () => {
+export const GET = withAuth(async (_req, { user }) => {
   const [locations, departments, users, bulkSkus] = await Promise.all([
     db.location.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.department.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
-    db.user.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true, email: true, avatarUrl: true } }),
+    db.user.findMany({
+      where: user.role === "STUDENT" ? { id: user.id, active: true } : { active: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, avatarUrl: true },
+    }),
     db.bulkSku.findMany({
       where: { active: true },
       orderBy: { name: "asc" },
