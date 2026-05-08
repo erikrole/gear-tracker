@@ -1,0 +1,82 @@
+# Audit: booking detail (iOS) — 2026-05-08
+
+**MVP verdict (pre-fix):** ships, but the action panel (Extend / Cancel) is visible to anyone viewing the booking — including students who aren't the requester — and tints drift from the `StatusTone` token system established across the rest of the app today.
+**Ship bar:** student-friendly, fully functional for core flows, zero hiccups in front of a class.
+**Audit type:** static source (no build/run/UI tests).
+
+Scope: `BookingDetailView` + the `EditBookingSheet` declared in the same file at `ios/Wisconsin/Views/BookingDetailView.swift`. Excludes `ExtendBookingSheet` (separate file, covered by the prior bookings audit and by a recent quick-extend chips slice).
+
+**Surrounding context:** booking detail is the primary floor surface for "what is the current state of my reservation/checkout, and what can I do about it?" Multiple recent slices have shipped on this screen (live countdown TimelineView, monospaced ref/email, status pill alignment, overdue banner, requester display rule, accessory/parent-item linkage on detail). The 2026-04-24 broad bookings audit covered architectural gaps; this pass is a focused follow-up on the per-screen polish since.
+
+## P0 — blocks MVP
+
+_None._ Auth/role gating is enforced server-side. The Edit pencil is gated client-side. Pull-to-refresh works. Loading skeleton + error recovery surface ship per the prior audit. The countdown badge ticks on a 30-s `TimelineView` (per the earlier slice). The overdue banner uses `Color.statusText(.red)`.
+
+## P1 — polish before ship
+
+- [x] [Hardening] **`ActionsSection` (Extend / Cancel) is visible to every viewer, regardless of ownership.** Today a STUDENT who isn't the requester can land on someone else's booking detail (deep nav from Items tab → "out to {Person}" → that booking) and see "Extend Return Date" + "Cancel Booking" buttons. The server rejects the request, but the UI advertises an action they can't actually take, and a "Cancel Booking" tap on someone else's gear feels alarming even when it 401s.
+      `ios/Wisconsin/Views/BookingDetailView.swift:51-58, 450-501`.
+      Why it matters: parity with the toolbar Edit pencil shipped in the prior audit (`canEditBooking` gates STAFF/ADMIN OR requester). Actions panel never got the same treatment.
+      Suggested fix: introduce a `canActOnBooking` computed property — STAFF/ADMIN always, OR the booking's requester. Gate `ActionsSection` on it. Note: this is intentionally *more permissive* than `canEditBooking` because Extend is a legitimate self-help action even after the booking transitions to OPEN (a student wanting "I need it longer" mid-shoot).
+
+- [x] [UI polish] **Action button tints use raw `.blue` and `.red` instead of `Color.statusText(_:)`.** Drifts from the cross-app `StatusTone` token system established across all kiosk surfaces and the scan/profile passes shipped today.
+      `ios/Wisconsin/Views/BookingDetailView.swift:466, 496`.
+      Suggested fix: `.tint(Color.statusText(.blue))` for Extend; `.tint(Color.statusText(.red))` for Cancel. Same physical color in most cases but a single source of truth.
+
+- [x] [Flows] **Haptics gap on `EditBookingSheet` save.** `cancelBooking` haptics on success/failure (`.success/.warning`); `EditBookingSheet.save` is silent. A user who edits the date and taps Save sees the sheet dismiss but gets no tactile confirmation that the save landed (especially relevant on a network-slow round-trip).
+      `ios/Wisconsin/Views/BookingDetailView.swift:226-242`.
+      Suggested fix: `Haptics.success()` immediately before `dismiss()` on the success path; `Haptics.warning()` (or `.error()`) in the catch.
+
+- [x] [A11y] **Action buttons announce icon names: "clock arrow circle path, Extend Return Date" and "x mark circle, Cancel Booking".** SwiftUI's `Label(text, systemImage:)` exposes both pieces by default; VoiceOver reads the icon name out loud, which is meaningless to a blind user.
+      `ios/Wisconsin/Views/BookingDetailView.swift:461-462, 489`.
+      Suggested fix: explicit `.accessibilityLabel("Extend Return Date")` / `"Cancel Booking"` on each button so VO reads only the action name.
+
+- [x] [A11y] **Overdue banner exposes "exclamation triangle fill, Overdue — return gear at a kiosk."** Same `Label`-as-decorative-icon issue.
+      `ios/Wisconsin/Views/BookingDetailView.swift:288-295`.
+      Suggested fix: `.accessibilityLabel("Overdue. Return gear at a kiosk.")` so the icon name doesn't intrude.
+
+- [x] [A11y] **Location and Date `Label`s read icon names too** (`mappin.circle, Location Name`; `calendar, From X to Y`).
+      `ios/Wisconsin/Views/BookingDetailView.swift:301, 304-313`.
+      Suggested fix: `.accessibilityLabel("Location: \(location.name)")` on the location; `.accessibilityLabel("From \(formatted)... to \(formatted)...")` on the date label, treating the icon as decorative.
+
+- [x] [A11y] **Footer hints "Pick up gear at a kiosk" / "Return gear at a kiosk" expose `barcode.viewfinder` icon names.**
+      `ios/Wisconsin/Views/BookingDetailView.swift:470-480`.
+      Suggested fix: same explicit label treatment.
+
+- [x] [UI polish] **`EditBookingSheet` Save button works but doesn't communicate "saving" state visually.** Today the button just disables; no spinner. Compare to the Cancel-Booking button below which renders a `ProgressView` while in flight.
+      `ios/Wisconsin/Views/BookingDetailView.swift:206-210`.
+      Suggested fix: render a small inline `ProgressView` next to "Save" when `isSaving`; same shape as the Cancel button's pattern at `:485-488`.
+
+- [x] [UI polish] **`canEditBooking` excludes STUDENTs once status flips to PENDING_PICKUP or OPEN — but the toolbar pencil silently disappears with no "you can no longer edit" affordance.** The student tapping Edit, walking away, then coming back sees the pencil gone. They might not know why.
+      `ios/Wisconsin/Views/BookingDetailView.swift:15-22, 73-82`.
+      Why it matters: minor; the underlying behavior is correct, but a tooltip/explainer in the form of a Label helps.
+      Decision: **Skip.** Adding a "Edit locked: pickup in progress" pill at the header would clutter the screen for the much-more-common already-staff path. Leave the silent-disappear behavior — the prior audit's `canEditBooking` matrix is documented in `AREA_BOOKINGS.md`.
+
+## P2 — post-MVP
+
+- [ ] [Polish] **Deferred.** Extend button visibility for `.booked` state — Extend conceptually overlaps with Edit's date adjustment. A student with a BOOKED reservation tapping "Extend Return Date" might be confused because the booking hasn't started yet. Not actually broken (Extend works fine for booked); UX could be cleaner if Extend were OPEN-only and BOOKED state directed users to Edit. Not blocking ship.
+- [ ] [Polish] **Deferred.** Inline action-failure error placement — currently lands below `ActionsSection` (acceptable given the user just clicked an action button right above), but a transient toast next to the button might feel more responsive. Current pattern is consistent with the rest of the app.
+- [ ] [Polish] **Deferred.** "View on web" link for a fuller history view (audit log, scan events). Web has a sidebar; iOS intentionally doesn't (project rule: power-user info stays on web). Logged for completeness, not action.
+- [ ] [Hardening] **Deferred.** Optimistic cancel — today the cancel API call awaits before reloading. On a slow network the user sees a 1–2 s lag. Optimistic UI would feel faster but adds rollback complexity for a destructive action. Skip.
+
+## Acceptance criteria status
+
+Per `AREA_BOOKINGS.md` (and the prior 2026-04-24 audit):
+
+- [x] AC: detail surfaces title, ref, status, requester, items, dates, location, notes.
+- [x] AC: live countdown badge for OPEN status (per `Date.bookingUrgency` + `Date.countdownLabel`).
+- [x] AC: overdue red banner.
+- [x] AC: Edit pencil gated by role + status.
+- [x] AC: Cancel only for `.booked` (terminal-state immutability).
+- [x] AC: Pull-to-refresh.
+- [x] AC: Action buttons gated by ownership/role — **closed by P1 ownership fix.**
+- [x] AC: Save reports tactile confirmation — **closed by P1 haptic fix.**
+- [x] AC: VoiceOver users hear action names without icon noise — **closed by P1 a11y fixes.**
+
+## Lenses checked
+- [x] Gaps
+- [x] Flows
+- [x] UI polish
+- [x] Hardening
+- [x] Parity (web has more — audit log sidebar, recharts overdue chart, CSV — those stay on web by `feedback_ios_vs_web_role.md`)
+- [x] Accessibility

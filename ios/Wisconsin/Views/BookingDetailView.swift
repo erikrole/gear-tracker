@@ -21,6 +21,19 @@ struct BookingDetailView: View {
             && (booking.status == .draft || booking.status == .booked)
     }
 
+    /// Wider gate than `canEditBooking` — Extend is a legitimate self-help
+    /// action even after a booking transitions to OPEN ("I need it longer
+    /// mid-shoot"). Hides the action panel from non-owners viewing through
+    /// deep nav (Items tab → "out to {Person}" → that booking detail) where
+    /// advertising "Cancel Booking" on someone else's gear is alarming even
+    /// when the server would reject the request.
+    private var canActOnBooking: Bool {
+        guard let booking, let user = session.currentUser else { return false }
+        let role = user.role
+        if role == "STAFF" || role == "ADMIN" { return true }
+        return booking.requester.id == user.id
+    }
+
     var body: some View {
         Group {
             if isLoading && booking == nil {
@@ -48,7 +61,8 @@ struct BookingDetailView: View {
                         if let notes = booking.notes, !notes.isEmpty {
                             FormCard { NotesSection(notes: notes) }
                         }
-                        if booking.status == .booked || booking.status == .pendingPickup || booking.status == .open {
+                        if canActOnBooking,
+                           booking.status == .booked || booking.status == .pendingPickup || booking.status == .open {
                             ActionsSection(
                                 booking: booking,
                                 isActioning: isActioning,
@@ -204,9 +218,16 @@ struct EditBookingSheet: View {
                     .disabled(isSaving)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { Task { await save() } }
-                        .disabled(!hasChanges || title.trimmingCharacters(in: .whitespaces).isEmpty || isSaving)
-                        .fontWeight(.semibold)
+                    Button {
+                        Task { await save() }
+                    } label: {
+                        if isSaving {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Text("Save").fontWeight(.semibold)
+                        }
+                    }
+                    .disabled(!hasChanges || title.trimmingCharacters(in: .whitespaces).isEmpty || isSaving)
                 }
             }
             .interactiveDismissDisabled(hasChanges || isSaving)
@@ -233,10 +254,12 @@ struct EditBookingSheet: View {
                 startsAt: startsAt != booking.startsAt ? startsAt : nil,
                 endsAt: endsAt != booking.endsAt ? endsAt : nil
             )
+            Haptics.success()
             onSaved()
             dismiss()
         } catch {
             self.error = error.localizedDescription
+            Haptics.warning()
         }
         isSaving = false
     }
@@ -292,6 +315,7 @@ private struct HeaderSection: View {
                     .padding(.vertical, 6)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color.statusText(.red), in: RoundedRectangle(cornerRadius: 8))
+                    .accessibilityLabel("Overdue. Return gear at a kiosk.")
             }
             if let event = booking.event, let summary = event.summary {
                 Text(summary)
@@ -301,6 +325,7 @@ private struct HeaderSection: View {
             Label(booking.location.name, systemImage: "mappin.circle")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+                .accessibilityLabel("Location: \(booking.location.name)")
             Label {
                 VStack(alignment: .leading) {
                     Text(booking.startsAt.formatted(date: .complete, time: .shortened))
@@ -311,6 +336,7 @@ private struct HeaderSection: View {
                 Image(systemName: "calendar")
             }
             .font(.subheadline)
+            .accessibilityLabel("From \(booking.startsAt.formatted(date: .complete, time: .shortened)) to \(booking.endsAt.formatted(date: .abbreviated, time: .shortened))")
         }
     }
 }
@@ -463,8 +489,9 @@ private struct ActionsSection: View {
             }
             .buttonStyle(.glass)
             .controlSize(.large)
-            .tint(.blue)
+            .tint(Color.statusText(.blue))
             .disabled(isActioning)
+            .accessibilityLabel("Extend Return Date")
 
             if booking.status == .pendingPickup {
                 Label("Pick up gear at a kiosk", systemImage: "barcode.viewfinder")
@@ -472,12 +499,14 @@ private struct ActionsSection: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
                     .padding(.top, 2)
+                    .accessibilityLabel("Pick up gear at a kiosk")
             } else if booking.status == .open {
                 Label("Return gear at a kiosk", systemImage: "barcode.viewfinder")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
                     .padding(.top, 2)
+                    .accessibilityLabel("Return gear at a kiosk")
             } else {
                 Button(role: .destructive) {
                     onCancel()
@@ -493,8 +522,9 @@ private struct ActionsSection: View {
                 }
                 .buttonStyle(.glass)
                 .controlSize(.large)
-                .tint(.red)
+                .tint(Color.statusText(.red))
                 .disabled(isActioning)
+                .accessibilityLabel(isActioning ? "Cancelling booking" : "Cancel Booking")
             }
         }
     }
