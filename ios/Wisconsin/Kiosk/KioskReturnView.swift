@@ -1,7 +1,9 @@
 import SwiftUI
+import UIKit
 
 struct KioskReturnView: View {
     @Environment(KioskStore.self) private var store
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let bookingId: String
     let userId: String
 
@@ -10,18 +12,26 @@ struct KioskReturnView: View {
     @State private var lastResult: ScanFeedback?
     @State private var isLoading = true
     @State private var isCompleting = false
-    @State private var error: String?
+    @State private var loadError: String?
     @State private var showCamera = false
+    @State private var lastReturnedId: String?
 
-    enum ScanFeedback {
+    enum ScanFeedback: Equatable {
         case success(String)
         case error(String)
         case alreadyReturned(String)
+
+        var message: String {
+            switch self {
+            case .success(let s), .error(let s), .alreadyReturned(let s): return s
+            }
+        }
     }
 
     private var totalItems: Int { detail?.items.count ?? 0 }
     private var returnedCount: Int { returnedIds.count }
     private var hasReturned: Bool { returnedCount > 0 }
+    private var allReturned: Bool { returnedCount == totalItems && totalItems > 0 }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -38,6 +48,8 @@ struct KioskReturnView: View {
         .task { await loadDetail() }
         .sheet(isPresented: $showCamera) {
             KioskBarcodeCameraView(
+                feedbackMessage: lastResult?.message,
+                feedbackTone: cameraTone(for: lastResult),
                 onScan: { value in handleScan(value) },
                 onCancel: { showCamera = false }
             )
@@ -56,6 +68,7 @@ struct KioskReturnView: View {
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
+                .accessibilityLabel("Back to roster")
                 Spacer()
                 Text("Return")
                     .font(.title3.bold())
@@ -68,6 +81,7 @@ struct KioskReturnView: View {
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
+                .accessibilityLabel("Use camera to scan instead")
             }
 
             Spacer()
@@ -76,75 +90,96 @@ struct KioskReturnView: View {
                 ProgressView().tint(.white)
             } else {
                 VStack(spacing: 20) {
-                    ZStack {
-                        Circle()
-                            .stroke(Color.white.opacity(0.1), lineWidth: 8)
-                        Circle()
-                            .trim(from: 0, to: totalItems > 0 ? CGFloat(returnedCount) / CGFloat(totalItems) : 0)
-                            .stroke(returnedCount == totalItems ? Color.green : .blue,
-                                    style: StrokeStyle(lineWidth: 8, lineCap: .round))
-                            .rotationEffect(.degrees(-90))
-                            .animation(.spring(response: 0.4), value: returnedCount)
-                        VStack(spacing: 2) {
-                            Text("\(returnedCount)")
-                                .font(.system(size: 40, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white)
-                            Text("of \(totalItems)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .frame(width: 140, height: 140)
+                    progressRing
 
                     if let detail, detail.isOverdue {
                         Label("Overdue", systemImage: "exclamationmark.triangle.fill")
                             .font(.caption.weight(.medium))
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Color.statusText(.orange))
+                            .accessibilityLabel("This checkout is overdue")
                     }
 
-                    Text(returnedCount == totalItems ? "All items returned" : "Scan items to return them")
+                    Text(allReturned ? "All items returned" : "Scan items to return them")
                         .font(.subheadline)
-                        .foregroundStyle(returnedCount == totalItems ? .green : .secondary)
+                        .foregroundStyle(allReturned ? Color.statusText(.green) : .secondary)
 
                     if let result = lastResult {
                         FeedbackBanner(result: result)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
-                            .animation(.spring(response: 0.3), value: lastResult != nil)
+                            .animation(reduceMotion ? nil : .spring(response: 0.3), value: lastResult)
                     }
                 }
             }
 
             Spacer()
 
-            // Partial returns are allowed — button enabled as soon as anything is scanned
-            Button {
-                completeReturn()
-            } label: {
-                HStack {
-                    Text(isCompleting ? "Processing..." : returnLabel)
-                        .font(.headline)
-                    if isCompleting { ProgressView().tint(.white).scaleEffect(0.8) }
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(
-                    (!hasReturned || isCompleting) ? Color.white.opacity(0.1) : Color.kioskRed,
-                    in: RoundedRectangle(cornerRadius: 14)
-                )
-            }
-            .buttonStyle(.plain)
-            .disabled(!hasReturned || isCompleting)
-            .padding(.horizontal, 32)
-            .padding(.bottom, 32)
+            completeButton
         }
         .padding(.horizontal, 32)
         .padding(.top, 20)
         .frame(maxWidth: .infinity)
     }
 
+    private var progressRing: some View {
+        ZStack {
+            Circle()
+                .stroke(Color.white.opacity(0.1), lineWidth: 8)
+            Circle()
+                .trim(from: 0, to: totalItems > 0 ? CGFloat(returnedCount) / CGFloat(totalItems) : 0)
+                .stroke(allReturned ? Color.statusText(.green) : Color.statusText(.blue),
+                        style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .animation(reduceMotion ? nil : .spring(response: 0.4), value: returnedCount)
+            VStack(spacing: 2) {
+                Text("\(returnedCount)")
+                    .font(.system(size: 40, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .contentTransition(.numericText())
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: returnedCount)
+                    .monospacedDigit()
+                Text("of \(totalItems)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(width: 140, height: 140)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(returnedCount) of \(totalItems) items returned")
+    }
+
+    private var completeButton: some View {
+        Button {
+            completeReturn()
+        } label: {
+            HStack {
+                Text(isCompleting ? "Processing..." : returnLabel)
+                    .font(.headline)
+                if isCompleting { ProgressView().tint(.white).scaleEffect(0.8) }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(
+                (!hasReturned || isCompleting) ? Color.white.opacity(0.1) : Color.kioskRed,
+                in: RoundedRectangle(cornerRadius: 14)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(!hasReturned || isCompleting)
+        .padding(.horizontal, 32)
+        .padding(.bottom, 32)
+        .accessibilityLabel(completeAccessibilityLabel)
+    }
+
     private var returnLabel: String {
-        if returnedCount == totalItems { return "Complete Return" }
+        if allReturned { return "Complete Return" }
         return "Return \(returnedCount) of \(totalItems) Items"
+    }
+
+    private var completeAccessibilityLabel: String {
+        if isCompleting { return "Processing return" }
+        if !hasReturned { return "Scan at least one item before returning" }
+        if allReturned { return "Complete Return, all \(totalItems) items" }
+        return "Return \(returnedCount) of \(totalItems) items"
     }
 
     // MARK: - Checklist Panel
@@ -166,11 +201,24 @@ struct KioskReturnView: View {
             Divider().background(Color.white.opacity(0.1))
 
             if let items = detail?.items {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(items) { item in
-                            ReturnItemRow(item: item, returned: returnedIds.contains(item.id))
-                            Divider().background(Color.white.opacity(0.06))
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            ForEach(items) { item in
+                                ReturnItemRow(item: item, returned: returnedIds.contains(item.id))
+                                    .id(item.id)
+                                Divider().background(Color.white.opacity(0.06))
+                            }
+                        }
+                    }
+                    .onChange(of: lastReturnedId) { _, newId in
+                        guard let newId else { return }
+                        if reduceMotion {
+                            proxy.scrollTo(newId, anchor: .center)
+                        } else {
+                            withAnimation(.easeOut(duration: 0.25)) {
+                                proxy.scrollTo(newId, anchor: .center)
+                            }
                         }
                     }
                 }
@@ -178,26 +226,24 @@ struct KioskReturnView: View {
                 Spacer()
                 ProgressView().tint(.white).frame(maxWidth: .infinity)
                 Spacer()
-            }
-
-            if let error {
-                HStack(spacing: 12) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.red)
-                        .font(.caption)
-                    Text(error)
-                        .foregroundStyle(.red)
-                        .font(.caption)
-                    Spacer()
-                    Button("Try again") {
-                        self.error = nil
-                        completeReturn()
-                    }
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.orange)
-                    .buttonStyle(.plain)
+            } else if let loadError {
+                // Detail-load error — distinct recovery surface from
+                // complete-failure (which now flows through showFeedback to
+                // the in-flow banner near the progress ring).
+                VStack(spacing: 10) {
+                    Image(systemName: "wifi.exclamationmark")
+                        .font(.title)
+                        .foregroundStyle(Color.statusText(.red))
+                    Text(loadError)
+                        .foregroundStyle(.white)
+                        .font(.subheadline)
+                        .multilineTextAlignment(.center)
+                    Button("Try again") { Task { await loadDetail() } }
+                        .buttonStyle(.bordered)
+                        .tint(.white)
                 }
                 .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .background(Color.white.opacity(0.02))
@@ -205,7 +251,21 @@ struct KioskReturnView: View {
 
     // MARK: - Logic
 
+    private func cameraTone(for feedback: ScanFeedback?) -> KioskBarcodeCameraView.Tone? {
+        switch feedback {
+        case .success:        .success
+        case .alreadyReturned: .warning
+        case .error:          .error
+        case nil:             nil
+        }
+    }
+
     private func handleScan(_ value: String) {
+        guard !isCompleting else {
+            showFeedback(.error("Hold on — completing return"))
+            return
+        }
+
         store.resetInactivity()
 
         Task {
@@ -216,19 +276,27 @@ struct KioskReturnView: View {
                         showFeedback(.alreadyReturned("\(item.tagName) already returned"))
                     } else {
                         returnedIds.insert(item.id)
+                        lastReturnedId = item.id
                         showFeedback(.success(item.name))
                     }
                 } else {
                     showFeedback(.error(result.error ?? "Item not in this checkout"))
                 }
             } catch {
-                showFeedback(.error("Scan failed"))
+                let message = (error as? APIError)?.errorDescription ?? "Scan failed"
+                showFeedback(.error(message))
             }
         }
     }
 
     private func showFeedback(_ feedback: ScanFeedback) {
         withAnimation { lastResult = feedback }
+        switch feedback {
+        case .success:        Haptics.success()
+        case .alreadyReturned: Haptics.warning()
+        case .error:          Haptics.error()
+        }
+        UIAccessibility.post(notification: .announcement, argument: feedback.message)
         Task {
             try? await Task.sleep(nanoseconds: 3_000_000_000)
             withAnimation { lastResult = nil }
@@ -240,29 +308,39 @@ struct KioskReturnView: View {
         isCompleting = true
         Task {
             do {
-                try await KioskAPI.shared.kioskCheckinComplete(bookingId: bookingId, actorId: userId)
-                let allBack = returnedCount == totalItems
-                store.screen = .success(allBack
-                    ? "All \(returnedCount) items returned. Thanks!"
-                    : "\(returnedCount) of \(totalItems) items returned.")
+                let result = try await KioskAPI.shared.kioskCheckinComplete(bookingId: bookingId, actorId: userId)
+                Haptics.success()
+                store.screen = .success(successMessage(for: result))
             } catch {
-                self.error = "Return failed. Please try again."
+                let message = (error as? APIError)?.errorDescription
+                    ?? "Return failed. Please try again."
+                showFeedback(.error(message))
             }
             isCompleting = false
         }
     }
 
+    /// Use the SERVER-authoritative counts in the success message — local
+    /// counts can drift if a sister kiosk checked items in mid-session.
+    private func successMessage(for result: KioskCheckinCompleteResult) -> String {
+        if result.completed {
+            return "All \(result.totalItems) items returned. Thanks!"
+        }
+        return "\(result.returnedItems) of \(result.totalItems) items returned."
+    }
+
     private func loadDetail() async {
         isLoading = true
+        loadError = nil
         do {
             let loaded = try await KioskAPI.shared.kioskCheckoutDetail(id: bookingId)
             detail = loaded
-            // Pre-populate already-returned items (in case returning mid-session)
+            // Pre-populate already-returned items (mid-session resume).
             for item in loaded.items where item.returned {
                 returnedIds.insert(item.id)
             }
         } catch {
-            self.error = "Could not load return details."
+            self.loadError = (error as? APIError)?.errorDescription ?? "Could not load return details."
         }
         isLoading = false
     }
@@ -277,9 +355,10 @@ private struct ReturnItemRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: returned ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(returned ? .green : Color.white.opacity(0.3))
+                .foregroundStyle(returned ? Color.statusText(.green) : Color.white.opacity(0.3))
                 .font(.title3)
                 .frame(width: 28)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.name)
                     .font(.subheadline)
@@ -294,6 +373,8 @@ private struct ReturnItemRow: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
         .animation(.spring(response: 0.25), value: returned)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(item.name), tag \(item.tagName), \(returned ? "returned" : "pending")")
     }
 }
 
@@ -302,7 +383,7 @@ private struct FeedbackBanner: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: icon)
+            Image(systemName: icon).accessibilityHidden(true)
             Text(message).font(.subheadline.weight(.medium))
         }
         .foregroundStyle(color)
@@ -310,25 +391,22 @@ private struct FeedbackBanner: View {
         .padding(.vertical, 12)
         .background(color.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(color.opacity(0.4), lineWidth: 1))
+        .accessibilityElement(children: .combine)
     }
 
     private var icon: String {
         switch result {
-        case .success: return "checkmark.circle.fill"
-        case .error: return "xmark.circle.fill"
+        case .success:         return "checkmark.circle.fill"
+        case .error:           return "xmark.circle.fill"
         case .alreadyReturned: return "exclamationmark.triangle.fill"
         }
     }
-    private var message: String {
-        switch result {
-        case .success(let s), .error(let s), .alreadyReturned(let s): return s
-        }
-    }
+    private var message: String { result.message }
     private var color: Color {
         switch result {
-        case .success: return .green
-        case .error: return .red
-        case .alreadyReturned: return .orange
+        case .success:         return Color.statusText(.green)
+        case .error:           return Color.statusText(.red)
+        case .alreadyReturned: return Color.statusText(.orange)
         }
     }
 }

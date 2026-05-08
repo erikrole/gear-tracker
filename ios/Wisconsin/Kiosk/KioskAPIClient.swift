@@ -98,11 +98,15 @@ struct KioskAPI {
         return try await perform(req)
     }
 
-    func kioskCheckinComplete(bookingId: String, actorId: String) async throws {
+    func kioskCheckinComplete(bookingId: String, actorId: String) async throws -> KioskCheckinCompleteResult {
         struct Body: Encodable { let actorId: String }
         var req = request(path: "/api/kiosk/checkin/\(bookingId)/complete", method: "POST")
         req.httpBody = try JSONEncoder().encode(Body(actorId: actorId))
-        _ = try? await session.data(for: req)
+        // Route through `perform` so 401/404/409/5xx propagate as APIError —
+        // the prior `try?` swallowed every failure mode and produced phantom
+        // successes (booking stayed OPEN server-side, kiosk showed the
+        // success screen, asset showed up on tomorrow's overdue report).
+        return try await perform(req)
     }
 
     // MARK: - Pickup

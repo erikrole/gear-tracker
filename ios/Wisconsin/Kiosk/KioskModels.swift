@@ -156,6 +156,17 @@ struct KioskCheckoutDetail: Decodable {
     }
 }
 
+// MARK: - Checkin / Return result
+
+/// Server-authoritative counts returned by `/api/kiosk/checkin/{id}/complete`.
+/// Use these in the success message instead of local optimistic counts so the
+/// kiosk doesn't lie when a sister kiosk checked in items mid-session.
+struct KioskCheckinCompleteResult: Decodable {
+    let returnedItems: Int
+    let totalItems: Int
+    let completed: Bool
+}
+
 // MARK: - Screen State
 
 enum KioskScreen: Equatable {
