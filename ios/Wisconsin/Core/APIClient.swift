@@ -554,6 +554,23 @@ final class APIClient {
         return resp.unreadCount
     }
 
+    // MARK: - Notification preferences
+
+    func notificationPreferences() async throws -> NotificationPreferences {
+        let req = request(path: "/api/me/notification-preferences")
+        let resp: DataWrapper<NotificationPreferences> = try await perform(req)
+        return resp.data
+    }
+
+    func updateNotificationPreferences(_ prefs: NotificationPreferences) async throws {
+        var req = request(path: "/api/me/notification-preferences", method: "PUT")
+        req.httpBody = try JSONEncoder().encode(prefs)
+        // Server returns `{ data: prefs }` on success — we don't reuse the
+        // response body (the caller already holds the value it sent), but
+        // running through `perform` gives us 401 propagation + error decode.
+        let _: DataWrapper<NotificationPreferences> = try await perform(req)
+    }
+
     // MARK: - Shift Trades
 
     func shiftTrades(status: String? = nil, limit: Int = 30, offset: Int = 0) async throws -> ShiftTradesResponse {

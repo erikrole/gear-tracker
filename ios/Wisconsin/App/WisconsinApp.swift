@@ -10,6 +10,7 @@ struct WisconsinApp: App {
     @State private var network = NetworkMonitor()
     @State private var kioskStore = KioskStore()
     @Environment(\.scenePhase) private var scenePhase
+    @AppStorage("WisconsinThemeChoice") private var themeChoice: ThemeChoice = .system
 
     var body: some Scene {
         WindowGroup {
@@ -18,6 +19,7 @@ struct WisconsinApp: App {
                 .environment(appState)
                 .environment(network)
                 .environment(kioskStore)
+                .preferredColorScheme(themeChoice.colorScheme)
                 .onAppear {
                     sharedAppState = appState
                     sharedKioskStore = kioskStore

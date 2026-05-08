@@ -10,6 +10,21 @@ struct CurrentUser: Codable, Identifiable, Equatable {
     let avatarUrl: String?
 }
 
+// MARK: - Notification preferences
+
+/// Mirrors `/api/me/notification-preferences`. `pausedUntil` is an ISO-8601
+/// string (server validates `z.string().datetime({ offset: true })`); `nil`
+/// means not paused.
+struct NotificationPreferences: Codable, Equatable {
+    var pausedUntil: String?
+    var channels: Channels
+
+    struct Channels: Codable, Equatable {
+        var email: Bool
+        var push: Bool
+    }
+}
+
 // MARK: - Bookings
 
 enum BookingStatus: String, Codable {
