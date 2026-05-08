@@ -1,10 +1,11 @@
 import SwiftUI
+import UIKit
 
 struct KioskCheckoutView: View {
     @Environment(KioskStore.self) private var store
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let userId: String
 
-    @State private var scanInput = ""
     @State private var lastResult: ScanFeedback?
     @State private var isCompleting = false
     @State private var showBackConfirm = false
@@ -14,6 +15,12 @@ struct KioskCheckoutView: View {
         case success(String)
         case error(String)
         case duplicate(String)
+
+        var message: String {
+            switch self {
+            case .success(let s), .error(let s), .duplicate(let s): return s
+            }
+        }
     }
 
     /// Cart lives in KioskStore so a brief inactivity reset doesn't discard it.
@@ -33,18 +40,24 @@ struct KioskCheckoutView: View {
             .frame(width: 1, height: 1)
             .opacity(0)
         }
-        .alert("Discard \(scannedItems.count) scanned item\(scannedItems.count == 1 ? "" : "s")?",
-               isPresented: $showBackConfirm) {
-            Button("Cancel", role: .cancel) {}
+        .confirmationDialog(
+            "Discard \(scannedItems.count) scanned item\(scannedItems.count == 1 ? "" : "s")?",
+            isPresented: $showBackConfirm,
+            titleVisibility: .visible
+        ) {
             Button("Discard", role: .destructive) {
                 store.clearCart(for: userId)
+                Haptics.warning()
                 store.screen = .idle
             }
+            Button("Cancel", role: .cancel) {}
         } message: {
             Text("Going back will clear your scans.")
         }
         .sheet(isPresented: $showCamera) {
             KioskBarcodeCameraView(
+                feedbackMessage: lastResult?.message,
+                feedbackTone: cameraTone(for: lastResult),
                 onScan: { value in
                     handleScan(value)
                 },
@@ -69,6 +82,7 @@ struct KioskCheckoutView: View {
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
+                .accessibilityLabel(scannedItems.isEmpty ? "Back to roster" : "Back to roster, will prompt to discard \(scannedItems.count) items")
                 Spacer()
                 Text("Checkout")
                     .font(.title3.bold())
@@ -81,6 +95,7 @@ struct KioskCheckoutView: View {
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
+                .accessibilityLabel("Use camera to scan instead")
             }
 
             Spacer()
@@ -95,6 +110,7 @@ struct KioskCheckoutView: View {
                     Image(systemName: "barcode.viewfinder")
                         .font(.system(size: 56))
                         .foregroundStyle(scannerBorderColor)
+                        .accessibilityHidden(true)
                 }
 
                 Text("Scan items to add")
@@ -109,7 +125,7 @@ struct KioskCheckoutView: View {
             if let result = lastResult {
                 FeedbackBanner(result: result)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .animation(.spring(response: 0.3), value: lastResult != nil)
+                    .animation(reduceMotion ? nil : .spring(response: 0.3), value: lastResult)
             }
 
             Spacer()
@@ -134,10 +150,26 @@ struct KioskCheckoutView: View {
             .disabled(scannedItems.isEmpty || isCompleting)
             .padding(.horizontal, 32)
             .padding(.bottom, 32)
+            .accessibilityLabel(completeAccessibilityLabel)
         }
         .padding(.horizontal, 32)
         .padding(.top, 20)
         .frame(maxWidth: .infinity)
+    }
+
+    private func cameraTone(for feedback: ScanFeedback?) -> KioskBarcodeCameraView.Tone? {
+        switch feedback {
+        case .success:   .success
+        case .duplicate: .warning
+        case .error:     .error
+        case nil:        nil
+        }
+    }
+
+    private var completeAccessibilityLabel: String {
+        if isCompleting { return "Processing checkout" }
+        let count = scannedItems.count
+        return "Complete Checkout, \(count) item\(count == 1 ? "" : "s")"
     }
 
     // MARK: - Items List
@@ -152,6 +184,9 @@ struct KioskCheckoutView: View {
                 Text("\(scannedItems.count)")
                     .font(.title3.bold())
                     .foregroundStyle(scannedItems.isEmpty ? .secondary : Color.kioskRed)
+                    .contentTransition(.numericText())
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: scannedItems.count)
+                    .monospacedDigit()
             }
             .padding(20)
 
@@ -165,11 +200,24 @@ struct KioskCheckoutView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                 Spacer()
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(scannedItems) { item in
-                            ItemRow(item: item)
-                            Divider().background(Color.white.opacity(0.06))
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            ForEach(scannedItems) { item in
+                                ItemRow(item: item, onRemove: { removeItem(item) })
+                                    .id(item.id)
+                                Divider().background(Color.white.opacity(0.06))
+                            }
+                        }
+                    }
+                    .onChange(of: scannedItems.last?.id) { _, newId in
+                        guard let newId else { return }
+                        if reduceMotion {
+                            proxy.scrollTo(newId, anchor: .bottom)
+                        } else {
+                            withAnimation(.easeOut(duration: 0.25)) {
+                                proxy.scrollTo(newId, anchor: .bottom)
+                            }
                         }
                     }
                 }
@@ -182,14 +230,22 @@ struct KioskCheckoutView: View {
 
     private var scannerBorderColor: Color {
         switch lastResult {
-        case .success: return .green
-        case .error: return .red
-        case .duplicate: return .orange
+        case .success: return Color.statusText(.green)
+        case .error: return Color.statusText(.red)
+        case .duplicate: return Color.statusText(.orange)
         case nil: return Color.white.opacity(0.3)
         }
     }
 
     private func handleScan(_ value: String) {
+        // Ignore scans during the complete-API window — a late scan would
+        // land in the cart but miss the assetIds payload, then get wiped on
+        // success. Phantom checkouts are worse than a "hold on" feedback.
+        guard !isCompleting else {
+            showFeedback(.error("Hold on — finishing checkout"))
+            return
+        }
+
         store.resetInactivity()
 
         var cart = store.cart(for: userId)
@@ -217,13 +273,31 @@ struct KioskCheckoutView: View {
                     showFeedback(.error(result.error ?? "Could not add item"))
                 }
             } catch {
-                showFeedback(.error("Scan failed"))
+                let message = (error as? APIError)?.errorDescription ?? "Scan failed"
+                showFeedback(.error(message))
             }
         }
     }
 
+    private func removeItem(_ item: KioskCartItem) {
+        var cart = store.cart(for: userId)
+        cart.removeAll { $0.id == item.id }
+        store.setCart(cart, for: userId)
+        Haptics.warning()
+        store.resetInactivity()
+        UIAccessibility.post(notification: .announcement, argument: "Removed \(item.name)")
+    }
+
     private func showFeedback(_ feedback: ScanFeedback) {
         withAnimation { lastResult = feedback }
+        // Tactile + spoken signal so the staffer doesn't need to read the
+        // banner — ankle-deep in a noisy floor environment.
+        switch feedback {
+        case .success: Haptics.success()
+        case .duplicate: Haptics.warning()
+        case .error: Haptics.error()
+        }
+        UIAccessibility.post(notification: .announcement, argument: feedback.message)
         Task {
             try? await Task.sleep(nanoseconds: 3_000_000_000)
             withAnimation { lastResult = nil }
@@ -241,10 +315,13 @@ struct KioskCheckoutView: View {
                     locationId: locationId,
                     assetIds: cart.map(\.id)
                 )
+                Haptics.success()
                 store.clearCart(for: userId)
                 store.screen = .success("Checkout complete! \(cart.count) items checked out.")
             } catch {
-                showFeedback(.error("Checkout failed. Please try again."))
+                let message = (error as? APIError)?.errorDescription
+                    ?? "Checkout failed. Please try again."
+                showFeedback(.error(message))
             }
             isCompleting = false
         }
@@ -255,11 +332,13 @@ struct KioskCheckoutView: View {
 
 private struct ItemRow: View {
     let item: KioskCartItem
+    let onRemove: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
+                .foregroundStyle(Color.statusText(.green))
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.name)
                     .font(.subheadline)
@@ -278,9 +357,21 @@ private struct ItemRow: View {
                 }
             }
             Spacer()
+            Button(action: onRemove) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(Color.white.opacity(0.4))
+                    .frame(width: 36, height: 36)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Remove \(item.name)")
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(item.name), tag \(item.tagName)")
+        .accessibilityAction(named: "Remove") { onRemove() }
     }
 }
 
@@ -290,6 +381,7 @@ private struct FeedbackBanner: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: icon)
+                .accessibilityHidden(true)
             Text(message)
                 .font(.subheadline.weight(.medium))
         }
@@ -301,6 +393,7 @@ private struct FeedbackBanner: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(color.opacity(0.4), lineWidth: 1)
         )
+        .accessibilityElement(children: .combine)
     }
 
     private var icon: String {
@@ -311,19 +404,13 @@ private struct FeedbackBanner: View {
         }
     }
 
-    private var message: String {
-        switch result {
-        case .success(let name): return name
-        case .error(let msg): return msg
-        case .duplicate(let msg): return msg
-        }
-    }
+    private var message: String { result.message }
 
     private var color: Color {
         switch result {
-        case .success: return .green
-        case .error: return .red
-        case .duplicate: return .orange
+        case .success: return Color.statusText(.green)
+        case .error: return Color.statusText(.red)
+        case .duplicate: return Color.statusText(.orange)
         }
     }
 }
