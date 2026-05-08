@@ -7,52 +7,19 @@ struct KioskStudentHubView: View {
     @State private var isLoading = true
     @State private var error: String?
 
+    private let refreshInterval: TimeInterval = 30
+
     var body: some View {
         VStack(spacing: 0) {
-            // Top bar
-            HStack {
-                Button {
-                    store.screen = .idle
-                } label: {
-                    Label("Back", systemImage: "chevron.left")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.secondary)
-                }
+            topBar
 
-                Spacer()
-
-                HStack(spacing: 12) {
-                    Circle()
-                        .fill(Color.white.opacity(0.12))
-                        .frame(width: 44, height: 44)
-                        .overlay {
-                            Text(user.initials)
-                                .font(.headline.bold())
-                                .foregroundStyle(.white)
-                        }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(user.name)
-                            .font(.headline)
-                            .foregroundStyle(.white)
-                        Text(user.role.capitalized)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Spacer()
-            }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 16)
-            .background(Color.white.opacity(0.04))
-
-            if isLoading {
+            if isLoading && context == nil {
                 Spacer()
                 ProgressView().tint(.white)
                 Spacer()
-            } else if let error {
+            } else if let error, context == nil {
                 Spacer()
-                Text(error).foregroundStyle(.secondary)
+                errorState(message: error)
                 Spacer()
             } else {
                 HStack(alignment: .top, spacing: 0) {
@@ -69,6 +36,75 @@ struct KioskStudentHubView: View {
             }
         }
         .task { await loadContext() }
+        .task(id: "refresh") {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: UInt64(refreshInterval * 1_000_000_000))
+                await loadContext()
+            }
+        }
+    }
+
+    // MARK: - Top bar
+
+    private var topBar: some View {
+        HStack {
+            Button {
+                store.screen = .idle
+            } label: {
+                Label("Back", systemImage: "chevron.left")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
+            .accessibilityLabel("Back to roster")
+
+            Spacer()
+
+            HStack(spacing: 12) {
+                userAvatar
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(user.name)
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                    Text(user.role.capitalized)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(user.name), \(user.role.capitalized)")
+
+            Spacer()
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 16)
+        .background(Color.white.opacity(0.04))
+    }
+
+    @ViewBuilder
+    private var userAvatar: some View {
+        let placeholder = Circle()
+            .fill(Color.white.opacity(0.12))
+            .frame(width: 44, height: 44)
+            .overlay {
+                Text(user.initials)
+                    .font(.headline.bold())
+                    .foregroundStyle(.white)
+            }
+
+        if let urlString = user.avatarUrl, let url = URL(string: urlString) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().scaledToFill()
+                default:
+                    placeholder
+                }
+            }
+            .frame(width: 44, height: 44)
+            .clipShape(Circle())
+        } else {
+            placeholder
+        }
     }
 
     // MARK: - Action Panel
@@ -92,9 +128,9 @@ struct KioskStudentHubView: View {
                 ForEach(pickups) { pickup in
                     ActionButton(
                         title: "Pickup: \(pickup.title)",
-                        subtitle: "\(pickup.itemCount) items",
+                        subtitle: pickupSubtitle(pickup),
                         icon: "tray.and.arrow.down.fill",
-                        color: Color.green
+                        color: Color.statusText(.green)
                     ) {
                         store.screen = .pickup(bookingId: pickup.id, userId: user.id)
                     }
@@ -105,9 +141,9 @@ struct KioskStudentHubView: View {
                 ForEach(checkouts) { checkout in
                     ActionButton(
                         title: "Return: \(checkout.title)",
-                        subtitle: "\(checkout.items.count) items\(checkout.isOverdue ? " · Overdue" : "")",
+                        subtitle: checkoutSubtitle(checkout),
                         icon: "arrow.down.circle.fill",
-                        color: checkout.isOverdue ? .orange : .blue
+                        color: checkout.isOverdue ? Color.statusText(.orange) : Color.statusText(.blue)
                     ) {
                         store.screen = .return(bookingId: checkout.id, userId: user.id)
                     }
@@ -118,28 +154,34 @@ struct KioskStudentHubView: View {
         }
     }
 
-    // MARK: - Status Panel
+    private func pickupSubtitle(_ pickup: KioskPendingPickup) -> String {
+        let names = pickup.serializedItems.prefix(2).map(\.name)
+        let head = names.joined(separator: ", ")
+        let extra = pickup.itemCount - names.count
+        if head.isEmpty {
+            return "\(pickup.itemCount) items"
+        }
+        return extra > 0 ? "\(head) · +\(extra) more" : head
+    }
+
+    private func checkoutSubtitle(_ checkout: KioskStudentCheckout) -> String {
+        let names = checkout.items.prefix(2).map(\.name)
+        let head = names.joined(separator: ", ")
+        let extra = checkout.items.count - names.count
+        let body = head.isEmpty
+            ? "\(checkout.items.count) items"
+            : (extra > 0 ? "\(head) · +\(extra) more" : head)
+        return checkout.isOverdue ? "\(body) · Overdue" : body
+    }
+
+    // MARK: - Status Panel — upcoming reservations only (active checkouts and
+    // pending pickups already appear as action buttons; no need to repeat).
 
     private var statusPanel: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Your Activity")
+            Text("Coming Up")
                 .font(.headline)
                 .foregroundStyle(.secondary)
-
-            if let checkouts = context?.checkouts, !checkouts.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Label("Active Checkouts", systemImage: "arrow.up.circle")
-                        .font(.caption.uppercaseSmallCaps())
-                        .foregroundStyle(.secondary)
-                    ForEach(checkouts) { checkout in
-                        StatusCard(
-                            title: checkout.title,
-                            detail: "Due \(checkout.endsAt.formatted(.relative(presentation: .named)))",
-                            isAlert: checkout.isOverdue
-                        )
-                    }
-                }
-            }
 
             if let reservations = context?.reservations, !reservations.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
@@ -150,31 +192,78 @@ struct KioskStudentHubView: View {
                         StatusCard(
                             title: res.title,
                             detail: res.startsAt.formatted(.dateTime.weekday(.abbreviated).month().day().hour().minute()),
-                            isAlert: false
+                            tone: .purple
                         )
                     }
                 }
-            }
-
-            if context?.checkouts.isEmpty == true && context?.reservations.isEmpty == true {
-                Text("No active equipment")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+            } else {
+                emptyStatus
             }
 
             Spacer()
         }
     }
 
+    private var emptyStatus: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Image(systemName: "calendar")
+                .font(.title3)
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            Text("Nothing reserved this week")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Text("You're all clear — tap Checkout Gear to grab something.")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.top, 4)
+        .accessibilityElement(children: .combine)
+    }
+
+    // MARK: - Error state
+
+    private func errorState(message: String) -> some View {
+        VStack(spacing: 14) {
+            Image(systemName: "wifi.exclamationmark")
+                .font(.system(size: 44))
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            Text("Couldn't load your information")
+                .font(.headline)
+                .foregroundStyle(.white)
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            Button {
+                Task { await loadContext() }
+            } label: {
+                Text("Try again")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 22)
+                    .padding(.vertical, 10)
+                    .background(Color.kioskRed, in: Capsule())
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
     private func loadContext() async {
-        isLoading = true
-        error = nil
+        if context == nil { isLoading = true }
+        defer { isLoading = false }
         do {
             context = try await KioskAPI.shared.kioskStudentContext(userId: user.id)
+            error = nil
         } catch {
-            self.error = "Could not load your information."
+            // Keep last-good context; if we never had one, surface the error
+            // page. Otherwise the next refresh will retry silently.
+            if context == nil {
+                self.error = "Check your connection and try again."
+            }
         }
-        isLoading = false
     }
 }
 
@@ -194,6 +283,7 @@ private struct ActionButton: View {
                     .font(.title2)
                     .foregroundStyle(color)
                     .frame(width: 40)
+                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(.headline)
@@ -201,11 +291,13 @@ private struct ActionButton: View {
                     Text(subtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
             }
             .padding(16)
             .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 14))
@@ -215,13 +307,21 @@ private struct ActionButton: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title), \(subtitle)")
     }
 }
 
 private struct StatusCard: View {
     let title: String
     let detail: String
-    let isAlert: Bool
+    let tone: StatusTone?
+
+    init(title: String, detail: String, tone: StatusTone? = nil) {
+        self.title = title
+        self.detail = detail
+        self.tone = tone
+    }
 
     var body: some View {
         HStack {
@@ -232,17 +332,46 @@ private struct StatusCard: View {
                     .lineLimit(1)
                 Text(detail)
                     .font(.caption)
-                    .foregroundStyle(isAlert ? .orange : .secondary)
+                    .foregroundStyle(detailColor)
             }
             Spacer()
-            if isAlert {
+            if let tone, tone == .orange || tone == .red {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Color.statusText(tone))
                     .font(.caption)
+                    .accessibilityHidden(true)
             }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
+        .overlay(alignment: .leading) {
+            // Left-edge tone marker — glanceable, doesn't compete with text.
+            if let tone {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Color.statusText(tone))
+                    .frame(width: 3)
+                    .padding(.vertical, 6)
+                    .padding(.leading, 0)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var detailColor: Color {
+        if let tone, tone == .orange || tone == .red {
+            return Color.statusText(tone)
+        }
+        return Color.white.opacity(0.6)
+    }
+
+    private var accessibilityLabel: String {
+        let prefix: String
+        switch tone {
+        case .orange, .red: prefix = "Overdue: "
+        default: prefix = ""
+        }
+        return "\(prefix)\(title), \(detail)"
     }
 }
