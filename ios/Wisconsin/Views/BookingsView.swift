@@ -153,6 +153,7 @@ struct BookingsView: View {
                     }
                     .listStyle(.plain)
                     .allowsHitTesting(false)
+                    .accessibilityHidden(true)  // Don't pollute VO with placeholder shapes.
                 } else if vm.bookings.isEmpty {
                     ContentUnavailableView(
                         emptyTitle,
@@ -287,6 +288,7 @@ struct BookingRow: View {
                 } icon: {
                     Image(systemName: isOverdue ? "exclamationmark.circle.fill" : "clock")
                         .font(.caption2)
+                        .accessibilityHidden(true)
                 }
                 .foregroundStyle(isOverdue ? AnyShapeStyle(Color.statusText(.red)) : AnyShapeStyle(.tertiary))
             } else {
@@ -296,6 +298,23 @@ struct BookingRow: View {
             }
         }
         .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(rowAccessibilityLabel)
+    }
+
+    private var rowAccessibilityLabel: String {
+        var parts: [String] = []
+        if isOverdue { parts.append("Overdue") }
+        parts.append(booking.title)
+        parts.append(booking.requester.name)
+        parts.append(booking.location.name)
+        parts.append(StatusBadge.label(for: booking.status, kind: booking.kind))
+        if booking.kind == .checkout {
+            parts.append("Due \(booking.endsAt.formatted(date: .abbreviated, time: .shortened))")
+        } else {
+            parts.append("From \(booking.startsAt.formatted(date: .abbreviated, time: .omitted))")
+        }
+        return parts.joined(separator: ", ")
     }
 }
 
@@ -305,10 +324,13 @@ struct StatusBadge: View {
     var kind: BookingKind = .unknown
 
     var body: some View {
-        StatusPill(label: labelText, tone: tone)
+        StatusPill(label: Self.label(for: status, kind: kind), tone: tone)
     }
 
-    private var labelText: String {
+    /// Public static so accessibility-label builders can speak the same
+    /// label the visible pill renders, without duplicating the BOOKED-vs-
+    /// reservation/checkout split logic.
+    static func label(for status: BookingStatus, kind: BookingKind) -> String {
         if status == .booked { return kind == .reservation ? "Confirmed" : "Booked" }
         return status.label
     }
