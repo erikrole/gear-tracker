@@ -154,7 +154,7 @@ struct EventDetailSheet: View {
             }
             .sheet(item: $editTimesTarget) { shift in
                 EditShiftTimesSheet(shift: shift) { newStart, newEnd in
-                    Task { await updateShiftTimes(shift, startsAt: newStart, endsAt: newEnd) }
+                    await updateShiftTimes(shift, startsAt: newStart, endsAt: newEnd)
                 }
             }
             .confirmationDialog(
@@ -519,12 +519,13 @@ struct CoveragePill: View {
             .font(.caption.weight(.semibold))
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
-            .background(pillColor.opacity(0.15))
-            .foregroundStyle(pillColor)
+            .background(Color.statusBackground(tone))
+            .foregroundStyle(Color.statusText(tone))
             .clipShape(Capsule())
+            .accessibilityLabel("Crew coverage: \(coverage.filled) of \(coverage.total) filled")
     }
 
-    private var pillColor: Color {
+    private var tone: StatusTone {
         if coverage.percentage >= 100 { return .green }
         if coverage.percentage > 0 { return .orange }
         return .red
@@ -645,6 +646,7 @@ struct ShiftRow: View {
                 Circle()
                     .fill(Color.accentColor)
                     .frame(width: 7, height: 7)
+                    .accessibilityHidden(true)
             }
         }
         .padding(.horizontal, 12)
@@ -652,6 +654,28 @@ struct ShiftRow: View {
         .background(isHighlighted ? Color.accentColor.opacity(0.06) : Color.clear)
         .contentShape(.contextMenuPreview, Rectangle())
         .contextMenu { rowContextMenu }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(rowAccessibilityLabel)
+    }
+
+    private var rowAccessibilityLabel: String {
+        let timeRange = "\(shift.startsAt.formatted(.dateTime.hour().minute())) to \(shift.endsAt.formatted(.dateTime.hour().minute()))"
+        var parts: [String] = []
+        if isHighlighted { parts.append("Your shift") }
+        parts.append("\(workerTypeLabel) shift")
+        parts.append(timeRange)
+        if shift.isOpen {
+            parts.append("Open slot")
+        } else {
+            let names = shift.assignments.map { assignment -> String in
+                if assignment.status == "REQUESTED" {
+                    return "\(assignment.user.name), pending"
+                }
+                return assignment.user.name
+            }.joined(separator: ", ")
+            parts.append("Assigned: \(names)")
+        }
+        return parts.joined(separator: ". ")
     }
 
     @ViewBuilder
@@ -748,12 +772,14 @@ struct ShiftRow: View {
                                         .buttonStyle(.bordered)
                                         .controlSize(.mini)
                                         .tint(Color.statusText(.green))
+                                        .accessibilityLabel("Approve \(assignment.user.name)")
                                 }
                                 if let onDecline {
                                     Button("Decline") { onDecline(assignment) }
                                         .buttonStyle(.borderless)
                                         .controlSize(.mini)
                                         .foregroundStyle(Color.statusText(.red))
+                                        .accessibilityLabel("Decline \(assignment.user.name)")
                                 }
                             }
                         }
@@ -806,7 +832,7 @@ struct ShiftRow: View {
     }
 
     private var workerTypeColor: Color {
-        shift.workerType == "FT" ? .secondary : .blue
+        shift.workerType == "FT" ? .secondary : Color.statusText(.blue)
     }
 }
 
@@ -814,18 +840,23 @@ struct ShiftRow: View {
 
 struct EditShiftTimesSheet: View {
     let shift: EventShift
-    let onSave: (Date, Date) -> Void
+    let onSave: (Date, Date) async -> Void
 
     @State private var startsAt: Date
     @State private var endsAt: Date
     @State private var isSaving = false
+    @State private var showDiscardConfirm = false
     @Environment(\.dismiss) private var dismiss
 
-    init(shift: EventShift, onSave: @escaping (Date, Date) -> Void) {
+    init(shift: EventShift, onSave: @escaping (Date, Date) async -> Void) {
         self.shift = shift
         self.onSave = onSave
         _startsAt = State(initialValue: shift.startsAt)
         _endsAt = State(initialValue: shift.endsAt)
+    }
+
+    private var hasChanges: Bool {
+        startsAt != shift.startsAt || endsAt != shift.endsAt
     }
 
     var body: some View {
@@ -833,7 +864,9 @@ struct EditShiftTimesSheet: View {
             Form {
                 Section {
                     DatePicker("Call time", selection: $startsAt, displayedComponents: [.hourAndMinute])
+                        .disabled(isSaving)
                     DatePicker("End time", selection: $endsAt, in: startsAt..., displayedComponents: [.hourAndMinute])
+                        .disabled(isSaving)
                 } header: {
                     Text(shift.area + " shift")
                 } footer: {
@@ -845,20 +878,52 @@ struct EditShiftTimesSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        isSaving = true
-                        onSave(startsAt, endsAt)
-                        dismiss()
+                    Button("Cancel") {
+                        if isSaving { return }
+                        if hasChanges {
+                            showDiscardConfirm = true
+                        } else {
+                            dismiss()
+                        }
                     }
                     .disabled(isSaving)
                 }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button {
+                        Task { await save() }
+                    } label: {
+                        if isSaving {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Text("Save").fontWeight(.semibold)
+                        }
+                    }
+                    .disabled(isSaving || !hasChanges)
+                }
+            }
+            .interactiveDismissDisabled(isSaving || hasChanges)
+            .confirmationDialog(
+                "Discard changes?",
+                isPresented: $showDiscardConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Discard", role: .destructive) { dismiss() }
+                Button("Keep Editing", role: .cancel) {}
+            } message: {
+                Text("Your changes will be lost.")
             }
         }
-        .presentationDetents([.height(280)])
+        .presentationDetents([.height(320)])
         .presentationDragIndicator(.visible)
+    }
+
+    private func save() async {
+        isSaving = true
+        await onSave(startsAt, endsAt)
+        isSaving = false
+        // Parent handles success/error haptic + alert. Sheet always
+        // dismisses — failures will be visible in the parent's actionError.
+        dismiss()
     }
 }
 
