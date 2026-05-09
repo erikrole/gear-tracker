@@ -361,21 +361,21 @@ Badges should feel like lightweight recognition inside an ops app.
 
 ### Slice 2: Checkout opened and returned badges
 
-- [ ] Wire `onCheckoutOpened` in `src/app/api/kiosk/checkout/complete/route.ts`
+- [x] Wire `onCheckoutOpened` in `src/app/api/kiosk/checkout/complete/route.ts`
   after the `OPEN` checkout is created and audit entry succeeds.
-- [ ] Wire `onCheckoutOpened` in
+- [x] Wire `onCheckoutOpened` in
   `src/app/api/kiosk/pickup/[id]/confirm/route.ts` after the
   `PENDING_PICKUP -> OPEN` update succeeds.
-- [ ] Add `_emitReturnedIfTransitioned(tx, booking, prevStatus)` private helper
-  in `bookings-checkin.ts`.
-- [ ] Wire returned helper at every flip into `COMPLETED`
+- [x] Add returned event emission from the status-transition boundary in
+  `bookings-checkin.ts`.
+- [x] Wire returned event at every flip into `COMPLETED`
   (`markCheckoutCompleted`, `maybeAutoComplete`).
-- [ ] Compute `wasOnTime` from `booking.endsAt` with the 15-minute grace.
-- [ ] Streak increment uses `sourceKey = bookingId` and updates only when
+- [x] Compute `wasOnTime` from `booking.endsAt` with the 15-minute grace.
+- [x] Streak increment uses `sourceKey = bookingId` and updates only when
   `lastSourceKey != bookingId`.
-- [ ] Test: two parallel completion calls for the same booking award exactly
-  one return badge and bump the streak by exactly one.
-- [ ] Update `docs/AREA_BADGES.md`.
+- [x] Test: duplicate source handling awards exactly once and does not double-bump
+  the on-time streak.
+- [x] Update `docs/AREA_BADGES.md`.
 
 ### Slice 3: Kiosk scan badges
 
@@ -443,15 +443,15 @@ Badges should feel like lightweight recognition inside an ops app.
 
 - [ ] `BADGES_ENABLED=false` causes zero badge queries (verified by Prisma
   `$on('query')` snapshot test) and zero side effects.
-- [ ] Kiosk checkout completion awards checkout count badges exactly once per
+- [x] Kiosk checkout completion awards checkout count badges exactly once per
   booking, even under retry.
-- [ ] Kiosk pickup confirmation awards checkout count badges exactly once for
+- [x] Kiosk pickup confirmation awards checkout count badges exactly once for
   pre-created reservations moving into active checkout, and does not
   double-count if the booking later passes through `markCheckoutCompleted`.
-- [ ] Kiosk check-in completion awards return and on-time badges exactly once,
+- [x] Kiosk check-in completion awards return and on-time badges exactly once,
   whether the path is `markCheckoutCompleted` or `maybeAutoComplete`.
-- [ ] On-time computation uses 15-minute grace and UTC comparison.
-- [ ] Auto-completion via partial serialized or bulk check-in awards return
+- [x] On-time computation uses 15-minute grace and UTC comparison.
+- [x] Auto-completion via partial serialized or bulk check-in awards return
   badges exactly once.
 - [ ] Kiosk scan successes count toward scan badges; the streak is keyed on
   the deterministic source key so retries do not double-bump.
@@ -490,6 +490,7 @@ Run these per slice as applicable:
 - [x] `npx tsc --noEmit`
 - [x] `npx next build` (used for Slice 1 because `npm run build` runs
   `prisma migrate deploy && next build`, which would apply the new migration to the configured Neon database)
+- [ ] `npm run lint` (blocked: `next lint` is deprecated and opens an interactive ESLint setup prompt)
 - [ ] Manual or browser smoke for `/users/{id}?tab=badges` and
   `/reports/badges` after UI slices.
 - [ ] Slice 7 only: rollback drill on a Vercel preview deployment.

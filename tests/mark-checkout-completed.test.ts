@@ -32,12 +32,20 @@ vi.mock("@/lib/services/availability", () => ({
   checkAvailability: vi.fn().mockResolvedValue({ conflicts: [] }),
 }));
 
+vi.mock("@/lib/badges", () => ({
+  badges: {
+    onCheckoutReturned: vi.fn(),
+  },
+}));
+
 import { db } from "@/lib/db";
+import { badges } from "@/lib/badges";
 import { markCheckoutCompleted } from "@/lib/services/bookings";
 
 const mockTx = (db as any)._mockTx;
 
 beforeEach(() => {
+  vi.clearAllMocks();
   transactionCalls.length = 0;
 });
 
@@ -48,6 +56,8 @@ describe("markCheckoutCompleted", () => {
       kind: "CHECKOUT",
       status: "OPEN",
       locationId: "loc-1",
+      requesterUserId: "user-1",
+      endsAt: new Date("2026-05-09T18:00:00.000Z"),
       bulkItems,
     };
   }
@@ -189,5 +199,24 @@ describe("markCheckoutCompleted", () => {
 
     // No stock movement should be created since all items were already returned
     expect(mockTx.bulkStockMovement.createMany).not.toHaveBeenCalled();
+  });
+
+  it("emits the returned badge event after completion", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(openCheckout());
+    mockTx.booking.update.mockResolvedValue({});
+    mockTx.assetAllocation.updateMany.mockResolvedValue({});
+    mockTx.scanSession.updateMany.mockResolvedValue({});
+    mockTx.auditLog.create.mockResolvedValue({});
+
+    await markCheckoutCompleted("b-1", "actor-1");
+
+    expect(badges.onCheckoutReturned).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        bookingId: "b-1",
+        wasOnTime: expect.any(Boolean),
+        sourceKey: "b-1",
+      }),
+    );
   });
 });

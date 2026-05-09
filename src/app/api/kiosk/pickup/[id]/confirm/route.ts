@@ -3,6 +3,7 @@ import { withKiosk } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
 import { createAuditEntry } from "@/lib/audit";
 import { pickupConfirmBody } from "@/lib/schemas/kiosk";
+import { badges } from "@/lib/badges";
 
 /**
  * Confirm kiosk pickup: transition PENDING_PICKUP → OPEN.
@@ -95,6 +96,13 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
       kioskDeviceId: kiosk.kioskId,
       locationName: kiosk.locationName,
     },
+  });
+
+  await badges.onCheckoutOpened({
+    userId: actorId,
+    bookingId: params.id,
+    source: "kiosk_pickup",
+    sourceKey: params.id,
   });
 
   return ok({ success: true, bookingId: params.id });

@@ -103,3 +103,4 @@ Files under `ios/Wisconsin/Kiosk/`:
 | 2026-05-08 | API hardening Wave 11: activation now uses tighter IP and per-code rate limits, and kiosk scan lookup applies per-device minute/hour limits before item lookup. |
 | 2026-05-08 | API hardening Wave 13: kiosk sessions now expire after 7 days, heartbeat is capped to 1/min/device, and student lookup is rate-limited per kiosk/IP plus per student. |
 | 2026-05-08 | Pickup integrity hardening: serialized pickup scans now write scan evidence, pickup confirmation blocks until all serialized assets have successful checkout scans, and serial-number scanner input is accepted. |
+| 2026-05-09 | Badge achievements Slice 2: kiosk direct checkout and pickup confirmation now emit feature-flagged checkout-opened badge events after audit success. With `BADGES_ENABLED` off, these calls return before evaluator work or badge queries. |

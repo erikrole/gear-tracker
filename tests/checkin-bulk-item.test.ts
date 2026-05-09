@@ -34,7 +34,14 @@ vi.mock("@/lib/services/availability", () => ({
   checkAvailability: vi.fn().mockResolvedValue({ conflicts: [] }),
 }));
 
+vi.mock("@/lib/badges", () => ({
+  badges: {
+    onCheckoutReturned: vi.fn(),
+  },
+}));
+
 import { db } from "@/lib/db";
+import { badges } from "@/lib/badges";
 import { checkinBulkItem } from "@/lib/services/bookings";
 
 const mockTx = (db as any)._mockTx;
@@ -45,12 +52,15 @@ function openCheckout(bulkItems: any[] = []) {
     kind: "CHECKOUT",
     status: "OPEN",
     locationId: "loc-1",
+    requesterUserId: "user-1",
+    endsAt: new Date("2026-05-09T18:00:00.000Z"),
     serializedItems: [],
     bulkItems,
   };
 }
 
 beforeEach(() => {
+  vi.clearAllMocks();
   transactionCalls.length = 0;
   mockTx.bookingBulkItem.update.mockResolvedValue({});
   mockTx.bulkStockBalance.findMany.mockResolvedValue([]);
@@ -169,6 +179,13 @@ describe("checkinBulkItem", () => {
     const result = await checkinBulkItem("b-1", "actor-1", "bi-1", 1);
 
     expect(result.autoCompleted).toBe(true);
+    expect(badges.onCheckoutReturned).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        bookingId: "b-1",
+        sourceKey: "b-1",
+      }),
+    );
   });
 
   it("creates audit log", async () => {

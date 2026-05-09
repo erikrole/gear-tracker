@@ -23,7 +23,14 @@ vi.mock("@/lib/db", () => {
   };
 });
 
+vi.mock("@/lib/badges", () => ({
+  badges: {
+    onCheckoutReturned: vi.fn(),
+  },
+}));
+
 import { db } from "@/lib/db";
+import { badges } from "@/lib/badges";
 import { checkinItems } from "@/lib/services/bookings";
 
 const mockTx = (db as any)._mockTx;
@@ -40,6 +47,8 @@ function makeOpenCheckout(serializedItems: { assetId: string; allocationStatus: 
     kind: "CHECKOUT",
     status: "OPEN",
     locationId: "loc-1",
+    requesterUserId: "user-1",
+    endsAt: new Date("2026-05-09T18:00:00.000Z"),
     serializedItems: serializedItems.map((item) => ({
       bookingId: "booking-1",
       assetId: item.assetId,
@@ -102,6 +111,13 @@ describe("checkinItems", () => {
       where: { id: "booking-1" },
       data: { status: "COMPLETED" },
     });
+    expect(badges.onCheckoutReturned).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        bookingId: "booking-1",
+        sourceKey: "booking-1",
+      }),
+    );
   });
 
   it("rejects check-in of assets not in the checkout", async () => {

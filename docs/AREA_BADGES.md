@@ -26,9 +26,9 @@ Badges are lightweight student recognition inside the existing ops app. They are
 
 | Badge event | Source of truth | Slice |
 |---|---|---|
-| `onCheckoutOpened` | `src/app/api/kiosk/checkout/complete/route.ts` after an `OPEN` checkout is created | 2 |
-| `onCheckoutOpened` | `src/app/api/kiosk/pickup/[id]/confirm/route.ts` after `PENDING_PICKUP -> OPEN` | 2 |
-| `onCheckoutReturned` | `src/lib/services/bookings-checkin.ts:markCheckoutCompleted` and `maybeAutoComplete` only when status flips into `COMPLETED` | 2 |
+| `onCheckoutOpened` | `src/app/api/kiosk/checkout/complete/route.ts` after an `OPEN` checkout is created | Complete |
+| `onCheckoutOpened` | `src/app/api/kiosk/pickup/[id]/confirm/route.ts` after `PENDING_PICKUP -> OPEN` | Complete |
+| `onCheckoutReturned` | `src/lib/services/bookings-checkin.ts:markCheckoutCompleted` and `maybeAutoComplete` only when status flips into `COMPLETED` | Complete |
 | `onScanResult` | `src/app/api/kiosk/checkout/scan`, `src/app/api/kiosk/pickup/[id]/scan`, `src/app/api/kiosk/checkin/[id]/scan` | 3 |
 | `onTradeCompleted` | `src/lib/services/shift-trades.ts:claimTrade` immediate-complete branch and `approveTrade`, through one transition helper | 5 |
 | `onShiftCompleted` | Deferred until attendance/no-show has a real completion signal | 6 |
@@ -58,10 +58,10 @@ Badges are lightweight student recognition inside the existing ops app. They are
 
 ## Acceptance Criteria
 - [ ] `BADGES_ENABLED=false` causes zero evaluator work, badge queries, and side effects.
-- [ ] Kiosk checkout completion awards checkout count badges exactly once per booking.
-- [ ] Kiosk pickup confirmation awards checkout count badges exactly once for reservations moving into active checkout.
-- [ ] Checkout return badges award exactly once when a checkout transitions to `COMPLETED`.
-- [ ] On-time computation uses a 15-minute UTC grace window after `booking.endsAt`.
+- [x] Kiosk checkout completion awards checkout count badges exactly once per booking.
+- [x] Kiosk pickup confirmation awards checkout count badges exactly once for reservations moving into active checkout.
+- [x] Checkout return badges award exactly once when a checkout transitions to `COMPLETED`.
+- [x] On-time computation uses a 15-minute UTC grace window after `booking.endsAt`.
 - [ ] Kiosk scan successes count toward scan badges and retries do not double-bump streaks.
 - [ ] Kiosk scan failures reset the clean-scan streak state.
 - [ ] Legacy app scan stub remains 403 and awards nothing.
@@ -80,4 +80,5 @@ Badges are lightweight student recognition inside the existing ops app. They are
 ## Change Log
 | Date | Change |
 |---|---|
+| 2026-05-09 | Slice 2 shipped checkout-opened and checkout-returned badge evaluation. Kiosk direct checkout and kiosk pickup now emit opened events after audit success; checkout completion emits returned events from `markCheckoutCompleted`, partial serialized auto-complete, bulk auto-complete, and kiosk check-in auto-complete. |
 | 2026-05-09 | Slice 1 shipped with schema, migration artifact, seed definitions, feature-flagged service skeleton, observability stub, and flag-off contract test. Route wiring remains deferred. |

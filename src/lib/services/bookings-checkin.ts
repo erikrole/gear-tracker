@@ -10,7 +10,12 @@ import {
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { createAuditEntryTx, lookupActorRole } from "@/lib/audit";
+import { badges } from "@/lib/badges";
 import { upsertBulkBalancesAndMovements } from "./bookings-helpers";
+
+function wasReturnedOnTime(endsAt: Date, completedAt: Date) {
+  return completedAt.getTime() <= endsAt.getTime() + 15 * 60 * 1000;
+}
 
 /**
  * Shared auto-complete check for checkinItems and checkinBulkItem.
@@ -83,7 +88,8 @@ async function maybeAutoComplete(
 }
 
 export async function markCheckoutCompleted(bookingId: string, actorUserId: string) {
-  return db.$transaction(async (tx) => {
+  const completedAt = new Date();
+  const result = await db.$transaction(async (tx) => {
     const booking = await tx.booking.findUnique({
       where: { id: bookingId },
       include: {
@@ -190,8 +196,22 @@ export async function markCheckoutCompleted(bookingId: string, actorUserId: stri
       action: "checkin_completed",
     });
 
-    return { success: true };
+    return {
+      success: true,
+      userId: booking.requesterUserId,
+      wasOnTime: wasReturnedOnTime(booking.endsAt, completedAt),
+    };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+  await badges.onCheckoutReturned({
+    userId: result.userId,
+    bookingId,
+    completedAt,
+    wasOnTime: result.wasOnTime,
+    sourceKey: bookingId,
+  });
+
+  return { success: true };
 }
 
 /**
@@ -278,11 +298,26 @@ export async function checkinItems(
         success: true,
         returnedAssetIds: assetIds,
         remainingActiveItems: remainingActive,
-        autoCompleted
+        autoCompleted,
+        badgeEvent: autoCompleted
+          ? {
+              userId: booking.requesterUserId,
+              bookingId,
+              completedAt: new Date(),
+              wasOnTime: wasReturnedOnTime(booking.endsAt, new Date()),
+              sourceKey: bookingId,
+            }
+          : null,
       };
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
-  );
+  ).then(async (result) => {
+    if (result.badgeEvent) {
+      await badges.onCheckoutReturned(result.badgeEvent);
+    }
+    const { badgeEvent: _badgeEvent, ...publicResult } = result;
+    return publicResult;
+  });
 }
 
 /**
@@ -394,10 +429,25 @@ export async function kioskCompleteCheckin(args: {
         totalItems,
         returnedItems,
         completed,
+        badgeEvent: completed
+          ? {
+              userId: booking.requesterUserId,
+              bookingId: booking.id,
+              completedAt: new Date(),
+              wasOnTime: wasReturnedOnTime(booking.endsAt, new Date()),
+              sourceKey: booking.id,
+            }
+          : null,
       };
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-  );
+  ).then(async (result) => {
+    if (result.badgeEvent) {
+      await badges.onCheckoutReturned(result.badgeEvent);
+    }
+    const { badgeEvent: _badgeEvent, ...publicResult } = result;
+    return publicResult;
+  });
 }
 
 /**
@@ -474,9 +524,24 @@ export async function checkinBulkItem(
         bulkItemId,
         checkedInQuantity: newCheckedIn,
         totalQuantity: outQty,
-        autoCompleted
+        autoCompleted,
+        badgeEvent: autoCompleted
+          ? {
+              userId: booking.requesterUserId,
+              bookingId,
+              completedAt: new Date(),
+              wasOnTime: wasReturnedOnTime(booking.endsAt, new Date()),
+              sourceKey: bookingId,
+            }
+          : null,
       };
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
-  );
+  ).then(async (result) => {
+    if (result.badgeEvent) {
+      await badges.onCheckoutReturned(result.badgeEvent);
+    }
+    const { badgeEvent: _badgeEvent, ...publicResult } = result;
+    return publicResult;
+  });
 }

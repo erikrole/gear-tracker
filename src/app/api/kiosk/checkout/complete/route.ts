@@ -5,6 +5,7 @@ import { HttpError, ok } from "@/lib/http";
 import { createAuditEntry } from "@/lib/audit";
 import { checkoutCompleteBody } from "@/lib/schemas/kiosk";
 import { nextBookingRef } from "@/lib/services/booking-ref";
+import { badges } from "@/lib/badges";
 
 /**
  * Complete a kiosk checkout: create booking + allocations in one step.
@@ -90,6 +91,13 @@ export const POST = withKiosk(async (req, { kiosk }) => {
         kioskDeviceId: kiosk.kioskId,
         locationName: kiosk.locationName,
       },
+    });
+
+    await badges.onCheckoutOpened({
+      userId: actorId,
+      bookingId: booking.id,
+      source: "kiosk_checkout",
+      sourceKey: booking.id,
     });
 
     return ok({
