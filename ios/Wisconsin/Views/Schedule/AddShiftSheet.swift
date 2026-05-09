@@ -70,9 +70,16 @@ struct AddShiftSheet: View {
                         .disabled(isSubmitting)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Add") { Task { await submit() } }
-                        .fontWeight(.semibold)
-                        .disabled(isSubmitting)
+                    Button {
+                        Task { await submit() }
+                    } label: {
+                        if isSubmitting {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Text("Add").fontWeight(.semibold)
+                        }
+                    }
+                    .disabled(isSubmitting)
                 }
             }
             .interactiveDismissDisabled(isSubmitting)
@@ -96,7 +103,7 @@ struct AddShiftSheet: View {
             dismiss()
         } catch {
             self.error = error.localizedDescription
-            Haptics.error()
+            Haptics.warning()
         }
     }
 }
