@@ -111,6 +111,8 @@ private struct StepIndicator: View {
             }
         }
         .padding(.vertical, 8)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Step \(currentIndex + 1) of \(steps.count): \(steps[currentIndex].1)")
     }
 }
 
@@ -187,6 +189,7 @@ private struct ScanStepView: View {
                 HStack(spacing: 10) {
                     Image(systemName: "qrcode")
                         .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
                     Text(scannedCode)
                         .font(.system(.subheadline, design: .monospaced))
                         .lineLimit(1)
@@ -199,6 +202,7 @@ private struct ScanStepView: View {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(.tertiary)
                     }
+                    .accessibilityLabel("Clear scanned code")
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
@@ -220,6 +224,7 @@ private struct ScanStepView: View {
                             .background(.regularMaterial, in: Capsule())
                             .foregroundStyle(torchOn ? .yellow : .primary)
                     }
+                    .accessibilityLabel(torchOn ? "Turn off flashlight" : "Turn on flashlight")
                     Spacer()
                     Button("Enter Manually") { showManual = true }
                         .font(.subheadline.weight(.medium))
@@ -233,7 +238,7 @@ private struct ScanStepView: View {
 
     private func handleScan(_ value: String) {
         guard scannedCode.isEmpty else { return }
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        Haptics.success()
         scannedCode = value
         isPaused = true
     }
@@ -300,6 +305,7 @@ private struct PickItemStepView: View {
     @State private var query = ""
     @State private var results: [Asset] = []
     @State private var isSearching = false
+    @State private var searchError: String?
     @State private var searchTask: Task<Void, Never>? = nil
 
     var body: some View {
@@ -325,6 +331,27 @@ private struct PickItemStepView: View {
                             ProgressView()
                             Spacer()
                         }
+                        .listRowBackground(Color.clear)
+                    } else if let err = searchError, results.isEmpty {
+                        // Distinct from "no matches" so server failure doesn't
+                        // masquerade as an empty result set.
+                        VStack(spacing: 10) {
+                            Image(systemName: "wifi.exclamationmark")
+                                .font(.title2)
+                                .foregroundStyle(Color.statusText(.red))
+                                .accessibilityHidden(true)
+                            Text("Couldn't search")
+                                .font(.subheadline.weight(.semibold))
+                            Text(err)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                            Button("Retry") { scheduleSearch(query) }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
                         .listRowBackground(Color.clear)
                     } else if results.isEmpty && !query.isEmpty {
                         ContentUnavailableView.search(text: query)
@@ -368,16 +395,24 @@ private struct PickItemStepView: View {
         searchTask?.cancel()
         guard !q.trimmingCharacters(in: .whitespaces).isEmpty else {
             results = []
+            searchError = nil
             return
         }
         searchTask = Task {
             try? await Task.sleep(nanoseconds: 300_000_000)
             guard !Task.isCancelled else { return }
             isSearching = true
+            searchError = nil
             defer { isSearching = false }
-            let resp = try? await APIClient.shared.assets(search: q, limit: 20)
-            guard !Task.isCancelled else { return }
-            results = resp?.data ?? []
+            do {
+                let resp = try await APIClient.shared.assets(search: q, limit: 20)
+                guard !Task.isCancelled else { return }
+                results = resp.data
+            } catch {
+                guard !Task.isCancelled else { return }
+                searchError = error.localizedDescription
+                results = []
+            }
         }
     }
 }
@@ -389,6 +424,7 @@ private struct AssetPickRow: View {
             Image(systemName: "archivebox")
                 .frame(width: 28)
                 .foregroundStyle(.tint)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(asset.displayName)
                     .font(.subheadline.weight(.medium))
@@ -400,9 +436,19 @@ private struct AssetPickRow: View {
             Image(systemName: "chevron.right")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(rowAccessibilityLabel)
+    }
+
+    private var rowAccessibilityLabel: String {
+        var parts: [String] = [asset.displayName]
+        if let tag = asset.assetTag { parts.append(tag) }
+        if let serial = asset.serialNumber { parts.append("Serial \(serial)") }
+        return parts.joined(separator: ", ")
     }
 }
 
@@ -475,10 +521,10 @@ private struct ConfirmStepView: View {
         defer { isSaving = false }
         do {
             try await APIClient.shared.updateAssetQR(id: asset.id, qrCodeValue: scannedCode)
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            Haptics.success()
             onSaved()
         } catch {
-            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            Haptics.error()
             saveError = error.localizedDescription
         }
     }
@@ -501,6 +547,7 @@ private struct SuccessStepView: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 64))
                     .foregroundStyle(Color.statusText(.green))
+                    .accessibilityHidden(true)
                 Text("Linked!")
                     .font(.title.weight(.bold))
                 Text("\(Text(scannedCode).fontDesign(.monospaced)) → \(Text(asset.displayName).bold())")
