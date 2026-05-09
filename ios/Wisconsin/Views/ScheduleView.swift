@@ -8,12 +8,6 @@ enum ScheduleViewMode: String, CaseIterable {
     case calendar = "Calendar"
 }
 
-/// Lightweight transient banner state. Auto-clears after 2.5s.
-struct ScheduleToast: Equatable {
-    let message: String
-    let icon: String
-}
-
 // MARK: - View Model
 
 enum MyShiftStatus: String {
@@ -128,7 +122,7 @@ struct ScheduleView: View {
     @State private var viewMode: ScheduleViewMode = .list
     @State private var calendarSelectedDate: Date = .now
     @State private var showTradeBoard = false
-    @State private var toast: ScheduleToast?
+    @State private var toast: Toast?
     @State private var isSubscribing = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(SessionStore.self) private var session
@@ -163,6 +157,7 @@ struct ScheduleView: View {
                     .scrollContentBackground(.hidden)
                     .background(Color(.systemGroupedBackground))
                     .allowsHitTesting(false)
+                    .accessibilityHidden(true)
                 } else if vm.events.isEmpty, let err = vm.error {
                     // Only blank the screen when we have nothing to show.
                     ContentUnavailableView {
@@ -232,23 +227,7 @@ struct ScheduleView: View {
                     .transition(.move(edge: .top).combined(with: .opacity))
                 }
             }
-            .overlay(alignment: .bottom) {
-                if let toast {
-                    HStack(spacing: 10) {
-                        Image(systemName: toast.icon)
-                            .foregroundStyle(Color.accentColor)
-                        Text(toast.message)
-                            .font(.subheadline.weight(.medium))
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(.regularMaterial, in: Capsule())
-                    .shadow(color: Color.primary.opacity(0.12), radius: 10, y: 4)
-                    .padding(.bottom, 24)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-            }
-            .animation(reduceMotion ? nil : .spring(duration: 0.3), value: toast)
+            .toast($toast)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: vm.refreshError)
             .navigationTitle("Schedule")
             .toolbar {
@@ -340,13 +319,6 @@ struct ScheduleView: View {
                     }
                 }
             }
-            .onChange(of: toast) { _, newToast in
-                guard newToast != nil else { return }
-                Task {
-                    try? await Task.sleep(for: .seconds(2.5))
-                    if toast == newToast { toast = nil }
-                }
-            }
             .sheet(item: $selectedEvent) { event in
                 EventDetailSheet(
                     event: event,
@@ -362,10 +334,10 @@ struct ScheduleView: View {
                     myShifts: vm.myShifts,
                     currentUserId: session.currentUser?.id ?? "",
                     onTradePosted: { area in
-                        toast = ScheduleToast(message: "Posted \(area) shift to the trade board", icon: "checkmark.circle.fill")
+                        toast = Toast(message: "Posted \(area) shift to the trade board", icon: "checkmark.circle.fill", role: .success)
                     },
                     onTradeClaimed: { area, when in
-                        toast = ScheduleToast(message: "You picked up \(area) on \(when)", icon: "hand.thumbsup.fill")
+                        toast = Toast(message: "You picked up \(area) on \(when)", icon: "hand.thumbsup.fill", role: .success)
                     }
                 )
             }
@@ -388,10 +360,10 @@ struct ScheduleView: View {
             guard let url = URL(string: urlString) else { return }
             let opened = await UIApplication.shared.open(url)
             if opened {
-                toast = ScheduleToast(message: "Opening Apple Calendar…", icon: "calendar.badge.checkmark")
+                toast = Toast(message: "Opening Apple Calendar…", icon: "calendar.badge.checkmark", role: .info)
             }
         } catch {
-            toast = ScheduleToast(message: error.localizedDescription, icon: "exclamationmark.triangle")
+            toast = Toast(message: error.localizedDescription, icon: "exclamationmark.triangle", role: .error)
         }
     }
 
@@ -514,19 +486,23 @@ struct ScheduleCalendarView: View {
                 ForEach(Array(daysInMonth().enumerated()), id: \.offset) { _, day in
                     if let day {
                         let dots = dotInfo(for: day)
-                        DayCell(
-                            date: day,
-                            isToday: calendar.isDateInToday(day),
-                            isSelected: calendar.isDate(day, inSameDayAs: selectedDate),
-                            dots: dots
-                        )
-                        .onTapGesture {
+                        let eventCount = (eventsByDay[calendar.startOfDay(for: day)] ?? []).count
+                        Button {
                             withAnimation(.easeInOut(duration: 0.15)) {
                                 selectedDate = day
                                 // Also follow selection across months.
                                 displayedMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: day)) ?? displayedMonth
                             }
+                        } label: {
+                            DayCell(
+                                date: day,
+                                isToday: calendar.isDateInToday(day),
+                                isSelected: calendar.isDate(day, inSameDayAs: selectedDate),
+                                dots: dots,
+                                eventCount: eventCount
+                            )
                         }
+                        .buttonStyle(.plain)
                     } else {
                         Color.clear.frame(height: 48)
                     }
@@ -560,10 +536,12 @@ struct ScheduleCalendarView: View {
     private var dotLegend: some View {
         HStack(spacing: 12) {
             LegendDot(color: .accentColor, label: "My Shift")
-            LegendDot(color: .green, label: "Home")
-            LegendDot(color: .orange, label: "Away")
+            LegendDot(color: Color.statusText(.green), label: "Home")
+            LegendDot(color: Color.statusText(.orange), label: "Away")
         }
         .frame(maxWidth: .infinity, alignment: .center)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Legend: my shift, home, away")
     }
 
     private func changeMonth(by delta: Int) {
@@ -688,8 +666,8 @@ struct ScheduleCalendarView: View {
                 color = .accentColor
             } else {
                 switch event.isHome {
-                case true:  color = .green
-                case false: color = .orange
+                case true:  color = Color.statusText(.green)
+                case false: color = Color.statusText(.orange)
                 default:    color = Color(.systemGray3)
                 }
             }
@@ -712,6 +690,7 @@ private struct LegendDot: View {
             Circle()
                 .fill(color)
                 .frame(width: 6, height: 6)
+                .accessibilityHidden(true)
             Text(label)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
@@ -726,6 +705,7 @@ private struct DayCell: View {
     let isToday: Bool
     let isSelected: Bool
     let dots: [DotInfo]
+    let eventCount: Int
 
     var body: some View {
         VStack(spacing: 4) {
@@ -762,6 +742,24 @@ private struct DayCell: View {
         }
         .frame(height: 52)
         .contentShape(Rectangle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+    }
+
+    private var accessibilityLabel: String {
+        var parts: [String] = []
+        parts.append(date.formatted(.dateTime.weekday(.wide).month(.wide).day()))
+        if isToday { parts.append("today") }
+        let hasMyShift = dots.contains(where: \.isShift)
+        if eventCount == 0 {
+            parts.append("no events")
+        } else if eventCount == 1 {
+            parts.append(hasMyShift ? "1 event including my shift" : "1 event")
+        } else {
+            parts.append(hasMyShift ? "\(eventCount) events including my shift" : "\(eventCount) events")
+        }
+        return parts.joined(separator: ", ")
     }
 }
 
@@ -813,6 +811,27 @@ private struct ScheduleDateHeader: View {
         .padding(.top, 14)
         .padding(.bottom, 4)
         .background(Color(.systemGroupedBackground))
+        .accessibilityElement(children: .ignore)
+        .accessibilityAddTraits(.isHeader)
+        .accessibilityLabel(headerAccessibilityLabel)
+    }
+
+    private var headerAccessibilityLabel: String {
+        var parts: [String] = []
+        if isToday {
+            parts.append("Today")
+        } else if isTomorrow {
+            parts.append("Tomorrow")
+        } else {
+            parts.append(date.formatted(.dateTime.month(.wide).year()))
+        }
+        parts.append(date.formatted(.dateTime.weekday(.wide).day()))
+        if eventCount > 1 {
+            parts.append("\(eventCount) events")
+        } else if eventCount == 1 {
+            parts.append("1 event")
+        }
+        return parts.joined(separator: ", ")
     }
 }
 
@@ -930,13 +949,45 @@ struct EventRow: View {
         )
         .shadow(color: Color.primary.opacity(0.05), radius: 4, y: 2)
         .task { weatherData = await EventWeatherService.shared.weather(for: event) }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(rowAccessibilityLabel)
+    }
+
+    private var rowAccessibilityLabel: String {
+        var parts: [String] = []
+        if myShift != nil { parts.append("My shift") }
+        parts.append(eventDisplayTitle)
+        if let isHome = event.isHome {
+            parts.append(isHome ? "Home" : "Away")
+        }
+        if let shift = myShift {
+            let callTime = shift.startsAt.formatted(.dateTime.hour().minute())
+            let eventTime = event.startsAt.formatted(.dateTime.hour().minute())
+            let endTime = shift.endsAt.formatted(.dateTime.hour().minute())
+            if calendarSame(shift.startsAt, event.startsAt) {
+                parts.append("Event \(eventTime) to \(endTime)")
+            } else {
+                parts.append("Call \(callTime), event \(eventTime), end \(endTime)")
+            }
+        } else if event.allDay {
+            parts.append("All day")
+        } else {
+            parts.append(eventTimeLabel)
+        }
+        if let location = event.location {
+            parts.append(location.name)
+        }
+        if let weather = weatherData {
+            parts.append("Weather \(weather.temperature)")
+        }
+        return parts.joined(separator: ", ")
     }
 
     private var barColor: Color {
         if myShift != nil { return .accentColor }
         switch event.isHome {
-        case true:  return .green
-        case false: return .orange
+        case true:  return Color.statusText(.green)
+        case false: return Color.statusText(.orange)
         default:    return Color(.systemGray4)
         }
     }
