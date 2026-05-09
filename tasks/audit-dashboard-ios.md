@@ -27,8 +27,8 @@
       Suggested fix: switch `appState.refresh()` to call `/api/dashboard/stats` (already returns `overdueCount` and now `role`) and add a separate small endpoint or expand `/api/dashboard/stats` to also return `myShiftCount`. Reserve the full `/api/dashboard` call for HomeView only.
 
 ## P2 — post-MVP
-- [ ] [UI] No live tick — overdue labels (`overdueLabel`) only recompute on render, so a session left open shows increasingly-stale "Xh overdue" values until manual pull-to-refresh. Web ticks `now` every 60s.
-- [ ] [UI] Hardcoded `Color.red` for overdue/error — web uses brand `var(--wi-red)`. Cosmetic parity gap.
+- [x] [UI] No live tick — overdue labels (`overdueLabel`) only recompute on render, so a session left open shows increasingly-stale "Xh overdue" values until manual pull-to-refresh. Web ticks `now` every 60s. **Closed 2026-05-08** — `OverdueBanner` items list and `BookingSummaryRow` body now wrap their time-sensitive content in `TimelineView(.periodic(from: .now, by: 60))`. `overdueLabel`/`lateLabel` extensions read `timeIntervalSinceNow` afresh on each render, so the periodic re-evaluation is enough — no `now` state to plumb through, no model changes.
+- [x] [UI] Hardcoded `Color.red` for overdue/error — web uses brand `var(--wi-red)`. Cosmetic parity gap. **Closed 2026-05-08** — every overdue/error site on the dashboard now routes through `Color.statusText(.red)` / `Color.statusBackground(.red)`. Drift detector R1 enforces this going forward.
 - [ ] [UI] StatStrip cells use the same shadow stack as the cards — could feel "samey." Minor visual hierarchy nit.
 - [x] [Flows] No role-adaptive UI: students see Team Checkouts / Team Reservations sections; web V3 hides the team column from students. AREA_MOBILE rule 3 explicitly grants students "broad read visibility" so this is allowed, but iOS-vs-web layout drifts. Decide intentionally.
 - [ ] [UI] `ContentUnavailableView` error label is "Error" — could be "Couldn't load dashboard" with the underlying message in description.

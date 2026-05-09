@@ -397,26 +397,30 @@ private struct OverdueBanner: View {
             .foregroundStyle(Color.statusText(.red))
 
             ForEach(items) { item in
-                NavigationLink(value: item.bookingId) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(item.bookingTitle)
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(.primary)
-                                .lineLimit(1)
-                            Text(item.requesterName)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                // Periodic tick keeps "Xh overdue" / "Xd overdue" labels current
+                // on long-lived sessions; web ticks every 60s, parity here.
+                TimelineView(.periodic(from: .now, by: 60)) { _ in
+                    NavigationLink(value: item.bookingId) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.bookingTitle)
+                                    .font(.subheadline.weight(.medium))
+                                    .foregroundStyle(.primary)
+                                    .lineLimit(1)
+                                Text(item.requesterName)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Text(item.endsAt.overdueLabel)
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(Color.statusText(.red))
                         }
-                        Spacer()
-                        Text(item.endsAt.overdueLabel)
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(Color.statusText(.red))
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Overdue: \(item.bookingTitle), \(item.requesterName), \(item.endsAt.overdueLabel)")
                 }
-                .buttonStyle(.plain)
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel("Overdue: \(item.bookingTitle), \(item.requesterName), \(item.endsAt.overdueLabel)")
 
                 if item.id != items.last?.id {
                     Divider()
@@ -579,65 +583,70 @@ struct BookingSummaryRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            Rectangle()
-                .fill(barColor)
-                .frame(width: 3)
-            HStack(spacing: 12) {
-                initialsCircle
+        // Periodic tick re-evaluates overdueLabel / lateLabel + pickupIsLate
+        // every 60s so a long-lived dashboard session doesn't show frozen
+        // "2h overdue" labels. Web ticks the equivalent every 60s.
+        TimelineView(.periodic(from: .now, by: 60)) { _ in
+            HStack(spacing: 0) {
+                Rectangle()
+                    .fill(barColor)
+                    .frame(width: 3)
+                HStack(spacing: 12) {
+                    initialsCircle
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(summary.title)
-                        .font(.subheadline.weight(.medium))
-                        .lineLimit(1)
-                    HStack(spacing: 4) {
-                        Text(summary.requesterName)
-                        if let loc = summary.locationName {
-                            Text("·")
-                            Text(loc)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(summary.title)
+                            .font(.subheadline.weight(.medium))
+                            .lineLimit(1)
+                        HStack(spacing: 4) {
+                            Text(summary.requesterName)
+                            if let loc = summary.locationName {
+                                Text("·")
+                                Text(loc)
+                            }
                         }
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    if summary.isOverdue {
-                        Text(summary.endsAt.overdueLabel)
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(Color.statusText(.red))
-                    } else if summary.status == .pendingPickup {
-                        if pickupIsLate {
-                            Text("Pickup \(summary.startsAt.lateLabel)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        if summary.isOverdue {
+                            Text(summary.endsAt.overdueLabel)
                                 .font(.caption2.weight(.semibold))
-                                .foregroundStyle(Color.statusText(.orange))
+                                .foregroundStyle(Color.statusText(.red))
+                        } else if summary.status == .pendingPickup {
+                            if pickupIsLate {
+                                Text("Pickup \(summary.startsAt.lateLabel)")
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(Color.statusText(.orange))
+                            } else {
+                                Text("Pickup \(summary.startsAt.formatted(date: .abbreviated, time: .shortened))")
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                            }
                         } else {
-                            Text("Pickup \(summary.startsAt.formatted(date: .abbreviated, time: .shortened))")
+                            Text("Due \(summary.endsAt.formatted(date: .abbreviated, time: .shortened))")
                                 .font(.caption2)
                                 .foregroundStyle(.tertiary)
                         }
-                    } else {
-                        Text("Due \(summary.endsAt.formatted(date: .abbreviated, time: .shortened))")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
+                    }
+
+                    Spacer()
+
+                    if summary.itemCount > 0 {
+                        Text("\(summary.itemCount)")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(.quaternary, in: Capsule())
                     }
                 }
-
-                Spacer()
-
-                if summary.itemCount > 0 {
-                    Text("\(summary.itemCount)")
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(.quaternary, in: Capsule())
-                }
+                .padding(.vertical, 4)
+                .padding(.leading, 12)
             }
-            .padding(.vertical, 4)
-            .padding(.leading, 12)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(rowAccessibilityLabel)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 6))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(rowAccessibilityLabel)
     }
 
     private var initialsCircle: some View {
