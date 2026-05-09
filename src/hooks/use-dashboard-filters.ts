@@ -20,6 +20,7 @@ export type FilteredDashboardData = {
   myCheckouts: DashboardData["myCheckouts"]["items"];
   teamCheckouts: DashboardData["teamCheckouts"]["items"];
   teamReservations: DashboardData["teamReservations"]["items"];
+  pendingPickups: DashboardData["pendingPickups"]["items"];
   myReservations: DashboardData["myReservations"];
   upcomingEvents: DashboardData["upcomingEvents"];
   myShifts: DashboardData["myShifts"];
@@ -96,6 +97,7 @@ export function useDashboardFilters(data: DashboardData | null): UseDashboardFil
       myCheckouts: data.myCheckouts.items.filter((c) => matchesFilters(c.sportCode, c.locationName)),
       teamCheckouts: data.teamCheckouts.items.filter((c) => matchesFilters(c.sportCode, c.locationName)),
       teamReservations: data.teamReservations.items.filter((r) => matchesFilters(r.sportCode, r.locationName)),
+      pendingPickups: data.pendingPickups.items.filter((p) => matchesFilters(p.sportCode, p.locationName)),
       myReservations: data.myReservations.filter((r) => matchesFilters(r.sportCode, r.locationName)),
       upcomingEvents: data.upcomingEvents.filter((e) => matchesFilters(e.sportCode, e.location)),
       myShifts: data.myShifts.filter((s) => matchesFilters(s.event.sportCode, s.event.locationName)),

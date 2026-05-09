@@ -124,6 +124,33 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
       </Card>
       </ScaleIn>
 
+      {/* Awaiting Pickup — only render when present (transient state) */}
+      {data.pendingPickups.items.length > 0 && (
+        <ScaleIn delay={0.025}>
+        <Card>
+          <DashboardSectionHeader title="Awaiting pickup" href="/bookings?tab=reservations" count={data.pendingPickups.total} />
+          <CardContent className="p-0 py-1">
+            {(filtered?.pendingPickups ?? data.pendingPickups.items).map((p) => {
+              const isLate = new Date(p.startsAt).getTime() < now.getTime();
+              return (
+                <DashboardBookingRow
+                  key={p.id}
+                  booking={p}
+                  now={now}
+                  accent={isLate ? "pending-pickup-late" : "pending-pickup"}
+                  showPickupBadge
+                  onSelectBooking={onSelectBooking}
+                />
+              );
+            })}
+            {!activeSport && data.pendingPickups.total > data.pendingPickups.items.length && (
+              <Link href="/bookings?tab=reservations" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all {data.pendingPickups.total} &rarr;</Link>
+            )}
+          </CardContent>
+        </Card>
+        </ScaleIn>
+      )}
+
       {/* Team Reservations */}
       <ScaleIn delay={0.05}>
       <Card>

@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/tooltip";
 import { UserAvatar } from "@/components/UserAvatar";
 import { cn } from "@/lib/utils";
-import { formatDueLabel, formatEventDateTime, isDueToday } from "@/lib/format";
+import { formatDueLabel, formatEventDateTime, formatPickupLabel, isDueToday } from "@/lib/format";
 import { GearAvatarStack } from "./dashboard-avatars";
 import type { ItemThumb } from "../dashboard-types";
 
@@ -25,13 +25,15 @@ type DashboardBookingRowItem = {
   items: ItemThumb[];
 };
 
-type Accent = "owned" | "checkout" | "reservation" | "due" | "overdue";
+type Accent = "owned" | "checkout" | "reservation" | "due" | "overdue" | "pending-pickup" | "pending-pickup-late";
 
 type Props = {
   booking: DashboardBookingRowItem;
   now: Date;
   accent: Accent;
   showDueBadge?: boolean;
+  /** When set, renders a pickup badge using booking.startsAt instead of the due badge. */
+  showPickupBadge?: boolean;
   actions?: ReactNode;
   onSelectBooking: (id: string) => void;
 };
@@ -42,6 +44,8 @@ const accentClasses: Record<Accent, string> = {
   reservation: "border-l-[var(--purple)] hover:bg-muted/50",
   due: "border-l-[var(--orange)] bg-[var(--orange)]/[0.04] dark:bg-[var(--orange)]/[0.12] hover:bg-[var(--orange)]/[0.08] dark:hover:bg-[var(--orange)]/[0.18]",
   overdue: "border-l-[var(--wi-red)] bg-[var(--wi-red)]/[0.06] dark:bg-[var(--wi-red)]/[0.18] hover:bg-[var(--wi-red)]/10 dark:hover:bg-[var(--wi-red)]/25",
+  "pending-pickup": "border-l-[var(--green)] hover:bg-muted/50",
+  "pending-pickup-late": "border-l-[var(--orange)] bg-[var(--orange)]/[0.04] dark:bg-[var(--orange)]/[0.12] hover:bg-[var(--orange)]/[0.08] dark:hover:bg-[var(--orange)]/[0.18]",
 };
 
 export function dashboardBookingAccent(
@@ -59,6 +63,7 @@ export function DashboardBookingRow({
   now,
   accent,
   showDueBadge = false,
+  showPickupBadge = false,
   actions,
   onSelectBooking,
 }: Props) {
@@ -68,6 +73,9 @@ export function DashboardBookingRow({
     : isDueToday(booking.endsAt, now)
     ? "orange"
     : "gray";
+  const pickupIsLate = showPickupBadge && new Date(booking.startsAt).getTime() < now.getTime();
+  const pickupLabel = showPickupBadge ? formatPickupLabel(booking.startsAt, now) : "";
+  const pickupVariant = pickupIsLate ? "orange" : "gray";
 
   return (
     <div
@@ -104,6 +112,16 @@ export function DashboardBookingRow({
             <TooltipTrigger asChild>
               <Badge variant={dueVariant} size="sm" className="cursor-default tabular-nums">
                 {dueLabel}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>{formatEventDateTime(booking.startsAt, booking.endsAt)}</TooltipContent>
+          </Tooltip>
+        )}
+        {showPickupBadge && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge variant={pickupVariant} size="sm" className="cursor-default tabular-nums">
+                {pickupIsLate ? pickupLabel : `Pickup ${pickupLabel}`}
               </Badge>
             </TooltipTrigger>
             <TooltipContent>{formatEventDateTime(booking.startsAt, booking.endsAt)}</TooltipContent>
