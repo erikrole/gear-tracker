@@ -23,7 +23,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "import:cheqroom": "node scripts/import-cheqroom-items.mjs",
-    "release": "bash scripts/release.sh"
+    "release": "bash scripts/release.sh",
+    "drift:ios": "bash scripts/ios-drift-check.sh",
+    "drift:ios:warn": "bash scripts/ios-drift-check.sh --warn",
+    "audit:ios": "bash scripts/ios-audit-inventory.sh",
+    "audit:ios:gaps": "bash scripts/ios-audit-inventory.sh --gaps"
   },
   "dependencies": {
     "@blocknote/core": "^0.49.0",

@@ -358,12 +358,28 @@ Shipped on kiosk idle stat tiles, kiosk checkout cart count, kiosk pickup ring, 
 Usage:
 
 ```sh
-./scripts/ios-drift-check.sh           # scan everything; exit non-zero on hits
-./scripts/ios-drift-check.sh --warn    # report findings; always exit 0
-./scripts/ios-drift-check.sh -v        # verbose
+npm run drift:ios            # scan everything; exit non-zero on hits
+npm run drift:ios:warn       # report findings; always exit 0 (CI-soft)
+./scripts/ios-drift-check.sh -v   # verbose
 ```
 
 Today's baseline: **0 violations across 45 swift files**. The detector caught five real residual drifts during its initial run — including `kioskHeartbeat` swallowing 401, which was the same shape of P0 bug already fixed twice on pickup/return-confirm. That's the value: catching a hand-audit miss in seconds.
+
+## Audit coverage
+
+`scripts/ios-audit-inventory.sh` — answers "which iOS surfaces have a focused audit doc, and when?" Walks a hardcoded registry that maps each Swift view/sheet to its expected audit slug, finds the corresponding `tasks/audit-*-ios.md` doc (with date), and reports coverage stats.
+
+Usage:
+
+```sh
+npm run audit:ios            # full table + coverage stats
+npm run audit:ios:gaps       # only NO AUDIT rows + summary; exits 0 with a "no gaps" line
+./scripts/ios-audit-inventory.sh --csv   # machine-readable
+```
+
+Today's baseline: **34 audit-worthy surfaces, 100% covered. 11 exempt (shared components, infrastructure, single-purpose primitives). 0 unregistered.**
+
+When you add a new view: drop a row into the registry inside the script (see the comment block). The next `npm run audit:ios` will list it as `NO AUDIT DOC`. Ship the audit, the table updates automatically (date pulled from the doc's H1 line).
 
 ---
 
