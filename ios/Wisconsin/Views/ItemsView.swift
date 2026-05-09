@@ -139,6 +139,7 @@ struct ItemsView: View {
                     }
                     .listStyle(.plain)
                     .allowsHitTesting(false)
+                    .accessibilityHidden(true)  // Don't pollute VO with placeholder shapes during initial load.
                 } else if vm.assets.isEmpty {
                     ContentUnavailableView(
                         vm.favoritesOnly ? "No Favorites" : "No Items",
@@ -289,6 +290,7 @@ struct AssetRow: View {
     var body: some View {
         HStack(spacing: 12) {
             AssetThumbnail(imageUrl: asset.imageUrl, size: 44)
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 3) {
                 // Asset tag is an ID — render in SF Mono to match web's font-mono
@@ -332,23 +334,72 @@ struct AssetRow: View {
             AssetListBadge(asset: asset)
         }
         .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(rowAccessibilityLabel)
+    }
+
+    /// Single combined VoiceOver readout. Surfaces overdue state first when
+    /// applicable so VO users hear the most important fact in time-pressure
+    /// scrolling. Mirrors today's BookingsView + HomeView row patterns.
+    private var rowAccessibilityLabel: String {
+        var parts: [String] = []
+
+        let isOverdue = asset.computedStatus == .checkedOut && asset.activeBooking?.isOverdue == true
+        if isOverdue { parts.append("Overdue") }
+
+        // Title: tag (when present) + the brand/model subtitle, otherwise displayName.
+        if let tag = asset.assetTag {
+            parts.append(tag)
+            if let subtitle = subtitleWhenTagIsPrimary { parts.append(subtitle) }
+        } else {
+            parts.append(asset.displayName)
+        }
+
+        if let cat = asset.category { parts.append(cat.name) }
+        parts.append(asset.location.name)
+
+        // Status + due/overdue: speak who has it (when applicable) + status label.
+        if let name = asset.activeBooking?.requesterName,
+           asset.computedStatus == .checkedOut || asset.computedStatus == .reserved {
+            parts.append("\(asset.computedStatus.label.lowercased()) by \(name)")
+        } else {
+            parts.append(asset.computedStatus.label)
+        }
+
+        // Due/overdue label, if active checkout has one.
+        if asset.computedStatus == .checkedOut, let booking = asset.activeBooking {
+            let days = Int((booking.endsAt.timeIntervalSinceNow / 86_400).rounded())
+            if booking.isOverdue {
+                let n = max(1, abs(days))
+                parts.append("\(n) day\(n == 1 ? "" : "s") overdue")
+            } else if days <= 0 {
+                parts.append("due today")
+            } else if days < 14 {
+                parts.append("due in \(days) day\(days == 1 ? "" : "s")")
+            }
+        }
+        return parts.joined(separator: ", ")
     }
 }
 
 private struct AssetListBadge: View {
     let asset: Asset
 
-    private var badgeColor: Color {
+    /// Maps the asset's computed status (with overdue override) to a
+    /// cross-app `StatusTone`. `nil` falls back to a muted gray pairing
+    /// for retired / unknown — consistent with `Color.statusText/.statusBackground`'s
+    /// gray case.
+    private var tone: StatusTone {
         if asset.computedStatus == .checkedOut, asset.activeBooking?.isOverdue == true {
             return .red
         }
         switch asset.computedStatus {
-        case .available: return .green
-        case .checkedOut: return .blue
-        case .reserved: return .purple
+        case .available:   return .green
+        case .checkedOut:  return .blue
+        case .reserved:    return .purple
         case .maintenance: return .orange
-        case .retired: return .secondary
-        case .unknown: return .gray
+        case .retired:     return .gray
+        case .unknown:     return .gray
         }
     }
 
@@ -382,16 +433,17 @@ private struct AssetListBadge: View {
                 .fixedSize()
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
-                .background(badgeColor.opacity(0.15), in: Capsule())
-                .foregroundStyle(badgeColor)
+                .background(Color.statusBackground(tone), in: Capsule())
+                .foregroundStyle(Color.statusText(tone))
             if let dueLabel {
                 Text(dueLabel)
                     .font(.caption2)
-                    .foregroundStyle(badgeColor.opacity(0.8))
+                    .foregroundStyle(Color.statusText(tone).opacity(0.8))
                     .monospacedDigit()
             }
         }
         .frame(maxWidth: 140, alignment: .trailing)
+        .accessibilityHidden(true)  // Status surfaced via the combined row label in AssetRow.
     }
 }
 
@@ -435,18 +487,18 @@ struct AssetStatusBadge: View {
             .fixedSize()
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
-            .background(color.opacity(0.15), in: Capsule())
-            .foregroundStyle(color)
+            .background(Color.statusBackground(tone), in: Capsule())
+            .foregroundStyle(Color.statusText(tone))
     }
 
-    private var color: Color {
+    private var tone: StatusTone {
         switch status {
-        case .available: .green
-        case .checkedOut: .blue
-        case .reserved: .purple
-        case .maintenance: .orange
-        case .retired: .secondary
-        case .unknown: .gray
+        case .available:   return .green
+        case .checkedOut:  return .blue
+        case .reserved:    return .purple
+        case .maintenance: return .orange
+        case .retired:     return .gray
+        case .unknown:     return .gray
         }
     }
 }

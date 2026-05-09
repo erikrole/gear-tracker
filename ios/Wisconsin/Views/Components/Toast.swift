@@ -61,8 +61,8 @@ private struct ToastView: View {
     private var iconColor: Color {
         switch toast.role {
         case .info: .accentColor
-        case .success: .green
-        case .error: .red
+        case .success: Color.statusText(.green)
+        case .error: Color.statusText(.red)
         }
     }
 

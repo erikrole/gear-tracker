@@ -354,6 +354,7 @@ Shipped on kiosk idle stat tiles, kiosk checkout cart count, kiosk pickup ring, 
 - **R4** `.onTapGesture { …assignment }` instead of a `Button`
 - **R5** `UIImpactFeedbackGenerator()` outside `Core/Haptics.swift`
 - **R6** `Text(...area...)` without `.shiftAreaLabel`
+- **R7** Switch arm immediately followed by a raw status color literal (e.g. `case .available: .green`) — R1's blind spot when colors are returned from a private `var color: Color { switch … }` getter rather than applied to a modifier. Limited to the SwiftUI implicit-return form because explicit `return .green` is ambiguous (could be `Color.green` drift or a legitimate `StatusTone.green`).
 
 Usage:
 
@@ -363,7 +364,7 @@ npm run drift:ios:warn       # report findings; always exit 0 (CI-soft)
 ./scripts/ios-drift-check.sh -v   # verbose
 ```
 
-Today's baseline: **0 violations across 45 swift files**. The detector caught five real residual drifts during its initial run — including `kioskHeartbeat` swallowing 401, which was the same shape of P0 bug already fixed twice on pickup/return-confirm. That's the value: catching a hand-audit miss in seconds.
+Today's baseline: **0 violations across 45 swift files**. The detector caught five real residual drifts during its initial run — including `kioskHeartbeat` swallowing 401, which was the same shape of P0 bug already fixed twice on pickup/return-confirm. R7 was added on 2026-05-08 after the items-list focused audit caught switch-arm drift that R1 didn't see (in `AssetListBadge`, `AssetStatusBadge`, and `Toast`). That's the value: catching a hand-audit miss in seconds.
 
 ## Audit coverage
 

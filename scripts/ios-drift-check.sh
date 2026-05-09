@@ -127,6 +127,22 @@ rule R6-bare-shift-area \
   'Text\([^)]*\.area([[:space:]]|\))' \
   AddShiftSheet.swift
 
+# ─── R7. Switch arm raw status colors (R1's blind spot) ───
+# R1 catches `.foregroundStyle(.red)` but misses the SwiftUI implicit-return
+# pattern: `private var color: Color { switch x { case .a: .green … } }` —
+# the `.green` there isn't on a modifier expression, so R1 doesn't see it.
+# Today's items-list audit caught this in AssetListBadge + AssetStatusBadge.
+#
+# Limited to the *implicit-return* form (`case .foo: .green` without the
+# `return` keyword) because the `return .green` form is ambiguous — it
+# could be `return Color.green` (drift) or `return StatusTone.green`
+# (legitimate; e.g. NotificationsSheet.notifTone returns StatusTone?).
+# `Color.statusText(.green)` doesn't match because `Color` separates the
+# case-arm from the `.green`.
+rule R7-switch-arm-status-color \
+  "switch arm immediately followed by raw status color — wrap in Color.statusText/.statusBackground" \
+  'case[[:space:]]+\.[a-zA-Z_]+:[[:space:]]+\.(red|green|blue|orange|purple)([[:space:]]|$)'
+
 # ─── Output ───
 if [ "$violations" = "0" ]; then
   printf '✓ ios-drift-check: no anti-patterns found across %d swift files\n' "$TOTAL_FILES"
