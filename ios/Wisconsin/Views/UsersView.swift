@@ -206,6 +206,7 @@ struct UsersView: View {
                         systemImage: vm.includeInactive ? "eye.slash" : "eye"
                     )
                 }
+                .accessibilityLabel(vm.includeInactive ? "Hide inactive users" : "Show inactive users")
             }
         } label: {
             Image(systemName: hasFilter ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
@@ -247,6 +248,15 @@ private struct UserListRow: View {
             StatusPill.role(user.role)
         }
         .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(rowAccessibilityLabel)
+    }
+
+    private var rowAccessibilityLabel: String {
+        var parts: [String] = [user.name, user.role.capitalized]
+        if user.active == false { parts.append("Inactive") }
+        if let secondary = secondaryLine { parts.append(secondary) }
+        return parts.joined(separator: ", ")
     }
 
     private var secondaryLine: String? {

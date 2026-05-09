@@ -88,21 +88,37 @@ struct UserDetailView: View {
     private func profileHeader(_ detail: AppUserDetail) -> some View {
         let tone = StatusTone.forRole(detail.role)
         return FormCard {
-            HStack(spacing: 16) {
-                ZStack {
-                    Circle()
-                        .fill(Color.statusBackground(tone))
-                        .frame(width: 56, height: 56)
-                    Text(detail.name.searchInitials)
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(Color.statusText(tone))
-                }
+            HStack(alignment: .top, spacing: 16) {
+                profileAvatar(detail, tone: tone)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(detail.name)
                         .font(.headline)
                     Text(detail.email)
                         .font(.system(.subheadline, design: .monospaced))
                         .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                    if let phone = detail.phone, !phone.isEmpty {
+                        // Tap to call — `tel:` dispatches to the system dialer.
+                        // Sanitized to digits + leading + only.
+                        let sanitized = phone.filter { $0.isNumber || $0 == "+" }
+                        if let url = URL(string: "tel:\(sanitized)") {
+                            Link(destination: url) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "phone.fill")
+                                        .font(.caption2)
+                                        .accessibilityHidden(true)
+                                    Text(phone)
+                                        .font(.system(.caption, design: .monospaced))
+                                }
+                                .foregroundStyle(Color.statusText(.blue))
+                            }
+                            .accessibilityLabel("Call \(detail.name)")
+                        } else {
+                            Text(phone)
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                     HStack(spacing: 6) {
                         StatusPill.role(detail.role)
                         if let loc = detail.location {
@@ -114,7 +130,42 @@ struct UserDetailView: View {
                 }
                 Spacer()
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(profileAccessibilityLabel(detail))
         }
+    }
+
+    @ViewBuilder
+    private func profileAvatar(_ detail: AppUserDetail, tone: StatusTone) -> some View {
+        let placeholder = ZStack {
+            Circle()
+                .fill(Color.statusBackground(tone))
+                .frame(width: 56, height: 56)
+            Text(detail.name.searchInitials)
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(Color.statusText(tone))
+        }
+
+        if let urlString = detail.avatarUrl, let url = URL(string: urlString) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().scaledToFill()
+                default:
+                    placeholder
+                }
+            }
+            .frame(width: 56, height: 56)
+            .clipShape(Circle())
+        } else {
+            placeholder
+        }
+    }
+
+    private func profileAccessibilityLabel(_ detail: AppUserDetail) -> String {
+        var parts: [String] = [detail.name, detail.role.capitalized]
+        if let loc = detail.location, !loc.isEmpty { parts.append(loc) }
+        return parts.joined(separator: ", ")
     }
 
     private func load() async {
