@@ -9,6 +9,7 @@ struct ExtendBookingSheet: View {
     @State private var newEndsAt: Date
     @State private var isLoading = false
     @State private var error: String?
+    @State private var showDiscardConfirm = false
 
     init(bookingId: String, currentEndsAt: Date, onSuccess: @escaping () -> Void) {
         self.bookingId = bookingId
@@ -23,6 +24,8 @@ struct ExtendBookingSheet: View {
         ("+3 days", 3),
         ("+1 week", 7),
     ]
+
+    private var hasChanges: Bool { newEndsAt > currentEndsAt }
 
     var body: some View {
         NavigationStack {
@@ -47,8 +50,10 @@ struct ExtendBookingSheet: View {
                                     .padding(.vertical, 8)
                             }
                             .buttonStyle(.bordered)
+                            .tint(Color.statusText(.blue))
                             .controlSize(.regular)
                             .disabled(isLoading)
+                            .accessibilityLabel(presetAccessibilityLabel(preset))
                         }
                     }
                     .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
@@ -62,6 +67,7 @@ struct ExtendBookingSheet: View {
                         displayedComponents: [.date, .hourAndMinute]
                     )
                     .datePickerStyle(.graphical)
+                    .disabled(isLoading)
                 }
 
                 if let error {
@@ -76,21 +82,40 @@ struct ExtendBookingSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") {
+                        if isLoading { return }
+                        if hasChanges {
+                            showDiscardConfirm = true
+                        } else {
+                            dismiss()
+                        }
+                    }
+                    .disabled(isLoading)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Extend") {
+                    Button {
                         Task { await extend() }
+                    } label: {
+                        if isLoading {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Text("Extend").fontWeight(.semibold)
+                        }
                     }
-                    .disabled(newEndsAt <= currentEndsAt || isLoading)
-                    .fontWeight(.semibold)
+                    .disabled(!hasChanges || isLoading)
+                    .accessibilityLabel(isLoading ? "Extending booking" : "Extend booking")
                 }
             }
-            .overlay {
-                if isLoading {
-                    Color.black.opacity(0.1).ignoresSafeArea()
-                    ProgressView()
-                }
+            .interactiveDismissDisabled(isLoading || hasChanges)
+            .confirmationDialog(
+                "Discard changes?",
+                isPresented: $showDiscardConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Discard", role: .destructive) { dismiss() }
+                Button("Keep Editing", role: .cancel) {}
+            } message: {
+                Text("Your changes will be lost.")
             }
         }
     }
@@ -103,6 +128,18 @@ struct ExtendBookingSheet: View {
             newEndsAt = next
             Haptics.tap()
         }
+    }
+
+    /// Builds the VoiceOver label for a preset chip including the resulting
+    /// end date. Computes off the same base as `applyPreset(days:)` so it
+    /// stays accurate after the user has already nudged.
+    private func presetAccessibilityLabel(_ preset: (label: String, days: Int)) -> String {
+        let base = newEndsAt > currentEndsAt ? newEndsAt : currentEndsAt
+        guard let resulting = Calendar.current.date(byAdding: .day, value: preset.days, to: base) else {
+            return "Extend by \(preset.label)"
+        }
+        let formatted = resulting.formatted(date: .abbreviated, time: .shortened)
+        return "Extend by \(preset.label.replacingOccurrences(of: "+", with: "")), to \(formatted)"
     }
 
     private func extend() async {
