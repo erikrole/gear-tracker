@@ -107,8 +107,17 @@ struct OverdueReportView: View {
             Image(systemName: "exclamationmark.circle.fill")
                 .foregroundStyle(Color.statusText(.red))
                 .font(.title2)
+                .accessibilityHidden(true)
         }
         .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(summaryAccessibilityLabel(report))
+    }
+
+    private func summaryAccessibilityLabel(_ report: OverdueReport) -> String {
+        let bookingsLabel = "\(report.totalOverdueBookings) overdue checkout\(report.totalOverdueBookings == 1 ? "" : "s")"
+        let peopleLabel = "\(report.leaderboard.count) \(report.leaderboard.count == 1 ? "person" : "people")"
+        return "\(bookingsLabel) across \(peopleLabel)"
     }
 
     private func metric(value: String, label: String) -> some View {
@@ -146,6 +155,7 @@ struct OverdueReportView: View {
                 Image(systemName: expanded.contains(entry.userId) ? "chevron.up" : "chevron.down")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
             }
             .contentShape(Rectangle())
         }
@@ -173,6 +183,8 @@ struct OverdueReportView: View {
                 .lineLimit(2)
         }
         .padding(.leading, 28)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Overdue \(formatOverdue(booking.overdueHours)): \(booking.title), \(secondaryLine(for: booking))")
     }
 
     private func secondaryLine(for booking: OverdueBookingSummary) -> String {
@@ -192,6 +204,7 @@ struct OverdueReportView: View {
         } else {
             expanded.insert(userId)
         }
+        Haptics.selection()
     }
 
     private func formatOverdue(_ hours: Int) -> String {
