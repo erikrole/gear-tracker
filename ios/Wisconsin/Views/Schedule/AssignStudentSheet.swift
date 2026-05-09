@@ -46,7 +46,8 @@ struct AssignStudentSheet: View {
                             AssignRow(
                                 name: user.name,
                                 email: user.email,
-                                primaryArea: nil,
+                                avatarUrl: user.avatarUrl,
+                                primaryArea: user.primaryArea,
                                 isAssigning: assigningUserId == user.id,
                                 highlightArea: shiftArea
                             )
@@ -98,7 +99,7 @@ struct AssignStudentSheet: View {
             dismiss()
         } catch {
             assignError = error.localizedDescription
-            Haptics.error()
+            Haptics.warning()
         }
     }
 }
@@ -106,53 +107,99 @@ struct AssignStudentSheet: View {
 private struct AssignRow: View {
     let name: String
     let email: String
+    let avatarUrl: String?
     let primaryArea: String?
     let isAssigning: Bool
     let highlightArea: String
 
+    private var isPrimaryAreaMatch: Bool {
+        guard let primaryArea, !primaryArea.isEmpty else { return false }
+        return primaryArea == highlightArea
+    }
+
     var body: some View {
         HStack(spacing: 12) {
-            initialsCircle
+            avatar
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(name)
                     .font(.subheadline.weight(.medium))
                 Text(email)
-                    .font(.caption)
+                    .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
             Spacer()
             if let primaryArea, !primaryArea.isEmpty {
-                Text(primaryArea)
+                Text(primaryArea.shiftAreaLabel)
                     .font(.caption2.weight(.semibold))
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(
-                        primaryArea == highlightArea
+                        isPrimaryAreaMatch
                             ? Color.accentColor.opacity(0.18)
                             : Color(.systemGray5),
                         in: Capsule()
                     )
-                    .foregroundStyle(primaryArea == highlightArea ? Color.accentColor : .secondary)
+                    .foregroundStyle(isPrimaryAreaMatch ? Color.accentColor : .secondary)
+                    .accessibilityHidden(true)  // Surfaced via combined row label below.
             }
             if isAssigning {
                 ProgressView().scaleEffect(0.7)
+                    .accessibilityLabel("Assigning")
             } else {
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
             }
         }
         .padding(.vertical, 6)
         .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(rowAccessibilityLabel)
     }
 
-    private var initialsCircle: some View {
-        let initials = name.split(separator: " ").prefix(2).compactMap { $0.first }.map { String($0) }.joined()
-        return ZStack {
+    @ViewBuilder
+    private var avatar: some View {
+        let placeholder = ZStack {
             Circle().fill(Color(.systemGray5)).frame(width: 32, height: 32)
             Text(initials.isEmpty ? "?" : initials)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
         }
+
+        if let urlString = avatarUrl, let url = URL(string: urlString) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().scaledToFill()
+                default:
+                    placeholder
+                }
+            }
+            .frame(width: 32, height: 32)
+            .clipShape(Circle())
+        } else {
+            placeholder
+        }
+    }
+
+    private var initials: String {
+        name.split(separator: " ").prefix(2).compactMap { $0.first }.map { String($0) }.joined()
+    }
+
+    private var rowAccessibilityLabel: String {
+        var parts: [String] = [name, email]
+        if let primaryArea, !primaryArea.isEmpty {
+            let label = primaryArea.shiftAreaLabel
+            if isPrimaryAreaMatch {
+                parts.append("\(label) specialist (matches this shift)")
+            } else {
+                parts.append("\(label) specialist")
+            }
+        }
+        if isAssigning { parts.append("Assigning") }
+        return parts.joined(separator: ", ")
     }
 }
