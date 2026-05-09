@@ -108,12 +108,13 @@ struct TradeBoardSheet: View {
                     Task {
                         do {
                             try await vm.claim(id: trade.id)
-                            UINotificationFeedbackGenerator().notificationOccurred(.success)
+                            Haptics.success()
                             let when = trade.shiftAssignment.shift.startsAt
                                 .formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
                             onTradeClaimed?(trade.shiftAssignment.shift.area, when)
                         } catch {
                             actionError = error.localizedDescription
+                            Haptics.warning()
                         }
                         tradeToConfirm = nil
                     }
@@ -131,8 +132,13 @@ struct TradeBoardSheet: View {
                 Button("Cancel Trade", role: .destructive) {
                     guard let trade = tradeToCancel else { return }
                     Task {
-                        do { try await vm.cancel(id: trade.id) }
-                        catch { actionError = error.localizedDescription }
+                        do {
+                            try await vm.cancel(id: trade.id)
+                            Haptics.success()
+                        } catch {
+                            actionError = error.localizedDescription
+                            Haptics.warning()
+                        }
                         tradeToCancel = nil
                     }
                 }
@@ -191,6 +197,7 @@ struct TradeBoardSheet: View {
                                 } label: {
                                     Label("Cancel Trade", systemImage: "xmark")
                                 }
+                                .accessibilityLabel("Cancel trade")
                             }
                     }
                 }
@@ -229,6 +236,7 @@ private struct TradeRow: View {
                 Image(systemName: "clock")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
                 Text("\(shift.startsAt.formatted(date: .abbreviated, time: .shortened)) – \(shift.endsAt.formatted(date: .omitted, time: .shortened))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -238,6 +246,7 @@ private struct TradeRow: View {
                 Image(systemName: "person")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
                 Text("Posted by \(trade.postedBy.name)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -262,9 +271,25 @@ private struct TradeRow: View {
                 .buttonStyle(.bordered)
                 .tint(.accentColor)
                 .controlSize(.small)
+                .accessibilityLabel("Claim \(shift.area) shift")
             }
         }
         .padding(.vertical, 4)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(rowAccessibilityLabel)
+    }
+
+    private var rowAccessibilityLabel: String {
+        var parts: [String] = ["\(shift.area) shift"]
+        if let summary = shift.shiftGroup?.event?.summary { parts.append(summary) }
+        let timeRange = "\(shift.startsAt.formatted(date: .abbreviated, time: .shortened)) to \(shift.endsAt.formatted(date: .omitted, time: .shortened))"
+        parts.append(timeRange)
+        parts.append("Posted by \(trade.postedBy.name)")
+        if let notes = trade.notes, !notes.isEmpty {
+            parts.append("Note: \(notes)")
+        }
+        parts.append("Status: \(trade.status.label)")
+        return parts.joined(separator: ". ")
     }
 }
 
@@ -274,19 +299,18 @@ private struct TradeStatusChip: View {
     var body: some View {
         Text(status.label)
             .font(.caption2.weight(.semibold))
-            .foregroundStyle(statusColor)
+            .foregroundStyle(Color.statusText(tone))
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
-            .background(statusColor.opacity(0.12), in: Capsule())
+            .background(Color.statusBackground(tone), in: Capsule())
     }
 
-    private var statusColor: Color {
+    private var tone: StatusTone {
         switch status {
-        case .open: .green
-        case .claimed: .orange
-        case .completed: .secondary
-        case .cancelled, .expired: .gray
-        case .unknown: .gray
+        case .open:                          return .green
+        case .claimed:                       return .orange
+        case .completed:                     return .gray
+        case .cancelled, .expired, .unknown: return .gray
         }
     }
 }
