@@ -56,7 +56,7 @@ struct AssignStudentSheet: View {
                     }
                 }
             }
-            .navigationTitle("Assign \(shiftArea)")
+            .navigationTitle("Assign \(shiftArea.shiftAreaLabel)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

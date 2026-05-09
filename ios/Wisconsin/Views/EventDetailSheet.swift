@@ -228,7 +228,7 @@ struct EventDetailSheet: View {
 
     private var requestDialogTitle: String {
         guard let shift = requestTarget else { return "Request shift?" }
-        return "Request \(shift.area) shift?"
+        return "Request \(shift.area.shiftAreaLabel) shift?"
     }
 
     private var unassignDialogTitle: String {
@@ -238,7 +238,7 @@ struct EventDetailSheet: View {
 
     private var deleteDialogTitle: String {
         guard let shift = deleteTarget else { return "Delete shift?" }
-        return "Delete \(shift.area) shift?"
+        return "Delete \(shift.area.shiftAreaLabel) shift?"
     }
 
     private func requestShift(_ shift: EventShift) async {
@@ -552,12 +552,12 @@ struct AreaBlock: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Area header
-            Text(area)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-                .tracking(0.5)
+            // Area header — title-cased ("Video" / "Photo") so the row's
+            // ALL-CAPS server token doesn't shout. tracking dropped since
+            // sentence case doesn't need the wide letterspacing.
+            Text(area.shiftAreaLabel)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
                 .padding(.bottom, 8)
 
             VStack(spacing: 0) {
@@ -868,7 +868,7 @@ struct EditShiftTimesSheet: View {
                     DatePicker("End time", selection: $endsAt, in: startsAt..., displayedComponents: [.hourAndMinute])
                         .disabled(isSaving)
                 } header: {
-                    Text(shift.area + " shift")
+                    Text("\(shift.area.shiftAreaLabel) shift")
                 } footer: {
                     Text("Times apply to this shift only.")
                         .font(.caption)

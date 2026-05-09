@@ -156,12 +156,12 @@ struct TradeBoardSheet: View {
 
     private var cancelDialogTitle: String {
         guard let trade = tradeToCancel else { return "Cancel trade?" }
-        return "Cancel \(trade.shiftAssignment.shift.area) trade?"
+        return "Cancel \(trade.shiftAssignment.shift.area.shiftAreaLabel) trade?"
     }
 
     private var claimDialogTitle: String {
         guard let trade = tradeToConfirm else { return "Claim Shift?" }
-        return "Claim \(trade.shiftAssignment.shift.area) shift from \(trade.postedBy.name)?"
+        return "Claim \(trade.shiftAssignment.shift.area.shiftAreaLabel) shift from \(trade.postedBy.name)?"
     }
 
     private var tradeList: some View {
@@ -219,7 +219,7 @@ private struct TradeRow: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(shift.area)
+                    Text(shift.area.shiftAreaLabel)
                         .font(.subheadline.weight(.semibold))
                     if let summary = shift.shiftGroup?.event?.summary {
                         Text(summary)
@@ -271,7 +271,7 @@ private struct TradeRow: View {
                 .buttonStyle(.bordered)
                 .tint(.accentColor)
                 .controlSize(.small)
-                .accessibilityLabel("Claim \(shift.area) shift")
+                .accessibilityLabel("Claim \(shift.area.shiftAreaLabel) shift")
             }
         }
         .padding(.vertical, 4)
@@ -280,7 +280,7 @@ private struct TradeRow: View {
     }
 
     private var rowAccessibilityLabel: String {
-        var parts: [String] = ["\(shift.area) shift"]
+        var parts: [String] = ["\(shift.area.shiftAreaLabel) shift"]
         if let summary = shift.shiftGroup?.event?.summary { parts.append(summary) }
         let timeRange = "\(shift.startsAt.formatted(date: .abbreviated, time: .shortened)) to \(shift.endsAt.formatted(date: .omitted, time: .shortened))"
         parts.append(timeRange)

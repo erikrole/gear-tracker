@@ -185,3 +185,22 @@ func sportLabel(_ code: String?) -> String? {
     guard let code else { return nil }
     return SPORT_LABELS[code] ?? code
 }
+
+// MARK: - Shift area label
+
+extension String {
+    /// Title-cased label for a server-typed shift area code.
+    /// `"VIDEO"` → `"Video"`, `"GRAPHICS"` → `"Graphics"`. Mirrors the labels
+    /// in `ShiftAreaOption` (the picker enum in `AddShiftSheet.swift`) so
+    /// every user-visible surface speaks the same name. Falls back to
+    /// `.capitalized` for any future server-side area codes.
+    var shiftAreaLabel: String {
+        switch self {
+        case "VIDEO":    return "Video"
+        case "PHOTO":    return "Photo"
+        case "GRAPHICS": return "Graphics"
+        case "COMMS":    return "Comms"
+        default:         return capitalized
+        }
+    }
+}

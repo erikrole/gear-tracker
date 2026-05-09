@@ -99,7 +99,7 @@ private struct ShiftPickerRow: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 3) {
-                Text(shift.area)
+                Text(shift.area.shiftAreaLabel)
                     .font(.subheadline.weight(.medium))
                 Text(shift.event.summary)
                     .font(.caption)

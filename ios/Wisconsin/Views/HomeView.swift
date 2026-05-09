@@ -639,7 +639,7 @@ private struct DashboardShiftRow: View {
                         .font(.subheadline.weight(.medium))
                         .lineLimit(1)
                     HStack(spacing: 4) {
-                        Text(shift.area)
+                        Text(shift.area.shiftAreaLabel)
                         if let loc = shift.event.locationName {
                             Text("·")
                             Text(loc)
