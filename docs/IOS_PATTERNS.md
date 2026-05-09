@@ -383,6 +383,14 @@ When you add a new view: drop a row into the registry inside the script (see the
 
 ---
 
+## Real-device verification
+
+The simulator covers most logic + layout but several paths are hardware-only — DataScannerViewController, real haptics, APNs push delivery, VoiceOver, Dynamic Type, Bluetooth HID scanners, real network instability.
+
+`docs/IOS_DEVICE_WALKTHROUGH.md` is the structured QA checklist for a real-device pass. Run it end-to-end before any TestFlight build. Each checkbox maps back to a specific audit-pass behavior we tested in source — the goal is to verify the behavior survives in the wild.
+
+---
+
 ## When to add a new pattern here
 
 A pattern earns a section in this doc when:
