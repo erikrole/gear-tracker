@@ -37,8 +37,14 @@ struct KioskAPI {
     }
 
     func kioskHeartbeat() async throws {
+        struct Response: Decodable { let status: String; let kioskId: String }
         let req = request(path: "/api/kiosk/heartbeat", method: "POST")
-        _ = try? await session.data(for: req)
+        // Route through `perform` so APIError.unauthorized propagates — the
+        // caller (`KioskStore.startHeartbeat`) catches it specifically to
+        // detect admin-deactivation. The prior `try?` swallowed 401 silently
+        // and the kiosk would heartbeat into the void until the next user
+        // mutation finally surfaced the auth failure.
+        let _: Response = try await perform(req)
     }
 
     // MARK: - Dashboard

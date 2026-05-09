@@ -66,7 +66,7 @@ struct KioskBarcodeCameraView: View {
             case .authorized:
                 if DataScannerViewController.isSupported && DataScannerViewController.isAvailable {
                     KioskDataScannerRepresentable(onScan: { value in
-                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        Haptics.success()
                         onScan(value)
                     })
                     .ignoresSafeArea()
@@ -158,7 +158,7 @@ struct KioskBarcodeCameraView: View {
         VStack(spacing: 16) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 56))
-                .foregroundStyle(.orange)
+                .foregroundStyle(Color.statusText(.orange))
             Text("Camera scanning unavailable")
                 .font(.title3.bold())
                 .foregroundStyle(.white)

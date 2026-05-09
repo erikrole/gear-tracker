@@ -184,10 +184,10 @@ struct QRScannerSheet: View {
         defer { isLookingUp = false }
         do {
             if let assetId = try await APIClient.shared.assetsLookup(rawScan: rawScan) {
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                Haptics.success()
                 onMatch(assetId)
             } else {
-                UINotificationFeedbackGenerator().notificationOccurred(.error)
+                Haptics.warning()
                 scanError = "No item matches this code."
                 try? await Task.sleep(nanoseconds: 3_000_000_000)
                 scanError = nil
