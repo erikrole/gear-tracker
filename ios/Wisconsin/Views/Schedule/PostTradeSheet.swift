@@ -39,9 +39,12 @@ struct PostTradeSheet: View {
                             .font(.subheadline)
                     } else {
                         ForEach(eligibleShifts) { shift in
-                            ShiftPickerRow(shift: shift, isSelected: selectedShift?.id == shift.id)
-                                .contentShape(Rectangle())
-                                .onTapGesture { selectedShift = shift }
+                            Button {
+                                selectedShift = shift
+                            } label: {
+                                ShiftPickerRow(shift: shift, isSelected: selectedShift?.id == shift.id)
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -69,11 +72,16 @@ struct PostTradeSheet: View {
                         .disabled(isPosting)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Post") {
+                    Button {
                         Task { await post() }
+                    } label: {
+                        if isPosting {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Text("Post").fontWeight(.semibold)
+                        }
                     }
                     .disabled(selectedShift == nil || isPosting)
-                    .fontWeight(.semibold)
                 }
             }
             .interactiveDismissDisabled(hasUnsavedInput || isPosting)
@@ -96,16 +104,19 @@ private struct ShiftPickerRow: View {
     let shift: MyShift
     let isSelected: Bool
 
+    private var timeRange: String {
+        "\(shift.startsAt.formatted(date: .abbreviated, time: .shortened)) – \(shift.endsAt.formatted(date: .omitted, time: .shortened))"
+    }
+
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 3) {
-                Text(shift.area.shiftAreaLabel)
+                Text("\(shift.area.shiftAreaLabel) shift")
                     .font(.subheadline.weight(.medium))
                 Text(shift.event.summary)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                let timeRange = "\(shift.startsAt.formatted(date: .abbreviated, time: .shortened)) – \(shift.endsAt.formatted(date: .omitted, time: .shortened))"
                 Text(timeRange)
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
@@ -114,8 +125,13 @@ private struct ShiftPickerRow: View {
             if isSelected {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(Color.accentColor)
+                    .accessibilityHidden(true)
             }
         }
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(shift.area.shiftAreaLabel) shift, \(shift.event.summary), \(timeRange)")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
@@ -130,11 +146,12 @@ extension PostTradeSheet {
                 assignmentId: shift.id,
                 notes: notes.isEmpty ? nil : notes
             )
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            Haptics.success()
             onPosted(shift)
             dismiss()
         } catch {
             self.error = error.localizedDescription
+            Haptics.warning()
         }
     }
 }
