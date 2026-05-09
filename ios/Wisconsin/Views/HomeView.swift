@@ -357,6 +357,8 @@ private struct StatCell: View {
         }
         .buttonStyle(.plain)
         .sensoryFeedback(.selection, trigger: hapticTrigger)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label): \(value) item\(value == 1 ? "" : "s")")
     }
 }
 
@@ -373,6 +375,7 @@ private struct StatStripSkeleton: View {
                 .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
             }
         }
+        .accessibilityHidden(true)  // Don't pollute VO with placeholder shapes during initial load.
     }
 }
 
@@ -384,10 +387,14 @@ private struct OverdueBanner: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("\(totalCount) Overdue Checkout\(totalCount == 1 ? "" : "s")",
-                  systemImage: "exclamationmark.triangle.fill")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Color.statusText(.red))
+            Label {
+                Text("\(totalCount) Overdue Checkout\(totalCount == 1 ? "" : "s")")
+            } icon: {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .accessibilityHidden(true)
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(Color.statusText(.red))
 
             ForEach(items) { item in
                 NavigationLink(value: item.bookingId) {
@@ -408,6 +415,8 @@ private struct OverdueBanner: View {
                     }
                 }
                 .buttonStyle(.plain)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Overdue: \(item.bookingTitle), \(item.requesterName), \(item.endsAt.overdueLabel)")
 
                 if item.id != items.last?.id {
                     Divider()
@@ -438,6 +447,7 @@ private struct RefreshFailurePill: View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.circle.fill")
                 .foregroundStyle(Color.statusText(.orange))
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
                 Text("Couldn't refresh")
                     .font(.caption.weight(.semibold))
@@ -450,6 +460,7 @@ private struct RefreshFailurePill: View {
         }
         .padding(10)
         .background(Color.statusBackground(.orange), in: RoundedRectangle(cornerRadius: 10))
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -461,6 +472,7 @@ private struct AllClearEmptyState: View {
             Image(systemName: "checkmark.seal.fill")
                 .font(.system(size: 36))
                 .foregroundStyle(Color.statusText(.green))
+                .accessibilityHidden(true)
             Text("You're all set")
                 .font(.headline)
             Text("Open the Scan tab to check out gear.")
@@ -471,6 +483,7 @@ private struct AllClearEmptyState: View {
         .frame(maxWidth: .infinity)
         .padding(28)
         .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -623,6 +636,8 @@ struct BookingSummaryRow: View {
             .padding(.leading, 12)
         }
         .clipShape(RoundedRectangle(cornerRadius: 6))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(rowAccessibilityLabel)
     }
 
     private var initialsCircle: some View {
@@ -634,6 +649,37 @@ struct BookingSummaryRow: View {
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(summary.isOverdue ? Color.statusText(.red) : Color.accentColor)
         }
+        .accessibilityHidden(true)
+    }
+
+    /// Single combined VoiceOver readout for the row. Surfaces overdue / late
+    /// state first when applicable so VO users hear the most important fact
+    /// without scrolling through five separate announcements.
+    private var rowAccessibilityLabel: String {
+        var parts: [String] = []
+        if summary.isOverdue { parts.append("Overdue") }
+        else if summary.status == .pendingPickup, pickupIsLate { parts.append("Pickup late") }
+
+        parts.append(summary.title)
+        parts.append(summary.requesterName)
+        if let loc = summary.locationName { parts.append(loc) }
+
+        if summary.isOverdue {
+            parts.append(summary.endsAt.overdueLabel)
+        } else if summary.status == .pendingPickup {
+            if pickupIsLate {
+                parts.append("Pickup \(summary.startsAt.lateLabel)")
+            } else {
+                parts.append("Pickup \(summary.startsAt.formatted(date: .abbreviated, time: .shortened))")
+            }
+        } else {
+            parts.append("Due \(summary.endsAt.formatted(date: .abbreviated, time: .shortened))")
+        }
+
+        if summary.itemCount > 0 {
+            parts.append("\(summary.itemCount) item\(summary.itemCount == 1 ? "" : "s")")
+        }
+        return parts.joined(separator: ", ")
     }
 }
 
@@ -676,9 +722,14 @@ private struct DashboardShiftRow: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     if shift.hasGear {
-                        Label(shift.gearLabel, systemImage: "checkmark.circle.fill")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(Color.statusText(.green))
+                        Label {
+                            Text(shift.gearLabel)
+                        } icon: {
+                            Image(systemName: "checkmark.circle.fill")
+                                .accessibilityHidden(true)
+                        }
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(Color.statusText(.green))
                     }
                 }
                 Spacer()
@@ -689,6 +740,19 @@ private struct DashboardShiftRow: View {
             .background(Color.accentColor.opacity(0.04))
         }
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(rowAccessibilityLabel)
+    }
+
+    private var rowAccessibilityLabel: String {
+        var parts: [String] = [
+            shift.event.summary,
+            "\(shift.area.shiftAreaLabel) shift",
+            shift.startsAt.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().hour().minute()),
+        ]
+        if let loc = shift.event.locationName { parts.append(loc) }
+        if shift.hasGear { parts.append(shift.gearLabel) }
+        return parts.joined(separator: ", ")
     }
 }
 
@@ -756,6 +820,21 @@ private struct EventSummaryRow: View {
             .padding(.leading, 12)
         }
         .clipShape(RoundedRectangle(cornerRadius: 6))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(rowAccessibilityLabel)
+    }
+
+    private var rowAccessibilityLabel: String {
+        var parts: [String] = [event.title]
+        if let sport = sportLabel(event.sportCode) { parts.append(sport) }
+        parts.append(event.startsAt.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
+        if event.totalShiftSlots > 0 {
+            parts.append("\(event.filledShiftSlots) of \(event.totalShiftSlots) crew filled")
+        }
+        if let isHome = event.isHome {
+            parts.append(isHome ? "Home game" : "Away game")
+        }
+        return parts.joined(separator: ", ")
     }
 }
 
@@ -766,10 +845,13 @@ private struct FlaggedItemsBanner: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("\(items.count) Flagged Item\(items.count == 1 ? "" : "s")",
-                  systemImage: "flag.fill")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Color.statusText(.orange))
+            Label {
+                Text("\(items.count) Flagged Item\(items.count == 1 ? "" : "s")")
+            } icon: {
+                Image(systemName: "flag.fill").accessibilityHidden(true)
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(Color.statusText(.orange))
 
             ForEach(items) { item in
                 HStack {
@@ -794,12 +876,21 @@ private struct FlaggedItemsBanner: View {
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(.tertiary)
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(flaggedRowLabel(for: item))
                 if item.id != items.last?.id { Divider() }
             }
         }
         .padding(14)
         .background(Color.statusBackground(.orange), in: RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.statusText(.orange).opacity(0.2), lineWidth: 1))
+    }
+
+    private func flaggedRowLabel(for item: DashboardFlaggedItem) -> String {
+        var parts: [String] = ["Flagged: \(item.assetName ?? item.assetTag)", item.typeLabel]
+        if let title = item.bookingTitle { parts.append(title) }
+        parts.append("tag \(item.assetTag)")
+        return parts.joined(separator: ", ")
     }
 }
 
@@ -810,9 +901,13 @@ private struct LostBulkUnitsBanner: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("Lost Bulk Units", systemImage: "exclamationmark.triangle.fill")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Color.statusText(.red))
+            Label {
+                Text("Lost Bulk Units")
+            } icon: {
+                Image(systemName: "exclamationmark.triangle.fill").accessibilityHidden(true)
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(Color.statusText(.red))
 
             ForEach(items, id: \.skuName) { item in
                 HStack {
@@ -824,6 +919,8 @@ private struct LostBulkUnitsBanner: View {
                         .font(.caption.weight(.medium))
                         .foregroundStyle(Color.statusText(.red))
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("\(item.skuName), \(item.count) missing")
             }
         }
         .padding(14)
@@ -842,6 +939,7 @@ private struct DraftRow: View {
             Image(systemName: draft.kind == "checkout" ? "archivebox" : "calendar.badge.clock")
                 .foregroundStyle(.secondary)
                 .frame(width: 24)
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(draft.title)
@@ -861,8 +959,11 @@ private struct DraftRow: View {
             Image(systemName: "chevron.right")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
         }
         .padding(.vertical, 2)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Draft: \(draft.title), \(draft.itemCount) item\(draft.itemCount == 1 ? "" : "s"), updated \(draft.updatedAt.formatted(.relative(presentation: .named)))")
     }
 }
 
