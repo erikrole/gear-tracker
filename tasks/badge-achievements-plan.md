@@ -343,19 +343,19 @@ Badges should feel like lightweight recognition inside an ops app.
 
 ### Slice 1: Schema, seed, service skeleton, AREA doc, decisions
 
-- [ ] Add Prisma models, enums (`BadgeStreakType` included), `User` relations,
+- [x] Add Prisma models, enums (`BadgeStreakType` included), `User` relations,
   `SystemConfig` seed/default for `badges.peerVisible`, hot-path indexes on `StudentBadge`, and
   `BadgeStreak.lastSourceKey`.
-- [ ] Add migration `XXXX_add_badges` via `npm run db:migrate:new`.
-- [ ] Add `BADGES_ENABLED` to `.env.example`; default off.
-- [ ] Add `src/lib/badges/index.ts`, `evaluator.ts`, `queries.ts`, `types.ts`,
+- [x] Add migration `0055_add_badges`. `prisma migrate dev` was blocked because it would apply to the configured Neon database, so Slice 1 saved the SQL artifact manually and validated it with Prisma/schema checks.
+- [x] Add `BADGES_ENABLED` to `.env.example`; default off.
+- [x] Add `src/lib/badges/index.ts`, `evaluator.ts`, `queries.ts`, `types.ts`,
   and a stub `src/lib/observability.ts` with `captureBadgeError`.
-- [ ] Add idempotent seed entries for the 20 definitions in the existing
+- [x] Add idempotent seed entries for the 20 definitions in the existing
   `prisma/seed.mjs`.
-- [ ] Add `docs/AREA_BADGES.md` with scope, ACs, rollout, UI direction,
+- [x] Add `docs/AREA_BADGES.md` with scope, ACs, rollout, UI direction,
   visibility rules, key-immutability rule, and a source-of-truth flow table
   (file:symbol for every emit point).
-- [ ] Record in `docs/DECISIONS.md`: no-backfill launch, 15-minute on-time
+- [x] Record in `docs/DECISIONS.md`: no-backfill launch, 15-minute on-time
   grace, key immutability, single-emit rule on status-flip helpers,
   peer-visibility default.
 
@@ -478,18 +478,18 @@ Badges should feel like lightweight recognition inside an ops app.
 
 Run these per slice as applicable:
 
-- [ ] `npx prisma validate`
-- [ ] `npm run db:migrate:check`
-- [ ] `npm run db:migrate:status`
+- [x] `npx prisma validate`
+- [x] `npm run db:migrate:check`
+- [ ] `npm run db:migrate:status` (blocked by Prisma Schema engine error against the configured Neon database, including after read-only network escalation)
 - [ ] `npm run lint`
-- [ ] `npm test` (Vitest — badge evaluator, checkout, scan, trade, UI API)
+- [x] `npm test` (Vitest — badge evaluator, checkout, scan, trade, UI API)
 - [ ] Concurrency test: two parallel calls for the same `(userId, sourceKey)`
   award exactly one badge and bump streak by exactly one.
 - [ ] Flag-off snapshot test: `BADGES_ENABLED=false` produces zero Prisma
   queries (subscribe to `prisma.$on('query')` in a Vitest harness).
-- [ ] `npx tsc --noEmit`
-- [ ] `npm run build` once migration state is ready (it runs
-  `prisma migrate deploy && next build`)
+- [x] `npx tsc --noEmit`
+- [x] `npx next build` (used for Slice 1 because `npm run build` runs
+  `prisma migrate deploy && next build`, which would apply the new migration to the configured Neon database)
 - [ ] Manual or browser smoke for `/users/{id}?tab=badges` and
   `/reports/badges` after UI slices.
 - [ ] Slice 7 only: rollback drill on a Vercel preview deployment.

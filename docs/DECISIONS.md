@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-03-25
+- Last Updated: 2026-05-09
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -37,6 +37,7 @@
 - D-029: Registration gated by admin-managed email allowlist
 - D-030: Kiosk auth uses device-level token, not user sessions
 - D-031: Multi-event booking via junction table with preserved primary FK
+- D-034: Badge achievements are event-sourced, flag-gated, and profile-first
 
 ---
 
@@ -596,6 +597,33 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 
 ---
 
+## D-034: Badge Achievements Are Event-Sourced, Flag-Gated, and Profile-First
+- Date: 2026-05-09
+- Status: Accepted for sliced implementation
+- Context:
+  - The prior badge implementation was reverted because it mixed schema, route wiring, profile UI, reports, and evaluator behavior in one large slice.
+  - Current kiosk and scan flows have clear domain outcome boundaries, while the legacy app scan routes are 403 stubs.
+  - Recognition should not compete with operational profile signals such as role, availability, overdue gear, or admin actions.
+- Decision:
+  - Badge events are emitted only from domain outcomes: kiosk checkout or pickup opens a checkout, checkout return completion flips to `COMPLETED`, kiosk scan succeeds or fails, trade status flips to `COMPLETED`, and future shift attendance completion.
+  - `BADGES_ENABLED !== "true"` returns before evaluator work, badge database queries, or side effects.
+  - Launch has no retroactive backfill. Only post-enable domain events can award badges.
+  - On-time return logic uses a 15-minute UTC grace window after `booking.endsAt`.
+  - Badge definition `key` values are immutable. Rename display fields in place; retire bad keys with `active=false` and seed replacement keys.
+  - `onCheckoutReturned` and `onTradeCompleted` must be emitted from single status-flip helpers so competing call paths do not double-award.
+  - Peer student badge visibility defaults to true via `SystemConfig["badges.peerVisible"]`; staff can always see student badges.
+  - The primary student UI is a `Badges` tab on `/users/{id}`. No top-level nav item and no badge chrome in the profile hero.
+- Consequences:
+  - The system can ship in independent slices with the flag off until preview verification passes.
+  - Historical badge data remains stable if users are deactivated or definitions are retired.
+  - Reports can aggregate from `StudentBadge` without becoming the primary student experience.
+- Guardrails:
+  - Legacy checkout scan stubs stay non-events.
+  - Shift approval is not attendance and must not award shift badges.
+  - Award notification delivery is persistent inbox first; push fan-out is deferred.
+
+---
+
 ## Pending Decisions
 1. ~~Event sync refresh cadence and staleness thresholds~~ — Resolved: D-026.
 2. ~~Venue mapping governance owner~~ — Resolved: D-027.
@@ -624,3 +652,4 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - 2026-05-05: Updated D-022/D-023 for camera attachment scope — camera-tied SD cards/cages/fixed parts stay as non-bookable asset attachments, while QR-coded batteries keep numbered bulk semantics.
 - 2026-05-05: Updated D-022 for derived numbered bulk unit QR scans using `{binQrCodeValue}-{unitNumber}`.
 - 2026-05-05: Updated D-022 for kiosk-scanned numbered batteries and non-blocking camera-model battery availability warnings.
+- 2026-05-09: Added D-034 for badge achievements: event-sourced service boundary, feature flag off path, no retroactive backfill, 15-minute on-time grace, immutable definition keys, single-emit status helpers, peer visibility default, and profile-first UI.

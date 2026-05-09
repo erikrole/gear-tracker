@@ -81,6 +81,33 @@ enum CheckinReportType {
   LOST
 }
 
+enum BadgeCategory {
+  CHECKOUT
+  ON_TIME
+  SCAN
+  SHIFT
+  TRADE
+  STREAK
+  MILESTONE
+}
+
+enum BadgeKind {
+  COUNT
+  STREAK
+  RULE
+}
+
+enum BadgeSource {
+  AUTO
+  MANUAL
+}
+
+enum BadgeStreakType {
+  ON_TIME_RETURN
+  SCAN_CLEAN
+  SHIFT_ATTENDANCE
+}
+
 model User {
   id                   String                     @id @default(cuid())
   name                 String
@@ -124,6 +151,9 @@ model User {
   guides               Guide[]
   availabilityBlocks   StudentAvailabilityBlock[]
   travelMemberships    EventTravelMember[]        @relation("TravelMembers")
+  badges               StudentBadge[]
+  badgesAwardedByMe    StudentBadge[]             @relation("BadgeAwardedBy")
+  badgeStreaks         BadgeStreak[]
   notificationPrefs    Json?                      @map("notification_prefs")
   icsToken             String?                    @unique @map("ics_token")
 
@@ -779,6 +809,61 @@ model SystemConfig {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("system_config")
+}
+
+model BadgeDefinition {
+  id          String         @id @default(cuid())
+  key         String         @unique
+  name        String
+  description String
+  icon        String
+  category    BadgeCategory
+  kind        BadgeKind
+  trigger     String
+  threshold   Int?
+  ruleKey     String?        @map("rule_key")
+  active      Boolean        @default(true)
+  sortOrder   Int            @default(0) @map("sort_order")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  awards      StudentBadge[]
+
+  @@index([active, sortOrder])
+  @@index([category, sortOrder])
+  @@map("badge_definitions")
+}
+
+model StudentBadge {
+  id           String          @id @default(cuid())
+  userId       String          @map("user_id")
+  definitionId String          @map("definition_id")
+  awardedAt    DateTime        @default(now()) @map("awarded_at")
+  source       BadgeSource     @default(AUTO)
+  awardedById  String?         @map("awarded_by_id")
+  note         String?
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  definition   BadgeDefinition @relation(fields: [definitionId], references: [id], onDelete: Restrict)
+  awardedBy    User?           @relation("BadgeAwardedBy", fields: [awardedById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, definitionId])
+  @@index([userId, awardedAt(sort: Desc)])
+  @@index([definitionId, awardedAt(sort: Desc)])
+  @@index([awardedById])
+  @@map("student_badges")
+}
+
+model BadgeStreak {
+  id            String          @id @default(cuid())
+  userId        String          @map("user_id")
+  streakType    BadgeStreakType @map("streak_type")
+  current       Int             @default(0)
+  longest       Int             @default(0)
+  lastEventAt   DateTime?       @map("last_event_at")
+  lastSourceKey String?         @map("last_source_key")
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, streakType])
+  @@index([userId])
+  @@map("badge_streaks")
 }
 
 // ── Photo Mechanic License Codes ─────────────────────────

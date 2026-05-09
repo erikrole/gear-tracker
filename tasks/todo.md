@@ -44,6 +44,12 @@ Last updated: 2026-05-09
 
 ## Open Items
 
+### Student Badge Achievements Slice 1 (2026-05-09)
+- [x] **Schema and seed** — Add badge catalog, earned badge, streak tables, user relations, peer-visibility SystemConfig default, and 20 idempotent badge definitions.
+- [x] **Service skeleton** — Add a flag-gated badge service API that returns before evaluator work while disabled.
+- [x] **Docs and decisions** — Create AREA_BADGES and record the durable launch decisions from v4.
+- [x] **Verification** — `npx prisma validate`, `npm run db:migrate:check`, `git diff --check`, focused badge test, full `npm test`, `npx tsc --noEmit`, and `npx next build` passed. `npm run db:migrate:status` failed with Prisma's blank Schema engine error against Neon even after read-only network escalation.
+
 ### Labels UI Polish (2026-05-09)
 - [x] **Print queue framing** — Add header context, matching/selected/ready metrics, and an Items escape link without changing browser-print output.
 - [x] **Selector cleanup** — Replace the raw checklist with a searchable queue, selected count badge, accessible checkbox labels, and filtered-empty recovery.
