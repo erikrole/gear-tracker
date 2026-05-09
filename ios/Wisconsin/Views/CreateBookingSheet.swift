@@ -110,27 +110,37 @@ final class CreateBookingViewModel {
     }
 
     func loadAvailableAssets(reset: Bool = false) async {
-        guard !isLoadingAssets else { return }
+        // For pagination keep the concurrent-call guard. For reset (the
+        // search-driven path) drop it and let the snapshot guard below
+        // handle ordering — otherwise a fast typist can trigger debounce,
+        // hit the `isLoadingAssets` gate, and silently lose the new query.
+        if !reset, isLoadingAssets { return }
+        let capturedSearch = assetSearch
         if reset {
             availableAssets = []
             assetOffset = 0
             assetTotal = 0
+            error = nil
         }
         isLoadingAssets = true
+        defer { isLoadingAssets = false }
         do {
             let resp = try await APIClient.shared.assets(
-                search: assetSearch.isEmpty ? nil : assetSearch,
+                search: capturedSearch.isEmpty ? nil : capturedSearch,
                 statuses: [.available],
                 limit: 30,
                 offset: assetOffset
             )
+            // Stale-write guard: drop the response if the user has typed more
+            // since this request was started. Mirrors the global-search fix.
+            guard capturedSearch == assetSearch else { return }
             availableAssets += resp.data
             assetTotal = resp.total
             assetOffset += resp.data.count
         } catch {
+            guard capturedSearch == assetSearch else { return }
             self.error = error.localizedDescription
         }
-        isLoadingAssets = false
     }
 
     func onSearchChange() {
@@ -170,6 +180,11 @@ struct CreateBookingSheet: View {
     @State private var step = 1
     @State private var submitError: String?
     @State private var showDiscardConfirm = false
+    @State private var initialUserId: String = ""
+    @State private var initialLocationId: String = ""
+    @State private var initialStartsAt: Date = .now
+    @State private var initialEndsAt: Date = .now
+    @State private var capturedInitial = false
     @Environment(SessionStore.self) private var session
 
     init(onCreated: @escaping (String) -> Void) {
@@ -188,9 +203,18 @@ struct CreateBookingSheet: View {
     }
 
     private var hasUnsavedInput: Bool {
-        !vm.title.trimmingCharacters(in: .whitespaces).isEmpty
-            || !vm.notes.isEmpty
-            || !vm.selectedAssetIds.isEmpty
+        if !vm.title.trimmingCharacters(in: .whitespaces).isEmpty { return true }
+        if !vm.notes.isEmpty { return true }
+        if !vm.selectedAssetIds.isEmpty { return true }
+        // Track requester / location / date deltas so a STAFF user who picks
+        // a requester + adjusts dates and then taps Cancel gets a discard
+        // prompt before losing the setup.
+        guard capturedInitial else { return false }
+        if vm.selectedUserId != initialUserId { return true }
+        if vm.selectedLocationId != initialLocationId { return true }
+        if vm.startsAt != initialStartsAt { return true }
+        if vm.endsAt != initialEndsAt { return true }
+        return false
     }
 
     private func attemptCancel() {
@@ -214,10 +238,18 @@ struct CreateBookingSheet: View {
             .navigationTitle(step == 1 ? "New Reservation" : "Add Equipment")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbar }
-            .alert("Unable to Create Reservation", isPresented: Binding(
-                get: { submitError != nil },
-                set: { if !$0 { submitError = nil } }
-            )) {
+            .confirmationDialog(
+                "Couldn't create reservation",
+                isPresented: Binding(
+                    get: { submitError != nil },
+                    set: { if !$0 { submitError = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Try again") {
+                    submitError = nil
+                    Task { await create() }
+                }
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(submitError ?? "")
@@ -240,8 +272,27 @@ struct CreateBookingSheet: View {
                         vm.selectedUserId = current.id
                     }
                 }
+                captureInitialIfNeeded()
             }
+            .onAppear { captureInitialIfNeeded() }
         }
+    }
+
+    /// Snapshots the initial requester / location / date values once the
+    /// view-model has had a chance to apply prefills (from the items-list or
+    /// item-detail Reserve flows). `hasUnsavedInput` compares against these
+    /// to detect changes the user made on top of any prefill.
+    private func captureInitialIfNeeded() {
+        if capturedInitial { return }
+        // Wait until we have a non-empty user (either prefilled or auto-set
+        // from the current session) — otherwise the snapshot would record
+        // "" and a later auto-fill would falsely register as a delta.
+        guard !vm.selectedUserId.isEmpty else { return }
+        initialUserId = vm.selectedUserId
+        initialLocationId = vm.selectedLocationId
+        initialStartsAt = vm.startsAt
+        initialEndsAt = vm.endsAt
+        capturedInitial = true
     }
 
     @ToolbarContentBuilder
@@ -265,14 +316,16 @@ struct CreateBookingSheet: View {
                 .disabled(!vm.isValid || vm.isSubmitting)
                 .fontWeight(.semibold)
             } else {
-                Button("Create") {
+                Button {
                     Task { await create() }
+                } label: {
+                    if vm.isSubmitting {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Text("Create").fontWeight(.semibold)
+                    }
                 }
                 .disabled(vm.isSubmitting)
-                .fontWeight(.semibold)
-                .overlay {
-                    if vm.isSubmitting { ProgressView().scaleEffect(0.8) }
-                }
             }
         }
     }
@@ -381,11 +434,35 @@ struct CreateBookingSheet: View {
                     Label("\(count) item\(count == 1 ? "" : "s") selected", systemImage: "checkmark.circle.fill")
                         .font(.subheadline)
                         .foregroundStyle(Color.statusText(.blue))
+                        .accessibilityLabel("\(count) item\(count == 1 ? "" : "s") selected")
                 }
             }
 
             Section {
-                if vm.availableAssets.isEmpty && !vm.isLoadingAssets {
+                if vm.availableAssets.isEmpty && !vm.isLoadingAssets, let err = vm.error {
+                    // Surface a load error with retry — was previously
+                    // silent; user saw "No available equipment found"
+                    // (misleading) on a server failure.
+                    HStack(spacing: 12) {
+                        Image(systemName: "wifi.exclamationmark")
+                            .foregroundStyle(Color.statusText(.red))
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Couldn't load equipment")
+                                .font(.subheadline.weight(.medium))
+                            Text(err)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                        }
+                        Spacer()
+                        Button("Retry") {
+                            Task { await vm.loadAvailableAssets(reset: true) }
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+                } else if vm.availableAssets.isEmpty && !vm.isLoadingAssets {
                     Text("No available equipment found.")
                         .foregroundStyle(.secondary)
                         .font(.subheadline)
@@ -401,6 +478,7 @@ struct CreateBookingSheet: View {
                             } else {
                                 vm.selectedAssetIds.insert(asset.id)
                             }
+                            Haptics.selection()
                             vm.scheduleConflictCheck()
                         }
                         .onAppear {
@@ -422,15 +500,18 @@ struct CreateBookingSheet: View {
             }
 
         }
+        .scrollDismissesKeyboard(.immediately)
     }
 
     private func create() async {
         do {
             let id = try await vm.submit()
+            Haptics.success()
             onCreated(id)
             dismiss()
         } catch {
             submitError = error.localizedDescription
+            Haptics.warning()
         }
     }
 }
@@ -481,6 +562,7 @@ struct AssetPickerRow: View {
                         Label("Scheduling conflict", systemImage: "exclamationmark.triangle.fill")
                             .font(.caption2)
                             .foregroundStyle(Color.statusText(.orange))
+                            .accessibilityLabel("Scheduling conflict")
                     }
                 }
 
@@ -488,12 +570,28 @@ struct AssetPickerRow: View {
 
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
-                    .foregroundStyle(isConflicted ? .orange : (isSelected ? .blue : Color(.systemGray4)))
+                    .foregroundStyle(
+                        isConflicted ? Color.statusText(.orange)
+                            : (isSelected ? Color.statusText(.blue) : Color(.systemGray4))
+                    )
                     .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isSelected)
+                    .accessibilityHidden(true)
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(ScalePressStyle())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(rowAccessibilityLabel)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private var rowAccessibilityLabel: String {
+        var parts: [String] = [asset.displayName]
+        if let tag = asset.assetTag { parts.append(tag) }
+        parts.append(asset.location.name)
+        if isConflicted { parts.append("Scheduling conflict") }
+        parts.append(isSelected ? "Selected" : "Not selected")
+        return parts.joined(separator: ", ")
     }
 
     private var assetPlaceholder: some View {
