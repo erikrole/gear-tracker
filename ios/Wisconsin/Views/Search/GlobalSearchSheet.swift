@@ -38,6 +38,8 @@ struct GlobalSearchSheet: View {
                         searchingView
                     } else if !results.isEmpty {
                         resultsList
+                    } else if let searchError, !isSearching {
+                        errorView(message: searchError)
                     } else if !isSearching {
                         noResultsView
                     }
@@ -98,10 +100,12 @@ struct GlobalSearchSheet: View {
                 Button {
                     query = ""
                     results = SearchResults()
+                    searchError = nil
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.secondary)
                 }
+                .accessibilityLabel("Clear search")
             }
 
             Button {
@@ -112,6 +116,7 @@ struct GlobalSearchSheet: View {
                     .font(.system(size: 20, weight: .medium))
                     .foregroundStyle(Color.accentColor)
             }
+            .accessibilityLabel("Scan QR code")
         }
         .padding(10)
         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
@@ -142,6 +147,7 @@ struct GlobalSearchSheet: View {
                                 Label(term, systemImage: "clock")
                                     .foregroundStyle(.primary)
                             }
+                            .accessibilityLabel("Recent search: \(term)")
                         }
                         Button("Clear Recents") {
                             recentSearches = []
@@ -180,6 +186,30 @@ struct GlobalSearchSheet: View {
         .padding(.top, 60)
     }
 
+    /// Distinct from `noResultsView` so a server failure doesn't masquerade
+    /// as "no matches" — same shape as the booking-detail / dashboard
+    /// recovery surfaces shipped today.
+    private func errorView(message: String) -> some View {
+        VStack(spacing: 12) {
+            Image(systemName: "wifi.exclamationmark")
+                .font(.system(size: 40))
+                .foregroundStyle(Color.statusText(.red))
+            Text("Couldn't search")
+                .font(.headline)
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            Button("Try again") {
+                Task { await performSearch(query: query.trimmingCharacters(in: .whitespaces)) }
+            }
+            .buttonStyle(.bordered)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 60)
+    }
+
     private var resultsList: some View {
         List {
             if !results.items.isEmpty {
@@ -191,9 +221,6 @@ struct GlobalSearchSheet: View {
                             AssetResultRow(asset: asset)
                         }
                         .buttonStyle(.plain)
-                    }
-                    if results.items.count >= 10 {
-                        viewAllButton(label: "View all items")
                     }
                 }
             }
@@ -208,9 +235,6 @@ struct GlobalSearchSheet: View {
                         }
                         .buttonStyle(.plain)
                     }
-                    if results.reservations.count >= 10 {
-                        viewAllButton(label: "View all reservations")
-                    }
                 }
             }
 
@@ -223,9 +247,6 @@ struct GlobalSearchSheet: View {
                             BookingResultRow(booking: booking)
                         }
                         .buttonStyle(.plain)
-                    }
-                    if results.checkouts.count >= 10 {
-                        viewAllButton(label: "View all checkouts")
                     }
                 }
             }
@@ -244,23 +265,24 @@ struct GlobalSearchSheet: View {
             }
         }
         .listStyle(.plain)
+        .scrollDismissesKeyboard(.immediately)
     }
 
+    /// Section header with the result count rendered on the right — closes
+    /// the dropped "View all …" buttons (those routed nowhere; the count
+    /// gives the same "this is N rows out of 10 max per category" hint
+    /// without the false-promise CTA).
     private func sectionHeader(_ title: String, count: Int) -> some View {
-        Text(title)
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.secondary)
-            .textCase(.uppercase)
-            .tracking(0.3)
-    }
-
-    private func viewAllButton(label: String) -> some View {
-        Button {
-            // dismiss and let caller handle deep link if needed
-        } label: {
-            Text(label)
-                .font(.subheadline)
-                .foregroundStyle(Color.accentColor)
+        HStack {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .tracking(0.3)
+            Spacer()
+            Text("\(count)")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.tertiary)
         }
     }
 
@@ -295,8 +317,17 @@ struct GlobalSearchSheet: View {
         searchError = nil
         defer { isSearching = false }
         do {
-            results = try await SearchService.shared.search(query: query)
+            let outcome = try await SearchService.shared.search(query: query)
+            // Stale-write guard: if the live `query` no longer matches what
+            // this request was for (user typed more characters mid-flight),
+            // drop the result. Without this guard, on slow networks an older
+            // "ab" response can overwrite a newer "abc" response.
+            guard self.query.trimmingCharacters(in: .whitespaces) == query else { return }
+            results = outcome
         } catch {
+            // Same staleness guard: a stale failure doesn't blow away the
+            // current results either.
+            guard self.query.trimmingCharacters(in: .whitespaces) == query else { return }
             searchError = error.localizedDescription
         }
     }
