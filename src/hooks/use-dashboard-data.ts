@@ -17,6 +17,8 @@ function normalizeDashboard(d: DashboardData): DashboardData {
   d.teamCheckouts.items = d.teamCheckouts.items ?? [];
   d.teamReservations = d.teamReservations ?? { total: 0, items: [] };
   d.teamReservations.items = d.teamReservations.items ?? [];
+  d.pendingPickups = d.pendingPickups ?? { total: 0, items: [] };
+  d.pendingPickups.items = d.pendingPickups.items ?? [];
   d.upcomingEvents = d.upcomingEvents ?? [];
   d.myReservations = d.myReservations ?? [];
   d.overdueItems = d.overdueItems ?? [];

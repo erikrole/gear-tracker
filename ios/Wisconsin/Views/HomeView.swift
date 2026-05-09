@@ -84,6 +84,7 @@ struct HomeView: View {
         dash.myCheckouts.items.isEmpty
             && dash.teamCheckouts.items.isEmpty
             && dash.teamReservations.items.isEmpty
+            && dash.pendingPickups.items.isEmpty
             && dash.myShifts.isEmpty
             && dash.upcomingEvents.isEmpty
             && dash.overdueItems.isEmpty
@@ -114,6 +115,17 @@ struct HomeView: View {
                 }
                 if isAllEmpty(dash) {
                     AllClearEmptyState()
+                }
+                if !dash.pendingPickups.items.isEmpty {
+                    DashboardCard(
+                        title: "Awaiting Pickup\(dash.pendingPickups.total > dash.pendingPickups.items.count ? " (\(dash.pendingPickups.total))" : "")",
+                        seeAllTab: 1,
+                        appState: appState
+                    ) {
+                        ForEach(dash.pendingPickups.items) { summary in
+                            BookingSummaryNavRow(summary: summary)
+                        }
+                    }
                 }
                 if dash.isStaff && !dash.drafts.isEmpty {
                     DashboardCard(title: "Drafts", seeAllTab: 1, appState: appState) {
@@ -539,8 +551,13 @@ private struct BookingSummaryNavRow: View {
 struct BookingSummaryRow: View {
     let summary: BookingSummary
 
+    private var pickupIsLate: Bool {
+        summary.status == .pendingPickup && summary.startsAt < Date()
+    }
+
     private var barColor: Color {
         if summary.isOverdue { return Color.statusText(.red) }
+        if pickupIsLate { return Color.statusText(.orange) }
         switch summary.status {
         case .open: return .accentColor
         case .booked, .pendingPickup: return Color.statusText(.green)
@@ -574,6 +591,16 @@ struct BookingSummaryRow: View {
                         Text(summary.endsAt.overdueLabel)
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(Color.statusText(.red))
+                    } else if summary.status == .pendingPickup {
+                        if pickupIsLate {
+                            Text("Pickup \(summary.startsAt.lateLabel)")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(Color.statusText(.orange))
+                        } else {
+                            Text("Pickup \(summary.startsAt.formatted(date: .abbreviated, time: .shortened))")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
                     } else {
                         Text("Due \(summary.endsAt.formatted(date: .abbreviated, time: .shortened))")
                             .font(.caption2)
@@ -847,5 +874,14 @@ private extension Date {
         if hours < 24 { return "\(hours)h overdue" }
         let days = hours / 24
         return "\(days)d overdue"
+    }
+
+    var lateLabel: String {
+        let minutes = Int(-self.timeIntervalSinceNow / 60)
+        if minutes < 60 { return "\(max(minutes, 1))m late" }
+        let hours = minutes / 60
+        if hours < 24 { return "\(hours)h late" }
+        let days = hours / 24
+        return "\(days)d late"
     }
 }

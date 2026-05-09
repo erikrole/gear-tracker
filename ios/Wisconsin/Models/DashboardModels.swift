@@ -135,6 +135,7 @@ struct DashboardData: Codable {
     let myCheckouts: CheckoutGroup
     let teamCheckouts: CheckoutGroup
     let teamReservations: ReservationGroup
+    let pendingPickups: ReservationGroup
     let overdueCount: Int
     let overdueItems: [DashboardOverdueItem]
     let myShifts: [DashboardShift]
