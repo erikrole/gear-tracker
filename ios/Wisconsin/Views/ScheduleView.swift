@@ -273,11 +273,13 @@ struct ScheduleView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "arrow.triangle.2.circlepath")
                             if appState.openTradeCount > 0 {
+                                // Web parity: schedule toolbar uses Badge variant="orange"
+                                // for the open-trade count; iOS matches the tone.
                                 Text("\(appState.openTradeCount)")
                                     .font(.caption2.weight(.semibold).monospacedDigit())
                                     .padding(.horizontal, 5)
                                     .padding(.vertical, 1)
-                                    .background(Color.accentColor, in: Capsule())
+                                    .background(Color.statusText(.orange), in: Capsule())
                                     .foregroundStyle(.white)
                             }
                         }
