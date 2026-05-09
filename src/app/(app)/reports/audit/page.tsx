@@ -2,16 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { formatRelativeTime } from "@/lib/format";
 import { useFetch } from "@/hooks/use-fetch";
 import { syncUrl } from "@/lib/url-sync";
-import EmptyState from "@/components/EmptyState";
-import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { FadeUp } from "@/components/ui/motion";
-import { AlertCircle, RefreshCw } from "lucide-react";
 import dynamic from "next/dynamic";
 import MetricCard from "../MetricCard";
 import ActivityTimeline, { TimelineSkeleton, type AuditEntry as TimelineEntry } from "@/components/ActivityTimeline";
@@ -26,10 +21,17 @@ const LazyEntityTypeBreakdownChart = dynamic(
   { ssr: false }
 );
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  downloadReportCsv,
+  ReportEmptyState,
+  ReportErrorState,
+  ReportExportButton,
+  ReportMetricGrid,
+  ReportPaginationFooter,
+  ReportSegmentedControl,
+  ReportSectionCard,
+  ReportToolbar,
+  ReportToolbarGroup,
+} from "../report-ui";
 
 type AuditEntry = {
   id: string;
@@ -72,17 +74,10 @@ function toTimelineEntries(entries: AuditEntry[]): TimelineEntry[] {
 }
 
 function downloadCsv(entries: AuditEntry[]) {
-  const header = "Timestamp,Actor,Action,Entity Type,Entity ID\n";
-  const rows = entries.map((e) =>
-    `"${e.createdAt}","${e.actor}","${e.action}","${e.entityType}","${e.entityId}"`
-  ).join("\n");
-  const blob = new Blob([header + rows], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `audit-report-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadReportCsv("audit-report", [
+    ["Timestamp", "Actor", "Action", "Entity Type", "Entity ID"],
+    ...entries.map((e) => [e.createdAt, e.actor, e.action, e.entityType, e.entityId]),
+  ]);
 }
 
 export default function AuditReportPage() {
@@ -134,14 +129,11 @@ export default function AuditReportPage() {
 
   if (error && !data) {
     return (
-      <Alert variant="destructive">
-        <AlertCircle className="size-4" />
-        <AlertTitle>Failed to load audit report</AlertTitle>
-        <AlertDescription className="flex items-center gap-3">
-          <span>{error === "network" ? "Check your connection and try again." : "Unable to load audit report. Please try again."}</span>
-          <Button variant="outline" size="sm" onClick={loadData}>Retry</Button>
-        </AlertDescription>
-      </Alert>
+      <ReportErrorState
+        error={error}
+        onRetry={loadData}
+        title="Failed to load audit report"
+      />
     );
   }
 
@@ -158,78 +150,81 @@ export default function AuditReportPage() {
       </p>
 
       {/* Filters */}
-      <div className="flex items-center gap-3 mb-1 flex-wrap">
-        <span className="text-sm text-muted-foreground">Period:</span>
-        {[{ d: 0, label: "All" }, { d: 7, label: "7d" }, { d: 30, label: "30d" }, { d: 90, label: "90d" }].map(({ d, label }) => (
-          <Button
-            key={d}
-            variant={periodDays === d ? "default" : "outline"} size="sm"
-            onClick={() => { setPeriodDays(d); setPage(0); syncUrl({ period: d, page: "" }); }}
-          >
-            {label}
-          </Button>
-        ))}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-8" onClick={loadData}>
-              <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            {lastRefreshed ? `Updated ${formatRelativeTime(lastRefreshed.toISOString(), now)}` : "Refresh"}
-          </TooltipContent>
-        </Tooltip>
-        {entries.length > 0 && (
-          <Button variant="outline" size="sm" onClick={() => downloadCsv(entries)} className="ml-auto">
-            Export CSV
-          </Button>
-        )}
-      </div>
+      <ReportToolbar
+        lastRefreshed={lastRefreshed}
+        loading={loading}
+        now={now}
+        onRefresh={loadData}
+        exportAction={entries.length > 0 ? (
+          <ReportExportButton onClick={() => downloadCsv(entries)} />
+        ) : null}
+      >
+        <ReportToolbarGroup label="Period">
+          <ReportSegmentedControl
+            ariaLabel="Audit report period"
+            value={periodDays}
+            options={[
+              { value: 0, label: "All" },
+              { value: 7, label: "7d" },
+              { value: 30, label: "30d" },
+              { value: 90, label: "90d" },
+            ]}
+            onChange={(nextPeriod) => {
+              setPeriodDays(nextPeriod);
+              setPage(0);
+              syncUrl({ period: nextPeriod, page: "" });
+            }}
+          />
+        </ReportToolbarGroup>
+      </ReportToolbar>
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 mb-1">
+      <ReportMetricGrid>
         <MetricCard value={data.total} label="Total events" tooltip="Total audit entries in the selected period" />
-      </div>
+      </ReportMetricGrid>
 
       {(data.byAction?.length > 0 || data.byEntityType?.length > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-1">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           {data.byAction?.length > 0 && <LazyActionBreakdownChart byAction={data.byAction} />}
           {data.byEntityType?.length > 0 && <LazyEntityTypeBreakdownChart byEntityType={data.byEntityType} />}
         </div>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Audit trail</CardTitle>
-          <span className="text-sm text-muted-foreground">{data.total} entries</span>
-        </CardHeader>
+      <ReportSectionCard title="Audit trail" description={`${data.total} entries`} contentClassName="p-0">
 
         {entries.length === 0 ? (
-          <EmptyState icon="clipboard" title="No audit log entries" />
+          <ReportEmptyState
+            icon="clipboard"
+            title="No audit log entries"
+            description="Try a wider period to inspect older retained activity."
+          />
         ) : (
           <>
-            <CardContent className="p-0">
-              <ActivityTimeline
-                entries={timelineEntries}
-                context="report"
-                loading={loading}
-              />
-            </CardContent>
+            <ActivityTimeline
+              entries={timelineEntries}
+              context="report"
+              loading={loading}
+            />
 
             {totalPages > 1 && (
               <>
                 <Separator />
-                <div className="flex items-center justify-between px-4 py-3">
-                  <span className="text-sm text-muted-foreground">Page {page + 1} of {totalPages}</span>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" disabled={page === 0} onClick={() => { setPage(page - 1); syncUrl({ page: page === 1 ? "" : page }); }}>Previous</Button>
-                    <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => { setPage(page + 1); syncUrl({ page: page + 2 }); }}>Next</Button>
-                  </div>
-                </div>
+                <ReportPaginationFooter
+                  page={page}
+                  totalPages={totalPages}
+                  onPrevious={() => {
+                    setPage(page - 1);
+                    syncUrl({ page: page === 1 ? "" : page });
+                  }}
+                  onNext={() => {
+                    setPage(page + 1);
+                    syncUrl({ page: page + 2 });
+                  }}
+                />
               </>
             )}
           </>
         )}
-      </Card>
+      </ReportSectionCard>
     </FadeUp>
   );
 }

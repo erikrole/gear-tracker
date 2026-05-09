@@ -1,9 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import MetricCard from "../MetricCard";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -13,10 +12,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, RefreshCw } from "lucide-react";
 import { FadeUp } from "@/components/ui/motion";
 import { useFetch } from "@/hooks/use-fetch";
+import {
+  ReportEmptyState,
+  ReportErrorState,
+  ReportListRow,
+  ReportLoadingState,
+  ReportMetricGrid,
+  ReportSectionCard,
+  ReportToolbar,
+} from "../report-ui";
 
 type SkuLoss = {
   skuName: string;
@@ -45,29 +51,26 @@ type ReportData = {
 };
 
 export default function BulkLossesReportPage() {
-  const { data, loading, error, reload } = useFetch<ReportData>({
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const { data, loading, error, lastRefreshed, reload } = useFetch<ReportData>({
     url: "/api/reports/bulk-losses",
   });
 
-  if (loading && !data) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-64 w-full" />
-      </div>
-    );
-  }
+  if (loading && !data) return <ReportLoadingState metricCount={3} rows={6} />;
 
   if (error && !data) {
     return (
-      <Alert variant="destructive">
-        <AlertCircle className="size-4" />
-        <AlertTitle>Failed to load report</AlertTitle>
-        <AlertDescription className="flex items-center gap-3">
-          <span>{error === "network" ? "You appear to be offline. Check your connection and try again." : "Unable to load bulk losses report. Please try again."}</span>
-          <Button variant="outline" size="sm" onClick={reload}>Retry</Button>
-        </AlertDescription>
-      </Alert>
+      <ReportErrorState
+        error={error}
+        onRetry={reload}
+        title="Failed to load bulk losses report"
+      />
     );
   }
 
@@ -75,22 +78,30 @@ export default function BulkLossesReportPage() {
 
   return (
     <FadeUp>
-    <div className="space-y-6">
+    <div className="flex flex-col gap-4">
+      <ReportToolbar
+        lastRefreshed={lastRefreshed}
+        loading={loading}
+        now={now}
+        onRefresh={reload}
+      />
+
       {/* Metrics row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <MetricCard label="Total Units Lost" value={data.totalLost} />
-        <MetricCard label="SKUs Affected" value={data.bySku.length} />
-        <MetricCard label="Users Involved" value={data.byUser.length} />
-      </div>
+      <ReportMetricGrid>
+        <MetricCard label="Total units lost" value={data.totalLost} />
+        <MetricCard label="SKUs affected" value={data.bySku.length} />
+        <MetricCard label="Users involved" value={data.byUser.length} />
+      </ReportMetricGrid>
 
       {/* Loss by SKU */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Lost Units by Item</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <ReportSectionCard title="Lost units by item" contentClassName="p-0">
           {data.bySku.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">No lost units recorded.</p>
+            <ReportEmptyState
+              compact
+              icon="check"
+              title="No lost units recorded"
+              description="Bulk loss rows appear after check-in records missing numbered units."
+            />
           ) : (
             <Table>
               <TableHeader>
@@ -104,24 +115,24 @@ export default function BulkLossesReportPage() {
                   <TableRow key={sku.bulkSkuId}>
                     <TableCell className="font-medium">{sku.skuName}</TableCell>
                     <TableCell className="text-right">
-                      <Badge variant="red" size="sm">{sku.count}</Badge>
+                      <Badge variant="red" size="sm" className="tabular-nums">{sku.count}</Badge>
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           )}
-        </CardContent>
-      </Card>
+      </ReportSectionCard>
 
       {/* Loss by user leaderboard */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Loss by Requester</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <ReportSectionCard title="Loss by requester" contentClassName="p-0">
           {data.byUser.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">No user-attributed losses found.</p>
+            <ReportEmptyState
+              compact
+              icon="users"
+              title="No user-attributed losses found"
+              description="Requester rankings appear once loss events can be tied back to a booking."
+            />
           ) : (
             <Table>
               <TableHeader>
@@ -140,7 +151,7 @@ export default function BulkLossesReportPage() {
                       {user.name}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Badge variant={i === 0 && data.byUser.length > 1 ? "red" : "secondary"} size="sm">
+                      <Badge variant={i === 0 && data.byUser.length > 1 ? "red" : "secondary"} size="sm" className="tabular-nums">
                         {user.count}
                       </Badge>
                     </TableCell>
@@ -149,19 +160,14 @@ export default function BulkLossesReportPage() {
               </TableBody>
             </Table>
           )}
-        </CardContent>
-      </Card>
+      </ReportSectionCard>
 
       {/* Recent auto-loss events */}
       {data.recentLosses.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Recent Loss Events</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
+        <ReportSectionCard title="Recent loss events">
+            <div className="flex flex-col gap-2">
               {data.recentLosses.map((event) => (
-                <div key={event.id} className="flex items-center justify-between py-2 border-b last:border-b-0 text-sm">
+                <ReportListRow key={event.id} className="px-0 py-2">
                   <div>
                     <span className="font-medium">
                       {event.actor?.name ?? "System"}
@@ -173,11 +179,10 @@ export default function BulkLossesReportPage() {
                   <span className="text-xs text-muted-foreground shrink-0">
                     {new Date(event.createdAt).toLocaleDateString()}
                   </span>
-                </div>
+                </ReportListRow>
               ))}
             </div>
-          </CardContent>
-        </Card>
+        </ReportSectionCard>
       )}
     </div>
     </FadeUp>

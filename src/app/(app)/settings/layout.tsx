@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SETTINGS_SECTIONS, isSectionVisible } from "@/lib/nav-sections";
 import { SettingsCommand } from "./SettingsCommand";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { cn } from "@/lib/utils";
 
 const LAST_TAB_STORAGE_KEY = "settings:last-tab";
 
@@ -47,24 +48,43 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
         </div>
       </div>
 
-      <nav className="flex gap-0 border-b mb-6 overflow-x-auto" aria-label="Settings sections">
-        {visibleSections.map((s, i) => {
-          const prev = i > 0 ? visibleSections[i - 1] : null;
-          const newGroup = prev && prev.group !== s.group;
-          return (
-            <div key={s.href} className="flex items-stretch">
-              {newGroup && <span className="self-center mx-1.5 h-4 w-px bg-border" aria-hidden />}
-              <Link
-                href={s.href}
-                title={s.description}
-                aria-current={pathname.startsWith(s.href) ? "page" : undefined}
-                className={`px-4 py-2.5 text-sm font-medium no-underline transition-colors border-b-2 -mb-px whitespace-nowrap ${pathname.startsWith(s.href) ? "text-foreground border-[var(--wi-red)] font-semibold" : "text-muted-foreground border-transparent hover:text-foreground"}`}
-              >
-                {s.label}
-              </Link>
-            </div>
-          );
-        })}
+      <nav className="mb-6 overflow-x-auto rounded-lg border bg-card/60 p-1 shadow-xs" aria-label="Settings sections">
+        <div className="flex min-w-max gap-1">
+          <Link
+            href="/settings"
+            aria-current={pathname === "/settings" ? "page" : undefined}
+            className={cn(
+              "rounded-md px-3 py-2 text-sm font-medium no-underline transition-[background-color,color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+              pathname === "/settings"
+                ? "bg-background text-foreground shadow-xs"
+                : "text-muted-foreground hover:bg-background/70 hover:text-foreground",
+            )}
+          >
+            Overview
+          </Link>
+          {visibleSections.map((s, i) => {
+            const prev = i > 0 ? visibleSections[i - 1] : null;
+            const newGroup = prev && prev.group !== s.group;
+            return (
+              <div key={s.href} className="flex items-stretch gap-1">
+                {newGroup && <span className="self-center mx-1.5 h-4 w-px bg-border" aria-hidden />}
+                <Link
+                  href={s.href}
+                  title={s.description}
+                  aria-current={pathname.startsWith(s.href) ? "page" : undefined}
+                  className={cn(
+                    "rounded-md px-3 py-2 text-sm font-medium no-underline transition-[background-color,color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                    pathname.startsWith(s.href)
+                      ? "bg-background text-foreground shadow-xs"
+                      : "text-muted-foreground hover:bg-background/70 hover:text-foreground",
+                  )}
+                >
+                  {s.label}
+                </Link>
+              </div>
+            );
+          })}
+        </div>
       </nav>
 
       {isLoading ? (

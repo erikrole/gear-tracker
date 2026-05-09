@@ -2,11 +2,8 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { Skeleton } from "@/components/ui/skeleton";
 import MetricCard from "../MetricCard";
-import { Button } from "@/components/ui/button";
 import { type BadgeProps } from "@/components/ui/badge";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -15,24 +12,27 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, RefreshCw } from "lucide-react";
 import { FadeUp } from "@/components/ui/motion";
 import { useFetch } from "@/hooks/use-fetch";
-import { formatRelativeTime } from "@/lib/format";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  ReportChartLoading,
+  downloadReportCsv,
+  ReportErrorState,
+  ReportExportButton,
+  ReportListRow,
+  ReportLoadingState,
+  ReportMetricGrid,
+  ReportSectionCard,
+  ReportToolbar,
+} from "../report-ui";
 
 const LazyStatusDonut = dynamic(
   () => import("./charts").then((m) => ({ default: m.StatusDonut })),
-  { ssr: false, loading: () => <Card className="p-4 flex items-center justify-center h-[300px]"><Skeleton className="h-[250px] w-[250px] rounded-full" /></Card> }
+  { ssr: false, loading: () => <ReportChartLoading heightClassName="h-[300px]" variant="donut" /> }
 );
 const LazyTopBreakdownChart = dynamic(
   () => import("./charts").then((m) => ({ default: m.TopBreakdownChart })),
-  { ssr: false, loading: () => <Card className="p-4"><Skeleton className="h-[200px] w-full" /></Card> }
+  { ssr: false, loading: () => <ReportChartLoading /> }
 );
 
 type UtilizationData = {
@@ -63,8 +63,7 @@ function BreakdownCard({
   if (rows.length === 0) return null;
 
   return (
-    <Card>
-      <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
+    <ReportSectionCard title={title} contentClassName="p-0">
 
       {/* Desktop table */}
       <div className="hidden md:block">
@@ -79,7 +78,7 @@ function BreakdownCard({
             {rows.map((r) => (
               <TableRow key={r.label}>
                 <TableCell>{r.label}</TableCell>
-                <TableCell className="text-right">{r.count}</TableCell>
+                <TableCell className="text-right tabular-nums">{r.count}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -87,38 +86,26 @@ function BreakdownCard({
       </div>
 
       {/* Mobile cards */}
-      <CardContent className="md:hidden space-y-0 p-0">
+      <div className="md:hidden">
         {rows.map((r) => (
-          <div key={r.label} className="flex items-center justify-between px-4 py-3 border-b last:border-b-0">
+          <ReportListRow key={r.label}>
             <span>{r.label}</span>
-            <span className="text-muted-foreground">{r.count}</span>
-          </div>
+            <span className="text-muted-foreground tabular-nums">{r.count}</span>
+          </ReportListRow>
         ))}
-      </CardContent>
-    </Card>
+      </div>
+    </ReportSectionCard>
   );
 }
 
 function downloadCsv(data: UtilizationData) {
-  let csv = "Status,Count\n";
-  for (const [status, count] of Object.entries(data.statusCounts)) {
-    csv += `"${status}",${count}\n`;
-  }
-  csv += `\nLocation,Count\n`;
-  for (const r of data.byLocation) csv += `"${r.location}",${r.count}\n`;
-  csv += `\nType,Count\n`;
-  for (const r of data.byType) csv += `"${r.type}",${r.count}\n`;
-  if (data.byDepartment.length > 0) {
-    csv += `\nDepartment,Count\n`;
-    for (const r of data.byDepartment) csv += `"${r.department}",${r.count}\n`;
-  }
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `utilization-report-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadReportCsv("utilization-report", [
+    ["Section", "Label", "Count"],
+    ...Object.entries(data.statusCounts).map(([status, count]) => ["Status", status, count]),
+    ...data.byLocation.map((r) => ["Location", r.location, r.count]),
+    ...data.byType.map((r) => ["Type", r.type, r.count]),
+    ...data.byDepartment.map((r) => ["Department", r.department, r.count]),
+  ]);
 }
 
 export default function UtilizationPage() {
@@ -135,48 +122,16 @@ export default function UtilizationPage() {
   });
 
   if (loading && !data) {
-    return (
-      <>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 mb-1">
-          {Array.from({ length: 4 }, (_, i) => (
-            <Card key={i} className="p-4 text-center">
-              <Skeleton className="h-8 mx-auto mb-2 w-[40px]" />
-              <Skeleton className="h-4 mx-auto w-[80px]" />
-            </Card>
-          ))}
-        </div>
-        <div className="grid md:grid-cols-2 gap-2.5">
-          <Card className="p-4">
-            {Array.from({ length: 4 }, (_, i) => (
-              <div key={i} className="flex gap-4 py-2">
-                <Skeleton className="h-4" style={{ width: `${60 - i * 8}%` }} />
-                <Skeleton className="h-4 w-10 ml-auto" />
-              </div>
-            ))}
-          </Card>
-          <Card className="p-4">
-            {Array.from({ length: 4 }, (_, i) => (
-              <div key={i} className="flex gap-4 py-2">
-                <Skeleton className="h-4" style={{ width: `${55 - i * 6}%` }} />
-                <Skeleton className="h-4 w-10 ml-auto" />
-              </div>
-            ))}
-          </Card>
-        </div>
-      </>
-    );
+    return <ReportLoadingState metricCount={5} rows={5} />;
   }
 
   if (error && !data) {
     return (
-      <Alert variant="destructive">
-        <AlertCircle className="size-4" />
-        <AlertTitle>Failed to load utilization report</AlertTitle>
-        <AlertDescription className="flex items-center gap-3">
-          <span>{error === "network" ? "You appear to be offline. Check your connection and try again." : "Unable to load utilization report. Please try again."}</span>
-          <Button variant="outline" size="sm" onClick={reload}>Retry</Button>
-        </AlertDescription>
-      </Alert>
+      <ReportErrorState
+        error={error}
+        onRetry={reload}
+        title="Failed to load utilization report"
+      />
     );
   }
 
@@ -184,22 +139,16 @@ export default function UtilizationPage() {
 
   return (
     <FadeUp>
-      <div className="flex items-center mb-1 justify-end gap-2">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-8" onClick={reload}>
-              <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            {lastRefreshed ? `Updated ${formatRelativeTime(lastRefreshed.toISOString(), now)}` : "Refresh"}
-          </TooltipContent>
-        </Tooltip>
-        <Button variant="outline" size="sm" onClick={() => downloadCsv(data)}>
-          Export CSV
-        </Button>
-      </div>
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 mb-1">
+      <ReportToolbar
+        lastRefreshed={lastRefreshed}
+        loading={loading}
+        now={now}
+        onRefresh={reload}
+        exportAction={(
+          <ReportExportButton onClick={() => downloadCsv(data)} />
+        )}
+      />
+      <ReportMetricGrid>
         {Object.entries(data.statusCounts).map(([status, count]) => {
           const meta = STATUS_META[status];
           return (
@@ -213,10 +162,10 @@ export default function UtilizationPage() {
           );
         })}
         <MetricCard value={data.totalAssets} label="Total assets" tooltip="Total number of assets in the system" href="/items" />
-      </div>
+      </ReportMetricGrid>
 
       {/* Charts */}
-      <div className="grid md:grid-cols-3 gap-2.5 mb-2.5">
+      <div className="grid gap-4 md:grid-cols-3 mb-4">
         <LazyStatusDonut statusCounts={data.statusCounts} />
         <LazyTopBreakdownChart
           title="By location"
@@ -230,7 +179,7 @@ export default function UtilizationPage() {
         />
       </div>
 
-      <div className="grid md:grid-cols-2 gap-2.5">
+      <div className="grid gap-4 md:grid-cols-2">
         <BreakdownCard
           title="By location"
           labelKey="Location"

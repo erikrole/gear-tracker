@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 type MetricCardProps = {
   label: string;
@@ -21,17 +22,23 @@ type MetricCardProps = {
 
 export default function MetricCard({ label, value, color, badge, tooltip, href }: MetricCardProps) {
   const card = (
-    <Card className={`p-4 text-center${href ? " transition-colors hover:bg-muted/50 cursor-pointer" : ""}`}>
-      <div className="text-3xl font-bold" style={color ? { color } : undefined}>
-        {value}
-      </div>
-      <div className="text-sm text-muted-foreground">
-        {badge ? (
-          <Badge variant={badge.variant}>{badge.text}</Badge>
-        ) : (
-          label
-        )}
-      </div>
+    <Card
+      className={cn(
+        "min-h-[108px] justify-center",
+        href && "cursor-pointer transition-[background-color,box-shadow,scale] hover:bg-muted/50 active:scale-[0.99]",
+      )}
+    >
+      <CardContent className="flex flex-col gap-2 p-4">
+        <div className="text-sm font-medium text-muted-foreground text-pretty">
+          {label}
+        </div>
+        <div className="flex items-end justify-between gap-3">
+          <div className="text-3xl font-semibold tracking-normal tabular-nums" style={color ? { color } : undefined}>
+            {value}
+          </div>
+          {badge ? <Badge variant={badge.variant}>{badge.text}</Badge> : null}
+        </div>
+      </CardContent>
     </Card>
   );
 

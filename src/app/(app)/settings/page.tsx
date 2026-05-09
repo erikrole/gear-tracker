@@ -6,16 +6,19 @@ import {
   Bell,
   CalendarDays,
   Database,
+  Eye,
   Monitor,
   Package,
   RotateCcw,
+  ShieldCheck,
   Users,
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { FadeUp } from "@/components/ui/motion";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   SETTINGS_GROUP_ORDER,
@@ -94,6 +97,7 @@ export default function SettingsPage() {
   const lastSection = lastHref
     ? visibleSections.find((section) => section.href === lastHref) ?? null
     : null;
+  const roleLabel = role ? role.charAt(0) + role.slice(1).toLowerCase() : "User";
 
   if (loading || !role) {
     return (
@@ -113,16 +117,31 @@ export default function SettingsPage() {
   return (
     <FadeUp>
       <div className="space-y-5">
-        <section className="rounded-md border bg-card p-4 shadow-xs">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0 space-y-1">
-              <h2 className="text-xl font-semibold text-balance">Control center</h2>
+        <section className="rounded-lg border bg-card p-4 shadow-xs">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0 space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-xl font-semibold text-balance">Control center</h2>
+                <Badge variant="outline" className="gap-1.5">
+                  <ShieldCheck className="size-3" />
+                  {roleLabel}
+                </Badge>
+              </div>
               <p className="max-w-3xl text-sm text-muted-foreground text-pretty">
                 A role-aware map of the settings that shape daily gear operations. Use the sections below when you know the domain, or search when you know the intent.
               </p>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2 py-1">
+                  <Eye className="size-3.5" />
+                  <span className="tabular-nums">{visibleSections.length}</span> visible sections
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2 py-1">
+                  <span className="tabular-nums">{groupedSections.length}</span> groups
+                </span>
+              </div>
             </div>
             {lastSection && (
-              <Button asChild variant="outline" size="sm" className="min-h-10 active:scale-[0.96] transition-transform">
+              <Button asChild variant="outline" size="sm" className="min-h-10">
                 <Link href={lastSection.href}>
                   <RotateCcw className="size-4" />
                   Resume {lastSection.label}
@@ -153,37 +172,58 @@ function SettingsGroupCard({
   const Icon = meta.icon;
 
   return (
-    <Card className="overflow-hidden">
-      <CardContent className="p-0">
-        <div className="flex items-start gap-3 border-b bg-muted/30 p-4">
+    <Card className="min-w-0 overflow-hidden">
+      <CardHeader className="border-b bg-muted/30 p-4">
+        <div className="flex min-w-0 items-start gap-3">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-background text-muted-foreground shadow-xs">
             <Icon className="size-4" />
           </div>
-          <div className="min-w-0">
-            <h3 className="text-base font-semibold leading-tight">{group}</h3>
+          <div className="min-w-0 flex-1">
+            <CardTitle className="text-base leading-tight text-balance">{group}</CardTitle>
             <p className="mt-1 text-sm text-muted-foreground text-pretty">{meta.description}</p>
           </div>
-          <span className="ml-auto rounded-md bg-background px-2 py-1 text-xs font-medium tabular-nums text-muted-foreground shadow-xs">
+          <Badge variant="outline" className="shrink-0 tabular-nums">
             {sections.length}
-          </span>
+          </Badge>
         </div>
+      </CardHeader>
 
+      <CardContent className="p-0">
         <div className="divide-y">
           {sections.map((section) => (
             <Link
               key={section.href}
               href={section.href}
-              className="group flex min-h-16 items-center gap-3 px-4 py-3 no-underline transition-colors hover:bg-muted/50"
+              className="group flex min-h-16 items-center gap-3 px-4 py-3 no-underline transition-[background-color,scale] hover:bg-muted/50 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
             >
               <div className="min-w-0 flex-1">
-                <div className="font-medium text-foreground">{section.label}</div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="font-medium text-foreground">{section.label}</div>
+                  <SettingsRoleBadge requiredRole={section.requiredRole} />
+                </div>
                 <div className="mt-0.5 text-sm text-muted-foreground text-pretty">{section.description}</div>
               </div>
-              <ArrowRight className="size-4 shrink-0 text-muted-foreground opacity-60 transition-transform group-hover:translate-x-0.5 group-hover:opacity-100" />
+              <ArrowRight className="size-4 shrink-0 text-muted-foreground opacity-60 transition-[color,opacity,translate] group-hover:translate-x-0.5 group-hover:text-foreground group-hover:opacity-100" />
             </Link>
           ))}
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function SettingsRoleBadge({ requiredRole }: { requiredRole: SettingsSection["requiredRole"] }) {
+  if (requiredRole === "STUDENT") {
+    return (
+      <Badge variant="gray" size="sm">
+        Everyone
+      </Badge>
+    );
+  }
+
+  return (
+    <Badge variant={requiredRole === "ADMIN" ? "purple" : "blue"} size="sm">
+      {requiredRole === "ADMIN" ? "Admin" : "Staff+"}
+    </Badge>
   );
 }

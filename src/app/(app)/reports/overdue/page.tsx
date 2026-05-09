@@ -1,12 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
-import EmptyState from "@/components/EmptyState";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import MetricCard from "../MetricCard";
-import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -16,22 +12,27 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, RefreshCw } from "lucide-react";
 import { FadeUp } from "@/components/ui/motion";
 import { useFetch } from "@/hooks/use-fetch";
-import { formatRelativeTime } from "@/lib/format";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { BarChart, Bar, Cell, XAxis, YAxis } from "recharts";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import {
+  downloadReportCsv,
+  ReportEmptyState,
+  ReportErrorState,
+  ReportExportButton,
+  ReportLoadingState,
+  ReportMetaLine,
+  ReportMetricGrid,
+  ReportMobileCard,
+  ReportSectionCard,
+  ReportTableLink,
+  ReportToolbar,
+} from "../report-ui";
 
 type OverdueBooking = {
   id: string;
@@ -75,9 +76,11 @@ function LeaderboardMobileCard({
   expanded: boolean;
   onToggle: () => void;
 }) {
+  const ChevronIcon = expanded ? ChevronUp : ChevronDown;
+
   return (
-    <div
-      className="flex flex-col gap-2 px-4 py-3 border-b last:border-b-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
+    <ReportMobileCard
+      className="cursor-pointer transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
       onClick={onToggle}
       role="button"
       tabIndex={0}
@@ -92,51 +95,57 @@ function LeaderboardMobileCard({
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="red">{entry.overdueCount}</Badge>
-          <span className="text-muted-foreground">{expanded ? "\u25B2" : "\u25BC"}</span>
+          <ChevronIcon className="size-4 text-muted-foreground" aria-hidden="true" />
         </div>
       </div>
-      <div className="text-sm font-semibold" style={{ color: "var(--red)" }}>
+      <div className="text-sm font-semibold text-[var(--red-text)]">
         {formatOverdue(entry.totalOverdueHours)} total
       </div>
       {expanded && (
         <div className="pt-1">
           {(entry.bookings ?? []).map((b) => (
-            <Link
+            <div
               key={b.id}
-              href={`/checkouts/${b.id}`}
-              className="flex items-center justify-between py-2 no-underline"
-              onClick={(e) => e.stopPropagation()}
+              className="flex items-center justify-between gap-3 py-2"
             >
               <div>
-                <span className="text-foreground font-medium text-sm hover:underline">{b.title}</span>
-                <div className="text-xs text-muted-foreground">
-                  {b.location} &middot; {b.itemCount} item{b.itemCount !== 1 ? "s" : ""}
-                  {b.items.length > 0 && `: ${b.items.join(", ")}`}
-                </div>
+                <ReportTableLink
+                  href={`/checkouts/${b.id}`}
+                  className="text-sm"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {b.title}
+                </ReportTableLink>
+                <ReportMetaLine
+                  className="text-xs"
+                  items={[
+                    b.location,
+                    `${b.itemCount} item${b.itemCount !== 1 ? "s" : ""}`,
+                    b.items.length > 0 ? b.items.join(", ") : null,
+                  ]}
+                />
               </div>
-              <span className="text-xs" style={{ color: "var(--red)" }}>
+              <span className="text-xs text-[var(--red-text)]">
                 {formatOverdue(b.overdueHours)}
               </span>
-            </Link>
+            </div>
           ))}
         </div>
       )}
-    </div>
+    </ReportMobileCard>
   );
 }
 
 function downloadCsv(leaderboard: LeaderboardEntry[]) {
-  const header = "Person,Overdue Checkouts,Total Overdue Hours,Bookings\n";
-  const rows = leaderboard.map((e) =>
-    `"${e.name}",${e.overdueCount},${e.totalOverdueHours},"${(e.bookings ?? []).map((b) => b.title).join("; ")}"`
-  ).join("\n");
-  const blob = new Blob([header + rows], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `overdue-report-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadReportCsv("overdue-report", [
+    ["Person", "Overdue Checkouts", "Total Overdue Hours", "Bookings"],
+    ...leaderboard.map((e) => [
+      e.name,
+      e.overdueCount,
+      e.totalOverdueHours,
+      (e.bookings ?? []).map((b) => b.title).join("; "),
+    ]),
+  ]);
 }
 
 export default function OverdueLeaderboardPage() {
@@ -162,39 +171,15 @@ export default function OverdueLeaderboardPage() {
     });
   }
 
-  if (loading && !data) {
-    return (
-      <>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 mb-1">
-          {[0, 1].map((i) => (
-            <Card key={i} className="p-4 text-center">
-              <Skeleton className="h-8 mx-auto mb-2 w-[40px]" />
-              <Skeleton className="h-4 mx-auto w-[100px]" />
-            </Card>
-          ))}
-        </div>
-        <Card className="p-4">
-          {Array.from({ length: 4 }, (_, i) => (
-            <div key={i} className="flex gap-4 py-3">
-              <Skeleton className="h-4" style={{ width: `${60 - i * 8}%` }} />
-              <Skeleton className="h-4 w-12 ml-auto" />
-            </div>
-          ))}
-        </Card>
-      </>
-    );
-  }
+  if (loading && !data) return <ReportLoadingState metricCount={2} rows={5} />;
 
   if (error && !data) {
     return (
-      <Alert variant="destructive">
-        <AlertCircle className="size-4" />
-        <AlertTitle>Failed to load overdue report</AlertTitle>
-        <AlertDescription className="flex items-center gap-3">
-          <span>{error === "network" ? "You appear to be offline. Check your connection and try again." : "Unable to load overdue report. Please try again."}</span>
-          <Button variant="outline" size="sm" onClick={reload}>Retry</Button>
-        </AlertDescription>
-      </Alert>
+      <ReportErrorState
+        error={error}
+        onRetry={reload}
+        title="Failed to load overdue report"
+      />
     );
   }
 
@@ -204,24 +189,16 @@ export default function OverdueLeaderboardPage() {
 
   return (
     <FadeUp>
-      <div className="flex items-center mb-1 justify-end gap-2">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-8" onClick={reload}>
-              <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            {lastRefreshed ? `Updated ${formatRelativeTime(lastRefreshed.toISOString(), now)}` : "Refresh"}
-          </TooltipContent>
-        </Tooltip>
-        {leaderboard.length > 0 && (
-          <Button variant="outline" size="sm" onClick={() => downloadCsv(leaderboard)}>
-            Export CSV
-          </Button>
-        )}
-      </div>
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 mb-1">
+      <ReportToolbar
+        lastRefreshed={lastRefreshed}
+        loading={loading}
+        now={now}
+        onRefresh={reload}
+        exportAction={leaderboard.length > 0 ? (
+          <ReportExportButton onClick={() => downloadCsv(leaderboard)} />
+        ) : null}
+      />
+      <ReportMetricGrid>
         <MetricCard
           value={data.totalOverdueBookings}
           label="Overdue checkouts"
@@ -230,40 +207,40 @@ export default function OverdueLeaderboardPage() {
           href="/checkouts?status=overdue"
         />
         <MetricCard value={leaderboard.length} label="People with overdue gear" tooltip="Number of people with at least one overdue checkout" href="/users" />
-      </div>
+      </ReportMetricGrid>
 
       {/* Overdue hours bar chart */}
       {leaderboard.length > 0 && (
-        <Card className="mb-2.5">
-          <CardHeader><CardTitle>Overdue hours by person</CardTitle></CardHeader>
-          <CardContent>
-            <ChartContainer config={{ hours: { label: "Overdue hours", color: "hsl(0 70% 55%)" } }} className="w-full" style={{ height: Math.max(150, leaderboard.length * 36) }}>
-              <BarChart data={leaderboard.slice(0, 10).map((e) => ({ name: e.name, hours: e.totalOverdueHours }))} layout="vertical" margin={{ left: 0, right: 12 }}>
-                <YAxis dataKey="name" type="category" width={100} tickLine={false} axisLine={false} className="text-xs" />
-                <XAxis type="number" hide />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="hours" name="Overdue hours" radius={[0, 4, 4, 0]}>
-                  {leaderboard.slice(0, 10).map((_, i) => (
-                    <Cell key={i} fill={`hsl(0 ${70 - i * 4}% ${45 + i * 3}%)`} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
+        <ReportSectionCard title="Overdue hours by person" className="mb-4">
+          <ChartContainer config={{ hours: { label: "Overdue hours", color: "hsl(0 70% 55%)" } }} className="w-full" style={{ height: Math.max(150, leaderboard.length * 36) }}>
+            <BarChart data={leaderboard.slice(0, 10).map((e) => ({ name: e.name, hours: e.totalOverdueHours }))} layout="vertical" margin={{ left: 0, right: 12 }}>
+              <YAxis dataKey="name" type="category" width={100} tickLine={false} axisLine={false} className="text-xs" />
+              <XAxis type="number" hide />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Bar dataKey="hours" name="Overdue hours" radius={[0, 4, 4, 0]}>
+                {leaderboard.slice(0, 10).map((_, i) => (
+                  <Cell key={i} fill={`hsl(0 ${70 - i * 4}% ${45 + i * 3}%)`} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ChartContainer>
+        </ReportSectionCard>
       )}
 
       {leaderboard.length === 0 ? (
-        <Card>
-          <EmptyState icon="clipboard" title="No overdue checkouts right now" />
-        </Card>
+        <ReportSectionCard title="Overdue by person">
+          <ReportEmptyState
+            icon="check"
+            title="No overdue checkouts right now"
+            description="This report will populate when a checked-out booking passes its due time."
+          />
+        </ReportSectionCard>
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Overdue by person</CardTitle>
-            <span className="text-sm text-muted-foreground">Sorted by total overdue time</span>
-          </CardHeader>
-
+        <ReportSectionCard
+          title="Overdue by person"
+          description="Sorted by total overdue time"
+          contentClassName="p-0"
+        >
           {/* Desktop table */}
           <div className="hidden md:block">
             <Table>
@@ -302,7 +279,7 @@ export default function OverdueLeaderboardPage() {
               />
             ))}
           </div>
-        </Card>
+        </ReportSectionCard>
       )}
     </FadeUp>
   );
@@ -319,6 +296,8 @@ function OverdueTableRows({
   expanded: boolean;
   onToggle: () => void;
 }) {
+  const ChevronIcon = expanded ? ChevronUp : ChevronDown;
+
   return (
     <>
       <TableRow
@@ -334,11 +313,11 @@ function OverdueTableRows({
         <TableCell className="text-right">
           <Badge variant="red">{entry.overdueCount}</Badge>
         </TableCell>
-        <TableCell className="text-right font-semibold" style={{ color: "var(--red)" }}>
+        <TableCell className="text-right font-semibold text-[var(--red-text)]">
           {formatOverdue(entry.totalOverdueHours)}
         </TableCell>
         <TableCell className="text-center text-muted-foreground">
-          {expanded ? "\u25B2" : "\u25BC"}
+          <ChevronIcon className="mx-auto size-4" aria-hidden="true" />
         </TableCell>
       </TableRow>
       {expanded &&
@@ -346,15 +325,17 @@ function OverdueTableRows({
           <TableRow key={b.id} className="bg-muted/30">
             <TableCell></TableCell>
             <TableCell colSpan={2} className="pl-6">
-              <Link href={`/checkouts/${b.id}`} className="text-foreground font-medium hover:underline">
-                {b.title}
-              </Link>
-              <div className="text-sm text-muted-foreground">
-                {b.location} &middot; {b.itemCount} item{b.itemCount !== 1 ? "s" : ""}
-                {b.items.length > 0 && `: ${b.items.join(", ")}`}
-              </div>
+              <ReportTableLink href={`/checkouts/${b.id}`}>{b.title}</ReportTableLink>
+              <ReportMetaLine
+                className="text-sm"
+                items={[
+                  b.location,
+                  `${b.itemCount} item${b.itemCount !== 1 ? "s" : ""}`,
+                  b.items.length > 0 ? b.items.join(", ") : null,
+                ]}
+              />
             </TableCell>
-            <TableCell className="text-right text-sm" style={{ color: "var(--red)" }}>
+            <TableCell className="text-right text-sm text-[var(--red-text)]">
               {formatOverdue(b.overdueHours)} overdue
             </TableCell>
             <TableCell></TableCell>

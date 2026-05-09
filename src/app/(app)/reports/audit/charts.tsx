@@ -1,6 +1,5 @@
 "use client";
 
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { BarChart, Bar, Cell, XAxis, YAxis } from "recharts";
 import {
   ChartContainer,
@@ -8,13 +7,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-
-const BAR_COLORS = [
-  "hsl(220 70% 55%)", "hsl(270 60% 60%)", "hsl(142 60% 45%)",
-  "hsl(25 90% 55%)", "hsl(340 70% 55%)", "hsl(180 50% 45%)",
-  "hsl(45 80% 50%)", "hsl(0 0% 60%)", "hsl(200 60% 50%)", "hsl(120 40% 50%)",
-  "hsl(290 50% 55%)", "hsl(30 70% 50%)", "hsl(160 50% 50%)", "hsl(350 60% 50%)", "hsl(240 50% 55%)",
-];
+import { REPORT_CHART_COLORS, ReportChartCard } from "../report-ui";
 
 function formatAction(action: string) {
   return action
@@ -35,11 +28,7 @@ export function ActionBreakdownChart({
   if (byAction.length === 0) return null;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>By action</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <ReportChartCard title="By action">
         <ChartContainer
           config={chartConfig}
           className="w-full"
@@ -63,13 +52,12 @@ export function ActionBreakdownChart({
             <ChartTooltip content={<ChartTooltipContent />} />
             <Bar dataKey="count" name="Events" radius={[0, 4, 4, 0]}>
               {byAction.map((_, i) => (
-                <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />
+                <Cell key={i} fill={REPORT_CHART_COLORS[i % REPORT_CHART_COLORS.length]} />
               ))}
             </Bar>
           </BarChart>
         </ChartContainer>
-      </CardContent>
-    </Card>
+    </ReportChartCard>
   );
 }
 
@@ -81,11 +69,7 @@ export function EntityTypeBreakdownChart({
   if (byEntityType.length === 0) return null;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>By entity type</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <ReportChartCard title="By entity type">
         <ChartContainer
           config={chartConfig}
           className="w-full"
@@ -108,12 +92,11 @@ export function EntityTypeBreakdownChart({
             <ChartTooltip content={<ChartTooltipContent />} />
             <Bar dataKey="count" name="Events" radius={[0, 4, 4, 0]}>
               {byEntityType.map((_, i) => (
-                <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />
+                <Cell key={i} fill={REPORT_CHART_COLORS[i % REPORT_CHART_COLORS.length]} />
               ))}
             </Bar>
           </BarChart>
         </ChartContainer>
-      </CardContent>
-    </Card>
+    </ReportChartCard>
   );
 }

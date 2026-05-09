@@ -1,16 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { formatDateTime, formatRelativeTime } from "@/lib/format";
-import EmptyState from "@/components/EmptyState";
+import { formatDateTime } from "@/lib/format";
 import MetricCard from "../MetricCard";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -19,8 +14,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, RefreshCw } from "lucide-react";
 import { FadeUp } from "@/components/ui/motion";
 import { useFetch } from "@/hooks/use-fetch";
 import { syncUrl } from "@/lib/url-sync";
@@ -31,10 +24,20 @@ const LazyDailyScanVolumeChart = dynamic(
   { ssr: false }
 );
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  downloadReportCsv,
+  ReportEmptyState,
+  ReportErrorState,
+  ReportExportButton,
+  ReportLoadingState,
+  ReportMetricGrid,
+  ReportMobileCard,
+  ReportPaginationFooter,
+  ReportSegmentedControl,
+  ReportSectionCard,
+  ReportTableLink,
+  ReportToolbar,
+  ReportToolbarGroup,
+} from "../report-ui";
 
 type ScanEntry = {
   id: string;
@@ -61,7 +64,7 @@ type ScanData = {
 
 function ScanMobileCard({ s }: { s: ScanEntry }) {
   return (
-    <div className="flex flex-col gap-1 px-4 py-3 border-b last:border-b-0">
+    <ReportMobileCard>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Badge variant={s.phase === "CHECKOUT" ? "blue" : "purple"}>
@@ -76,25 +79,25 @@ function ScanMobileCard({ s }: { s: ScanEntry }) {
       <div className="text-sm">
         <span className="text-muted-foreground">{s.actor}</span> scanned <span className="font-mono">{s.item}</span>
       </div>
-      <Link href={`/checkouts/${s.bookingId}`} className="text-foreground font-medium text-sm no-underline hover:underline">
+      <ReportTableLink href={`/checkouts/${s.bookingId}`} className="text-sm">
         {s.bookingTitle}
-      </Link>
-    </div>
+      </ReportTableLink>
+    </ReportMobileCard>
   );
 }
 
 function downloadCsv(entries: ScanEntry[]) {
-  const header = "Timestamp,Actor,Item,Phase,Booking,Result\n";
-  const rows = entries.map((s) =>
-    `"${s.createdAt}","${s.actor}","${s.item}","${s.phase}","${s.bookingTitle}","${s.success ? "ok" : "fail"}"`
-  ).join("\n");
-  const blob = new Blob([header + rows], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `scan-report-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadReportCsv("scan-report", [
+    ["Timestamp", "Actor", "Item", "Phase", "Booking", "Result"],
+    ...entries.map((s) => [
+      s.createdAt,
+      s.actor,
+      s.item,
+      s.phase,
+      s.bookingTitle,
+      s.success ? "ok" : "fail",
+    ]),
+  ]);
 }
 
 export default function ScanHistoryPage() {
@@ -133,38 +136,18 @@ export default function ScanHistoryPage() {
     transform: (json) => json as unknown as ScanData,
   });
 
-  if (loading && !data) {
-    return (
-      <>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 mb-1">
-          <Card className="p-4 text-center">
-            <Skeleton className="h-8 mx-auto mb-2 w-[40px]" />
-            <Skeleton className="h-4 mx-auto w-[80px]" />
-          </Card>
-        </div>
-        <Card className="p-4">
-          {Array.from({ length: 8 }, (_, i) => (
-            <div key={i} className="flex gap-4 py-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-4" style={{ width: `${50 + (i % 3) * 10}%` }} />
-              <Skeleton className="h-4 w-12 ml-auto" />
-            </div>
-          ))}
-        </Card>
-      </>
-    );
-  }
+  if (loading && !data) return <ReportLoadingState metricCount={2} rows={8} />;
 
   if (error && !data) {
     return (
-      <Alert variant="destructive">
-        <AlertCircle className="size-4" />
-        <AlertTitle>Failed to load scan report</AlertTitle>
-        <AlertDescription className="flex items-center gap-3">
-          <span>{error === "network" ? "You appear to be offline. Check your connection and try again." : "Unable to load scan report. Please try again."}</span>
-          <Button variant="outline" size="sm" onClick={() => { setPage(0); }}>Retry</Button>
-        </AlertDescription>
-      </Alert>
+      <ReportErrorState
+        error={error}
+        onRetry={() => {
+          setPage(0);
+          reload();
+        }}
+        title="Failed to load scan report"
+      />
     );
   }
 
@@ -176,45 +159,51 @@ export default function ScanHistoryPage() {
   return (
     <FadeUp>
       {/* Filters */}
-      <div className="flex items-center gap-3 mb-1 flex-wrap">
-        <span className="text-sm text-muted-foreground">Period:</span>
-        {[{ d: 0, label: "All" }, { d: 7, label: "7d" }, { d: 30, label: "30d" }, { d: 90, label: "90d" }].map(({ d, label }) => (
-          <Button
-            key={d}
-            variant={periodDays === d ? "default" : "outline"} size="sm"
-            onClick={() => { setPeriodDays(d); setPage(0); syncUrl({ period: d, page: "" }); }}
-          >
-            {label}
-          </Button>
-        ))}
-        <span className="text-sm text-muted-foreground ml-2">Phase:</span>
-        {[{ v: "", label: "All" }, { v: "CHECKOUT", label: "Checkout" }, { v: "CHECKIN", label: "Check-in" }].map(({ v, label }) => (
-          <Button
-            key={v}
-            variant={phaseFilter === v ? "default" : "outline"} size="sm"
-            onClick={() => { setPhaseFilter(v); setPage(0); syncUrl({ phase: v, page: "" }); }}
-          >
-            {label}
-          </Button>
-        ))}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-8" onClick={reload}>
-              <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            {lastRefreshed ? `Updated ${formatRelativeTime(lastRefreshed.toISOString(), now)}` : "Refresh"}
-          </TooltipContent>
-        </Tooltip>
-        {entries.length > 0 && (
-          <Button variant="outline" size="sm" onClick={() => downloadCsv(entries)} className="ml-auto">
-            Export CSV
-          </Button>
-        )}
-      </div>
+      <ReportToolbar
+        lastRefreshed={lastRefreshed}
+        loading={loading}
+        now={now}
+        onRefresh={reload}
+        exportAction={entries.length > 0 ? (
+          <ReportExportButton onClick={() => downloadCsv(entries)} />
+        ) : null}
+      >
+        <ReportToolbarGroup label="Period">
+          <ReportSegmentedControl
+            ariaLabel="Scan report period"
+            value={periodDays}
+            options={[
+              { value: 0, label: "All" },
+              { value: 7, label: "7d" },
+              { value: 30, label: "30d" },
+              { value: 90, label: "90d" },
+            ]}
+            onChange={(nextPeriod) => {
+              setPeriodDays(nextPeriod);
+              setPage(0);
+              syncUrl({ period: nextPeriod, page: "" });
+            }}
+          />
+        </ReportToolbarGroup>
+        <ReportToolbarGroup label="Phase">
+          <ReportSegmentedControl
+            ariaLabel="Scan report phase"
+            value={phaseFilter}
+            options={[
+              { value: "", label: "All" },
+              { value: "CHECKOUT", label: "Checkout" },
+              { value: "CHECKIN", label: "Check-in" },
+            ]}
+            onChange={(nextPhase) => {
+              setPhaseFilter(nextPhase);
+              setPage(0);
+              syncUrl({ phase: nextPhase, page: "" });
+            }}
+          />
+        </ReportToolbarGroup>
+      </ReportToolbar>
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 mb-1">
+      <ReportMetricGrid>
         <MetricCard value={data.total} label="Total scans" tooltip="Total scan events in the selected period" />
         <MetricCard
           value={`${data.successRate}%`}
@@ -222,20 +211,20 @@ export default function ScanHistoryPage() {
           color={data.successRate < 95 ? "var(--red)" : undefined}
           tooltip="Percentage of scans that matched an asset"
         />
-      </div>
+      </ReportMetricGrid>
 
       {data.dailyScans && data.dailyScans.length > 1 && (
         <LazyDailyScanVolumeChart dailyScans={data.dailyScans} />
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Scan history</CardTitle>
-          <span className="text-sm text-muted-foreground">{data.total} events</span>
-        </CardHeader>
+      <ReportSectionCard title="Scan history" description={`${data.total} events`} contentClassName="p-0">
 
         {entries.length === 0 ? (
-          <EmptyState icon="search" title="No scan events recorded" />
+          <ReportEmptyState
+            icon="search"
+            title="No scan events recorded"
+            description="Try another phase or period to inspect older scan activity."
+          />
         ) : (
           <>
             {/* Desktop table */}
@@ -263,9 +252,9 @@ export default function ScanHistoryPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Link href={`/checkouts/${s.bookingId}`} className="text-foreground font-medium text-sm hover:underline">
+                        <ReportTableLink href={`/checkouts/${s.bookingId}`} className="text-sm">
                           {s.bookingTitle}
-                        </Link>
+                        </ReportTableLink>
                       </TableCell>
                       <TableCell>
                         <Badge variant={s.success ? "green" : "red"}>
@@ -288,18 +277,23 @@ export default function ScanHistoryPage() {
             {totalPages > 1 && (
               <>
                 <Separator />
-                <div className="flex items-center justify-between px-4 py-3">
-                  <span className="text-sm text-muted-foreground">Page {page + 1} of {totalPages}</span>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" disabled={page === 0} onClick={() => { setPage(page - 1); syncUrl({ page: page === 1 ? "" : page }); }}>Previous</Button>
-                    <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => { setPage(page + 1); syncUrl({ page: page + 2 }); }}>Next</Button>
-                  </div>
-                </div>
+                <ReportPaginationFooter
+                  page={page}
+                  totalPages={totalPages}
+                  onPrevious={() => {
+                    setPage(page - 1);
+                    syncUrl({ page: page === 1 ? "" : page });
+                  }}
+                  onNext={() => {
+                    setPage(page + 1);
+                    syncUrl({ page: page + 2 });
+                  }}
+                />
               </>
             )}
           </>
         )}
-      </Card>
+      </ReportSectionCard>
     </FadeUp>
   );
 }

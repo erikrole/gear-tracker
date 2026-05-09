@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Settings
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-04-06
+- Last Updated: 2026-05-09
 - Status: Active
 - Version: V1
 
@@ -127,6 +127,7 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages.
 
 ## Change Log
+- 2026-05-09: Settings control-map UI polish. `/settings` is now represented as an active Overview tab in the shared settings nav, and the role-aware control map now surfaces current role, visible section/group counts, destination role badges, tighter group cards, and stronger focus/hover row treatment without changing section permissions or subpage behavior.
 - 2026-05-08: API hardening Wave 9. Allowed Emails add/bulk-add no longer reveals registered or already-allowlisted addresses via 409s or skipped-address lists; duplicate inputs return generic skipped success/counts.
 - 2026-03-17: Initial area doc created. Settings layout upgraded to tab navigation pattern. Sports page extracted into ShiftConfigTable + RosterPanel + types. Categories page extracted into CategoryRow + KebabMenu + types + tree utils. Mobile card layouts added for sports and roster. Role badges standardized (ADMIN=purple, STAFF=blue, STUDENT=gray). Escalation and Database pages polished with data-table-wrap for mobile scroll. Sidebar titles normalized to h2 (layout provides h1).
 - 2026-03-19: Calendar source health UI shipped (`/settings/calendar-sources`) — enable/disable toggle, sync status badges, error display, add/delete sources.

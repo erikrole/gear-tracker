@@ -2,7 +2,17 @@
 
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeftRightIcon, Bell, CircleIcon, ShirtIcon, WifiOff } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeftRightIcon,
+  Bell,
+  CheckCircle2,
+  CircleIcon,
+  ExternalLink,
+  RefreshCw,
+  ShirtIcon,
+  WifiOff,
+} from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import EmptyState from "@/components/EmptyState";
@@ -39,43 +49,67 @@ type NotificationsData = {
   unreadCount: number;
 };
 
-function notifIcon(type: string) {
+type MeData = {
+  id: string;
+  role: string;
+};
+
+type NotificationMeta = {
+  icon: typeof AlertTriangle;
+  label: string;
+  toneClass: string;
+};
+
+function notificationMeta(type: string): NotificationMeta {
   switch (type) {
     case "checkout_due_reminder":
     case "checkout_due_now":
     case "checkout_overdue_2h":
     case "checkout_overdue_24h":
-      return <AlertTriangle className="size-4" />;
+      return {
+        icon: AlertTriangle,
+        label: "Overdue",
+        toneClass: "bg-[var(--orange-bg)] text-[var(--orange-text)]",
+      };
     case "shift_gear_up":
-      return <ShirtIcon className="size-4" />;
+      return {
+        icon: ShirtIcon,
+        label: "Shift",
+        toneClass: "bg-[var(--green-bg)] text-[var(--green-text)]",
+      };
     case "trade_claimed":
     case "trade_approved":
+      return {
+        icon: ArrowLeftRightIcon,
+        label: "Trade",
+        toneClass: "bg-[var(--blue-bg)] text-[var(--blue-text)]",
+      };
     case "trade_declined":
     case "trade_expired":
-      return <ArrowLeftRightIcon className="size-4" />;
+      return {
+        icon: ArrowLeftRightIcon,
+        label: "Trade",
+        toneClass: "bg-[var(--red-bg)] text-[var(--red-text)]",
+      };
+    case "reservation_booked":
+    case "reservation_pickup_ready":
+    case "reservation_cancelled":
+      return {
+        icon: Bell,
+        label: "Booking",
+        toneClass: "bg-[var(--purple-bg)] text-[var(--purple-text)]",
+      };
     default:
-      return <CircleIcon className="size-4" />;
+      return {
+        icon: CircleIcon,
+        label: "Notice",
+        toneClass: "bg-muted text-muted-foreground",
+      };
   }
 }
 
-function notifIconBg(type: string) {
-  switch (type) {
-    case "checkout_due_reminder":
-    case "checkout_due_now":
-    case "checkout_overdue_2h":
-    case "checkout_overdue_24h":
-      return "bg-[var(--orange-bg)] text-[var(--orange-text)]";
-    case "shift_gear_up":
-      return "bg-[var(--green-bg)] text-[var(--green-text)]";
-    case "trade_claimed":
-    case "trade_approved":
-      return "bg-[var(--blue-bg)] text-[var(--blue-text)]";
-    case "trade_declined":
-    case "trade_expired":
-      return "bg-[var(--red-bg)] text-[var(--red-text)]";
-    default:
-      return "bg-muted text-muted-foreground";
-  }
+function canProcessNotifications(role: string | undefined) {
+  return role === "ADMIN" || role === "STAFF";
 }
 
 function formatTime(dateStr: string) {
@@ -113,7 +147,7 @@ function NotificationsSkeleton() {
   return (
     <div className="space-y-3 p-4">
       {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className="flex gap-3">
+        <div key={i} className="flex gap-3 rounded-lg border border-border/50 p-3">
           <Skeleton className="size-9 rounded-full shrink-0" />
           <div className="flex-1 space-y-2">
             <Skeleton className="h-4 w-3/4" />
@@ -155,6 +189,12 @@ export default function NotificationsPage() {
   const queryClient = useQueryClient();
   const queryKey = ["fetch", fetchUrl];
 
+  const { data: meData } = useFetch<MeData>({
+    url: "/api/me",
+    transform: (json) => (json as Record<string, unknown>).user as MeData,
+    refetchOnFocus: false,
+  });
+
   const { data, loading, error, reload } = useFetch<NotificationsData>({
     url: fetchUrl,
     transform: (json) => ({
@@ -167,6 +207,9 @@ export default function NotificationsPage() {
   const notifications = data?.notifications ?? [];
   const total = data?.total ?? 0;
   const unreadCount = data?.unreadCount ?? 0;
+  const readCount = Math.max(total - unreadCount, 0);
+  const hasNotifications = total > 0;
+  const canProcess = canProcessNotifications(meData?.role);
 
   /** Optimistically update the raw query cache for notifications */
   const setNotificationsData = useCallback(
@@ -286,13 +329,24 @@ export default function NotificationsPage() {
   }, [notifications]);
 
   const totalPages = Math.ceil(total / LIMIT);
+  const visibleStart = total === 0 ? 0 : page * LIMIT + 1;
+  const visibleEnd = Math.min((page + 1) * LIMIT, total);
 
   return (
     <FadeUp>
-      <PageHeader title={unreadCount > 0 ? `Notifications (${unreadCount})` : "Notifications"}>
-        <Button variant="outline" size="sm" onClick={runProcessing} disabled={processing}>
-          {processing ? "Processing..." : "Check overdue"}
+      <PageHeader
+        title="Notifications"
+        description="Action triggers for overdue gear, bookings, shifts, and trades."
+      >
+        <Button variant="outline" size="sm" onClick={reload} disabled={loading}>
+          <RefreshCw className={loading ? "animate-spin" : undefined} />
+          Refresh
         </Button>
+        {canProcess && (
+          <Button variant="outline" size="sm" onClick={runProcessing} disabled={processing}>
+            {processing ? "Processing..." : "Check overdue"}
+          </Button>
+        )}
         {unreadCount > 0 && (
           <Button variant="outline" size="sm" onClick={markAllRead} disabled={markingAll}>
             {markingAll ? "Marking..." : "Mark all read"}
@@ -300,9 +354,15 @@ export default function NotificationsPage() {
         )}
       </PageHeader>
 
+      <div className="mb-4 grid gap-2 rounded-lg border border-border/60 bg-muted/20 p-2 sm:grid-cols-3">
+        <NotificationMetric label="Unread" value={unreadCount} tone={unreadCount > 0 ? "orange" : "green"} />
+        <NotificationMetric label="Read" value={readCount} tone="muted" />
+        <NotificationMetric label="Total" value={total} tone="muted" />
+      </div>
+
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between py-3 px-4">
-          <div className="flex items-center gap-2">
+        <CardHeader className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-3">
             <Switch
               id="unread-filter"
               checked={unreadOnly}
@@ -314,9 +374,14 @@ export default function NotificationsPage() {
             <Label htmlFor="unread-filter" className="text-sm cursor-pointer">
               Unread only
             </Label>
+            {unreadOnly && (
+              <Badge variant="orange" className="tabular-nums">
+                {unreadCount} unread
+              </Badge>
+            )}
           </div>
-          <span className="text-sm text-muted-foreground">
-            {total} notification{total !== 1 ? "s" : ""}
+          <span className="text-sm text-muted-foreground tabular-nums">
+            {hasNotifications ? `${visibleStart}-${visibleEnd} of ${total}` : "No notifications"}
           </span>
         </CardHeader>
 
@@ -357,83 +422,17 @@ export default function NotificationsPage() {
             <div className="divide-y">
               {grouped.map((group) => (
                 <div key={group.label}>
-                  <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/50">
-                    {group.label}
+                  <div className="flex items-center justify-between bg-muted/50 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <span>{group.label}</span>
+                    <span className="tabular-nums">{group.items.length}</span>
                   </div>
                   {group.items.map((n) => (
-                    <Item
+                    <NotificationRow
                       key={n.id}
-                      size="sm"
-                      className={
-                        n.readAt
-                          ? "bg-background"
-                          : "bg-primary/5 dark:bg-primary/10"
-                      }
-                    >
-                      <ItemMedia variant="icon" className={notifIconBg(n.type)}>
-                        {notifIcon(n.type)}
-                      </ItemMedia>
-                      <ItemContent>
-                        <ItemTitle
-                          className={
-                            n.readAt
-                              ? "text-muted-foreground font-normal"
-                              : "font-semibold text-foreground"
-                          }
-                        >
-                          {n.title}
-                          <span className="text-xs text-muted-foreground whitespace-nowrap font-normal ml-auto">
-                            {formatTime(n.sentAt)}
-                          </span>
-                        </ItemTitle>
-                        <ItemDescription>{n.body}</ItemDescription>
-                      </ItemContent>
-                      <ItemActions>
-                        {n.payload?.bookingId &&
-                          (() => {
-                            const kind = n.payload?.bookingKind;
-                            const href =
-                              kind === "RESERVATION"
-                                ? `/reservations/${n.payload.bookingId}`
-                                : `/checkouts/${n.payload.bookingId}`;
-                            const label =
-                              kind === "RESERVATION"
-                                ? "View reservation"
-                                : "View checkout";
-                            return (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 text-xs"
-                                asChild
-                              >
-                                <Link href={href}>{label} →</Link>
-                              </Button>
-                            );
-                          })()}
-                        {n.payload?.shiftGroupId && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 text-xs"
-                            asChild
-                          >
-                            <Link href="/schedule">View shift →</Link>
-                          </Button>
-                        )}
-                        {!n.readAt && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 text-xs text-muted-foreground"
-                            onClick={() => markRead(n.id)}
-                            disabled={markingId === n.id}
-                          >
-                            {markingId === n.id ? "..." : "Mark read"}
-                          </Button>
-                        )}
-                      </ItemActions>
-                    </Item>
+                      marking={markingId === n.id}
+                      notification={n}
+                      onMarkRead={markRead}
+                    />
                   ))}
                 </div>
               ))}
@@ -444,9 +443,8 @@ export default function NotificationsPage() {
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-4 text-sm text-muted-foreground">
-          <span>
-            Showing {page * LIMIT + 1}–
-            {Math.min((page + 1) * LIMIT, total)} of {total}
+          <span className="tabular-nums">
+            Showing {visibleStart}-{visibleEnd} of {total}
           </span>
           <Pagination>
             <PaginationContent>
@@ -466,4 +464,155 @@ export default function NotificationsPage() {
       )}
     </FadeUp>
   );
+}
+
+function NotificationMetric({
+  label,
+  tone,
+  value,
+}: {
+  label: string;
+  tone: "green" | "orange" | "muted";
+  value: number;
+}) {
+  const toneClass = {
+    green: "text-[var(--green-text)]",
+    orange: "text-[var(--orange-text)]",
+    muted: "text-foreground",
+  }[tone];
+
+  return (
+    <div className="flex min-h-14 items-center justify-between rounded-md bg-background px-3 shadow-xs">
+      <div className="min-w-0">
+        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+          {label}
+        </div>
+        <div className={`mt-0.5 text-xl font-bold leading-none tabular-nums ${toneClass}`}>
+          {value.toLocaleString()}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NotificationRow({
+  marking,
+  notification,
+  onMarkRead,
+}: {
+  marking: boolean;
+  notification: Notification;
+  onMarkRead: (id: string) => void;
+}) {
+  const meta = notificationMeta(notification.type);
+  const Icon = meta.icon;
+  const href = getNotificationHref(notification);
+  const actionLabel = getNotificationActionLabel(notification);
+  const unread = !notification.readAt;
+
+  return (
+    <Item
+      size="sm"
+      className={
+        unread
+          ? "group bg-primary/5 transition-[background-color,box-shadow] hover:bg-primary/10 dark:bg-primary/10 dark:hover:bg-primary/15"
+          : "group bg-background transition-[background-color] hover:bg-muted/35"
+      }
+    >
+      <ItemMedia variant="icon" className={meta.toneClass}>
+        <Icon className="size-4" />
+      </ItemMedia>
+      <ItemContent>
+        <ItemTitle
+          className={
+            unread
+              ? "w-full items-start gap-2 font-semibold text-foreground"
+              : "w-full items-start gap-2 font-normal text-muted-foreground"
+          }
+        >
+          <span className="min-w-0 flex-1 text-balance">{notification.title}</span>
+          <span className="shrink-0 text-xs font-normal tabular-nums text-muted-foreground">
+            {formatTime(notification.sentAt)}
+          </span>
+        </ItemTitle>
+        <ItemDescription className="text-pretty">
+          {notification.body}
+        </ItemDescription>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Badge variant="outline" size="sm">
+            {meta.label}
+          </Badge>
+          {unread ? (
+            <Badge variant="blue" size="sm">
+              Unread
+            </Badge>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+              <CheckCircle2 className="size-3" />
+              Read
+            </span>
+          )}
+        </div>
+      </ItemContent>
+      <ItemActions>
+        {href && actionLabel && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs"
+            asChild
+          >
+            <Link href={href}>
+              {actionLabel}
+              <ExternalLink className="size-3" />
+            </Link>
+          </Button>
+        )}
+        {unread && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 text-xs text-muted-foreground"
+            onClick={() => onMarkRead(notification.id)}
+            disabled={marking}
+          >
+            {marking ? "Marking..." : "Mark read"}
+          </Button>
+        )}
+      </ItemActions>
+    </Item>
+  );
+}
+
+function getNotificationHref(notification: Notification) {
+  if (notification.payload?.bookingId) {
+    return isReservationNotification(notification)
+      ? `/reservations/${notification.payload.bookingId}`
+      : `/checkouts/${notification.payload.bookingId}`;
+  }
+
+  if (notification.payload?.shiftGroupId) {
+    return "/schedule";
+  }
+
+  return null;
+}
+
+function getNotificationActionLabel(notification: Notification) {
+  if (notification.payload?.bookingId) {
+    return isReservationNotification(notification)
+      ? "Open reservation"
+      : "Open checkout";
+  }
+
+  if (notification.payload?.shiftGroupId) {
+    return "Open schedule";
+  }
+
+  return null;
+}
+
+function isReservationNotification(notification: Notification) {
+  return notification.payload?.bookingKind === "RESERVATION"
+    || notification.type.startsWith("reservation_");
 }

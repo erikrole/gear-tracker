@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Notifications
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-05
+- Last Updated: 2026-05-09
 - Status: Active — escalation schedule + iOS tap-through + APNs native push shipped
 - Version: V1.2
 
@@ -94,9 +94,9 @@ Implementation: `src/lib/services/notifications.ts`
 ## Notification Center (V1.1)
 - Route: `/notifications`
 - Content: all in-app notifications for current user, ordered by `createdAt` descending
-- Mark-as-read: leading + trailing swipe; tap also marks read
+- Mark-as-read: inline single-row action plus Mark all read
 - Empty state: "All caught up" with `bell.slash` icon
-- Deep links: tapping a notification navigates to the related booking or trade board (2026-04-23)
+- Deep links: row actions navigate to the related booking, reservation, or schedule surface
 - Unread badge: `GET /api/notifications/count` returns `{ unreadCount }` — lightweight, no data fetch
 - Foreground refresh: iOS app re-fetches unread count on every foreground return (scenePhase hook)
 
@@ -184,6 +184,7 @@ Current behavior:
 | `EMAIL_FROM` | No | From address for transactional email. Default: `Gear Tracker <noreply@gear-tracker.app>` |
 
 ## Change Log
+- 2026-05-09: Web notification-center UI polish. `/notifications` now reads as an action inbox with unread/read/total summary metrics, a clearer filter toolbar, role-gated overdue processing, explicit refresh, notification type badges, stronger unread/read row treatment, and destination actions that name the target surface without changing notification delivery or API contracts.
 - 2026-05-08: API hardening Wave 13. Notification count polling is now actor-rate-limited and uses short private caching.
 - 2026-05-08: API hardening Wave 6. Cron routes now share `withCron()` for timing-safe `CRON_SECRET` bearer validation instead of each endpoint carrying its own auth comparison.
 - 2026-05-08: API hardening Wave 5. Shift gear-up nudges now validate active future assignments and apply layered rate limits per actor, target assignment, and recipient before creating notification/audit rows. Focused tests cover student denial, inactive assignment rejection, and rate-limit enforcement.

@@ -1,6 +1,5 @@
 "use client";
 
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import {
   ChartContainer,
@@ -8,6 +7,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { ReportChartCard } from "../report-ui";
 
 const scanConfig: ChartConfig = {
   success: { label: "Success", color: "hsl(142 60% 45%)" },
@@ -28,11 +28,7 @@ export function DailyScanVolumeChart({
   if (dailyScans.length === 0) return null;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Daily scan volume</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <ReportChartCard title="Daily scan volume" className="mb-4">
         <ChartContainer config={scanConfig} className="w-full h-[220px]">
           <BarChart
             data={dailyScans}
@@ -77,7 +73,6 @@ export function DailyScanVolumeChart({
             />
           </BarChart>
         </ChartContainer>
-      </CardContent>
-    </Card>
+    </ReportChartCard>
   );
 }

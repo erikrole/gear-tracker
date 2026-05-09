@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reports & Analytics
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-04-09
+- Last Updated: 2026-05-09
 - Status: Active
 - Version: V1
 
@@ -119,6 +119,16 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - [x] AC-6: Audit report with event log viewer (ADMIN only)
 
 ## Change Log
+- 2026-05-09: Reports authenticated browser smoke completed. Chrome DevTools verified seeded-admin rendering for Utilization, Checkouts, Overdue, Bulk Losses, Scans, and Audit; the pass also fixed a Recharts responsive sizing warning centrally in the shared shadcn chart wrapper.
+- 2026-05-09: Focused Reports UI polish slice. Added shared report UI helpers for toolbar rhythm, metric grids, section cards, and loading skeletons; upgraded the Reports header/tab shell; and migrated Utilization, Checkouts, Overdue, Scans, Bulk Losses, and Audit to the shared presentation patterns without changing report APIs or analytics semantics.
+- 2026-05-09: Reports chart polish follow-up. Moved report chart components onto the shared report chart-card wrapper, centralized the chart palette, tightened chart legends and numeric alignment, and fixed utilization breakdown sorting so charts no longer mutate incoming data arrays.
+- 2026-05-09: Reports filter polish follow-up. Checkouts, Scans, and Audit period/phase controls now use the shared Reports segmented-control helper backed by shadcn ToggleGroup, preserving URL sync and pagination reset behavior while removing hand-rolled button groups.
+- 2026-05-09: Reports state polish follow-up. Added shared report error, empty, and pagination helpers; normalized retry layout across report pages; improved empty-state copy; and kept Scans/Audit pagination query behavior unchanged.
+- 2026-05-09: Reports row polish follow-up. Added shared report row/link helpers, normalized dense table/mobile row hover and focus treatment, and replaced Overdue text disclosure arrows with lucide chevrons while preserving expansion behavior.
+- 2026-05-09: Reports export polish follow-up. Added an icon-backed shared report export button and centralized CSV escaping/download behavior for Utilization, Checkouts, Overdue, Scans, and Audit exports.
+- 2026-05-09: Reports loading cleanup follow-up. Added a shared chart-loading helper, migrated Utilization and Checkouts dynamic chart fallbacks to it, and finished the remaining Checkouts mobile requester row adoption.
+- 2026-05-09: Reports overdue presentation follow-up. Reused the shared report table-link treatment inside expanded Overdue mobile rows and replaced the remaining inline red text styles with report-compatible utility classes while preserving expansion/navigation behavior.
+- 2026-05-09: Reports metadata line follow-up. Added a shared compact metadata-line helper and migrated Checkouts and expanded Overdue row details away from raw separator strings while preserving displayed content.
 - 2026-05-08: API hardening Wave 13. Audit and scan reports now use shared pagination parsing, dashboard stats polling has a mobile-friendly rate limit, and audit last-lookups are rate-limited by actor.
 - 2026-05-08: API hardening Wave 11. Checkout reports now reject lookbacks outside 1-366 days before aggregation, and booking audit-log pagination validates cursors against the requested booking before returning another page.
 - 2026-05-07: iOS Overdue report. First report ported to iOS as a stripped-down floor view: leaderboard sorted by total overdue time, expandable per-person, tap-through to booking detail. Chart + CSV deliberately omitted — those stay on web (per "iOS = day-to-day ops, web = power user" rule). Server enforces `report:view` = ADMIN/STAFF; client also gates Profile entry point. See `AREA_MOBILE.md` for context.

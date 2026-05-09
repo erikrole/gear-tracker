@@ -1,6 +1,6 @@
 # Task Queue
 
-Last updated: 2026-05-08
+Last updated: 2026-05-09
 
 **Current release**: Beta — CalVer versioning adopted.
 **Release workflow**: `npm run release` creates CalVer tag + GitHub Release.
@@ -43,6 +43,79 @@ Last updated: 2026-05-08
 ---
 
 ## Open Items
+
+### Labels UI Polish (2026-05-09)
+- [x] **Print queue framing** — Add header context, matching/selected/ready metrics, and an Items escape link without changing browser-print output.
+- [x] **Selector cleanup** — Replace the raw checklist with a searchable queue, selected count badge, accessible checkbox labels, and filtered-empty recovery.
+- [x] **Row clarity** — Keep tag-first identity, surface location and scan codes, add selected-state icon rhythm, and provide item-detail links for misqueued gear.
+- [x] **Verification** — `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, `npx next build`, and authenticated browser smoke on `/labels` passed; smoke caught and fixed nested row/link semantics plus the missing search input `id`/`name`.
+
+### Notifications UI Polish (2026-05-09)
+- [x] **Action inbox summary** — Add unread, read, and total metrics above the notification list.
+- [x] **Toolbar and role cleanup** — Add explicit refresh, keep URL-backed unread filtering, and show overdue processing only to STAFF/ADMIN users.
+- [x] **Row clarity** — Add notification type badges, clearer unread/read state, named destination actions, and stronger hover/focus rhythm without changing delivery or API contracts.
+- [x] **Verification** — `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, `npx next build`, and authenticated browser smoke passed; smoke caught and fixed reservation notifications falling back to checkout links when `bookingKind` was absent.
+
+### Settings Control Map Polish (2026-05-09)
+- [x] **Overview nav state** — Add `/settings` as an active Overview entry in the shared Settings nav.
+- [x] **Role-aware map polish** — Surface current role, visible section counts, group counts, and destination role badges on the Settings control map.
+- [x] **Interaction polish** — Tighten group card headers, link row hover/focus treatment, and tabular count badges without changing settings permissions or subpage behavior.
+- [x] **Verification** — `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, `npx next build`, and authenticated browser smoke on `/settings` plus `/settings/departments` passed.
+
+### Reports UI Polish Slice 1 (2026-05-09)
+- [x] **Shared Reports shell** — Add shared toolbar, metric-grid, section-card, and loading patterns for Reports.
+- [x] **Six-page migration** — Apply the shared rhythm to Utilization, Checkouts, Overdue, Scans, Bulk Losses, and Audit without changing data contracts.
+- [x] **Verification + browser smoke** — TypeScript, migration-prefix, whitespace, and app build gates pass; authenticated Chrome DevTools smoke rendered Utilization, Checkouts, Overdue, Bulk Losses, Scans, and Audit with the seeded admin session.
+
+### Reports Chart Runtime Cleanup (2026-05-09)
+- [x] **Recharts sizing guard** — Add stable responsive-container sizing in the shared shadcn chart wrapper after authenticated browser smoke exposed an initial width/height warning.
+- [x] **Verification** — Reloaded Utilization in Chrome DevTools and confirmed no console warnings after the chart wrapper fix.
+
+### Reports Chart Polish Slice 2 (2026-05-09)
+- [x] **Chart-card consistency** — Move report chart components onto the shared report chart-card wrapper.
+- [x] **Shared chart palette** — Replace per-file color arrays with one Reports palette and tighten numeric chart legends.
+- [x] **Verification** — TypeScript, migration-prefix, whitespace, and app build gates pass.
+
+### Reports Filter Polish Slice 3 (2026-05-09)
+- [x] **Shared segmented controls** — Add a Reports segmented-control helper using shadcn ToggleGroup.
+- [x] **Filter migration** — Replace hand-rolled period and phase button loops on Checkouts, Scans, and Audit reports without changing URL behavior.
+- [x] **Verification** — TypeScript, migration-prefix, whitespace, and app build gates pass.
+
+### Reports State Polish Slice 4 (2026-05-09)
+- [x] **Shared states** — Add report-level error, empty, and pagination helpers.
+- [x] **Page migration** — Utilization, Checkouts, Overdue, Scans, Bulk Losses, and Audit now share retry/error handling where applicable.
+- [x] **Empty copy** — Report empty states explain what data would populate the section instead of stopping at terse labels.
+- [x] **Verification** — TypeScript, migration-prefix, whitespace, and app build gates pass.
+
+### Reports Row Polish Slice 5 (2026-05-09)
+- [x] **Shared row primitives** — Add report-level table-link, mobile-card, mobile-card-link, and compact-list-row helpers.
+- [x] **List migration** — Checkouts, Scans, Utilization, Bulk Losses, and Overdue use the shared row rhythm where applicable.
+- [x] **Disclosure polish** — Overdue expandable rows use lucide chevrons while preserving click and keyboard expansion.
+- [x] **Verification** — TypeScript, migration-prefix, whitespace, and app build gates pass.
+
+### Reports Export Polish Slice 6 (2026-05-09)
+- [x] **Shared export action** — Add a report-level CSV export button with a download icon.
+- [x] **CSV helper** — Centralize browser CSV download and escaping for report exports.
+- [x] **Page migration** — Utilization, Checkouts, Overdue, Scans, and Audit now use the shared export helper.
+- [x] **Verification** — TypeScript, migration-prefix, whitespace, and app build gates pass.
+
+### Reports Loading Cleanup Slice 7 (2026-05-09)
+- [x] **Shared chart loading** — Add a report-level chart loading helper for dynamic chart imports.
+- [x] **Placeholder migration** — Utilization and Checkouts chart fallbacks now use the shared loading helper.
+- [x] **Row adoption cleanup** — Checkouts requester mobile rows now use the shared report list row.
+- [x] **Verification** — TypeScript, migration-prefix, whitespace, and app build gates pass.
+
+### Reports Overdue Presentation Slice 8 (2026-05-09)
+- [x] **Shared nested links** — Let `ReportTableLink` accept click handlers and use it for expanded Overdue mobile booking links.
+- [x] **Color cleanup** — Replace Overdue inline red text styles with report-compatible utility classes.
+- [x] **Behavior preservation** — Keep row expansion and booking navigation separate.
+- [x] **Verification** — TypeScript, migration-prefix, whitespace, and app build gates pass.
+
+### Reports Metadata Line Slice 9 (2026-05-09)
+- [x] **Shared metadata helper** — Add a report-level metadata line for compact row details.
+- [x] **Checkout row migration** — Replace raw separator strings in mobile checkout rows.
+- [x] **Overdue row migration** — Replace raw separator strings in expanded overdue booking rows.
+- [x] **Verification** — TypeScript, migration-prefix, whitespace, and app build gates pass.
 
 ### Scan Route Gate Contract Slice (2026-05-08)
 - [x] **Stale scan-rate-limit correction** — Verify the regular app checkout/check-in scan endpoints are kiosk-gated 403 stubs, so the old per-session rate-limit TODO no longer describes an active execution path.

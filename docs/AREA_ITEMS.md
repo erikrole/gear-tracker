@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Items
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-08
+- Last Updated: 2026-05-09
 - Status: Active
 - Version: V1
 
@@ -379,6 +379,7 @@ Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered 
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-05-09: **Labels print queue polish** — `/labels` now reads as a focused print queue with matching/selected/ready metrics, a clearer search and queue toolbar, accessible selectable rows, item-detail escape links, filtered-empty recovery, and a preserved browser-print label grid.
 - 2026-05-08: API hardening Wave 2. `/api/items-page-init` and `/api/inventory-hygiene` now use partial-failure handling for parallel reference and checklist queries. Failed side queries fall back to empty data, log the failed segment, and return `partialFailures` metadata instead of taking down the entire items list bootstrap or hygiene checklist.
 - 2026-05-06: **Inventory Hygiene Center shipped** at `/items/hygiene`. The first slice is a read-only staff/admin checklist backed by `GET /api/inventory-hygiene`, covering missing category, missing department, missing primary scan code, missing image, duplicate scan identity, retired items still in active kits, camera bodies without attachments, and low-threshold bulk SKUs. Each sample links to the existing repair surface.
 - 2026-05-06: **Item detail tabs final polish** — Schedule now pairs the month grid with a compact month agenda and quieter calendar chrome. Insights now uses recorded completion audit activity for return-timing when available, labels that metric more honestly, and renders item age in human-readable units. Attachments no longer shows a misleading travel rule on items with no attached children, and its empty state now explains when fixed accessories should be added.
