@@ -8,7 +8,10 @@ struct ItemDetailView: View {
     @State private var error: String?
     @State private var showEdit = false
     @State private var isFavorited = false
+    @State private var favoriteToggleCount = 0  // user-action ticks; isolates haptic from initial load
     @State private var toast: Toast?
+    @State private var reserveAsset: Asset?
+    @State private var pushBooking: BookingRouteId?
     @Environment(SessionStore.self) private var session
 
     private var canEditAsset: Bool {
@@ -19,6 +22,7 @@ struct ItemDetailView: View {
     private func toggleFavorite() async {
         let previous = isFavorited
         isFavorited.toggle()
+        favoriteToggleCount &+= 1  // Tick the haptic counter only on user action.
         do {
             isFavorited = try await APIClient.shared.toggleFavorite(assetId: assetId)
         } catch {
@@ -46,7 +50,10 @@ struct ItemDetailView: View {
                         if let parent = asset.parentAsset {
                             ParentLinkCard(parent: parent)
                         }
-                        ItemHeroCard(asset: asset)
+                        ItemHeroCard(asset: asset, onCopyQR: copyQR)
+                        ReserveButton {
+                            reserveAsset = asset.asAsset
+                        }
                         ItemDetailsCard(asset: asset, canSeeProcurement: canEditAsset)
                         if let booking = asset.activeBooking {
                             ActiveBookingCard(booking: booking)
@@ -78,7 +85,7 @@ struct ItemDetailView: View {
                             .frame(minWidth: 44, minHeight: 44)
                     }
                     .accessibilityLabel(isFavorited ? "Unfavorite" : "Favorite")
-                    .sensoryFeedback(.selection, trigger: isFavorited)
+                    .sensoryFeedback(.selection, trigger: favoriteToggleCount)
                 }
                 if canEditAsset {
                     ToolbarItem(placement: .topBarTrailing) {
@@ -101,6 +108,22 @@ struct ItemDetailView: View {
                 }
             }
         }
+        .sheet(item: $reserveAsset) { asset in
+            CreateBookingSheet(vm: {
+                let vm = CreateBookingViewModel()
+                vm.prefillReservation(for: asset)
+                return vm
+            }()) { newId in
+                reserveAsset = nil
+                // Push onto the parent's NavigationStack via the
+                // item-driven destination below (auto-pushes when set,
+                // auto-clears on back).
+                pushBooking = BookingRouteId(id: newId)
+            }
+        }
+        .navigationDestination(item: $pushBooking) { route in
+            BookingDetailView(bookingId: route.id)
+        }
     }
 
     private func loadAsset() async {
@@ -113,6 +136,36 @@ struct ItemDetailView: View {
             self.error = error.localizedDescription
         }
         isLoading = false
+    }
+
+    /// Copy the QR sticker code to the clipboard with a confirming toast +
+    /// haptic. Replaces the silent-copy behavior the hero card had inline.
+    private func copyQR(_ value: String) {
+        UIPasteboard.general.string = value
+        Haptics.tap()
+        toast = Toast(
+            message: "Copied \(value)",
+            icon: "checkmark.circle.fill",
+            role: .success
+        )
+    }
+}
+
+// MARK: - Reserve button
+
+private struct ReserveButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label("Reserve Equipment", systemImage: "calendar.badge.plus")
+                .font(.subheadline.weight(.semibold))
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.glass)
+        .controlSize(.large)
+        .tint(Color.statusText(.purple))
+        .accessibilityLabel("Reserve Equipment")
     }
 }
 
@@ -209,9 +262,16 @@ struct EditAssetSheet: View {
                     .disabled(isSaving)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { Task { await save() } }
-                        .disabled(!hasChanges || isSaving)
-                        .fontWeight(.semibold)
+                    Button {
+                        Task { await save() }
+                    } label: {
+                        if isSaving {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Text("Save").fontWeight(.semibold)
+                        }
+                    }
+                    .disabled(!hasChanges || isSaving)
                 }
             }
             .interactiveDismissDisabled(hasChanges || isSaving)
@@ -237,10 +297,12 @@ struct EditAssetSheet: View {
                 serialNumber: serialNumber != (asset.serialNumber ?? "") ? (serialNumber.isEmpty ? nil : serialNumber) : nil,
                 notes: notes != (asset.notes ?? "") ? (notes.isEmpty ? nil : notes) : nil
             )
+            Haptics.success()
             onSaved()
             dismiss()
         } catch {
             self.error = error.localizedDescription
+            Haptics.warning()
         }
         isSaving = false
     }
@@ -250,6 +312,7 @@ struct EditAssetSheet: View {
 
 private struct ItemHeroCard: View {
     let asset: AssetDetail
+    let onCopyQR: (String) -> Void
 
     // Primary identifier: assetTag if set, else brand+model
     private var heroTitle: String {
@@ -312,8 +375,7 @@ private struct ItemHeroCard: View {
                     // can paste into the kiosk or a relink form.
                     if let qr = asset.qrCodeValue, !qr.isEmpty {
                         Button {
-                            UIPasteboard.general.string = qr
-                            Haptics.tap()
+                            onCopyQR(qr)
                         } label: {
                             HStack(spacing: 5) {
                                 Image(systemName: "qrcode")
@@ -511,16 +573,22 @@ private struct ActiveBookingCard: View {
                         )
                         .font(.caption2)
                         .foregroundStyle(booking.isOverdue ? AnyShapeStyle(Color.statusText(.red)) : AnyShapeStyle(.tertiary))
+                        .accessibilityLabel(booking.isOverdue
+                            ? "Overdue. Due \(booking.endsAt.formatted(date: .abbreviated, time: .shortened))"
+                            : "Due \(booking.endsAt.formatted(date: .abbreviated, time: .shortened))")
                     }
                     Spacer()
                     Image(systemName: "chevron.right")
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(.tertiary)
+                        .accessibilityHidden(true)
                 }
                 .padding(12)
                 .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10))
             }
             .buttonStyle(.plain)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(isReservation ? "Active reservation" : "Checked out"): \(booking.title), \(booking.requesterName)")
         }
         .padding(14)
         .background(Color(.secondarySystemGroupedBackground))
@@ -581,6 +649,8 @@ private struct UpcomingReservationsCard: View {
                         }
                         .padding(10)
                         .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10))
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Upcoming reservation: \(res.title), \(res.requesterName), starts \(res.startsAt.relativeLabel)")
                     }
                 }
             }
@@ -609,6 +679,7 @@ private struct ParentLinkCard: View {
                 Image(systemName: "link")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Part of")
                         .font(.caption2.weight(.semibold))
@@ -628,6 +699,7 @@ private struct ParentLinkCard: View {
                 Image(systemName: "chevron.right")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
             }
             .padding(12)
             .background(Color(.secondarySystemGroupedBackground))
@@ -638,6 +710,8 @@ private struct ParentLinkCard: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Part of \(parent.assetTag), \(parent.name ?? parent.displayName)")
     }
 }
 
@@ -685,11 +759,14 @@ private struct AccessoriesCard: View {
                             Image(systemName: "chevron.right")
                                 .font(.caption2.weight(.semibold))
                                 .foregroundStyle(.tertiary)
+                                .accessibilityHidden(true)
                         }
                         .padding(10)
                         .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10))
                     }
                     .buttonStyle(.plain)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Accessory: \(acc.assetTag), \(acc.name ?? acc.displayName)")
                 }
             }
         }

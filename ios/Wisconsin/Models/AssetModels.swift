@@ -178,4 +178,18 @@ struct AssetDetail: Codable, Identifiable, Hashable {
 
     static func == (lhs: AssetDetail, rhs: AssetDetail) -> Bool { lhs.id == rhs.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
+
+    /// Project the detail back into a regular `Asset` for surfaces (like
+    /// `CreateBookingViewModel.prefillReservation(for:)`) that take the
+    /// list-shape struct.
+    var asAsset: Asset {
+        Asset(
+            id: id, assetTag: assetTag, name: name, brand: brand, model: model,
+            serialNumber: serialNumber, imageUrl: imageUrl, computedStatus: computedStatus,
+            location: location, category: category, department: department,
+            activeBooking: activeBooking, purchaseDate: purchaseDate,
+            purchasePrice: purchasePrice, residualValue: residualValue,
+            isFavorited: isFavorited
+        )
+    }
 }
