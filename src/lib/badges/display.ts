@@ -1,0 +1,77 @@
+import type { BadgeProps } from "@/components/ui/badge";
+
+type BadgeDisplayInput = {
+  key: string;
+  category: string;
+  kind: string;
+  trigger: string;
+  threshold: number | null;
+};
+
+export type BadgeRarity = "Common" | "Uncommon" | "Rare" | "Legendary";
+
+const HIDDEN_BADGE_KEYS = new Set([
+  "above_and_beyond",
+  "event_hero",
+  "clean_loop",
+]);
+
+const LEGENDARY_BADGE_KEYS = new Set([
+  "above_and_beyond",
+  "category_collector",
+  "checkout_100",
+]);
+
+const RARE_BADGE_KEYS = new Set([
+  "event_hero",
+  "clean_loop",
+  "perfect_handoff",
+  "full_kit_no_misses",
+  "semester_streak",
+  "reliable_regular",
+]);
+
+const UNCOMMON_BADGE_KEYS = new Set([
+  "clutch_cover",
+  "rookie_run",
+  "zero_errors",
+  "streak_on_time_5",
+  "streak_shifts_5",
+]);
+
+export const manualAwardGuidance: Record<string, string> = {
+  perfect_handoff: "Use when every item came back on time, accounted for, and without damage or loss reports.",
+  clean_loop: "Use when the full gear workflow stayed clean from checkout through return.",
+  clutch_cover: "Use when someone helped cover a late or urgent shift need.",
+  full_kit_no_misses: "Use for a large kit or complex checkout returned with every piece accounted for.",
+  semester_streak: "Use at semester end for someone with no overdue gear in the period.",
+  category_collector: "Use when someone has earned recognition across every major badge category.",
+  event_hero: "Use for standout help during an event day.",
+  rookie_run: "Use for a first clean end-to-end gear workflow.",
+  reliable_regular: "Use for a sustained stretch with no overdue gear or missed commitments.",
+  above_and_beyond: "Use sparingly for memorable help that made the operation better.",
+};
+
+export function isHiddenUntilEarnedBadge(key: string): boolean {
+  return HIDDEN_BADGE_KEYS.has(key);
+}
+
+export function getBadgeRarity(badge: BadgeDisplayInput): BadgeRarity {
+  if (LEGENDARY_BADGE_KEYS.has(badge.key)) return "Legendary";
+  if (RARE_BADGE_KEYS.has(badge.key) || (badge.threshold ?? 0) >= 50) return "Rare";
+  if (
+    UNCOMMON_BADGE_KEYS.has(badge.key) ||
+    (badge.threshold ?? 0) >= 10 ||
+    (badge.kind === "RULE" && badge.trigger === "manual")
+  ) {
+    return "Uncommon";
+  }
+  return "Common";
+}
+
+export function badgeRarityVariant(rarity: BadgeRarity): BadgeProps["variant"] {
+  if (rarity === "Legendary") return "purple";
+  if (rarity === "Rare") return "orange";
+  if (rarity === "Uncommon") return "blue";
+  return "gray";
+}

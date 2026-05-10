@@ -64,7 +64,7 @@ Last updated: 2026-05-09
 
 ### Student Badge Achievements Slice 4 (2026-05-09)
 - [x] **Badge APIs** — Add active catalog and user badge profile endpoints with self/staff/peer visibility rules.
-- [x] **Profile tab** — Add a student-only `Badges` tab on `/users/{id}` using shadcn primitives, with no badge chrome in the profile hero.
+- [x] **Profile tab** — Add a user-wide `Badges` tab on `/users/{id}` using shadcn primitives, with no badge chrome in the profile hero.
 - [x] **Historical display** — Hide inactive definitions from discovery while still showing earned historical inactive awards.
 - [x] **Flag-off path** — Badge APIs return disabled/empty payloads before badge table queries while `BADGES_ENABLED` is off.
 - [x] **Verification** — `npx prisma validate`, `npm run db:migrate:check`, focused badge API tests, full `npm test`, `npx tsc --noEmit`, `git diff --check`, `npx next build`, and authenticated browser smoke on `/users/{id}?tab=badges` passed.
@@ -78,8 +78,10 @@ Last updated: 2026-05-09
 
 ### Student Badge Achievements Slice 7 Staff Report (2026-05-09)
 - [x] **Badge report API** — Added `GET /api/reports/badges` behind existing report permissions with aggregate award metrics, leaderboard, distribution, and recent awards.
-- [x] **Report page** — Added `/reports/badges` to the shared Reports tab set after Audit, using existing report primitives and CSV export. It remains staff analytics, not the primary student badge surface.
+- [x] **Report page** — Added `/reports/badges` to the shared Reports tab set after Audit, using existing report primitives and CSV export. It remains staff analytics, not the primary profile badge surface.
 - [x] **Badge hardening** — Badge evaluator transactions now use Serializable isolation with one Prisma conflict retry, flag-off service calls perform no badge transaction work, and `captureBadgeError` forwards to Sentry when `SENTRY_DSN` is configured while preserving structured logs.
+- [x] **User-wide recognition** — Badge profiles and manual awards now apply to every active user role, including staff and admins, and the catalog includes ten fun manual-recognition badges for clean workflows, clutch coverage, event help, reliability, and above-and-beyond moments.
+- [x] **Game-feel polish** — Badge cards show schema-free rarity labels, surprise badges stay hidden until earned, and manual award selection includes admin guidance for fun badges.
 - [x] **Verification** — `npm test -- tests/badges-report-route.test.ts`, full `npm test`, `npx tsc --noEmit`, `npx prisma validate`, `npm run db:migrate:check`, `git diff --check`, `npx next build`, and authenticated Chrome DevTools smoke on `/reports/badges` passed with no console errors.
 
 ### Labels UI Polish (2026-05-09)

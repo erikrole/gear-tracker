@@ -131,7 +131,7 @@ describe("GET /api/badges/user/[userId]", () => {
 
   it("returns active and historically earned inactive badges for visible users", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
-    vi.mocked(db.user.findUnique).mockResolvedValue({ id: "student-1", role: "STUDENT" } as any);
+    vi.mocked(db.user.findUnique).mockResolvedValue({ id: "student-1", role: "STUDENT", active: true } as any);
     vi.mocked(db.systemConfig.findUnique).mockResolvedValue({ key: "badges.peerVisible", value: false } as any);
     vi.mocked(db.badgeDefinition.findMany).mockResolvedValue([
       {
@@ -204,7 +204,7 @@ describe("GET /api/badges/user/[userId]", () => {
 
   it("blocks peer students when badge peer visibility is disabled", async () => {
     vi.mocked(requireAuth).mockResolvedValue({ ...studentUser, id: "student-2" });
-    vi.mocked(db.user.findUnique).mockResolvedValue({ id: "student-1", role: "STUDENT" } as any);
+    vi.mocked(db.user.findUnique).mockResolvedValue({ id: "student-1", role: "STUDENT", active: true } as any);
     vi.mocked(db.systemConfig.findUnique).mockResolvedValue({ key: "badges.peerVisible", value: false } as any);
 
     const res = await getUserBadges(makeGetRequest("https://app.example.com/api/badges/user/student-1"), {
@@ -217,7 +217,7 @@ describe("GET /api/badges/user/[userId]", () => {
 
   it("allows peer students when badge peer visibility is enabled", async () => {
     vi.mocked(requireAuth).mockResolvedValue({ ...studentUser, id: "student-2" });
-    vi.mocked(db.user.findUnique).mockResolvedValue({ id: "student-1", role: "STUDENT" } as any);
+    vi.mocked(db.user.findUnique).mockResolvedValue({ id: "student-1", role: "STUDENT", active: true } as any);
     vi.mocked(db.systemConfig.findUnique).mockResolvedValue(null);
     vi.mocked(db.badgeDefinition.findMany).mockResolvedValue([]);
 
@@ -228,5 +228,34 @@ describe("GET /api/badges/user/[userId]", () => {
 
     expect(res.status).toBe(200);
     expect(body.data.peerVisible).toBe(true);
+  });
+
+  it("returns badge profiles for staff users too", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(adminUser);
+    vi.mocked(db.user.findUnique).mockResolvedValue({ id: "staff-1", role: "STAFF", active: true } as any);
+    vi.mocked(db.systemConfig.findUnique).mockResolvedValue({ key: "badges.peerVisible", value: false } as any);
+    vi.mocked(db.badgeDefinition.findMany).mockResolvedValue([]);
+
+    const res = await getUserBadges(makeGetRequest("https://app.example.com/api/badges/user/staff-1"), {
+      params: Promise.resolve({ userId: "staff-1" }),
+    });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.data.userId).toBe("staff-1");
+    expect(db.badgeDefinition.findMany).toHaveBeenCalled();
+  });
+
+  it("allows users to compare staff badges when peer visibility is enabled", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(studentUser);
+    vi.mocked(db.user.findUnique).mockResolvedValue({ id: "staff-1", role: "STAFF", active: true } as any);
+    vi.mocked(db.systemConfig.findUnique).mockResolvedValue(null);
+    vi.mocked(db.badgeDefinition.findMany).mockResolvedValue([]);
+
+    const res = await getUserBadges(makeGetRequest("https://app.example.com/api/badges/user/staff-1"), {
+      params: Promise.resolve({ userId: "staff-1" }),
+    });
+
+    expect(res.status).toBe(200);
   });
 });

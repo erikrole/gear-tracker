@@ -34,11 +34,11 @@ export async function getBadgePeerVisibility() {
 export async function getUserBadgeProfile(viewer: AuthUser, userId: string) {
   const target = await db.user.findUnique({
     where: { id: userId },
-    select: { id: true, role: true },
+    select: { id: true, role: true, active: true },
   });
 
-  if (!target || target.role !== "STUDENT") {
-    throw new HttpError(404, "Student not found");
+  if (!target) {
+    throw new HttpError(404, "User not found");
   }
 
   const peerVisible = await getBadgePeerVisibility();
@@ -85,6 +85,7 @@ export async function getUserBadgeProfile(viewer: AuthUser, userId: string) {
       icon: definition.icon,
       category: definition.category,
       kind: definition.kind,
+      trigger: definition.trigger,
       threshold: definition.threshold,
       ruleKey: definition.ruleKey,
       active: definition.active,
@@ -116,6 +117,7 @@ export async function awardBadgeManually(args: ManualAwardArgs) {
           id: true,
           name: true,
           role: true,
+          active: true,
           notificationPrefs: true,
         },
       }),
@@ -138,8 +140,8 @@ export async function awardBadgeManually(args: ManualAwardArgs) {
       }),
     ]);
 
-    if (!target || target.role !== "STUDENT") {
-      throw new HttpError(404, "Student not found");
+    if (!target || target.active === false) {
+      throw new HttpError(404, "Active user not found");
     }
     if (!definition || !definition.active) {
       throw new HttpError(404, "Active badge definition not found");

@@ -29,7 +29,7 @@ export const POST = withAuth(async (req, { user }) => {
   await createAuditEntry({
     actorId: user.id,
     actorRole: user.role,
-    entityType: "student_badge",
+    entityType: "badge_award",
     entityId: award.id,
     action: "badge_awarded_manually",
     after: {

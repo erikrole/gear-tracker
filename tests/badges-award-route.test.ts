@@ -123,7 +123,7 @@ describe("POST /api/badges/award", () => {
     });
     expect(createAuditEntry).toHaveBeenCalledWith(expect.objectContaining({
       actorId: "admin-1",
-      entityType: "student_badge",
+      entityType: "badge_award",
       action: "badge_awarded_manually",
     }));
   });

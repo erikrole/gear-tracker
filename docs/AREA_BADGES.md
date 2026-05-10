@@ -10,17 +10,18 @@
 - Decision Refs: D-034
 
 ## Direction
-Badges are lightweight student recognition inside the existing ops app. They are earned from real domain outcomes, not from route visits, timers, or cron jobs.
+Badges are lightweight recognition for every active user inside the existing ops app. Staff and admins earn badges on the same profile surface as students. Badges are earned from real domain outcomes, not from route visits, timers, or cron jobs.
 
 ## Core Rules
 1. `BADGES_ENABLED !== "true"` returns before any badge evaluator work, database query, or side effect.
 2. Badge events attach to service-level outcomes: kiosk checkout/pickup open, checkout return completion, kiosk scan result, trade completion, and future shift attendance completion.
 3. Legacy app checkout scan stubs remain non-events. They stay kiosk-gated 403 routes and award nothing.
 4. Badge definitions are seeded by immutable `key`. Typos are fixed by retiring a definition with `active=false` and creating a new key.
-5. Student awards are idempotent by `(userId, definitionId)`.
+5. User awards are idempotent by `(userId, definitionId)`.
 6. Streak updates are idempotent by `sourceKey`; repeated handling of the same domain event is a no-op.
 7. Launch has no retroactive backfill. Existing history does not award badges until events happen after enablement.
 8. Deactivated users keep historical badges.
+9. Admins are treated as staff for recognition. They can earn badges and compare profiles like everyone else.
 
 ## Source-of-Truth Event Flow
 
@@ -35,22 +36,24 @@ Badges are lightweight student recognition inside the existing ops app. They are
 
 ## Data Model
 - `BadgeDefinition`: seeded catalog. Uses immutable `key`, display copy, icon name, category, kind, trigger, threshold, rule key, active flag, and sort order.
-- `StudentBadge`: earned badge row. Unique on `(userId, definitionId)`, supports `AUTO` and `MANUAL`, optional `awardedById`, and optional staff note.
+- `StudentBadge`: legacy-named earned badge row for any user. Unique on `(userId, definitionId)`, supports `AUTO` and `MANUAL`, optional `awardedById`, and optional staff note.
 - `BadgeStreak`: per-user streak state. Unique on `(userId, streakType)` and deduped by `lastSourceKey`. `SCAN_SUCCESS_COUNT` is the durable scan success counter; `SCAN_CLEAN` is the clean-scan streak that resets on failed scans.
-- `SystemConfig["badges.peerVisible"]`: default `true`; controls student peer visibility for another student's badge tab.
+- `SystemConfig["badges.peerVisible"]`: default `true`; controls peer visibility for another user's badge tab.
 - Badge evaluator transactions run with Serializable isolation and retry once on Prisma write conflicts so duplicate source-key retries re-read streak state before mutating.
 
 ## UI Direction
-- Primary student experience is a `Badges` tab on `/users/{id}`. `/profile` already redirects to user detail.
+- Primary user experience is a `Badges` tab on `/users/{id}` for students, staff, and admins. `/profile` already redirects to user detail.
 - No top-level nav item.
 - No badge count, chip row, or recognition chrome in the profile hero.
 - The badge tab uses shadcn primitives and keeps earned/locked badges in a compact grid.
+- Badge cards show UI-derived rarity labels. A few surprise badges stay hidden from the locked grid until earned.
 - The badge profile API loads active definitions plus historical earned inactive definitions in one Prisma call that includes the user's award row.
 - With `BADGES_ENABLED` off, badge APIs return disabled/empty payloads before any badge table query. This keeps un-migrated local or preview databases from failing on badge UI routes.
-- `/reports/badges` is staff analytics only and follows existing report layout patterns. It shows aggregate award metrics, student leaderboard, badge distribution, and recent awards.
+- `/reports/badges` is staff analytics only and follows existing report layout patterns. It shows aggregate award metrics, user leaderboard, badge distribution, and recent awards.
 - Manual awards launch from the existing user admin actions menu, not from permanent hero chrome.
+- Manual award selection shows staff guidance for fun/manual badges so admins award them consistently.
 - Award notifications are persistent inbox entries that link to `/users/{userId}?tab=badges`.
-- Manual awards are admin-only through the existing user admin actions menu. They persist `source=MANUAL`, `awardedById`, and an optional note, and create a persistent inbox notification unless `User.notificationPrefs.badges === false`.
+- Manual awards are admin-only through the existing user admin actions menu. They can target any active user, persist `source=MANUAL`, `awardedById`, and an optional note, and create a persistent inbox notification unless `User.notificationPrefs.badges === false`.
 
 ## Starting Badge Set
 - Checkout: `first_checkout`, `checkout_5`, `checkout_25`, `checkout_100`
@@ -59,6 +62,7 @@ Badges are lightweight student recognition inside the existing ops app. They are
 - Shift, deferred until attendance completion: `first_shift`, `shift_10`, `shift_50`
 - Trade: `first_trade`, `trade_10`
 - Streak: `streak_on_time_5`, `streak_on_time_10`, `streak_shifts_5`, `streak_shifts_10`
+- Fun/manual: `perfect_handoff`, `clean_loop`, `clutch_cover`, `full_kit_no_misses`, `semester_streak`, `category_collector`, `event_hero`, `rookie_run`, `reliable_regular`, `above_and_beyond`
 
 ## Acceptance Criteria
 - [x] `BADGES_ENABLED=false` causes zero evaluator work, badge queries, and side effects.
@@ -72,7 +76,7 @@ Badges are lightweight student recognition inside the existing ops app. They are
 - [x] Trade badges award once per completed trade status flip.
 - [ ] Shift badges do not award from request approval.
 - [x] Manual awards persist staff attribution, optional notes, and profile-linked inbox notifications that respect badge notification prefs.
-- [x] Student profile badge grid uses shadcn primitives and does not crowd the hero.
+- [x] User profile badge grid uses shadcn primitives and does not crowd the hero.
 - [x] Peer visibility respects `SystemConfig["badges.peerVisible"]`.
 - [x] `/reports/badges` follows existing report layout patterns.
 
@@ -85,8 +89,10 @@ Badges are lightweight student recognition inside the existing ops app. They are
 ## Change Log
 | Date | Change |
 |---|---|
+| 2026-05-09 | Badge display polish added schema-free rarity labels, surprise badges hidden until earned, and admin award guidance in the manual award dialog. |
+| 2026-05-09 | Badge scope expanded from student-only to every active user, including staff and admins. Staff/admin profiles now keep the Badges tab, admins can manually award badges to any active user, and the catalog includes ten fun manual-recognition badges for clean workflows, clutch coverage, event help, reliability, and above-and-beyond moments. |
 | 2026-05-09 | Slice 7 hardening added Serializable badge evaluator transactions with one Prisma conflict retry, Sentry-backed `captureBadgeError` when `SENTRY_DSN` is configured, and focused tests for flag-off zero transaction work plus duplicate source-key retry behavior. |
-| 2026-05-09 | Slice 7 staff analytics shipped. `/reports/badges` was added to the Reports tab set after Audit, with total award metrics, 30-day award volume, active definition count, manual award count, student leaderboard, badge distribution, recent awards, and CSV export. |
+| 2026-05-09 | Slice 7 staff analytics shipped. `/reports/badges` was added to the Reports tab set after Audit, with total award metrics, 30-day award volume, active definition count, manual award count, user leaderboard, badge distribution, recent awards, and CSV export. |
 | 2026-05-09 | Slice 5 shipped trade completion badges, admin manual awards, and badge award inbox notifications. `claimTrade` immediate completion and `approveTrade` queue `onTradeCompleted` only when the trade flips to `COMPLETED`; admins can award active badges from the existing user admin actions menu; manual awards persist `awardedById` and optional notes; award notifications link to the profile badges tab and respect `notificationPrefs.badges`. |
 | 2026-05-09 | Slice 4 shipped the badge catalog API, user badge profile API with self/staff/peer-visibility checks, and a restrained `Badges` tab on student `/users/{id}` pages. Badge APIs now short-circuit to disabled/empty payloads while `BADGES_ENABLED` is off, `/profile` remains a redirect to user detail, and the profile hero remains badge-free. |
 | 2026-05-09 | Slice 3 shipped kiosk scan badge events. Kiosk direct checkout, pickup, and check-in scans now emit feature-flagged scan success/failure events; successful scans count toward scan badges, failed scans reset the clean-scan streak, and legacy app scan stubs remain non-events. |

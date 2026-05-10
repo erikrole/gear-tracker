@@ -1,0 +1,39 @@
+import { describe, expect, it } from "vitest";
+import { getBadgeRarity, isHiddenUntilEarnedBadge, manualAwardGuidance } from "@/lib/badges/display";
+
+describe("badge display metadata", () => {
+  it("keeps surprise badges hidden until earned", () => {
+    expect(isHiddenUntilEarnedBadge("above_and_beyond")).toBe(true);
+    expect(isHiddenUntilEarnedBadge("event_hero")).toBe(true);
+    expect(isHiddenUntilEarnedBadge("first_checkout")).toBe(false);
+  });
+
+  it("derives rarity without schema fields", () => {
+    expect(getBadgeRarity({
+      key: "above_and_beyond",
+      category: "MILESTONE",
+      kind: "RULE",
+      trigger: "manual",
+      threshold: null,
+    })).toBe("Legendary");
+    expect(getBadgeRarity({
+      key: "checkout_25",
+      category: "CHECKOUT",
+      kind: "COUNT",
+      trigger: "checkout:opened",
+      threshold: 25,
+    })).toBe("Uncommon");
+    expect(getBadgeRarity({
+      key: "first_checkout",
+      category: "CHECKOUT",
+      kind: "COUNT",
+      trigger: "checkout:opened",
+      threshold: 1,
+    })).toBe("Common");
+  });
+
+  it("has admin guidance for manual fun badges", () => {
+    expect(manualAwardGuidance.clutch_cover).toContain("late or urgent shift");
+    expect(manualAwardGuidance.perfect_handoff).toContain("on time");
+  });
+});

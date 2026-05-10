@@ -611,12 +611,12 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - On-time return logic uses a 15-minute UTC grace window after `booking.endsAt`.
   - Badge definition `key` values are immutable. Rename display fields in place; retire bad keys with `active=false` and seed replacement keys.
   - `onCheckoutReturned` and `onTradeCompleted` must be emitted from single status-flip helpers so competing call paths do not double-award.
-  - Peer student badge visibility defaults to true via `SystemConfig["badges.peerVisible"]`; staff can always see student badges.
-  - The primary student UI is a `Badges` tab on `/users/{id}`. No top-level nav item and no badge chrome in the profile hero.
+  - Peer badge visibility defaults to true via `SystemConfig["badges.peerVisible"]`; staff/admin can always see user badges.
+  - The primary user UI is a `Badges` tab on `/users/{id}` for students, staff, and admins. No top-level nav item and no badge chrome in the profile hero.
 - Consequences:
   - The system can ship in independent slices with the flag off until preview verification passes.
   - Historical badge data remains stable if users are deactivated or definitions are retired.
-  - Reports can aggregate from `StudentBadge` without becoming the primary student experience.
+  - Reports can aggregate from the legacy-named `StudentBadge` award table without becoming the primary profile experience.
 - Guardrails:
   - Legacy checkout scan stubs stay non-events.
   - Shift approval is not attendance and must not award shift badges.

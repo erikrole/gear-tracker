@@ -150,7 +150,7 @@
 ---
 
 ## Change Log
-- 2026-05-09: Student Badge Achievements shipped behind `BADGES_ENABLED` with schema, service-level kiosk/checkout/scan/trade/manual-award wiring, profile-first UI, staff report, flag-off zero-work guards, Serializable evaluator transactions, and Sentry-backed badge evaluator observability. Shift badges remain deferred until attendance/no-show has a real completion signal.
+- 2026-05-09: Badge Achievements shipped behind `BADGES_ENABLED` with schema, service-level kiosk/checkout/scan/trade/manual-award wiring, profile-first UI for all active user roles, staff report, flag-off zero-work guards, Serializable evaluator transactions, Sentry-backed badge evaluator observability, and a fun manual-recognition set. Shift badges remain deferred until attendance/no-show has a real completion signal.
 - 2026-05-08: Turnaround risk guard shipped. Availability checks now surface advisory row-level risk for short handoffs, next-use location transfers, recent damage/lost check-in reports, and tight future bulk bookings without changing hard conflict semantics.
 - 2026-05-08: Future booking context slice shipped. Availability checks now include the next serialized booking after the requested end time, and staff-facing equipment rows show exact "Back before" timing so valid same-item reuse does not hide the next morning commitment.
 - 2026-05-08: Busy-day checkout/reservation stress shipped. The mock day found availability gaps around `PENDING_PICKUP` serialized allocations and overlapping bulk reservation commitments. Fixed serialized blocking statuses and bulk commitment math, added regression coverage, and live-smoked overlapping checkouts/reservations with cleanup.

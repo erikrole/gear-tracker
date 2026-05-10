@@ -48,6 +48,7 @@
 
 ## UI Reliability
 
+- **Recognition systems may apply beyond the original persona**: Before adding badge definitions or badge UI, confirm whether the scope is students-only or all users. Do not keep student-only guards just because the first plan used student language.
 - **Dev CSRF origin must use the actual request origin**: Do not hardcode `https://${host}` as the expected origin in shared API wrappers. Local dev pages run on `http://localhost:*`, so mutating requests can be blocked before auth/permission checks. Compare `Origin` to `new URL(req.url).origin` and keep bad-origin requests returning 403.
 - **Distinguish initial load from refresh**: Initial = skeletons. Refresh = keep visible data, show subtle spinner. Use `hasLoadedRef` (not state) to track.
 - **Refresh failure must NOT replace visible data**: Only set `loadError` on initial load. On refresh failure, toast and keep existing data.

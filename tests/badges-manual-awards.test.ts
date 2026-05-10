@@ -28,9 +28,10 @@ vi.mock("@/lib/db", () => ({
 import { awardBadgeManually } from "@/lib/badges/queries";
 
 const targetUser = {
-  id: "student-1",
-  name: "Student One",
-  role: "STUDENT",
+  id: "staff-1",
+  name: "Staff One",
+  role: "STAFF",
+  active: true,
   notificationPrefs: null,
 };
 
@@ -42,7 +43,7 @@ const definition = {
 
 const award = {
   id: "award-1",
-  userId: "student-1",
+  userId: "staff-1",
   definitionId: "badge-1",
   awardedAt: new Date("2026-05-09T20:00:00.000Z"),
   source: "MANUAL",
@@ -69,7 +70,7 @@ beforeEach(() => {
 describe("manual badge awards", () => {
   it("creates a manual award and persistent inbox notification by default", async () => {
     await awardBadgeManually({
-      userId: "student-1",
+      userId: "staff-1",
       definitionId: "badge-1",
       awardedById: "admin-1",
       note: "Staff pick",
@@ -77,7 +78,7 @@ describe("manual badge awards", () => {
 
     expect(mockTx.studentBadge.create).toHaveBeenCalledWith({
       data: {
-        userId: "student-1",
+        userId: "staff-1",
         definitionId: "badge-1",
         source: "MANUAL",
         awardedById: "admin-1",
@@ -98,10 +99,10 @@ describe("manual badge awards", () => {
     });
     expect(mockTx.notification.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        userId: "student-1",
+        userId: "staff-1",
         type: "badge_awarded",
         payload: expect.objectContaining({
-          href: "/users/student-1?tab=badges",
+          href: "/users/staff-1?tab=badges",
         }),
       }),
     });
@@ -118,7 +119,7 @@ describe("manual badge awards", () => {
     });
 
     await awardBadgeManually({
-      userId: "student-1",
+      userId: "staff-1",
       definitionId: "badge-1",
       awardedById: "admin-1",
     });
@@ -132,12 +133,28 @@ describe("manual badge awards", () => {
 
     await expect(
       awardBadgeManually({
-        userId: "student-1",
+        userId: "staff-1",
         definitionId: "badge-1",
         awardedById: "admin-1",
       }),
     ).rejects.toThrow("Badge already awarded");
     expect(mockTx.studentBadge.create).not.toHaveBeenCalled();
     expect(mockTx.notification.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects manual awards for inactive users", async () => {
+    mockTx.user.findUnique.mockResolvedValue({
+      ...targetUser,
+      active: false,
+    });
+
+    await expect(
+      awardBadgeManually({
+        userId: "staff-1",
+        definitionId: "badge-1",
+        awardedById: "admin-1",
+      }),
+    ).rejects.toThrow("Active user not found");
+    expect(mockTx.studentBadge.create).not.toHaveBeenCalled();
   });
 });

@@ -43,10 +43,11 @@ import {
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFetch } from "@/hooks/use-fetch";
+import { badgeRarityVariant, getBadgeRarity, isHiddenUntilEarnedBadge } from "@/lib/badges/display";
 import { formatDateFull } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-type StudentBadge = {
+type UserBadge = {
   id: string;
   key: string;
   name: string;
@@ -54,6 +55,7 @@ type StudentBadge = {
   icon: string;
   category: string;
   kind: string;
+  trigger: string;
   threshold: number | null;
   ruleKey: string | null;
   active: boolean;
@@ -69,7 +71,7 @@ type UserBadgesResponse = {
   peerVisible: boolean;
   earnedCount: number;
   totalCount: number;
-  badges: StudentBadge[];
+  badges: UserBadge[];
   disabled?: boolean;
 };
 
@@ -140,9 +142,10 @@ function SummaryCard({ label, value }: { label: string; value: number | string }
   );
 }
 
-function BadgeCard({ badge }: { badge: StudentBadge }) {
+function BadgeCard({ badge }: { badge: UserBadge }) {
   const Icon = iconMap[badge.icon] ?? Trophy;
   const earned = badge.earned;
+  const rarity = getBadgeRarity(badge);
 
   return (
     <Card
@@ -178,6 +181,7 @@ function BadgeCard({ badge }: { badge: StudentBadge }) {
       <CardContent className="pt-0">
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <Badge variant="outline" size="sm">{badge.category.toLowerCase()}</Badge>
+          <Badge variant={badgeRarityVariant(rarity)} size="sm">{rarity}</Badge>
           {earned && badge.awardedAt ? (
             <span>Earned {formatDateFull(badge.awardedAt)}</span>
           ) : (
@@ -216,16 +220,19 @@ export default function UserBadgesTab({ userId }: { userId: string }) {
   }
 
   const earnedBadges = data.badges.filter((badge) => badge.earned);
-  const lockedBadges = data.badges.filter((badge) => !badge.earned && badge.active);
+  const lockedBadges = data.badges.filter(
+    (badge) => !badge.earned && badge.active && !isHiddenUntilEarnedBadge(badge.key),
+  );
+  const visibleTotalCount = earnedBadges.length + lockedBadges.length;
 
   return (
     <div className="flex flex-col gap-5">
       <div className="grid gap-3 sm:grid-cols-3">
         <SummaryCard label="Earned badges" value={data.earnedCount} />
-        <SummaryCard label="Available badges" value={data.totalCount} />
+        <SummaryCard label="Visible badges" value={visibleTotalCount} />
         <SummaryCard
           label="Completion"
-          value={data.totalCount > 0 ? `${Math.round((data.earnedCount / data.totalCount) * 100)}%` : "0%"}
+          value={visibleTotalCount > 0 ? `${Math.round((data.earnedCount / visibleTotalCount) * 100)}%` : "0%"}
         />
       </div>
 
@@ -288,7 +295,7 @@ export default function UserBadgesTab({ userId }: { userId: string }) {
               <div>
                 <h2 className="text-base font-semibold">Available</h2>
                 <p className="text-sm text-muted-foreground">
-                  Remaining badges in the active catalog.
+                  Remaining visible badges in the active catalog. Surprise badges appear after they are earned.
                 </p>
               </div>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

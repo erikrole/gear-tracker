@@ -57,9 +57,12 @@ Sources preserved for implementation:
    dedupe key. Duplicate event handling is a no-op, not an error.
 7. **Progressive slices.** Each slice must be mergeable, testable, and
    doc-synced on its own.
-8. **Restrained UI.** Badges are a profile-tab recognition layer, not a top
-   level app destination and not chrome in the profile hero.
-9. **Fail loud in dev, fail safe in prod.** `safeCall` swallows errors only in
+8. **Restrained UI.** Badges are a profile-tab recognition layer for all users,
+   not a top level app destination and not chrome in the profile hero.
+9. **User-wide recognition.** Staff and admins earn badges too. The table is
+   still legacy-named `StudentBadge`, but product behavior treats it as user
+   awards keyed by `userId`.
+10. **Fail loud in dev, fail safe in prod.** `safeCall` swallows errors only in
    production; tests and dev throw so evaluator bugs are visible.
 
 ---
@@ -234,7 +237,7 @@ value: true
 ```
 
 This is the single switch that decides whether non-staff peers can see another
-student's badges tab. Default true; staff can flip it off without code changes.
+user's badges tab. Default true; staff can flip it off without code changes.
 Shipping it now avoids a slice-4 migration.
 
 Decisions baked into v4:
@@ -312,15 +315,16 @@ Ship 20 starter definitions, seeded idempotently by `key` from `prisma/seed.mjs`
 
 Badges should feel like lightweight recognition inside an ops app.
 
-- Add a `Badges` tab to `/users/{id}` for students. `/profile` already redirects
-  there, so do not build a separate profile badge page.
+- Add a `Badges` tab to `/users/{id}` for students, staff, and admins.
+  `/profile` already redirects there, so do not build a separate profile badge
+  page.
 - The profile **hero is operational** — overdue, owed gear, status. No badge
   count, no recognition chrome. The count is visible only inside the badges
   tab. This avoids diluting ops signal with achievement signal.
 - Visibility rules:
-  - Staff can always see any student's badges tab.
-  - Students can see their own badges tab via the `/profile` redirect.
-  - Peer visibility (student viewing another student's tab) is gated by the
+  - Staff/admin can always see any user's badges tab.
+  - Users can see their own badges tab via the `/profile` redirect.
+  - Peer visibility (one user viewing another user's tab) is gated by the
     `SystemConfig` key `badges.peerVisible`, default true.
 - The badge grid uses shadcn primitives. Each earned badge shows icon, name,
   one-line description, and earned date. Locked badges are muted.
@@ -332,7 +336,7 @@ Badges should feel like lightweight recognition inside an ops app.
   after Audit). Not added to the sidebar.
 - Award notifications are persistent inbox entries (no toast), respecting
   `User.notificationPrefs`. Extend the JSON shape with a `badges` preference key
-  so students can mute badge notifications specifically. The notification links to
+  so users can mute badge notifications specifically. The notification links to
   `/users/{userId}?tab=badges`. APNs push is a v2 follow-up — explicitly
   deferred, not "out of scope".
 - No top-level sidebar item for badges.
@@ -404,14 +408,14 @@ Slice 3 implementation notes:
 - [x] Add `GET /api/badges` (catalog).
 - [x] Add `GET /api/badges/user/[userId]` with visibility check
   (self / staff / `SystemConfig["badges.peerVisible"] === true`).
-- [x] Add student-only `Badges` tab to `/users/{id}`.
+- [x] Add user-wide `Badges` tab to `/users/{id}`.
 - [x] Keep `/profile` as redirect-only.
 - [x] Profile badge load uses a single query joining definition rows; no N+1.
 - [x] Update `docs/AREA_BADGES.md`.
 
 Slice 4 implementation notes:
-- `/api/badges/user/[userId]` only serves student badge profiles. It allows
-  self and staff/admin access, and allows peer student access only while
+- `/api/badges/user/[userId]` serves badge profiles for any user role. It
+  allows self and staff/admin access, and allows peer comparison only while
   `SystemConfig["badges.peerVisible"]` is not `false`.
 - With `BADGES_ENABLED` off, badge APIs return disabled/empty payloads before
   user, config, definition, or award queries. This preserves the zero badge-query
@@ -445,6 +449,7 @@ Slice 5 implementation notes:
 - Award notifications use `Notification.payload.href` for the profile badge tab
   destination and respect `notificationPrefs.badges`, defaulting old preference
   shapes to enabled.
+- Manual awards can target any active user, including staff and admins.
 
 ### Slice 6: Shift attendance badges
 
@@ -475,7 +480,7 @@ Slice 7 implementation notes:
 - The staff analytics surface is live as `/reports/badges`, added after Audit in
   the shared report tab list. It remains outside top-level navigation.
 - The report includes total awards, 30-day award volume, active definition count,
-  manual award count, student leaderboard, badge distribution, recent awards,
+  manual award count, user leaderboard, badge distribution, recent awards,
   and CSV export.
 - Badge evaluator transactions now run at Serializable isolation with one retry
   for Prisma `P2034` write conflicts. Duplicate source-key retries re-read the
@@ -512,8 +517,10 @@ Slice 7 implementation notes:
 - [x] Deactivated users keep historical badges.
 - [x] Inactive definitions are hidden from discovery UI but historical awards
   still display.
-- [x] Student profile badge grid uses shadcn primitives; the hero shows no
+- [x] User profile badge grid uses shadcn primitives; the hero shows no
   badge count or chrome.
+- [x] Staff and admins can earn, view, and compare badges on the same profile
+  tab surface as students.
 - [x] Peer visibility respects `SystemConfig` key `badges.peerVisible`.
 - [x] `/reports/badges` follows existing report layout patterns and appears as
   the 7th entry in `REPORT_SECTIONS`.

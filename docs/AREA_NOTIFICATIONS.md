@@ -61,7 +61,7 @@ Implementation: `src/lib/services/notifications.ts`
 
 | Event | Type | Recipient | Channels |
 |---|---|---|---|
-| Manual badge awarded by admin | `badge_awarded` | Awarded student | In-app |
+| Manual badge awarded by admin | `badge_awarded` | Awarded user | In-app |
 
 - Persistent inbox only. No toast fanout, email, APNs, or push in this slice.
 - Link target comes from `payload.href` and points to `/users/{userId}?tab=badges`.
@@ -196,7 +196,7 @@ Current behavior:
 
 ## Change Log
 - 2026-05-09: Web notification-center UI polish. `/notifications` now reads as an action inbox with unread/read/total summary metrics, a clearer filter toolbar, role-gated overdue processing, explicit refresh, notification type badges, stronger unread/read row treatment, and destination actions that name the target surface without changing notification delivery or API contracts.
-- 2026-05-09: Badge award notifications shipped for manual badge awards. Admin awards create persistent inbox rows linked to the student's badges tab, and delivery respects `notificationPrefs.badges` while keeping push and toast fanout deferred.
+- 2026-05-09: Badge award notifications shipped for manual badge awards. Admin awards create persistent inbox rows linked to the awarded user's badges tab, and delivery respects `notificationPrefs.badges` while keeping push and toast fanout deferred.
 - 2026-05-08: API hardening Wave 13. Notification count polling is now actor-rate-limited and uses short private caching.
 - 2026-05-08: API hardening Wave 6. Cron routes now share `withCron()` for timing-safe `CRON_SECRET` bearer validation instead of each endpoint carrying its own auth comparison.
 - 2026-05-08: API hardening Wave 5. Shift gear-up nudges now validate active future assignments and apply layered rate limits per actor, target assignment, and recipient before creating notification/audit rows. Focused tests cover student denial, inactive assignment rejection, and rate-limit enforcement.

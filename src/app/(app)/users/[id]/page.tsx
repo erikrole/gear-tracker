@@ -57,6 +57,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Award, AlertCircle, Briefcase, CalendarDays, CameraIcon, ChevronDown, Copy, GraduationCap, KeyRound, Shield, TrashIcon, UserRound } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
+import { badgeRarityVariant, getBadgeRarity, manualAwardGuidance } from "@/lib/badges/display";
 import { formatDateFull } from "@/lib/format";
 import { FadeUp } from "@/components/ui/motion";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
@@ -71,6 +72,9 @@ type BadgeDefinitionOption = {
   name: string;
   description: string;
   category: string;
+  kind: string;
+  trigger: string;
+  threshold: number | null;
 };
 
 const tabDefs: Array<{ key: TabKey; label: string }> = [
@@ -192,7 +196,7 @@ export default function UserDetailPage() {
   }
 
   useEffect(() => {
-    if (user && user.role !== "STUDENT" && (activeTab === "availability" || activeTab === "badges")) {
+    if (user && user.role !== "STUDENT" && activeTab === "availability") {
       switchTab("info");
     }
   }, [activeTab, user]);
@@ -416,7 +420,12 @@ export default function UserDetailPage() {
   const profile = effectiveUser ?? user;
   const availableTabs = profile.role === "STUDENT"
     ? tabDefs
-    : tabDefs.filter((tab) => tab.key !== "availability" && tab.key !== "badges");
+    : tabDefs.filter((tab) => tab.key !== "availability");
+  const selectedAwardDefinition =
+    awardDefinitions?.find((definition) => definition.id === selectedAwardDefinitionId) ?? null;
+  const selectedAwardRarity = selectedAwardDefinition
+    ? getBadgeRarity(selectedAwardDefinition)
+    : null;
 
   return (
     <FadeUp>
@@ -554,7 +563,7 @@ export default function UserDetailPage() {
             {profile.active === false && (
               <Badge variant="outline" className="text-muted-foreground">Inactive</Badge>
             )}
-            {currentUserRole === "ADMIN" && !isSelf && (
+            {currentUserRole === "ADMIN" && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="gap-1.5" disabled={togglingActive}>
@@ -564,21 +573,23 @@ export default function UserDetailPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={toggleActive} disabled={togglingActive}>
-                    {togglingActive
-                      ? "Updating status..."
-                      : profile.active !== false ? "Deactivate user" : "Activate user"}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setResetPwDialog(true)}>
-                    <KeyRound className="mr-2 size-4" />
-                    Reset password
-                  </DropdownMenuItem>
-                  {profile.role === "STUDENT" && (
-                    <DropdownMenuItem onClick={openManualAwardDialog}>
-                      <Award className="mr-2 size-4" />
-                      Award badge
-                    </DropdownMenuItem>
+                  {!isSelf && (
+                    <>
+                      <DropdownMenuItem onClick={toggleActive} disabled={togglingActive}>
+                        {togglingActive
+                          ? "Updating status..."
+                          : profile.active !== false ? "Deactivate user" : "Activate user"}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setResetPwDialog(true)}>
+                        <KeyRound className="mr-2 size-4" />
+                        Reset password
+                      </DropdownMenuItem>
+                    </>
                   )}
+                  <DropdownMenuItem onClick={openManualAwardDialog}>
+                    <Award className="mr-2 size-4" />
+                    Award badge
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -671,6 +682,19 @@ export default function UserDetailPage() {
                   No active manual-awardable badges are available.
                 </p>
               )}
+              {selectedAwardDefinition && selectedAwardRarity && (
+                <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+                  <div className="mb-1 flex flex-wrap items-center gap-2">
+                    <Badge variant={badgeRarityVariant(selectedAwardRarity)} size="sm">
+                      {selectedAwardRarity}
+                    </Badge>
+                    <span className="font-medium text-foreground">{selectedAwardDefinition.name}</span>
+                  </div>
+                  <p className="text-muted-foreground">
+                    {manualAwardGuidance[selectedAwardDefinition.key] ?? selectedAwardDefinition.description}
+                  </p>
+                </div>
+              )}
             </div>
             <div className="flex flex-col gap-2">
               <label htmlFor="badge-note" className="text-sm font-medium">
@@ -741,7 +765,7 @@ export default function UserDetailPage() {
         <UserAvailabilityTab userId={user.id} canEdit={canEdit} />
       )}
 
-      {activeTab === "badges" && profile.role === "STUDENT" && (
+      {activeTab === "badges" && (
         <UserBadgesTab key={badgesTabRevision} userId={user.id} />
       )}
     </FadeUp>

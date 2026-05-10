@@ -94,7 +94,7 @@ function sourceVariant(source: RecentBadgeAward["source"]): BadgeProps["variant"
 
 function downloadCsv(data: BadgeReportData) {
   downloadReportCsv("badges-report", [
-    ["Awarded At", "Student", "Badge", "Category", "Source", "Awarded By", "Note"],
+    ["Awarded At", "User", "Badge", "Category", "Source", "Awarded By", "Note"],
     ...data.recentAwards.map((award) => [
       award.awardedAt,
       award.user.name,
@@ -203,13 +203,13 @@ export default function BadgeReportPage() {
                 compact
                 icon="users"
                 title="No badge leaders yet"
-                description="Students appear here after badges are awarded."
+                description="Users appear here after badges are awarded."
               />
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Student</TableHead>
+                    <TableHead>User</TableHead>
                     <TableHead className="text-right">Awards</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -297,7 +297,7 @@ export default function BadgeReportPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Student</TableHead>
+                      <TableHead>User</TableHead>
                       <TableHead>Badge</TableHead>
                       <TableHead>Source</TableHead>
                       <TableHead>Awarded</TableHead>
@@ -350,7 +350,7 @@ export default function BadgeReportPage() {
         <ReportSectionCard title="Operational notes">
           <div className="flex flex-col gap-2 text-sm text-muted-foreground">
             <ReportListRow className="min-h-0 px-0 py-2">
-              <span>Primary student experience</span>
+              <span>Primary profile experience</span>
               <Link href="/users" className="font-medium text-foreground underline-offset-4 hover:underline">
                 User profile badges tab
               </Link>
