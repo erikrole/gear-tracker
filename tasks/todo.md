@@ -44,6 +44,12 @@ Last updated: 2026-05-09
 
 ## Open Items
 
+### Protected App Console Cleanup (2026-05-09)
+- [x] **Production console diagnosis** — Vercel production logs were clean, but unauthenticated `/reports/badges` browser smoke showed three expected-but-noisy 401 resource errors before redirect.
+- [x] **Server-side app auth gate** — Move the protected `(app)` layout to `requireAuth()` on the server and redirect unauthenticated users to `/login` before client shell APIs mount.
+- [x] **Shell polling guard** — Seed the current-user React Query cache from the server user and only fetch notification/dashboard badge counts after an authenticated user exists.
+- [x] **Verification** — Reran TypeScript, focused auth/API tests, full tests, Prisma validation, migration-prefix check, whitespace check, app build, and browser console smoke.
+
 ### Student Badge Achievements Slice 1 (2026-05-09)
 - [x] **Schema and seed** — Add badge catalog, earned badge, streak tables, user relations, peer-visibility SystemConfig default, and 20 idempotent badge definitions.
 - [x] **Service skeleton** — Add a flag-gated badge service API that returns before evaluator work while disabled.

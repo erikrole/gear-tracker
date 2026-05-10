@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
 import { STATUS_STYLES } from "@/lib/status-styles";
-import { useCurrentUser } from "@/hooks/use-current-user";
+import { type CurrentUser, useCurrentUser } from "@/hooks/use-current-user";
 
 type SearchResult = {
   type: "item" | "checkout" | "reservation" | "user";
@@ -45,10 +45,16 @@ const bottomNavItems = [
   { label: "Lookup", href: "/scan", icon: <ScanIcon className="size-[22px]" /> },
 ];
 
-export default function AppShell({ children }: { children: React.ReactNode }) {
+export default function AppShell({
+  children,
+  initialUser,
+}: {
+  children: React.ReactNode;
+  initialUser?: CurrentUser;
+}) {
   const router = useRouter();
   const pathname = usePathname();
-  const { data: user, isLoading } = useCurrentUser();
+  const { data: user, isLoading } = useCurrentUser(initialUser);
   const [loggingOut, setLoggingOut] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [overdueBadgeCount, setOverdueBadgeCount] = useState(0);
@@ -59,6 +65,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   // Badge counts — refresh on navigation so counts stay fresh after user actions
   useEffect(() => {
+    if (!user) return;
+
     const controller = new AbortController();
     Promise.all([
       fetch("/api/notifications?limit=0&unread=true", { signal: controller.signal }).then((res) => res.ok ? res.json() : null),
@@ -70,7 +78,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }).catch(() => {});
 
     return () => { controller.abort(); };
-  }, [pathname]);
+  }, [pathname, user]);
 
   // Command palette state
   const [cmdOpen, setCmdOpen] = useState(false);

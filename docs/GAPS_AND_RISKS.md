@@ -150,6 +150,7 @@
 ---
 
 ## Change Log
+- 2026-05-09: Protected app console cleanup shipped. Production logs were clean, but unauthenticated protected-route smoke showed client shell 401 fetch noise before redirect. The `(app)` layout now performs server-side `requireAuth()` and redirects to `/login`, while `AppShell` uses server-seeded current-user data and skips notification/dashboard badge polling until a user exists. No new gap opened.
 - 2026-05-09: Badge Achievements shipped behind `BADGES_ENABLED` with schema, service-level kiosk/checkout/scan/trade/manual-award wiring, profile-first UI for all active user roles, profile polish with rarity medallions/manual notes/real supported progress, staff report insight sections, flag-off zero-work guards, Serializable evaluator transactions, Sentry-backed badge evaluator observability, and a fun manual-recognition set. Shift badges remain deferred until attendance/no-show has a real completion signal. The legacy `StudentBadge` model/table name is a known deferred cleanup.
 - 2026-05-08: Turnaround risk guard shipped. Availability checks now surface advisory row-level risk for short handoffs, next-use location transfers, recent damage/lost check-in reports, and tight future bulk bookings without changing hard conflict semantics.
 - 2026-05-08: Future booking context slice shipped. Availability checks now include the next serialized booking after the requested end time, and staff-facing equipment rows show exact "Back before" timing so valid same-item reuse does not hide the next morning commitment.

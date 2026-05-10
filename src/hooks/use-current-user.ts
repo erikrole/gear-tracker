@@ -10,7 +10,7 @@ export type CurrentUser = {
   avatarUrl?: string | null;
 };
 
-export function useCurrentUser() {
+export function useCurrentUser(initialUser?: CurrentUser) {
   return useQuery<CurrentUser | null>({
     queryKey: ["me"],
     queryFn: async ({ signal }) => {
@@ -19,6 +19,7 @@ export function useCurrentUser() {
       const json = await res.json();
       return (json?.user ?? null) as CurrentUser | null;
     },
+    initialData: initialUser ?? undefined,
     staleTime: 5 * 60_000,
   });
 }
