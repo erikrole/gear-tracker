@@ -10,6 +10,7 @@ import RoleBadge from "../RoleBadge";
 import UserInfoTab from "./UserInfoTab";
 import UserActivityTab from "./UserActivityTab";
 import UserAvailabilityTab from "./UserAvailabilityTab";
+import UserBadgesTab from "./UserBadgesTab";
 import { toast } from "sonner";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -44,12 +45,13 @@ import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 
 /* ── Tab Definitions ───────────────────────────────────── */
 
-type TabKey = "info" | "activity" | "availability";
+type TabKey = "info" | "activity" | "availability" | "badges";
 
 const tabDefs: Array<{ key: TabKey; label: string }> = [
   { key: "info", label: "Info" },
   { key: "activity", label: "Activity" },
   { key: "availability", label: "Availability" },
+  { key: "badges", label: "Badges" },
 ];
 
 async function resizeAvatarFile(file: File): Promise<File> {
@@ -157,7 +159,7 @@ export default function UserDetailPage() {
   }
 
   useEffect(() => {
-    if (user && user.role !== "STUDENT" && activeTab === "availability") {
+    if (user && user.role !== "STUDENT" && (activeTab === "availability" || activeTab === "badges")) {
       switchTab("info");
     }
   }, [activeTab, user]);
@@ -565,6 +567,10 @@ export default function UserDetailPage() {
 
       {activeTab === "availability" && profile.role === "STUDENT" && (
         <UserAvailabilityTab userId={user.id} canEdit={canEdit} />
+      )}
+
+      {activeTab === "badges" && profile.role === "STUDENT" && (
+        <UserBadgesTab userId={user.id} />
       )}
     </FadeUp>
   );

@@ -5,7 +5,7 @@
 - Owner: Wisconsin Athletics Creative Product
 - Created: 2026-05-09
 - Last Updated: 2026-05-09
-- Status: Active planning, Slices 1-3 shipped with feature flag off
+- Status: Active planning, Slices 1-4 shipped with feature flag off
 - Plan: `tasks/badge-achievements-plan.md`
 - Decision Refs: D-034
 
@@ -44,6 +44,8 @@ Badges are lightweight student recognition inside the existing ops app. They are
 - No top-level nav item.
 - No badge count, chip row, or recognition chrome in the profile hero.
 - The badge tab uses shadcn primitives and keeps earned/locked badges in a compact grid.
+- The badge profile API loads active definitions plus historical earned inactive definitions in one Prisma call that includes the user's award row.
+- With `BADGES_ENABLED` off, badge APIs return disabled/empty payloads before any badge table query. This keeps un-migrated local or preview databases from failing on badge UI routes.
 - `/reports/badges` is staff analytics only and follows existing report layout patterns.
 - Manual awards launch from the existing user admin actions menu, not from permanent hero chrome.
 - Award notifications are persistent inbox entries that link to `/users/{userId}?tab=badges`.
@@ -67,8 +69,8 @@ Badges are lightweight student recognition inside the existing ops app. They are
 - [x] Legacy app scan stub remains 403 and awards nothing.
 - [ ] Trade badges award once per completed trade status flip.
 - [ ] Shift badges do not award from request approval.
-- [ ] Student profile badge grid uses shadcn primitives and does not crowd the hero.
-- [ ] Peer visibility respects `SystemConfig["badges.peerVisible"]`.
+- [x] Student profile badge grid uses shadcn primitives and does not crowd the hero.
+- [x] Peer visibility respects `SystemConfig["badges.peerVisible"]`.
 - [ ] `/reports/badges` follows existing report layout patterns.
 
 ## Rollout
@@ -80,6 +82,7 @@ Badges are lightweight student recognition inside the existing ops app. They are
 ## Change Log
 | Date | Change |
 |---|---|
+| 2026-05-09 | Slice 4 shipped the badge catalog API, user badge profile API with self/staff/peer-visibility checks, and a restrained `Badges` tab on student `/users/{id}` pages. Badge APIs now short-circuit to disabled/empty payloads while `BADGES_ENABLED` is off, `/profile` remains a redirect to user detail, and the profile hero remains badge-free. |
 | 2026-05-09 | Slice 3 shipped kiosk scan badge events. Kiosk direct checkout, pickup, and check-in scans now emit feature-flagged scan success/failure events; successful scans count toward scan badges, failed scans reset the clean-scan streak, and legacy app scan stubs remain non-events. |
 | 2026-05-09 | Slice 2 shipped checkout-opened and checkout-returned badge evaluation. Kiosk direct checkout and kiosk pickup now emit opened events after audit success; checkout completion emits returned events from `markCheckoutCompleted`, partial serialized auto-complete, bulk auto-complete, and kiosk check-in auto-complete. |
 | 2026-05-09 | Slice 1 shipped with schema, migration artifact, seed definitions, feature-flagged service skeleton, observability stub, and flag-off contract test. Route wiring remains deferred. |

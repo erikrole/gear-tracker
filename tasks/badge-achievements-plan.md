@@ -401,13 +401,26 @@ Slice 3 implementation notes:
 
 ### Slice 4: Profile API and profile UI
 
-- [ ] Add `GET /api/badges` (catalog).
-- [ ] Add `GET /api/badges/user/[userId]` with visibility check
+- [x] Add `GET /api/badges` (catalog).
+- [x] Add `GET /api/badges/user/[userId]` with visibility check
   (self / staff / `SystemConfig["badges.peerVisible"] === true`).
-- [ ] Add student-only `Badges` tab to `/users/{id}`.
-- [ ] Keep `/profile` as redirect-only.
-- [ ] Profile badge load uses a single query joining definition rows; no N+1.
-- [ ] Update `docs/AREA_BADGES.md`.
+- [x] Add student-only `Badges` tab to `/users/{id}`.
+- [x] Keep `/profile` as redirect-only.
+- [x] Profile badge load uses a single query joining definition rows; no N+1.
+- [x] Update `docs/AREA_BADGES.md`.
+
+Slice 4 implementation notes:
+- `/api/badges/user/[userId]` only serves student badge profiles. It allows
+  self and staff/admin access, and allows peer student access only while
+  `SystemConfig["badges.peerVisible"]` is not `false`.
+- With `BADGES_ENABLED` off, badge APIs return disabled/empty payloads before
+  user, config, definition, or award queries. This preserves the zero badge-query
+  rollback path and keeps un-migrated local/preview databases from failing when
+  the profile tab renders.
+- The profile tab fetches one badge profile payload that includes active
+  definitions and historical earned inactive definitions. The profile hero
+  remains unchanged and badge-free.
+- Existing `/profile` behavior remains a redirect to `/users/{currentUserId}`.
 
 ### Slice 5: Trade badges and manual awards
 
@@ -471,12 +484,12 @@ Slice 3 implementation notes:
   came from `claimTrade` or `approveTrade`.
 - [ ] Shift badges do not award on request approval.
 - [ ] Manual awards persist `awardedById` and an optional `note`.
-- [ ] Deactivated users keep historical badges.
-- [ ] Inactive definitions are hidden from discovery UI but historical awards
+- [x] Deactivated users keep historical badges.
+- [x] Inactive definitions are hidden from discovery UI but historical awards
   still display.
-- [ ] Student profile badge grid uses shadcn primitives; the hero shows no
+- [x] Student profile badge grid uses shadcn primitives; the hero shows no
   badge count or chrome.
-- [ ] Peer visibility respects `SystemConfig` key `badges.peerVisible`.
+- [x] Peer visibility respects `SystemConfig` key `badges.peerVisible`.
 - [ ] `/reports/badges` follows existing report layout patterns and appears as
   the 7th entry in `REPORT_SECTIONS`.
 - [ ] Award notifications use the persistent inbox channel and respect
@@ -494,6 +507,7 @@ Run these per slice as applicable:
 - [ ] `npm run lint`
 - [x] `npm test` (Vitest — badge evaluator, checkout, scan, trade, UI API)
 - [x] Slice 3 focused tests: `npm test -- tests/badge-evaluator.test.ts tests/badges-service.test.ts tests/kiosk-bulk-detail-routes.test.ts tests/kiosk-checkout-scan-badges.test.ts tests/scan-route-gate-contract.test.ts`
+- [x] Slice 4 focused tests: `npm test -- tests/badges-routes.test.ts tests/badges-service.test.ts`
 - [ ] Concurrency test: two parallel calls for the same `(userId, sourceKey)`
   award exactly one badge and bump streak by exactly one.
 - [ ] Flag-off snapshot test: `BADGES_ENABLED=false` produces zero Prisma

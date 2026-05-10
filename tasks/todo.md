@@ -62,6 +62,13 @@ Last updated: 2026-05-09
 - [x] **Legacy contract** — Keep regular app scan stubs kiosk-gated 403 routes that award no badges.
 - [x] **Verification** — `npx prisma validate`, `npm run db:migrate:check`, focused badge/scan route tests, full `npm test`, `npx tsc --noEmit`, `git diff --check`, and `npx next build` passed. XcodeBuildMCP could not run an iOS simulator build because this session has no configured project/scheme defaults and this checkout exposes no `.xcodeproj`, `.xcworkspace`, or `Package.swift`.
 
+### Student Badge Achievements Slice 4 (2026-05-09)
+- [x] **Badge APIs** — Add active catalog and user badge profile endpoints with self/staff/peer visibility rules.
+- [x] **Profile tab** — Add a student-only `Badges` tab on `/users/{id}` using shadcn primitives, with no badge chrome in the profile hero.
+- [x] **Historical display** — Hide inactive definitions from discovery while still showing earned historical inactive awards.
+- [x] **Flag-off path** — Badge APIs return disabled/empty payloads before badge table queries while `BADGES_ENABLED` is off.
+- [x] **Verification** — `npx prisma validate`, `npm run db:migrate:check`, focused badge API tests, full `npm test`, `npx tsc --noEmit`, `git diff --check`, `npx next build`, and authenticated browser smoke on `/users/{id}?tab=badges` passed.
+
 ### Labels UI Polish (2026-05-09)
 - [x] **Print queue framing** — Add header context, matching/selected/ready metrics, and an Items escape link without changing browser-print output.
 - [x] **Selector cleanup** — Replace the raw checklist with a searchable queue, selected count badge, accessible checkbox labels, and filtered-empty recovery.
