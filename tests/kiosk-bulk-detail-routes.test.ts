@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   createAuditEntry: vi.fn(),
   findAssetByScanValue: vi.fn(),
   scanKioskPickupBulkUnit: vi.fn(),
+  badgeOnScanResult: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -53,6 +54,13 @@ vi.mock("@/lib/services/kiosk-scan", () => ({
 
 vi.mock("@/lib/services/bulk-unit-scans", () => ({
   scanKioskPickupBulkUnit: mocks.scanKioskPickupBulkUnit,
+}));
+
+vi.mock("@/lib/badges", () => ({
+  badges: {
+    onScanResult: mocks.badgeOnScanResult,
+    onCheckoutOpened: vi.fn(),
+  },
 }));
 
 import { GET as getKioskCheckoutDetail } from "@/app/api/kiosk/checkout/[id]/route";
@@ -192,6 +200,13 @@ describe("kiosk pickup serialized scan guard", () => {
         assetId: "asset-1",
         deviceContext: "vitest-kiosk",
       },
+    });
+    expect(mocks.badgeOnScanResult).toHaveBeenCalledWith({
+      userId: "user-1",
+      bookingId: "booking-1",
+      phase: "pickup",
+      ok: true,
+      sourceKey: "scan-1",
     });
   });
 

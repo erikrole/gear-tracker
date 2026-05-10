@@ -27,7 +27,7 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-import { onCheckoutOpened, onCheckoutReturned } from "@/lib/badges/evaluator";
+import { onCheckoutOpened, onCheckoutReturned, onScanResult } from "@/lib/badges/evaluator";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -153,6 +153,96 @@ describe("badge evaluator checkout events", () => {
         update: expect.objectContaining({
           current: 0,
           lastSourceKey: "booking-1",
+        }),
+      }),
+    );
+    expect(mockTx.studentBadge.createMany).not.toHaveBeenCalled();
+  });
+
+  it("awards scan count and clean-scan rule badges on successful scans", async () => {
+    mockTx.badgeStreak.findUnique
+      .mockResolvedValueOnce({
+        current: 24,
+        longest: 24,
+        lastSourceKey: "older-scan",
+      })
+      .mockResolvedValueOnce({
+        current: 9,
+        longest: 9,
+        lastSourceKey: "older-scan",
+      });
+    mockTx.badgeDefinition.findMany
+      .mockResolvedValueOnce([{ id: "scan-25" }])
+      .mockResolvedValueOnce([{ id: "zero-errors" }]);
+
+    await onScanResult({
+      userId: "user-1",
+      bookingId: "booking-1",
+      phase: "pickup",
+      ok: true,
+      sourceKey: "scan-event-1",
+    });
+
+    expect(mockTx.badgeStreak.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId_streakType: {
+            userId: "user-1",
+            streakType: BadgeStreakType.SCAN_SUCCESS_COUNT,
+          },
+        },
+        update: expect.objectContaining({
+          current: 25,
+          longest: 25,
+          lastSourceKey: "scan-event-1",
+        }),
+      }),
+    );
+    expect(mockTx.badgeStreak.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId_streakType: {
+            userId: "user-1",
+            streakType: BadgeStreakType.SCAN_CLEAN,
+          },
+        },
+        update: expect.objectContaining({
+          current: 10,
+          longest: 10,
+          lastSourceKey: "scan-event-1",
+        }),
+      }),
+    );
+    expect(mockTx.studentBadge.createMany).toHaveBeenCalledTimes(2);
+  });
+
+  it("resets the clean-scan streak on failed scans", async () => {
+    mockTx.badgeStreak.findUnique.mockResolvedValue({
+      current: 4,
+      longest: 8,
+      lastSourceKey: "older-scan",
+    });
+
+    await onScanResult({
+      userId: "user-1",
+      bookingId: "booking-1",
+      phase: "checkin",
+      ok: false,
+      errorCode: "not_in_booking",
+      sourceKey: "checkin:booking-1:bad:not_in_booking",
+    });
+
+    expect(mockTx.badgeStreak.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId_streakType: {
+            userId: "user-1",
+            streakType: BadgeStreakType.SCAN_CLEAN,
+          },
+        },
+        update: expect.objectContaining({
+          current: 0,
+          lastSourceKey: "checkin:booking-1:bad:not_in_booking",
         }),
       }),
     );

@@ -4,7 +4,7 @@
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Status: Shipped — iOS canonical (web kiosk deprecated 2026-04-24)
 - Created: 2026-04-07
-- Last Updated: 2026-05-06
+- Last Updated: 2026-05-09
 - Brief: `BRIEF_KIOSK.md`
 - Decision Refs: D-030
 
@@ -104,3 +104,4 @@ Files under `ios/Wisconsin/Kiosk/`:
 | 2026-05-08 | API hardening Wave 13: kiosk sessions now expire after 7 days, heartbeat is capped to 1/min/device, and student lookup is rate-limited per kiosk/IP plus per student. |
 | 2026-05-08 | Pickup integrity hardening: serialized pickup scans now write scan evidence, pickup confirmation blocks until all serialized assets have successful checkout scans, and serial-number scanner input is accepted. |
 | 2026-05-09 | Badge achievements Slice 2: kiosk direct checkout and pickup confirmation now emit feature-flagged checkout-opened badge events after audit success. With `BADGES_ENABLED` off, these calls return before evaluator work or badge queries. |
+| 2026-05-09 | Badge achievements Slice 3: kiosk checkout, pickup, and check-in scan routes now emit feature-flagged scan-result badge events. Native checkout scan requests include the selected student `actorId`; older clients without `actorId` keep scanning without badge attribution. |

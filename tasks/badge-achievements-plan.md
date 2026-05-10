@@ -379,15 +379,25 @@ Badges should feel like lightweight recognition inside an ops app.
 
 ### Slice 3: Kiosk scan badges
 
-- [ ] Wire `onScanResult` from kiosk checkout scan, pickup scan, and check-in
+- [x] Wire `onScanResult` from kiosk checkout scan, pickup scan, and check-in
   scan routes.
-- [ ] Add `BadgeScanErrorCode` in `src/lib/badges/types.ts` and map each
+- [x] Add `BadgeScanErrorCode` in `src/lib/badges/types.ts` and map each
   route's success/failure outcome into that stable enum so analytics are stable.
-- [ ] `zero_errors` rule increments on `ok=true`, resets on `ok=false`. Streak
+- [x] `zero_errors` rule increments on `ok=true`, resets on `ok=false`. Streak
   increment is keyed on the scan source-key rule defined above.
-- [ ] Confirm legacy app scan stub remains 403 and awards nothing.
-- [ ] Update `docs/AREA_BADGES.md` and cross-reference `docs/AREA_SCAN.md` if
+- [x] Confirm legacy app scan stub remains 403 and awards nothing.
+- [x] Update `docs/AREA_BADGES.md` and cross-reference `docs/AREA_SCAN.md` if
   the scan contract changes.
+
+Slice 3 implementation notes:
+- Direct checkout scans now accept optional `actorId`. The native kiosk checkout
+  flow sends the selected student id, while older clients without `actorId`
+  preserve scan behavior without badge attribution.
+- Pickup and check-in scans attribute to the booking requester. Serialized
+  successful scans use `ScanEvent.id` as `sourceKey`; deterministic source keys
+  cover bulk scans and failed attempts.
+- `BadgeStreakType.SCAN_SUCCESS_COUNT` tracks lifetime successful scan counts
+  separately from `SCAN_CLEAN`, which resets on failed scans.
 
 ### Slice 4: Profile API and profile UI
 
@@ -453,10 +463,10 @@ Badges should feel like lightweight recognition inside an ops app.
 - [x] On-time computation uses 15-minute grace and UTC comparison.
 - [x] Auto-completion via partial serialized or bulk check-in awards return
   badges exactly once.
-- [ ] Kiosk scan successes count toward scan badges; the streak is keyed on
+- [x] Kiosk scan successes count toward scan badges; the streak is keyed on
   the deterministic source key so retries do not double-bump.
-- [ ] Kiosk scan failures reset the `zero_errors` rule state.
-- [ ] Legacy app checkout scan stub remains 403 and awards no badges.
+- [x] Kiosk scan failures reset the `zero_errors` rule state.
+- [x] Legacy app checkout scan stub remains 403 and awards no badges.
 - [ ] Trade badges award once per status flip, regardless of whether the flip
   came from `claimTrade` or `approveTrade`.
 - [ ] Shift badges do not award on request approval.
@@ -483,6 +493,7 @@ Run these per slice as applicable:
 - [ ] `npm run db:migrate:status` (blocked by Prisma Schema engine error against the configured Neon database, including after read-only network escalation)
 - [ ] `npm run lint`
 - [x] `npm test` (Vitest — badge evaluator, checkout, scan, trade, UI API)
+- [x] Slice 3 focused tests: `npm test -- tests/badge-evaluator.test.ts tests/badges-service.test.ts tests/kiosk-bulk-detail-routes.test.ts tests/kiosk-checkout-scan-badges.test.ts tests/scan-route-gate-contract.test.ts`
 - [ ] Concurrency test: two parallel calls for the same `(userId, sourceKey)`
   award exactly one badge and bump streak by exactly one.
 - [ ] Flag-off snapshot test: `BADGES_ENABLED=false` produces zero Prisma
@@ -490,6 +501,7 @@ Run these per slice as applicable:
 - [x] `npx tsc --noEmit`
 - [x] `npx next build` (used for Slice 1 because `npm run build` runs
   `prisma migrate deploy && next build`, which would apply the new migration to the configured Neon database)
+- [ ] iOS simulator build (blocked for Slice 3: XcodeBuildMCP has no configured project/scheme defaults in this session, and this checkout exposes no `.xcodeproj`, `.xcworkspace`, or `Package.swift`)
 - [ ] `npm run lint` (blocked: `next lint` is deprecated and opens an interactive ESLint setup prompt)
 - [ ] Manual or browser smoke for `/users/{id}?tab=badges` and
   `/reports/badges` after UI slices.

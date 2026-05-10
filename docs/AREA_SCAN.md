@@ -62,6 +62,7 @@ src/components/
 
 | Date | Change |
 |---|---|
+| 2026-05-09 | Badge achievements Slice 3: kiosk checkout, pickup, and check-in scans now emit feature-flagged badge scan-result events from the kiosk routes only. Regular app checkout/check-in scan stubs remain kiosk-gated 403 routes and award nothing. |
 | 2026-05-08 | Reconciled stale scan endpoint rate-limit TODO: regular app checkout/check-in scan routes are kiosk-gated 403 stubs, and a static contract now protects that boundary |
 | 2026-05-07 | Check-in damaged/lost item reports can now include optional photo evidence, and checklist rows show a photo badge when evidence exists |
 | 2026-05-05 | Kiosk battery unit scans: pickup/check-in can scan one numbered battery unit at a time, and kiosk lookup resolves unit QR values to parent SKU and unit status |

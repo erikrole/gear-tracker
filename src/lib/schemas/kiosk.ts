@@ -26,6 +26,7 @@ export type CheckinCompleteBody = z.infer<typeof checkinCompleteBody>;
 
 const scanBody = z.object({
   scanValue: z.string().trim().min(1, "Scan value required"),
+  actorId: cuidish.optional(),
 });
 
 export const checkinScanBody = scanBody;

@@ -258,7 +258,7 @@ struct KioskCheckoutView: View {
 
         Task {
             do {
-                let result = try await KioskAPI.shared.kioskCheckoutScan(scanValue: value)
+                let result = try await KioskAPI.shared.kioskCheckoutScan(actorId: userId, scanValue: value)
                 if result.success, let item = result.item {
                     var updated = cart
                     if !updated.contains(where: { $0.id == item.id }) {

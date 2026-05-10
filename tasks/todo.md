@@ -56,6 +56,12 @@ Last updated: 2026-05-09
 - [x] **Evaluator logic** — Award checkout count, on-time count, and on-time streak badges with `StudentBadge` idempotency and `BadgeStreak.lastSourceKey` dedupe.
 - [x] **Verification** — Focused badge/checkout tests, full `npm test`, `npx tsc --noEmit`, `npx prisma validate`, `npm run db:migrate:check`, `git diff --check`, and `npx next build` passed. `npm run lint` is blocked by the deprecated interactive `next lint` setup prompt.
 
+### Student Badge Achievements Slice 3 (2026-05-09)
+- [x] **Kiosk scan events** — Wire checkout, pickup, and check-in kiosk scan routes to feature-flagged `onScanResult` calls for success and failure outcomes.
+- [x] **Scan streaks** — Add a dedicated scan success counter streak type while keeping clean-scan streak resets separate.
+- [x] **Legacy contract** — Keep regular app scan stubs kiosk-gated 403 routes that award no badges.
+- [x] **Verification** — `npx prisma validate`, `npm run db:migrate:check`, focused badge/scan route tests, full `npm test`, `npx tsc --noEmit`, `git diff --check`, and `npx next build` passed. XcodeBuildMCP could not run an iOS simulator build because this session has no configured project/scheme defaults and this checkout exposes no `.xcodeproj`, `.xcworkspace`, or `Package.swift`.
+
 ### Labels UI Polish (2026-05-09)
 - [x] **Print queue framing** — Add header context, matching/selected/ready metrics, and an Items escape link without changing browser-print output.
 - [x] **Selector cleanup** — Replace the raw checklist with a searchable queue, selected count badge, accessible checkbox labels, and filtered-empty recovery.

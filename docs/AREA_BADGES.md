@@ -5,7 +5,7 @@
 - Owner: Wisconsin Athletics Creative Product
 - Created: 2026-05-09
 - Last Updated: 2026-05-09
-- Status: Active planning, Slice 1 shipped with feature flag off
+- Status: Active planning, Slices 1-3 shipped with feature flag off
 - Plan: `tasks/badge-achievements-plan.md`
 - Decision Refs: D-034
 
@@ -29,14 +29,14 @@ Badges are lightweight student recognition inside the existing ops app. They are
 | `onCheckoutOpened` | `src/app/api/kiosk/checkout/complete/route.ts` after an `OPEN` checkout is created | Complete |
 | `onCheckoutOpened` | `src/app/api/kiosk/pickup/[id]/confirm/route.ts` after `PENDING_PICKUP -> OPEN` | Complete |
 | `onCheckoutReturned` | `src/lib/services/bookings-checkin.ts:markCheckoutCompleted` and `maybeAutoComplete` only when status flips into `COMPLETED` | Complete |
-| `onScanResult` | `src/app/api/kiosk/checkout/scan`, `src/app/api/kiosk/pickup/[id]/scan`, `src/app/api/kiosk/checkin/[id]/scan` | 3 |
+| `onScanResult` | `src/app/api/kiosk/checkout/scan`, `src/app/api/kiosk/pickup/[id]/scan`, `src/app/api/kiosk/checkin/[id]/scan` | Complete |
 | `onTradeCompleted` | `src/lib/services/shift-trades.ts:claimTrade` immediate-complete branch and `approveTrade`, through one transition helper | 5 |
 | `onShiftCompleted` | Deferred until attendance/no-show has a real completion signal | 6 |
 
 ## Data Model
 - `BadgeDefinition`: seeded catalog. Uses immutable `key`, display copy, icon name, category, kind, trigger, threshold, rule key, active flag, and sort order.
 - `StudentBadge`: earned badge row. Unique on `(userId, definitionId)`, supports `AUTO` and `MANUAL`, optional `awardedById`, and optional staff note.
-- `BadgeStreak`: per-user streak state. Unique on `(userId, streakType)` and deduped by `lastSourceKey`.
+- `BadgeStreak`: per-user streak state. Unique on `(userId, streakType)` and deduped by `lastSourceKey`. `SCAN_SUCCESS_COUNT` is the durable scan success counter; `SCAN_CLEAN` is the clean-scan streak that resets on failed scans.
 - `SystemConfig["badges.peerVisible"]`: default `true`; controls student peer visibility for another student's badge tab.
 
 ## UI Direction
@@ -62,9 +62,9 @@ Badges are lightweight student recognition inside the existing ops app. They are
 - [x] Kiosk pickup confirmation awards checkout count badges exactly once for reservations moving into active checkout.
 - [x] Checkout return badges award exactly once when a checkout transitions to `COMPLETED`.
 - [x] On-time computation uses a 15-minute UTC grace window after `booking.endsAt`.
-- [ ] Kiosk scan successes count toward scan badges and retries do not double-bump streaks.
-- [ ] Kiosk scan failures reset the clean-scan streak state.
-- [ ] Legacy app scan stub remains 403 and awards nothing.
+- [x] Kiosk scan successes count toward scan badges and retries do not double-bump streaks.
+- [x] Kiosk scan failures reset the clean-scan streak state.
+- [x] Legacy app scan stub remains 403 and awards nothing.
 - [ ] Trade badges award once per completed trade status flip.
 - [ ] Shift badges do not award from request approval.
 - [ ] Student profile badge grid uses shadcn primitives and does not crowd the hero.
@@ -80,5 +80,6 @@ Badges are lightweight student recognition inside the existing ops app. They are
 ## Change Log
 | Date | Change |
 |---|---|
+| 2026-05-09 | Slice 3 shipped kiosk scan badge events. Kiosk direct checkout, pickup, and check-in scans now emit feature-flagged scan success/failure events; successful scans count toward scan badges, failed scans reset the clean-scan streak, and legacy app scan stubs remain non-events. |
 | 2026-05-09 | Slice 2 shipped checkout-opened and checkout-returned badge evaluation. Kiosk direct checkout and kiosk pickup now emit opened events after audit success; checkout completion emits returned events from `markCheckoutCompleted`, partial serialized auto-complete, bulk auto-complete, and kiosk check-in auto-complete. |
 | 2026-05-09 | Slice 1 shipped with schema, migration artifact, seed definitions, feature-flagged service skeleton, observability stub, and flag-off contract test. Route wiring remains deferred. |

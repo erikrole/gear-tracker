@@ -3,6 +3,8 @@ import { withKiosk } from "@/lib/api";
 import { ok } from "@/lib/http";
 import { findAssetByScanValue } from "@/lib/services/kiosk-scan";
 import { checkoutScanBody } from "@/lib/schemas/kiosk";
+import { badges } from "@/lib/badges";
+import { badgeScanErrorCode, badgeScanSourceKey } from "@/lib/badges/scan";
 
 /**
  * Scan an item for kiosk checkout.
@@ -10,7 +12,25 @@ import { checkoutScanBody } from "@/lib/schemas/kiosk";
  * Does NOT create a booking yet — that happens on complete.
  */
 export const POST = withKiosk(async (req) => {
-  const { scanValue } = checkoutScanBody.parse(await req.json());
+  const { actorId, scanValue } = checkoutScanBody.parse(await req.json());
+
+  async function emitScanResult(args: { ok: boolean; error?: string }) {
+    if (!actorId) return;
+    const errorCode = args.error ? badgeScanErrorCode(args.error) : undefined;
+    await badges.onScanResult({
+      userId: actorId,
+      phase: "checkout",
+      ok: args.ok,
+      errorCode,
+      sourceKey: badgeScanSourceKey({
+        phase: "checkout",
+        userId: actorId,
+        scanValue,
+        ok: args.ok,
+        errorCode,
+      }),
+    });
+  }
 
   const asset = await findAssetByScanValue(scanValue, {
     id: true,
@@ -21,15 +41,20 @@ export const POST = withKiosk(async (req) => {
   });
 
   if (!asset) {
+    await emitScanResult({ ok: false, error: "Item not found" });
     return ok({ success: false, error: "Item not found" });
   }
 
   if (asset.status === "RETIRED") {
-    return ok({ success: false, error: `${asset.assetTag} is retired` });
+    const error = `${asset.assetTag} is retired`;
+    await emitScanResult({ ok: false, error });
+    return ok({ success: false, error });
   }
 
   if (asset.status === "MAINTENANCE") {
-    return ok({ success: false, error: `${asset.assetTag} is in maintenance` });
+    const error = `${asset.assetTag} is in maintenance`;
+    await emitScanResult({ ok: false, error });
+    return ok({ success: false, error });
   }
 
   // Check if already checked out
@@ -49,11 +74,15 @@ export const POST = withKiosk(async (req) => {
   });
 
   if (activeAllocation) {
+    const error = `${asset.assetTag} is checked out by ${activeAllocation.booking.requester.name}`;
+    await emitScanResult({ ok: false, error });
     return ok({
       success: false,
-      error: `${asset.assetTag} is checked out by ${activeAllocation.booking.requester.name}`,
+      error,
     });
   }
+
+  await emitScanResult({ ok: true });
 
   return ok({
     success: true,

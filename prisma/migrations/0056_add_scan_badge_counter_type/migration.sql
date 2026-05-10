@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "BadgeStreakType" ADD VALUE 'SCAN_SUCCESS_COUNT';

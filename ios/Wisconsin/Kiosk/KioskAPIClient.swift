@@ -70,10 +70,10 @@ struct KioskAPI {
 
     // MARK: - Checkout
 
-    func kioskCheckoutScan(scanValue: String) async throws -> KioskScanResult {
-        struct Body: Encodable { let scanValue: String }
+    func kioskCheckoutScan(actorId: String, scanValue: String) async throws -> KioskScanResult {
+        struct Body: Encodable { let actorId: String; let scanValue: String }
         var req = request(path: "/api/kiosk/checkout/scan", method: "POST")
-        req.httpBody = try JSONEncoder().encode(Body(scanValue: scanValue))
+        req.httpBody = try JSONEncoder().encode(Body(actorId: actorId, scanValue: scanValue))
         return try await perform(req)
     }
 

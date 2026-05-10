@@ -105,6 +105,7 @@ enum BadgeSource {
 enum BadgeStreakType {
   ON_TIME_RETURN
   SCAN_CLEAN
+  SCAN_SUCCESS_COUNT
   SHIFT_ATTENDANCE
 }
 

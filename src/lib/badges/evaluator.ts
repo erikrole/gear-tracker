@@ -205,7 +205,52 @@ export async function onCheckoutReturned(event: CheckoutReturnedBadgeEvent): Pro
 }
 
 export async function onScanResult(event: ScanResultBadgeEvent): Promise<void> {
-  void event;
+  const eventAt = new Date();
+
+  await db.$transaction(async (tx) => {
+    if (!event.ok) {
+      await resetStreak(tx, {
+        userId: event.userId,
+        streakType: BadgeStreakType.SCAN_CLEAN,
+        sourceKey: event.sourceKey,
+        eventAt,
+      });
+      return;
+    }
+
+    const scanCount = await incrementStreak(tx, {
+      userId: event.userId,
+      streakType: BadgeStreakType.SCAN_SUCCESS_COUNT,
+      sourceKey: event.sourceKey,
+      eventAt,
+    });
+
+    if (scanCount !== null) {
+      await awardThresholdBadges(tx, {
+        userId: event.userId,
+        category: BadgeCategory.SCAN,
+        trigger: "scan:success",
+        count: scanCount,
+      });
+    }
+
+    const cleanStreak = await incrementStreak(tx, {
+      userId: event.userId,
+      streakType: BadgeStreakType.SCAN_CLEAN,
+      sourceKey: event.sourceKey,
+      eventAt,
+    });
+
+    if (cleanStreak !== null) {
+      await awardThresholdBadges(tx, {
+        userId: event.userId,
+        category: BadgeCategory.SCAN,
+        trigger: "scan:rule",
+        count: cleanStreak,
+        ruleKey: "zero_errors",
+      });
+    }
+  });
 }
 
 export async function onTradeCompleted(event: TradeCompletedBadgeEvent): Promise<void> {

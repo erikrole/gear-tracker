@@ -5,6 +5,8 @@ import { HttpError, ok } from "@/lib/http";
 import { findAssetByScanValue } from "@/lib/services/kiosk-scan";
 import { pickupScanBody } from "@/lib/schemas/kiosk";
 import { scanKioskPickupBulkUnit } from "@/lib/services/bulk-unit-scans";
+import { badges } from "@/lib/badges";
+import { badgeScanErrorCode, badgeScanSourceKey } from "@/lib/badges/scan";
 
 /**
  * Scan an item for kiosk pickup flow.
@@ -12,14 +14,6 @@ import { scanKioskPickupBulkUnit } from "@/lib/services/bulk-unit-scans";
  */
 export const POST = withKiosk<{ id: string }>(async (req, { params }) => {
   const { scanValue } = pickupScanBody.parse(await req.json());
-
-  const bulkResult = await db.$transaction(
-    (tx) => scanKioskPickupBulkUnit(tx, { bookingId: params.id, scanValue }),
-    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-  );
-  if (bulkResult.handled) {
-    return ok(bulkResult);
-  }
 
   const booking = await db.booking.findUnique({
     where: { id: params.id },
@@ -29,6 +23,37 @@ export const POST = withKiosk<{ id: string }>(async (req, { params }) => {
   if (!booking || booking.kind !== "CHECKOUT" || booking.status !== "PENDING_PICKUP") {
     throw new HttpError(404, "Pending pickup not found");
   }
+  const activeBooking = booking;
+
+  async function emitScanResult(args: { ok: boolean; error?: string; sourceKey?: string }) {
+    const errorCode = args.error ? badgeScanErrorCode(args.error) : undefined;
+    await badges.onScanResult({
+      userId: activeBooking.requesterUserId,
+      bookingId: activeBooking.id,
+      phase: "pickup",
+      ok: args.ok,
+      errorCode,
+      sourceKey: args.sourceKey ?? badgeScanSourceKey({
+        phase: "pickup",
+        bookingId: activeBooking.id,
+        scanValue,
+        ok: args.ok,
+        errorCode,
+      }),
+    });
+  }
+
+  const bulkResult = await db.$transaction(
+    (tx) => scanKioskPickupBulkUnit(tx, { bookingId: params.id, scanValue }),
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
+  if (bulkResult.handled) {
+    await emitScanResult({
+      ok: bulkResult.success,
+      error: bulkResult.success ? undefined : bulkResult.error,
+    });
+    return ok(bulkResult);
+  }
 
   const asset = await findAssetByScanValue(scanValue, {
     id: true,
@@ -37,6 +62,7 @@ export const POST = withKiosk<{ id: string }>(async (req, { params }) => {
   });
 
   if (!asset) {
+    await emitScanResult({ ok: false, error: "Item not found" });
     return ok({ success: false, error: "Item not found" });
   }
 
@@ -45,13 +71,15 @@ export const POST = withKiosk<{ id: string }>(async (req, { params }) => {
   });
 
   if (!bookingItem) {
-    return ok({ success: false, error: `${asset.assetTag} is not in this checkout` });
+    const error = `${asset.assetTag} is not in this checkout`;
+    await emitScanResult({ ok: false, error });
+    return ok({ success: false, error });
   }
 
-  await db.scanEvent.create({
+  const event = await db.scanEvent.create({
     data: {
-      bookingId: booking.id,
-      actorUserId: booking.requesterUserId,
+      bookingId: activeBooking.id,
+      actorUserId: activeBooking.requesterUserId,
       scanType: "SERIALIZED",
       scanValue,
       success: true,
@@ -60,6 +88,8 @@ export const POST = withKiosk<{ id: string }>(async (req, { params }) => {
       deviceContext: req.headers.get("user-agent") ?? "kiosk",
     },
   });
+
+  await emitScanResult({ ok: true, sourceKey: event.id });
 
   return ok({
     success: true,
