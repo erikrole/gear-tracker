@@ -1,6 +1,14 @@
 import { db } from "@/lib/db";
 import type { AuthUser } from "@/lib/auth";
 import { HttpError } from "@/lib/http";
+import { normalizePrefs } from "@/lib/services/notification-prefs";
+
+type ManualAwardArgs = {
+  userId: string;
+  definitionId: string;
+  awardedById: string;
+  note?: string;
+};
 
 export async function listActiveBadgeDefinitions() {
   return db.badgeDefinition.findMany({
@@ -95,4 +103,94 @@ export async function getUserBadgeProfile(viewer: AuthUser, userId: string) {
     totalCount: badges.filter((badge) => badge.active).length,
     badges,
   };
+}
+
+export async function awardBadgeManually(args: ManualAwardArgs) {
+  const note = args.note?.trim() || null;
+
+  return db.$transaction(async (tx) => {
+    const [target, definition, existing] = await Promise.all([
+      tx.user.findUnique({
+        where: { id: args.userId },
+        select: {
+          id: true,
+          name: true,
+          role: true,
+          notificationPrefs: true,
+        },
+      }),
+      tx.badgeDefinition.findUnique({
+        where: { id: args.definitionId },
+        select: {
+          id: true,
+          name: true,
+          active: true,
+        },
+      }),
+      tx.studentBadge.findUnique({
+        where: {
+          userId_definitionId: {
+            userId: args.userId,
+            definitionId: args.definitionId,
+          },
+        },
+        select: { id: true },
+      }),
+    ]);
+
+    if (!target || target.role !== "STUDENT") {
+      throw new HttpError(404, "Student not found");
+    }
+    if (!definition || !definition.active) {
+      throw new HttpError(404, "Active badge definition not found");
+    }
+    if (existing) {
+      throw new HttpError(409, "Badge already awarded");
+    }
+
+    const award = await tx.studentBadge.create({
+      data: {
+        userId: args.userId,
+        definitionId: args.definitionId,
+        source: "MANUAL",
+        awardedById: args.awardedById,
+        note,
+      },
+      include: {
+        definition: {
+          select: {
+            id: true,
+            key: true,
+            name: true,
+            description: true,
+            icon: true,
+            category: true,
+          },
+        },
+      },
+    });
+
+    const prefs = normalizePrefs(target.notificationPrefs);
+    if (prefs.badges !== false) {
+      await tx.notification.create({
+        data: {
+          userId: args.userId,
+          type: "badge_awarded",
+          title: "Badge awarded",
+          body: `You earned ${definition.name}.`,
+          payload: {
+            userId: args.userId,
+            badgeDefinitionId: args.definitionId,
+            studentBadgeId: award.id,
+            href: `/users/${args.userId}?tab=badges`,
+          },
+          channel: "IN_APP",
+          sentAt: new Date(),
+          dedupeKey: `badge_awarded_${award.id}`,
+        },
+      });
+    }
+
+    return award;
+  });
 }

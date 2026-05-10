@@ -165,4 +165,5 @@ export const REPORT_SECTIONS = [
   { href: "/reports/bulk-losses", label: "Bulk Losses" },
   { href: "/reports/scans", label: "Scans" },
   { href: "/reports/audit", label: "Audit" },
+  { href: "/reports/badges", label: "Badges" },
 ] as const;

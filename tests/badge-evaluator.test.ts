@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { BadgeStreakType } from "@prisma/client";
+import { BadgeStreakType, Prisma } from "@prisma/client";
 
 const { mockTx } = vi.hoisted(() => ({
   mockTx: {
@@ -17,6 +17,9 @@ const { mockTx } = vi.hoisted(() => ({
       findUnique: vi.fn(),
       upsert: vi.fn(),
     },
+    shiftTrade: {
+      count: vi.fn(),
+    },
   },
 }));
 
@@ -27,7 +30,8 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-import { onCheckoutOpened, onCheckoutReturned, onScanResult } from "@/lib/badges/evaluator";
+import { db } from "@/lib/db";
+import { onCheckoutOpened, onCheckoutReturned, onScanResult, onTradeCompleted } from "@/lib/badges/evaluator";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -63,6 +67,9 @@ describe("badge evaluator checkout events", () => {
         { userId: "user-1", definitionId: "checkout-5" },
       ],
       skipDuplicates: true,
+    });
+    expect(db.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: "Serializable",
     });
   });
 
@@ -246,6 +253,66 @@ describe("badge evaluator checkout events", () => {
         }),
       }),
     );
+    expect(mockTx.studentBadge.createMany).not.toHaveBeenCalled();
+  });
+
+  it("awards trade threshold badges from completed trade count", async () => {
+    mockTx.shiftTrade.count.mockResolvedValue(10);
+    mockTx.badgeDefinition.findMany.mockResolvedValue([{ id: "trade-10" }]);
+
+    await onTradeCompleted({
+      userId: "user-1",
+      tradeId: "trade-1",
+      sourceKey: "trade-1",
+    });
+
+    expect(mockTx.shiftTrade.count).toHaveBeenCalledWith({
+      where: {
+        status: "COMPLETED",
+        OR: [
+          { postedByUserId: "user-1" },
+          { claimedByUserId: "user-1" },
+        ],
+      },
+    });
+    expect(mockTx.studentBadge.createMany).toHaveBeenCalledWith({
+      data: [{ userId: "user-1", definitionId: "trade-10" }],
+      skipDuplicates: true,
+    });
+  });
+
+  it("retries serializable conflicts and no-ops duplicate scan source keys", async () => {
+    vi.mocked(db.$transaction)
+      .mockRejectedValueOnce(
+        new Prisma.PrismaClientKnownRequestError("Serializable conflict", {
+          code: "P2034",
+          clientVersion: "test",
+        }),
+      )
+      .mockImplementationOnce((async (fn: (tx: typeof mockTx) => Promise<unknown>) =>
+        fn(mockTx)) as any);
+    mockTx.badgeStreak.findUnique
+      .mockResolvedValueOnce({
+        current: 1,
+        longest: 1,
+        lastSourceKey: "scan-event-1",
+      })
+      .mockResolvedValueOnce({
+        current: 1,
+        longest: 1,
+        lastSourceKey: "scan-event-1",
+      });
+
+    await onScanResult({
+      userId: "user-1",
+      bookingId: "booking-1",
+      phase: "pickup",
+      ok: true,
+      sourceKey: "scan-event-1",
+    });
+
+    expect(db.$transaction).toHaveBeenCalledTimes(2);
+    expect(mockTx.badgeStreak.upsert).not.toHaveBeenCalled();
     expect(mockTx.studentBadge.createMany).not.toHaveBeenCalled();
   });
 });

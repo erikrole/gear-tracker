@@ -12,11 +12,13 @@ import { db } from "@/lib/db";
 export type NotificationPrefs = {
   pausedUntil: string | null;
   channels: { email: boolean; push: boolean };
+  badges: boolean;
 };
 
 export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   pausedUntil: null,
   channels: { email: true, push: true },
+  badges: true,
 };
 
 /** Defensive parse — old shapes or partial writes fall back to defaults. */
@@ -30,6 +32,7 @@ export function normalizePrefs(raw: unknown): NotificationPrefs {
       email: channels.email === false ? false : true,
       push: channels.push === false ? false : true,
     },
+    badges: r.badges === false ? false : true,
   };
 }
 

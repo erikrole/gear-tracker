@@ -585,6 +585,10 @@ function NotificationRow({
 }
 
 function getNotificationHref(notification: Notification) {
+  if (typeof notification.payload?.href === "string") {
+    return notification.payload.href;
+  }
+
   if (notification.payload?.bookingId) {
     return isReservationNotification(notification)
       ? `/reservations/${notification.payload.bookingId}`
@@ -599,6 +603,10 @@ function getNotificationHref(notification: Notification) {
 }
 
 function getNotificationActionLabel(notification: Notification) {
+  if (notification.type === "badge_awarded") {
+    return "Open badges";
+  }
+
   if (notification.payload?.bookingId) {
     return isReservationNotification(notification)
       ? "Open reservation"

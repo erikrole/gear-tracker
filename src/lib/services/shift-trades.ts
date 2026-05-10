@@ -4,6 +4,7 @@ import { HttpError } from "@/lib/http";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 import { checkTimeConflict } from "@/lib/services/shift-assignments";
 import { sendShiftTradeEmail, type ShiftTradeEmail } from "@/lib/services/shift-trade-emails";
+import { badges } from "@/lib/badges";
 
 /* ── Timezone / class-conflict helpers ──────────────────────────────── */
 
@@ -127,6 +128,7 @@ export async function postTrade(
  */
 export async function claimTrade(tradeId: string, userId: string) {
   const emailJobs: ShiftTradeEmail[] = [];
+  const badgeJobs: Array<Parameters<typeof badges.onTradeCompleted>[0]> = [];
 
   const result = await db.$transaction(async (tx) => {
     const trade = await tx.shiftTrade.findUnique({
@@ -234,6 +236,7 @@ export async function claimTrade(tradeId: string, userId: string) {
         claimedBy: { select: { id: true, name: true } },
       },
     });
+    queueTradeCompletedIfTransitioned(badgeJobs, completed, trade.status);
 
     const title = "Your trade is done";
     const body = `${completed.claimedBy?.name ?? "Someone"} took your ${shift.area} shift for ${eventSummary}.`;
@@ -258,6 +261,7 @@ export async function claimTrade(tradeId: string, userId: string) {
     return completed;
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
+  await Promise.all(badgeJobs.map((event) => badges.onTradeCompleted(event)));
   await sendShiftTradeEmails(emailJobs);
   return result;
 }
@@ -267,6 +271,7 @@ export async function claimTrade(tradeId: string, userId: string) {
  */
 export async function approveTrade(tradeId: string) {
   const emailJobs: ShiftTradeEmail[] = [];
+  const badgeJobs: Array<Parameters<typeof badges.onTradeCompleted>[0]> = [];
 
   const result = await db.$transaction(async (tx) => {
     const trade = await tx.shiftTrade.findUnique({
@@ -295,6 +300,7 @@ export async function approveTrade(tradeId: string) {
       where: { id: tradeId },
       data: { resolvedAt: new Date(), status: "COMPLETED" },
     });
+    queueTradeCompletedIfTransitioned(badgeJobs, updated, trade.status);
 
     const area = trade.shiftAssignment.shift.area;
     const eventSummary = trade.shiftAssignment.shift.shiftGroup?.event?.summary ?? "your shift";
@@ -322,6 +328,7 @@ export async function approveTrade(tradeId: string) {
     return updated;
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
+  await Promise.all(badgeJobs.map((event) => badges.onTradeCompleted(event)));
   await sendShiftTradeEmails(emailJobs);
   return result;
 }
@@ -589,6 +596,27 @@ async function executeSwap(tx: Prisma.TransactionClient, assignmentId: string, t
       conflictNote,
     },
   });
+}
+
+function queueTradeCompletedIfTransitioned(
+  badgeJobs: Array<Parameters<typeof badges.onTradeCompleted>[0]>,
+  trade: { id: string; status: ShiftTradeStatus; postedByUserId: string; claimedByUserId: string | null },
+  prevStatus: ShiftTradeStatus,
+) {
+  if (prevStatus === "COMPLETED" || trade.status !== "COMPLETED") return;
+
+  badgeJobs.push({
+    userId: trade.postedByUserId,
+    tradeId: trade.id,
+    sourceKey: trade.id,
+  });
+  if (trade.claimedByUserId && trade.claimedByUserId !== trade.postedByUserId) {
+    badgeJobs.push({
+      userId: trade.claimedByUserId,
+      tradeId: trade.id,
+      sourceKey: trade.id,
+    });
+  }
 }
 
 async function sendShiftTradeEmails(jobs: ShiftTradeEmail[]) {

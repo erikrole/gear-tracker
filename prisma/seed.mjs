@@ -1,7 +1,11 @@
 import bcrypt from "bcryptjs";
+import { PrismaNeon } from "@prisma/adapter-neon";
 import { BadgeCategory, BadgeKind, PrismaClient, Role } from "@prisma/client";
 
-const prisma = new PrismaClient();
+const connectionString = process.env.DATABASE_URL ?? "";
+const prisma = connectionString.includes(".neon.tech")
+  ? new PrismaClient({ adapter: new PrismaNeon({ connectionString }) })
+  : new PrismaClient();
 
 // Event facilities — marked as home venues for calendar sync
 const homeVenues = [

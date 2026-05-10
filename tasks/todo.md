@@ -69,6 +69,19 @@ Last updated: 2026-05-09
 - [x] **Flag-off path** — Badge APIs return disabled/empty payloads before badge table queries while `BADGES_ENABLED` is off.
 - [x] **Verification** — `npx prisma validate`, `npm run db:migrate:check`, focused badge API tests, full `npm test`, `npx tsc --noEmit`, `git diff --check`, `npx next build`, and authenticated browser smoke on `/users/{id}?tab=badges` passed.
 
+### Student Badge Achievements Slice 5 (2026-05-09)
+- [x] **Trade completion events** — `claimTrade` immediate completion and `approveTrade` now queue trade badge events after the `COMPLETED` transition, awarding both poster and claimer exactly once through badge idempotency.
+- [x] **Manual awards** — Admins can award active badges from the existing user admin actions menu with an optional note. The API persists `source=MANUAL`, `awardedById`, and rejects duplicate awards.
+- [x] **Award notifications** — Manual awards create persistent inbox notifications that link to `/users/{id}?tab=badges` and respect `notificationPrefs.badges`.
+- [x] **Seed fallback** — `prisma/seed.mjs` now uses the Neon adapter when `DATABASE_URL` points at Neon, and `tasks/badge-definitions-neon-seed.sql` is available for badge-only SQL Editor seeding when full `db:seed` is too broad.
+- [x] **Verification** — Focused Slice 5 tests, full `npm test`, `npx prisma validate`, `npm run db:migrate:check`, `git diff --check`, `npx tsc --noEmit`, and `npx next build` passed. Browser smoke on `/users/{student}` verified the Admin actions Award badge dialog and Badges tab render cleanly with no console errors; connected Neon currently has 0 badge definitions until the badge-only seed SQL is run.
+
+### Student Badge Achievements Slice 7 Staff Report (2026-05-09)
+- [x] **Badge report API** — Added `GET /api/reports/badges` behind existing report permissions with aggregate award metrics, leaderboard, distribution, and recent awards.
+- [x] **Report page** — Added `/reports/badges` to the shared Reports tab set after Audit, using existing report primitives and CSV export. It remains staff analytics, not the primary student badge surface.
+- [x] **Badge hardening** — Badge evaluator transactions now use Serializable isolation with one Prisma conflict retry, flag-off service calls perform no badge transaction work, and `captureBadgeError` forwards to Sentry when `SENTRY_DSN` is configured while preserving structured logs.
+- [x] **Verification** — `npm test -- tests/badges-report-route.test.ts`, full `npm test`, `npx tsc --noEmit`, `npx prisma validate`, `npm run db:migrate:check`, `git diff --check`, `npx next build`, and authenticated Chrome DevTools smoke on `/reports/badges` passed with no console errors.
+
 ### Labels UI Polish (2026-05-09)
 - [x] **Print queue framing** — Add header context, matching/selected/ready metrics, and an Items escape link without changing browser-print output.
 - [x] **Selector cleanup** — Replace the raw checklist with a searchable queue, selected count badge, accessible checkbox labels, and filtered-empty recovery.

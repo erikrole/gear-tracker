@@ -8,7 +8,7 @@
 - Version: V1
 
 ## Direction
-Provide staff and admin with analytics dashboards to track checkout/reservation activity, utilization patterns, scan success rates, and audit events. Reports are read-only views gated to ADMIN/STAFF.
+Provide staff and admin with analytics dashboards to track checkout/reservation activity, utilization patterns, scan success rates, badge awards, and audit events. Reports are read-only views gated to ADMIN/STAFF.
 
 ## Core Rules
 1. All reports are ADMIN/STAFF only (enforced on routes and endpoints).
@@ -24,13 +24,14 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - **Behavior:** Redirects to `/reports/utilization`
 
 ### `/reports/layout.tsx`
-- **Layout:** Shared tab navigation bar showing all 6 report types:
+- **Layout:** Shared tab navigation bar showing all 7 report types:
   - Utilization (default)
   - Checkouts
   - Overdue
   - Scans
   - Bulk Losses
   - Audit
+  - Badges
 - **Styling:** Tab buttons with active underline; responsive on mobile
 
 ### `/reports/utilization`
@@ -86,6 +87,13 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - **Filters:** Date range, action type, actor, resource type
 - **Data:** `GET /api/reports/audit?from=...&to=...&action=...&actor=...&resourceType=...`
 
+### `/reports/badges`
+- **Page:** `src/app/(app)/reports/badges/page.tsx`
+- **Type:** Staff analytics for badge recognition, not the primary student experience
+- **Metrics:** Total awards, awards in the past 30 days, active definitions, manual vs automatic awards
+- **Tables:** Student leaderboard, badge distribution, recent awards
+- **Data:** `GET /api/reports/badges`
+
 ## Components
 
 **Shared across reports:**
@@ -117,8 +125,10 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - [x] AC-4: Scans report with device + phase analytics
 - [x] AC-5: Bulk Losses report with SKU tracking
 - [x] AC-6: Audit report with event log viewer (ADMIN only)
+- [x] AC-7: Badge report with leaderboard, distribution, and recent awards
 
 ## Change Log
+- 2026-05-09: Badge report shipped. `/reports/badges` now gives staff/admin read-only analytics for total awards, 30-day award volume, active definitions, manual awards, student leaderboard, badge distribution, and recent awards while keeping `/users/{id}?tab=badges` as the primary student-facing badge surface.
 - 2026-05-09: Reports authenticated browser smoke completed. Chrome DevTools verified seeded-admin rendering for Utilization, Checkouts, Overdue, Bulk Losses, Scans, and Audit; the pass also fixed a Recharts responsive sizing warning centrally in the shared shadcn chart wrapper.
 - 2026-05-09: Focused Reports UI polish slice. Added shared report UI helpers for toolbar rhythm, metric grids, section cards, and loading skeletons; upgraded the Reports header/tab shell; and migrated Utilization, Checkouts, Overdue, Scans, Bulk Losses, and Audit to the shared presentation patterns without changing report APIs or analytics semantics.
 - 2026-05-09: Reports chart polish follow-up. Moved report chart components onto the shared report chart-card wrapper, centralized the chart palette, tightened chart legends and numeric alignment, and fixed utilization breakdown sorting so charts no longer mutate incoming data arrays.

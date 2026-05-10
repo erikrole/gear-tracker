@@ -44,7 +44,14 @@ vi.mock("@/lib/services/shift-trade-emails", () => ({
   sendShiftTradeEmail: vi.fn().mockResolvedValue(true),
 }));
 
+vi.mock("@/lib/badges", () => ({
+  badges: {
+    onTradeCompleted: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
 import { db } from "@/lib/db";
+import { badges } from "@/lib/badges";
 import { checkTimeConflict } from "@/lib/services/shift-assignments";
 import { sendShiftTradeEmail } from "@/lib/services/shift-trade-emails";
 import { postTrade, claimTrade, approveTrade, declineTrade, cancelTrade } from "@/lib/services/shift-trades";
@@ -165,7 +172,7 @@ describe("claimTrade", () => {
     mockTx.shiftAssignment.findUnique.mockResolvedValue({ ...trade.shiftAssignment });
     mockTx.shiftAssignment.update.mockResolvedValue({});
     mockTx.shiftAssignment.create.mockResolvedValue({});
-    mockTx.shiftTrade.update.mockResolvedValue({ ...trade, status: "COMPLETED" });
+    mockTx.shiftTrade.update.mockResolvedValue({ ...trade, claimedByUserId: "claimer-1", status: "COMPLETED" });
 
     await claimTrade(trade.id, "claimer-1");
 
@@ -194,7 +201,7 @@ describe("claimTrade", () => {
     mockTx.shiftAssignment.findUnique.mockResolvedValue({ ...trade.shiftAssignment });
     mockTx.shiftAssignment.update.mockResolvedValue({});
     mockTx.shiftAssignment.create.mockResolvedValue({});
-    mockTx.shiftTrade.update.mockResolvedValue({ ...trade, status: "COMPLETED" });
+    mockTx.shiftTrade.update.mockResolvedValue({ ...trade, claimedByUserId: "claimer-1", status: "COMPLETED" });
 
     await claimTrade(trade.id, "claimer-1");
 
@@ -239,7 +246,7 @@ describe("claimTrade", () => {
     mockTx.shiftAssignment.findUnique.mockResolvedValue({ ...trade.shiftAssignment });
     mockTx.shiftAssignment.update.mockResolvedValue({});
     mockTx.shiftAssignment.create.mockResolvedValue({});
-    mockTx.shiftTrade.update.mockResolvedValue({ ...trade, status: "COMPLETED" });
+    mockTx.shiftTrade.update.mockResolvedValue({ ...trade, claimedByUserId: "claimer-1", status: "COMPLETED" });
 
     await claimTrade(trade.id, "claimer-1");
 
@@ -262,6 +269,16 @@ describe("claimTrade", () => {
         area: "Field",
       })
     );
+    expect(badges.onTradeCompleted).toHaveBeenCalledWith({
+      userId: "poster-1",
+      tradeId: trade.id,
+      sourceKey: trade.id,
+    });
+    expect(badges.onTradeCompleted).toHaveBeenCalledWith({
+      userId: "claimer-1",
+      tradeId: trade.id,
+      sourceKey: trade.id,
+    });
   });
 });
 
@@ -305,6 +322,16 @@ describe("approveTrade", () => {
         area: "Field",
       })
     );
+    expect(badges.onTradeCompleted).toHaveBeenCalledWith({
+      userId: "poster-1",
+      tradeId: trade.id,
+      sourceKey: trade.id,
+    });
+    expect(badges.onTradeCompleted).toHaveBeenCalledWith({
+      userId: "claimer-1",
+      tradeId: trade.id,
+      sourceKey: trade.id,
+    });
   });
 
   it("throws 400 when trade is not CLAIMED", async () => {

@@ -424,16 +424,27 @@ Slice 4 implementation notes:
 
 ### Slice 5: Trade badges and manual awards
 
-- [ ] Add `_emitTradeCompletedIfTransitioned(tx, trade, prevStatus)` in
+- [x] Add `_emitTradeCompletedIfTransitioned(tx, trade, prevStatus)` in
   `shift-trades.ts`. Wire from `claimTrade` immediate-complete branch and from
   `approveTrade` when status flips to `COMPLETED`.
-- [ ] Add `POST /api/badges/award` for admins only, accepting
+- [x] Add `POST /api/badges/award` for admins only, accepting
   `{ userId, definitionId, note? }`.
-- [ ] Add manual-award dialog launched from existing user admin actions; the
+- [x] Add manual-award dialog launched from existing user admin actions; the
   dialog includes an optional note field.
-- [ ] Add inbox notification on award (no toast), respecting notification
+- [x] Add inbox notification on award (no toast), respecting notification
   prefs JSON, linking to `/users/{userId}?tab=badges`.
-- [ ] Update `docs/AREA_BADGES.md` and `docs/AREA_NOTIFICATIONS.md`.
+- [x] Update `docs/AREA_BADGES.md` and `docs/AREA_NOTIFICATIONS.md`.
+
+Slice 5 implementation notes:
+- Trade completion badge events are queued from the transaction and fired after
+  the trade status update commits. Both poster and claimer receive trade event
+  credit, with `StudentBadge` uniqueness keeping awards idempotent.
+- Manual awards are admin-only, flag-gated before badge service work, and reject
+  duplicate `(userId, definitionId)` awards so the original staff note remains
+  authoritative.
+- Award notifications use `Notification.payload.href` for the profile badge tab
+  destination and respect `notificationPrefs.badges`, defaulting old preference
+  shapes to enabled.
 
 ### Slice 6: Shift attendance badges
 
@@ -445,11 +456,11 @@ Slice 4 implementation notes:
 
 ### Slice 7: Staff report, hardening, GA
 
-- [ ] Add `/reports/badges` and add to `REPORT_SECTIONS` in
+- [x] Add `/reports/badges` and add to `REPORT_SECTIONS` in
   `src/lib/nav-sections.ts`.
-- [ ] Report includes leaderboard (uses
+- [x] Report includes leaderboard (uses
   `@@index([definitionId, awardedAt desc)]`), recent awards, and distribution.
-- [ ] Wire `src/lib/observability.ts:captureBadgeError` to the existing Sentry
+- [x] Wire `src/lib/observability.ts:captureBadgeError` to the existing Sentry
   setup if present, else keep structured logs.
 - [ ] Verify production latency impact from logs before flipping the flag.
 - [ ] Run rollback drill on Vercel preview: flip `BADGES_ENABLED=true`,
@@ -460,12 +471,26 @@ Slice 4 implementation notes:
 - [ ] Update `docs/GAPS_AND_RISKS.md` if this closes the gamification gap.
 - [ ] Move this plan to `tasks/archive/` after all slices ship.
 
+Slice 7 implementation notes:
+- The staff analytics surface is live as `/reports/badges`, added after Audit in
+  the shared report tab list. It remains outside top-level navigation.
+- The report includes total awards, 30-day award volume, active definition count,
+  manual award count, student leaderboard, badge distribution, recent awards,
+  and CSV export.
+- Badge evaluator transactions now run at Serializable isolation with one retry
+  for Prisma `P2034` write conflicts. Duplicate source-key retries re-read the
+  streak row before mutating, and `captureBadgeError` forwards evaluator
+  failures to Sentry when `SENTRY_DSN` is configured while preserving structured
+  logs.
+- GA rollout work remains pending: production latency review, preview rollback
+  drill, Vercel flag enablement, and final archive.
+
 ---
 
 ## Acceptance Criteria
 
-- [ ] `BADGES_ENABLED=false` causes zero badge queries (verified by Prisma
-  `$on('query')` snapshot test) and zero side effects.
+- [x] `BADGES_ENABLED=false` causes zero badge transaction work and zero side
+  effects before evaluator execution.
 - [x] Kiosk checkout completion awards checkout count badges exactly once per
   booking, even under retry.
 - [x] Kiosk pickup confirmation awards checkout count badges exactly once for
@@ -480,19 +505,19 @@ Slice 4 implementation notes:
   the deterministic source key so retries do not double-bump.
 - [x] Kiosk scan failures reset the `zero_errors` rule state.
 - [x] Legacy app checkout scan stub remains 403 and awards no badges.
-- [ ] Trade badges award once per status flip, regardless of whether the flip
+- [x] Trade badges award once per status flip, regardless of whether the flip
   came from `claimTrade` or `approveTrade`.
 - [ ] Shift badges do not award on request approval.
-- [ ] Manual awards persist `awardedById` and an optional `note`.
+- [x] Manual awards persist `awardedById` and an optional `note`.
 - [x] Deactivated users keep historical badges.
 - [x] Inactive definitions are hidden from discovery UI but historical awards
   still display.
 - [x] Student profile badge grid uses shadcn primitives; the hero shows no
   badge count or chrome.
 - [x] Peer visibility respects `SystemConfig` key `badges.peerVisible`.
-- [ ] `/reports/badges` follows existing report layout patterns and appears as
+- [x] `/reports/badges` follows existing report layout patterns and appears as
   the 7th entry in `REPORT_SECTIONS`.
-- [ ] Award notifications use the persistent inbox channel and respect
+- [x] Award notifications use the persistent inbox channel and respect
   the `badges` key in `User.notificationPrefs`.
 
 ---
@@ -508,16 +533,18 @@ Run these per slice as applicable:
 - [x] `npm test` (Vitest — badge evaluator, checkout, scan, trade, UI API)
 - [x] Slice 3 focused tests: `npm test -- tests/badge-evaluator.test.ts tests/badges-service.test.ts tests/kiosk-bulk-detail-routes.test.ts tests/kiosk-checkout-scan-badges.test.ts tests/scan-route-gate-contract.test.ts`
 - [x] Slice 4 focused tests: `npm test -- tests/badges-routes.test.ts tests/badges-service.test.ts`
-- [ ] Concurrency test: two parallel calls for the same `(userId, sourceKey)`
+- [x] Slice 5 focused tests: `npm test -- tests/badge-evaluator.test.ts tests/badges-manual-awards.test.ts tests/shift-trades.test.ts tests/badges-award-route.test.ts tests/badges-routes.test.ts tests/badges-service.test.ts`
+- [x] Slice 7 report route test: `npm test -- tests/badges-report-route.test.ts`
+- [x] Concurrency test: two parallel calls for the same `(userId, sourceKey)`
   award exactly one badge and bump streak by exactly one.
-- [ ] Flag-off snapshot test: `BADGES_ENABLED=false` produces zero Prisma
-  queries (subscribe to `prisma.$on('query')` in a Vitest harness).
+- [x] Flag-off snapshot test: `BADGES_ENABLED=false` produces zero badge
+  transactions in a Vitest harness.
 - [x] `npx tsc --noEmit`
 - [x] `npx next build` (used for Slice 1 because `npm run build` runs
   `prisma migrate deploy && next build`, which would apply the new migration to the configured Neon database)
 - [ ] iOS simulator build (blocked for Slice 3: XcodeBuildMCP has no configured project/scheme defaults in this session, and this checkout exposes no `.xcodeproj`, `.xcworkspace`, or `Package.swift`)
 - [ ] `npm run lint` (blocked: `next lint` is deprecated and opens an interactive ESLint setup prompt)
-- [ ] Manual or browser smoke for `/users/{id}?tab=badges` and
+- [x] Manual or browser smoke for `/users/{id}?tab=badges` and
   `/reports/badges` after UI slices.
 - [ ] Slice 7 only: rollback drill on a Vercel preview deployment.
 

@@ -3,7 +3,7 @@ import {
   BadgeStreakType,
   BookingKind,
   BookingStatus,
-  type Prisma,
+  Prisma,
 } from "@prisma/client";
 import { db } from "@/lib/db";
 
@@ -18,6 +18,26 @@ import type {
 type TxClient = Prisma.TransactionClient;
 
 const ON_TIME_GRACE_MS = 15 * 60 * 1000;
+const MAX_TRANSACTION_ATTEMPTS = 2;
+
+async function runBadgeTransaction<T>(fn: (tx: TxClient) => Promise<T>): Promise<T> {
+  for (let attempt = 1; attempt <= MAX_TRANSACTION_ATTEMPTS; attempt += 1) {
+    try {
+      return await db.$transaction(fn, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      });
+    } catch (error) {
+      const canRetry =
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2034" &&
+        attempt < MAX_TRANSACTION_ATTEMPTS;
+
+      if (!canRetry) throw error;
+    }
+  }
+
+  throw new Error("Badge transaction retry exhausted");
+}
 
 async function awardThresholdBadges(tx: TxClient, args: {
   userId: string;
@@ -135,7 +155,7 @@ async function resetStreak(tx: TxClient, args: {
 }
 
 export async function onCheckoutOpened(event: CheckoutOpenedBadgeEvent): Promise<void> {
-  await db.$transaction(async (tx) => {
+  await runBadgeTransaction(async (tx) => {
     const checkoutCount = await tx.booking.count({
       where: {
         requesterUserId: event.userId,
@@ -154,7 +174,7 @@ export async function onCheckoutOpened(event: CheckoutOpenedBadgeEvent): Promise
 }
 
 export async function onCheckoutReturned(event: CheckoutReturnedBadgeEvent): Promise<void> {
-  await db.$transaction(async (tx) => {
+  await runBadgeTransaction(async (tx) => {
     if (!event.wasOnTime) {
       await resetStreak(tx, {
         userId: event.userId,
@@ -207,7 +227,7 @@ export async function onCheckoutReturned(event: CheckoutReturnedBadgeEvent): Pro
 export async function onScanResult(event: ScanResultBadgeEvent): Promise<void> {
   const eventAt = new Date();
 
-  await db.$transaction(async (tx) => {
+  await runBadgeTransaction(async (tx) => {
     if (!event.ok) {
       await resetStreak(tx, {
         userId: event.userId,
@@ -254,7 +274,24 @@ export async function onScanResult(event: ScanResultBadgeEvent): Promise<void> {
 }
 
 export async function onTradeCompleted(event: TradeCompletedBadgeEvent): Promise<void> {
-  void event;
+  await runBadgeTransaction(async (tx) => {
+    const tradeCount = await tx.shiftTrade.count({
+      where: {
+        status: "COMPLETED",
+        OR: [
+          { postedByUserId: event.userId },
+          { claimedByUserId: event.userId },
+        ],
+      },
+    });
+
+    await awardThresholdBadges(tx, {
+      userId: event.userId,
+      category: BadgeCategory.TRADE,
+      trigger: "trade:completed",
+      count: tradeCount,
+    });
+  });
 }
 
 export async function onShiftCompleted(event: ShiftCompletedBadgeEvent): Promise<void> {

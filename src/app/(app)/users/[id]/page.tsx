@@ -17,8 +17,26 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,7 +55,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { AlertCircle, Briefcase, CalendarDays, CameraIcon, ChevronDown, Copy, GraduationCap, KeyRound, Shield, TrashIcon, UserRound } from "lucide-react";
+import { Award, AlertCircle, Briefcase, CalendarDays, CameraIcon, ChevronDown, Copy, GraduationCap, KeyRound, Shield, TrashIcon, UserRound } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { formatDateFull } from "@/lib/format";
 import { FadeUp } from "@/components/ui/motion";
@@ -46,6 +64,14 @@ import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 /* ── Tab Definitions ───────────────────────────────────── */
 
 type TabKey = "info" | "activity" | "availability" | "badges";
+
+type BadgeDefinitionOption = {
+  id: string;
+  key: string;
+  name: string;
+  description: string;
+  category: string;
+};
 
 const tabDefs: Array<{ key: TabKey; label: string }> = [
   { key: "info", label: "Info" },
@@ -109,6 +135,13 @@ export default function UserDetailPage() {
   const [resetPwDialog, setResetPwDialog] = useState(false);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
   const [resetBusy, setResetBusy] = useState(false);
+  const [awardDialogOpen, setAwardDialogOpen] = useState(false);
+  const [awardDefinitions, setAwardDefinitions] = useState<BadgeDefinitionOption[] | null>(null);
+  const [awardDefinitionsLoading, setAwardDefinitionsLoading] = useState(false);
+  const [selectedAwardDefinitionId, setSelectedAwardDefinitionId] = useState("");
+  const [awardNote, setAwardNote] = useState("");
+  const [awardBusy, setAwardBusy] = useState(false);
+  const [badgesTabRevision, setBadgesTabRevision] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const confirm = useConfirm();
 
@@ -261,6 +294,65 @@ export default function UserDetailPage() {
     setResetBusy(false);
   }
 
+  async function openManualAwardDialog() {
+    setAwardDialogOpen(true);
+    if (awardDefinitions !== null || awardDefinitionsLoading) return;
+
+    setAwardDefinitionsLoading(true);
+    try {
+      const res = await fetch("/api/badges");
+      if (handleAuthRedirect(res)) return;
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error || "Failed to load badges");
+        setAwardDefinitions([]);
+        return;
+      }
+      const definitions = ((json.data ?? []) as BadgeDefinitionOption[])
+        .filter((definition) => definition.category !== "SHIFT");
+      setAwardDefinitions(definitions);
+      setSelectedAwardDefinitionId((prev) => prev || definitions[0]?.id || "");
+    } catch {
+      toast.error("Network error");
+      setAwardDefinitions([]);
+    } finally {
+      setAwardDefinitionsLoading(false);
+    }
+  }
+
+  async function handleManualAward() {
+    if (!selectedAwardDefinitionId || awardBusy) return;
+    setAwardBusy(true);
+    try {
+      const res = await fetch("/api/badges/award", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: id,
+          definitionId: selectedAwardDefinitionId,
+          note: awardNote.trim() || undefined,
+        }),
+      });
+      if (handleAuthRedirect(res)) return;
+      if (!res.ok) {
+        const msg = await parseErrorMessage(res, "Failed to award badge");
+        toast.error(msg);
+        return;
+      }
+      toast.success("Badge awarded");
+      setAwardDialogOpen(false);
+      setAwardNote("");
+      setBadgesTabRevision((value) => value + 1);
+      if (activeTab !== "badges") {
+        switchTab("badges");
+      }
+    } catch {
+      toast.error("Network error");
+    } finally {
+      setAwardBusy(false);
+    }
+  }
+
   if (fetchError) {
     return (
       <div className="py-10 px-5 flex justify-center">
@@ -324,7 +416,7 @@ export default function UserDetailPage() {
   const profile = effectiveUser ?? user;
   const availableTabs = profile.role === "STUDENT"
     ? tabDefs
-    : tabDefs.filter((tab) => tab.key !== "availability");
+    : tabDefs.filter((tab) => tab.key !== "availability" && tab.key !== "badges");
 
   return (
     <FadeUp>
@@ -481,6 +573,12 @@ export default function UserDetailPage() {
                     <KeyRound className="mr-2 size-4" />
                     Reset password
                   </DropdownMenuItem>
+                  {profile.role === "STUDENT" && (
+                    <DropdownMenuItem onClick={openManualAwardDialog}>
+                      <Award className="mr-2 size-4" />
+                      Award badge
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -535,6 +633,80 @@ export default function UserDetailPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <Dialog open={awardDialogOpen} onOpenChange={setAwardDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <div>
+              <DialogTitle>Award badge</DialogTitle>
+              <DialogDescription>
+                Add a manual badge to {profile.name}&apos;s profile.
+              </DialogDescription>
+            </div>
+          </DialogHeader>
+          <DialogBody className="flex flex-col gap-4 py-1">
+            <div className="flex flex-col gap-2">
+              <label htmlFor="badge-definition" className="text-sm font-medium">
+                Badge
+              </label>
+              <Select
+                value={selectedAwardDefinitionId}
+                onValueChange={setSelectedAwardDefinitionId}
+                disabled={awardDefinitionsLoading || awardBusy}
+              >
+                <SelectTrigger id="badge-definition">
+                  <SelectValue placeholder={awardDefinitionsLoading ? "Loading badges..." : "Select a badge"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {(awardDefinitions ?? []).map((definition) => (
+                      <SelectItem key={definition.id} value={definition.id}>
+                        {definition.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+              {awardDefinitions?.length === 0 && !awardDefinitionsLoading && (
+                <p className="text-sm text-muted-foreground">
+                  No active manual-awardable badges are available.
+                </p>
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <label htmlFor="badge-note" className="text-sm font-medium">
+                Note
+              </label>
+              <Textarea
+                id="badge-note"
+                value={awardNote}
+                onChange={(event) => setAwardNote(event.target.value)}
+                placeholder="Optional staff context"
+                maxLength={500}
+                disabled={awardBusy}
+              />
+            </div>
+          </DialogBody>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setAwardDialogOpen(false)}
+              disabled={awardBusy}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleManualAward}
+              disabled={awardBusy || awardDefinitionsLoading || !selectedAwardDefinitionId}
+            >
+              {awardBusy && <Spinner />}
+              Award badge
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={(v) => switchTab(v as TabKey)}>
         <TabsList className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm overflow-x-auto scrollbar-hide">
@@ -570,7 +742,7 @@ export default function UserDetailPage() {
       )}
 
       {activeTab === "badges" && profile.role === "STUDENT" && (
-        <UserBadgesTab userId={user.id} />
+        <UserBadgesTab key={badgesTabRevision} userId={user.id} />
       )}
     </FadeUp>
   );

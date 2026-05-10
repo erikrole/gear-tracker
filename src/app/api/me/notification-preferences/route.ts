@@ -14,6 +14,7 @@ const putSchema = z.object({
     email: z.boolean(),
     push: z.boolean(),
   }),
+  badges: z.boolean().default(true),
 });
 
 /** GET /api/me/notification-preferences — returns the caller's prefs (or defaults). */
