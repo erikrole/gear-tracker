@@ -84,6 +84,15 @@ Last updated: 2026-05-09
 - [x] **Game-feel polish** — Badge cards show schema-free rarity labels, surprise badges stay hidden until earned, and manual award selection includes admin guidance for fun badges.
 - [x] **Verification** — `npm test -- tests/badges-report-route.test.ts`, full `npm test`, `npx tsc --noEmit`, `npx prisma validate`, `npm run db:migrate:check`, `git diff --check`, `npx next build`, and authenticated Chrome DevTools smoke on `/reports/badges` passed with no console errors.
 
+### Student Badge Achievements Front-End Polish (2026-05-09)
+- [x] **Deferred schema cleanup** — Keep the legacy `StudentBadge` model/table name for now and document the later rename as a dedicated migration cleanup, not a UI polish change.
+- [x] **Badge medallions** — Replace plain icon wells with a reusable rarity-aware medallion using existing lucide icons and shadcn-compatible styling.
+- [x] **Earned details** — Show manual award notes, recent-award "New" state, and visible surprise badge count on the profile badge tab.
+- [x] **Motion polish** — Add restrained staggered grid entrance using existing motion primitives.
+- [x] **Progress display** — Add real progress counts for supported threshold badges without inventing progress for manual/deferred badges.
+- [x] **Reports insight polish** — Make `/reports/badges` more staff-useful with manual award rate, underused definitions, and recent manual recognition details.
+- [x] **Verification** — Focused badge tests, full `npm test`, TypeScript, Prisma validation, migration-prefix check, whitespace check, and app build passed. Local browser smoke reached the login wall on `localhost:3000`; authenticated visual smoke remains pending.
+
 ### Labels UI Polish (2026-05-09)
 - [x] **Print queue framing** — Add header context, matching/selected/ready metrics, and an Items escape link without changing browser-print output.
 - [x] **Selector cleanup** — Replace the raw checklist with a searchable queue, selected count badge, accessible checkbox labels, and filtered-empty recovery.

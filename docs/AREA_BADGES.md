@@ -46,10 +46,12 @@ Badges are lightweight recognition for every active user inside the existing ops
 - No top-level nav item.
 - No badge count, chip row, or recognition chrome in the profile hero.
 - The badge tab uses shadcn primitives and keeps earned/locked badges in a compact grid.
-- Badge cards show UI-derived rarity labels. A few surprise badges stay hidden from the locked grid until earned.
+- Badge cards show UI-derived rarity labels, rarity-aware medallions, manual award notes, recent-award "New" state, and real progress for supported threshold badges.
+- A few surprise badges stay hidden from the locked grid until earned; the available section shows how many surprise badges remain hidden.
 - The badge profile API loads active definitions plus historical earned inactive definitions in one Prisma call that includes the user's award row.
+- The badge profile API adds progress only when it can derive it from real counters or streak state. Manual, deferred shift, and unsupported rule badges remain rule-based with no fake progress bar.
 - With `BADGES_ENABLED` off, badge APIs return disabled/empty payloads before any badge table query. This keeps un-migrated local or preview databases from failing on badge UI routes.
-- `/reports/badges` is staff analytics only and follows existing report layout patterns. It shows aggregate award metrics, user leaderboard, badge distribution, and recent awards.
+- `/reports/badges` is staff analytics only and follows existing report layout patterns. It shows aggregate award metrics, manual award rate, user leaderboard, badge distribution, underused active definitions, recent manual recognition, and recent awards.
 - Manual awards launch from the existing user admin actions menu, not from permanent hero chrome.
 - Manual award selection shows staff guidance for fun/manual badges so admins award them consistently.
 - Award notifications are persistent inbox entries that link to `/users/{userId}?tab=badges`.
@@ -77,6 +79,7 @@ Badges are lightweight recognition for every active user inside the existing ops
 - [ ] Shift badges do not award from request approval.
 - [x] Manual awards persist staff attribution, optional notes, and profile-linked inbox notifications that respect badge notification prefs.
 - [x] User profile badge grid uses shadcn primitives and does not crowd the hero.
+- [x] User profile badge cards expose manual notes, recent-award state, rarity-aware medallions, surprise-badge count, and real progress where supported.
 - [x] Peer visibility respects `SystemConfig["badges.peerVisible"]`.
 - [x] `/reports/badges` follows existing report layout patterns.
 
@@ -89,6 +92,7 @@ Badges are lightweight recognition for every active user inside the existing ops
 ## Change Log
 | Date | Change |
 |---|---|
+| 2026-05-09 | Front-end badge polish added rarity-aware medallions, profile-grid motion, manual note display, recent-award state, surprise-badge count, real progress for supported threshold badges, and staff report insight sections for manual rate, underused definitions, and recent manual recognition. The legacy `StudentBadge` model name remains a deferred migration cleanup. |
 | 2026-05-09 | Badge display polish added schema-free rarity labels, surprise badges hidden until earned, and admin award guidance in the manual award dialog. |
 | 2026-05-09 | Badge scope expanded from student-only to every active user, including staff and admins. Staff/admin profiles now keep the Badges tab, admins can manually award badges to any active user, and the catalog includes ten fun manual-recognition badges for clean workflows, clutch coverage, event help, reliability, and above-and-beyond moments. |
 | 2026-05-09 | Slice 7 hardening added Serializable badge evaluator transactions with one Prisma conflict retry, Sentry-backed `captureBadgeError` when `SENTRY_DSN` is configured, and focused tests for flag-off zero transaction work plus duplicate source-key retry behavior. |

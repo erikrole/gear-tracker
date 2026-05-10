@@ -326,14 +326,22 @@ Badges should feel like lightweight recognition inside an ops app.
   - Users can see their own badges tab via the `/profile` redirect.
   - Peer visibility (one user viewing another user's tab) is gated by the
     `SystemConfig` key `badges.peerVisible`, default true.
-- The badge grid uses shadcn primitives. Each earned badge shows icon, name,
-  one-line description, and earned date. Locked badges are muted.
+- The badge grid uses shadcn primitives. Each earned badge shows a rarity-aware
+  medallion, name, one-line description, earned date, and manual note when one
+  exists. Locked badges are muted.
+- Progress bars appear only for threshold badges backed by real counters or
+  streak rows. Manual badges and deferred shift badges must not show invented
+  progress.
+- A few surprise badges remain hidden until earned, but the available section
+  shows the count of hidden surprise badges so completion does not feel
+  misleading.
 - Manual award lives in the existing admin actions menu and opens a dialog
   that supports an optional `note`. Do not add a permanent hero button.
-- `/reports/badges` is staff analytics: leaderboard, recent awards, and
-  distribution. It follows existing report metric/table patterns and is added
-  to `REPORT_SECTIONS` in `src/lib/nav-sections.ts` (becomes the 7th entry,
-  after Audit). Not added to the sidebar.
+- `/reports/badges` is staff analytics: leaderboard, recent awards,
+  distribution, underused definitions, manual award rate, and recent manual
+  recognition. It follows existing report metric/table patterns and is added to
+  `REPORT_SECTIONS` in `src/lib/nav-sections.ts` (becomes the 7th entry, after
+  Audit). Not added to the sidebar.
 - Award notifications are persistent inbox entries (no toast), respecting
   `User.notificationPrefs`. Extend the JSON shape with a `badges` preference key
   so users can mute badge notifications specifically. The notification links to
@@ -480,8 +488,12 @@ Slice 7 implementation notes:
 - The staff analytics surface is live as `/reports/badges`, added after Audit in
   the shared report tab list. It remains outside top-level navigation.
 - The report includes total awards, 30-day award volume, active definition count,
-  manual award count, user leaderboard, badge distribution, recent awards,
-  and CSV export.
+  manual award count/rate, user leaderboard, badge distribution, underused
+  active definitions, recent manual recognition, recent awards, and CSV export.
+- Front-end polish added schema-free rarity medallions, profile grid motion,
+  manual note display, recent-award state, surprise-badge count, and real
+  supported progress. The legacy `StudentBadge` model/table name remains a
+  deferred dedicated migration cleanup rather than part of the UI polish slice.
 - Badge evaluator transactions now run at Serializable isolation with one retry
   for Prisma `P2034` write conflicts. Duplicate source-key retries re-read the
   streak row before mutating, and `captureBadgeError` forwards evaluator
@@ -519,11 +531,15 @@ Slice 7 implementation notes:
   still display.
 - [x] User profile badge grid uses shadcn primitives; the hero shows no
   badge count or chrome.
+- [x] User profile badge cards show rarity-aware medallions, manual notes,
+  recent-award state, surprise-badge count, and real progress where supported.
 - [x] Staff and admins can earn, view, and compare badges on the same profile
   tab surface as students.
 - [x] Peer visibility respects `SystemConfig` key `badges.peerVisible`.
 - [x] `/reports/badges` follows existing report layout patterns and appears as
   the 7th entry in `REPORT_SECTIONS`.
+- [x] `/reports/badges` includes staff insight sections for manual award rate,
+  underused definitions, and recent manual recognition.
 - [x] Award notifications use the persistent inbox channel and respect
   the `badges` key in `User.notificationPrefs`.
 

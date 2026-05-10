@@ -516,7 +516,7 @@ export async function getBadgeReport() {
     totalAwards,
     manualAwards,
     recentAwardCount,
-    activeDefinitionCount,
+    activeDefinitions,
     leaderboard,
     distribution,
     recentAwards,
@@ -524,7 +524,11 @@ export async function getBadgeReport() {
     db.studentBadge.count(),
     db.studentBadge.count({ where: { source: "MANUAL" } }),
     db.studentBadge.count({ where: { awardedAt: { gte: since } } }),
-    db.badgeDefinition.count({ where: { active: true } }),
+    db.badgeDefinition.findMany({
+      where: { active: true },
+      select: { id: true, key: true, name: true, category: true, sortOrder: true },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    }),
     db.studentBadge.groupBy({
       by: ["userId"],
       _count: true,
@@ -575,13 +579,25 @@ export async function getBadgeReport() {
   ]);
   const userMap = Object.fromEntries(users.map((user) => [user.id, user]));
   const definitionMap = Object.fromEntries(definitions.map((definition) => [definition.id, definition]));
+  const distributionCountMap = new Map(distribution.map((row) => [row.definitionId, row._count]));
+  const underusedDefinitions = activeDefinitions
+    .map((definition) => ({
+      definitionId: definition.id,
+      key: definition.key,
+      name: definition.name,
+      category: definition.category,
+      count: distributionCountMap.get(definition.id) ?? 0,
+    }))
+    .sort((a, b) => a.count - b.count || a.name.localeCompare(b.name))
+    .slice(0, 8);
 
   return {
     totalAwards,
     manualAwards,
     automaticAwards: totalAwards - manualAwards,
+    manualAwardRate: totalAwards > 0 ? manualAwards / totalAwards : 0,
     recentAwardCount,
-    activeDefinitionCount,
+    activeDefinitionCount: activeDefinitions.length,
     leaderboard: leaderboard.map((row) => {
       const user = userMap[row.userId];
       return {
@@ -611,5 +627,6 @@ export async function getBadgeReport() {
       definition: award.definition,
       awardedBy: award.awardedBy,
     })),
+    underusedDefinitions,
   };
 }

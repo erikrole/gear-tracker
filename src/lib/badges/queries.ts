@@ -1,3 +1,4 @@
+import { BadgeStreakType, BookingKind, BookingStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import type { AuthUser } from "@/lib/auth";
 import { HttpError } from "@/lib/http";
@@ -8,6 +9,20 @@ type ManualAwardArgs = {
   definitionId: string;
   awardedById: string;
   note?: string;
+};
+
+type BadgeDefinitionForProgress = {
+  key: string;
+  category: string;
+  kind: string;
+  trigger: string;
+  threshold: number | null;
+  ruleKey: string | null;
+};
+
+type BadgeProgress = {
+  current: number;
+  target: number;
 };
 
 export async function listActiveBadgeDefinitions() {
@@ -29,6 +44,97 @@ export async function getBadgePeerVisibility() {
     select: { value: true },
   });
   return config?.value !== false;
+}
+
+async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitionForProgress[]) {
+  const thresholdDefinitions = definitions.filter((definition) => definition.threshold !== null);
+  const progressByKey = new Map<string, BadgeProgress>();
+  if (thresholdDefinitions.length === 0) return progressByKey;
+
+  const needsCheckoutOpened = thresholdDefinitions.some((definition) => definition.trigger === "checkout:opened");
+  const needsOnTimeReturns = thresholdDefinitions.some((definition) => definition.ruleKey === "on_time_return");
+  const needsTrades = thresholdDefinitions.some((definition) => definition.trigger === "trade:completed");
+  const streakTypes = new Set<BadgeStreakType>();
+
+  for (const definition of thresholdDefinitions) {
+    if (definition.trigger === "scan:success") streakTypes.add(BadgeStreakType.SCAN_SUCCESS_COUNT);
+    if (definition.ruleKey === "zero_errors") streakTypes.add(BadgeStreakType.SCAN_CLEAN);
+    if (definition.ruleKey === "on_time_return_streak") streakTypes.add(BadgeStreakType.ON_TIME_RETURN);
+  }
+
+  const [
+    checkoutOpenedCount,
+    completedCheckouts,
+    tradeCount,
+    streaks,
+  ] = await Promise.all([
+    needsCheckoutOpened
+      ? db.booking.count({
+          where: {
+            requesterUserId: userId,
+            kind: BookingKind.CHECKOUT,
+            status: { in: [BookingStatus.OPEN, BookingStatus.COMPLETED] },
+          },
+        })
+      : Promise.resolve(0),
+    needsOnTimeReturns
+      ? db.booking.findMany({
+          where: {
+            requesterUserId: userId,
+            kind: BookingKind.CHECKOUT,
+            status: BookingStatus.COMPLETED,
+          },
+          select: { endsAt: true, updatedAt: true },
+        })
+      : Promise.resolve([]),
+    needsTrades
+      ? db.shiftTrade.count({
+          where: {
+            status: "COMPLETED",
+            OR: [
+              { postedByUserId: userId },
+              { claimedByUserId: userId },
+            ],
+          },
+        })
+      : Promise.resolve(0),
+    streakTypes.size > 0
+      ? db.badgeStreak.findMany({
+          where: {
+            userId,
+            streakType: { in: Array.from(streakTypes) },
+          },
+          select: { streakType: true, current: true, longest: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const onTimeReturnCount = completedCheckouts.filter(
+    (booking) => booking.updatedAt.getTime() <= booking.endsAt.getTime() + 15 * 60 * 1000,
+  ).length;
+  const streakMap = new Map(streaks.map((streak) => [streak.streakType, streak]));
+
+  for (const definition of thresholdDefinitions) {
+    const target = definition.threshold;
+    if (target === null) continue;
+
+    let current: number | null = null;
+    if (definition.trigger === "checkout:opened") current = checkoutOpenedCount;
+    else if (definition.ruleKey === "on_time_return") current = onTimeReturnCount;
+    else if (definition.trigger === "scan:success") current = streakMap.get(BadgeStreakType.SCAN_SUCCESS_COUNT)?.current ?? 0;
+    else if (definition.ruleKey === "zero_errors") current = streakMap.get(BadgeStreakType.SCAN_CLEAN)?.current ?? 0;
+    else if (definition.ruleKey === "on_time_return_streak") current = streakMap.get(BadgeStreakType.ON_TIME_RETURN)?.current ?? 0;
+    else if (definition.trigger === "trade:completed") current = tradeCount;
+
+    if (current !== null) {
+      progressByKey.set(definition.key, {
+        current: Math.min(current, target),
+        target,
+      });
+    }
+  }
+
+  return progressByKey;
 }
 
 export async function getUserBadgeProfile(viewer: AuthUser, userId: string) {
@@ -75,8 +181,11 @@ export async function getUserBadgeProfile(viewer: AuthUser, userId: string) {
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   });
 
+  const progressByKey = await getProgressByBadgeKey(userId, definitions);
+
   const badges = definitions.map((definition) => {
     const award = definition.awards[0] ?? null;
+    const progress = progressByKey.get(definition.key) ?? null;
     return {
       id: definition.id,
       key: definition.key,
@@ -94,6 +203,8 @@ export async function getUserBadgeProfile(viewer: AuthUser, userId: string) {
       awardedAt: award?.awardedAt.toISOString() ?? null,
       source: award?.source ?? null,
       note: award?.note ?? null,
+      progressCurrent: progress?.current ?? null,
+      progressTarget: progress?.target ?? null,
     };
   });
 

@@ -90,8 +90,8 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 ### `/reports/badges`
 - **Page:** `src/app/(app)/reports/badges/page.tsx`
 - **Type:** Staff analytics for badge recognition, not the primary profile experience
-- **Metrics:** Total awards, awards in the past 30 days, active definitions, manual vs automatic awards
-- **Tables:** User leaderboard, badge distribution, recent awards
+- **Metrics:** Total awards, awards in the past 30 days, active definitions, manual award count/rate
+- **Tables:** User leaderboard, badge distribution, underused active definitions, recent manual recognition, recent awards
 - **Data:** `GET /api/reports/badges`
 
 ## Components
@@ -128,6 +128,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - [x] AC-7: Badge report with leaderboard, distribution, and recent awards
 
 ## Change Log
+- 2026-05-09: Badge report insight polish added manual award rate, underused active definitions, and a recent manual recognition section so staff can see whether the badge catalog is being used consistently.
 - 2026-05-09: Badge report shipped. `/reports/badges` now gives staff/admin read-only analytics for total awards, 30-day award volume, active definitions, manual awards, user leaderboard, badge distribution, and recent awards while keeping `/users/{id}?tab=badges` as the primary profile badge surface.
 - 2026-05-09: Reports authenticated browser smoke completed. Chrome DevTools verified seeded-admin rendering for Utilization, Checkouts, Overdue, Bulk Losses, Scans, and Audit; the pass also fixed a Recharts responsive sizing warning centrally in the shared shadcn chart wrapper.
 - 2026-05-09: Focused Reports UI polish slice. Added shared report UI helpers for toolbar rhythm, metric grids, section cards, and loading skeletons; upgraded the Reports header/tab shell; and migrated Utilization, Checkouts, Overdue, Scans, Bulk Losses, and Audit to the shared presentation patterns without changing report APIs or analytics semantics.

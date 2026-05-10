@@ -42,7 +42,7 @@ type BadgeDistributionRow = {
   key: string;
   name: string;
   category: string;
-  active: boolean;
+  active?: boolean;
   count: number;
 };
 
@@ -67,10 +67,12 @@ type BadgeReportData = {
   totalAwards: number;
   manualAwards: number;
   automaticAwards: number;
+  manualAwardRate: number;
   recentAwardCount: number;
   activeDefinitionCount: number;
   leaderboard: BadgeLeaderboardRow[];
   distribution: BadgeDistributionRow[];
+  underusedDefinitions: BadgeDistributionRow[];
   recentAwards: RecentBadgeAward[];
 };
 
@@ -105,6 +107,10 @@ function downloadCsv(data: BadgeReportData) {
       award.note ?? "",
     ]),
   ]);
+}
+
+function formatPercent(value: number) {
+  return `${Math.round(value * 100)}%`;
 }
 
 function RecentAwardMobileCard({ award }: { award: RecentBadgeAward }) {
@@ -156,6 +162,7 @@ export default function BadgeReportPage() {
   }
 
   if (!data) return null;
+  const recentManualAwards = data.recentAwards.filter((award) => award.source === "MANUAL");
 
   return (
     <FadeUp>
@@ -191,7 +198,7 @@ export default function BadgeReportPage() {
           <MetricCard
             value={data.manualAwards}
             label="Manual awards"
-            badge={{ text: `${data.automaticAwards} auto`, variant: "secondary" }}
+            badge={{ text: `${formatPercent(data.manualAwardRate)} manual`, variant: "orange" }}
             tooltip="Manual awards created by admins"
           />
         </ReportMetricGrid>
@@ -280,6 +287,80 @@ export default function BadgeReportPage() {
                   ))}
                 </TableBody>
               </Table>
+            )}
+          </ReportSectionCard>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[1fr_1.2fr]">
+          <ReportSectionCard title="Underused badges" contentClassName="p-0">
+            {data.underusedDefinitions.length === 0 ? (
+              <ReportEmptyState
+                compact
+                icon="chart"
+                title="No underused badges"
+                description="Active badge definitions appear here after the catalog is seeded."
+              />
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Badge</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead className="text-right">Awards</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.underusedDefinitions.map((row) => (
+                    <TableRow key={row.definitionId}>
+                      <TableCell>
+                        <div className="font-medium">{row.name}</div>
+                        <div className="text-xs text-muted-foreground">{row.key}</div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={categoryVariant(row.category)}>{row.category.toLowerCase()}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Badge variant={row.count === 0 ? "orange" : "secondary"} className="tabular-nums">
+                          {row.count}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </ReportSectionCard>
+
+          <ReportSectionCard title="Recent manual recognition" contentClassName="p-0">
+            {recentManualAwards.length === 0 ? (
+              <ReportEmptyState
+                compact
+                icon="check"
+                title="No recent manual awards"
+                description="Admin-awarded recognition appears here when staff use the Award badge action."
+              />
+            ) : (
+              <div className="divide-y">
+                {recentManualAwards.slice(0, 6).map((award) => (
+                  <ReportMobileCardLink key={award.id} href={`/users/${award.user.id}?tab=badges`} className="rounded-none border-0">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-medium text-foreground">{award.definition.name}</span>
+                      <Badge variant={categoryVariant(award.definition.category)}>{award.definition.category.toLowerCase()}</Badge>
+                    </div>
+                    <ReportMetaLine
+                      className="text-sm"
+                      items={[
+                        award.user.name,
+                        award.awardedBy ? `By ${award.awardedBy.name}` : "Admin awarded",
+                        formatDateFull(award.awardedAt),
+                      ]}
+                    />
+                    {award.note ? (
+                      <p className="line-clamp-2 text-sm text-muted-foreground">{award.note}</p>
+                    ) : null}
+                  </ReportMobileCardLink>
+                ))}
+              </div>
             )}
           </ReportSectionCard>
         </div>

@@ -9,6 +9,16 @@ vi.mock("@/lib/db", () => ({
     badgeDefinition: {
       findMany: vi.fn(),
     },
+    badgeStreak: {
+      findMany: vi.fn(),
+    },
+    booking: {
+      count: vi.fn(),
+      findMany: vi.fn(),
+    },
+    shiftTrade: {
+      count: vi.fn(),
+    },
     systemConfig: {
       findUnique: vi.fn(),
     },
@@ -53,6 +63,10 @@ function makeGetRequest(url = "https://app.example.com/api/badges") {
 beforeEach(() => {
   vi.clearAllMocks();
   process.env.BADGES_ENABLED = "true";
+  vi.mocked(db.booking.count).mockResolvedValue(0);
+  vi.mocked(db.booking.findMany).mockResolvedValue([]);
+  vi.mocked(db.shiftTrade.count).mockResolvedValue(0);
+  vi.mocked(db.badgeStreak.findMany).mockResolvedValue([]);
 });
 
 describe("GET /api/badges", () => {
@@ -185,6 +199,8 @@ describe("GET /api/badges/user/[userId]", () => {
       key: "first_checkout",
       earned: true,
       awardedAt: "2026-05-09T13:00:00.000Z",
+      progressCurrent: 0,
+      progressTarget: 1,
     }));
     expect(db.badgeDefinition.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: {
@@ -199,6 +215,64 @@ describe("GET /api/badges/user/[userId]", () => {
           take: 1,
         }),
       }),
+    }));
+  });
+
+  it("returns real progress for supported threshold badges", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(adminUser);
+    vi.mocked(db.user.findUnique).mockResolvedValue({ id: "student-1", role: "STUDENT", active: true } as any);
+    vi.mocked(db.systemConfig.findUnique).mockResolvedValue(null);
+    vi.mocked(db.badgeDefinition.findMany).mockResolvedValue([
+      {
+        id: "definition-1",
+        key: "checkout_5",
+        name: "Gear Regular",
+        description: "Opened five gear checkouts.",
+        icon: "PackageOpen",
+        category: "CHECKOUT",
+        kind: "COUNT",
+        trigger: "checkout:opened",
+        threshold: 5,
+        ruleKey: null,
+        active: true,
+        sortOrder: 20,
+        createdAt: new Date("2026-05-09T12:00:00.000Z"),
+        awards: [],
+      },
+      {
+        id: "definition-2",
+        key: "perfect_handoff",
+        name: "Perfect Handoff",
+        description: "Returned a checkout on time with everything accounted for.",
+        icon: "ShieldCheck",
+        category: "ON_TIME",
+        kind: "RULE",
+        trigger: "manual",
+        threshold: null,
+        ruleKey: "perfect_handoff",
+        active: true,
+        sortOrder: 140,
+        createdAt: new Date("2026-05-09T12:00:00.000Z"),
+        awards: [],
+      },
+    ] as any);
+    vi.mocked(db.booking.count).mockResolvedValue(3);
+
+    const res = await getUserBadges(makeGetRequest("https://app.example.com/api/badges/user/student-1"), {
+      params: Promise.resolve({ userId: "student-1" }),
+    });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.data.badges[0]).toEqual(expect.objectContaining({
+      key: "checkout_5",
+      progressCurrent: 3,
+      progressTarget: 5,
+    }));
+    expect(body.data.badges[1]).toEqual(expect.objectContaining({
+      key: "perfect_handoff",
+      progressCurrent: null,
+      progressTarget: null,
     }));
   });
 

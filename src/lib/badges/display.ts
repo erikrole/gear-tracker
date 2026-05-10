@@ -75,3 +75,19 @@ export function badgeRarityVariant(rarity: BadgeRarity): BadgeProps["variant"] {
   if (rarity === "Uncommon") return "blue";
   return "gray";
 }
+
+export function badgeRarityMedallionClass(rarity: BadgeRarity, earned: boolean): string {
+  if (!earned) {
+    return "bg-muted text-muted-foreground shadow-[inset_0_0_0_1px_hsl(var(--border))]";
+  }
+  if (rarity === "Legendary") {
+    return "bg-[var(--purple-bg)] text-[var(--purple-text)] shadow-[inset_0_0_0_1px_var(--purple-text),0_0_0_4px_var(--purple-bg)]";
+  }
+  if (rarity === "Rare") {
+    return "bg-[var(--orange-bg)] text-[var(--orange-text)] shadow-[inset_0_0_0_1px_var(--orange-text),0_0_0_4px_var(--orange-bg)]";
+  }
+  if (rarity === "Uncommon") {
+    return "bg-[var(--blue-bg)] text-[var(--blue-text)] shadow-[inset_0_0_0_1px_var(--blue-text),0_0_0_4px_var(--blue-bg)]";
+  }
+  return "bg-primary/10 text-primary shadow-[inset_0_0_0_1px_var(--primary)]";
+}

@@ -50,10 +50,12 @@ describe("GET /api/reports/badges", () => {
       totalAwards: 2,
       manualAwards: 1,
       automaticAwards: 1,
+      manualAwardRate: 0.5,
       recentAwardCount: 2,
       activeDefinitionCount: 20,
       leaderboard: [],
       distribution: [],
+      underusedDefinitions: [],
       recentAwards: [],
     });
 

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { getBadgeRarity, isHiddenUntilEarnedBadge, manualAwardGuidance } from "@/lib/badges/display";
+import {
+  badgeRarityMedallionClass,
+  getBadgeRarity,
+  isHiddenUntilEarnedBadge,
+  manualAwardGuidance,
+} from "@/lib/badges/display";
 
 describe("badge display metadata", () => {
   it("keeps surprise badges hidden until earned", () => {
@@ -35,5 +40,11 @@ describe("badge display metadata", () => {
   it("has admin guidance for manual fun badges", () => {
     expect(manualAwardGuidance.clutch_cover).toContain("late or urgent shift");
     expect(manualAwardGuidance.perfect_handoff).toContain("on time");
+  });
+
+  it("maps rarity to medallion classes", () => {
+    expect(badgeRarityMedallionClass("Legendary", true)).toContain("--purple-bg");
+    expect(badgeRarityMedallionClass("Rare", true)).toContain("--orange-bg");
+    expect(badgeRarityMedallionClass("Common", false)).toContain("text-muted-foreground");
   });
 });

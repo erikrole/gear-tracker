@@ -613,6 +613,8 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - `onCheckoutReturned` and `onTradeCompleted` must be emitted from single status-flip helpers so competing call paths do not double-award.
   - Peer badge visibility defaults to true via `SystemConfig["badges.peerVisible"]`; staff/admin can always see user badges.
   - The primary user UI is a `Badges` tab on `/users/{id}` for students, staff, and admins. No top-level nav item and no badge chrome in the profile hero.
+  - The legacy `StudentBadge` model/table name remains in place until a dedicated cleanup migration. Product language and UI should say user awards or badge awards.
+  - Badge progress is displayed only when it is backed by real counters or streak rows. Manual and deferred badges must not show invented progress.
 - Consequences:
   - The system can ship in independent slices with the flag off until preview verification passes.
   - Historical badge data remains stable if users are deactivated or definitions are retired.

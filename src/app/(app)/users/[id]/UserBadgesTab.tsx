@@ -12,7 +12,6 @@ import {
   Clock3,
   Flame,
   Handshake,
-  LockKeyhole,
   PackageCheck,
   PackageOpen,
   QrCode,
@@ -25,6 +24,7 @@ import {
   Warehouse,
 } from "lucide-react";
 import { AlertCircle } from "lucide-react";
+import { BadgeMedallion } from "@/components/badges/BadgeMedallion";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -41,7 +41,9 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StaggerItem, StaggerList } from "@/components/ui/motion";
 import { useFetch } from "@/hooks/use-fetch";
 import { badgeRarityVariant, getBadgeRarity, isHiddenUntilEarnedBadge } from "@/lib/badges/display";
 import { formatDateFull } from "@/lib/format";
@@ -64,6 +66,8 @@ type UserBadge = {
   awardedAt: string | null;
   source: "AUTO" | "MANUAL" | null;
   note: string | null;
+  progressCurrent: number | null;
+  progressTarget: number | null;
 };
 
 type UserBadgesResponse = {
@@ -142,40 +146,54 @@ function SummaryCard({ label, value }: { label: string; value: number | string }
   );
 }
 
+function isRecentlyEarned(awardedAt: string | null) {
+  if (!awardedAt) return false;
+  const awardedAtMs = new Date(awardedAt).getTime();
+  if (Number.isNaN(awardedAtMs)) return false;
+  return Date.now() - awardedAtMs <= 7 * 86_400_000;
+}
+
 function BadgeCard({ badge }: { badge: UserBadge }) {
   const Icon = iconMap[badge.icon] ?? Trophy;
   const earned = badge.earned;
   const rarity = getBadgeRarity(badge);
+  const recentlyEarned = earned && isRecentlyEarned(badge.awardedAt);
+  const hasProgress = !earned && badge.progressCurrent !== null && badge.progressTarget !== null && badge.progressTarget > 0;
+  const progressValue = hasProgress
+    ? Math.min(100, Math.round((badge.progressCurrent! / badge.progressTarget!) * 100))
+    : 0;
 
   return (
     <Card
       elevation={earned ? "raised" : "flat"}
       className={cn(
-        "min-h-[156px]",
+        "min-h-[178px] transition-[box-shadow,scale] duration-200 hover:shadow-sm active:scale-[0.99]",
+        recentlyEarned && "ring-1 ring-primary/20",
         !earned && "bg-muted/30 text-muted-foreground",
       )}
     >
       <CardHeader className="flex-row items-start gap-3">
-        <div
-          className={cn(
-            "flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground",
-            earned && "bg-primary/10 text-primary",
-          )}
-        >
-          {earned ? <Icon className="size-5" /> : <LockKeyhole className="size-5" />}
-        </div>
+        <BadgeMedallion icon={Icon} earned={earned} rarity={rarity} />
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <div className="flex items-start justify-between gap-2">
             <CardTitle className="text-sm leading-5">{badge.name}</CardTitle>
-            {earned ? (
-              <Badge variant="secondary" size="sm">Earned</Badge>
-            ) : (
-              <Badge variant="outline" size="sm">Locked</Badge>
-            )}
+            <div className="flex shrink-0 items-center gap-1.5">
+              {recentlyEarned ? <Badge variant="green" size="sm">New</Badge> : null}
+              {earned ? (
+                <Badge variant="secondary" size="sm">Earned</Badge>
+              ) : (
+                <Badge variant="outline" size="sm">Locked</Badge>
+              )}
+            </div>
           </div>
           <CardDescription className="text-xs leading-5">
             {badge.description}
           </CardDescription>
+          {earned && badge.source === "MANUAL" && badge.note ? (
+            <p className="mt-1 text-xs leading-5 text-foreground/80">
+              {badge.note}
+            </p>
+          ) : null}
         </div>
       </CardHeader>
       <CardContent className="pt-0">
@@ -184,6 +202,8 @@ function BadgeCard({ badge }: { badge: UserBadge }) {
           <Badge variant={badgeRarityVariant(rarity)} size="sm">{rarity}</Badge>
           {earned && badge.awardedAt ? (
             <span>Earned {formatDateFull(badge.awardedAt)}</span>
+          ) : hasProgress ? (
+            <span className="tabular-nums">{badge.progressCurrent}/{badge.progressTarget}</span>
           ) : (
             <span>{badge.threshold ? `${badge.threshold} required` : "Rule badge"}</span>
           )}
@@ -191,8 +211,27 @@ function BadgeCard({ badge }: { badge: UserBadge }) {
             <Badge variant="gray" size="sm">Retired</Badge>
           )}
         </div>
+        {hasProgress ? (
+          <Progress
+            value={progressValue}
+            className="mt-3 h-1.5 bg-muted [&_[data-slot=progress-indicator]]:bg-primary/70"
+            aria-label={`${badge.name} progress`}
+          />
+        ) : null}
       </CardContent>
     </Card>
+  );
+}
+
+function BadgeCardsGrid({ badges }: { badges: UserBadge[] }) {
+  return (
+    <StaggerList className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      {badges.map((badge) => (
+        <StaggerItem key={badge.id}>
+          <BadgeCard badge={badge} />
+        </StaggerItem>
+      ))}
+    </StaggerList>
   );
 }
 
@@ -223,6 +262,9 @@ export default function UserBadgesTab({ userId }: { userId: string }) {
   const lockedBadges = data.badges.filter(
     (badge) => !badge.earned && badge.active && !isHiddenUntilEarnedBadge(badge.key),
   );
+  const hiddenSurpriseCount = data.badges.filter(
+    (badge) => !badge.earned && badge.active && isHiddenUntilEarnedBadge(badge.key),
+  ).length;
   const visibleTotalCount = earnedBadges.length + lockedBadges.length;
 
   return (
@@ -270,11 +312,7 @@ export default function UserBadgesTab({ userId }: { userId: string }) {
               </p>
             </div>
             {earnedBadges.length > 0 ? (
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {earnedBadges.map((badge) => (
-                  <BadgeCard key={badge.id} badge={badge} />
-                ))}
-              </div>
+              <BadgeCardsGrid badges={earnedBadges} />
             ) : (
               <Empty className="min-h-[180px]">
                 <EmptyHeader>
@@ -295,14 +333,11 @@ export default function UserBadgesTab({ userId }: { userId: string }) {
               <div>
                 <h2 className="text-base font-semibold">Available</h2>
                 <p className="text-sm text-muted-foreground">
-                  Remaining visible badges in the active catalog. Surprise badges appear after they are earned.
+                  Remaining visible badges in the active catalog.
+                  {hiddenSurpriseCount > 0 ? ` ${hiddenSurpriseCount} surprise ${hiddenSurpriseCount === 1 ? "badge is" : "badges are"} hidden until earned.` : ""}
                 </p>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {lockedBadges.map((badge) => (
-                  <BadgeCard key={badge.id} badge={badge} />
-                ))}
-              </div>
+              <BadgeCardsGrid badges={lockedBadges} />
             </section>
           )}
         </div>
