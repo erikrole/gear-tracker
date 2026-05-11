@@ -62,7 +62,7 @@ export function UserAvatarGroup({
         );
       })}
       {overflow > 0 && (
-        <AvatarGroupCount>
+        <AvatarGroupCount size={size}>
           +{overflow}
         </AvatarGroupCount>
       )}

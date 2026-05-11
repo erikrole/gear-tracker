@@ -6,12 +6,12 @@
 
 Scope: `ScanView` in `ios/Wisconsin/Views/ScanView.swift` (the dedicated 4th tab, role: .search) plus `Core/SearchService.swift`. Excludes `Kiosk/KioskBarcodeCameraView.swift` (separate kiosk surface) and `Search/QRScannerSheet.swift` (used from `GlobalSearchSheet`'s scan button).
 
-**Scope filter:** scan = lookup, not check-in/out. Project rule per `project_scan_role.md`: check-in/out runs through kiosk; scan is a general lookup tool. Web has 3 modes (lookup / checkout / checkin) — iOS scan stays lookup-only by design.
+**Scope filter:** scan = lookup, not check-in/out. Project rule per `project_scan_role.md`: check-in/out runs through kiosk; scan is a general lookup tool. Web `/scan` is also lookup-only as of the 2026-05-10 scan ownership pass; old booking-mode deep links show kiosk handoff copy.
 
 ## Web parity baseline
 
-- `/scan` lookup mode — camera scanner, `ItemPreviewDrawer` for results, "Type Code Instead" button, lookup-mode badge in header, "Start the camera above to scan any QR code" hint when paused.
-- `/scan?checkout=…&phase=CHECKOUT|CHECKIN` — kiosk-equivalent bulk modes; **stays web/kiosk only on iOS**.
+- `/scan` lookup mode — camera scanner, `ItemPreviewDrawer` for results, manual code entry, lookup-mode badge in header, and a paused-camera hint.
+- `/scan?checkout=…&phase=CHECKOUT|CHECKIN` — stale deep links that stay in lookup mode and point users back to kiosk custody flows.
 - Sister surface `QRScannerSheet` (used from floating search) has a torch toggle + "Type Code Instead" button — iOS Scan tab has neither.
 
 ## P0 — blocks MVP

@@ -3,6 +3,7 @@
 **Date**: 2026-03-22
 **Scope**: Full booking lifecycle — creation, detail/edit, list/dashboard, scan/checkout
 **Method**: Deep code-level flow mapping across all booking components
+**Status note (2026-05-10)**: This is a historical snapshot. Current checkout pickup and return scans run through kiosk flows, while app `/scan` is lookup-only.
 
 ---
 
@@ -19,7 +20,7 @@ Shift "Create checkout"     │   • From / To datetime         ├─→ Edit 
 Resume draft               ─┘   • Equipment picker           ├─→ Extend (quick buttons)
                                 • Event tie (optional)        ├─→ Cancel (confirmation)
                                 • Draft auto-save             ├─→ Start checkout (reservation→checkout)
-                                                              └─→ Scan items out/in
+                                                              └─→ Kiosk pickup/return handoff
 ```
 
 ---

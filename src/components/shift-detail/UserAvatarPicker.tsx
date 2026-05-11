@@ -26,7 +26,7 @@ type Props = {
   onSearchChange: (value: string) => void;
   onSelect: (userId: string) => void;
   disabled: boolean;
-  /** Map of userId → conflict note for users with scheduling conflicts */
+  /** Map of userId to conflict note for users with scheduling conflicts */
   conflictMap?: Record<string, string>;
   conflictsLoading?: boolean;
 };
@@ -47,7 +47,7 @@ export function UserAvatarPicker({
         id="user-avatar-picker-search"
         name="user-avatar-picker-search"
         type="text"
-        className="mb-2 h-8 text-xs"
+        className="mb-2 h-9 text-sm"
         placeholder="Search all users..."
         value={search}
         onChange={(e) => onSearchChange(e.target.value)}
@@ -68,7 +68,7 @@ export function UserAvatarPicker({
                 key={u.id}
                 type="button"
                 variant="ghost"
-                className="h-auto w-full justify-start gap-2 p-1.5 text-left text-sm hover:bg-accent disabled:opacity-50"
+                className="min-h-10 w-full justify-start gap-2 p-1.5 text-left text-sm hover:bg-accent disabled:opacity-50"
                 onClick={() => onSelect(u.id)}
                 disabled={disabled}
                 title={conflict ?? undefined}
@@ -97,7 +97,7 @@ export function UserAvatarPicker({
         </ScrollArea>
       )}
       {conflictsLoading && (
-        <p className="text-[10px] text-muted-foreground px-1.5 mt-1">Checking availability…</p>
+        <p className="text-[10px] text-muted-foreground px-1.5 mt-1">Checking availability...</p>
       )}
     </>
   );

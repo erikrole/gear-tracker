@@ -13,6 +13,13 @@ const APP_SCAN_ROUTES = [
   },
 ] as const;
 
+const APP_SCAN_LINK_SURFACES = [
+  "src/app/(app)/bookings/BookingDetailPage.tsx",
+  "src/app/(app)/dashboard/overdue-banner.tsx",
+  "src/app/(app)/scan/page.tsx",
+  "src/components/AppShell.tsx",
+] as const;
+
 function sourceFor(relativeFile: string) {
   return readFileSync(path.join(process.cwd(), relativeFile), "utf8");
 }
@@ -25,5 +32,14 @@ describe("app scan route gate contract", () => {
     }).map(({ route }) => route);
 
     expect(drift).toEqual([]);
+  });
+
+  it("keeps the app scan UI lookup-only", () => {
+    const staleLinks = APP_SCAN_LINK_SURFACES.filter((file) =>
+      sourceFor(file).includes("/scan?checkout"),
+    );
+
+    expect(staleLinks).toEqual([]);
+    expect(sourceFor("src/components/AppShell.tsx")).toContain('label: "Lookup", href: "/scan"');
   });
 });

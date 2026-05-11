@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Users
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-08
+- Last Updated: 2026-05-10
 - Status: Active
 - Version: V1.2
 
@@ -91,7 +91,7 @@ Use a simple tiered permission model with inheritance so behavior is predictable
 ## Edge Cases
 - Student attempts to edit a booking that was reassigned.
 - Staff account is demoted while editing a record.
-- Owner is deactivated with active reservations/check-outs.
+- Owner is deactivated with active reservations/check-outs: `OPEN` checkouts block deactivation; `BOOKED`, `DRAFT`, and `PENDING_PICKUP` work is cancelled with allocation/session cleanup, and pending-pickup bulk stock is restored before sessions are invalidated.
 - Draft created by one user but accessed by another user.
 - API request bypasses UI and attempts unauthorized edit.
 
@@ -112,6 +112,8 @@ Use a simple tiered permission model with inheritance so behavior is predictable
 6. Ensure audit logs include actor role, target owner, and exception metadata.
 
 ## Change Log
+- 2026-05-10: Status/data wiring ship fixes. User deactivation cleanup now covers `PENDING_PICKUP` checkouts, including allocation cleanup, open scan-session cancellation, session invalidation, and quantity-only bulk stock restoration. `OPEN` checkout custody still blocks deactivation.
+- 2026-05-10: Users ship polish. The roster page now keeps search, filters, inactive visibility, sort, and pagination in the URL, while `PATCH /api/users/[id]` validates linked direct-report targets and blocks reporting cycles before saving.
 - 2026-05-08: API hardening Wave 9. Registration allowlist adds now treat already-registered or already-allowlisted emails as generic skipped successes, preventing the admin endpoint from acting as a roster membership oracle.
 - 2026-05-08: API hardening Wave 8. User CSV export now uses shared formula-safe escaping so names and profile fields that begin with spreadsheet formula characters export as inert text.
 - 2026-05-08: API hardening Wave 3. User export now redacts staff/admin athletics email and phone fields for STAFF exports, org chart reporting hierarchy is STAFF/ADMIN-only, and `/api/form-options` no longer returns email or the full active-user directory to STUDENT callers.
@@ -163,7 +165,7 @@ Use a simple tiered permission model with inheritance so behavior is predictable
 - 2026-04-30: **Profile fields migrated from Google Sheet** (commit 1d18f7b, migration 0048). Site is now the source of truth for staff/student profile data:
   - **New User columns**: `title`, `athletics_email` (unique), `start_date`, `direct_report_id` (self-FK, ON DELETE SET NULL) + `direct_report_name` (free-text fallback for managers not in the system), `grad_year`, `student_year_override` (`StudentYear` enum), `top_size`, `bottom_size`, `shoe_size`.
   - **Derived year**: `deriveStudentYear(gradYear, override)` infers Fr/So/Jr/Sr/Grad from grad year using a Sept→Aug academic calendar. Override wins if set; UI's empty state on the override field shows the auto-derived value.
-  - **Permissions**: students can view *and edit* all of their own info **except** assignments and direct report (staff/admin only). `updateProfileSchema` now accepts the self-editable subset; `/api/users/[id]` PATCH gates `directReportId`/`directReportName` behind ADMIN/STAFF and rejects self-reporting cycles. Setting a `directReportId` clears `directReportName` and vice versa, so display logic stays unambiguous.
+  - **Permissions**: students can view *and edit* all of their own info **except** assignments and direct report (staff/admin only). `updateProfileSchema` now accepts the self-editable subset; `/api/users/[id]` PATCH gates `directReportId`/`directReportName` behind ADMIN/STAFF and rejects self-reporting or circular direct-report chains. Setting a `directReportId` clears `directReportName` and vice versa, so display logic stays unambiguous.
   - **Audit**: every field change is recorded via `createAuditEntry` on both routes.
   - **UI**: new "Details" card on `/users/[id]` (UserInfoTab.tsx). Field labels switch between "Top Size"/"Clothing Size" by role; bottom size hidden for students. Direct-report autocomplete searches `/api/users?q=…` and lets you pick a User (link) or save a free-text fallback.
   - **`useSaveField` hook** generalized to `useSaveField<T>` so date/number fields reuse the same auto-save UX as text fields.
@@ -175,3 +177,5 @@ Use a simple tiered permission model with inheritance so behavior is predictable
 - 2026-05-07: Avatar polish shipped. Profile photo uploads are center-cropped and resized client-side before upload, and staff/admin roster stats now include a missing-photo cue for the current filtered user set.
 - 2026-05-08: API hardening Wave 11. Admin-issued password resets now set `forcePasswordChange`, invalidate existing sessions, include that marker in audit/response payloads, and self-service password changes clear the marker.
 - 2026-05-08: API hardening Wave 13. Availability writes are rate-limited, avatar uploads now layer IP and actor throttles, deactivation clears direct-report references inside the same Serializable cleanup, and user activity cursors must belong to the requested user's audit scope.
+- 2026-05-10: User contact profile slice. Added a synced `slack_handle` profile field, editable from user detail/profile self-edit flows and returned by the Users/Profile APIs so downstream surfaces can reference Slack contact info from the User record instead of duplicating it.
+- 2026-05-10: Slack profile link slice. Added optional `slack_profile_url` to user profiles with Slack URL validation, self/staff-admin editing, audit diffs, and API responses so contact surfaces can open a real Slack profile when one is saved.

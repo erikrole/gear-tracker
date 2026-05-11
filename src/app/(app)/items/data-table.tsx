@@ -71,6 +71,7 @@ interface DataTableProps {
 function RowContextMenu({
   item,
   selected,
+  canSelect,
   canEdit,
   actionBusy,
   onOpen,
@@ -81,10 +82,11 @@ function RowContextMenu({
 }: {
   item: Asset;
   selected: boolean;
+  canSelect: boolean;
   canEdit: boolean;
   actionBusy: boolean;
   onOpen: (newTab?: boolean) => void;
-  onToggleSelected: () => void;
+  onToggleSelected?: () => void;
   onRowAction?: (action: string, asset: Asset) => void;
   onToggleFavorite?: (asset: Asset) => void;
   children: ReactNode;
@@ -117,9 +119,11 @@ function RowContextMenu({
           <ExternalLink />
           Open in new tab
         </ContextMenuItem>
-        <ContextMenuItem onSelect={onToggleSelected}>
-          {selected ? "Deselect row" : "Select row"}
-        </ContextMenuItem>
+        {canSelect && (
+          <ContextMenuItem onSelect={() => onToggleSelected?.()}>
+            {selected ? "Deselect row" : "Select row"}
+          </ContextMenuItem>
+        )}
         <ContextMenuItem onSelect={copyTag}>
           <Copy />
           Copy tag
@@ -203,7 +207,7 @@ export function DataTable({
       columnVisibility,
     },
     getRowId: (row) => row.id,
-    enableRowSelection: true,
+    enableRowSelection: (row) => !isBulkRowId(row.original.id),
   });
 
   return (
@@ -246,6 +250,7 @@ export function DataTable({
                   key={row.id}
                   item={item}
                   selected={row.getIsSelected()}
+                  canSelect={row.getCanSelect()}
                   canEdit={canEdit}
                   actionBusy={actionBusy}
                   onOpen={openItem}
@@ -255,32 +260,27 @@ export function DataTable({
                 >
                   <div
                     data-state={row.getIsSelected() ? "selected" : undefined}
-                    className="flex items-start gap-3 px-3 py-3 transition-colors active:bg-muted/50 data-[state=selected]:bg-muted/40"
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`View ${item.assetTag}`}
-                    onClick={(e) => {
-                      if ((e.target as HTMLElement).closest("[data-no-row-click]")) return;
-                      if (e.metaKey || e.ctrlKey || e.button === 1) openItem(true);
-                      else openItem();
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        router.push(href);
-                      }
-                    }}
+                    className="relative flex items-start gap-3 px-3 py-3 transition-colors active:bg-muted/50 data-[state=selected]:bg-muted/40"
                   >
-                    <div
-                      data-no-row-click
-                      className="-m-1 p-1 self-center"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Checkbox
-                        checked={row.getIsSelected()}
-                        onCheckedChange={(v) => row.toggleSelected(!!v)}
-                        aria-label={`Select ${item.assetTag}`}
-                      />
+                    <button
+                      type="button"
+                      className="absolute inset-0 z-10 cursor-pointer bg-transparent outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/50"
+                      aria-label={`View ${item.assetTag}`}
+                      onClick={(e) => {
+                        if (e.metaKey || e.ctrlKey || e.button === 1) openItem(true);
+                        else openItem();
+                      }}
+                    />
+                    <div className="relative z-20 -m-1 self-center p-1">
+                      {row.getCanSelect() ? (
+                        <Checkbox
+                          checked={row.getIsSelected()}
+                          onCheckedChange={(v) => row.toggleSelected(!!v)}
+                          aria-label={`Select ${item.assetTag}`}
+                        />
+                      ) : (
+                        <span className="block size-4" aria-hidden="true" />
+                      )}
                     </div>
                     <AssetImage
                       src={item.imageUrl}
@@ -288,7 +288,7 @@ export function DataTable({
                       size={density === "compact" ? 40 : 48}
                       className="shrink-0 rounded-lg"
                     />
-                    <div className="min-w-0 flex-1">
+                    <div className="relative z-0 min-w-0 flex-1">
                       <div className="flex min-w-0 items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div className="truncate text-[15px] font-semibold leading-tight" style={{ fontFamily: "var(--font-heading)" }}>
@@ -367,6 +367,7 @@ export function DataTable({
                     key={row.id}
                     item={item}
                     selected={row.getIsSelected()}
+                    canSelect={row.getCanSelect()}
                     canEdit={canEdit}
                     actionBusy={actionBusy}
                     onOpen={openItem}

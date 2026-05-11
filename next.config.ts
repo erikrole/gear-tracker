@@ -14,6 +14,7 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ["date-fns", "motion"],
     devtoolSegmentExplorer: false,
   },
+  transpilePackages: ["@mdxeditor/editor"],
   images: {
     remotePatterns: [
       {

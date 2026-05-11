@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { BookingStatus, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { countAssetsByEffectiveStatus } from "@/lib/services/status";
 
@@ -60,10 +60,15 @@ export async function getCheckoutReport(days: number) {
   const since = new Date(Date.now() - days * 86_400_000);
   const now = new Date();
   const heatmapSince = new Date(Date.now() - 365 * 86_400_000);
+  const checkoutActivityWhere: Prisma.BookingWhereInput = {
+    kind: "CHECKOUT",
+    status: { not: BookingStatus.DRAFT },
+    createdAt: { gte: since },
+  };
 
   const checkoutResults = await Promise.allSettled([
     db.booking.count({
-      where: { kind: "CHECKOUT", createdAt: { gte: since } }
+      where: checkoutActivityWhere
     }),
     db.booking.count({
       where: {
@@ -73,7 +78,7 @@ export async function getCheckoutReport(days: number) {
       }
     }),
     db.booking.findMany({
-      where: { kind: "CHECKOUT", createdAt: { gte: since } },
+      where: checkoutActivityWhere,
       orderBy: { createdAt: "desc" },
       take: 20,
       include: {
@@ -84,7 +89,7 @@ export async function getCheckoutReport(days: number) {
     }),
     db.booking.groupBy({
       by: ["requesterUserId"],
-      where: { kind: "CHECKOUT", createdAt: { gte: since } },
+      where: checkoutActivityWhere,
       _count: true,
       orderBy: { _count: { requesterUserId: "desc" } },
       take: 10
@@ -95,7 +100,7 @@ export async function getCheckoutReport(days: number) {
       SELECT to_char(date_trunc('day', "created_at" AT TIME ZONE 'UTC'), 'YYYY-MM-DD') AS date,
              COUNT(*)::bigint AS count
       FROM bookings
-      WHERE kind = 'CHECKOUT' AND "created_at" >= ${heatmapSince}
+      WHERE kind = 'CHECKOUT' AND "status" <> 'DRAFT' AND "created_at" >= ${heatmapSince}
       GROUP BY 1
       ORDER BY 1
     `,
@@ -174,6 +179,7 @@ export async function getOverdueReport() {
       requester: { select: { id: true, name: true } },
       location: { select: { id: true, name: true } },
       serializedItems: {
+        where: { allocationStatus: "active" },
         include: { asset: { select: { id: true, assetTag: true, name: true } } },
       },
       bulkItems: {
@@ -208,10 +214,15 @@ export async function getOverdueReport() {
     for (const si of b.serializedItems) {
       items.push(si.asset.assetTag ?? si.asset.name);
     }
+    let itemCount = b.serializedItems.length;
     for (const bi of b.bulkItems) {
-      items.push(`${bi.bulkSku.name} x${(bi.checkedOutQuantity ?? 0) - (bi.checkedInQuantity ?? 0)}`);
+      const checkedOutQuantity = bi.checkedOutQuantity > 0 ? bi.checkedOutQuantity : bi.plannedQuantity;
+      const outstandingQuantity = Math.max(0, checkedOutQuantity - bi.checkedInQuantity);
+      if (outstandingQuantity > 0) {
+        itemCount += outstandingQuantity;
+        items.push(`${bi.bulkSku.name} x${outstandingQuantity}`);
+      }
     }
-    const itemCount = b.serializedItems.length + b.bulkItems.length;
 
     const existing = byRequester.get(b.requester.id);
     const booking = {

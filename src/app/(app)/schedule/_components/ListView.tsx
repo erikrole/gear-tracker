@@ -35,6 +35,7 @@ type ListViewProps = {
   loadData: () => void;
   myShiftsOnly: boolean;
   setMyShiftsOnly: (v: boolean) => void;
+  clearFilters: () => void;
   includePast: boolean;
   hasFilters: boolean;
   currentUserId: string;
@@ -125,7 +126,7 @@ function eventStartLabel(entry: CalendarEntry) {
 function callWindowLabel(startIso: string, endIso: string) {
   const start = formatTime(startIso);
   const end = formatTime(endIso);
-  return start === end ? `Call ${start}` : `Call ${start}–${end}`;
+  return start === end ? `Call ${start}` : `Call ${start} - ${end}`;
 }
 
 /* ── Coverage fraction badge ── */
@@ -148,7 +149,7 @@ function CoveragePill({ percentage, filled, total }: { percentage: number; fille
 
 function formatShiftWindow(entry: CalendarEntry, shift: Shift) {
   if (entry.isHome !== true) return null;
-  return `${formatTime(shift.startsAt)} – ${formatTime(shift.endsAt)}`;
+  return `${formatTime(shift.startsAt)} - ${formatTime(shift.endsAt)}`;
 }
 
 function AssignmentAvatarGroup({
@@ -243,7 +244,7 @@ function ShiftRowList({
               {user ? (
                 <button
                   type="button"
-                  className="flex min-h-9 w-full items-center gap-2 rounded-md px-1 text-left transition-[background-color,scale] hover:bg-muted/45 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
+                  className="flex min-h-10 w-full items-center gap-2 rounded-md px-1 text-left transition-[background-color,scale] hover:bg-muted/45 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
                   aria-label={`Open ${areaLabel} shift assigned to ${user.name}`}
                   onClick={onSelectGroup}
                 >
@@ -268,7 +269,7 @@ function ShiftRowList({
                   <PopoverTrigger asChild>
                     <button
                       type="button"
-                      className="flex min-h-9 w-full items-center gap-2 rounded-md border border-dashed border-muted-foreground/25 px-2 text-left transition-[background-color,border-color,scale] hover:border-muted-foreground/45 hover:bg-muted/45 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
+                      className="flex min-h-10 w-full items-center gap-2 rounded-md border border-dashed border-muted-foreground/25 px-2 text-left transition-[background-color,border-color,scale] hover:border-muted-foreground/45 hover:bg-muted/45 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
                       disabled={assigning}
                       aria-label={`Assign ${areaLabel} ${slotLabel.toLowerCase()}`}
                       onClick={(e) => e.stopPropagation()}
@@ -299,7 +300,7 @@ function ShiftRowList({
               ) : (
                 <button
                   type="button"
-                  className="flex min-h-9 w-full items-center gap-2 rounded-md px-1 text-left transition-[background-color,scale] hover:bg-muted/45 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
+                  className="flex min-h-10 w-full items-center gap-2 rounded-md px-1 text-left transition-[background-color,scale] hover:bg-muted/45 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
                   aria-label={`Open unassigned ${areaLabel} shift`}
                   onClick={onSelectGroup}
                 >
@@ -325,12 +326,12 @@ function ShiftRowList({
               </div>
             )}
 
-            <div className={cn("flex min-h-7", compact ? "justify-start" : "w-24 shrink-0 justify-end")}>
+            <div className={cn("flex min-h-9", compact ? "justify-start" : "w-24 shrink-0 justify-end")}>
               {onPostTrade && myAssignment && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 shrink-0 px-2 text-xs text-muted-foreground transition-[background-color,color,scale] hover:text-foreground active:scale-[0.96]"
+                  className="h-9 shrink-0 px-2 text-xs text-muted-foreground transition-[background-color,color,scale] hover:text-foreground active:scale-[0.96]"
                   disabled={postingTradeId === myAssignment.id}
                   onClick={async (e) => {
                     e.stopPropagation();
@@ -357,6 +358,7 @@ export function ListView({
   loadData,
   myShiftsOnly,
   setMyShiftsOnly,
+  clearFilters,
   includePast,
   hasFilters,
   currentUserId,
@@ -448,7 +450,7 @@ export function ListView({
         toast.error(msg);
       }
     } catch {
-      toast.error("Network error — could not post trade");
+      toast.error("Network error - could not post trade");
     } finally {
       postingTradeRef.current = null;
       setPostingTradeId(null);
@@ -474,7 +476,7 @@ export function ListView({
         toast.error(msg);
       }
     } catch {
-      toast.error("Network error — could not assign shift");
+      toast.error("Network error - could not assign shift");
     }
     finally {
       assigningRef.current = false;
@@ -533,13 +535,13 @@ export function ListView({
               ? "You don't have any upcoming shift assignments."
               : hasFilters
                 ? "Try adjusting your filters."
-                : "No upcoming events. Check Settings → Calendar Sources to add an ICS feed."
+                : "No upcoming events. Check Settings > Calendar Sources to add an ICS feed."
           }
           actionLabel={
             myShiftsOnly
               ? "Show all events"
               : hasFilters
-                ? undefined
+                ? "Clear filters"
                 : "Calendar Sources"
           }
           actionHref={
@@ -550,7 +552,7 @@ export function ListView({
                 : "/settings/calendar-sources"
           }
           onAction={
-            myShiftsOnly ? () => setMyShiftsOnly(false) : undefined
+            myShiftsOnly ? () => setMyShiftsOnly(false) : hasFilters ? clearFilters : undefined
           }
         />
       ) : (
@@ -564,7 +566,7 @@ export function ListView({
 
               return (
                 <div key={dateKey}>
-                  {/* Date group header — timeline style */}
+                  {/* Date group header - timeline style */}
                   <div
                     className={cn(
                       "sticky top-0 z-10 flex items-stretch border-b border-border/50",
@@ -908,7 +910,7 @@ function EventRows({
               type="button"
               aria-label={isExpanded ? "Collapse shifts" : "Expand shifts"}
               aria-expanded={isExpanded}
-              className="flex size-7 items-center justify-center rounded text-muted-foreground transition-[background-color,color,scale] duration-150 hover:bg-muted hover:text-foreground active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
+              className="flex size-9 items-center justify-center rounded-md text-muted-foreground transition-[background-color,color,scale] duration-150 hover:bg-muted hover:text-foreground active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
               onClick={(e) => {
                 e.stopPropagation();
                 onToggle();
@@ -1013,7 +1015,7 @@ function EventRows({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 px-2 text-xs text-muted-foreground transition-[background-color,color,scale] hover:text-foreground active:scale-[0.96]"
+                  className="h-9 px-2 text-xs text-muted-foreground transition-[background-color,color,scale] hover:text-foreground active:scale-[0.96]"
                   onClick={onSelectGroup}
                 >
                   Manage event

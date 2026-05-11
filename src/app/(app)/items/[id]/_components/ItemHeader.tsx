@@ -33,9 +33,18 @@ function StatusLine({ asset }: { asset: AssetDetail }) {
   if (s === "CHECKED_OUT" && b) {
     const href = `/checkouts/${b.id}`;
     return (
-      <Badge variant={b.status === "DRAFT" ? "blue" : "red"} className="px-2.5 py-1 text-xs" asChild>
+      <Badge variant="blue" className="px-2.5 py-1 text-xs" asChild>
         <Link href={href} className="no-underline">
-          {b.status === "DRAFT" ? "Checking out" : `Checked out by ${b.requesterName}`}
+          Checked out by {b.requesterName}
+        </Link>
+      </Badge>
+    );
+  }
+  if (s === "PENDING_PICKUP" && b) {
+    return (
+      <Badge variant="orange" className="px-2.5 py-1 text-xs" asChild>
+        <Link href={`/checkouts/${b.id}`} className="no-underline">
+          Awaiting pickup by {b.requesterName}
         </Link>
       </Badge>
     );
@@ -129,9 +138,11 @@ export function ItemHeader({
   const [imageFailed, setImageFailed] = useState(false);
   const isRetired = asset.computedStatus === "RETIRED";
   const isMaintenance = asset.computedStatus === "MAINTENANCE";
-  const hasActiveCheckout = asset.computedStatus === "CHECKED_OUT" && asset.activeBooking?.kind === "CHECKOUT";
+  const hasBlockingCheckout =
+    (asset.computedStatus === "CHECKED_OUT" || asset.computedStatus === "PENDING_PICKUP") &&
+    asset.activeBooking?.kind === "CHECKOUT";
   const canReserve = asset.availableForReservation && !isRetired;
-  const canCheckOut = asset.availableForCheckout && !isRetired && !isMaintenance && !hasActiveCheckout;
+  const canCheckOut = asset.availableForCheckout && !isRetired && !isMaintenance && !hasBlockingCheckout;
   const activeBookingHref = asset.activeBooking
     ? asset.activeBooking.kind === "RESERVATION"
       ? `/reservations/${asset.activeBooking.id}`
@@ -140,7 +151,9 @@ export function ItemHeader({
   const activeBookingLabel = asset.activeBooking
     ? asset.activeBooking.kind === "RESERVATION"
       ? "Open reservation"
-      : "Open checkout"
+      : asset.activeBooking.status === "PENDING_PICKUP"
+        ? "Open pickup"
+        : "Open checkout"
     : null;
   const brandModel = [asset.brand, asset.model].filter(Boolean).join(" ");
   const productLabel = asset.name || brandModel;
@@ -290,8 +303,10 @@ export function ItemHeader({
                   variant="outline"
                   disabled
                   title={
-                    hasActiveCheckout
-                      ? "This item is already checked out"
+                    hasBlockingCheckout
+                      ? asset.computedStatus === "PENDING_PICKUP"
+                        ? "This item is awaiting pickup"
+                        : "This item is already checked out"
                       : isMaintenance
                         ? "Maintenance items cannot be checked out"
                         : "Check out is disabled for this item"

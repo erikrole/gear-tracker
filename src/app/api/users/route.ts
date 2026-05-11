@@ -154,6 +154,8 @@ export const GET = withAuth(async (req, { user }) => {
       email: u.email,
       role: u.role,
       phone: u.phone,
+      slackHandle: u.slackHandle ?? null,
+      slackProfileUrl: u.slackProfileUrl ?? null,
       primaryArea: u.primaryArea,
       locationId: u.locationId,
       location: u.location?.name ?? null,

@@ -75,7 +75,7 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
       <div className="flex flex-row items-center gap-2 flex-wrap">
       {/* View mode toggle */}
       <ToolbarGroup label="View">
-        <div className="flex items-center rounded-md border border-border overflow-hidden bg-muted/30">
+        <div className="flex min-h-10 items-center overflow-hidden rounded-md border border-border bg-muted/30">
           {VIEW_MODES.map((mode, i) => {
             const isActive = filters.viewMode === mode.value;
             return (
@@ -84,7 +84,7 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
                 onClick={() => filters.setViewMode(mode.value)}
                 aria-pressed={isActive}
                 className={cn(
-                  "flex items-center gap-1.5 px-3 h-8 text-[13px] font-medium transition-[background-color,color,box-shadow,scale] duration-150 active:scale-[0.96]",
+                  "flex h-10 items-center gap-1.5 px-3 text-[13px] font-medium transition-[background-color,color,box-shadow,scale] duration-150 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2",
                   i > 0 && "border-l border-border",
                   isActive
                     ? "bg-background text-foreground shadow-sm"
@@ -100,11 +100,11 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
       </ToolbarGroup>
 
       {/* Divider */}
-      <div className="h-5 w-px bg-border/80 mx-0.5 max-sm:hidden" />
+      <div className="mx-0.5 h-6 w-px bg-border/80 max-sm:hidden" />
 
       {/* Home / Away filter */}
       <ToolbarGroup label="Venue">
-        <div className="flex items-center rounded-md border border-border overflow-hidden bg-muted/30">
+        <div className="flex min-h-10 items-center overflow-hidden rounded-md border border-border bg-muted/30">
           {HOME_AWAY_OPTIONS.map((opt, i) => {
             const isActive = filters.homeAwayFilter === opt.value;
             const activeColor =
@@ -119,7 +119,7 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
                 onClick={() => filters.setHomeAwayFilter(opt.value)}
                 aria-pressed={isActive}
                 className={cn(
-                  "px-2.5 h-8 text-[13px] font-medium transition-[background-color,color,box-shadow,scale] duration-150 active:scale-[0.96]",
+                  "h-10 px-2.5 text-[13px] font-medium transition-[background-color,color,box-shadow,scale] duration-150 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2",
                   i > 0 && "border-l border-border",
                   isActive
                     ? cn(activeColor, "shadow-sm")
@@ -134,14 +134,14 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
       </ToolbarGroup>
 
       {/* Divider */}
-      <div className="h-5 w-px bg-border/80 mx-0.5 max-sm:hidden" />
+      <div className="mx-0.5 h-6 w-px bg-border/80 max-sm:hidden" />
 
       <ToolbarGroup label="Coverage">
         <Button
           variant={needsStaffActive ? "default" : "outline"}
           size="sm"
           className={cn(
-            "h-8 gap-1.5 text-[13px]",
+            "h-10 gap-1.5 text-[13px]",
             !needsStaffActive && needsStaffCount > 0 && "border-[var(--red-text)]/25 text-[var(--red-text)] hover:bg-[var(--red-bg)] hover:text-[var(--red-text)]",
           )}
           onClick={() => filters.setCoverageFilter(needsStaffActive ? "" : "unfilled")}
@@ -157,7 +157,7 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
       </ToolbarGroup>
 
       {/* My Shifts toggle */}
-      <div className="flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-border bg-muted/30">
+      <div className="flex min-h-10 items-center gap-1.5 rounded-md border border-border bg-muted/30 px-2.5">
         <Switch
           id="my-shifts-toggle"
           checked={filters.myShiftsOnly}
@@ -172,9 +172,9 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
         </Label>
       </div>
 
-      {/* Past events toggle — list view only */}
+      {/* Past events toggle - list view only */}
       {filters.viewMode === "list" && (
-        <div className="flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-border bg-muted/30">
+        <div className="flex min-h-10 items-center gap-1.5 rounded-md border border-border bg-muted/30 px-2.5">
           <Switch
             id="past-events-toggle"
             checked={filters.includePast}
@@ -196,7 +196,7 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
           <Button
             variant={popoverFilterCount > 0 ? "default" : "outline"}
             size="sm"
-            className="h-8 gap-1.5 text-[13px]"
+            className="h-10 gap-1.5 text-[13px]"
           >
             <FilterIcon className="size-3.5" />
             Filters
@@ -253,7 +253,7 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 text-xs font-medium w-full"
+                  className="h-9 w-full text-xs font-medium"
                   onClick={filters.clearAll}
                 >
                   <XIcon className="size-3 mr-1" />

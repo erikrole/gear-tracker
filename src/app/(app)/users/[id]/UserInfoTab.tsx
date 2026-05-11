@@ -54,7 +54,7 @@ function TextInputField({
   placeholder?: string;
   canEdit: boolean;
   onSave: (v: string) => Promise<void>;
-  type?: "text" | "email" | "tel";
+  type?: "text" | "email" | "tel" | "url";
 }) {
   const [draft, setDraft] = useState(value);
   const { status, save } = useSaveField(onSave);
@@ -546,7 +546,7 @@ export default function UserInfoTab({
 
   // Fields a user can edit on their own profile (mirrors updateProfileSchema).
   const SELF_EDITABLE_FIELDS = new Set([
-    "name", "locationId", "phone",
+    "name", "locationId", "phone", "slackHandle", "slackProfileUrl",
     "title", "athleticsEmail", "startDate", "gradYear", "studentYearOverride",
     "topSize", "bottomSize", "shoeSize",
   ]);
@@ -756,6 +756,21 @@ export default function UserInfoTab({
             canEdit={canEditProfile || canEditSelf}
             onSave={(v) => patchUser({ phone: v || null })}
             type="tel"
+          />
+          <TextInputField
+            label="Slack"
+            value={user.slackHandle || ""}
+            placeholder="@username"
+            canEdit={canEditProfile || canEditSelf}
+            onSave={(v) => patchUser({ slackHandle: v || null })}
+          />
+          <TextInputField
+            label="Slack Profile URL"
+            value={user.slackProfileUrl || ""}
+            placeholder="https://app.slack.com/team/U..."
+            canEdit={canEditProfile || canEditSelf}
+            onSave={(v) => patchUser({ slackProfileUrl: v || null })}
+            type="url"
           />
           <SelectInputField
             label="Role"

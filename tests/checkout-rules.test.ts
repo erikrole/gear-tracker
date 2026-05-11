@@ -76,6 +76,29 @@ describe("canPerformBookingAction", () => {
     });
   });
 
+  // ── PENDING_PICKUP state ──
+  describe("PENDING_PICKUP state", () => {
+    const booking = makeCheckout("PENDING_PICKUP");
+
+    it("allows staff or owner to edit and cancel before kiosk pickup", () => {
+      expect(canPerformBookingAction(staff, booking, "edit").allowed).toBe(true);
+      expect(canPerformBookingAction(staff, booking, "cancel").allowed).toBe(true);
+      expect(canPerformBookingAction(owner, booking, "edit").allowed).toBe(true);
+      expect(canPerformBookingAction(owner, booking, "cancel").allowed).toBe(true);
+    });
+
+    it("does not expose checkout execution actions before kiosk pickup", () => {
+      expect(canPerformBookingAction(staff, booking, "extend").allowed).toBe(false);
+      expect(canPerformBookingAction(staff, booking, "checkin").allowed).toBe(false);
+      expect(canPerformBookingAction(staff, booking, "open").allowed).toBe(false);
+    });
+
+    it("denies non-owner students", () => {
+      expect(canPerformBookingAction(otherStudent, booking, "edit").allowed).toBe(false);
+      expect(canPerformBookingAction(otherStudent, booking, "cancel").allowed).toBe(false);
+    });
+  });
+
   // ── OPEN state ──
   describe("OPEN state", () => {
     const booking = makeCheckout("OPEN");
@@ -144,6 +167,11 @@ describe("getAllowedActions", () => {
     expect(actions).toContain("cancel");
     expect(actions).toContain("open");
     expect(actions).not.toContain("checkin");
+  });
+
+  it("returns only edit and cancel for pending-pickup checkout as owner", () => {
+    const booking = makeCheckout("PENDING_PICKUP");
+    expect(getAllowedBookingActions(owner, booking)).toEqual(["edit", "cancel"]);
   });
 
   it("returns empty array for COMPLETED checkout", () => {

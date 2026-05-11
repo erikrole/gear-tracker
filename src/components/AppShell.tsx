@@ -24,6 +24,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { STATUS_STYLES } from "@/lib/status-styles";
 import { type CurrentUser, useCurrentUser } from "@/hooks/use-current-user";
+import { cn } from "@/lib/utils";
 
 type SearchResult = {
   type: "item" | "checkout" | "reservation" | "user";
@@ -38,11 +39,11 @@ type SearchResult = {
 };
 
 const bottomNavItems = [
-  { label: "Home", href: "/", icon: <LayoutGridIcon className="size-[22px]" /> },
-  { label: "Items", href: "/items", icon: <LayersIcon className="size-[22px]" /> },
-  { label: "Reservations", href: "/reservations", icon: <CalendarPlusIcon className="size-[22px]" /> },
-  { label: "Checkouts", href: "/checkouts", icon: <ClipboardCheckIcon className="size-[22px]" /> },
-  { label: "Lookup", href: "/scan", icon: <ScanIcon className="size-[22px]" /> },
+  { label: "Home", href: "/", icon: LayoutGridIcon },
+  { label: "Items", href: "/items", icon: LayersIcon },
+  { label: "Reservations", href: "/reservations", icon: CalendarPlusIcon },
+  { label: "Checkouts", href: "/checkouts", icon: ClipboardCheckIcon, badge: "overdue" as const },
+  { label: "Lookup", href: "/scan", icon: ScanIcon, primary: true },
 ];
 
 export default function AppShell({
@@ -427,7 +428,7 @@ export default function AppShell({
           </div>
         </header>
         <BreadcrumbProvider>
-          <main id="main-content" className="py-7 px-8 flex-1 max-md:p-4 max-md:pb-[calc(80px+env(safe-area-inset-bottom,0px))] print:pb-0">
+          <main id="main-content" className="py-7 px-8 flex-1 max-md:p-4 max-md:pb-[calc(96px+env(safe-area-inset-bottom,0px))] print:pb-0">
             <PageBreadcrumb />
             {children}
           </main>
@@ -435,24 +436,54 @@ export default function AppShell({
       </div>
 
       {/* Mobile bottom nav */}
-      <nav aria-label="Mobile navigation" className="hidden max-md:flex fixed bottom-0 left-0 right-0 z-[var(--z-overlay)] bg-card border-t border-border shadow-[0_-1px_3px_rgba(0,0,0,0.04)] pb-[env(safe-area-inset-bottom,4px)] pt-1 justify-around items-stretch print:hidden">
-        {bottomNavItems.map((item) => {
-          const isActive =
-            item.href === "/"
-              ? pathname === "/"
-              : pathname.startsWith(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={isActive ? "page" : undefined}
-              className={`flex flex-col items-center justify-center gap-0.5 py-2 px-1 min-w-14 min-h-12 no-underline text-muted-foreground text-[length:var(--text-3xs)] font-medium border-none bg-transparent cursor-pointer transition-colors [-webkit-tap-highlight-color:transparent] hover:text-foreground${isActive ? " !text-[var(--wi-red)]" : ""}`}
-            >
-              {item.icon}
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
+      <nav aria-label="Mobile navigation" className="hidden max-md:block fixed inset-x-0 bottom-0 z-[var(--z-overlay)] border-t border-border/70 bg-card/95 px-2 pb-[calc(6px+env(safe-area-inset-bottom,0px))] pt-2 shadow-[0_-10px_28px_rgba(15,23,42,0.10)] backdrop-blur supports-[backdrop-filter]:bg-card/90 print:hidden">
+        <div className="mx-auto grid max-w-[460px] grid-cols-5 gap-1">
+          {bottomNavItems.map((item) => {
+            const isActive =
+              item.href === "/"
+                ? pathname === "/"
+                : pathname.startsWith(item.href);
+            const badgeCount = item.badge === "overdue" ? overdueBadgeCount : 0;
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={isActive ? "page" : undefined}
+                aria-label={badgeCount > 0 ? `${item.label}, ${badgeCount} overdue` : item.label}
+                className={cn(
+                  "group relative flex min-h-[58px] min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-[9.5px] font-semibold leading-none text-muted-foreground no-underline outline-none transition-[background-color,color,box-shadow,scale] duration-150 [-webkit-tap-highlight-color:transparent] hover:bg-muted/70 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card active:scale-[0.96]",
+                  isActive && "bg-muted text-foreground shadow-[inset_0_0_0_1px_rgba(0,0,0,0.04)]",
+                  item.primary && "gap-0.5",
+                )}
+              >
+                <span
+                  className={cn(
+                    "relative flex size-7 items-center justify-center rounded-full transition-[background-color,color,box-shadow,scale] duration-150",
+                    item.primary
+                      ? isActive
+                        ? "bg-[var(--wi-red)] text-white shadow-[0_8px_18px_rgba(160,0,0,0.28)]"
+                        : "bg-[var(--wi-red)] text-white shadow-[0_8px_18px_rgba(160,0,0,0.20)] group-hover:shadow-[0_10px_22px_rgba(160,0,0,0.26)]"
+                      : isActive
+                      ? "bg-[var(--wi-red)]/10 text-[var(--wi-red)]"
+                      : "text-muted-foreground group-hover:text-foreground",
+                  )}
+                  aria-hidden="true"
+                >
+                  <Icon className={item.primary ? "size-[19px]" : "size-[18px]"} />
+                  {badgeCount > 0 && (
+                    <span className="absolute -right-2 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold leading-4 text-destructive-foreground tabular-nums shadow-sm">
+                      {badgeCount > 99 ? "99+" : badgeCount}
+                    </span>
+                  )}
+                </span>
+                <span className={cn("max-w-full truncate tracking-normal", isActive && "text-[var(--wi-red)]", item.primary && isActive && "text-foreground")}>
+                  {item.label}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
       </nav>
     </SidebarProvider>
   );

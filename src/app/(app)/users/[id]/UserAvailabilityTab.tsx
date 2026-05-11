@@ -103,7 +103,7 @@ function AddBlockForm({ userId, onAdded, onCancel }: AddBlockFormProps) {
         <div className="space-y-1.5">
           <Label className="text-xs">Day</Label>
           <Select value={dayOfWeek} onValueChange={setDayOfWeek}>
-            <SelectTrigger size="sm" className="text-sm">
+            <SelectTrigger size="sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

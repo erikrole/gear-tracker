@@ -19,6 +19,8 @@ function normalizeDashboard(d: DashboardData): DashboardData {
   d.teamReservations.items = d.teamReservations.items ?? [];
   d.pendingPickups = d.pendingPickups ?? { total: 0, items: [] };
   d.pendingPickups.items = d.pendingPickups.items ?? [];
+  d.staleReservations = d.staleReservations ?? { total: 0, items: [] };
+  d.staleReservations.items = d.staleReservations.items ?? [];
   d.upcomingEvents = d.upcomingEvents ?? [];
   d.myReservations = d.myReservations ?? [];
   d.overdueItems = d.overdueItems ?? [];
@@ -106,28 +108,29 @@ export function useDashboardData(): UseDashboardDataResult {
   // Merge: overlay fresh stats from the fast endpoint onto the full payload.
   // This keeps stat cards and the overdue count current (60s) without
   // re-running the expensive events/shifts/flagged queries.
-  const data: DashboardData | null = fullData
+  const safeFullData = fullData ? normalizeDashboard(fullData) : null;
+  const data: DashboardData | null = safeFullData
     ? statsData
       ? {
-          ...fullData,
+          ...safeFullData,
           stats: statsData.stats,
           overdueCount: statsData.overdueCount,
           myCheckouts: {
-            ...fullData.myCheckouts,
+            ...safeFullData.myCheckouts,
             total: statsData.myCheckoutsTotal,
             overdue: statsData.myOverdueCount,
           },
           teamCheckouts: {
-            ...fullData.teamCheckouts,
+            ...safeFullData.teamCheckouts,
             total: statsData.teamCheckoutsTotal,
             overdue: statsData.teamCheckoutsOverdue,
           },
           teamReservations: {
-            ...fullData.teamReservations,
+            ...safeFullData.teamReservations,
             total: statsData.teamReservationsTotal,
           },
         }
-      : fullData
+      : safeFullData
     : null;
 
   // Preserve setData API for optimistic updates (draft deletion)

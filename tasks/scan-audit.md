@@ -3,6 +3,7 @@
 **Auditor**: Claude (automated)
 **Area**: Scan (QR scanning for checkout/check-in flows)
 **Overall Verdict**: Ship-ready (23/25)
+**Status note (2026-05-10)**: Historical snapshot. App `/scan` is now lookup-only; checkout pickup and return scans run through kiosk routes. The booking-mode scan checklist/session/report components listed below were removed during the scan ownership pass.
 
 ## Scores
 | Dimension | Score | Notes |

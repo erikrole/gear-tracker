@@ -21,11 +21,6 @@ export const GET = withAuth(async (_req, { user }) => {
         balances: { select: { onHandQuantity: true } },
         // Available units count for numbered SKUs
         units: { where: { status: "AVAILABLE" }, select: { id: true } },
-        // Active checked-out quantities for non-numbered SKUs
-        bookingItems: {
-          where: { booking: { status: "OPEN", kind: "CHECKOUT" } },
-          select: { checkedOutQuantity: true },
-        },
       }
     })
   ]);
@@ -34,7 +29,7 @@ export const GET = withAuth(async (_req, { user }) => {
     const onHandQuantity = s.balances.reduce((sum, b) => sum + b.onHandQuantity, 0);
     const availableQuantity = s.trackByNumber
       ? s.units.length
-      : Math.max(0, onHandQuantity - s.bookingItems.reduce((sum, b) => sum + (b.checkedOutQuantity ?? 0), 0));
+      : Math.max(0, onHandQuantity);
     return {
       id: s.id, name: s.name, category: s.category, unit: s.unit,
       locationId: s.locationId, binQrCodeValue: s.binQrCodeValue, trackByNumber: s.trackByNumber,

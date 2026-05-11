@@ -59,23 +59,25 @@ export function BookingCard({ item, overdueStatus, onClick, menuProps }: Booking
     <BookingContextMenuWrapper item={item} {...menuProps}>
       <div
         className={cn(
-          "group relative rounded-lg border bg-card overflow-hidden cursor-pointer transition-colors hover:bg-muted/30 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]",
+          "group relative overflow-hidden rounded-lg border bg-card transition-colors hover:bg-muted/30",
           isOverdue && "border-[var(--wi-red)]/25 bg-[var(--wi-red)]/[0.02]",
         )}
-        role="button"
-        tabIndex={0}
-        aria-label={`View booking: ${item.title}`}
-        onClick={onClick}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
       >
+        <button
+          type="button"
+          className="absolute inset-0 z-10 cursor-pointer bg-transparent outline-none focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
+          aria-label={`View booking: ${item.title}`}
+          onClick={onClick}
+        />
+
         {/* Status left-border accent */}
         <div
-          className="absolute left-0 top-0 bottom-0 w-[3px]"
+          className="absolute left-0 top-0 bottom-0 z-0 w-[3px]"
           style={{ background: sv.dot }}
           aria-hidden="true"
         />
 
-        <div className="p-4 pl-5">
+        <div className="relative z-0 p-4 pl-5">
           {/* Top row: status indicator + duration */}
           <div className="flex items-center justify-between mb-2.5 pr-10">
             <div className="flex items-center gap-1.5">
@@ -167,7 +169,7 @@ export function BookingCard({ item, overdueStatus, onClick, menuProps }: Booking
 
         {/* Overflow menu — top-right, always visible on touch, reveal on hover for pointer devices */}
         <div
-          className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity"
+          className="absolute top-3 right-3 z-20 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100"
           onClick={(e) => e.stopPropagation()}
         >
           <BookingOverflowMenu item={item} {...menuProps}>

@@ -41,7 +41,11 @@ DRAFT → PENDING_PICKUP (created on desktop) → OPEN (kiosk pickup) → COMPLE
   - New `PickupFlow.tsx`: scan-to-confirm items, then call confirm API
 - [x] Slice 5: Gate checkout/checkin scan APIs
   - `/api/checkouts/[id]/scan` and `/api/checkouts/[id]/checkin-scan`: return 403 from regular auth
-- [ ] Slice 6: Doc updates + GAPS update
+- [x] Slice 6: Doc updates + GAPS update
+
+## Review
+
+2026-05-10 scan ownership pass closed the remaining doc slice. App `/scan` is lookup-only, stale booking-mode deep links show kiosk handoff copy, booking detail and dashboard no longer route to `/scan?checkout=...`, and `tests/scan-route-gate-contract.test.ts` protects the boundary.
 
 ## Affected Status Queries (Verified — all explicitly filter OPEN, not all statuses)
 - `/api/dashboard/route.ts`: `status = 'OPEN'` — correct, PENDING_PICKUP excluded

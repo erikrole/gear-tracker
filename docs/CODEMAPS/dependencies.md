@@ -56,7 +56,9 @@
 | qrcode | 1.5.4 | QR code generation |
 | barcode-detector | 3.1.2 | Barcode scanning (camera) |
 | bcryptjs | 3.0.3 | Password hashing |
-| @blocknote/* | 0.47.3 | Rich text / block editor |
+| @mdxeditor/editor | 4.0.0 | Markdown WYSIWYG editor for Guides |
+| react-markdown | 10.1.0 | Markdown rendering for Guides |
+| remark-gfm | 4.0.1 | GitHub-flavored Markdown support |
 
 ## Dev Dependencies
 | Package | Version | Purpose |

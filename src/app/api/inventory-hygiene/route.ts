@@ -24,24 +24,25 @@ type DuplicateScanRow = {
 };
 
 function assetLabel(asset: { assetTag: string; name: string | null; brand: string; model: string }) {
-  return asset.name?.trim() || [asset.brand, asset.model].filter(Boolean).join(" ").trim() || asset.assetTag;
+  return asset.assetTag;
 }
 
 function assetDetail(asset: {
   assetTag: string;
+  name?: string | null;
   brand?: string | null;
   model?: string | null;
   location?: { name: string } | null;
   category?: { name: string } | null;
   department?: { name: string } | null;
 }) {
+  const product = asset.name?.trim() || [asset.brand, asset.model].filter(Boolean).join(" ").trim();
   return [
-    asset.assetTag,
-    [asset.brand, asset.model].filter(Boolean).join(" ").trim(),
+    product,
     asset.category?.name,
     asset.department?.name,
     asset.location?.name,
-  ].filter(Boolean).join(" / ");
+  ].filter(Boolean).join(" / ") || "No supporting metadata";
 }
 
 function issue(key: string, title: string, description: string, count: number, samples: HygieneSample[]) {
@@ -230,10 +231,6 @@ export const GET = withAuth(async (_req, { user }) => {
         categoryRel: { select: { name: true } },
         balances: { select: { onHandQuantity: true } },
         units: { select: { status: true } },
-        bookingItems: {
-          where: { booking: { status: "OPEN", kind: "CHECKOUT" } },
-          select: { checkedOutQuantity: true },
-        },
       },
     }),
   ]);
@@ -261,7 +258,6 @@ export const GET = withAuth(async (_req, { user }) => {
     categoryRel: { name: string } | null;
     balances: Array<{ onHandQuantity: number }>;
     units: Array<{ status: string }>;
-    bookingItems: Array<{ checkedOutQuantity: number | null }>;
   }> = [];
   const missingCategoryCount = settledValue(missingCategoryCountResult, 0, "missingCategoryCount", partialFailures);
   const missingCategoryRows = settledValue(missingCategoryRowsResult, assetRowsFallback, "missingCategoryRows", partialFailures);
@@ -283,7 +279,7 @@ export const GET = withAuth(async (_req, { user }) => {
       const onHand = sku.balances.reduce((sum, balance) => sum + balance.onHandQuantity, 0);
       const available = sku.trackByNumber
         ? sku.units.filter((unit) => unit.status === "AVAILABLE").length
-        : Math.max(0, onHand - sku.bookingItems.reduce((sum, item) => sum + (item.checkedOutQuantity ?? 0), 0));
+        : Math.max(0, onHand);
       const threshold = Math.max(DEFAULT_BULK_THRESHOLD, sku.minThreshold);
       return { sku, available, threshold };
     })
@@ -319,7 +315,7 @@ export const GET = withAuth(async (_req, { user }) => {
     issue(
       "missing-primary-scan",
       "Missing primary scan code",
-      "These items have QR text, but no canonical primary scan value for scan-first workflows.",
+      "These items do not have a canonical primary scan value for scan-first workflows.",
       missingScanCodeCount,
       missingScanCodeRows.map((asset) => ({
         id: asset.id,

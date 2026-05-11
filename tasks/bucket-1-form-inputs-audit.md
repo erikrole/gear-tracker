@@ -3,6 +3,14 @@
 **Components:** `input`, `textarea`, `select`, `native-select`, `checkbox`, `radio-group`, `switch`, `label`
 **Date:** 2026-05-01
 
+## 2026-05-10 Closeout
+
+- `Input` already had `shadow-xs`, matching transitions, disabled cursor parity, and `aria-invalid` styling before this closeout pass.
+- `NativeSelect` already had `aria-invalid` styling; this pass aligned its default mobile type size with `Input`, `Textarea`, and `SelectTrigger` (`text-base md:text-sm`) while preserving dense overrides at call sites.
+- `SelectTrigger size="sm"` now owns the small text size, so compact selects no longer need page-level `text-sm` overrides.
+- Removed redundant small-select typography overrides from the fully-read call sites in Schedule assignment, Settings Sports call-time controls, and User Availability add-block form.
+- Left the broad `Label` layout question and full FormField adoption as follow-up bets; the installed `form.tsx` and `combobox.tsx` primitives now exist, so the original bigger-bet notes are partially stale and should be re-audited before a migration.
+
 ---
 
 ## What's Smart
@@ -54,11 +62,11 @@
 
 ## Polish Checklist (this PR)
 
-- [ ] Input shadow + transition parity with Textarea/Select
-- [ ] NativeSelect aria-invalid parity
-- [ ] Migrate hand-rolled small SelectTriggers to `size="sm"`
-- [ ] Remove redundant explicit `h-9` on SelectTriggers (already the default)
-- [ ] Drop dead `data-size` attribute on SelectTrigger
+- [x] Input shadow + transition parity with Textarea/Select
+- [x] NativeSelect aria-invalid parity
+- [x] Migrate hand-rolled small SelectTriggers to `size="sm"`
+- [x] Remove redundant explicit `h-9` on SelectTriggers (already the default)
+- [x] Drop dead `data-size` attribute on SelectTrigger
 
 ## Bigger Bets (follow-up PRs)
 

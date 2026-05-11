@@ -77,7 +77,8 @@ export default function AssignPage() {
     <FadeUp>
       <PageHeader title="Assign Shifts">
         <Button variant="ghost" size="sm" onClick={() => router.push("/schedule")}>
-          ← Schedule
+          <ChevronLeft className="size-4" />
+          Schedule
         </Button>
       </PageHeader>
 
@@ -85,20 +86,20 @@ export default function AssignPage() {
       <div className="flex flex-wrap items-center gap-3 mb-4">
         {/* Month nav */}
         <div className="flex items-center gap-1">
-          <Button variant="outline" size="icon-sm" onClick={prevMonth} aria-label="Previous month">
+          <Button variant="outline" size="icon" className="size-10" onClick={prevMonth} aria-label="Previous month">
             <ChevronLeft className="size-4" />
           </Button>
-          <Button variant="outline" size="sm" className="min-w-[9rem] font-medium" onClick={thisMonth}>
+          <Button variant="outline" className="h-10 min-w-[9rem] font-medium" onClick={thisMonth}>
             {monthLabel}
           </Button>
-          <Button variant="outline" size="icon-sm" onClick={nextMonth} aria-label="Next month">
+          <Button variant="outline" size="icon" className="size-10" onClick={nextMonth} aria-label="Next month">
             <ChevronRight className="size-4" />
           </Button>
         </div>
 
         {/* Sport filter */}
         <Select value={grid.sportFilter || "_all"} onValueChange={(v) => grid.setSportFilter(v === "_all" ? "" : v)}>
-          <SelectTrigger size="sm" className="w-44 text-sm">
+          <SelectTrigger size="sm" className="h-10 w-44">
             <SelectValue placeholder="All sports" />
           </SelectTrigger>
           <SelectContent>
@@ -113,7 +114,7 @@ export default function AssignPage() {
 
         {/* Area filter */}
         <Select value={grid.areaFilter || "_all"} onValueChange={(v) => grid.setAreaFilter(v === "_all" ? "" : v)}>
-          <SelectTrigger size="sm" className="w-36 text-sm">
+          <SelectTrigger size="sm" className="h-10 w-36">
             <SelectValue placeholder="All areas" />
           </SelectTrigger>
           <SelectContent>
@@ -128,7 +129,7 @@ export default function AssignPage() {
 
         {/* Loading / count badge */}
         {grid.loading ? (
-          <Badge variant="outline" className="text-muted-foreground">Loading…</Badge>
+          <Badge variant="outline" className="text-muted-foreground">Loading...</Badge>
         ) : (
           <Badge variant="outline" className="text-muted-foreground">
             {grid.events.length} event{grid.events.length !== 1 ? "s" : ""}
@@ -140,7 +141,7 @@ export default function AssignPage() {
       {grid.error && (
         <div className="text-sm text-destructive mb-4">
           {grid.error === "network"
-            ? "You're offline — schedule data unavailable."
+            ? "You're offline - schedule data unavailable."
             : "Failed to load schedule. Try refreshing."}
         </div>
       )}
@@ -153,6 +154,11 @@ export default function AssignPage() {
         usersLoading={usersLoading}
         isStaff={isStaff}
         onRefetch={grid.refetch}
+        hasFilters={Boolean(grid.sportFilter || grid.areaFilter)}
+        onClearFilters={() => {
+          grid.setSportFilter("");
+          grid.setAreaFilter("");
+        }}
       />
     </FadeUp>
   );

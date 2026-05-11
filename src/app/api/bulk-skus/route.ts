@@ -32,13 +32,6 @@ export const GET = withAuth(async (req) => {
           },
         },
         categoryRel: { select: { id: true, name: true } },
-        // Active checkout quantities for available-now calculation
-        bookingItems: {
-          where: {
-            booking: { status: "OPEN", kind: "CHECKOUT" },
-          },
-          select: { checkedOutQuantity: true },
-        },
       },
       orderBy: [{ locationId: "asc" }, { name: "asc" }],
       take: limit,
@@ -47,14 +40,14 @@ export const GET = withAuth(async (req) => {
     db.bulkSku.count({ where }),
   ]);
 
-  // Compute availableQuantity: numbered → AVAILABLE units; non-numbered → onHand minus checked-out
+  // Compute availableQuantity: numbered -> AVAILABLE units; non-numbered -> current stock balance.
+  // BulkStockBalance is already movement-adjusted by checkout/checkin flows.
   const data = raw.map((sku) => {
     const onHand = sku.balances.reduce((s, b) => s + b.onHandQuantity, 0);
     const availableQuantity = sku.trackByNumber
       ? sku.units.filter((u) => u.status === "AVAILABLE").length
-      : Math.max(0, onHand - sku.bookingItems.reduce((s, b) => s + (b.checkedOutQuantity ?? 0), 0));
-    const { bookingItems: _, ...rest } = sku;
-    return { ...rest, availableQuantity };
+      : Math.max(0, onHand);
+    return { ...sku, availableQuantity };
   });
 
   return ok({ data, total, limit, offset });

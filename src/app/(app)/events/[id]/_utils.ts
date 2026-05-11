@@ -46,7 +46,7 @@ export type CommandCenterData = {
   }>;
   gearSummary: {
     total: number;
-    byStatus: { draft: number; reserved: number; checkedOut: number; completed: number };
+    byStatus: { draft: number; reserved: number; pendingPickup: number; checkedOut: number; completed: number };
   };
   missingGear: Array<{
     userId: string;
@@ -88,4 +88,3 @@ export function formatDate(iso: string) {
     year: "numeric"
   });
 }
-

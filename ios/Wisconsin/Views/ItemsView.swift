@@ -360,7 +360,7 @@ struct AssetRow: View {
 
         // Status + due/overdue: speak who has it (when applicable) + status label.
         if let name = asset.activeBooking?.requesterName,
-           asset.computedStatus == .checkedOut || asset.computedStatus == .reserved {
+           asset.computedStatus == .checkedOut || asset.computedStatus == .pendingPickup || asset.computedStatus == .reserved {
             parts.append("\(asset.computedStatus.label.lowercased()) by \(name)")
         } else {
             parts.append(asset.computedStatus.label)
@@ -396,6 +396,7 @@ private struct AssetListBadge: View {
         switch asset.computedStatus {
         case .available:   return .green
         case .checkedOut:  return .blue
+        case .pendingPickup: return .orange
         case .reserved:    return .purple
         case .maintenance: return .orange
         case .retired:     return .gray
@@ -405,7 +406,7 @@ private struct AssetListBadge: View {
 
     private var badgeText: String {
         if let name = asset.activeBooking?.requesterName,
-           asset.computedStatus == .checkedOut || asset.computedStatus == .reserved {
+           asset.computedStatus == .checkedOut || asset.computedStatus == .pendingPickup || asset.computedStatus == .reserved {
             return name
         }
         return asset.computedStatus.label
@@ -495,6 +496,7 @@ struct AssetStatusBadge: View {
         switch status {
         case .available:   return .green
         case .checkedOut:  return .blue
+        case .pendingPickup: return .orange
         case .reserved:    return .purple
         case .maintenance: return .orange
         case .retired:     return .gray
@@ -507,7 +509,7 @@ struct AssetStatusFilterMenu: View {
     @Binding var selected: Set<AssetComputedStatus>
     let onSelect: () -> Void
 
-    private let statuses: [AssetComputedStatus] = [.available, .checkedOut, .reserved, .maintenance]
+    private let statuses: [AssetComputedStatus] = [.available, .checkedOut, .pendingPickup, .reserved, .maintenance]
 
     var body: some View {
         Menu {

@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Settings
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-09
+- Last Updated: 2026-05-10
 - Status: Active
 - Version: V1
 
@@ -127,6 +127,9 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages.
 
 ## Change Log
+- 2026-05-10: Schedule ownership pass. Sports shift-generation activation now uses the shared Switch control with an explicit Active/Off badge, keeping the schedule-feeding settings page aligned with the rest of the app's control system.
+- 2026-05-10: Component audit closeout. Database diagnostics now keeps result-list React keys stable even when duplicate migration/table labels are returned, clearing the console warning found during authenticated Settings smoke.
+- 2026-05-10: Breadcrumb first-class UX pass. The Settings/Reports parent crumb dropdowns now inherit the stronger global breadcrumb shell treatment, keep role filtering intact, and show clearer menu framing with current-page indicators plus Settings section descriptions from `nav-sections.ts`.
 - 2026-05-09: Settings control-map UI polish. `/settings` is now represented as an active Overview tab in the shared settings nav, and the role-aware control map now surfaces current role, visible section/group counts, destination role badges, tighter group cards, and stronger focus/hover row treatment without changing section permissions or subpage behavior.
 - 2026-05-08: API hardening Wave 9. Allowed Emails add/bulk-add no longer reveals registered or already-allowlisted addresses via 409s or skipped-address lists; duplicate inputs return generic skipped success/counts.
 - 2026-03-17: Initial area doc created. Settings layout upgraded to tab navigation pattern. Sports page extracted into ShiftConfigTable + RosterPanel + types. Categories page extracted into CategoryRow + KebabMenu + types + tree utils. Mobile card layouts added for sports and roster. Role badges standardized (ADMIN=purple, STAFF=blue, STUDENT=gray). Escalation and Database pages polished with data-table-wrap for mobile scroll. Sidebar titles normalized to h2 (layout provides h1).

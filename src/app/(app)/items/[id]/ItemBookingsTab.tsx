@@ -98,9 +98,17 @@ export function ActiveBookingCard({
   now: Date;
   onSelectBooking: (id: string) => void;
 }) {
+  const isPendingPickup = kind === "CHECKOUT" && booking.status === "PENDING_PICKUP";
+  const title = kind === "CHECKOUT"
+    ? isPendingPickup ? "Awaiting Pickup" : "Active Checkout"
+    : "Active Reservation";
+  const activityLabel = kind === "CHECKOUT"
+    ? isPendingPickup ? "Awaiting pickup" : "Checked out"
+    : "Reserved";
+
   return (
     <Card>
-      <CardHeader><CardTitle>Active {kind === "CHECKOUT" ? "Checkout" : "Reservation"}</CardTitle></CardHeader>
+      <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
       <CardContent className="p-0 py-1">
         <button
           className="flex flex-col w-full text-left px-5 py-2 pb-3 transition-colors hover:bg-muted/50"
@@ -109,7 +117,7 @@ export function ActiveBookingCard({
           <div className="flex flex-col gap-0.5">
             <span className="text-base font-semibold">{booking.title}</span>
             <span className="text-sm">
-              {kind === "CHECKOUT" ? "Checked out" : "Reserved"} by {booking.requesterName}
+              {activityLabel} by {booking.requesterName}
             </span>
             <UrgencyBadge startsAt={booking.startsAt} endsAt={booking.endsAt} now={now} />
           </div>
@@ -370,6 +378,8 @@ function bookingStatusLabel(status: string, kind?: "CHECKOUT" | "RESERVATION"): 
     case "BOOKED": return kind === "RESERVATION"
       ? { label: "Confirmed", variant: "purple" }
       : { label: "Booked", variant: "blue" };
+    case "OPEN": return { label: "Checked out", variant: "blue" };
+    case "PENDING_PICKUP": return { label: "Awaiting pickup", variant: "orange" };
     case "CHECKED_OUT": return { label: "Checked out", variant: "blue" };
     case "COMPLETED": return { label: "Completed", variant: "gray" };
     case "RETURNED": return { label: "Returned", variant: "gray" };
@@ -475,7 +485,7 @@ export function BookingKindTab({
                     <TableCell>
                       <div className="font-medium text-primary">{b.title}</div>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className={`inline-block size-2 rounded-full ${st.variant === "purple" ? "bg-[var(--purple)]" : st.variant === "blue" ? "bg-[var(--blue)]" : st.variant === "red" ? "bg-[var(--red)]" : "bg-muted-foreground"}`} />
+                        <span className={`inline-block size-2 rounded-full ${st.variant === "purple" ? "bg-[var(--purple)]" : st.variant === "blue" ? "bg-[var(--blue)]" : st.variant === "orange" ? "bg-[var(--orange)]" : st.variant === "red" ? "bg-[var(--red)]" : "bg-muted-foreground"}`} />
                         <span className="text-xs text-muted-foreground">{st.label}</span>
                       </div>
                     </TableCell>
@@ -873,7 +883,7 @@ export function BookingsTab({
                     <TableCell>
                       <div className="font-medium text-primary">{b.title}</div>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className={`inline-block size-2 rounded-full ${st.variant === "purple" ? "bg-[var(--purple)]" : st.variant === "blue" ? "bg-[var(--blue)]" : st.variant === "red" ? "bg-[var(--red)]" : "bg-muted-foreground"}`} />
+                        <span className={`inline-block size-2 rounded-full ${st.variant === "purple" ? "bg-[var(--purple)]" : st.variant === "blue" ? "bg-[var(--blue)]" : st.variant === "orange" ? "bg-[var(--orange)]" : st.variant === "red" ? "bg-[var(--red)]" : "bg-muted-foreground"}`} />
                         <span className="text-xs text-muted-foreground">{st.label}</span>
                       </div>
                     </TableCell>

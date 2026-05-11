@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Checkouts
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-08
+- Last Updated: 2026-05-10
 - Status: Active — V1 Shipped
 - Version: V1
 
@@ -64,6 +64,7 @@ Multi-step wizard page (replaced the old side-sheet flow as of 2026-04-09):
 1. Allowed only by policy and role.
 2. Canceled records remain auditable.
 3. No hard delete.
+4. Cancelling a `PENDING_PICKUP` or `OPEN` checkout releases serialized allocations, cancels open scan sessions, restores outstanding bulk stock with a compensating `CHECKIN` stock movement, and releases any scanned numbered units before the booking moves to `CANCELLED`.
 
 ## Equipment Picker (V2 — Multi-Select, Search, Availability Preview, Scan-to-Add)
 
@@ -129,7 +130,7 @@ When a booking date window is set (startsAt/endsAt), the picker calls `POST /api
 - `DRAFT` is a pre-BOOKED state for interrupted checkout creation flows
 - Allowed actions on DRAFT: `edit`, `cancel`
 - DRAFT records appear in dashboard Drafts section for recovery
-- DRAFT is never shown in main checkout lists (only in Drafts lane)
+- DRAFT records can appear in the unified All Active recovery view, but are not shown in the default Checkouts work queue
 - Auto-created when checkout creation is interrupted before final save
 - Implementation: `BookingStatus.DRAFT` in `src/lib/services/checkout-rules.ts`
 
@@ -172,11 +173,12 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[CHECKOUT
 
 ## List and Detail UX Requirements
 1. Checkout list is action-first and grouped by urgency.
-2. Row click opens BookingDetailsSheet.
-3. Desktop shows context actions directly.
-4. Mobile uses action sheet with same behavior.
-5. Event badge is informational only and must not block operations if source event changes.
-6. Mobile list cards and quick actions follow `AREA_MOBILE.md`.
+2. Default active Checkouts view includes both `OPEN` and `PENDING_PICKUP` records because both are daily checkout work.
+3. Row click opens BookingDetailsSheet.
+4. Desktop shows context actions directly.
+5. Mobile uses action sheet with same behavior.
+6. Event badge is informational only and must not block operations if source event changes.
+7. Mobile list cards and quick actions follow `AREA_MOBILE.md`.
 
 ## Checkout Detail Page (Unified with Reservations)
 
@@ -190,10 +192,10 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 - **Old route**: `GET /api/checkouts/[id]` redirects (308) to `/api/bookings/[id]`
 
 ### Checkout-Specific Behavior
-- Status badge shows "Checked out" (not "OPEN") via `statusLabel()` helper
+- Status badge shows display labels via `statusLabel()` helper: `PENDING_PICKUP` -> "Pending Pickup", `OPEN` -> "Checked out".
 - "Due back" countdown rendered as urgency-colored Badge (red/orange/yellow/neutral)
-- Action buttons: `[Actions ▼] [Edit] [Extend] [Check in]` — Check in is primary CTA
-- Actions dropdown contains: Scan items out, Scan items in, Complete check in, Cancel
+- Action buttons: `[Actions ▼] [Edit] [Extend]` for app-owned actions. Custody pickup/return scans happen at the kiosk.
+- Actions dropdown contains: Nudge borrower, Force complete, Duplicate, and Cancel when each action is allowed. It must not link to `/scan?checkout=...`.
 - Equipment tab auto-selects all returnable items with Select all / Clear selection toggle
 - Equipment rows show hover-reveal "..." menu (View item, Select for return)
 - Checkin progress bar in equipment header: `████░░░░ 12/30 returned`
@@ -282,6 +284,7 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 5. Add regression coverage for race conditions, partial returns, and permission bypass attempts.
 
 ## Change Log
+- 2026-05-10: **Status/data wiring ship fixes** - Cancelling `PENDING_PICKUP` and `OPEN` checkouts now restores outstanding bulk stock, releases scanned numbered units, and clears allocations/scan sessions atomically. Booking list route semantics now preserve explicit status filters instead of widening special filters over them, and search/calendar surfaces only pull schedule-active booking states by default.
 - 2026-03-01: Initial standalone area scope created.
 - 2026-03-01: Rewritten into hardened V1 workflow, logic, and failure-mode spec.
 - 2026-03-02: Added explicit mobile contract dependency and list-action alignment.
@@ -328,6 +331,12 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 - 2026-05-07: **Booking creation Step 2 UX polish** — Checkout creation Step 2 now shows a compact valid/warning/unavailable selection summary and uses state-aware footer copy such as "Review with warnings" or "Remove unavailable item" so students get clearer recovery and staff keep a faster review path.
 - 2026-05-07: **Booking creation final-screen polish** — Checkout confirmation now leads with kiosk handoff expectations, pickup location, due-back timing, and a clearer pending-pickup notice. The submit button now says "Create pickup" because custody still starts at kiosk scan.
 - 2026-05-07: **Check-in report photo evidence** — Damaged/lost item reports can include optional photo evidence stored on `CheckinItemReport.imageUrl`; this supports exception review without restoring the scrubbed checkout/check-in condition-photo gates.
+- 2026-05-10: **EquipmentPicker component audit closeout** — Scan-to-add now rejects unavailable serialized gear instead of silently selecting it, caps scanned bulk quantities at available stock, adds in-place retry for picker load failures, gives empty states direct recovery actions for search and available-only filters, and keeps the selected shelf actions stable while availability rechecks run.
+- 2026-05-10: **Booking row action semantics cleanup** — Booking cards and mobile booking rows now use a real primary open button with overflow menus as sibling controls, and desktop booking table rows expose keyboard open behavior through the primary title cell instead of a fake button row that also contains an action menu.
+- 2026-05-10: **Bookings mounted-route polish** — `/bookings` now responds to tab, Active/Past, search, status, location, requester, special-filter, create, `highlight`, and legacy `id` URL changes after the page is already mounted. Booking view preference now loads after mount to avoid first-render `localStorage` drift, and cross-page links such as search results and activity timeline booking links hydrate the list/sheet without a hard refresh.
+- 2026-05-10: **Bookings state polish** — `PENDING_PICKUP` is now first-class in the web list/detail UI: client row actions match the server matrix (`edit`, `cancel` before kiosk pickup), list dots use the orange status token, detail and report badges show display labels instead of raw enum text, and dashboard Awaiting Pickup links deep-link to `/bookings?tab=checkouts&status=PENDING_PICKUP`. Reservation detail reads now mark past-due `BOOKED` reservations as overdue, matching the list/API filters.
+- 2026-05-10: **Bookings status ship fixes** — The default Checkouts tab now queries both `OPEN` and `PENDING_PICKUP` records so active checkout work is visible without coming from the dashboard. Explicit status filters still narrow to one state.
+- 2026-05-10: **Scan handoff cleanup** — Checkout detail no longer links to app `/scan?checkout=...` for pickup or return. Open checkout detail shows the kiosk return handoff, pending-pickup checkout detail shows the kiosk pickup handoff, and app `/scan` remains lookup-only.
 - 2026-05-08: **API hardening Wave 13** — Booking search now has trigram indexes, booking edits require `If-Unmodified-Since` conflict headers, edit audits store a full before snapshot, draft listing prunes drafts older than 30 days, check-in reports dedupe rapid repeats, and failed report persistence cleans newly uploaded evidence blobs.
 - 2026-05-08: **Kiosk pickup scan guard** — Pickup confirmation now requires successful serialized checkout scan evidence for every serialized item, and kiosk scan lookup recognizes asset tag, primary scan code, QR value, `qr-` fallback, and serial number values. Browser/API smoke verified confirm-without-scan returns 409, serial scan succeeds, confirm opens the checkout, and cleanup restores the item to available.
 - 2026-05-08: **Busy-day availability stress** — Live overlap smoke verified overlapping reservations/checkouts now block on `BOOKED`, `PENDING_PICKUP`, and `OPEN` serialized allocations, while non-overlapping same-day reservations still pass. Exact handoff boundaries are half-open: ending exactly at the next pickup/start is allowed, while ending one minute late conflicts. Bulk reservation commitments now subtract overlapping `BOOKED` reservation quantities from on-hand availability before create.

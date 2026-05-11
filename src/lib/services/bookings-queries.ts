@@ -48,6 +48,20 @@ function parseStatusParam(value: string | null): BookingStatus | undefined {
   return value as BookingStatus;
 }
 
+function parseStatusListParam(value: string | null): BookingStatus[] | undefined {
+  if (!value) return undefined;
+  const rawStatuses = value.split(",").map((status) => status.trim()).filter(Boolean);
+  if (rawStatuses.length === 0) return undefined;
+
+  const statuses = Array.from(new Set(rawStatuses));
+  for (const status of statuses) {
+    if (!Object.values(BookingStatus).includes(status as BookingStatus)) {
+      throw new HttpError(400, `Invalid booking status: ${status}`);
+    }
+  }
+  return statuses as BookingStatus[];
+}
+
 export async function listBookings(
   kind: BookingKind,
   searchParams: URLSearchParams,
@@ -59,6 +73,7 @@ export async function listBookings(
   const sortParam = searchParams.get("sort");
 
   const statusParam = parseStatusParam(searchParams.get("status"));
+  const statusListParam = parseStatusListParam(searchParams.get("status_in"));
   const fromDate = parseSearchDate(searchParams.get("from"), "from");
   const toDate = parseSearchDate(searchParams.get("to"), "to");
 
@@ -71,6 +86,8 @@ export async function listBookings(
     // Apply status from query param only when extraWhere doesn't already set it
     ...(extraWhere?.status === undefined && statusParam
       ? { status: statusParam }
+      : extraWhere?.status === undefined && statusListParam
+        ? { status: { in: statusListParam } }
       : extraWhere?.status === undefined && activeOnly
         ? { status: { notIn: [BookingStatus.COMPLETED, BookingStatus.CANCELLED] } }
         : extraWhere?.status === undefined && pastOnly
@@ -160,7 +177,10 @@ export async function getBookingDetail(bookingId: string) {
   const hasMoreAuditLogs = auditLogsRaw.length > AUDIT_LOG_LIMIT;
   const auditLogs = hasMoreAuditLogs ? auditLogsRaw.slice(0, AUDIT_LOG_LIMIT) : auditLogsRaw;
 
-  const isOverdue = booking.status === BookingStatus.OPEN && booking.endsAt < new Date();
+  const now = new Date();
+  const isOverdue =
+    (booking.kind === BookingKind.CHECKOUT && booking.status === BookingStatus.OPEN && booking.endsAt < now) ||
+    (booking.kind === BookingKind.RESERVATION && booking.status === BookingStatus.BOOKED && booking.endsAt < now);
   const isActive = booking.status === BookingStatus.OPEN || booking.status === BookingStatus.BOOKED;
 
   // Compute distinct locations represented by assets in this booking

@@ -42,3 +42,20 @@
 - Shipped: URL-backed Active/Past scope beside the view toggle; All defaults to `active=true`; Past sends `past=true`; combined/per-kind APIs filter terminal records consistently; filter headings and empty states now name active or past scope.
 - Verified: `npx tsc --noEmit`; focused checkout rule/client tests; `npm run db:migrate:check`; `git diff --check`; `npx next build`; Chrome DevTools smoke for `/bookings?tab=all`, Past toggle, Checkouts active/past, and Reservations active with expected API query strings and no console errors beyond Fast Refresh dev logs.
 - Deferred: Fully exercising row context actions still depends on seeded visible bookings in the local test dataset.
+
+## Comprehensive Polish Pass - 2026-05-10
+
+### Goal
+- Make `/bookings` resilient as a live navigation target: mounted tab/scope/deep-link changes should take effect without a hard refresh, special filters should map to truthful API results, and preference/loading chrome should avoid hydration flashes.
+
+### Plan
+- [x] Sync page tab/scope/highlight/create state from URL changes after the page is already mounted.
+- [x] Make booking list filters re-hydrate from URL changes without stomping user-selected local filters.
+- [x] Support reservation overdue/due-today filters in the reservation API.
+- [x] Polish page-level controls and list loading/cached-refresh behavior.
+- [x] Add focused route tests for booking special filters.
+- [x] Sync area docs, archive this completed plan, and verify with type/tests/build/browser smoke.
+
+### Review
+- Shipped: mounted `/bookings` now honors URL tab, Active/Past, search, status, sport, location, requester, special filter, `highlight`, legacy `id`, and create-link changes without requiring a hard refresh. Booking list rendering now waits until mount before swapping from skeleton to data/empty state, preventing the skeleton-to-empty hydration mismatch caught in browser smoke. Reservation overdue and due-today links now map to `BOOKED` reservation filters in the API.
+- Verified: `npx vitest run tests/booking-list-routes.test.ts tests/booking-lifecycle-route-contract.test.ts tests/create-booking.test.ts tests/update-booking.test.ts`; `npx tsc --noEmit --pretty false`; `npm run db:migrate:check`; `git diff --check`; `npx next build`; Browser smoke on `/bookings?tab=reservations&filter=overdue&q=camera`, tab switch, Past toggle, and mounted New booking link with no fresh console errors.

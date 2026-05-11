@@ -532,7 +532,7 @@ private func availabilitySnapshot(for asset: AssetDetail) -> String? {
         return "Available"
     case .maintenance: return "Out for maintenance"
     case .retired:     return "Retired from service"
-    case .unknown, .checkedOut, .reserved:
+    case .unknown, .checkedOut, .pendingPickup, .reserved:
         return nil
     }
 }
@@ -543,15 +543,17 @@ private struct ActiveBookingCard: View {
     let booking: AssetActiveBooking
 
     private var isReservation: Bool { booking.kind == "RESERVATION" }
+    private var isPendingPickup: Bool { booking.kind == "CHECKOUT" && booking.status == "PENDING_PICKUP" }
 
     var body: some View {
-        let headerTone: StatusTone = isReservation ? .purple : .blue
+        let headerTone: StatusTone = isReservation ? .purple : isPendingPickup ? .orange : .blue
+        let title = isReservation ? "Active Reservation" : isPendingPickup ? "Awaiting Pickup" : "Checked Out"
         return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
-                Image(systemName: isReservation ? "calendar.badge.clock" : "arrow.right.circle.fill")
+                Image(systemName: isReservation ? "calendar.badge.clock" : isPendingPickup ? "tray.and.arrow.down.fill" : "arrow.right.circle.fill")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(Color.statusText(headerTone))
-                Text(isReservation ? "Active Reservation" : "Checked Out")
+                Text(title)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
@@ -588,7 +590,7 @@ private struct ActiveBookingCard: View {
             }
             .buttonStyle(.plain)
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("\(isReservation ? "Active reservation" : "Checked out"): \(booking.title), \(booking.requesterName)")
+            .accessibilityLabel("\(title): \(booking.title), \(booking.requesterName)")
         }
         .padding(14)
         .background(Color(.secondarySystemGroupedBackground))

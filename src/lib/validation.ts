@@ -145,11 +145,52 @@ export const resetPasswordSchema = z.object({
 
 export const roleSchema = z.nativeEnum(Role);
 
+export const slackHandleSchema = z.string()
+  .trim()
+  .max(80)
+  .refine((value) => value === "" || /^@?[A-Za-z0-9._-]+$/.test(value), {
+    message: "Slack handle can include letters, numbers, dots, underscores, and hyphens",
+  })
+  .nullable()
+  .optional();
+
+export function normalizeSlackHandle(value: string | null | undefined) {
+  if (value == null) return null;
+  const normalized = value.trim().replace(/^@+/, "");
+  return normalized ? `@${normalized}` : null;
+}
+
+function isSlackProfileUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && (url.hostname === "slack.com" || url.hostname.endsWith(".slack.com"));
+  } catch {
+    return false;
+  }
+}
+
+export const slackProfileUrlSchema = z.string()
+  .trim()
+  .max(500)
+  .refine((value) => value === "" || isSlackProfileUrl(value), {
+    message: "Slack profile URL must be an https:// Slack URL",
+  })
+  .nullable()
+  .optional();
+
+export function normalizeSlackProfileUrl(value: string | null | undefined) {
+  if (value == null) return null;
+  const normalized = value.trim();
+  return normalized ? normalized : null;
+}
+
 // Fields a user is allowed to edit on their own profile.
 // Direct report and assignments are intentionally excluded — staff/admin only.
 export const updateProfileSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   phone: z.string().max(30).nullable().optional(),
+  slackHandle: slackHandleSchema,
+  slackProfileUrl: slackProfileUrlSchema,
   locationId: z.string().cuid().nullable().optional(),
   title: z.string().max(120).nullable().optional(),
   athleticsEmail: z.string().email().max(255).nullable().optional(),
@@ -300,7 +341,12 @@ export const createAllowedEmailBulkSchema = z.object({
 export const createGuideSchema = z.object({
   title: z.string().min(1, "Title is required").max(200),
   category: z.string().min(1, "Category is required").max(100),
-  content: z.unknown(),
+  content: z.unknown().optional(),
+  markdown: z.string().max(200_000).optional(),
+  targetRoles: z.array(z.nativeEnum(Role)).max(3).optional().default([]),
+  targetAreas: z.array(z.nativeEnum(ShiftArea)).max(4).optional().default([]),
+  featured: z.boolean().optional().default(false),
+  featuredRank: z.number().int().min(1).max(999).nullable().optional(),
   published: z.boolean().optional().default(false),
 });
 
@@ -308,7 +354,13 @@ export const updateGuideSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   category: z.string().min(1).max(100).optional(),
   content: z.unknown().optional(),
+  markdown: z.string().max(200_000).optional(),
+  targetRoles: z.array(z.nativeEnum(Role)).max(3).optional(),
+  targetAreas: z.array(z.nativeEnum(ShiftArea)).max(4).optional(),
+  featured: z.boolean().optional(),
+  featuredRank: z.number().int().min(1).max(999).nullable().optional(),
   published: z.boolean().optional(),
+  markVerified: z.boolean().optional(),
   // Optimistic concurrency: client sends the updatedAt of the guide it loaded.
   expectedUpdatedAt: z.string().datetime().optional(),
 });

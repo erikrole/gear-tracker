@@ -115,7 +115,7 @@ export function AddLicenseDialog({ open, onOpenChange, onCreated }: Props) {
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || !code.trim()}>
+            <Button type="submit" loading={loading} disabled={!code.trim()}>
               {loading ? "Adding…" : "Add license"}
             </Button>
           </DialogFooter>

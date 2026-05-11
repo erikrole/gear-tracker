@@ -89,19 +89,19 @@ export default function SportsSettingsPage() {
         );
         const group = findGroup(sportCode);
         if (group && group.codes.length > 1) {
-          toast.success(`Saved — applies to ${group.codes.join(" + ")}`);
+          toast.success(`Saved - applies to ${group.codes.join(" + ")}`);
         } else {
           toast.success("Saved");
         }
       } else if (res.status === 429) {
-        toast.error("Too many changes \u2014 please slow down.");
+        toast.error("Too many changes - please slow down.");
       } else {
-        toast.error("Save failed \u2014 your changes were not applied.");
+        toast.error("Save failed - your changes were not applied.");
       }
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Something went wrong");
+      toast.error(kind === "network" ? "You're offline. Check your connection." : "Something went wrong");
     }
     setSaving(null);
   }

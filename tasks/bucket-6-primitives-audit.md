@@ -100,3 +100,45 @@
 - **Add a `loading` prop to `Button`** that handles `disabled`, swaps the leading icon for a spinner, and sets `aria-busy="true"`. Costs ~15 lines + a migration of high-value mutation buttons. Consolidates a pattern lessons.md repeats four separate times across 2026-04 hardening sessions.
 - **Reconcile `Avatar` and `UserAvatar` size scales.** Decide which component owns size; the other should not duplicate it. `UserAvatar` is the de-facto standard (used in 15+ surfaces with name + initials + color hash). Suggest: keep `Avatar` size-agnostic (drop the `size` prop entirely; let `className` own dimensions), make `UserAvatar` the canonical sized API. Migrating 9 raw `<Avatar size="sm">` call sites is a one-afternoon job and removes a confusing dual API.
 - **Decide the fate of `Button.brand`.** Either propagate to all primary-brand CTAs (login submit, primary "Create Booking" call-to-actions, "Check out" actions) so the variant *means* something, or delete it. Single-use brand variants are tech debt that confuses both designers and developers.
+
+## 2026-05-10 Button/Loading/Motion Closeout
+
+The current repo had already closed the highest-risk primitive findings before this pass:
+
+- `Button` now has a first-class `loading` prop with `aria-busy`, automatic disabled behavior, and a built-in spinner.
+- The protected app layout wraps children in `MotionConfig reducedMotion="user"`, so shared motion helpers honor user reduced-motion preferences.
+- The dead `Button` `data-variant`, `data-size`, and `icon-lg` findings are no longer present.
+- `motion.tsx` no longer re-exports raw `motion` or `AnimatePresence`.
+- Schedule assignment month controls already use named `icon-sm` button sizing and explicit previous/next labels.
+
+Closed remaining live drift by migrating obvious mutation/diagnostic buttons to the shared loading contract:
+
+- `AddLicenseDialog`, `BulkAddSheet`, `BulkRenewDialog`, and `ConfirmClaimDialog` now use `Button loading` for primary license actions.
+- Settings Database diagnostics now uses `Button loading`, giving the operation the same spinner, busy semantics, and disabled behavior as other mutation buttons.
+
+Remaining work belongs to later slices:
+
+- Avatar and AvatarGroup size/ring cleanup is covered by surface 4.
+- Refresh buttons that intentionally spin a `RefreshCw` icon can stay local until a specific refresh-button primitive exists.
+- Inline autosave indicators such as `SaveableField`, `InlineTitle`, and `InlineDateField` are status indicators, not plain `Button loading` migrations.
+
+## 2026-05-10 Avatar/Image Identity Closeout
+
+The current repo had already resolved several older findings:
+
+- `AvatarGroup` is now layout-only, so it no longer wraps children in a second ring layer.
+- The dead raw `Avatar size="lg"` branch was removed before this pass.
+- Dashboard avatar stacks no longer use `max={99}` as a magic overflow suppressor.
+- Dashboard gear stacks route through `ItemThumbnailStack`, keeping people avatars and equipment thumbnails visually distinct.
+
+Closed remaining live drift by making people avatar sizing a single primitive contract:
+
+- `Avatar` now owns the same `xs`, `sm`, `default`, `md`, `lg`, and `xl` size scale that `UserAvatar` exposes.
+- `UserAvatar` now passes `size` into `Avatar` instead of maintaining a parallel `SIZE_MAP` that overrides the primitive.
+- `AvatarFallback` text sizing now follows the root avatar `data-size`, keeping initials in scale with the container.
+- `AvatarGroupCount` accepts the same size prop, and `UserAvatarGroup` passes it through so overflow chips match the visible avatars.
+
+Intentionally parked:
+
+- `AssetImage` and `ItemThumbnailStack` remain separate equipment identity primitives. They use square thumbnails or compact gear stacks, not the circular people-avatar system.
+- Broader visual checks on every avatar consumer should happen with browser coverage if this surface gets another polish pass.

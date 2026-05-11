@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reports & Analytics
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-09
+- Last Updated: 2026-05-10
 - Status: Active
 - Version: V1
 
@@ -45,29 +45,32 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 ### `/reports/checkouts`
 - **Page:** `src/app/(app)/reports/checkouts/page.tsx`
 - **Type:** Tabular report with filterable list
-- **Columns:** Booking ref, requestor, checked out date, due date, status, items count, location
-- **Metrics:** Total checkouts (period), average duration, top requestors
-- **Charts:** Checkout trends (by day/week/month), status breakdown
-- **Filters:** Date range, status (active/completed/overdue), requestor, location
-- **Data:** `GET /api/reports/checkouts?from=...&to=...&status=...&requestor=...&location=...`
+- **Columns:** Title, requester, due date, item count, status
+- **Metrics:** Total non-draft checkout activity in the selected period, currently overdue checkouts
+- **Charts:** Daily checkout trend, top requesters, 365-day heatmap
+- **Filters:** Period (7d, 30d, 90d)
+- **Data:** `GET /api/reports/checkouts?days=...`
+- **Semantics:** Draft bookings are excluded from operational checkout activity metrics and charts.
 
 ### `/reports/overdue`
 - **Page:** `src/app/(app)/reports/overdue/page.tsx`
 - **Type:** List of overdue bookings with escalation status
-- **Columns:** Booking ref, requestor, due date, days overdue, location, escalation count
+- **Columns:** Requester, overdue bookings, average overdue time, location, outstanding item summary
 - **Metrics:** Total overdue, highest priority escalations, days-overdue distribution
 - **Filters:** Date range, location, escalation count
-- **Behaviors:** Click row to view booking detail. Mark as complete button per row.
-- **Data:** `GET /api/reports/overdue?from=...&to=...&location=...`
+- **Behaviors:** Expand requester row to inspect overdue bookings and deep-link to booking detail.
+- **Data:** `GET /api/reports/overdue`
+- **Semantics:** Only open checkouts past `endsAt` are overdue. Item summaries count active serialized allocations and outstanding bulk quantities, not already-returned gear.
 
 ### `/reports/scans`
 - **Page:** `src/app/(app)/reports/scans/page.tsx`
 - **Type:** Scan activity analytics
-- **Columns:** Session date, device, phase (checkout/return), success count, failed count, success rate
-- **Metrics:** Total scans (period), success rate %, devices active, average scans per session
-- **Charts:** Scan trends (success/failure rate over time), device distribution, phase breakdown
-- **Filters:** Date range, device, phase, location
-- **Data:** `GET /api/reports/scans?from=...&to=...&device=...&phase=...&location=...`
+- **Columns:** Timestamp, actor, item, phase, booking, result
+- **Metrics:** Total scans in the selected period, success rate
+- **Charts:** Daily scan volume by success/fail
+- **Filters:** Period (all, 7d, 30d, 90d), phase (all, checkout, check-in)
+- **Data:** `GET /api/reports/scans?limit=...&offset=...&startDate=...&endDate=...&phase=...`
+- **Semantics:** API rejects invalid dates, inverted date ranges, and phases outside `CHECKOUT` or `CHECKIN`.
 
 ### `/reports/bulk-losses`
 - **Page:** `src/app/(app)/reports/bulk-losses/page.tsx`
@@ -128,6 +131,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - [x] AC-7: Badge report with leaderboard, distribution, and recent awards
 
 ## Change Log
+- 2026-05-10: Reports ownership pass. Checkout analytics now exclude draft bookings, overdue reports count only outstanding gear, and scan report filters are normalized in the UI with API-side validation for invalid dates and phases. Browser smoke also fixed the shared React Query provider hydration path so report pages no longer log hydration mismatches after reloads.
 - 2026-05-09: Badge report insight polish added manual award rate, underused active definitions, and a recent manual recognition section so staff can see whether the badge catalog is being used consistently.
 - 2026-05-09: Badge report shipped. `/reports/badges` now gives staff/admin read-only analytics for total awards, 30-day award volume, active definitions, manual awards, user leaderboard, badge distribution, and recent awards while keeping `/users/{id}?tab=badges` as the primary profile badge surface.
 - 2026-05-09: Reports authenticated browser smoke completed. Chrome DevTools verified seeded-admin rendering for Utilization, Checkouts, Overdue, Bulk Losses, Scans, and Audit; the pass also fixed a Recharts responsive sizing warning centrally in the shared shadcn chart wrapper.

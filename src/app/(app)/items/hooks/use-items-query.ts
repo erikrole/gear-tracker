@@ -23,6 +23,7 @@ type QueryDeps = {
 type StatusBreakdown = {
   available: number;
   checkedOut: number;
+  pendingPickup: number;
   reserved: number;
   maintenance: number;
   retired: number;

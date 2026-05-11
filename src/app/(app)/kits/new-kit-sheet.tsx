@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { z } from "zod";
 import { useFormSubmit } from "@/hooks/use-form-submit";
 import {
@@ -23,7 +23,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Spinner } from "@/components/ui/spinner";
 
 type Location = { id: string; name: string };
 
@@ -46,17 +45,24 @@ export function NewKitSheet({ open, onOpenChange, locations, onCreated }: NewKit
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [locationId, setLocationId] = useState(locations[0]?.id ?? "");
+  const defaultLocationId = locations[0]?.id ?? "";
+  const hasLocations = locations.length > 0;
+
+  useEffect(() => {
+    if (open && !locationId && defaultLocationId) {
+      setLocationId(defaultLocationId);
+    }
+  }, [defaultLocationId, locationId, open]);
 
   function reset() {
     setName("");
     setDescription("");
-    setLocationId(locations[0]?.id ?? "");
+    setLocationId(defaultLocationId);
   }
 
   const { submit, submitting, fieldErrors, formError, clearErrors } = useFormSubmit<CreateKitInput, { id: string }>({
     schema: createKitSchema,
     url: "/api/kits",
-    successMessage: "Kit created",
     onSuccess: (data) => {
       reset();
       onOpenChange(false);
@@ -64,7 +70,16 @@ export function NewKitSheet({ open, onOpenChange, locations, onCreated }: NewKit
     },
   });
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleOpenChange(nextOpen: boolean) {
+    if (submitting) return;
+    onOpenChange(nextOpen);
+    if (!nextOpen) {
+      reset();
+      clearErrors();
+    }
+  }
+
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     await submit({
       name: name.trim(),
@@ -74,8 +89,8 @@ export function NewKitSheet({ open, onOpenChange, locations, onCreated }: NewKit
   }
 
   return (
-    <Sheet open={open} onOpenChange={(v) => { if (!submitting) { onOpenChange(v); if (!v) { reset(); clearErrors(); } } }}>
-      <SheetContent>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
+      <SheetContent className="sm:max-w-lg">
         <SheetHeader>
           <SheetTitle>New Kit</SheetTitle>
           <SheetDescription>
@@ -90,16 +105,34 @@ export function NewKitSheet({ open, onOpenChange, locations, onCreated }: NewKit
             </Alert>
           )}
 
+          {!hasLocations && (
+            <Alert>
+              <AlertDescription>
+                Add a location before creating kits. Kits are location-scoped so checkout availability stays accurate.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="flex flex-col gap-2">
             <Label htmlFor="kit-name">Name</Label>
             <Input
               id="kit-name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (fieldErrors.name || formError) clearErrors();
+              }}
               placeholder="e.g., Interview Kit"
               disabled={submitting}
+              aria-invalid={!!fieldErrors.name}
+              aria-describedby={fieldErrors.name ? "kit-name-error" : undefined}
               autoFocus
             />
+            {fieldErrors.name && (
+              <p id="kit-name-error" className="text-sm text-destructive">
+                {fieldErrors.name}
+              </p>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">
@@ -107,17 +140,38 @@ export function NewKitSheet({ open, onOpenChange, locations, onCreated }: NewKit
             <Textarea
               id="kit-description"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => {
+                setDescription(e.target.value);
+                if (fieldErrors.description || formError) clearErrors();
+              }}
               placeholder="Optional notes about this kit"
               disabled={submitting}
+              aria-invalid={!!fieldErrors.description}
+              aria-describedby={fieldErrors.description ? "kit-description-error" : undefined}
               rows={3}
             />
+            {fieldErrors.description && (
+              <p id="kit-description-error" className="text-sm text-destructive">
+                {fieldErrors.description}
+              </p>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">
             <Label htmlFor="kit-location">Location</Label>
-            <Select value={locationId} onValueChange={setLocationId} disabled={submitting}>
-              <SelectTrigger id="kit-location">
+            <Select
+              value={locationId}
+              onValueChange={(value) => {
+                setLocationId(value);
+                if (fieldErrors.locationId || formError) clearErrors();
+              }}
+              disabled={submitting || !hasLocations}
+            >
+              <SelectTrigger
+                id="kit-location"
+                aria-invalid={!!fieldErrors.locationId}
+                aria-describedby={fieldErrors.locationId ? "kit-location-error" : undefined}
+              >
                 <SelectValue placeholder="Select location" />
               </SelectTrigger>
               <SelectContent>
@@ -128,15 +182,19 @@ export function NewKitSheet({ open, onOpenChange, locations, onCreated }: NewKit
                 ))}
               </SelectContent>
             </Select>
+            {fieldErrors.locationId && (
+              <p id="kit-location-error" className="text-sm text-destructive">
+                {fieldErrors.locationId}
+              </p>
+            )}
           </div>
 
           <SheetFooter className="mt-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)} disabled={submitting}>
               Cancel
             </Button>
-            <Button type="submit" disabled={submitting}>
-              {submitting && <Spinner data-icon="inline-start" />}
-              Create Kit
+            <Button type="submit" loading={submitting} disabled={!hasLocations || submitting}>
+              Create and open kit
             </Button>
           </SheetFooter>
         </form>

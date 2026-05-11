@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
@@ -30,7 +30,6 @@ import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 
 import { useBookingDetail } from "@/hooks/useBookingDetail";
 import { useBookingActions } from "@/hooks/useBookingActions";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   statusBadgeVariant,
   statusLabel,
@@ -53,7 +52,6 @@ export default function BookingDetailPage({
   kind: "CHECKOUT" | "RESERVATION";
 }) {
   const { id } = useParams<{ id: string }>();
-  const router = useRouter();
   const { setBreadcrumbLabel } = useBreadcrumbLabel();
 
   // Data fetching
@@ -107,10 +105,6 @@ export default function BookingDetailPage({
     setShowExtend(true);
   }
 
-  // Admin role — gates scan/checkin actions (kiosk-only for all other roles)
-  const { data: meData } = useCurrentUser();
-  const isAdmin = meData?.role === "ADMIN";
-
   // Derived
   const allowedActions = booking?.allowedActions ?? [];
   const canEdit = allowedActions.includes("edit");
@@ -123,7 +117,13 @@ export default function BookingDetailPage({
   const canNudge = allowedActions.includes("nudge");
   const isOpen = booking?.status === "OPEN";
   const isActive = isOpen || booking?.status === "BOOKED";
-  const hasAnyAction = canEdit || canExtend || canConvert || canCancel || canDuplicate || canCheckin || canForceComplete || canNudge;
+  const hasAnyAction = canEdit || canExtend || canConvert || canCancel || canDuplicate || canForceComplete || canNudge;
+  const kioskHandoffLabel =
+    kind === "CHECKOUT" && booking?.status === "PENDING_PICKUP"
+      ? "Pickup at kiosk"
+      : kind === "CHECKOUT" && canCheckin
+        ? "Return at kiosk"
+        : null;
 
   // Keyboard shortcut: E to open edit sheet
   useEffect(() => {
@@ -225,7 +225,7 @@ export default function BookingDetailPage({
 
         {hasAnyAction && <div className="flex items-center gap-2 shrink-0 overflow-x-auto">
           {/* Actions dropdown — secondary/less-common actions */}
-          {(canDuplicate || canCancel || canForceComplete || canNudge || (kind === "CHECKOUT" && isOpen) || (kind === "CHECKOUT" && canCheckin)) && (
+          {(canDuplicate || canCancel || canForceComplete || canNudge) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="gap-1.5">
@@ -234,16 +234,6 @@ export default function BookingDetailPage({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {isAdmin && kind === "CHECKOUT" && isOpen && (
-                  <DropdownMenuItem asChild>
-                    <Link href={`/scan?checkout=${id}&phase=CHECKOUT`}>Scan items out</Link>
-                  </DropdownMenuItem>
-                )}
-                {isAdmin && kind === "CHECKOUT" && canCheckin && (
-                  <DropdownMenuItem asChild>
-                    <Link href={`/scan?checkout=${id}&phase=CHECKIN`}>Scan items in</Link>
-                  </DropdownMenuItem>
-                )}
                 {canNudge && (
                   <DropdownMenuItem
                     onSelect={actions.nudge}
@@ -310,11 +300,6 @@ export default function BookingDetailPage({
               {actions.actionLoading === "convert" ? "Converting..." : "Start checkout"}
             </Button>
           )}
-          {isAdmin && kind === "CHECKOUT" && canCheckin && (
-            <Button onClick={() => router.push(`/scan?checkout=${id}&phase=CHECKIN`)}>
-              Check in
-            </Button>
-          )}
         </div>}
       </div>
 
@@ -348,6 +333,11 @@ export default function BookingDetailPage({
           >
             <Clock className="size-3" />
             {countdown}
+          </Badge>
+        )}
+        {kioskHandoffLabel && (
+          <Badge variant="outline" className="font-medium">
+            {kioskHandoffLabel}
           </Badge>
         )}
         <span className="ml-auto shrink-0">

@@ -77,6 +77,8 @@ export type BookingListConfig = {
   overdueStatus: string;
   /** Status filter applied by default (e.g. "OPEN" to hide completed/cancelled) */
   defaultStatusFilter?: string;
+  /** Multi-status filter applied by default when no explicit status/special filter is selected. */
+  defaultStatusFilters?: string[];
   showEventBadge: boolean;
   contextMenuExtras: ContextMenuExtra[];
 };
@@ -146,6 +148,8 @@ export function getStatusVisual(status: string, isOverdue: boolean, kind?: "CHEC
         rowClass: "",
         titleClass: "",
       };
+    case "PENDING_PICKUP":
+      return { dot: "var(--orange)", label: "Pending Pickup", rowClass: "", titleClass: "" };
     case "OPEN":
       return { dot: "var(--blue)", label: "Checked Out", rowClass: "", titleClass: "" };
     case "CANCELLED":

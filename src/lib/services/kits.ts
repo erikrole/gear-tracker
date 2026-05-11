@@ -61,7 +61,7 @@ const kitDetailInclude = {
 
 const kitListInclude = {
   location: { select: { id: true, name: true } },
-  _count: { select: { members: true } },
+  _count: { select: { members: true, bulkMembers: true } },
 } satisfies Prisma.KitInclude;
 
 // ── CRUD ──────────────────────────────────────────────────
@@ -156,7 +156,7 @@ export async function deleteKit(
 ) {
   const existing = await db.kit.findUnique({
     where: { id },
-    include: { _count: { select: { members: true } } },
+    include: { _count: { select: { members: true, bulkMembers: true } } },
   });
   if (!existing) throw new HttpError(404, "Kit not found");
 
@@ -168,7 +168,12 @@ export async function deleteKit(
     entityType: "kit",
     entityId: id,
     action: "delete",
-    before: { name: existing.name, memberCount: existing._count.members },
+    before: {
+      name: existing.name,
+      memberCount: existing._count.members + existing._count.bulkMembers,
+      serializedMemberCount: existing._count.members,
+      bulkMemberCount: existing._count.bulkMembers,
+    },
   });
 }
 
@@ -268,28 +273,36 @@ export async function getKitDetail(kitId: string) {
 }
 
 export async function listKits(params: ListKitsParams) {
-  const where: Prisma.KitWhereInput = {};
-
-  if (!params.includeArchived) {
-    where.active = true;
-  }
+  const baseWhere: Prisma.KitWhereInput = {};
 
   if (params.search) {
-    where.name = { contains: params.search, mode: "insensitive" };
+    baseWhere.OR = [
+      { name: { contains: params.search, mode: "insensitive" } },
+      { description: { contains: params.search, mode: "insensitive" } },
+    ];
   }
 
   if (params.locationId) {
-    where.locationId = params.locationId;
+    baseWhere.locationId = params.locationId;
   }
 
-  const orderBy: Prisma.KitOrderByWithRelationInput =
-    params.sortBy === "memberCount"
-      ? { members: { _count: params.sortOrder ?? "desc" } }
-      : params.sortBy === "updatedAt"
-        ? { updatedAt: params.sortOrder ?? "desc" }
-        : { name: params.sortOrder ?? "asc" };
+  const where: Prisma.KitWhereInput = params.includeArchived
+    ? baseWhere
+    : { ...baseWhere, active: true };
 
-  const [data, total] = await Promise.all([
+  const sortOrder = params.sortOrder ?? (params.sortBy === "name" ? "asc" : "desc");
+  const orderBy: Prisma.KitOrderByWithRelationInput | Prisma.KitOrderByWithRelationInput[] =
+    params.sortBy === "memberCount"
+      ? [
+          { members: { _count: sortOrder } },
+          { bulkMembers: { _count: sortOrder } },
+          { name: "asc" },
+        ]
+      : params.sortBy === "updatedAt"
+        ? [{ updatedAt: sortOrder }, { name: "asc" }]
+        : { name: sortOrder };
+
+  const [data, total, active, archived, empty] = await Promise.all([
     db.kit.findMany({
       where,
       include: kitListInclude,
@@ -298,7 +311,16 @@ export async function listKits(params: ListKitsParams) {
       skip: params.offset,
     }),
     db.kit.count({ where }),
+    db.kit.count({ where: { ...baseWhere, active: true } }),
+    db.kit.count({ where: { ...baseWhere, active: false } }),
+    db.kit.count({
+      where: {
+        ...where,
+        members: { none: {} },
+        bulkMembers: { none: {} },
+      },
+    }),
   ]);
 
-  return { data, total };
+  return { data, total, summary: { total, active, archived, empty } };
 }

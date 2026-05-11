@@ -3,12 +3,13 @@ import { db } from "@/lib/db";
 
 /**
  * Effective status values that combine the stored AssetStatus with
- * real-time allocation data. CHECKED_OUT and RESERVED are never stored
+ * real-time allocation data. CHECKED_OUT, PENDING_PICKUP, and RESERVED are never stored
  * on the Asset row — they're derived from active bookings.
  */
 export type EffectiveStatus =
   | "AVAILABLE"
   | "CHECKED_OUT"
+  | "PENDING_PICKUP"
   | "RESERVED"
   | "MAINTENANCE"
   | "RETIRED";
@@ -19,9 +20,10 @@ export type EffectiveStatus =
  * Logic:
  * 1. If the stored status is MAINTENANCE or RETIRED, return that.
  * 2. If there's an active allocation on an OPEN checkout, return CHECKED_OUT.
- * 3. If there's an active allocation on a BOOKED reservation
+ * 3. If there's an active allocation on a PENDING_PICKUP checkout, return PENDING_PICKUP.
+ * 4. If there's an active allocation on a BOOKED reservation
  *    whose window overlaps "now", return RESERVED.
- * 4. Otherwise, AVAILABLE.
+ * 5. Otherwise, AVAILABLE.
  */
 export async function deriveAssetStatus(
   assetId: string,
@@ -72,7 +74,7 @@ export async function deriveAssetStatuses(
       assetId: { in: needsAllocationCheck },
       active: true,
       booking: {
-        status: { in: [BookingStatus.BOOKED, BookingStatus.OPEN] }
+        status: { in: [BookingStatus.BOOKED, BookingStatus.PENDING_PICKUP, BookingStatus.OPEN] }
       }
     },
     select: {
@@ -111,6 +113,15 @@ export async function deriveAssetStatuses(
 
     if (hasCheckout) {
       result.set(assetId, "CHECKED_OUT");
+      continue;
+    }
+
+    const hasPendingPickup = allocations.some(
+      (a) => a.booking.kind === BookingKind.CHECKOUT && a.booking.status === BookingStatus.PENDING_PICKUP
+    );
+
+    if (hasPendingPickup) {
+      result.set(assetId, "PENDING_PICKUP");
       continue;
     }
 
@@ -171,7 +182,7 @@ export function buildDerivedStatusWhere(
   for (const status of statuses) {
     switch (status) {
       case "AVAILABLE":
-        // Stored AVAILABLE with NO active checkout AND NO active overlapping reservation.
+        // Stored AVAILABLE with NO active checkout, pending pickup, or active overlapping reservation.
         // We need two `none` conditions: one for checkouts, one for reservations with time overlap.
         clauses.push({
           status: AssetStatus.AVAILABLE,
@@ -182,7 +193,7 @@ export function buildDerivedStatusWhere(
                   active: true,
                   booking: {
                     kind: BookingKind.CHECKOUT,
-                    status: BookingStatus.OPEN,
+                    status: { in: [BookingStatus.OPEN, BookingStatus.PENDING_PICKUP] },
                   },
                 },
               },
@@ -212,6 +223,21 @@ export function buildDerivedStatusWhere(
               booking: {
                 kind: BookingKind.CHECKOUT,
                 status: BookingStatus.OPEN,
+              },
+            },
+          },
+        });
+        break;
+      case "PENDING_PICKUP":
+        // Stored AVAILABLE with an active allocation on a PENDING_PICKUP checkout
+        clauses.push({
+          status: AssetStatus.AVAILABLE,
+          allocations: {
+            some: {
+              active: true,
+              booking: {
+                kind: BookingKind.CHECKOUT,
+                status: BookingStatus.PENDING_PICKUP,
               },
             },
           },
@@ -278,7 +304,7 @@ export async function deriveAssetStatusesFromLoaded(
       assetId: { in: needsAllocationCheck },
       active: true,
       booking: {
-        status: { in: [BookingStatus.BOOKED, BookingStatus.OPEN] },
+        status: { in: [BookingStatus.BOOKED, BookingStatus.PENDING_PICKUP, BookingStatus.OPEN] },
       },
     },
     select: {
@@ -308,6 +334,14 @@ export async function deriveAssetStatusesFromLoaded(
     );
     if (hasCheckout) {
       result.set(assetId, "CHECKED_OUT");
+      continue;
+    }
+
+    const hasPendingPickup = allocations.some(
+      (a) => a.booking.kind === BookingKind.CHECKOUT && a.booking.status === BookingStatus.PENDING_PICKUP
+    );
+    if (hasPendingPickup) {
+      result.set(assetId, "PENDING_PICKUP");
       continue;
     }
 
@@ -369,6 +403,7 @@ export async function countAssetsByEffectiveStatus(
     return {
       AVAILABLE: 0,
       CHECKED_OUT: 0,
+      PENDING_PICKUP: 0,
       RESERVED: 0,
       MAINTENANCE: maintenanceCount,
       RETIRED: retiredCount
@@ -382,10 +417,12 @@ export async function countAssetsByEffectiveStatus(
 
   let available = 0;
   let checkedOut = 0;
+  let pendingPickup = 0;
   let reserved = 0;
 
   for (const status of statusMap.values()) {
     if (status === "CHECKED_OUT") checkedOut++;
+    else if (status === "PENDING_PICKUP") pendingPickup++;
     else if (status === "RESERVED") reserved++;
     else available++;
   }
@@ -393,6 +430,7 @@ export async function countAssetsByEffectiveStatus(
   return {
     AVAILABLE: available,
     CHECKED_OUT: checkedOut,
+    PENDING_PICKUP: pendingPickup,
     RESERVED: reserved,
     MAINTENANCE: maintenanceCount,
     RETIRED: retiredCount

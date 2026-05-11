@@ -159,8 +159,8 @@ export function ShiftSlotCard({
                 <TooltipTrigger asChild>
                   <Button
                     variant="ghost"
-                    size="sm"
-                    className="size-7 p-0 text-muted-foreground hover:text-destructive"
+                    size="icon-sm"
+                    className="text-muted-foreground hover:text-destructive"
                     onClick={onDeleteShift}
                     disabled={acting !== null}
                   >
@@ -202,7 +202,7 @@ export function ShiftSlotCard({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 px-2 text-xs text-destructive"
+                      className="h-9 px-2 text-xs text-destructive"
                       onClick={() => onRemove(activeAssignment.id)}
                       disabled={acting !== null}
                     >
@@ -218,7 +218,7 @@ export function ShiftSlotCard({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 px-3 text-xs"
+                    className="h-9 px-3 text-xs"
                     onClick={() => onPostTrade(activeAssignment.id)}
                     disabled={acting !== null}
                   >
@@ -243,7 +243,7 @@ export function ShiftSlotCard({
                       )
                     }
                     disabled={acting !== null}
-                    className={`flex items-center justify-center size-6 rounded border transition-colors ${
+                    className={`flex size-9 items-center justify-center rounded border transition-[background-color,border-color,color,scale] active:scale-[0.96] ${
                       activeAssignment.attended === true
                         ? "bg-green-500/15 border-green-500/40 text-green-600"
                         : "border-border text-muted-foreground hover:border-green-400 hover:text-green-600"
@@ -254,7 +254,7 @@ export function ShiftSlotCard({
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {activeAssignment.attended === true ? "Attended — click to clear" : "Mark attended"}
+                  {activeAssignment.attended === true ? "Attended - click to clear" : "Mark attended"}
                 </TooltipContent>
               </Tooltip>
               <Tooltip>
@@ -267,7 +267,7 @@ export function ShiftSlotCard({
                       )
                     }
                     disabled={acting !== null}
-                    className={`flex items-center justify-center size-6 rounded border transition-colors ${
+                    className={`flex size-9 items-center justify-center rounded border transition-[background-color,border-color,color,scale] active:scale-[0.96] ${
                       activeAssignment.attended === false
                         ? "bg-red-500/15 border-red-500/40 text-red-600"
                         : "border-border text-muted-foreground hover:border-red-400 hover:text-red-600"
@@ -278,7 +278,7 @@ export function ShiftSlotCard({
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {activeAssignment.attended === false ? "No-show — click to clear" : "Mark no-show"}
+                  {activeAssignment.attended === false ? "No-show - click to clear" : "Mark no-show"}
                 </TooltipContent>
               </Tooltip>
               {activeAssignment.attended == null && (
@@ -306,7 +306,7 @@ export function ShiftSlotCard({
                     <div className="flex gap-1">
                       <Button
                         size="sm"
-                        className="h-7 px-2 text-xs"
+                        className="h-8 px-2 text-xs"
                         onClick={() => onApprove(req.id)}
                         disabled={acting !== null}
                       >
@@ -315,7 +315,7 @@ export function ShiftSlotCard({
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 px-2 text-xs text-destructive"
+                        className="h-8 px-2 text-xs text-destructive"
                         onClick={() => onDecline(req.id)}
                         disabled={acting !== null}
                       >
@@ -328,7 +328,7 @@ export function ShiftSlotCard({
             </div>
           )}
 
-          {/* Empty slot — assign (staff) or request (student, ST shifts only) */}
+          {/* Empty slot - assign (staff) or request (student, ST shifts only) */}
           {!isAssigned && (
             <div className="mt-1">
               {isStaff && (
@@ -341,14 +341,14 @@ export function ShiftSlotCard({
                 >
                   <PopoverTrigger asChild>
                     <button
-                      className="group flex items-center gap-2 w-full rounded-md px-1 py-1 hover:bg-muted/50 transition-colors text-left"
+                      className="group flex min-h-10 w-full items-center gap-2 rounded-md px-1 py-1 text-left transition-[background-color,color,scale] hover:bg-muted/50 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
                       disabled={acting !== null}
                     >
                       <div className="size-7 shrink-0 rounded-full border-2 border-dashed border-muted-foreground/25 group-hover:border-primary/50 flex items-center justify-center transition-colors">
                         <PlusIcon className="size-3 text-muted-foreground/35 group-hover:text-primary transition-colors" />
                       </div>
                       <span className="text-sm text-muted-foreground/50 group-hover:text-muted-foreground transition-colors">
-                        Assign someone…
+                        Assign someone...
                       </span>
                     </button>
                   </PopoverTrigger>
@@ -368,7 +368,7 @@ export function ShiftSlotCard({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 text-xs mt-1"
+                  className="mt-1 h-9 text-xs"
                   onClick={onRequest}
                   disabled={acting !== null}
                 >

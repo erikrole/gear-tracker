@@ -1,6 +1,6 @@
 # Task Queue
 
-Last updated: 2026-05-09
+Last updated: 2026-05-10
 
 **Current release**: Beta — CalVer versioning adopted.
 **Release workflow**: `npm run release` creates CalVer tag + GitHub Release.
@@ -43,6 +43,236 @@ Last updated: 2026-05-09
 ---
 
 ## Open Items
+
+### Status/Data Wiring Ship Fixes (2026-05-10)
+- [x] **Item status contract:** Treat `PENDING_PICKUP` as an active item state in server read models, item filters, and web/iOS status presentation.
+- [x] **Mutation safety:** Make user deactivation cancel pending-pickup work with the same allocation/session cleanup used for reservations.
+- [x] **Route semantics:** Harden booking/search/calendar route filters so explicit statuses are not silently widened or overridden.
+- [x] **Docs and verification:** Sync area docs and run focused status, route, TypeScript, and build-safe checks.
+
+**Review**
+- Shipped: `PENDING_PICKUP` now appears as `Awaiting pickup` in item read models, filters, web/iOS item UI, event command summaries, and status color helpers.
+- Shipped: Future reservations stay future context until their window starts; cancelled/completed/draft bookings stay out of active calendar/search/status surfaces.
+- Shipped: Cancelling pending-pickup or open checkouts restores outstanding bulk stock and scanned numbered units, and deactivating owners restores pending-pickup bulk stock while `OPEN` checkout custody still blocks deactivation.
+- Verified: focused status and cancellation regressions, booking status/query regressions, TypeScript, build-safe checks, and iOS build attempt documented in the final handoff.
+
+### Bookings Status Ship Fixes (2026-05-10)
+- [x] **Active checkouts default:** Make `/bookings?tab=checkouts` show checked-out and pending-pickup work together.
+- [x] **Stale reservations:** Add a separate dashboard attention surface for past-due `BOOKED` reservations without changing checkout overdue counts.
+- [x] **Docs and verification:** Sync area docs, archive the task record, and run focused checks plus build.
+
+**Review**
+- Shipped: Checkouts default now includes `OPEN` and `PENDING_PICKUP`, while explicit status filters still narrow to a single lifecycle state.
+- Shipped: Dashboard Team Activity now shows past-due `BOOKED` reservations in a separate Stale reservations card linked to the reservation overdue filter, without changing checkout overdue metrics.
+- Verified: focused status Vitest slice, TypeScript, whitespace diff check, migration-prefix check, Next production build, and Chrome DevTools smoke on `/bookings?tab=checkouts` plus dashboard `/`.
+- Deferred: Checkout overdue stats remain custody-only; `PENDING_PICKUP` auto-expiry remains GAP-33.
+
+### Items Ownership Pass (2026-05-10)
+- [x] **Mixed row hardening:** Prevent bulk SKU rows from flowing into serialized-item selection, favorites, labels, and lifecycle mutations.
+- [x] **UX/UI polish:** Tighten Items toolbar, summary, and pagination controls without changing the page architecture.
+- [x] **Preference safety:** Make persisted density and column visibility hydration-safe.
+- [x] **Docs and verification:** Sync Items docs, archive the task record, and run focused checks plus browser smoke.
+
+**Review**
+- Shipped: `/items` now restores density and column visibility after hydration instead of reading localStorage during the initial render.
+- Shipped: Bulk SKU rows now open Bulk Inventory but cannot be selected for serialized bulk actions, favorited from the Items list, printed as asset labels, or sent through serialized lifecycle actions.
+- Shipped: The Items toolbar and pagination controls now use larger hit areas, cleaner pagination copy, and a bulk-only footer that does not expose an invalid rows-per-page selector.
+- Verified: `npx tsc --noEmit`, `npm run db:migrate:check`, `npx vitest run tests/asset-action-hardening.test.ts tests/api-hardening-wave12.test.ts`, `git diff --check -- src/app/(app)/items/page.tsx src/app/(app)/items/data-table.tsx src/app/(app)/items/columns.tsx src/app/(app)/items/components/items-toolbar.tsx src/app/(app)/items/components/items-pagination.tsx src/app/(app)/items/hooks/use-bulk-actions.ts docs/AREA_ITEMS.md tasks/todo.md tasks/archive/items-ownership-pass.md`, `npx next build`, and authenticated browser smoke on `/items`, `/items?type=bulk`, and `/items?type=serialized`.
+
+### Schedule Ownership Pass (2026-05-10)
+- [x] **Core Schedule:** Tighten summary counts, filters, list/week/calendar controls, and schedule empty states.
+- [x] **Assignment flows:** Improve `/schedule/assign` and shared assignment controls for touch targets, labels, and filtered recovery.
+- [x] **Connected surfaces:** Align event detail, dashboard Upcoming Events, and schedule-feeding settings with the same schedule semantics.
+- [x] **Docs and verification:** Sync Schedule/Events/Settings/Dashboard docs, archive the task record, and run focused checks plus browser smoke.
+
+**Review**
+- Shipped: `/schedule` now has a clearer readiness snapshot, larger filter/view controls, stronger list/week/calendar empty states, stable hydrated view preferences, and corrected all-day event creation.
+- Shipped: `/schedule/assign` now has larger navigation/filter controls, accessible assignment/remove targets, filtered-empty recovery, no-shift labels, and hydration-stable assignment data.
+- Shipped: Event detail, shared shift controls, Dashboard Upcoming Events, and Settings Sports now align with Schedule semantics through away-event wording, stronger crew/travel controls, less duplicate open-slot copy, and shared Switch controls.
+- Verified: `npx tsc --noEmit`, `npm run db:migrate:check`, `npx vitest run tests/shift-assignments.test.ts tests/shift-trades.test.ts tests/calendar-events-query.test.ts tests/event-defaults.test.ts`, `npx next build`, and authenticated Chrome DevTools smoke on `/`, `/schedule`, `/schedule/assign`, `/events/cmmgnauku006rx10l0rkdv1cp`, and `/settings/sports`.
+- Caveat: `npm run build` still stops before Next compilation at Prisma `migrate deploy` with a blank schema-engine error. The safer split passed: migration-prefix validation plus `npx next build`.
+
+### Kits Ownership Pass (2026-05-10)
+- [x] **Structure:** Reframe `/kits` with a current list-page summary, toolbar, and row/card hierarchy.
+- [x] **UX/UI:** Make search and filters shareable, add filtered-empty recovery, and replace fake row links with real navigation targets.
+- [x] **Hardening:** Count serialized and bulk kit contents together, search descriptions, and expose create-sheet validation.
+- [x] **Docs and verification:** Sync Kits docs, archive the task record, and run focused checks plus browser smoke.
+
+**Review**
+- Shipped: `/kits` now has summary metrics, URL-backed search/sort/filter state, a stronger toolbar, real detail links, clearer desktop/mobile rows, bulk-aware content counts/status, description search, single-toast create success, and visible New Kit validation.
+- Verified: `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check -- src/app/(app)/kits/page.tsx src/app/(app)/kits/new-kit-sheet.tsx src/app/(app)/kits/hooks/use-kits-query.ts src/lib/services/kits.ts docs/AREA_KITS.md tasks/archive/kits-ownership-pass.md tasks/todo.md`, `npx next build`, and authenticated Chrome DevTools smoke on `http://localhost:3002/kits` across desktop and mobile.
+- Deferred: Kit detail add/remove composition polish stays out of this list-page pass.
+
+### Items Hygiene Ownership Pass (2026-05-10)
+- [x] **Structure:** Turn `/items/hygiene` into a focused cleanup queue with priority, progress, and view controls.
+- [x] **UX/UI:** Improve issue cards, sample rows, clean states, touch targets, and refresh feedback while keeping repair links read-only.
+- [x] **Hardening:** Surface partial API failures and make labels align with tag-first item identity.
+- [x] **Docs and verification:** Sync item docs, task record, and run focused checks plus browser smoke.
+
+**Review**
+- Shipped: `/items/hygiene` now has priority sorting, a cleanup queue summary, checklist progress, needs-work/all/clean views, partial API failure warning state, refresh toast feedback, stronger sample rows, and tag-first API sample labels.
+- Verified: `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check -- src/app/(app)/items/hygiene/page.tsx src/app/api/inventory-hygiene/route.ts docs/AREA_ITEMS.md tasks/archive/items-hygiene-ownership-pass.md tasks/todo.md`, `npx next build`, and authenticated Chrome DevTools smoke on `http://localhost:3002/items/hygiene` across desktop and mobile.
+- Deferred: No mutation or auto-fix flow was added; repair still launches existing item, kit, and bulk surfaces.
+
+### Guides Review Fixes (2026-05-10)
+- [x] **Full-text guide search** — Make `/guides` search match full guide Markdown or legacy guide text, not only the visible summary.
+- [x] **Reader heading IDs** — Keep rendered Markdown heading IDs aligned with table-of-contents IDs when headings contain links, emphasis, or code.
+- [x] **Featured rank PATCH semantics** — Preserve or clear `featuredRank` from the final featured state instead of optional PATCH field presence.
+- [x] **Docs and verification** — Sync Guides docs and run focused regressions.
+
+**Review**
+- Shipped: Landing search now indexes full Markdown/plain guide body text, rendered Markdown headings use visible React text for IDs, and guide PATCH rank updates are derived from the final featured state.
+- Verified: `npx vitest run tests/guides-service.test.ts tests/markdown-reader.test.ts tests/guide-content.test.ts tests/guide-ranking.test.ts tests/guide-freshness.test.ts`, `npx tsc --noEmit`, `npx prisma validate`, `npm run db:migrate:check`, `git diff --check -- src/lib/guides.ts src/lib/guide-content.ts src/components/guides/MarkdownReader.tsx tests/guides-service.test.ts tests/markdown-reader.test.ts tests/guide-content.test.ts docs/AREA_GUIDES.md tasks/todo.md`, and `npx next build`.
+- Deferred:
+
+### Dashboard Cleanup Polish (2026-05-10)
+- [x] **Banner cleanup:** Fix flagged-items banner token classes and remove the dead `status=flagged` inventory link.
+- [x] **Filtered counts:** Make dashboard section counts reflect visible filtered rows while preserving unfiltered totals for overflow links.
+- [x] **Transient cards:** Hide Awaiting Pickup when a dashboard filter removes every pending-pickup row.
+- [x] **Touch polish:** Keep inline dashboard row actions reachable on touch-sized layouts without reintroducing nested actions.
+- [x] **Docs and verification:** Sync Dashboard docs and run focused checks.
+
+**Review**
+- Shipped: Fixed the flagged-items banner styling and CTA, filtered header counts, filtered pending-pickup hiding, first-run detection coverage, and touch-visible dashboard row actions.
+- Verified: `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check -- src/app/(app)/page.tsx src/app/(app)/dashboard/my-gear-column.tsx src/app/(app)/dashboard/team-activity-column.tsx src/app/(app)/dashboard/flagged-items-banner.tsx docs/AREA_DASHBOARD.md tasks/todo.md`, `npx next build`, and Chrome smoke on `http://localhost:3001/?sport=MBB` redirecting cleanly to `/login` with no console errors.
+- Deferred: Authenticated dashboard visual smoke was not run because the current browser session is unauthenticated; the protected route redirect was verified instead.
+
+### Component Audit Track — 6 Surfaces (2026-05-10)
+- [x] **1. Forms** — Inputs, textareas, selects, native selects, labels, invalid states, disabled states, and field sizing.
+- [x] **2. Overlays** — Dialog, AlertDialog, Sheet, Drawer, popover/menu padding, backdrop, scroll, and elevation contracts.
+- [x] **3. Button/loading/motion** — Button variants, icon buttons, loading spinners, reduced motion, and motion helper defaults.
+- [x] **4. Avatar/image identity** — UserAvatar, Avatar, AvatarGroup, AssetImage, thumbnail stacks, and people-vs-gear identity rules.
+- [x] **5. EquipmentPicker** — Picker search, availability states, scan-to-add, selected-item summary, and booking edit/create reuse.
+- [x] **6. Row/action patterns** — List rows, dashboard rows, table links, inline actions, filter clears, and nested-interactive guardrails.
+
+**Forms review**
+- Current repo already had most Bucket 1 findings fixed: input shadow/transition parity, NativeSelect invalid styles, `SelectTrigger size="sm"` adoption, and dead `data-size` removal.
+- Closed the live drift by making `SelectTrigger size="sm"` own `text-sm`, aligning `NativeSelect` default type with mobile-safe input sizing, and removing redundant small-select text overrides from Schedule assignment, Settings Sports call-time controls, and User Availability.
+- Follow-up candidates remain intentionally outside this slice: re-audit `Label` layout after checking checkbox/inline-label consumers, and migrate high-value forms to the installed `form.tsx` primitive when a specific form is being touched.
+
+**Overlays review**
+- Current repo already had the original backdrop and radius drift fixed across Dialog, AlertDialog, Sheet, and Drawer.
+- Closed the live interaction drift by aligning Dialog and Drawer close-button hover/focus transition treatment with Sheet.
+- Kept Drawer as a separate primitive for the scan item-preview bottom sheet, but added matching elevation so it no longer feels flatter than the rest of the overlay family.
+- Parked padding-contract and AlertDialog-composition changes because they have broad call-site implications and should be handled as their own migration.
+
+**Button/loading/motion review**
+- Current repo already had the main primitive upgrades from the audit: `Button loading`, app-level `MotionConfig reducedMotion="user"`, dead button attributes removed, dead `icon-lg` removed, motion re-export cleanup, and Schedule assignment icon button labels.
+- Closed the remaining live drift by migrating high-value license actions and Settings Database diagnostics to the shared `Button loading` API, preserving their busy copy while adding consistent spinner, busy semantics, and automatic disabled behavior.
+- Left refresh-icon spinners and inline autosave indicators alone because they are different interaction patterns, not plain primary-action loading buttons.
+
+**Avatar/image identity review**
+- Current repo had already made `AvatarGroup` layout-only, removed the dead raw `Avatar lg` branch, and separated dashboard gear thumbnails from people avatars.
+- Closed the live size-ownership drift by moving the full `xs` through `xl` people-avatar scale into `Avatar`, making `UserAvatar` consume that primitive size prop, and sizing `AvatarGroupCount` from the same value.
+- Kept `AssetImage` and `ItemThumbnailStack` as separate equipment identity primitives, because square gear thumbnails and compact gear stacks should not inherit circular person-avatar behavior.
+
+**EquipmentPicker review**
+- Kept this as a targeted hardening pass instead of reopening the larger item-picker decomposition roadmap.
+- Closed scan-to-add drift by rejecting unavailable serialized gear with clear scanner feedback, preserving conflict-warning override behavior for otherwise available items, and capping scanned bulk SKUs at available quantity.
+- Added in-place retry for picker search/load errors, empty-state recovery actions for search and available-only filters, corrected search match counts to include bulk rows, and tightened the selected shelf so availability checking and Clear all occupy one stable action area.
+
+**Row/action patterns review**
+- Confirmed the dashboard booking row already uses the desired pattern: a primary row button with sibling inline actions.
+- Brought booking cards, booking mobile rows, and item mobile rows closer to that pattern by replacing fake `role="button"` containers with real primary open buttons and keeping overflow/checkbox controls as sibling actions.
+- Adjusted the desktop booking table row so keyboard open behavior lives on a real button in the primary cell, while the overflow menu remains a separate action target.
+
+**Closeout browser smoke**
+- Authenticated as the seeded local admin and smoke-tested the touched surfaces across `/bookings`, `/items`, `/licenses`, `/settings/database`, `/schedule/assign`, `/settings/sports`, a student profile Availability tab, and `/checkouts/new`.
+- Mobile viewport smoke confirmed checkout cards expose real `View booking` and `More actions` sibling buttons, and item cards expose real `View item` plus selection sibling buttons with no visible fake `div role="button"` row wrappers.
+- License add/bulk/renew overlays opened cleanly, the checkout wizard reached the EquipmentPicker step with search, availability-only, scan, select-visible, and item add controls visible, and `/settings/database` diagnostics no longer emits duplicate React key warnings after the key fix.
+
+### Guides Freshness Closeout (2026-05-10)
+- [x] **Schema** — Add nullable guide verification fields and migration.
+- [x] **API/service** — Let allowed guide editors mark a guide verified with audit coverage.
+- [x] **Reader and landing UI** — Show verified/needs-review state on guide cards and reader headers.
+- [x] **Docs and verification** — Sync Guides docs and run focused checks plus build.
+
+**Review**
+- Guides now store `lastVerifiedAt` and `lastVerifiedById`, with migration `0061_add_guide_freshness` applied and recorded.
+- Allowed editors can mark a guide verified from the reader. The mutation uses the existing guide update permissions, writes a `guide_verified` audit entry, and sends `expectedUpdatedAt` so stale pages cannot verify over newer guide edits.
+- `/guides` cards and individual reader headers now show Verified or Needs review state, including who last verified the guide when available.
+- Verified with `npx vitest run tests/guide-content.test.ts tests/guide-sanitize.test.ts tests/guide-ranking.test.ts tests/guide-freshness.test.ts`, `npx tsc --noEmit`, `npx prisma validate`, `npm run db:migrate:check`, `git diff --check`, `npx next build`, authenticated `/guides` and guide-reader HTTP 200 smoke, and authenticated mark-verified API smoke.
+
+### Breadcrumbs First-Class UX Pass (2026-05-10)
+- [x] **Audit current breadcrumb system** — Confirm global ownership, route derivation, entity labels, sibling jumps, recents, role filtering, and mobile constraints.
+- [x] **Interaction polish** — Make breadcrumb links, dropdown triggers, ellipsis, and current page states feel like deliberate navigation controls with accessible hit targets.
+- [x] **Dropdown UX** — Add clearer sibling/recent menu framing, current-location indicators, descriptions where available, and predictable truncation.
+- [x] **Verification and docs** — Run focused checks and sync the breadcrumb roadmap docs.
+
+**Review**
+- Global breadcrumbs now render as a shell-owned navigation strip with stronger current-page treatment, exact hover/focus/press states, and taller skeletons that match final crumb height.
+- Link, dropdown, ellipsis, and current-page crumb targets measured 40px tall on desktop and 44px tall on mobile in browser smoke.
+- Settings/Reports sibling menus now have explicit menu labels, preserve role filtering, show current-location checkmarks, and include Settings section descriptions from shared nav metadata.
+- Verified with `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check -- src/components/PageBreadcrumb.tsx docs/AREA_MOBILE.md docs/AREA_SETTINGS.md tasks/todo.md`, `npx next build`, and browser smoke on `/settings/notifications` at desktop and mobile widths.
+
+### Guides URL Navigation (2026-05-10)
+- [x] **URL-backed landing filters** — Make reference, area, category, and search state reload-safe and shareable from `/guides`.
+- [x] **Contact directory entry links** — Ensure `/guides?view=contacts` opens the live Contacts directory directly.
+- [x] **Docs and verification** — Sync Guides docs and run focused checks.
+
+**Review**
+- `/guides` now reads `q`, `category`, `view`, and `area` from query params instead of hiding landing-page state in component-only memory.
+- Reference links such as `/guides?view=contacts`, `/guides?view=media-drive`, `/guides?view=server-paths`, and `/guides?view=recent` now restore the correct highlighted card and filtered view after reload.
+- Area links such as `/guides?area=video` now open directly into that Creative discipline.
+- Verified focused Guides tests, TypeScript, migration-prefix check, whitespace check, `npx next build`, and authenticated HTTP 200 smoke for Contacts, Media Drive, Video area, and category-plus-search URLs.
+
+### Guides Contacts Filters (2026-05-10)
+- [x] **Role and area filters** — Add Contacts-directory controls for role and Creative area without changing the Users API.
+- [x] **Contact hygiene filters** — Add missing phone and missing Slack views for staff/admin cleanup.
+- [x] **Docs and verification** — Sync Guides docs and run focused checks.
+
+**Review**
+- `/guides` Contacts now filters active user profiles by role and Creative area without adding another API endpoint.
+- Staff/admin users get cleanup filters and count badges for missing phone and missing Slack profile data; student readers only get the normal browsing filters.
+- Search still includes contact fields, including Slack handle/profile URL text, and filtered empty states now explain that Contacts filters are active.
+- Verified focused Guides tests, TypeScript, Prisma validation, migration-prefix check, whitespace check, `npx next build`, authenticated `/guides` HTTP 200, and authenticated `/api/users` payload shape for Contacts data.
+
+### Guides Slack Profile Links (2026-05-10)
+- [x] **Schema** — Add a nullable `slackProfileUrl` user field for reliable Slack profile links.
+- [x] **API/Profile wiring** — Return and edit the URL through `/api/users`, `/api/users/[id]`, and `/api/profile` with validation.
+- [x] **Guides Contacts UI** — Show `@handle` as text and make it open Slack only when a profile URL exists.
+- [x] **Docs and verification** — Sync Users/Guides docs and run focused checks.
+
+**Review**
+- Added `User.slackProfileUrl` backed by `users.slack_profile_url`, with Slack-only HTTPS URL validation and null normalization.
+- `/api/users`, `/api/users/[id]`, and `/api/profile` now return the profile URL; profile and staff/admin user edits can save it with audit diffs.
+- `/guides` Contacts now displays `@handle` as text/search data and only turns the Slack line into a link when `slackProfileUrl` exists.
+- Verified focused Guides tests, Prisma validation, migration-prefix check, whitespace check, TypeScript, `npx next build`, Neon HTTP fallback application of migration `0060`, authenticated `/guides` HTTP 200, authenticated `/api/users` payload containing `slackProfileUrl`, and invalid non-Slack profile URL rejection.
+- Local `npm run build` remains blocked before compile by Prisma CLI's blank schema-engine error against Neon; `npx next build` passes and migration `0060` is already recorded through the existing Neon HTTP fallback approach.
+
+### Guides Live Contacts Directory (2026-05-10)
+- [x] **Live source** — Use the Users API as the source of truth for guide Contacts instead of duplicating staff/student contact fields in Markdown.
+- [x] **Contacts UI** — Show active users with avatar, name, title/year, role, area, location, email, phone, and Slack handle when the Contacts reference view is active.
+- [x] **Slack seed** — Add a synced `slackHandle` user profile field so Slack contact info follows the user record.
+- [x] **Docs and verification** — Sync Guides docs and prove the Contacts view updates from current user profile data.
+
+**Review**
+- `User.slackHandle` is now stored as `users.slack_handle`, normalized to `@handle`, editable through user detail/profile self-edit APIs, and returned by `/api/users`, `/api/users/[id]`, and `/api/profile`.
+- `/guides` Contacts now uses active Users API data and shows current email, phone, Slack handle, title/year, area, location, avatar, and profile link.
+- Verified focused Guides tests, TypeScript, Prisma validation, migration-prefix check, whitespace check, `npx next build`, Neon HTTP fallback application of migration `0059`, authenticated `/guides` HTTP 200, and authenticated `/api/users` payload containing `slackHandle`.
+- Local `npm run build` remains blocked before compile by Prisma CLI's blank schema-engine error against Neon; `npx next build` passes and migration `0059` is already recorded through the existing Neon HTTP fallback approach.
+
+### Guides Reference Navigation (2026-05-10)
+- [x] **Category framing** — Treat Contacts, Building Numbers, Media Drive, and Server Paths as distinct reference categories.
+- [x] **Landing navigation** — Split Guides quick cards into area browsing and reference browsing while preserving ranked guide order.
+- [x] **Authoring templates** — Add starter templates for Media Drive overview and Building Numbers entries.
+- [x] **Verification and docs** — Run focused Guides checks and sync `AREA_GUIDES.md`.
+
+**Review**
+- `/guides` now shows separate Browse by area and Reference library sections. Media Drive filters as its own reference category instead of being conflated with Server Paths.
+- `/guides/new` now offers Contacts, Building Numbers, Media Drive, Server Paths, SOP, and Troubleshooting starter templates, and the category datalist includes the new reference categories.
+- Verified with focused Guides tests, TypeScript, migration-prefix check, whitespace check, production build, authenticated browser smoke on `/guides`, and authenticated route smoke on `/guides/new`.
+
+### Mobile Web Nav Polish (2026-05-10)
+- [x] **Bottom nav IA** — Keep the V1 mobile destinations intact while making Scan read as the primary one-tap action.
+- [x] **Badges and active states** — Surface urgent checkout counts in the mobile nav and tighten active, hover, focus, and press states.
+- [x] **Mobile shell spacing** — Adjust safe-area padding and hit areas so content clears the refined bottom bar.
+- [x] **Verification and docs** — Run focused checks and update `AREA_MOBILE.md` with the shipped polish.
+
+**Review**
+- `npx tsc --noEmit`, `npm run db:migrate:check`, and `git diff --check` passed.
+- `npx next build` compiled successfully, then failed during page-data collection for existing route resolution errors: `/events` and `/guides/[slug]/edit`.
+- Dev server browser smoke reached `/login` at mobile width after a cache-bypassing reload. Authenticated app-shell smoke was not completed because signing in with seed credentials would create a real session and login audit event.
 
 ### Protected App Console Cleanup (2026-05-09)
 - [x] **Production console diagnosis** — Vercel production logs were clean, but unauthenticated `/reports/badges` browser smoke showed three expected-but-noisy 401 resource errors before redirect.

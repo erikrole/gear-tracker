@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Bulk Inventory Management
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-06
+- Last Updated: 2026-05-10
 - Status: Active
 - Version: V1
 
@@ -22,6 +22,7 @@ Track non-serialized (bulk) inventory — quantities of identical items (e.g., 5
 9. Numbered bulk unit QR values are derived as `{binQrCodeValue}-{unitNumber}` and scan directly as that one unit; printed label text can stay as the unit number only.
 10. Camera-slot SD cards are not bulk inventory when assigned to a specific camera slot; they are serialized item attachments under the camera.
 11. Numbered battery available quantity derives from `BulkSkuUnit.status = AVAILABLE`; low-stock warnings use available units and default to threshold 10 when the SKU threshold is lower or unset.
+12. Quantity-only available quantity derives from current `BulkStockBalance.onHandQuantity`; checkout creation, pending pickup, cancellation, and return paths move that balance through audited stock movements, so read models must not subtract active checkout quantities again.
 
 ## Routes
 
@@ -162,6 +163,7 @@ See `AREA_ITEMS.md` 2026-04-06 entry for bulk inventory page hardening:
 - [x] AC-6: Change unit status (mark lost, retire, release) with audit trail
 
 ## Change Log
+- 2026-05-10: Status/data wiring ship fixes. Quantity-only bulk read models now report availability from the movement-adjusted stock balance, and checkout cancellation restores outstanding stock with a compensating movement before the booking is cancelled.
 - 2026-05-08: API hardening Wave 13. Battery cockpit reads now use short private caching, battery SKU detection uses term-boundary matching, and license/bulk history-style endpoints stay bounded.
 - 2026-05-08: API hardening Wave 12. Bulk asset maintenance toggles now run under SERIALIZABLE isolation with transaction-local audit rows, and bulk SKU activity cursors must belong to the requested SKU or unit audit scope before pagination continues.
 - 2026-05-08: API hardening Wave 11. Bulk stock adjustments now bound both request deltas and resulting on-hand quantities to prevent overflow-scale inventory counts; numbered-unit status updates were re-verified as SERIALIZABLE read/update/balance operations.

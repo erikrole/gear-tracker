@@ -21,6 +21,7 @@ export type FilteredDashboardData = {
   teamCheckouts: DashboardData["teamCheckouts"]["items"];
   teamReservations: DashboardData["teamReservations"]["items"];
   pendingPickups: DashboardData["pendingPickups"]["items"];
+  staleReservations: DashboardData["staleReservations"]["items"];
   myReservations: DashboardData["myReservations"];
   upcomingEvents: DashboardData["upcomingEvents"];
   myShifts: DashboardData["myShifts"];
@@ -64,6 +65,7 @@ export function useDashboardFilters(data: DashboardData | null): UseDashboardFil
     for (const c of data.myCheckouts.items) if (c.sportCode) codes.add(c.sportCode);
     for (const c of data.teamCheckouts.items) if (c.sportCode) codes.add(c.sportCode);
     for (const r of data.teamReservations.items) if (r.sportCode) codes.add(r.sportCode);
+    for (const r of data.staleReservations.items) if (r.sportCode) codes.add(r.sportCode);
     for (const r of data.myReservations) if (r.sportCode) codes.add(r.sportCode);
     for (const e of data.upcomingEvents) if (e.sportCode) codes.add(e.sportCode);
     for (const s of data.myShifts) if (s.event.sportCode) codes.add(s.event.sportCode);
@@ -77,6 +79,7 @@ export function useDashboardFilters(data: DashboardData | null): UseDashboardFil
     for (const c of data.myCheckouts.items) if (c.locationName) names.add(c.locationName);
     for (const c of data.teamCheckouts.items) if (c.locationName) names.add(c.locationName);
     for (const r of data.teamReservations.items) if (r.locationName) names.add(r.locationName);
+    for (const r of data.staleReservations.items) if (r.locationName) names.add(r.locationName);
     for (const r of data.myReservations) if (r.locationName) names.add(r.locationName);
     for (const e of data.upcomingEvents) if (e.location) names.add(e.location);
     for (const s of data.myShifts) if (s.event.locationName) names.add(s.event.locationName);
@@ -98,6 +101,7 @@ export function useDashboardFilters(data: DashboardData | null): UseDashboardFil
       teamCheckouts: data.teamCheckouts.items.filter((c) => matchesFilters(c.sportCode, c.locationName)),
       teamReservations: data.teamReservations.items.filter((r) => matchesFilters(r.sportCode, r.locationName)),
       pendingPickups: data.pendingPickups.items.filter((p) => matchesFilters(p.sportCode, p.locationName)),
+      staleReservations: data.staleReservations.items.filter((r) => matchesFilters(r.sportCode, r.locationName)),
       myReservations: data.myReservations.filter((r) => matchesFilters(r.sportCode, r.locationName)),
       upcomingEvents: data.upcomingEvents.filter((e) => matchesFilters(e.sportCode, e.location)),
       myShifts: data.myShifts.filter((s) => matchesFilters(s.event.sportCode, s.event.locationName)),

@@ -32,16 +32,21 @@ export function BookingTableRow({
     <BookingContextMenuWrapper item={item} {...menuProps}>
       <TableRow
         className={cn(
-          "cursor-pointer focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]",
+          "cursor-pointer",
           sv.rowClass,
         )}
-        tabIndex={0}
-        role="button"
         onClick={onClick}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
       >
         <TableCell>
-          <div className="flex flex-col gap-0.5">
+          <button
+            type="button"
+            className="flex w-full flex-col gap-0.5 rounded-sm bg-transparent text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            aria-label={`View booking: ${item.title}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClick();
+            }}
+          >
             {item.refNumber && (
               <span
                 className="text-[9px] uppercase tracking-[0.14em] text-muted-foreground/40 w-fit"
@@ -65,7 +70,7 @@ export function BookingTableRow({
                 {sv.label}
               </span>
             </span>
-          </div>
+          </button>
         </TableCell>
         <TableCell className="hidden md:table-cell">
           <div className="flex flex-col gap-px">
@@ -156,22 +161,25 @@ export function BookingMobileCard({
   return (
     <div
       className={cn(
-        "relative px-4 py-3 border-b border-border cursor-pointer flex flex-col gap-1 active:bg-muted last:border-b-0 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px] overflow-hidden",
+        "relative flex flex-col gap-1 overflow-hidden border-b border-border px-4 py-3 active:bg-muted last:border-b-0",
         sv.rowClass,
       )}
-      tabIndex={0}
-      role="button"
-      onClick={onClick}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
     >
+      <button
+        type="button"
+        className="absolute inset-0 z-10 cursor-pointer bg-transparent outline-none focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-[-2px]"
+        aria-label={`View booking: ${item.title}`}
+        onClick={onClick}
+      />
+
       {/* Status left accent */}
       <div
-        className="absolute left-0 top-0 bottom-0 w-[3px]"
+        className="absolute left-0 top-0 bottom-0 z-0 w-[3px]"
         style={{ background: sv.dot }}
         aria-hidden="true"
       />
 
-      <div className="flex justify-between items-start gap-2">
+      <div className="pointer-events-none relative z-20 flex items-start justify-between gap-2">
         <div className="flex flex-col gap-0.5 min-w-0">
           {item.refNumber && (
             <span
@@ -199,7 +207,7 @@ export function BookingMobileCard({
         </div>
         <BookingOverflowMenu item={item} {...menuProps}>
           <button
-            className="flex items-center justify-center size-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent [-webkit-tap-highlight-color:transparent] cursor-pointer bg-transparent border-none shrink-0"
+            className="pointer-events-auto relative z-20 flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-muted-foreground [-webkit-tap-highlight-color:transparent] hover:bg-accent hover:text-foreground"
             aria-label="More actions"
             onClick={(e) => e.stopPropagation()}
           >
@@ -209,7 +217,7 @@ export function BookingMobileCard({
       </div>
 
       <div
-        className="flex flex-wrap gap-1 items-center text-muted-foreground/55"
+        className="pointer-events-none relative z-0 flex flex-wrap items-center gap-1 text-muted-foreground/55"
         style={{ fontFamily: "var(--font-mono)", fontSize: "11px" }}
       >
         <span className="tabular-nums">{formatDateShort(item.startsAt)} – {formatDateShort(item.endsAt)}</span>

@@ -61,7 +61,7 @@ function RosterPicker({
   onClose: () => void;
 }) {
   const [adding, setAdding] = useState<string | null>(null);
-  const [toggleing, setToggling] = useState<string | null>(null);
+  const [toggling, setToggling] = useState<string | null>(null);
   const [localRoster, setLocalRoster] = useState<RosterEntry[] | null>(null);
 
   const { data: fetchedRoster, loading } = useFetch<RosterEntry[]>({
@@ -163,8 +163,8 @@ function RosterPicker({
               <TooltipTrigger asChild>
                 <button
                   onClick={() => handleToggleDefault(entry)}
-                  disabled={toggleing === entry.id}
-                  className={`shrink-0 transition-colors ${
+                  disabled={toggling === entry.id}
+                  className={`flex size-9 shrink-0 items-center justify-center rounded-md transition-[background-color,color,scale] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2 ${
                     entry.defaultTraveler
                       ? "text-amber-400 hover:text-amber-500"
                       : "text-muted-foreground/30 hover:text-muted-foreground"
@@ -175,7 +175,7 @@ function RosterPicker({
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                {entry.defaultTraveler ? "Default traveler — click to unset" : "Mark as default traveler"}
+                {entry.defaultTraveler ? "Default traveler - click to unset" : "Mark as default traveler"}
               </TooltipContent>
             </Tooltip>
             <span className="text-sm truncate">{entry.user.name}</span>
@@ -186,11 +186,11 @@ function RosterPicker({
           <Button
             size="sm"
             variant="ghost"
-            className="h-7 px-2 text-xs ml-2 shrink-0"
+            className="ml-2 h-9 shrink-0 px-2 text-xs"
             onClick={() => handleAdd(entry.userId)}
             disabled={adding !== null}
           >
-            {adding === entry.userId ? "…" : "Add"}
+            {adding === entry.userId ? "..." : "Add"}
           </Button>
         </div>
       ))}
@@ -268,14 +268,14 @@ export function EventTravelCard({
         {isStaff && (
           <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" disabled={loading}>
+              <Button variant="outline" size="sm" className="h-9" disabled={loading}>
                 <Plus className="size-3.5 mr-1.5" />
                 Add
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-72 p-2" align="end">
               <p className="text-xs font-medium text-muted-foreground px-1 pb-2">
-                Sport roster — ★ = default traveler
+                Sport roster - starred users are default travelers
               </p>
               <RosterPicker
                 sportCode={sportCode}
@@ -326,7 +326,7 @@ export function EventTravelCard({
                   <button
                     onClick={() => handleRemove(m.id)}
                     disabled={removing === m.id}
-                    className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50 shrink-0"
+                    className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-[background-color,color,scale] hover:bg-muted/50 hover:text-destructive active:scale-[0.96] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
                     aria-label="Remove from travel roster"
                   >
                     <Trash2 className="size-3.5" />

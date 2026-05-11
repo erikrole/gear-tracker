@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Events
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-08
+- Last Updated: 2026-05-10
 - Status: Active
 
 ## Direction
@@ -68,6 +68,8 @@ Make athletics schedule data the operational backbone for booking and checkout w
 4. Fallback behavior for incomplete events is implemented — treat event context as non-blocking metadata on all booking flows.
 
 ## Change Log
+- 2026-05-10: Status/data wiring ship fixes. Booking calendar reads now default to schedule-active booking states (`BOOKED`, `PENDING_PICKUP`, `OPEN`) instead of letting draft, completed, or cancelled records appear as occupying work. Event command-center gear summaries now count awaiting-pickup gear separately from checked-out and reserved gear.
+- 2026-05-10: Schedule ownership pass. Event detail now labels away opponents as "at" instead of always "vs", keeps manual single-day all-day events creatable from the Schedule New Event sheet, and preserves `/events` as a redirect to `/schedule` while `/events/[id]` remains the deep-dive crew and gear surface.
 - 2026-05-08: API hardening Wave 13. Booking calendar reads now validate/cap date ranges and return at most 500 bookings, command-center event context is rate-limited with a 500-booking cap, and calendar source listing is capped at 100 rows.
 - 2026-05-08: API hardening Wave 10. Manual calendar source sync now acquires and releases a source-scoped database lease around ICS fetch plus post-sync shift generation, closing the concurrent manual sync gap.
 - 2026-05-08: API hardening Wave 4. Confirmed away-event travel rosters are intentionally visible to students as staffing context. The API now checks event existence before listing and focused regressions cover student read access plus student denial on add/remove.

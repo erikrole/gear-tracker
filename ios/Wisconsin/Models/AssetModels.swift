@@ -3,6 +3,7 @@ import Foundation
 enum AssetComputedStatus: String, Codable {
     case available = "AVAILABLE"
     case checkedOut = "CHECKED_OUT"
+    case pendingPickup = "PENDING_PICKUP"
     case reserved = "RESERVED"
     case maintenance = "MAINTENANCE"
     case retired = "RETIRED"
@@ -17,6 +18,7 @@ enum AssetComputedStatus: String, Codable {
         switch self {
         case .available: "Available"
         case .checkedOut: "Checked Out"
+        case .pendingPickup: "Awaiting Pickup"
         case .reserved: "Reserved"
         case .maintenance: "Maintenance"
         case .retired: "Retired"

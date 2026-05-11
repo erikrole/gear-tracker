@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 const BookingDetailsSheet = lazy(() => import("@/components/BookingDetailsSheet"));
@@ -40,16 +40,35 @@ export type { BookingItem, BookingListConfig, StatusOption, ContextMenuExtra };
 export default function BookingListPage({ config, viewMode = "table", hideHeader = false, hideNewButton = false, initialHighlight }: { config: BookingListConfig; viewMode?: "table" | "cards"; hideHeader?: boolean; hideNewButton?: boolean; initialHighlight?: string | null }) {
   const urlParams = useSearchParams();
   const router = useRouter();
+  const urlSignature = urlParams.toString();
 
   // ── Filter state ──
   const [page, setPage] = useState(0);
-  const [search, setSearch] = useState("");
-  const [sort, setSort] = useState("");
+  const [search, setSearch] = useState(urlParams.get("q") || "");
+  const [sort, setSort] = useState(urlParams.get("sort") || "");
   const [statusFilter, setStatusFilter] = useState(urlParams.get("status") || config.defaultStatusFilter || "");
-  const [sportFilter, setSportFilter] = useState("");
-  const [locationFilter, setLocationFilter] = useState("");
-  const [userFilter, setUserFilter] = useState("");
+  const [sportFilter, setSportFilter] = useState(urlParams.get("sport_code") || "");
+  const [locationFilter, setLocationFilter] = useState(urlParams.get("location_id") || "");
+  const [userFilter, setUserFilter] = useState(urlParams.get("requester_id") || "");
   const [specialFilter, setSpecialFilter] = useState(urlParams.get("filter") || "");
+  const [clientReady, setClientReady] = useState(false);
+  const defaultStatusFiltersKey = config.defaultStatusFilters?.join(",") ?? "";
+
+  useEffect(() => {
+    setClientReady(true);
+  }, []);
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams(urlSignature);
+    setSearch(nextParams.get("q") || "");
+    setSort(nextParams.get("sort") || "");
+    setStatusFilter(nextParams.get("status") || config.defaultStatusFilter || "");
+    setSportFilter(nextParams.get("sport_code") || "");
+    setLocationFilter(nextParams.get("location_id") || "");
+    setUserFilter(nextParams.get("requester_id") || "");
+    setSpecialFilter(nextParams.get("filter") || "");
+    setPage(0);
+  }, [config.defaultStatusFilter, urlSignature]);
 
   // ── List data (React Query) ──
   const queryClient = useQueryClient();
@@ -64,11 +83,12 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
     if (config.pastOnly) params.set("past", "true");
     if (specialFilter) params.set("filter", specialFilter);
     if (!specialFilter && statusFilter) params.set("status", statusFilter);
+    if (!specialFilter && !statusFilter && defaultStatusFiltersKey) params.set("status_in", defaultStatusFiltersKey);
     if (config.hasSportFilter && sportFilter) params.set("sport_code", sportFilter);
     if (locationFilter) params.set("location_id", locationFilter);
     if (userFilter) params.set("requester_id", userFilter);
     return `${config.apiBase}?${params}`;
-  }, [page, search, sort, statusFilter, sportFilter, locationFilter, userFilter, specialFilter, config.apiBase, config.activeOnly, config.pastOnly, config.hasSportFilter]);
+  }, [page, search, sort, statusFilter, sportFilter, locationFilter, userFilter, specialFilter, config.apiBase, config.activeOnly, config.pastOnly, config.hasSportFilter, defaultStatusFiltersKey]);
 
   const { data: listData, isLoading: loading, isFetching, isError, refetch } = useQuery<ListResponse>({
     queryKey: ["bookingList", config.kind, listUrl],
@@ -99,6 +119,7 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
   const loadError: false | "network" | "server" = isError && !listData
     ? (typeof navigator !== "undefined" && !navigator.onLine ? "network" : "server")
     : false;
+  const showInitialSkeleton = !clientReady || (loading && !listData);
 
   /** Optimistic update helper — mutates the cached list data */
   const setItems = (updater: BookingItem[] | ((prev: BookingItem[]) => BookingItem[])) => {
@@ -122,24 +143,26 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
 
   // Apply "mine" filter from URL once user data loads
   useEffect(() => {
-    if (urlParams.get("mine") === "true" && meData?.id && !userFilter) {
+    const nextParams = new URLSearchParams(urlSignature);
+    if (nextParams.get("mine") === "true" && meData?.id && userFilter !== meData.id) {
       setUserFilter(meData.id);
     }
-  }, [meData?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [meData?.id, urlSignature, userFilter]);
 
   // ── Navigate to wizard page for creation ──
-  function navigateToCreate() {
+  const navigateToCreate = useCallback(() => {
+    const nextParams = new URLSearchParams(urlSignature);
     const base = config.kind === "CHECKOUT" ? "/checkouts/new" : "/reservations/new";
     const params = new URLSearchParams();
-    const title = urlParams.get("title");
-    const startsAt = urlParams.get("startsAt");
-    const endsAt = urlParams.get("endsAt");
-    const locationId = urlParams.get("locationId");
-    const newFor = urlParams.get("newFor");
-    const eventId = urlParams.get("eventId");
-    const sportCode = urlParams.get("sportCode");
-    const draftId = urlParams.get("draftId");
-    const requesterUserId = urlParams.get("requesterUserId");
+    const title = nextParams.get("title");
+    const startsAt = nextParams.get("startsAt");
+    const endsAt = nextParams.get("endsAt");
+    const locationId = nextParams.get("locationId");
+    const newFor = nextParams.get("newFor");
+    const eventId = nextParams.get("eventId");
+    const sportCode = nextParams.get("sportCode");
+    const draftId = nextParams.get("draftId");
+    const requesterUserId = nextParams.get("requesterUserId");
     if (title) params.set("title", title);
     if (startsAt) params.set("startsAt", startsAt);
     if (endsAt) params.set("endsAt", endsAt);
@@ -151,32 +174,40 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
     if (requesterUserId) params.set("requesterUserId", requesterUserId);
     const qs = params.toString();
     router.push(qs ? `${base}?${qs}` : base);
-  }
+  }, [config.kind, router, urlSignature]);
 
   // Auto-navigate to wizard if deep-link params present
   useEffect(() => {
-    if (urlParams.get("create") === "true" || urlParams.get("title") || urlParams.get("draftId") || urlParams.get("newFor")) {
+    const nextParams = new URLSearchParams(urlSignature);
+    if (nextParams.get("create") === "true" || nextParams.get("title") || nextParams.get("draftId") || nextParams.get("newFor")) {
       navigateToCreate();
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [navigateToCreate, urlSignature]);
 
   // ── Sheet + menu ──
   // initialHighlight prop takes precedence over URL param (avoids multi-tab race when all tabs mount simultaneously)
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
-    initialHighlight !== undefined ? (initialHighlight || null) : (urlParams.get("highlight") || null)
+    initialHighlight !== undefined ? (initialHighlight || null) : (urlParams.get("highlight") || urlParams.get("id") || null)
   );
   const [initialSheetTab, setInitialSheetTab] = useState<string | null>(urlParams.get("sheetTab") || null);
 
+  useEffect(() => {
+    if (initialHighlight) {
+      setSelectedBookingId(initialHighlight);
+    }
+  }, [initialHighlight]);
+
   // Clear highlight/sheetTab from URL after consuming them (only when using URL-based highlight for deep links)
   useEffect(() => {
-    if (initialHighlight === undefined && (urlParams.get("highlight") || urlParams.get("sheetTab"))) {
-      const next = new URLSearchParams(urlParams.toString());
+    const next = new URLSearchParams(urlSignature);
+    if (initialHighlight === undefined && (next.get("highlight") || next.get("id") || next.get("sheetTab"))) {
       next.delete("highlight");
+      next.delete("id");
       next.delete("sheetTab");
       const qs = next.toString();
       router.replace(qs ? `?${qs}` : window.location.pathname, { scroll: false });
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [initialHighlight, router, urlSignature]);
 
   const [extendingId, setExtendingId] = useState<string | null>(null);
   const extendingRef = useRef(false);
@@ -302,7 +333,7 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
         />
 
         {/* ════════ Booking list ════════ */}
-        {loading ? (
+        {showInitialSkeleton ? (
           <SkeletonTable rows={6} cols={5} />
         ) : loadError ? (
           <EmptyState

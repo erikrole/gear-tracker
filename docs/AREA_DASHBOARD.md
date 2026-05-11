@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Dashboard
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-08
+- Last Updated: 2026-05-10
 - Status: Active — V3 shipped, reliability + UX polish complete
 - Version: V3
 
@@ -14,18 +14,21 @@ Make dashboard an action console for daily operations, not a reporting screen.
 1. Same dashboard layout for all users.
 2. Primary focus is Check-outs and Reservations.
 3. Overdue is visually red and prioritized.
-4. Overdue banner includes inline highest-priority items.
+4. Overdue banner includes inline highest-priority checkout items.
 5. Section row cap is 5, with `View all` for overflow.
 6. Saved filters are deferred — not in V1.
 7. No keyboard shortcut layer in V1.
 8. Add a draft system for in-progress booking flows.
 9. No standalone Upcoming Events section in dashboard V1.
 10. Calendar sync remains backend support for event-linked reservations/checkouts.
+11. Past-due reservations are surfaced separately as stale planning work, not merged into checkout overdue custody metrics.
 
 ## Information Architecture (Top to Bottom)
 1. Overdue Banner (global)
 2. Action Lanes
    - Check-outs needing action
+   - Awaiting pickup handoffs
+   - Stale reservations needing cleanup
    - Reservations needing action
 3. My Gear in Custody cards
 4. Drafts section (recover in-progress reservation/checkout drafts)
@@ -59,7 +62,7 @@ Make dashboard an action console for daily operations, not a reporting screen.
 - Row actions:
   - View
   - Extend
-  - Check in
+  - Open checkout for kiosk return follow-up
 
 ### 3) Action Lane: Reservations
 - Purpose: operational prep for near-term reservations.
@@ -78,6 +81,14 @@ Make dashboard an action console for daily operations, not a reporting screen.
   - View
   - Edit
   - Cancel
+
+### 3b) Action Lane: Stale Reservations
+- Purpose: cleanup for reservations that were never converted, cancelled, or completed before their window ended.
+- Trigger: `BOOKED` reservations where `endsAt < now`.
+- Behavior:
+  - Render as a transient red attention card only when present.
+  - Link to `/bookings?tab=reservations&filter=overdue`.
+  - Do not increment checkout overdue stats or the overdue checkout banner.
 
 ### 4) My Gear in Custody
 - Purpose: personal accountability and due urgency.
@@ -164,7 +175,13 @@ Make dashboard an action console for daily operations, not a reporting screen.
 7. Add regression tests for permissions, window filtering (7 days), and overdue consistency.
 
 ## Change Log
-- 2026-05-08: **Awaiting pickup section (Team Activity column)** — pendingPickup bookings (status `PENDING_PICKUP`, the gap between reserved and checked-out) now render as a dedicated card between Team Checkouts and Team Reservations. Card only appears when `data.pendingPickups.items.length > 0` (transient state, hide-when-empty matches existing dashboard behavior). Each row uses `pending-pickup` accent (green left border) by default; flips to `pending-pickup-late` (amber left border + amber bg, same treatment as Due Today rows) when `startsAt < now`. The right-side badge shows `Pickup Today, 3:00 PM` / `Pickup Mar 24, 9:00 AM` for upcoming pickups, and a stronger `2h late` / `30m late` (orange) once the start time has passed. Sport+location filters apply (added `pendingPickups` to `FilteredDashboardData`). Section count clicks through to `/bookings?tab=reservations`. Backed by new `pendingPickups: { total, items[] }` field on `/api/dashboard` (top 5, overdue-late first). Files: `src/app/api/dashboard/route.ts`, `src/app/(app)/dashboard-types.ts`, `src/hooks/use-dashboard-data.ts`, `src/hooks/use-dashboard-filters.ts`, `src/app/(app)/dashboard/booking-row.tsx`, `src/app/(app)/dashboard/team-activity-column.tsx`, `src/lib/format.ts` (new `formatPickupLabel`).
+- 2026-05-10: Status/data wiring ship fixes. The stat strip now labels custody as `Checked out` and deep-links to `OPEN` checkouts only, while Awaiting Pickup remains a separate `PENDING_PICKUP` operational lane.
+- 2026-05-10: Scan handoff cleanup. Overdue banner quick action now opens the checkout detail instead of routing to stale app `/scan?checkout=...`; return scanning remains a kiosk flow.
+- 2026-05-10: Schedule ownership pass. Dashboard Upcoming Events remains read-only and now avoids repeating open-slot copy when the coverage badge and row severity already communicate staffing state, keeping `/schedule` as the full management surface.
+- 2026-05-10: **Dashboard cleanup polish:** Flagged Items banner now uses valid Tailwind arbitrary-value classes for orange border/background/hover treatments, so the warning surface renders with the intended severity styling. The banner CTA no longer points to unsupported `/items?status=flagged`; maintenance-only sets deep-link to `/items?status=MAINTENANCE`, while mixed damaged/lost/maintenance sets open `/items`. Dashboard section header counts now switch to visible filtered row counts when sport/location filters are active, avoiding mismatches between the badge and rendered rows. Awaiting Pickup remains a transient hide-when-empty card and now also hides when active filters remove every pending-pickup row. Inline dashboard row actions remain sibling controls, but are visible on touch-sized layouts instead of relying only on desktop hover.
+- 2026-05-10: **Awaiting pickup routing cleanup:** Awaiting Pickup dashboard headers and overflow links now deep-link to `/bookings?tab=checkouts&status=PENDING_PICKUP`, matching the actual checkout lifecycle instead of sending operators to reservations.
+- 2026-05-10: **Bookings status ship fixes:** Dashboard now exposes past-due `BOOKED` reservations as a separate Stale reservations card in Team Activity. Checkout overdue stats remain tied to `OPEN` checkouts only, preserving custody semantics.
+- 2026-05-08: **Awaiting pickup section (Team Activity column)** — pendingPickup bookings (status `PENDING_PICKUP`, the gap between checkout creation and kiosk pickup) now render as a dedicated card between Team Checkouts and Team Reservations. Card only appears when `data.pendingPickups.items.length > 0` (transient state, hide-when-empty matches existing dashboard behavior). Each row uses `pending-pickup` accent (green left border) by default; flips to `pending-pickup-late` (amber left border + amber bg, same treatment as Due Today rows) when `startsAt < now`. The right-side badge shows `Pickup Today, 3:00 PM` / `Pickup Mar 24, 9:00 AM` for upcoming pickups, and a stronger `2h late` / `30m late` (orange) once the start time has passed. Sport+location filters apply (added `pendingPickups` to `FilteredDashboardData`). Section count clicks through to `/bookings?tab=checkouts&status=PENDING_PICKUP`. Backed by new `pendingPickups: { total, items[] }` field on `/api/dashboard` (top 5, overdue-late first). Files: `src/app/api/dashboard/route.ts`, `src/app/(app)/dashboard-types.ts`, `src/hooks/use-dashboard-data.ts`, `src/hooks/use-dashboard-filters.ts`, `src/app/(app)/dashboard/booking-row.tsx`, `src/app/(app)/dashboard/team-activity-column.tsx`, `src/lib/format.ts` (new `formatPickupLabel`).
 - 2026-05-08: API hardening Wave 2. Dashboard and lightweight dashboard-stats API reads now use partial-failure handling for parallel query bundles. One failed side query falls back to an empty count/list, logs the failed segment, and returns `partialFailures` metadata instead of crashing the whole dashboard payload.
 - 2026-03-01: Rewritten as concrete V1 ops-first dashboard spec with no standalone upcoming-events section.
 - 2026-03-01: Added permission model and draft-system requirements.

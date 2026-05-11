@@ -92,6 +92,14 @@ function buildDateTime(date: Date | undefined, time: string, allDay: boolean): s
   return d.toISOString();
 }
 
+function buildAllDayEndDate(date: Date | undefined): string | null {
+  if (!date) return null;
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 1);
+  return d.toISOString();
+}
+
 export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
@@ -159,7 +167,9 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
     setError("");
 
     const startsAt = buildDateTime(startDate, startTime, allDay);
-    const endsAt = buildDateTime(endDate, endTime, allDay);
+    const endsAt = allDay
+      ? buildAllDayEndDate(endDate)
+      : buildDateTime(endDate, endTime, allDay);
 
     if (!title.trim()) { setError("Title is required"); return; }
     if (!startsAt) { setError("Start date is required"); return; }
@@ -196,7 +206,7 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
       onOpenChange(false);
       reset();
     } catch {
-      setError("Network error — check your connection");
+      setError("Network error - check your connection");
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
@@ -304,7 +314,7 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
               </Select>
             </div>
 
-            {/* Home / Away + Opponent — only shown when sport is selected */}
+            {/* Home / Away + Opponent - only shown when sport is selected */}
             {sportCode && (
               <>
                 <div className="flex flex-col gap-1.5">

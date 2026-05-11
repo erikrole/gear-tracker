@@ -3,6 +3,14 @@
 **Components:** `dialog`, `sheet`, `popover`, `tooltip`, `dropdown-menu`, `context-menu`, `drawer`, `alert-dialog`
 **Date:** 2026-05-01
 
+## 2026-05-10 Closeout
+
+- Backdrop recipes were already standardized before this closeout pass: Dialog, AlertDialog, Sheet, and Drawer now use `bg-black/60 backdrop-blur-[2px]`.
+- Dialog and AlertDialog radius are already aligned on `sm:rounded-lg`.
+- This pass aligned Dialog and Drawer close-button feedback with the Sheet close button: explicit background/color/box-shadow/opacity transitions plus visible muted hover state.
+- Drawer remains a separate primitive for the scan item-preview bottom sheet; it now carries `shadow-xl` so its elevation matches the rest of the overlay family.
+- Padding-contract and AlertDialog-composition changes remain parked because they have broader call-site implications.
+
 ---
 
 ## What's Smart
@@ -42,8 +50,8 @@
 
 ## Polish Checklist (this PR)
 
-- [ ] Unify all four backdrops on `bg-black/60 backdrop-blur-[2px]`
-- [ ] Align Dialog radius with AlertDialog: `sm:rounded-lg` (canonical shadcn)
+- [x] Unify all four backdrops on `bg-black/60 backdrop-blur-[2px]`
+- [x] Align Dialog radius with AlertDialog: `sm:rounded-lg` (canonical shadcn)
 
 ## Bigger Bets (follow-up)
 

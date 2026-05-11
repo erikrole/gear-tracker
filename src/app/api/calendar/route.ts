@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { BookingStatus, Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
@@ -24,6 +24,7 @@ export const GET = withAuth(async (req) => {
   const where: Prisma.BookingWhereInput = {
     startsAt: { lt: toDate },
     endsAt: { gt: fromDate },
+    status: { in: [BookingStatus.BOOKED, BookingStatus.PENDING_PICKUP, BookingStatus.OPEN] },
     ...(searchParams.get("location_id") ? { locationId: searchParams.get("location_id")! } : {}),
     ...(searchParams.get("asset_id")
       ? {

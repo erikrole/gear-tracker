@@ -10,6 +10,10 @@ vi.mock("@/lib/db", () => {
     booking: { findUnique: vi.fn(), update: vi.fn() },
     assetAllocation: { updateMany: vi.fn() },
     scanSession: { updateMany: vi.fn() },
+    bulkStockBalance: { findMany: vi.fn(), upsert: vi.fn() },
+    bulkStockMovement: { createMany: vi.fn() },
+    bookingBulkUnitAllocation: { updateMany: vi.fn() },
+    bulkSkuUnit: { updateMany: vi.fn() },
     auditLog: { create: vi.fn() },
     user: { findUnique: vi.fn().mockResolvedValue({ role: "ADMIN" }) },
   };
@@ -40,6 +44,11 @@ beforeEach(() => {
   mockTx.booking.update.mockResolvedValue({});
   mockTx.assetAllocation.updateMany.mockResolvedValue({});
   mockTx.scanSession.updateMany.mockResolvedValue({});
+  mockTx.bulkStockBalance.findMany.mockResolvedValue([]);
+  mockTx.bulkStockBalance.upsert.mockResolvedValue({});
+  mockTx.bulkStockMovement.createMany.mockResolvedValue({});
+  mockTx.bookingBulkUnitAllocation.updateMany.mockResolvedValue({});
+  mockTx.bulkSkuUnit.updateMany.mockResolvedValue({});
   mockTx.auditLog.create.mockResolvedValue({});
 });
 
@@ -85,6 +94,77 @@ describe("cancelBooking", () => {
     expect(mockTx.scanSession.updateMany).toHaveBeenCalledWith({
       where: { bookingId: "b-1", status: "OPEN" },
       data: { status: "CANCELLED" },
+    });
+  });
+
+  it("returns reserved bulk stock when cancelling a pending pickup checkout", async () => {
+    mockTx.booking.findUnique.mockResolvedValue({
+      id: "b-1",
+      kind: "CHECKOUT",
+      status: "PENDING_PICKUP",
+      locationId: "loc-1",
+      bulkItems: [{ bulkSkuId: "bulk-1", plannedQuantity: 3 }],
+    });
+    mockTx.bulkStockBalance.findMany.mockResolvedValue([
+      { bulkSkuId: "bulk-1", onHandQuantity: 7 },
+    ]);
+
+    await cancelBooking("b-1", "actor-1");
+
+    expect(mockTx.bulkStockBalance.upsert).toHaveBeenCalledWith({
+      where: { bulkSkuId_locationId: { bulkSkuId: "bulk-1", locationId: "loc-1" } },
+      create: { bulkSkuId: "bulk-1", locationId: "loc-1", onHandQuantity: 10 },
+      update: { onHandQuantity: 10 },
+    });
+    expect(mockTx.bulkStockMovement.createMany).toHaveBeenCalledWith({
+      data: [{
+        bulkSkuId: "bulk-1",
+        locationId: "loc-1",
+        bookingId: "b-1",
+        actorUserId: "actor-1",
+        kind: "CHECKIN",
+        quantity: 3,
+      }],
+    });
+  });
+
+  it("returns outstanding bulk stock and releases numbered units when cancelling an open checkout", async () => {
+    mockTx.booking.findUnique.mockResolvedValue({
+      id: "b-1",
+      kind: "CHECKOUT",
+      status: "OPEN",
+      locationId: "loc-1",
+      bulkItems: [{
+        id: "bulk-item-1",
+        bulkSkuId: "bulk-1",
+        plannedQuantity: 5,
+        checkedInQuantity: 2,
+        unitAllocations: [{ bulkSkuUnitId: "unit-1" }],
+      }],
+    });
+    mockTx.bulkStockBalance.findMany.mockResolvedValue([
+      { bulkSkuId: "bulk-1", onHandQuantity: 7 },
+    ]);
+
+    await cancelBooking("b-1", "actor-1");
+
+    expect(mockTx.bulkStockBalance.upsert).toHaveBeenCalledWith({
+      where: { bulkSkuId_locationId: { bulkSkuId: "bulk-1", locationId: "loc-1" } },
+      create: { bulkSkuId: "bulk-1", locationId: "loc-1", onHandQuantity: 10 },
+      update: { onHandQuantity: 10 },
+    });
+    expect(mockTx.bookingBulkUnitAllocation.updateMany).toHaveBeenCalledWith({
+      where: {
+        bookingBulkItemId: { in: ["bulk-item-1"] },
+        bulkSkuUnitId: { in: ["unit-1"] },
+        checkedOutAt: { not: null },
+        checkedInAt: null,
+      },
+      data: { checkedInAt: expect.any(Date) },
+    });
+    expect(mockTx.bulkSkuUnit.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["unit-1"] } },
+      data: { status: "AVAILABLE" },
     });
   });
 

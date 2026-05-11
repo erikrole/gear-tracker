@@ -30,15 +30,39 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   const body = updateGuideSchema.parse(await req.json());
   const before = await getGuide(params.id);
   const updated = await updateGuide(params.id, body, user.role, user.id);
+  const markOnly =
+    body.markVerified === true &&
+    Object.keys(body).every((key) => key === "markVerified" || key === "expectedUpdatedAt");
+  const action = markOnly ? "guide_verified" : "guide_updated";
 
   await createAuditEntry({
     actorId: user.id,
     actorRole: user.role,
     entityType: "guide",
     entityId: params.id,
-    action: "guide_updated",
-    before: { title: before.title, category: before.category, published: before.published },
-    after: { title: updated.title, category: updated.category, published: updated.published },
+    action,
+    before: {
+      title: before.title,
+      category: before.category,
+      published: before.published,
+      featured: before.featured,
+      featuredRank: before.featuredRank,
+      targetRoles: before.targetRoles,
+      targetAreas: before.targetAreas,
+      lastVerifiedAt: before.lastVerifiedAt,
+      lastVerifiedById: before.lastVerifiedById,
+    },
+    after: {
+      title: updated.title,
+      category: updated.category,
+      published: updated.published,
+      featured: updated.featured,
+      featuredRank: updated.featuredRank,
+      targetRoles: updated.targetRoles,
+      targetAreas: updated.targetAreas,
+      lastVerifiedAt: updated.lastVerifiedAt,
+      lastVerifiedById: updated.lastVerifiedById,
+    },
   });
 
   return ok({ data: updated });

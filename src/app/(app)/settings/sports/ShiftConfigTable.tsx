@@ -1,11 +1,11 @@
 "use client";
 
-import { sportLabel } from "@/lib/sports";
 import type { SportConfig } from "./types";
-import { AREAS, AREA_LABELS, SPORT_GROUPS, BIG_6 } from "./types";
+import { AREAS, AREA_LABELS, SPORT_GROUPS } from "./types";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-/** Generate call-time options: 0, 15, 30, 45, 60 … 240 minutes */
+/** Generate call-time options: 0, 15, 30, 45, 60 ... 240 minutes */
 const CALL_TIME_OPTIONS = [0, 15, 30, 45, 60, 90, 120, 150, 180, 210, 240];
 
 function formatMinutes(mins: number): string {
@@ -82,11 +82,17 @@ export default function ShiftConfigTable({
                       : group.codes[0]}
                   </span>
                 </div>
-                <button
-                  className={`toggle${active ? " on" : ""}`}
-                  onClick={() => onToggleActive(primaryCode)}
-                  disabled={saving?.endsWith("-toggle") ?? false}
-                />
+                <div className="flex items-center gap-2">
+                  <Badge variant={active ? "green" : "gray"} size="sm">
+                    {active ? "Active" : "Off"}
+                  </Badge>
+                  <Switch
+                    checked={active}
+                    onCheckedChange={() => onToggleActive(primaryCode)}
+                    disabled={saving?.endsWith("-toggle") ?? false}
+                    aria-label={`${group.label} shift generation`}
+                  />
+                </div>
               </div>
             </CardHeader>
 
@@ -157,7 +163,7 @@ export default function ShiftConfigTable({
                       onValueChange={(v) => onUpdateOffset(primaryCode, "shiftStartOffset", parseInt(v))}
                       disabled={saving?.startsWith(primaryCode) ?? false}
                     >
-                      <SelectTrigger size="sm" className="w-[110px] text-sm">
+                      <SelectTrigger size="sm" className="w-[110px]">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -174,7 +180,7 @@ export default function ShiftConfigTable({
                       onValueChange={(v) => onUpdateOffset(primaryCode, "shiftEndOffset", parseInt(v))}
                       disabled={saving?.startsWith(primaryCode) ?? false}
                     >
-                      <SelectTrigger size="sm" className="w-[110px] text-sm">
+                      <SelectTrigger size="sm" className="w-[110px]">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>

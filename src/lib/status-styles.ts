@@ -31,6 +31,8 @@ export function statusColor(
       return "green";
     case "CHECKED_OUT":
       return "blue";
+    case "PENDING_PICKUP":
+      return "orange";
     case "RESERVED":
       return "purple";
     case "MAINTENANCE":

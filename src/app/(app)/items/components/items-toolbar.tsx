@@ -12,6 +12,7 @@ import { FacetedFilter } from "../faceted-filter";
 const STATUS_OPTIONS = [
   { value: "AVAILABLE", label: "Available" },
   { value: "CHECKED_OUT", label: "Checked out" },
+  { value: "PENDING_PICKUP", label: "Awaiting pickup" },
   { value: "RESERVED", label: "Reserved" },
   { value: "MAINTENANCE", label: "Maintenance" },
   { value: "RETIRED", label: "Retired" },
@@ -98,7 +99,7 @@ export function ItemsToolbar({
             id="items-search"
             name="items-search"
             ref={searchInputRef}
-            className="peer h-9 pl-9 pr-9 text-base md:text-sm"
+            className="peer h-10 pl-9 pr-9 text-base md:text-sm"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search tag, model, serial, location"
@@ -113,7 +114,7 @@ export function ItemsToolbar({
               type="button"
               variant="ghost"
               size="icon-xs"
-              className="absolute inset-y-0 right-1.5 my-auto text-muted-foreground/80 hover:text-foreground"
+              className="absolute inset-y-0 right-1.5 my-auto size-8 text-muted-foreground/80 hover:text-foreground"
               onClick={() => onSearchChange("")}
               aria-label="Clear search"
             >
@@ -123,7 +124,7 @@ export function ItemsToolbar({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center rounded-md border border-border/60 bg-background p-0.5">
+          <div className="flex min-h-10 items-center rounded-md border border-border/60 bg-background p-0.5">
             <ToggleGroup
               type="single"
               value={itemType}
@@ -131,16 +132,16 @@ export function ItemsToolbar({
               className="shrink-0"
               aria-label="Item type filter"
             >
-              <ToggleGroupItem value="all" className="h-8 px-3 text-xs">All</ToggleGroupItem>
-              <ToggleGroupItem value="serialized" className="h-8 px-3 text-xs">Serialized</ToggleGroupItem>
-              <ToggleGroupItem value="bulk" className="h-8 px-3 text-xs">Bulk</ToggleGroupItem>
+              <ToggleGroupItem value="all" className="h-9 px-3 text-xs">All</ToggleGroupItem>
+              <ToggleGroupItem value="serialized" className="h-9 px-3 text-xs">Serialized</ToggleGroupItem>
+              <ToggleGroupItem value="bulk" className="h-9 px-3 text-xs">Bulk</ToggleGroupItem>
             </ToggleGroup>
           </div>
           <div className="hidden h-6 w-px bg-border/70 lg:block" aria-hidden="true" />
           <Button
             variant={favoritesOnly ? "default" : "outline"}
             size="sm"
-            className="h-9 gap-1.5 active:scale-[0.96] transition-transform"
+            className="h-10 gap-1.5 active:scale-[0.96] transition-transform"
             onClick={() => onFavoritesOnlyChange(!favoritesOnly)}
             aria-pressed={favoritesOnly}
             aria-label="Filter to favorites only"
@@ -151,7 +152,7 @@ export function ItemsToolbar({
           <Button
             variant={filtersOpen || activeFilterCount > 0 ? "secondary" : "outline"}
             size="sm"
-            className="h-9 gap-1.5 active:scale-[0.96] transition-transform"
+            className="h-10 gap-1.5 active:scale-[0.96] transition-transform"
             onClick={() => setFiltersOpen((open) => !open)}
             aria-expanded={filtersOpen}
           >
@@ -164,7 +165,7 @@ export function ItemsToolbar({
             )}
           </Button>
           {hasActiveFilters && (
-            <Button variant="ghost" size="sm" className="h-9 gap-1.5 active:scale-[0.96] transition-transform" onClick={onClearAllFilters}>
+            <Button variant="ghost" size="sm" className="h-10 gap-1.5 active:scale-[0.96] transition-transform" onClick={onClearAllFilters}>
               Clear
               <XIcon className="size-4" />
             </Button>
@@ -208,7 +209,7 @@ export function ItemsToolbar({
               onSelectionChange={onBrandFilterChange}
             />
           )}
-          <div className="flex h-9 items-center gap-2 rounded-md border border-border/70 bg-background px-3">
+          <div className="flex h-10 items-center gap-2 rounded-md border border-border/70 bg-background px-3">
             <Switch
               id="show-accessories"
               checked={showAccessories}

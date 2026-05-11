@@ -29,6 +29,7 @@ import { isBulkRowId } from "./lib/item-href";
 export type ActiveBooking = {
   id: string;
   kind: string;
+  status?: string;
   title: string;
   requesterName: string;
   requesterAvatarUrl?: string | null;
@@ -181,6 +182,16 @@ export function statusBadge(asset: Asset) {
         />
       );
     }
+    case "PENDING_PICKUP": {
+      return (
+        <AssigneeStatus
+          color="orange"
+          label="Awaiting pickup"
+          name={activeBooking?.requesterName}
+          avatarUrl={activeBooking?.requesterAvatarUrl}
+        />
+      );
+    }
     case "RESERVED": {
       return (
         <AssigneeStatus
@@ -250,18 +261,22 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
         aria-label="Select all"
       />
     ),
-    cell: ({ row }) => (
-      <div
-        className="-m-2 p-2 inline-flex items-center justify-center"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
-        />
-      </div>
-    ),
+    cell: ({ row }) => {
+      const canSelect = row.getCanSelect();
+      return (
+        <div
+          className="-m-2 p-2 inline-flex items-center justify-center"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Checkbox
+            checked={canSelect ? row.getIsSelected() : false}
+            disabled={!canSelect}
+            onCheckedChange={(value) => row.toggleSelected(!!value)}
+            aria-label={canSelect ? "Select row" : "Bulk SKU rows cannot be selected here"}
+          />
+        </div>
+      );
+    },
     enableSorting: false,
     enableHiding: false,
   });
@@ -274,11 +289,14 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
     enableHiding: true,
     cell: ({ row }) => {
       const asset = row.original;
+      if (isBulkRowId(asset.id)) {
+        return <span className="block size-9" aria-hidden="true" />;
+      }
       return (
         <Button
           variant="ghost"
           size="icon"
-          className="size-8"
+          className="size-9 active:scale-[0.96] transition-transform"
           onClick={(e) => {
             e.stopPropagation();
             meta.onToggleFavorite?.(asset);
@@ -398,7 +416,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-8 opacity-0 transition-opacity group-hover/row:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 [@media(pointer:coarse)]:opacity-100"
+                className="size-9 opacity-0 transition-[opacity,transform] active:scale-[0.96] group-hover/row:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 [@media(pointer:coarse)]:opacity-100"
                 onClick={(e) => e.stopPropagation()}
               >
                 <MoreHorizontal className="size-4" />

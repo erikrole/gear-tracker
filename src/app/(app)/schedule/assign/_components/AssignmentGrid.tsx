@@ -4,6 +4,8 @@ import { useMemo } from "react";
 import Link from "next/link";
 import type { GridEvent, GridColumn } from "@/hooks/use-assignment-grid";
 import type { PickerUser } from "@/components/shift-detail/UserAvatarPicker";
+import EmptyState from "@/components/EmptyState";
+import { Button } from "@/components/ui/button";
 import { AssignmentCell } from "./AssignmentCell";
 import { AREA_LABELS } from "@/types/areas";
 
@@ -16,9 +18,20 @@ type Props = {
   usersLoading: boolean;
   isStaff: boolean;
   onRefetch: () => void;
+  hasFilters: boolean;
+  onClearFilters: () => void;
 };
 
-export function AssignmentGrid({ events, columns, allUsers, usersLoading, isStaff, onRefetch }: Props) {
+export function AssignmentGrid({
+  events,
+  columns,
+  allUsers,
+  usersLoading,
+  isStaff,
+  onRefetch,
+  hasFilters,
+  onClearFilters,
+}: Props) {
   // Group columns by area for header span
   const areaGroups = useMemo(() => {
     const map = new Map<string, GridColumn[]>();
@@ -32,8 +45,32 @@ export function AssignmentGrid({ events, columns, allUsers, usersLoading, isStaf
 
   if (events.length === 0) {
     return (
-      <div className="flex items-center justify-center h-40 text-sm text-muted-foreground">
-        No events this month.
+      <div className="rounded-lg border bg-card">
+        <EmptyState
+          icon="calendar"
+          title={hasFilters ? "No matching events" : "No events this month"}
+          description={
+            hasFilters
+              ? "Clear the assignment filters or choose another month."
+              : "Try another month or sync a calendar source."
+          }
+          actionLabel={hasFilters ? "Clear filters" : undefined}
+          onAction={hasFilters ? onClearFilters : undefined}
+          compact
+        />
+      </div>
+    );
+  }
+
+  if (columns.length === 0) {
+    return (
+      <div className="rounded-lg border bg-card">
+        <EmptyState
+          icon="users"
+          title="No shifts generated"
+          description="These events do not have shift slots for the selected month yet."
+          compact
+        />
       </div>
     );
   }
@@ -83,18 +120,23 @@ export function AssignmentGrid({ events, columns, allUsers, usersLoading, isStaf
               : date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 
             return (
-              <tr key={ev.id} className={`border-b hover:bg-muted/20 transition-colors ${i % 2 === 0 ? "" : "bg-muted/10"}`}>
+              <tr key={ev.id} className={`border-b transition-colors hover:bg-muted/20 ${i % 2 === 0 ? "" : "bg-muted/10"}`}>
                 {/* Event name cell */}
                 <td className="px-3 py-2 sticky left-0 bg-card hover:bg-muted/20 z-10 min-w-[12rem] max-w-[14rem]">
-                  <Link
-                    href={`/events/${ev.id}`}
-                    className="block hover:underline"
+                  <Button
+                    variant="ghost"
+                    className="h-auto w-full justify-start px-0 py-1 text-left hover:bg-transparent"
+                    asChild
                   >
-                    <div className="font-medium truncate text-xs leading-tight">{ev.summary}</div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                    <Link href={`/events/${ev.id}`}>
+                      <span className="block min-w-0">
+                        <span className="block truncate text-xs font-medium leading-tight">{ev.summary}</span>
+                        <span className="mt-0.5 block text-[10px] text-muted-foreground">
                       {dateStr} · {timeStr}
-                    </div>
-                  </Link>
+                        </span>
+                      </span>
+                    </Link>
+                  </Button>
                 </td>
 
                 {/* Shift assignment cells */}

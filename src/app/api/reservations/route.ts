@@ -1,4 +1,4 @@
-import { BookingKind } from "@prisma/client";
+import { BookingKind, BookingStatus, Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
@@ -11,8 +11,19 @@ import { createReservationLifecycleNotification } from "@/lib/services/notificat
 export const GET = withAuth(async (req, { user }) => {
   requirePermission(user.role, "booking", "view");
   const { searchParams } = new URL(req.url);
+  const filterParam = searchParams.get("filter");
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+  const extraWhere: Prisma.BookingWhereInput | undefined =
+    filterParam === "overdue"
+      ? { status: BookingStatus.BOOKED, endsAt: { lt: now } }
+      : filterParam === "due-today"
+        ? { status: BookingStatus.BOOKED, endsAt: { gte: todayStart, lt: todayEnd } }
+        : undefined;
+
   const restrictTo = user.role === "STUDENT" ? user.id : undefined;
-  const result = await listBookings(BookingKind.RESERVATION, searchParams, undefined, restrictTo);
+  const result = await listBookings(BookingKind.RESERVATION, searchParams, extraWhere, restrictTo);
   return ok(result);
 });
 

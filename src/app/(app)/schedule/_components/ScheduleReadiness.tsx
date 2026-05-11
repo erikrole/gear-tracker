@@ -38,6 +38,20 @@ function userHasActiveShift(entry: CalendarEntry, userId: string) {
   );
 }
 
+function userActiveShiftCount(entries: CalendarEntry[], userId: string) {
+  if (!userId) return 0;
+  return entries.reduce((count, entry) => {
+    return count + entry.shifts.reduce((shiftCount, shift) => {
+      const hasAssignment = shift.assignments.some(
+        (assignment) =>
+          assignment.user.id === userId &&
+          ACTIVE_STATUSES.includes(assignment.status),
+      );
+      return shiftCount + (hasAssignment ? 1 : 0);
+    }, 0);
+  }, 0);
+}
+
 function formatNextCall(entries: CalendarEntry[]) {
   const now = Date.now();
   const next = entries
@@ -74,7 +88,8 @@ export function ScheduleReadiness({
   const coveredEvents = filteredEntries.filter(
     (entry) => entry.coverage && missingSlots(entry) === 0,
   ).length;
-  const myShiftCount = entries.filter((entry) => userHasActiveShift(entry, currentUserId)).length;
+  const myShiftCount = userActiveShiftCount(entries, currentUserId);
+  const myShiftEventCount = entries.filter((entry) => userHasActiveShift(entry, currentUserId)).length;
   const nextCall = formatNextCall(filteredEntries);
 
   const items: ReadinessItem[] = [
@@ -95,7 +110,9 @@ export function ScheduleReadiness({
     {
       label: "My shifts",
       value: myShiftCount,
-      detail: currentUserId ? "Active assignments" : "Sign in required",
+      detail: currentUserId
+        ? `${myShiftEventCount} event${myShiftEventCount === 1 ? "" : "s"} assigned`
+        : "Sign in required",
       icon: UserCheckIcon,
       tone: "neutral",
     },

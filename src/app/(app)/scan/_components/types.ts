@@ -1,59 +1,3 @@
-export type ScanMode = "lookup" | "checkout" | "checkin";
-
-export type ItemReport = {
-  type: "DAMAGED" | "LOST";
-  description?: string;
-  imageUrl?: string | null;
-};
-
-export type SerializedItemStatus = {
-  assetId: string;
-  assetTag: string;
-  brand: string;
-  model: string;
-  imageUrl?: string | null;
-  categoryName?: string | null;
-  qrCodeValue?: string | null;
-  primaryScanCode?: string | null;
-  scanned: boolean;
-  report?: ItemReport | null;
-};
-
-export type AllocatedUnit = {
-  unitNumber: number;
-  checkedOut: boolean;
-  checkedIn: boolean;
-};
-
-export type BulkItemStatus = {
-  bulkSkuId: string;
-  binQrCodeValue?: string | null;
-  name: string;
-  required: number;
-  scanned: number;
-  trackByNumber?: boolean;
-  allocatedUnits?: AllocatedUnit[];
-};
-
-export type ScanStatus = {
-  checkoutId: string;
-  title: string;
-  status: string;
-  phase: string;
-  requester: { id: string; name: string };
-  location: { id: string; name: string };
-  serializedItems: SerializedItemStatus[];
-  bulkItems: BulkItemStatus[];
-  progress: {
-    serializedScanned: number;
-    serializedTotal: number;
-    bulkComplete: boolean;
-    allComplete: boolean;
-    damagedCount: number;
-    lostCount: number;
-  };
-};
-
 export type LookupResult = {
   id: string;
   assetTag: string;
@@ -95,11 +39,4 @@ export type ItemPreview = {
 export type ScanFeedbackResult = {
   message: string;
   type: "success" | "error" | "info";
-} | null;
-
-export type UnitPickerState = {
-  bulkSkuId: string;
-  scanValue: string;
-  name: string;
-  availableUnits: number[];
 } | null;

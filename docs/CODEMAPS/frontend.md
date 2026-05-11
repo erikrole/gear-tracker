@@ -128,4 +128,4 @@ use-mobile.ts             Responsive breakpoint detection
 - cmdk for command palette
 - vaul for drawers
 - sonner for toast notifications
-- BlockNote for rich text editing
+- MDXEditor + React Markdown for Guides editing and rendering

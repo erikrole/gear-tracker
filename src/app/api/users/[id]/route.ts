@@ -1,9 +1,11 @@
 import { withAuth } from "@/lib/api";
-import { Prisma, ShiftArea, StudentYear } from "@prisma/client";
+import { BookingKind, BookingStatus, BulkMovementKind, Prisma, ScanSessionStatus, ShiftArea, StudentYear } from "@prisma/client";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
+import { upsertBulkBalancesAndMovements } from "@/lib/services/bookings-helpers";
+import { normalizeSlackHandle, normalizeSlackProfileUrl, slackHandleSchema, slackProfileUrlSchema } from "@/lib/validation";
 import { z } from "zod";
 
 const updateUserSchema = z.object({
@@ -11,6 +13,8 @@ const updateUserSchema = z.object({
   email: z.string().email().optional(),
   locationId: z.string().cuid().nullable().optional(),
   phone: z.string().max(20).nullable().optional(),
+  slackHandle: slackHandleSchema,
+  slackProfileUrl: slackProfileUrlSchema,
   primaryArea: z.nativeEnum(ShiftArea).nullable().optional(),
   active: z.boolean().optional(),
   // Profile fields migrated from the Sheet.
@@ -26,6 +30,39 @@ const updateUserSchema = z.object({
   directReportId: z.string().cuid().nullable().optional(),
   directReportName: z.string().trim().max(120).nullable().optional(),
 });
+
+const MAX_DIRECT_REPORT_CHAIN_DEPTH = 50;
+
+async function assertDirectReportAssignment(targetUserId: string, directReportId: string) {
+  if (directReportId === targetUserId) {
+    throw new HttpError(400, "A user cannot report to themselves");
+  }
+
+  const seen = new Set<string>([targetUserId]);
+  let cursor: string | null = directReportId;
+
+  for (let depth = 0; cursor && depth < MAX_DIRECT_REPORT_CHAIN_DEPTH; depth += 1) {
+    if (seen.has(cursor)) {
+      throw new HttpError(400, "Direct report assignment would create a reporting cycle");
+    }
+    seen.add(cursor);
+
+    const manager: { id: string; directReportId: string | null } | null = await db.user.findUnique({
+      where: { id: cursor },
+      select: { id: true, directReportId: true },
+    });
+
+    if (!manager) {
+      throw new HttpError(400, "Direct report user not found");
+    }
+
+    cursor = manager.directReportId;
+  }
+
+  if (cursor) {
+    throw new HttpError(400, "Direct report chain is too deep");
+  }
+}
 
 export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
   requireRole(user.role, ["ADMIN", "STAFF", "STUDENT"]);
@@ -58,6 +95,8 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
       locationId: target.locationId,
       location: target.location?.name ?? null,
       phone: target.phone,
+      slackHandle: target.slackHandle ?? null,
+      slackProfileUrl: target.slackProfileUrl ?? null,
       primaryArea: target.primaryArea,
       avatarUrl: target.avatarUrl ?? null,
       active: target.active,
@@ -119,6 +158,13 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     updateData.phone = body.phone;
   }
 
+  if (Object.prototype.hasOwnProperty.call(body, "slackHandle")) {
+    updateData.slackHandle = normalizeSlackHandle(body.slackHandle);
+  }
+  if (Object.prototype.hasOwnProperty.call(body, "slackProfileUrl")) {
+    updateData.slackProfileUrl = normalizeSlackProfileUrl(body.slackProfileUrl);
+  }
+
   if (body.primaryArea !== undefined) {
     updateData.primaryArea = body.primaryArea;
   }
@@ -132,7 +178,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
           where: {
             requesterUserId: id,
             kind: "CHECKOUT",
-            status: "OPEN",
+            status: BookingStatus.OPEN,
           },
         });
         if (openCheckouts > 0) {
@@ -142,22 +188,48 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
           );
         }
 
-        // Auto-cancel BOOKED reservations and DRAFT bookings
+        // Auto-cancel non-open work and clean up allocations/scan sessions like booking cancellation does.
         const toCancel = await tx.booking.findMany({
           where: {
             requesterUserId: id,
-            OR: [
-              { status: "BOOKED" },
-              { status: "DRAFT" },
-            ],
+            status: { in: [BookingStatus.BOOKED, BookingStatus.DRAFT, BookingStatus.PENDING_PICKUP] },
           },
-          select: { id: true },
+          select: {
+            id: true,
+            kind: true,
+            status: true,
+            locationId: true,
+            bulkItems: { select: { bulkSkuId: true, plannedQuantity: true } },
+          },
         });
 
         if (toCancel.length > 0) {
+          for (const booking of toCancel) {
+            if (booking.kind === BookingKind.CHECKOUT && booking.status === BookingStatus.PENDING_PICKUP && booking.bulkItems.length > 0) {
+              await upsertBulkBalancesAndMovements(tx, {
+                locationId: booking.locationId,
+                bookingId: booking.id,
+                actorUserId: user.id,
+                kind: BulkMovementKind.CHECKIN,
+                items: booking.bulkItems.map((item) => ({
+                  bulkSkuId: item.bulkSkuId,
+                  quantity: item.plannedQuantity,
+                })),
+              });
+            }
+          }
+
           await tx.booking.updateMany({
             where: { id: { in: toCancel.map((b) => b.id) } },
-            data: { status: "CANCELLED" },
+            data: { status: BookingStatus.CANCELLED },
+          });
+          await tx.assetAllocation.updateMany({
+            where: { bookingId: { in: toCancel.map((b) => b.id) } },
+            data: { active: false },
+          });
+          await tx.scanSession.updateMany({
+            where: { bookingId: { in: toCancel.map((b) => b.id) }, status: ScanSessionStatus.OPEN },
+            data: { status: ScanSessionStatus.CANCELLED },
           });
         }
 
@@ -221,8 +293,8 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   // Direct report — staff/admin only. UI sends *either* a cuid (existing user)
   // *or* a free-text name. Setting one nulls the other so display logic stays unambiguous.
   if (Object.prototype.hasOwnProperty.call(body, "directReportId")) {
-    if (body.directReportId === id) {
-      throw new HttpError(400, "A user cannot report to themselves");
+    if (body.directReportId) {
+      await assertDirectReportAssignment(id, body.directReportId);
     }
     updateData.directReportId = body.directReportId ?? null;
     if (body.directReportId) {
@@ -293,6 +365,8 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
       locationId: updated.locationId,
       location: updated.location?.name ?? null,
       phone: updated.phone,
+      slackHandle: updated.slackHandle ?? null,
+      slackProfileUrl: updated.slackProfileUrl ?? null,
       primaryArea: updated.primaryArea,
       avatarUrl: updated.avatarUrl ?? null,
       active: updated.active,

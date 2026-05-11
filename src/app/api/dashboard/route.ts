@@ -111,6 +111,7 @@ export const GET = withAuth(async (_req, { user }) => {
     total_reserved: bigint;
     due_today: bigint;
     pending_pickup: bigint;
+    stale_reservations: bigint;
   };
   const countsPromise = db.$queryRaw<CountRow[]>(Prisma.sql`
     SELECT
@@ -123,10 +124,12 @@ export const GET = withAuth(async (_req, { user }) => {
       COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND requester_user_id = ${user.id} AND ends_at < ${now}) AS my_overdue,
       COUNT(*) FILTER (WHERE kind = 'RESERVATION' AND status = 'BOOKED' AND starts_at >= ${now} AND starts_at <= ${sevenDaysFromNow}) AS total_reserved,
       COUNT(*) FILTER (WHERE kind = 'RESERVATION' AND status = 'BOOKED' AND requester_user_id != ${user.id} AND starts_at >= ${now} AND starts_at <= ${sevenDaysFromNow}) AS team_reservations,
-      COUNT(*) FILTER (WHERE status = 'PENDING_PICKUP') AS pending_pickup
+      COUNT(*) FILTER (WHERE status = 'PENDING_PICKUP') AS pending_pickup,
+      COUNT(*) FILTER (WHERE kind = 'RESERVATION' AND status = 'BOOKED' AND ends_at < ${now}) AS stale_reservations
     FROM bookings
     WHERE (kind = 'CHECKOUT' AND status = 'OPEN')
        OR (kind = 'RESERVATION' AND status = 'BOOKED' AND starts_at >= ${now} AND starts_at <= ${sevenDaysFromNow})
+       OR (kind = 'RESERVATION' AND status = 'BOOKED' AND ends_at < ${now})
        OR status = 'PENDING_PICKUP'
   `);
 
@@ -136,6 +139,8 @@ export const GET = withAuth(async (_req, { user }) => {
     teamCheckoutsRawResult,
     // Team: reservations excluding current user
     teamReservationsRawResult,
+    // Stale reservations: booked reservations whose window has already ended
+    staleReservationsRawResult,
     // My checkouts (booking-level)
     myCheckoutsRawResult,
     // Upcoming events (next 7 days)
@@ -146,7 +151,7 @@ export const GET = withAuth(async (_req, { user }) => {
     topOverdueResult,
     // Drafts: current user's in-progress work
     myDraftsResult,
-    // Pending pickups (reservations awaiting checkout)
+    // Pending pickups (checkouts awaiting kiosk pickup)
     pendingPickupsRawResult,
     // My shift assignments
     myShiftsRawResult,
@@ -168,6 +173,13 @@ export const GET = withAuth(async (_req, { user }) => {
     db.booking.findMany({
       where: { kind: "RESERVATION", status: "BOOKED", requesterUserId: { not: user.id }, startsAt: { gte: now, lte: sevenDaysFromNow } },
       orderBy: { startsAt: "asc" },
+      take: 5,
+      include: bookingInclude,
+    }),
+    // Stale reservations — planning cleanup, not checkout custody overdue
+    db.booking.findMany({
+      where: { kind: "RESERVATION", status: "BOOKED", endsAt: { lt: now } },
+      orderBy: { endsAt: "asc" },
       take: 5,
       include: bookingInclude,
     }),
@@ -251,7 +263,7 @@ export const GET = withAuth(async (_req, { user }) => {
         _count: { select: { serializedItems: true, bulkItems: true } },
       },
     }),
-    // Pending pickups (reservations marked ready but not yet picked up)
+    // Pending pickups (checkouts marked ready but not yet picked up)
     // Order: pickups whose start time has passed first (most urgent),
     // then by earliest start time. Cap at 5 for the dashboard preview.
     db.booking.findMany({
@@ -340,11 +352,13 @@ export const GET = withAuth(async (_req, { user }) => {
     total_reserved: 0n,
     due_today: 0n,
     pending_pickup: 0n,
+    stale_reservations: 0n,
   }];
   const bookingRowsFallback: Array<Parameters<typeof toBookingSummary>[0]> = [];
   const counts = settledValue(countsResult, zeroCounts, "counts", partialFailures);
   const teamCheckoutsRaw = settledValue(teamCheckoutsRawResult, bookingRowsFallback, "teamCheckouts", partialFailures);
   const teamReservationsRaw = settledValue(teamReservationsRawResult, bookingRowsFallback, "teamReservations", partialFailures);
+  const staleReservationsRaw = settledValue(staleReservationsRawResult, bookingRowsFallback, "staleReservations", partialFailures);
   const myCheckoutsRaw = settledValue(myCheckoutsRawResult, bookingRowsFallback, "myCheckouts", partialFailures);
   const upcomingEvents = settledValue(upcomingEventsResult, [] as Array<{
     id: string;
@@ -485,11 +499,15 @@ export const GET = withAuth(async (_req, { user }) => {
   const totalReserved = Number(c.total_reserved);
   const dueTodayCount = Number(c.due_today);
   const pendingPickupTotalCount = Number(c.pending_pickup);
+  const staleReservationTotalCount = Number(c.stale_reservations);
 
   const teamCheckouts = teamCheckoutsRaw.map((c) => toBookingSummary(c, now, true));
   teamCheckouts.sort(sortOverdueFirst);
 
   const teamReservations = teamReservationsRaw.map((r) => toBookingSummary(r, now, false));
+
+  const staleReservations = staleReservationsRaw.map((r) => toBookingSummary(r, now, true));
+  staleReservations.sort(sortOverdueFirst);
 
   const myCheckouts = myCheckoutsRaw.map((c) => toBookingSummary(c, now, true));
   myCheckouts.sort(sortOverdueFirst);
@@ -640,6 +658,10 @@ export const GET = withAuth(async (_req, { user }) => {
       pendingPickups: {
         total: pendingPickupTotalCount,
         items: pendingPickups,
+      },
+      staleReservations: {
+        total: staleReservationTotalCount,
+        items: staleReservations,
       },
       upcomingEvents: events,
       myReservations: myReservations.map((r) => {

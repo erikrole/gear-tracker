@@ -43,7 +43,7 @@ import { STATUS_STYLES } from "@/lib/status-styles";
 import { Download, Rows3, Rows4 } from "lucide-react";
 import { FadeUp } from "@/components/ui/motion";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
-import { buildBulkRowId, getItemHref } from "./lib/item-href";
+import { buildBulkRowId, getItemHref, isBulkRowId } from "./lib/item-href";
 
 export default function ItemsPage() {
   const router = useRouter();
@@ -67,28 +67,38 @@ export default function ItemsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [showGapWizard, setShowGapWizard] = useState(false);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(() => {
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [density, setDensity] = useState<Density>("comfortable");
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
+
+  useEffect(() => {
+    let nextColumnVisibility: VisibilityState = {};
+    let nextDensity: Density = "comfortable";
     try {
-      const saved = localStorage.getItem("items-column-visibility");
-      return saved ? JSON.parse(saved) : {};
-    } catch { return {}; }
-  });
-  const [density, setDensity] = useState<Density>(() => {
-    try {
-      const saved = localStorage.getItem("items-density");
-      return saved === "compact" ? "compact" : "comfortable";
-    } catch { return "comfortable"; }
-  });
+      const savedColumns = localStorage.getItem("items-column-visibility");
+      nextColumnVisibility = savedColumns ? JSON.parse(savedColumns) : {};
+      const savedDensity = localStorage.getItem("items-density");
+      nextDensity = savedDensity === "compact" ? "compact" : "comfortable";
+    } catch {
+      nextColumnVisibility = {};
+      nextDensity = "comfortable";
+    }
+    setColumnVisibility(nextColumnVisibility);
+    setDensity(nextDensity);
+    setPreferencesLoaded(true);
+  }, []);
 
   // Persist column visibility + density to localStorage
   useEffect(() => {
+    if (!preferencesLoaded) return;
     try {
       localStorage.setItem("items-column-visibility", JSON.stringify(columnVisibility));
     } catch { /* ignore */ }
-  }, [columnVisibility]);
+  }, [columnVisibility, preferencesLoaded]);
   useEffect(() => {
+    if (!preferencesLoaded) return;
     try { localStorage.setItem("items-density", density); } catch { /* ignore */ }
-  }, [density]);
+  }, [density, preferencesLoaded]);
   const [retireTarget, setRetireTarget] = useState<Asset | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
   const busyRef = useRef(false);
@@ -110,7 +120,7 @@ export default function ItemsPage() {
     filters.sortKey,
   ]);
 
-  const selectedIds = Object.keys(rowSelection).filter((k) => rowSelection[k]);
+  const selectedIds = Object.keys(rowSelection).filter((k) => rowSelection[k] && !isBulkRowId(k));
   const selectedCount = selectedIds.length;
 
   useKeyboardShortcuts({
@@ -207,9 +217,14 @@ export default function ItemsPage() {
   }, [query.items, query.bulkItems, filters.itemType, filters.sortKey]);
 
   const visibleRowCount = mergedData.length;
+  const pageLoading = !preferencesLoaded || query.loading;
 
   // Optimistic favorite toggle
   const handleToggleFavorite = useCallback(async (asset: Asset) => {
+    if (isBulkRowId(asset.id)) {
+      toast.info("Bulk SKUs are managed from Bulk Inventory");
+      return;
+    }
     const prev = asset.isFavorited;
     query.setItems((items) =>
       items.map((a) => a.id === asset.id ? { ...a, isFavorited: !prev } : a)
@@ -268,6 +283,10 @@ export default function ItemsPage() {
 
   const handleRowAction = useCallback(async (action: string, asset: Asset) => {
     if (busyRef.current) return;
+    if (isBulkRowId(asset.id) && action !== "open") {
+      toast.info("Bulk SKU actions live in Bulk Inventory");
+      return;
+    }
     switch (action) {
       case "open":
         router.push(getItemHref(asset.id));
@@ -417,8 +436,8 @@ export default function ItemsPage() {
       </PageHeader>
 
       {/* Inventory summary bar */}
-      {query.statusBreakdown && !query.loading && (
-        <div className="mb-4 grid gap-2 rounded-md border border-border/60 bg-muted/20 p-2 sm:grid-cols-[1.2fr_repeat(5,minmax(0,1fr))]">
+      {query.statusBreakdown && !pageLoading && (
+        <div className="mb-4 grid gap-2 rounded-md border border-border/60 bg-muted/20 p-2 sm:grid-cols-3 xl:grid-cols-[1.2fr_repeat(6,minmax(0,1fr))]">
           <div className="flex min-h-14 items-center justify-between rounded-sm bg-background px-3 shadow-xs sm:justify-start sm:gap-3">
             <div>
               <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Inventory</div>
@@ -435,6 +454,7 @@ export default function ItemsPage() {
             [
               { value: "AVAILABLE", count: query.statusBreakdown.available, label: "Available", dotClass: STATUS_STYLES.green.dot },
               { value: "CHECKED_OUT", count: query.statusBreakdown.checkedOut, label: "Out", dotClass: STATUS_STYLES.blue.dot },
+              { value: "PENDING_PICKUP", count: query.statusBreakdown.pendingPickup, label: "Pickup", dotClass: STATUS_STYLES.orange.dot },
               { value: "RESERVED", count: query.statusBreakdown.reserved, label: "Reserved", dotClass: STATUS_STYLES.purple.dot },
               { value: "MAINTENANCE", count: query.statusBreakdown.maintenance, label: "Maintenance", dotClass: STATUS_STYLES.orange.dot },
               { value: "RETIRED", count: query.statusBreakdown.retired, label: "Retired", dotClass: STATUS_STYLES.gray.dot },
@@ -454,7 +474,7 @@ export default function ItemsPage() {
                   query.setPage(0);
                 }}
                 aria-pressed={isActive}
-                className={`group flex min-h-14 items-center justify-between rounded-sm border px-3 text-left shadow-xs transition-[background-color,border-color,box-shadow,transform] hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring active:scale-[0.98] ${
+                className={`group flex min-h-14 items-center justify-between rounded-sm border px-3 text-left shadow-xs transition-[background-color,border-color,box-shadow,transform] hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring active:scale-[0.96] ${
                   isActive
                     ? "border-primary/40 bg-primary/5 shadow-[inset_3px_0_0_hsl(var(--primary))]"
                     : "border-transparent bg-background"
@@ -493,7 +513,7 @@ export default function ItemsPage() {
       />
 
       <div className="flex flex-col gap-4">
-        {query.loading ? (
+        {pageLoading ? (
           <>
           {/* Desktop skeleton table */}
           <div className="rounded-md border hidden sm:block">
@@ -635,16 +655,17 @@ export default function ItemsPage() {
         )}
 
         {/* Pagination footer */}
-        {!query.loading && !query.loadError && visibleRowCount > 0 && (
+        {!pageLoading && !query.loadError && visibleRowCount > 0 && (
           <ItemsPagination
-            total={query.total}
+            total={filters.itemType === "bulk" ? query.bulkItems.length : query.total}
             page={query.page}
-            totalPages={query.totalPages}
-            limit={query.limit}
-            offset={query.page * query.limit}
+            totalPages={filters.itemType === "bulk" ? 1 : query.totalPages}
+            limit={filters.itemType === "bulk" ? Math.max(query.bulkItems.length, 1) : query.limit}
+            offset={filters.itemType === "bulk" ? 0 : query.page * query.limit}
             selectedCount={selectedCount}
             onPageChange={query.setPage}
             onLimitChange={(v) => { query.setLimit(v); query.setPage(0); }}
+            rowsPerPageDisabled={filters.itemType === "bulk"}
           />
         )}
       </div>

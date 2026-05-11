@@ -1,5 +1,4 @@
-import { QueryClient } from "@tanstack/react-query";
-import { persistQueryClient } from "@tanstack/react-query-persist-client";
+import { QueryClient, type Query } from "@tanstack/react-query";
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 
 const PERSISTED_QUERY_ROOTS = new Set(["dashboard", "booking"]);
@@ -9,36 +8,48 @@ export function shouldPersistQueryKey(queryKey: readonly unknown[]) {
   return typeof rootKey === "string" && PERSISTED_QUERY_ROOTS.has(rootKey);
 }
 
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 60_000,
-      // 24h — keeps persisted cache useful across sessions
-      gcTime: 24 * 60 * 60_000,
-      retry: 1,
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: true,
-    },
-  },
-});
-
-// Persist selected queries to localStorage so returning users see instant content
-// instead of a skeleton on every visit. Only dashboard + booking-detail are
-// persisted — list/settings queries are cheap enough to refetch.
-if (typeof window !== "undefined") {
-  const persister = createSyncStoragePersister({
-    storage: window.localStorage,
-    key: "gear-tracker:query-cache",
-    throttleTime: 1_000, // write at most once per second
-  });
-
-  persistQueryClient({
-    queryClient,
-    persister,
-    maxAge: 24 * 60 * 60_000,
-    dehydrateOptions: {
-      shouldDehydrateQuery: (query) =>
-        query.state.status === "success" && shouldPersistQueryKey(query.queryKey),
+export function createQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 60_000,
+        // 24h keeps persisted cache useful across sessions.
+        gcTime: 24 * 60 * 60_000,
+        retry: 1,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: true,
+      },
     },
   });
 }
+
+let browserQueryClient: QueryClient | undefined;
+
+export function getQueryClient() {
+  if (typeof window === "undefined") return createQueryClient();
+  browserQueryClient ??= createQueryClient();
+  return browserQueryClient;
+}
+
+const QUERY_CACHE_MAX_AGE = 24 * 60 * 60_000;
+
+// Persist selected queries to localStorage so returning users see instant content
+// instead of a skeleton on every visit. Only dashboard + booking-detail are
+// persisted; list/settings queries are cheap enough to refetch.
+export function getQueryPersistOptions() {
+  if (typeof window === "undefined") return null;
+  return {
+    persister: createSyncStoragePersister({
+      storage: window.localStorage,
+      key: "gear-tracker:query-cache",
+      throttleTime: 1_000, // write at most once per second
+    }),
+    maxAge: QUERY_CACHE_MAX_AGE,
+    dehydrateOptions: {
+      shouldDehydrateQuery: (query: Query) =>
+        query.state.status === "success" && shouldPersistQueryKey(query.queryKey),
+    },
+  };
+}
+
+export const queryCacheMaxAge = QUERY_CACHE_MAX_AGE;

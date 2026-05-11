@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import EmptyState from "@/components/EmptyState";
 import { sportLabel } from "@/lib/sports";
 import { formatTimeShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -31,7 +32,7 @@ function isToday(calMonth: Date, day: number) {
 function buildTooltipContent(entry: CalendarEntry): React.ReactNode {
   const timeStr = entry.allDay
     ? "All day"
-    : `${formatTimeShort(entry.startsAt)} – ${formatTimeShort(entry.endsAt)}`;
+    : `${formatTimeShort(entry.startsAt)} - ${formatTimeShort(entry.endsAt)}`;
 
   const assignedUsers = entry.shifts.flatMap((s) =>
     s.assignments
@@ -200,14 +201,14 @@ export function CalendarView({
           <button
             onClick={prevMonth}
             aria-label="Previous month"
-            className="size-7 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+            className="flex size-10 items-center justify-center rounded-md text-muted-foreground transition-[background-color,color,scale] hover:bg-muted/60 hover:text-foreground active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
           >
             <ChevronLeft className="size-4" />
           </button>
           <button
             onClick={nextMonth}
             aria-label="Next month"
-            className="size-7 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+            className="flex size-10 items-center justify-center rounded-md text-muted-foreground transition-[background-color,color,scale] hover:bg-muted/60 hover:text-foreground active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
           >
             <ChevronRight className="size-4" />
           </button>
@@ -221,7 +222,7 @@ export function CalendarView({
             })}
           </h2>
         </div>
-        <Button variant="outline" size="sm" onClick={goCalToday}>
+        <Button variant="outline" className="h-10" onClick={goCalToday}>
           Today
         </Button>
       </div>
@@ -237,6 +238,16 @@ export function CalendarView({
       </div>
 
       {/* ── Calendar Grid ── */}
+      {entries.length === 0 ? (
+        <div className="hidden rounded-lg border border-border/60 bg-card md:block">
+          <EmptyState
+            icon="calendar"
+            title="No events this month"
+            description="Try another month or clear schedule filters."
+            compact
+          />
+        </div>
+      ) : (
       <div className="hidden md:block border border-border/60 rounded-lg overflow-hidden">
         {/* Day-of-week headers */}
         <div className="grid grid-cols-7 border-b border-border/60 bg-muted/25">
@@ -327,6 +338,7 @@ export function CalendarView({
           })}
         </div>
       </div>
+      )}
     </div>
   );
 }

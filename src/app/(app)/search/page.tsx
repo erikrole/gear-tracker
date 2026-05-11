@@ -24,6 +24,18 @@ type SearchResult = {
   status?: string;
 };
 
+function formatStatusLabel(status: string): string {
+  switch (status) {
+    case "PENDING_PICKUP": return "Awaiting pickup";
+    case "OPEN": return "Checked out";
+    case "BOOKED": return "Booked";
+    case "DRAFT": return "Draft";
+    case "COMPLETED": return "Completed";
+    case "CANCELLED": return "Cancelled";
+    default: return status.replace(/_/g, " ");
+  }
+}
+
 export default function SearchPage() {
   const [urlQuery, setUrlQuery] = useUrlState<string>(
     "q",
@@ -79,8 +91,8 @@ export default function SearchPage() {
     try {
       const [itemsRes, checkoutsRes, reservationsRes, usersRes] = await Promise.all([
         fetch(`/api/assets?q=${encoded}&limit=10`, { signal: controller.signal }),
-        fetch(`/api/checkouts?q=${encoded}&limit=10`, { signal: controller.signal }),
-        fetch(`/api/reservations?q=${encoded}&limit=10`, { signal: controller.signal }),
+        fetch(`/api/checkouts?q=${encoded}&status_in=OPEN,PENDING_PICKUP&limit=10`, { signal: controller.signal }),
+        fetch(`/api/reservations?q=${encoded}&status=BOOKED&limit=10`, { signal: controller.signal }),
         fetch(`/api/users?q=${encoded}&limit=10`, { signal: controller.signal }),
       ]);
 
@@ -290,7 +302,7 @@ export default function SearchPage() {
                       </div>
                       {r.status && (
                         <Badge variant={statusBadgeVariant(r.status) as BadgeProps["variant"]}>
-                          {r.status.replace(/_/g, " ")}
+                          {formatStatusLabel(r.status)}
                         </Badge>
                       )}
                     </Link>

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ScanIcon, CalendarIcon, ExternalLinkIcon } from "lucide-react";
+import { CalendarIcon, ExternalLinkIcon } from "lucide-react";
+import { AssetImage } from "@/components/AssetImage";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +27,8 @@ type ItemPreviewDrawerProps = {
 export function ItemPreviewDrawer({ item, onClose }: ItemPreviewDrawerProps) {
   const router = useRouter();
   const isBooked = !!item?.activeBooking;
-  const displayName = item?.name || `${item?.brand} ${item?.model}`;
+  const isAvailable = item?.computedStatus === "AVAILABLE";
+  const displayName = item ? item.name || `${item.brand} ${item.model}` : "";
   const slotLabel = item?.parentAsset ? getSdCardSlotLabel(item, item.parentAsset.assetTag) : null;
 
   return (
@@ -41,19 +43,13 @@ export function ItemPreviewDrawer({ item, onClose }: ItemPreviewDrawerProps) {
           <div className="mx-auto w-full max-w-sm">
             <DrawerHeader className="text-center">
               {/* Item image */}
-              {item.imageUrl ? (
-                <div className="mx-auto mb-3 h-28 w-28 overflow-hidden rounded-xl border bg-muted">
-                  <img
-                    src={item.imageUrl}
-                    alt={displayName}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              ) : (
-                <div className="mx-auto mb-3 flex size-28 items-center justify-center rounded-xl border bg-muted">
-                  <ScanIcon className="size-10 text-muted-foreground" />
-                </div>
-              )}
+              <AssetImage
+                src={item.imageUrl}
+                alt={displayName}
+                size={112}
+                className="mx-auto mb-3 rounded-xl"
+                fallbackClassName="rounded-xl"
+              />
 
               <DrawerTitle>{displayName}</DrawerTitle>
               <DrawerDescription>
@@ -97,13 +93,13 @@ export function ItemPreviewDrawer({ item, onClose }: ItemPreviewDrawerProps) {
                       <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
                         <CalendarIcon className="size-3" />
                         {new Date(item.activeBooking!.startsAt).toLocaleDateString()}{" "}
-                        &ndash;{" "}
+                        -{" "}
                         {new Date(item.activeBooking!.endsAt).toLocaleDateString()}
                       </div>
                     </div>
                   </div>
                 </div>
-              ) : (
+              ) : isAvailable ? (
                 /* ── Available state: quick actions ── */
                 <div className="flex gap-2">
                   <Button
@@ -125,6 +121,10 @@ export function ItemPreviewDrawer({ item, onClose }: ItemPreviewDrawerProps) {
                   >
                     Reserve
                   </Button>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-border/60 bg-muted/30 px-4 py-3 text-center text-sm text-muted-foreground">
+                  View details for maintenance, retirement, or exception handling.
                 </div>
               )}
             </div>

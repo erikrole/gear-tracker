@@ -1,14 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import type { PartialBlock } from "@blocknote/core";
-import { useCreateBlockNote } from "@blocknote/react";
-import { BlockNoteView } from "@blocknote/shadcn";
-import "@blocknote/react/style.css";
-import { ArrowLeftIcon, PencilIcon } from "lucide-react";
+import { ArrowLeftIcon, CheckCircle2Icon, PencilIcon } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { MarkdownReader } from "@/components/guides/MarkdownReader";
+import { handleAuthRedirect } from "@/lib/errors";
+import { formatFreshnessDate, getGuideFreshness } from "@/lib/guide-freshness";
+import { legacyGuideMarkdown, markdownHeadings } from "@/lib/guide-content";
 import { cn } from "@/lib/utils";
 
 type Guide = {
@@ -16,10 +17,13 @@ type Guide = {
   title: string;
   slug: string;
   category: string;
+  markdown: string | null;
   published: boolean;
   content: unknown;
   author: { id: string; name: string };
-  updatedAt: Date;
+  lastVerifiedAt: Date | string | null;
+  lastVerifiedBy: { id: string; name: string } | null;
+  updatedAt: Date | string;
 };
 
 type Props = {
@@ -30,166 +34,198 @@ type Props = {
 
 type TocItem = { id: string; level: number; text: string };
 
-function extractHeadings(content: unknown): TocItem[] {
-  if (!Array.isArray(content)) return [];
-  const items: TocItem[] = [];
-  for (const block of content) {
-    if (block?.type === "heading" && Array.isArray(block.content) && block.id) {
-      const level = block.props?.level ?? 1;
-      const text = block.content
-        .filter((c: { type: string }) => c.type === "text")
-        .map((c: { text: string }) => c.text)
-        .join("")
-        .trim();
-      if (text) items.push({ id: block.id, level, text });
-    }
-  }
-  return items;
-}
-
 function TableOfContents({ items, activeId }: { items: TocItem[]; activeId: string | null }) {
   const scrollToHeading = useCallback((id: string) => {
-    const node = document.querySelector<HTMLElement>(`[data-id="${id}"]`);
+    const node = document.getElementById(id);
     if (node) node.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
   if (items.length === 0) return null;
 
   return (
-    <nav aria-label="Table of contents" className="hidden lg:block">
-      <div className="sticky top-4 space-y-1">
+    <nav aria-label="Table of contents" className="hidden xl:block">
+      <div className="guide-toc sticky top-8">
         <p
-          className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/50 mb-2 font-semibold"
+          className="mb-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/60"
           style={{ fontFamily: "var(--font-mono)" }}
         >
           On this page
         </p>
-        {items.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => scrollToHeading(item.id)}
-            className={cn(
-              "block w-full text-left text-xs leading-relaxed transition-colors py-0.5 hover:text-foreground",
-              item.level === 1 && "font-medium",
-              item.level === 2 && "pl-3",
-              item.level === 3 && "pl-6",
-              activeId === item.id
-                ? "text-foreground font-medium"
-                : "text-muted-foreground/70",
-            )}
-          >
-            {item.text}
-          </button>
-        ))}
+        <div className="space-y-1">
+          {items.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => scrollToHeading(item.id)}
+              className={cn(
+                "guide-toc-link min-h-10 w-full rounded-md px-2 py-2 text-left text-sm leading-snug transition-colors hover:text-foreground",
+                item.level === 1 && "font-semibold",
+                item.level === 2 && "pl-4",
+                item.level === 3 && "pl-7",
+                activeId === item.id
+                  ? "guide-toc-link-active font-semibold text-foreground"
+                  : "text-muted-foreground/70",
+              )}
+            >
+              {item.text}
+            </button>
+          ))}
+        </div>
       </div>
     </nav>
   );
 }
 
 export function GuideReader({ guide, canEdit, slug }: Props) {
-  const editor = useCreateBlockNote({
-    initialContent: Array.isArray(guide.content)
-      ? (guide.content as PartialBlock[])
-      : undefined,
-  });
-
-  const [isDark, setIsDark] = useState(() =>
-    typeof window !== "undefined" && document.documentElement.getAttribute("data-theme") === "dark"
+  const [lastVerifiedAt, setLastVerifiedAt] = useState<Date | string | null>(guide.lastVerifiedAt);
+  const [lastVerifiedBy, setLastVerifiedBy] = useState<{ id: string; name: string } | null>(guide.lastVerifiedBy);
+  const [updatedAt, setUpdatedAt] = useState<Date | string>(guide.updatedAt);
+  const [verifying, setVerifying] = useState(false);
+  const markdown = useMemo(
+    () => legacyGuideMarkdown(guide.markdown, guide.content),
+    [guide.content, guide.markdown],
   );
+  const freshness = getGuideFreshness({ updatedAt, lastVerifiedAt });
+  const headings = useMemo(() => markdownHeadings(markdown), [markdown]);
   const [activeHeadingId, setActiveHeadingId] = useState<string | null>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const check = () => setIsDark(document.documentElement.getAttribute("data-theme") === "dark");
-    check();
-    const obs = new MutationObserver(check);
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-    return () => obs.disconnect();
-  }, []);
+  async function markVerified() {
+    if (verifying) return;
+    setVerifying(true);
+    try {
+      const res = await fetch(`/api/guides/${guide.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          markVerified: true,
+          expectedUpdatedAt: new Date(updatedAt).toISOString(),
+        }),
+      });
+      if (handleAuthRedirect(res)) return;
+      if (!res.ok) {
+        const json = (await res.json().catch(() => ({}))) as { error?: string };
+        toast.error(json.error ?? "Failed to mark guide verified");
+        return;
+      }
+      const json = (await res.json()) as {
+        data: {
+          lastVerifiedAt: string | null;
+          lastVerifiedBy: { id: string; name: string } | null;
+          updatedAt: string;
+        };
+      };
+      setLastVerifiedAt(json.data.lastVerifiedAt);
+      setLastVerifiedBy(json.data.lastVerifiedBy);
+      setUpdatedAt(json.data.updatedAt);
+      toast.success("Guide marked verified");
+    } catch {
+      toast.error("Network error — try again");
+    } finally {
+      setVerifying(false);
+    }
+  }
 
-  const headings = extractHeadings(guide.content);
-
-  // Track active heading via IntersectionObserver
   useEffect(() => {
     if (headings.length === 0) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            const id = (entry.target as HTMLElement).dataset.id;
-            if (id) setActiveHeadingId(id);
+
+    let frame = 0;
+    const updateActiveHeading = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        let activeId = headings[0]?.id ?? null;
+        for (const heading of headings) {
+          const node = document.getElementById(heading.id);
+          if (!node) continue;
+          if (node.getBoundingClientRect().top <= 140) {
+            activeId = heading.id;
+          } else {
             break;
           }
         }
-      },
-      { rootMargin: "-80px 0px -70% 0px", threshold: 0 },
-    );
+        setActiveHeadingId(activeId);
+      });
+    };
 
-    // Observe after a short delay to let BlockNote render
-    const timer = setTimeout(() => {
-      for (const h of headings) {
-        const node = document.querySelector<HTMLElement>(`[data-id="${h.id}"]`);
-        if (node) observer.observe(node);
-      }
-    }, 300);
+    updateActiveHeading();
+    window.addEventListener("scroll", updateActiveHeading, { passive: true });
+    window.addEventListener("resize", updateActiveHeading);
 
     return () => {
-      clearTimeout(timer);
-      observer.disconnect();
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", updateActiveHeading);
+      window.removeEventListener("resize", updateActiveHeading);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [guide.id]);
+  }, [guide.id, headings]);
 
   const hasToC = headings.length >= 2;
 
   return (
-    <div className="flex flex-col gap-6 p-6 max-w-5xl mx-auto">
-      {/* Back link */}
+    <div className="guide-reader-shell mx-auto flex w-full max-w-[1280px] flex-col gap-8 px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
       <div>
         <Link
           href="/guides"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="inline-flex min-h-10 items-center gap-2 rounded-md text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeftIcon className="size-3.5" />
           Guides
         </Link>
       </div>
 
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold leading-tight">{guide.title}</h1>
-          <div className="flex items-center gap-2 flex-wrap">
+      <div className="guide-reader-header flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 max-w-4xl flex-col gap-3">
+          <h1 className="guide-reader-title">{guide.title}</h1>
+          <div className="flex flex-wrap items-center gap-2">
             <Badge variant="secondary">{guide.category}</Badge>
             {!guide.published && (
               <Badge variant="outline" className="text-[10px]">Draft</Badge>
             )}
             <span className="text-xs text-muted-foreground">
               Updated{" "}
-              {new Date(guide.updatedAt).toLocaleDateString("en-US", {
+              {new Date(updatedAt).toLocaleDateString("en-US", {
                 month: "long",
                 day: "numeric",
                 year: "numeric",
               })}
             </span>
+            <Badge
+              variant={freshness.status === "verified" ? "green" : "orange"}
+              title={freshness.detail}
+            >
+              {freshness.label}
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              {lastVerifiedAt
+                ? `Last verified ${formatFreshnessDate(lastVerifiedAt)}${lastVerifiedBy ? ` by ${lastVerifiedBy.name}` : ""}`
+                : "Never verified"}
+            </span>
           </div>
         </div>
         {canEdit && (
-          <Button asChild variant="outline" size="sm" className="shrink-0">
-            <Link href={`/guides/${slug}/edit`}>
-              <PencilIcon className="size-3.5 mr-1.5" />
-              Edit
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2 sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              disabled={verifying}
+              onClick={markVerified}
+            >
+              <CheckCircle2Icon className="mr-1.5 size-3.5" />
+              {verifying ? "Verifying..." : "Mark verified"}
+            </Button>
+            <Button asChild variant="outline" size="sm" className="shrink-0">
+              <Link href={`/guides/${slug}/edit`}>
+                <PencilIcon className="mr-1.5 size-3.5" />
+                Edit
+              </Link>
+            </Button>
+          </div>
         )}
       </div>
 
-      {/* Content + optional ToC sidebar */}
-      <div className={cn(hasToC && "lg:grid lg:grid-cols-[1fr_160px] lg:gap-8")}>
-        {/* BlockNote reader */}
-        <div ref={contentRef} className="prose-blocknote min-w-0">
-          <BlockNoteView editor={editor} editable={false} theme={isDark ? "dark" : "light"} />
-        </div>
+      <div className={cn("guide-reader-grid", hasToC && "xl:grid xl:grid-cols-[minmax(0,860px)_220px] xl:gap-12")}>
+        <article className="guide-article min-w-0">
+          <MarkdownReader markdown={markdown || "_No content yet._"} />
+        </article>
 
         {hasToC && (
           <TableOfContents items={headings} activeId={activeHeadingId} />

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
+import EmptyState from "@/components/EmptyState";
 import { cn } from "@/lib/utils";
 import { sportLabel } from "@/lib/sports";
 import {
@@ -65,7 +66,7 @@ function weekRangeLabel(weekStart: Date): string {
     day: "numeric",
     year: "numeric",
   });
-  return `${startStr} – ${endStr}`;
+  return `${startStr} - ${endStr}`;
 }
 
 function eventDisplayName(entry: CalendarEntry): string {
@@ -111,7 +112,7 @@ function CoverageBar({
     <div className="mt-1.5 flex items-center gap-1.5">
       <div className="flex-1 h-[2px] rounded-full overflow-hidden bg-muted/70">
         <div
-          className={cn("h-full rounded-full transition-all", barColor)}
+          className={cn("h-full rounded-full transition-[width]", barColor)}
           style={{ width: `${percentage}%` }}
         />
       </div>
@@ -414,22 +415,21 @@ export function WeekView({
           <button
             onClick={() => setWeekStart(shiftWeek(weekStart, -1))}
             aria-label="Previous week"
-            className="size-7 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+            className="flex size-10 items-center justify-center rounded-md text-muted-foreground transition-[background-color,color,scale] hover:bg-muted/60 hover:text-foreground active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
           >
             <ChevronLeftIcon className="size-4" />
           </button>
           <button
             onClick={() => setWeekStart(shiftWeek(weekStart, 1))}
             aria-label="Next week"
-            className="size-7 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+            className="flex size-10 items-center justify-center rounded-md text-muted-foreground transition-[background-color,color,scale] hover:bg-muted/60 hover:text-foreground active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
           >
             <ChevronRightIcon className="size-4" />
           </button>
           {!isThisWeek && (
             <Button
               variant="ghost"
-              size="sm"
-              className="ml-1 h-7 text-xs"
+              className="ml-1 h-10"
               onClick={() => setWeekStart(getThisMonday())}
             >
               Today
@@ -487,7 +487,7 @@ export function WeekView({
 
                 {dayEntries.length === 0 ? (
                   <p className="text-[9px] text-muted-foreground/30 text-center py-3">
-                    —
+                    -
                   </p>
                 ) : (
                   <div className="flex flex-col">
@@ -536,12 +536,12 @@ export function WeekView({
 
       {/* Empty state */}
       {!loading && entries.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground">
-          <p className="text-sm font-medium">No events this week</p>
-          <p className="text-xs mt-1 text-muted-foreground/60">
-            Try navigating to a different week
-          </p>
-        </div>
+        <EmptyState
+          icon="calendar"
+          title="No events this week"
+          description="Try navigating to a different week or clear schedule filters."
+          compact
+        />
       )}
     </div>
   );

@@ -2,10 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import type { PartialBlock } from "@blocknote/core";
-import { useCreateBlockNote } from "@blocknote/react";
-import { BlockNoteView } from "@blocknote/shadcn";
-import "@blocknote/react/style.css";
 import { ArrowLeftIcon, Trash2Icon } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -26,14 +22,23 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { useFetch } from "@/hooks/use-fetch";
-import { Role } from "@prisma/client";
+import { Role, ShiftArea } from "@prisma/client";
 import { handleAuthRedirect } from "@/lib/errors";
+import { KNOWLEDGE_BASE_CATEGORY_SUGGESTIONS } from "@/lib/guide-categories";
+import { legacyGuideMarkdown } from "@/lib/guide-content";
+import { GuideTargetingControls } from "@/components/guides/GuideTargetingControls";
+import { MarkdownEditor } from "@/components/guides/MarkdownEditor";
 
 type Guide = {
   id: string;
   title: string;
   slug: string;
   category: string;
+  markdown: string | null;
+  targetRoles: Role[];
+  targetAreas: ShiftArea[];
+  featured: boolean;
+  featuredRank: number | null;
   published: boolean;
   content: unknown;
   author: { id: string; name: string };
@@ -47,14 +52,16 @@ export function EditGuideClient({ slug, userRole }: Props) {
   const [ready, setReady] = useState(false);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
+  const [markdown, setMarkdown] = useState("");
+  const [targetRoles, setTargetRoles] = useState<Role[]>([]);
+  const [targetAreas, setTargetAreas] = useState<ShiftArea[]>([]);
+  const [featured, setFeatured] = useState(false);
+  const [featuredRank, setFeaturedRank] = useState<number | null>(null);
   const [published, setPublished] = useState(false);
   const [guideId, setGuideId] = useState("");
   const [loadedUpdatedAt, setLoadedUpdatedAt] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [dirty, setDirty] = useState(false);
-  const [isDark, setIsDark] = useState(() =>
-    typeof window !== "undefined" && document.documentElement.getAttribute("data-theme") === "dark"
-  );
 
   async function uploadFile(file: File): Promise<string> {
     const fd = new FormData();
@@ -65,8 +72,6 @@ export function EditGuideClient({ slug, userRole }: Props) {
     return json.url;
   }
 
-  const editor = useCreateBlockNote({ uploadFile });
-
   const { data: guide, loading } = useFetch<Guide>({
     url: `/api/guides/${slug}`,
     transform: (json) => (json as { data: Guide }).data,
@@ -76,28 +81,22 @@ export function EditGuideClient({ slug, userRole }: Props) {
     (g: Guide) => {
       setTitle(g.title);
       setCategory(g.category);
+      setMarkdown(legacyGuideMarkdown(g.markdown, g.content));
+      setTargetRoles(g.targetRoles ?? []);
+      setTargetAreas(g.targetAreas ?? []);
+      setFeatured(g.featured ?? false);
+      setFeaturedRank(g.featuredRank ?? null);
       setPublished(g.published);
       setGuideId(g.id);
       setLoadedUpdatedAt(typeof g.updatedAt === "string" ? g.updatedAt : new Date(g.updatedAt).toISOString());
-      if (Array.isArray(g.content)) {
-        editor.replaceBlocks(editor.document, g.content as PartialBlock[]);
-      }
       setReady(true);
     },
-    [editor],
+    [],
   );
 
   useEffect(() => {
     if (guide && !ready) populate(guide);
   }, [guide, ready, populate]);
-
-  useEffect(() => {
-    const check = () => setIsDark(document.documentElement.getAttribute("data-theme") === "dark");
-    check();
-    const obs = new MutationObserver(check);
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-    return () => obs.disconnect();
-  }, []);
 
   useEffect(() => {
     function onBeforeUnload(e: BeforeUnloadEvent) {
@@ -120,7 +119,11 @@ export function EditGuideClient({ slug, userRole }: Props) {
         body: JSON.stringify({
           title: title.trim(),
           category: category.trim(),
-          content: editor.document as PartialBlock[],
+          markdown,
+          targetRoles,
+          targetAreas,
+          featured,
+          featuredRank: featured ? featuredRank : null,
           published,
           expectedUpdatedAt: loadedUpdatedAt || undefined,
         }),
@@ -212,7 +215,7 @@ export function EditGuideClient({ slug, userRole }: Props) {
         )}
       </div>
 
-      <h1 className="text-2xl font-bold">Edit Guide</h1>
+      <h1 className="text-2xl font-bold">Edit Knowledge Base Entry</h1>
 
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
@@ -231,8 +234,14 @@ export function EditGuideClient({ slug, userRole }: Props) {
             id="category"
             value={category}
             onChange={(e) => { setCategory(e.target.value); setDirty(true); }}
+            list="knowledge-category-suggestions"
             disabled={submitting}
           />
+          <datalist id="knowledge-category-suggestions">
+            {KNOWLEDGE_BASE_CATEGORY_SUGGESTIONS.map((cat) => (
+              <option key={cat} value={cat} />
+            ))}
+          </datalist>
         </div>
 
         <div className="flex items-center gap-3">
@@ -248,12 +257,30 @@ export function EditGuideClient({ slug, userRole }: Props) {
         </div>
       </div>
 
-      <div className="rounded-lg border min-h-[600px]">
-        <BlockNoteView
-          editor={editor}
-          editable={!submitting}
-          theme={isDark ? "dark" : "light"}
-          onChange={() => setDirty(true)}
+      <GuideTargetingControls
+        featured={featured}
+        featuredRank={featuredRank}
+        targetRoles={targetRoles}
+        targetAreas={targetAreas}
+        disabled={submitting}
+        onFeaturedChange={(value) => { setFeatured(value); setDirty(true); }}
+        onFeaturedRankChange={(value) => { setFeaturedRank(value); setDirty(true); }}
+        onTargetRolesChange={(value) => { setTargetRoles(value); setDirty(true); }}
+        onTargetAreasChange={(value) => { setTargetAreas(value); setDirty(true); }}
+      />
+
+      <div className="min-h-[600px] overflow-hidden rounded-lg border">
+        <MarkdownEditor
+          markdown={markdown}
+          onChange={(value, initialMarkdownNormalize) => {
+            if (initialMarkdownNormalize) return;
+            setMarkdown(value);
+            setDirty(true);
+          }}
+          imageUploadHandler={uploadFile}
+          contentEditableClassName="min-h-[560px] px-6 py-5 focus:outline-none"
+          className="guide-mdx-editor"
+          readOnly={submitting}
         />
       </div>
 

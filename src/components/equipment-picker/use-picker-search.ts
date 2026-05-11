@@ -77,5 +77,9 @@ export function usePickerSearch({
     };
   }, []);
 
-  return { sectionResults, total, sectionCounts, searchLoading, searchError };
+  const retry = useCallback(() => {
+    fetchSectionResults(activeSection, equipSearch, onlyAvailable);
+  }, [activeSection, equipSearch, fetchSectionResults, onlyAvailable]);
+
+  return { sectionResults, total, sectionCounts, searchLoading, searchError, retry };
 }

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { AlertTriangleIcon, CalendarIcon, ClockIcon, InboxIcon } from "lucide-react";
+import { CalendarIcon, ClockIcon, InboxIcon } from "lucide-react";
 import { ScaleIn } from "@/components/ui/motion";
 import { formatDayLabel, formatTimeShort, isDueToday } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
@@ -19,6 +19,9 @@ import type { DashboardData, BookingSummary } from "../dashboard-types";
 import type { FilteredDashboardData } from "@/hooks/use-dashboard-filters";
 
 type HomeAwayFilter = "all" | "home" | "away";
+
+const PENDING_PICKUPS_HREF = "/bookings?tab=checkouts&status=PENDING_PICKUP";
+const STALE_RESERVATIONS_HREF = "/bookings?tab=reservations&filter=overdue";
 
 type Props = {
   data: DashboardData;
@@ -33,6 +36,14 @@ type Props = {
 
 export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, acting, onSelectBooking, onExtend }: Props) {
   const [homeAwayFilter, setHomeAwayFilter] = useState<HomeAwayFilter>("all");
+  const visibleTeamCheckouts = filtered?.teamCheckouts ?? data.teamCheckouts.items;
+  const visiblePendingPickups = filtered?.pendingPickups ?? data.pendingPickups.items;
+  const visibleStaleReservations = filtered?.staleReservations ?? data.staleReservations.items;
+  const visibleTeamReservations = filtered?.teamReservations ?? data.teamReservations.items;
+  const teamCheckoutsCount = filtered ? visibleTeamCheckouts.length : data.teamCheckouts.total;
+  const pendingPickupsCount = filtered ? visiblePendingPickups.length : data.pendingPickups.total;
+  const staleReservationsCount = filtered ? visibleStaleReservations.length : data.staleReservations.total;
+  const teamReservationsCount = filtered ? visibleTeamReservations.length : data.teamReservations.total;
 
   const filteredEvents = useMemo(() => {
     const events = filtered?.upcomingEvents ?? data.upcomingEvents;
@@ -69,10 +80,6 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
     );
   }
 
-  function shouldShowOpenSlotText(e: DashboardData["upcomingEvents"][number]) {
-    return Boolean(e.coverage && e.coverage.filled > 0 && e.coverage.filled < e.coverage.total);
-  }
-
   return (
     <div className="flex flex-col gap-4">
       <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground/60 pl-0.5" style={{ fontFamily: "var(--font-mono)" }}>Team Activity</span>
@@ -80,12 +87,12 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
       {/* Team Checkouts */}
       <ScaleIn delay={0}>
       <Card elevation="elevated">
-        <DashboardSectionHeader title="Checked out" href="/bookings?tab=checkouts" count={data.teamCheckouts.total} />
-        {(filtered?.teamCheckouts ?? data.teamCheckouts.items).length === 0 ? (
+        <DashboardSectionHeader title="Checked out" href="/bookings?tab=checkouts" count={teamCheckoutsCount} />
+        {visibleTeamCheckouts.length === 0 ? (
           <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-muted-foreground text-sm"><InboxIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} checkouts` : "No team checkouts right now"}</div>
         ) : (
           <CardContent className="p-0 py-1">
-            {(filtered?.teamCheckouts ?? data.teamCheckouts.items).map((c) => {
+            {visibleTeamCheckouts.map((c) => {
               return (
                 <DashboardBookingRow
                   key={c.id}
@@ -101,7 +108,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            className="opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100"
+                            className="opacity-100 transition-opacity duration-150 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100"
                             disabled={acting}
                             onClick={(e) => onExtend(c, e)}
                             aria-label={`Extend checkout "${c.title}" by 1 day`}
@@ -124,13 +131,13 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
       </Card>
       </ScaleIn>
 
-      {/* Awaiting Pickup — only render when present (transient state) */}
-      {data.pendingPickups.items.length > 0 && (
+      {/* Awaiting Pickup - only render when present (transient state) */}
+      {visiblePendingPickups.length > 0 && (
         <ScaleIn delay={0.025}>
         <Card>
-          <DashboardSectionHeader title="Awaiting pickup" href="/bookings?tab=reservations" count={data.pendingPickups.total} />
+          <DashboardSectionHeader title="Awaiting pickup" href={PENDING_PICKUPS_HREF} count={pendingPickupsCount} />
           <CardContent className="p-0 py-1">
-            {(filtered?.pendingPickups ?? data.pendingPickups.items).map((p) => {
+            {visiblePendingPickups.map((p) => {
               const isLate = new Date(p.startsAt).getTime() < now.getTime();
               return (
                 <DashboardBookingRow
@@ -144,7 +151,31 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
               );
             })}
             {!activeSport && data.pendingPickups.total > data.pendingPickups.items.length && (
-              <Link href="/bookings?tab=reservations" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all {data.pendingPickups.total} &rarr;</Link>
+              <Link href={PENDING_PICKUPS_HREF} className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all {data.pendingPickups.total} &rarr;</Link>
+            )}
+          </CardContent>
+        </Card>
+        </ScaleIn>
+      )}
+
+      {/* Stale Reservations - planning cleanup separate from checked-out overdue custody */}
+      {visibleStaleReservations.length > 0 && (
+        <ScaleIn delay={0.04}>
+        <Card>
+          <DashboardSectionHeader title="Stale reservations" href={STALE_RESERVATIONS_HREF} count={staleReservationsCount} />
+          <CardContent className="p-0 py-1">
+            {visibleStaleReservations.map((r) => (
+              <DashboardBookingRow
+                key={r.id}
+                booking={r}
+                now={now}
+                accent="overdue"
+                showDueBadge
+                onSelectBooking={onSelectBooking}
+              />
+            ))}
+            {!activeSport && data.staleReservations.total > data.staleReservations.items.length && (
+              <Link href={STALE_RESERVATIONS_HREF} className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all {data.staleReservations.total} &rarr;</Link>
             )}
           </CardContent>
         </Card>
@@ -154,12 +185,12 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
       {/* Team Reservations */}
       <ScaleIn delay={0.05}>
       <Card>
-        <DashboardSectionHeader title="Reserved" href="/bookings?tab=reservations" count={data.teamReservations.total} />
-        {(filtered?.teamReservations ?? data.teamReservations.items).length === 0 ? (
+        <DashboardSectionHeader title="Reserved" href="/bookings?tab=reservations" count={teamReservationsCount} />
+        {visibleTeamReservations.length === 0 ? (
           <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-muted-foreground text-sm"><InboxIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} reservations` : "No team reservations right now"}</div>
         ) : (
           <CardContent className="p-0 py-1">
-            {(filtered?.teamReservations ?? data.teamReservations.items).map((r) => (
+            {visibleTeamReservations.map((r) => (
               <DashboardBookingRow
                 key={r.id}
                 booking={r}
@@ -224,12 +255,6 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
                     {e.location && <span className="truncate">{e.location}</span>}
                     {e.callTime && <span>Call {formatTimeShort(e.callTime)}</span>}
                   </span>
-                  {shouldShowOpenSlotText(e) && e.coverage && (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--red-text)]">
-                      <AlertTriangleIcon className="size-3.5" />
-                      {e.coverage.total - e.coverage.filled} open slot{e.coverage.total - e.coverage.filled === 1 ? "" : "s"}
-                    </span>
-                  )}
                 </Link>
                 <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
                   <ShiftAvatarStack assignedUsers={e.assignedUsers} />

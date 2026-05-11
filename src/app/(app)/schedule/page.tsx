@@ -60,8 +60,8 @@ export default function SchedulePage() {
       const kind = classifyError(err);
       toast.error(
         kind === "network"
-          ? "You\u2019re offline \u2014 could not hide event"
-          : "Something went wrong \u2014 could not hide event",
+          ? "You're offline - could not hide event"
+          : "Something went wrong - could not hide event",
       );
     } finally {
       hidingRef.current.delete(eventId);
@@ -143,6 +143,7 @@ export default function SchedulePage() {
           loadData={data.loadData}
           myShiftsOnly={data.filters.myShiftsOnly}
           setMyShiftsOnly={data.filters.setMyShiftsOnly}
+          clearFilters={data.filters.clearAll}
           includePast={data.filters.includePast}
           hasFilters={data.filters.hasFilters}
           currentUserId={data.currentUserId}

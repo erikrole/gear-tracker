@@ -126,12 +126,12 @@
 - Remove the `badge: "Soon"` from the Kits nav item — it's misleading now
 - Keep Kits in Admin group (admin/staff only)
 
-**2. Scan nav item in sidebar**
-- Add `{ label: "Scan", href: "/scan", icon: ScanBarcodeIcon }` to the Operations group
+**2. Lookup nav item in sidebar**
+- Add `{ label: "Lookup", href: "/scan", icon: ScanBarcodeIcon }` to the Operations group
 - Position: after Bookings, before Notifications
-- All roles — students use scan for checkout/checkin
+- All roles use it for item lookup; checkout pickup and return scans happen at kiosks
 - Closes the gap where desktop users have no sidebar path to `/scan`
-- Bottom nav already has Scan; sidebar should match
+- Bottom nav already has Lookup; sidebar should match
 
 **3. Settings collapsible sub-navigation**
 - Settings has 6 sub-pages: calendar-sources, sports, categories, database, escalation, venue-mappings

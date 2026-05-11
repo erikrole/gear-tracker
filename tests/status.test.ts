@@ -79,6 +79,23 @@ describe("deriveAssetStatuses", () => {
     expect(result.get("a1")).toBe("CHECKED_OUT");
   });
 
+  it("returns PENDING_PICKUP when asset has active pending checkout allocation", async () => {
+    mockDb.asset.findMany.mockResolvedValue([
+      { id: "a1", status: "AVAILABLE" }
+    ]);
+    mockDb.assetAllocation.findMany.mockResolvedValue([
+      {
+        assetId: "a1",
+        startsAt: new Date("2026-02-01"),
+        endsAt: new Date("2026-03-01"),
+        booking: { kind: "CHECKOUT", status: "PENDING_PICKUP" }
+      }
+    ]);
+
+    const result = await deriveAssetStatuses(["a1"]);
+    expect(result.get("a1")).toBe("PENDING_PICKUP");
+  });
+
   it("returns RESERVED when asset has active reservation overlapping now", async () => {
     const now = new Date();
     const past = new Date(now.getTime() - 3600_000);
@@ -252,6 +269,12 @@ describe("countAssetsByEffectiveStatus", () => {
         startsAt: new Date("2026-01-01"),
         endsAt: new Date("2026-12-31"),
         booking: { kind: "CHECKOUT", status: "OPEN" }
+      },
+      {
+        assetId: "a2",
+        startsAt: new Date("2026-01-01"),
+        endsAt: new Date("2026-12-31"),
+        booking: { kind: "CHECKOUT", status: "PENDING_PICKUP" }
       }
     ]);
 
@@ -259,7 +282,8 @@ describe("countAssetsByEffectiveStatus", () => {
     expect(result.MAINTENANCE).toBe(2);
     expect(result.RETIRED).toBe(1);
     expect(result.CHECKED_OUT).toBe(1);
-    expect(result.AVAILABLE).toBe(2);
+    expect(result.PENDING_PICKUP).toBe(1);
+    expect(result.AVAILABLE).toBe(1);
   });
 
   it("handles zero available assets", async () => {
@@ -271,6 +295,7 @@ describe("countAssetsByEffectiveStatus", () => {
     const result = await countAssetsByEffectiveStatus();
     expect(result.AVAILABLE).toBe(0);
     expect(result.CHECKED_OUT).toBe(0);
+    expect(result.PENDING_PICKUP).toBe(0);
     expect(result.RESERVED).toBe(0);
     expect(result.MAINTENANCE).toBe(5);
     expect(result.RETIRED).toBe(3);

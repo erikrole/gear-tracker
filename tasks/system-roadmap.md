@@ -424,7 +424,7 @@ Deeper Integration (V3-F)
 - **Dashboard ↔ API shape**: Monolithic data object. New sections require API changes. Break into section endpoints if performance degrades.
 - **BookingDetailPage ↔ booking-actions.ts**: Action gating tightly coupled to status enum. Status vocabulary (D-025) translation must stay in sync.
 - **Equipment guidance ↔ code**: D-016 keeps 3 rules in code. Fine for now but blocks operator self-service.
-- **Scan hooks ↔ checkout API**: `useScanSession`/`useScanSubmission` tightly coupled to checkout scan endpoints.
+- **Resolved 2026-05-10 - Scan hooks ↔ checkout API**: app `/scan` is lookup-only and no longer couples page hooks to checkout scan endpoints. Checkout pickup and return execution stays in kiosk routes.
 
 ### Scaling Considerations
 

@@ -57,17 +57,18 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
     return ok({
       data: {
         shifts: [],
-        gearSummary: { total: 0, byStatus: { draft: 0, reserved: 0, checkedOut: 0, completed: 0 } },
+        gearSummary: { total: 0, byStatus: { draft: 0, reserved: 0, pendingPickup: 0, checkedOut: 0, completed: 0 } },
         missingGear: [],
       },
     });
   }
 
   // Build gear summary
-  const byStatus = { draft: 0, reserved: 0, checkedOut: 0, completed: 0 };
+  const byStatus = { draft: 0, reserved: 0, pendingPickup: 0, checkedOut: 0, completed: 0 };
   for (const b of bookings) {
     if (b.status === "DRAFT") byStatus.draft++;
     else if (b.status === "BOOKED") byStatus.reserved++;
+    else if (b.status === "PENDING_PICKUP") byStatus.pendingPickup++;
     else if (b.status === "OPEN") byStatus.checkedOut++;
     else if (b.status === "COMPLETED") byStatus.completed++;
   }

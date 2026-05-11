@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { CalendarEvent, ShiftGroup } from "@/app/(app)/schedule/_components/types";
 import { handleAuthRedirect } from "@/lib/errors";
@@ -138,6 +138,7 @@ function deriveColumns(events: GridEvent[], areaFilter: string): GridColumn[] {
 /* ───── Hook ───── */
 
 export function useAssignmentGrid(): UseAssignmentGridResult {
+  const [hydrated, setHydrated] = useState(false);
   const [month, setMonth] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
@@ -174,16 +175,22 @@ export function useAssignmentGrid(): UseAssignmentGridResult {
     queryKey: ["assignment-grid", eventsUrl, groupsUrl],
     queryFn: ({ signal }) => fetchGridData(eventsUrl, groupsUrl, signal),
   });
+  const visibleEvents = hydrated ? allEvents : [];
+  const loading = !hydrated || isLoading;
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   const events = useMemo(() => {
-    if (!areaFilter) return allEvents;
-    return allEvents.filter((e) => e.shifts.some((s) => s.area === areaFilter));
-  }, [allEvents, areaFilter]);
+    if (!areaFilter) return visibleEvents;
+    return visibleEvents.filter((e) => e.shifts.some((s) => s.area === areaFilter));
+  }, [visibleEvents, areaFilter]);
 
-  const columns = useMemo(() => deriveColumns(allEvents, areaFilter), [allEvents, areaFilter]);
+  const columns = useMemo(() => deriveColumns(visibleEvents, areaFilter), [visibleEvents, areaFilter]);
 
   const loadError: false | "network" | "server" =
-    error && allEvents.length === 0
+    hydrated && error && visibleEvents.length === 0
       ? (error as Error).name === "TypeError"
         ? "network"
         : "server"
@@ -192,7 +199,7 @@ export function useAssignmentGrid(): UseAssignmentGridResult {
   return {
     events,
     columns,
-    loading: isLoading,
+    loading,
     error: loadError,
     refetch,
     month,

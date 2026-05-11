@@ -90,3 +90,26 @@
 - Shipped: Client role options now mirror the server restriction that only Admins can create Admin users, and the API trims email before validation/lowercasing.
 - Polished: Dialog text uses balanced wrapping, the temporary-password surface has softer depth, and primary controls use 40px hit targets.
 - Verified: `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, `npx next build`, and Chrome DevTools Add User dialog check with no console issues.
+
+## Users Ship Polish - 2026-05-10
+
+### Goal
+- Close the remaining Users-page data and navigation gaps before ship: roster views should survive reload/share, and direct-report edits should not be able to create invalid reporting loops.
+
+### Peer patterns checked
+- `items`: URL-backed filter and pagination state is the strongest roster/list pattern in the app.
+- `kits`: simple scalar `useUrlState` filters fit Users better than Items' set-heavy table filters.
+- `users/org-chart`: the tree renderer defensively breaks cycles, but the write route should prevent those cycles instead of relying on display-time cleanup.
+
+### Plan
+- [x] Structure: Keep the existing Users list and filter components, but persist search, filters, sort, inactive visibility, and page in the URL.
+- [x] UX: Preserve the current command surface while making filtered empty states and result counts include inactive visibility.
+- [x] Backend: Enforce direct-report target existence and cycle prevention in `PATCH /api/users/[id]`.
+- [x] Tests: Add route coverage for valid direct-report assignment, missing managers, and cycle rejection.
+- [x] Docs: Sync `AREA_USERS.md` and this review after verification.
+
+### Review
+- Shipped: Users list state is now URL-backed for search, role, location, year, sport, area, inactive visibility, sort, and page. Stale out-of-range page params normalize back to the last valid page.
+- Shipped: Filtered empty states and result counts now treat `active=all` as a real active filter, so inactive-only visibility no longer reads like an unfiltered roster.
+- Shipped: `PATCH /api/users/[id]` now rejects missing linked managers and circular direct-report chains before saving.
+- Verified: `npx vitest run tests/users-route.test.ts tests/role-escalation.test.ts tests/user-pii-scope.test.ts`, `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, `npx next build`, and Chrome DevTools smoke at `/users?role=STUDENT&active=all&page=1`.

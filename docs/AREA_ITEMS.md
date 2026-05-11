@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Items
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-09
+- Last Updated: 2026-05-10
 - Status: Active
 - Version: V1
 
@@ -35,6 +35,7 @@ Treat physical gear identity as primary, make list and detail views action-orien
 2. The page shows cleanup checks that improve picker, search, checkout, kit, and scan quality.
 3. Each issue card links to the existing repair surface instead of adding new mutation paths.
 4. Slice 1 checks missing category, missing department, missing primary scan code, missing image, duplicate scan identity, retired items still in active kits, camera bodies with no attachments, and active bulk SKUs below threshold.
+5. The page frames those checks as a read-only cleanup queue with priority ordering, clean/check progress, needs-work/all/clean views, partial-failure warnings, and tag-first sample rows.
 
 ### Create Item
 1. User starts `New asset`.
@@ -148,9 +149,9 @@ Treat physical gear identity as primary, make list and detail views action-orien
 2. Secondary metadata: `productName`, `brand`, `model`, and tracking code.
 3. Derived status line sits directly under the headline and uses these labels and colors:
    - `Available` (green)
-   - `Check Out by {user}` (red, clickable to the active checkout)
-   - `Reserved by {user}` (purple, clickable to the active reservation)
-   - `Checking Out` (blue, clickable to the in-progress checkout draft)
+   - `Awaiting pickup by {user}` (orange, clickable to the pending pickup checkout)
+   - `Checked out by {user}` (blue, red when overdue, clickable to the active checkout)
+   - `Reserved by {user}` (purple, clickable to the active reservation once the reservation window has started)
    - `Needs Maintenance` (orange)
    - `Retired` (gray)
 4. Status remains derived from active allocations, booking state, maintenance flag, and retirement state. It is not manually editable freeform text.
@@ -379,6 +380,10 @@ Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered 
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-05-10: **Status/data wiring ship fixes**: `PENDING_PICKUP` is now a first-class active item state across server status derivation, item filters, web/iOS badges, and item detail headers. Future reservations no longer show as the active item booking before their window starts. Quantity-only bulk availability now uses the movement-adjusted stock balance instead of subtracting active checkout quantities a second time.
+- 2026-05-10: **Items ownership polish**: `/items` now keeps persisted density and column visibility hydration-safe, prevents bulk SKU rows from entering serialized-item selection, favorites, labels, and lifecycle bulk actions, and tightens toolbar plus pagination control hit areas. Bulk rows continue to open their Bulk Inventory detail route while serialized asset actions stay on serialized assets only.
+- 2026-05-10: **Inventory Hygiene ownership polish** — `/items/hygiene` now has priority ordering, a cleanup queue summary, checklist progress, needs-work/all/clean views, partial API failure warning state, refresh toast feedback, and tag-first sample labels from `GET /api/inventory-hygiene`. The surface remains read-only and continues linking to existing item, kit, and bulk repair routes.
+- 2026-05-10: **Item row action semantics cleanup** — Mobile item cards now separate the primary open target from the selection checkbox instead of making the whole card a fake button that contains another control. This keeps card tap behavior, context menus, and checkbox selection distinct.
 - 2026-05-09: **Labels print queue polish** — `/labels` now reads as a focused print queue with matching/selected/ready metrics, a clearer search and queue toolbar, accessible selectable rows, item-detail escape links, filtered-empty recovery, and a preserved browser-print label grid.
 - 2026-05-08: API hardening Wave 2. `/api/items-page-init` and `/api/inventory-hygiene` now use partial-failure handling for parallel reference and checklist queries. Failed side queries fall back to empty data, log the failed segment, and return `partialFailures` metadata instead of taking down the entire items list bootstrap or hygiene checklist.
 - 2026-05-06: **Inventory Hygiene Center shipped** at `/items/hygiene`. The first slice is a read-only staff/admin checklist backed by `GET /api/inventory-hygiene`, covering missing category, missing department, missing primary scan code, missing image, duplicate scan identity, retired items still in active kits, camera bodies without attachments, and low-threshold bulk SKUs. Each sample links to the existing repair surface.

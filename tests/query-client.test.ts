@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shouldPersistQueryKey } from "@/lib/query-client";
+import { createQueryClient, getQueryClient, shouldPersistQueryKey } from "@/lib/query-client";
 
 describe("shouldPersistQueryKey", () => {
   it("persists dashboard and booking detail cache roots", () => {
@@ -17,5 +17,15 @@ describe("shouldPersistQueryKey", () => {
   it("ignores non-string query roots", () => {
     expect(shouldPersistQueryKey([null])).toBe(false);
     expect(shouldPersistQueryKey([{ scope: "dashboard" }])).toBe(false);
+  });
+});
+
+describe("query client lifecycle", () => {
+  it("creates isolated server clients", () => {
+    expect(getQueryClient()).not.toBe(getQueryClient());
+  });
+
+  it("creates fresh explicit clients", () => {
+    expect(createQueryClient()).not.toBe(createQueryClient());
   });
 });

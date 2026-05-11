@@ -6,6 +6,8 @@ export type UserRow = {
   email: string;
   role: Role;
   phone: string | null;
+  slackHandle: string | null;
+  slackProfileUrl: string | null;
   primaryArea: string | null;
   locationId: string | null;
   location: string | null;

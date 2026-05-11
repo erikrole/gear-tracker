@@ -3,6 +3,7 @@ import {
   BookingKind,
   BookingStatus,
   BulkMovementKind,
+  BulkUnitStatus,
   Prisma,
   ScanSessionStatus
 } from "@prisma/client";
@@ -718,7 +719,23 @@ export async function extendBooking(
 
 export async function cancelBooking(bookingId: string, actorUserId: string) {
   return db.$transaction(async (tx) => {
-    const booking = await tx.booking.findUnique({ where: { id: bookingId } });
+    const booking = await tx.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        bulkItems: {
+          select: {
+            id: true,
+            bulkSkuId: true,
+            plannedQuantity: true,
+            checkedInQuantity: true,
+            unitAllocations: {
+              where: { checkedOutAt: { not: null }, checkedInAt: null },
+              select: { bulkSkuUnitId: true },
+            },
+          },
+        },
+      },
+    });
 
     if (!booking) {
       throw new HttpError(404, "Booking not found");
@@ -736,6 +753,41 @@ export async function cancelBooking(bookingId: string, actorUserId: string) {
       where: { id: bookingId },
       data: { status: BookingStatus.CANCELLED }
     });
+
+    const bulkItems = booking.bulkItems ?? [];
+    if (booking.kind === BookingKind.CHECKOUT && (booking.status === BookingStatus.PENDING_PICKUP || booking.status === BookingStatus.OPEN) && bulkItems.length > 0) {
+      const outstandingBulk = bulkItems
+        .map((item) => ({
+          bulkSkuId: item.bulkSkuId,
+          quantity: item.plannedQuantity - (item.checkedInQuantity ?? 0),
+        }))
+        .filter((item) => item.quantity > 0);
+
+      await upsertBulkBalancesAndMovements(tx, {
+        locationId: booking.locationId,
+        bookingId,
+        actorUserId,
+        kind: BulkMovementKind.CHECKIN,
+        items: outstandingBulk,
+      });
+
+      const activeUnitIds = bulkItems.flatMap((item) => (item.unitAllocations ?? []).map((allocation) => allocation.bulkSkuUnitId));
+      if (activeUnitIds.length > 0) {
+        await tx.bookingBulkUnitAllocation.updateMany({
+          where: {
+            bookingBulkItemId: { in: bulkItems.map((item) => item.id) },
+            bulkSkuUnitId: { in: activeUnitIds },
+            checkedOutAt: { not: null },
+            checkedInAt: null,
+          },
+          data: { checkedInAt: new Date() },
+        });
+        await tx.bulkSkuUnit.updateMany({
+          where: { id: { in: activeUnitIds } },
+          data: { status: BulkUnitStatus.AVAILABLE },
+        });
+      }
+    }
 
     await tx.assetAllocation.updateMany({
       where: { bookingId },

@@ -7,22 +7,27 @@
 - Brief: `tasks/guides-plan.md` (archived)
 
 ## Description
-In-app replacement for Google Docs as the home for Wisconsin Athletics Creative SOPs and how-to guides. Staff author rich documents using BlockNote; students read them in-app. Flat list with category filter — no folder tree needed.
+In-app Markdown knowledge base for Wisconsin Athletics Creative operational reference: contact numbers, building numbers, Media Drive context, server paths, SOPs, how-to guides, account notes, troubleshooting steps, and general information. Staff author documents in a Markdown WYSIWYG editor; students read published entries in-app. The landing page is role- and area-aware: admin-curated featured guides appear first, then users can browse by Creative area or reference category while ranked entries stay personalized for the viewer's app role and Creative area.
 
 ## Components
-- `/guides` — list page with category filter chips, search, card grid
-- `/guides/[slug]` — server-rendered reader with BlockNote view
-- `/guides/new` — create page (Staff/Admin only)
+- `/guides` — knowledge-base landing page with featured cards, URL-backed area/reference/search/category filters, reference quick cards for Contacts/Building Numbers/Media Drive/Server Paths, guide freshness badges, live Contacts directory from active User profiles with role/area/contact-hygiene filters, category chips, title/category/author/full-guide search, and role/area-ranked preview cards
+- `/guides/[slug]` — Markdown reader with editorial document styling, polished image treatment, sticky desktop table of contents, verification metadata, and an allowed-editor Mark verified action
+- `/guides/new` — create page (Staff/Admin only) with starter templates for Contacts, Building Numbers, Media Drive, Server Paths, SOPs, and Troubleshooting
 - `/guides/[slug]/edit` — edit page with publish toggle and admin delete
 
 ## Data Model
 `Guide` model in `prisma/schema.prisma`:
 - `id`, `title`, `slug` (unique, auto-generated from title), `category` (freeform)
-- `content` (Json — BlockNote `Block[]` array)
+- `markdown` (Text — Markdown source of truth)
+- `targetRoles` (`Role[]` — empty means all roles)
+- `targetAreas` (`ShiftArea[]` — empty means all areas)
+- `featured`, `featuredRank` (admin-curated landing-page priority)
+- `lastVerifiedAt`, `lastVerifiedById` → `User` (nullable freshness signal for living knowledge-base entries)
+- `content` (Json — legacy BlockNote `Block[]` array retained for backwards-compatible conversion)
 - `published` (boolean, default false)
 - `authorId` → `User` (Restrict on delete)
 
-Migrations: `prisma/migrations/0032_add_guides/migration.sql`, `prisma/migrations/0045_drop_guide_order/migration.sql` (drops unused `order` column)
+Migrations: `prisma/migrations/0032_add_guides/migration.sql`, `prisma/migrations/0045_drop_guide_order/migration.sql` (drops unused `order` column), `prisma/migrations/0057_add_guide_markdown/migration.sql`, `prisma/migrations/0058_guide_personalization/migration.sql`, `prisma/migrations/0061_add_guide_freshness/migration.sql`
 
 ## Auth Rules
 | Action | Roles |
@@ -37,7 +42,8 @@ All mutations use `createAuditEntry` per D-007.
 
 ## Service
 `src/lib/guides.ts`:
-- `listGuides({ published?, category?, search? })`
+- `listGuides({ published?, category?, search?, audience? })` — returns list summaries extracted from Markdown, with legacy BlockNote fallback; when `audience` is present, featured guides and role/area matches are ranked first
+- `getGuideAudience(userId, fallbackRole)` — loads role, primary area, and area assignments for guide ranking
 - `getGuide(id)`, `getGuideBySlug(slug)`
 - `createGuide(...)` — auto-slugifies title, handles collision with `-2`, `-3` suffix
 - `updateGuide(id, patch, editorRole, editorId)` — STAFF restricted to own guides; regenerates slug only if title changed
@@ -51,7 +57,7 @@ All mutations use `createAuditEntry` per D-007.
 | GET | `/api/guides/[id]` | All | Single guide by ID or slug |
 | PATCH | `/api/guides/[id]` | STAFF/ADMIN | Update guide |
 | DELETE | `/api/guides/[id]` | ADMIN | Delete guide |
-| POST | `/api/guides/upload-image` | STAFF/ADMIN | Upload image to Vercel Blob; returns `{ url }`. Max 10MB per image. Used by BlockNote `uploadFile` handler to avoid base64 inlining. |
+| POST | `/api/guides/upload-image` | STAFF/ADMIN | Upload image to Vercel Blob; returns `{ url }`. Max 10MB per image. Used by the Markdown editor image upload handler. |
 
 ## Acceptance Criteria Status
 
@@ -60,14 +66,36 @@ All mutations use `createAuditEntry` per D-007.
 | AC-1 | Staff can create, edit, publish, and delete guides without leaving the app | ✅ Complete |
 | AC-2 | Students can read published guides; drafts are invisible to them | ✅ Complete |
 | AC-3 | Category filter chips reduce the list correctly | ✅ Complete |
-| AC-4 | BlockNote editor supports headings, lists, code blocks, callouts | ✅ Complete |
+| AC-4 | Markdown editor supports headings, lists, code blocks, tables, links, and images | ✅ Complete |
 | AC-5 | Guide reader renders cleanly on mobile | ✅ Complete (max-w-5xl, responsive) |
 | AC-6 | Every mutation is audit-logged | ✅ Complete |
 | AC-7 | `npm run build` passes | ✅ Complete |
+| AC-8 | Guides function as a general knowledge base for contacts, building numbers, Media Drive, server paths, SOPs, and reference notes | ✅ Complete |
+| AC-9 | Guides landing page prioritizes admin-featured entries and role/area-relevant guides | ✅ Complete |
+| AC-10 | Individual guides render as polished editorial knowledge-base articles with theme-aware styling, photos, and desktop TOC | ✅ Complete |
+| AC-11 | Contacts reference view can surface current user profile contact fields without duplicating them in Markdown | ✅ Complete |
+| AC-12 | Living guides expose freshness state and can be marked verified by allowed editors | ✅ Complete |
 
 ## Change Log
 | Date | Change |
 |------|--------|
+| 2026-05-10 | Guides review fixes: landing search now matches full Markdown guide text beyond card summaries, reader heading IDs stay aligned with ToC IDs for rich headings, and partial featured-rank PATCHes preserve or clear rank from the final featured state. |
+| 2026-05-10 | Guide freshness closeout: guides now store last verification metadata, show Verified/Needs review badges on landing cards and reader pages, and allowed editors can mark entries verified from the reader. |
+| 2026-05-10 | URL-backed Guides navigation: `/guides` now preserves search, category, area, and reference filters in query params so links such as `/guides?view=contacts`, `/guides?view=media-drive`, and `/guides?area=video` are shareable and reload-safe. |
+| 2026-05-10 | Contacts filter polish: the live Contacts directory now filters by role and Creative area, and staff/admin can isolate missing phone or missing Slack profile data for cleanup. |
+| 2026-05-10 | Slack profile links: Guides Contacts now keeps `@handle` as display/search text and opens Slack only when the synced user profile has a real Slack profile URL saved. |
+| 2026-05-10 | Live Contacts directory: the Contacts reference view now pulls active users from the Users API and shows current avatar, role, title/year, email, phone, Slack handle, area, location, and profile link. |
+| 2026-05-10 | Guides reference navigation: `/guides` now separates Creative area browsing from reference browsing, with first-class Contacts, Building Numbers, Media Drive, and Server Paths cards plus starter templates for Building Numbers and Media Drive entries. |
+| 2026-05-10 | Living knowledge-base authoring upgrade: new guide starter templates now seed reference tables, copyable snippets, quote notes, owner fields, and last-verified metadata for Contacts, Server Paths, SOPs, and Troubleshooting entries. |
+| 2026-05-10 | Living knowledge-base reader upgrades: guide headings now expose copyable deep links, fenced code blocks and reference tables have copy actions, and code/quote styling is tuned for operational snippets. |
+| 2026-05-10 | Guides code and quote polish: Markdown inline code, fenced code blocks, and restored BlockNote quote blocks now render with dedicated theme-aware reader styling. |
+| 2026-05-10 | Guides table presentation polish: Markdown tables now render as compact, theme-aware reference tables with stronger grid lines, header weight, and horizontal overflow protection. |
+| 2026-05-10 | Markdown conversion fidelity fix: legacy BlockNote quotes, dividers, tables, bold text, and inline code now survive conversion; the existing Photo Mechanic + Lightroom guide was regenerated so the Hotkeys table and formatting render in the Markdown reader. |
+| 2026-05-10 | Guides reader editorial polish: individual guide pages now use a theme-aware article shell, Gotham-forward section rhythm, upgraded sticky desktop table of contents, and larger captioned Markdown image treatment. |
+| 2026-05-10 | Guides landing page personalization: added admin-curated featured guide fields, role/area targeting, server-side audience ranking, top featured cards, quick filters for Contacts/Server Paths/Recently Updated/My Area, and create/edit controls for guide priority. |
+| 2026-05-09 | Guides editor migrated from BlockNote JSON to Markdown via MDXEditor + React Markdown rendering. `Guide.markdown` is now the durable source of truth, existing BlockNote content has a conversion fallback, and the existing Photo Mechanic + Lightroom guide was converted in the configured database for visual review. |
+| 2026-05-09 | Authoring speed pass: new guide creation now includes starter templates for Contacts, Server Paths, SOPs, and Troubleshooting so staff can seed common knowledge-base entries without starting from a blank editor canvas. |
+| 2026-05-09 | Guides reframed as an all-purpose Creative knowledge base: list cards now show text previews, search includes title/category/author/extracted Markdown text, empty states and create/edit language cover contacts, server paths, SOPs, how-to notes, and general reference entries. |
 | 2026-05-08 | API hardening Wave 7: guide create/update now sanitizes stored BlockNote JSON recursively, stripping scriptable strings and prototype-pollution keys before content reaches storage. |
 | 2026-05-08 | API hardening Wave 13: guide image uploads sanitize the original filename to a safe leaf name before writing to Blob storage. |
 | 2026-04-14 | Feature shipped: schema (Guide model + migration 0032), service, API routes, list page, reader, create/edit pages, sidebar nav entry. All ACs met. |

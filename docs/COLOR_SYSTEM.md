@@ -111,6 +111,7 @@ List rows use CSS variable dot colors, not Badge variants:
 |-------|-----------------|
 | BOOKED (checkout) | `var(--blue)` |
 | BOOKED (reservation) | `var(--purple)` |
+| PENDING_PICKUP | `var(--orange)` |
 | OPEN | `var(--blue)` |
 | DRAFT | `var(--text-muted)` |
 | COMPLETED | `var(--text-muted)` |

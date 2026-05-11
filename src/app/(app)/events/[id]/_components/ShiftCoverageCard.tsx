@@ -195,7 +195,7 @@ export function ShiftCoverageCard({
         const json = await res.json();
         const { assigned, conflicts } = json.data as { assigned: number; conflicts: number; skipped: number };
         if (assigned === 0) toast.info("No eligible workers found");
-        else if (conflicts > 0) toast.warning(`${assigned} filled — ${conflicts} have conflicts`);
+        else if (conflicts > 0) toast.warning(`${assigned} filled - ${conflicts} have conflicts`);
         else toast.success(`${assigned} shift${assigned !== 1 ? "s" : ""} auto-filled`);
         onUpdated?.();
       } else {
@@ -228,7 +228,7 @@ export function ShiftCoverageCard({
                 <Button
                   type="button"
                   variant="ghost"
-                  size="icon-xs"
+                  size="icon-sm"
                   onClick={() => handleRemove(activeAssignment.id)}
                   disabled={isActing || inlineActing !== null}
                   className="text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
@@ -244,7 +244,7 @@ export function ShiftCoverageCard({
       );
     }
 
-    if (!isStaffOrAdmin) return <span className="text-muted-foreground">&mdash;</span>;
+    if (!isStaffOrAdmin) return <span className="text-muted-foreground">-</span>;
 
     return (
       <Popover
@@ -259,10 +259,10 @@ export function ShiftCoverageCard({
             type="button"
             variant="ghost"
             size="sm"
-            className="group h-8 justify-start gap-1.5 px-1.5 text-muted-foreground/60 hover:text-muted-foreground"
+            className="group h-9 justify-start gap-1.5 px-1.5 text-muted-foreground/60 hover:text-muted-foreground"
             disabled={isActing || inlineActing !== null}
           >
-            {isActing ? <span className="text-xs">Assigning…</span> : (
+            {isActing ? <span className="text-xs">Assigning...</span> : (
               <>
                 <div className="size-6 rounded-full border-2 border-dashed border-muted-foreground/20 group-hover:border-primary/40 flex items-center justify-center transition-colors">
                   <PlusIcon className="size-3 text-muted-foreground/30 group-hover:text-primary/60 transition-colors" />
@@ -295,7 +295,7 @@ export function ShiftCoverageCard({
       return (
         <Popover open={requestsShiftId === shift.id} onOpenChange={(open) => setRequestsShiftId(open ? shift.id : null)}>
           <PopoverTrigger asChild>
-            <Button type="button" variant="ghost" size="sm" className="h-7 px-1.5">
+              <Button type="button" variant="ghost" size="sm" className="h-9 px-1.5">
               <Badge variant="orange" className="cursor-pointer">
                 {pendingRequests.length} req
               </Badge>
@@ -308,10 +308,10 @@ export function ShiftCoverageCard({
                 <div key={req.id} className="flex items-center justify-between gap-2">
                   <span className="text-sm truncate">{req.user.name}</span>
                   <div className="flex gap-1 shrink-0">
-                    <Button size="sm" className="h-6 px-2 text-xs" onClick={() => handleApprove(req.id)} disabled={inlineActing !== null}>
-                      {inlineActing === req.id ? "…" : "Approve"}
+                    <Button size="sm" className="h-8 px-2 text-xs" onClick={() => handleApprove(req.id)} disabled={inlineActing !== null}>
+                      {inlineActing === req.id ? "..." : "Approve"}
                     </Button>
-                    <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-destructive" onClick={() => handleDecline(req.id)} disabled={inlineActing !== null}>
+                    <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-destructive" onClick={() => handleDecline(req.id)} disabled={inlineActing !== null}>
                       Decline
                     </Button>
                   </div>
@@ -329,9 +329,9 @@ export function ShiftCoverageCard({
   }
 
   function GearCell({ shiftId, hasAssignment }: { shiftId: string; hasAssignment: boolean }) {
-    if (!commandCenter || !hasAssignment) return <span className="text-muted-foreground">&mdash;</span>;
+    if (!commandCenter || !hasAssignment) return <span className="text-muted-foreground">-</span>;
     const cs = gearMap.get(shiftId);
-    if (!cs?.assignment) return <span className="text-muted-foreground">&mdash;</span>;
+    if (!cs?.assignment) return <span className="text-muted-foreground">-</span>;
     const hasMissing = commandCenter.missingGear.some((m) => m.shiftId === shiftId);
     if (hasMissing) return <Badge variant="red">None</Badge>;
     if (cs.assignment.linkedBookingId) return <Badge variant="green">Linked</Badge>;
@@ -351,7 +351,7 @@ export function ShiftCoverageCard({
               <Button
                 type="button"
                 variant="ghost"
-                size="icon-xs"
+                size="icon-sm"
                 onClick={() => {
                   if (hasAssignment) setDeleteConfirmId(shift.id);
                   else handleDeleteShift(shift.id, false);
@@ -369,8 +369,8 @@ export function ShiftCoverageCard({
         <PopoverContent className="w-56 p-3" align="end">
           <p className="text-sm mb-3">This shift has an assigned worker. Remove it anyway?</p>
           <div className="flex gap-2 justify-end">
-            <Button variant="outline" size="sm" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
-            <Button variant="destructive" size="sm" onClick={() => handleDeleteShift(shift.id, true)}>Remove</Button>
+                    <Button variant="outline" size="sm" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
+                    <Button variant="destructive" size="sm" onClick={() => handleDeleteShift(shift.id, true)}>Remove</Button>
           </div>
         </PopoverContent>
       </Popover>
@@ -403,7 +403,13 @@ export function ShiftCoverageCard({
               <TableCell className="py-1.5 text-right pr-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-6 px-1.5 text-xs text-muted-foreground" disabled={inlineActing !== null}>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-muted-foreground"
+                      disabled={inlineActing !== null}
+                      aria-label={`Add ${AREA_LABELS[area] ?? area} shift`}
+                    >
                       <PlusIcon className="size-3" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -498,7 +504,7 @@ export function ShiftCoverageCard({
                     {activeAssignment.user.name}
                   </span>
                 ) : (
-                  <span className="text-muted-foreground">&mdash;</span>
+                  <span className="text-muted-foreground">-</span>
                 )}
               </TableCell>
               <TableCell>
@@ -526,7 +532,7 @@ export function ShiftCoverageCard({
         </div>
         {isStaffOrAdmin && (
           <Button variant="outline" size="sm" onClick={handleAutoFill} disabled={autoFilling || inlineActing !== null}>
-            {autoFilling ? "Filling…" : "Auto-fill"}
+            {autoFilling ? "Filling..." : "Auto-fill"}
           </Button>
         )}
       </CardHeader>
@@ -536,12 +542,14 @@ export function ShiftCoverageCard({
         {commandCenter && isStaffOrAdmin && (
           commandCenter.gearSummary.byStatus.draft > 0 ||
           commandCenter.gearSummary.byStatus.reserved > 0 ||
+          commandCenter.gearSummary.byStatus.pendingPickup > 0 ||
           commandCenter.gearSummary.byStatus.checkedOut > 0 ||
           commandCenter.gearSummary.byStatus.completed > 0
         ) && (
           <div className="flex gap-2 flex-wrap mb-4">
             {commandCenter.gearSummary.byStatus.draft > 0 && <Badge variant="gray">{commandCenter.gearSummary.byStatus.draft} Draft</Badge>}
-            {commandCenter.gearSummary.byStatus.reserved > 0 && <Badge variant="orange">{commandCenter.gearSummary.byStatus.reserved} Reserved</Badge>}
+            {commandCenter.gearSummary.byStatus.reserved > 0 && <Badge variant="purple">{commandCenter.gearSummary.byStatus.reserved} Reserved</Badge>}
+            {commandCenter.gearSummary.byStatus.pendingPickup > 0 && <Badge variant="orange">{commandCenter.gearSummary.byStatus.pendingPickup} Awaiting pickup</Badge>}
             {commandCenter.gearSummary.byStatus.checkedOut > 0 && <Badge variant="green">{commandCenter.gearSummary.byStatus.checkedOut} Checked out</Badge>}
             {commandCenter.gearSummary.byStatus.completed > 0 && <Badge variant="blue">{commandCenter.gearSummary.byStatus.completed} Returned</Badge>}
           </div>

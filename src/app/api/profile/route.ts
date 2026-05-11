@@ -3,7 +3,7 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { hashPassword, verifyPassword } from "@/lib/auth";
-import { changePasswordSchema, updateProfileSchema } from "@/lib/validation";
+import { changePasswordSchema, normalizeSlackHandle, normalizeSlackProfileUrl, updateProfileSchema } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
 
 const profilePatchSchema = z.union([
@@ -32,6 +32,8 @@ export const GET = withAuth(async (_req, { user }) => {
         name: profile.name,
         email: profile.email,
         role: profile.role,
+        slackHandle: profile.slackHandle ?? null,
+        slackProfileUrl: profile.slackProfileUrl ?? null,
         avatarUrl: profile.avatarUrl ?? null,
         location: profile.location
       },
@@ -88,6 +90,7 @@ export const PATCH = withAuth(async (req, { user }) => {
     where: { id: user.id },
     select: {
       name: true, phone: true, locationId: true,
+      slackHandle: true, slackProfileUrl: true,
       title: true, athleticsEmail: true, startDate: true,
       gradYear: true, studentYearOverride: true,
       topSize: true, bottomSize: true, shoeSize: true,
@@ -97,6 +100,8 @@ export const PATCH = withAuth(async (req, { user }) => {
   const data: Record<string, unknown> = {};
   if (payload.name !== undefined) data.name = payload.name;
   if (Object.prototype.hasOwnProperty.call(payload, "phone")) data.phone = payload.phone ?? null;
+  if (Object.prototype.hasOwnProperty.call(payload, "slackHandle")) data.slackHandle = normalizeSlackHandle(payload.slackHandle);
+  if (Object.prototype.hasOwnProperty.call(payload, "slackProfileUrl")) data.slackProfileUrl = normalizeSlackProfileUrl(payload.slackProfileUrl);
   if (Object.prototype.hasOwnProperty.call(payload, "locationId")) data.locationId = payload.locationId ?? null;
   if (Object.prototype.hasOwnProperty.call(payload, "title")) data.title = payload.title ?? null;
   if (Object.prototype.hasOwnProperty.call(payload, "athleticsEmail")) {
@@ -156,6 +161,8 @@ export const PATCH = withAuth(async (req, { user }) => {
       name: updated.name,
       email: updated.email,
       role: updated.role,
+      slackHandle: updated.slackHandle ?? null,
+      slackProfileUrl: updated.slackProfileUrl ?? null,
       avatarUrl: updated.avatarUrl ?? null,
       location: updated.location
     }

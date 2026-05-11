@@ -68,7 +68,7 @@ export default function DatabasePage() {
 
       <div className="min-w-0">
         <div className="flex justify-end mb-3">
-          <Button onClick={runCheck} disabled={loading}>
+          <Button onClick={runCheck} loading={loading}>
             {loading ? "Checking\u2026" : "Run diagnostics"}
           </Button>
         </div>
@@ -130,8 +130,8 @@ export default function DatabasePage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {result.checks.migrationTable.migrations.map((m) => (
-                        <TableRow key={m.name}>
+                      {result.checks.migrationTable.migrations.map((m, i) => (
+                        <TableRow key={`${m.name}-${m.appliedAt ?? "pending"}-${i}`}>
                           <TableCell>{m.name}</TableCell>
                           <TableCell>
                             {m.appliedAt ? new Date(m.appliedAt).toLocaleDateString() : "—"}
@@ -258,8 +258,8 @@ function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
 function TagList({ items, variant }: { items: string[]; variant: "danger" | "info" }) {
   return (
     <div className="flex flex-wrap gap-1.5">
-      {items.map((item) => (
-        <Badge key={item} variant={variant === "danger" ? "red" : "blue"} size="sm">
+      {items.map((item, i) => (
+        <Badge key={`${item}-${i}`} variant={variant === "danger" ? "red" : "blue"} size="sm">
           {item}
         </Badge>
       ))}

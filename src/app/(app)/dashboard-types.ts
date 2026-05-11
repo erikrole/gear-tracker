@@ -154,6 +154,7 @@ export type DashboardData = {
   teamCheckouts: { total: number; overdue: number; items: BookingSummary[] };
   teamReservations: { total: number; items: BookingSummary[] };
   pendingPickups: { total: number; items: BookingSummary[] };
+  staleReservations: { total: number; items: BookingSummary[] };
   upcomingEvents: EventSummary[];
   myReservations: MyReservation[];
   overdueCount: number;

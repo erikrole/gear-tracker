@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useFetch } from "@/hooks/use-fetch";
 
 export type KitRow = {
@@ -11,7 +11,14 @@ export type KitRow = {
   createdAt: string;
   updatedAt: string;
   location: { id: string; name: string };
-  _count: { members: number };
+  _count: { members: number; bulkMembers: number };
+};
+
+type KitsSummary = {
+  total: number;
+  active: number;
+  archived: number;
+  empty: number;
 };
 
 type KitsResponse = {
@@ -19,6 +26,7 @@ type KitsResponse = {
   total: number;
   limit: number;
   offset: number;
+  summary: KitsSummary;
 };
 
 type QueryDeps = {
@@ -32,6 +40,10 @@ type QueryDeps = {
 export function useKitsQuery(deps: QueryDeps) {
   const [page, setPage] = useState(0);
   const limit = 25;
+
+  useEffect(() => {
+    setPage(0);
+  }, [deps.search, deps.locationId, deps.includeArchived, deps.sortBy, deps.sortOrder]);
 
   const params = new URLSearchParams();
   params.set("limit", String(limit));
@@ -50,10 +62,20 @@ export function useKitsQuery(deps: QueryDeps) {
   const kits = data?.data ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / limit);
+  const summary = data?.summary ?? { total, active: 0, archived: 0, empty: 0 };
+
+  useEffect(() => {
+    if (page > 0 && totalPages === 0) {
+      setPage(0);
+    } else if (page > 0 && page >= totalPages) {
+      setPage(totalPages - 1);
+    }
+  }, [page, totalPages]);
 
   return {
     kits,
     total,
+    summary,
     page,
     setPage,
     limit,

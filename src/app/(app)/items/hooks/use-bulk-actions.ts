@@ -27,17 +27,18 @@ export function useBulkActions(getSelectedIds: () => string[], onComplete: () =>
 
   async function execute(action: string, payload?: Record<string, string | null>) {
     const ids = getSelectedIds();
+    const assetIds = ids.filter((id) => !isBulkRowId(id));
     setBusy(true);
     setError("");
     try {
-      // Favorites actions use a separate endpoint and only work on serialized items
+      if (assetIds.length === 0) {
+        toast.error("No serialized items selected");
+        setBusy(false);
+        return;
+      }
+
+      // Favorites actions use a separate endpoint and only work on serialized items.
       if (action === "favorite" || action === "unfavorite") {
-        const assetIds = ids.filter((id) => !isBulkRowId(id));
-        if (assetIds.length === 0) {
-          toast.error("No items selected (bulk SKUs cannot be favorited)");
-          setBusy(false);
-          return;
-        }
         const res = await fetch("/api/assets/favorites/bulk", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -61,7 +62,7 @@ export function useBulkActions(getSelectedIds: () => string[], onComplete: () =>
       const res = await fetch("/api/assets/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids, action, ...payload }),
+        body: JSON.stringify({ ids: assetIds, action, ...payload }),
       });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
@@ -72,10 +73,10 @@ export function useBulkActions(getSelectedIds: () => string[], onComplete: () =>
         return;
       }
       const label = ACTION_LABELS[action] ?? "Updated";
-      const message = `${label} ${ids.length} item${ids.length === 1 ? "" : "s"}`;
+      const message = `${label} ${assetIds.length} item${assetIds.length === 1 ? "" : "s"}`;
       const undoAction = UNDOABLE_ACTIONS[action];
       if (undoAction) {
-        const undoIds = [...ids];
+        const undoIds = [...assetIds];
         toast.success(message, {
           duration: 8000,
           action: {

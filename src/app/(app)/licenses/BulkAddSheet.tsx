@@ -105,7 +105,7 @@ export function BulkAddSheet({ open, onOpenChange, onCreated }: Props) {
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || !codes.trim()}>
+            <Button type="submit" loading={loading} disabled={!codes.trim()}>
               {loading ? "Adding…" : "Add licenses"}
             </Button>
           </SheetFooter>

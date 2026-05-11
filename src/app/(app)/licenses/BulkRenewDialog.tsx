@@ -121,7 +121,7 @@ export function BulkRenewDialog({ open, onOpenChange, codes, onRenewed }: Props)
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || !expiresAt || targetCount === 0}>
+            <Button type="submit" loading={loading} disabled={!expiresAt || targetCount === 0}>
               {loading ? "Renewing..." : `Renew ${targetCount}`}
             </Button>
           </DialogFooter>

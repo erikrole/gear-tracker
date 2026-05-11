@@ -44,13 +44,14 @@ function hasAccess(actor: ActorContext, booking: BookingContext): boolean {
 /**
  * State × Action matrix per booking kind.
  *
- * Checkout:    DRAFT(edit,cancel) → BOOKED(edit,extend,cancel,open) → OPEN(edit,extend,cancel,checkin) → COMPLETED/CANCELLED(none)
+ * Checkout:    DRAFT(edit,cancel) → BOOKED(edit,extend,cancel,open) → PENDING_PICKUP(edit,cancel) → OPEN(edit,extend,cancel,checkin) → COMPLETED/CANCELLED(none)
  * Reservation: DRAFT(edit,cancel) → BOOKED(edit,extend,cancel,convert) → COMPLETED/CANCELLED(none)
  */
 const STATE_ACTIONS: Record<BookingKind, Record<string, Set<string>>> = {
   CHECKOUT: {
     DRAFT: new Set(["edit", "cancel"]),
     BOOKED: new Set(["edit", "extend", "cancel", "open"]),
+    PENDING_PICKUP: new Set(["edit", "cancel"]),
     OPEN: new Set(["edit", "extend", "cancel", "checkin"]),
     COMPLETED: new Set(),
     CANCELLED: new Set(),
@@ -100,4 +101,3 @@ export function getAllowedBookingActions(
     return hasAccess(actor, booking);
   });
 }
-

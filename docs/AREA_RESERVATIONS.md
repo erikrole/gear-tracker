@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-08
+- Last Updated: 2026-05-10
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
@@ -97,6 +97,7 @@ The reservation detail page (`/reservations/[id]`) uses the shared `BookingDetai
    - Date range
 4. Sort control defaults to earliest `From` datetime.
 5. View toggle can support list/card modes if trivial; list mode is required.
+6. Past-due `BOOKED` reservations are treated as stale planning work: they appear in the reservation overdue filter and dashboard Stale reservations card, but do not change checkout overdue custody counts.
 
 ### Table Columns (List Mode)
 1. Selection checkbox
@@ -277,3 +278,5 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - 2026-05-08: **Busy-day availability stress** — Live API smoke created overlapping checkouts/reservations and confirmed serialized conflicts block against `PENDING_PICKUP` checkouts, non-overlapping same-asset reservations pass, exact pickup handoff edges are allowed, one-minute overruns fail, and overlapping bulk reservations fail once existing `BOOKED` commitments consume available quantity.
 - 2026-05-08: **Future booking context** — Availability checks now return the next future serialized commitment per item, and reservation creation/edit plus reservation equipment rows surface a blue "Back before" badge with the exact next needed time.
 - 2026-05-08: **Turnaround risk guard** — Availability checks now return advisory serialized and bulk turnaround risks, and reservation creation/edit plus reservation equipment rows surface compact "Turnaround" warnings for short handoffs, next-use location transfers, recent damage/lost reports, and tight future bulk bookings.
+- 2026-05-10: **Bookings mounted-route polish** — `/bookings` now responds to tab, Active/Past, search, status, location, requester, special-filter, create, `highlight`, and legacy `id` URL changes after the page is already mounted. Reservation overdue and due-today links now map to real `BOOKED` reservation API filters instead of showing an unfiltered reservation list.
+- 2026-05-10: **Bookings status ship fixes** — Past-due `BOOKED` reservations now surface separately on dashboard as Stale reservations, linking to `/bookings?tab=reservations&filter=overdue`, while checkout overdue counts remain custody-only.

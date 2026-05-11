@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/table";
 import { FadeUp } from "@/components/ui/motion";
 import { useFetch } from "@/hooks/use-fetch";
+import { statusBadgeVariant, statusLabel } from "@/components/booking-details/helpers";
+import type { BadgeProps } from "@/components/ui/badge";
 import { syncUrl } from "@/lib/url-sync";
 import {
   ReportChartLoading,
@@ -72,8 +74,8 @@ type CheckoutData = {
 };
 
 function StatusBadge({ status, isOverdue }: { status: string; isOverdue: boolean }) {
-  const variant = isOverdue ? "red" : status === "OPEN" ? "green" : "gray";
-  return <Badge variant={variant}>{isOverdue ? "overdue" : status.toLowerCase()}</Badge>;
+  const variant = (isOverdue ? "red" : statusBadgeVariant(status, "CHECKOUT")) as BadgeProps["variant"];
+  return <Badge variant={variant}>{isOverdue ? "Overdue" : statusLabel(status, "CHECKOUT")}</Badge>;
 }
 
 function CheckoutMobileCard({ c }: { c: CheckoutRow }) {

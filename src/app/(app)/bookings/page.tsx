@@ -35,28 +35,49 @@ export default function BookingsPage() {
   const confirm = useConfirm();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialTab = (["all", "checkouts", "reservations"] as const).includes(searchParams.get("tab") as never)
+  const urlSignature = searchParams.toString();
+  const requestedTab = (["all", "checkouts", "reservations"] as const).includes(searchParams.get("tab") as never)
     ? (searchParams.get("tab") as "all" | "checkouts" | "reservations")
     : "checkouts";
-  const [activeTab, setActiveTab] = useState<"all" | "checkouts" | "reservations">(initialTab);
-  const [scope, setScope] = useState<"active" | "past">(searchParams.get("past") === "true" ? "past" : "active");
-  const [viewMode, setViewModeRaw] = useState<"cards" | "table">(() => {
-    try { return localStorage.getItem("bookings-view-mode") === "table" ? "table" : "cards"; }
-    catch { return "cards"; }
-  });
+  const requestedScope = searchParams.get("past") === "true" ? "past" : "active";
+  const [activeTab, setActiveTab] = useState<"all" | "checkouts" | "reservations">(requestedTab);
+  const [scope, setScope] = useState<"active" | "past">(requestedScope);
+  const [viewMode, setViewModeRaw] = useState<"cards" | "table">("cards");
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
 
   // Consume highlight once from URL so only the correct tab receives it (avoids all-tabs-mount race)
-  const [highlight] = useState<string | null>(() => searchParams.get("highlight") || null);
+  const [pendingHighlight, setPendingHighlight] = useState<{ id: string; tab: "all" | "checkouts" | "reservations" } | null>(() => {
+    const id = searchParams.get("highlight") || searchParams.get("id");
+    return id ? { id, tab: requestedTab } : null;
+  });
 
   useEffect(() => {
-    if (highlight) {
-      const next = new URLSearchParams(searchParams.toString());
-      next.delete("highlight");
-      const qs = next.toString();
-      router.replace(qs ? `/bookings?${qs}` : "/bookings", { scroll: false });
+    setActiveTab(requestedTab);
+  }, [requestedTab]);
+
+  useEffect(() => {
+    setScope(requestedScope);
+  }, [requestedScope]);
+
+  useEffect(() => {
+    try {
+      setViewModeRaw(localStorage.getItem("bookings-view-mode") === "table" ? "table" : "cards");
+    } catch {
+      setViewModeRaw("cards");
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    setPreferencesLoaded(true);
   }, []);
+
+  useEffect(() => {
+    const id = searchParams.get("highlight") || searchParams.get("id");
+    if (!id) return;
+    setPendingHighlight({ id, tab: requestedTab });
+    const next = new URLSearchParams(urlSignature);
+    next.delete("highlight");
+    next.delete("id");
+    const qs = next.toString();
+    router.replace(qs ? `/bookings?${qs}` : "/bookings", { scroll: false });
+  }, [requestedTab, router, searchParams, urlSignature]);
 
   function setViewMode(mode: "cards" | "table") {
     setViewModeRaw(mode);
@@ -232,15 +253,16 @@ export default function BookingsPage() {
     statusOptions: isPastScope
       ? PAST_STATUS_OPTIONS
       : [
-          { value: "OPEN", label: "Open" },
+          { value: "OPEN", label: "Checked out" },
           { value: "PENDING_PICKUP", label: "Pending pickup" },
         ],
     defaultTieToEvent: true,
     hasSportFilter: true,
     overdueStatus: "OPEN",
-    defaultStatusFilter: isPastScope ? "" : "OPEN",
+    defaultStatusFilter: "",
+    defaultStatusFilters: isPastScope ? [] : ["OPEN", "PENDING_PICKUP"],
     pastOnly: isPastScope,
-    scopeLabel: isPastScope ? "Past" : undefined,
+    scopeLabel: isPastScope ? "Past" : "Active",
     showEventBadge: true,
     contextMenuExtras: checkoutContextMenuExtras,
   }), [checkoutContextMenuExtras, isPastScope]);
@@ -327,10 +349,10 @@ export default function BookingsPage() {
               className="shrink-0 rounded-md border border-border/60 bg-background p-0.5"
               aria-label="Booking time scope"
             >
-              <ToggleGroupItem value="active" className="h-8 px-3 text-xs" aria-label="Show active bookings">
+              <ToggleGroupItem value="active" className="h-9 px-3 text-xs" aria-label="Show active bookings">
                 Active
               </ToggleGroupItem>
-              <ToggleGroupItem value="past" className="h-8 px-3 text-xs" aria-label="Show past bookings">
+              <ToggleGroupItem value="past" className="h-9 px-3 text-xs" aria-label="Show past bookings">
                 Past
               </ToggleGroupItem>
             </ToggleGroup>
@@ -340,13 +362,13 @@ export default function BookingsPage() {
               onValueChange={(value) => {
                 if (value === "cards" || value === "table") setViewMode(value);
               }}
-              className="shrink-0"
+              className={`shrink-0 ${preferencesLoaded ? "" : "opacity-80"}`}
               aria-label="Booking view"
             >
-              <ToggleGroupItem value="cards" className="size-8 p-0" aria-label="Card view">
+              <ToggleGroupItem value="cards" className="size-9 p-0" aria-label="Card view">
                 <LayoutGridIcon className="size-4" />
               </ToggleGroupItem>
-              <ToggleGroupItem value="table" className="size-8 p-0" aria-label="List view">
+              <ToggleGroupItem value="table" className="size-9 p-0" aria-label="List view">
                 <ListIcon className="size-4" />
               </ToggleGroupItem>
             </ToggleGroup>
@@ -354,15 +376,15 @@ export default function BookingsPage() {
         </div>
 
         <TabsContent value="all">
-          <BookingListPage key={`all-${scope}`} config={allConfig} viewMode={viewMode} hideHeader hideNewButton initialHighlight={initialTab === "all" ? highlight : null} />
+          <BookingListPage key={`all-${scope}`} config={allConfig} viewMode={viewMode} hideHeader hideNewButton initialHighlight={pendingHighlight?.tab === "all" ? pendingHighlight.id : null} />
         </TabsContent>
 
         <TabsContent value="checkouts">
-          <BookingListPage key={`checkouts-${scope}`} config={checkoutConfig} viewMode={viewMode} hideHeader initialHighlight={initialTab === "checkouts" ? highlight : null} />
+          <BookingListPage key={`checkouts-${scope}`} config={checkoutConfig} viewMode={viewMode} hideHeader initialHighlight={pendingHighlight?.tab === "checkouts" ? pendingHighlight.id : null} />
         </TabsContent>
 
         <TabsContent value="reservations">
-          <BookingListPage key={`reservations-${scope}`} config={reservationConfig} viewMode={viewMode} hideHeader initialHighlight={initialTab === "reservations" ? highlight : null} />
+          <BookingListPage key={`reservations-${scope}`} config={reservationConfig} viewMode={viewMode} hideHeader initialHighlight={pendingHighlight?.tab === "reservations" ? pendingHighlight.id : null} />
         </TabsContent>
       </Tabs>
     </FadeUp>

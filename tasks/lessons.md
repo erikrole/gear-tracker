@@ -64,6 +64,7 @@
 
 ## UX Patterns
 
+- **Use the user's operational names exactly**: If they correct "Media Guide" to "Media Drive," preserve that term as the product language. In Guides, Media Drive means the server that houses Creative files, while Server Paths are exact copyable workflow paths inside or around it.
 - **All means active unless the UI explicitly says history/past**: On operational booking surfaces, the default "All" scope should exclude completed/cancelled records. Put past work behind an explicit toggle/filter so the main workflow stays current.
 - **Gear Tracker web is not phone-first**: Treat phone-width web checks as smoke tests for broken wrapping or inaccessible controls only. The iOS app owns phone workflows, so web UI polish should prioritize desktop and tablet operator surfaces unless the user explicitly asks for mobile web.
 - **Users Availability is student-only**: Do not show the Availability tab on staff/admin profiles. Availability blocks model student class/unavailability conflicts for shift assignment, not staff/admin profile metadata.

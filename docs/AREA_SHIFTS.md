@@ -1,6 +1,6 @@
 # AREA: Shift Calendar & Scheduling
 
-> Status: **Implemented** | Owner: TBD | Last Updated: 2026-05-08
+> Status: **Implemented** | Owner: TBD | Last Updated: 2026-05-10
 
 ## Purpose
 
@@ -32,7 +32,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - [x] Week view: 7-day time-block view with coverage dots, navigation, My Shifts highlight
 - [x] Home/away toggle: filterable, neutral-as-away default
 - [x] Hide events: staff can hide irrelevant events from schedule views
-- [x] My Hours stat strip: week/month hours + shift counts displayed on schedule page
+- [x] Schedule readiness snapshot: open slots, ready events, my shifts, trade count, and next call displayed on schedule page
 - [x] Student availability: profile Availability tab stores recurring weekly blocks and assignment flows show conflicts
 - [x] Shift trade emails: claimed, completed, approved, and declined trade events send best-effort email companions
 
@@ -40,8 +40,8 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 
 ### Schedule Page (`/schedule`)
 1. **Page Header** — title, "Trade Board" button (with open-trade count badge)
-2. **My Hours stat strip** — week/month hours + shift counts (from `GET /api/shifts/my-hours`)
-3. **Filter Bar** (`ScheduleFilters`) — Sport, Area, Coverage, Time (Include past), My Shifts toggle
+2. **Schedule readiness snapshot** — open slots, ready events, viewer shift count, open trades, and next visible call time
+3. **Filter Bar** (`ScheduleFilters`) — View, Venue, Needs staff, My Shifts, Past, Sport, Area, and Coverage controls
 3. **View Toggle** — List | Week | Calendar (persisted to localStorage)
 4. **List View** (`ListView`) — date-grouped expandable table; parent rows = events, child rows = shifts
 5. **Week View** (`WeekView`) — 7-day strip with time-block events, coverage dots, navigation (prev/next/this week)
@@ -71,6 +71,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - Sports code mappings (existing — `src/lib/sports.ts`)
 
 ## Change Log
+- 2026-05-10: Schedule ownership pass. `/schedule` readiness now counts actual active shift assignments instead of events, filtered empty states can recover by clearing filters, manual all-day event creation treats the selected end date as an inclusive all-day date, list/week/calendar navigation controls now use larger deliberate targets, and `/schedule/assign` has stronger empty states plus accessible assignment/remove controls.
 - 2026-05-08: API hardening Wave 2 added audit coverage for shift attendance updates and enriched shift deletion audits with force-delete and active-assignment context.
 - 2026-05-08: API hardening Wave 1 fixed permission-map drift. `shift.manage` is now an explicit ADMIN/STAFF permission, matching existing shift-group and event-travel mutation route calls and preventing those routes from failing on an undefined permission action. Regression coverage added in `tests/rbac.test.ts`.
 - 2026-04-25: **iOS schedule authoring shipped** — STAFF/ADMIN can assign + unassign + add shifts directly from `EventDetailSheet`; STUDENTs can request open ST slots (premier flow shows "staff will review" copy). REQUESTED-state assignments render a Pending pill. Closes the iOS-side gap for "Staff assignment" and "Student requests" rows in this AC list. Trade board (post / claim / cancel) was already shipped 2026-04-24. ShiftDetailPanel-equivalent remains web-only — iOS uses the event sheet inline.

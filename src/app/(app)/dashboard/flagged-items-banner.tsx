@@ -18,6 +18,10 @@ const TYPE_CONFIG = {
 export function FlaggedItemsBanner({ items }: Props) {
   if (items.length === 0) return null;
 
+  const onlyMaintenance = items.every((i) => i.type === "MAINTENANCE");
+  const inventoryHref = onlyMaintenance ? "/items?status=MAINTENANCE" : "/items";
+  const inventoryLabel = onlyMaintenance ? "View maintenance →" : "Open inventory →";
+
   const damaged = items.filter((i) => i.type === "DAMAGED").length;
   const lost = items.filter((i) => i.type === "LOST").length;
   const maintenance = items.filter((i) => i.type === "MAINTENANCE").length;
@@ -28,12 +32,12 @@ export function FlaggedItemsBanner({ items }: Props) {
   if (maintenance > 0) parts.push(`${maintenance} maintenance`);
 
   return (
-    <div className="relative border border-var(--orange)/20 bg-var(--orange)/[0.04] dark:bg-var(--orange)/[0.08] rounded-lg mb-4 overflow-hidden animate-[dash-fade-up_0.4s_ease_both] motion-reduce:animate-none">
+    <div className="relative border border-[var(--orange)]/20 bg-[var(--orange)]/[0.04] dark:bg-[var(--orange)]/[0.08] rounded-lg mb-4 overflow-hidden animate-[dash-fade-up_0.4s_ease_both] motion-reduce:animate-none">
       {/* Left accent bar */}
-      <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-var(--orange)" aria-hidden="true" />
+      <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[var(--orange)]" aria-hidden="true" />
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-var(--orange)/15">
+      <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-[var(--orange)]/15">
         <div className="flex items-center gap-2">
           <AlertTriangleIcon className="size-3.5 text-[var(--orange-text)] shrink-0" />
           <span
@@ -44,11 +48,11 @@ export function FlaggedItemsBanner({ items }: Props) {
           </span>
         </div>
         <Link
-          href="/items?status=flagged"
+          href={inventoryHref}
           className="text-[10.5px] text-muted-foreground/60 hover:text-muted-foreground no-underline transition-colors whitespace-nowrap"
           style={{ fontFamily: "var(--font-mono)" }}
         >
-          {items.length > 5 ? `+${items.length - 5} more →` : "View all →"}
+          {inventoryLabel}
         </Link>
       </div>
 
@@ -60,7 +64,7 @@ export function FlaggedItemsBanner({ items }: Props) {
             <Link
               key={item.id}
               href={`/items/${item.assetId}`}
-              className="flex items-center gap-2.5 px-4 py-2.5 no-underline text-inherit transition-colors hover:bg-var(--orange)/[0.07] border-b border-var(--orange)/10 last:border-b-0"
+              className="flex items-center gap-2.5 px-4 py-2.5 no-underline text-inherit transition-colors hover:bg-[var(--orange)]/[0.07] border-b border-[var(--orange)]/10 last:border-b-0"
             >
               {item.type === "MAINTENANCE" ? (
                 <WrenchIcon className="size-3.5 text-muted-foreground/50 shrink-0" />

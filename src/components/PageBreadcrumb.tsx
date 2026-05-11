@@ -13,25 +13,35 @@ import {
 } from "@/components/ui/breadcrumb";
 import {
   DropdownMenu,
-  DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
-import { ChevronDown } from "lucide-react";
+import { Check, ChevronDown, Clock3 } from "lucide-react";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SETTINGS_SECTIONS, REPORT_SECTIONS, meetsRoleRequirement, type SettingsRole } from "@/lib/nav-sections";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { cn } from "@/lib/utils";
 
 // Only segments where the label diverges from default title-casing.
 // Anything else falls through to formatSegment().
 const SEGMENT_OVERRIDE: Record<string, { label: string; href?: string }> = {
   events: { label: "Schedule", href: "/schedule" },
   "bulk-inventory": { label: "Bulk Inventory", href: "/items" },
+  scan: { label: "Lookup", href: "/scan" },
 };
 
-type SiblingItem = { href: string; label: string; requiredRole?: SettingsRole };
+type SiblingItem = {
+  href: string;
+  label: string;
+  requiredRole?: SettingsRole;
+  description?: string;
+  group?: string;
+};
 
 const SIBLING_MAP: Record<string, ReadonlyArray<SiblingItem>> = {
   "/settings": SETTINGS_SECTIONS,
@@ -44,6 +54,16 @@ const COLLAPSE_THRESHOLD = 3;
 const RECENT_STORAGE_KEY = "breadcrumb-recent";
 const MAX_RECENT_PER_SECTION = 5;
 const MAX_RECENT_TOTAL = 30;
+const CRUMB_MAX_WIDTH = "max-w-[min(240px,58vw)] sm:max-w-[240px]";
+const crumbControlClass = cn(
+  "group inline-flex min-h-10 min-w-0 items-center gap-1 rounded-md px-2.5 py-1 text-sm font-medium text-muted-foreground no-underline outline-none",
+  "transition-[background-color,color,box-shadow,scale] duration-150 hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.96]",
+  "max-md:min-h-11 max-md:px-2 [&_svg]:size-3.5 [&_svg]:shrink-0",
+);
+const crumbPageClass = cn(
+  "inline-flex min-h-10 min-w-0 items-center rounded-md bg-muted px-2.5 py-1 text-sm font-semibold text-foreground shadow-xs ring-1 ring-border/60",
+  "max-md:min-h-11 max-md:px-2 [&_svg]:size-3.5 [&_svg]:shrink-0",
+);
 
 type RecentEntity = { href: string; label: string; section: string };
 
@@ -143,8 +163,8 @@ export default function PageBreadcrumb() {
   const showSkeleton = onDetailPage && !entityLabel;
 
   return (
-    <Breadcrumb>
-      <BreadcrumbList>
+    <Breadcrumb className="mb-5 flex min-w-0 items-center print:hidden">
+      <BreadcrumbList className="min-w-0 gap-1 rounded-xl border border-border/60 bg-card/70 px-1.5 py-1 shadow-xs backdrop-blur supports-[backdrop-filter]:bg-card/60 sm:gap-1">
         {visibleItems.map((item, i) => {
           const hasSiblings = !item.isPage && SIBLING_MAP[item.href] != null;
           const hasRecent = item.isPage && onDetailPage && recentEntities.length > 1;
@@ -158,7 +178,7 @@ export default function PageBreadcrumb() {
                     <button
                       type="button"
                       onClick={() => setExpanded(true)}
-                      className="flex items-center"
+                      className={cn(crumbControlClass, "px-2")}
                       aria-label="Show full breadcrumb path"
                     >
                       <BreadcrumbEllipsis />
@@ -169,7 +189,9 @@ export default function PageBreadcrumb() {
               )}
               <BreadcrumbItem>
                 {item.isPage && !hasRecent ? (
-                  <BreadcrumbPage className="max-w-[200px] truncate">{item.label}</BreadcrumbPage>
+                  <BreadcrumbPage className={cn(crumbPageClass, CRUMB_MAX_WIDTH)}>
+                    <span className="truncate">{item.label}</span>
+                  </BreadcrumbPage>
                 ) : hasSiblings ? (
                   <SiblingDropdown
                     currentHref={item.href}
@@ -185,7 +207,9 @@ export default function PageBreadcrumb() {
                   />
                 ) : (
                   <BreadcrumbLink asChild>
-                    <Link href={item.href} className="max-w-[200px] truncate">{item.label}</Link>
+                    <Link href={item.href} className={cn(crumbControlClass, CRUMB_MAX_WIDTH)}>
+                      <span className="truncate">{item.label}</span>
+                    </Link>
                   </BreadcrumbLink>
                 )}
               </BreadcrumbItem>
@@ -196,7 +220,7 @@ export default function PageBreadcrumb() {
           <>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-10 w-32 rounded-md max-md:h-11" />
             </BreadcrumbItem>
           </>
         )}
@@ -219,19 +243,45 @@ function SiblingDropdown({
   const visible = siblings.filter(
     (s) => !s.requiredRole || meetsRoleRequirement(s.requiredRole, role),
   );
+  const current = visible.find((s) => s.href === currentHref);
+  const menuLabel = current?.group ? `${label}: ${current.group}` : `${label} pages`;
+
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex items-center gap-0.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-        <span className="max-w-[200px] truncate">{label}</span>
-        <ChevronDown className="size-3 opacity-60" />
+      <DropdownMenuTrigger className={cn(crumbControlClass, CRUMB_MAX_WIDTH)} aria-label={`Open ${label} pages`}>
+        <span className="truncate">{label}</span>
+        <ChevronDown className="opacity-60 transition-transform duration-150 group-data-[state=open]:rotate-180" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
+      <DropdownMenuContent align="start" className="w-72">
+        <DropdownMenuLabel className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {menuLabel}
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
         {visible.map((s) => (
-          <DropdownMenuItem key={s.href} asChild disabled={s.href === currentHref}>
-            <Link href={s.href} className={s.href === currentHref ? "font-semibold" : ""}>
-              {s.label}
-            </Link>
-          </DropdownMenuItem>
+          s.href === currentHref ? (
+            <DropdownMenuItem key={s.href} disabled className="items-start gap-2 py-2 data-[disabled]:opacity-100">
+              <Check className="mt-0.5 opacity-80" />
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate font-semibold">{s.label}</span>
+                {s.description && (
+                  <span className="line-clamp-2 text-xs font-normal text-muted-foreground">
+                    {s.description}
+                  </span>
+                )}
+              </span>
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem key={s.href} asChild className="py-2">
+              <Link href={s.href} className="flex min-w-0 flex-col">
+                <span className="truncate font-medium">{s.label}</span>
+                {s.description && (
+                  <span className="line-clamp-2 text-xs font-normal text-muted-foreground">
+                    {s.description}
+                  </span>
+                )}
+              </Link>
+            </DropdownMenuItem>
+          )
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
@@ -249,17 +299,33 @@ function RecentDropdown({
 }) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex items-center gap-0.5 text-sm font-normal" aria-label="Recently visited">
-        <BreadcrumbPage className="max-w-[200px] truncate">{currentLabel}</BreadcrumbPage>
-        <ChevronDown className="size-3 opacity-60" />
+      <DropdownMenuTrigger
+        className={cn(crumbPageClass, CRUMB_MAX_WIDTH, "gap-1")}
+        aria-current="page"
+        aria-label="Recently visited in this section"
+      >
+        <span className="truncate">{currentLabel}</span>
+        <ChevronDown className="opacity-60 transition-transform duration-150 group-data-[state=open]:rotate-180" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
+      <DropdownMenuContent align="start" className="w-72">
+        <DropdownMenuLabel className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground [&_svg]:size-3.5">
+          <Clock3 />
+          Recently visited
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
         {recents.map((r) => (
-          <DropdownMenuItem key={r.href} asChild disabled={r.href === currentHref}>
-            <Link href={r.href} className={r.href === currentHref ? "font-semibold" : ""}>
-              <span className="max-w-[250px] truncate">{r.label}</span>
-            </Link>
-          </DropdownMenuItem>
+          r.href === currentHref ? (
+            <DropdownMenuItem key={r.href} disabled className="gap-2 py-2 data-[disabled]:opacity-100">
+              <Check className="opacity-80" />
+              <span className="truncate font-semibold">{r.label}</span>
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem key={r.href} asChild className="py-2">
+              <Link href={r.href} className="min-w-0">
+                <span className="block truncate">{r.label}</span>
+              </Link>
+            </DropdownMenuItem>
+          )
         ))}
       </DropdownMenuContent>
     </DropdownMenu>

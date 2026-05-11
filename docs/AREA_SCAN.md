@@ -1,23 +1,20 @@
 # Area: Scan
 
 ## Overview
-The scan page is the primary interface for camera-based QR/barcode scanning during checkout and check-in workflows. It also serves as a standalone item lookup tool.
+The app scan page is a camera and manual-code lookup tool for finding inventory items by tag, QR value, serial number, or primary scan code. Checkout pickup and return scans are executed by kiosk flows, not by the signed-in web app scan page.
 
 ## Architecture
 
 ```
 src/app/(app)/scan/
-├── page.tsx                    (~250 lines) — thin orchestrator
+├── page.tsx                    — lookup-only scanner and stale booking-link guard
 └── _components/
     ├── types.ts                — shared type definitions
     ├── ScanControls.tsx        — camera toggle, QrScanner, manual entry, feedback banner
-    ├── ScanChecklist.tsx       — serialized + bulk item checklist with status badges
-    ├── UnitPickerSheet.tsx     — numbered bulk unit selection sheet
     └── ItemPreviewDrawer.tsx   — lookup mode item preview bottom drawer (Drawer, not Sheet)
 
 src/hooks/
-├── use-scan-session.ts         — status loading, 15s polling, session start, celebration, completion
-└── use-scan-submission.ts      — scan processing, feedback auto-clear, optimistic updates, unit picker state
+└── use-scan-submission.ts      — lookup processing, feedback auto-clear, item preview state
 
 src/lib/
 └── scan-feedback.ts            — Web Audio API tones + haptic vibration patterns (success/error/info/celebration)
@@ -31,40 +28,36 @@ src/components/
 | Mode | URL Pattern | Description |
 |---|---|---|
 | **Lookup** | `/scan` | Free-form scan → item preview bottom sheet |
-| **Checkout** | `/scan?checkout={id}&phase=CHECKOUT` | Scan items for a checkout booking |
-| **Check-in** | `/scan?checkout={id}&phase=CHECKIN` | Scan items being returned |
+| **Legacy booking deep link** | `/scan?checkout={id}&phase=CHECKOUT|CHECKIN` | Shows a kiosk-only handoff notice and keeps the page in lookup mode |
 
 ## Key Patterns
 
-1. **Race condition guards** — `useRef` synchronous guards prevent concurrent submissions from camera debounce
-2. **Optimistic updates + background refresh** — UI marks items scanned immediately; 15s polling confirms with server
-3. **Multi-device sync** — periodic `loadScanStatus()` catches updates from other devices
-4. **Dynamic flow routing** — numbered bulk unit picker is discovered mid-scan (API returns SCAN_NOT_IN_CHECKOUT → show picker), while derived unit QR values submit directly
-5. **Kiosk battery scans** — kiosk pickup and check-in accept numbered battery unit QR values and update only that unit
-6. **Attachment visibility** — lookup scans show attached camera items with parent camera context and SD card slot labels when the tag convention supports it
-7. **Feedback auto-clear** — success: 5s, error/info: 8s
+1. **Lookup-only web contract** - app `/scan` never starts or completes booking custody scans.
+2. **Kiosk execution boundary** - checkout pickup, check-in, and numbered battery unit scans run through kiosk routes.
+3. **Stale deep-link guard** - old `/scan?checkout=...` URLs do not show a broken booking checklist; they show the kiosk handoff and a checkout detail link.
+4. **Manual fallback** - `ScanControls` supports typed tag, QR, serial, or primary scan code values for desktop/no-camera situations.
+5. **Attachment visibility** - lookup scans show attached camera items with parent camera context and SD card slot labels when the tag convention supports it.
+6. **Feedback auto-clear** - success: 5s, error/info: 8s.
 
 ## API Dependencies
 
 | Endpoint | Method | Purpose |
 |---|---|---|
-| `/api/checkouts/{id}/scan-status` | GET | Load checklist state |
-| `/api/checkouts/{id}/start-scan-session` | POST | Create audit session |
-| `/api/checkouts/{id}/scan` | POST | Kiosk-gated stub for legacy app checkout scan requests |
-| `/api/checkouts/{id}/checkin-scan` | POST | Kiosk-gated stub for legacy app check-in scan requests |
-| `/api/checkouts/{id}/complete-checkout` | POST | Finalize checkout |
-| `/api/checkouts/{id}/complete-checkin` | POST | Finalize check-in |
-| `/api/bulk-skus/{id}/units` | GET | Fetch units for unit picker |
 | `/api/assets` | GET | Item lookup search |
 | `/api/assets/{id}` | GET | Item detail for preview |
+| `/api/checkouts/{id}/scan` | POST | Kiosk-gated 403 stub for legacy app checkout scan requests |
+| `/api/checkouts/{id}/checkin-scan` | POST | Kiosk-gated 403 stub for legacy app check-in scan requests |
+
+Kiosk execution endpoints are documented in `docs/AREA_KIOSK.md`.
 
 ## Change Log
 
 | Date | Change |
 |---|---|
+| 2026-05-10 | Scan ownership pass: app `/scan` is now lookup-only, stale booking deep links show kiosk handoff instead of a broken camera checklist, mobile nav says Lookup, and booking/dashboard links no longer target `/scan?checkout=...`. |
 | 2026-05-09 | Badge achievements Slice 3: kiosk checkout, pickup, and check-in scans now emit feature-flagged badge scan-result events from the kiosk routes only. Regular app checkout/check-in scan stubs remain kiosk-gated 403 routes and award nothing. |
 | 2026-05-08 | Reconciled stale scan endpoint rate-limit TODO: regular app checkout/check-in scan routes are kiosk-gated 403 stubs, and a static contract now protects that boundary |
-| 2026-05-07 | Check-in damaged/lost item reports can now include optional photo evidence, and checklist rows show a photo badge when evidence exists |
+| 2026-05-07 | Check-in damaged/lost item reports can include optional photo evidence. The retired app booking-mode checklist UI that exposed this is no longer wired through `/scan`; future exception reporting should be re-cut outside lookup scan. |
 | 2026-05-05 | Kiosk battery unit scans: pickup/check-in can scan one numbered battery unit at a time, and kiosk lookup resolves unit QR values to parent SKU and unit status |
 | 2026-05-05 | Numbered bulk unit QR scans: values like `94e068d1-7` resolve to the parent bulk SKU and unit #7, bypassing the picker while preserving server-side unit validation |
 | 2026-05-05 | Camera attachment lookup polish: lookup preview labels attached items with parent camera context and SD card slot labels when tags follow the `1A` convention |
@@ -73,3 +66,5 @@ src/components/
 | 2026-04-03 | Audio + haptic scan feedback: distinct tones & vibration patterns for success/error/info/celebration via Web Audio API (`src/lib/scan-feedback.ts`) |
 | 2026-04-09 | **Scan flow stress test (4 fixes):** scanValue normalization (trim+lowercase), bulk bin case-insensitive matching, cross-booking numbered bulk unit check-in integrity guard + frontend picker scope fix, completeCheckinScan booking status guard |
 | 2026-04-09 | **Hardening pass (6 fixes):** mode badges → Badge component; bulk row/circle dark-mode color normalization; handleLookupScan finally block; loadScanStatus finally block; Page Visibility refresh on tab return; camera error prefix removed |
+
+Historical entries before 2026-05-10 may reference the retired app booking-mode scan implementation. Current app scan scope is lookup only.

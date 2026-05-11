@@ -47,7 +47,7 @@ export function AssignmentCell({ shifts, allUsers, usersLoading, isStaff, onRefe
         setConflictMap(j.data ?? {});
       }
     } catch {
-      // non-critical — picker still works without conflict data
+      // Non-critical: picker still works without conflict data.
     } finally {
       setConflictsLoading(false);
     }
@@ -85,7 +85,7 @@ export function AssignmentCell({ shifts, allUsers, usersLoading, isStaff, onRefe
         setOpen(false);
         onRefetch();
       } catch {
-        toast.error("Network error — could not assign");
+        toast.error("Network error - could not assign");
       } finally {
         setActing(false);
       }
@@ -107,7 +107,7 @@ export function AssignmentCell({ shifts, allUsers, usersLoading, isStaff, onRefe
         }
         onRefetch();
       } catch {
-        toast.error("Network error — could not remove");
+        toast.error("Network error - could not remove");
       } finally {
         setActing(false);
       }
@@ -116,7 +116,12 @@ export function AssignmentCell({ shifts, allUsers, usersLoading, isStaff, onRefe
   );
 
   if (shifts.length === 0) {
-    return <td className="px-2 py-2 text-center text-muted-foreground/40 text-xs">—</td>;
+    return (
+      <td className="px-2 py-2 text-center text-xs text-muted-foreground/40">
+        <span aria-hidden="true">-</span>
+        <span className="sr-only">No shift configured</span>
+      </td>
+    );
   }
 
   return (
@@ -125,16 +130,17 @@ export function AssignmentCell({ shifts, allUsers, usersLoading, isStaff, onRefe
         {assignments.map((a) => (
           <button
             key={a.id}
-            title={a.hasConflict ? `${a.user.name} — ${a.conflictNote ?? "schedule conflict"} — click to remove` : `${a.user.name} — click to remove`}
+            title={a.hasConflict ? `${a.user.name} - ${a.conflictNote ?? "schedule conflict"} - click to remove` : `${a.user.name} - click to remove`}
             disabled={!isStaff || acting}
             onClick={() => handleRemove(a.id)}
-            className="group relative rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+            aria-label={`Remove ${a.user.name} from shift`}
+            className="group relative flex size-10 items-center justify-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
           >
             <UserAvatar
               name={a.user.name}
               avatarUrl={a.user.avatarUrl}
               size="default"
-              className="ring-2 ring-background group-hover:ring-destructive/60 transition-all"
+              className="ring-2 ring-background transition-[box-shadow] group-hover:ring-destructive/60"
               fallbackClassName={
                 a.hasConflict
                   ? "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
@@ -154,8 +160,9 @@ export function AssignmentCell({ shifts, allUsers, usersLoading, isStaff, onRefe
               <Button
                 variant="outline"
                 size="icon"
-                className="size-7 rounded-full text-muted-foreground hover:text-foreground"
+                className="size-10 rounded-full text-muted-foreground hover:text-foreground"
                 disabled={acting}
+                aria-label="Assign open shift"
               >
                 <span className="text-base leading-none">+</span>
               </Button>

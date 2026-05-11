@@ -23,6 +23,12 @@ import { EventSkeleton } from "./_components/EventSkeleton";
 import { ShiftCoverageCard } from "./_components/ShiftCoverageCard";
 import { EventTravelCard } from "./_components/EventTravelCard";
 
+function opponentLabel(event: CalendarEvent) {
+  if (!event.opponent) return null;
+  if (event.isHome === false) return `at ${event.opponent}`;
+  return `vs ${event.opponent}`;
+}
+
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { setBreadcrumbLabel } = useBreadcrumbLabel();
@@ -141,6 +147,7 @@ export default function EventDetailPage() {
   const eventDate = event.allDay
     ? formatDate(event.startsAt)
     : new Date(event.startsAt).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  const opponentText = opponentLabel(event);
 
   return (
     <>
@@ -177,7 +184,7 @@ export default function EventDetailPage() {
         {!event.allDay && (
           <span className="flex items-center gap-1.5">
             <Clock className="size-3.5 shrink-0" />
-            {formatTimeShort(event.startsAt)} – {formatTimeShort(event.endsAt)}
+            {formatTimeShort(event.startsAt)} - {formatTimeShort(event.endsAt)}
           </span>
         )}
         {showCallTime && (
@@ -185,7 +192,7 @@ export default function EventDetailPage() {
             Call {formatTimeShort(callTime!)}
           </span>
         )}
-        {event.opponent && <span>vs {event.opponent}</span>}
+        {opponentText && <span>{opponentText}</span>}
         {(event.rawLocationText || event.location) && (
           <span className="flex items-center gap-1.5">
             <MapPin className="size-3.5 shrink-0" />
@@ -224,7 +231,7 @@ export default function EventDetailPage() {
             } catch (err) {
               if (isAbortError(err)) return;
               const kind = classifyError(err);
-              toast.error(kind === "network" ? "You're offline — nudge not sent" : "Something went wrong — nudge not sent");
+              toast.error(kind === "network" ? "You're offline - nudge not sent" : "Something went wrong - nudge not sent");
             } finally {
               setActing(null);
             }
@@ -235,7 +242,7 @@ export default function EventDetailPage() {
           <CardContent className="py-8 flex flex-col items-center gap-3 text-center">
             <p className="text-sm text-muted-foreground">No crew scheduled for this event.</p>
             <Button size="sm" onClick={handleCreateShiftGroup} disabled={creatingGroup}>
-              {creatingGroup ? "Setting up…" : "Set up crew"}
+              {creatingGroup ? "Setting up..." : "Set up crew"}
             </Button>
           </CardContent>
         </Card>

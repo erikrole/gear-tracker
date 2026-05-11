@@ -35,10 +35,6 @@ export const GET = withAuth<{ id: string }>(async (_req, { params }) => {
           },
         },
       },
-      bookingItems: {
-        where: { booking: { status: "OPEN", kind: "CHECKOUT" } },
-        select: { checkedOutQuantity: true },
-      },
     },
   });
 
@@ -47,10 +43,9 @@ export const GET = withAuth<{ id: string }>(async (_req, { params }) => {
   const onHand = sku.balances.reduce((s, b) => s + b.onHandQuantity, 0);
   const availableQuantity = sku.trackByNumber
     ? sku.units.filter((u) => u.status === "AVAILABLE").length
-    : Math.max(0, onHand - sku.bookingItems.reduce((s, b) => s + (b.checkedOutQuantity ?? 0), 0));
+    : Math.max(0, onHand);
 
-  const { bookingItems: _, ...rest } = sku;
-  return ok({ data: { ...rest, onHand, availableQuantity } });
+  return ok({ data: { ...sku, onHand, availableQuantity } });
 });
 
 export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
@@ -69,18 +64,14 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
       department: { select: { id: true, name: true } },
       balances: true,
       units: { where: { status: "AVAILABLE" }, select: { id: true } },
-      bookingItems: {
-        where: { booking: { status: "OPEN", kind: "CHECKOUT" } },
-        select: { checkedOutQuantity: true },
-      },
     },
   });
 
   const onHand = sku.balances.reduce((s, b) => s + b.onHandQuantity, 0);
   const availableQuantity = sku.trackByNumber
     ? sku.units.length
-    : Math.max(0, onHand - sku.bookingItems.reduce((s, b) => s + (b.checkedOutQuantity ?? 0), 0));
-  const { units: _u, bookingItems: _b, ...skuRest } = sku;
+    : Math.max(0, onHand);
+  const { units: _u, ...skuRest } = sku;
 
   const changedKeys = Object.keys(body);
   const beforeDiff: Record<string, unknown> = {};

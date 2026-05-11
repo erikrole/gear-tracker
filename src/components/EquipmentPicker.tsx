@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -161,6 +162,14 @@ function riskTitle(risks: Array<{ message: string }> | undefined) {
   return risks?.map((risk) => risk.message).join(" · ") || "Turnaround risk";
 }
 
+function statusText(status: string) {
+  return status.replace(/_/g, " ").toLowerCase();
+}
+
+function getBulkAvailable(sku: PickerBulkSku) {
+  return Math.max(0, sku.availableQuantity ?? sku.currentQuantity);
+}
+
 /* ───── Component ───── */
 
 export default function EquipmentPicker({
@@ -226,7 +235,7 @@ export default function EquipmentPicker({
   }, [selectedAssetsCache]);
 
   // ── Data hooks ──
-  const { sectionResults, total, sectionCounts, searchLoading, searchError } = usePickerSearch({
+  const { sectionResults, total, sectionCounts, searchLoading, searchError, retry: retrySearch } = usePickerSearch({
     activeSection,
     equipSearch: sectionSearch,
     onlyAvailable,
@@ -373,13 +382,17 @@ export default function EquipmentPicker({
   }
 
   function setBulkQty(bulkSkuId: string, qty: number) {
-    if (qty <= 0) {
+    const sku = bulkById.get(bulkSkuId);
+    const maxQty = sku ? getBulkAvailable(sku) : Number.POSITIVE_INFINITY;
+    const nextQty = Math.min(Math.max(0, qty), maxQty);
+
+    if (nextQty <= 0) {
       setSelectedBulkItems((prev) => prev.filter((i) => i.bulkSkuId !== bulkSkuId));
     } else {
       setSelectedBulkItems((prev) => {
         const existing = prev.find((i) => i.bulkSkuId === bulkSkuId);
-        if (existing) return prev.map((i) => i.bulkSkuId === bulkSkuId ? { ...i, quantity: qty } : i);
-        return [...prev, { bulkSkuId, quantity: qty }];
+        if (existing) return prev.map((i) => i.bulkSkuId === bulkSkuId ? { ...i, quantity: nextQty } : i);
+        return [...prev, { bulkSkuId, quantity: nextQty }];
       });
     }
   }
@@ -428,8 +441,15 @@ export default function EquipmentPicker({
     const scannedId = itemMatch?.[1];
     const bulkMatch = findBulkScanMatch(value);
     if (bulkMatch) {
-      setBulkQty(bulkMatch.id, (selectedBulkItems.find((item) => item.bulkSkuId === bulkMatch.id)?.quantity ?? 0) + 1);
+      const current = selectedBulkItems.find((item) => item.bulkSkuId === bulkMatch.id)?.quantity ?? 0;
+      const available = getBulkAvailable(bulkMatch);
       setActiveSection(classifyAssetType(bulkMatch.category, bulkMatch.categoryName));
+      if (available === 0 || current >= available) {
+        setScanFeedback({ kind: "error", message: `No available ${bulkMatch.name} left to add` });
+        setScanLookupBusy(false);
+        return;
+      }
+      setBulkQty(bulkMatch.id, current + 1);
       setScanFeedback({ kind: "success", message: `Added ${bulkMatch.name}` });
       setScanLookupBusy(false);
       return;
@@ -455,23 +475,41 @@ export default function EquipmentPicker({
         return;
       }
       rememberAsset(asset);
-      setSelectedAssetIds((prev) => prev.includes(asset.id) ? prev : [...prev, asset.id]);
       setActiveSection(classifyAssetType(asset.type, asset.categoryName));
+      if (asset.computedStatus !== "AVAILABLE") {
+        setScanFeedback({
+          kind: "error",
+          message: `${asset.assetTag} is ${statusText(asset.computedStatus)} and cannot be added`,
+        });
+        return;
+      }
+      if (selectedAssetIds.includes(asset.id)) {
+        setScanFeedback({ kind: "success", message: `${asset.assetTag} is already selected` });
+        return;
+      }
+      setSelectedAssetIds((prev) => prev.includes(asset.id) ? prev : [...prev, asset.id]);
       setScanFeedback({ kind: "success", message: `Added ${asset.assetTag}` });
     } catch {
       setScanFeedback({ kind: "error", message: "Scan lookup failed. Check the connection and try again." });
     } finally {
       setScanLookupBusy(false);
     }
-  }, [findBulkScanMatch, rememberAsset, scanLookupBusy, selectedBulkItems]);
+  }, [findBulkScanMatch, rememberAsset, scanLookupBusy, selectedAssetIds, selectedBulkItems]);
 
   const bulkQuantity = selectedBulkItems.reduce((s, i) => s + i.quantity, 0);
   const selectedConflictCount = resolvedSelectedAssets.filter((asset) => conflicts.has(asset.id)).length;
   const totalSelected = selectedAssetIds.length + bulkQuantity;
   const currentSectionSelected = selectedBySection[activeSection] || 0;
+  const visibleCount = sectionResults.length + sectionBulk.length;
+  const matchingCount = total + sectionBulk.length;
   const visibleLabel = sectionSearch
-    ? `${total} matching ${activeSectionMeta.label.toLowerCase()}`
-    : `${sectionResults.length + sectionBulk.length} visible`;
+    ? `${matchingCount} matching ${activeSectionMeta.label.toLowerCase()}`
+    : `${visibleCount} visible`;
+  const emptyDescription = sectionSearch
+    ? "Clear search or switch sections."
+    : onlyAvailable
+      ? "Show unavailable gear or switch sections."
+      : "Try another equipment section.";
 
   useEffect(() => {
     if (!onSelectionStateChange) return;
@@ -648,6 +686,11 @@ export default function EquipmentPicker({
               <EmptyTitle>Equipment did not load</EmptyTitle>
               <EmptyDescription>Check the connection and try again.</EmptyDescription>
             </EmptyHeader>
+            <EmptyContent>
+              <Button type="button" variant="outline" size="sm" onClick={retrySearch}>
+                Retry
+              </Button>
+            </EmptyContent>
           </Empty>
         ) : sectionResults.length === 0 && sectionBulk.length === 0 ? (
           <Empty className="min-h-64 border-0">
@@ -655,10 +698,22 @@ export default function EquipmentPicker({
               <EmptyTitle>
                 {sectionSearch ? "No matching equipment" : onlyAvailable ? "Nothing available right now" : "No items in this section"}
               </EmptyTitle>
-              <EmptyDescription>
-                {sectionSearch ? "Clear search or switch sections." : "Try another equipment section."}
-              </EmptyDescription>
+              <EmptyDescription>{emptyDescription}</EmptyDescription>
             </EmptyHeader>
+            {(sectionSearch || onlyAvailable) && (
+              <EmptyContent className="flex-row flex-wrap justify-center">
+                {sectionSearch && (
+                  <Button type="button" variant="outline" size="sm" onClick={() => setSectionSearch("")}>
+                    Clear search
+                  </Button>
+                )}
+                {onlyAvailable && (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setOnlyAvailable(false)}>
+                    Show unavailable
+                  </Button>
+                )}
+              </EmptyContent>
+            )}
           </Empty>
         ) : (
           <ItemGroup aria-label={`${activeSectionMeta.label} equipment`}>
@@ -736,7 +791,7 @@ export default function EquipmentPicker({
                     <ItemActions className="ml-auto">
                       {isUnavailable && !holder && (
                         <Badge variant="secondary" size="sm" className="shrink-0">
-                          {asset.computedStatus.replace(/_/g, " ").toLowerCase()}
+                          {statusText(asset.computedStatus)}
                         </Badge>
                       )}
                       {conflict && (
@@ -773,7 +828,7 @@ export default function EquipmentPicker({
 
             {sectionBulk.map((sku, index) => {
               const current = selectedBulkItems.find((i) => i.bulkSkuId === sku.id)?.quantity ?? 0;
-              const available = sku.availableQuantity ?? sku.currentQuantity;
+              const available = getBulkAvailable(sku);
               const noneAvailable = available === 0;
               const hasSeparator = sectionResults.length > 0 || index > 0;
               const risks = bulkTurnaroundRisks.get(sku.id);
@@ -848,14 +903,16 @@ export default function EquipmentPicker({
             <Badge variant="secondary" size="sm" className="tabular-nums">
               {totalSelected}
             </Badge>
-            {deferredConflictsLoading && (
-              <span className="ml-auto text-[10px] text-muted-foreground">
-                Checking availability...
-              </span>
-            )}
-            <Button type="button" variant="ghost" size="xs" onClick={clearAllSelections} className="ml-auto">
-              Clear all
-            </Button>
+            <div className="ml-auto flex items-center gap-2">
+              {deferredConflictsLoading && (
+                <span className="text-[10px] text-muted-foreground">
+                  Checking availability...
+                </span>
+              )}
+              <Button type="button" variant="ghost" size="xs" onClick={clearAllSelections}>
+                Clear all
+              </Button>
+            </div>
           </div>
           <ItemGroup>
             {resolvedSelectedAssets.map((asset, index) => (

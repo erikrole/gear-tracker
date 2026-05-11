@@ -62,6 +62,7 @@ export const GET = withAuth(async (req, { user }) => {
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const todayEnd = new Date(todayStart.getTime() + 86400_000);
+  const operationalFilterStatuses = status ? {} : { status: { in: [BookingStatus.OPEN, BookingStatus.BOOKED] } };
 
   const where: Prisma.BookingWhereInput = {
     // No `kind` filter — returns both CHECKOUT and RESERVATION
@@ -73,9 +74,9 @@ export const GET = withAuth(async (req, { user }) => {
           ? { status: { in: PAST_BOOKING_STATUSES } }
           : {}),
     ...(filter === "overdue"
-      ? { endsAt: { lt: now }, status: { in: ["OPEN", "BOOKED"] } }
+      ? { endsAt: { lt: now }, ...operationalFilterStatuses }
       : filter === "due-today"
-        ? { endsAt: { gte: todayStart, lt: todayEnd }, status: { in: ["OPEN", "BOOKED"] } }
+        ? { endsAt: { gte: todayStart, lt: todayEnd }, ...operationalFilterStatuses }
         : {}),
     ...(locationId ? { locationId } : {}),
     ...(sportCode ? { sportCode } : {}),

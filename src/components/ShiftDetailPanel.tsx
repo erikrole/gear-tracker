@@ -219,8 +219,9 @@ export default function ShiftDetailPanel({
     } catch {
       if (prev) setGroup(prev);
       toast.error("Network error");
+    } finally {
+      setActing(null);
     }
-    setActing(null);
   }
 
   /* ── Actions ── */
@@ -285,7 +286,7 @@ export default function ShiftDetailPanel({
         if (assigned === 0) {
           toast.info("No eligible workers found for open shifts");
         } else if (conflicts > 0) {
-          toast.warning(`${assigned} shift${assigned !== 1 ? "s" : ""} filled — ${conflicts} have schedule conflicts`);
+          toast.warning(`${assigned} shift${assigned !== 1 ? "s" : ""} filled - ${conflicts} have schedule conflicts`);
         } else {
           toast.success(`${assigned} shift${assigned !== 1 ? "s" : ""} auto-filled`);
         }
@@ -297,8 +298,9 @@ export default function ShiftDetailPanel({
       }
     } catch {
       toast.error("Network error");
+    } finally {
+      setAutoFilling(false);
     }
-    setAutoFilling(false);
   }
 
   async function handleSetAttendance(assignmentId: string, attended: boolean | null) {
@@ -347,8 +349,9 @@ export default function ShiftDetailPanel({
       }
     } catch {
       toast.error("Network error");
+    } finally {
+      setArchiving(false);
     }
-    setArchiving(false);
   }
 
   async function handlePostTrade(assignmentId: string) {
@@ -373,8 +376,9 @@ export default function ShiftDetailPanel({
       }
     } catch {
       toast.error("Network error");
+    } finally {
+      setPosting(false);
     }
-    setPosting(false);
   }
 
   function handleAddShift(area: string, workerType: string) {
@@ -442,17 +446,18 @@ export default function ShiftDetailPanel({
                   <Badge variant="purple">{sportLabel(group.event.sportCode)}</Badge>
                 )}
                 <span className="text-sm text-muted-foreground">
-                  {formatDateShort(group.event.startsAt)} · {formatTimeShort(group.event.startsAt)}–{formatTimeShort(group.event.endsAt)}
+                  {formatDateShort(group.event.startsAt)} · {formatTimeShort(group.event.startsAt)} - {formatTimeShort(group.event.endsAt)}
                 </span>
               </div>
               {isStaff && (
                 <Button
                   variant="outline"
                   size="sm"
+                  className="h-9"
                   onClick={handleAutoFill}
                   disabled={autoFilling || acting !== null}
                 >
-                  {autoFilling ? "Filling…" : "Auto-fill"}
+                  {autoFilling ? "Filling..." : "Auto-fill"}
                 </Button>
               )}
             </div>
@@ -509,7 +514,7 @@ export default function ShiftDetailPanel({
                       onClick={handleArchive}
                       disabled={archiving || acting !== null}
                     >
-                      {archiving ? "Archiving…" : "Archive event"}
+                      {archiving ? "Archiving..." : "Archive event"}
                     </Button>
                   </>
                 )}
@@ -565,7 +570,7 @@ export default function ShiftDetailPanel({
             onClick={() => tradeDialogAssignmentId && handlePostTrade(tradeDialogAssignmentId)}
             disabled={posting}
           >
-            {posting ? "Posting…" : "Post trade"}
+            {posting ? "Posting..." : "Post trade"}
           </Button>
         </DialogFooter>
       </DialogContent>

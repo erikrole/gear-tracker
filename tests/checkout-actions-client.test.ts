@@ -59,6 +59,25 @@ describe("getAllowedActionsClient", () => {
     });
   });
 
+  describe("PENDING_PICKUP state", () => {
+    const ctx = booking("PENDING_PICKUP");
+
+    it("staff can edit and cancel awaiting pickup checkouts", () => {
+      const actions = getActions(staff, ctx);
+      expect(actions).toEqual(["edit", "cancel"]);
+    });
+
+    it("owner can edit and cancel awaiting pickup checkouts", () => {
+      const actions = getActions(owner, ctx);
+      expect(actions).toEqual(["edit", "cancel"]);
+    });
+
+    it("non-owner student gets no actions", () => {
+      const actions = getActions(nonOwner, ctx);
+      expect(actions).toEqual([]);
+    });
+  });
+
   describe("OPEN state", () => {
     const ctx = booking("OPEN");
 

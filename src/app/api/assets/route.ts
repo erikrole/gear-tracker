@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { ok, parsePagination } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { buildDerivedStatusWhere, enrichAssetsWithStatusFromLoaded } from "@/lib/services/status";
-import { BookingStatus, Prisma } from "@prisma/client";
+import { BookingKind, BookingStatus, Prisma } from "@prisma/client";
 
 const createAssetSchema = z.object({
   assetTag: z.string().min(1),
@@ -299,6 +299,7 @@ export const GET = withAuth(async (req, { user }) => {
       statusBreakdown: {
         available: 0,
         checkedOut: 0,
+        pendingPickup: 0,
         reserved: 0,
         maintenance: 0,
         retired: 0,
@@ -335,7 +336,7 @@ export const GET = withAuth(async (req, { user }) => {
   }));
 
   // Status breakdown counts using derived status logic
-  const statusKeys = ["AVAILABLE", "CHECKED_OUT", "RESERVED", "MAINTENANCE", "RETIRED"] as const;
+  const statusKeys = ["AVAILABLE", "CHECKED_OUT", "PENDING_PICKUP", "RESERVED", "MAINTENANCE", "RETIRED"] as const;
   const breakdownCounts = await Promise.all(
     statusKeys.map((s) => {
       const clauses = buildDerivedStatusWhere([s]);
@@ -384,17 +385,12 @@ export const GET = withAuth(async (req, { user }) => {
         location: { select: { name: true } },
         department: { select: { id: true, name: true } },
         balances: { select: { onHandQuantity: true } },
-        bookingItems: {
-          where: { booking: { status: "OPEN", kind: "CHECKOUT" } },
-          select: { checkedOutQuantity: true },
-        },
       },
       orderBy: { name: "asc" },
     });
 
     bulkItems = bulkSkus.map((sku) => {
       const onHand = sku.balances.reduce((sum, b) => sum + b.onHandQuantity, 0);
-      const checkedOut = sku.bookingItems.reduce((sum, b) => sum + (b.checkedOutQuantity ?? 0), 0);
       return {
         id: sku.id,
         kind: "bulk" as const,
@@ -402,7 +398,7 @@ export const GET = withAuth(async (req, { user }) => {
         category: sku.category,
         unit: sku.unit,
         onHandQuantity: onHand,
-        availableQuantity: Math.max(0, onHand - checkedOut),
+        availableQuantity: Math.max(0, onHand),
         imageUrl: sku.imageUrl,
         locationName: sku.location.name,
         locationId: sku.locationId,
@@ -423,19 +419,20 @@ export const GET = withAuth(async (req, { user }) => {
     statusBreakdown: {
       available: breakdownCounts[0],
       checkedOut: breakdownCounts[1],
-      reserved: breakdownCounts[2],
-      maintenance: breakdownCounts[3],
-      retired: breakdownCounts[4],
+      pendingPickup: breakdownCounts[2],
+      reserved: breakdownCounts[3],
+      maintenance: breakdownCounts[4],
+      retired: breakdownCounts[5],
     },
   });
 });
 
-/** Attach activeBooking (id, kind, title, requester) for CHECKED_OUT / RESERVED assets. */
+/** Attach activeBooking (id, kind, title, requester) for active derived booking states. */
 async function attachActiveBookings<T extends { id: string; computedStatus: string }>(
   assets: T[]
-): Promise<Array<T & { activeBooking: { id: string; kind: string; title: string; requesterName: string; requesterAvatarUrl: string | null; isOverdue: boolean; endsAt: string } | null }>> {
+): Promise<Array<T & { activeBooking: { id: string; kind: string; status: string; title: string; requesterName: string; requesterAvatarUrl: string | null; isOverdue: boolean; endsAt: string } | null }>> {
   const needsBooking = assets.filter(
-    (a) => a.computedStatus === "CHECKED_OUT" || a.computedStatus === "RESERVED"
+    (a) => a.computedStatus === "CHECKED_OUT" || a.computedStatus === "PENDING_PICKUP" || a.computedStatus === "RESERVED"
   );
 
   if (needsBooking.length === 0) {
@@ -446,10 +443,11 @@ async function attachActiveBookings<T extends { id: string; computedStatus: stri
     where: {
       assetId: { in: needsBooking.map((a) => a.id) },
       active: true,
-      booking: { status: { in: [BookingStatus.OPEN, BookingStatus.BOOKED] } },
+      booking: { status: { in: [BookingStatus.OPEN, BookingStatus.PENDING_PICKUP, BookingStatus.BOOKED] } },
     },
     select: {
       assetId: true,
+      startsAt: true,
       booking: {
         select: { id: true, kind: true, title: true, status: true, endsAt: true, requester: { select: { name: true, avatarUrl: true } } },
       },
@@ -457,12 +455,20 @@ async function attachActiveBookings<T extends { id: string; computedStatus: stri
   });
 
   const now = new Date();
-  const bookingByAsset = new Map<string, { id: string; kind: string; title: string; requesterName: string; requesterAvatarUrl: string | null; isOverdue: boolean; endsAt: string }>();
+  const statusByAssetId = new Map(needsBooking.map((asset) => [asset.id, asset.computedStatus]));
+  const bookingByAsset = new Map<string, { id: string; kind: string; status: string; title: string; requesterName: string; requesterAvatarUrl: string | null; isOverdue: boolean; endsAt: string }>();
   for (const alloc of allocations) {
-    if (!bookingByAsset.has(alloc.assetId)) {
+    const computedStatus = statusByAssetId.get(alloc.assetId);
+    const matchesDerivedStatus =
+      (computedStatus === "CHECKED_OUT" && alloc.booking.kind === BookingKind.CHECKOUT && alloc.booking.status === BookingStatus.OPEN) ||
+      (computedStatus === "PENDING_PICKUP" && alloc.booking.kind === BookingKind.CHECKOUT && alloc.booking.status === BookingStatus.PENDING_PICKUP) ||
+      (computedStatus === "RESERVED" && alloc.booking.kind === BookingKind.RESERVATION && alloc.booking.status === BookingStatus.BOOKED && alloc.startsAt <= now);
+
+    if (matchesDerivedStatus && !bookingByAsset.has(alloc.assetId)) {
       bookingByAsset.set(alloc.assetId, {
         id: alloc.booking.id,
         kind: alloc.booking.kind,
+        status: alloc.booking.status,
         title: alloc.booking.title,
         requesterName: alloc.booking.requester.name,
         requesterAvatarUrl: alloc.booking.requester.avatarUrl ?? null,

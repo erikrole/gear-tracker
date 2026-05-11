@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-05-09
+- Last Updated: 2026-05-10
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -490,11 +490,12 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 ## D-025: User-Facing Status Labels Are Display-Only
 - Date: 2026-03-22
 - Status: Accepted
-- Context: The raw `BookingStatus` enum values (DRAFT, BOOKED, OPEN, COMPLETED, CANCELLED) are technical and confusing in the UI. "OPEN" means nothing to an equipment manager checking out gear.
+- Context: The raw `BookingStatus` enum values (DRAFT, BOOKED, PENDING_PICKUP, OPEN, COMPLETED, CANCELLED) are technical and confusing in the UI. "OPEN" means nothing to an equipment manager checking out gear.
 - Decision: Introduce `statusLabel(status, kind)` helper in `src/components/booking-details/helpers.ts` that maps DB enum to user-facing labels. DB enum, API responses, and business logic remain unchanged.
 - Label mapping:
   - DRAFT → "Draft"
   - BOOKED → "Confirmed" (reservations) / "Booked" (checkouts)
+  - PENDING_PICKUP → "Pending Pickup"
   - OPEN → "Checked out"
   - COMPLETED → "Completed"
   - CANCELLED → "Cancelled"
@@ -511,7 +512,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 
 ## D-028: Photo Requirement on Checkout/Checkin
 
-**Decision (2026-03-30):** Every checkout and checkin completion requires a condition photo captured via the device camera. Manual checkbox-based item return is removed — all checkins must go through the scan flow.
+**Decision (2026-03-30, amended 2026-05-10):** Every checkout and checkin completion requires physical verification. The active execution path is kiosk scanning for pickup and return. The signed-in app `/scan` page is lookup-only.
 
 **Context:** Equipment accountability requires documenting condition at both handoff points. Without photos, damage disputes lack evidence. Without scan-based checkin, items can be marked as returned without physical verification.
 
@@ -525,9 +526,10 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - Photos displayed on booking detail page in the info tab
 
 **Downstream Effects:**
-- Manual checkin UI removed from `BookingEquipmentTab` (checkboxes, bulk return inputs)
-- "Complete check in" dropdown action removed from detail page
-- All checkins now flow through `/scan?checkout={id}&phase=CHECKIN`
+- Regular app checkout/check-in scan routes remain kiosk-gated 403 stubs.
+- App `/scan` deep links with `checkout` or `phase` query params show kiosk handoff copy and remain in lookup mode.
+- Booking detail and dashboard surfaces must not link operators to `/scan?checkout=...`.
+- Kiosk pickup and return routes are the custody scan source of truth.
 
 ---
 
@@ -633,6 +635,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 4. ~~Student mobile KPI definitions~~ — resolved (PD-5): taps-to-checkout ≤3, scan success ≥95%, task completion <30s. Telemetry deferred to Phase B.
 
 ## Change Log
+- 2026-05-10: Amended D-028 to match the kiosk custody boundary: app `/scan` is lookup-only, while checkout pickup and return scans run through kiosk routes.
 - 2026-03-01: Initial decision log created from project memory dump.
 - 2026-03-02: Added student-first mobile operations contract decision.
 - 2026-03-09: Updated D-009 to reflect partial implementation and pending acceptance criteria. Updated D-010 to mark shipped items. Added D-016 (code-defined picker sections/rules) and D-017 (DRAFT booking state).

@@ -79,7 +79,11 @@ export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
       take: 100,
     }),
     db.assetAllocation.findMany({
-      where: { assetId: params.id, active: true },
+      where: {
+        assetId: params.id,
+        active: true,
+        booking: { status: { in: [BookingStatus.BOOKED, BookingStatus.PENDING_PICKUP, BookingStatus.OPEN] } },
+      },
       include: {
         booking: {
           select: {
@@ -147,18 +151,29 @@ export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
 
   // Build active booking info for status line
   let activeBooking: { id: string; kind: string; status: string; title: string; startsAt: string; endsAt: string; requesterName: string; requesterAvatarUrl: string | null } | null = null;
-  for (const alloc of activeAllocs) {
+  const activeAlloc = activeAllocs.find((alloc) => {
+    if (computedStatus === "CHECKED_OUT") {
+      return alloc.booking.kind === "CHECKOUT" && alloc.booking.status === BookingStatus.OPEN;
+    }
+    if (computedStatus === "PENDING_PICKUP") {
+      return alloc.booking.kind === "CHECKOUT" && alloc.booking.status === BookingStatus.PENDING_PICKUP;
+    }
+    if (computedStatus === "RESERVED") {
+      return alloc.booking.kind === "RESERVATION" && alloc.booking.status === BookingStatus.BOOKED && alloc.startsAt <= new Date();
+    }
+    return false;
+  });
+  if (activeAlloc) {
     activeBooking = {
-      id: alloc.booking.id,
-      kind: alloc.booking.kind,
-      status: alloc.booking.status,
-      title: alloc.booking.title,
-      startsAt: alloc.booking.startsAt.toISOString(),
-      endsAt: alloc.booking.endsAt.toISOString(),
-      requesterName: alloc.booking.requester?.name ?? "Unknown",
-      requesterAvatarUrl: alloc.booking.requester?.avatarUrl ?? null,
+      id: activeAlloc.booking.id,
+      kind: activeAlloc.booking.kind,
+      status: activeAlloc.booking.status,
+      title: activeAlloc.booking.title,
+      startsAt: activeAlloc.booking.startsAt.toISOString(),
+      endsAt: activeAlloc.booking.endsAt.toISOString(),
+      requesterName: activeAlloc.booking.requester?.name ?? "Unknown",
+      requesterAvatarUrl: activeAlloc.booking.requester?.avatarUrl ?? null,
     };
-    break;
   }
 
   // Check if item has any booking history (for delete gating)

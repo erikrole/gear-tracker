@@ -62,6 +62,24 @@ type ScanData = {
   offset: number;
 };
 
+const PHASE_ALL = "ALL";
+const VALID_PERIODS = [0, 7, 30, 90] as const;
+type PhaseFilter = typeof PHASE_ALL | "CHECKOUT" | "CHECKIN";
+
+function parsePageParam(value: string | null) {
+  const parsed = Number.parseInt(value ?? "", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed - 1 : 0;
+}
+
+function parsePhaseParam(value: string | null): PhaseFilter {
+  return value === "CHECKOUT" || value === "CHECKIN" ? value : PHASE_ALL;
+}
+
+function parsePeriodParam(value: string | null) {
+  const parsed = Number.parseInt(value ?? "", 10);
+  return VALID_PERIODS.includes(parsed as (typeof VALID_PERIODS)[number]) ? parsed : 0;
+}
+
 function ScanMobileCard({ s }: { s: ScanEntry }) {
   return (
     <ReportMobileCard>
@@ -102,15 +120,9 @@ function downloadCsv(entries: ScanEntry[]) {
 
 export default function ScanHistoryPage() {
   const searchParams = useSearchParams();
-  const [page, setPage] = useState(() => {
-    const p = searchParams.get("page");
-    return p ? Math.max(0, Number(p) - 1) : 0;
-  });
-  const [phaseFilter, setPhaseFilter] = useState(() => searchParams.get("phase") ?? "");
-  const [periodDays, setPeriodDays] = useState(() => {
-    const p = searchParams.get("period");
-    return p && [7, 30, 90].includes(Number(p)) ? Number(p) : 0;
-  });
+  const [page, setPage] = useState(() => parsePageParam(searchParams.get("page")));
+  const [phaseFilter, setPhaseFilter] = useState<PhaseFilter>(() => parsePhaseParam(searchParams.get("phase")));
+  const [periodDays, setPeriodDays] = useState(() => parsePeriodParam(searchParams.get("period")));
   const [now, setNow] = useState(() => new Date());
   const limit = 50;
 
@@ -119,12 +131,28 @@ export default function ScanHistoryPage() {
     return () => clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    const corrections: Record<string, string | number> = {};
+    if (searchParams.get("page") && parsePageParam(searchParams.get("page")) === 0) {
+      corrections.page = "";
+    }
+    if (searchParams.get("phase") && parsePhaseParam(searchParams.get("phase")) === PHASE_ALL) {
+      corrections.phase = "";
+    }
+    if (searchParams.get("period") && parsePeriodParam(searchParams.get("period")) === 0) {
+      corrections.period = "";
+    }
+    if (Object.keys(corrections).length > 0) {
+      syncUrl(corrections);
+    }
+  }, [searchParams]);
+
   const fetchUrl = useMemo(() => {
     const params = new URLSearchParams({
       limit: String(limit),
       offset: String(page * limit),
     });
-    if (phaseFilter) params.set("phase", phaseFilter);
+    if (phaseFilter !== PHASE_ALL) params.set("phase", phaseFilter);
     if (periodDays > 0) {
       params.set("startDate", new Date(Date.now() - periodDays * 86_400_000).toISOString());
     }
@@ -135,6 +163,17 @@ export default function ScanHistoryPage() {
     url: fetchUrl,
     transform: (json) => json as unknown as ScanData,
   });
+
+  const totalPages = data ? Math.ceil(data.total / limit) : 0;
+
+  useEffect(() => {
+    if (!data || page === 0) return;
+    const lastPage = Math.max(0, totalPages - 1);
+    if (page > lastPage) {
+      setPage(lastPage);
+      syncUrl({ page: lastPage > 0 ? lastPage + 1 : "" });
+    }
+  }, [data, page, totalPages]);
 
   if (loading && !data) return <ReportLoadingState metricCount={2} rows={8} />;
 
@@ -153,7 +192,6 @@ export default function ScanHistoryPage() {
 
   if (!data) return null;
 
-  const totalPages = Math.ceil(data.total / limit);
   const entries = data.data ?? [];
 
   return (
@@ -190,14 +228,14 @@ export default function ScanHistoryPage() {
             ariaLabel="Scan report phase"
             value={phaseFilter}
             options={[
-              { value: "", label: "All" },
+              { value: PHASE_ALL, label: "All" },
               { value: "CHECKOUT", label: "Checkout" },
               { value: "CHECKIN", label: "Check-in" },
             ]}
             onChange={(nextPhase) => {
               setPhaseFilter(nextPhase);
               setPage(0);
-              syncUrl({ phase: nextPhase, page: "" });
+              syncUrl({ phase: nextPhase === PHASE_ALL ? "" : nextPhase, page: "" });
             }}
           />
         </ReportToolbarGroup>

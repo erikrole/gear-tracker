@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangleIcon, BellRingIcon, CheckIcon, ClipboardCheckIcon } from "lucide-react";
+import { AlertTriangleIcon, BellRingIcon, CheckIcon, ExternalLinkIcon } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { formatOverdueElapsed } from "@/lib/format";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -128,14 +128,14 @@ export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking
                       asChild
                     >
                       <Link
-                        href={`/scan?checkout=${item.bookingId}&phase=CHECKIN`}
-                        aria-label={`Check in ${item.bookingTitle}`}
+                        href={`/checkouts/${item.bookingId}`}
+                        aria-label={`Open ${item.bookingTitle}`}
                       >
-                        <ClipboardCheckIcon className="size-4" />
+                        <ExternalLinkIcon className="size-4" />
                       </Link>
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Check in</TooltipContent>
+                  <TooltipContent>Open checkout</TooltipContent>
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>

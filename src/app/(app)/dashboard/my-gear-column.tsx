@@ -42,6 +42,13 @@ export function MyGearColumn({
   onConvert,
   onCreateBooking,
 }: Props) {
+  const visibleMyCheckouts = filtered?.myCheckouts ?? data.myCheckouts.items;
+  const visibleMyReservations = filtered?.myReservations ?? data.myReservations;
+  const visibleMyShifts = filtered?.myShifts ?? data.myShifts;
+  const myCheckoutsCount = filtered ? visibleMyCheckouts.length : data.myCheckouts.total;
+  const myReservationsCount = filtered ? visibleMyReservations.length : data.myReservations.length;
+  const myShiftsCount = filtered ? visibleMyShifts.length : data.myShifts.length;
+
   return (
     <div className="flex flex-col gap-4">
       <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground/60 pl-0.5" style={{ fontFamily: "var(--font-mono)" }}>My Gear</span>
@@ -49,12 +56,12 @@ export function MyGearColumn({
       {/* My Checkouts */}
       <ScaleIn delay={0}>
       <Card elevation="elevated">
-        <DashboardSectionHeader title="My checkouts" href="/checkouts?mine=true" count={data.myCheckouts.total} />
-        {(filtered?.myCheckouts ?? data.myCheckouts.items).length === 0 ? (
+        <DashboardSectionHeader title="My checkouts" href="/checkouts?mine=true" count={myCheckoutsCount} />
+        {visibleMyCheckouts.length === 0 ? (
           <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-muted-foreground text-sm"><ClipboardCheckIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} checkouts` : "You have no gear checked out"}</div>
         ) : (
           <CardContent className="p-0 py-1">
-            {(filtered?.myCheckouts ?? data.myCheckouts.items).map((c) => {
+            {visibleMyCheckouts.map((c) => {
               return (
                 <DashboardBookingRow
                   key={c.id}
@@ -70,7 +77,7 @@ export function MyGearColumn({
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            className="opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100"
+                            className="opacity-100 transition-opacity duration-150 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100"
                             disabled={acting}
                             onClick={(e) => onExtend(c, e)}
                             aria-label={`Extend checkout "${c.title}" by 1 day`}
@@ -96,12 +103,12 @@ export function MyGearColumn({
       {/* My Reservations */}
       <ScaleIn delay={0.05}>
       <Card>
-        <DashboardSectionHeader title="My reservations" href="/reservations?mine=true" count={data.myReservations.length} />
-        {(filtered?.myReservations ?? data.myReservations).length === 0 ? (
+        <DashboardSectionHeader title="My reservations" href="/reservations?mine=true" count={myReservationsCount} />
+        {visibleMyReservations.length === 0 ? (
           <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-muted-foreground text-sm"><CalendarCheckIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} reservations` : "No reservations coming up"}</div>
         ) : (
           <CardContent className="p-0 py-1">
-            {(filtered?.myReservations ?? data.myReservations).map((r) => (
+            {visibleMyReservations.map((r) => (
               <DashboardBookingRow
                 key={r.id}
                 booking={r}
@@ -114,7 +121,7 @@ export function MyGearColumn({
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        className="opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100"
+                        className="opacity-100 transition-opacity duration-150 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100"
                         disabled={acting}
                         onClick={(e) => onConvert(r.id, e)}
                         aria-label={`Convert reservation "${r.title}" to checkout`}
@@ -136,12 +143,12 @@ export function MyGearColumn({
       </ScaleIn>
 
       {/* My Shifts */}
-      {(filtered?.myShifts ?? data.myShifts).length > 0 && (
+      {visibleMyShifts.length > 0 && (
         <ScaleIn delay={0.1}>
         <Card>
-          <DashboardSectionHeader title="My shifts" href="/schedule" count={data.myShifts.length} />
+          <DashboardSectionHeader title="My shifts" href="/schedule" count={myShiftsCount} />
           <CardContent className="p-0 py-1">
-            {(filtered?.myShifts ?? data.myShifts).map((s) => {
+            {visibleMyShifts.map((s) => {
               const gearLabel = s.gearStatus === "checked_out" ? "Gear out" : s.gearStatus === "reserved" ? "Reserved" : s.gearStatus === "draft" ? "Draft" : null;
               const eventTitle = s.event.opponent
                 ? `${s.event.isHome === false ? "at" : "vs"} ${s.event.opponent}`

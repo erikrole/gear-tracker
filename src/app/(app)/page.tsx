@@ -200,8 +200,11 @@ export default function DashboardPage() {
     : false;
   const dataEmpty = data
     ? data.myCheckouts.total === 0 && data.teamCheckouts.total === 0 &&
+      data.teamReservations.total === 0 && data.pendingPickups.total === 0 &&
+      data.staleReservations.total === 0 &&
       data.upcomingEvents.length === 0 && data.myReservations.length === 0 &&
-      data.drafts.length === 0 && data.myShifts.length === 0
+      data.drafts.length === 0 && data.myShifts.length === 0 &&
+      data.flaggedItems.length === 0 && data.lostBulkUnits.length === 0
     : false;
   const isFirstRun = statsEmpty && (data ? dataEmpty : true);
 
@@ -237,7 +240,7 @@ export default function DashboardPage() {
       {stats && <StaggerList className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-4">
         <StaggerItem><StatCard href="/checkouts?filter=overdue" value={stats.overdue} label="Overdue" accent={stats.overdue > 0 ? "red" : undefined} /></StaggerItem>
         <StaggerItem><StatCard href="/bookings?tab=checkouts&filter=due-today" value={stats.dueToday} label="Due today" accent={stats.dueToday > 0 ? "amber" : undefined} /></StaggerItem>
-        <StaggerItem><StatCard href="/bookings?tab=checkouts" value={stats.checkedOut} label="Active checkouts" /></StaggerItem>
+        <StaggerItem><StatCard href="/bookings?tab=checkouts&status=OPEN" value={stats.checkedOut} label="Checked out" /></StaggerItem>
         <StaggerItem><StatCard href="/bookings?tab=reservations" value={stats.reserved} label="Reserved" /></StaggerItem>
       </StaggerList>}
 

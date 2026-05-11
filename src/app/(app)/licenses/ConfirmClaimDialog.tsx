@@ -62,7 +62,7 @@ export function ConfirmClaimDialog({ license, onOpenChange, onClaimed }: Props) 
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancel
           </Button>
-          <Button onClick={handleClaim} disabled={loading}>
+          <Button onClick={handleClaim} loading={loading}>
             {loading ? "Claiming…" : "Claim & copy"}
           </Button>
         </DialogFooter>

@@ -105,7 +105,7 @@ export function ShiftAreaSection({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 px-2 text-xs text-muted-foreground"
+                className="h-9 px-2 text-xs text-muted-foreground"
                 disabled={acting !== null}
               >
                 <PlusIcon className="size-3.5 mr-0.5" />

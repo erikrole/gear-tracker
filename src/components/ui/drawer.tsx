@@ -54,7 +54,7 @@ function DrawerContent({
       <DrawerPrimitive.Content
         data-slot="drawer-content"
         className={cn(
-          "bg-background fixed inset-x-0 bottom-0 z-50 mt-24 flex max-h-[85dvh] flex-col rounded-t-[10px] border-t",
+          "bg-background fixed inset-x-0 bottom-0 z-50 mt-24 flex max-h-[85dvh] flex-col rounded-t-[10px] border-t shadow-xl",
           className
         )}
         {...props}
@@ -63,7 +63,7 @@ function DrawerContent({
         {children}
         <DrawerPrimitive.Close
           data-slot="drawer-close-button"
-          className="absolute right-4 top-4 flex size-8 items-center justify-center rounded-md text-muted-foreground/80 opacity-70 outline-none transition-opacity hover:opacity-100 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none"
+          className="absolute right-4 top-4 flex size-8 items-center justify-center rounded-md text-muted-foreground/80 opacity-70 outline-none transition-[background-color,color,box-shadow,opacity] hover:bg-muted hover:text-foreground hover:opacity-100 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none"
         >
           <X className="size-4" />
           <span className="sr-only">Close</span>

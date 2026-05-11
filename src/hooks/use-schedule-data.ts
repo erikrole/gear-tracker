@@ -166,13 +166,8 @@ function getMonday(d: Date): Date {
 }
 
 export function useScheduleData(): UseScheduleDataResult {
-  // View — restore from localStorage
-  const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    if (typeof window === "undefined") return "list";
-    const stored = localStorage.getItem(LS_VIEW_MODE);
-    if (stored === "calendar" || stored === "week") return stored;
-    return "list";
-  });
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [calMonth, setCalMonth] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
@@ -186,19 +181,36 @@ export function useScheduleData(): UseScheduleDataResult {
   const [coverageFilter, setCoverageFilter] = useState("");
   const [homeAwayFilter, setHomeAwayFilter] = useState<HomeAwayFilter>("all");
   const [includePast, setIncludePast] = useState(false);
-  const [myShiftsOnly, setMyShiftsOnly] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem(LS_MY_SHIFTS) === "true";
-  });
+  const [myShiftsOnly, setMyShiftsOnly] = useState(false);
 
   // UI state
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   const [tradeSheetOpen, setTradeSheetOpen] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
 
-  // Persist view mode
-  useEffect(() => { localStorage.setItem(LS_VIEW_MODE, viewMode); }, [viewMode]);
-  useEffect(() => { localStorage.setItem(LS_MY_SHIFTS, String(myShiftsOnly)); }, [myShiftsOnly]);
+  useEffect(() => {
+    const storedView = localStorage.getItem(LS_VIEW_MODE);
+    if (storedView === "calendar" || storedView === "week") {
+      setViewMode(storedView);
+    }
+
+    const storedMyShifts = localStorage.getItem(LS_MY_SHIFTS);
+    if (storedMyShifts !== null) {
+      setMyShiftsOnly(storedMyShifts === "true");
+    }
+
+    setPreferencesLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!preferencesLoaded) return;
+    localStorage.setItem(LS_VIEW_MODE, viewMode);
+  }, [preferencesLoaded, viewMode]);
+
+  useEffect(() => {
+    if (!preferencesLoaded) return;
+    localStorage.setItem(LS_MY_SHIFTS, String(myShiftsOnly));
+  }, [myShiftsOnly, preferencesLoaded]);
 
   // --- React Query: user info ---
   const { data: meData } = useCurrentUser();
@@ -207,10 +219,11 @@ export function useScheduleData(): UseScheduleDataResult {
 
   // Set default myShiftsOnly for students
   useEffect(() => {
-    if (currentUserRole === "STUDENT" && localStorage.getItem(LS_MY_SHIFTS) === null) {
+    if (!preferencesLoaded) return;
+    if (meData?.role === "STUDENT" && localStorage.getItem(LS_MY_SHIFTS) === null) {
       setMyShiftsOnly(true);
     }
-  }, [currentUserRole]);
+  }, [meData?.role, preferencesLoaded]);
 
   // --- React Query: trade count ---
   const { data: tradeCount = 0, refetch: refetchTrades } = useQuery({
@@ -226,16 +239,18 @@ export function useScheduleData(): UseScheduleDataResult {
     queryKey: scheduleQueryKey,
     queryFn: ({ signal }) => fetchSchedule(eventsUrl, groupsUrl, signal),
   });
+  const visibleEntries = preferencesLoaded ? entries : [];
+  const loading = !preferencesLoaded || isLoading;
 
   // Classify error — only show error screen when no cached data
   const loadError: false | "network" | "server" =
-    scheduleError && entries.length === 0
+    preferencesLoaded && scheduleError && visibleEntries.length === 0
       ? (scheduleError as Error).name === "TypeError" ? "network" : "server"
       : false;
 
   // Client-side filtering
   const filteredEntries = useMemo(() => {
-    let result = entries;
+    let result = visibleEntries;
     if (myShiftsOnly && currentUserId) {
       result = result.filter((e) => userHasShift(e, currentUserId));
     }
@@ -255,7 +270,7 @@ export function useScheduleData(): UseScheduleDataResult {
       result = result.filter((e) => e.coverage && e.coverage.percentage >= 100);
     }
     return result;
-  }, [entries, homeAwayFilter, areaFilter, coverageFilter, myShiftsOnly, currentUserId]);
+  }, [visibleEntries, homeAwayFilter, areaFilter, coverageFilter, myShiftsOnly, currentUserId]);
 
   // Group entries by date for list view
   const groupedEntries = useMemo(() => {
@@ -279,10 +294,10 @@ export function useScheduleData(): UseScheduleDataResult {
   }, [refetchSchedule]);
 
   return {
-    entries,
+    entries: visibleEntries,
     filteredEntries,
     groupedEntries,
-    loading: isLoading,
+    loading,
     loadError,
     loadData,
     filters: {

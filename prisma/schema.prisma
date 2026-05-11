@@ -118,6 +118,8 @@ model User {
   role                 Role
   active               Boolean                    @default(true)
   phone                String?
+  slackHandle          String?                    @map("slack_handle")
+  slackProfileUrl      String?                    @map("slack_profile_url")
   avatarUrl            String?                    @map("avatar_url")
   primaryArea          ShiftArea?                 @map("primary_area")
   locationId           String?                    @map("location_id")
@@ -150,6 +152,7 @@ model User {
   licenseCodesCreated  LicenseCode[]              @relation("LicenseCreatedBy")
   licenseClaims        LicenseCodeClaim[]
   guides               Guide[]
+  guidesVerified       Guide[]                    @relation("GuideLastVerifiedBy")
   availabilityBlocks   StudentAvailabilityBlock[]
   travelMemberships    EventTravelMember[]        @relation("TravelMembers")
   badges               StudentBadge[]
@@ -1155,19 +1158,30 @@ model KioskDevice {
 // ── Guides ────────────────────────────────────────────────
 
 model Guide {
-  id        String   @id @default(cuid())
-  title     String
-  slug      String   @unique
-  category  String
-  content   Json
-  published Boolean  @default(false)
-  authorId  String   @map("author_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id               String      @id @default(cuid())
+  title            String
+  slug             String      @unique
+  category         String
+  content          Json
+  markdown         String?     @db.Text
+  targetRoles      Role[]      @default([]) @map("target_roles")
+  targetAreas      ShiftArea[] @default([]) @map("target_areas")
+  featured         Boolean     @default(false)
+  featuredRank     Int?        @map("featured_rank")
+  published        Boolean     @default(false)
+  authorId         String      @map("author_id")
+  lastVerifiedAt   DateTime?   @map("last_verified_at")
+  lastVerifiedById String?     @map("last_verified_by_id")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
 
-  author User @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  author         User  @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  lastVerifiedBy User? @relation("GuideLastVerifiedBy", fields: [lastVerifiedById], references: [id], onDelete: SetNull)
 
   @@index([category])
+  @@index([featured, featuredRank])
+  @@index([lastVerifiedAt])
+  @@index([lastVerifiedById])
   @@index([published])
   @@map("guides")
 }

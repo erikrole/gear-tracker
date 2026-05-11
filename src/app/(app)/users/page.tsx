@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import EmptyState from "@/components/EmptyState";
 import type { UserRow, Location, Role, SortKey, ListResponse } from "./types";
+import { AREA_LABELS, STUDENT_YEAR_OPTIONS } from "./types";
 import { UserTableRow, UserMobileCard } from "./UserRow";
 import UserFilters from "./UserFilters";
 import CreateUserDialog from "./CreateUserCard";
@@ -23,9 +24,75 @@ import { useFetch } from "@/hooks/use-fetch";
 import { PageHeader } from "@/components/PageHeader";
 import { FadeUp } from "@/components/ui/motion";
 import { formatRelativeTime } from "@/lib/format";
-import { useDebounce } from "@/hooks/use-url-state";
+import { useDebounce, useUrlState } from "@/hooks/use-url-state";
+import { SPORT_CODES } from "@/lib/sports";
 
 const LIMIT = 50;
+const ROLE_VALUES = new Set<string>(["ADMIN", "STAFF", "STUDENT"]);
+const SORT_VALUES = new Set([
+  "",
+  "name",
+  "name_desc",
+  "role",
+  "role_desc",
+  "email",
+  "email_desc",
+  "created",
+  "created_desc",
+]);
+const YEAR_VALUES = new Set<string>(STUDENT_YEAR_OPTIONS.map((option) => option.value));
+const AREA_VALUES = new Set(Object.keys(AREA_LABELS));
+const SPORT_VALUES = new Set<string>(SPORT_CODES.map((sport) => sport.code));
+
+function parseStringParam(raw: string | null): string {
+  return raw?.trim() ?? "";
+}
+
+function serializeOptionalString(value: string): string | null {
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+function parseRoleParam(raw: string | null): string {
+  return raw && ROLE_VALUES.has(raw) ? raw : "";
+}
+
+function parseYearParam(raw: string | null): string {
+  return raw && YEAR_VALUES.has(raw) ? raw : "";
+}
+
+function parseAreaParam(raw: string | null): string {
+  return raw && AREA_VALUES.has(raw) ? raw : "";
+}
+
+function parseSportParam(raw: string | null): string {
+  return raw && SPORT_VALUES.has(raw) ? raw : "";
+}
+
+function parseSortParam(raw: string | null): SortKey | string {
+  return raw && SORT_VALUES.has(raw) ? raw : "name";
+}
+
+function serializeSortParam(value: SortKey | string): string | null {
+  return value && value !== "name" ? value : null;
+}
+
+function parseInactiveParam(raw: string | null): boolean {
+  return raw === "all";
+}
+
+function serializeInactiveParam(value: boolean): string | null {
+  return value ? "all" : null;
+}
+
+function parsePageParam(raw: string | null): number {
+  const page = Number.parseInt(raw ?? "", 10);
+  return Number.isFinite(page) && page > 0 ? page : 0;
+}
+
+function serializePageParam(value: number): string | null {
+  return value > 0 ? String(value) : null;
+}
 
 /* ── Sort Header ───────────────────────────────────────── */
 
@@ -110,29 +177,73 @@ function RosterSummary({ stats, canEdit }: { stats: NonNullable<ListResponse["st
 
 export default function UsersPage() {
   // Filters & sort
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlState<string>(
+    "q",
+    parseStringParam,
+    serializeOptionalString,
+  );
   const debouncedSearch = useDebounce(search, 300);
-  const [roleFilter, setRoleFilter] = useState("");
-  const [locationFilter, setLocationFilter] = useState("");
-  const [yearFilter, setYearFilter] = useState("");
-  const [sportFilter, setSportFilter] = useState("");
-  const [areaFilter, setAreaFilter] = useState("");
-  const [sort, setSort] = useState<SortKey | string>("name");
-  const [showInactive, setShowInactive] = useState(false);
-  const [page, setPage] = useState(0);
+  const [roleFilter, setRoleFilter] = useUrlState<string>(
+    "role",
+    parseRoleParam,
+    serializeOptionalString,
+  );
+  const [locationFilter, setLocationFilter] = useUrlState<string>(
+    "locationId",
+    parseStringParam,
+    serializeOptionalString,
+  );
+  const [yearFilter, setYearFilter] = useUrlState<string>(
+    "year",
+    parseYearParam,
+    serializeOptionalString,
+  );
+  const [sportFilter, setSportFilter] = useUrlState<string>(
+    "sport",
+    parseSportParam,
+    serializeOptionalString,
+  );
+  const [areaFilter, setAreaFilter] = useUrlState<string>(
+    "area",
+    parseAreaParam,
+    serializeOptionalString,
+  );
+  const [sort, setSort] = useUrlState<SortKey | string>(
+    "sort",
+    parseSortParam,
+    serializeSortParam,
+  );
+  const [showInactive, setShowInactive] = useUrlState<boolean>(
+    "active",
+    parseInactiveParam,
+    serializeInactiveParam,
+  );
+  const [page, setPage] = useUrlState<number>(
+    "page",
+    parsePageParam,
+    serializePageParam,
+  );
 
   // UI
   const [showCreate, setShowCreate] = useState(false);
+  const didMountRef = useRef(false);
 
   // Reset page when filters change
-  useEffect(() => { setPage(0); }, [debouncedSearch, roleFilter, locationFilter, yearFilter, sportFilter, areaFilter, sort, showInactive]);
+  useEffect(() => {
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
+    setPage(0);
+  }, [debouncedSearch, roleFilter, locationFilter, yearFilter, sportFilter, areaFilter, sort, showInactive, setPage]);
 
   // ── Build URL for user list fetch ──
   const usersUrl = useMemo(() => {
     const params = new URLSearchParams();
     params.set("limit", String(LIMIT));
     params.set("offset", String(page * LIMIT));
-    if (debouncedSearch) params.set("q", debouncedSearch);
+    const query = debouncedSearch.trim();
+    if (query) params.set("q", query);
     if (sort) params.set("sort", sort);
     if (roleFilter) params.set("role", roleFilter);
     if (locationFilter) params.set("locationId", locationFilter);
@@ -142,6 +253,20 @@ export default function UsersPage() {
     if (showInactive) params.set("active", "all");
     return `/api/users?${params}`;
   }, [page, debouncedSearch, sort, roleFilter, locationFilter, yearFilter, sportFilter, areaFilter, showInactive]);
+
+  const exportHref = useMemo(() => {
+    const params = new URLSearchParams();
+    const query = debouncedSearch.trim();
+    if (query) params.set("q", query);
+    if (roleFilter) params.set("role", roleFilter);
+    if (locationFilter) params.set("locationId", locationFilter);
+    if (yearFilter) params.set("year", yearFilter);
+    if (sportFilter) params.set("sport", sportFilter);
+    if (areaFilter) params.set("area", areaFilter);
+    if (showInactive) params.set("active", "all");
+    const qs = params.toString();
+    return qs ? `/api/users/export?${qs}` : "/api/users/export";
+  }, [debouncedSearch, roleFilter, locationFilter, yearFilter, sportFilter, areaFilter, showInactive]);
 
   const {
     data: listData,
@@ -176,8 +301,15 @@ export default function UsersPage() {
   const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
 
   const totalPages = Math.ceil(total / LIMIT);
-  const hasFilters = !!search || !!roleFilter || !!locationFilter || !!yearFilter || !!sportFilter || !!areaFilter;
+  const hasFilters = !!search.trim() || !!roleFilter || !!locationFilter || !!yearFilter || !!sportFilter || !!areaFilter || showInactive;
   const isInitialLoad = loading && users.length === 0 && !loadError;
+
+  useEffect(() => {
+    if (loading || page === 0) return;
+    if (total === 0 || page >= totalPages) {
+      setPage(Math.max(0, totalPages - 1));
+    }
+  }, [loading, page, setPage, total, totalPages]);
 
   return (
     <FadeUp>
@@ -198,18 +330,7 @@ export default function UsersPage() {
         {canEdit && (
           <Button asChild variant="outline" size="sm">
             <a
-              href={(() => {
-                const params = new URLSearchParams();
-                if (debouncedSearch) params.set("q", debouncedSearch);
-                if (roleFilter) params.set("role", roleFilter);
-                if (locationFilter) params.set("locationId", locationFilter);
-                if (yearFilter) params.set("year", yearFilter);
-                if (sportFilter) params.set("sport", sportFilter);
-                if (areaFilter) params.set("area", areaFilter);
-                if (showInactive) params.set("active", "all");
-                const qs = params.toString();
-                return qs ? `/api/users/export?${qs}` : "/api/users/export";
-              })()}
+              href={exportHref}
               download
             >
               <Download className="mr-1 size-4" /> Export CSV
