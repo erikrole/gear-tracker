@@ -1,6 +1,6 @@
 # Task Queue
 
-Last updated: 2026-05-10
+Last updated: 2026-05-12
 
 **Current release**: Beta — CalVer versioning adopted.
 **Release workflow**: `npm run release` creates CalVer tag + GitHub Release.
@@ -43,6 +43,63 @@ Last updated: 2026-05-10
 ---
 
 ## Open Items
+
+### Security Audit and Patches (2026-05-12)
+- [x] **Dependency advisory audit:** Confirm TanStack exposure, run current `npm audit --omit=dev`, and record any actionable package patches.
+- [x] **App security audit:** Re-verify open auth/kiosk/cron/API risks against current source before patching.
+- [x] **Patches:** Ship the smallest confirmed fixes for high-value security findings.
+- [x] **Docs and verification:** Sync relevant area/risk docs and run focused tests plus build-safe checks.
+
+**Review**
+- TanStack exposure is limited to `@tanstack/react-query`, `@tanstack/react-table`, and related packages, with no compromised versions found in the current lockfile.
+- Production dependency audit is clean after resolving the nested Next/PostCSS advisory with a direct dependency override and refreshed lockfile. `npm ls next postcss --depth=2` shows Next deduping to `postcss@8.5.14`.
+- Package-manager cooldowns now require newly resolved npm package versions to be at least 7 days old across npm, pnpm, Yarn, and Bun project configs.
+- Closed GAP-52, GAP-53, and GAP-55: forced-password users are routed to `/change-password` and blocked from regular app/API access, kiosk sessions have DB-backed server expiry, and notification cron keeps independent job successes when one job fails.
+- Focused regressions passed: `npx vitest run tests/api-wrapper.test.ts tests/auth-hardening.test.ts tests/api-hardening-wave11.test.ts tests/kiosk-session-auth.test.ts tests/notification-cron.test.ts`.
+
+### Creation Flow System (2026-05-12)
+- [x] **Audit/standard:** Inventory high-impact create flows and define the shared creation-flow standard in `tasks/creation-flow-system-plan.md`.
+- [x] **Items slice:** Harden the Items New asset sheet for safe submit, visible form errors, disabled controls, and explicit post-create handoff.
+- [x] **Schedule/Users/Kits/Settings propagation:** Standardize the next high-impact create surfaces without converting simple forms into wizards.
+- [x] **Docs:** Sync `AREA_ITEMS.md`, `AREA_EVENTS.md`, `AREA_SHIFTS.md`, `AREA_USERS.md`, `AREA_KITS.md`, `AREA_SETTINGS.md`, creation-flow task notes, and relevant gap notes.
+- [x] **Verification:** Run TypeScript, focused checks where applicable, migration check, diff whitespace, Next build, and browser smoke on changed creation paths.
+
+**Review**
+- Shipped the Items `New asset` creation slice with guarded submit, disabled controls during save, form-level error handling, auth redirect handling, and explicit post-create actions.
+- Shipped Schedule New Event, event crew setup/add shift, shift trade post, Kits New Kit, and high-use settings catalog add propagation so those flows now show form-level errors and clearer post-submit handoffs.
+- Confirmed Users Add User already matched the standard in current source, and the security patch closes the forced temporary-password follow-up.
+- Browser smoke found a real Schedule New Event persistence bug: manual events were modeled as `sourceId: null` in Prisma/source but the database migration history still had `calendar_events.source_id NOT NULL`. Added migration `0063_allow_manual_calendar_events_source_null` and a focused route regression.
+- Browser smoke exposed and fixed a real API mismatch: asset creation rejected valid UUID-shaped department IDs from current data as invalid CUIDs.
+- Final build exposed and fixed a pre-existing kiosk schema mismatch: the code enforced `sessionExpiresAt`, but Prisma schema/migration lacked the column. GAP-53 is closed and `AREA_KIOSK.md` is synced.
+- Verified with `npx prisma validate`, `npm run db:migrate:check`, focused Vitest coverage for assets, manual events, auth, settings catalogs, allowed emails, shifts, kiosk session expiry, and notification cron, `npx tsc --noEmit`, `git diff --check`, `npx next build`, and authenticated browser smoke on `/items`, `/schedule`, `/kits`, `/settings/categories`, and `/users`.
+- Caveat: `npm run migrate` / `prisma migrate deploy` failed with the repo's blank schema-engine error before applying migration `0063`, so the Schedule New Event post-create handoff is code/test/build verified but could not complete against the current dev database during browser smoke.
+- Remaining creation-system work is ranked in `tasks/creation-flow-system-plan.md`; deferred admin/specialized surfaces should be handled as focused slices.
+
+### Wisconsin iOS Home Action Queue (2026-05-12)
+- [x] **Plan:** Rework `HomeView` from a passive dashboard stack into an iOS-native action queue using the current dashboard payload.
+- [x] **Home implementation:** Keep a compact triage strip, promote overdue/due-today/awaiting-pickup/reservation/shift work, and make each row open the relevant booking, shift, or tab target.
+- [x] **Docs:** Update `AREA_MOBILE.md`, `IOS_DEVICE_WALKTHROUGH.md`, `hig-audit-ios.md`, and this task note to match the new Home direction.
+- [x] **Verification:** Run `npm run drift:ios`, `npm run audit:ios:gaps`, and `xcodebuild -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build`.
+
+**Review**
+- Home now starts from a compact triage strip and a `Next Up` action queue instead of passive dashboard cards.
+- Action rows prioritize overdue gear, due-today returns, awaiting pickup, upcoming reservations, and upcoming shifts, with direct booking or schedule navigation.
+- Removed redundant Home scan/search actions: no awaiting-pickup scan button, no Scan gear queue row, and no bottom search FAB.
+- Removed the old Home-only Upcoming Events/My Checkouts/Team Checkouts/Team Reservations dashboard stack; staff/admin exception context now sits below the queue.
+- Verified after the follow-up cleanup: `npm run drift:ios` passed; `npm run audit:ios:gaps` passed; exact simulator build command passed with `BUILD SUCCEEDED`.
+- Remaining questions are real-device/user-feedback checks: VoiceOver and Dynamic Type behavior on the compact strip, whether the due-today fallback needs richer API payload, and how much staff exception work belongs on Home after field use.
+
+### Wisconsin iOS TestFlight Readiness Reconciliation (2026-05-11)
+- [x] **Audit reconciliation:** Rechecked current iOS audit records against source for Home, Bookings, Items, Schedule, Scan, Profile, Notifications, Kiosk, and parity drift.
+- [x] **Automated checks:** Ran `npm run drift:ios` and `npm run audit:ios:gaps`; both passed on the current checkout.
+- [x] **Simulator build:** Built the `Wisconsin` iOS Simulator target through XcodeBuildMCP and with the exact requested `xcodebuild` command.
+- [x] **Docs and QA handoff:** Updated mobile readiness docs and left a TestFlight readiness report with remaining hardware-only QA.
+
+**Review**
+- Source-verifiable iOS audit blockers are closed. Remaining unchecked audit entries are explicitly deferred P2 parity/polish items or real-device-only checks.
+- Verified: `npm run drift:ios` -> no anti-patterns across 45 Swift files; `npm run audit:ios:gaps` -> 34/34 audit-worthy surfaces covered, no gaps; `xcodebuild -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build` -> `BUILD SUCCEEDED`.
+- Remaining TestFlight work is real-device QA only: camera/DataScanner, haptics, APNs, VoiceOver, Dynamic Type, Bluetooth HID scanner, and unstable-network behavior.
+- Caveat: exact shell `xcodebuild` needed CoreSimulator access outside the sandbox; the first sandboxed attempt failed on simulator service permissions, then the escalated exact command succeeded.
 
 ### Status/Data Wiring Ship Fixes (2026-05-10)
 - [x] **Item status contract:** Treat `PENDING_PICKUP` as an active item state in server read models, item filters, and web/iOS status presentation.

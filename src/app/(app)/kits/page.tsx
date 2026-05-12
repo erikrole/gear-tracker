@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useCallback, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
 import { useUrlState, useDebounce } from "@/hooks/use-url-state";
 import { toast } from "sonner";
 import {
@@ -188,7 +187,6 @@ function KitsLoadingState() {
 }
 
 export default function KitsPage() {
-  const router = useRouter();
   const [search, setSearch] = useUrlState<string>(
     "q",
     parseStringParam,
@@ -234,11 +232,11 @@ export default function KitsPage() {
   const locationOptions = locations ?? [];
 
   const handleCreated = useCallback(
-    (kitId: string) => {
+    () => {
       toast.success("Kit created");
-      router.push(`/kits/${kitId}`);
+      query.reload();
     },
-    [router],
+    [query.reload],
   );
 
   function toggleSort(column: KitSortColumn) {

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -71,6 +72,7 @@ export default function DepartmentsSettingsPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState("");
   const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -84,7 +86,11 @@ export default function DepartmentsSettingsPage() {
   async function addDepartment(e: React.FormEvent) {
     e.preventDefault();
     const name = newName.trim();
-    if (!name) return;
+    setAddError("");
+    if (!name) {
+      setAddError("Department name is required.");
+      return;
+    }
     setAdding(true);
     try {
       const res = await fetch("/api/departments", {
@@ -95,6 +101,7 @@ export default function DepartmentsSettingsPage() {
       if (handleAuthRedirect(res, "/settings/departments")) return;
       if (!res.ok) {
         const msg = await parseErrorMessage(res, "Failed to add department");
+        setAddError(msg);
         toast.error(msg);
         return;
       }
@@ -105,7 +112,9 @@ export default function DepartmentsSettingsPage() {
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      toast.error(kind === "network" ? "You're offline. Check your connection." : "Failed to add department");
+      const msg = kind === "network" ? "You're offline. Check your connection." : "Failed to add department";
+      setAddError(msg);
+      toast.error(msg);
     } finally {
       setAdding(false);
     }
@@ -245,13 +254,18 @@ export default function DepartmentsSettingsPage() {
                 <CardTitle className="text-base">New department</CardTitle>
               </CardHeader>
               <CardContent>
+                {addError && (
+                  <Alert variant="destructive" className="mb-4">
+                    <AlertDescription>{addError}</AlertDescription>
+                  </Alert>
+                )}
                 <form onSubmit={addDepartment} className="flex items-end gap-3 max-sm:flex-col max-sm:items-stretch">
                   <div className="flex-1 space-y-1.5">
                     <Label htmlFor="department-name">Name</Label>
                     <Input
                       id="department-name"
                       value={newName}
-                      onChange={(e) => setNewName(e.target.value)}
+                      onChange={(e) => { setNewName(e.target.value); setAddError(""); }}
                       placeholder="e.g. Video"
                       required
                       autoFocus
@@ -265,7 +279,7 @@ export default function DepartmentsSettingsPage() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => { setShowAdd(false); setNewName(""); }}
+                    onClick={() => { setShowAdd(false); setNewName(""); setAddError(""); }}
                     disabled={adding}
                   >
                     Cancel

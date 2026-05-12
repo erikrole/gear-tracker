@@ -1,6 +1,6 @@
 # AREA: Shift Calendar & Scheduling
 
-> Status: **Implemented** | Owner: TBD | Last Updated: 2026-05-10
+> Status: **Implemented** | Owner: TBD | Last Updated: 2026-05-12
 
 ## Purpose
 
@@ -71,6 +71,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - Sports code mappings (existing — `src/lib/sports.ts`)
 
 ## Change Log
+- 2026-05-12: Creation flow standardization. Event crew setup, manual shift add, and post-for-trade flows now surface form-level errors in the active panel/dialog, guard slow-network submit state, and give an explicit next-step handoff after a shift is added instead of relying only on toasts.
 - 2026-05-10: Schedule ownership pass. `/schedule` readiness now counts actual active shift assignments instead of events, filtered empty states can recover by clearing filters, manual all-day event creation treats the selected end date as an inclusive all-day date, list/week/calendar navigation controls now use larger deliberate targets, and `/schedule/assign` has stronger empty states plus accessible assignment/remove controls.
 - 2026-05-08: API hardening Wave 2 added audit coverage for shift attendance updates and enriched shift deletion audits with force-delete and active-assignment context.
 - 2026-05-08: API hardening Wave 1 fixed permission-map drift. `shift.manage` is now an explicit ADMIN/STAFF permission, matching existing shift-group and event-travel mutation route calls and preventing those routes from failing on an undefined permission action. Regression coverage added in `tests/rbac.test.ts`.

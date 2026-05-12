@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -86,6 +87,7 @@ export default function LocationsSettingsPage() {
   const [newAddress, setNewAddress] = useState("");
   const [newHome, setNewHome] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState("");
 
   function patchLocal(id: string, patch: Partial<Location>) {
     setLocalItems((prev) => (prev ?? items).map((l) => (l.id === id ? { ...l, ...patch } : l)));
@@ -93,7 +95,11 @@ export default function LocationsSettingsPage() {
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
-    if (!newName.trim()) return;
+    setAddError("");
+    if (!newName.trim()) {
+      setAddError("Location name is required.");
+      return;
+    }
     setAdding(true);
     try {
       const res = await fetch("/api/locations", {
@@ -105,7 +111,7 @@ export default function LocationsSettingsPage() {
           isHomeVenue: newHome,
         }),
       });
-      if (handleAuthRedirect(res, "/settings/locations")) return;
+      if (handleAuthRedirect(res, "/settings/locations")) { setAdding(false); return; }
       if (res.ok) {
         toast.success(`Added "${newName.trim()}"`);
         setNewName("");
@@ -115,12 +121,15 @@ export default function LocationsSettingsPage() {
         reload();
       } else {
         const msg = await parseErrorMessage(res, "Failed to create location");
+        setAddError(msg);
         toast.error(msg);
       }
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      toast.error(kind === "network" ? "You’re offline. Check your connection." : "Failed to create location");
+      const msg = kind === "network" ? "You’re offline. Check your connection." : "Failed to create location";
+      setAddError(msg);
+      toast.error(msg);
     }
     setAdding(false);
   }
@@ -271,6 +280,11 @@ export default function LocationsSettingsPage() {
               <CardTitle className="text-base">New location</CardTitle>
             </CardHeader>
             <CardContent>
+              {addError && (
+                <Alert variant="destructive" className="mb-4">
+                  <AlertDescription>{addError}</AlertDescription>
+                </Alert>
+              )}
               <form onSubmit={handleAdd} className="space-y-4">
                 <div className="grid grid-cols-[1fr_1fr] gap-3 max-sm:grid-cols-1">
                   <div className="space-y-1.5">
@@ -278,7 +292,7 @@ export default function LocationsSettingsPage() {
                     <Input
                       id="loc-name"
                       value={newName}
-                      onChange={(e) => setNewName(e.target.value)}
+                      onChange={(e) => { setNewName(e.target.value); setAddError(""); }}
                       placeholder="e.g. Camp Randall Stadium"
                       required
                       autoFocus
@@ -315,7 +329,8 @@ export default function LocationsSettingsPage() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => { setShowAdd(false); setNewName(""); setNewAddress(""); setNewHome(false); }}
+                    onClick={() => { setShowAdd(false); setNewName(""); setNewAddress(""); setNewHome(false); setAddError(""); }}
+                    disabled={adding}
                   >
                     Cancel
                   </Button>

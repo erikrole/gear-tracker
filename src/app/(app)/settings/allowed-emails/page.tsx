@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { FadeUp } from "@/components/ui/motion";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -86,6 +87,7 @@ export default function AllowedEmailsPage() {
   const [addBulk, setAddBulk] = useState("");
   const [addRole, setAddRole] = useState<"STUDENT" | "STAFF">("STUDENT");
   const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState("");
 
   function parseBulkEmails(raw: string): string[] {
     return Array.from(
@@ -100,19 +102,25 @@ export default function AllowedEmailsPage() {
 
   async function handleBulkAdd(e: React.FormEvent) {
     e.preventDefault();
+    setAddError("");
     const emails = parseBulkEmails(addBulk);
     if (emails.length === 0) {
+      setAddError("Paste at least one email.");
       toast.error("Paste at least one email");
       return;
     }
     if (emails.length > 50) {
-      toast.error(`Too many — max 50 per batch (got ${emails.length}).`);
+      const msg = `Too many - max 50 per batch (got ${emails.length}).`;
+      setAddError(msg);
+      toast.error(msg);
       return;
     }
     // Basic shape filter to bail before the round-trip
     const malformed = emails.filter((e) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
     if (malformed.length > 0) {
-      toast.error(`Looks invalid: ${malformed.slice(0, 3).join(", ")}${malformed.length > 3 ? "…" : ""}`);
+      const msg = `Looks invalid: ${malformed.slice(0, 3).join(", ")}${malformed.length > 3 ? "..." : ""}`;
+      setAddError(msg);
+      toast.error(msg);
       return;
     }
 
@@ -123,7 +131,7 @@ export default function AllowedEmailsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ emails: emails.map((email) => ({ email, role: addRole })) }),
       });
-      if (handleAuthRedirect(res, "/settings/allowed-emails")) return;
+      if (handleAuthRedirect(res, "/settings/allowed-emails")) { setAdding(false); return; }
       if (res.ok) {
         const json = await res.json();
         const created = (json.created as number) ?? 0;
@@ -136,25 +144,33 @@ export default function AllowedEmailsPage() {
           toast.message("All emails were already on the allowlist or registered.");
         }
         setAddBulk("");
+        setAddError("");
         setShowAdd(false);
         setAddMode("single");
         reload();
       } else {
         const msg = await parseErrorMessage(res, "Bulk add failed");
+        setAddError(msg);
         toast.error(msg);
       }
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      toast.error(kind === "network" ? "You’re offline. Check your connection." : "Bulk add failed");
+      const msg = kind === "network" ? "You’re offline. Check your connection." : "Bulk add failed";
+      setAddError(msg);
+      toast.error(msg);
     }
     setAdding(false);
   }
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
+    setAddError("");
     const trimmed = addEmail.trim().toLowerCase();
-    if (!trimmed) return;
+    if (!trimmed) {
+      setAddError("Email address is required.");
+      return;
+    }
 
     setAdding(true);
     try {
@@ -163,21 +179,25 @@ export default function AllowedEmailsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: trimmed, role: addRole }),
       });
-      if (handleAuthRedirect(res, "/settings/allowed-emails")) return;
+      if (handleAuthRedirect(res, "/settings/allowed-emails")) { setAdding(false); return; }
       if (res.ok) {
         toast.success("Email added to allowlist");
         setAddEmail("");
+        setAddError("");
         setAddRole("STUDENT");
         setShowAdd(false);
         reload();
       } else {
         const msg = await parseErrorMessage(res, "Failed to add email");
+        setAddError(msg);
         toast.error(msg);
       }
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to add email");
+      const msg = kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to add email";
+      setAddError(msg);
+      toast.error(msg);
     }
     setAdding(false);
   }
@@ -294,7 +314,7 @@ export default function AllowedEmailsPage() {
           </div>
 
           {!showAdd && (
-            <Button size="sm" onClick={() => setShowAdd(true)}>
+            <Button size="sm" onClick={() => { setShowAdd(true); setAddError(""); }}>
               <Plus className="size-4" />
               Add email
             </Button>
@@ -309,7 +329,7 @@ export default function AllowedEmailsPage() {
                 <button
                   type="button"
                   className={`px-2 py-1 rounded-md font-medium ${addMode === "single" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                  onClick={() => setAddMode("single")}
+                  onClick={() => { setAddMode("single"); setAddError(""); }}
                   disabled={adding}
                 >
                   One email
@@ -317,12 +337,18 @@ export default function AllowedEmailsPage() {
                 <button
                   type="button"
                   className={`px-2 py-1 rounded-md font-medium ${addMode === "bulk" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                  onClick={() => setAddMode("bulk")}
+                  onClick={() => { setAddMode("bulk"); setAddError(""); }}
                   disabled={adding}
                 >
                   Bulk paste (up to 50)
                 </button>
               </div>
+
+              {addError && (
+                <Alert variant="destructive" className="mb-4">
+                  <AlertDescription>{addError}</AlertDescription>
+                </Alert>
+              )}
 
               {addMode === "single" ? (
                 <form onSubmit={handleAdd} className="space-y-4">
@@ -333,7 +359,7 @@ export default function AllowedEmailsPage() {
                         id="add-email"
                         type="email"
                         value={addEmail}
-                        onChange={(e) => setAddEmail(e.target.value)}
+                        onChange={(e) => { setAddEmail(e.target.value); setAddError(""); }}
                         placeholder="user@example.com"
                         required
                         autoFocus
@@ -342,7 +368,7 @@ export default function AllowedEmailsPage() {
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="add-role">Role</Label>
-                      <Select value={addRole} onValueChange={(v) => setAddRole(v as "STUDENT" | "STAFF")}>
+                      <Select value={addRole} onValueChange={(v) => setAddRole(v as "STUDENT" | "STAFF")} disabled={adding}>
                         <SelectTrigger id="add-role">
                           <SelectValue />
                         </SelectTrigger>
@@ -361,7 +387,8 @@ export default function AllowedEmailsPage() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => { setShowAdd(false); setAddEmail(""); setAddRole("STUDENT"); }}
+                      onClick={() => { setShowAdd(false); setAddEmail(""); setAddRole("STUDENT"); setAddError(""); }}
+                      disabled={adding}
                     >
                       Cancel
                     </Button>
@@ -375,7 +402,7 @@ export default function AllowedEmailsPage() {
                       <Textarea
                         id="add-bulk"
                         value={addBulk}
-                        onChange={(e) => setAddBulk(e.target.value)}
+                        onChange={(e) => { setAddBulk(e.target.value); setAddError(""); }}
                         placeholder={"alice@school.edu\nbob@school.edu\ncharlie@school.edu"}
                         rows={6}
                         autoFocus
@@ -389,7 +416,7 @@ export default function AllowedEmailsPage() {
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="add-bulk-role">Role for all</Label>
-                      <Select value={addRole} onValueChange={(v) => setAddRole(v as "STUDENT" | "STAFF")}>
+                      <Select value={addRole} onValueChange={(v) => setAddRole(v as "STUDENT" | "STAFF")} disabled={adding}>
                         <SelectTrigger id="add-bulk-role">
                           <SelectValue />
                         </SelectTrigger>
@@ -408,7 +435,8 @@ export default function AllowedEmailsPage() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => { setShowAdd(false); setAddBulk(""); setAddMode("single"); }}
+                      onClick={() => { setShowAdd(false); setAddBulk(""); setAddMode("single"); setAddError(""); }}
+                      disabled={adding}
                     >
                       Cancel
                     </Button>

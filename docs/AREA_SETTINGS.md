@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Settings
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-10
+- Last Updated: 2026-05-12
 - Status: Active
 - Version: V1
 
@@ -14,7 +14,7 @@ Single Settings surface for both **personal preferences** (visible to every auth
 1. The Settings surface is open to any authenticated user (STUDENT / STAFF / ADMIN). Each sub-page declares its own `requiredRole`; the layout filters tabs accordingly. STUDENTs only see the Personal group.
 2. Settings layout provides unified tab navigation — sub-pages should not render their own page-level `<h1>`.
 3. Each sub-page uses the `settings-split` layout: sidebar (title + description) and main (forms/tables).
-4. Mutations should provide immediate feedback via toast notifications.
+4. Mutations should provide immediate feedback via toast notifications and visible form-level errors for create/add forms.
 5. Personal-group preferences belong in **Personal** (top group). System configuration belongs in **People · Inventory · Scheduling · Devices · System**.
 
 ## Sub-Pages
@@ -99,7 +99,7 @@ Single Settings surface for both **personal preferences** (visible to every auth
 - Create device → server returns a one-shot 6-digit activation code; admin enters it on the iPad at `/kiosk` to bind the device.
 - Pending-activation devices have a "Regenerate code" affordance — invalidates the prior hash and surfaces a fresh code in the same dialog.
 - Activated kiosks can't regenerate (must deactivate first; server returns 409).
-- Toggle active/inactive (deactivating clears the session token), delete, and inspect last-seen timestamp.
+- Toggle active/inactive (deactivating clears the session token and stored expiry), delete, and inspect last-seen timestamp.
 
 ### Allowed Emails (`/settings/allowed-emails`)
 - Admin-managed email allowlist for registration gating (D-029).
@@ -127,6 +127,8 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages.
 
 ## Change Log
+- 2026-05-12: Creation flow standardization. Categories, Departments, Locations, and Allowed Emails add forms now show visible form-level validation/API/network errors and keep submit/cancel controls in a clear disabled state during slow saves.
+- 2026-05-12: Security audit patch. Kiosk device deactivation now clears both the stored session token and `sessionExpiresAt`, matching the server-side kiosk expiry model documented in `AREA_KIOSK.md`.
 - 2026-05-10: Schedule ownership pass. Sports shift-generation activation now uses the shared Switch control with an explicit Active/Off badge, keeping the schedule-feeding settings page aligned with the rest of the app's control system.
 - 2026-05-10: Component audit closeout. Database diagnostics now keeps result-list React keys stable even when duplicate migration/table labels are returned, clearing the console warning found during authenticated Settings smoke.
 - 2026-05-10: Breadcrumb first-class UX pass. The Settings/Reports parent crumb dropdowns now inherit the stronger global breadcrumb shell treatment, keep role filtering intact, and show clearer menu framing with current-page indicators plus Settings section descriptions from `nav-sections.ts`.

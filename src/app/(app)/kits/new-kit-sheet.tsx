@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { useFormSubmit } from "@/hooks/use-form-submit";
 import {
@@ -40,11 +41,14 @@ const createKitSchema = z.object({
 });
 
 type CreateKitInput = z.infer<typeof createKitSchema>;
+type CreatedKit = { id: string; name: string };
 
 export function NewKitSheet({ open, onOpenChange, locations, onCreated }: NewKitSheetProps) {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [locationId, setLocationId] = useState(locations[0]?.id ?? "");
+  const [createdKit, setCreatedKit] = useState<CreatedKit | null>(null);
   const defaultLocationId = locations[0]?.id ?? "";
   const hasLocations = locations.length > 0;
 
@@ -60,12 +64,29 @@ export function NewKitSheet({ open, onOpenChange, locations, onCreated }: NewKit
     setLocationId(defaultLocationId);
   }
 
+  function finishCreatedKit(mode: "another" | "open" | "list") {
+    const kitId = createdKit?.id;
+    if (mode === "another") {
+      setCreatedKit(null);
+      reset();
+      clearErrors();
+      return;
+    }
+    setCreatedKit(null);
+    reset();
+    clearErrors();
+    onOpenChange(false);
+    if (mode === "open" && kitId) {
+      router.push(`/kits/${kitId}`);
+    }
+  }
+
   const { submit, submitting, fieldErrors, formError, clearErrors } = useFormSubmit<CreateKitInput, { id: string }>({
     schema: createKitSchema,
     url: "/api/kits",
     onSuccess: (data) => {
+      setCreatedKit({ id: data.id, name: name.trim() });
       reset();
-      onOpenChange(false);
       onCreated(data.id);
     },
   });
@@ -75,6 +96,7 @@ export function NewKitSheet({ open, onOpenChange, locations, onCreated }: NewKit
     onOpenChange(nextOpen);
     if (!nextOpen) {
       reset();
+      setCreatedKit(null);
       clearErrors();
     }
   }
@@ -98,7 +120,22 @@ export function NewKitSheet({ open, onOpenChange, locations, onCreated }: NewKit
           </SheetDescription>
         </SheetHeader>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 py-4">
+        {createdKit ? (
+          <div className="flex flex-col gap-4 py-4">
+            <Alert>
+              <AlertDescription>
+                "{createdKit.name}" was created. Open it to add serialized items and bulk stock, or create another kit.
+              </AlertDescription>
+            </Alert>
+            <div className="rounded-md border bg-muted/30 px-4 py-3 text-sm">
+              <p className="font-medium">Next step</p>
+              <p className="mt-1 text-muted-foreground">
+                Kit contents are managed on the kit detail page.
+              </p>
+            </div>
+          </div>
+        ) : (
+        <form id="new-kit-form" onSubmit={handleSubmit} className="flex flex-col gap-4 py-4">
           {formError && (
             <Alert variant="destructive">
               <AlertDescription>{formError}</AlertDescription>
@@ -189,15 +226,33 @@ export function NewKitSheet({ open, onOpenChange, locations, onCreated }: NewKit
             )}
           </div>
 
-          <SheetFooter className="mt-2">
-            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)} disabled={submitting}>
-              Cancel
-            </Button>
-            <Button type="submit" loading={submitting} disabled={!hasLocations || submitting}>
-              Create and open kit
-            </Button>
-          </SheetFooter>
         </form>
+        )}
+
+        <SheetFooter className="mt-2">
+          {createdKit ? (
+            <>
+              <Button type="button" variant="outline" onClick={() => finishCreatedKit("another")}>
+                Create another kit
+              </Button>
+              <Button type="button" variant="outline" onClick={() => finishCreatedKit("list")}>
+                Return to kits
+              </Button>
+              <Button type="button" onClick={() => finishCreatedKit("open")}>
+                Open kit
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="outline" onClick={() => handleOpenChange(false)} disabled={submitting}>
+                Cancel
+              </Button>
+              <Button type="submit" form="new-kit-form" loading={submitting} disabled={!hasLocations || submitting}>
+                Create kit
+              </Button>
+            </>
+          )}
+        </SheetFooter>
       </SheetContent>
     </Sheet>
   );

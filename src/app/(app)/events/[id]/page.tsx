@@ -34,6 +34,7 @@ export default function EventDetailPage() {
   const { setBreadcrumbLabel } = useBreadcrumbLabel();
   const [acting, setActing] = useState<string | null>(null);
   const [creatingGroup, setCreatingGroup] = useState(false);
+  const [crewSetupError, setCrewSetupError] = useState("");
 
   const {
     data: event,
@@ -88,6 +89,7 @@ export default function EventDetailPage() {
   async function handleCreateShiftGroup() {
     if (!event) return;
     setCreatingGroup(true);
+    setCrewSetupError("");
     try {
       const res = await fetch("/api/shift-groups", {
         method: "POST",
@@ -96,17 +98,21 @@ export default function EventDetailPage() {
       });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
+        toast.success("Crew setup created");
         reloadShiftGroup();
         if (isStaffOrAdmin) reloadCommandCenter();
       } else {
         const msg = await parseErrorMessage(res, "Failed to create shift group");
+        setCrewSetupError(msg);
         toast.error(msg);
       }
     } catch (err) {
       if (isAbortError(err)) return;
+      setCrewSetupError("Network error - check your connection");
       toast.error("Network error");
+    } finally {
+      setCreatingGroup(false);
     }
-    setCreatingGroup(false);
   }
 
   if (fetchError && !event) {
@@ -240,6 +246,11 @@ export default function EventDetailPage() {
       ) : isStaffOrAdmin ? (
         <Card className="mt-4">
           <CardContent className="py-8 flex flex-col items-center gap-3 text-center">
+            {crewSetupError && (
+              <Alert variant="destructive" className="text-left">
+                <AlertDescription>{crewSetupError}</AlertDescription>
+              </Alert>
+            )}
             <p className="text-sm text-muted-foreground">No crew scheduled for this event.</p>
             <Button size="sm" onClick={handleCreateShiftGroup} disabled={creatingGroup}>
               {creatingGroup ? "Setting up..." : "Set up crew"}

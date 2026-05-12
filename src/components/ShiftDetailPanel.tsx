@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 /* ───── Types ───── */
 
@@ -108,7 +109,10 @@ export default function ShiftDetailPanel({
   const [archiving, setArchiving] = useState(false);
   const [tradeDialogAssignmentId, setTradeDialogAssignmentId] = useState<string | null>(null);
   const [tradeNotes, setTradeNotes] = useState("");
+  const [tradeError, setTradeError] = useState("");
   const [posting, setPosting] = useState(false);
+  const [actionError, setActionError] = useState("");
+  const [createdShiftNotice, setCreatedShiftNotice] = useState("");
   const abortRef = useRef<AbortController | null>(null);
   const usersAbortRef = useRef<AbortController | null>(null);
 
@@ -201,23 +205,29 @@ export default function ShiftDetailPanel({
     opts: RequestInit,
     successMsg: string,
     preAction?: () => ShiftGroupDetail | null,
+    onSuccess?: () => void,
   ) {
     setActing(key);
+    setActionError("");
+    setCreatedShiftNotice("");
     const prev = preAction?.() ?? null;
     try {
       const res = await fetch(url, opts);
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
         toast.success(successMsg);
+        onSuccess?.();
         await fetchGroup();
         onUpdated?.();
       } else {
         if (prev) setGroup(prev);
         const msg = await parseErrorMessage(res, "Action failed");
+        setActionError(msg);
         toast.error(msg);
       }
     } catch {
       if (prev) setGroup(prev);
+      setActionError("Network error - check your connection");
       toast.error("Network error");
     } finally {
       setActing(null);
@@ -356,6 +366,7 @@ export default function ShiftDetailPanel({
 
   async function handlePostTrade(assignmentId: string) {
     setPosting(true);
+    setTradeError("");
     try {
       const res = await fetch("/api/shift-trades", {
         method: "POST",
@@ -372,9 +383,11 @@ export default function ShiftDetailPanel({
         setTradeNotes("");
       } else {
         const msg = await parseErrorMessage(res, "Failed to post trade");
+        setTradeError(msg);
         toast.error(msg);
       }
     } catch {
+      setTradeError("Network error - check your connection");
       toast.error("Network error");
     } finally {
       setPosting(false);
@@ -388,7 +401,9 @@ export default function ShiftDetailPanel({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ area, workerType }),
-    }, `Added ${label} ${area.charAt(0) + area.slice(1).toLowerCase()} shift`);
+    }, `Added ${label} ${area.charAt(0) + area.slice(1).toLowerCase()} shift`, undefined, () => {
+      setCreatedShiftNotice(`Added ${label} ${area.charAt(0) + area.slice(1).toLowerCase()} shift. Assign someone from the new open row, or leave it open for requests.`);
+    });
   }
 
   async function handleDeleteShift(shiftId: string, hasAssignment: boolean) {
@@ -440,6 +455,12 @@ export default function ShiftDetailPanel({
           <div className="p-4 text-muted-foreground">Shift group not found.</div>
         ) : (
           <SheetBody className="px-6 py-4">
+            {(actionError || createdShiftNotice) && (
+              <Alert variant={actionError ? "destructive" : "default"} className="mb-4">
+                <AlertDescription>{actionError || createdShiftNotice}</AlertDescription>
+              </Alert>
+            )}
+
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2 flex-wrap">
                 {group.event.sportCode && (
@@ -546,6 +567,11 @@ export default function ShiftDetailPanel({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2 py-1">
+          {tradeError && (
+            <Alert variant="destructive">
+              <AlertDescription>{tradeError}</AlertDescription>
+            </Alert>
+          )}
           <Label htmlFor="trade-notes" className="text-xs font-medium">
             Notes <span className="text-muted-foreground font-normal">(optional)</span>
           </Label>

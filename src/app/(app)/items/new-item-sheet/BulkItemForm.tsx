@@ -16,7 +16,7 @@ import { FormCombobox, CategoryCombobox, BulkSkuCombobox, type BulkSkuOption } f
 
 export interface BulkFormHandle {
   validate(): string | null;
-  getSubmitPayload(): { url: string; body: Record<string, unknown>; label: string } | null;
+  getSubmitPayload(): { url: string; body: Record<string, unknown>; label: string; handoffHref?: string; openLabel?: string } | null;
   reset(): void;
   focus(): void;
 }
@@ -25,10 +25,11 @@ interface Props {
   categories: CategoryOption[];
   locations: Location[];
   open: boolean;
+  disabled?: boolean;
 }
 
 export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
-  function BulkItemForm({ categories, locations, open }, ref) {
+  function BulkItemForm({ categories, locations, open, disabled = false }, ref) {
     const [bulkMode, setBulkMode] = useState<BulkMode>("new");
 
     // New bulk SKU fields — empty string = no selection
@@ -81,6 +82,8 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
             url: `/api/bulk-skus/${selectedBulkSkuId}/adjust`,
             body: { quantityDelta: addQty, reason: "Added via New Item sheet" },
             label: sku?.name || "Bulk item",
+            handoffHref: `/bulk-inventory/${selectedBulkSkuId}`,
+            openLabel: "Open stock record",
           };
         }
         return {
@@ -94,6 +97,7 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
             initialQuantity: parseInt(initialQuantity, 10) || 0,
           },
           label: bulkName.trim() || "Bulk item",
+          openLabel: "Open bulk item",
         };
       },
       reset() {
@@ -112,11 +116,11 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
     }));
 
     return (
-      <>
+      <fieldset disabled={disabled} className="contents">
         {/* ── Bulk sub-mode ── */}
         <section className="space-y-3">
           <SectionHeading>Bulk option</SectionHeading>
-          <RadioGroup value={bulkMode} onValueChange={(v) => setBulkMode(v as BulkMode)}>
+          <RadioGroup value={bulkMode} onValueChange={(v) => setBulkMode(v as BulkMode)} disabled={disabled}>
             <div className="flex items-start gap-3">
               <RadioGroupItem value="new" id="bulk-new" className="mt-0.5" />
               <div>
@@ -145,7 +149,7 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
             </FormRow>
 
             <FormRow label="Category" required>
-              <CategoryCombobox value={categoryId} onValueChange={setCategoryId} categories={categories} />
+              <CategoryCombobox value={categoryId} onValueChange={setCategoryId} categories={categories} disabled={disabled} />
             </FormRow>
 
             <FormRow label="Location" required>
@@ -156,6 +160,7 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
                 placeholder="Select a location"
                 searchPlaceholder="Search locations..."
                 emptyLabel="No location found."
+                disabled={disabled}
               />
             </FormRow>
 
@@ -174,6 +179,7 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
                   size="icon"
                   title="Generate QR code"
                   onClick={() => setBulkQrCode(generateQrCode())}
+                  disabled={disabled}
                 >
                   <Dices className="size-4" />
                 </Button>
@@ -237,7 +243,7 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
             )}
           </section>
         )}
-      </>
+      </fieldset>
     );
   }
 );

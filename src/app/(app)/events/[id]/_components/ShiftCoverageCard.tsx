@@ -7,6 +7,7 @@ import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,6 +69,8 @@ export function ShiftCoverageCard({
   // ── Local acting state for all mutations ──
   const [inlineActing, setInlineActing] = useState<string | null>(null);
   const [autoFilling, setAutoFilling] = useState(false);
+  const [actionError, setActionError] = useState("");
+  const [createdShiftNotice, setCreatedShiftNotice] = useState("");
 
   // ── Delete confirmation ──
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -131,22 +134,28 @@ export function ShiftCoverageCard({
 
   // ── Mutations ──
 
-  async function mutate(key: string, url: string, opts: RequestInit, successMsg: string) {
+  async function mutate(key: string, url: string, opts: RequestInit, successMsg: string, onSuccess?: () => void) {
     setInlineActing(key);
+    setActionError("");
+    setCreatedShiftNotice("");
     try {
       const res = await fetch(url, opts);
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
         toast.success(successMsg);
+        onSuccess?.();
         onUpdated?.();
       } else {
         const msg = await parseErrorMessage(res, "Action failed");
+        setActionError(msg);
         toast.error(msg);
       }
     } catch {
+      setActionError("Network error - check your connection");
       toast.error("Network error");
+    } finally {
+      setInlineActing(null);
     }
-    setInlineActing(null);
   }
 
   function handleAssign(shiftId: string, userId: string) {
@@ -168,7 +177,9 @@ export function ShiftCoverageCard({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ area, workerType }),
-    }, `${AREA_LABELS[area] ?? area} ${label} shift added`);
+    }, `${AREA_LABELS[area] ?? area} ${label} shift added`, () => {
+      setCreatedShiftNotice(`${AREA_LABELS[area] ?? area} ${label} shift added. Assign someone from the new open row, then link gear if needed.`);
+    });
   }
 
   function handleDeleteShift(shiftId: string, force: boolean) {
@@ -538,6 +549,12 @@ export function ShiftCoverageCard({
       </CardHeader>
 
       <CardContent>
+        {(actionError || createdShiftNotice) && (
+          <Alert variant={actionError ? "destructive" : "default"} className="mb-4">
+            <AlertDescription>{actionError || createdShiftNotice}</AlertDescription>
+          </Alert>
+        )}
+
         {/* Gear summary badges (staff only) */}
         {commandCenter && isStaffOrAdmin && (
           commandCenter.gearSummary.byStatus.draft > 0 ||

@@ -8,6 +8,8 @@ import { requirePermission } from "@/lib/rbac";
 import { buildDerivedStatusWhere, enrichAssetsWithStatusFromLoaded } from "@/lib/services/status";
 import { BookingKind, BookingStatus, Prisma } from "@prisma/client";
 
+const departmentIdSchema = z.string().min(1);
+
 const createAssetSchema = z.object({
   assetTag: z.string().min(1),
   name: z.string().max(500).optional(),
@@ -22,7 +24,7 @@ const createAssetSchema = z.object({
   residualValue: z.number().nonnegative().optional(),
   locationId: z.string().cuid(),
   categoryId: z.string().cuid().optional(),
-  departmentId: z.string().cuid().optional(),
+  departmentId: departmentIdSchema.optional(),
   linkUrl: z.string().url().max(2000).optional(),
   uwAssetTag: z.string().max(200).optional(),
   parentAssetId: z.string().cuid().optional(),

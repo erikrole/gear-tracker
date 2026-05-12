@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Kits Management
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-10
+- Last Updated: 2026-05-12
 - Status: Active
 - Version: V1
 - Brief: `BRIEF_KIT_MANAGEMENT_V1.md`
@@ -70,7 +70,7 @@ Enable staff to group related gear items into named kits for faster checkout wor
 - **Sheet:** `src/app/(app)/kits/new-kit-sheet.tsx` (opened via button on `/kits`)
 - **Type:** Modal dialog
 - **Fields:** Name (required), description (optional), location (dropdown)
-- **Behaviors:** Submit creates kit; client/server validation appears inline; on success, redirects to kit detail page with one success toast
+- **Behaviors:** Submit creates kit; client/server validation appears inline; on success, the sheet shows explicit handoff actions to open the kit, return to the refreshed kits list, or create another kit.
 
 ## Data Model
 
@@ -95,6 +95,7 @@ See `AREA_ITEMS.md` 2026-04-06 entry for kit detail page hardening work:
 - [x] AC-6: Mobile kit list responsive; detail scrollable
 
 ## Change Log
+- 2026-05-12: Creation flow standardization. New Kit now uses the shared post-create handoff pattern so operators can open the created kit, return to the refreshed list, or create another kit without an automatic redirect.
 - 2026-03-16: Kit CRUD API and detail page shipped (D-020 implementation). Kit member add/remove with equipment picker reuse. Archive toggle. Hardening: 401 guards on all mutations, AbortController cleanup on list page.
 - 2026-04-06: Kits detail page hardening (5-pass audit) — 401 redirect on all 6 mutations (save name, save description, add member, remove member, toggle archive, delete). Kits list page already uses `useFetch` hook.
 - 2026-04-09: Doc sync — created AREA_KITS.md as formal feature area documentation.

@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { FadeUp } from "@/components/ui/motion";
 import { useFetch } from "@/hooks/use-fetch";
@@ -26,6 +27,7 @@ export default function CategoriesPage() {
   const [sortAsc, setSortAsc] = useState(true);
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
+  const [addError, setAddError] = useState("");
   const [creatingRoot, setCreatingRoot] = useState(false);
   const addRef = useRef<HTMLInputElement>(null);
   const lastEdited = useLastAudit("category", (categories ?? []).map((category) => category.id));
@@ -34,7 +36,11 @@ export default function CategoriesPage() {
 
   async function createRoot() {
     if (creatingRoot) return;
-    if (!newName.trim()) { setAdding(false); return; }
+    setAddError("");
+    if (!newName.trim()) {
+      setAddError("Category name is required.");
+      return;
+    }
     setCreatingRoot(true);
     try {
       const res = await fetch("/api/categories", {
@@ -45,6 +51,7 @@ export default function CategoriesPage() {
       if (handleAuthRedirect(res, "/settings/categories")) return;
       if (!res.ok) {
         const msg = await parseErrorMessage(res, "Failed to create category");
+        setAddError(msg);
         toast.error(msg);
         return;
       }
@@ -55,7 +62,9 @@ export default function CategoriesPage() {
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to create category \u2014 please try again");
+      const msg = kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to create category - please try again";
+      setAddError(msg);
+      toast.error(msg);
     } finally {
       setCreatingRoot(false);
     }
@@ -105,7 +114,7 @@ export default function CategoriesPage() {
 
       <div className="min-w-0">
         <div className="flex justify-end mb-3">
-          <Button onClick={() => setAdding(true)}>
+          <Button onClick={() => { setAdding(true); setAddError(""); }}>
             Add new category
           </Button>
         </div>
@@ -172,20 +181,27 @@ export default function CategoriesPage() {
               </Button>
             </div>
           ) : (
-            <div className="divide-y divide-border">
+          <div className="divide-y divide-border">
+              {addError && (
+                <div className="border-b border-border px-4 py-3">
+                  <Alert variant="destructive">
+                    <AlertDescription>{addError}</AlertDescription>
+                  </Alert>
+                </div>
+              )}
               {adding && (
                 <div className="flex items-center justify-between pl-4 pr-4 py-3 min-h-[48px] border-b border-border">
                   <div className="flex items-center font-semibold">
                     <Input
                       ref={addRef}
                       value={newName}
-                      onChange={(e) => setNewName(e.target.value)}
+                      onChange={(e) => { setNewName(e.target.value); setAddError(""); }}
                       placeholder="Category name"
                       className="w-full max-w-[200px] font-semibold"
                       onBlur={createRoot}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") createRoot();
-                        if (e.key === "Escape") { setAdding(false); setNewName(""); }
+                        if (e.key === "Escape") { setAdding(false); setNewName(""); setAddError(""); }
                       }}
                       disabled={creatingRoot}
                     />

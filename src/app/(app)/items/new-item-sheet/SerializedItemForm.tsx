@@ -26,10 +26,11 @@ interface Props {
   categories: CategoryOption[];
   departments: Department[];
   locations: Location[];
+  disabled?: boolean;
 }
 
 export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
-  function SerializedItemForm({ categories, departments, locations }, ref) {
+  function SerializedItemForm({ categories, departments, locations, disabled = false }, ref) {
     // Controlled selects — empty string = no selection (no __none__ sentinels)
     const [categoryId, setCategoryId] = useState("");
     const [locationId, setLocationId] = useState("");
@@ -165,7 +166,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
     }));
 
     return (
-      <>
+      <fieldset disabled={disabled} className="contents">
         {/* ── Identity ── */}
         <section className="space-y-4">
           <SectionHeading>Identity</SectionHeading>
@@ -462,7 +463,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
             )}
           </div>
         </section>
-      </>
+      </fieldset>
     );
   }
 );

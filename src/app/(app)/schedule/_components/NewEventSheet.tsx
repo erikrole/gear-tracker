@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -24,6 +26,7 @@ import { SPORT_CODES } from "@/lib/sports";
 import { handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
 
 type Location = { id: string; name: string };
+type CreatedEvent = { id: string; summary: string };
 
 type Props = {
   open: boolean;
@@ -101,10 +104,12 @@ function buildAllDayEndDate(date: Date | undefined): string | null {
 }
 
 export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
+  const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
   const [locations, setLocations] = useState<Location[]>([]);
   const [locationsError, setLocationsError] = useState("");
+  const [createdEvent, setCreatedEvent] = useState<CreatedEvent | null>(null);
 
   // Form state
   const [title, setTitle] = useState("");
@@ -159,6 +164,20 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
     setOpponent("");
     setError("");
     setLocationsError("");
+    setCreatedEvent(null);
+  }
+
+  function finishCreatedEvent(mode: "another" | "open" | "list") {
+    const eventId = createdEvent?.id;
+    if (mode === "another") {
+      reset();
+      return;
+    }
+    reset();
+    onOpenChange(false);
+    if (mode === "open" && eventId) {
+      router.push(`/events/${eventId}`);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -201,10 +220,12 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
         return;
       }
 
-      toast.success(`"${title.trim()}" added to schedule`);
+      const json = await res.json();
+      const event = json.data as CreatedEvent;
+      toast.success(`"${event.summary}" added to schedule`);
       onCreated();
-      onOpenChange(false);
       reset();
+      setCreatedEvent(event);
     } catch {
       setError("Network error - check your connection");
     } finally {
@@ -214,7 +235,7 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
   }
 
   return (
-    <Sheet open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) reset(); }}>
+    <Sheet open={open} onOpenChange={(v) => { if (submitting) return; onOpenChange(v); if (!v) reset(); }}>
       <SheetContent className="sm:max-w-xl">
         <SheetHeader>
           <SheetTitle>New event</SheetTitle>
@@ -222,6 +243,21 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
         </SheetHeader>
 
         <SheetBody className="px-6 py-6">
+          {createdEvent ? (
+            <div className="flex flex-col gap-4">
+              <Alert>
+                <AlertDescription>
+                  "{createdEvent.summary}" was added. Open the event to set up crew, or return to the refreshed schedule.
+                </AlertDescription>
+              </Alert>
+              <div className="rounded-md border bg-muted/30 px-4 py-3 text-sm">
+                <p className="font-medium">Next step</p>
+                <p className="mt-1 text-muted-foreground">
+                  Crew setup, shifts, and gear handoff live on the event detail page.
+                </p>
+              </div>
+            </div>
+          ) : (
           <form id="new-event-form" onSubmit={handleSubmit} className="flex flex-col gap-5">
             {/* Title */}
             <div className="flex flex-col gap-1.5">
@@ -348,18 +384,37 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
             )}
 
             {error && (
-              <p className="text-sm text-destructive">{error}</p>
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
           </form>
+          )}
         </SheetBody>
 
         <SheetFooter>
-          <Button variant="outline" type="button" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
-          </Button>
-          <Button type="submit" form="new-event-form" disabled={submitting}>
-            {submitting ? "Adding..." : "Add event"}
-          </Button>
+          {createdEvent ? (
+            <>
+              <Button variant="outline" type="button" onClick={() => finishCreatedEvent("another")}>
+                Add another event
+              </Button>
+              <Button variant="outline" type="button" onClick={() => finishCreatedEvent("list")}>
+                Return to schedule
+              </Button>
+              <Button type="button" onClick={() => finishCreatedEvent("open")}>
+                Open event
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" type="button" onClick={() => onOpenChange(false)} disabled={submitting}>
+                Cancel
+              </Button>
+              <Button type="submit" form="new-event-form" disabled={submitting}>
+                {submitting ? "Adding..." : "Add event"}
+              </Button>
+            </>
+          )}
         </SheetFooter>
       </SheetContent>
     </Sheet>
