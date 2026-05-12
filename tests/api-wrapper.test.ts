@@ -21,6 +21,7 @@ const mockUser = {
   name: "Test User",
   role: "ADMIN" as const,
   avatarUrl: null,
+  forcePasswordChange: false,
 };
 
 beforeEach(() => {
@@ -176,6 +177,48 @@ describe("withAuth", () => {
     );
 
     expect(res.status).toBe(200);
+  });
+
+  it("blocks forced-password users from regular authenticated APIs", async () => {
+    vi.mocked(requireAuth).mockResolvedValue({
+      ...mockUser,
+      forcePasswordChange: true,
+    });
+    const handler = vi.fn().mockResolvedValue(NextResponse.json({ ok: true }));
+    const wrapped = withAuth(handler);
+
+    const res = await wrapped(
+      makeRequest("POST", { origin: "https://app.example.com" }),
+      { params: Promise.resolve({}) }
+    );
+
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error).toContain("Password change required");
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("allows forced-password users to call the profile password-change route", async () => {
+    vi.mocked(requireAuth).mockResolvedValue({
+      ...mockUser,
+      forcePasswordChange: true,
+    });
+    const handler = vi.fn().mockResolvedValue(NextResponse.json({ ok: true }));
+    const wrapped = withAuth(handler);
+
+    const res = await wrapped(
+      new Request("https://app.example.com/api/profile", {
+        method: "PATCH",
+        headers: {
+          host: "app.example.com",
+          origin: "https://app.example.com",
+        },
+      }),
+      { params: Promise.resolve({}) }
+    );
+
+    expect(res.status).toBe(200);
+    expect(handler).toHaveBeenCalled();
   });
 });
 

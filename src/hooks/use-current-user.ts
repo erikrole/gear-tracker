@@ -8,6 +8,7 @@ export type CurrentUser = {
   email: string;
   role: string;
   avatarUrl?: string | null;
+  forcePasswordChange?: boolean;
 };
 
 export function useCurrentUser(initialUser?: CurrentUser) {

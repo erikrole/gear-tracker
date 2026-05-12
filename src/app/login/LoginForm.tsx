@@ -15,6 +15,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { useFormSubmit } from "@/hooks/use-form-submit";
 
+type LoginResponse = {
+  user?: {
+    forcePasswordChange?: boolean;
+  };
+};
+
 function validateEmail(email: string): string {
   if (!email) return "Email is required";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Invalid email format";
@@ -41,7 +47,9 @@ export default function LoginForm() {
   const { submit, submitting, formError, clearErrors } = useFormSubmit({
     url: "/api/auth/login",
     skipAuthRedirect: true,
-    onSuccess: () => router.replace("/"),
+    onSuccess: (data: LoginResponse) => {
+      router.replace(data.user?.forcePasswordChange ? "/change-password" : "/");
+    },
     onError: (kind) => setIsNetworkError(kind === "network"),
   });
 

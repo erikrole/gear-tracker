@@ -14,6 +14,7 @@ export type AuthUser = {
   name: string;
   role: Role;
   avatarUrl: string | null;
+  forcePasswordChange?: boolean;
 };
 
 const SESSION_12H_MS = 1000 * 60 * 60 * 12;
@@ -105,6 +106,7 @@ export async function requireAuth(): Promise<AuthUser> {
     name: session.user.name,
     role: session.user.role,
     avatarUrl: session.user.avatarUrl ?? null,
+    forcePasswordChange: session.user.forcePasswordChange,
   };
 }
 

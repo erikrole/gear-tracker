@@ -135,6 +135,10 @@ export const POST = withAuth(async (req, { user }) => {
   try {
     entry = await db.allowedEmail.create({
       data: { email, role, createdById: user.id },
+      include: {
+        createdBy: { select: { id: true, name: true } },
+        claimedBy: { select: { id: true, name: true } },
+      },
     });
   } catch (error) {
     if (

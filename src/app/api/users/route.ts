@@ -16,6 +16,16 @@ const createUserSchema = z.object({
   locationId: z.string().cuid().nullable().optional()
 });
 
+type CreatedUser = Prisma.UserGetPayload<{
+  include: { location: { select: { name: true } } };
+}>;
+
+type AllowedEmailAudit = {
+  id: string;
+  action: "created" | "claimed";
+  after: Record<string, unknown>;
+};
+
 export const GET = withAuth(async (req, { user }) => {
   requireRole(user.role, ["ADMIN", "STAFF", "STUDENT"]);
 
@@ -192,19 +202,76 @@ export const POST = withAuth(async (req, { user }) => {
 
   const passwordHash = await hashPassword(body.password);
 
-  let created;
+  let result: { created: CreatedUser; allowedEmailAudit: AllowedEmailAudit | null } | null = null;
   try {
-    created = await db.user.create({
-      data: {
-        name: body.name,
-        email,
-        passwordHash,
-        role: body.role,
-        locationId: body.locationId ?? null
-      },
-      include: {
-        location: { select: { name: true } }
+    result = await db.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: {
+          name: body.name,
+          email,
+          passwordHash,
+          forcePasswordChange: true,
+          role: body.role,
+          locationId: body.locationId ?? null
+        },
+        include: {
+          location: { select: { name: true } }
+        }
+      });
+
+      let allowedEmailAudit: AllowedEmailAudit | null = null;
+      if (body.role !== "ADMIN") {
+        const now = new Date();
+        const existingAllowed = await tx.allowedEmail.findUnique({
+          where: { email },
+          select: { id: true, email: true, role: true, claimedAt: true, claimedById: true },
+        });
+
+        if (existingAllowed) {
+          if (!existingAllowed.claimedAt || !existingAllowed.claimedById) {
+            const claimed = await tx.allowedEmail.update({
+              where: { id: existingAllowed.id },
+              data: { role: body.role, claimedAt: now, claimedById: created.id },
+              select: { id: true, email: true, role: true, claimedAt: true, claimedById: true },
+            });
+            allowedEmailAudit = {
+              id: claimed.id,
+              action: "claimed",
+              after: {
+                email: claimed.email,
+                role: claimed.role,
+                claimedById: claimed.claimedById,
+                claimedAt: claimed.claimedAt?.toISOString() ?? null,
+                source: "direct_user_create",
+              },
+            };
+          }
+        } else {
+          const entry = await tx.allowedEmail.create({
+            data: {
+              email,
+              role: body.role,
+              createdById: user.id,
+              claimedAt: now,
+              claimedById: created.id,
+            },
+            select: { id: true, email: true, role: true, claimedAt: true, claimedById: true },
+          });
+          allowedEmailAudit = {
+            id: entry.id,
+            action: "created",
+            after: {
+              email: entry.email,
+              role: entry.role,
+              claimedById: entry.claimedById,
+              claimedAt: entry.claimedAt?.toISOString() ?? null,
+              source: "direct_user_create",
+            },
+          };
+        }
       }
+
+      return { created, allowedEmailAudit };
     });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
@@ -213,14 +280,37 @@ export const POST = withAuth(async (req, { user }) => {
     throw err;
   }
 
+  if (!result) {
+    throw new HttpError(500, "Failed to create user");
+  }
+
+  const { created, allowedEmailAudit } = result;
+
   await createAuditEntry({
     actorId: user.id,
     actorRole: user.role,
     entityType: "user",
     entityId: created.id,
     action: "created",
-    after: { name: created.name, email: created.email, role: created.role, locationId: created.locationId },
+    after: {
+      name: created.name,
+      email: created.email,
+      role: created.role,
+      locationId: created.locationId,
+      forcePasswordChange: true,
+    },
   });
+
+  if (allowedEmailAudit) {
+    await createAuditEntry({
+      actorId: user.id,
+      actorRole: user.role,
+      entityType: "allowed_email",
+      entityId: allowedEmailAudit.id,
+      action: allowedEmailAudit.action,
+      after: allowedEmailAudit.after,
+    });
+  }
 
   return ok(
     {
@@ -230,7 +320,8 @@ export const POST = withAuth(async (req, { user }) => {
         email: created.email,
         role: created.role,
         locationId: created.locationId,
-        location: created.location?.name ?? null
+        location: created.location?.name ?? null,
+        forcePasswordChange: true
       }
     },
     201

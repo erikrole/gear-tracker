@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Users
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-10
+- Last Updated: 2026-05-12
 - Status: Active
 - Version: V1.2
 
@@ -112,6 +112,8 @@ Use a simple tiered permission model with inheritance so behavior is predictable
 6. Ensure audit logs include actor role, target owner, and exception metadata.
 
 ## Change Log
+- 2026-05-12: Invite/login bug fix. Users created from Users > Add User now have `forcePasswordChange` set with the temporary password, direct-created staff/student users create or claim a visible claimed allowlist row, Settings > Allowed Emails no longer says a skipped duplicate was added, and forgot-password stops promising reset emails when email delivery is not configured.
+- 2026-05-12: Security audit patch. Admin-issued temporary passwords are now enforced end to end: login redirects forced users to `/change-password`, the app layout and API wrapper block regular authenticated access while `forcePasswordChange` is true, and the self-service password change clears the marker while invalidating existing sessions.
 - 2026-05-10: Status/data wiring ship fixes. User deactivation cleanup now covers `PENDING_PICKUP` checkouts, including allocation cleanup, open scan-session cancellation, session invalidation, and quantity-only bulk stock restoration. `OPEN` checkout custody still blocks deactivation.
 - 2026-05-10: Users ship polish. The roster page now keeps search, filters, inactive visibility, sort, and pagination in the URL, while `PATCH /api/users/[id]` validates linked direct-report targets and blocks reporting cycles before saving.
 - 2026-05-08: API hardening Wave 9. Registration allowlist adds now treat already-registered or already-allowlisted emails as generic skipped successes, preventing the admin endpoint from acting as a roster membership oracle.

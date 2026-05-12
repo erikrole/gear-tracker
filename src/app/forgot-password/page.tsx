@@ -12,15 +12,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useFormSubmit } from "@/hooks/use-form-submit";
 
+type ForgotPasswordResponse = {
+  message?: string;
+  resetEmailConfigured?: boolean;
+};
+
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [submittedMessage, setSubmittedMessage] = useState("");
   const [isNetworkError, setIsNetworkError] = useState(false);
 
-  const { submit, submitting, formError, clearErrors } = useFormSubmit({
+  const { submit, submitting, formError, clearErrors } = useFormSubmit<Record<string, string>, ForgotPasswordResponse>({
     url: "/api/auth/forgot-password",
     skipAuthRedirect: true,
-    onSuccess: () => setSubmitted(true),
+    onSuccess: (data) => {
+      setSubmittedMessage(data.message || "If that account exists, password reset instructions are available.");
+      setSubmitted(true);
+    },
     onError: (kind) => setIsNetworkError(kind === "network"),
   });
 
@@ -48,9 +57,9 @@ export default function ForgotPasswordPage() {
                 <MailCheck className="size-6 text-primary" />
               </div>
               <div className="space-y-1">
-                <p className="font-medium">Check your email</p>
+                <p className="font-medium">Password reset request received</p>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  If an account exists for <span className="font-medium text-foreground">{email}</span>, we&apos;ve sent a password reset link.
+                  {submittedMessage}
                 </p>
               </div>
               <Link href="/login">
@@ -92,7 +101,7 @@ export default function ForgotPasswordPage() {
                     <Spinner data-icon="inline-start" />
                     Sending...
                   </>
-                ) : "Send reset link"}
+                ) : "Request password reset"}
               </Button>
 
               <p className="text-center text-sm text-muted-foreground">

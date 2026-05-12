@@ -181,7 +181,17 @@ export default function AllowedEmailsPage() {
       });
       if (handleAuthRedirect(res, "/settings/allowed-emails")) { setAdding(false); return; }
       if (res.ok) {
-        toast.success("Email added to allowlist");
+        const json = await res.json();
+        if ((json as { skipped?: boolean }).skipped) {
+          toast.message("No new allowlist row was created. This address is already allowlisted or registered.");
+        } else {
+          const created = json as AllowedEmail;
+          setLocalItems((prev) => [
+            created,
+            ...(prev ?? allItems).filter((item) => item.id !== created.id),
+          ]);
+          toast.success("Email added to allowlist");
+        }
         setAddEmail("");
         setAddError("");
         setAddRole("STUDENT");

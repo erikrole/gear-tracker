@@ -39,6 +39,14 @@ function assertKioskSameOrigin(req: Request) {
   }
 }
 
+function isForcePasswordAllowed(req: Request): boolean {
+  const pathname = new URL(req.url).pathname;
+  return (
+    (req.method === "PATCH" && pathname === "/api/profile") ||
+    (req.method === "POST" && pathname === "/api/auth/logout")
+  );
+}
+
 /**
  * Authenticated API route handler.
  * Wraps try/catch, calls requireAuth(), and resolves dynamic params.
@@ -59,6 +67,9 @@ export function withAuth<P extends Record<string, string> = Record<string, strin
         assertSameOrigin(req);
       }
       const user = await requireAuth();
+      if (user.forcePasswordChange && !isForcePasswordAllowed(req)) {
+        throw new HttpError(403, "Password change required before continuing");
+      }
       const params = (context?.params ? await context.params : {}) as P;
       return await handler(req, { user, params });
     } catch (error) {

@@ -86,6 +86,7 @@ beforeEach(() => {
     name: "User One",
     role: "STAFF" as any,
     avatarUrl: null,
+    forcePasswordChange: false,
   });
   vi.mocked(hashPassword).mockResolvedValue("next-hash");
   vi.mocked(verifyPassword).mockResolvedValue(true);

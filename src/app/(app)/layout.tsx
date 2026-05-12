@@ -19,6 +19,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     }
     throw error;
   }
+  if (user.forcePasswordChange) {
+    redirect("/change-password");
+  }
 
   return (
     <MotionConfig reducedMotion="user">

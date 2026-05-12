@@ -18,6 +18,13 @@ export const POST = withHandler(async (req) => {
   const body = forgotPasswordSchema.parse(await req.json());
   const email = body.email.toLowerCase();
 
+  if (!env.resendApiKey) {
+    return ok({
+      message: "Email password reset is not configured yet. Contact an administrator for a temporary password.",
+      resetEmailConfigured: false,
+    });
+  }
+
   // Always return success to prevent email enumeration
   const user = await db.user.findUnique({ where: { email } });
 
@@ -43,7 +50,7 @@ export const POST = withHandler(async (req) => {
     });
   }
 
-  return ok({ message: "If that email exists, we sent a reset link." });
+  return ok({ message: "If that email exists, we sent a reset link.", resetEmailConfigured: true });
 });
 
 function buildResetEmail(name: string, resetUrl: string): string {

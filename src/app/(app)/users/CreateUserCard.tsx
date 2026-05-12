@@ -204,7 +204,7 @@ export default function CreateUserDialog({
             {fieldErrors.password ? (
               <p className="mt-1.5 text-sm text-destructive">{fieldErrors.password}</p>
             ) : (
-              <p className="mt-1.5 text-xs text-muted-foreground">Share this password directly with the user. They can change it from their profile.</p>
+              <p className="mt-1.5 text-xs text-muted-foreground">Share this password directly with the user. They will be asked to change it at first sign-in.</p>
             )}
           </div>
 

@@ -547,10 +547,11 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - STAFF can only add STUDENT-role entries; ADMIN can add both STAFF and STUDENT
 - Claimed entries cannot be deleted (audit trail preserved)
 - Admin UI under Settings > Allowed Emails with add/delete/filter
+- Direct ADMIN/STAFF user creation still bypasses pre-registration, but staff/student accounts created this way create or claim a visible allowlist row as already claimed so Settings reflects account access state.
 
 **Downstream Effects:**
 - Public `/register` still works but only for pre-approved emails
-- Admin user creation via `/api/users` (POST) is unaffected — bypasses allowlist
+- Admin user creation via `/api/users` (POST) does not require a pending allowlist entry
 - Existing users unaffected (allowlist only gates new registrations)
 
 ## D-031: Multi-Event Booking via Junction Table with Preserved Primary FK

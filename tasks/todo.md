@@ -44,6 +44,18 @@ Last updated: 2026-05-12
 
 ## Open Items
 
+### Users Invite and Password Reset Fixes (2026-05-12)
+- [x] **New-user temp password contract:** Mark Users > Add User temporary passwords as forced-change credentials and keep the allowlist record visible as claimed for directly-created staff/student users.
+- [x] **Allowed-email feedback:** Stop showing "added" when the API skipped an address that is already allowlisted or registered.
+- [x] **No-email reset path:** Keep admin reset password as the working direct temporary-password path while email delivery is not configured.
+- [x] **Docs and verification:** Sync Users docs, add focused regressions, and run targeted auth/allowed-email/user tests.
+
+**Review**
+- `POST /api/users` now creates temp-password accounts with `forcePasswordChange: true` and atomically creates or claims a visible allowlist row for directly-created staff/student users.
+- Settings > Allowed Emails now distinguishes a skipped add from a newly-created row, and newly-created single entries appear immediately while the list refreshes.
+- Forgot password no longer creates unusable reset tokens or promises an email when `RESEND_API_KEY` is missing; the working recovery path is the admin-generated temporary password.
+- Verified with focused Vitest coverage, `npx tsc --noEmit`, `git diff --check`, and `npx next build`.
+
 ### Item Thumbnail Reliability (2026-05-12)
 - [x] **Trace current thumbnail paths:** Confirm item images flow through the shared gear thumbnail primitives and item detail header.
 - [x] **Shared render fix:** Normalize item image URLs, reset failed image state on source changes, and avoid optimizer-dependent rendering for item thumbnails.

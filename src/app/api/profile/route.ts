@@ -84,6 +84,10 @@ export const PATCH = withAuth(async (req, { user }) => {
     return ok({ message: "Password updated" });
   }
 
+  if (user.forcePasswordChange) {
+    throw new HttpError(403, "Password change required before profile updates");
+  }
+
   const payload = body as z.infer<typeof updateProfileSchema>;
 
   const current = await db.user.findUniqueOrThrow({
