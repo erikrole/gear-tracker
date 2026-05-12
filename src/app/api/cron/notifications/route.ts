@@ -9,15 +9,37 @@ import { processLicenseNags, processExpiryWarnings } from "@/lib/services/licens
  * No user session required — runs as a system job.
  */
 export const GET = withCron(async () => {
-  const [overdueResult, licenseNagResult, expiryResult] = await Promise.all([
+  const [overdueResult, licenseNagResult, expiryResult] = await Promise.allSettled([
     processOverdueNotifications(),
     processLicenseNags(),
     processExpiryWarnings(),
   ]);
+
+  const errors: Record<string, string> = {};
+  const failedJobs: string[] = [];
+
+  function valueOrFallback<T>(
+    name: string,
+    result: PromiseSettledResult<T>,
+    fallback: T,
+  ): T {
+    if (result.status === "fulfilled") return result.value;
+    const message = result.reason instanceof Error ? result.reason.message : "Unknown error";
+    failedJobs.push(name);
+    errors[name] = message;
+    console.error(`Notification cron ${name} job failed`, result.reason);
+    return fallback;
+  }
+
+  const overdue = valueOrFallback("overdue", overdueResult, { scanned: 0, notificationsCreated: 0 });
+  const licenseNags = valueOrFallback("licenseNags", licenseNagResult, { nagged: 0 });
+  const licenseExpiry = valueOrFallback("licenseExpiry", expiryResult, { warned: 0 });
+
   return NextResponse.json({
-    ok: true,
-    ...overdueResult,
-    licenseNags: licenseNagResult,
-    licenseExpiry: expiryResult,
+    ok: failedJobs.length === 0,
+    ...overdue,
+    licenseNags,
+    licenseExpiry,
+    ...(failedJobs.length > 0 ? { partialFailures: failedJobs, errors } : {}),
   });
 });

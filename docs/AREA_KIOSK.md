@@ -4,7 +4,7 @@
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Status: Shipped — iOS canonical (web kiosk deprecated 2026-04-24)
 - Created: 2026-04-07
-- Last Updated: 2026-05-09
+- Last Updated: 2026-05-12
 - Brief: `BRIEF_KIOSK.md`
 - Decision Refs: D-030
 
@@ -17,7 +17,7 @@ Self-serve iPad kiosk for gear checkout / pickup / return at the equipment count
 The kiosk is intentionally low-friction: no per-student password, no PIN, no biometric. The trust gates are layered:
 
 1. **Physical trust.** The iPad is at the gear counter or carried by staff. Guided Access pins it to the Wisconsin app.
-2. **Device authentication.** Each `KioskDevice` is created by an admin in Settings → Kiosk Devices. A 6-digit one-time activation code provisions a `kiosk_session` cookie tied to a specific `KioskDevice` row (with `locationId`, `active`, `lastSeenAt`).
+2. **Device authentication.** Each `KioskDevice` is created by an admin in Settings → Kiosk Devices. A 6-digit one-time activation code provisions a `kiosk_session` cookie tied to a specific `KioskDevice` row (with `locationId`, `active`, `lastSeenAt`, and `sessionExpiresAt`).
 3. **Server-side scope.** `withKiosk()` rejects all `/api/kiosk/*` calls without a valid kiosk-session cookie. Routes do not accept a regular user-session cookie. Bookings created through the kiosk are stamped with `source: "KIOSK"` for the audit trail.
 4. **Identity = name picker.** A student taps their tile from the location-scoped roster. There is **no password / PIN / NFC** in V1. This is a deliberate trade-off: the counter is staffed during open hours, and physical+device gates carry the security weight. Misattribution risk (a student tapping the wrong tile or someone else's tile) is mitigated by the audit log and the social context of a staffed counter.
 
@@ -60,7 +60,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 - Numbered battery units scan through the same pickup/check-in endpoints with derived values like `{binQrCodeValue}-{unitNumber}`. Pickup binds the unit to the booking; check-in returns only the scanned unit.
 - Pickup and return detail payloads include numbered battery units in the same `items` checklist used by serialized assets, so the native iOS screens count batteries before allowing pickup/return actions.
 - Serialized pickup confirmation now requires a successful `CHECKOUT` scan event for each serialized asset on the booking. Kiosk scan lookup accepts asset tag, primary scan code, QR value, `qr-` fallback, and serial number values.
-- **Auth helpers:** `withKiosk()` (`src/lib/api.ts`) and `requireKiosk()` (`src/lib/auth.ts`) validate the kiosk-session cookie, refresh `lastSeenAt`, throw 401 if inactive/deactivated.
+- **Auth helpers:** `withKiosk()` (`src/lib/api.ts`) and `requireKiosk()` (`src/lib/auth.ts`) validate the kiosk-session cookie, enforce the server-side 7-day `sessionExpiresAt`, refresh `lastSeenAt`, throw 401 if expired/inactive/deactivated.
 
 ## Acceptance Criteria
 
@@ -105,3 +105,4 @@ Files under `ios/Wisconsin/Kiosk/`:
 | 2026-05-08 | Pickup integrity hardening: serialized pickup scans now write scan evidence, pickup confirmation blocks until all serialized assets have successful checkout scans, and serial-number scanner input is accepted. |
 | 2026-05-09 | Badge achievements Slice 2: kiosk direct checkout and pickup confirmation now emit feature-flagged checkout-opened badge events after audit success. With `BADGES_ENABLED` off, these calls return before evaluator work or badge queries. |
 | 2026-05-09 | Badge achievements Slice 3: kiosk checkout, pickup, and check-in scan routes now emit feature-flagged scan-result badge events. Native checkout scan requests include the selected student `actorId`; older clients without `actorId` keep scanning without badge attribution. |
+| 2026-05-12 | Added the missing `sessionExpiresAt` Prisma field, index, and migration for kiosk devices so 7-day server-side kiosk session expiry compiles, deploys, and can be queried cleanly. |

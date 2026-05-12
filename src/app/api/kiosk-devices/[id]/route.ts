@@ -25,6 +25,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     // If deactivating, also clear session token so it can't be used
     if (!body.active) {
       updates.sessionToken = null;
+      updates.sessionExpiresAt = null;
     }
   }
 

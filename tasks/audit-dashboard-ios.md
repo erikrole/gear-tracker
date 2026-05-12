@@ -1,6 +1,6 @@
 # Audit: Dashboard / HomeView (iOS) — 2026-04-24
 
-**MVP verdict:** READY — all P0 + P1 addressed (2026-04-24, pending Xcode build verification)
+**MVP verdict:** READY - all P0 + P1 addressed; simulator build verified 2026-05-11
 **Ship bar:** student-friendly, fully functional for core flows, zero hiccups in front of a class
 **Audit type:** static source (no build/run/UI tests)
 
@@ -41,7 +41,7 @@
 - [x] Tap targets ≥ 44px — primary nav uses TabView (system-managed); rows wrap NavigationLink which gives a full row tap target. OK.
 - [x] Scan reachable in one tap — yes via TabView tab item (AppTabView.swift:21)
 - [x] Pull-to-refresh — `.refreshable` at line 142
-- [ ] AC-2 (web): Overdue banner and overdue list counts consistent — **NOT MET on iOS**, see P0 #1
+- [x] AC-2 (web): Overdue banner and overdue list counts consistent — **closed**. Current `HomeView` renders `OverdueBanner(totalCount: dash.overdueCount, items: dash.overdueItems)` instead of recomputing from capped local lists.
 - [x] AC-7 (web): Refresh failures preserve visible data — partially met (data preserved, but no signal to user)
 - [x] AC-10 (web): "Updated X ago" — N/A on iOS, swipe-down-to-refresh is the convention
 
@@ -63,7 +63,8 @@
 - ios/Wisconsin/Core/AppState.swift
 
 ## Notes
-- Static audit only — Xcode build/UI test verification is the user's responsibility.
-- The P0 is the only thing that actually misleads; the rest are real but contained polish.
-- iOS Home does NOT show `myReservations`, `drafts`, `flaggedItems`, `lostBulkUnits` — all P2 parity gaps. None block student golden path.
+- Static audit reconciled against source on 2026-05-11.
+- Simulator build verification now complete: `xcodebuild -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build` returned `BUILD SUCCEEDED`.
+- The original P0 is closed; remaining unchecked entries in this file are P2 parity/polish notes, not source-verifiable blockers.
+- iOS Home now includes awaiting pickup, staff/admin draft and flagged/lost-bulk sections when payload data is present. Power-user dashboard parity remains intentionally deferred where it is not part of the student floor path.
 - Backend now returns `role` in both `/api/dashboard` and `/api/dashboard/stats` — iOS `DashboardData.role` is already declared and decoded but not used for any role-adaptive UI yet. Hook for future role-gating exists.

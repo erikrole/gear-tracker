@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Notifications
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-09
+- Last Updated: 2026-05-12
 - Status: Active — escalation schedule + iOS tap-through + APNs native push shipped
 - Version: V1.2
 
@@ -100,6 +100,7 @@ Implementation: `src/lib/services/notifications.ts`
 - **Schedule**: Daily at 8:00 AM UTC via Vercel Cron (`vercel.json`, schedule: `0 8 * * *`)
 - **Hobby plan constraint**: Vercel Hobby limits crons to once/day. Sub-hourly escalation checks (e.g. `*/15 * * * *`) require upgrading to Pro plan. Current daily cadence means escalation triggers fire with up to ~24h latency relative to their window.
 - Behavior: scans all `OPEN` checkouts, evaluates each trigger against current time, creates in-app notifications + sends email for matching windows
+- Resilience: overdue, license nag, and license-expiry jobs run independently with `Promise.allSettled`. A single failure returns `ok: false` plus `partialFailures`/`errors` metadata while preserving successful job results and safe fallback counts for failed jobs.
 - Job is fully idempotent — safe to call multiple times per hour due to dedup logic
 
 ## Notification Center (V1.1)
@@ -195,6 +196,8 @@ Current behavior:
 | `EMAIL_FROM` | No | From address for transactional email. Default: `Gear Tracker <noreply@gear-tracker.app>` |
 
 ## Change Log
+- 2026-05-12: iOS notification routing now recognizes `badge_awarded` inbox rows and opens the awarded user's native profile from the notification payload's `userId`. Badge award delivery remains persistent in-app only, with no push, email, or toast fanout.
+- 2026-05-12: Security audit patch. `GET /api/cron/notifications` now uses partial-failure handling across overdue, license nag, and license-expiry jobs so one rejected job no longer drops successful notification work.
 - 2026-05-09: Web notification-center UI polish. `/notifications` now reads as an action inbox with unread/read/total summary metrics, a clearer filter toolbar, role-gated overdue processing, explicit refresh, notification type badges, stronger unread/read row treatment, and destination actions that name the target surface without changing notification delivery or API contracts.
 - 2026-05-09: Badge award notifications shipped for manual badge awards. Admin awards create persistent inbox rows linked to the awarded user's badges tab, and delivery respects `notificationPrefs.badges` while keeping push and toast fanout deferred.
 - 2026-05-08: API hardening Wave 13. Notification count polling is now actor-rate-limited and uses short private caching.

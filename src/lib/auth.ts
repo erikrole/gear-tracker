@@ -133,6 +133,7 @@ export async function createKioskSession(kioskId: string): Promise<string> {
     where: { id: kioskId },
     data: {
       sessionToken: hashed,
+      sessionExpiresAt: expiresAt,
       activatedAt: new Date(),
       lastSeenAt: new Date(),
     },
@@ -174,6 +175,14 @@ export async function requireKiosk(): Promise<KioskContext> {
 
   if (!device.active) {
     throw new HttpError(401, "Kiosk device deactivated");
+  }
+
+  if (!device.sessionExpiresAt || device.sessionExpiresAt < new Date()) {
+    await db.kioskDevice.update({
+      where: { id: device.id },
+      data: { sessionToken: null, sessionExpiresAt: null },
+    });
+    throw new HttpError(401, "Kiosk session expired");
   }
 
   // Update last seen (fire and forget — don't block the request)

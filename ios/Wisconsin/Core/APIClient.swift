@@ -426,6 +426,12 @@ final class APIClient {
         return resp.data
     }
 
+    func userBadgeProfile(userId: String) async throws -> BadgeProfile {
+        let req = request(path: "/api/badges/user/\(userId)")
+        let resp: DataWrapper<BadgeProfile> = try await perform(req)
+        return resp.data
+    }
+
     func reservationsByUser(userId: String, limit: Int = 10) async throws -> PaginatedResponse<Booking> {
         var components = URLComponents(url: baseURL.appendingPathComponent("/api/reservations"), resolvingAgainstBaseURL: false)!
         components.queryItems = [

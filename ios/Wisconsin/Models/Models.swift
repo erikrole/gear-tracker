@@ -168,6 +168,40 @@ struct AppUserDetail: Codable, Identifiable {
     let createdAt: String?
 }
 
+struct BadgeProfile: Codable {
+    let userId: String
+    let peerVisible: Bool
+    let earnedCount: Int
+    let totalCount: Int
+    let badges: [UserBadge]
+    let disabled: Bool?
+
+    var earnedBadges: [UserBadge] {
+        badges.filter(\.earned)
+    }
+}
+
+struct UserBadge: Codable, Identifiable {
+    let id: String
+    let key: String
+    let name: String
+    let description: String
+    let icon: String
+    let category: String
+    let kind: String
+    let trigger: String
+    let threshold: Int?
+    let ruleKey: String?
+    let active: Bool
+    let sortOrder: Int
+    let earned: Bool
+    let awardedAt: String?
+    let source: String?
+    let note: String?
+    let progressCurrent: Int?
+    let progressTarget: Int?
+}
+
 // MARK: - Reports
 
 struct OverdueBookingSummary: Codable, Identifiable {

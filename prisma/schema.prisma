@@ -1138,20 +1138,22 @@ model CheckinItemReport {
 // ── Kiosk Device ─────────────────────────────────────────
 
 model KioskDevice {
-  id             String    @id @default(cuid())
-  name           String // "Video Office iPad"
-  locationId     String    @map("location_id")
-  activationCode String    @unique @map("activation_code") // hashed 6-digit code
-  activatedAt    DateTime? @map("activated_at")
-  sessionToken   String?   @unique @map("session_token") // hashed long-lived token
-  lastSeenAt     DateTime? @map("last_seen_at")
-  active         Boolean   @default(true)
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  id               String    @id @default(cuid())
+  name             String // "Video Office iPad"
+  locationId       String    @map("location_id")
+  activationCode   String    @unique @map("activation_code") // hashed 6-digit code
+  activatedAt      DateTime? @map("activated_at")
+  sessionToken     String?   @unique @map("session_token") // hashed long-lived token
+  sessionExpiresAt DateTime? @map("session_expires_at")
+  lastSeenAt       DateTime? @map("last_seen_at")
+  active           Boolean   @default(true)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
 
   location Location @relation(fields: [locationId], references: [id], onDelete: Restrict)
 
   @@index([locationId])
+  @@index([sessionExpiresAt])
   @@map("kiosk_devices")
 }
 

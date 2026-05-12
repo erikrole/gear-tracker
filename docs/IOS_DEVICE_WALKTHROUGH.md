@@ -10,6 +10,14 @@ This plan maps directly to the 24+ focused audit docs at `tasks/audit-*-ios.md` 
 
 ## Pre-flight
 
+### Automated readiness proof (2026-05-11)
+
+- [x] `npm run drift:ios` -> `0 violations` across 45 Swift files.
+- [x] `npm run audit:ios:gaps` -> 34/34 audit-worthy surfaces covered, `✓ no audit gaps`.
+- [x] XcodeBuildMCP simulator build -> `SUCCEEDED`, zero warnings/errors, target `Wisconsin` on iOS Simulator.
+- [x] Exact shell build -> `xcodebuild -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build` -> `** BUILD SUCCEEDED **`.
+- [ ] Real-device build/install/signing remains to be run on the TestFlight candidate.
+
 ### Build + install
 
 - [ ] Pull latest `main`. `git status` clean.
@@ -143,16 +151,20 @@ Iterate the slider through every step from the smallest to "Larger Accessibility
 
 Order matches floor frequency. Run as STAFF/ADMIN unless noted; switch to STUDENT for explicitly student-only flows.
 
-### Home / Dashboard
+### Home / Action Queue
 
-- [ ] Stat strip shows live counts (Overdue, Due Today, Checked Out, Reserved). Counts animate via `contentTransition(.numericText())`.
+- [ ] Compact triage strip shows live counts (Overdue, Due Today, Pickups, Shifts). Each cell opens the relevant Bookings or Schedule tab.
 - [ ] "Updated Xs/Xm ago" subtitle visible.
 - [ ] Pull-to-refresh updates stamps.
 - [ ] When stats are 0 across the board, "You're all set" empty state with green checkmark seal.
-- [ ] "My Shifts" / "Team Checkouts" / "Team Reservations" / "Active Bookings" sections render when data is present.
+- [ ] `Next Up` queue prioritizes overdue gear, due-today bookings, awaiting pickup, upcoming reservations, and my upcoming shift.
+- [ ] Queue booking and reservation rows open Booking Detail without exposing checkout or handoff Scan actions.
+- [ ] Queue shift rows open Event Detail; their Schedule buttons switch to the Schedule tab.
+- [ ] Passive Upcoming Events, My Checkouts, Team Checkouts, and Team Reservations cards do not appear on Home.
+- [ ] Staff/admin follow-up appears below the queue only for exception work such as flagged items, lost bulk units, or drafts.
 - [ ] Top-leading avatar tap → Profile sheet at `.medium` detent.
 - [ ] Top-trailing bell tap → Notifications sheet (with badge count when unread > 0).
-- [ ] Bottom-trailing search button (red glass FAB) → GlobalSearchSheet.
+- [ ] No bottom-trailing search button appears on Home; scan lookup remains the dedicated tab-bar action.
 - [ ] Tab bar: Home (active red), Bookings, Items, More overflow, Scan.
 
 ### Profile sheet (today's biggest pass)

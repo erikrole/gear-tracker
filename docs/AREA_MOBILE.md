@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Mobile Operations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-10
+- Last Updated: 2026-05-11
 - Status: Active
 - Version: V1
 
@@ -35,14 +35,18 @@ Cheqroom mobile patterns show useful primitives but too much menu depth and too 
 4. Badge counts can appear on Reservations and Check-outs for overdue or due-today urgency.
 
 ## Dashboard on Mobile
-1. Keep same dashboard information architecture as desktop (`AREA_DASHBOARD.md`).
-2. Prioritize:
+1. Native iOS Home is an action queue, not a small desktop dashboard.
+2. Keep a compact triage strip only when it helps decide what to do next.
+3. Prioritize:
    - Overdue banner
-   - Action lanes (Check-outs, Reservations)
-   - My Gear in Custody
-   - Drafts
-3. Do not add chart-first widgets in V1.
-4. Do not add standalone Upcoming Events section in V1.
+   - Due-today check-outs
+   - Awaiting pickup
+   - Upcoming reservations
+   - My upcoming shift
+   - Scan lookup stays one tap in the tab bar, not as repeated Home queue actions
+4. Do not add chart-first widgets in V1.
+5. Do not add standalone Upcoming Events section in V1.
+6. Staff/admin exception work can appear below the action queue, but routine admin configuration stays web-only.
 
 ## List and Row Interaction Contract
 1. Reservation and check-out rows use card-like compact summaries:
@@ -120,6 +124,10 @@ Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md` (revised 2026-03-
 - **V3 (later)**: Bottom nav badge counts via live `/api/nav-counts` polling, game-day/shift context cards
 
 ## Change Log
+- 2026-05-12: **iOS badge gallery polish** — native User Detail now keeps the profile badge section compact and adds a full `Badge Gallery` sheet from See all. The gallery supports all, earned, locked, manual, and rare filters; visible locked badges; hidden-surprise messaging; tactile haptics; rarity medallions; recent-award glow; and a native badge detail sheet with earned date, source, category, rarity, trigger, notes, and progress. Verified with iOS drift/audit checks and simulator build. File: `ios/Wisconsin/Views/UserDetailView.swift`.
+- 2026-05-12: **iOS badge profile surface** — native User Detail now fetches `/api/badges/user/{id}` alongside profile and booking context, renders earned badges in a compact profile section, keeps badge loading non-blocking if the feature flag is off or peer visibility blocks the request, and routes `badge_awarded` notification taps to the awarded user's profile. Files: `ios/Wisconsin/Models/Models.swift`, `ios/Wisconsin/Models/NotificationModels.swift`, `ios/Wisconsin/Core/APIClient.swift`, `ios/Wisconsin/Views/UserDetailView.swift`, `ios/Wisconsin/Views/NotificationsSheet.swift`, `ios/Wisconsin/Views/HomeView.swift`.
+- 2026-05-12: **iOS Home action queue direction** — reworked native Home around "what do I need to do next?" instead of mirroring the web dashboard stack. Home now keeps a compact triage strip for Overdue, Due Today, Pickups, and Shifts; promotes a `Next Up` queue for overdue gear, due-today bookings, awaiting pickup, upcoming reservations, and my upcoming shifts; removes the passive Upcoming Events / My Checkouts / Team Checkouts / Team Reservations card stack from the iOS landing screen; removes repeated Home scan/search controls because scan lookup already has a dedicated tab and kiosk owns checkout/handoff execution; and leaves staff/admin exception work below the queue. Files: `ios/Wisconsin/Views/HomeView.swift`, `docs/IOS_DEVICE_WALKTHROUGH.md`, `tasks/hig-audit-ios.md`, `tasks/todo.md`.
+- 2026-05-11: **iOS TestFlight readiness reconciliation** - rechecked every current iOS audit record against source and today's automated readiness checks. `npm run drift:ios` passes with 0 anti-patterns across 45 Swift files, `npm run audit:ios:gaps` reports 34/34 audit-worthy surfaces covered with no gaps, XcodeBuildMCP simulator build succeeds with zero warnings/errors, and the exact requested `xcodebuild -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build` succeeds. No source-verifiable iOS blockers remain for Home, Bookings, Items, Schedule, Scan, Profile, Notifications, or Kiosk. Remaining TestFlight work is hardware-only QA: camera/DataScanner, haptics, APNs, VoiceOver, Dynamic Type, Bluetooth HID scanner, and unstable-network behavior. Files: `tasks/ios-testflight-readiness-2026-05-11.md`, `docs/IOS_DEVICE_WALKTHROUGH.md`, `tasks/todo.md`.
 - 2026-05-10: Status/data wiring ship fixes. iOS item list and detail now decode `PENDING_PICKUP`, expose it in the status filter, and render awaiting-pickup context with the shared orange status tone instead of falling through to a generic or stale active state.
 - 2026-05-10: **Breadcrumb first-class UX pass** — global web breadcrumbs now render as an owned navigation strip with 40px+ interactive crumb targets, stronger current-page treatment, explicit focus/press states, mobile-safe truncation, and a full-height loading skeleton for detail labels. Sibling and recent-entity dropdowns keep the existing single `AppShell` ownership model while improving menu labels, current-location indicators, and touch affordances. Files: `src/components/PageBreadcrumb.tsx`, `tasks/todo.md`.
 - 2026-05-10: **Mobile web bottom nav polish** — refined the web mobile bottom navigation while preserving the V1 destination contract. Scan now reads as "Scan" and gets distinct primary treatment as the one-tap scan entry point. Checkouts now carries the existing user-scoped overdue count in the bottom nav, active/focus/press states are clearer, and mobile content bottom padding accounts for the taller safe-area-aware nav surface. Files: `src/components/AppShell.tsx`, `tasks/todo.md`.

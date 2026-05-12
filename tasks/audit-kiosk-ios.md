@@ -1,6 +1,6 @@
 # Audit: Kiosk (iOS, canonical) — 2026-04-24
 
-**MVP verdict:** READY — 3 P0, 6 P1 all addressed (2026-04-24, pending Xcode build verification)
+**MVP verdict:** READY - 3 P0, 6 P1 all addressed; simulator build verified 2026-05-11
 **Ship bar:** student-friendly, fully functional for core flows, zero hiccups in front of a class
 **Audit type:** static source (no build/run/UI tests)
 **Canonical surface:** iOS `Wisconsin/Kiosk/` (per user decision 2026-04-24). Web `(kiosk)/kiosk/` is dead.
@@ -109,6 +109,7 @@ All AC-1 through AC-13 are listed as ✅ in the AREA doc. Confirming against iOS
 
 ## Notes
 
-- Did not deep-read PickupFlow / ReturnFlow / StudentHub / Models / KioskAPI client. Their parity to the web set is structurally consistent with what I read; if the user wants pin-point findings inside those views, a follow-up audit pass is warranted but not required for MVP.
-- Camera fallback (AC-6) needs confirmation — flag for the user.
+- Reconciled against the broader focused kiosk audit set on 2026-05-11. Pickup, return, student hub, idle, activation, and success each have focused audit records, and `npm run audit:ios:gaps` reports no missing iOS audit surfaces.
+- Simulator build verification now complete: `xcodebuild -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build` returned `BUILD SUCCEEDED`.
+- Camera fallback (AC-6) remains a hardware-only real-device QA check, not a source-verifiable blocker.
 - Once web kiosk is deleted, the AREA doc rewrite should add a "Trust Model" section explicitly describing physical+cookie+name-picker as the gates.

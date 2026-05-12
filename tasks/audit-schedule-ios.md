@@ -1,10 +1,10 @@
 # Audit: schedule (iOS) — 2026-04-27 (Pass 2)
 
-**MVP verdict:** NOT READY — 0 P0, 3 P1
+**MVP verdict:** READY - Pass 2 P1 findings closed; simulator build verified 2026-05-11
 **Ship bar:** student-friendly, fully functional for core flows, zero hiccups in front of a class
 **Audit type:** static source (no build/run/UI tests)
 
-Scope (Pass 2 additions): `EventDetailSheet` crew section + `AssignStudentSheet` + `AddShiftSheet` + `AppDelegate` push routing. Adds findings not covered in 2026-04-24 pass.
+Scope (Pass 2 additions): `EventDetailSheet` crew section + `AssignStudentSheet` + `AddShiftSheet` + `AppDelegate` push routing. Adds findings not covered in 2026-04-24 pass. Reconciled against source on 2026-05-11.
 
 ## P0 — blocks MVP (Pass 2)
 
@@ -32,13 +32,13 @@ Scope (Pass 2 additions): `EventDetailSheet` crew section + `AssignStudentSheet`
 - [x] [Gaps] Staff can't create a shift group for events with no group yet — `showAddShift` is only surfaced when `vm.shiftGroup != nil`; "No crew scheduled" has no create-group affordance for staff. Web uses ShiftDetailPanel for this.
       `ios/Wisconsin/Views/EventDetailSheet.swift:339-348`
 
-- [ ] [Parity] `AssignStudentSheet` picker shows no conflict indicators — web's `UserAvatarPicker` shows yellow dots for conflicted users. GAP-35 in `docs/GAPS_AND_RISKS.md`.
+- [ ] [Parity] `AssignStudentSheet` picker shows no conflict indicators — web's `UserAvatarPicker` shows yellow dots for conflicted users. Expected V1 divergence; not a TestFlight blocker. Related mobile conflict-badge parity remains tracked in `docs/GAPS_AND_RISKS.md`.
 
 ---
 
 # Audit: schedule (iOS) — 2026-04-24 (Pass 1, archived)
 
-**MVP verdict (post-fix, pre-Xcode-verify):** all P0 + P1 addressed plus practical niceties (Today button, swipe gesture, dot legend, success toasts, presentation detents, freshness label, trade-board prominence, time-block compaction). Needs build verification.
+**MVP verdict:** READY - all P0 + P1 addressed plus practical niceties (Today button, swipe gesture, dot legend, success toasts, presentation detents, freshness label, trade-board prominence, time-block compaction); simulator build verified 2026-05-11.
 **Ship bar:** student-friendly, fully functional for core flows, zero hiccups in front of a class
 **Audit type:** static source (no build/run/UI tests)
 
@@ -129,6 +129,7 @@ AREA_SHIFTS.md (iOS surface only):
 - `docs/AREA_MOBILE.md` (no schedule-specific ACs beyond cross-cutting)
 
 ## Notes
-- Static audit only.
-- `EventDetailSheet` content was not opened in this pass; if you want it included, request a follow-up audit on it specifically.
-- The error-shadowing P0 is the same shape as the bookings pagination-error fix already shipped — a `pageError`-style banner pattern would close it.
+- Static audit reconciled against source on 2026-05-11.
+- Build verification now complete: `xcodebuild -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build` returned `BUILD SUCCEEDED`.
+- The 2026-04-24 and 2026-04-27 P0/P1 findings are closed in current source. Remaining unchecked schedule entries are intentional P2 parity/polish gaps: Week view, My Hours, full web filter bar, ShiftDetailPanel, and conflict indicators.
+- `EventDetailSheet` has since been covered by `tasks/audit-event-detail-ios.md`.

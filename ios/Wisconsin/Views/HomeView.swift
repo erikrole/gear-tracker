@@ -36,13 +36,13 @@ final class HomeViewModel {
 
 struct HomeView: View {
     @State private var vm = HomeViewModel()
-    @State private var showSearch = false
     @State private var showNotifications = false
     @State private var showTrades = false
     @State private var showProfile = false
     @State private var navigationPath = NavigationPath()
     @State private var pendingBookingId: String?
     @State private var pendingAssetId: String?
+    @State private var pendingUserId: String?
     @State private var pendingShowTrades = false
     @State private var selectedScheduleEvent: ScheduleEvent?
     @Environment(AppState.self) private var appState
@@ -86,116 +86,81 @@ struct HomeView: View {
             && dash.teamReservations.items.isEmpty
             && dash.pendingPickups.items.isEmpty
             && dash.myShifts.isEmpty
-            && dash.upcomingEvents.isEmpty
             && dash.overdueItems.isEmpty
+            && dash.flaggedItems.isEmpty
+            && dash.lostBulkUnits.isEmpty
     }
 
     @ViewBuilder private func dashboardScrollView(_ dash: DashboardData) -> some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 16) {
                 if vm.error != nil {
                     RefreshFailurePill(message: vm.error ?? "")
                 }
-                StatStrip(stats: dash.stats, onTap: { appState.selectedTab = 1 })
+                StatStrip(
+                    stats: dash.stats,
+                    pendingPickupCount: dash.pendingPickups.total,
+                    shiftCount: dash.myShifts.count,
+                    openBookings: { appState.selectedTab = 1 },
+                    openSchedule: { appState.selectedTab = 4 }
+                )
                 if let loadedAt = vm.lastLoadedAt {
                     Text("Updated \(loadedAt.formatted(.relative(presentation: .named)))")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                         .frame(maxWidth: .infinity, alignment: .trailing)
-                        .padding(.top, -12)
+                        .padding(.top, -8)
                 }
-                if !dash.overdueItems.isEmpty {
-                    OverdueBanner(totalCount: dash.overdueCount, items: dash.overdueItems)
-                }
-                if dash.isStaff && !dash.flaggedItems.isEmpty {
-                    FlaggedItemsBanner(items: dash.flaggedItems)
-                }
-                if dash.isAdmin && !dash.lostBulkUnits.isEmpty {
-                    LostBulkUnitsBanner(items: dash.lostBulkUnits)
-                }
-                if isAllEmpty(dash) {
+                if HomeActionQueue.hasActions(in: dash) {
+                    HomeActionQueue(
+                        dash: dash,
+                        openBookingId: { navigationPath.append($0) },
+                        openBookingSummary: { navigationPath.append($0) },
+                        openShift: { selectedScheduleEvent = $0.asScheduleEvent },
+                        openBookings: { appState.selectedTab = 1 },
+                        openSchedule: { appState.selectedTab = 4 }
+                    )
+                } else if isAllEmpty(dash) || !hasStaffFollowUp(dash) {
                     AllClearEmptyState()
                 }
-                if !dash.pendingPickups.items.isEmpty {
-                    DashboardCard(
-                        title: "Awaiting Pickup\(dash.pendingPickups.total > dash.pendingPickups.items.count ? " (\(dash.pendingPickups.total))" : "")",
-                        seeAllTab: 1,
-                        appState: appState
-                    ) {
-                        ForEach(dash.pendingPickups.items) { summary in
-                            BookingSummaryNavRow(summary: summary)
-                        }
-                    }
-                }
-                if dash.isStaff && !dash.drafts.isEmpty {
-                    DashboardCard(title: "Drafts", seeAllTab: 1, appState: appState) {
-                        ForEach(dash.drafts) { draft in
-                            DraftRow(draft: draft)
-                        }
-                    }
-                }
-                if !dash.myShifts.isEmpty {
-                    DashboardCard(title: "My Upcoming Shifts", seeAllTab: 4, appState: appState) {
-                        ForEach(dash.myShifts) { shift in
-                            Button { selectedScheduleEvent = shift.asScheduleEvent } label: {
-                                DashboardShiftRow(shift: shift)
-                            }
-                            .buttonStyle(.plain)
-                            .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 8))
-                            .contextMenu {
-                                Button {
-                                    appState.selectedTab = 4
-                                } label: {
-                                    Label("Open in Schedule", systemImage: "calendar")
-                                }
-                            }
-                        }
-                    }
-                }
-                if !dash.myCheckouts.items.isEmpty {
-                    DashboardCard(title: "My Checkouts", seeAllTab: 1, appState: appState) {
-                        ForEach(dash.myCheckouts.items) { summary in
-                            BookingSummaryNavRow(summary: summary)
-                        }
-                    }
-                }
-                if !dash.teamCheckouts.items.isEmpty {
-                    DashboardCard(title: "Team Checkouts", seeAllTab: 1, appState: appState) {
-                        ForEach(dash.teamCheckouts.items) { summary in
-                            BookingSummaryNavRow(summary: summary)
-                        }
-                    }
-                }
-                if !dash.teamReservations.items.isEmpty {
-                    DashboardCard(title: "Upcoming Reservations", seeAllTab: 1, appState: appState) {
-                        ForEach(dash.teamReservations.items) { summary in
-                            BookingSummaryNavRow(summary: summary)
-                        }
-                    }
-                }
-                if !dash.upcomingEvents.isEmpty {
-                    DashboardCard(title: "Upcoming Events", seeAllTab: 4, appState: appState) {
-                        ForEach(dash.upcomingEvents.prefix(6)) { event in
-                            Button { selectedScheduleEvent = event.asScheduleEvent } label: {
-                                EventSummaryRow(event: event)
-                            }
-                            .buttonStyle(.plain)
-                            .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 8))
-                            .contextMenu {
-                                Button {
-                                    appState.selectedTab = 4
-                                } label: {
-                                    Label("Open in Schedule", systemImage: "calendar")
-                                }
-                            }
-                        }
-                    }
+                if dash.isStaff {
+                    staffExceptionSection(dash)
                 }
             }
             .padding()
         }
         .sheet(item: $selectedScheduleEvent) { event in
             EventDetailSheet(event: event, myShift: nil)
+        }
+    }
+
+    private func hasStaffFollowUp(_ dash: DashboardData) -> Bool {
+        !dash.flaggedItems.isEmpty || !dash.lostBulkUnits.isEmpty || !dash.drafts.isEmpty
+    }
+
+    @ViewBuilder
+    private func staffExceptionSection(_ dash: DashboardData) -> some View {
+        if !dash.flaggedItems.isEmpty || !dash.lostBulkUnits.isEmpty || !dash.drafts.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Staff Follow-Up")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                    .tracking(0.3)
+                if !dash.flaggedItems.isEmpty {
+                    FlaggedItemsBanner(items: dash.flaggedItems)
+                }
+                if dash.isAdmin && !dash.lostBulkUnits.isEmpty {
+                    LostBulkUnitsBanner(items: dash.lostBulkUnits)
+                }
+                if !dash.drafts.isEmpty {
+                    DashboardCard(title: "Drafts", seeAllTab: 1, appState: appState) {
+                        ForEach(dash.drafts) { draft in
+                            DraftRow(draft: draft)
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -255,13 +220,8 @@ struct HomeView: View {
             .navigationDestination(for: AssetRouteId.self) { route in
                 ItemDetailView(assetId: route.id)
             }
-            .overlay(alignment: .bottomTrailing) {
-                FloatingSearchButton(isPresented: $showSearch)
-                    .padding(.trailing, 20)
-                    .padding(.bottom, 20)
-            }
-            .sheet(isPresented: $showSearch) {
-                GlobalSearchSheet()
+            .navigationDestination(for: UserRouteId.self) { route in
+                UserDetailView(userId: route.id)
             }
             .sheet(isPresented: $showNotifications, onDismiss: {
                 Task { await appState.refresh() }
@@ -273,6 +233,10 @@ struct HomeView: View {
                     navigationPath.append(AssetRouteId(id: assetId))
                     pendingAssetId = nil
                 }
+                if let userId = pendingUserId {
+                    navigationPath.append(UserRouteId(id: userId))
+                    pendingUserId = nil
+                }
                 if pendingShowTrades {
                     pendingShowTrades = false
                     showTrades = true
@@ -281,7 +245,8 @@ struct HomeView: View {
                 NotificationsSheet(
                     onSelectBooking: { id in pendingBookingId = id },
                     onSelectTrades: { pendingShowTrades = true },
-                    onSelectAsset: { id in pendingAssetId = id }
+                    onSelectAsset: { id in pendingAssetId = id },
+                    onSelectUser: { id in pendingUserId = id }
                 )
             }
             .sheet(isPresented: $showTrades) {
@@ -300,25 +265,21 @@ struct HomeView: View {
 
 private struct StatStrip: View {
     let stats: DashboardStats
-    let onTap: () -> Void
+    let pendingPickupCount: Int
+    let shiftCount: Int
+    let openBookings: () -> Void
+    let openSchedule: () -> Void
 
     var body: some View {
         HStack(spacing: 8) {
-            // Tones mirror the web's status taxonomy:
-            //   red    = Overdue
-            //   orange = Due Today (warning)
-            //   blue   = Checked Out
-            //   purple = Reserved
-            // Cells with a non-zero value light up; zero stays neutral so the
-            // strip doesn't shout when there's nothing to act on.
             StatCell(value: stats.overdue, label: "Overdue",
-                     tone: stats.overdue > 0 ? .red : nil, onTap: onTap)
+                     tone: stats.overdue > 0 ? .red : nil, onTap: openBookings)
             StatCell(value: stats.dueToday, label: "Due Today",
-                     tone: stats.dueToday > 0 ? .orange : nil, onTap: onTap)
-            StatCell(value: stats.checkedOut, label: "Checked Out",
-                     tone: stats.checkedOut > 0 ? .blue : nil, onTap: onTap)
-            StatCell(value: stats.reserved, label: "Reserved",
-                     tone: stats.reserved > 0 ? .purple : nil, onTap: onTap)
+                     tone: stats.dueToday > 0 ? .orange : nil, onTap: openBookings)
+            StatCell(value: pendingPickupCount, label: "Pickups",
+                     tone: pendingPickupCount > 0 ? .green : nil, onTap: openBookings)
+            StatCell(value: shiftCount, label: "Shifts",
+                     tone: shiftCount > 0 ? .blue : nil, onTap: openSchedule)
         }
     }
 }
@@ -337,7 +298,7 @@ private struct StatCell: View {
         }) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("\(value)")
-                    .font(.title.weight(.bold))
+                    .font(.title3.weight(.bold))
                     .monospacedDigit()
                     .foregroundStyle(tone.map { Color.statusText($0) } ?? Color.primary)
                     .contentTransition(.numericText())
@@ -358,7 +319,7 @@ private struct StatCell: View {
         .buttonStyle(.plain)
         .sensoryFeedback(.selection, trigger: hapticTrigger)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(label): \(value) item\(value == 1 ? "" : "s")")
+        .accessibilityLabel("\(label): \(value)")
     }
 }
 
@@ -379,66 +340,222 @@ private struct StatStripSkeleton: View {
     }
 }
 
-// MARK: - Overdue Banner
+// MARK: - Action Queue
 
-private struct OverdueBanner: View {
-    let totalCount: Int
-    let items: [DashboardOverdueItem]
+private struct HomeActionQueue: View {
+    let dash: DashboardData
+    let openBookingId: (String) -> Void
+    let openBookingSummary: (BookingSummary) -> Void
+    let openShift: (DashboardShift) -> Void
+    let openBookings: () -> Void
+    let openSchedule: () -> Void
+
+    private var dueTodayBookings: [BookingSummary] {
+        let checkouts = dash.isStaff
+            ? dash.myCheckouts.items + dash.teamCheckouts.items
+            : dash.myCheckouts.items
+        var seen = Set<String>()
+        return checkouts.filter { summary in
+            guard !summary.isOverdue,
+                  Calendar.current.isDateInToday(summary.endsAt),
+                  !seen.contains(summary.id)
+            else { return false }
+            seen.insert(summary.id)
+            return true
+        }
+    }
+
+    static func hasActions(in dash: DashboardData) -> Bool {
+        !dash.overdueItems.isEmpty
+            || !dash.pendingPickups.items.isEmpty
+            || !dash.teamReservations.items.isEmpty
+            || !dash.myShifts.isEmpty
+            || dash.stats.dueToday > 0
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label {
-                Text("\(totalCount) Overdue Checkout\(totalCount == 1 ? "" : "s")")
-            } icon: {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .accessibilityHidden(true)
-            }
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(Color.statusText(.red))
+        VStack(alignment: .leading, spacing: 12) {
+            header
 
-            ForEach(items) { item in
-                // Periodic tick keeps "Xh overdue" / "Xd overdue" labels current
-                // on long-lived sessions; web ticks every 60s, parity here.
-                TimelineView(.periodic(from: .now, by: 60)) { _ in
-                    NavigationLink(value: item.bookingId) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(item.bookingTitle)
-                                    .font(.subheadline.weight(.medium))
-                                    .foregroundStyle(.primary)
-                                    .lineLimit(1)
-                                Text(item.requesterName)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Text(item.endsAt.overdueLabel)
-                                .font(.caption.weight(.medium))
-                                .foregroundStyle(Color.statusText(.red))
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("Overdue: \(item.bookingTitle), \(item.requesterName), \(item.endsAt.overdueLabel)")
-                }
-
-                if item.id != items.last?.id {
-                    Divider()
+            if !dash.overdueItems.isEmpty {
+                ForEach(dash.overdueItems.prefix(3)) { item in
+                    ActionQueueRow(
+                        tone: .red,
+                        systemImage: "exclamationmark.triangle.fill",
+                        title: item.bookingTitle,
+                        subtitle: item.requesterName,
+                        meta: item.endsAt.overdueLabel,
+                        primaryLabel: "Open",
+                        action: { openBookingId(item.bookingId) }
+                    )
                 }
             }
 
-            if totalCount > items.count {
-                Text("+ \(totalCount - items.count) more")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+            ForEach(dueTodayBookings.prefix(3)) { summary in
+                ActionQueueRow(
+                    tone: .orange,
+                    systemImage: "clock.fill",
+                    title: summary.title,
+                    subtitle: summary.requesterName,
+                    meta: "Due \(summary.endsAt.formatted(date: .omitted, time: .shortened))",
+                    primaryLabel: "Open",
+                    action: { openBookingSummary(summary) }
+                )
+            }
+
+            if dueTodayBookings.isEmpty && dash.stats.dueToday > 0 {
+                ActionQueueRow(
+                    tone: .orange,
+                    systemImage: "clock.fill",
+                    title: "\(dash.stats.dueToday) due today",
+                    subtitle: "Open bookings to see the full list",
+                    meta: "Today",
+                    primaryLabel: "Open bookings",
+                    action: openBookings
+                )
+            }
+
+            ForEach(dash.pendingPickups.items.prefix(3)) { summary in
+                ActionQueueRow(
+                    tone: summary.startsAt < Date() ? .orange : .green,
+                    systemImage: "shippingbox.fill",
+                    title: summary.title,
+                    subtitle: summary.requesterName,
+                    meta: summary.startsAt < Date()
+                        ? "Pickup \(summary.startsAt.lateLabel)"
+                        : "Pickup \(summary.startsAt.formatted(date: .omitted, time: .shortened))",
+                    primaryLabel: "Open",
+                    action: { openBookingSummary(summary) }
+                )
+            }
+
+            ForEach(dash.teamReservations.items.prefix(3)) { summary in
+                ActionQueueRow(
+                    tone: .purple,
+                    systemImage: "calendar.badge.clock",
+                    title: summary.title,
+                    subtitle: summary.requesterName,
+                    meta: summary.startsAt.formatted(.dateTime.weekday(.abbreviated).hour().minute()),
+                    primaryLabel: "Open",
+                    action: { openBookingSummary(summary) }
+                )
+            }
+
+            ForEach(dash.myShifts.prefix(2)) { shift in
+                ActionQueueRow(
+                    tone: shift.hasGear ? .green : .blue,
+                    systemImage: shift.hasGear ? "checkmark.circle.fill" : "person.crop.rectangle.stack.fill",
+                    title: shift.event.summary,
+                    subtitle: "\(shift.area.shiftAreaLabel) shift",
+                    meta: shift.startsAt.formatted(.dateTime.weekday(.abbreviated).hour().minute()),
+                    primaryLabel: "View",
+                    action: { openShift(shift) },
+                    secondaryLabel: "Schedule",
+                    secondarySystemImage: "calendar",
+                    secondaryAction: openSchedule
+                )
             }
         }
-        .padding(14)
-        .background(Color.statusBackground(.red), in: RoundedRectangle(cornerRadius: 12))
+        .padding(16)
+        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 16))
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(Color.statusText(.red).opacity(0.2), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
         )
+    }
+
+    private var header: some View {
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Next Up")
+                    .font(.title3.weight(.semibold))
+                Text("Upcoming pickups, reservations, shifts, and due work.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button {
+                openBookings()
+            } label: {
+                Label("All work", systemImage: "calendar.badge.checkmark")
+                    .labelStyle(.iconOnly)
+            }
+            .buttonStyle(.glass)
+            .accessibilityLabel("Open all bookings")
+        }
+    }
+}
+
+private struct ActionQueueRow: View {
+    let tone: StatusTone
+    let systemImage: String
+    let title: String
+    let subtitle: String
+    let meta: String
+    let primaryLabel: String
+    let action: () -> Void
+    var secondaryLabel: String? = nil
+    var secondarySystemImage: String? = nil
+    var secondaryAction: (() -> Void)? = nil
+    @State private var hapticTrigger = false
+    @State private var secondaryHapticTrigger = false
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Button {
+                hapticTrigger.toggle()
+                action()
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: systemImage)
+                        .font(.headline)
+                        .foregroundStyle(Color.statusText(tone))
+                        .frame(width: 28, height: 28)
+                        .background(Color.statusBackground(tone), in: Circle())
+                        .accessibilityHidden(true)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(title)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(2)
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+
+                    Spacer(minLength: 8)
+
+                    Text(meta)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(Color.statusText(tone))
+                        .multilineTextAlignment(.trailing)
+                        .lineLimit(2)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .frame(minHeight: 48)
+            .sensoryFeedback(.selection, trigger: hapticTrigger)
+            .accessibilityLabel("\(title), \(subtitle), \(meta). \(primaryLabel).")
+
+            if let secondaryLabel, let secondarySystemImage, let secondaryAction {
+                Button {
+                    secondaryHapticTrigger.toggle()
+                    secondaryAction()
+                } label: {
+                    Image(systemName: secondarySystemImage)
+                        .font(.subheadline.weight(.semibold))
+                        .frame(width: 38, height: 38)
+                }
+                .buttonStyle(.glass)
+                .tint(Color.statusText(tone))
+                .accessibilityLabel(secondaryLabel)
+                .sensoryFeedback(.selection, trigger: secondaryHapticTrigger)
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
 
@@ -479,7 +596,7 @@ private struct AllClearEmptyState: View {
                 .accessibilityHidden(true)
             Text("You're all set")
                 .font(.headline)
-            Text("Open the Scan tab to check out gear.")
+            Text("Use the Scan tab when you need to look up gear.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -531,319 +648,6 @@ private struct DashboardCard<Content: View>: View {
             RoundedRectangle(cornerRadius: 12)
                 .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
         )
-    }
-}
-
-// MARK: - Booking Summary Nav Row
-
-/// Navigation row used by the three dashboard cards (My Checkouts, Team Checkouts,
-/// Team Reservations). Wraps `BookingSummaryRow` with the standard NavigationLink
-/// + context menu (Copy Ref #, Copy Title) so the three cards stay in sync.
-private struct BookingSummaryNavRow: View {
-    let summary: BookingSummary
-
-    var body: some View {
-        NavigationLink(value: summary) { BookingSummaryRow(summary: summary) }
-            .buttonStyle(.plain)
-            .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 8))
-            .contextMenu {
-                if let ref = summary.refNumber {
-                    Button {
-                        UIPasteboard.general.string = ref
-                    } label: {
-                        Label("Copy Ref #", systemImage: "doc.on.doc")
-                    }
-                }
-                Button {
-                    UIPasteboard.general.string = summary.title
-                } label: {
-                    Label("Copy Title", systemImage: "doc.on.doc")
-                }
-            }
-    }
-}
-
-// MARK: - Booking Summary Row
-
-struct BookingSummaryRow: View {
-    let summary: BookingSummary
-
-    private var pickupIsLate: Bool {
-        summary.status == .pendingPickup && summary.startsAt < Date()
-    }
-
-    private var barColor: Color {
-        if summary.isOverdue { return Color.statusText(.red) }
-        if pickupIsLate { return Color.statusText(.orange) }
-        switch summary.status {
-        case .open: return .accentColor
-        case .booked, .pendingPickup: return Color.statusText(.green)
-        default: return Color(.systemGray4)
-        }
-    }
-
-    var body: some View {
-        // Periodic tick re-evaluates overdueLabel / lateLabel + pickupIsLate
-        // every 60s so a long-lived dashboard session doesn't show frozen
-        // "2h overdue" labels. Web ticks the equivalent every 60s.
-        TimelineView(.periodic(from: .now, by: 60)) { _ in
-            HStack(spacing: 0) {
-                Rectangle()
-                    .fill(barColor)
-                    .frame(width: 3)
-                HStack(spacing: 12) {
-                    initialsCircle
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(summary.title)
-                            .font(.subheadline.weight(.medium))
-                            .lineLimit(1)
-                        HStack(spacing: 4) {
-                            Text(summary.requesterName)
-                            if let loc = summary.locationName {
-                                Text("·")
-                                Text(loc)
-                            }
-                        }
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        if summary.isOverdue {
-                            Text(summary.endsAt.overdueLabel)
-                                .font(.caption2.weight(.semibold))
-                                .foregroundStyle(Color.statusText(.red))
-                        } else if summary.status == .pendingPickup {
-                            if pickupIsLate {
-                                Text("Pickup \(summary.startsAt.lateLabel)")
-                                    .font(.caption2.weight(.semibold))
-                                    .foregroundStyle(Color.statusText(.orange))
-                            } else {
-                                Text("Pickup \(summary.startsAt.formatted(date: .abbreviated, time: .shortened))")
-                                    .font(.caption2)
-                                    .foregroundStyle(.tertiary)
-                            }
-                        } else {
-                            Text("Due \(summary.endsAt.formatted(date: .abbreviated, time: .shortened))")
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
-                        }
-                    }
-
-                    Spacer()
-
-                    if summary.itemCount > 0 {
-                        Text("\(summary.itemCount)")
-                            .font(.caption.monospacedDigit())
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(.quaternary, in: Capsule())
-                    }
-                }
-                .padding(.vertical, 4)
-                .padding(.leading, 12)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 6))
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel(rowAccessibilityLabel)
-        }
-    }
-
-    private var initialsCircle: some View {
-        ZStack {
-            Circle()
-                .fill(summary.isOverdue ? Color.statusBackground(.red) : Color.accentColor.opacity(0.1))
-                .frame(width: 36, height: 36)
-            Text(summary.requesterInitials)
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(summary.isOverdue ? Color.statusText(.red) : Color.accentColor)
-        }
-        .accessibilityHidden(true)
-    }
-
-    /// Single combined VoiceOver readout for the row. Surfaces overdue / late
-    /// state first when applicable so VO users hear the most important fact
-    /// without scrolling through five separate announcements.
-    private var rowAccessibilityLabel: String {
-        var parts: [String] = []
-        if summary.isOverdue { parts.append("Overdue") }
-        else if summary.status == .pendingPickup, pickupIsLate { parts.append("Pickup late") }
-
-        parts.append(summary.title)
-        parts.append(summary.requesterName)
-        if let loc = summary.locationName { parts.append(loc) }
-
-        if summary.isOverdue {
-            parts.append(summary.endsAt.overdueLabel)
-        } else if summary.status == .pendingPickup {
-            if pickupIsLate {
-                parts.append("Pickup \(summary.startsAt.lateLabel)")
-            } else {
-                parts.append("Pickup \(summary.startsAt.formatted(date: .abbreviated, time: .shortened))")
-            }
-        } else {
-            parts.append("Due \(summary.endsAt.formatted(date: .abbreviated, time: .shortened))")
-        }
-
-        if summary.itemCount > 0 {
-            parts.append("\(summary.itemCount) item\(summary.itemCount == 1 ? "" : "s")")
-        }
-        return parts.joined(separator: ", ")
-    }
-}
-
-// MARK: - Shift Row
-
-private struct DashboardShiftRow: View {
-    let shift: DashboardShift
-
-    var body: some View {
-        HStack(spacing: 0) {
-            Rectangle()
-                .fill(Color.accentColor)
-                .frame(width: 3)
-            HStack(spacing: 12) {
-                VStack(alignment: .center, spacing: 1) {
-                    Text(shift.startsAt.formatted(.dateTime.month(.abbreviated).day()))
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    Text(shift.startsAt.formatted(.dateTime.hour().minute()))
-                        .font(.caption.monospacedDigit().weight(.medium))
-                }
-                .fixedSize()
-                .padding(.vertical, 6)
-                .padding(.horizontal, 10)
-                .background(.quaternary.opacity(0.5))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(shift.event.summary)
-                        .font(.subheadline.weight(.medium))
-                        .lineLimit(1)
-                    HStack(spacing: 4) {
-                        Text(shift.area.shiftAreaLabel)
-                        if let loc = shift.event.locationName {
-                            Text("·")
-                            Text(loc)
-                        }
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    if shift.hasGear {
-                        Label {
-                            Text(shift.gearLabel)
-                        } icon: {
-                            Image(systemName: "checkmark.circle.fill")
-                                .accessibilityHidden(true)
-                        }
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(Color.statusText(.green))
-                    }
-                }
-                Spacer()
-            }
-            .padding(.vertical, 2)
-            .padding(.leading, 10)
-            .frame(maxWidth: .infinity)
-            .background(Color.accentColor.opacity(0.04))
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(rowAccessibilityLabel)
-    }
-
-    private var rowAccessibilityLabel: String {
-        var parts: [String] = [
-            shift.event.summary,
-            "\(shift.area.shiftAreaLabel) shift",
-            shift.startsAt.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().hour().minute()),
-        ]
-        if let loc = shift.event.locationName { parts.append(loc) }
-        if shift.hasGear { parts.append(shift.gearLabel) }
-        return parts.joined(separator: ", ")
-    }
-}
-
-// MARK: - Event Summary Row
-
-private struct EventSummaryRow: View {
-    let event: DashboardUpcomingEvent
-
-    private var barColor: Color {
-        switch event.isHome {
-        case true: return Color.statusText(.green)
-        case false: return Color.statusText(.orange)
-        case nil: return Color(.systemGray4)
-        }
-    }
-
-    var body: some View {
-        HStack(spacing: 0) {
-            Rectangle()
-                .fill(barColor)
-                .frame(width: 3)
-            HStack(spacing: 12) {
-                VStack(alignment: .center, spacing: 0) {
-                    Text(event.startsAt.formatted(.dateTime.month(.abbreviated)))
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    Text(event.startsAt.formatted(.dateTime.day()))
-                        .font(.title3.weight(.bold))
-                }
-                .frame(width: 34)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(event.title)
-                        .font(.subheadline.weight(.medium))
-                        .lineLimit(1)
-                    HStack(spacing: 6) {
-                        if let sport = sportLabel(event.sportCode) {
-                            Text(sport)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        if event.totalShiftSlots > 0 {
-                            Text("·")
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                            Text("\(event.filledShiftSlots)/\(event.totalShiftSlots) crew")
-                                .font(.caption)
-                                .foregroundStyle(
-                                    event.coveragePct >= 100 ? Color.statusText(.green) :
-                                    event.coveragePct > 0 ? Color.statusText(.orange) : Color.statusText(.red)
-                                )
-                        }
-                    }
-                }
-
-                Spacer()
-
-                if let isHome = event.isHome {
-                    Text(isHome ? "Home" : "Away")
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(isHome ? Color.statusText(.green) : Color.statusText(.orange))
-                }
-            }
-            .padding(.vertical, 3)
-            .padding(.leading, 12)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 6))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(rowAccessibilityLabel)
-    }
-
-    private var rowAccessibilityLabel: String {
-        var parts: [String] = [event.title]
-        if let sport = sportLabel(event.sportCode) { parts.append(sport) }
-        parts.append(event.startsAt.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
-        if event.totalShiftSlots > 0 {
-            parts.append("\(event.filledShiftSlots) of \(event.totalShiftSlots) crew filled")
-        }
-        if let isHome = event.isHome {
-            parts.append(isHome ? "Home game" : "Away game")
-        }
-        return parts.joined(separator: ", ")
     }
 }
 

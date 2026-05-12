@@ -1,6 +1,6 @@
 # Audit: login (iOS) — 2026-04-24
 
-**MVP verdict (post-fix, pre-Xcode-verify):** all P1 addressed; needs build verification.
+**MVP verdict:** READY - all P1 addressed; simulator build verified 2026-05-11.
 **Ship bar:** student-friendly, fully functional for core flows, zero hiccups in front of a class
 **Audit type:** static source (no build/run/UI tests)
 
@@ -73,7 +73,8 @@ There is no `AREA_LOGIN.md` or dedicated auth area doc. AC inferred from `AREA_U
 - Web auth surface `src/app/{login,register,forgot-password}` (existence check only)
 
 ## Notes
-- Static audit only.
+- Static audit reconciled against source on 2026-05-11.
+- Simulator build verification now complete: `xcodebuild -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build` returned `BUILD SUCCEEDED`.
 - Cookie-based session means no keychain needed for tokens — that's correct given the web parity.
 - `HTTPCookieStorage` is unencrypted and persisted in the app sandbox; if a stolen-device threat model becomes relevant, switch session token to keychain. Out of scope for V1.
 - The `.ignoresSafeArea(.keyboard, edges: .bottom)` on the outer container is intentional — keeps the brand header from animating up; the inner ScrollView still scrolls focus into view. Verified the chain reads correctly.

@@ -1,6 +1,6 @@
 # Audit: bookings (iOS) — 2026-04-24
 
-**MVP verdict (post-fix, pre-Xcode-verify):** all P0 + P1 addressed; needs build verification.
+**MVP verdict:** READY - all P0 + P1 addressed; simulator build verified 2026-05-11.
 **Original verdict:** NOT READY — 1 P0, 6 P1
 **Ship bar:** student-friendly, fully functional for core flows, zero hiccups in front of a class
 **Audit type:** static source (no build/run/UI tests)
@@ -106,6 +106,7 @@ AREA_CHECKOUTS.md (iOS surface only):
 - `ios/Wisconsin/Core/SessionStore.swift` (role surface)
 
 ## Notes
-- Static audit only — Xcode build / simulator runs were not performed. User must verify in Xcode before declaring fixes shipped.
-- `DECISIONS.md` and `GAPS_AND_RISKS.md` were not opened in this pass; if either has a bookings-iOS-specific entry, recheck before fixes.
+- Static audit reconciled against source on 2026-05-11.
+- Simulator build verification now complete: `xcodebuild -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build` returned `BUILD SUCCEEDED`.
+- Current expected booking-related iOS parity deferrals are GAP-34 and GAP-35 in `docs/GAPS_AND_RISKS.md`; neither blocks V1 student daily operations.
 - Cache (`GearStore.cachedBookings(kind:)`) is unscoped by user — fine for V1 (per-device single-user) but worth noting if multi-user iPad sharing returns.

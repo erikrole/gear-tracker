@@ -174,22 +174,24 @@ These are project-wide patterns to adopt in a single sweep before per-screen pol
 
 **Verdict:** strong iOS 17+ practice (`@Observable`, `ContentUnavailableView`, `sensoryFeedback`, `contentTransition(.numericText())`, `.refreshable`). Two recurring anti-patterns and one tab-bar-vs-title mismatch.
 
-- [ ] **P1 — [Materials/iOS-26] Hardcoded `.shadow(color: .black.opacity(0.06)...)` on every card.** `HomeView.swift:367-368, 525-526` (`StatCell`, `DashboardCard`).
+**2026-05-12 follow-up:** Home is no longer treated as a passive mini dashboard. The iOS landing screen now uses a compact triage strip plus a `Next Up` queue for overdue gear, due-today bookings, awaiting pickup, upcoming reservations, and my upcoming shifts. The old passive `Upcoming Events`, `My Checkouts`, `Team Checkouts`, and `Team Reservations` card stack was removed from Home; staff/admin exception work stays below the queue. Home also no longer repeats Scan/search controls because scan lookup already has a dedicated tab-bar action and kiosk owns checkout/handoff execution.
+
+- [x] **P1 — [Materials/iOS-26] Hardcoded `.shadow(color: .black.opacity(0.06)...)` on every card.** `HomeView.swift:367-368, 525-526` (`StatCell`, `DashboardCard`).
       Identical anti-pattern to `LoginView`. iOS 26 idiom: drop the shadow and use `.glassEffect(in: .rect(cornerRadius: 12))` for card surfaces. Each `StatCell` becomes a Liquid Glass tile that morphs nicely under `GlassEffectContainer`.
       Cite: https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views
 
-- [ ] **P1 — [Materials] `FloatingSearchButton` overlay should be Liquid Glass.** `HomeView.swift:290-294`.
+- [x] **P1 — [Materials] `FloatingSearchButton` overlay should be Liquid Glass.** `HomeView.swift:290-294`.
       The whole point of the iOS 26 floating-button pattern (Photos search, Mail compose) is `.glassEffect(.regular.tint(.accentColor).interactive(), in: .circle)` + a `GlassEffectContainer`. Verify what `FloatingSearchButton` renders today; if it's a custom solid-fill circle, migrate.
       Cite: https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views
 
-- [ ] **P2 — [Navigation] Tab label "Home" vs. screen title "Dashboard" mismatch.** `AppTabView.swift:12` ("Home") vs. `HomeView.swift:240` (`.navigationTitle("Dashboard")`).
+- [x] **P2 — [Navigation] Tab label "Home" vs. screen title "Dashboard" mismatch.** `AppTabView.swift:12` ("Home") vs. `HomeView.swift:240` (`.navigationTitle("Dashboard")`).
       HIG: the tab label should match the destination's title (or be a tight synonym). Pick one. Apple's pattern is "the tab name is the noun the user navigates to" — if this screen is a dashboard, name the tab "Dashboard"; if it's home, the screen title is "Home".
       Cite: https://developer.apple.com/design/human-interface-guidelines/tab-bars
 
-- [ ] **P2 — [DRY/UX] Three near-identical context menus on summary rows.** `HomeView.swift:148-161, 171-184, 194-207`.
+- [x] **P2 — [DRY/UX] Three near-identical context menus on summary rows.** `HomeView.swift:148-161, 171-184, 194-207`.
       Not strictly HIG, but the duplication invites drift. Extract one `BookingSummaryContextMenu(summary:)` view modifier.
 
-- [ ] **P2 — [Accessibility] Stat values use `.font(.title.weight(.bold))` — good for Dynamic Type — but the surrounding `.padding(12)` clips at AX5.** `:355-365`.
+- [ ] **P2 — [Accessibility] Triage strip values use semantic Dynamic Type, but the compact four-cell layout still needs an AX5 real-device check.** `HomeView.swift`.
       Verify in the AX5 simulator. If clipped, switch to `ViewThatFits` or constrain content height.
 
 ---

@@ -46,8 +46,8 @@ Badges are lightweight recognition for every active user inside the existing ops
 - Primary user experience is a `Badges` tab on `/users/{id}` for students, staff, and admins. `/profile` already redirects to user detail.
 - No top-level nav item.
 - No badge count, chip row, or recognition chrome in the profile hero.
-- The badge tab uses shadcn primitives and keeps earned/locked badges in a compact grid.
-- Badge cards show UI-derived rarity labels, rarity-aware medallions, manual award notes, recent-award "New" state, and real progress for supported threshold badges.
+- The badge tab uses shadcn primitives as a full badge gallery with all/earned/locked/manual/rare filters, compact earned and locked tiles, and click-to-expand badge details.
+- Badge cards show UI-derived rarity labels, rarity-aware medallions, manual award notes, recent-award "New" state and glow treatment, and real progress for supported threshold badges.
 - A few surprise badges stay hidden from the locked grid until earned; the available section shows how many surprise badges remain hidden.
 - The badge profile API loads active definitions plus historical earned inactive definitions in one Prisma call that includes the user's award row.
 - The badge profile API adds progress only when it can derive it from real counters or streak state. Manual, deferred shift, and unsupported rule badges remain rule-based with no fake progress bar.
@@ -94,6 +94,9 @@ Badges are lightweight recognition for every active user inside the existing ops
 ## Change Log
 | Date | Change |
 |---|---|
+| 2026-05-12 | Web profile badge UI upgraded from split earned/available lists into a full gallery. Users can filter all visible badges by earned, locked, manual, and rare; click any tile to open a detail dialog with title, description, earned date, source, note, rarity, category, trigger metadata, and progress where available. Recent awards get a restrained rarity glow instead of profile hero clutter. |
+| 2026-05-12 | Native iOS badge profiles now include a full badge gallery. The profile card stays compact with earned badges and a See all action; the gallery sheet shows all visible badges with earned, locked, manual, and rare filters, hidden-surprise copy, medallion styling, haptics, and native detail sheets for title, description, earned date, source, note, rarity, category, trigger, and progress. |
+| 2026-05-12 | Native iOS profiles now fetch the badge profile API and show earned badges in a compact profile section without crowding the header. iOS notification taps for `badge_awarded` now route to the awarded user's profile when the notification payload includes `userId`. |
 | 2026-05-12 | Custom manual badge awarding shipped. The existing Award badge dialog now has an Existing/Custom mode; custom badges create active `custom_` keyed manual `BadgeDefinition` rows, award the target user immediately, write the same audit and notification records as standard manual awards, and remain reusable in the normal active catalog for follow-up staff awards such as "Guinea Pig." |
 | 2026-05-09 | Front-end badge polish added rarity-aware medallions, profile-grid motion, manual note display, recent-award state, surprise-badge count, real progress for supported threshold badges, and staff report insight sections for manual rate, underused definitions, and recent manual recognition. The legacy `StudentBadge` model name remains a deferred migration cleanup. |
 | 2026-05-09 | Badge display polish added schema-free rarity labels, surprise badges hidden until earned, and admin award guidance in the manual award dialog. |

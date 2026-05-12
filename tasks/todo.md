@@ -44,6 +44,45 @@ Last updated: 2026-05-12
 
 ## Open Items
 
+### iOS Badge Gallery Polish (2026-05-12)
+- [x] **Compact profile entry:** Keep the native profile badge card restrained and add a See all action.
+- [x] **Full gallery sheet:** Add a native Badge Gallery sheet with all, earned, locked, manual, and rare filters.
+- [x] **Expandable details:** Let users tap a badge to see title, description, earned date, source, category, rarity, trigger, note, and progress.
+- [x] **Native feel:** Add rarity medallions, recent-award glow, hidden-surprise copy, and haptic feedback.
+- [x] **Verification:** Run iOS drift/audit checks, scoped whitespace check, and simulator build.
+
+**Review**
+- Native User Detail now mirrors the web gallery model without turning the profile into a trophy wall. Earned badges stay in the profile card; See all opens the full gallery.
+- The gallery shows visible earned and locked badges, keeps surprise badges hidden until earned, and supports filters for all, earned, locked, manual, and rare.
+- Badge detail sheets expose the badge story and metadata with native SwiftUI layout and progress display where supported.
+- Verified with `npm run drift:ios`, `npm run audit:ios:gaps`, `git diff --check -- ios/Wisconsin/Views/UserDetailView.swift`, and `xcodebuild -project ios/Wisconsin.xcodeproj -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build`.
+
+### Badge Gallery UI Polish (2026-05-12)
+- [x] **Gallery model:** Replace the split earned/available badge tab with one browsable badge gallery.
+- [x] **Filtering:** Add all, earned, locked, manual, and rare filters without adding a top-level nav item.
+- [x] **Expandable details:** Let users open any visible badge to see title, description, earned date, source, category, rarity, note, trigger metadata, and progress.
+- [x] **Special feel:** Add tactile tile interaction, subtle hover lift, recent-award "New" state, and rarity glow while keeping profile hero clean.
+- [x] **Verification:** Run TypeScript, focused badge tests, build, and browser smoke.
+
+**Review**
+- The web profile Badges tab now behaves as a full gallery instead of separate earned and available lists. The gallery keeps the existing profile-first placement, adds all/earned/locked/manual/rare filters, and preserves hidden surprise badge behavior.
+- Badge tiles are clickable and open a shadcn dialog with the full badge story: title, description, earned date, source, category, rarity, staff note, trigger metadata, and progress for supported locked badges.
+- Visual polish added tactile press scale, hover lift, recent-award "New" treatment, and rarity-aware glow without adding badge chrome to the profile hero.
+- Verified with `npx tsc --noEmit`, focused badge Vitest coverage, `git diff --check`, `npx next build`, and unauthenticated Chrome smoke of `/users?tab=badges` redirecting to `/login` with no console errors.
+
+### iOS Badge Profile Surface (2026-05-12)
+- [x] **Vercel enablement:** Add `BADGES_ENABLED=true` to Vercel Production and Development environments; Preview still needs branch-scope resolution in the Vercel CLI/dashboard.
+- [x] **Native badge profile:** Add iOS badge profile models and API client support for `/api/badges/user/{id}`.
+- [x] **User profile UI:** Show earned badges on native user profiles without crowding the profile header, and keep badge loading non-blocking when disabled or not visible.
+- [x] **Notification routing:** Route iOS `badge_awarded` inbox rows to the awarded user's native profile.
+- [x] **Verification:** Run iOS drift/audit checks and Swift build.
+
+**Review**
+- Vercel now lists `BADGES_ENABLED` in Production and Development. Preview env creation still needs Vercel branch-scope resolution because the CLI rejected both the multi-environment add and the all-preview non-interactive add with `git_branch_required`.
+- Native user profiles now load badge data from `/api/badges/user/{id}` without blocking profile load if badges are disabled or hidden, and earned badges render below the profile header.
+- iOS `badge_awarded` notification rows now use trophy styling and route to the awarded user's native profile through the `userId` payload.
+- Verified with `npm run drift:ios`, `npm run audit:ios:gaps`, scoped `git diff --check`, and `xcodebuild -project ios/Wisconsin.xcodeproj -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build`.
+
 ### Custom Badge Awarding (2026-05-12)
 - [x] **API path:** Let admins create an active custom manual badge definition while awarding a user, without schema changes or evaluator side effects.
 - [x] **Award dialog:** Add a custom-badge mode to the existing user admin Award badge dialog so an admin can create "Guinea Pig" once and award it immediately.

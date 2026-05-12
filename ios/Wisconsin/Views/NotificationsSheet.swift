@@ -69,6 +69,7 @@ struct NotificationsSheet: View {
     var onSelectBooking: ((String) -> Void)?
     var onSelectTrades: (() -> Void)?
     var onSelectAsset: ((String) -> Void)?
+    var onSelectUser: ((String) -> Void)?
 
     @State private var vm = NotificationsViewModel()
     @Environment(\.dismiss) private var dismiss
@@ -233,6 +234,13 @@ struct NotificationsSheet: View {
             dismiss()
             return
         }
+
+        if notif.type == "badge_awarded", let userId = notif.payload?.userId {
+            onSelectUser?(userId)
+            dismiss()
+            return
+        }
+
         // shift_gear_up and other no-target types: mark-read only (handled
         // above), no navigation.
     }
@@ -339,6 +347,7 @@ private extension String {
         if hasPrefix("checkin_item_lost") { return "questionmark.circle" }
         if hasPrefix("trade_") { return "arrow.triangle.2.circlepath" }
         if hasPrefix("shift_gear_up") { return "bag.badge.plus" }
+        if hasPrefix("badge_awarded") { return "trophy.fill" }
         if hasPrefix("low_stock") { return "cube.box" }
         if hasPrefix("reservation_booked") { return "calendar.badge.plus" }
         if hasPrefix("reservation_pickup_ready") { return "bag.badge.questionmark" }
@@ -354,6 +363,7 @@ private extension String {
         if self == "trade_claimed" || self == "trade_approved" { return .blue }
         if self == "trade_declined" || self == "trade_expired" { return .red }
         if hasPrefix("shift_gear_up") { return .green }
+        if hasPrefix("badge_awarded") { return .purple }
         if hasPrefix("low_stock") { return .orange }
         if hasPrefix("reservation_booked") || hasPrefix("reservation_pickup_ready") { return .purple }
         if hasPrefix("reservation_cancelled") { return .red }

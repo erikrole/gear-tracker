@@ -1,6 +1,6 @@
 # Audit: items (iOS) — 2026-04-24
 
-**MVP verdict (post-fix, pre-Xcode-verify):** all P0 + P1 addressed; needs build verification.
+**MVP verdict:** READY - all P0 + P1 addressed; simulator build verified 2026-05-11.
 **Ship bar:** student-friendly, fully functional for core flows, zero hiccups in front of a class
 **Audit type:** static source (no build/run/UI tests)
 
@@ -90,6 +90,7 @@ AREA_ITEMS.md (iOS surface only):
 - `ios/Wisconsin/Core/APIClient.swift` (assets, asset, updateAsset, toggleFavorite)
 
 ## Notes
-- Static audit only. User must verify in Xcode after fixes.
+- Static audit reconciled against source on 2026-05-11.
+- Simulator build verification now complete: `xcodebuild -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build` returned `BUILD SUCCEEDED`.
 - The bookings audit just shipped a `loadTask` cancellation pattern + `pageError` retry row + `EditAssetSheet`-style discard confirm. The fixes here should be the same shape — quick to land.
-- Privacy P2 (badge shows requester name) is worth a separate decision: keep it, anonymize for STUDENTs, or hide entirely on student mobile.
+- GAP-36 remains the expected V1 deferral for web-only admin lifecycle actions on item detail. It is not a TestFlight blocker for student floor operations.
