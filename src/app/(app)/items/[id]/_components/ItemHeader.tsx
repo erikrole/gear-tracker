@@ -22,6 +22,7 @@ import { PencilIcon, ImageIcon, RefreshCw, Star, ChevronRight } from "lucide-rea
 
 import type { AssetDetail } from "../types";
 import { getAttachmentKind, getSdCardSlotLabel } from "@/lib/asset-attachments";
+import { normalizeAssetImageSrc } from "@/lib/asset-image";
 
 /* ── Status Line ────────────────────────────────────────── */
 
@@ -136,6 +137,7 @@ export function ItemHeader({
   const attachmentKind = asset.parentAsset ? getAttachmentKind(asset) : null;
   const slotLabel = asset.parentAsset ? getSdCardSlotLabel(asset, asset.parentAsset.assetTag) : null;
   const [imageFailed, setImageFailed] = useState(false);
+  const imageSrc = normalizeAssetImageSrc(asset.imageUrl);
   const isRetired = asset.computedStatus === "RETIRED";
   const isMaintenance = asset.computedStatus === "MAINTENANCE";
   const hasBlockingCheckout =
@@ -180,7 +182,7 @@ export function ItemHeader({
 
   useEffect(() => {
     setImageFailed(false);
-  }, [asset.imageUrl]);
+  }, [imageSrc]);
 
   return (
     <>
@@ -188,7 +190,7 @@ export function ItemHeader({
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 gap-4">
             <div className="shrink-0 self-start">
-            {asset.imageUrl && !imageFailed ? (
+            {imageSrc && !imageFailed ? (
               <button
                 className={`relative flex size-[88px] items-center justify-center overflow-hidden rounded-md border border-border bg-muted shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)] sm:size-[96px] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)] ${canEdit ? "cursor-pointer active:scale-[0.96]" : "cursor-default"} group transition-[border-color,background-color,box-shadow,transform]`}
                 onClick={() => canEdit && onImageModalOpen()}
@@ -196,13 +198,13 @@ export function ItemHeader({
                 aria-label={canEdit ? `Change image for ${asset.assetTag}` : `Image of ${asset.assetTag}`}
               >
                 <Image
-                  src={asset.imageUrl}
+                  src={imageSrc}
                   alt={asset.assetTag}
                   width={208}
                   height={208}
                   sizes="104px"
                   className="aspect-square object-cover"
-                  unoptimized={!asset.imageUrl.includes(".public.blob.vercel-storage.com")}
+                  unoptimized
                   onError={() => setImageFailed(true)}
                 />
                 {canEdit && (

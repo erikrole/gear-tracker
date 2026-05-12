@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { normalizeAssetImageSrc } from "@/lib/asset-image";
 
 export type ItemThumbnailStackItem = {
   id: string;
@@ -44,15 +46,7 @@ export function ItemThumbnailStack({
             title={item.name}
             aria-label={item.name}
           >
-            {item.imageUrl ? (
-              <span
-                className="size-full bg-cover bg-center"
-                style={{ backgroundImage: `url(${item.imageUrl})` }}
-                aria-hidden="true"
-              />
-            ) : (
-              fallback.toUpperCase()
-            )}
+            <StackImage src={item.imageUrl} fallback={fallback} />
           </span>
         );
       })}
@@ -68,5 +62,29 @@ export function ItemThumbnailStack({
         </span>
       )}
     </div>
+  );
+}
+
+function StackImage({ src, fallback }: { src?: string | null; fallback: string }) {
+  const normalizedSrc = normalizeAssetImageSrc(src);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [normalizedSrc]);
+
+  if (!normalizedSrc || failed) {
+    return fallback.toUpperCase();
+  }
+
+  return (
+    <img
+      src={normalizedSrc}
+      alt=""
+      className="size-full object-cover"
+      loading="lazy"
+      decoding="async"
+      onError={() => setFailed(true)}
+    />
   );
 }

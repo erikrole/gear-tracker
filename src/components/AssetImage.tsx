@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Package } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { normalizeAssetImageSrc } from "@/lib/asset-image";
 
 type AssetImageProps = {
   src: string | null | undefined;
@@ -21,8 +22,13 @@ export function AssetImage({
   fallbackClassName,
 }: AssetImageProps) {
   const [failed, setFailed] = useState(false);
+  const normalizedSrc = normalizeAssetImageSrc(src);
 
-  if (!src || failed) {
+  useEffect(() => {
+    setFailed(false);
+  }, [normalizedSrc]);
+
+  if (!normalizedSrc || failed) {
     return (
       <div
         className={cn(
@@ -48,12 +54,12 @@ export function AssetImage({
       style={{ width: size, height: size }}
     >
       <Image
-        src={src}
+        src={normalizedSrc}
         alt={alt}
         width={size * 2}
         height={size * 2}
         className="size-full object-cover"
-        unoptimized={!src.includes(".public.blob.vercel-storage.com")}
+        unoptimized
         onError={() => setFailed(true)}
       />
     </div>

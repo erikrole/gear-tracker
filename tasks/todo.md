@@ -44,6 +44,17 @@ Last updated: 2026-05-12
 
 ## Open Items
 
+### Item Thumbnail Reliability (2026-05-12)
+- [x] **Trace current thumbnail paths:** Confirm item images flow through the shared gear thumbnail primitives and item detail header.
+- [x] **Shared render fix:** Normalize item image URLs, reset failed image state on source changes, and avoid optimizer-dependent rendering for item thumbnails.
+- [x] **Docs and verification:** Sync Items docs, add focused regression coverage, and run TypeScript plus focused tests.
+
+**Review**
+- Shared `AssetImage` now trims stored URLs, upgrades legacy `http://` item image sources to `https://`, resets fallback state when a row/detail image source changes, and renders item photos without relying on Next image optimization.
+- `ItemThumbnailStack` now uses a real lazy image with an error fallback instead of a CSS background image that could fail silently.
+- Item detail header uses the same normalization and optimizer bypass as shared thumbnails.
+- Verified with `npx vitest run tests/asset-image.test.ts`, `npx tsc --noEmit`, `git diff --check`, `npx next build`, and a local browser smoke of `/items` redirecting cleanly to `/login` with no console errors. Authenticated thumbnail visual smoke was not run because the current in-app browser session is unauthenticated.
+
 ### Security Audit and Patches (2026-05-12)
 - [x] **Dependency advisory audit:** Confirm TanStack exposure, run current `npm audit --omit=dev`, and record any actionable package patches.
 - [x] **App security audit:** Re-verify open auth/kiosk/cron/API risks against current source before patching.
