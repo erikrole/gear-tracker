@@ -306,7 +306,12 @@ export default function UserDetailPage() {
 
   async function openManualAwardDialog() {
     setAwardDialogOpen(true);
-    if (awardDefinitions !== null || awardDefinitionsLoading) return;
+    if (awardDefinitions !== null || awardDefinitionsLoading) {
+      if (awardDefinitions?.length === 0) {
+        setAwardMode("custom");
+      }
+      return;
+    }
 
     setAwardDefinitionsLoading(true);
     try {
