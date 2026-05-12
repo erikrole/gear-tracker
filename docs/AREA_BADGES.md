@@ -35,7 +35,7 @@ Badges are lightweight recognition for every active user inside the existing ops
 | `onShiftCompleted` | Deferred until attendance/no-show has a real completion signal | 6 |
 
 ## Data Model
-- `BadgeDefinition`: seeded catalog. Uses immutable `key`, display copy, icon name, category, kind, trigger, threshold, rule key, active flag, and sort order.
+- `BadgeDefinition`: seeded catalog. Uses immutable `key`, display copy, icon name, category, kind, trigger, threshold, rule key, active flag, and sort order. The canonical launch catalog is seeded by migration `0064_seed_badge_definitions` so production deploys do not depend on `prisma/seed.mjs`.
 - Custom manual badges are also `BadgeDefinition` rows. Admin-created custom badges use a generated `custom_` key, `trigger="manual"`, `kind=RULE`, `category=MILESTONE`, and no evaluator wiring.
 - `StudentBadge`: legacy-named earned badge row for any user. Unique on `(userId, definitionId)`, supports `AUTO` and `MANUAL`, optional `awardedById`, and optional staff note.
 - `BadgeStreak`: per-user streak state. Unique on `(userId, streakType)` and deduped by `lastSourceKey`. `SCAN_SUCCESS_COUNT` is the durable scan success counter; `SCAN_CLEAN` is the clean-scan streak that resets on failed scans.
@@ -94,6 +94,7 @@ Badges are lightweight recognition for every active user inside the existing ops
 ## Change Log
 | Date | Change |
 |---|---|
+| 2026-05-12 | Badge definition production seeding moved into migration `0064_seed_badge_definitions`. This fixes production environments where Vercel ran `prisma migrate deploy` but not `prisma/seed.mjs`, leaving the award dialog and gallery with no active definitions. The award dialog also now reopens directly on Custom when the existing catalog is cached empty. |
 | 2026-05-12 | Web profile badge UI upgraded from split earned/available lists into a full gallery. Users can filter all visible badges by earned, locked, manual, and rare; click any tile to open a detail dialog with title, description, earned date, source, note, rarity, category, trigger metadata, and progress where available. Recent awards get a restrained rarity glow instead of profile hero clutter. |
 | 2026-05-12 | Native iOS badge profiles now include a full badge gallery. The profile card stays compact with earned badges and a See all action; the gallery sheet shows all visible badges with earned, locked, manual, and rare filters, hidden-surprise copy, medallion styling, haptics, and native detail sheets for title, description, earned date, source, note, rarity, category, trigger, and progress. |
 | 2026-05-12 | Native iOS profiles now fetch the badge profile API and show earned badges in a compact profile section without crowding the header. iOS notification taps for `badge_awarded` now route to the awarded user's profile when the notification payload includes `userId`. |
