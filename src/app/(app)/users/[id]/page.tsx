@@ -57,7 +57,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Award, AlertCircle, Briefcase, CalendarDays, CameraIcon, ChevronDown, Copy, GraduationCap, KeyRound, Shield, TrashIcon, UserRound } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
-import { badgeRarityVariant, getBadgeRarity, manualAwardGuidance } from "@/lib/badges/display";
+import { badgeRarityVariant, customBadgeIconOptions, getBadgeRarity, manualAwardGuidance, type CustomBadgeIcon } from "@/lib/badges/display";
 import { formatDateFull } from "@/lib/format";
 import { FadeUp } from "@/components/ui/motion";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
@@ -76,6 +76,8 @@ type BadgeDefinitionOption = {
   trigger: string;
   threshold: number | null;
 };
+
+type AwardMode = "existing" | "custom";
 
 const tabDefs: Array<{ key: TabKey; label: string }> = [
   { key: "info", label: "Info" },
@@ -142,7 +144,11 @@ export default function UserDetailPage() {
   const [awardDialogOpen, setAwardDialogOpen] = useState(false);
   const [awardDefinitions, setAwardDefinitions] = useState<BadgeDefinitionOption[] | null>(null);
   const [awardDefinitionsLoading, setAwardDefinitionsLoading] = useState(false);
+  const [awardMode, setAwardMode] = useState<AwardMode>("existing");
   const [selectedAwardDefinitionId, setSelectedAwardDefinitionId] = useState("");
+  const [customAwardName, setCustomAwardName] = useState("");
+  const [customAwardDescription, setCustomAwardDescription] = useState("");
+  const [customAwardIcon, setCustomAwardIcon] = useState<CustomBadgeIcon>("Trophy");
   const [awardNote, setAwardNote] = useState("");
   const [awardBusy, setAwardBusy] = useState(false);
   const [badgesTabRevision, setBadgesTabRevision] = useState(0);
@@ -316,26 +322,48 @@ export default function UserDetailPage() {
         .filter((definition) => definition.category !== "SHIFT");
       setAwardDefinitions(definitions);
       setSelectedAwardDefinitionId((prev) => prev || definitions[0]?.id || "");
+      if (definitions.length === 0) {
+        setAwardMode("custom");
+      }
     } catch {
       toast.error("Network error");
       setAwardDefinitions([]);
+      setAwardMode("custom");
     } finally {
       setAwardDefinitionsLoading(false);
     }
   }
 
   async function handleManualAward() {
-    if (!selectedAwardDefinitionId || awardBusy) return;
+    const customName = customAwardName.trim();
+    const customDescription = customAwardDescription.trim();
+    if (awardBusy) return;
+    if (awardMode === "existing" && !selectedAwardDefinitionId) return;
+    if (awardMode === "custom" && (!customName || !customDescription)) {
+      toast.error("Name and description are required for custom badges");
+      return;
+    }
+
     setAwardBusy(true);
     try {
       const res = await fetch("/api/badges/award", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: id,
-          definitionId: selectedAwardDefinitionId,
-          note: awardNote.trim() || undefined,
-        }),
+        body: JSON.stringify(awardMode === "custom"
+          ? {
+              userId: id,
+              customDefinition: {
+                name: customName,
+                description: customDescription,
+                icon: customAwardIcon,
+              },
+              note: awardNote.trim() || undefined,
+            }
+          : {
+              userId: id,
+              definitionId: selectedAwardDefinitionId,
+              note: awardNote.trim() || undefined,
+            }),
       });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
@@ -343,9 +371,23 @@ export default function UserDetailPage() {
         toast.error(msg);
         return;
       }
+      const json = await res.json();
+      const awardedDefinition = json.data?.definition as BadgeDefinitionOption | undefined;
+      if (awardedDefinition) {
+        setAwardDefinitions((prev) => {
+          if (!prev) return prev;
+          if (prev.some((definition) => definition.id === awardedDefinition.id)) return prev;
+          return [...prev, awardedDefinition].sort((a, b) => a.name.localeCompare(b.name));
+        });
+        setSelectedAwardDefinitionId(awardedDefinition.id);
+      }
       toast.success("Badge awarded");
       setAwardDialogOpen(false);
       setAwardNote("");
+      setCustomAwardName("");
+      setCustomAwardDescription("");
+      setCustomAwardIcon("Trophy");
+      setAwardMode("existing");
       setBadgesTabRevision((value) => value + 1);
       if (activeTab !== "badges") {
         switchTab("badges");
@@ -650,48 +692,127 @@ export default function UserDetailPage() {
             <div>
               <DialogTitle>Award badge</DialogTitle>
               <DialogDescription>
-                Add a manual badge to {profile.name}&apos;s profile.
+                Add an existing badge or create a custom manual badge for {profile.name}.
               </DialogDescription>
             </div>
           </DialogHeader>
           <DialogBody className="flex flex-col gap-4 py-1">
-            <div className="flex flex-col gap-2">
-              <label htmlFor="badge-definition" className="text-sm font-medium">
-                Badge
-              </label>
-              <Select
-                value={selectedAwardDefinitionId}
-                onValueChange={setSelectedAwardDefinitionId}
-                disabled={awardDefinitionsLoading || awardBusy}
+            <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">
+              <Button
+                type="button"
+                variant={awardMode === "existing" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setAwardMode("existing")}
+                disabled={awardBusy || awardDefinitionsLoading}
               >
-                <SelectTrigger id="badge-definition">
-                  <SelectValue placeholder={awardDefinitionsLoading ? "Loading badges..." : "Select a badge"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {(awardDefinitions ?? []).map((definition) => (
-                      <SelectItem key={definition.id} value={definition.id}>
-                        {definition.name}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-              {awardDefinitions?.length === 0 && !awardDefinitionsLoading && (
-                <p className="text-sm text-muted-foreground">
-                  No active manual-awardable badges are available.
-                </p>
-              )}
-              {selectedAwardDefinition && selectedAwardRarity && (
-                <div className="rounded-lg border bg-muted/30 p-3 text-sm">
-                  <div className="mb-1 flex flex-wrap items-center gap-2">
-                    <Badge variant={badgeRarityVariant(selectedAwardRarity)} size="sm">
-                      {selectedAwardRarity}
-                    </Badge>
-                    <span className="font-medium text-foreground">{selectedAwardDefinition.name}</span>
+                Existing
+              </Button>
+              <Button
+                type="button"
+                variant={awardMode === "custom" ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setAwardMode("custom")}
+                disabled={awardBusy}
+              >
+                Custom
+              </Button>
+            </div>
+            <div className="flex flex-col gap-2">
+              {awardMode === "existing" ? (
+                <>
+                  <label htmlFor="badge-definition" className="text-sm font-medium">
+                    Badge
+                  </label>
+                  <Select
+                    value={selectedAwardDefinitionId}
+                    onValueChange={setSelectedAwardDefinitionId}
+                    disabled={awardDefinitionsLoading || awardBusy}
+                  >
+                    <SelectTrigger id="badge-definition">
+                      <SelectValue placeholder={awardDefinitionsLoading ? "Loading badges..." : "Select a badge"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {(awardDefinitions ?? []).map((definition) => (
+                          <SelectItem key={definition.id} value={definition.id}>
+                            {definition.name}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  {awardDefinitions?.length === 0 && !awardDefinitionsLoading && (
+                    <p className="text-sm text-muted-foreground">
+                      No active manual-awardable badges are available. Create a custom badge instead.
+                    </p>
+                  )}
+                  {selectedAwardDefinition && selectedAwardRarity && (
+                    <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+                      <div className="mb-1 flex flex-wrap items-center gap-2">
+                        <Badge variant={badgeRarityVariant(selectedAwardRarity)} size="sm">
+                          {selectedAwardRarity}
+                        </Badge>
+                        <span className="font-medium text-foreground">{selectedAwardDefinition.name}</span>
+                      </div>
+                      <p className="text-muted-foreground">
+                        {manualAwardGuidance[selectedAwardDefinition.key] ?? selectedAwardDefinition.description}
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="grid gap-3">
+                  <div className="grid gap-2">
+                    <label htmlFor="custom-badge-name" className="text-sm font-medium">
+                      Custom badge name
+                    </label>
+                    <Input
+                      id="custom-badge-name"
+                      value={customAwardName}
+                      onChange={(event) => setCustomAwardName(event.target.value)}
+                      placeholder="Guinea Pig"
+                      maxLength={80}
+                      disabled={awardBusy}
+                    />
                   </div>
-                  <p className="text-muted-foreground">
-                    {manualAwardGuidance[selectedAwardDefinition.key] ?? selectedAwardDefinition.description}
+                  <div className="grid gap-2">
+                    <label htmlFor="custom-badge-description" className="text-sm font-medium">
+                      Description
+                    </label>
+                    <Input
+                      id="custom-badge-description"
+                      value={customAwardDescription}
+                      onChange={(event) => setCustomAwardDescription(event.target.value)}
+                      placeholder="Signed up early to help test the app."
+                      maxLength={180}
+                      disabled={awardBusy}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <label htmlFor="custom-badge-icon" className="text-sm font-medium">
+                      Icon
+                    </label>
+                    <Select
+                      value={customAwardIcon}
+                      onValueChange={(value) => setCustomAwardIcon(value as CustomBadgeIcon)}
+                      disabled={awardBusy}
+                    >
+                      <SelectTrigger id="custom-badge-icon">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {customBadgeIconOptions.map((icon) => (
+                            <SelectItem key={icon} value={icon}>
+                              {icon}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    Custom badges are saved to the active catalog, so you can reuse this badge for the next staff member.
                   </p>
                 </div>
               )}
@@ -722,10 +843,14 @@ export default function UserDetailPage() {
             <Button
               type="button"
               onClick={handleManualAward}
-              disabled={awardBusy || awardDefinitionsLoading || !selectedAwardDefinitionId}
+              disabled={
+                awardBusy ||
+                awardDefinitionsLoading ||
+                (awardMode === "existing" ? !selectedAwardDefinitionId : !customAwardName.trim() || !customAwardDescription.trim())
+              }
             >
               {awardBusy && <Spinner />}
-              Award badge
+              {awardMode === "custom" ? "Create and award" : "Award badge"}
             </Button>
           </DialogFooter>
         </DialogContent>

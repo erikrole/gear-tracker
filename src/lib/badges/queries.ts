@@ -1,12 +1,19 @@
-import { BadgeStreakType, BookingKind, BookingStatus } from "@prisma/client";
+import { BadgeCategory, BadgeKind, BadgeStreakType, BookingKind, BookingStatus, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import type { AuthUser } from "@/lib/auth";
 import { HttpError } from "@/lib/http";
 import { normalizePrefs } from "@/lib/services/notification-prefs";
 
+type CustomBadgeDefinitionInput = {
+  name: string;
+  description: string;
+  icon?: string;
+};
+
 type ManualAwardArgs = {
   userId: string;
-  definitionId: string;
+  definitionId?: string;
+  customDefinition?: CustomBadgeDefinitionInput;
   awardedById: string;
   note?: string;
 };
@@ -35,6 +42,76 @@ export async function listActiveBadgeDefinitions() {
 export async function countEarnedBadges(userId: string) {
   return db.studentBadge.count({
     where: { userId },
+  });
+}
+
+function slugifyBadgeName(name: string) {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 48);
+}
+
+async function resolveManualAwardDefinition(
+  tx: Prisma.TransactionClient,
+  args: Pick<ManualAwardArgs, "definitionId" | "customDefinition">,
+) {
+  if (args.definitionId) {
+    return tx.badgeDefinition.findUnique({
+      where: { id: args.definitionId },
+      select: {
+        id: true,
+        key: true,
+        name: true,
+        active: true,
+      },
+    });
+  }
+
+  if (!args.customDefinition) return null;
+
+  const name = args.customDefinition.name.trim();
+  const description = args.customDefinition.description.trim();
+  const slug = slugifyBadgeName(name);
+  if (!slug) {
+    throw new HttpError(400, "Custom badge name is required");
+  }
+
+  const key = `custom_${slug}`;
+  const existing = await tx.badgeDefinition.findUnique({
+    where: { key },
+    select: {
+      id: true,
+      key: true,
+      name: true,
+      active: true,
+    },
+  });
+
+  if (existing) return existing;
+
+  return tx.badgeDefinition.create({
+    data: {
+      key,
+      name,
+      description,
+      icon: args.customDefinition.icon?.trim() || "Trophy",
+      category: BadgeCategory.MILESTONE,
+      kind: BadgeKind.RULE,
+      trigger: "manual",
+      threshold: null,
+      ruleKey: key,
+      active: true,
+      sortOrder: 790,
+    },
+    select: {
+      id: true,
+      key: true,
+      name: true,
+      active: true,
+    },
   });
 }
 
@@ -221,7 +298,7 @@ export async function awardBadgeManually(args: ManualAwardArgs) {
   const note = args.note?.trim() || null;
 
   return db.$transaction(async (tx) => {
-    const [target, definition, existing] = await Promise.all([
+    const [target, definition] = await Promise.all([
       tx.user.findUnique({
         where: { id: args.userId },
         select: {
@@ -232,23 +309,7 @@ export async function awardBadgeManually(args: ManualAwardArgs) {
           notificationPrefs: true,
         },
       }),
-      tx.badgeDefinition.findUnique({
-        where: { id: args.definitionId },
-        select: {
-          id: true,
-          name: true,
-          active: true,
-        },
-      }),
-      tx.studentBadge.findUnique({
-        where: {
-          userId_definitionId: {
-            userId: args.userId,
-            definitionId: args.definitionId,
-          },
-        },
-        select: { id: true },
-      }),
+      resolveManualAwardDefinition(tx, args),
     ]);
 
     if (!target || target.active === false) {
@@ -257,6 +318,17 @@ export async function awardBadgeManually(args: ManualAwardArgs) {
     if (!definition || !definition.active) {
       throw new HttpError(404, "Active badge definition not found");
     }
+
+    const existing = await tx.studentBadge.findUnique({
+      where: {
+        userId_definitionId: {
+          userId: args.userId,
+          definitionId: definition.id,
+        },
+      },
+      select: { id: true },
+    });
+
     if (existing) {
       throw new HttpError(409, "Badge already awarded");
     }
@@ -264,7 +336,7 @@ export async function awardBadgeManually(args: ManualAwardArgs) {
     const award = await tx.studentBadge.create({
       data: {
         userId: args.userId,
-        definitionId: args.definitionId,
+        definitionId: definition.id,
         source: "MANUAL",
         awardedById: args.awardedById,
         note,
@@ -278,6 +350,12 @@ export async function awardBadgeManually(args: ManualAwardArgs) {
             description: true,
             icon: true,
             category: true,
+            kind: true,
+            trigger: true,
+            threshold: true,
+            ruleKey: true,
+            active: true,
+            sortOrder: true,
           },
         },
       },
@@ -293,7 +371,7 @@ export async function awardBadgeManually(args: ManualAwardArgs) {
           body: `You earned ${definition.name}.`,
           payload: {
             userId: args.userId,
-            badgeDefinitionId: args.definitionId,
+            badgeDefinitionId: definition.id,
             studentBadgeId: award.id,
             href: `/users/${args.userId}?tab=badges`,
           },

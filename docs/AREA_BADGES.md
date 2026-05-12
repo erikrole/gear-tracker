@@ -4,8 +4,8 @@
 - Area: Badges
 - Owner: Wisconsin Athletics Creative Product
 - Created: 2026-05-09
-- Last Updated: 2026-05-09
-- Status: Active planning, Slices 1-5 and 7 shipped with feature flag off
+- Last Updated: 2026-05-12
+- Status: Active, custom manual awards shipped with feature flag off
 - Plan: `tasks/badge-achievements-plan.md`
 - Decision Refs: D-034
 
@@ -36,6 +36,7 @@ Badges are lightweight recognition for every active user inside the existing ops
 
 ## Data Model
 - `BadgeDefinition`: seeded catalog. Uses immutable `key`, display copy, icon name, category, kind, trigger, threshold, rule key, active flag, and sort order.
+- Custom manual badges are also `BadgeDefinition` rows. Admin-created custom badges use a generated `custom_` key, `trigger="manual"`, `kind=RULE`, `category=MILESTONE`, and no evaluator wiring.
 - `StudentBadge`: legacy-named earned badge row for any user. Unique on `(userId, definitionId)`, supports `AUTO` and `MANUAL`, optional `awardedById`, and optional staff note.
 - `BadgeStreak`: per-user streak state. Unique on `(userId, streakType)` and deduped by `lastSourceKey`. `SCAN_SUCCESS_COUNT` is the durable scan success counter; `SCAN_CLEAN` is the clean-scan streak that resets on failed scans.
 - `SystemConfig["badges.peerVisible"]`: default `true`; controls peer visibility for another user's badge tab.
@@ -53,7 +54,7 @@ Badges are lightweight recognition for every active user inside the existing ops
 - With `BADGES_ENABLED` off, badge APIs return disabled/empty payloads before any badge table query. This keeps un-migrated local or preview databases from failing on badge UI routes.
 - `/reports/badges` is staff analytics only and follows existing report layout patterns. It shows aggregate award metrics, manual award rate, user leaderboard, badge distribution, underused active definitions, recent manual recognition, and recent awards.
 - Manual awards launch from the existing user admin actions menu, not from permanent hero chrome.
-- Manual award selection shows staff guidance for fun/manual badges so admins award them consistently.
+- Manual award selection shows staff guidance for fun/manual badges so admins award them consistently. Admins can also create a custom badge from the same dialog, award it immediately, and reuse that custom definition from the existing badge selector for later users.
 - Award notifications are persistent inbox entries that link to `/users/{userId}?tab=badges`.
 - Manual awards are admin-only through the existing user admin actions menu. They can target any active user, persist `source=MANUAL`, `awardedById`, and an optional note, and create a persistent inbox notification unless `User.notificationPrefs.badges === false`.
 
@@ -78,6 +79,7 @@ Badges are lightweight recognition for every active user inside the existing ops
 - [x] Trade badges award once per completed trade status flip.
 - [ ] Shift badges do not award from request approval.
 - [x] Manual awards persist staff attribution, optional notes, and profile-linked inbox notifications that respect badge notification prefs.
+- [x] Admins can create a custom manual badge during award, save it to the active catalog, and reuse it for later staff or student awards.
 - [x] User profile badge grid uses shadcn primitives and does not crowd the hero.
 - [x] User profile badge cards expose manual notes, recent-award state, rarity-aware medallions, surprise-badge count, and real progress where supported.
 - [x] Peer visibility respects `SystemConfig["badges.peerVisible"]`.
@@ -92,6 +94,7 @@ Badges are lightweight recognition for every active user inside the existing ops
 ## Change Log
 | Date | Change |
 |---|---|
+| 2026-05-12 | Custom manual badge awarding shipped. The existing Award badge dialog now has an Existing/Custom mode; custom badges create active `custom_` keyed manual `BadgeDefinition` rows, award the target user immediately, write the same audit and notification records as standard manual awards, and remain reusable in the normal active catalog for follow-up staff awards such as "Guinea Pig." |
 | 2026-05-09 | Front-end badge polish added rarity-aware medallions, profile-grid motion, manual note display, recent-award state, surprise-badge count, real progress for supported threshold badges, and staff report insight sections for manual rate, underused definitions, and recent manual recognition. The legacy `StudentBadge` model name remains a deferred migration cleanup. |
 | 2026-05-09 | Badge display polish added schema-free rarity labels, surprise badges hidden until earned, and admin award guidance in the manual award dialog. |
 | 2026-05-09 | Badge scope expanded from student-only to every active user, including staff and admins. Staff/admin profiles now keep the Badges tab, admins can manually award badges to any active user, and the catalog includes ten fun manual-recognition badges for clean workflows, clutch coverage, event help, reliability, and above-and-beyond moments. |

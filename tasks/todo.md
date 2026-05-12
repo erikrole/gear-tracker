@@ -44,6 +44,18 @@ Last updated: 2026-05-12
 
 ## Open Items
 
+### Custom Badge Awarding (2026-05-12)
+- [x] **API path:** Let admins create an active custom manual badge definition while awarding a user, without schema changes or evaluator side effects.
+- [x] **Award dialog:** Add a custom-badge mode to the existing user admin Award badge dialog so an admin can create "Guinea Pig" once and award it immediately.
+- [x] **Catalog reuse:** Keep custom badges in the normal active catalog so the second and third staff awards can reuse the same definition.
+- [x] **Docs and verification:** Sync badge docs and run focused badge tests, TypeScript, Prisma validation, migration-prefix check, whitespace check, full tests, app build, and local browser smoke.
+
+**Review**
+- Custom badge creation is part of the existing admin-only manual award endpoint. It creates active `custom_` keyed `BadgeDefinition` rows as `MILESTONE` / `RULE` / `manual`, then awards the target user in the same manual-award flow.
+- The user detail Award badge dialog now has Existing and Custom modes. A custom "Guinea Pig" badge can be created and awarded on the first staff profile, then reused from the Existing selector for the next staff profiles.
+- Custom awards keep the existing manual-award audit entry, staff attribution, optional note, inbox notification, and profile badge refresh behavior.
+- Verification passed with focused badge tests, full Vitest, TypeScript, Prisma validation, migration-prefix check, whitespace check, `npx next build`, and a local unauthenticated `/users` browser smoke with no console errors.
+
 ### Users Invite and Password Reset Fixes (2026-05-12)
 - [x] **New-user temp password contract:** Mark Users > Add User temporary passwords as forced-change credentials and keep the allowlist record visible as claimed for directly-created staff/student users.
 - [x] **Allowed-email feedback:** Stop showing "added" when the API skipped an address that is already allowlisted or registered.

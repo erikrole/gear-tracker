@@ -7,6 +7,7 @@ const { mockTx } = vi.hoisted(() => ({
     },
     badgeDefinition: {
       findUnique: vi.fn(),
+      create: vi.fn(),
     },
     studentBadge: {
       findUnique: vi.fn(),
@@ -37,6 +38,7 @@ const targetUser = {
 
 const definition = {
   id: "badge-1",
+  key: "first_trade",
   name: "Team Player",
   active: true,
 };
@@ -62,6 +64,12 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockTx.user.findUnique.mockResolvedValue(targetUser);
   mockTx.badgeDefinition.findUnique.mockResolvedValue(definition);
+  mockTx.badgeDefinition.create.mockResolvedValue({
+    id: "badge-custom",
+    key: "custom_guinea_pig",
+    name: "Guinea Pig",
+    active: true,
+  });
   mockTx.studentBadge.findUnique.mockResolvedValue(null);
   mockTx.studentBadge.create.mockResolvedValue(award);
   mockTx.notification.create.mockResolvedValue({});
@@ -93,6 +101,12 @@ describe("manual badge awards", () => {
             description: true,
             icon: true,
             category: true,
+            kind: true,
+            trigger: true,
+            threshold: true,
+            ruleKey: true,
+            active: true,
+            sortOrder: true,
           },
         },
       },
@@ -156,5 +170,58 @@ describe("manual badge awards", () => {
       }),
     ).rejects.toThrow("Active user not found");
     expect(mockTx.studentBadge.create).not.toHaveBeenCalled();
+  });
+
+  it("creates a reusable custom definition before awarding it", async () => {
+    mockTx.badgeDefinition.findUnique.mockResolvedValue(null);
+    mockTx.studentBadge.create.mockResolvedValue({
+      ...award,
+      definitionId: "badge-custom",
+      definition: {
+        id: "badge-custom",
+        key: "custom_guinea_pig",
+        name: "Guinea Pig",
+        description: "Signed up early to help test the app.",
+        icon: "Trophy",
+        category: "MILESTONE",
+      },
+    });
+
+    await awardBadgeManually({
+      userId: "staff-1",
+      customDefinition: {
+        name: "Guinea Pig",
+        description: "Signed up early to help test the app.",
+        icon: "Trophy",
+      },
+      awardedById: "admin-1",
+      note: "Testing cohort",
+    });
+
+    expect(mockTx.badgeDefinition.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        key: "custom_guinea_pig",
+        name: "Guinea Pig",
+        description: "Signed up early to help test the app.",
+        icon: "Trophy",
+        category: "MILESTONE",
+        kind: "RULE",
+        trigger: "manual",
+        ruleKey: "custom_guinea_pig",
+        active: true,
+      }),
+      select: {
+        id: true,
+        key: true,
+        name: true,
+        active: true,
+      },
+    });
+    expect(mockTx.studentBadge.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        definitionId: "badge-custom",
+        note: "Testing cohort",
+      }),
+    }));
   });
 });

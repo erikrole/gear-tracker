@@ -118,6 +118,7 @@ describe("POST /api/badges/award", () => {
     expect(awardBadgeManually).toHaveBeenCalledWith({
       userId: "cmstudent000000000000001",
       definitionId: "cmbadge000000000000001",
+      customDefinition: undefined,
       awardedById: "admin-1",
       note: "Staff pick",
     });
@@ -125,6 +126,57 @@ describe("POST /api/badges/award", () => {
       actorId: "admin-1",
       entityType: "badge_award",
       action: "badge_awarded_manually",
+    }));
+  });
+
+  it("creates and awards a custom manual badge", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(adminUser);
+    vi.mocked(awardBadgeManually).mockResolvedValue({
+      id: "cmaward000000000000002",
+      userId: "cmstaff000000000000001",
+      definitionId: "cmbadge000000000000002",
+      awardedAt: new Date("2026-05-12T20:00:00.000Z"),
+      source: "MANUAL",
+      note: "Testing cohort",
+      definition: {
+        id: "cmbadge000000000000002",
+        key: "custom_guinea_pig",
+        name: "Guinea Pig",
+        description: "Signed up early to help test the app.",
+        icon: "Trophy",
+        category: "MILESTONE",
+      },
+    } as any);
+
+    const res = await POST(makePostRequest({
+      userId: "cmstaff000000000000001",
+      customDefinition: {
+        name: "Guinea Pig",
+        description: "Signed up early to help test the app.",
+        icon: "Trophy",
+      },
+      note: "Testing cohort",
+    }), { params: Promise.resolve({}) });
+    const body = await res.json();
+
+    expect(res.status).toBe(201);
+    expect(body.data.definition.key).toBe("custom_guinea_pig");
+    expect(awardBadgeManually).toHaveBeenCalledWith({
+      userId: "cmstaff000000000000001",
+      definitionId: undefined,
+      customDefinition: {
+        name: "Guinea Pig",
+        description: "Signed up early to help test the app.",
+        icon: "Trophy",
+      },
+      awardedById: "admin-1",
+      note: "Testing cohort",
+    });
+    expect(createAuditEntry).toHaveBeenCalledWith(expect.objectContaining({
+      after: expect.objectContaining({
+        definitionId: "cmbadge000000000000002",
+        badgeKey: "custom_guinea_pig",
+      }),
     }));
   });
 });

@@ -10,6 +10,18 @@ type BadgeDisplayInput = {
 
 export type BadgeRarity = "Common" | "Uncommon" | "Rare" | "Legendary";
 
+export const customBadgeIconOptions = [
+  "Trophy",
+  "BadgeCheck",
+  "ShieldCheck",
+  "UserCheck",
+  "Handshake",
+  "Flame",
+  "PackageCheck",
+] as const;
+
+export type CustomBadgeIcon = typeof customBadgeIconOptions[number];
+
 const HIDDEN_BADGE_KEYS = new Set([
   "above_and_beyond",
   "event_hero",
@@ -52,6 +64,10 @@ export const manualAwardGuidance: Record<string, string> = {
   above_and_beyond: "Use sparingly for memorable help that made the operation better.",
 };
 
+export function isCustomBadgeKey(key: string): boolean {
+  return key.startsWith("custom_");
+}
+
 export function isHiddenUntilEarnedBadge(key: string): boolean {
   return HIDDEN_BADGE_KEYS.has(key);
 }
@@ -59,6 +75,7 @@ export function isHiddenUntilEarnedBadge(key: string): boolean {
 export function getBadgeRarity(badge: BadgeDisplayInput): BadgeRarity {
   if (LEGENDARY_BADGE_KEYS.has(badge.key)) return "Legendary";
   if (RARE_BADGE_KEYS.has(badge.key) || (badge.threshold ?? 0) >= 50) return "Rare";
+  if (isCustomBadgeKey(badge.key)) return "Uncommon";
   if (
     UNCOMMON_BADGE_KEYS.has(badge.key) ||
     (badge.threshold ?? 0) >= 10 ||
