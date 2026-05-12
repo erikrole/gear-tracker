@@ -37,7 +37,7 @@ import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage } fr
 type AllowedEmail = {
   id: string;
   email: string;
-  role: "STAFF" | "STUDENT";
+  role: "ADMIN" | "STAFF" | "STUDENT";
   claimedAt: string | null;
   createdAt: string;
   createdBy: { id: string; name: string };

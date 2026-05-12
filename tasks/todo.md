@@ -53,6 +53,7 @@ Last updated: 2026-05-12
 **Review**
 - `POST /api/users` now creates temp-password accounts with `forcePasswordChange: true` and atomically creates or claims a visible allowlist row for directly-created staff/student users.
 - Settings > Allowed Emails now distinguishes a skipped add from a newly-created row, and newly-created single entries appear immediately while the list refreshes.
+- Follow-up fix: adding an address that already has a registered user now backfills a visible claimed allowlist row when one is missing, instead of returning the skipped no-op path.
 - Forgot password no longer creates unusable reset tokens or promises an email when `RESEND_API_KEY` is missing; the working recovery path is the admin-generated temporary password.
 - Verified with focused Vitest coverage, `npx tsc --noEmit`, `git diff --check`, and `npx next build`.
 

@@ -126,9 +126,56 @@ export const POST = withAuth(async (req, { user }) => {
     throw new HttpError(403, "Only admins can pre-approve staff accounts");
   }
 
-  const existingUser = await db.user.findUnique({ where: { email } });
+  const existingUser = await db.user.findUnique({
+    where: { email },
+    select: { id: true, role: true },
+  });
   if (existingUser) {
-    return ok({ email, role, skipped: true }, 201);
+    if (existingUser.role !== "STUDENT" && user.role !== "ADMIN") {
+      throw new HttpError(403, "Only admins can pre-approve staff accounts");
+    }
+
+    let entry;
+    try {
+      entry = await db.allowedEmail.create({
+        data: {
+          email,
+          role: existingUser.role,
+          createdById: user.id,
+          claimedAt: new Date(),
+          claimedById: existingUser.id,
+        },
+        include: {
+          createdBy: { select: { id: true, name: true } },
+          claimedBy: { select: { id: true, name: true } },
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        return ok({ email, role, skipped: true }, 201);
+      }
+      throw error;
+    }
+
+    await createAuditEntry({
+      actorId: user.id,
+      actorRole: user.role,
+      entityType: "allowed_email",
+      entityId: entry.id,
+      action: "created",
+      after: {
+        email,
+        role: existingUser.role,
+        claimedById: existingUser.id,
+        claimedAt: entry.claimedAt?.toISOString() ?? null,
+        source: "registered_user_backfill",
+      },
+    });
+
+    return ok(entry, 201);
   }
 
   let entry;

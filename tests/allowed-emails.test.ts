@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { Prisma } from "@prisma/client";
 
 // ─── Mock modules ───────────────────────────────────────────────────────────
 vi.mock("@/lib/auth", () => ({
@@ -33,6 +34,7 @@ vi.mock("@sentry/nextjs", () => ({
 
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { createAuditEntry } from "@/lib/audit";
 import { GET, POST } from "@/app/api/allowed-emails/route";
 import { DELETE } from "@/app/api/allowed-emails/[id]/route";
 
@@ -180,9 +182,59 @@ describe("POST /api/allowed-emails (single)", () => {
     );
   });
 
-  it("returns a generic success skip when user with email is already registered", async () => {
+  it("creates a claimed allowlist row when the email already belongs to a registered user", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
-    vi.mocked(db.user.findUnique).mockResolvedValue({ id: "existing-user" } as any);
+    vi.mocked(db.user.findUnique).mockResolvedValue({ id: "existing-user", role: "STAFF" } as any);
+    vi.mocked(db.allowedEmail.create).mockResolvedValue({
+      id: "e-1",
+      email: "existing@uw.edu",
+      role: "STAFF",
+      claimedAt: new Date("2026-05-12T18:30:00.000Z"),
+      claimedById: "existing-user",
+    } as any);
+
+    const res = await POST(
+      makePostRequest({ email: "existing@uw.edu", role: "STUDENT" }),
+      noParams
+    );
+
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.skipped).toBeUndefined();
+    expect(body.email).toBe("existing@uw.edu");
+    expect(body.role).toBe("STAFF");
+    expect(db.allowedEmail.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          email: "existing@uw.edu",
+          role: "STAFF",
+          createdById: "admin-1",
+          claimedById: "existing-user",
+          claimedAt: expect.any(Date),
+        }),
+      })
+    );
+    expect(createAuditEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityType: "allowed_email",
+        action: "created",
+        after: expect.objectContaining({
+          source: "registered_user_backfill",
+          claimedById: "existing-user",
+        }),
+      })
+    );
+  });
+
+  it("returns a generic success skip when the registered user already has an allowlist row", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(adminUser);
+    vi.mocked(db.user.findUnique).mockResolvedValue({ id: "existing-user", role: "STUDENT" } as any);
+    vi.mocked(db.allowedEmail.create).mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError("Unique constraint", {
+        code: "P2002",
+        clientVersion: "test",
+      })
+    );
 
     const res = await POST(
       makePostRequest({ email: "existing@uw.edu", role: "STUDENT" }),
@@ -196,6 +248,18 @@ describe("POST /api/allowed-emails (single)", () => {
       role: "STUDENT",
       skipped: true,
     });
+  });
+
+  it("prevents STAFF from backfilling a registered STAFF allowlist row", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(staffUser);
+    vi.mocked(db.user.findUnique).mockResolvedValue({ id: "existing-user", role: "STAFF" } as any);
+
+    const res = await POST(
+      makePostRequest({ email: "existing-staff@uw.edu", role: "STUDENT" }),
+      noParams
+    );
+
+    expect(res.status).toBe(403);
     expect(db.allowedEmail.create).not.toHaveBeenCalled();
   });
 
