@@ -99,6 +99,19 @@ final class BookingsViewModel {
             await load(reset: true)
         }
     }
+
+    func resetDefaults() {
+        searchTask?.cancel()
+        loadTask?.cancel()
+        searchText = ""
+        tab = .reservations
+        mineOnly = false
+        bookings = []
+        offset = 0
+        hasMore = true
+        error = nil
+        pageError = nil
+    }
 }
 
 struct BookingsView: View {
@@ -106,6 +119,7 @@ struct BookingsView: View {
     @State private var showCreate = false
     @State private var navigationPath = NavigationPath()
     @Environment(SessionStore.self) private var session
+    @Environment(AppState.self) private var appState
 
     private var canCreateForOthers: Bool {
         let role = session.currentUser?.role ?? ""
@@ -246,6 +260,13 @@ struct BookingsView: View {
             .task {
                 vm.currentUserId = session.currentUser?.id
                 await vm.load(reset: true)
+            }
+            .onChange(of: appState.tabResetToken) { _, _ in
+                guard appState.resetTab == 1 else { return }
+                showCreate = false
+                navigationPath = NavigationPath()
+                vm.resetDefaults()
+                Task { await vm.load(reset: true) }
             }
             .navigationDestination(for: Booking.self) { booking in
                 BookingDetailView(bookingId: booking.id)

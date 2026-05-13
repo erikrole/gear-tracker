@@ -157,13 +157,15 @@ Order matches floor frequency. Run as STAFF/ADMIN unless noted; switch to STUDEN
 - [ ] "Updated Xs/Xm ago" subtitle visible.
 - [ ] Pull-to-refresh updates stamps.
 - [ ] When stats are 0 across the board, "You're all set" empty state with green checkmark seal.
-- [ ] `Next Up` queue prioritizes overdue gear, due-today bookings, awaiting pickup, upcoming reservations, and my upcoming shift.
+- [ ] `Next Up` queue prioritizes only this user's overdue gear, due-today bookings, awaiting pickup, upcoming reservations, and upcoming shift.
+- [ ] Queue rows use status rails, not leading calendar/gear icons.
 - [ ] Queue booking and reservation rows open Booking Detail without exposing checkout or handoff Scan actions.
 - [ ] Queue shift rows open Event Detail; their Schedule buttons switch to the Schedule tab.
 - [ ] Passive Upcoming Events, My Checkouts, Team Checkouts, and Team Reservations cards do not appear on Home.
 - [ ] Staff/admin follow-up appears below the queue only for exception work such as flagged items, lost bulk units, or drafts.
-- [ ] Top-leading avatar tap → Profile sheet at `.medium` detent.
+- [ ] Top-right avatar tap → Profile sheet at `.medium` detent.
 - [ ] Top-trailing bell tap → Notifications sheet (with badge count when unread > 0).
+- [ ] Bottom-right plus action opens CreateBookingSheet.
 - [ ] No bottom-trailing search button appears on Home; scan lookup remains the dedicated tab-bar action.
 - [ ] Tab bar: Home (active red), Bookings, Items, More overflow, Scan.
 
@@ -238,6 +240,7 @@ Reachable from: Bookings tab `+`, Items list swipe + context menu, Item Detail R
 
 - [ ] Empty state: "Scanner Not Available" when no camera (simulator / front-only iPad).
 - [ ] Single-asset auto-jump: scan a sticker → if exactly one asset matches, navigates straight to ItemDetailView (no result sheet).
+- [ ] Same sticker held in frame does not push a second ItemDetailView on top of the first.
 - [ ] Multi-result sheet: scan a code that matches an asset + a booking title → result sheet shows both sections; tap navigates to the right detail.
 
 ### Notifications sheet
@@ -256,7 +259,7 @@ Reachable from: Bookings tab `+`, Items list swipe + context menu, Item Detail R
 
 - [ ] Schedule tab → list of events with date columns.
 - [ ] Calendar / list view-mode toggle (slice 16).
-- [ ] Past events toggle (slice 16) — list mode only.
+- [ ] Past events toggle (STAFF/ADMIN only) — list mode only; STUDENT does not see it.
 - [ ] My Shifts toggle.
 - [ ] Tap an event → EventDetailSheet.
   - [ ] Header: sport pill, home/away (with mappin.and.ellipse), title, date, location, weather (when applicable; uses WeatherKit).
@@ -303,9 +306,9 @@ Reachable from: Bookings tab `+`, Items list swipe + context menu, Item Detail R
 - [ ] Pull-to-refresh.
 - [ ] Stale data after refresh failure — data stays visible.
 
-### Search (floating button + global sheet)
+### Search (global sheet)
 
-- [ ] Floating red search button (`.glassProminent`) at bottom-trailing of Home.
+- [ ] No floating search button appears on Home.
 - [ ] Tap → GlobalSearchSheet auto-focuses field.
 - [ ] Type to debounce-search; results in sections (Items / Reservations / Checkouts / People) with **count in section header** (today's fix).
 - [ ] Stale-write race guard verifiable on cellular.

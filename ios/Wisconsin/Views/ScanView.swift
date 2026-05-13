@@ -10,7 +10,10 @@ struct ScanView: View {
     @State private var showManualEntry = false
     @State private var torchOn = false
     @State private var navigationPath = NavigationPath()
+    @State private var lastHandledCode: String?
+    @State private var lastHandledAt: Date = .distantPast
     @State private var cameraAuth: AVAuthorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
+    @Environment(AppState.self) private var appState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
     @Environment(\.scenePhase) private var scenePhase
@@ -41,6 +44,15 @@ struct ScanView: View {
                 .onDisappear {
                     torchOn = false
                     setTorch(false)
+                }
+                .onChange(of: appState.tabResetToken) { _, _ in
+                    guard appState.resetTab == 3 else { return }
+                    navigationPath = NavigationPath()
+                    results = nil
+                    resultError = nil
+                    showManualEntry = false
+                    isSearching = false
+                    isScanning = true
                 }
         }
     }
@@ -193,6 +205,12 @@ struct ScanView: View {
     private func handleScan(_ value: String) {
         let code = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !code.isEmpty else { return }
+        let now = Date()
+        if code == lastHandledCode, now.timeIntervalSince(lastHandledAt) < 3 {
+            return
+        }
+        lastHandledCode = code
+        lastHandledAt = now
 
         isScanning = false
         isSearching = true

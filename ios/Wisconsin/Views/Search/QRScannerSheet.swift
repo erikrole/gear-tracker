@@ -231,17 +231,28 @@ private struct DataScannerRepresentable: UIViewControllerRepresentable {
 
     final class Coordinator: NSObject, DataScannerViewControllerDelegate {
         let onScan: (String) -> Void
+        private var lastScanned: String?
+        private var lastScannedAt: Date = .distantPast
+
         init(onScan: @escaping (String) -> Void) { self.onScan = onScan }
 
         func dataScanner(_ dataScanner: DataScannerViewController, didTapOn item: RecognizedItem) {
             if case .barcode(let barcode) = item, let value = barcode.payloadStringValue {
-                onScan(value)
+                handle(value)
             }
         }
 
         func dataScanner(_ dataScanner: DataScannerViewController, didAdd addedItems: [RecognizedItem], allItems: [RecognizedItem]) {
             guard let item = addedItems.first, case .barcode(let barcode) = item,
                   let value = barcode.payloadStringValue else { return }
+            handle(value)
+        }
+
+        private func handle(_ value: String) {
+            let now = Date()
+            guard value != lastScanned || now.timeIntervalSince(lastScannedAt) > 2 else { return }
+            lastScanned = value
+            lastScannedAt = now
             onScan(value)
         }
     }

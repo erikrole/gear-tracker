@@ -743,10 +743,11 @@ private extension String {
     var displayCategory: String {
         switch self {
         case "CHECKOUT": "Checkout"
-        case "RETURN": "Returns"
+        case "ON_TIME": "On-time returns"
         case "SCAN": "Scans"
         case "TRADE": "Trades"
         case "SHIFT": "Shifts"
+        case "STREAK": "Streaks"
         case "MILESTONE": "Milestones"
         default: lowercased().replacingOccurrences(of: "_", with: " ")
         }
@@ -755,9 +756,11 @@ private extension String {
     var badgeTone: StatusTone {
         switch self {
         case "CHECKOUT": .blue
+        case "ON_TIME": .green
         case "SCAN": .green
         case "TRADE": .purple
         case "SHIFT": .orange
+        case "STREAK": .orange
         case "MILESTONE": .red
         default: .blue
         }

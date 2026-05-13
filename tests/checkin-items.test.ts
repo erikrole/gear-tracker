@@ -109,12 +109,16 @@ describe("checkinItems", () => {
     // Should complete the booking
     expect(mockTx.booking.update).toHaveBeenCalledWith({
       where: { id: "booking-1" },
-      data: { status: "COMPLETED" },
+      data: expect.objectContaining({
+        status: "COMPLETED",
+        completedAt: expect.any(Date),
+      }),
     });
     expect(badges.onCheckoutReturned).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user-1",
         bookingId: "booking-1",
+        completedAt: expect.any(Date),
         sourceKey: "booking-1",
       }),
     );

@@ -39,6 +39,7 @@ struct HomeView: View {
     @State private var showNotifications = false
     @State private var showTrades = false
     @State private var showProfile = false
+    @State private var showCreate = false
     @State private var navigationPath = NavigationPath()
     @State private var pendingBookingId: String?
     @State private var pendingAssetId: String?
@@ -81,12 +82,17 @@ struct HomeView: View {
     }
 
     private func isAllEmpty(_ dash: DashboardData) -> Bool {
-        dash.myCheckouts.items.isEmpty
-            && dash.teamCheckouts.items.isEmpty
-            && dash.teamReservations.items.isEmpty
-            && dash.pendingPickups.items.isEmpty
+        let hasMyPendingPickup: Bool
+        if let currentUserId = session.currentUser?.id {
+            hasMyPendingPickup = dash.pendingPickups.items.contains { $0.requesterUserId == currentUserId }
+        } else {
+            hasMyPendingPickup = false
+        }
+        return dash.myCheckouts.items.isEmpty
+            && dash.myReservations.isEmpty
+            && !hasMyPendingPickup
             && dash.myShifts.isEmpty
-            && dash.overdueItems.isEmpty
+            && !dash.myCheckouts.items.contains(where: \.isOverdue)
             && dash.flaggedItems.isEmpty
             && dash.lostBulkUnits.isEmpty
     }
@@ -111,14 +117,16 @@ struct HomeView: View {
                         .frame(maxWidth: .infinity, alignment: .trailing)
                         .padding(.top, -8)
                 }
-                if HomeActionQueue.hasActions(in: dash) {
+                if HomeActionQueue.hasActions(in: dash, currentUserId: session.currentUser?.id) {
                     HomeActionQueue(
                         dash: dash,
                         openBookingId: { navigationPath.append($0) },
                         openBookingSummary: { navigationPath.append($0) },
                         openShift: { selectedScheduleEvent = $0.asScheduleEvent },
                         openBookings: { appState.selectedTab = 1 },
-                        openSchedule: { appState.selectedTab = 4 }
+                        openSchedule: { appState.selectedTab = 4 },
+                        createBooking: { showCreate = true },
+                        currentUserId: session.currentUser?.id
                     )
                 } else if isAllEmpty(dash) || !hasStaffFollowUp(dash) {
                     AllClearEmptyState()
@@ -168,8 +176,28 @@ struct HomeView: View {
         NavigationStack(path: $navigationPath) {
             mainContent
                 .navigationTitle("Home")
+                .overlay(alignment: .bottomTrailing) {
+                    Button {
+                        showCreate = true
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.title3.weight(.semibold))
+                            .frame(width: 58, height: 58)
+                    }
+                    .buttonStyle(.glassProminent)
+                    .accessibilityLabel("Create booking")
+                    .padding(.trailing, 18)
+                    .padding(.bottom, 22)
+                }
             .toolbar {
+                #if DEBUG
                 ToolbarItem(placement: .topBarLeading) {
+                    Button("Kiosk") { kiosk.enterKiosk() }
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+                #endif
+                ToolbarItemGroup(placement: .topBarTrailing) {
                     Button {
                         showProfile = true
                     } label: {
@@ -179,15 +207,6 @@ struct HomeView: View {
                             )
                     }
                     .accessibilityLabel("Profile")
-                }
-                #if DEBUG
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Kiosk") { kiosk.enterKiosk() }
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
-                #endif
-                ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showNotifications = true
                     } label: {
@@ -210,6 +229,15 @@ struct HomeView: View {
                     navigationPath.append(id)
                     appState.pendingPushBookingId = nil
                 }
+            }
+            .onChange(of: appState.tabResetToken) { _, _ in
+                guard appState.resetTab == 0 else { return }
+                navigationPath = NavigationPath()
+                showNotifications = false
+                showTrades = false
+                showProfile = false
+                showCreate = false
+                selectedScheduleEvent = nil
             }
             .navigationDestination(for: BookingSummary.self) { summary in
                 BookingDetailView(bookingId: summary.id)
@@ -251,6 +279,15 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showTrades) {
                 TradeBoardSheet(myShifts: [], currentUserId: session.currentUser?.id ?? "")
+            }
+            .sheet(isPresented: $showCreate) {
+                CreateBookingSheet { newId in
+                    showCreate = false
+                    Task {
+                        await vm.load(appState: appState, forceRefresh: true)
+                        navigationPath.append(newId)
+                    }
+                }
             }
             .sheet(isPresented: $showProfile) {
                 ProfileView()
@@ -349,11 +386,20 @@ private struct HomeActionQueue: View {
     let openShift: (DashboardShift) -> Void
     let openBookings: () -> Void
     let openSchedule: () -> Void
+    let createBooking: () -> Void
+    let currentUserId: String?
+
+    private var myOverdueBookings: [BookingSummary] {
+        dash.myCheckouts.items.filter(\.isOverdue)
+    }
+
+    private var myPendingPickups: [BookingSummary] {
+        guard let currentUserId else { return [] }
+        return dash.pendingPickups.items.filter { $0.requesterUserId == currentUserId }
+    }
 
     private var dueTodayBookings: [BookingSummary] {
-        let checkouts = dash.isStaff
-            ? dash.myCheckouts.items + dash.teamCheckouts.items
-            : dash.myCheckouts.items
+        let checkouts = dash.myCheckouts.items
         var seen = Set<String>()
         return checkouts.filter { summary in
             guard !summary.isOverdue,
@@ -365,28 +411,30 @@ private struct HomeActionQueue: View {
         }
     }
 
-    static func hasActions(in dash: DashboardData) -> Bool {
-        !dash.overdueItems.isEmpty
-            || !dash.pendingPickups.items.isEmpty
-            || !dash.teamReservations.items.isEmpty
+    static func hasActions(in dash: DashboardData, currentUserId: String?) -> Bool {
+        let hasMyPendingPickup = currentUserId.map { id in
+            dash.pendingPickups.items.contains { $0.requesterUserId == id }
+        } ?? false
+        return dash.myCheckouts.items.contains(where: \.isOverdue)
+            || hasMyPendingPickup
+            || !dash.myReservations.isEmpty
             || !dash.myShifts.isEmpty
-            || dash.stats.dueToday > 0
+            || !dash.myCheckouts.items.isEmpty
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
 
-            if !dash.overdueItems.isEmpty {
-                ForEach(dash.overdueItems.prefix(3)) { item in
+            if !myOverdueBookings.isEmpty {
+                ForEach(myOverdueBookings.prefix(3)) { summary in
                     ActionQueueRow(
                         tone: .red,
-                        systemImage: "exclamationmark.triangle.fill",
-                        title: item.bookingTitle,
-                        subtitle: item.requesterName,
-                        meta: item.endsAt.overdueLabel,
+                        title: summary.title,
+                        subtitle: summary.requesterName,
+                        meta: summary.endsAt.overdueLabel,
                         primaryLabel: "Open",
-                        action: { openBookingId(item.bookingId) }
+                        action: { openBookingSummary(summary) }
                     )
                 }
             }
@@ -394,7 +442,6 @@ private struct HomeActionQueue: View {
             ForEach(dueTodayBookings.prefix(3)) { summary in
                 ActionQueueRow(
                     tone: .orange,
-                    systemImage: "clock.fill",
                     title: summary.title,
                     subtitle: summary.requesterName,
                     meta: "Due \(summary.endsAt.formatted(date: .omitted, time: .shortened))",
@@ -403,22 +450,9 @@ private struct HomeActionQueue: View {
                 )
             }
 
-            if dueTodayBookings.isEmpty && dash.stats.dueToday > 0 {
-                ActionQueueRow(
-                    tone: .orange,
-                    systemImage: "clock.fill",
-                    title: "\(dash.stats.dueToday) due today",
-                    subtitle: "Open bookings to see the full list",
-                    meta: "Today",
-                    primaryLabel: "Open bookings",
-                    action: openBookings
-                )
-            }
-
-            ForEach(dash.pendingPickups.items.prefix(3)) { summary in
+            ForEach(myPendingPickups.prefix(3)) { summary in
                 ActionQueueRow(
                     tone: summary.startsAt < Date() ? .orange : .green,
-                    systemImage: "shippingbox.fill",
                     title: summary.title,
                     subtitle: summary.requesterName,
                     meta: summary.startsAt < Date()
@@ -429,10 +463,9 @@ private struct HomeActionQueue: View {
                 )
             }
 
-            ForEach(dash.teamReservations.items.prefix(3)) { summary in
+            ForEach(dash.myReservations.prefix(3)) { summary in
                 ActionQueueRow(
                     tone: .purple,
-                    systemImage: "calendar.badge.clock",
                     title: summary.title,
                     subtitle: summary.requesterName,
                     meta: summary.startsAt.formatted(.dateTime.weekday(.abbreviated).hour().minute()),
@@ -444,7 +477,6 @@ private struct HomeActionQueue: View {
             ForEach(dash.myShifts.prefix(2)) { shift in
                 ActionQueueRow(
                     tone: shift.hasGear ? .green : .blue,
-                    systemImage: shift.hasGear ? "checkmark.circle.fill" : "person.crop.rectangle.stack.fill",
                     title: shift.event.summary,
                     subtitle: "\(shift.area.shiftAreaLabel) shift",
                     meta: shift.startsAt.formatted(.dateTime.weekday(.abbreviated).hour().minute()),
@@ -475,20 +507,19 @@ private struct HomeActionQueue: View {
             }
             Spacer()
             Button {
-                openBookings()
+                createBooking()
             } label: {
-                Label("All work", systemImage: "calendar.badge.checkmark")
+                Label("Create", systemImage: "plus")
                     .labelStyle(.iconOnly)
             }
             .buttonStyle(.glass)
-            .accessibilityLabel("Open all bookings")
+            .accessibilityLabel("Create booking")
         }
     }
 }
 
 private struct ActionQueueRow: View {
     let tone: StatusTone
-    let systemImage: String
     let title: String
     let subtitle: String
     let meta: String
@@ -507,11 +538,9 @@ private struct ActionQueueRow: View {
                 action()
             } label: {
                 HStack(spacing: 12) {
-                    Image(systemName: systemImage)
-                        .font(.headline)
-                        .foregroundStyle(Color.statusText(tone))
-                        .frame(width: 28, height: 28)
-                        .background(Color.statusBackground(tone), in: Circle())
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color.statusText(tone))
+                        .frame(width: 4, height: 36)
                         .accessibilityHidden(true)
 
                     VStack(alignment: .leading, spacing: 3) {

@@ -179,10 +179,18 @@ describe("checkinBulkItem", () => {
     const result = await checkinBulkItem("b-1", "actor-1", "bi-1", 1);
 
     expect(result.autoCompleted).toBe(true);
+    expect(mockTx.booking.update).toHaveBeenCalledWith({
+      where: { id: "b-1" },
+      data: expect.objectContaining({
+        status: "COMPLETED",
+        completedAt: expect.any(Date),
+      }),
+    });
     expect(badges.onCheckoutReturned).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user-1",
         bookingId: "b-1",
+        completedAt: expect.any(Date),
         sourceKey: "b-1",
       }),
     );

@@ -322,6 +322,7 @@ model Booking {
   kitId               String?                 @map("kit_id")
   createdAt           DateTime                @default(now()) @map("created_at")
   updatedAt           DateTime                @updatedAt @map("updated_at")
+  completedAt         DateTime?               @map("completed_at")
   requester           User                    @relation("BookingRequester", fields: [requesterUserId], references: [id], onDelete: Restrict)
   creator             User                    @relation("BookingCreator", fields: [createdBy], references: [id], onDelete: Restrict)
   location            Location                @relation(fields: [locationId], references: [id], onDelete: Restrict)

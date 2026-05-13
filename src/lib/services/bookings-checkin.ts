@@ -20,7 +20,7 @@ function wasReturnedOnTime(endsAt: Date, completedAt: Date) {
 /**
  * Shared auto-complete check for checkinItems and checkinBulkItem.
  * Completes the booking if all serialized items are returned and all bulk items
- * are fully checked in. Returns true if booking was completed.
+ * are fully checked in. Returns the completion timestamp if booking was completed.
  */
 async function maybeAutoComplete(
   tx: Prisma.TransactionClient,
@@ -31,7 +31,7 @@ async function maybeAutoComplete(
     bulkStockReturn?: Array<{ bulkSkuId: string; quantity: number }>;
     auditAction: string;
   }
-): Promise<boolean> {
+): Promise<Date | null> {
   const remainingActive = await tx.bookingSerializedItem.count({
     where: { bookingId, allocationStatus: "active" }
   });
@@ -43,7 +43,8 @@ async function maybeAutoComplete(
     (item) => (item.checkedInQuantity ?? 0) < (item.checkedOutQuantity ?? item.plannedQuantity)
   );
 
-  if (remainingActive > 0 || bulkRemaining) return false;
+  if (remainingActive > 0 || bulkRemaining) return null;
+  const completedAt = new Date();
 
   // Deactivate remaining allocations
   await tx.assetAllocation.updateMany({
@@ -65,13 +66,13 @@ async function maybeAutoComplete(
   // Complete booking
   await tx.booking.update({
     where: { id: bookingId },
-    data: { status: BookingStatus.COMPLETED }
+    data: { status: BookingStatus.COMPLETED, completedAt }
   });
 
   // Close scan session
   await tx.scanSession.updateMany({
     where: { bookingId, phase: ScanPhase.CHECKIN, status: ScanSessionStatus.OPEN },
-    data: { status: ScanSessionStatus.COMPLETED, completedAt: new Date() }
+    data: { status: ScanSessionStatus.COMPLETED, completedAt }
   });
 
   // Audit
@@ -84,7 +85,7 @@ async function maybeAutoComplete(
     action: opts.auditAction,
   });
 
-  return true;
+  return completedAt;
 }
 
 export async function markCheckoutCompleted(bookingId: string, actorUserId: string) {
@@ -116,7 +117,8 @@ export async function markCheckoutCompleted(bookingId: string, actorUserId: stri
     await tx.booking.update({
       where: { id: bookingId },
       data: {
-        status: BookingStatus.COMPLETED
+        status: BookingStatus.COMPLETED,
+        completedAt
       }
     });
 
@@ -184,7 +186,7 @@ export async function markCheckoutCompleted(bookingId: string, actorUserId: stri
       },
       data: {
         status: ScanSessionStatus.COMPLETED,
-        completedAt: new Date()
+        completedAt
       }
     });
 
@@ -199,6 +201,7 @@ export async function markCheckoutCompleted(bookingId: string, actorUserId: stri
     return {
       success: true,
       userId: booking.requesterUserId,
+      completedAt,
       wasOnTime: wasReturnedOnTime(booking.endsAt, completedAt),
     };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
@@ -206,7 +209,7 @@ export async function markCheckoutCompleted(bookingId: string, actorUserId: stri
   await badges.onCheckoutReturned({
     userId: result.userId,
     bookingId,
-    completedAt,
+    completedAt: result.completedAt,
     wasOnTime: result.wasOnTime,
     sourceKey: bookingId,
   });
@@ -285,12 +288,12 @@ export async function checkinItems(
         quantity: item.checkedOutQuantity ?? item.plannedQuantity
       }));
 
-      const autoCompleted = await maybeAutoComplete(tx, bookingId, booking.locationId, actorUserId, {
+      const completedAt = await maybeAutoComplete(tx, bookingId, booking.locationId, actorUserId, {
         bulkStockReturn: checkinBulkItems.length > 0 ? checkinBulkItems : undefined,
         auditAction: "auto_completed_by_partial_checkin"
       });
 
-      const remainingActive = autoCompleted
+      const remainingActive = completedAt
         ? 0
         : await tx.bookingSerializedItem.count({ where: { bookingId, allocationStatus: "active" } });
 
@@ -298,13 +301,13 @@ export async function checkinItems(
         success: true,
         returnedAssetIds: assetIds,
         remainingActiveItems: remainingActive,
-        autoCompleted,
-        badgeEvent: autoCompleted
+        autoCompleted: completedAt !== null,
+        badgeEvent: completedAt
           ? {
               userId: booking.requesterUserId,
               bookingId,
-              completedAt: new Date(),
-              wasOnTime: wasReturnedOnTime(booking.endsAt, new Date()),
+              completedAt,
+              wasOnTime: wasReturnedOnTime(booking.endsAt, completedAt),
               sourceKey: bookingId,
             }
           : null,
@@ -412,7 +415,7 @@ export async function kioskCompleteCheckin(args: {
         quantity: item.checkedOutQuantity ?? item.plannedQuantity,
       }));
 
-      const completed = await maybeAutoComplete(
+      const completedAt = await maybeAutoComplete(
         tx,
         booking.id,
         booking.locationId,
@@ -428,13 +431,13 @@ export async function kioskCompleteCheckin(args: {
         refNumber: booking.refNumber,
         totalItems,
         returnedItems,
-        completed,
-        badgeEvent: completed
+        completed: completedAt !== null,
+        badgeEvent: completedAt
           ? {
               userId: booking.requesterUserId,
               bookingId: booking.id,
-              completedAt: new Date(),
-              wasOnTime: wasReturnedOnTime(booking.endsAt, new Date()),
+              completedAt,
+              wasOnTime: wasReturnedOnTime(booking.endsAt, completedAt),
               sourceKey: booking.id,
             }
           : null,
@@ -515,7 +518,7 @@ export async function checkinBulkItem(
         after: { bulkItemId, quantity, newCheckedIn, outQty },
       });
 
-      const autoCompleted = await maybeAutoComplete(tx, bookingId, booking.locationId, actorUserId, {
+      const completedAt = await maybeAutoComplete(tx, bookingId, booking.locationId, actorUserId, {
         auditAction: "auto_completed_by_bulk_checkin"
       });
 
@@ -524,13 +527,13 @@ export async function checkinBulkItem(
         bulkItemId,
         checkedInQuantity: newCheckedIn,
         totalQuantity: outQty,
-        autoCompleted,
-        badgeEvent: autoCompleted
+        autoCompleted: completedAt !== null,
+        badgeEvent: completedAt
           ? {
               userId: booking.requesterUserId,
               bookingId,
-              completedAt: new Date(),
-              wasOnTime: wasReturnedOnTime(booking.endsAt, new Date()),
+              completedAt,
+              wasOnTime: wasReturnedOnTime(booking.endsAt, completedAt),
               sourceKey: bookingId,
             }
           : null,

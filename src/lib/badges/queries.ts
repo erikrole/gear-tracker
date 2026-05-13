@@ -161,7 +161,7 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
             kind: BookingKind.CHECKOUT,
             status: BookingStatus.COMPLETED,
           },
-          select: { endsAt: true, updatedAt: true },
+          select: { endsAt: true, updatedAt: true, completedAt: true },
         })
       : Promise.resolve([]),
     needsTrades
@@ -187,7 +187,7 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
   ]);
 
   const onTimeReturnCount = completedCheckouts.filter(
-    (booking) => booking.updatedAt.getTime() <= booking.endsAt.getTime() + 15 * 60 * 1000,
+    (booking) => (booking.completedAt ?? booking.updatedAt).getTime() <= booking.endsAt.getTime() + 15 * 60 * 1000,
   ).length;
   const streakMap = new Map(streaks.map((streak) => [streak.streakType, streak]));
 

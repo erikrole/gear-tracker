@@ -129,6 +129,11 @@ struct ScheduleView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.scenePhase) private var scenePhase
 
+    private var canSeePastEvents: Bool {
+        let role = session.currentUser?.role ?? ""
+        return role == "STAFF" || role == "ADMIN"
+    }
+
     private var displayedGroups: [(date: Date, events: [ScheduleEvent])] {
         vm.groupedEvents.compactMap { group in
             var filtered = group.events
@@ -242,7 +247,7 @@ struct ScheduleView: View {
                     .sensoryFeedback(.selection, trigger: viewMode)
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {
-                    if viewMode == .list {
+                    if viewMode == .list && canSeePastEvents {
                         // Web parity: list view's "Past" toggle includes already-
                         // ended events. Status-blue tint when on, plain icon when off
                         // — iOS 26 toolbar applies its own glass material.
@@ -299,8 +304,32 @@ struct ScheduleView: View {
                     .accessibilityLabel("Subscribe to shifts in Calendar")
                 }
             }
-            .task { await vm.load() }
+            .task {
+                if !canSeePastEvents {
+                    vm.includePast = false
+                }
+                await vm.load()
+            }
             .refreshable { await vm.load(forceRefresh: true) }
+            .onChange(of: canSeePastEvents) { _, canSee in
+                if !canSee, vm.includePast {
+                    vm.includePast = false
+                    Task { await vm.load(forceRefresh: true) }
+                }
+            }
+            .onChange(of: appState.tabResetToken) { _, _ in
+                guard appState.resetTab == 4 else { return }
+                selectedEvent = nil
+                myShiftsOnly = false
+                homeAwayFilter = .all
+                viewMode = .list
+                calendarSelectedDate = .now
+                showTradeBoard = false
+                if vm.includePast {
+                    vm.includePast = false
+                    Task { await vm.load(forceRefresh: true) }
+                }
+            }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
                     Task { await vm.load() }

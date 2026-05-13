@@ -13,7 +13,18 @@ final class AppState {
     var pendingPushBookingId: String?
     var pendingPushEventId: String?
     var selectedTab: Int = 0
+    var resetTab: Int?
+    var tabResetToken = 0
     private var isRefreshing = false
+
+    func selectTab(_ tab: Int) {
+        if selectedTab == tab {
+            resetTab = tab
+            tabResetToken += 1
+        } else {
+            selectedTab = tab
+        }
+    }
 
     func refresh() async {
         guard !isRefreshing else { return }

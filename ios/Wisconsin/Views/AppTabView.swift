@@ -8,7 +8,10 @@ struct AppTabView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        TabView(selection: Bindable(appState).selectedTab) {
+        TabView(selection: Binding(
+            get: { appState.selectedTab },
+            set: { appState.selectTab($0) }
+        )) {
             Tab("Home", systemImage: "house", value: 0) {
                 HomeView()
             }

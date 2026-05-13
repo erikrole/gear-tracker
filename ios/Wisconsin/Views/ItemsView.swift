@@ -95,6 +95,19 @@ final class ItemsViewModel {
         }
     }
 
+    func resetDefaults() {
+        searchTask?.cancel()
+        loadTask?.cancel()
+        searchText = ""
+        selectedStatuses = []
+        favoritesOnly = false
+        assets = []
+        offset = 0
+        hasMore = true
+        error = nil
+        pageError = nil
+    }
+
     func toggleFavorite(_ asset: Asset) async {
         let optimistic = !asset.isFavorited
         applyFavorite(assetId: asset.id, value: optimistic)
@@ -118,6 +131,7 @@ struct ItemsView: View {
     @State private var vm = ItemsViewModel()
     @State private var reserveAsset: Asset?
     @State private var navigationPath = NavigationPath()
+    @Environment(AppState.self) private var appState
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -250,6 +264,13 @@ struct ItemsView: View {
             }
             .refreshable { await vm.load(reset: true) }
             .task { await vm.load(reset: true) }
+            .onChange(of: appState.tabResetToken) { _, _ in
+                guard appState.resetTab == 2 else { return }
+                reserveAsset = nil
+                navigationPath = NavigationPath()
+                vm.resetDefaults()
+                Task { await vm.load(reset: true) }
+            }
             .navigationDestination(for: Asset.self) { asset in
                 ItemDetailView(assetId: asset.id)
             }

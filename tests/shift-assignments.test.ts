@@ -31,10 +31,17 @@ vi.mock("@/lib/db", () => {
   };
 });
 
+vi.mock("@/lib/badges", () => ({
+  badges: {
+    onShiftCompleted: vi.fn(),
+  },
+}));
+
 // ─── Mock checkTimeConflict self-reference (used internally) ────────────────
 // The service imports checkTimeConflict from itself, so we let the real
 // module load and only mock the db dependency above.
 
+import { badges } from "@/lib/badges";
 import { db } from "@/lib/db";
 import {
   directAssignShift,
@@ -49,6 +56,7 @@ const mockTx = (db as any)._mockTx;
 
 beforeEach(() => {
   transactionCalls.length = 0;
+  vi.clearAllMocks();
 });
 
 // ════════════��═══════════════════════════════════���════════════════════════════
@@ -308,6 +316,23 @@ describe("approveRequest", () => {
         data: { status: "DECLINED" },
       })
     );
+  });
+
+  it("does not emit shift badge completion from request approval", async () => {
+    const assignment = {
+      ...makeShiftAssignment({ status: "REQUESTED", userId: "student-1" }),
+      shift,
+    };
+    mockTx.shiftAssignment.findUnique.mockResolvedValue(assignment);
+    mockTx.shiftAssignment.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    mockTx.shiftAssignment.updateMany.mockResolvedValue({ count: 0 });
+    mockTx.shiftAssignment.update.mockResolvedValue({ ...assignment, status: "APPROVED" });
+
+    await approveRequest(assignment.id);
+
+    expect(badges.onShiftCompleted).not.toHaveBeenCalled();
   });
 });
 

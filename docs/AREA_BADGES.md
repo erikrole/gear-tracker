@@ -5,7 +5,7 @@
 - Owner: Wisconsin Athletics Creative Product
 - Created: 2026-05-09
 - Last Updated: 2026-05-12
-- Status: Active, custom manual awards shipped with feature flag off
+- Status: Active, Badge Achievements MVP verified with feature flag off-safe behavior
 - Plan: `tasks/badge-achievements-plan.md`
 - Decision Refs: D-034
 
@@ -39,6 +39,7 @@ Badges are lightweight recognition for every active user inside the existing ops
 - Custom manual badges are also `BadgeDefinition` rows. Admin-created custom badges use a generated `custom_` key, `trigger="manual"`, `kind=RULE`, `category=MILESTONE`, and no evaluator wiring.
 - `StudentBadge`: legacy-named earned badge row for any user. Unique on `(userId, definitionId)`, supports `AUTO` and `MANUAL`, optional `awardedById`, and optional staff note.
 - `BadgeStreak`: per-user streak state. Unique on `(userId, streakType)` and deduped by `lastSourceKey`. `SCAN_SUCCESS_COUNT` is the durable scan success counter; `SCAN_CLEAN` is the clean-scan streak that resets on failed scans.
+- `Booking.completedAt`: durable checkout completion timestamp. On-time badge counts use this field with a legacy `updatedAt` fallback for pre-field rows, so later booking edits do not change return eligibility.
 - `SystemConfig["badges.peerVisible"]`: default `true`; controls peer visibility for another user's badge tab.
 - Badge evaluator transactions run with Serializable isolation and retry once on Prisma write conflicts so duplicate source-key retries re-read streak state before mutating.
 
@@ -46,8 +47,9 @@ Badges are lightweight recognition for every active user inside the existing ops
 - Primary user experience is a `Badges` tab on `/users/{id}` for students, staff, and admins. `/profile` already redirects to user detail.
 - No top-level nav item.
 - No badge count, chip row, or recognition chrome in the profile hero.
-- The badge tab uses shadcn primitives as a full badge gallery with all/earned/locked/manual/rare filters, compact earned and locked tiles, and click-to-expand badge details.
-- Badge cards show UI-derived rarity labels, rarity-aware medallions, manual award notes, recent-award "New" state and glow treatment, and real progress for supported threshold badges.
+- The badge tab uses shadcn primitives as an Apple Fitness-inspired award collection: profile-safe summary metrics, collection shelves, category drill-in galleries, and click-to-expand badge details.
+- Award collection shelves group badges into Gear Flow, Reliability, Scans, Teamwork, and Staff Picks. Each shelf shows a large featured artifact, earned/visible counts, a small award stack, and a Show all affordance.
+- Badge cards show UI-derived rarity labels, artifact-style CSS/SVG medallions, manual award notes, recent-award "New" state and glow treatment, and real progress for supported threshold badges.
 - A few surprise badges stay hidden from the locked grid until earned; the available section shows how many surprise badges remain hidden.
 - The badge profile API loads active definitions plus historical earned inactive definitions in one Prisma call that includes the user's award row.
 - The badge profile API adds progress only when it can derive it from real counters or streak state. Manual, deferred shift, and unsupported rule badges remain rule-based with no fake progress bar.
@@ -72,12 +74,12 @@ Badges are lightweight recognition for every active user inside the existing ops
 - [x] Kiosk checkout completion awards checkout count badges exactly once per booking.
 - [x] Kiosk pickup confirmation awards checkout count badges exactly once for reservations moving into active checkout.
 - [x] Checkout return badges award exactly once when a checkout transitions to `COMPLETED`.
-- [x] On-time computation uses a 15-minute UTC grace window after `booking.endsAt`.
+- [x] On-time computation uses `Booking.completedAt` plus a 15-minute UTC grace window after `booking.endsAt`.
 - [x] Kiosk scan successes count toward scan badges and retries do not double-bump streaks.
 - [x] Kiosk scan failures reset the clean-scan streak state.
 - [x] Legacy app scan stub remains 403 and awards nothing.
 - [x] Trade badges award once per completed trade status flip.
-- [ ] Shift badges do not award from request approval.
+- [x] Shift badges do not award from request approval.
 - [x] Manual awards persist staff attribution, optional notes, and profile-linked inbox notifications that respect badge notification prefs.
 - [x] Admins can create a custom manual badge during award, save it to the active catalog, and reuse it for later staff or student awards.
 - [x] User profile badge grid uses shadcn primitives and does not crowd the hero.
@@ -94,6 +96,10 @@ Badges are lightweight recognition for every active user inside the existing ops
 ## Change Log
 | Date | Change |
 |---|---|
+| 2026-05-12 | Badge on-time counts now use durable `Booking.completedAt` instead of mutable `updatedAt`. Checkout completion paths set the booking and scan-session completion timestamps from the same transaction timestamp, while badge progress falls back to `updatedAt` only for old completed rows. |
+| 2026-05-12 | Badge MVP closeout fixed stale `RETURN` category handling to match the shipped `ON_TIME` schema category on web and iOS, and verified shift request approval remains a non-event for badge awards. |
+| 2026-05-12 | Web badge gallery moved to an award-collection model inspired by Apple Fitness. The profile tab now opens with collection shelves for Gear Flow, Reliability, Scans, Teamwork, and Staff Picks; each shelf features a larger artifact medallion, preview stack, earned/visible counts, and a category drill-in gallery with the existing filters and detail modal. Shared badge medallions now render clean CSS/SVG artifact rims, rarity finish, locked grayscale state, and category shape variants without busy patterning behind the icon. |
+| 2026-05-12 | Badge detail modal chrome upgraded. The profile badge gallery still stays out of the hero, but expanded badge details now use a larger rarity-aware medallion stage, animated shine/floating accents with reduced-motion support, richer status copy, icon-backed metadata cards, and a stronger manual-award note treatment. |
 | 2026-05-12 | Badge definition production seeding moved into migration `0064_seed_badge_definitions`. This fixes production environments where Vercel ran `prisma migrate deploy` but not `prisma/seed.mjs`, leaving the award dialog and gallery with no active definitions. The award dialog also now reopens directly on Custom when the existing catalog is cached empty. |
 | 2026-05-12 | Web profile badge UI upgraded from split earned/available lists into a full gallery. Users can filter all visible badges by earned, locked, manual, and rare; click any tile to open a detail dialog with title, description, earned date, source, note, rarity, category, trigger metadata, and progress where available. Recent awards get a restrained rarity glow instead of profile hero clutter. |
 | 2026-05-12 | Native iOS badge profiles now include a full badge gallery. The profile card stays compact with earned badges and a See all action; the gallery sheet shows all visible badges with earned, locked, manual, and rare filters, hidden-surprise copy, medallion styling, haptics, and native detail sheets for title, description, earned date, source, note, rarity, category, trigger, and progress. |

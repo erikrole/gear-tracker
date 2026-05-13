@@ -44,6 +44,48 @@ Last updated: 2026-05-12
 
 ## Open Items
 
+### Prisma + Neon Migration Reliability (2026-05-12)
+- [x] **Diagnose current failure:** Confirm schema validation and migration prefix checks pass while Prisma DB-facing commands still hit the blank schema-engine error against Neon.
+- [x] **Align config with Neon guidance:** Add explicit Prisma config and document pooled runtime vs direct migration URLs.
+- [x] **Build-safe migration deploy:** Keep normal `prisma migrate deploy` first, with a Neon HTTP fallback for the known blank schema-engine failure.
+- [x] **Verification:** Apply the pending migration, prove Neon migration history is current, and run build-safe checks.
+
+**Review**
+- Added `prisma.config.ts` so Prisma CLI uses the direct Neon URL for migration work, while app runtime keeps using the pooled `DATABASE_URL`.
+- Added `scripts/prisma-migrate-deploy.mjs` and wired `build`, `migrate`, and `db:migrate:deploy` through it. The wrapper runs standard `prisma migrate deploy` first and only falls back to Neon HTTP when Prisma exits with the known blank schema-engine failure.
+- Applied pending migration `0065_add_booking_completed_at` through the fallback. Neon now has `_prisma_migrations.finished_at` for `0065_add_booking_completed_at`, and `bookings.completed_at` exists as a nullable timestamp.
+- Verified with `npx prisma validate`, `node --check scripts/prisma-migrate-deploy.mjs`, `npm run db:migrate:check`, idempotent `npm run db:migrate:deploy`, direct Neon inspection, and full `npm run build`.
+
+### iOS Staff TestFlight Feedback Fixes (2026-05-12)
+- [x] **Home ownership:** Keep Home's number strip global, but make Home action rows show only the signed-in user's shifts, checkouts, pickups, and reservations.
+- [x] **Home controls:** Remove row icons from the Home queue, move profile to the top right, and put creation behind a bottom-right action button.
+- [x] **Schedule student fit:** Keep students out of past-event browsing and staff creation/crew setup controls.
+- [x] **Navigation feel:** Reset tab-local stacks/filters where expected when users reselect a tab, while preserving native back buttons and swipe-back.
+- [x] **Scan reliability:** Stop QR scans from opening the same item page twice.
+- [x] **Verification:** Run iOS drift/audit checks, scoped whitespace checks, and the Wisconsin simulator build.
+
+**Review**
+- Home now keeps the existing top metrics, but the action queue is personal: overdue/due checkouts, pickups requested by the signed-in user, their reservations, and their shifts.
+- Home rows use tone rails instead of ambiguous calendar icons, the profile/avatar action moved to the top right, and booking creation now lives in the bottom-right action button above the tab bar.
+- Schedule hides the past-events toggle from students and resets it off for student sessions, while staff/admin users keep the historical browsing control.
+- Reselecting tabs now clears local navigation and filters on Home, Bookings, Items, Scan, Schedule, and Users, without disabling the native navigation back button or swipe-back gesture.
+- Scan now dedupes repeat QR callbacks in both the sheet-level scanner and the Scan tab lookup flow, so the same sticker does not push the item page twice.
+- Verified with `npx tsc --noEmit`, `git diff --check`, `npm run drift:ios`, `npm run audit:ios:gaps`, and the Wisconsin iOS simulator build.
+
+### Awards Collection UI (2026-05-12)
+- [x] **Collection shelves:** Rework the web profile badge tab from a flat gallery-first layout into Apple Fitness-inspired award collection shelves.
+- [x] **Artifact medallions:** Upgrade the shared badge medallion into a reusable CSS/SVG award object with rarity finish, clean rim, locked state, and category shape options.
+- [x] **Category drill-in:** Let users open a collection to browse that award family with existing earned/locked/manual/rare filters and badge detail modal.
+- [x] **Docs and verification:** Sync badge docs and run TypeScript, whitespace, app build, and local browser smoke where auth allows.
+
+**Review**
+- The web profile Badges tab now opens as an awards collection shelf instead of a flat gallery. Gear Flow, Reliability, Scans, Teamwork, and Staff Picks each show a featured award artifact, preview stack, earned/visible counts, and Show all affordance.
+- Opening a collection shows the existing browsable award grid with all, earned, locked, manual, and rare filters plus the current detail modal, so the Apple Fitness structure does not remove operational metadata.
+- Shared `BadgeMedallion` now renders a CSS/SVG award artifact with category shapes, a clean rim, locked grayscale state, rarity finish, and scalable icon sizing. The first browser pass removed busy internal linework because it competed with the glyph.
+- Closeout audit fixed stale `RETURN` category handling to the shipped `ON_TIME` schema category on web and iOS, and added a regression proving shift request approval does not emit shift badge completion.
+- Verified with focused badge/shift tests, `npx tsc --noEmit`, `git diff --check`, `npx next build`, iOS drift/audit checks, and the Wisconsin iOS simulator build.
+- Browser smoke found the existing 3000 and 3001 servers were stale, so a temporary clean server on 3010 was used. `/users?tab=badges` compiled and redirected to `/login` with no Chrome console warnings or errors; no authenticated browser session was available.
+
 ### iOS Badge Gallery Polish (2026-05-12)
 - [x] **Compact profile entry:** Keep the native profile badge card restrained and add a See all action.
 - [x] **Full gallery sheet:** Add a native Badge Gallery sheet with all, earned, locked, manual, and rare filters.
@@ -421,7 +463,7 @@ Last updated: 2026-05-12
 ### Student Badge Achievements Slice 2 (2026-05-09)
 - [x] **Checkout opened events** — Wire kiosk direct checkout and kiosk pickup confirmation to `onCheckoutOpened` after audit success.
 - [x] **Checkout returned events** — Emit `onCheckoutReturned` from `markCheckoutCompleted`, partial serialized auto-complete, bulk auto-complete, and kiosk check-in auto-complete.
-- [x] **Evaluator logic** — Award checkout count, on-time count, and on-time streak badges with `StudentBadge` idempotency and `BadgeStreak.lastSourceKey` dedupe.
+- [x] **Evaluator logic** — Award checkout count, on-time count, and on-time streak badges with `StudentBadge` idempotency and `BadgeStreak.lastSourceKey` dedupe. On-time counts now use durable `Booking.completedAt` with a legacy `updatedAt` fallback, so later booking edits do not corrupt badge eligibility.
 - [x] **Verification** — Focused badge/checkout tests, full `npm test`, `npx tsc --noEmit`, `npx prisma validate`, `npm run db:migrate:check`, `git diff --check`, and `npx next build` passed. `npm run lint` is blocked by the deprecated interactive `next lint` setup prompt.
 
 ### Student Badge Achievements Slice 3 (2026-05-09)

@@ -104,7 +104,10 @@ describe("markCheckoutCompleted", () => {
 
     expect(mockTx.booking.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: { status: "COMPLETED" },
+        data: expect.objectContaining({
+          status: "COMPLETED",
+          completedAt: expect.any(Date),
+        }),
       })
     );
     expect(mockTx.assetAllocation.updateMany).toHaveBeenCalledWith(
@@ -130,6 +133,10 @@ describe("markCheckoutCompleted", () => {
           bookingId: "b-1",
           phase: "CHECKIN",
           status: "OPEN",
+        }),
+        data: expect.objectContaining({
+          status: "COMPLETED",
+          completedAt: expect.any(Date),
         }),
       })
     );
@@ -214,6 +221,7 @@ describe("markCheckoutCompleted", () => {
       expect.objectContaining({
         userId: "user-1",
         bookingId: "b-1",
+        completedAt: expect.any(Date),
         wasOnTime: expect.any(Boolean),
         sourceKey: "b-1",
       }),

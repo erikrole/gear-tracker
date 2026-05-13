@@ -83,17 +83,32 @@ final class UsersViewModel {
             await load(reset: true)
         }
     }
+
+    func resetDefaults() {
+        searchTask?.cancel()
+        loadTask?.cancel()
+        searchText = ""
+        selectedRole = nil
+        includeInactive = false
+        users = []
+        offset = 0
+        hasMore = true
+        error = nil
+        pageError = nil
+    }
 }
 
 struct UsersView: View {
     @State private var vm = UsersViewModel()
+    @State private var navigationPath = NavigationPath()
+    @Environment(AppState.self) private var appState
 
     var body: some View {
         // Apple's recommended pattern for binding to an @Observable model:
         // shadow `vm` with a @Bindable wrapper for the duration of body so
         // the dynamic-member subscript resolves cleanly.
         @Bindable var vm = vm
-        return NavigationStack {
+        return NavigationStack(path: $navigationPath) {
             content
                 .navigationTitle("Users")
                 .searchable(text: $vm.searchText, prompt: "Search by name or email…")
@@ -110,6 +125,12 @@ struct UsersView: View {
                     if vm.users.isEmpty && vm.error == nil {
                         await vm.load(reset: true)
                     }
+                }
+                .onChange(of: appState.tabResetToken) { _, _ in
+                    guard appState.resetTab == 5 else { return }
+                    navigationPath = NavigationPath()
+                    vm.resetDefaults()
+                    Task { await vm.load(reset: true) }
                 }
                 .navigationDestination(for: UserRouteId.self) { route in
                     UserDetailView(userId: route.id)

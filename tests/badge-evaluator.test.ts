@@ -76,8 +76,12 @@ describe("badge evaluator checkout events", () => {
   it("awards on-time count and streak badges once per source key", async () => {
     const now = new Date("2026-05-09T18:00:00.000Z");
     mockTx.booking.findMany.mockResolvedValue([
-      { endsAt: new Date("2026-05-09T17:50:00.000Z"), updatedAt: now },
-      { endsAt: new Date("2026-05-08T18:00:00.000Z"), updatedAt: new Date("2026-05-08T18:20:00.000Z") },
+      { endsAt: new Date("2026-05-09T17:50:00.000Z"), updatedAt: now, completedAt: now },
+      {
+        endsAt: new Date("2026-05-08T18:00:00.000Z"),
+        updatedAt: new Date("2026-05-08T18:20:00.000Z"),
+        completedAt: new Date("2026-05-08T18:20:00.000Z"),
+      },
     ]);
     mockTx.badgeDefinition.findMany
       .mockResolvedValueOnce([{ id: "on-time-1" }])
@@ -119,6 +123,7 @@ describe("badge evaluator checkout events", () => {
       {
         endsAt: new Date("2026-05-09T18:00:00.000Z"),
         updatedAt: new Date("2026-05-09T18:01:00.000Z"),
+        completedAt: new Date("2026-05-09T18:01:00.000Z"),
       },
     ]);
     mockTx.badgeDefinition.findMany.mockResolvedValueOnce([{ id: "on-time-1" }]);
@@ -138,6 +143,49 @@ describe("badge evaluator checkout events", () => {
 
     expect(mockTx.badgeStreak.upsert).not.toHaveBeenCalled();
     expect(mockTx.badgeDefinition.findMany).toHaveBeenCalledTimes(1);
+  });
+
+  it("counts on-time returns from completedAt even when later edits move updatedAt", async () => {
+    mockTx.booking.findMany.mockResolvedValue([
+      {
+        endsAt: new Date("2026-05-09T18:00:00.000Z"),
+        completedAt: new Date("2026-05-09T18:05:00.000Z"),
+        updatedAt: new Date("2026-05-10T12:00:00.000Z"),
+      },
+      {
+        endsAt: new Date("2026-05-08T18:00:00.000Z"),
+        completedAt: null,
+        updatedAt: new Date("2026-05-08T18:05:00.000Z"),
+      },
+    ]);
+    mockTx.badgeDefinition.findMany
+      .mockImplementationOnce(async ({ where }) => {
+        expect(where.threshold?.lte).toBe(2);
+        return [{ id: "on-time-2" }];
+      })
+      .mockResolvedValueOnce([]);
+    mockTx.badgeStreak.findUnique.mockResolvedValue(null);
+
+    await onCheckoutReturned({
+      userId: "user-1",
+      bookingId: "booking-1",
+      completedAt: new Date("2026-05-09T18:05:00.000Z"),
+      wasOnTime: true,
+      sourceKey: "booking-1",
+    });
+
+    expect(mockTx.booking.findMany).toHaveBeenCalledWith({
+      where: {
+        requesterUserId: "user-1",
+        kind: "CHECKOUT",
+        status: "COMPLETED",
+      },
+      select: { endsAt: true, updatedAt: true, completedAt: true },
+    });
+    expect(mockTx.studentBadge.createMany).toHaveBeenCalledWith({
+      data: [{ userId: "user-1", definitionId: "on-time-2" }],
+      skipDuplicates: true,
+    });
   });
 
   it("resets the on-time streak on a late return", async () => {

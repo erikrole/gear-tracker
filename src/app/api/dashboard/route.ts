@@ -45,6 +45,7 @@ function toBookingSummary(c: {
   refNumber: string | null;
   sportCode: string | null;
   requester: { name: string; avatarUrl: string | null };
+  requesterUserId: string;
   location?: { name: string } | null;
   startsAt: Date;
   endsAt: Date;
@@ -60,6 +61,7 @@ function toBookingSummary(c: {
     refNumber: c.refNumber,
     sportCode: c.sportCode ?? null,
     requesterName: c.requester.name,
+    requesterUserId: c.requesterUserId,
     requesterInitials: getInitials(c.requester.name),
     requesterAvatarUrl: c.requester.avatarUrl ?? null,
     locationName: c.location?.name ?? null,
@@ -382,6 +384,7 @@ export const GET = withAuth(async (_req, { user }) => {
   const topOverdue = settledValue(topOverdueResult, [] as Array<{
     id: string;
     title: string;
+    requesterUserId: string;
     requester: { name: string; avatarUrl: string | null };
     serializedItems: Array<{ asset: { id: string; assetTag: string; name: string | null; imageUrl: string | null } }>;
     endsAt: Date;
@@ -665,25 +668,7 @@ export const GET = withAuth(async (_req, { user }) => {
       },
       upcomingEvents: events,
       myReservations: myReservations.map((r) => {
-        const sorted = sortItemsByCategory(r.serializedItems);
-        return {
-          id: r.id,
-          title: r.title,
-          refNumber: r.refNumber,
-          sportCode: r.sportCode ?? null,
-          requesterName: r.requester.name,
-          requesterInitials: getInitials(r.requester.name),
-          requesterAvatarUrl: r.requester.avatarUrl ?? null,
-          startsAt: r.startsAt.toISOString(),
-          endsAt: r.endsAt.toISOString(),
-          itemCount: r._count.serializedItems + r._count.bulkItems,
-          locationName: r.location?.name ?? null,
-          items: sorted.slice(0, 3).map((si) => ({
-            id: si.asset.id,
-            name: si.asset.name,
-            imageUrl: si.asset.imageUrl,
-          })),
-        };
+        return toBookingSummary(r, now, false);
       }),
       overdueCount: totalOverdue,
       overdueItems,

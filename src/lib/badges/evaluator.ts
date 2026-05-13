@@ -191,10 +191,10 @@ export async function onCheckoutReturned(event: CheckoutReturnedBadgeEvent): Pro
         kind: BookingKind.CHECKOUT,
         status: BookingStatus.COMPLETED,
       },
-      select: { endsAt: true, updatedAt: true },
+      select: { endsAt: true, updatedAt: true, completedAt: true },
     });
     const onTimeCount = completedCheckouts.filter(
-      (booking) => booking.updatedAt.getTime() <= booking.endsAt.getTime() + ON_TIME_GRACE_MS,
+      (booking) => (booking.completedAt ?? booking.updatedAt).getTime() <= booking.endsAt.getTime() + ON_TIME_GRACE_MS,
     ).length;
 
     await awardThresholdBadges(tx, {

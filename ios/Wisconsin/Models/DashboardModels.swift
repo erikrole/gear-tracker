@@ -13,6 +13,7 @@ struct BookingSummary: Codable, Identifiable, Hashable {
     let title: String
     let refNumber: String?
     let sportCode: String?
+    let requesterUserId: String
     let requesterName: String
     let requesterInitials: String
     let requesterAvatarUrl: String?
@@ -136,6 +137,7 @@ struct DashboardData: Codable {
     let teamCheckouts: CheckoutGroup
     let teamReservations: ReservationGroup
     let pendingPickups: ReservationGroup
+    let myReservations: [BookingSummary]
     let overdueCount: Int
     let overdueItems: [DashboardOverdueItem]
     let myShifts: [DashboardShift]
