@@ -86,6 +86,7 @@ SEED_ADMIN_PASSWORD     Initial admin password for seed script
 
 ## Cron Jobs
 ```
-/api/cron/notifications   — Send pending notifications (schedule: TBD in vercel.json)
-/api/cron/audit-archive   — Archive old audit logs
+/api/cron/notifications   — Send pending notifications (daily 09:00 UTC)
+/api/cron/morning-refresh — Sync calendars, generate/archive shifts, expire stale pickups/trades (daily 08:00 UTC)
+/api/cron/audit-archive   — Archive old audit logs (weekly Sunday 03:00 UTC)
 ```

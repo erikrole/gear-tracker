@@ -38,6 +38,7 @@
 - D-030: Kiosk auth uses device-level token, not user sessions
 - D-031: Multi-event booking via junction table with preserved primary FK
 - D-034: Badge achievements are event-sourced, flag-gated, and profile-first
+- D-035: Daily maintenance work is consolidated into morning-refresh
 
 ---
 
@@ -629,6 +630,27 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 
 ---
 
+## D-035: Daily Maintenance Work Is Consolidated Into Morning-Refresh
+- Date: 2026-05-13
+- Status: Accepted
+- Context:
+  - Vercel cron capacity is intentionally small, and duplicated cron routes drift from the scheduled path.
+  - Shift-group archiving already runs inside `morning-refresh`; the standalone `archive-shifts` route was unscheduled dead code.
+  - Stale `PENDING_PICKUP` checkouts need a daily cleanup path, but adding another cron route would increase scheduling and monitoring surface.
+- Decision:
+  - `GET /api/cron/morning-refresh` is the single daily scheduling maintenance route for calendar sync, shift generation, shift-group archiving, stale trade expiry, and pending-pickup auto-expiry.
+  - Delete duplicate standalone cron routes when their work is already owned by morning-refresh.
+  - Pending-pickup checkouts auto-expire after 48 hours past `startsAt`.
+- Consequences:
+  - One daily maintenance response captures the operational cleanup summary.
+  - Fewer unscheduled cron routes and fewer places for schedule comments to drift.
+  - Pending-pickup expiry must be idempotent, audited, and safe to retry.
+- Guardrails:
+  - Expiry must release serialized allocations, restore held bulk stock, release scanned numbered units, cancel open scan sessions, and write a system audit entry.
+  - Cleanup failures should be visible in the morning-refresh response without preventing unrelated per-source calendar sync results from being recorded.
+
+---
+
 ## Pending Decisions
 1. ~~Event sync refresh cadence and staleness thresholds~~ — Resolved: D-026.
 2. ~~Venue mapping governance owner~~ — Resolved: D-027.
@@ -636,6 +658,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 4. ~~Student mobile KPI definitions~~ — resolved (PD-5): taps-to-checkout ≤3, scan success ≥95%, task completion <30s. Telemetry deferred to Phase B.
 
 ## Change Log
+- 2026-05-13: Added D-035 for daily maintenance consolidation: morning-refresh owns shift archiving, stale trade expiry, and pending-pickup auto-expiry; duplicate unscheduled cron routes should be deleted.
 - 2026-05-10: Amended D-028 to match the kiosk custody boundary: app `/scan` is lookup-only, while checkout pickup and return scans run through kiosk routes.
 - 2026-03-01: Initial decision log created from project memory dump.
 - 2026-03-02: Added student-first mobile operations contract decision.

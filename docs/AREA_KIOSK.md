@@ -4,7 +4,7 @@
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Status: Shipped — iOS canonical (web kiosk deprecated 2026-04-24)
 - Created: 2026-04-07
-- Last Updated: 2026-05-12
+- Last Updated: 2026-05-13
 - Brief: `BRIEF_KIOSK.md`
 - Decision Refs: D-030
 
@@ -50,7 +50,7 @@ Files under `ios/Wisconsin/Kiosk/`:
   - `POST /activate` — validates 6-digit code, returns kiosk session
   - `GET /me` — returns kiosk identity
   - `POST /heartbeat` — updates `lastSeenAt`
-  - `GET /dashboard` — live stats (active checkouts, today's events, team status)
+  - `GET /dashboard` — live stats (active checkouts, today's events, team status) with partial-result fallbacks so one failed read does not blank the idle screen
   - `GET /users` — roster filtered by kiosk's `locationId`
   - `GET /student/[userId]` — a student's active checkouts and reservations
   - `POST /checkout/scan`, `POST /checkout/complete`, `GET /checkout/[id]`
@@ -60,6 +60,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 - Numbered battery units scan through the same pickup/check-in endpoints with derived values like `{binQrCodeValue}-{unitNumber}`. Pickup binds the unit to the booking; check-in returns only the scanned unit.
 - Pickup and return detail payloads include numbered battery units in the same `items` checklist used by serialized assets, so the native iOS screens count batteries before allowing pickup/return actions.
 - Serialized pickup confirmation now requires a successful `CHECKOUT` scan event for each serialized asset on the booking. Kiosk scan lookup accepts asset tag, primary scan code, QR value, `qr-` fallback, and serial number values.
+- Stale pending-pickup checkouts auto-expire during the scheduled morning refresh after 48 hours past `startsAt`. Expiry cancels the booking, releases serialized allocations, restores held bulk stock, releases any scanned numbered units, cancels open scan sessions, and writes a system audit entry.
 - **Auth helpers:** `withKiosk()` (`src/lib/api.ts`) and `requireKiosk()` (`src/lib/auth.ts`) validate the kiosk-session cookie, enforce the server-side 7-day `sessionExpiresAt`, refresh `lastSeenAt`, throw 401 if expired/inactive/deactivated.
 
 ## Acceptance Criteria
@@ -81,6 +82,8 @@ Files under `ios/Wisconsin/Kiosk/`:
 | AC-13 | (Was: desktop scan routes gated 403) | ✅ N/A — web kiosk deleted; only `/api/kiosk/*` consumers are the iOS app |
 | AC-14 | Mid-flow inactivity does not silently discard scan state | ✅ Complete (2026-04-24) |
 | AC-15 | Heartbeat / dashboard 401 routes back to activation | ✅ Complete (2026-04-24) |
+| AC-16 | Idle dashboard survives partial read failures | ✅ Complete (2026-05-13) |
+| AC-17 | Stale pending-pickup checkouts auto-expire | ✅ Complete (2026-05-13) |
 
 ## Known Gaps
 
@@ -106,3 +109,4 @@ Files under `ios/Wisconsin/Kiosk/`:
 | 2026-05-09 | Badge achievements Slice 2: kiosk direct checkout and pickup confirmation now emit feature-flagged checkout-opened badge events after audit success. With `BADGES_ENABLED` off, these calls return before evaluator work or badge queries. |
 | 2026-05-09 | Badge achievements Slice 3: kiosk checkout, pickup, and check-in scan routes now emit feature-flagged scan-result badge events. Native checkout scan requests include the selected student `actorId`; older clients without `actorId` keep scanning without badge attribution. |
 | 2026-05-12 | Added the missing `sessionExpiresAt` Prisma field, index, and migration for kiosk devices so 7-day server-side kiosk session expiry compiles, deploys, and can be queried cleanly. |
+| 2026-05-13 | GAP-58 and GAP-33 closed: kiosk dashboard now returns partial data with `partialFailures` instead of 500ing on one failed read, and morning-refresh auto-expires pending-pickup checkouts older than 48h after `startsAt` with inventory/session/audit cleanup. |

@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Checkouts
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-10
+- Last Updated: 2026-05-13
 - Status: Active — V1 Shipped
 - Version: V1
 
@@ -149,6 +149,7 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[CHECKOUT
 - Created on desktop wizard submit
 - Allocations and bulk stock held immediately
 - Kiosk pickup requires successful scan evidence for every serialized item before confirmation can transition the checkout to `OPEN`.
+- Auto-expires after 48 hours past `startsAt` during `morning-refresh` if the student never picks it up. Expiry cancels the checkout, releases serialized allocations, restores held bulk stock, releases scanned numbered units, cancels open scan sessions, and writes a system audit entry.
 - Allowed actions:
   - View
   - Edit (staff+/owner)
@@ -284,6 +285,7 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 5. Add regression coverage for race conditions, partial returns, and permission bypass attempts.
 
 ## Change Log
+- 2026-05-13: **Pending-pickup auto-expiry** - GAP-33 closed. Morning-refresh now cancels `PENDING_PICKUP` checkouts older than 48 hours after `startsAt`, releases serialized allocations, restores held bulk stock, releases any scanned numbered units, cancels scan sessions, and writes a system audit entry.
 - 2026-05-10: **Status/data wiring ship fixes** - Cancelling `PENDING_PICKUP` and `OPEN` checkouts now restores outstanding bulk stock, releases scanned numbered units, and clears allocations/scan sessions atomically. Booking list route semantics now preserve explicit status filters instead of widening special filters over them, and search/calendar surfaces only pull schedule-active booking states by default.
 - 2026-03-01: Initial standalone area scope created.
 - 2026-03-01: Rewritten into hardened V1 workflow, logic, and failure-mode spec.

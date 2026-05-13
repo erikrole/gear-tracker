@@ -49,6 +49,6 @@ Next.js App Router (src/app/)
 - Platform: Vercel (Node.js serverless)
 - DB: Neon serverless PostgreSQL via `@prisma/adapter-neon`
 - Image storage: Vercel Blob
-- Cron: `/api/cron/notifications`, `/api/cron/audit-archive`
+- Cron: `/api/cron/notifications`, `/api/cron/morning-refresh`, `/api/cron/audit-archive`
 - Error tracking: Sentry (`@sentry/nextjs`)
 - Config: `next.config.ts` (CSP headers, image patterns, bundle analyzer)

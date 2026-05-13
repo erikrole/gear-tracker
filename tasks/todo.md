@@ -44,6 +44,16 @@ Last updated: 2026-05-12
 
 ## Open Items
 
+### Gap Reliability Closure (2026-05-13)
+- [x] **GAP-58:** Kiosk dashboard now uses partial-result fallbacks instead of failing the idle screen when one read fails.
+- [x] **GAP-54:** Deleted the unscheduled `archive-shifts` cron route and documented `morning-refresh` as the single scheduled shift-archive path.
+- [x] **GAP-33:** Morning-refresh auto-expires stale pending-pickup checkouts after 48h with allocation, bulk-stock, numbered-unit, scan-session, and system-audit cleanup.
+- [x] **Verification:** Run focused tests, TypeScript, migration checks, full build, and doc sync.
+
+**Review**
+- `tasks/gap-reliability-plan.md` tracks the three-slice implementation.
+- `docs/GAPS_AND_RISKS.md` closes GAP-33, GAP-54, and GAP-58 with the shipped behavior.
+
 ### Prisma + Neon Health Runbook (2026-05-13)
 - [x] **Replace raw status:** Route `npm run db:migrate:status` through the repo's Neon-backed health checker instead of raw `prisma migrate status`.
 - [x] **Add explicit health command:** Add `npm run db:migrate:health` to compare local migration folders with live `_prisma_migrations`.

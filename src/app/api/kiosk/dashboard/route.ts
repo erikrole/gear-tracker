@@ -3,6 +3,18 @@ import { withKiosk } from "@/lib/api";
 import { ok } from "@/lib/http";
 import { getInitials } from "@/lib/avatar";
 
+function settledValue<T>(
+  result: PromiseSettledResult<T>,
+  fallback: T,
+  label: string,
+  partialFailures: string[],
+): T {
+  if (result.status === "fulfilled") return result.value;
+  console.error(`[kiosk/dashboard] ${label} failed`, result.reason);
+  partialFailures.push(label);
+  return fallback;
+}
+
 /** Kiosk idle screen data: stats, today's events, active checkouts (location-scoped). */
 export const GET = withKiosk(async (_req, { kiosk }) => {
   const now = new Date();
@@ -11,7 +23,7 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
   const todayEnd = new Date(now);
   todayEnd.setHours(23, 59, 59, 999);
 
-  const [statsResult, events, checkouts] = await Promise.all([
+  const [statsResult, eventsResult, checkoutsResult] = await Promise.allSettled([
     // Stats: count active checkouts, items out, overdue (scoped to this kiosk's location).
     db.$queryRaw<
       Array<{ checkouts: bigint; items_out: bigint; overdue: bigint }>
@@ -80,10 +92,43 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
     }),
   ]);
 
+  const partialFailures: string[] = [];
+  const statsRows = settledValue(
+    statsResult,
+    [] as Array<{ checkouts: bigint; items_out: bigint; overdue: bigint }>,
+    "stats",
+    partialFailures,
+  );
+  const events = settledValue(
+    eventsResult,
+    [] as Array<{
+      id: string;
+      summary: string;
+      sportCode: string | null;
+      startsAt: Date;
+      shiftGroup: { _count: { shifts: number } } | null;
+    }>,
+    "events",
+    partialFailures,
+  );
+  const checkouts = settledValue(
+    checkoutsResult,
+    [] as Array<{
+      id: string;
+      title: string;
+      endsAt: Date;
+      requester: { id: string; name: string; avatarUrl: string | null };
+      serializedItems: Array<{ asset: { assetTag: string; name: string | null } }>;
+      _count: { serializedItems: number };
+    }>,
+    "checkouts",
+    partialFailures,
+  );
+
   const stats = {
-    itemsOut: Number(statsResult[0]?.items_out ?? 0),
-    checkouts: Number(statsResult[0]?.checkouts ?? 0),
-    overdue: Number(statsResult[0]?.overdue ?? 0),
+    itemsOut: Number(statsRows[0]?.items_out ?? 0),
+    checkouts: Number(statsRows[0]?.checkouts ?? 0),
+    overdue: Number(statsRows[0]?.overdue ?? 0),
   };
 
   return ok({
@@ -108,5 +153,6 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
       endsAt: c.endsAt,
       isOverdue: c.endsAt < now,
     })),
+    partialFailures,
   });
 });

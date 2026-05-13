@@ -131,5 +131,5 @@ POST /api/kiosk/activate|checkout/complete|checkout/scan
 GET /api/kiosk/me|heartbeat|dashboard|users|scan-lookup
 GET /api/kiosk/checkout/[id]|checkin/[id]/complete
 POST /api/kiosk/checkin/[id]/scan
-POST /api/cron/notifications|audit-archive
+GET /api/cron/notifications|morning-refresh|audit-archive
 ```
