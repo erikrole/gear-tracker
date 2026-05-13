@@ -1,36 +1,9 @@
 import { withAuth } from "@/lib/api";
 import { getBatteryCompatibilitySummaries } from "@/lib/battery-compatibility";
+import { isBatterySku } from "@/lib/bulk-batteries";
 import { db } from "@/lib/db";
 import { cachedOk } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
-
-const BATTERY_TERMS = [
-  "battery",
-  "batteries",
-  "np-fz100",
-  "npfz100",
-  "fz100",
-  "bp-u",
-  "bpu",
-  "lp-e6",
-  "lpe6",
-  "v-mount",
-  "vmount",
-  "gold mount",
-];
-
-const BATTERY_TERM_PATTERNS = BATTERY_TERMS.map((term) =>
-  new RegExp(`(^|[^a-z0-9])${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z0-9]|$)`, "i")
-);
-
-function isBatterySku(sku: {
-  name: string;
-  category: string;
-  categoryRel: { name: string } | null;
-}) {
-  const text = [sku.name, sku.category, sku.categoryRel?.name ?? ""].join(" ").toLowerCase();
-  return BATTERY_TERM_PATTERNS.some((pattern) => pattern.test(text));
-}
 
 function daysSince(value: Date | null | undefined, now: Date) {
   if (!value) return null;

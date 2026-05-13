@@ -11,12 +11,25 @@ vi.mock("@/lib/db", () => ({
     user: {
       findMany: vi.fn(),
     },
+    bulkSkuUnit: {
+      groupBy: vi.fn(),
+      findMany: vi.fn(),
+    },
+    bulkSku: {
+      findMany: vi.fn(),
+    },
+    bookingBulkUnitAllocation: {
+      findMany: vi.fn(),
+    },
+    auditLog: {
+      findMany: vi.fn(),
+    },
     $queryRaw: vi.fn(),
   },
 }));
 
 import { db } from "@/lib/db";
-import { getCheckoutReport, getOverdueReport } from "@/lib/services/reports";
+import { getBulkLossReport, getCheckoutReport, getOverdueReport } from "@/lib/services/reports";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -108,5 +121,222 @@ describe("reports service", () => {
     );
     expect(booking!.itemCount).toBe(4);
     expect(booking!.items).toEqual(["CAM-1", "AA Batteries x3"]);
+  });
+
+  it("adds numbered battery audit details to the bulk loss report", async () => {
+    vi.mocked(db.bulkSkuUnit.groupBy).mockResolvedValue([
+      { bulkSkuId: "battery-sku-1", _count: { id: 2 } },
+    ] as any);
+    vi.mocked(db.bulkSkuUnit.findMany).mockResolvedValue([
+      {
+        id: "unit-1",
+        unitNumber: 1,
+        notes: "Missing after event",
+        updatedAt: new Date("2026-05-09T12:00:00.000Z"),
+        bulkSku: { id: "battery-sku-1", name: "Sony NP-FZ100 Battery" },
+        allocations: [
+          {
+            bookingBulkItem: {
+              booking: {
+                id: "booking-1",
+                refNumber: "CO-1001",
+                title: "Softball",
+                requester: { id: "user-1", name: "Alex Student" },
+              },
+            },
+          },
+        ],
+      },
+      {
+        id: "unit-2",
+        unitNumber: 2,
+        notes: null,
+        updatedAt: new Date("2026-05-10T12:00:00.000Z"),
+        bulkSku: { id: "battery-sku-1", name: "Sony NP-FZ100 Battery" },
+        allocations: [
+          {
+            bookingBulkItem: {
+              booking: {
+                id: "booking-2",
+                refNumber: "CO-1002",
+                title: "Baseball",
+                requester: { id: "user-1", name: "Alex Student" },
+              },
+            },
+          },
+        ],
+      },
+    ] as any);
+    vi.mocked(db.auditLog.findMany).mockResolvedValue([]);
+    vi.mocked(db.bulkSku.findMany)
+      .mockResolvedValueOnce([
+        {
+          id: "battery-sku-1",
+          name: "Sony NP-FZ100 Battery",
+          category: "Batteries",
+          categoryRel: { name: "Camera Batteries" },
+          location: { id: "loc-1", name: "Main Cage" },
+          units: [
+            {
+              id: "unit-1",
+              unitNumber: 1,
+              status: "LOST",
+              notes: "Missing after event",
+              updatedAt: new Date("2026-05-09T12:00:00.000Z"),
+              allocations: [
+                {
+                  checkedOutAt: new Date("2026-05-01T12:00:00.000Z"),
+                  checkedInAt: null,
+                  createdAt: new Date("2026-05-01T12:00:00.000Z"),
+                  bookingBulkItem: {
+                    booking: {
+                      id: "booking-1",
+                      refNumber: "CO-1001",
+                      title: "Softball",
+                      requester: { id: "user-1", name: "Alex Student" },
+                    },
+                  },
+                },
+              ],
+            },
+            {
+              id: "unit-2",
+              unitNumber: 2,
+              status: "LOST",
+              notes: null,
+              updatedAt: new Date("2026-05-10T12:00:00.000Z"),
+              allocations: [
+                {
+                  checkedOutAt: new Date("2026-05-02T12:00:00.000Z"),
+                  checkedInAt: null,
+                  createdAt: new Date("2026-05-02T12:00:00.000Z"),
+                  bookingBulkItem: {
+                    booking: {
+                      id: "booking-2",
+                      refNumber: "CO-1002",
+                      title: "Baseball",
+                      requester: { id: "user-1", name: "Alex Student" },
+                    },
+                  },
+                },
+              ],
+            },
+            {
+              id: "unit-3",
+              unitNumber: 3,
+              status: "AVAILABLE",
+              notes: null,
+              updatedAt: new Date("2026-05-03T12:00:00.000Z"),
+              allocations: [],
+            },
+            {
+              id: "unit-4",
+              unitNumber: 4,
+              status: "CHECKED_OUT",
+              notes: null,
+              updatedAt: new Date("2026-05-04T12:00:00.000Z"),
+              allocations: [],
+            },
+          ],
+        },
+        {
+          id: "media-sku-1",
+          name: "CFexpress Cards",
+          category: "Media",
+          categoryRel: { name: "Media" },
+          location: { id: "loc-1", name: "Main Cage" },
+          units: [
+            {
+              id: "media-unit-1",
+              unitNumber: 1,
+              status: "LOST",
+              notes: null,
+              updatedAt: new Date("2026-05-10T12:00:00.000Z"),
+              allocations: [],
+            },
+          ],
+        },
+      ] as any)
+      .mockResolvedValueOnce([
+        { id: "battery-sku-1", name: "Sony NP-FZ100 Battery" },
+      ] as any);
+    vi.mocked(db.bookingBulkUnitAllocation.findMany).mockResolvedValue([
+      {
+        id: "alloc-1",
+        checkedOutAt: new Date("2026-05-02T12:00:00.000Z"),
+        checkedInAt: new Date("2026-05-04T12:00:00.000Z"),
+        createdAt: new Date("2026-05-02T12:00:00.000Z"),
+        bulkSkuUnit: {
+          id: "unit-2",
+          unitNumber: 2,
+          status: "LOST",
+          bulkSku: {
+            id: "battery-sku-1",
+            name: "Sony NP-FZ100 Battery",
+            category: "Batteries",
+            categoryRel: { name: "Camera Batteries" },
+          },
+        },
+        bookingBulkItem: {
+          booking: {
+            id: "booking-2",
+            refNumber: "CO-1002",
+            title: "Baseball",
+            requester: { id: "user-1", name: "Alex Student" },
+          },
+        },
+      },
+      {
+        id: "alloc-media",
+        checkedOutAt: new Date("2026-05-02T12:00:00.000Z"),
+        checkedInAt: null,
+        createdAt: new Date("2026-05-02T12:00:00.000Z"),
+        bulkSkuUnit: {
+          id: "media-unit-1",
+          unitNumber: 1,
+          status: "LOST",
+          bulkSku: {
+            id: "media-sku-1",
+            name: "CFexpress Cards",
+            category: "Media",
+            categoryRel: { name: "Media" },
+          },
+        },
+        bookingBulkItem: {
+          booking: {
+            id: "booking-media",
+            refNumber: "CO-2001",
+            title: "Media",
+            requester: { id: "user-2", name: "Sam Student" },
+          },
+        },
+      },
+    ] as any);
+
+    const report = await getBulkLossReport();
+
+    expect(report.batteryAudit.totals).toMatchObject({
+      skuCount: 1,
+      totalUnits: 4,
+      lost: 2,
+      available: 1,
+      checkedOut: 1,
+      repeatPatternCount: 2,
+    });
+    expect(report.batteryAudit.totals.lossRate).toBe(0.5);
+    expect(report.batteryAudit.bySku[0]).toMatchObject({
+      bulkSkuId: "battery-sku-1",
+      lost: 2,
+      lossRate: 0.5,
+      missingUnitNumbers: [1, 2],
+    });
+    expect(report.batteryAudit.missingUnits.map((unit) => unit.unitNumber)).toEqual([2, 1]);
+    expect(report.batteryAudit.repeatPatterns.map((pattern) => pattern.type)).toEqual(["requester", "sku"]);
+    expect(report.batteryAudit.checkoutHistory).toHaveLength(1);
+    expect(report.batteryAudit.checkoutHistory[0]).toMatchObject({
+      id: "alloc-1",
+      skuName: "Sony NP-FZ100 Battery",
+      durationDays: 2,
+    });
   });
 });

@@ -1,4 +1,5 @@
 import { BookingStatus, Prisma } from "@prisma/client";
+import { isBatterySku } from "@/lib/bulk-batteries";
 import { db } from "@/lib/db";
 import { countAssetsByEffectiveStatus } from "@/lib/services/status";
 
@@ -422,8 +423,249 @@ export async function getAuditReport(
 /**
  * Bulk loss report: lost units grouped by SKU and by last requester.
  */
+function daysBetween(start: Date | null | undefined, end: Date | null | undefined) {
+  if (!start || !end) return null;
+  return Math.max(0, Math.ceil((end.getTime() - start.getTime()) / 86_400_000));
+}
+
+async function getBatteryAuditReport() {
+  const now = new Date();
+  const [batterySkuResult, allocationHistoryResult] = await Promise.allSettled([
+    db.bulkSku.findMany({
+      where: {
+        active: true,
+        trackByNumber: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        category: true,
+        categoryRel: { select: { name: true } },
+        location: { select: { id: true, name: true } },
+        units: {
+          orderBy: { unitNumber: "asc" },
+          select: {
+            id: true,
+            unitNumber: true,
+            status: true,
+            notes: true,
+            updatedAt: true,
+            allocations: {
+              orderBy: [{ checkedOutAt: "desc" }, { createdAt: "desc" }],
+              take: 1,
+              select: {
+                checkedOutAt: true,
+                checkedInAt: true,
+                createdAt: true,
+                bookingBulkItem: {
+                  select: {
+                    booking: {
+                      select: {
+                        id: true,
+                        refNumber: true,
+                        title: true,
+                        requester: { select: { id: true, name: true } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: [{ locationId: "asc" }, { name: "asc" }],
+    }),
+    db.bookingBulkUnitAllocation.findMany({
+      where: {
+        checkedOutAt: { not: null },
+        bulkSkuUnit: {
+          bulkSku: {
+            active: true,
+            trackByNumber: true,
+          },
+        },
+      },
+      orderBy: [{ checkedOutAt: "desc" }, { createdAt: "desc" }],
+      take: 300,
+      select: {
+        id: true,
+        checkedOutAt: true,
+        checkedInAt: true,
+        createdAt: true,
+        bulkSkuUnit: {
+          select: {
+            id: true,
+            unitNumber: true,
+            status: true,
+            bulkSku: {
+              select: {
+                id: true,
+                name: true,
+                category: true,
+                categoryRel: { select: { name: true } },
+              },
+            },
+          },
+        },
+        bookingBulkItem: {
+          select: {
+            booking: {
+              select: {
+                id: true,
+                refNumber: true,
+                title: true,
+                requester: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
+      },
+    }),
+  ]);
+
+  const batterySkus = batterySkuResult.status === "fulfilled"
+    ? batterySkuResult.value.filter(isBatterySku)
+    : [];
+  const batterySkuIds = new Set(batterySkus.map((sku) => sku.id));
+  const bySku = batterySkus.map((sku) => {
+    const total = sku.units.length;
+    const available = sku.units.filter((unit) => unit.status === "AVAILABLE").length;
+    const checkedOut = sku.units.filter((unit) => unit.status === "CHECKED_OUT").length;
+    const lost = sku.units.filter((unit) => unit.status === "LOST").length;
+    const retired = sku.units.filter((unit) => unit.status === "RETIRED").length;
+    const missingUnits = sku.units.filter((unit) => unit.status === "LOST");
+    const lastMissingAt = missingUnits
+      .map((unit) => unit.updatedAt)
+      .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+
+    return {
+      bulkSkuId: sku.id,
+      skuName: sku.name,
+      category: sku.categoryRel?.name ?? sku.category,
+      location: sku.location.name,
+      total,
+      available,
+      checkedOut,
+      lost,
+      retired,
+      lossRate: total > 0 ? lost / total : 0,
+      missingUnitNumbers: missingUnits.map((unit) => unit.unitNumber),
+      lastMissingAt: lastMissingAt?.toISOString() ?? null,
+    };
+  }).sort((a, b) => b.lost - a.lost || b.lossRate - a.lossRate || a.skuName.localeCompare(b.skuName));
+
+  const missingUnits = batterySkus.flatMap((sku) =>
+    sku.units
+      .filter((unit) => unit.status === "LOST")
+      .map((unit) => {
+        const allocation = unit.allocations[0];
+        const booking = allocation?.bookingBulkItem.booking;
+        return {
+          id: unit.id,
+          bulkSkuId: sku.id,
+          skuName: sku.name,
+          unitNumber: unit.unitNumber,
+          notes: unit.notes,
+          markedMissingAt: unit.updatedAt.toISOString(),
+          lastCheckoutAt: allocation?.checkedOutAt?.toISOString() ?? allocation?.createdAt?.toISOString() ?? null,
+          lastRequesterId: booking?.requester.id ?? null,
+          lastRequesterName: booking?.requester.name ?? null,
+          lastBookingId: booking?.id ?? null,
+          lastBookingRef: booking?.refNumber ?? null,
+          lastBookingTitle: booking?.title ?? null,
+        };
+      }),
+  ).sort((a, b) => b.markedMissingAt.localeCompare(a.markedMissingAt));
+
+  const requesterLossCounts = new Map<string, { requesterId: string; requesterName: string; lost: number }>();
+  for (const unit of missingUnits) {
+    if (!unit.lastRequesterId || !unit.lastRequesterName) continue;
+    const existing = requesterLossCounts.get(unit.lastRequesterId);
+    if (existing) {
+      existing.lost++;
+    } else {
+      requesterLossCounts.set(unit.lastRequesterId, {
+        requesterId: unit.lastRequesterId,
+        requesterName: unit.lastRequesterName,
+        lost: 1,
+      });
+    }
+  }
+
+  const repeatPatterns = [
+    ...bySku
+      .filter((sku) => sku.lost >= 2)
+      .map((sku) => ({
+        type: "sku" as const,
+        label: sku.skuName,
+        count: sku.lost,
+        detail: `${sku.missingUnitNumbers.length} missing units`,
+      })),
+    ...Array.from(requesterLossCounts.values())
+      .filter((requester) => requester.lost >= 2)
+      .map((requester) => ({
+        type: "requester" as const,
+        label: requester.requesterName,
+        count: requester.lost,
+        detail: "Last holder on missing units",
+      })),
+  ].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+
+  const rawHistory = allocationHistoryResult.status === "fulfilled" ? allocationHistoryResult.value : [];
+  const checkoutHistory = rawHistory
+    .filter((allocation) => batterySkuIds.has(allocation.bulkSkuUnit.bulkSku.id))
+    .map((allocation) => {
+      const checkedOutAt = allocation.checkedOutAt ?? allocation.createdAt;
+      const checkedInAt = allocation.checkedInAt ?? null;
+      const booking = allocation.bookingBulkItem.booking;
+
+      return {
+        id: allocation.id,
+        bulkSkuUnitId: allocation.bulkSkuUnit.id,
+        bulkSkuId: allocation.bulkSkuUnit.bulkSku.id,
+        skuName: allocation.bulkSkuUnit.bulkSku.name,
+        unitNumber: allocation.bulkSkuUnit.unitNumber,
+        status: allocation.bulkSkuUnit.status,
+        checkedOutAt: checkedOutAt.toISOString(),
+        checkedInAt: checkedInAt?.toISOString() ?? null,
+        durationDays: daysBetween(checkedOutAt, checkedInAt ?? now),
+        bookingId: booking.id,
+        bookingRef: booking.refNumber,
+        bookingTitle: booking.title,
+        requesterId: booking.requester.id,
+        requesterName: booking.requester.name,
+      };
+    })
+    .slice(0, 50);
+
+  const totals = bySku.reduce(
+    (acc, sku) => {
+      acc.totalUnits += sku.total;
+      acc.available += sku.available;
+      acc.checkedOut += sku.checkedOut;
+      acc.lost += sku.lost;
+      acc.retired += sku.retired;
+      return acc;
+    },
+    { skuCount: bySku.length, totalUnits: 0, available: 0, checkedOut: 0, lost: 0, retired: 0 },
+  );
+
+  return {
+    totals: {
+      ...totals,
+      lossRate: totals.totalUnits > 0 ? totals.lost / totals.totalUnits : 0,
+      repeatPatternCount: repeatPatterns.length,
+    },
+    bySku,
+    missingUnits,
+    checkoutHistory,
+    repeatPatterns,
+  };
+}
+
 export async function getBulkLossReport() {
-  const [lostBySkuResult, lostByUserResult, recentLossesResult] = await Promise.allSettled([
+  const [lostBySkuResult, lostByUserResult, recentLossesResult, batteryAuditResult] = await Promise.allSettled([
     db.bulkSkuUnit.groupBy({
       by: ["bulkSkuId"],
       where: { status: "LOST" },
@@ -469,6 +711,7 @@ export async function getBulkLossReport() {
         actor: { select: { id: true, name: true, avatarUrl: true } },
       },
     }),
+    getBatteryAuditReport(),
   ]);
 
   const lostBySku = lostBySkuResult.status === "fulfilled" ? lostBySkuResult.value : [];
@@ -517,6 +760,24 @@ export async function getBulkLossReport() {
     bySku: bySkuSummary,
     byUser: byUserLeaderboard,
     recentLosses,
+    batteryAudit: batteryAuditResult.status === "fulfilled"
+      ? batteryAuditResult.value
+      : {
+          totals: {
+            skuCount: 0,
+            totalUnits: 0,
+            available: 0,
+            checkedOut: 0,
+            lost: 0,
+            retired: 0,
+            lossRate: 0,
+            repeatPatternCount: 0,
+          },
+          bySku: [],
+          missingUnits: [],
+          checkoutHistory: [],
+          repeatPatterns: [],
+        },
   };
 }
 

@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reports & Analytics
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-10
+- Last Updated: 2026-05-13
 - Status: Active
 - Version: V1
 
@@ -75,11 +75,12 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 ### `/reports/bulk-losses`
 - **Page:** `src/app/(app)/reports/bulk-losses/page.tsx`
 - **Type:** Bulk inventory loss tracking
-- **Columns:** SKU name, category, lost count, value (if tracked), date detected, location
-- **Metrics:** Total units lost (period), SKUs with losses, total value at risk
-- **Charts:** Loss trends by category, location, top-loss SKUs
+- **Columns:** SKU name, category, lost count, date detected, location, battery unit number, last holder, booking handoff
+- **Metrics:** Total units lost, SKUs with losses, users involved, battery units, missing batteries, battery loss rate, repeated battery patterns
+- **Tables:** Lost units by item, loss by requester, recent loss events, battery loss rate by SKU, missing battery units, recent battery checkout history
+- **Signals:** Repeated missing battery patterns by SKU and by last known requester
 - **Filters:** Date range, category, location
-- **Data:** `GET /api/reports/bulk-losses?from=...&to=...&category=...&location=...`
+- **Data:** `GET /api/reports/bulk-losses`
 
 ### `/reports/audit`
 - **Page:** `src/app/(app)/reports/audit/page.tsx`
@@ -129,8 +130,10 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - [x] AC-5: Bulk Losses report with SKU tracking
 - [x] AC-6: Audit report with event log viewer (ADMIN only)
 - [x] AC-7: Badge report with leaderboard, distribution, and recent awards
+- [x] AC-8: Bulk Losses report includes numbered battery missing-unit, loss-rate, custody-history, and repeat-pattern reporting
 
 ## Change Log
+- 2026-05-13: Battery audit reporting shipped inside Bulk Losses. Staff/admin can now see missing numbered batteries by unit, battery loss rate by SKU, recent unit checkout history, repeated missing SKU/requester patterns, and a direct handoff to the battery cockpit.
 - 2026-05-10: Reports ownership pass. Checkout analytics now exclude draft bookings, overdue reports count only outstanding gear, and scan report filters are normalized in the UI with API-side validation for invalid dates and phases. Browser smoke also fixed the shared React Query provider hydration path so report pages no longer log hydration mismatches after reloads.
 - 2026-05-09: Badge report insight polish added manual award rate, underused active definitions, and a recent manual recognition section so staff can see whether the badge catalog is being used consistently.
 - 2026-05-09: Badge report shipped. `/reports/badges` now gives staff/admin read-only analytics for total awards, 30-day award volume, active definitions, manual awards, user leaderboard, badge distribution, and recent awards while keeping `/users/{id}?tab=badges` as the primary profile badge surface.

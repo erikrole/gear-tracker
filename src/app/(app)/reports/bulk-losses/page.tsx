@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import MetricCard from "../MetricCard";
 import { Button } from "@/components/ui/button";
@@ -43,12 +44,80 @@ type RecentLoss = {
   actor: { id: string; name: string } | null;
 };
 
+type BatteryAudit = {
+  totals: {
+    skuCount: number;
+    totalUnits: number;
+    available: number;
+    checkedOut: number;
+    lost: number;
+    retired: number;
+    lossRate: number;
+    repeatPatternCount: number;
+  };
+  bySku: {
+    bulkSkuId: string;
+    skuName: string;
+    category: string;
+    location: string;
+    total: number;
+    available: number;
+    checkedOut: number;
+    lost: number;
+    retired: number;
+    lossRate: number;
+    missingUnitNumbers: number[];
+    lastMissingAt: string | null;
+  }[];
+  missingUnits: {
+    id: string;
+    bulkSkuId: string;
+    skuName: string;
+    unitNumber: number;
+    notes: string | null;
+    markedMissingAt: string;
+    lastCheckoutAt: string | null;
+    lastRequesterId: string | null;
+    lastRequesterName: string | null;
+    lastBookingId: string | null;
+    lastBookingRef: string | null;
+    lastBookingTitle: string | null;
+  }[];
+  checkoutHistory: {
+    id: string;
+    bulkSkuUnitId: string;
+    bulkSkuId: string;
+    skuName: string;
+    unitNumber: number;
+    status: string;
+    checkedOutAt: string;
+    checkedInAt: string | null;
+    durationDays: number | null;
+    bookingId: string;
+    bookingRef: string;
+    bookingTitle: string;
+    requesterId: string;
+    requesterName: string;
+  }[];
+  repeatPatterns: {
+    type: "sku" | "requester";
+    label: string;
+    count: number;
+    detail: string;
+  }[];
+};
+
 type ReportData = {
   totalLost: number;
   bySku: SkuLoss[];
   byUser: UserLoss[];
   recentLosses: RecentLoss[];
+  batteryAudit: BatteryAudit;
 };
+
+function formatPercent(value: number) {
+  return `${Math.round(value * 100)}%`;
+}
 
 export default function BulkLossesReportPage() {
   const [now, setNow] = useState(() => new Date());
@@ -92,6 +161,172 @@ export default function BulkLossesReportPage() {
         <MetricCard label="SKUs affected" value={data.bySku.length} />
         <MetricCard label="Users involved" value={data.byUser.length} />
       </ReportMetricGrid>
+
+      <ReportSectionCard
+        title="Battery audit"
+        description="Numbered battery losses, current missing units, repeated missing patterns, and recent custody history."
+      >
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="text-sm text-muted-foreground">
+            {data.batteryAudit.totals.skuCount} numbered battery SKUs tracked
+          </div>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/bulk-inventory/batteries">Open battery cockpit</Link>
+          </Button>
+        </div>
+
+        <ReportMetricGrid>
+          <MetricCard label="Battery units" value={data.batteryAudit.totals.totalUnits} />
+          <MetricCard label="Missing batteries" value={data.batteryAudit.totals.lost} />
+          <MetricCard label="Battery loss rate" value={formatPercent(data.batteryAudit.totals.lossRate)} />
+          <MetricCard label="Repeat patterns" value={data.batteryAudit.totals.repeatPatternCount} />
+        </ReportMetricGrid>
+
+        {data.batteryAudit.bySku.length === 0 ? (
+          <ReportEmptyState
+            compact
+            icon="check"
+            title="No numbered battery SKUs found"
+            description="Battery audit rows appear when active numbered battery SKUs exist."
+          />
+        ) : (
+          <div className="grid gap-4 xl:grid-cols-2">
+            <div className="overflow-x-auto rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Battery SKU</TableHead>
+                    <TableHead className="text-right">Missing</TableHead>
+                    <TableHead className="text-right">Loss Rate</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.batteryAudit.bySku.map((sku) => (
+                    <TableRow key={sku.bulkSkuId}>
+                      <TableCell>
+                        <div className="font-medium">{sku.skuName}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {sku.location} / {sku.available} available / {sku.checkedOut} out
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Badge variant={sku.lost > 0 ? "red" : "secondary"} size="sm" className="tabular-nums">
+                          {sku.lost}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{formatPercent(sku.lossRate)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            <div className="overflow-x-auto rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Missing Unit</TableHead>
+                    <TableHead>Last Holder</TableHead>
+                    <TableHead className="text-right">Detected</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.batteryAudit.missingUnits.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={3} className="h-24 text-center text-sm text-muted-foreground">
+                        No missing battery units.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    data.batteryAudit.missingUnits.map((unit) => (
+                      <TableRow key={unit.id}>
+                        <TableCell>
+                          <div className="font-medium">{unit.skuName} #{unit.unitNumber}</div>
+                          {unit.notes ? (
+                            <div className="text-xs text-muted-foreground line-clamp-1">{unit.notes}</div>
+                          ) : null}
+                        </TableCell>
+                        <TableCell>
+                          <div>{unit.lastRequesterName ?? "Unknown"}</div>
+                          {unit.lastBookingId ? (
+                            <Link
+                              href={`/checkouts/${unit.lastBookingId}`}
+                              className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+                            >
+                              {unit.lastBookingRef ?? unit.lastBookingTitle ?? "Booking"}
+                            </Link>
+                          ) : null}
+                        </TableCell>
+                        <TableCell className="text-right text-xs text-muted-foreground">
+                          {new Date(unit.markedMissingAt).toLocaleDateString()}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        )}
+      </ReportSectionCard>
+
+      {data.batteryAudit.repeatPatterns.length > 0 && (
+        <ReportSectionCard title="Battery repeat missing patterns">
+          <div className="flex flex-col gap-2">
+            {data.batteryAudit.repeatPatterns.map((pattern) => (
+              <ReportListRow key={`${pattern.type}-${pattern.label}`} className="px-0 py-2">
+                <div>
+                  <span className="font-medium">{pattern.label}</span>
+                  <span className="ml-1.5 text-muted-foreground">{pattern.detail}</span>
+                </div>
+                <Badge variant="red" size="sm" className="tabular-nums">{pattern.count}</Badge>
+              </ReportListRow>
+            ))}
+          </div>
+        </ReportSectionCard>
+      )}
+
+      {data.batteryAudit.checkoutHistory.length > 0 && (
+        <ReportSectionCard
+          title="Battery checkout history"
+          description="Most recent numbered battery custody records from active battery SKUs."
+          contentClassName="p-0"
+        >
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Unit</TableHead>
+                  <TableHead>Requester</TableHead>
+                  <TableHead>Booking</TableHead>
+                  <TableHead className="text-right">Days</TableHead>
+                  <TableHead className="text-right">Returned</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.batteryAudit.checkoutHistory.map((entry) => (
+                  <TableRow key={entry.id}>
+                    <TableCell className="font-medium">{entry.skuName} #{entry.unitNumber}</TableCell>
+                    <TableCell>{entry.requesterName}</TableCell>
+                    <TableCell>
+                      <Link
+                        href={`/checkouts/${entry.bookingId}`}
+                        className="underline-offset-4 hover:underline"
+                      >
+                        {entry.bookingRef ?? entry.bookingTitle}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{entry.durationDays ?? "-"}</TableCell>
+                    <TableCell className="text-right text-xs text-muted-foreground">
+                      {entry.checkedInAt ? new Date(entry.checkedInAt).toLocaleDateString() : "Still out"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </ReportSectionCard>
+      )}
 
       {/* Loss by SKU */}
       <ReportSectionCard title="Lost units by item" contentClassName="p-0">

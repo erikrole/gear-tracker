@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-12
+- Last Updated: 2026-05-13
 - Status: Living registry — update when shipping features or resolving decisions
 - Purpose: Single file listing every open gap, pending decision, and known risk across all docs
 
@@ -54,7 +54,7 @@
 | GAP-34 | iOS Bookings list lacks status scope filters and column sorting available on web (DRAFT/BOOKED/OPEN/OVERDUE/CANCELLED/COMPLETED, sort) | AREA_MOBILE | Expected | iOS uses `activeOnly: true` only. Acceptable for V1 student bar (AREA_MOBILE focuses on student core flows). Power-user parity deferred. Source: `tasks/audit-bookings-ios.md`. |
 | GAP-35 | iOS Booking detail does not surface per-item conflict badges (web AC-8 from AREA_RESERVATIONS) | AREA_MOBILE | Expected | Needs `/api/availability/check` API client on iOS + per-row badge wiring in `ItemsSection`. Deferred — server-side enforcement is authoritative. Source: `tasks/audit-bookings-ios.md`. |
 | GAP-36 | iOS Item detail does not expose AC-8 admin actions (Duplicate / Retire / Delete / Needs Maintenance) | AREA_MOBILE | Expected | iOS toolbar has favorite + edit (STAFF/ADMIN). The four destructive/lifecycle actions are web-only by design for V1 (V1 mobile is student/operational-first). Tracked for staff-mobile parity. Source: `tasks/audit-items-ios.md`. |
-| GAP-37 | Battery audit/reporting is deferred | AREA_BULK_INVENTORY | Expected | Battery Unit Cockpit shipped 2026-05-06 for day-to-day numbered unit operations. Full reporting remains deferred: missing batteries by unit, loss rate by SKU, unit checkout history, and repeated missing-unit patterns. |
+| ~~GAP-37~~ | ~~Battery audit/reporting is deferred~~ | ~~AREA_BULK_INVENTORY~~ | ~~Closed~~ | Closed 2026-05-13: Bulk Losses now includes numbered battery audit reporting for missing units by unit number, loss rate by SKU, recent checkout history, and repeated missing SKU/requester patterns. |
 | ~~GAP-52~~ | ~~`forcePasswordChange` flag ignored in LoginForm — admin temp passwords never enforced~~ | AREA_USERS | ~~Closed~~ | Closed 2026-05-12: login now sends forced-password users to `/change-password`, the app layout and API wrapper block regular authenticated access until the password changes, and `/api/profile` remains the allowed self-service change path. |
 | ~~GAP-53~~ | ~~Kiosk session has no server-side age check — stolen tokens valid indefinitely~~ | AREA_KIOSK | ~~Closed~~ | Closed 2026-05-12: `KioskDevice.sessionExpiresAt` is now in Prisma schema/migration and `requireKiosk()` enforces the 7-day server-side expiry already wired in code. |
 | ~~GAP-54~~ | ~~`archive-shifts` cron route unscheduled — dead code~~ | ~~AREA_SHIFTS~~ | ~~Closed~~ | Closed 2026-05-13: deleted the unscheduled standalone route. `morning-refresh` remains the single scheduled shift-archive path. |
@@ -157,6 +157,7 @@
 ---
 
 ## Change Log
+- 2026-05-13: Closed GAP-37. Bulk Losses now includes a numbered battery audit report covering missing units by unit number, battery loss rate by SKU, recent battery checkout history, and repeated missing SKU/requester patterns.
 - 2026-05-13: Closed GAP-33, GAP-54, and GAP-58. Morning-refresh now expires stale pending-pickup checkouts after 48h with inventory/session/audit cleanup, the dead archive-shifts route was deleted, and the kiosk dashboard returns partial data instead of 500ing when one read fails.
 - 2026-05-12: Custom badge awarding shipped. Admins can now create a custom manual badge from the existing user Award badge dialog, award it immediately, and reuse the active custom definition for later users. No schema migration or evaluator side effects were needed because custom awards use `BadgeDefinition` rows with `trigger="manual"`.
 - 2026-05-12: Closed GAP-56. Checkout completion now persists `Booking.completedAt`; on-time badge counts and profile progress no longer depend on mutable `Booking.updatedAt` after later staff edits.
@@ -193,7 +194,7 @@
 - 2026-05-08: Next.js May 2026 security patch applied. Updated `next` to 15.5.16 and React packages to 19.2.6 for the disclosed React Server Components, middleware/proxy bypass, SSRF, XSS, DoS, and cache-poisoning advisory set. Local TypeScript, migration-prefix, whitespace, and Next production build checks passed. `npm audit --omit=dev` still reports the separate nested `next -> postcss@8.4.31` moderate advisory; a local override made npm mark the Next dependency invalid, so remediation waits on an upstream Next patch.
 - 2026-05-08: Comprehensive API hardening audit complete (`tasks/api-hardening-audit.md`). 12 parallel domain sweeps over all 182 routes + cross-cutting infra. Opened GAP-38 through GAP-51 covering one P0 (profile self-password session retention) and 13 P1/P2/cross-cutting findings. Confirmed clean: `withAuth` shape, CSRF, CSP nonces, `fail()` ZodError handling, no `$queryRawUnsafe` outside diagnostics. Recommended sequencing: Wave 1 (P0 + 4 `Promise.allSettled` swaps + audit-log gaps), Wave 2 (PII scope + license claim TOCTOU + nudge spam), Wave 3 (`withCron()` extraction + Upstash migration), Wave 4 (polish).
 - 2026-05-06: Cheqroom import QR repair shipped. The latest 43-row export now cross-checks cleanly against the database; `Codes` is canonical for QR/primary scan, `Barcodes` is retained as source trace/fallback, and no new gap remains open.
-- 2026-05-06: Battery Unit Cockpit shipped as an operational surface under Bulk Inventory. GAP-37 remains open only for deeper battery reporting/trend analysis.
+- 2026-05-06: Battery Unit Cockpit shipped as an operational surface under Bulk Inventory. GAP-37 remained open only for deeper battery reporting/trend analysis until 2026-05-13.
 - 2026-05-05: Added GAP-37 to pin deferred battery audit/reporting after bulk battery kiosk hardening.
 - 2026-03-11: Initial registry created from docs hardening pass. Consolidated from NORTH_STAR.md gaps, DECISIONS.md pending items, and scattered AREA file TODOs.
 - 2026-03-14: Closed GAP-E (bulk items lack individual loss tracking) — D-022 shipped.

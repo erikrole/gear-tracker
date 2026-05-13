@@ -1,6 +1,6 @@
 # Task Queue
 
-Last updated: 2026-05-12
+Last updated: 2026-05-13
 
 **Current release**: Beta — CalVer versioning adopted.
 **Release workflow**: `npm run release` creates CalVer tag + GitHub Release.
@@ -43,6 +43,15 @@ Last updated: 2026-05-12
 ---
 
 ## Open Items
+
+### Battery Audit Reporting (2026-05-13)
+- [x] **GAP-37:** Bulk Losses now reports numbered battery missing units by unit number, loss rate by SKU, recent checkout history, and repeated missing SKU/requester patterns.
+- [x] **Shared battery detection:** Battery cockpit and report aggregation now use the same term-boundary SKU matcher.
+- [x] **Verification:** Focused report service coverage and TypeScript passed before closeout.
+
+**Review**
+- `tasks/archive/battery-audit-reporting-plan.md` tracks the one-slice implementation and doc sync.
+- `docs/GAPS_AND_RISKS.md` closes GAP-37 with the shipped Bulk Losses reporting behavior.
 
 ### Gap Reliability Closure (2026-05-13)
 - [x] **GAP-58:** Kiosk dashboard now uses partial-result fallbacks instead of failing the idle screen when one read fails.
