@@ -43,7 +43,7 @@ Result: `BookingWizard` already surfaced `form-options` failures. `BookingListPa
 
 - [x] `npm run db:migrate:check`
 - [x] `npm run test -- --runInBand` or targeted Vitest files if full suite remains red from pre-existing failures
-- [x] `npx next build` as the build-safe check if `npm run build` still blocks on Prisma/Neon schema engine
+- [x] `npx next build` as the historical build-safe check. Follow-up 2026-05-12: full `npm run build` now passes through the shared Prisma/Neon migration wrapper.
 
 ## Review
 

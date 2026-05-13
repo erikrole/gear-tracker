@@ -6,8 +6,8 @@
 ### Core Framework
 | Package | Version | Purpose |
 |---------|---------|---------|
-| next | 15.5.14 | App framework (App Router) |
-| react | 19.0.0 | UI runtime |
+| next | 15.5.18 | App framework (App Router) |
+| react | 19.2.6 | UI runtime |
 | typescript | 5.9.3 | Type safety |
 
 ### Database
@@ -16,13 +16,14 @@
 | @prisma/client | 6.19.3 | ORM client |
 | @prisma/adapter-neon | 6.19.3 | Neon serverless adapter |
 | prisma | 6.19.3 | CLI / migrations |
+| @neondatabase/serverless | 1.0.2 | Neon HTTP fallback and migration health inspection |
 
 ### External Services
 | Package | Version | Purpose |
 |---------|---------|---------|
 | @vercel/blob | 2.3.3 | Image storage |
-| resend | 6.10.0 | Transactional email |
-| @sentry/nextjs | 10.47.0 | Error monitoring |
+| resend | 6.12.2 | Transactional email |
+| @sentry/nextjs | 10.50.0 | Error monitoring |
 
 ### UI & Styling
 | Package | Version | Purpose |
@@ -42,7 +43,7 @@
 ### Data & State
 | Package | Version | Purpose |
 |---------|---------|---------|
-| @tanstack/react-query | 5.96.2 | Server state / data fetching |
+| @tanstack/react-query | 5.100.1 | Server state / data fetching |
 | @tanstack/react-table | 8.21.3 | Table utilities |
 | zod | 3.24.2 | Schema validation |
 | date-fns | 4.1.0 | Date utilities |
@@ -64,13 +65,14 @@
 | Package | Version | Purpose |
 |---------|---------|---------|
 | vitest | 3.0.6 | Unit testing |
-| @next/bundle-analyzer | 16.2.2 | Bundle size analysis |
+| @next/bundle-analyzer | 16.2.4 | Bundle size analysis |
 | @types/node | 22.19.17 | Node type defs |
-| postcss | 8.5.8 | CSS processing |
+| postcss | 8.5.14 | CSS processing |
 
 ## Environment Variables
 ```
-DATABASE_URL            Neon PostgreSQL connection string
+DATABASE_URL            Pooled Neon PostgreSQL runtime connection string
+DIRECT_URL              Direct Neon PostgreSQL migration and health-check connection string
 SESSION_SECRET          Cookie session signing key
 SESSION_COOKIE_NAME     Cookie name
 CRON_SECRET             Vercel cron authorization token

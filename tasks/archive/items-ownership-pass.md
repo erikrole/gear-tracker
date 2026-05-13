@@ -21,7 +21,7 @@ Polish `/items` as the next page ownership pass without reopening completed item
 ## Notes
 - Bulk rows are navigation rows for `/bulk-inventory`, not serialized asset records.
 - V1 still keeps bulk mutation operations out of scope for the Items list.
-- `npm run build` can stop at Prisma `migrate deploy` in this environment, so use migration-prefix validation plus `npx next build` as the safer split.
+- Historical note: `npm run build` used to stop at Prisma `migrate deploy` in this environment. Follow-up 2026-05-12: full `npm run build` now passes through the shared Prisma/Neon migration wrapper.
 
 ## Review
 - Shipped the mixed-row guardrails in the table, context menu, favorite column, page handlers, and bulk-action hook.

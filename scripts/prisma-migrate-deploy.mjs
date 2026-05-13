@@ -3,91 +3,105 @@ import { spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { neon } from "@neondatabase/serverless";
 import "dotenv/config";
 
 const migrationsDir = join(process.cwd(), "prisma", "migrations");
 const blankSchemaEnginePattern = /Error:\s*Schema engine error:\s*$/m;
 
-const deploy = spawnSync("npx", ["prisma", "migrate", "deploy"], {
-  cwd: process.cwd(),
-  env: process.env,
-  encoding: "utf8",
-});
-
-if (deploy.status === 0) {
-  process.stdout.write(deploy.stdout);
-  process.stderr.write(deploy.stderr);
-  process.exit(0);
+if (isMainModule()) {
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
 }
 
-const deployOutput = `${deploy.stdout ?? ""}${deploy.stderr ?? ""}`;
-if (!blankSchemaEnginePattern.test(deployOutput)) {
+async function main() {
+  const deploy = spawnSync("npx", ["prisma", "migrate", "deploy"], {
+    cwd: process.cwd(),
+    env: process.env,
+    encoding: "utf8",
+  });
+
+  if (deploy.status === 0) {
+    process.stdout.write(deploy.stdout);
+    process.stderr.write(deploy.stderr);
+    return;
+  }
+
+  const deployOutput = `${deploy.stdout ?? ""}${deploy.stderr ?? ""}`;
+  if (!blankSchemaEnginePattern.test(deployOutput)) {
+    process.stdout.write(deploy.stdout ?? "");
+    process.stderr.write(deploy.stderr ?? "");
+    process.exit(deploy.status ?? 1);
+  }
+
   process.stdout.write(deploy.stdout ?? "");
   process.stderr.write(deploy.stderr ?? "");
-  process.exit(deploy.status ?? 1);
-}
+  console.warn(
+    "Prisma schema engine failed without details; falling back to Neon HTTP migration apply.",
+  );
 
-process.stdout.write(deploy.stdout ?? "");
-process.stderr.write(deploy.stderr ?? "");
-console.warn(
-  "Prisma schema engine failed without details; falling back to Neon HTTP migration apply.",
-);
-
-const connectionString = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
-if (!connectionString) {
-  console.error("Missing DIRECT_URL or DATABASE_URL for Neon HTTP migration fallback.");
-  process.exit(1);
-}
-
-const sql = neon(connectionString);
-
-await ensureMigrationTable();
-
-const appliedRows = await sql`
-  SELECT migration_name
-  FROM _prisma_migrations
-  WHERE finished_at IS NOT NULL
-    AND rolled_back_at IS NULL
-`;
-const applied = new Set(appliedRows.map((row) => row.migration_name));
-const migrations = readdirSync(migrationsDir, { withFileTypes: true })
-  .filter((entry) => entry.isDirectory())
-  .map((entry) => entry.name)
-  .sort();
-
-let appliedCount = 0;
-for (const migrationName of migrations) {
-  if (applied.has(migrationName)) continue;
-
-  const migrationPath = join(migrationsDir, migrationName, "migration.sql");
-  if (!existsSync(migrationPath)) {
-    console.error(`Missing migration.sql for ${migrationName}`);
+  const connectionString = process.env.DIRECT_URL;
+  if (!connectionString) {
+    console.error("Missing DIRECT_URL for Neon HTTP migration fallback.");
     process.exit(1);
   }
 
-  const migrationSql = readFileSync(migrationPath, "utf8");
-  const statements = splitSqlStatements(migrationSql);
-  if (statements.length === 0) {
-    await recordMigration(migrationName, migrationSql, 0);
-    continue;
+  const sql = neon(connectionString);
+
+  await ensureMigrationTable(sql);
+
+  const appliedRows = await sql`
+    SELECT migration_name
+    FROM _prisma_migrations
+    WHERE finished_at IS NOT NULL
+      AND rolled_back_at IS NULL
+  `;
+  const applied = new Set(appliedRows.map((row) => row.migration_name));
+  const migrations = readdirSync(migrationsDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+
+  let appliedCount = 0;
+  for (const migrationName of migrations) {
+    if (applied.has(migrationName)) continue;
+
+    const migrationPath = join(migrationsDir, migrationName, "migration.sql");
+    if (!existsSync(migrationPath)) {
+      console.error(`Missing migration.sql for ${migrationName}`);
+      process.exit(1);
+    }
+
+    const migrationSql = readFileSync(migrationPath, "utf8");
+    const statements = splitSqlStatements(migrationSql);
+    if (statements.length === 0) {
+      await recordMigration(sql, migrationName, migrationSql, 0);
+      continue;
+    }
+
+    console.log(`Applying ${migrationName} via Neon HTTP fallback`);
+    for (const statement of statements) {
+      await sql.query(statement);
+    }
+    await recordMigration(sql, migrationName, migrationSql, statements.length);
+    appliedCount += 1;
   }
 
-  console.log(`Applying ${migrationName} via Neon HTTP fallback`);
-  for (const statement of statements) {
-    await sql.query(statement);
+  if (appliedCount === 0) {
+    console.log("Neon HTTP fallback found no pending migrations.");
+  } else {
+    console.log(`Neon HTTP fallback applied ${appliedCount} migration(s).`);
   }
-  await recordMigration(migrationName, migrationSql, statements.length);
-  appliedCount += 1;
 }
 
-if (appliedCount === 0) {
-  console.log("Neon HTTP fallback found no pending migrations.");
-} else {
-  console.log(`Neon HTTP fallback applied ${appliedCount} migration(s).`);
+function isMainModule() {
+  return process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 }
 
-async function ensureMigrationTable() {
+async function ensureMigrationTable(sql) {
   await sql.query(`
     CREATE TABLE IF NOT EXISTS "_prisma_migrations" (
       "id" VARCHAR(36) PRIMARY KEY,
@@ -102,7 +116,7 @@ async function ensureMigrationTable() {
   `);
 }
 
-async function recordMigration(migrationName, migrationSql, steps) {
+async function recordMigration(sql, migrationName, migrationSql, steps) {
   const checksum = createHash("sha256").update(migrationSql).digest("hex");
   const now = new Date().toISOString();
   await sql`
@@ -113,7 +127,7 @@ async function recordMigration(migrationName, migrationSql, steps) {
   `;
 }
 
-function splitSqlStatements(source) {
+export function splitSqlStatements(source) {
   const statements = [];
   let current = "";
   let quote = null;

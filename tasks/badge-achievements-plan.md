@@ -551,7 +551,7 @@ Run these per slice as applicable:
 
 - [x] `npx prisma validate`
 - [x] `npm run db:migrate:check`
-- [ ] `npm run db:migrate:status` (blocked by Prisma Schema engine error against the configured Neon database, including after read-only network escalation)
+- [x] `npm run db:migrate:status` (repo health checker compares local migrations with live Neon migration history through `DIRECT_URL`)
 - [ ] `npm run lint`
 - [x] `npm test` (Vitest — badge evaluator, checkout, scan, trade, UI API)
 - [x] Slice 3 focused tests: `npm test -- tests/badge-evaluator.test.ts tests/badges-service.test.ts tests/kiosk-bulk-detail-routes.test.ts tests/kiosk-checkout-scan-badges.test.ts tests/scan-route-gate-contract.test.ts`
@@ -563,8 +563,7 @@ Run these per slice as applicable:
 - [x] Flag-off snapshot test: `BADGES_ENABLED=false` produces zero badge
   transactions in a Vitest harness.
 - [x] `npx tsc --noEmit`
-- [x] `npx next build` (used for Slice 1 because `npm run build` runs
-  `prisma migrate deploy && next build`, which would apply the new migration to the configured Neon database)
+- [x] `npx next build` (historical Slice 1 check; follow-up 2026-05-13: `npm run build` now runs the shared Prisma/Neon migration wrapper before Next build)
 - [ ] iOS simulator build (blocked for Slice 3: XcodeBuildMCP has no configured project/scheme defaults in this session, and this checkout exposes no `.xcodeproj`, `.xcworkspace`, or `Package.swift`)
 - [ ] `npm run lint` (blocked: `next lint` is deprecated and opens an interactive ESLint setup prompt)
 - [x] Manual or browser smoke for `/users/{id}?tab=badges` and

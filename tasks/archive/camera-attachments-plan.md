@@ -14,4 +14,4 @@ Clarify and implement the camera attachment model for SD cards, cages, and fixed
 
 ## Review
 - Shipped camera attachment display without schema changes: camera-slot SD cards and fixed parts remain child assets, while QR-coded batteries remain numbered bulk units.
-- Verified with focused attachment helper tests, TypeScript, migration-prefix check, and local Next build. `npm run build` still stops at remote Prisma migrate deploy without DB approval.
+- Verified with focused attachment helper tests, TypeScript, migration-prefix check, and local Next build. Follow-up 2026-05-12: full `npm run build` now passes through the shared Prisma/Neon migration wrapper.

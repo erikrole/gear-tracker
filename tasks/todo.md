@@ -44,6 +44,28 @@ Last updated: 2026-05-12
 
 ## Open Items
 
+### Prisma + Neon Health Runbook (2026-05-13)
+- [x] **Replace raw status:** Route `npm run db:migrate:status` through the repo's Neon-backed health checker instead of raw `prisma migrate status`.
+- [x] **Add explicit health command:** Add `npm run db:migrate:health` to compare local migration folders with live `_prisma_migrations`.
+- [x] **Fail on drift:** Flag pending local migrations, unresolved failed rows, applied DB-only migrations, and newest-local-not-applied state.
+- [x] **Document operations:** Add a Prisma + Neon runbook covering `DATABASE_URL`, `DIRECT_URL`, deploy, health, and recovery rules.
+
+**Review**
+- Migration status now uses the same source of truth as production recovery: direct Neon inspection through `DIRECT_URL`.
+- The health checker is import-safe and covered by focused regressions for clean, pending, failed, DB-only, and rolled-back migration history.
+- `docs/PRISMA_NEON_RUNBOOK.md` is the short operational reference for future schema and deploy work.
+
+### Prisma + Neon Cleanup (2026-05-12)
+- [x] **Retire one-off migration helpers:** Delete superseded `scripts/apply-migration-0042.mjs`, `0059`, `0060`, and `0061` now that the shared deploy wrapper owns fallback behavior.
+- [x] **Tighten fallback safety:** Require `DIRECT_URL` for Neon HTTP migration fallback instead of allowing DDL through pooled `DATABASE_URL`.
+- [x] **Cover SQL splitting:** Add focused regression coverage for quoted semicolons, comments, and dollar-quoted blocks in the migration wrapper.
+- [x] **Refresh stale notes:** Update active task notes that still said `npm run build` was blocked by Prisma's schema engine.
+
+**Review**
+- The migration fallback is now import-safe and testable, with `splitSqlStatements` exported for focused coverage.
+- `DIRECT_URL` is mandatory for fallback migration execution. `DATABASE_URL` remains the pooled runtime URL.
+- Old migration-specific recovery scripts are gone, so future deploy recovery has one supported path.
+
 ### Admin User Photo Management (2026-05-12)
 - [x] **UI access:** Let admins open the existing profile-photo menu on any user detail page, while preserving self-service upload for the signed-in user.
 - [x] **Permission contract:** Keep the avatar API admin-only for other users and prove staff cannot change another user's photo.
@@ -199,7 +221,7 @@ Last updated: 2026-05-12
 - Browser smoke exposed and fixed a real API mismatch: asset creation rejected valid UUID-shaped department IDs from current data as invalid CUIDs.
 - Final build exposed and fixed a pre-existing kiosk schema mismatch: the code enforced `sessionExpiresAt`, but Prisma schema/migration lacked the column. GAP-53 is closed and `AREA_KIOSK.md` is synced.
 - Verified with `npx prisma validate`, `npm run db:migrate:check`, focused Vitest coverage for assets, manual events, auth, settings catalogs, allowed emails, shifts, kiosk session expiry, and notification cron, `npx tsc --noEmit`, `git diff --check`, `npx next build`, and authenticated browser smoke on `/items`, `/schedule`, `/kits`, `/settings/categories`, and `/users`.
-- Caveat: `npm run migrate` / `prisma migrate deploy` failed with the repo's blank schema-engine error before applying migration `0063`, so the Schedule New Event post-create handoff is code/test/build verified but could not complete against the current dev database during browser smoke.
+- Follow-up 2026-05-12: the shared Prisma/Neon migration wrapper now handles this blank schema-engine failure and `npm run build` reaches Next compilation after checking/applying migrations.
 - Remaining creation-system work is ranked in `tasks/creation-flow-system-plan.md`; deferred admin/specialized surfaces should be handled as focused slices.
 
 ### Wisconsin iOS Home Action Queue (2026-05-12)
@@ -274,7 +296,7 @@ Last updated: 2026-05-12
 - Shipped: `/schedule/assign` now has larger navigation/filter controls, accessible assignment/remove targets, filtered-empty recovery, no-shift labels, and hydration-stable assignment data.
 - Shipped: Event detail, shared shift controls, Dashboard Upcoming Events, and Settings Sports now align with Schedule semantics through away-event wording, stronger crew/travel controls, less duplicate open-slot copy, and shared Switch controls.
 - Verified: `npx tsc --noEmit`, `npm run db:migrate:check`, `npx vitest run tests/shift-assignments.test.ts tests/shift-trades.test.ts tests/calendar-events-query.test.ts tests/event-defaults.test.ts`, `npx next build`, and authenticated Chrome DevTools smoke on `/`, `/schedule`, `/schedule/assign`, `/events/cmmgnauku006rx10l0rkdv1cp`, and `/settings/sports`.
-- Caveat: `npm run build` still stops before Next compilation at Prisma `migrate deploy` with a blank schema-engine error. The safer split passed: migration-prefix validation plus `npx next build`.
+- Follow-up 2026-05-12: the shared Prisma/Neon migration wrapper now handles this blank schema-engine failure and full `npm run build` passes.
 
 ### Kits Ownership Pass (2026-05-10)
 - [x] **Structure:** Reframe `/kits` with a current list-page summary, toolbar, and row/card hierarchy.
@@ -422,7 +444,7 @@ Last updated: 2026-05-12
 - `/api/users`, `/api/users/[id]`, and `/api/profile` now return the profile URL; profile and staff/admin user edits can save it with audit diffs.
 - `/guides` Contacts now displays `@handle` as text/search data and only turns the Slack line into a link when `slackProfileUrl` exists.
 - Verified focused Guides tests, Prisma validation, migration-prefix check, whitespace check, TypeScript, `npx next build`, Neon HTTP fallback application of migration `0060`, authenticated `/guides` HTTP 200, authenticated `/api/users` payload containing `slackProfileUrl`, and invalid non-Slack profile URL rejection.
-- Local `npm run build` remains blocked before compile by Prisma CLI's blank schema-engine error against Neon; `npx next build` passes and migration `0060` is already recorded through the existing Neon HTTP fallback approach.
+- Follow-up 2026-05-12: the shared Prisma/Neon migration wrapper supersedes the one-off migration `0060` fallback and full `npm run build` passes.
 
 ### Guides Live Contacts Directory (2026-05-10)
 - [x] **Live source** — Use the Users API as the source of truth for guide Contacts instead of duplicating staff/student contact fields in Markdown.
@@ -434,7 +456,7 @@ Last updated: 2026-05-12
 - `User.slackHandle` is now stored as `users.slack_handle`, normalized to `@handle`, editable through user detail/profile self-edit APIs, and returned by `/api/users`, `/api/users/[id]`, and `/api/profile`.
 - `/guides` Contacts now uses active Users API data and shows current email, phone, Slack handle, title/year, area, location, avatar, and profile link.
 - Verified focused Guides tests, TypeScript, Prisma validation, migration-prefix check, whitespace check, `npx next build`, Neon HTTP fallback application of migration `0059`, authenticated `/guides` HTTP 200, and authenticated `/api/users` payload containing `slackHandle`.
-- Local `npm run build` remains blocked before compile by Prisma CLI's blank schema-engine error against Neon; `npx next build` passes and migration `0059` is already recorded through the existing Neon HTTP fallback approach.
+- Follow-up 2026-05-12: the shared Prisma/Neon migration wrapper supersedes the one-off migration `0059` fallback and full `npm run build` passes.
 
 ### Guides Reference Navigation (2026-05-10)
 - [x] **Category framing** — Treat Contacts, Building Numbers, Media Drive, and Server Paths as distinct reference categories.
@@ -787,7 +809,7 @@ Last updated: 2026-05-12
 - [x] **Framework/debug pass** — Removed stale `/api/reservations/[id]/extend` branch; dashboard extend now uses canonical `/api/bookings/[id]/extend`.
 - [x] **Structure pass** — Extracted shared `DashboardBookingRow` for My Gear and Team Activity booking rows.
 - [x] **UX/UI pass** — Split row navigation from inline action buttons, made filter clear a separate icon button, and tightened row truncation/mobile behavior.
-- [x] **Verification + docs** — `npx tsc --noEmit`, `npm run db:migrate:check`, and `npx next build` passed. Exact `npm run build` stopped at `prisma migrate deploy` schema-engine failure before Next build; remote DB escalation was rejected as unsafe for this dashboard-only pass.
+- [x] **Verification + docs** — `npx tsc --noEmit`, `npm run db:migrate:check`, and `npx next build` passed. Follow-up 2026-05-12: full `npm run build` now passes through the shared Prisma/Neon migration wrapper.
 
 ### Home Dashboard Follow-up Pass (2026-05-05)
 - [x] **Overdue banner controls** — Split overdue row navigation from check-in and nudge actions.
@@ -931,7 +953,7 @@ Last updated: 2026-05-12
 - Item Detail Tabs Follow-up shipped: Schedule now uses clickable continuation/end markers instead of repeating long booking names across every occupied day. Past Bookings now pulls requester avatar URLs through the detail API and renders compact rows with title, requester, date range, kind, and status. History now has All / Item updates / Bookings scopes, backend scope filtering, cursor pagination, cleaner legacy audit labels, and quieter import metadata handling. Verified with TypeScript, migration-prefix check, whitespace check, local route checks, and authenticated Chrome DevTools checks on Info, Schedule, and History.
 - Item Detail Tab Direction Pass shipped: the detail tab rail now uses a quieter thin active underline, removes the redundant Bookings tab, renames Calendar to Schedule, and removes visible shortcut numerals. Info now includes Past Bookings beneath upcoming reservations with requester avatars and clearer booking context. Insights is a compact signal view, History is framed around the full item touch log, Attachments has operational summary/direction, and Settings reads as workflow eligibility policy. Verification passed for TypeScript, migration-prefix check, whitespace, local route checks, and `npx next build`.
 - Item Detail Data Form Hardening shipped: shared inline save controls now use a ref guard against rapid duplicate saves, show saving state instead of competing save/cancel controls, disable text/select/date/notes/QR inputs while requests are active, and toast actual save errors. Asset PATCH now trims incoming strings, accepts clearable nullable fields, allows zero-value financial fields, saves department by ID, and parses server error bodies consistently. The shared API CSRF guard now compares against the actual request origin, so localhost item saves are not rejected before auth/permissions while bad origins still return 403. The info card now uses consistent gray picker surfaces for select/category/date/year controls, a year-only Fiscal Year picker, a shared Admin badge, and a top-aligned notes row.
-- Home Dashboard Focused Pass shipped: dashboard rows now use one shared row component, no longer nest action buttons inside clickable row buttons, and use a safer mobile layout with predictable truncation. Filter clear no longer nests a focusable pseudo-button inside the popover trigger. Docs synced in `AREA_DASHBOARD.md`. Verification passed for TypeScript, migration-prefix check, and local Next build; exact `npm run build` remains blocked at remote Prisma migrate deploy.
+- Home Dashboard Focused Pass shipped: dashboard rows now use one shared row component, no longer nest action buttons inside clickable row buttons, and use a safer mobile layout with predictable truncation. Filter clear no longer nests a focusable pseudo-button inside the popover trigger. Docs synced in `AREA_DASHBOARD.md`. Verification passed for TypeScript, migration-prefix check, and local Next build. Follow-up 2026-05-12: full `npm run build` now passes through the shared Prisma/Neon migration wrapper.
 - Home Dashboard Follow-up Pass shipped: overdue banner rows now split open/check-in/nudge into sibling controls, saved filter presets now split apply/delete into sibling controls, and the production browser check confirms the app can render `/login`; dashboard visual inspection still needs an authenticated browser session.
 - Home Dashboard Console Polish shipped: stat cards are quieter and section headers now share one component, reducing repeated header styling across My Gear and Team Activity.
 - Home Dashboard Live Browser Polish shipped: local login now works on `localhost:7001`, the dashboard renders without the Next dev issue badge, buttons/toggles have explicit tactile transitions, and the Upcoming Events header stays readable in narrow columns.
@@ -952,7 +974,7 @@ Last updated: 2026-05-12
 - Item Detail UX/UI Cleanup Slice 4 shipped: the admin scan identity panel now uses a compact inset layout with labeled QR/Serial values, matching copyable mono text, and a larger QR preview that owns the manage/view action without a redundant text button.
 - Item Detail Hardening + Polish Pass shipped: detail header controls now respect action busy state, favorite toggles are rapid-click guarded, failed item photos render the no-photo fallback, mobile calendar shows a booking list instead of a blank grid area, booking filters use the standard toggle-group, and detail tab fetches clean up stale requests.
 - Item Detail Missing Server Chunk Runtime Fix completed: the reported `Cannot find module './1893.js'` error came from stale `.next` server output. Regenerating the Next build produced a coherent `/items/[id]` bundle, and a local production route check returned `200 OK`.
-- Camera Attachments shipped: item detail now uses grouped Attachments, SD card slot labels render for tags such as `MBB 17 IV 1A`, scan lookup shows parent/slot context, and docs lock QR-coded batteries to numbered bulk semantics. `npm run build` stopped at remote Prisma migrate deploy; safer local `npx next build` passed.
+- Camera Attachments shipped: item detail now uses grouped Attachments, SD card slot labels render for tags such as `MBB 17 IV 1A`, scan lookup shows parent/slot context, and docs lock QR-coded batteries to numbered bulk semantics. Follow-up 2026-05-12: full `npm run build` now passes through the shared Prisma/Neon migration wrapper.
 - Derived Bulk Unit QR Scans shipped: QR values generated by the numbered bulk QR tab, such as `94e068d1-7`, now submit as one validated numbered unit under the parent SKU without converting batteries into serialized items.
 - Bulk Battery Hardening shipped: kiosk pickup/check-in now scans numbered battery unit QRs one by one, lookup resolves unit QRs, checkout creation warns on low compatible battery availability, and camera-battery guidance is no longer a hard gate.
 - Battery Unit Cockpit shipped: admins/staff now have `/bulk-inventory/batteries` for active numbered battery SKUs, low-stock signals, checked-out aging, booking/requester context, and audited quick unit actions.
@@ -1018,8 +1040,8 @@ Last updated: 2026-05-12
 - [x] Remove silent JSON parse swallowing in booking + scan client flows
 - [x] Add missing indexes (`notifications.sent_at`, `override_events.created_at`, `bulk_stock_balances.bulk_sku_id`)
 - [x] Run `npm run test` (fails on pre-existing unrelated tests: equipment-guidance, shift-trades, create-booking)
-- [x] Run `npm run build` (`npm run build` blocked by Prisma schema engine error against Neon; `npx next build` passes)
+- [x] Run `npm run build` (follow-up 2026-05-12: full build now passes through the shared Prisma/Neon migration wrapper)
 
 ### Review
 - Shipped low-effort hardening on booking + scan client paths and added missing operational indexes.
-- Verification complete for compilation (`npx next build` succeeds). Test suite currently red for unrelated pre-existing failures.
+- Verification complete for compilation. Follow-up 2026-05-12: full `npm run build` succeeds through the shared Prisma/Neon migration wrapper. Test suite was red at the time for unrelated pre-existing failures.
