@@ -192,6 +192,7 @@ export default function UserDetailPage() {
   const isSelf = currentUserId != null && currentUserId === id;
   const isStaffOrAdmin = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
   const canEdit = isSelf || isStaffOrAdmin;
+  const canManageProfilePhoto = isSelf || currentUserRole === "ADMIN";
 
   function switchTab(tab: TabKey) {
     setActiveTab(tab);
@@ -221,7 +222,7 @@ export default function UserDetailPage() {
       } else {
         const json = await res.json();
         setUserOverrides((prev) => ({ ...prev, avatarUrl: json.data?.avatarUrl ?? null }));
-        toast.success("Avatar updated");
+        toast.success("Profile photo updated");
       }
     } catch {
       toast.error("Network error");
@@ -233,7 +234,7 @@ export default function UserDetailPage() {
   async function removeAvatar() {
     const ok = await confirm({
       title: `Remove ${effectiveUser?.name ? effectiveUser.name + "'s " : ""}photo?`,
-      message: "The current avatar will be deleted permanently. The user can upload a new one anytime.",
+      message: "The current profile photo will be deleted permanently. A new one can be uploaded anytime.",
       confirmLabel: "Remove photo",
       variant: "danger",
     });
@@ -250,13 +251,14 @@ export default function UserDetailPage() {
         setUserOverrides((prev) => ({ ...prev, avatarUrl: previousUrl }));
         toast.error(json.error || "Failed to remove avatar");
       } else {
-        toast.success("Avatar removed");
+        toast.success("Profile photo removed");
       }
     } catch {
       setUserOverrides((prev) => ({ ...prev, avatarUrl: previousUrl }));
       toast.error("Network error");
+    } finally {
+      setUploadingAvatar(false);
     }
-    setUploadingAvatar(false);
   }
 
   async function toggleActive() {
@@ -487,7 +489,7 @@ export default function UserDetailPage() {
         <div className="relative flex flex-col sm:flex-row sm:items-center gap-5 p-5 sm:p-6">
           {/* Avatar */}
           <div className="shrink-0">
-            {isSelf ? (
+            {canManageProfilePhoto ? (
               <>
                 <input
                   ref={fileInputRef}
@@ -504,7 +506,7 @@ export default function UserDetailPage() {
                   <DropdownMenuTrigger asChild disabled={uploadingAvatar}>
                     <button
                       type="button"
-                      aria-label={profile.avatarUrl ? "Change profile photo" : "Upload profile photo"}
+                      aria-label={profile.avatarUrl ? `Change ${profile.name}'s profile photo` : `Upload ${profile.name}'s profile photo`}
                       className="relative group rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
                       <UserAvatar
@@ -522,15 +524,15 @@ export default function UserDetailPage() {
                       </div>
                     </button>
                   </DropdownMenuTrigger>
-	                  <DropdownMenuContent align="start">
-	                    <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
-	                      <CameraIcon className="mr-2 size-4" />
-	                      {profile.avatarUrl ? "Change photo" : "Upload photo"}
-	                    </DropdownMenuItem>
-	                    {profile.avatarUrl && (
-	                      <DropdownMenuItem variant="destructive" onClick={removeAvatar}>
-	                        <TrashIcon className="mr-2 size-4" />
-	                        Remove photo
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                      <CameraIcon className="mr-2 size-4" />
+                      {profile.avatarUrl ? "Change photo" : "Upload photo"}
+                    </DropdownMenuItem>
+                    {profile.avatarUrl && (
+                      <DropdownMenuItem variant="destructive" onClick={removeAvatar}>
+                        <TrashIcon className="mr-2 size-4" />
+                        Remove photo
                       </DropdownMenuItem>
                     )}
                   </DropdownMenuContent>

@@ -44,6 +44,16 @@ Last updated: 2026-05-12
 
 ## Open Items
 
+### Admin User Photo Management (2026-05-12)
+- [x] **UI access:** Let admins open the existing profile-photo menu on any user detail page, while preserving self-service upload for the signed-in user.
+- [x] **Permission contract:** Keep the avatar API admin-only for other users and prove staff cannot change another user's photo.
+- [x] **Docs and verification:** Sync Users docs and run focused avatar route tests plus TypeScript/whitespace checks.
+
+**Review**
+- User detail profiles now render the photo upload/remove menu for the signed-in user or any admin. Staff still see a read-only avatar when viewing someone else.
+- `/api/users/[id]/avatar` keeps the other-user mutation boundary admin-only, with dead staff-target role checks removed and clearer profile-photo error wording.
+- Focused coverage proves admins can upload/remove another user's profile photo and staff cannot. Verified with `npx vitest run tests/user-avatar-route.test.ts`, `npx tsc --noEmit`, `git diff --check`, and `npm run build`.
+
 ### Prisma + Neon Migration Reliability (2026-05-12)
 - [x] **Diagnose current failure:** Confirm schema validation and migration prefix checks pass while Prisma DB-facing commands still hit the blank schema-engine error against Neon.
 - [x] **Align config with Neon guidance:** Add explicit Prisma config and document pooled runtime vs direct migration URLs.

@@ -112,6 +112,7 @@ Use a simple tiered permission model with inheritance so behavior is predictable
 6. Ensure audit logs include actor role, target owner, and exception metadata.
 
 ## Change Log
+- 2026-05-12: Admin profile-photo management shipped. Admins can now use the profile-photo menu on any user detail page to upload, replace, or remove that user's photo through the existing avatar route; staff remain blocked from changing another user's photo.
 - 2026-05-12: Allowed-email backfill fix. Adding an email that already belongs to a registered user now creates a visible claimed allowlist row when one is missing, so Settings > Allowed Emails reflects existing account access instead of showing a skipped no-op toast.
 - 2026-05-12: Invite/login bug fix. Users created from Users > Add User now have `forcePasswordChange` set with the temporary password, direct-created staff/student users create or claim a visible claimed allowlist row, Settings > Allowed Emails no longer says a skipped duplicate was added, and forgot-password stops promising reset emails when email delivery is not configured.
 - 2026-05-12: Security audit patch. Admin-issued temporary passwords are now enforced end to end: login redirects forced users to `/change-password`, the app layout and API wrapper block regular authenticated access while `forcePasswordChange` is true, and the self-service password change clears the marker while invalidating existing sessions.

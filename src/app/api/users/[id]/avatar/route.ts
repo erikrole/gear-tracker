@@ -9,11 +9,11 @@ import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 function assertCanManage(actorId: string, actorRole: string, targetId: string) {
   if (actorId === targetId) return;
   if (actorRole === "ADMIN") return;
-  throw new HttpError(403, "Only admins can manage other users' avatars");
+  throw new HttpError(403, "Only admins can manage other users' profile photos");
 }
 
 /**
- * POST /api/users/[id]/avatar — admin/staff (or self) upload avatar for a user
+ * POST /api/users/[id]/avatar — admins, or the signed-in user, upload a profile photo
  */
 export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   const { id } = params;
@@ -23,13 +23,9 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
 
   const target = await db.user.findUnique({
     where: { id },
-    select: { id: true, role: true, avatarUrl: true },
+    select: { id: true, avatarUrl: true },
   });
   if (!target) throw new HttpError(404, "User not found");
-
-  if (user.role === "STAFF" && user.id !== id && target.role !== "STUDENT") {
-    throw new HttpError(403, "Staff can only edit student profiles");
-  }
 
   const formData = await req.formData();
   const file = formData.get("file");
@@ -73,7 +69,7 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
 });
 
 /**
- * DELETE /api/users/[id]/avatar — admin/staff (or self) remove a user's avatar
+ * DELETE /api/users/[id]/avatar — admins, or the signed-in user, remove a profile photo
  */
 export const DELETE = withAuth<{ id: string }>(async (_req, { user, params }) => {
   const { id } = params;
@@ -81,13 +77,9 @@ export const DELETE = withAuth<{ id: string }>(async (_req, { user, params }) =>
 
   const target = await db.user.findUnique({
     where: { id },
-    select: { id: true, role: true, avatarUrl: true },
+    select: { id: true, avatarUrl: true },
   });
   if (!target) throw new HttpError(404, "User not found");
-
-  if (user.role === "STAFF" && user.id !== id && target.role !== "STUDENT") {
-    throw new HttpError(403, "Staff can only edit student profiles");
-  }
 
   if (!target.avatarUrl) {
     throw new HttpError(400, "No avatar to remove");
