@@ -1,6 +1,6 @@
 ---
 name: audit-page-web
-description: Full MVP-readiness audit for a single web page in the gear-tracker app. Use when the user runs `/audit-page-web <page>` or asks to "audit the licenses page", "is the dashboard ready to ship", "MVP audit on web", or similar. Produces a record file in tasks/, presents findings in chat grouped by severity, then waits for fix/skip/defer decisions before touching code. Ship bar = all staff + students, zero hiccups.
+description: Full MVP-readiness audit for a single web page in the gear-tracker app. Use when the user runs audit-page-web for a page, asks to audit the licenses page, asks if the dashboard is ready to ship, asks for an MVP audit on web, or similar. Produces a record file in tasks, presents findings in chat grouped by severity, then waits for fix, skip, or defer decisions before touching code. Ship bar = all staff plus students, zero hiccups.
 ---
 
 # audit-page-web
@@ -199,7 +199,8 @@ When the user replies with fix decisions:
 2. Group approved fixes into thin slices per Rule 10 (schema → API → UI → tests → hardening). Maximum one PR per slice; if approved fixes span concerns, ask whether to ship multiple PRs or bundle.
 3. For each slice:
    - Implement
-   - Run `npm run build` (Rule 8 — never leave a broken build)
+   - Run focused tests, `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, and `npx next build` for app-only slices.
+   - Use `npm run build` when the approved fix changes schema, migration, or deploy-path behavior.
    - Update `docs/AREA_<PAGE>.md` change log + tick acceptance criteria in the same commit (Rule 12)
    - Update `docs/GAPS_AND_RISKS.md` if a gap closed
    - Update `tasks/lessons.md` if a correction-worthy pattern emerged

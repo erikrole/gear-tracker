@@ -1,12 +1,13 @@
 ---
 name: prisma-migrate-safely
-description: Schema-first migration workflow for the gear-tracker Prisma + Neon stack. Reads schema, drafts migration, runs `prisma migrate dev`, and reminds the user to update the matching `docs/AREA_*.md` change log per AGENTS.md rules #7, #10, #12.
-disable-model-invocation: true
+description: Schema-first migration workflow for the gear-tracker Prisma + Neon stack. Reads schema, docs, decisions, and gaps, then uses the repo's wrapper-backed migration and health commands instead of raw Prisma status assumptions.
 ---
 
 # Prisma Migrate Safely
 
 User-only skill that enforces the project's schema-first thin-slice protocol.
+
+For broader deploy recovery or Neon drift diagnosis, prefer `/gt-migrate` from the `gear-tracker-workflows` plugin.
 
 ## When to invoke
 The user runs `/prisma-migrate-safely <feature>` when they're about to add or change a Prisma model.
@@ -28,8 +29,12 @@ The user runs `/prisma-migrate-safely <feature>` when they're about to add or ch
    - Run: `npx prisma migrate dev --name <feature>_<short_change>`
    - If it fails, STOP and report — do not retry the same migration with a different name.
 
-4. **Sanity build**
-   - Run: `npx prisma generate && npm run build`
+4. **Migration health and sanity build**
+   - Run: `npx prisma validate`
+   - Run: `npm run db:migrate:check`
+   - Run: `npm run db:migrate:health` when live Neon migration state matters
+   - Run: `npx next build` for app-only compilation
+   - Run: `npm run build` when deploy-shaped migration behavior is in scope
    - If build fails, fix before declaring done (AGENTS.md rule #8).
 
 5. **Doc Sync on Ship** (AGENTS.md rule #12 — non-negotiable)
@@ -39,8 +44,9 @@ The user runs `/prisma-migrate-safely <feature>` when they're about to add or ch
 
 6. **Commit**
    - Conventional commit `feat:` or `chore:` (rule #9) bundling schema + generated migration + AREA doc update in one commit.
-   - Push to current branch (per persisted user feedback: always commit + push at end of completed task).
+   - Stage only in-scope files. Push only when the user requested shipping to the remote.
 
 ## Guardrails
 - Never edit an applied migration's SQL file (`prisma/migrations/*/migration.sql`). The PreToolUse hook will block this.
 - Neon serverless: avoid long-running data backfills inside the migration — use a separate script for backfills > a few seconds (Vercel 10s/60s timeout).
+- Treat blank Prisma schema-engine failures against Neon as a deploy-path issue first. Check the repo wrapper and health commands before assuming the schema is wrong.

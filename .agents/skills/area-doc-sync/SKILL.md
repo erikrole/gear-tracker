@@ -1,12 +1,13 @@
 ---
 name: area-doc-sync
-description: Enforce AGENTS.md rule #12 (Doc Sync on Ship). Given a feature name or recent diff, locate the matching `docs/AREA_*.md` and `docs/BRIEF_*.md`, update change logs, mark acceptance criteria, and reconcile `docs/GAPS_AND_RISKS.md` before commit.
-disable-model-invocation: true
+description: Enforce AGENTS.md rule #12 (Doc Sync on Ship). Given a feature name or recent diff, locate matching area docs, update change logs, mark acceptance criteria, reconcile gaps, and leave the repo ready for the broader /gt-ship closeout workflow.
 ---
 
 # Area Doc Sync
 
 User-only skill. Run before committing any feature change. No commit ships without the AREA doc reflecting reality.
+
+For staging, conventional commit, push, and full verification sequencing, prefer `/gt-ship` from the `gear-tracker-workflows` plugin.
 
 ## When to invoke
 The user runs `/area-doc-sync <feature-or-area>` (or just `/area-doc-sync` to infer from `git diff --staged`).
@@ -15,7 +16,7 @@ The user runs `/area-doc-sync <feature-or-area>` (or just `/area-doc-sync` to in
 
 1. **Identify the affected area(s)**
    - If an argument is given, match it against `docs/AREA_*.md` and `docs/BRIEF_*.md` filenames.
-   - Otherwise: run `git diff --name-only HEAD` and map touched paths to AREAs (e.g. `src/app/(app)/items/*` → `AREA_ITEMS.md`).
+   - Otherwise: run `git status --short` first so untracked files are included, then map touched paths to AREAs (e.g. `src/app/(app)/items/*` → `AREA_ITEMS.md`).
 
 2. **Update the AREA change log**
    - Open the matched `docs/AREA_*.md`.
@@ -33,10 +34,10 @@ The user runs `/area-doc-sync <feature-or-area>` (or just `/area-doc-sync` to in
 5. **Lessons capture** (rule #6)
    - If the user corrected you during this work, append a one-line rule to `tasks/lessons.md`.
 
-6. **Verify and commit**
-   - Run `npm run build` (rule #8 — never push a broken build).
-   - Stage docs + code together; create one conventional-commit message bundling them (rule #12: same commit).
-   - Push current branch.
+6. **Verify readiness**
+   - For app-only changes, run focused tests, `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, and `npx next build`.
+   - For schema or deploy-path changes, include `npx prisma validate`, `npm run db:migrate:health`, and `npm run build`.
+   - Leave staging, commit, and push to `/gt-ship` unless the user explicitly asked this skill to complete those steps.
 
 ## Output
 Return a one-paragraph summary: which AREA was updated, which gaps closed, which plan archived.

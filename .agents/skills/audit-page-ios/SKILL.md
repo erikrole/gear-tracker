@@ -1,11 +1,11 @@
 ---
 name: audit-page-ios
-description: Full MVP-readiness audit for a single iOS screen in the Wisconsin app. Use when the user runs `/audit-page-ios <screen>` or asks to "audit the scan screen on iOS", "is the iOS home view ready", "MVP audit on iOS", or similar. Static source audit only (v1) — no build/run/Playwright. Produces a record file in tasks/, presents findings in chat grouped by severity, then waits for fix/skip/defer decisions before touching code. Ship bar = student-friendly, fully functional for core flows.
+description: Full MVP-readiness audit for a single iOS screen in the Wisconsin app. Use when the user runs audit-page-ios for a screen, asks to audit the scan screen on iOS, asks if the iOS home view is ready, asks for an MVP audit on iOS, or similar. Produces a source-grounded record file in tasks, presents findings in chat grouped by severity, then waits for fix, skip, or defer decisions before touching code. Ship bar = student-friendly, fully functional for core flows.
 ---
 
 # audit-page-ios
 
-Audits a single SwiftUI screen in `ios/Wisconsin/` against the iOS MVP ship bar: **student-friendly, fully functional for core flows, zero hiccups in front of a class**. Static source analysis only in v1 — no simulator runs, no Xcode builds, no UI tests. Diagnose-only until the user approves fixes.
+Audits a single SwiftUI screen in `ios/Wisconsin/` against the iOS MVP ship bar: **student-friendly, fully functional for core flows, zero hiccups in front of a class**. Diagnose-only until the user approves fixes.
 
 ## Invocation
 
@@ -137,7 +137,7 @@ Write to `tasks/audit-<screen>-ios.md` (overwrite if exists; git keeps history):
 
 **MVP verdict:** READY | NOT READY — N P0, M P1
 **Ship bar:** student-friendly, fully functional for core flows, zero hiccups in front of a class
-**Audit type:** static source (no build/run/UI tests)
+**Audit type:** source audit; build/simulator verification runs after approved fixes when practical
 
 ## P0 — blocks MVP
 - [ ] [Lens] One-line finding — `ios/Wisconsin/Views/<File>.swift:LINE`
@@ -176,7 +176,7 @@ After writing the file, present in chat in this exact shape:
 ```
 Audit: <screen> (iOS) — MVP verdict: <READY | NOT READY (N P0, M P1)>
 Record: tasks/audit-<screen>-ios.md
-Audit type: static source only
+Audit type: source audit
 
 P0 — blocks ship
   1. [Lens] One-line finding
@@ -191,7 +191,7 @@ P2 — post-MVP (informational)
   4. ...
 
 Reply with decisions (e.g. "fix 1-3, skip 4, defer 5-6").
-Note: static audit. Will run UI tests later per your call.
+Note: fixes will include drift/gap checks and simulator build verification when practical.
 ```
 
 ## Fix loop (only after explicit approval)
@@ -202,14 +202,15 @@ When the user replies with fix decisions:
 2. Group approved fixes into thin slices (Rule 10): data/store → service → view wiring → polish.
 3. For each slice:
    - Implement in Swift
-   - Open `ios/Wisconsin.xcodeproj` is NOT required; do not attempt to drive Xcode builds from the agent. State plainly that build verification is the user's responsibility on iOS until UI tests exist.
+   - Run `npm run drift:ios` and `npm run audit:ios:gaps` after meaningful iOS changes.
+   - Run a targeted `xcodebuild` simulator build when the local simulator/build environment is available.
    - Update `docs/AREA_MOBILE.md` and the feature's `AREA_*.md` change log + tick criteria (Rule 12)
    - Update `docs/GAPS_AND_RISKS.md` if a gap closed
    - Update `tasks/lessons.md` if a correction-worthy pattern emerged
 4. Commit per Rule 9 conventional-commits. Outcome-focused.
 5. Open ONE PR per slice. PR description = the audit file's relevant findings, checked.
 6. Mark addressed findings `[x]` in `tasks/audit-<screen>-ios.md` and commit that update.
-7. Remind the user: "Verify in Xcode — agent did not build the iOS target."
+7. Report the exact drift, gap-audit, and build commands that passed or explain the blocker.
 
 If user says "fix all", that means every P0 + P1 only. P2 needs explicit ack.
 
@@ -222,11 +223,11 @@ If user says "fix all", that means every P0 + P1 only. P2 needs explicit ack.
 - Re-read the user's last message before each substantive turn (Rule 15).
 - After 2 consecutive approach failures: stop, summarize, ask (Rule 15).
 - Honor taste seeds: drop placeholders, more breathing room, no stub names, minimal labels, delete unearned helper text.
-- Do not attempt to run `xcodebuild`, simulators, or Xcode UI tests in v1. State the limit clearly.
+- Do not call iOS ready until drift checks, gap audit, and an appropriate simulator build pass, or clearly report why one could not be run.
 
 ## What this skill is NOT
 
-- Not a build/test runner — static source audit only in v1
+- Not a blind build runner — source findings still drive the audit
 - Not a refactor pass — fix only approved findings
 - Not a feature-add pass — gaps are flagged, not extended
 - Not the web — use `audit-page-web` for that
