@@ -247,13 +247,13 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
             <div className="flex flex-col gap-4">
               <Alert>
                 <AlertDescription>
-                  "{createdEvent.summary}" was added. Open the event to set up crew, or return to the refreshed schedule.
+                  "{createdEvent.summary}" was added. Open the event to set up staff, or return to the refreshed schedule.
                 </AlertDescription>
               </Alert>
               <div className="rounded-md border bg-muted/30 px-4 py-3 text-sm">
                 <p className="font-medium">Next step</p>
                 <p className="mt-1 text-muted-foreground">
-                  Crew setup, shifts, and gear handoff live on the event detail page.
+                  Staffing setup, shifts, and gear handoff live on the event detail page.
                 </p>
               </div>
             </div>

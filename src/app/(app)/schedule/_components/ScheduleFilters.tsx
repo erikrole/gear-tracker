@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { SPORT_CODES, sportLabel } from "@/lib/sports";
 import { cn } from "@/lib/utils";
+import { VENUE_FILTER_OPTIONS, venueFilterActiveClass } from "@/lib/venue-tone";
 import {
   AREAS,
   AREA_LABELS,
@@ -25,12 +26,7 @@ const VIEW_MODES: { value: ViewMode; label: string; icon: ReactNode }[] = [
   { value: "calendar", label: "Calendar", icon: <CalendarIcon className="size-3.5" /> },
 ];
 
-const HOME_AWAY_OPTIONS: { value: HomeAwayFilter; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "home", label: "Home" },
-  { value: "away", label: "Away" },
-  { value: "neutral", label: "Neutral" },
-];
+const HOME_AWAY_OPTIONS = VENUE_FILTER_OPTIONS as Array<{ value: HomeAwayFilter; label: string }>;
 
 function ToolbarGroup({
   label,
@@ -102,17 +98,11 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
       {/* Divider */}
       <div className="mx-0.5 h-6 w-px bg-border/80 max-sm:hidden" />
 
-      {/* Home / Away filter */}
+      {/* Venue filter */}
       <ToolbarGroup label="Venue">
         <div className="flex min-h-10 items-center overflow-hidden rounded-md border border-border bg-muted/30">
           {HOME_AWAY_OPTIONS.map((opt, i) => {
             const isActive = filters.homeAwayFilter === opt.value;
-            const activeColor =
-              opt.value === "home"
-                ? "bg-[var(--green)]/15 text-[var(--green-text)]"
-                : opt.value === "away"
-                  ? "bg-[var(--orange)]/15 text-[var(--orange-text)]"
-                  : "bg-background text-foreground";
             return (
               <button
                 key={opt.value}
@@ -122,7 +112,7 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
                   "h-10 px-2.5 text-[13px] font-medium transition-[background-color,color,box-shadow,scale] duration-150 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2",
                   i > 0 && "border-l border-border",
                   isActive
-                    ? cn(activeColor, "shadow-sm")
+                    ? cn(venueFilterActiveClass(opt.value), "shadow-sm")
                     : "text-muted-foreground hover:text-foreground hover:bg-background/50",
                 )}
               >
@@ -137,7 +127,7 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
       <div className="mx-0.5 h-6 w-px bg-border/80 max-sm:hidden" />
 
       <ToolbarGroup label="Coverage">
-        <Button
+          <Button
           variant={needsStaffActive ? "default" : "outline"}
           size="sm"
           className={cn(
@@ -148,11 +138,6 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
         >
           <AlertTriangleIcon className="size-3.5" />
           Needs staff
-          {needsStaffCount > 0 && (
-            <span className="ml-0.5 inline-flex min-w-5 items-center justify-center rounded-full bg-current/10 px-1.5 text-[10px] font-bold tabular-nums">
-              {needsStaffCount}
-            </span>
-          )}
         </Button>
       </ToolbarGroup>
 
@@ -238,12 +223,12 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
                 filters.coverageFilter === "unfilled"
                   ? "Needs staff"
                   : filters.coverageFilter === "filled"
-                    ? "Fully staffed"
+                    ? "Fully covered"
                     : ""
               }
               options={[
                 { value: "unfilled", label: "Needs staff" },
-                { value: "filled", label: "Fully staffed" },
+                { value: "filled", label: "Fully covered" },
               ]}
               onSelect={(v) => filters.setCoverageFilter(v)}
               onClear={() => filters.setCoverageFilter("")}

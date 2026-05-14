@@ -132,7 +132,7 @@ export default function ShiftConfigTable({
                       </tr>
                       <tr>
                         <td>
-                          <Badge variant="red" size="sm">Away</Badge>
+                          <Badge variant="orange" size="sm">Away</Badge>
                         </td>
                         {AREAS.map((area) => (
                           <td key={area} className="text-center">

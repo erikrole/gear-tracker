@@ -1,6 +1,6 @@
 # AREA: Shift Calendar & Scheduling
 
-> Status: **Implemented** | Owner: TBD | Last Updated: 2026-05-13
+> Status: **Implemented** | Owner: TBD | Last Updated: 2026-05-14
 
 ## Purpose
 
@@ -30,9 +30,9 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - [x] User profiles: inline contact info, primary/secondary area, assigned sports
 - [x] Mobile: responsive card layout, full-screen detail panel
 - [x] Week view: 7-day time-block view with coverage dots, navigation, My Shifts highlight
-- [x] Home/away toggle: filterable, neutral-as-away default
+- [x] Home/away/neutral toggle: filterable with shared green, orange, and gray venue treatment
 - [x] Hide events: staff can hide irrelevant events from schedule views
-- [x] Schedule readiness snapshot: open slots, ready events, my shifts, trade count, and next call displayed on schedule page
+- [x] Schedule readiness snapshot: staff-needed count, covered events, my shifts, trade count, and next call displayed on schedule page
 - [x] Student availability: profile Availability tab stores recurring weekly blocks and assignment flows show conflicts
 - [x] Shift trade emails: claimed, completed, approved, and declined trade events send best-effort email companions
 
@@ -40,7 +40,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 
 ### Schedule Page (`/schedule`)
 1. **Page Header** — title, "Trade Board" button (with open-trade count badge)
-2. **Schedule readiness snapshot** — open slots, ready events, viewer shift count, open trades, and next visible call time
+2. **Schedule readiness snapshot** — staff-needed count, covered events, viewer shift count, open trades, and next visible call time
 3. **Filter Bar** (`ScheduleFilters`) — View, Venue, Needs staff, My Shifts, Past, Sport, Area, and Coverage controls
 3. **View Toggle** — List | Week | Calendar (persisted to localStorage)
 4. **List View** (`ListView`) — date-grouped expandable table; parent rows = events, child rows = shifts
@@ -71,7 +71,16 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - Sports code mappings (existing — `src/lib/sports.ts`)
 
 ## Change Log
-- 2026-05-12: Creation flow standardization. Event crew setup, manual shift add, and post-for-trade flows now surface form-level errors in the active panel/dialog, guard slow-network submit state, and give an explicit next-step handoff after a shift is added instead of relying only on toasts.
+- 2026-05-14: Assign page current-event cleanup. `/schedule/assign` now mirrors the normal Schedule list default by showing only active events from today forward, keeps past events and archived shift groups out of assignment work, disables navigation into fully past months, and reduces repeated add/open controls into quieter row-style assignment affordances with compact overlapping assigned-avatar stacks.
+- 2026-05-14: Assignment role cleanup. Direct assignment now syncs the underlying shift worker type from the assigned user's role, while Assign page avatar removal uses a small explicit X control instead of making the whole avatar destructive.
+- 2026-05-14: Schedule assignment row pass. The normal `/schedule` page now uses Staff as the generic coverage label, derives expanded-row Staff/Student labels from the assigned user's role, and lets staff/admin add another same-area same-kind shift from the expanded row's area badge.
+- 2026-05-14: Assign page polish. `/schedule/assign` now shares the normal schedule title cleaner and venue-tone logic, uses a tighter control bar, shows venue/coverage context in the sticky event column, and gives assignment avatars a hover remove overlay with quieter open-slot/no-slot cells.
+- 2026-05-14: Assign page area-slot pass. `/schedule/assign` now drops Staff/Student sub-sections, groups slots directly under each area column, and lets staff/admin add area slots or remove empty slots without opening the event detail page.
+- 2026-05-14: Schedule hide hardening. Hide-event mutations now require a strict boolean payload, update visibility and audit logs in one transaction, show per-row in-flight state, and offer an Undo action from the success toast.
+- 2026-05-14: Schedule naming pass. The normal `/schedule` page hides assigned/confirmed row badges in favor of the signed-in user's row tint, keeps covered-event language for fully staffed events, and avoids student-specific wording in generic schedule controls.
+- 2026-05-14: Venue tone standardization. Home uses green, Away uses orange, and Neutral uses gray across schedule filters, list/week/calendar event indicators, event detail badges, booking event picks, dashboard Upcoming Events, and sport shift settings.
+- 2026-05-14: Schedule event titles now use one shared formatter across list, week, and calendar views. Structured sport events keep the matchup as the primary title and move dash-suffix context such as tournament names or Homecoming into secondary text.
+- 2026-05-12: Creation flow standardization. Event staffing setup, manual shift add, and post-for-trade flows now surface form-level errors in the active panel/dialog, guard slow-network submit state, and give an explicit next-step handoff after a shift is added instead of relying only on toasts.
 - 2026-05-13: GAP-54 closed. The unscheduled standalone `archive-shifts` cron route was deleted; scheduled shift-group archiving remains inside `morning-refresh`, the single daily scheduling maintenance job.
 - 2026-05-10: Schedule ownership pass. `/schedule` readiness now counts actual active shift assignments instead of events, filtered empty states can recover by clearing filters, manual all-day event creation treats the selected end date as an inclusive all-day date, list/week/calendar navigation controls now use larger deliberate targets, and `/schedule/assign` has stronger empty states plus accessible assignment/remove controls.
 - 2026-05-08: API hardening Wave 2 added audit coverage for shift attendance updates and enriched shift deletion audits with force-delete and active-assignment context.

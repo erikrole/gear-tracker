@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { SectionHeading } from "@/components/form-layout";
 import { sportLabel } from "@/lib/sports";
+import { VENUE_TONES, venueBadgeVariant, venueToneFromIsHome } from "@/lib/venue-tone";
 import { formatChipTime, formatDateTime } from "@/lib/format";
 import type { BulkSelection } from "@/components/EquipmentPicker";
 import type { PickerAsset } from "@/components/EquipmentPicker";
@@ -186,9 +187,11 @@ export function WizardStep3({
                         ? ev.summary
                         : ""}
                   </span>
-                  {ev.isHome === true && <Badge variant="green" size="sm">Home</Badge>}
-                  {ev.isHome === false && <Badge variant="red" size="sm">Away</Badge>}
-                  {ev.isHome === null && ev.opponent && <Badge variant="blue" size="sm">Neutral</Badge>}
+                  {ev.opponent && (
+                    <Badge variant={venueBadgeVariant(ev.isHome)} size="sm">
+                      {VENUE_TONES[venueToneFromIsHome(ev.isHome)].label}
+                    </Badge>
+                  )}
                 </div>
               ))}
             </div>

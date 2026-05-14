@@ -31,11 +31,10 @@ export type GridEvent = CalendarEvent & {
   shifts: GridShift[];
 };
 
-/** Column descriptor: area + workerType combo */
+/** Column descriptor: one assignable area. */
 export type GridColumn = {
-  key: string; // "VIDEO-ST"
+  key: string;
   area: string;
-  workerType: string;
   label: string;
 };
 
@@ -61,6 +60,13 @@ function monthRange(month: Date) {
   return { start, end };
 }
 
+function activeFutureMonthRange(month: Date) {
+  const { start, end } = monthRange(month);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return { start: start < today ? today : start, end };
+}
+
 async function fetchGridData(
   eventsUrl: string,
   groupsUrl: string,
@@ -80,13 +86,17 @@ async function fetchGridData(
   const events: CalendarEvent[] = evJson.data ?? [];
 
   const groupMap = new Map<string, ShiftGroup>();
+  const archivedEventIds = new Set<string>();
   if (sgRes.ok) {
     const sgJson = await sgRes.json();
     const groups: ShiftGroup[] = sgJson.data ?? [];
-    for (const g of groups) groupMap.set(g.eventId, g);
+    for (const g of groups) {
+      if (g.archivedAt) archivedEventIds.add(g.eventId);
+      else groupMap.set(g.eventId, g);
+    }
   }
 
-  return events.map((ev) => {
+  return events.filter((ev) => !archivedEventIds.has(ev.id)).map((ev) => {
     const g = groupMap.get(ev.id);
     const gridShifts: GridShift[] = (g?.shifts ?? []).map((s) => ({
       id: s.id,
@@ -111,25 +121,19 @@ async function fetchGridData(
   });
 }
 
-/** Derive column order: area priority order, then FT before ST */
+/** Derive column order from areas present in the month's shift data. */
 function deriveColumns(events: GridEvent[], areaFilter: string): GridColumn[] {
-  const seen = new Set<string>();
   const cols: GridColumn[] = [];
 
   for (const area of AREAS) {
     if (areaFilter && area !== areaFilter) continue;
-    for (const wt of ["FT", "ST"]) {
-      const key = `${area}-${wt}`;
-      const exists = events.some((e) => e.shifts.some((s) => s.area === area && s.workerType === wt));
-      if (exists && !seen.has(key)) {
-        seen.add(key);
-        cols.push({
-          key,
-          area,
-          workerType: wt,
-          label: `${area} ${wt === "FT" ? "Staff" : "Student"}`,
-        });
-      }
+    const exists = events.some((e) => e.shifts.some((s) => s.area === area));
+    if (exists) {
+      cols.push({
+        key: area,
+        area,
+        label: area,
+      });
     }
   }
   return cols;
@@ -146,11 +150,10 @@ export function useAssignmentGrid(): UseAssignmentGridResult {
   const [sportFilter, setSportFilter] = useState("");
   const [areaFilter, setAreaFilter] = useState("");
 
-  const { start, end } = monthRange(month);
+  const { start, end } = activeFutureMonthRange(month);
   const evParams = new URLSearchParams({
     startDate: start.toISOString(),
     endDate: end.toISOString(),
-    includePast: "true",
     limit: "200",
   });
   const sgParams = new URLSearchParams({

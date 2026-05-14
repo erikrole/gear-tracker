@@ -10,10 +10,11 @@ import type {
 } from "@/app/(app)/schedule/_components/types";
 import { userHasShift, LS_VIEW_MODE, LS_MY_SHIFTS } from "@/app/(app)/schedule/_components/types";
 import { handleAuthRedirect } from "@/lib/errors";
+import type { VenueFilter } from "@/lib/venue-tone";
 
 export type ViewMode = "list" | "calendar" | "week";
 
-export type HomeAwayFilter = "all" | "home" | "away" | "neutral";
+export type HomeAwayFilter = VenueFilter;
 
 export type ScheduleFilters = {
   viewMode: ViewMode;

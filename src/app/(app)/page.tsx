@@ -8,7 +8,7 @@ const BookingDetailsSheet = lazy(() => import("@/components/BookingDetailsSheet"
 import EmptyState from "@/components/EmptyState";
 import { PageHeader } from "@/components/PageHeader";
 import { Progress } from "@/components/ui/progress";
-import { RefreshCwIcon } from "lucide-react";
+import { PlusIcon, RefreshCwIcon } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
@@ -211,28 +211,38 @@ export default function DashboardPage() {
   return (
     <PageTransition>
       {/* ══════ Page Header + Quick Actions ══════ */}
-      <PageHeader title="Dashboard" className="mb-6 max-md:mb-4">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => loadData()}
-              disabled={refreshing}
-              className="text-muted-foreground"
-            >
-              <RefreshCwIcon className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{lastRefreshed ? `Updated ${formatRelativeTime(lastRefreshed.toISOString(), now)}` : "Refresh"}</TooltipContent>
-        </Tooltip>
-        <FilterChips {...filters} />
-        {roleKnown && !isStudent && (
-          <div className="flex gap-2">
-            <Button onClick={() => handleCreateBooking({ kind: "CHECKOUT" })}>New checkout</Button>
-            <Button onClick={() => handleCreateBooking({ kind: "RESERVATION" })}>New reservation</Button>
+      <PageHeader title="Dashboard" className="mb-4 max-md:mb-3">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex items-center gap-1 rounded-md border border-border/60 bg-muted/20 p-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => loadData()}
+                  disabled={refreshing}
+                  className="text-muted-foreground"
+                >
+                  <RefreshCwIcon className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{lastRefreshed ? `Updated ${formatRelativeTime(lastRefreshed.toISOString(), now)}` : "Refresh"}</TooltipContent>
+            </Tooltip>
+            <FilterChips {...filters} />
           </div>
-        )}
+          {roleKnown && !isStudent && (
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => handleCreateBooking({ kind: "RESERVATION" })}>
+                <PlusIcon className="size-3.5" />
+                New reservation
+              </Button>
+              <Button onClick={() => handleCreateBooking({ kind: "CHECKOUT" })}>
+                <PlusIcon className="size-3.5" />
+                New checkout
+              </Button>
+            </div>
+          )}
+        </div>
       </PageHeader>
 
       {/* ══════ Stat Strip ══════ */}

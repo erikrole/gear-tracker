@@ -36,23 +36,36 @@ export default function SchedulePage() {
   const data = useScheduleData();
   const isStaff = data.currentUserRole === "STAFF" || data.currentUserRole === "ADMIN";
   const hidingRef = useRef<Set<string>>(new Set());
+  const [hidingEventIds, setHidingEventIds] = useState<Set<string>>(() => new Set());
   const [newEventOpen, setNewEventOpen] = useState(false);
 
-  const handleHideEvent = useCallback(async (eventId: string) => {
+  const handleSetEventVisibility = useCallback(async (eventId: string, isHidden: boolean) => {
     if (hidingRef.current.has(eventId)) return;
     hidingRef.current.add(eventId);
+    setHidingEventIds((prev) => new Set(prev).add(eventId));
     try {
       const res = await fetch(`/api/calendar-events/${eventId}/visibility`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isHidden: true }),
+        body: JSON.stringify({ isHidden }),
       });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        toast.success("Event hidden");
+        if (isHidden) {
+          toast.success("Event hidden", {
+            action: {
+              label: "Undo",
+              onClick: () => {
+                void handleSetEventVisibility(eventId, false);
+              },
+            },
+          });
+        } else {
+          toast.success("Event restored");
+        }
         data.loadData();
       } else {
-        const msg = await parseErrorMessage(res, "Failed to hide event");
+        const msg = await parseErrorMessage(res, isHidden ? "Failed to hide event" : "Failed to restore event");
         toast.error(msg);
       }
     } catch (err) {
@@ -60,24 +73,33 @@ export default function SchedulePage() {
       const kind = classifyError(err);
       toast.error(
         kind === "network"
-          ? "You're offline - could not hide event"
-          : "Something went wrong - could not hide event",
+          ? `You're offline - could not ${isHidden ? "hide" : "restore"} event`
+          : `Something went wrong - could not ${isHidden ? "hide" : "restore"} event`,
       );
     } finally {
       hidingRef.current.delete(eventId);
+      setHidingEventIds((prev) => {
+        const next = new Set(prev);
+        next.delete(eventId);
+        return next;
+      });
     }
   }, [data.loadData]);
+
+  const handleHideEvent = useCallback((eventId: string) => {
+    void handleSetEventVisibility(eventId, true);
+  }, [handleSetEventVisibility]);
 
   return (
     <FadeUp>
       <PageHeader title="Schedule">
         {isStaff && (
           <>
+            <Button size="sm" asChild>
+              <Link href="/schedule/assign">Assign shifts</Link>
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setNewEventOpen(true)}>
               New event
-            </Button>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/schedule/assign">Assign shifts</Link>
             </Button>
           </>
         )}
@@ -151,6 +173,7 @@ export default function SchedulePage() {
           expandedRowId={data.expandedRowId}
           setExpandedRowId={data.setExpandedRowId}
           onSelectGroup={data.setSelectedGroupId}
+          hidingEventIds={hidingEventIds}
           onHideEvent={isStaff ? handleHideEvent : undefined}
         />
       )}

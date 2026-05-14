@@ -94,14 +94,22 @@ export function ScheduleReadiness({
 
   const items: ReadinessItem[] = [
     {
-      label: "Open slots",
+      label: "Next call",
+      value: nextCall,
+      detail: "Earliest visible event",
+      icon: ClockIcon,
+      tone: "neutral",
+      wide: true,
+    },
+    {
+      label: "Staff needed",
       value: openSlots,
-      detail: needsCoverageEvents > 0 ? `${needsCoverageEvents} events need coverage` : "Coverage is clean",
+      detail: needsCoverageEvents > 0 ? `${needsCoverageEvents} events need staff` : "Staffing is set",
       icon: AlertTriangleIcon,
       tone: openSlots > 0 ? "critical" : "good",
     },
     {
-      label: "Ready events",
+      label: "Covered events",
       value: coveredEvents,
       detail: `${filteredEntries.length} in current view`,
       icon: CheckCircle2Icon,
@@ -123,18 +131,10 @@ export function ScheduleReadiness({
       icon: Repeat2Icon,
       tone: openTradeCount > 0 ? "attention" : "neutral",
     },
-    {
-      label: "Next call",
-      value: nextCall,
-      detail: "Earliest visible event",
-      icon: ClockIcon,
-      tone: "neutral",
-      wide: true,
-    },
   ];
 
   return (
-    <div className="mb-4 grid grid-cols-2 gap-2 2xl:grid-cols-[repeat(4,minmax(0,1fr))_minmax(220px,1.15fr)]">
+    <div className="mb-4 grid grid-cols-2 gap-2 xl:grid-cols-[minmax(260px,1.35fr)_repeat(4,minmax(0,1fr))]">
       {items.map((item) => {
         const Icon = item.icon;
         return (
@@ -145,7 +145,7 @@ export function ScheduleReadiness({
               item.tone === "critical" && "border-[var(--red-text)]/20 bg-[var(--red-bg)]/20",
               item.tone === "attention" && "border-[var(--orange-text)]/20 bg-[var(--orange-bg)]/20",
               item.tone === "good" && "border-[var(--green-text)]/15",
-              item.wide && "col-span-2 2xl:col-span-1",
+              item.wide && "col-span-2 border-primary/20 bg-primary/5 xl:col-span-1",
             )}
           >
             <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -165,7 +165,7 @@ export function ScheduleReadiness({
               <span
                 className={cn(
                   "truncate text-lg font-black leading-none tabular-nums text-foreground",
-                  item.wide && "text-sm font-semibold",
+                  item.wide && "text-base font-semibold",
                 )}
                 style={{ fontFamily: item.wide ? undefined : "var(--font-heading)" }}
               >

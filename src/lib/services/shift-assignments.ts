@@ -70,7 +70,7 @@ export async function directAssignShift(
       data: { status: "DECLINED" },
     });
 
-    return tx.shiftAssignment.create({
+    const assignment = await tx.shiftAssignment.create({
       data: {
         shiftId,
         userId,
@@ -78,9 +78,22 @@ export async function directAssignShift(
         assignedBy,
       },
       include: {
-        user: { select: { id: true, name: true, role: true, primaryArea: true } },
+        user: { select: { id: true, name: true, role: true, primaryArea: true, avatarUrl: true } },
       },
     });
+
+    const assignedUserRole = assignment.user?.role;
+    const derivedWorkerType = assignedUserRole
+      ? assignedUserRole === "STUDENT" ? "ST" : "FT"
+      : null;
+    if (derivedWorkerType && shift.workerType !== derivedWorkerType) {
+      await tx.shift.update({
+        where: { id: shiftId },
+        data: { workerType: derivedWorkerType },
+      });
+    }
+
+    return assignment;
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 

@@ -48,30 +48,116 @@ export function MyGearColumn({
   const myCheckoutsCount = filtered ? visibleMyCheckouts.length : data.myCheckouts.total;
   const myReservationsCount = filtered ? visibleMyReservations.length : data.myReservations.length;
   const myShiftsCount = filtered ? visibleMyShifts.length : data.myShifts.length;
+  const personalGearEmpty = visibleMyCheckouts.length === 0 && visibleMyReservations.length === 0;
 
   return (
     <div className="flex flex-col gap-4">
       <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground/60 pl-0.5" style={{ fontFamily: "var(--font-mono)" }}>My Gear</span>
 
-      {/* My Checkouts */}
-      <ScaleIn delay={0}>
-      <Card elevation="elevated">
-        <DashboardSectionHeader title="My checkouts" href="/checkouts?mine=true" count={myCheckoutsCount} />
-        {visibleMyCheckouts.length === 0 ? (
-          <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-muted-foreground text-sm"><ClipboardCheckIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} checkouts` : "You have no gear checked out"}</div>
-        ) : (
-          <CardContent className="p-0 py-1">
-            {visibleMyCheckouts.map((c) => {
-              return (
-                <DashboardBookingRow
-                  key={c.id}
-                  booking={c}
-                  now={now}
-                  accent={dashboardBookingAccent(c, now, ownedAccent ? "owned" : "checkout")}
-                  showDueBadge
-                  onSelectBooking={onSelectBooking}
-                  actions={
-                    (c.isOverdue || isDueToday(c.endsAt, now)) ? (
+      {personalGearEmpty ? (
+        <ScaleIn delay={0}>
+          <Card elevation="elevated">
+            <CardContent className="flex min-h-[88px] items-center justify-between gap-4 p-4 max-sm:flex-col max-sm:items-start">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                  <ClipboardCheckIcon className="size-5" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground">
+                    {activeSport ? `No ${activeSport} gear assigned` : "No personal gear assigned"}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Checkouts and upcoming reservations are clear.
+                  </p>
+                </div>
+              </div>
+              {onCreateBooking && (
+                <div className="flex shrink-0 gap-2 max-sm:w-full">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="max-sm:flex-1"
+                    onClick={() => onCreateBooking({ kind: "RESERVATION" })}
+                  >
+                    Reserve
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="max-sm:flex-1"
+                    onClick={() => onCreateBooking({ kind: "CHECKOUT" })}
+                  >
+                    Check out
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </ScaleIn>
+      ) : (
+        <>
+          {/* My Checkouts */}
+          <ScaleIn delay={0}>
+          <Card elevation="elevated">
+            <DashboardSectionHeader title="My checkouts" href="/checkouts?mine=true" count={myCheckoutsCount} />
+            {visibleMyCheckouts.length === 0 ? (
+              <div className="flex min-h-[72px] flex-col items-center justify-center gap-1.5 px-4 py-5 text-center text-sm text-muted-foreground"><ClipboardCheckIcon className="size-5 opacity-45" />{activeSport ? `No ${activeSport} checkouts` : "You have no gear checked out"}</div>
+            ) : (
+              <CardContent className="p-0 py-1">
+                {visibleMyCheckouts.map((c) => {
+                  return (
+                    <DashboardBookingRow
+                      key={c.id}
+                      booking={c}
+                      now={now}
+                      accent={dashboardBookingAccent(c, now, "checkout")}
+                      showDueBadge
+                      onSelectBooking={onSelectBooking}
+                      actions={
+                        (c.isOverdue || isDueToday(c.endsAt, now)) ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                className="opacity-100 transition-opacity duration-150 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                                disabled={acting}
+                                onClick={(e) => onExtend(c, e)}
+                                aria-label={`Extend checkout "${c.title}" by 1 day`}
+                              >
+                                <ClockIcon className="size-3.5" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Extend 1 day</TooltipContent>
+                          </Tooltip>
+                        ) : null
+                      }
+                    />
+                  );
+                })}
+                {!activeSport && data.myCheckouts.total > data.myCheckouts.items.length && (
+                  <Link href="/checkouts?mine=true" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all {data.myCheckouts.total} &rarr;</Link>
+                )}
+              </CardContent>
+            )}
+          </Card>
+          </ScaleIn>
+
+          {/* My Reservations */}
+          <ScaleIn delay={0.05}>
+          <Card>
+            <DashboardSectionHeader title="My reservations" href="/reservations?mine=true" count={myReservationsCount} />
+            {visibleMyReservations.length === 0 ? (
+              <div className="flex min-h-[72px] flex-col items-center justify-center gap-1.5 px-4 py-5 text-center text-sm text-muted-foreground"><CalendarCheckIcon className="size-5 opacity-45" />{activeSport ? `No ${activeSport} reservations` : "No reservations coming up"}</div>
+            ) : (
+              <CardContent className="p-0 py-1">
+                {visibleMyReservations.map((r) => (
+                  <DashboardBookingRow
+                    key={r.id}
+                    booking={r}
+                    now={now}
+                    accent="reservation"
+                    onSelectBooking={onSelectBooking}
+                    actions={
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
@@ -79,68 +165,26 @@ export function MyGearColumn({
                             size="icon-sm"
                             className="opacity-100 transition-opacity duration-150 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100"
                             disabled={acting}
-                            onClick={(e) => onExtend(c, e)}
-                            aria-label={`Extend checkout "${c.title}" by 1 day`}
+                            onClick={(e) => onConvert(r.id, e)}
+                            aria-label={`Convert reservation "${r.title}" to checkout`}
                           >
-                            <ClockIcon className="size-3.5" />
+                            <ArrowRightCircleIcon className="size-3.5" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Extend 1 day</TooltipContent>
+                        <TooltipContent>Convert to checkout</TooltipContent>
                       </Tooltip>
-                    ) : null
-                  }
-                />
-              );
-            })}
-            {!activeSport && data.myCheckouts.total > data.myCheckouts.items.length && (
-              <Link href="/checkouts?mine=true" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all {data.myCheckouts.total} &rarr;</Link>
+                    }
+                  />
+                ))}
+                {!activeSport && data.myReservations.length >= 5 && (
+                  <Link href="/reservations?mine=true" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all &rarr;</Link>
+                )}
+              </CardContent>
             )}
-          </CardContent>
-        )}
-      </Card>
-      </ScaleIn>
-
-      {/* My Reservations */}
-      <ScaleIn delay={0.05}>
-      <Card>
-        <DashboardSectionHeader title="My reservations" href="/reservations?mine=true" count={myReservationsCount} />
-        {visibleMyReservations.length === 0 ? (
-          <div className="flex flex-col items-center gap-1.5 px-4 py-6 text-center text-muted-foreground text-sm"><CalendarCheckIcon className="size-6 opacity-40" />{activeSport ? `No ${activeSport} reservations` : "No reservations coming up"}</div>
-        ) : (
-          <CardContent className="p-0 py-1">
-            {visibleMyReservations.map((r) => (
-              <DashboardBookingRow
-                key={r.id}
-                booking={r}
-                now={now}
-                accent={ownedAccent ? "owned" : "reservation"}
-                onSelectBooking={onSelectBooking}
-                actions={
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="opacity-100 transition-opacity duration-150 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100"
-                        disabled={acting}
-                        onClick={(e) => onConvert(r.id, e)}
-                        aria-label={`Convert reservation "${r.title}" to checkout`}
-                      >
-                        <ArrowRightCircleIcon className="size-3.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Convert to checkout</TooltipContent>
-                  </Tooltip>
-                }
-              />
-            ))}
-            {!activeSport && data.myReservations.length >= 5 && (
-              <Link href="/reservations?mine=true" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all &rarr;</Link>
-            )}
-          </CardContent>
-        )}
-      </Card>
-      </ScaleIn>
+          </Card>
+          </ScaleIn>
+        </>
+      )}
 
       {/* My Shifts */}
       {visibleMyShifts.length > 0 && (

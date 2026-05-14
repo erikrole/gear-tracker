@@ -9,10 +9,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/EmptyState";
 import { cn } from "@/lib/utils";
-import { sportLabel } from "@/lib/sports";
+import { VENUE_TONES, venueToneFromEvent } from "@/lib/venue-tone";
 import {
   type CalendarEntry,
   coverageVariant,
+  scheduleEventTitleParts,
   userHasShift,
   formatTime,
 } from "./types";
@@ -67,13 +68,6 @@ function weekRangeLabel(weekStart: Date): string {
     year: "numeric",
   });
   return `${startStr} - ${endStr}`;
-}
-
-function eventDisplayName(entry: CalendarEntry): string {
-  if (entry.sportCode && entry.opponent) {
-    return `${sportLabel(entry.sportCode)} ${entry.isHome === false ? "at" : "vs"} ${entry.opponent}`;
-  }
-  return entry.summary;
 }
 
 function shiftWeek(weekStart: Date, delta: number): Date {
@@ -140,26 +134,14 @@ function EventCard({
 }) {
   const isStaff = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
   const hasShift = userHasShift(entry, currentUserId);
+  const titleParts = scheduleEventTitleParts(entry);
+  const venueTone = VENUE_TONES[venueToneFromEvent(entry)];
   const canOpenPanel =
     entry.shiftGroupId && (isStaff || (entry.isPremier && !isStaff));
 
-  const barColor =
-    entry.isHome === true
-      ? "bg-[var(--green)]"
-      : entry.isHome === false
-        ? "bg-[var(--orange)]"
-        : "bg-muted-foreground/25";
-
-  const cardBg =
-    entry.isHome === true
-      ? "bg-[var(--green)]/10 hover:bg-[var(--green)]/18"
-      : entry.isHome === false
-        ? "bg-[var(--orange)]/10 hover:bg-[var(--orange)]/18"
-        : "bg-muted/35 hover:bg-muted/60";
-
   const wrapClass = cn(
     "flex items-stretch rounded-sm mb-1.5 w-full text-left overflow-hidden transition-colors",
-    cardBg,
+    venueTone.surfaceClass,
     myShiftsOnly && !hasShift && "opacity-40",
     hasShift && "ring-1 ring-blue-400/50",
   );
@@ -167,7 +149,7 @@ function EventCard({
   const inner = (
     <>
       {/* Left color bar */}
-      <div className={cn("w-[3px] flex-shrink-0", barColor)} />
+      <div className={cn("w-[3px] flex-shrink-0", venueTone.solidClass)} />
 
       {/* Content */}
       <div className="flex-1 px-1.5 py-1 min-w-0">
@@ -175,8 +157,13 @@ function EventCard({
           {entry.allDay ? "All day" : formatTime(entry.startsAt)}
         </span>
         <span className="block text-[11px] font-semibold leading-tight truncate">
-          {eventDisplayName(entry)}
+          {titleParts.title}
         </span>
+        {titleParts.detail && (
+          <span className="mt-0.5 block truncate text-[9px] text-muted-foreground">
+            {titleParts.detail}
+          </span>
+        )}
         {entry.coverage && (
           <CoverageBar
             percentage={entry.coverage.percentage}
@@ -211,7 +198,8 @@ function EventCard({
           </button>
         </TooltipTrigger>
         <TooltipContent side="right" className="text-xs">
-          {entry.summary}
+          {titleParts.title}
+          {titleParts.detail && ` - ${titleParts.detail}`}
           {entry.coverage &&
             ` (${entry.coverage.filled}/${entry.coverage.total} filled)`}
         </TooltipContent>

@@ -19,6 +19,7 @@ import { ClockIcon, CheckIcon, XIcon } from "lucide-react";
 import { SPORT_CODES, sportLabel } from "@/lib/sports";
 import { formatChipTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { VENUE_TONES, venueBadgeVariant, venueToneFromIsHome } from "@/lib/venue-tone";
 import { FormRow, FormRow2Col, SectionHeading } from "@/components/form-layout";
 import {
   toLocalDateTimeValue,
@@ -212,16 +213,12 @@ export function WizardStep1({
                           </div>
                         </div>
 
-                        {/* Home/Away/Neutral badge */}
+                        {/* Venue badge */}
                         <div className="shrink-0 flex items-center gap-1.5">
-                          {ev.isHome === true && (
-                            <Badge variant="green" size="sm">Home</Badge>
-                          )}
-                          {ev.isHome === false && (
-                            <Badge variant="red" size="sm">Away</Badge>
-                          )}
-                          {ev.isHome === null && ev.opponent && (
-                            <Badge variant="blue" size="sm">Neutral</Badge>
+                          {ev.opponent && (
+                            <Badge variant={venueBadgeVariant(ev.isHome)} size="sm">
+                              {VENUE_TONES[venueToneFromIsHome(ev.isHome)].label}
+                            </Badge>
                           )}
                         </div>
 

@@ -4,11 +4,11 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import EmptyState from "@/components/EmptyState";
-import { sportLabel } from "@/lib/sports";
 import { formatTimeShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { VENUE_TONES, venueToneFromEvent } from "@/lib/venue-tone";
 import type { CalendarEntry } from "./types";
-import { ACTIVE_STATUSES, AREA_LABELS, coverageDot } from "./types";
+import { ACTIVE_STATUSES, AREA_LABELS, coverageDot, scheduleEventTitleParts } from "./types";
 
 type CalendarViewProps = {
   entries: CalendarEntry[];
@@ -39,10 +39,14 @@ function buildTooltipContent(entry: CalendarEntry): React.ReactNode {
       .filter((a) => ACTIVE_STATUSES.includes(a.status))
       .map((a) => ({ name: a.user.name, area: AREA_LABELS[s.area] ?? s.area })),
   );
+  const titleParts = scheduleEventTitleParts(entry);
 
   return (
     <div className="text-xs flex flex-col gap-1 max-w-[220px]">
-      <div className="font-semibold text-sm">{entry.summary}</div>
+      <div className="font-semibold text-sm">{titleParts.title}</div>
+      {titleParts.detail && (
+        <div className="text-muted-foreground">{titleParts.detail}</div>
+      )}
       <div className="text-muted-foreground">{timeStr}</div>
       {assignedUsers.length > 0 && (
         <div className="text-muted-foreground">
@@ -72,24 +76,8 @@ function EventChip({
   entry: CalendarEntry;
   onSelectGroup: (groupId: string | null) => void;
 }) {
-  const title =
-    entry.sportCode && entry.opponent
-      ? `${sportLabel(entry.sportCode)} ${entry.isHome === false ? "at" : "vs"} ${entry.opponent}`
-      : entry.summary;
-
-  const barColor =
-    entry.isHome === true
-      ? "bg-[var(--green)]"
-      : entry.isHome === false
-        ? "bg-[var(--orange)]"
-        : "bg-muted-foreground/30";
-
-  const chipBg =
-    entry.isHome === true
-      ? "bg-[var(--green)]/10 hover:bg-[var(--green)]/18"
-      : entry.isHome === false
-        ? "bg-[var(--orange)]/10 hover:bg-[var(--orange)]/18"
-        : "bg-muted/50 hover:bg-muted";
+  const titleParts = scheduleEventTitleParts(entry);
+  const venueTone = VENUE_TONES[venueToneFromEvent(entry)];
 
   const chipClass = cn(
     "flex items-stretch rounded-sm w-full text-left mb-px overflow-hidden transition-colors cursor-pointer",
@@ -97,8 +85,8 @@ function EventChip({
 
   const inner = (
     <>
-      <div className={cn("w-[2.5px] flex-shrink-0", barColor)} />
-      <div className={cn("flex-1 px-1 py-[2px] min-w-0", chipBg)}>
+      <div className={cn("w-[2.5px] flex-shrink-0", venueTone.solidClass)} />
+      <div className={cn("flex-1 px-1 py-[2px] min-w-0", venueTone.surfaceClass)}>
         <div className="flex items-center gap-1 min-w-0">
           {entry.coverage && (
             <span
@@ -107,7 +95,7 @@ function EventChip({
             />
           )}
           <span className="text-[10px] font-medium leading-[1.35] truncate">
-            {title}
+            {titleParts.title}
           </span>
         </div>
       </div>

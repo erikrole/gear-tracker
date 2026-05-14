@@ -12,13 +12,21 @@ import { ScaleIn } from "@/components/ui/motion";
 import { formatDayLabel, formatTimeShort, isDueToday } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
 import { cn } from "@/lib/utils";
+import {
+  VENUE_FILTER_OPTIONS,
+  VENUE_TONES,
+  venueBadgeVariant,
+  venueFilterActiveClass,
+  venueToneFromIsHome,
+  type VenueFilter,
+} from "@/lib/venue-tone";
 import { ShiftAvatarStack } from "./dashboard-avatars";
 import { DashboardBookingRow, dashboardBookingAccent } from "./booking-row";
 import { DashboardSectionHeader } from "./section-header";
 import type { DashboardData, BookingSummary } from "../dashboard-types";
 import type { FilteredDashboardData } from "@/hooks/use-dashboard-filters";
 
-type HomeAwayFilter = "all" | "home" | "away";
+type HomeAwayFilter = VenueFilter;
 
 const PENDING_PICKUPS_HREF = "/bookings?tab=checkouts&status=PENDING_PICKUP";
 const STALE_RESERVATIONS_HREF = "/bookings?tab=reservations&filter=overdue";
@@ -51,6 +59,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
     return events.filter((e) => {
       if (homeAwayFilter === "home") return e.isHome === true;
       if (homeAwayFilter === "away") return e.isHome === false;
+      if (homeAwayFilter === "neutral") return e.isHome === null;
       return true;
     });
   }, [filtered?.upcomingEvents, data.upcomingEvents, homeAwayFilter]);
@@ -65,9 +74,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
   }
 
   function eventBorder(e: DashboardData["upcomingEvents"][number]) {
-    if (e.isHome === true) return "border-l-[var(--green)]";
-    if (e.isHome === false) return "border-l-[var(--orange)]";
-    return "border-l-muted-foreground/30";
+    return VENUE_TONES[venueToneFromIsHome(e.isHome)].railClass;
   }
 
   function eventCoverageBadge(e: DashboardData["upcomingEvents"][number]) {
@@ -220,11 +227,20 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
               type="single"
               value={homeAwayFilter}
               onValueChange={(v) => v && setHomeAwayFilter(v as HomeAwayFilter)}
-              aria-label="Home or away filter"
+              aria-label="Venue filter"
             >
-              <ToggleGroupItem value="all" className="text-xs px-2 py-1">All</ToggleGroupItem>
-              <ToggleGroupItem value="home" className="text-xs px-2 py-1">Home</ToggleGroupItem>
-              <ToggleGroupItem value="away" className="text-xs px-2 py-1">Away</ToggleGroupItem>
+              {VENUE_FILTER_OPTIONS.map((option) => (
+                <ToggleGroupItem
+                  key={option.value}
+                  value={option.value}
+                  className={cn(
+                    "text-xs px-2 py-1 data-[state=on]:shadow-sm",
+                    homeAwayFilter === option.value && venueFilterActiveClass(option.value),
+                  )}
+                >
+                  {option.label}
+                </ToggleGroupItem>
+              ))}
             </ToggleGroup>
           }
         />
@@ -259,9 +275,11 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
                 <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
                   <ShiftAvatarStack assignedUsers={e.assignedUsers} />
                   {eventCoverageBadge(e)}
-                  {e.isHome === true && <Badge variant="green" size="sm">Home</Badge>}
-                  {e.isHome === false && <Badge variant="orange" size="sm">Away</Badge>}
-                  {e.isHome === null && e.opponent && <Badge variant="gray" size="sm">Neutral</Badge>}
+                  {e.opponent && (
+                    <Badge variant={venueBadgeVariant(e.isHome)} size="sm">
+                      {VENUE_TONES[venueToneFromIsHome(e.isHome)].label}
+                    </Badge>
+                  )}
                 </div>
               </div>
             ))}

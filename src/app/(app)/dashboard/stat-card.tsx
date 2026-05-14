@@ -23,11 +23,18 @@ const accentStyles = {
 
 export function StatCard({ href, value, label, accent }: StatCardProps) {
   const a = accent ? accentStyles[accent] : null;
+  const hasValue = value > 0;
 
   return (
     <Link
       href={href}
-      className={`group relative flex min-h-20 flex-col justify-between overflow-hidden rounded-lg border bg-card px-4 py-3 no-underline outline-none transition-[background-color,border-color,box-shadow,scale] hover:bg-muted/40 active:scale-[0.96] focus-visible:ring-[3px] focus-visible:ring-ring/50 ${a ? a.card : "border-border"}`}
+      className={`group relative flex min-h-20 flex-col justify-between overflow-hidden rounded-lg border px-4 py-3 no-underline outline-none transition-[background-color,border-color,box-shadow,scale] hover:bg-muted/40 active:scale-[0.96] focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
+        a
+          ? a.card
+          : hasValue
+          ? "border-border bg-card shadow-xs"
+          : "border-border/60 bg-muted/10"
+      }`}
     >
       {/* Left accent bar */}
       {a && (
@@ -44,10 +51,10 @@ export function StatCard({ href, value, label, accent }: StatCardProps) {
         >
           {label}
         </span>
-        <ArrowUpRightIcon className="text-muted-foreground/40 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+        <ArrowUpRightIcon className={`text-muted-foreground/40 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 ${hasValue ? "opacity-60" : "opacity-0"}`} />
       </span>
       <span
-        className={`text-[30px] font-black leading-none tabular-nums md:text-[34px] ${a ? a.num : "text-foreground"}`}
+        className={`text-[30px] font-black leading-none tabular-nums md:text-[34px] ${a ? a.num : hasValue ? "text-foreground" : "text-muted-foreground/45"}`}
         style={{ fontFamily: "var(--font-heading)" }}
       >
         {value}

@@ -1,4 +1,5 @@
 import type { BadgeProps } from "@/components/ui/badge";
+import { sportLabel } from "@/lib/sports";
 
 /* ───── Types ───── */
 
@@ -85,6 +86,45 @@ export function coverageDot(pct: number): string {
   return "var(--badge-red-bg, #ef4444)";
 }
 
+function cleanTitleText(value: string): string {
+  return value
+    .replace(/^\s*\[[A-Z]\]\s*/i, "")
+    .replace(/^Wisconsin Badgers\s+/i, "")
+    .replace(/\s*\((home|away|neutral)\)\s*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function splitTitleQualifier(value: string): { primary: string; qualifier: string | null } {
+  const cleaned = cleanTitleText(value);
+  const [primary = cleaned, ...rest] = cleaned.split(/\s*[-–—]\s+/);
+  const qualifier = rest.join(" - ").trim();
+  return {
+    primary: primary.trim() || cleaned,
+    qualifier: qualifier || null,
+  };
+}
+
+export function scheduleEventTitleParts(entry: Pick<CalendarEntry, "summary" | "sportCode" | "opponent" | "isHome">): {
+  title: string;
+  detail: string | null;
+} {
+  if (entry.sportCode && entry.opponent) {
+    const opponent = splitTitleQualifier(entry.opponent);
+    const venueWord = entry.isHome === false ? "at" : "vs";
+    return {
+      title: `${sportLabel(entry.sportCode)} ${venueWord} ${opponent.primary}`,
+      detail: opponent.qualifier,
+    };
+  }
+
+  const summary = splitTitleQualifier(entry.summary);
+  return {
+    title: summary.primary,
+    detail: summary.qualifier,
+  };
+}
+
 /** Check if user has an active assignment on any shift in this entry */
 export function userHasShift(entry: CalendarEntry, userId: string): boolean {
   return entry.shifts.some((s) =>
@@ -94,7 +134,7 @@ export function userHasShift(entry: CalendarEntry, userId: string): boolean {
   );
 }
 
-/** Get user's assignment status label for display */
+/** Get user's pending assignment status label for display */
 export function userShiftStatus(
   entry: CalendarEntry,
   userId: string,
@@ -102,8 +142,6 @@ export function userShiftStatus(
   for (const s of entry.shifts) {
     for (const a of s.assignments) {
       if (a.user.id !== userId) continue;
-      if (a.status === "APPROVED" || a.status === "DIRECT_ASSIGNED")
-        return "Confirmed";
       if (a.status === "REQUESTED") return "Pending";
     }
   }

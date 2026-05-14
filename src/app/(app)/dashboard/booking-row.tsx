@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
+import { ArrowUpRightIcon } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -80,7 +81,7 @@ export function DashboardBookingRow({
   return (
     <div
       className={cn(
-        "group flex min-h-12 items-center gap-2.5 px-4 py-2.5 transition-colors [&+&]:border-t [&+&]:border-border/40 border-l-[3px] pl-[13px]",
+        "group flex min-h-14 items-center gap-2.5 px-4 py-2.5 transition-colors [&+&]:border-t [&+&]:border-border/40 border-l-[3px] pl-[13px]",
         accentClasses[accent],
       )}
     >
@@ -103,6 +104,7 @@ export function DashboardBookingRow({
             </span>
           </span>
         </div>
+        <ArrowUpRightIcon className="size-3.5 shrink-0 text-muted-foreground/35 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100" aria-hidden="true" />
       </button>
 
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">

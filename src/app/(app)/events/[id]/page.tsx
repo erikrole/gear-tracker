@@ -9,6 +9,7 @@ import { useFetch } from "@/hooks/use-fetch";
 import { toast } from "sonner";
 import { sportLabel } from "@/lib/sports";
 import { formatTimeShort } from "@/lib/format";
+import { VENUE_TONES, venueBadgeVariant, venueToneFromIsHome } from "@/lib/venue-tone";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -177,9 +178,11 @@ export default function EventDetailPage() {
           {event.status.toLowerCase()}
         </Badge>
         {event.sportCode && <Badge variant="purple">{sportLabel(event.sportCode)}</Badge>}
-        {event.isHome === true && <Badge variant="green">Home</Badge>}
-        {event.isHome === false && <Badge variant="orange">Away</Badge>}
-        {event.isHome === null && event.opponent && <Badge variant="blue">Neutral</Badge>}
+        {event.opponent && (
+          <Badge variant={venueBadgeVariant(event.isHome)}>
+            {VENUE_TONES[venueToneFromIsHome(event.isHome)].label}
+          </Badge>
+        )}
       </div>
 
       <div className="flex items-center gap-4 text-sm text-muted-foreground mb-6 flex-wrap">

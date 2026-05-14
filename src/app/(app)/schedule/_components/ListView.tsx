@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
-import { AlertTriangleIcon, ArchiveIcon, ChevronDownIcon, ChevronRightIcon, EyeOffIcon, UserIcon } from "lucide-react";
+import { AlertTriangleIcon, ArchiveIcon, ChevronDownIcon, ChevronRightIcon, EyeOffIcon, PlusIcon, UserIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
@@ -17,12 +17,15 @@ import { UserAvatarGroup } from "@/components/UserAvatarGroup";
 import { UserAvatarPicker, type PickerUser } from "@/components/shift-detail/UserAvatarPicker";
 import { handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
 import { cn } from "@/lib/utils";
+import { VENUE_TONES, venueToneFromEvent } from "@/lib/venue-tone";
 import type { CalendarEntry, Shift } from "./types";
 import {
   ACTIVE_STATUSES,
   AREA_LABELS,
   coverageVariant,
   formatTime,
+  scheduleEventTitleParts,
+  userHasShift,
   userShiftStatus,
 } from "./types";
 
@@ -43,6 +46,7 @@ type ListViewProps = {
   expandedRowId: string | null;
   setExpandedRowId: (id: string | null) => void;
   onSelectGroup: (groupId: string | null) => void;
+  hidingEventIds?: Set<string>;
   onHideEvent?: (eventId: string) => void;
 };
 
@@ -53,11 +57,15 @@ const AREA_BADGE_VARIANT: Record<string, "green" | "purple" | "orange" | "blue">
   GRAPHICS: "blue",
 };
 
-type RoleTone = "staff" | "student";
+type ShiftWorkerKind = "FT" | "ST";
 
 function shiftAssignee(shift: Shift) {
   const active = shift.assignments.find((a) => ACTIVE_STATUSES.includes(a.status));
   return active?.user ?? null;
+}
+
+function activeShiftAssignment(shift: Shift) {
+  return shift.assignments.find((a) => ACTIVE_STATUSES.includes(a.status)) ?? null;
 }
 
 function missingSlotCount(entry: CalendarEntry) {
@@ -69,51 +77,32 @@ function isShiftOpen(shift: Shift) {
   return !shift.assignments.some((a) => ACTIVE_STATUSES.includes(a.status));
 }
 
-function roleToneFromWorkerType(workerType: string): RoleTone {
-  return workerType === "ST" ? "student" : "staff";
+function workerKindForShift(shift: Shift, user: ReturnType<typeof shiftAssignee>): ShiftWorkerKind {
+  if (user?.role === "STUDENT") return "ST";
+  if (user) return "FT";
+  return shift.workerType === "ST" ? "ST" : "FT";
 }
 
-function roleToneFromUserRole(role: string): RoleTone {
-  return role === "STUDENT" ? "student" : "staff";
+function roleLabel(kind: ShiftWorkerKind) {
+  return kind === "ST" ? "Student" : "Staff";
 }
 
-function roleLabel(tone: RoleTone) {
-  return tone === "student" ? "Student" : "Staff";
-}
-
-function roleSlotLabel(workerType: string) {
-  return `${roleLabel(roleToneFromWorkerType(workerType))} slot`;
-}
-
-function openRoleNeeds(entry: CalendarEntry) {
-  return entry.shifts.reduce(
-    (counts, shift) => {
-      if (!isShiftOpen(shift)) return counts;
-      counts[roleToneFromWorkerType(shift.workerType)] += 1;
-      return counts;
-    },
-    { staff: 0, student: 0 },
-  );
-}
-
-function roleNeedText(tone: RoleTone, count: number) {
-  if (tone === "staff") return `${count} staff`;
-  return `${count} student${count === 1 ? "" : "s"}`;
+function roleSlotLabel(kind: ShiftWorkerKind) {
+  return `${roleLabel(kind)} slot`;
 }
 
 function RoleNeedSummary({ entry, compact = false }: { entry: CalendarEntry; compact?: boolean }) {
-  const needs = openRoleNeeds(entry);
-  const parts = (["staff", "student"] as const).filter((tone) => needs[tone] > 0);
+  const openSlots = entry.shifts.filter(isShiftOpen).length;
 
-  if (parts.length === 0) return null;
+  if (openSlots === 0) return null;
 
   return (
-    <span className={cn("inline-flex items-center gap-1", compact && "text-[11px]")}>
+    <span className={cn("inline-flex items-center gap-1 text-[11px] leading-none", compact && "text-[10px]")}>
       <span className="font-semibold text-[var(--red-text)]">
         Needs
       </span>
       <span className="font-semibold text-muted-foreground">
-        {parts.map((tone) => roleNeedText(tone, needs[tone])).join(", ")}
+        {openSlots} staff
       </span>
     </span>
   );
@@ -192,6 +181,10 @@ function ShiftRowList({
   currentUserId,
   postingTradeId,
   onPostTrade,
+  addingShiftId,
+  onAddShift,
+  removingAssignmentId,
+  onRemoveAssignment,
   onSelectGroup,
   compact = false,
 }: {
@@ -208,20 +201,29 @@ function ShiftRowList({
   currentUserId: string;
   postingTradeId: string | null;
   onPostTrade?: (assignmentId: string) => void;
+  addingShiftId: string | null;
+  onAddShift?: (shift: Shift, workerType: ShiftWorkerKind) => void;
+  removingAssignmentId: string | null;
+  onRemoveAssignment?: (assignmentId: string) => void;
   onSelectGroup: () => void;
   compact?: boolean;
 }) {
   return (
     <div className={cn("flex flex-col", compact ? "gap-2" : "gap-1.5")}>
       {entry.shifts.map((shift) => {
-        const user = shiftAssignee(shift);
+        const activeAssignment = activeShiftAssignment(shift);
+        const user = activeAssignment?.user ?? null;
         const myAssignment = shift.assignments.find(
           (a) => a.user.id === currentUserId && ACTIVE_STATUSES.includes(a.status),
         );
         const shiftTime = formatShiftWindow(entry, shift);
         const areaLabel = AREA_LABELS[shift.area] ?? shift.area;
         const assignedLabel = user ? user.name : "Unassigned";
-        const slotLabel = roleSlotLabel(shift.workerType);
+        const workerType = workerKindForShift(shift, user);
+        const slotLabel = roleSlotLabel(workerType);
+        const emptyAssignLabel = "Assign staff";
+        const isAddingShift = addingShiftId === shift.id;
+        const isRemovingAssignment = Boolean(activeAssignment && removingAssignmentId === activeAssignment.id);
 
         return (
           <div
@@ -231,34 +233,81 @@ function ShiftRowList({
               compact ? "flex flex-col gap-2" : "flex items-center gap-3",
             )}
           >
-            <div className={cn("flex min-w-0 items-center gap-2", !compact && "w-28 shrink-0")}>
+            <div className={cn("flex min-w-0 items-center gap-1.5", !compact && "w-32 shrink-0")}>
               <Badge
                 variant={AREA_BADGE_VARIANT[shift.area] ?? "gray"}
                 size="sm"
               >
                 {areaLabel}
               </Badge>
+              {isStaff && onAddShift && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="relative size-8 text-muted-foreground transition-[background-color,color,scale] before:absolute before:-inset-1 before:content-[''] hover:text-foreground active:scale-[0.96]"
+                      disabled={Boolean(addingShiftId)}
+                      aria-label={`Add another ${areaLabel} ${slotLabel.toLowerCase()}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAddShift(shift, workerType);
+                      }}
+                    >
+                      <PlusIcon className={cn("size-3.5", isAddingShift && "animate-pulse")} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Add another {slotLabel.toLowerCase()}</TooltipContent>
+                </Tooltip>
+              )}
             </div>
 
             <div className="min-w-0 flex-1">
               {user ? (
-                <button
-                  type="button"
-                  className="flex min-h-10 w-full items-center gap-2 rounded-md px-1 text-left transition-[background-color,scale] hover:bg-muted/45 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
-                  aria-label={`Open ${areaLabel} shift assigned to ${user.name}`}
-                  onClick={onSelectGroup}
-                >
-                  <UserAvatar
-                    name={user.name}
-                    avatarUrl={user.avatarUrl}
-                  />
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                    {user.name}
+                <div className="group/assignment flex min-h-10 w-full items-center rounded-md px-2 transition-[background-color] hover:bg-muted/45 focus-within:bg-muted/45">
+                  <button
+                    type="button"
+                    className="inline-grid min-w-0 max-w-[70%] grid-cols-[24px_minmax(0,1fr)] items-center gap-2 rounded-md text-left transition-[scale] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
+                    aria-label={`Open ${areaLabel} shift assigned to ${user.name}`}
+                    onClick={onSelectGroup}
+                  >
+                    <span className="flex size-6 shrink-0 items-center justify-center">
+                      <UserAvatar
+                        name={user.name}
+                        avatarUrl={user.avatarUrl}
+                        size="sm"
+                      />
+                    </span>
+                    <span className="min-w-0 truncate text-sm font-medium">
+                      {user.name}
+                    </span>
+                  </button>
+                  {isStaff && activeAssignment && onRemoveAssignment && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="ml-1 size-8 text-muted-foreground opacity-0 transition-[background-color,color,opacity,scale] hover:text-destructive active:scale-[0.96] focus-visible:opacity-100 group-hover/assignment:opacity-100 group-focus-within/assignment:opacity-100"
+                          disabled={Boolean(removingAssignmentId)}
+                          aria-label={`Remove ${user.name} from ${areaLabel} shift`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRemoveAssignment(activeAssignment.id);
+                          }}
+                        >
+                          <XIcon className={cn("size-3.5", isRemovingAssignment && "animate-pulse")} />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Remove assignment</TooltipContent>
+                    </Tooltip>
+                  )}
+                  <span className="ml-auto shrink-0 text-xs font-medium text-muted-foreground">
+                    {roleLabel(workerType)}
                   </span>
-                  <span className="shrink-0 text-xs font-medium text-muted-foreground">
-                    {roleLabel(roleToneFromUserRole(user.role))}
-                  </span>
-                </button>
+                </div>
               ) : isStaff ? (
                 <Popover
                   onOpenChange={(open) => {
@@ -269,16 +318,16 @@ function ShiftRowList({
                   <PopoverTrigger asChild>
                     <button
                       type="button"
-                      className="flex min-h-10 w-full items-center gap-2 rounded-md border border-dashed border-muted-foreground/25 px-2 text-left transition-[background-color,border-color,scale] hover:border-muted-foreground/45 hover:bg-muted/45 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
+                      className="group grid min-h-10 w-full grid-cols-[24px_minmax(0,1fr)] items-center gap-2 rounded-md bg-muted/25 px-2 text-left transition-[background-color,scale] hover:bg-muted/45 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
                       disabled={assigning}
-                      aria-label={`Assign ${areaLabel} ${slotLabel.toLowerCase()}`}
+                      aria-label={`${emptyAssignLabel} to ${areaLabel}`}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <div className="flex size-6 shrink-0 items-center justify-center rounded-full border-[1.5px] border-dashed border-muted-foreground/35 text-muted-foreground">
+                      <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-background/70 text-muted-foreground shadow-[inset_0_0_0_1px_hsl(var(--border)/0.55)]">
                         <UserIcon className="size-3 opacity-70" />
                       </div>
-                      <span className="min-w-0 truncate text-sm font-medium text-muted-foreground">
-                        Assign {slotLabel.toLowerCase()}
+                      <span className="min-w-0 truncate text-sm font-medium text-muted-foreground group-hover:text-foreground">
+                        {emptyAssignLabel}
                       </span>
                     </button>
                   </PopoverTrigger>
@@ -366,6 +415,7 @@ export function ListView({
   expandedRowId,
   setExpandedRowId,
   onSelectGroup,
+  hidingEventIds,
   onHideEvent,
 }: ListViewProps) {
 
@@ -418,18 +468,10 @@ export function ListView({
 
   const [postingTradeId, setPostingTradeId] = useState<string | null>(null);
   const postingTradeRef = useRef<string | null>(null);
-  const coverageGaps = useMemo(() => {
-    let events = 0;
-    let slots = 0;
-    for (const entry of filteredEntries) {
-      const missing = missingSlotCount(entry);
-      if (missing > 0) {
-        events += 1;
-        slots += missing;
-      }
-    }
-    return { events, slots };
-  }, [filteredEntries]);
+  const [addingShiftId, setAddingShiftId] = useState<string | null>(null);
+  const addingShiftRef = useRef(false);
+  const [removingAssignmentId, setRemovingAssignmentId] = useState<string | null>(null);
+  const removingAssignmentRef = useRef(false);
 
   const handlePostTrade = useCallback(async (assignmentId: string) => {
     if (postingTradeRef.current) return;
@@ -484,6 +526,61 @@ export function ListView({
     }
   }, [loadData]);
 
+  const handleRemoveAssignment = useCallback(async (assignmentId: string) => {
+    if (removingAssignmentRef.current) return;
+    removingAssignmentRef.current = true;
+    setRemovingAssignmentId(assignmentId);
+    try {
+      const res = await fetch(`/api/shift-assignments/${assignmentId}`, { method: "DELETE" });
+      if (handleAuthRedirect(res)) return;
+      if (res.ok) {
+        toast.success("Assignment removed");
+        loadData();
+      } else {
+        const msg = await parseErrorMessage(res, "Failed to remove assignment");
+        toast.error(msg);
+      }
+    } catch {
+      toast.error("Network error - could not remove assignment");
+    } finally {
+      removingAssignmentRef.current = false;
+      setRemovingAssignmentId(null);
+    }
+  }, [loadData]);
+
+  const handleAddMatchingShift = useCallback(async (entry: CalendarEntry, shift: Shift, workerType: ShiftWorkerKind) => {
+    if (!entry.shiftGroupId || addingShiftRef.current) return;
+    addingShiftRef.current = true;
+    setAddingShiftId(shift.id);
+    const areaLabel = AREA_LABELS[shift.area] ?? shift.area;
+    const slotLabel = roleLabel(workerType).toLowerCase();
+    try {
+      const res = await fetch(`/api/shift-groups/${entry.shiftGroupId}/shifts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          area: shift.area,
+          workerType,
+          startsAt: shift.startsAt,
+          endsAt: shift.endsAt,
+        }),
+      });
+      if (handleAuthRedirect(res)) return;
+      if (res.ok) {
+        toast.success(`Added ${areaLabel} ${slotLabel} shift`);
+        loadData();
+      } else {
+        const msg = await parseErrorMessage(res, "Failed to add shift");
+        toast.error(msg);
+      }
+    } catch {
+      toast.error("Network error - could not add shift");
+    } finally {
+      addingShiftRef.current = false;
+      setAddingShiftId(null);
+    }
+  }, [loadData]);
+
   return (
     <div className="border border-border/60 rounded-lg overflow-hidden bg-card">
       {/* ── Header ── */}
@@ -500,16 +597,6 @@ export function ListView({
               ? `${filteredEntries.length} of ${entries.length}`
               : filteredEntries.length}
           </span>
-          {coverageGaps.slots > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-[var(--red-bg)] px-2 py-0.5 text-[11px] font-semibold text-[var(--red-text)]">
-              <AlertTriangleIcon className="size-3" />
-              <span className="tabular-nums">{coverageGaps.slots}</span>
-              open slot{coverageGaps.slots !== 1 ? "s" : ""}
-              <span className="text-[var(--red-text)]/70">
-                across {coverageGaps.events}
-              </span>
-            </span>
-          )}
         </div>
       </div>
 
@@ -640,6 +727,7 @@ export function ListView({
                       {groupEntries.map((entry) => {
                         const isExpanded = expandedRowId === entry.id;
                         const hasShifts = entry.shifts.length > 0;
+                        const isAssignedToMe = currentUserId ? userHasShift(entry, currentUserId) : false;
                         const shiftStatus = currentUserId
                           ? userShiftStatus(entry, currentUserId)
                           : null;
@@ -650,6 +738,7 @@ export function ListView({
                             entry={entry}
                             isExpanded={isExpanded}
                             hasShifts={hasShifts}
+                            isAssignedToMe={isAssignedToMe}
                             shiftStatus={shiftStatus}
                             isStaff={isStaff}
                             onToggle={() =>
@@ -658,6 +747,7 @@ export function ListView({
                             onSelectGroup={() =>
                               onSelectGroup(entry.shiftGroupId)
                             }
+                            isHiding={hidingEventIds?.has(entry.id) ?? false}
                             onHide={
                               onHideEvent ? () => onHideEvent(entry.id) : undefined
                             }
@@ -675,7 +765,12 @@ export function ListView({
                             onPickerSearchChange={setUserSearch}
                             onInlineAssign={handleInlineAssign}
                             currentUserId={currentUserId}
+                            showShiftStatus={myShiftsOnly}
                             postingTradeId={postingTradeId}
+                            addingShiftId={addingShiftId}
+                            onAddShift={(shift, workerType) => handleAddMatchingShift(entry, shift, workerType)}
+                            removingAssignmentId={removingAssignmentId}
+                            onRemoveAssignment={handleRemoveAssignment}
                             onPostTrade={isStaff ? undefined : handlePostTrade}
                           />
                         );
@@ -691,16 +786,13 @@ export function ListView({
           <div className="hidden max-md:flex flex-col">
             {filteredEntries.map((entry) => {
               const isExpanded = expandedRowId === entry.id;
+              const isAssignedToMe = currentUserId ? userHasShift(entry, currentUserId) : false;
               const shiftStatus = currentUserId
                 ? userShiftStatus(entry, currentUserId)
                 : null;
+              const titleParts = scheduleEventTitleParts(entry);
 
-              const barColor =
-                entry.isHome === true
-                  ? "border-l-[var(--green)]"
-                  : entry.isHome === false
-                    ? "border-l-[var(--orange)]"
-                    : "border-l-muted-foreground/20";
+              const venueTone = VENUE_TONES[venueToneFromEvent(entry)];
               const missingSlots = missingSlotCount(entry);
 
               return (
@@ -708,8 +800,10 @@ export function ListView({
                   key={entry.id}
                   className={cn(
                     "border-b border-border/50 last:border-b-0 border-l-[3px]",
-                    barColor,
-                    missingSlots > 0 && "bg-[var(--red-bg)]/15",
+                    venueTone.railClass,
+                    missingSlots > 0
+                      ? "bg-[var(--red-bg)]/15"
+                      : isAssignedToMe && "bg-primary/5",
                   )}
                 >
                   <button
@@ -736,9 +830,7 @@ export function ListView({
                         >
                           {eventStartLabel(entry)}
                         </span>
-                        {entry.opponent
-                          ? `${entry.isHome === false ? "at " : "vs "}${entry.opponent}`
-                          : entry.summary}
+                        {titleParts.title}
                       </span>
                       <div className="flex items-center gap-1 flex-shrink-0">
                         {(() => {
@@ -754,9 +846,9 @@ export function ListView({
                             </span>
                           ) : null;
                         })()}
-                        {shiftStatus && (
+                        {myShiftsOnly && shiftStatus === "Pending" && (
                           <Badge
-                            variant={shiftStatus === "Confirmed" ? "blue" : "orange"}
+                            variant="orange"
                             size="sm"
                           >
                             {shiftStatus}
@@ -781,6 +873,9 @@ export function ListView({
                       </span>
                       {entry.sportCode && (
                         <span>{sportLabel(entry.sportCode)}</span>
+                      )}
+                      {titleParts.detail && (
+                        <span>{titleParts.detail}</span>
                       )}
                       {entry.archivedAt && (
                         <span className="inline-flex items-center gap-0.5 text-muted-foreground/50">
@@ -812,6 +907,10 @@ export function ListView({
                         onInlineAssign={handleInlineAssign}
                         currentUserId={currentUserId}
                         postingTradeId={postingTradeId}
+                        addingShiftId={addingShiftId}
+                        onAddShift={(shift, workerType) => handleAddMatchingShift(entry, shift, workerType)}
+                        removingAssignmentId={removingAssignmentId}
+                        onRemoveAssignment={handleRemoveAssignment}
                         onPostTrade={isStaff ? undefined : handlePostTrade}
                         onSelectGroup={() => onSelectGroup(entry.shiftGroupId)}
                         compact
@@ -834,8 +933,10 @@ function EventRows({
   entry,
   isExpanded,
   hasShifts,
+  isAssignedToMe,
   shiftStatus,
   isStaff,
+  isHiding,
   onToggle,
   onSelectGroup,
   onHide,
@@ -848,14 +949,21 @@ function EventRows({
   onPickerSearchChange,
   onInlineAssign,
   currentUserId,
+  showShiftStatus,
   postingTradeId,
+  addingShiftId,
+  onAddShift,
+  removingAssignmentId,
+  onRemoveAssignment,
   onPostTrade,
 }: {
   entry: CalendarEntry;
   isExpanded: boolean;
   hasShifts: boolean;
+  isAssignedToMe: boolean;
   shiftStatus: string | null;
   isStaff: boolean;
+  isHiding: boolean;
   onToggle: () => void;
   onSelectGroup: () => void;
   onHide?: () => void;
@@ -868,12 +976,15 @@ function EventRows({
   onPickerSearchChange: (value: string) => void;
   onInlineAssign: (shiftId: string, userId: string) => void;
   currentUserId: string;
+  showShiftStatus: boolean;
   postingTradeId: string | null;
+  addingShiftId: string | null;
+  onAddShift?: (shift: Shift, workerType: ShiftWorkerKind) => void;
+  removingAssignmentId: string | null;
+  onRemoveAssignment?: (assignmentId: string) => void;
   onPostTrade?: (assignmentId: string) => void;
 }) {
-  const eventTitle = entry.opponent
-    ? `${entry.sportCode ? sportLabel(entry.sportCode) + " " : ""}${entry.isHome === true ? "vs " : "at "}${entry.opponent}`
-    : entry.summary;
+  const titleParts = scheduleEventTitleParts(entry);
 
   const callTime = entry.isHome === true && entry.shifts.length > 0
     ? formatTime(entry.shifts.reduce((min, s) => s.startsAt < min ? s.startsAt : min, entry.shifts[0]!.startsAt))
@@ -881,12 +992,7 @@ function EventRows({
   const missingSlots = missingSlotCount(entry);
   const needsCoverage = missingSlots > 0;
 
-  const borderBar =
-    entry.isHome === true
-      ? "border-l-[var(--green)]"
-      : entry.isHome === false
-        ? "border-l-[var(--orange)]"
-        : "border-l-transparent";
+  const venueTone = VENUE_TONES[venueToneFromEvent(entry)];
 
   return (
     <>
@@ -894,13 +1000,15 @@ function EventRows({
       <tr
         className={cn(
           "group/row border-l-[3px] transition-colors",
-          borderBar,
+          venueTone.railClass,
           hasShifts ? "cursor-pointer" : "",
           isExpanded
             ? "bg-muted/20"
             : needsCoverage
               ? "bg-[var(--red-bg)]/15 hover:bg-[var(--red-bg)]/25"
-              : "hover:bg-muted/10",
+              : isAssignedToMe
+                ? "bg-primary/5 hover:bg-primary/10"
+                : "hover:bg-muted/10",
         )}
         onClick={hasShifts ? onToggle : undefined}
       >
@@ -932,13 +1040,20 @@ function EventRows({
             >
               {eventStartLabel(entry)}
             </span>
-            <Link
-              href={`/events/${entry.id}`}
-              className="font-semibold text-sm hover:underline"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {eventTitle}
-            </Link>
+            <div className="min-w-[180px] max-w-full">
+              <Link
+                href={`/events/${entry.id}`}
+                className="block truncate text-sm font-semibold hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {titleParts.title}
+              </Link>
+              {titleParts.detail && (
+                <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+                  {titleParts.detail}
+                </span>
+              )}
+            </div>
             {entry.coverage && (
               <CoveragePill
                 percentage={entry.coverage.percentage}
@@ -947,7 +1062,7 @@ function EventRows({
               />
             )}
             {needsCoverage && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--red-bg)] px-2 py-0.5">
+              <span className="inline-flex h-5 items-center gap-1 rounded-full bg-[var(--red-bg)] px-1.5">
                 <AlertTriangleIcon className="size-3" />
                 <RoleNeedSummary entry={entry} />
               </span>
@@ -957,9 +1072,9 @@ function EventRows({
                 Premier
               </Badge>
             )}
-            {shiftStatus && (
+            {showShiftStatus && shiftStatus === "Pending" && (
               <Badge
-                variant={shiftStatus === "Confirmed" ? "blue" : "orange"}
+                variant="orange"
                 size="sm"
               >
                 {shiftStatus}
@@ -979,13 +1094,17 @@ function EventRows({
                     variant="ghost"
                     size="icon-sm"
                     aria-label="Hide event"
-                    className="opacity-0 group-hover/row:opacity-100 transition-opacity"
+                    className={cn(
+                      "opacity-0 transition-[background-color,color,opacity,scale] group-hover/row:opacity-100 focus-visible:opacity-100",
+                      isHiding && "opacity-100",
+                    )}
+                    disabled={isHiding}
                     onClick={(e) => {
                       e.stopPropagation();
                       onHide();
                     }}
                   >
-                    <EyeOffIcon className="size-3.5" />
+                    <EyeOffIcon className={cn("size-3.5", isHiding && "animate-pulse")} />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Hide event from schedule</TooltipContent>
@@ -1034,6 +1153,10 @@ function EventRows({
                 onInlineAssign={onInlineAssign}
                 currentUserId={currentUserId}
                 postingTradeId={postingTradeId}
+                addingShiftId={addingShiftId}
+                onAddShift={onAddShift}
+                removingAssignmentId={removingAssignmentId}
+                onRemoveAssignment={onRemoveAssignment}
                 onPostTrade={onPostTrade}
                 onSelectGroup={onSelectGroup}
               />

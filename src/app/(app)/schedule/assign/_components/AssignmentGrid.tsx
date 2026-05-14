@@ -1,15 +1,16 @@
 "use client";
 
-import { useMemo } from "react";
 import Link from "next/link";
 import type { GridEvent, GridColumn } from "@/hooks/use-assignment-grid";
 import type { PickerUser } from "@/components/shift-detail/UserAvatarPicker";
 import EmptyState from "@/components/EmptyState";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AssignmentCell } from "./AssignmentCell";
+import { scheduleEventTitleParts } from "../../_components/types";
+import { VENUE_TONES, venueToneFromEvent } from "@/lib/venue-tone";
+import { cn } from "@/lib/utils";
 import { AREA_LABELS } from "@/types/areas";
-
-const WT_LABELS: Record<string, string> = { FT: "Staff", ST: "Student" };
 
 type Props = {
   events: GridEvent[];
@@ -32,27 +33,16 @@ export function AssignmentGrid({
   hasFilters,
   onClearFilters,
 }: Props) {
-  // Group columns by area for header span
-  const areaGroups = useMemo(() => {
-    const map = new Map<string, GridColumn[]>();
-    for (const col of columns) {
-      const arr = map.get(col.area) ?? [];
-      arr.push(col);
-      map.set(col.area, arr);
-    }
-    return map;
-  }, [columns]);
-
   if (events.length === 0) {
     return (
       <div className="rounded-lg border bg-card">
         <EmptyState
           icon="calendar"
-          title={hasFilters ? "No matching events" : "No events this month"}
+          title={hasFilters ? "No matching active events" : "No active future events"}
           description={
             hasFilters
-              ? "Clear the assignment filters or choose another month."
-              : "Try another month or sync a calendar source."
+              ? "Clear the assignment filters or choose another future month."
+              : "Assign only shows active events from today forward."
           }
           actionLabel={hasFilters ? "Clear filters" : undefined}
           onAction={hasFilters ? onClearFilters : undefined}
@@ -76,33 +66,19 @@ export function AssignmentGrid({
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border bg-card">
-      <table className="w-full text-sm border-collapse">
+    <div className="overflow-x-auto rounded-lg border border-border/60 bg-card shadow-sm">
+      <table className="w-full min-w-[760px] border-collapse text-sm">
         <thead>
-          {/* Row 1: area groups */}
-          <tr className="border-b">
-            <th className="px-3 py-2 text-left font-medium text-muted-foreground w-48 min-w-[12rem] sticky left-0 bg-card z-10">
+          <tr className="border-b border-border/60">
+            <th className="sticky left-0 z-10 w-64 min-w-[16rem] bg-card px-3 py-2 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">
               Event
             </th>
-            {Array.from(areaGroups.entries()).map(([area, cols]) => (
-              <th
-                key={area}
-                colSpan={cols.length}
-                className="px-2 py-2 text-center font-semibold text-xs uppercase tracking-wide border-l"
-              >
-                {AREA_LABELS[area] ?? area}
-              </th>
-            ))}
-          </tr>
-          {/* Row 2: FT / ST sub-headers */}
-          <tr className="border-b bg-muted/30">
-            <th className="sticky left-0 bg-muted/30 z-10" />
             {columns.map((col) => (
               <th
                 key={col.key}
-                className="px-2 py-1 text-center text-xs text-muted-foreground font-normal border-l"
+                className="border-l border-border/60 px-2 py-2 text-center text-xs font-bold uppercase tracking-wider text-muted-foreground"
               >
-                {WT_LABELS[col.workerType] ?? col.workerType}
+                {AREA_LABELS[col.area] ?? col.area}
               </th>
             ))}
           </tr>
@@ -110,6 +86,8 @@ export function AssignmentGrid({
         <tbody>
           {events.map((ev, i) => {
             const date = new Date(ev.startsAt);
+            const titleParts = scheduleEventTitleParts(ev);
+            const venueTone = VENUE_TONES[venueToneFromEvent(ev)];
             const dateStr = date.toLocaleDateString("en-US", {
               weekday: "short",
               month: "short",
@@ -118,11 +96,25 @@ export function AssignmentGrid({
             const timeStr = ev.allDay
               ? "All day"
               : date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+            const activeAssignments = ev.shifts.reduce((sum, shift) => sum + shift.assignments.length, 0);
+            const openSlots = ev.shifts.filter((shift) => shift.assignments.length === 0).length;
 
             return (
-              <tr key={ev.id} className={`border-b transition-colors hover:bg-muted/20 ${i % 2 === 0 ? "" : "bg-muted/10"}`}>
+              <tr
+                key={ev.id}
+                className={cn(
+                  "group/assign-row border-b border-border/40 transition-colors hover:bg-muted/20",
+                  i % 2 !== 0 && "bg-muted/10",
+                )}
+              >
                 {/* Event name cell */}
-                <td className="px-3 py-2 sticky left-0 bg-card hover:bg-muted/20 z-10 min-w-[12rem] max-w-[14rem]">
+                <td
+                  className={cn(
+                    "sticky left-0 z-10 min-w-[16rem] max-w-[18rem] border-l-[3px] bg-card px-3 py-2 transition-colors group-hover/assign-row:bg-muted/20",
+                    i % 2 !== 0 && "bg-muted/10",
+                    venueTone.railClass,
+                  )}
+                >
                   <Button
                     variant="ghost"
                     className="h-auto w-full justify-start px-0 py-1 text-left hover:bg-transparent"
@@ -130,9 +122,28 @@ export function AssignmentGrid({
                   >
                     <Link href={`/events/${ev.id}`}>
                       <span className="block min-w-0">
-                        <span className="block truncate text-xs font-medium leading-tight">{ev.summary}</span>
-                        <span className="mt-0.5 block text-[10px] text-muted-foreground">
-                      {dateStr} · {timeStr}
+                        <span className="block truncate text-sm font-semibold leading-tight">{titleParts.title}</span>
+                        {titleParts.detail && (
+                          <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+                            {titleParts.detail}
+                          </span>
+                        )}
+                        <span className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
+                          <span className="tabular-nums">{dateStr} · {timeStr}</span>
+                          <Badge variant={venueTone.badgeVariant} size="sm">
+                            {venueTone.label}
+                          </Badge>
+                          {ev.isPremier && (
+                            <Badge variant="blue" size="sm">
+                              Premier
+                            </Badge>
+                          )}
+                          {ev.shifts.length > 0 && (
+                            <span className="tabular-nums text-muted-foreground/75">
+                              {activeAssignments}/{ev.shifts.length}
+                              {openSlots > 0 ? ` · ${openSlots} open` : ""}
+                            </span>
+                          )}
                         </span>
                       </span>
                     </Link>
@@ -142,12 +153,14 @@ export function AssignmentGrid({
                 {/* Shift assignment cells */}
                 {columns.map((col) => {
                   const matchingShifts = ev.shifts.filter(
-                    (s) => s.area === col.area && s.workerType === col.workerType,
+                    (s) => s.area === col.area,
                   );
                   return (
                     <AssignmentCell
                       key={col.key}
                       shifts={matchingShifts}
+                      shiftGroupId={ev.shiftGroupId}
+                      area={col.area}
                       allUsers={allUsers}
                       usersLoading={usersLoading}
                       isStaff={isStaff}

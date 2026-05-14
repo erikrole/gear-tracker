@@ -10,6 +10,7 @@ vi.mock("@/lib/db", () => {
   const mockTx = {
     shift: {
       findUnique: vi.fn(),
+      update: vi.fn(),
     },
     shiftAssignment: {
       findFirst: vi.fn(),
@@ -135,6 +136,29 @@ describe("directAssignShift", () => {
         data: { status: "DECLINED" },
       })
     );
+  });
+
+  it("syncs the shift worker type to the directly assigned user's role", async () => {
+    const staffSlot = makeShift({ workerType: "FT" });
+    mockTx.shift.findUnique.mockResolvedValue(staffSlot);
+    mockTx.shiftAssignment.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    mockTx.shiftAssignment.updateMany.mockResolvedValue({ count: 0 });
+    mockTx.shiftAssignment.create.mockResolvedValue({
+      id: "sa-1",
+      shiftId: staffSlot.id,
+      userId: "student-1",
+      status: "DIRECT_ASSIGNED",
+      user: { id: "student-1", name: "Student One", role: "STUDENT", primaryArea: null, avatarUrl: null },
+    });
+
+    await directAssignShift(staffSlot.id, "student-1", "admin-1");
+
+    expect(mockTx.shift.update).toHaveBeenCalledWith({
+      where: { id: staffSlot.id },
+      data: { workerType: "ST" },
+    });
   });
 });
 

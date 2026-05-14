@@ -5,33 +5,29 @@ import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { UserAvatarPicker } from "@/components/shift-detail/UserAvatarPicker";
 import type { PickerUser } from "@/components/shift-detail/UserAvatarPicker";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import type { GridShift, GridAssignment } from "@/hooks/use-assignment-grid";
+import { cn } from "@/lib/utils";
+import { PlusIcon, UserIcon, XIcon } from "lucide-react";
 
 type Props = {
-  shifts: GridShift[]; // all shifts for this event matching this area+workerType
+  shifts: GridShift[]; // all shifts for this event matching this area
+  shiftGroupId: string | null;
+  area: string;
   allUsers: PickerUser[];
   usersLoading: boolean;
   isStaff: boolean;
   onRefetch: () => void;
 };
 
-export function AssignmentCell({ shifts, allUsers, usersLoading, isStaff, onRefetch }: Props) {
-  const [open, setOpen] = useState(false);
+export function AssignmentCell({ shifts, shiftGroupId, area, allUsers, usersLoading, isStaff, onRefetch }: Props) {
   const [search, setSearch] = useState("");
-  const [acting, setActing] = useState(false);
+  const [acting, setActing] = useState<string | null>(null);
   const [conflictMap, setConflictMap] = useState<Record<string, string>>({});
   const [conflictsLoading, setConflictsLoading] = useState(false);
-
-  // All active assignments across all matching shifts
-  const assignments: (GridAssignment & { shiftId: string })[] = shifts.flatMap((s) =>
-    s.assignments.map((a) => ({ ...a, shiftId: s.id })),
-  );
-
-  // Find a shift with an open slot (no assignment yet)
-  const openShift = shifts.find((s) => s.assignments.length === 0);
 
   const filteredUsers = allUsers.filter((u) => {
     const q = search.toLowerCase();
@@ -53,28 +49,15 @@ export function AssignmentCell({ shifts, allUsers, usersLoading, isStaff, onRefe
     }
   }, []);
 
-  const handleOpenChange = useCallback(
-    (isOpen: boolean) => {
-      setOpen(isOpen);
-      if (isOpen && openShift) {
-        fetchConflicts(openShift.id);
-      } else if (!isOpen) {
-        setSearch("");
-        setConflictMap({});
-      }
-    },
-    [openShift, fetchConflicts],
-  );
-
   const handleAssign = useCallback(
-    async (userId: string) => {
-      if (!openShift || acting) return;
-      setActing(true);
+    async (shiftId: string, userId: string) => {
+      if (acting) return;
+      setActing(`assign-${shiftId}`);
       try {
         const res = await fetch("/api/shift-assignments", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ shiftId: openShift.id, userId }),
+          body: JSON.stringify({ shiftId, userId }),
         });
         if (handleAuthRedirect(res)) return;
         if (!res.ok) {
@@ -82,21 +65,20 @@ export function AssignmentCell({ shifts, allUsers, usersLoading, isStaff, onRefe
           toast.error(msg);
           return;
         }
-        setOpen(false);
         onRefetch();
       } catch {
         toast.error("Network error - could not assign");
       } finally {
-        setActing(false);
+        setActing(null);
       }
     },
-    [openShift, acting, onRefetch],
+    [acting, onRefetch],
   );
 
   const handleRemove = useCallback(
     async (assignmentId: string) => {
       if (acting) return;
-      setActing(true);
+      setActing(`remove-assignment-${assignmentId}`);
       try {
         const res = await fetch(`/api/shift-assignments/${assignmentId}`, { method: "DELETE" });
         if (handleAuthRedirect(res)) return;
@@ -109,79 +91,206 @@ export function AssignmentCell({ shifts, allUsers, usersLoading, isStaff, onRefe
       } catch {
         toast.error("Network error - could not remove");
       } finally {
-        setActing(false);
+        setActing(null);
       }
     },
     [acting, onRefetch],
   );
 
-  if (shifts.length === 0) {
-    return (
-      <td className="px-2 py-2 text-center text-xs text-muted-foreground/40">
-        <span aria-hidden="true">-</span>
-        <span className="sr-only">No shift configured</span>
-      </td>
-    );
-  }
+  const handleAddShift = useCallback(async () => {
+    if (!shiftGroupId || acting) return;
+    setActing(`add-${area}`);
+    try {
+      const res = await fetch(`/api/shift-groups/${shiftGroupId}/shifts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ area, workerType: "FT" }),
+      });
+      if (handleAuthRedirect(res)) return;
+      if (!res.ok) {
+        const msg = await parseErrorMessage(res, "Failed to add slot");
+        toast.error(msg);
+        return;
+      }
+      onRefetch();
+    } catch {
+      toast.error("Network error - could not add slot");
+    } finally {
+      setActing(null);
+    }
+  }, [acting, area, onRefetch, shiftGroupId]);
+
+  const handleDeleteShift = useCallback(async (shiftId: string) => {
+    if (!shiftGroupId || acting) return;
+    setActing(`delete-${shiftId}`);
+    try {
+      const res = await fetch(`/api/shift-groups/${shiftGroupId}/shifts/${shiftId}`, { method: "DELETE" });
+      if (handleAuthRedirect(res)) return;
+      if (!res.ok) {
+        const msg = await parseErrorMessage(res, "Failed to remove slot");
+        toast.error(msg);
+        return;
+      }
+      onRefetch();
+    } catch {
+      toast.error("Network error - could not remove slot");
+    } finally {
+      setActing(null);
+    }
+  }, [acting, onRefetch, shiftGroupId]);
+
+  const canEditSlots = isStaff && Boolean(shiftGroupId);
+  const assignedShifts = shifts
+    .map((shift) => ({
+      shift,
+      assignment: shift.assignments[0] as (GridAssignment | undefined),
+    }))
+    .filter((entry): entry is { shift: GridShift; assignment: GridAssignment } => Boolean(entry.assignment));
+  const openShifts = shifts.filter((shift) => shift.assignments.length === 0);
+  const firstOpenShift = openShifts[0];
+  const openCount = openShifts.length;
+  const addSlotButton = canEditSlots ? (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          className="relative size-8 shrink-0 text-muted-foreground/60 opacity-55 transition-[background-color,color,opacity,scale] before:absolute before:-inset-1 before:content-[''] hover:text-foreground hover:opacity-100 active:scale-[0.96] group-hover/cell:opacity-100 focus-visible:opacity-100"
+          disabled={Boolean(acting)}
+          aria-label={`Add ${area} slot`}
+          onClick={handleAddShift}
+        >
+          <PlusIcon className={cn("size-3.5", acting === `add-${area}` && "animate-pulse")} />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>Add slot</TooltipContent>
+    </Tooltip>
+  ) : null;
 
   return (
-    <td className="px-2 py-1.5 align-middle border-l">
-      <div className="flex flex-wrap items-center gap-1">
-        {assignments.map((a) => (
-          <button
-            key={a.id}
-            title={a.hasConflict ? `${a.user.name} - ${a.conflictNote ?? "schedule conflict"} - click to remove` : `${a.user.name} - click to remove`}
-            disabled={!isStaff || acting}
-            onClick={() => handleRemove(a.id)}
-            aria-label={`Remove ${a.user.name} from shift`}
-            className="group relative flex size-10 items-center justify-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-          >
-            <UserAvatar
-              name={a.user.name}
-              avatarUrl={a.user.avatarUrl}
-              size="default"
-              className="ring-2 ring-background transition-[box-shadow] group-hover:ring-destructive/60"
-              fallbackClassName={
-                a.hasConflict
-                  ? "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
-                  : undefined
-              }
-            />
-            {a.hasConflict && (
-              <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-yellow-400 border border-background" />
-            )}
-          </button>
-        ))}
-
-        {/* "+" button: staff only, when there's an open slot */}
-        {isStaff && openShift && (
-          <Popover open={open} onOpenChange={handleOpenChange}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                className="size-10 rounded-full text-muted-foreground hover:text-foreground"
-                disabled={acting}
-                aria-label="Assign open shift"
-              >
-                <span className="text-base leading-none">+</span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-64 p-3" align="start">
-              <p className="text-xs font-medium mb-2">Assign to shift</p>
-              <UserAvatarPicker
-                users={filteredUsers}
-                loading={usersLoading}
-                search={search}
-                onSearchChange={setSearch}
-                onSelect={handleAssign}
-                disabled={acting}
-                conflictMap={conflictMap}
-                conflictsLoading={conflictsLoading}
-              />
-            </PopoverContent>
-          </Popover>
+    <td className="group/cell border-l border-border/40 px-2 py-2 align-middle transition-colors hover:bg-muted/15">
+      <div className="flex min-h-10 items-center justify-center gap-1.5">
+        {shifts.length === 0 && (
+          <div className="flex h-9 items-center justify-center text-xs text-muted-foreground/35">
+            {addSlotButton ?? <span aria-hidden="true">—</span>}
+            <span className="sr-only">No shift configured</span>
+          </div>
         )}
+
+        {assignedShifts.length > 0 && (
+          <div className="flex items-center justify-center -space-x-2">
+            {assignedShifts.map(({ shift, assignment }) => {
+              const shiftActing = acting?.endsWith(shift.id) ?? false;
+              return (
+                <span
+                  key={assignment.id}
+                  className="group/avatar relative flex size-8 items-center justify-center rounded-full transition-[scale,z-index] hover:z-10 hover:scale-105 focus-within:z-10"
+                >
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="flex size-8 items-center justify-center rounded-full">
+                        <UserAvatar
+                          name={assignment.user.name}
+                          avatarUrl={assignment.user.avatarUrl}
+                          size="sm"
+                          className="ring-2 ring-background transition-[box-shadow] group-hover/avatar:ring-destructive/60"
+                          fallbackClassName={
+                            assignment.hasConflict
+                              ? "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
+                              : undefined
+                          }
+                        />
+                        {assignment.hasConflict && (
+                          <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border border-background bg-yellow-400" />
+                        )}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <span className="font-medium">{assignment.user.name}</span>
+                      {assignment.hasConflict && (
+                        <span className="ml-1 text-muted-foreground">
+                          {assignment.conflictNote ?? "Schedule conflict"}
+                        </span>
+                      )}
+                    </TooltipContent>
+                  </Tooltip>
+                  {isStaff && (
+                    <button
+                      type="button"
+                      disabled={Boolean(acting)}
+                      onClick={() => handleRemove(assignment.id)}
+                      aria-label={`Remove ${assignment.user.name} from shift`}
+                      className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-0 shadow-sm transition-[opacity,scale] hover:scale-105 active:scale-[0.96] focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover/avatar:opacity-100 group-focus-within/avatar:opacity-100 disabled:opacity-50"
+                    >
+                      <XIcon className={cn("size-3", shiftActing && "animate-pulse")} />
+                    </button>
+                  )}
+                </span>
+              );
+            })}
+          </div>
+        )}
+
+        {firstOpenShift && (
+          <div className="group/open flex items-center gap-0.5">
+            <Popover
+              onOpenChange={(isOpen) => {
+                if (isOpen) void fetchConflicts(firstOpenShift.id);
+                else {
+                  setSearch("");
+                  setConflictMap({});
+                }
+              }}
+            >
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    "inline-flex h-8 min-w-0 items-center gap-1.5 rounded-md bg-muted/25 px-2 text-left text-xs text-muted-foreground transition-[background-color,color,scale]",
+                    "hover:bg-muted/45 hover:text-foreground active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2",
+                  )}
+                  disabled={!isStaff || Boolean(acting)}
+                  aria-label={openCount > 1 ? `Assign one of ${openCount} open slots` : "Assign open slot"}
+                  onClick={() => void fetchConflicts(firstOpenShift.id)}
+                >
+                  <UserIcon className={cn("size-3.5 opacity-70", acting?.endsWith(firstOpenShift.id) && "animate-pulse")} />
+                  <span className="min-w-0 truncate font-medium">
+                    {assignedShifts.length > 0 ? `${openCount} open` : "Assign staff"}
+                  </span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-3" align="start">
+                <p className="mb-2 text-xs font-medium">Assign to shift</p>
+                <UserAvatarPicker
+                  users={filteredUsers}
+                  loading={usersLoading}
+                  search={search}
+                  onSearchChange={setSearch}
+                  onSelect={(userId) => handleAssign(firstOpenShift.id, userId)}
+                  disabled={Boolean(acting)}
+                  conflictMap={conflictMap}
+                  conflictsLoading={conflictsLoading}
+                />
+              </PopoverContent>
+            </Popover>
+            {isStaff && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                className="size-7 shrink-0 text-muted-foreground opacity-0 transition-[color,opacity,scale] hover:text-destructive active:scale-[0.96] group-hover/open:opacity-100 focus-visible:opacity-100"
+                disabled={Boolean(acting)}
+                aria-label={openCount > 1 ? "Remove one open slot" : "Remove open slot"}
+                onClick={() => handleDeleteShift(firstOpenShift.id)}
+              >
+                <XIcon className={cn("size-3.5", acting?.endsWith(firstOpenShift.id) && "animate-pulse")} />
+              </Button>
+            )}
+          </div>
+        )}
+
+        {shifts.length > 0 && addSlotButton}
       </div>
     </td>
   );

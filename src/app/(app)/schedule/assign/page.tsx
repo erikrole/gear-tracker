@@ -20,7 +20,8 @@ import { AssignmentGrid } from "./_components/AssignmentGrid";
 import type { PickerUser } from "@/components/shift-detail/UserAvatarPicker";
 import { SPORT_CODES } from "@/lib/sports";
 import { AREAS, AREA_LABELS } from "@/types/areas";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ChevronLeft, ChevronRight, FilterIcon } from "lucide-react";
 
 async function fetchUsers(): Promise<PickerUser[]> {
   const res = await fetch("/api/users?limit=200&active=true");
@@ -56,8 +57,13 @@ export default function AssignPage() {
   const isStaff = currentUserRole === "STAFF" || currentUserRole === "ADMIN";
 
   const monthLabel = grid.month.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const currentMonthStart = new Date();
+  currentMonthStart.setDate(1);
+  currentMonthStart.setHours(0, 0, 0, 0);
+  const previousMonthDisabled = grid.month <= currentMonthStart;
 
   function prevMonth() {
+    if (previousMonthDisabled) return;
     const d = grid.month;
     grid.setMonth(new Date(d.getFullYear(), d.getMonth() - 1, 1));
   }
@@ -75,21 +81,32 @@ export default function AssignPage() {
 
   return (
     <FadeUp>
-      <PageHeader title="Assign Shifts">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/schedule")}>
+      <PageHeader title="Assign shifts">
+        <Button variant="outline" size="sm" onClick={() => router.push("/schedule")}>
           <ChevronLeft className="size-4" />
           Schedule
         </Button>
       </PageHeader>
 
       {/* Controls bar */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
+      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-card/80 p-2 shadow-sm">
         {/* Month nav */}
-        <div className="flex items-center gap-1">
-          <Button variant="outline" size="icon" className="size-10" onClick={prevMonth} aria-label="Previous month">
+        <div className="flex min-h-10 items-center overflow-hidden rounded-md border border-border bg-muted/30">
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-10"
+            onClick={prevMonth}
+            disabled={previousMonthDisabled}
+            aria-label="Previous month"
+          >
             <ChevronLeft className="size-4" />
           </Button>
-          <Button variant="outline" className="h-10 min-w-[9rem] font-medium" onClick={thisMonth}>
+          <Button
+            variant="ghost"
+            className="h-10 min-w-[9rem] rounded-none border-x border-border bg-background/70 font-medium hover:bg-background"
+            onClick={thisMonth}
+          >
             {monthLabel}
           </Button>
           <Button variant="outline" size="icon" className="size-10" onClick={nextMonth} aria-label="Next month">
@@ -97,9 +114,11 @@ export default function AssignPage() {
           </Button>
         </div>
 
+        <div className="mx-0.5 h-6 w-px bg-border/80 max-sm:hidden" />
+
         {/* Sport filter */}
         <Select value={grid.sportFilter || "_all"} onValueChange={(v) => grid.setSportFilter(v === "_all" ? "" : v)}>
-          <SelectTrigger size="sm" className="h-10 w-44">
+          <SelectTrigger size="sm" className="h-10 w-44 bg-muted/30">
             <SelectValue placeholder="All sports" />
           </SelectTrigger>
           <SelectContent>
@@ -114,7 +133,7 @@ export default function AssignPage() {
 
         {/* Area filter */}
         <Select value={grid.areaFilter || "_all"} onValueChange={(v) => grid.setAreaFilter(v === "_all" ? "" : v)}>
-          <SelectTrigger size="sm" className="h-10 w-36">
+          <SelectTrigger size="sm" className="h-10 w-36 bg-muted/30">
             <SelectValue placeholder="All areas" />
           </SelectTrigger>
           <SelectContent>
@@ -127,11 +146,32 @@ export default function AssignPage() {
           </SelectContent>
         </Select>
 
+        {grid.sportFilter || grid.areaFilter ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-10 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              grid.setSportFilter("");
+              grid.setAreaFilter("");
+            }}
+          >
+            <FilterIcon className="size-3.5" />
+            Clear
+          </Button>
+        ) : null}
+
         {/* Loading / count badge */}
         {grid.loading ? (
-          <Badge variant="outline" className="text-muted-foreground">Loading...</Badge>
+          <Badge variant="outline" className="ml-auto text-muted-foreground">Loading...</Badge>
         ) : (
-          <Badge variant="outline" className="text-muted-foreground">
+          <Badge
+            variant="outline"
+            className={cn(
+              "ml-auto text-muted-foreground",
+              grid.events.length > 0 && "tabular-nums",
+            )}
+          >
             {grid.events.length} event{grid.events.length !== 1 ? "s" : ""}
           </Badge>
         )}

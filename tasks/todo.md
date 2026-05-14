@@ -1,6 +1,6 @@
 # Task Queue
 
-Last updated: 2026-05-13
+Last updated: 2026-05-14
 
 **Current release**: Beta — CalVer versioning adopted.
 **Release workflow**: `npm run release` creates CalVer tag + GitHub Release.
@@ -43,6 +43,58 @@ Last updated: 2026-05-13
 ---
 
 ## Open Items
+
+### Schedule Browser UI Prototype (2026-05-14)
+- [x] **Normal schedule hierarchy:** Promote `Assign shifts` as the primary staff action, quiet repeated open-slot badges, and move `Next call` to the first readiness card.
+- [x] **Verification:** Browser-check `/schedule`, run focused static checks, and ask for feedback before changing schedule subpages.
+
+**Review**
+- `Assign shifts` is now the primary staff/admin action in the Schedule header.
+- `Needs staff` remains a filter control, but no longer repeats the count already shown in the readiness strip.
+- `Next call` now leads the readiness strip and gets stronger visual treatment.
+- The list header now shows the event count only; open-slot totals live in the readiness strip and per-row needs chips.
+- Normal schedule rows now use Staff as the generic open-slot label and derive expanded-row Staff/Student labels from the assigned user's role.
+- Per-row `Needs ... staff` chips now match the smaller row-badge scale instead of reading louder than coverage badges.
+- Rows assigned to the signed-in user now get a subtle primary tint instead of an `Assigned`/`Confirmed` badge; pending requests still keep their badge in My Shifts context.
+- Follow-up naming pass: generic schedule coverage copy now uses Staff/covered language, while expanded assignment rows stay role-aware.
+- Expanded assignment rows now have a same-area plus action, quieter empty assign rows without dashed boxes, and a hover/focus X for staff/admin assignment removal.
+- Hide-event hardening shipped: the visibility API now validates a strict boolean payload, wraps the event update and audit log in one transaction, blocks malformed body drift, shows row-level hiding state, and offers Undo from the hide success toast.
+- Assign page polish shipped: `/schedule/assign` now uses the shared schedule title cleanup and venue-tone derivation, trims imported `[N]`/Wisconsin prefixes, shows venue and filled/open slot context in the sticky event column, and uses quieter assignment/no-slot cells with hover remove overlays.
+- Assign page area-slot cleanup shipped: the grid no longer has Staff/Student sub-sections, each area column now owns all of its slots, and staff/admin users can add a slot or remove an empty slot inline.
+- Assign page current-work cleanup shipped: the grid now follows the normal Schedule list default by showing only active events from today forward, removes past rows and archived shift groups from the current assignment workflow, disables navigation into fully past months, replaces repeated `Add slot`/`Open` text controls with quieter row-style affordances, and uses compact overlapping avatar stacks for assigned people.
+- Assigned avatars now use app-styled hover tooltips for names and a small explicit hover/focus X for removal, so the whole avatar is no longer the destructive target.
+- Direct assignment now syncs shift worker type from the assigned user's role, keeping the hidden `FT`/`ST` data aligned with the Staff/Student labels derived in the UI.
+- Event titles now share one formatter across list, week, and calendar views; matchup text stays primary while dash-suffix event context moves to smaller secondary text.
+- Venue indicators now use one shared treatment: Home green, Away orange, Neutral gray. The dashboard Upcoming Events control now includes a Neutral tab.
+- Verified with `npx tsc --noEmit`, `git diff --check`, and a live `/schedule` browser refresh with no console warnings or errors.
+
+### Dashboard Browser UI Prototype (2026-05-14)
+- [x] **Plan:** Use the live browser audit to prototype a narrower Dashboard visual pass without changing API behavior.
+- [x] **Header:** Quiet the refresh/filter controls and keep checkout/reservation creation as the clear primary actions.
+- [x] **Stats:** Reduce the weight of zero-value metrics and make nonzero action states easier to spot.
+- [x] **Rows/empty states:** Compress empty personal sections and strengthen the active booking row affordance.
+- [x] **Verification:** Check the updated Dashboard in browser, run focused static checks, and ask for product feedback before touching the next page.
+
+**Review**
+- Prototype only: no API, permission, schema, or booking action behavior changed.
+- Header groups refresh/filter as secondary controls and makes `New checkout` the stronger primary action.
+- Zero metric cards are quieter, while nonzero metric cards keep stronger foreground treatment and visible link affordance.
+- Empty personal gear state is one compact card with direct reserve/check-out actions instead of two tall empty sections.
+- Booking rows keep their compact height with a subtle open affordance on hover/focus.
+- Follow-up correction: My Gear empty states now use a medium-height centered body, between the original compact row and the larger Team Activity empty cards.
+- My Gear reservation rows now use the same purple reservation rail as other reservation rows.
+- My Gear checkout rows now use the same blue checkout rail as other checkout rows.
+- Verified with `npx tsc --noEmit`, `git diff --check`, and live browser refresh of `/` with no console warnings or errors.
+
+### Focused UI Opportunity Audit (2026-05-14)
+- [x] **Plan:** Audit current docs, task notes, route surfaces, and shared UI patterns before choosing any implementation slice.
+- [x] **Inventory:** Review all signed-in web surfaces for concrete layout/functionality polish opportunities.
+- [x] **Rank:** Produce a repo-grounded short list of focused UI improvement slices with source evidence and suggested verification.
+
+**Review**
+- Best next slice: fix booking deep-link/workflow drift first (`sheetTab` ignored, sport filter options derived from current page only, event CTAs detour through list redirects).
+- Strong cross-cutting follow-ups: settings/global command-palette collision, duplicate offline banners, settings role-nav flicker, and PageHeader action wrapping at compact widths.
+- Strong specialized follow-ups: kits detail item-family add/remove completion, Missing Units filters, Guides body-search parity, and item-family detail tab normalization.
 
 ### Bulk Item Families Follow-Through (2026-05-13)
 - [x] **Labels parity:** Include item-family parent/bin QR labels in the global print-label queue alongside serialized item labels.
