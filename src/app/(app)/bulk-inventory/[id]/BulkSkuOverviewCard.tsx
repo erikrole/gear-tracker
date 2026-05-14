@@ -12,14 +12,15 @@ const DOT_STYLES: Record<string, string> = {
 };
 
 export function BulkSkuOverviewCard({ sku }: { sku: BulkSkuDetail }) {
-  const isLow = sku.availableQuantity <= sku.minThreshold && sku.minThreshold > 0;
-
   const unitCounts = sku.trackByNumber ? {
     available: sku.units.filter((u) => u.status === "AVAILABLE").length,
     checkedOut: sku.units.filter((u) => u.status === "CHECKED_OUT").length,
     lost: sku.units.filter((u) => u.status === "LOST").length,
     retired: sku.units.filter((u) => u.status === "RETIRED").length,
   } : null;
+  const availableQuantity = unitCounts ? unitCounts.available : sku.availableQuantity;
+  const totalQuantity = unitCounts ? sku.units.length : sku.onHand;
+  const isLow = availableQuantity <= sku.minThreshold && sku.minThreshold > 0;
 
   return (
     <Card>
@@ -33,21 +34,21 @@ export function BulkSkuOverviewCard({ sku }: { sku: BulkSkuDetail }) {
             className={`text-4xl font-black tabular-nums leading-none ${isLow ? "text-destructive" : ""}`}
             style={{ fontFamily: "var(--font-heading)" }}
           >
-            {sku.availableQuantity}
+            {availableQuantity}
           </span>
-          <span className="text-muted-foreground text-sm">/ {sku.onHand}</span>
+          <span className="text-muted-foreground text-sm">/ {totalQuantity}</span>
           <span className="text-muted-foreground text-xs ml-1">{sku.unit}</span>
         </div>
         {isLow && <Badge variant="orange" className="text-xs">Low stock</Badge>}
 
-        {/* Unit breakdown for numbered SKUs */}
+        {/* Unit breakdown */}
         {unitCounts && (
           <div className="space-y-1.5 pt-1 border-t border-border/40">
             {(["available", "checkedOut", "lost", "retired"] as const).map((key) => {
               const count = unitCounts[key];
               if (count === 0) return null;
               const statusKey = key === "checkedOut" ? "CHECKED_OUT" : key.toUpperCase();
-              const label = key === "checkedOut" ? "Checked out" : key.charAt(0).toUpperCase() + key.slice(1);
+              const label = key === "checkedOut" ? "Checked out" : key === "lost" ? "Missing" : key.charAt(0).toUpperCase() + key.slice(1);
               return (
                 <div key={key} className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-1.5">
@@ -66,7 +67,7 @@ export function BulkSkuOverviewCard({ sku }: { sku: BulkSkuDetail }) {
         {/* Threshold */}
         {sku.minThreshold > 0 && (
           <div className="text-xs text-muted-foreground pt-1 border-t border-border/40">
-            Min threshold: {sku.minThreshold}
+            Low-stock threshold: {sku.minThreshold}
           </div>
         )}
       </CardContent>

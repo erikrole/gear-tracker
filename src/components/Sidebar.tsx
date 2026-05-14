@@ -5,6 +5,15 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { getInitials } from "@/lib/avatar";
+import {
+  applyThemeChoice,
+  readStoredThemeChoice,
+  setThemeChoice,
+  subscribeToThemeChoice,
+  subscribeToSystemTheme,
+  THEME_CHOICES,
+  type ThemeChoice,
+} from "@/lib/theme";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
   SunIcon,
@@ -26,6 +35,7 @@ import {
   KeyIcon,
   BatteryChargingIcon,
   ClipboardCheckIcon,
+  WrenchIcon,
 } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
@@ -47,6 +57,7 @@ type NavItem = {
   icon: React.ElementType;
   badge?: string;
   quickCreateHref?: string;
+  requiredRole?: "ADMIN" | "STAFF";
 };
 
 type NavGroup = {
@@ -71,8 +82,9 @@ const navGroups: NavGroup[] = [
     label: "Admin",
     adminOnly: true,
     items: [
+      { label: "Fix Today", href: "/admin/fix-today", icon: WrenchIcon, requiredRole: "ADMIN" },
       { label: "Kits", href: "/kits", icon: BoxIcon },
-      { label: "Batteries", href: "/bulk-inventory/batteries", icon: BatteryChargingIcon },
+      { label: "Battery Ops", href: "/bulk-inventory/batteries", icon: BatteryChargingIcon },
       { label: "Hygiene", href: "/items/hygiene", icon: ClipboardCheckIcon },
       { label: "Users", href: "/users", icon: UsersIcon },
       { label: "Reports", href: "/reports", icon: BarChart3Icon },
@@ -89,36 +101,24 @@ type AppSidebarProps = {
   unreadNotifications?: number;
 };
 
-const THEME_PREFS = ["system", "light", "dark"] as const;
-type ThemePref = (typeof THEME_PREFS)[number];
-
 function useTheme() {
-  const [theme, setThemeState] = useState<ThemePref>("system");
+  const [theme, setThemeState] = useState<ThemeChoice>("system");
 
   useEffect(() => {
-    const stored = localStorage.getItem("theme");
-    if (stored && (THEME_PREFS as readonly string[]).includes(stored)) {
-      setThemeState(stored as ThemePref);
-      applyTheme(stored as ThemePref);
-    }
+    const storedTheme = readStoredThemeChoice();
+    setThemeState(storedTheme);
+    applyThemeChoice(storedTheme);
   }, []);
 
-  function applyTheme(pref: ThemePref) {
-    const root = document.documentElement;
-    if (pref === "dark") {
-      root.setAttribute("data-theme", "dark");
-    } else if (pref === "light") {
-      root.setAttribute("data-theme", "light");
-    } else {
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      root.setAttribute("data-theme", prefersDark ? "dark" : "light");
-    }
-  }
+  useEffect(() => subscribeToThemeChoice(setThemeState), []);
 
-  function setTheme(pref: ThemePref) {
-    setThemeState(pref);
-    localStorage.setItem("theme", pref);
-    applyTheme(pref);
+  useEffect(() => {
+    if (theme !== "system") return;
+    return subscribeToSystemTheme(() => applyThemeChoice("system"));
+  }, [theme]);
+
+  function setTheme(pref: ThemeChoice) {
+    setThemeChoice(pref, { animate: true });
   }
 
   return { theme, setTheme };
@@ -133,11 +133,17 @@ export default function AppSidebar({
 }: AppSidebarProps) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
-  const isAdmin = user?.role === "ADMIN" || user?.role === "STAFF";
+  const canUseAdminNav = user?.role === "ADMIN" || user?.role === "STAFF";
 
   const userInitials = user ? getInitials(user.name) : "?";
 
-  const visibleGroups = navGroups.filter((g) => !g.adminOnly || isAdmin);
+  const visibleGroups = navGroups
+    .filter((g) => !g.adminOnly || canUseAdminNav)
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => !item.requiredRole || item.requiredRole === user?.role),
+    }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
@@ -289,7 +295,7 @@ export default function AppSidebar({
                           {badgeLabel}
                         </SidebarMenuBadge>
                       )}
-                      {item.quickCreateHref && isAdmin && !badgeCount && (
+                      {item.quickCreateHref && canUseAdminNav && !badgeCount && (
                         <SidebarMenuAction
                           asChild
                           showOnHover
@@ -319,11 +325,11 @@ export default function AppSidebar({
             type="single"
             value={theme}
             onValueChange={(v) => {
-              if (v) setTheme(v as ThemePref);
+              if (v) setTheme(v as ThemeChoice);
             }}
             className="bg-white/[0.06] rounded-md p-0.5"
           >
-            {(["light", "dark", "system"] as const).map((val, i) => (
+            {THEME_CHOICES.map((val, i) => (
               <ToggleGroupItem
                 key={val}
                 value={val}

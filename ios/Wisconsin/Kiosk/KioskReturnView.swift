@@ -32,6 +32,14 @@ struct KioskReturnView: View {
     private var returnedCount: Int { returnedIds.count }
     private var hasReturned: Bool { returnedCount > 0 }
     private var allReturned: Bool { returnedCount == totalItems && totalItems > 0 }
+    private var batteryTotal: Int { detail?.scanSummary?.numberedBulkTotal ?? detail?.numberedBulkItems.count ?? 0 }
+    private var returnedBatteryCount: Int {
+        detail?.numberedBulkItems.filter { returnedIds.contains($0.id) }.count ?? 0
+    }
+    private var hasBatteryScanStep: Bool { batteryTotal > 0 }
+    private var returnedBatteryUnits: [KioskCheckoutDetail.ReturnItem] {
+        detail?.numberedBulkItems.filter { returnedIds.contains($0.id) } ?? []
+    }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -103,6 +111,16 @@ struct KioskReturnView: View {
                         .font(.subheadline)
                         .foregroundStyle(allReturned ? Color.statusText(.green) : .secondary)
 
+                    if hasBatteryScanStep {
+                        BatteryScanStatus(
+                            title: "Battery Units",
+                            count: returnedBatteryCount,
+                            total: batteryTotal,
+                            pendingCopy: "Scan each returned battery unit QR so custody closes on the exact units.",
+                            scannedUnits: returnedBatteryUnits
+                        )
+                    }
+
                     if let result = lastResult {
                         FeedbackBanner(result: result)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -172,11 +190,13 @@ struct KioskReturnView: View {
 
     private var returnLabel: String {
         if allReturned { return "Complete Return" }
+        if !hasReturned, hasBatteryScanStep { return "Scan Battery Units" }
         return "Return \(returnedCount) of \(totalItems) Items"
     }
 
     private var completeAccessibilityLabel: String {
         if isCompleting { return "Processing return" }
+        if !hasReturned, hasBatteryScanStep { return "Scan returned battery units before completing" }
         if !hasReturned { return "Scan at least one item before returning" }
         if allReturned { return "Complete Return, all \(totalItems) items" }
         return "Return \(returnedCount) of \(totalItems) items"
@@ -360,10 +380,18 @@ private struct ReturnItemRow: View {
                 .frame(width: 28)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.name)
-                    .font(.subheadline)
-                    .foregroundStyle(returned ? Color.white.opacity(0.5) : .white)
-                    .strikethrough(returned, color: Color.white.opacity(0.3))
+                HStack(spacing: 6) {
+                    Text(item.name)
+                        .font(.subheadline)
+                        .foregroundStyle(returned ? Color.white.opacity(0.5) : .white)
+                        .strikethrough(returned, color: Color.white.opacity(0.3))
+                    if item.isNumberedBulk {
+                        Image(systemName: "battery.100percent")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(Color.statusText(.orange))
+                            .accessibilityLabel("Battery unit")
+                    }
+                }
                 Text(item.tagName)
                     .font(.caption.monospaced())
                     .foregroundStyle(.secondary)
@@ -375,6 +403,78 @@ private struct ReturnItemRow: View {
         .animation(.spring(response: 0.25), value: returned)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(item.name), tag \(item.tagName), \(returned ? "returned" : "pending")")
+    }
+}
+
+private struct BatteryScanStatus: View {
+    let title: String
+    let count: Int
+    let total: Int
+    let pendingCopy: String
+    let scannedUnits: [KioskCheckoutDetail.ReturnItem]
+
+    var complete: Bool { count >= total && total > 0 }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: complete ? "battery.100percent" : "battery.25percent")
+                    .font(.title3)
+                    .foregroundStyle(complete ? Color.statusText(.green) : Color.statusText(.orange))
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white)
+                    Text(complete ? "All \(total) units returned" : "\(count) of \(total) units returned")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                    if !complete {
+                        Text(pendingCopy)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+            }
+            if !scannedUnits.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Returned units")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    FlexibleUnitChips(units: scannedUnits)
+                }
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))
+        .accessibilityElement(children: .combine)
+    }
+}
+
+private struct FlexibleUnitChips: View {
+    let units: [KioskCheckoutDetail.ReturnItem]
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 6) { chipContent }
+            VStack(alignment: .leading, spacing: 6) { chipContent }
+        }
+    }
+
+    @ViewBuilder
+    private var chipContent: some View {
+        ForEach(units) { unit in
+            Text(unit.tagName)
+                .font(.caption2.monospaced().weight(.semibold))
+                .foregroundStyle(Color.statusText(.green))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.statusText(.green).opacity(0.12), in: Capsule())
+                .overlay(Capsule().stroke(Color.statusText(.green).opacity(0.25), lineWidth: 1))
+        }
     }
 }
 

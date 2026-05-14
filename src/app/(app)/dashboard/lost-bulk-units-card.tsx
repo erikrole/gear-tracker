@@ -27,15 +27,15 @@ export function LostBulkUnitsCard({ items }: Props) {
             className="text-[11px] uppercase tracking-[0.14em] text-[var(--wi-red)] font-semibold"
             style={{ fontFamily: "var(--font-mono)" }}
           >
-            {totalLost} bulk unit{totalLost !== 1 ? "s" : ""} lost
+            {totalLost} unit{totalLost !== 1 ? "s" : ""} missing
           </span>
         </div>
         <Link
-          href="/bulk-inventory"
+          href="/reports/bulk-losses"
           className="text-[10.5px] text-muted-foreground/60 hover:text-muted-foreground no-underline transition-colors whitespace-nowrap"
           style={{ fontFamily: "var(--font-mono)" }}
         >
-          View all →
+          Review →
         </Link>
       </div>
 

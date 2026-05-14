@@ -124,7 +124,7 @@ export function NewKitSheet({ open, onOpenChange, locations, onCreated }: NewKit
           <div className="flex flex-col gap-4 py-4">
             <Alert>
               <AlertDescription>
-                "{createdKit.name}" was created. Open it to add serialized items and bulk stock, or create another kit.
+                "{createdKit.name}" was created. Open it to add serialized items and item families, or create another kit.
               </AlertDescription>
             </Alert>
             <div className="rounded-md border bg-muted/30 px-4 py-3 text-sm">

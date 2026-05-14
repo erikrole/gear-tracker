@@ -17,6 +17,7 @@ export type UserRow = {
   title: string | null;
   gradYear: number | null;
   studentYearOverride: StudentYear | null;
+  lastActiveAt: string | null;
 };
 
 export type SportAssignment = {
@@ -99,7 +100,16 @@ export type ListResponse = {
   };
 };
 
-export type SortKey = "name" | "name_desc" | "role" | "role_desc" | "email" | "email_desc" | "";
+export type SortKey =
+  | "name"
+  | "name_desc"
+  | "role"
+  | "role_desc"
+  | "email"
+  | "email_desc"
+  | "lastActive"
+  | "lastActive_desc"
+  | "";
 
 export const ROLE_OPTIONS: { value: string; label: string }[] = [
   { value: "ADMIN", label: "Admin" },

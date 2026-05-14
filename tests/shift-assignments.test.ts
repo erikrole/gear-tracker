@@ -31,17 +31,10 @@ vi.mock("@/lib/db", () => {
   };
 });
 
-vi.mock("@/lib/badges", () => ({
-  badges: {
-    onShiftCompleted: vi.fn(),
-  },
-}));
-
 // ─── Mock checkTimeConflict self-reference (used internally) ────────────────
 // The service imports checkTimeConflict from itself, so we let the real
 // module load and only mock the db dependency above.
 
-import { badges } from "@/lib/badges";
 import { db } from "@/lib/db";
 import {
   directAssignShift,
@@ -318,7 +311,7 @@ describe("approveRequest", () => {
     );
   });
 
-  it("does not emit shift badge completion from request approval", async () => {
+  it("approves requests without badge side effects", async () => {
     const assignment = {
       ...makeShiftAssignment({ status: "REQUESTED", userId: "student-1" }),
       shift,
@@ -332,7 +325,9 @@ describe("approveRequest", () => {
 
     await approveRequest(assignment.id);
 
-    expect(badges.onShiftCompleted).not.toHaveBeenCalled();
+    expect(mockTx.shiftAssignment.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { status: "APPROVED" } })
+    );
   });
 });
 

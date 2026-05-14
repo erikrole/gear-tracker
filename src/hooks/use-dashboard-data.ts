@@ -26,6 +26,7 @@ function normalizeDashboard(d: DashboardData): DashboardData {
   d.overdueItems = d.overdueItems ?? [];
   d.drafts = d.drafts ?? [];
   d.myShifts = d.myShifts ?? [];
+  d.myEventWork = d.myEventWork ?? [];
   d.flaggedItems = d.flaggedItems ?? [];
   d.lostBulkUnits = d.lostBulkUnits ?? [];
   d.stats = d.stats ?? { checkedOut: 0, overdue: 0, reserved: 0, dueToday: 0 };

@@ -220,13 +220,12 @@ All V2 items shipped. Key deliverables:
 
 **Goal**: The system anticipates needs, automates repetitive tasks, and provides operational intelligence.
 
-#### 3.1 Game-Day Mode (Size: L)
+#### 3.1 Exception-Focused Admin Queue (Size: M)
 
-Dashboard adapts when an event is within 4 hours:
-- **Game-Day Readiness Score**: Aggregate metric (shift coverage % + gear checkout % + overdue count)
-- **Prominent display**: Shift coverage, gear readiness, outstanding checkouts above normal dashboard
-- **Time-of-day adaptation**: Morning = upcoming today. Evening = overdue + tomorrow prep.
-- **Role-specific emphasis**: Students see My Gear first (already true). Staff see readiness score. Admins see system health.
+Keep staff/admin work focused on concrete exceptions rather than a game-day score:
+- **Fix today**: overdue gear, pending pickup orphans, offline kiosks, sync failures, low batteries, and license expirations
+- **No readiness score**: do not add an aggregate Game-Day Readiness Score or separate ops-view surface without a new product decision
+- **Role-specific emphasis**: students see their own gear first; staff/admin see actionable exceptions
 
 #### 3.2 Unified Search V2 (Size: L)
 

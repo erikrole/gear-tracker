@@ -127,7 +127,7 @@ const FIELD_LABELS: Record<string, string> = {
   requesterUserId: "Requester",
   parentAssetId: "Parent item",
   serializedAssetIds: "Equipment",
-  bulkItems: "Bulk items",
+  bulkItems: "Item families",
   purchasePrice: "Purchase price",
   purchaseDate: "Purchase date",
   warrantyDate: "Warranty date",
@@ -480,7 +480,7 @@ function getEquipmentCounts(
   }
   if (Array.isArray(json.bulkItems)) {
     const n = json.bulkItems.length;
-    parts.push(`${n} bulk item${n !== 1 ? "s" : ""}`);
+    parts.push(`${n} item famil${n === 1 ? "y" : "ies"}`);
   }
   return parts.length > 0 ? parts.join(", ") : null;
 }

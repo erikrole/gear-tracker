@@ -12,7 +12,7 @@ import type { BulkUnit } from "@/app/(app)/bulk-inventory/[id]/types";
 const UNIT_STYLES: Record<string, { bg: string; dot: string; label: string }> = {
   AVAILABLE:   { bg: "bg-[var(--green-bg)]",  dot: "bg-[var(--green)]",       label: "Available" },
   CHECKED_OUT: { bg: "bg-[var(--blue-bg)]",   dot: "bg-[var(--blue)]",        label: "Checked out" },
-  LOST:        { bg: "bg-[var(--red-bg)]",    dot: "bg-destructive",           label: "Lost" },
+  LOST:        { bg: "bg-[var(--red-bg)]",    dot: "bg-destructive",           label: "Missing" },
   RETIRED:     { bg: "bg-muted",              dot: "bg-muted-foreground",      label: "Retired" },
 };
 
@@ -76,7 +76,7 @@ export function BulkUnitGrid({ units, onStatusChange, disabled = false }: Props)
                 className="text-destructive focus:text-destructive"
                 onClick={() => onStatusChange(u.unitNumber, "LOST")}
               >
-                Mark Lost
+                Mark Missing
               </ContextMenuItem>
               <ContextMenuItem
                 disabled={u.status === "RETIRED"}

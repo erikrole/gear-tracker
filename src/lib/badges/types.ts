@@ -45,17 +45,9 @@ export type TradeCompletedBadgeEvent = {
   sourceKey: string;
 };
 
-export type ShiftCompletedBadgeEvent = {
-  userId: string;
-  shiftAssignmentId: string;
-  attended: boolean;
-  sourceKey: string;
-};
-
 export type BadgeService = {
   onCheckoutOpened(event: CheckoutOpenedBadgeEvent): Promise<void>;
   onCheckoutReturned(event: CheckoutReturnedBadgeEvent): Promise<void>;
   onScanResult(event: ScanResultBadgeEvent): Promise<void>;
   onTradeCompleted(event: TradeCompletedBadgeEvent): Promise<void>;
-  onShiftCompleted(event: ShiftCompletedBadgeEvent): Promise<void>;
 };

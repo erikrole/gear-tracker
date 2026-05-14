@@ -56,6 +56,7 @@ final class EventDetailViewModel {
 struct EventDetailSheet: View {
     let event: ScheduleEvent
     let myShift: MyShift?
+    let eventWork: DashboardEventWork?
     @Environment(SessionStore.self) private var session
     @Environment(\.dismiss) private var dismiss
 
@@ -71,9 +72,10 @@ struct EventDetailSheet: View {
     @State private var isCreatingGroup = false
     @State private var actionError: String?
 
-    init(event: ScheduleEvent, myShift: MyShift?) {
+    init(event: ScheduleEvent, myShift: MyShift?, eventWork: DashboardEventWork? = nil) {
         self.event = event
         self.myShift = myShift
+        self.eventWork = eventWork
         _vm = State(initialValue: EventDetailViewModel(event: event, myShift: myShift))
     }
 
@@ -91,6 +93,10 @@ struct EventDetailSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     eventHeader
+                    if eventWork != nil || myShift != nil {
+                        Divider()
+                        gearAndCallSection
+                    }
                     Divider()
                     crewSection
                 }
@@ -113,7 +119,7 @@ struct EventDetailSheet: View {
                         .accessibilityLabel("Add shift")
                     }
                 }
-                if myShift != nil {
+                if canPrepGear {
                     ToolbarItem(placement: .bottomBar) {
                         Button {
                             prepGearOpen = true
@@ -133,6 +139,9 @@ struct EventDetailSheet: View {
             .task { weatherData = await EventWeatherService.shared.weather(for: event) }
             .sheet(isPresented: $prepGearOpen) {
                 CreateBookingSheet(vm: makePrepGearVM()) { _ in }
+            }
+            .navigationDestination(for: BookingRouteId.self) { route in
+                BookingDetailView(bookingId: route.id)
             }
             .sheet(item: $assignTarget) { shift in
                 AssignStudentSheet(
@@ -328,9 +337,18 @@ struct EventDetailSheet: View {
 
     private func makePrepGearVM() -> CreateBookingViewModel {
         let bookingVM = CreateBookingViewModel()
-        if let shift = myShift, let userId = session.currentUser?.id {
+        if let work = eventWork, let userId = session.currentUser?.id {
             bookingVM.prefill(
-                title: "Gear – \(event.summary)",
+                title: "Gear - \(event.summary)",
+                startsAt: work.shift.startsAt,
+                endsAt: event.endsAt,
+                userId: userId,
+                eventId: event.id,
+                shiftAssignmentId: work.shift.id
+            )
+        } else if let shift = myShift, let userId = session.currentUser?.id {
+            bookingVM.prefill(
+                title: "Gear - \(event.summary)",
                 startsAt: shift.startsAt,
                 endsAt: event.endsAt,
                 userId: userId,
@@ -339,6 +357,88 @@ struct EventDetailSheet: View {
             )
         }
         return bookingVM
+    }
+
+    private var canPrepGear: Bool {
+        if eventWork?.needsGear == true { return true }
+        return myShift != nil
+    }
+
+    private var callTime: Date? {
+        eventWork?.shift.startsAt ?? myShift?.startsAt
+    }
+
+    @ViewBuilder
+    private var gearAndCallSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Your Event")
+                .font(.headline)
+
+            VStack(alignment: .leading, spacing: 10) {
+                if let gear = eventWork?.primaryGear, eventWork?.needsGear == false {
+                    NavigationLink(value: BookingRouteId(id: gear.id)) {
+                        detailLine(
+                            icon: "archivebox.fill",
+                            title: gearInstruction(for: gear),
+                            subtitle: gear.itemCount == 1 ? "1 item reserved" : "\(gear.itemCount) items reserved",
+                            tone: gear.status == .pendingPickup && gear.startsAt < Date() ? .orange : .green
+                        )
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Button {
+                        prepGearOpen = true
+                    } label: {
+                        detailLine(
+                            icon: "archivebox",
+                            title: "Reserve gear now",
+                            subtitle: "Add the gear you need for this event.",
+                            tone: .blue
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                if let callTime {
+                    detailLine(
+                        icon: "clock.fill",
+                        title: "Call time at \(callTime.formatted(date: .omitted, time: .shortened))",
+                        subtitle: eventWork?.shift.area.shiftAreaLabel ?? myShift?.area.shiftAreaLabel ?? "Shift",
+                        tone: .blue
+                    )
+                }
+            }
+            .padding(12)
+            .background(.background.secondary)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+    }
+
+    private func detailLine(icon: String, title: String, subtitle: String, tone: StatusTone) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color.statusText(tone))
+                .frame(width: 24)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .contentShape(Rectangle())
+    }
+
+    private func gearInstruction(for gear: BookingSummary) -> String {
+        let time = gear.startsAt.formatted(date: .omitted, time: .shortened)
+        if gear.status == .pendingPickup && gear.startsAt < Date() {
+            return "Pickup gear now"
+        }
+        return "Pickup gear at \(time)"
     }
 
     // MARK: - Event Header

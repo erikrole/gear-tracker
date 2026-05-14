@@ -58,7 +58,7 @@ Files under `ios/Wisconsin/Kiosk/`:
   - `POST /pickup/[id]/scan`, `POST /pickup/[id]/confirm`
   - `POST /scan-lookup` — read-only item-by-tag lookup
 - Numbered battery units scan through the same pickup/check-in endpoints with derived values like `{binQrCodeValue}-{unitNumber}`. Pickup binds the unit to the booking; check-in returns only the scanned unit.
-- Pickup and return detail payloads include numbered battery units in the same `items` checklist used by serialized assets, so the native iOS screens count batteries before allowing pickup/return actions.
+- Pickup and return detail payloads include numbered battery units in the same `items` checklist used by serialized assets, plus typed scan-summary metadata so the native iOS screens can show a distinct battery-unit scan step before pickup/return completion.
 - Serialized pickup confirmation now requires a successful `CHECKOUT` scan event for each serialized asset on the booking. Kiosk scan lookup accepts asset tag, primary scan code, QR value, `qr-` fallback, and serial number values.
 - Stale pending-pickup checkouts auto-expire during the scheduled morning refresh after 48 hours past `startsAt`. Expiry cancels the booking, releases serialized allocations, restores held bulk stock, releases any scanned numbered units, cancels open scan sessions, and writes a system audit entry.
 - **Auth helpers:** `withKiosk()` (`src/lib/api.ts`) and `requireKiosk()` (`src/lib/auth.ts`) validate the kiosk-session cookie, enforce the server-side 7-day `sessionExpiresAt`, refresh `lastSeenAt`, throw 401 if expired/inactive/deactivated.
@@ -110,3 +110,5 @@ Files under `ios/Wisconsin/Kiosk/`:
 | 2026-05-09 | Badge achievements Slice 3: kiosk checkout, pickup, and check-in scan routes now emit feature-flagged scan-result badge events. Native checkout scan requests include the selected student `actorId`; older clients without `actorId` keep scanning without badge attribution. |
 | 2026-05-12 | Added the missing `sessionExpiresAt` Prisma field, index, and migration for kiosk devices so 7-day server-side kiosk session expiry compiles, deploys, and can be queried cleanly. |
 | 2026-05-13 | GAP-58 and GAP-33 closed: kiosk dashboard now returns partial data with `partialFailures` instead of 500ing on one failed read, and morning-refresh auto-expires pending-pickup checkouts older than 48h after `startsAt` with inventory/session/audit cleanup. |
+| 2026-05-13 | Battery follow-through: kiosk checkout detail now marks numbered battery rows with type/SKU/unit metadata and a scan summary. iOS pickup and return screens show a dedicated battery-unit scan progress card so students know to scan each numbered battery label. |
+| 2026-05-13 | Battery-unit scan clarity: native pickup and return screens now show required/scanned battery unit counts, exact scanned/returned unit chips, and clearer disabled pickup-confirm guidance when unit scans are still missing. |

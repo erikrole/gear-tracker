@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { ok, parsePagination } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { buildDerivedStatusWhere, enrichAssetsWithStatusFromLoaded } from "@/lib/services/status";
+import { parseDerivedBulkUnitQr } from "@/lib/bulk-unit-qr";
 import { BookingKind, BookingStatus, Prisma } from "@prisma/client";
 
 const departmentIdSchema = z.string().min(1);
@@ -83,6 +84,16 @@ export const GET = withAuth(async (req, { user }) => {
     ? `-${sortParam}`
     : sortParam || "assetTag";
   const orderBy = SORT_MAP[sortKey] ?? SORT_MAP["assetTag"];
+
+  const derivedBulkUnitQr = qr
+    ? parseDerivedBulkUnitQr(
+        qr,
+        await db.bulkSku.findMany({
+          where: { active: true, trackByNumber: true },
+          select: { id: true, binQrCodeValue: true, trackByNumber: true },
+        }),
+      )
+    : null;
 
   // Build base where clause (non-status filters)
   // QR scan lookup (?qr=) must find accessories too, so skip the parentAssetId filter
@@ -353,8 +364,17 @@ export const GET = withAuth(async (req, { user }) => {
     name: string;
     category: string;
     unit: string;
+    trackByNumber: boolean;
     onHandQuantity: number;
     availableQuantity: number;
+    checkedOutQuantity: number;
+    lostQuantity: number;
+    retiredQuantity: number;
+    matchedUnitNumber?: number;
+    matchedUnitStatus?: string;
+    matchedUnitHolder?: string | null;
+    matchedUnitDueAt?: string | null;
+    matchedUnitBookingTitle?: string | null;
     imageUrl: string | null;
     locationName: string;
     locationId: string;
@@ -379,6 +399,13 @@ export const GET = withAuth(async (req, { user }) => {
           { category: { contains: q, mode: "insensitive" as const } },
         ],
       } : {}),
+      ...(qr ? {
+        OR: [
+          { binQrCodeValue: { equals: qr, mode: "insensitive" as const } },
+          { binQrCodeValue: { equals: `QR-${qr}`, mode: "insensitive" as const } },
+          ...(derivedBulkUnitQr ? [{ id: derivedBulkUnitQr.bulkSkuId }] : []),
+        ],
+      } : {}),
     };
 
     const bulkSkus = await db.bulkSku.findMany({
@@ -387,20 +414,88 @@ export const GET = withAuth(async (req, { user }) => {
         location: { select: { name: true } },
         department: { select: { id: true, name: true } },
         balances: { select: { onHandQuantity: true } },
+        units: { select: { id: true, unitNumber: true, status: true } },
       },
       orderBy: { name: "asc" },
     });
 
+    const matchedUnitId = derivedBulkUnitQr
+      ? bulkSkus
+          .find((sku) => sku.id === derivedBulkUnitQr.bulkSkuId)
+          ?.units.find((unit) => unit.unitNumber === derivedBulkUnitQr.unitNumber)
+          ?.id
+      : null;
+    const matchedUnitAllocation = matchedUnitId
+      ? await db.bookingBulkUnitAllocation.findFirst({
+          where: {
+            bulkSkuUnitId: matchedUnitId,
+            checkedOutAt: { not: null },
+            checkedInAt: null,
+          },
+          select: {
+            bookingBulkItem: {
+              select: {
+                booking: {
+                  select: {
+                    title: true,
+                    endsAt: true,
+                    requester: { select: { name: true } },
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { checkedOutAt: "desc" },
+        })
+      : null;
+    const matchedUnitBooking = matchedUnitAllocation?.bookingBulkItem.booking;
+
     bulkItems = bulkSkus.map((sku) => {
-      const onHand = sku.balances.reduce((sum, b) => sum + b.onHandQuantity, 0);
+      const balanceOnHand = sku.balances.reduce((sum, b) => sum + b.onHandQuantity, 0);
+      const checkedOutQuantity = sku.trackByNumber
+        ? sku.units.filter((unit) => unit.status === "CHECKED_OUT").length
+        : 0;
+      const lostQuantity = sku.trackByNumber
+        ? sku.units.filter((unit) => unit.status === "LOST").length
+        : 0;
+      const retiredQuantity = sku.trackByNumber
+        ? sku.units.filter((unit) => unit.status === "RETIRED").length
+        : 0;
+      const availableQuantity = sku.trackByNumber
+        ? sku.units.filter((unit) => unit.status === "AVAILABLE").length
+        : Math.max(0, balanceOnHand);
+      const onHand = sku.trackByNumber
+        ? sku.units.length
+        : balanceOnHand;
+      const matchedUnit = derivedBulkUnitQr?.bulkSkuId === sku.id
+        ? sku.units.find((unit) => unit.unitNumber === derivedBulkUnitQr.unitNumber)
+        : null;
+      const matchedUnitCustody = matchedUnit && matchedUnit.id === matchedUnitId && matchedUnitBooking
+        ? {
+            matchedUnitHolder: matchedUnitBooking.requester.name,
+            matchedUnitDueAt: matchedUnitBooking.endsAt.toISOString(),
+            matchedUnitBookingTitle: matchedUnitBooking.title,
+          }
+        : {};
       return {
         id: sku.id,
         kind: "bulk" as const,
         name: sku.name,
         category: sku.category,
         unit: sku.unit,
+        trackByNumber: sku.trackByNumber,
         onHandQuantity: onHand,
-        availableQuantity: Math.max(0, onHand),
+        availableQuantity,
+        checkedOutQuantity,
+        lostQuantity,
+        retiredQuantity,
+        ...(matchedUnit
+          ? {
+              matchedUnitNumber: matchedUnit.unitNumber,
+              matchedUnitStatus: matchedUnit.status,
+              ...matchedUnitCustody,
+            }
+          : {}),
         imageUrl: sku.imageUrl,
         locationName: sku.location.name,
         locationId: sku.locationId,

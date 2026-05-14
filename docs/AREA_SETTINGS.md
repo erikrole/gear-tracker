@@ -33,6 +33,8 @@ Single Settings surface for both **personal preferences** (visible to every auth
 
 ### Appearance (`/settings/appearance`) — Personal
 - Theme picker: Light / Dark / System (follows OS preference).
+- Theme switching is shared with the Sidebar footer control through `src/lib/theme.ts`; choosing Light/Dark writes `localStorage.theme`, choosing System removes the override and follows OS changes.
+- User-initiated theme switches use a short root-level animation via the View Transitions API when available, with a CSS fallback and reduced-motion opt-out.
 - Text size picker: Small / Default / Large / Extra large (0.9 → 1.3 multiplier on the `--text-scale` CSS variable; all `--text-*` tokens scale proportionally).
 - Saved per-device in `localStorage` (`theme`, `text-scale`); the cold-load script in `src/app/layout.tsx` applies both on first paint to avoid FOUC.
 - Available to every authenticated user (STUDENT included).
@@ -127,6 +129,7 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages.
 
 ## Change Log
+- 2026-05-13: Appearance polish. Light/Dark/System switching now runs through a shared theme controller used by both Appearance and the Sidebar, keeps System as a no-override localStorage state, and adds a short reduced-motion-safe theme transition without animating first paint.
 - 2026-05-12: Creation flow standardization. Categories, Departments, Locations, and Allowed Emails add forms now show visible form-level validation/API/network errors and keep submit/cancel controls in a clear disabled state during slow saves.
 - 2026-05-12: Security audit patch. Kiosk device deactivation now clears both the stored session token and `sessionExpiresAt`, matching the server-side kiosk expiry model documented in `AREA_KIOSK.md`.
 - 2026-05-10: Schedule ownership pass. Sports shift-generation activation now uses the shared Switch control with an explicit Active/Off badge, keeping the schedule-feeding settings page aligned with the rest of the app's control system.

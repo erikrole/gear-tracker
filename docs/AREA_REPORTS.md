@@ -29,7 +29,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
   - Checkouts
   - Overdue
   - Scans
-  - Bulk Losses
+  - Missing Units
   - Audit
   - Badges
 - **Styling:** Tab buttons with active underline; responsive on mobile
@@ -74,11 +74,11 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 
 ### `/reports/bulk-losses`
 - **Page:** `src/app/(app)/reports/bulk-losses/page.tsx`
-- **Type:** Bulk inventory loss tracking
-- **Columns:** SKU name, category, lost count, date detected, location, battery unit number, last holder, booking handoff
-- **Metrics:** Total units lost, SKUs with losses, users involved, battery units, missing batteries, battery loss rate, repeated battery patterns
-- **Tables:** Lost units by item, loss by requester, recent loss events, battery loss rate by SKU, missing battery units, recent battery checkout history
-- **Signals:** Repeated missing battery patterns by SKU and by last known requester
+- **Type:** Missing-unit tracking for quantity-tracked and unit-tracked families
+- **Columns:** Item family, category, missing count, date detected, location, battery unit number, last holder, booking handoff
+- **Metrics:** Missing units, item families affected, users involved, battery units, missing batteries, missing rate, repeated battery patterns
+- **Tables:** Missing units by family, missing units by requester, recent missing-unit events, missing rate by family, missing battery units, recent battery checkout history
+- **Signals:** Repeated missing battery patterns by item family and by last known requester
 - **Filters:** Date range, category, location
 - **Data:** `GET /api/reports/bulk-losses`
 
@@ -127,18 +127,19 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - [x] AC-2: Checkouts report with list + status breakdown
 - [x] AC-3: Overdue report with escalation tracking
 - [x] AC-4: Scans report with device + phase analytics
-- [x] AC-5: Bulk Losses report with SKU tracking
+- [x] AC-5: Missing Units report with item-family tracking
 - [x] AC-6: Audit report with event log viewer (ADMIN only)
 - [x] AC-7: Badge report with leaderboard, distribution, and recent awards
-- [x] AC-8: Bulk Losses report includes numbered battery missing-unit, loss-rate, custody-history, and repeat-pattern reporting
+- [x] AC-8: Missing Units report includes unit-tracked battery missing-unit, missing-rate, custody-history, and repeat-pattern reporting
 
 ## Change Log
-- 2026-05-13: Battery audit reporting shipped inside Bulk Losses. Staff/admin can now see missing numbered batteries by unit, battery loss rate by SKU, recent unit checkout history, repeated missing SKU/requester patterns, and a direct handoff to the battery cockpit.
+- 2026-05-13: Missing Units report copy now avoids old lost/numbered wording in the battery audit sections, using Missing and battery families using Units instead.
+- 2026-05-13: Battery audit reporting now lives under Missing Units. Staff/admin can see missing unit-tracked batteries by unit, missing rate by family, recent unit checkout history, repeated missing family/requester patterns, and a direct handoff to Battery Ops.
 - 2026-05-10: Reports ownership pass. Checkout analytics now exclude draft bookings, overdue reports count only outstanding gear, and scan report filters are normalized in the UI with API-side validation for invalid dates and phases. Browser smoke also fixed the shared React Query provider hydration path so report pages no longer log hydration mismatches after reloads.
 - 2026-05-09: Badge report insight polish added manual award rate, underused active definitions, and a recent manual recognition section so staff can see whether the badge catalog is being used consistently.
 - 2026-05-09: Badge report shipped. `/reports/badges` now gives staff/admin read-only analytics for total awards, 30-day award volume, active definitions, manual awards, user leaderboard, badge distribution, and recent awards while keeping `/users/{id}?tab=badges` as the primary profile badge surface.
-- 2026-05-09: Reports authenticated browser smoke completed. Chrome DevTools verified seeded-admin rendering for Utilization, Checkouts, Overdue, Bulk Losses, Scans, and Audit; the pass also fixed a Recharts responsive sizing warning centrally in the shared shadcn chart wrapper.
-- 2026-05-09: Focused Reports UI polish slice. Added shared report UI helpers for toolbar rhythm, metric grids, section cards, and loading skeletons; upgraded the Reports header/tab shell; and migrated Utilization, Checkouts, Overdue, Scans, Bulk Losses, and Audit to the shared presentation patterns without changing report APIs or analytics semantics.
+- 2026-05-09: Reports authenticated browser smoke completed. Chrome DevTools verified seeded-admin rendering for Utilization, Checkouts, Overdue, Missing Units, Scans, and Audit; the pass also fixed a Recharts responsive sizing warning centrally in the shared shadcn chart wrapper.
+- 2026-05-09: Focused Reports UI polish slice. Added shared report UI helpers for toolbar rhythm, metric grids, section cards, and loading skeletons; upgraded the Reports header/tab shell; and migrated Utilization, Checkouts, Overdue, Missing Units, Scans, and Audit to the shared presentation patterns without changing report APIs or analytics semantics.
 - 2026-05-09: Reports chart polish follow-up. Moved report chart components onto the shared report chart-card wrapper, centralized the chart palette, tightened chart legends and numeric alignment, and fixed utilization breakdown sorting so charts no longer mutate incoming data arrays.
 - 2026-05-09: Reports filter polish follow-up. Checkouts, Scans, and Audit period/phase controls now use the shared Reports segmented-control helper backed by shadcn ToggleGroup, preserving URL sync and pagination reset behavior while removing hand-rolled button groups.
 - 2026-05-09: Reports state polish follow-up. Added shared report error, empty, and pagination helpers; normalized retry layout across report pages; improved empty-state copy; and kept Scans/Audit pagination query behavior unchanged.

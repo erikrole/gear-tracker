@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { FacetedFilter } from "../faceted-filter";
+import type { ItemTypeFilter } from "../hooks/use-url-filters";
 
 const STATUS_OPTIONS = [
   { value: "AVAILABLE", label: "Available" },
@@ -65,8 +66,8 @@ export function ItemsToolbar({
   onShowAccessoriesChange: (value: boolean) => void;
   favoritesOnly: boolean;
   onFavoritesOnlyChange: (value: boolean) => void;
-  itemType: "all" | "serialized" | "bulk";
-  onItemTypeChange: (value: "all" | "serialized" | "bulk") => void;
+  itemType: ItemTypeFilter;
+  onItemTypeChange: (value: ItemTypeFilter) => void;
   hasActiveFilters: boolean;
   onClearAllFilters: () => void;
   locations: Location[];
@@ -128,13 +129,14 @@ export function ItemsToolbar({
             <ToggleGroup
               type="single"
               value={itemType}
-              onValueChange={(v) => v && onItemTypeChange(v as "all" | "serialized" | "bulk")}
+              onValueChange={(v) => v && onItemTypeChange(v as ItemTypeFilter)}
               className="shrink-0"
               aria-label="Item type filter"
             >
               <ToggleGroupItem value="all" className="h-9 px-3 text-xs">All</ToggleGroupItem>
-              <ToggleGroupItem value="serialized" className="h-9 px-3 text-xs">Serialized</ToggleGroupItem>
-              <ToggleGroupItem value="bulk" className="h-9 px-3 text-xs">Bulk</ToggleGroupItem>
+              <ToggleGroupItem value="serialized" className="h-9 px-3 text-xs">Standard</ToggleGroupItem>
+              <ToggleGroupItem value="unit-tracked" className="h-9 px-3 text-xs">Units</ToggleGroupItem>
+              <ToggleGroupItem value="quantity-tracked" className="h-9 px-3 text-xs">Quantity</ToggleGroupItem>
             </ToggleGroup>
           </div>
           <div className="hidden h-6 w-px bg-border/70 lg:block" aria-hidden="true" />

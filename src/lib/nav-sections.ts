@@ -162,7 +162,7 @@ export const REPORT_SECTIONS = [
   { href: "/reports/utilization", label: "Utilization" },
   { href: "/reports/checkouts", label: "Checkouts" },
   { href: "/reports/overdue", label: "Overdue" },
-  { href: "/reports/bulk-losses", label: "Bulk Losses" },
+  { href: "/reports/bulk-losses", label: "Missing Units" },
   { href: "/reports/scans", label: "Scans" },
   { href: "/reports/audit", label: "Audit" },
   { href: "/reports/badges", label: "Badges" },

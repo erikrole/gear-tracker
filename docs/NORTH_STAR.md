@@ -60,7 +60,7 @@ The system's primary value is **operational speed, clarity, and trust** for chec
 - **Who**: Technical administrators and senior staff leads
 - **Context**: Desktop-primary, lower frequency
 - **Primary jobs**: User and role management, audit log review, calendar source configuration, escalation response, configuration changes
-- **What they need**: Full access, reliable audit trail, clear system health signals
+- **What they need**: Full access, reliable audit trail, clear system health signals, and one admin-only queue for same-day operational fixes
 - **Success metric**: Can investigate and resolve any incident from audit log alone
 
 ---
@@ -206,10 +206,9 @@ Use these questions before adding any feature:
 ### Phase C — Later
 1. Kiosk mode (self-serve scan station)
 2. Reservation and checkout templates
-3. Board / ops view for game-day coordinators (Game-Day Readiness Score — deferred from scheduling integration)
-4. Advanced analytics (only after workflows stabilize)
-5. Multi-source event ingestion beyond UW Badgers ICS
-6. Admin-configurable equipment guidance rules (D-016)
+3. Advanced analytics (only after workflows stabilize)
+4. Multi-source event ingestion beyond UW Badgers ICS
+5. Admin-configurable equipment guidance rules (D-016)
 
 ---
 
@@ -256,8 +255,7 @@ These are tracked here as candidates for future planning cycles:
 
 1. **Drone equipment guidance** — 3 rules shipped (body-needs-batteries, lens-needs-body, audio-with-video). Remaining: drone battery and prop check rule.
 2. **Partial check-in item checklist UX** — The service supports partial check-in; the UI could be more explicit with a per-item return confirmation list rather than relying on scan flow alone.
-3. **Game-Day Readiness Score** — Deferred from scheduling integration (Slice 5). Aggregate metric showing shift coverage, gear availability, and checkout status for an upcoming event.
-4. **Booking templates** — Save and reuse common booking configurations (sport + equipment combos) to accelerate repeat workflows.
+3. **Booking templates** — Save and reuse common booking configurations (sport + equipment combos) to accelerate repeat workflows.
 
 ---
 
@@ -271,3 +269,4 @@ These are tracked here as candidates for future planning cycles:
 - 2026-05-05: Doc sync — student availability V1 was already shipped as weekly recurring unavailability blocks (`StudentAvailabilityBlock`), user profile Availability tab, and assignment conflict indicators. Phase B+ row updated from deferred to shipped.
 - 2026-05-05: Shift trade email notifications shipped for claimed, completed, approved, and declined trade events using the existing Resend channel.
 - 2026-05-05: Cross-page state awareness reconciled and shipped: event creation links preserve event and requester context into the booking wizard, while dashboard and booking list detail flows preserve scroll by opening `BookingDetailsSheet` in-place.
+- 2026-05-13: Product scope cleanup removed Game-Day Readiness Score / ops view from Phase C and future-improvement suggestions. Current priority stays on checkout, return, reservations, lookup, and admin exception handling instead of a new readiness-score surface.

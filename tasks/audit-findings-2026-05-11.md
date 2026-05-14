@@ -98,22 +98,11 @@ const onTimeCount = completedCheckouts.filter(
 
 ---
 
-### GAP-57 — `onShiftCompleted` badge handler is a no-op; shift badges never fire
+### GAP-57 — shift attendance badges are out of scope
 
-**File:** `src/lib/badges/evaluator.ts:297-299`
+**Resolved 2026-05-13:** product scope removed attendance-based shift badges. The dead badge hook was removed, and the seeded shift badge definitions were retired from the active catalog.
 
-**What's broken:**  
-```ts
-export async function onShiftCompleted(event: ShiftCompletedBadgeEvent): Promise<void> {
-  void event;
-}
-```
-
-The function is exported, presumably called from somewhere, and does nothing. Any badge definitions in `BadgeDefinition` with `trigger: "shift:completed"` or `category: BadgeCategory.SHIFT` will never be awarded.
-
-**Impact:** Shift-category badges are completely non-functional and not documented as deferred in `GAPS_AND_RISKS.md`. Users expecting shift recognition get nothing silently.
-
-**Fix:** Either implement the shift badge logic (count completed shifts per user, call `awardThresholdBadges`) or explicitly mark it deferred in `GAPS_AND_RISKS.md` and remove the dead export so callers are warned at compile time.
+**Decision:** do not implement shift attendance badge logic unless a future product decision explicitly reopens attendance tracking as a recognition source. Shift request approval remains a non-event for badge awards.
 
 ---
 
@@ -152,5 +141,5 @@ The kiosk idle screen endpoint bundles stats, events, and checkouts (including a
 | GAP-54 | P1 HIGH | `archive-shifts` cron route unscheduled — dead code |
 | GAP-55 | P1 HIGH | Notification cron `Promise.all` — one failure silences all three |
 | GAP-56 | P2 MEDIUM | On-time badge uses `updatedAt` not `completedAt` — corrupts on edit |
-| GAP-57 | P2 MEDIUM | `onShiftCompleted` no-op — shift badges never fire, undocumented |
+| GAP-57 | Closed | Shift attendance badges scrubbed as out of scope |
 | GAP-58 | P2 MEDIUM | Kiosk dashboard `Promise.all` — single failure breaks idle screen |

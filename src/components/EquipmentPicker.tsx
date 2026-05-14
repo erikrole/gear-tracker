@@ -49,7 +49,7 @@ import {
 } from "@/components/ui/item";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { getBatteryAvailabilityAlerts } from "@/lib/battery-compatibility";
+import { getBatteryCompatibilitySummaries } from "@/lib/battery-compatibility";
 import { AssetImage } from "@/components/AssetImage";
 import QrScanner from "@/components/QrScanner";
 
@@ -168,6 +168,18 @@ function statusText(status: string) {
 
 function getBulkAvailable(sku: PickerBulkSku) {
   return Math.max(0, sku.availableQuantity ?? sku.currentQuantity);
+}
+
+function bulkQuantityHint(sku: PickerBulkSku) {
+  return sku.trackByNumber
+    ? "units scan at pickup"
+    : "count only";
+}
+
+function selectedBulkQuantityText(sku: PickerBulkSku, quantity: number) {
+  return sku.trackByNumber
+    ? `${quantity} requested · units scan at pickup`
+    : `${quantity} requested`;
 }
 
 /* ───── Component ───── */
@@ -364,12 +376,18 @@ export default function EquipmentPicker({
     onSelectedAssetsChange(resolvedSelectedAssets);
   }, [resolvedSelectedAssets, onSelectedAssetsChange]);
 
-  const batteryAlerts = useMemo(
-    () => getBatteryAvailabilityAlerts({
-      selectedAssets: resolvedSelectedAssets,
+  const batteryGuidance = useMemo(
+    () => getBatteryCompatibilitySummaries({
+      cameraAssets: resolvedSelectedAssets,
       bulkSkus,
     }),
     [bulkSkus, resolvedSelectedAssets],
+  );
+  const visibleBatteryGuidance = useMemo(
+    () => activeSection === "batteries"
+      ? batteryGuidance
+      : batteryGuidance.filter((item) => item.isLow),
+    [activeSection, batteryGuidance],
   );
 
   // ── Helpers ──
@@ -450,7 +468,7 @@ export default function EquipmentPicker({
         return;
       }
       setBulkQty(bulkMatch.id, current + 1);
-      setScanFeedback({ kind: "success", message: `Added ${bulkMatch.name}` });
+      setScanFeedback({ kind: "success", message: `Requested ${current + 1} ${bulkMatch.name}` });
       setScanLookupBusy(false);
       return;
     }
@@ -656,14 +674,26 @@ export default function EquipmentPicker({
         </div>
       )}
 
-      {batteryAlerts.length > 0 && (
+      {visibleBatteryGuidance.length > 0 && (
         <div className="flex flex-col gap-2 border-b border-border/60 bg-background px-3 py-2">
-          {batteryAlerts.map((alert) => (
-            <Alert key={alert.ruleId} className="rounded-md border-orange-500/30 bg-orange-500/[0.06] py-2.5">
-              <AlertTitle className="text-sm">Low {alert.label}</AlertTitle>
+          {visibleBatteryGuidance.map((item) => (
+            <Alert
+              key={item.ruleId}
+              className={cn(
+                "rounded-md py-2.5",
+                item.isLow
+                  ? "border-orange-500/30 bg-orange-500/[0.06]"
+                  : "border-blue-500/20 bg-blue-500/[0.05]",
+              )}
+            >
+              <AlertTitle className="text-sm">
+                {item.isLow ? `Low ${item.label}` : `Recommended ${item.label}`}
+              </AlertTitle>
               <AlertDescription className="text-xs text-muted-foreground">
-                {alert.availableQuantity} available, threshold {alert.threshold}
-                {alert.cameraModels.length > 0 ? ` for ${alert.cameraModels.join(", ")}` : ""}.
+                {item.availableQuantity} available
+                {item.isLow ? `, threshold ${item.threshold}` : ""}
+                {item.cameraModels.length > 0 ? ` for ${item.cameraModels.join(", ")}` : ""}.
+                {" "}Add the quantity needed now; exact battery units are scanned at pickup.
               </AlertDescription>
             </Alert>
           ))}
@@ -851,7 +881,9 @@ export default function EquipmentPicker({
                     <ItemContent>
                       <ItemTitle className="truncate">{sku.name}</ItemTitle>
                       <ItemDescription className={cn("text-xs", noneAvailable && "text-destructive")}>
-                        {noneAvailable ? "None available" : `${available} available`}
+                        {noneAvailable
+                          ? "None available"
+                          : `${available} available · ${bulkQuantityHint(sku)}`}
                       </ItemDescription>
                       {riskText && (
                         <p className="mt-0.5 truncate text-[10px] text-orange-600 dark:text-orange-400">
@@ -1023,7 +1055,9 @@ export default function EquipmentPicker({
                     </ItemMedia>
                     <ItemContent>
                       <ItemTitle className="truncate">{sku.name}</ItemTitle>
-                      <ItemDescription className="text-xs">x {item.quantity}</ItemDescription>
+                      <ItemDescription className="text-xs">
+                        {selectedBulkQuantityText(sku, item.quantity)}
+                      </ItemDescription>
                       {risks && risks.length > 0 && (
                         <p className="truncate text-[10px] text-orange-600 dark:text-orange-400">
                           {riskLabel(risks)}

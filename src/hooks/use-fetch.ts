@@ -26,6 +26,8 @@ export type UseFetchOptions<T> = {
   refetchOnFocus?: boolean;
   /** If false, the query will not execute. Useful for conditional fetching. Default: true. */
   enabled?: boolean;
+  /** Keep the previous response visible while a changed URL is refetching. */
+  keepPreviousData?: boolean;
 };
 
 export type UseFetchResult<T> = {
@@ -60,7 +62,7 @@ async function fetchJson(url: string, returnTo?: string, signal?: AbortSignal): 
  * - Manual reload trigger
  */
 export function useFetch<T = unknown>(options: UseFetchOptions<T>): UseFetchResult<T> {
-  const { url, returnTo, refetchOnFocus = true, enabled = true } = options;
+  const { url, returnTo, refetchOnFocus = true, enabled = true, keepPreviousData = false } = options;
   const transformRef = useRef(options.transform);
   transformRef.current = options.transform;
 
@@ -81,6 +83,7 @@ export function useFetch<T = unknown>(options: UseFetchOptions<T>): UseFetchResu
     },
     refetchOnWindowFocus: refetchOnFocus,
     enabled,
+    placeholderData: keepPreviousData ? (previousData) => previousData : undefined,
   });
 
   // Toast on background refresh failure (preserves existing behavior)

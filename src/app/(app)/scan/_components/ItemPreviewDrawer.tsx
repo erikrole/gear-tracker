@@ -24,6 +24,34 @@ type ItemPreviewDrawerProps = {
   onClose: () => void;
 };
 
+function unitStatusLabel(status: string) {
+  switch (status) {
+    case "AVAILABLE":
+      return "Available";
+    case "CHECKED_OUT":
+      return "Checked out";
+    case "LOST":
+      return "Missing";
+    case "RETIRED":
+      return "Retired";
+    default:
+      return status.replace(/_/g, " ").toLowerCase();
+  }
+}
+
+function unitStatusBadgeVariant(status: string): "green" | "blue" | "red" | "gray" {
+  switch (status) {
+    case "AVAILABLE":
+      return "green";
+    case "CHECKED_OUT":
+      return "blue";
+    case "LOST":
+      return "red";
+    default:
+      return "gray";
+  }
+}
+
 export function ItemPreviewDrawer({ item, onClose }: ItemPreviewDrawerProps) {
   const router = useRouter();
   const isBooked = !!item?.activeBooking;
@@ -53,15 +81,21 @@ export function ItemPreviewDrawer({ item, onClose }: ItemPreviewDrawerProps) {
 
               <DrawerTitle>{displayName}</DrawerTitle>
               <DrawerDescription>
-                {item.assetTag}
-                {item.name && ` · ${item.brand} ${item.model}`}
+                {item.itemFamily
+                  ? `${item.model}${item.category?.name ? ` · ${item.category.name}` : ""}`
+                  : `${item.assetTag}${item.name ? ` · ${item.brand} ${item.model}` : ""}`}
               </DrawerDescription>
 
               <div className="mt-2 flex justify-center">
                 <Badge variant={statusBadgeVariantEquipment(item.computedStatus)}>
-                  {statusLabelEquipment(item.computedStatus)}
+                  {item.availabilityLabel ?? statusLabelEquipment(item.computedStatus)}
                 </Badge>
               </div>
+              {item.unitLabel && (
+                <div className="mt-2 flex justify-center">
+                  <Badge variant="secondary" size="sm">{item.unitLabel}</Badge>
+                </div>
+              )}
               {item.parentAsset && (
                 <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5 text-xs text-muted-foreground">
                   <span>Attached to</span>
@@ -74,7 +108,51 @@ export function ItemPreviewDrawer({ item, onClose }: ItemPreviewDrawerProps) {
             </DrawerHeader>
 
             <div className="px-4 pb-2">
-              {isBooked ? (
+              {item.itemFamily ? (
+                <div className="space-y-3">
+                  {item.scannedUnit ? (
+                    <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold">
+                            Unit #{item.scannedUnit.number}
+                          </div>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            Exact unit scanned from this item family.
+                          </div>
+                        </div>
+                        <Badge variant={unitStatusBadgeVariant(item.scannedUnit.status)} size="sm">
+                          {unitStatusLabel(item.scannedUnit.status)}
+                        </Badge>
+                      </div>
+                      {item.scannedUnit.holder && (
+                        <div className="mt-3 border-t border-border/60 pt-3 text-left">
+                          <div className="text-xs font-semibold uppercase text-muted-foreground">
+                            Current custody
+                          </div>
+                          <div className="mt-1 text-sm font-medium">
+                            {item.scannedUnit.holder}
+                          </div>
+                          {item.scannedUnit.bookingTitle && (
+                            <div className="text-xs text-muted-foreground">
+                              {item.scannedUnit.bookingTitle}
+                            </div>
+                          )}
+                          {item.scannedUnit.dueAt && (
+                            <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                              <CalendarIcon className="size-3" />
+                              Due {new Date(item.scannedUnit.dueAt).toLocaleDateString()}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+                  <div className="rounded-lg border border-border/60 bg-muted/30 px-4 py-3 text-center text-sm text-muted-foreground">
+                    Lookup only. Request quantities in bookings; kiosk pickup and return scans handle exact unit custody.
+                  </div>
+                </div>
+              ) : isBooked ? (
                 /* ── Booked state: show holder info ── */
                 <div className="rounded-lg border p-4">
                   <div className="flex items-center gap-3">

@@ -37,7 +37,8 @@ src/components/
 3. **Stale deep-link guard** - old `/scan?checkout=...` URLs do not show a broken booking checklist; they show the kiosk handoff and a checkout detail link.
 4. **Manual fallback** - `ScanControls` supports typed tag, QR, serial, or primary scan code values for desktop/no-camera situations.
 5. **Attachment visibility** - lookup scans show attached camera items with parent camera context and SD card slot labels when the tag convention supports it.
-6. **Feedback auto-clear** - success: 5s, error/info: 8s.
+6. **Item-family lookup** - parent/bin QR values and derived unit QR values resolve to the parent item-family context. Exact unit scans may show unit status, but app scan remains lookup-only.
+7. **Feedback auto-clear** - success: 5s, error/info: 8s.
 
 ## API Dependencies
 
@@ -54,6 +55,8 @@ Kiosk execution endpoints are documented in `docs/AREA_KIOSK.md`.
 
 | Date | Change |
 |---|---|
+| 2026-05-13 | Scan lookup polish: exact item-family unit QR scans now show the parent family, scanned unit number, unit status, and checked-out custody context while keeping app scan lookup-only. |
+| 2026-05-13 | Item-family lookup: app scan now resolves parent/bin QR and derived unit QR values to the parent item-family detail context while preserving kiosk-only custody scans. |
 | 2026-05-10 | Scan ownership pass: app `/scan` is now lookup-only, stale booking deep links show kiosk handoff instead of a broken camera checklist, mobile nav says Lookup, and booking/dashboard links no longer target `/scan?checkout=...`. |
 | 2026-05-09 | Badge achievements Slice 3: kiosk checkout, pickup, and check-in scans now emit feature-flagged badge scan-result events from the kiosk routes only. Regular app checkout/check-in scan stubs remain kiosk-gated 403 routes and award nothing. |
 | 2026-05-08 | Reconciled stale scan endpoint rate-limit TODO: regular app checkout/check-in scan routes are kiosk-gated 403 stubs, and a static contract now protects that boundary |

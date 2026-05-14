@@ -31,7 +31,7 @@ export default function BulkSkuSettingsTab({
       });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) { toast.error(await parseErrorMessage(res, "Failed to update")); return; }
-      toast.success(sku.active ? "SKU archived" : "SKU unarchived");
+      toast.success(sku.active ? "Item archived" : "Item unarchived");
       onRefresh();
     } catch {
       toast.error("Network error");
@@ -46,7 +46,7 @@ export default function BulkSkuSettingsTab({
       const res = await fetch(`/api/bulk-skus/${sku.id}`, { method: "DELETE" });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
-        toast.error(await parseErrorMessage(res, "Cannot delete this SKU"));
+        toast.error(await parseErrorMessage(res, "Cannot delete this item"));
         setConfirmDelete(false);
         return;
       }
@@ -71,7 +71,7 @@ export default function BulkSkuSettingsTab({
             <div>
               <Label className="text-sm font-medium">Active</Label>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Archived SKUs are hidden from booking flows but retain history.
+                Archived items are hidden from booking flows but retain history.
               </p>
             </div>
             <Switch checked={sku.active} onCheckedChange={toggleActive} disabled={busy} />
@@ -88,9 +88,9 @@ export default function BulkSkuSettingsTab({
           {!confirmDelete ? (
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium">Delete SKU</p>
+                <p className="text-sm font-medium">Delete item</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Permanently removes this SKU. Cannot be undone. Blocked if booking history exists.
+                  Permanently removes this item. Cannot be undone. Blocked if booking history exists.
                 </p>
               </div>
               <Button

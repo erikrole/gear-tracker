@@ -67,6 +67,29 @@ type Asset = {
   location: { name: string };
 };
 
+type BulkItemFamily = {
+  id: string;
+  kind: "bulk";
+  name: string;
+  category: string;
+  trackByNumber: boolean;
+  onHandQuantity: number;
+  availableQuantity: number;
+  binQrCodeValue: string;
+  locationName: string;
+};
+
+type LabelItem = {
+  id: string;
+  title: string;
+  description: string;
+  qrCodeValue: string;
+  primaryScanCode?: string;
+  locationName: string;
+  href: string;
+  ariaLabel: string;
+};
+
 function assetSubtitle(asset: Asset) {
   const seen = new Set([asset.assetTag.trim().toLowerCase()]);
   return [asset.name, `${asset.brand} ${asset.model}`.trim()]
@@ -79,6 +102,35 @@ function assetSubtitle(asset: Asset) {
       return true;
     })
     .join(" · ");
+}
+
+function mapAssetToLabelItem(asset: Asset): LabelItem {
+  const description = assetSubtitle(asset) || "Serialized item";
+  return {
+    id: asset.id,
+    title: asset.assetTag,
+    description,
+    qrCodeValue: asset.qrCodeValue,
+    primaryScanCode: asset.primaryScanCode,
+    locationName: asset.location.name,
+    href: `/items/${asset.id}`,
+    ariaLabel: `Open ${asset.assetTag}`,
+  };
+}
+
+function mapFamilyToLabelItem(family: BulkItemFamily): LabelItem {
+  const tracking = family.trackByNumber ? "Unit-tracked item family" : "Quantity-tracked item family";
+  const availability = `${family.availableQuantity}/${family.onHandQuantity} available`;
+  return {
+    id: `bulk-${family.id}`,
+    title: family.name,
+    description: [tracking, availability, family.category].filter(Boolean).join(" · "),
+    qrCodeValue: family.binQrCodeValue,
+    primaryScanCode: family.binQrCodeValue,
+    locationName: family.locationName,
+    href: `/items/bulk-${family.id}`,
+    ariaLabel: `Open ${family.name}`,
+  };
 }
 
 function LabelMetric({
@@ -129,22 +181,28 @@ export default function LabelsPage() {
     return `/api/assets?${params}`;
   })();
 
-  const { data: assets, loading } = useFetch<Asset[]>({
+  const { data: labelItems, loading } = useFetch<LabelItem[]>({
     url: fetchUrl,
-    transform: (json) => (json.data as Asset[]) ?? [],
+    transform: (json) => {
+      const assets = ((json.data as Asset[] | undefined) ?? []).map(mapAssetToLabelItem);
+      const families = ((json.bulkItems as BulkItemFamily[] | undefined) ?? []).map(mapFamilyToLabelItem);
+      return [...assets, ...families].sort((a, b) =>
+        a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: "base" }),
+      );
+    },
   });
 
   // Auto-select items from URL param on first load
   useEffect(() => {
-    if (!didPreselect && preselectedItems && assets && assets.length > 0) {
+    if (!didPreselect && preselectedItems && labelItems && labelItems.length > 0) {
       const ids = new Set(preselectedItems.split(","));
       const matching = new Set(
-        assets.filter((a) => ids.has(a.id)).map((a) => a.id),
+        labelItems.filter((item) => ids.has(item.id)).map((item) => item.id),
       );
       if (matching.size > 0) setSelectedIds(matching);
       setDidPreselect(true);
     }
-  }, [didPreselect, preselectedItems, assets]);
+  }, [didPreselect, preselectedItems, labelItems]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -156,24 +214,24 @@ export default function LabelsPage() {
   };
 
   const selectAll = () => {
-    if (assets) setSelectedIds(new Set(assets.map((a) => a.id)));
+    if (labelItems) setSelectedIds(new Set(labelItems.map((item) => item.id)));
   };
 
   const selectNone = () => {
     setSelectedIds(new Set());
   };
 
-  const selectedAssets = (assets ?? []).filter((a) => selectedIds.has(a.id));
-  const matchingCount = assets?.length ?? 0;
+  const selectedItems = (labelItems ?? []).filter((item) => selectedIds.has(item.id));
+  const matchingCount = labelItems?.length ?? 0;
   const hasSearch = debouncedSearch.trim().length > 0;
   const allVisibleSelected =
-    matchingCount > 0 && assets?.every((asset) => selectedIds.has(asset.id));
+    matchingCount > 0 && labelItems?.every((item) => selectedIds.has(item.id));
 
   return (
     <FadeUp>
       <PageHeader
         title="Print Labels"
-        description="Build a focused queue of asset tags and QR labels before sending them to browser print."
+        description="Build a focused queue of item, family, and QR labels before sending them to browser print."
         className="no-print"
       >
         <Button variant="outline" size="sm" asChild>
@@ -184,22 +242,22 @@ export default function LabelsPage() {
         </Button>
         <Button
           onClick={() => window.print()}
-          disabled={selectedAssets.length === 0}
+          disabled={selectedItems.length === 0}
           size="sm"
         >
           <Printer className="mr-1.5 size-4" />
-          {selectedAssets.length > 0
-            ? `Print ${labelCount(selectedAssets.length)}`
+          {selectedItems.length > 0
+            ? `Print ${labelCount(selectedItems.length)}`
             : "Print labels"}
         </Button>
       </PageHeader>
 
       <div className="no-print mb-4 grid gap-2 rounded-md border border-border/60 bg-muted/20 p-2 sm:grid-cols-3">
         <LabelMetric label="Matching items" value={matchingCount} />
-        <LabelMetric label="Selected" value={selectedAssets.length} tone="green" />
+        <LabelMetric label="Selected" value={selectedItems.length} tone="green" />
         <LabelMetric
           label="Ready to print"
-          value={selectedAssets.filter((asset) => asset.qrCodeValue).length}
+          value={selectedItems.filter((item) => item.qrCodeValue).length}
           tone="muted"
         />
       </div>
@@ -213,7 +271,7 @@ export default function LabelsPage() {
                 id="labels-search"
                 name="labels-search"
                 type="text"
-                placeholder="Search by tag, model, serial, QR, category, location..."
+                placeholder="Search by item, model, serial, QR, category, location..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="h-10 pl-9 pr-9"
@@ -233,7 +291,7 @@ export default function LabelsPage() {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className="tabular-nums">
-                {selectedAssets.length} selected
+                {selectedItems.length} selected
               </Badge>
               <Button
                 variant="outline"
@@ -247,7 +305,7 @@ export default function LabelsPage() {
                 variant="ghost"
                 size="sm"
                 onClick={selectNone}
-                disabled={selectedAssets.length === 0}
+                disabled={selectedItems.length === 0}
               >
                 Clear queue
               </Button>
@@ -277,8 +335,8 @@ export default function LabelsPage() {
             title={hasSearch ? "No matching labels" : "No labels available"}
             description={
               hasSearch
-                ? "Clear the search or try another asset tag, model, serial, or location."
-                : "Add serialized items before printing asset labels."
+                ? "Clear the search or try another item name, label code, QR, category, or location."
+                : "Add items or item families before printing labels."
             }
             actionLabel={hasSearch ? "Clear search" : undefined}
             onAction={hasSearch ? () => setSearch("") : undefined}
@@ -286,24 +344,24 @@ export default function LabelsPage() {
           />
         ) : (
           <ItemGroup className="max-h-[380px] overflow-y-auto p-2">
-            {(assets ?? []).map((asset) => (
+            {(labelItems ?? []).map((item) => (
               <Item
-                key={asset.id}
+                key={item.id}
                 size="sm"
                 className={cn(
                   "border border-transparent transition-colors",
-                  selectedIds.has(asset.id)
+                  selectedIds.has(item.id)
                     ? "border-green-200 bg-[var(--green-bg)] dark:border-green-900/60"
                     : "hover:bg-muted/50",
                 )}
               >
                 <Checkbox
-                  checked={selectedIds.has(asset.id)}
-                  onCheckedChange={() => toggleSelect(asset.id)}
-                  aria-label={`Select ${asset.assetTag}`}
+                  checked={selectedIds.has(item.id)}
+                  onCheckedChange={() => toggleSelect(item.id)}
+                  aria-label={`Select ${item.title}`}
                 />
                 <ItemMedia variant="icon" className="bg-background">
-                  {selectedIds.has(asset.id) ? (
+                  {selectedIds.has(item.id) ? (
                     <CheckCircle2 className="size-4 text-[var(--green-text)]" />
                   ) : (
                     <Printer className="size-4 text-muted-foreground" />
@@ -311,16 +369,16 @@ export default function LabelsPage() {
                 </ItemMedia>
                 <ItemContent className="min-w-0">
                   <ItemTitle className="w-full min-w-0 justify-between">
-                    <span className="truncate">{asset.assetTag}</span>
+                    <span className="truncate">{item.title}</span>
                     <Badge variant="outline" className="hidden tabular-nums sm:inline-flex">
-                      {asset.location.name}
+                      {item.locationName}
                     </Badge>
                   </ItemTitle>
                   <ItemDescription className="truncate">
-                    {assetSubtitle(asset) || "No secondary identity"}
-                    {asset.primaryScanCode && (
+                    {item.description || "No secondary identity"}
+                    {item.primaryScanCode && (
                       <span className="ml-2 font-mono text-[11px]">
-                        · {asset.primaryScanCode}
+                        · {item.primaryScanCode}
                       </span>
                     )}
                   </ItemDescription>
@@ -332,7 +390,7 @@ export default function LabelsPage() {
                     className="size-8"
                     asChild
                   >
-                    <Link href={`/items/${asset.id}`} aria-label={`Open ${asset.assetTag}`}>
+                    <Link href={item.href} aria-label={item.ariaLabel}>
                       <ExternalLink className="size-4" />
                     </Link>
                   </Button>
@@ -343,20 +401,20 @@ export default function LabelsPage() {
         )}
       </Card>
 
-      {selectedAssets.length > 0 && (
+      {selectedItems.length > 0 && (
         <div className="label-print-grid">
-          {selectedAssets.map((asset) => (
-            <div key={asset.id} className="label-print-card">
+          {selectedItems.map((item) => (
+            <div key={item.id} className="label-print-card">
               <div className="shrink-0">
-                <LabelQRCode value={asset.qrCodeValue} />
+                <LabelQRCode value={item.qrCodeValue} />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-bold text-sm mb-0.5">{asset.assetTag}</div>
+                <div className="font-bold text-sm mb-0.5">{item.title}</div>
                 <div className="text-[11px] text-muted-foreground">
-                  {assetSubtitle(asset) || `${asset.brand} ${asset.model}`}
+                  {item.description}
                 </div>
-                {asset.primaryScanCode && (
-                  <div className="font-mono text-[10px] text-muted-foreground mt-0.5">{asset.primaryScanCode}</div>
+                {item.primaryScanCode && (
+                  <div className="font-mono text-[10px] text-muted-foreground mt-0.5">{item.primaryScanCode}</div>
                 )}
               </div>
             </div>

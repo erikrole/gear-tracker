@@ -35,8 +35,17 @@ export type BulkItem = {
   name: string;
   category: string;
   unit: string;
+  trackByNumber: boolean;
   onHandQuantity: number;
   availableQuantity: number;
+  checkedOutQuantity: number;
+  lostQuantity: number;
+  retiredQuantity: number;
+  matchedUnitNumber?: number;
+  matchedUnitStatus?: string;
+  matchedUnitHolder?: string | null;
+  matchedUnitDueAt?: string | null;
+  matchedUnitBookingTitle?: string | null;
   imageUrl: string | null;
   locationName: string;
   locationId: string;

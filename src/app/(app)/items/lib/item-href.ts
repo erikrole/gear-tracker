@@ -10,6 +10,6 @@ export function buildBulkRowId(bulkSkuId: string): string {
 
 export function getItemHref(id: string): string {
   return isBulkRowId(id)
-    ? `/bulk-inventory/${id.slice(BULK_ID_PREFIX.length)}`
+    ? `/items/${id}`
     : `/items/${id}`;
 }

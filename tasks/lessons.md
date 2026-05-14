@@ -64,7 +64,11 @@
 
 ## UX Patterns
 
+- **Case requests need product-language confirmation through the visible UI**: If a user says "lowercase" while pointing at all-caps enum values in a screenshot, the likely intent may be "not enum shouting." Prefer sentence-case display labels like "Video" over raw lowercase unless they explicitly want all lowercase.
 - **Award art must not fight the icon**: Badge medallions need a clean rim and material finish first. Avoid busy internal linework behind small glyphs; if the badge needs personality, put it in shape, color, rarity finish, motion, or a separate large-detail view.
+- **Event-composed mobile rows need a core read model**: Do not make SwiftUI infer that gear and shifts are the same event from titles or a single `eventId`. Build an event-centric API payload from primary event, `BookingEvent`, and `shiftAssignmentId` links, suppress every linked child booking row, and use student-facing sublines such as "Pickup gear at 10:00 AM" and "Call time at 10:30 AM."
+- **iOS models must survive API rollout skew**: When adding dashboard fields consumed by the native app, default newly added decoded arrays/metadata with custom `init(from:)` or optionals. The app points at production, so a local app build can decode the previous server payload until the API deploy catches up.
+- **Personal Home rows should not repeat the user's name**: On iOS Home, the signed-in person is implied. Use the subtitle space for the action context, especially event-linked gear and shift timing, instead of rendering the requester's name back to them.
 - **Use the user's operational names exactly**: If they correct "Media Guide" to "Media Drive," preserve that term as the product language. In Guides, Media Drive means the server that houses Creative files, while Server Paths are exact copyable workflow paths inside or around it.
 - **All means active unless the UI explicitly says history/past**: On operational booking surfaces, the default "All" scope should exclude completed/cancelled records. Put past work behind an explicit toggle/filter so the main workflow stays current.
 - **Gear Tracker web is not phone-first**: Treat phone-width web checks as smoke tests for broken wrapping or inaccessible controls only. The iOS app owns phone workflows, so web UI polish should prioritize desktop and tablet operator surfaces unless the user explicitly asks for mobile web.
@@ -153,6 +157,12 @@
 ## Process
 
 - **NORTH_STAR.md first**: Read before every session to prevent context drift.
+- **Always suggest the next slice or say to stop**: Close every implementation slice with a concrete next-slice recommendation. If the current area is in good shape, say we should stop and move to another area instead of inventing churn.
+- **Questions should be multiple-choice dialogs**: When a decision needs user input, use the interactive multiple-choice request flow instead of freeform prose questions whenever the tool is available.
+- **Keep the dev server running during active web work**: Do not automatically close the dev server after every slice. Leave it open for continued browser verification unless the user asks to stop it, the server is stale/broken, or the task is fully done and cleanup is clearly better.
+- **Use Codex Browser when the user says in-app browser**: If the user names the Browser in the Codex app or says the in-app browser is open, use the Browser skill/runtime for verification. Do not substitute Chrome DevTools, Chrome, Computer Use, or a separate browser unless the Browser runtime is unavailable after following the skill workflow.
+- **Use local login for authenticated browser checks**: When verifying Gear Tracker UI locally, use the available local login credentials instead of stopping at the login wall. Authenticated browser verification is part of done for UI changes unless the credentials or session are actually unavailable.
+- **Treat "maybe later" backlog as disposable product scope**: When the user says a proposed surface is not needed, scrub active recommendations and visible catalog hooks instead of keeping it alive as a deferred item. Deferred still creates product gravity.
 - **Next devtools errors can be framework overlays, not app bugs**: If dev logs mention `next-devtools/userspace/app/segment-explorer-node.js#SegmentViewNode` missing from the React Client Manifest, treat it as the experimental segment explorer/manifest path first. Disable `experimental.devtoolSegmentExplorer` before chasing unrelated app components.
 - **Doc sync on every commit**: AREA_*.md changelog + GAPS_AND_RISKS.md in the same commit as the feature.
 - **Archive plan files aggressively**: `mv tasks/plan.md tasks/archive/` immediately after ship.

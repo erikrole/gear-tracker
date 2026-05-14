@@ -287,7 +287,7 @@ export function CategoryCombobox({
   );
 }
 
-// ── Bulk SKU combobox ──
+// ── Item family combobox ──
 
 export type BulkSkuOption = {
   id: string;
@@ -323,7 +323,7 @@ export function BulkSkuCombobox({
           {selected ? (
             selected.name
           ) : (
-            <span className="text-muted-foreground">Select a bulk item</span>
+            <span className="text-muted-foreground">Select an item</span>
           )}
           <ChevronsUpDown className="ml-2 size-3.5 shrink-0 opacity-50" />
         </Button>
@@ -332,7 +332,7 @@ export function BulkSkuCombobox({
         <Command>
           <CommandInput placeholder="Search by name, location, category..." />
           <CommandList>
-            <CommandEmpty>No bulk items found.</CommandEmpty>
+            <CommandEmpty>No items found.</CommandEmpty>
             <CommandGroup>
               {skus.map((sku) => {
                 const qty = sku.balances.reduce((sum, b) => sum + b.onHandQuantity, 0);

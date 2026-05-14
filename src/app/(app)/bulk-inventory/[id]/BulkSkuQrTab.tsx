@@ -46,10 +46,10 @@ export default function BulkSkuQrTab({
 
   return (
     <div className="mt-3.5 space-y-4 max-w-2xl">
-      {/* Bin QR */}
+      {/* Item QR */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-semibold">Bin QR Code</CardTitle>
+          <CardTitle className="text-sm font-semibold">Item QR</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-start gap-6">
@@ -82,15 +82,15 @@ export default function BulkSkuQrTab({
         </CardContent>
       </Card>
 
-      {/* Per-unit QR codes (numbered SKUs only) */}
+      {/* Per-unit QR codes */}
       {sku.trackByNumber && sku.units.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-semibold">Unit QR Codes</CardTitle>
+          <CardTitle className="text-sm font-semibold">Unit QR</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground mb-4">
-              Each label shows the unit number for Brother P-Touch printing. The QR still encodes <code className="bg-muted px-1 py-0.5 rounded text-xs">{sku.binQrCodeValue}-&#123;unit#&#125;</code>.
+              Each unit QR uses this item&apos;s QR code plus the unit number: <code className="bg-muted px-1 py-0.5 rounded text-xs">{sku.binQrCodeValue}-&#123;unit#&#125;</code>.
             </p>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(132px,1fr))] gap-4 print:grid-cols-3 print:gap-2">
               {sku.units.slice(0, 50).map((u) => (

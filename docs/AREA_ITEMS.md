@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Items
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-12
+- Last Updated: 2026-05-13
 - Status: Active
 - Version: V1
 
@@ -14,21 +14,26 @@ Treat physical gear identity as primary, make list and detail views action-orien
 1. `tagName` is the primary label for serialized assets.
 2. `productName`, `brand`, and `model` are supporting metadata.
 3. Asset availability/status shown in UI is derived from active allocations and booking context.
-4. Item creation starts with explicit item kind selection:
-   - Serialized item
-   - Bulk item
-5. Role behavior follows `AREA_USERS.md`:
+4. Item creation starts with friendly tracking-style selection:
+   - **Standard**: one physical item with its own identity, for example a camera body, lens, or laptop.
+   - **Units**: one item with many scannable units, for example batteries, radios, or card readers.
+   - **Quantity**: one item tracked by count only, for example tape, zip ties, or cleaning supplies.
+5. Item families are normal catalog rows backed by `BulkSku`; they appear in `/items` beside serialized assets and show availability such as `43/46 available`.
+6. Unit-tracked item families use `BulkSkuUnit` records for pickup, return, loss, and audit custody without creating one catalog row per physical unit.
+7. Quantity-tracked item families use the same first-class Items discovery model without unit-level QR custody.
+8. Role behavior follows `AREA_USERS.md`:
    - `ADMIN` and `STAFF` can create and edit items.
    - `STUDENT` can view all items, no item edit rights.
-6. Metadata enrichment from external product URLs is not supported in V1.
-7. Camera-tied SD cards, cages, and fixed camera parts are tracked as item attachments when they should travel with the parent camera and not be individually checked out.
+9. Metadata enrichment from external product URLs is not supported in V1.
+10. Camera-tied SD cards, cages, and fixed camera parts are tracked as item attachments when they should travel with the parent camera and not be individually checked out.
 
 ## V1 Workflow
 
 ### Items List
 1. User lands on all items list (default table mode).
 2. User filters by status/category/location/item kind and searches by tagName, productName, brand, model, serial, or tracking code.
-3. User opens row details or row actions.
+3. Searches return one row per item family/SKU; exact unit QR scans resolve to unit context under the parent family rather than producing separate catalog rows.
+4. User opens row details or row actions.
 
 ### Inventory Hygiene
 1. Staff/admin opens `/items/hygiene` from the Admin nav.
@@ -38,10 +43,11 @@ Treat physical gear identity as primary, make list and detail views action-orien
 5. The page frames those checks as a read-only cleanup queue with priority ordering, clean/check progress, needs-work/all/clean views, partial-failure warnings, and tag-first sample rows.
 
 ### Create Item
-1. User starts `New asset`.
-2. User selects item kind:
-   - Serialized: one physical unit per record with unique identity.
-   - Bulk: quantity-based stock record.
+1. User starts `Add item`.
+2. User selects tracking style:
+   - Standard: one physical unit per record with unique identity.
+   - Units: one catalog row with numbered/scannable units underneath.
+   - Quantity: one catalog row with count-only stock.
 3. User enters required fields and optional advanced metadata.
 4. User attaches image from upload or URL.
 6. User saves item and chooses the next step: open the created record, add an image, return to the refreshed list, or add another asset.
@@ -59,7 +65,7 @@ Treat physical gear identity as primary, make list and detail views action-orien
 ## Items List Surface (V1)
 
 ### Top Bar Actions
-1. `New asset` visible to `ADMIN` and `STAFF`.
+1. `Add item` visible to `ADMIN` and `STAFF`.
 2. `Import` visible to `ADMIN` and `STAFF`.
 3. `Export` visible to `ADMIN` and `STAFF`; hidden for `STUDENT`. Downloads the current filtered CSV view.
 4. `Customize overview` deferred — not in V1.
@@ -104,18 +110,25 @@ Treat physical gear identity as primary, make list and detail views action-orien
 
 ### Required Fields
 
-#### Serialized Item
-1. Item kind = serialized
+#### Standard
+1. Tracking style = Standard
 2. `tagName` (required)
 3. Category (required)
 4. Location (required)
 
-#### Bulk Item
-1. Item kind = bulk
+#### Units
+1. Tracking style = Units
 2. `productName` or display name (required)
 3. Category (required)
 4. Location (required)
-5. Quantity (required)
+5. Initial unit count (optional, creates numbered units)
+
+#### Quantity
+1. Tracking style = Quantity
+2. `productName` or display name (required)
+3. Category (required)
+4. Location (required)
+5. Initial quantity (optional)
 
 ### Optional Metadata (Collapsed by default)
 1. Brand
@@ -275,9 +288,9 @@ Treat physical gear identity as primary, make list and detail views action-orien
   - Use explicit empty states and inline `Add ...` prompts for missing values.
   - Keep item information card populated even when no booking data exists.
 
-### Trap: Serialized and bulk logic bleed into each other
+### Trap: Serialized and item-family logic bleed into each other
 - Mitigation:
-  - Split create and validation paths by item kind.
+  - Split create and validation paths by serialized asset vs item family kind.
   - Keep item-kind-specific required fields explicit.
 
 ### Trap: Duplicate or ambiguous tag identities
@@ -331,19 +344,19 @@ Treat physical gear identity as primary, make list and detail views action-orien
 - Integrity rules from `DECISIONS.md` (D-001, D-006, D-007).
 - Mobile operations contract from `AREA_MOBILE.md`.
 
-## Numbered Bulk Item Tracking
+## Unit-Tracked Item Families
 
 ### Overview
-Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered units (e.g., Battery #1–#40) under one parent bin QR. Unit QR values are derived from that parent QR plus the unit number, so physical labels can show only the unit number while scans still resolve a specific unit.
+Item families can optionally enable `trackByNumber` on the backing `BulkSku` implementation record to assign individually numbered units (e.g., Battery #1-#40) under one parent bin QR. Unit QR values are derived from that parent QR plus the unit number, so physical labels can show only the unit number while scans still resolve a specific unit.
 
 ### Creation
-1. User toggles "Track by number" during bulk SKU creation.
+1. Staff toggle "Track by number" during item-family creation.
 2. Initial quantity creates numbered units #1–N via `createMany`.
 3. Physical labels on items must match assigned numbers (user responsibility).
 
 ### Unit Lifecycle
-- **Statuses:** AVAILABLE, CHECKED_OUT, LOST, RETIRED
-- **Status transitions:** click-to-cycle in UI (Available → Lost → Retired → Available); checked-out units are locked
+- **Statuses:** AVAILABLE, CHECKED_OUT, LOST, RETIRED (`LOST` is usually presented to staff as Missing)
+- **Status transitions:** click-to-cycle in UI (Available → Missing → Retired → Available); checked-out units are locked
 - **Adding units:** POST to units endpoint appends from max+1
 - **Conversion:** existing quantity-only SKUs can be converted to numbered tracking
 
@@ -360,12 +373,12 @@ Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered 
 - `trackByNumber` boolean on BulkSku determines behavior branching
 
 ### Inventory Display
-- Numbered SKUs show available/total count and status summary in table
+- Unit-tracked families show available/total count and status summary in table
 - Expandable unit grid with color-coded status dots
 - Numbered battery available quantity derives from units with `AVAILABLE` status
 
 ### Decision Reference
-- D-022: Numbered Bulk Items (see DECISIONS.md)
+- D-022: Item Families With Checkoutable Units (see DECISIONS.md)
 
 ## Out of Scope (V1)
 1. Procurement workflow and purchase-order lifecycle.
@@ -375,12 +388,15 @@ Bulk SKUs can optionally enable `trackByNumber` to assign individually numbered 
 
 ## Developer Brief (No Code)
 1. Implement list controls and table schema with tag-first identity and derived status indicators.
-2. Implement create flow split by serialized vs bulk item kind, with strict validation.
+2. Implement create flow split by Standard, Units, and Quantity tracking styles, with strict validation.
 3. Implement detail layout with linked status header, workflow tabs, dashboard-style `Info` view, and `Settings` tab policy controls.
 4. Enforce role-based edit visibility and server-side authorization checks.
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-05-13: Item-family detail pages now read as normal item detail pages: headers use Units or Quantity without row badges, QR copy avoids web-print assumptions, settings say item instead of implementation terms, and unit exception states use Missing language.
+- 2026-05-13: Item creation now uses friendlier Standard, Units, and Quantity tracking-style choices with examples, while the Items list lets availability carry the distinction instead of adding kind badges. Unit creation sends `trackByNumber=true`; quantity creation stays count-only.
+- 2026-05-13: Reframed bulk SKUs as first-class item families in `/items`: one mixed catalog row per SKU, unit-tracked/quantity-tracked filter language, `/items/bulk-{id}` detail routing, and app scan lookup for parent and derived unit QR values.
 - 2026-05-12: **Creation-flow standard slice** — Items New asset now uses a clearer post-create handoff for serialized assets, new bulk SKUs, and add-to-existing bulk stock: operators can open the created item/bulk record, add an image, return to the refreshed list, or continue adding another. The sheet now guards duplicate submits with a ref-backed lock, disables form controls while saving, routes 401 responses through the shared login redirect, and surfaces safe form-level errors for non-JSON, server, permission, and network failures. Asset creation API validation now accepts existing department IDs from current data, including UUID-shaped department IDs.
 - 2026-05-12: **Item thumbnail reliability fix**: shared gear thumbnails now normalize stored image URLs, reset failed-image state when a source changes, and bypass optimizer-dependent rendering so imported or Blob-hosted item photos render consistently across list, booking, picker, stack, scan, and detail surfaces.
 - 2026-05-10: **Status/data wiring ship fixes**: `PENDING_PICKUP` is now a first-class active item state across server status derivation, item filters, web/iOS badges, and item detail headers. Future reservations no longer show as the active item booking before their window starts. Quantity-only bulk availability now uses the movement-adjusted stock balance instead of subtracting active checkout quantities a second time.

@@ -79,7 +79,7 @@ export default function BulkSkuUnitsTab({
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               {available > 0 && <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-[var(--green)]" />{available} available</span>}
               {checkedOut > 0 && <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-[var(--blue)]" />{checkedOut} out</span>}
-              {lost > 0 && <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-destructive" />{lost} lost</span>}
+              {lost > 0 && <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-destructive" />{lost} missing</span>}
               {retired > 0 && <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-muted-foreground" />{retired} retired</span>}
             </div>
           </div>
@@ -112,7 +112,11 @@ export default function BulkSkuUnitsTab({
                 onStatusChange={handleStatusChange}
                 disabled={!canEdit}
               />
-              <p className="text-xs text-muted-foreground mt-3">Right-click a unit to change its status.</p>
+              {canEdit && (
+                <p className="text-xs text-muted-foreground mt-3">
+                  Open a unit&apos;s menu to mark it available, missing, or retired. Checked-out units return through check-in.
+                </p>
+              )}
             </>
           )}
         </CardContent>

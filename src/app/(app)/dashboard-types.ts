@@ -28,6 +28,9 @@ export type BookingSummary = {
   kind: string;
   title: string;
   refNumber: string | null;
+  eventId: string | null;
+  eventIds: string[];
+  linkedEventId: string | null;
   sportCode: string | null;
   requesterName: string;
   requesterInitials: string;
@@ -115,6 +118,32 @@ export type MyShift = {
   gearItemCount: number;
 };
 
+export type MyEventWork = {
+  id: string;
+  event: {
+    id: string;
+    summary: string;
+    startsAt: string;
+    endsAt: string;
+    allDay: boolean;
+    sportCode: string | null;
+    opponent: string | null;
+    isHome: boolean | null;
+    locationId: string | null;
+    locationName: string | null;
+  };
+  shift: {
+    id: string;
+    area: string;
+    workerType: string;
+    startsAt: string;
+    endsAt: string;
+  };
+  gearStatus: string;
+  gearBookings: BookingSummary[];
+  needsGear: boolean;
+};
+
 export type CreateBookingContext = {
   kind: "CHECKOUT" | "RESERVATION";
   title?: string;
@@ -156,11 +185,12 @@ export type DashboardData = {
   pendingPickups: { total: number; items: BookingSummary[] };
   staleReservations: { total: number; items: BookingSummary[] };
   upcomingEvents: EventSummary[];
-  myReservations: MyReservation[];
+  myReservations: BookingSummary[];
   overdueCount: number;
   overdueItems: OverdueItem[];
   drafts: DraftSummary[];
   myShifts: MyShift[];
+  myEventWork: MyEventWork[];
   flaggedItems: FlaggedItem[];
   lostBulkUnits: LostBulkUnitSummary[];
 };

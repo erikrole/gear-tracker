@@ -51,7 +51,7 @@ export function NewItemSheet({
   onCreated,
 }: NewItemSheetProps) {
   const router = useRouter();
-  const [kind, setKind] = useState<ItemKind>("serialized");
+  const [kind, setKind] = useState<ItemKind>("standard");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [addAnother, setAddAnother] = useState(false);
@@ -70,7 +70,7 @@ export function NewItemSheet({
   const resetAll = useCallback(() => {
     setError("");
     setSuccessMsg("");
-    setKind("serialized");
+    setKind("standard");
     setAddAnother(false);
     setCreatedAssetId(null);
     setCreatedHandoff(null);
@@ -99,9 +99,9 @@ export function NewItemSheet({
       setShowImageModal(false);
       serializedRef.current?.reset(true);
       bulkRef.current?.reset();
-      showSuccessMessage(`"${handoff.label}" created. Ready for the next ${handoff.kind === "serialized" ? "asset" : "bulk item"}.`);
+      showSuccessMessage(`"${handoff.label}" created. Ready for the next item.`);
       requestAnimationFrame(() => {
-        if (handoff.kind === "serialized") serializedRef.current?.focus();
+        if (handoff.kind === "standard") serializedRef.current?.focus();
         else bulkRef.current?.focus();
       });
     } else {
@@ -124,9 +124,9 @@ export function NewItemSheet({
       let res: globalThis.Response;
       let label = "";
       let bulkHandoffHref: string | null = null;
-      let bulkHandoffLabel = "Open bulk record";
+      let bulkHandoffLabel = "Open item";
 
-      if (kind === "serialized") {
+      if (kind === "standard") {
         const validationError = serializedRef.current?.validate();
         if (validationError) {
           setError(validationError);
@@ -173,10 +173,10 @@ export function NewItemSheet({
       const json = await res.json().catch(() => ({}));
 
       // For serialized items, show image upload prompt before proceeding
-      if (kind === "serialized" && json.data?.id) {
+      if (kind === "standard" && json.data?.id) {
         setCreatedAssetId(json.data.id);
         setCreatedHandoff({
-          kind: "serialized",
+          kind: "standard",
           label,
           href: `/items/${json.data.id}`,
           openLabel: "Open item",
@@ -186,27 +186,29 @@ export function NewItemSheet({
         return; // Don't close yet — show image upload prompt
       }
 
-      if (kind === "serialized") {
+      if (kind === "standard") {
         onCreated();
         setError("The item was created, but the server did not return an item link. Refresh the list before creating another asset.");
         return;
       }
 
       const bulkId = json.data?.id ?? bulkHandoffHref?.split("/").pop();
-      const handoffHref = bulkId ? `/bulk-inventory/${bulkId}` : "/bulk-inventory";
+      const handoffHref = bulkId ? `/items/bulk-${bulkId}` : "/items";
       if (addAnother) {
         onCreated();
         bulkRef.current?.reset();
-        showSuccessMessage(`"${label}" created. Ready for the next bulk item.`);
+        showSuccessMessage(`"${label}" created. Ready for the next item.`);
         requestAnimationFrame(() => bulkRef.current?.focus());
       } else {
         setCreatedHandoff({
-          kind: "bulk",
+          kind,
           label,
           href: handoffHref,
           openLabel: bulkHandoffLabel,
           successMessage: payloadSuccessMessage(label, bulkHandoffLabel),
-          description: "Open the bulk record to review stock, numbered units, QR labels, thresholds, and activity.",
+          description: kind === "units"
+            ? "Open the item to review availability, units, QR details, thresholds, and activity."
+            : "Open the item to review availability, stock, thresholds, and activity.",
         });
       }
     } catch {
@@ -224,8 +226,8 @@ export function NewItemSheet({
     <Sheet open={open} onOpenChange={(v) => { if (submitting) return; onOpenChange(v); if (!v) resetAll(); }}>
       <SheetContent className="sm:max-w-xl">
         <SheetHeader>
-          <SheetTitle>New asset</SheetTitle>
-          <SheetDescription>Create serialized gear or bulk stock, then choose the next step.</SheetDescription>
+          <SheetTitle>Add item</SheetTitle>
+          <SheetDescription>Choose how this item is tracked, then choose the next step.</SheetDescription>
         </SheetHeader>
 
         <SheetBody className="px-6 py-6">
@@ -238,7 +240,7 @@ export function NewItemSheet({
                   {createdHandoff?.description}
                 </p>
               </div>
-              {createdHandoff?.kind === "serialized" && (
+              {createdHandoff?.kind === "standard" && (
                 <div className="flex flex-col items-center gap-1 py-2">
                   <Button
                     type="button"
@@ -257,9 +259,9 @@ export function NewItemSheet({
             </div>
           ) : (
             <form id="new-item-form" onSubmit={handleSubmit} className="flex flex-col gap-6">
-              {/* ── Item type ── */}
+              {/* ── Tracking style ── */}
               <section className="flex flex-col gap-3">
-                <SectionHeading>Item type</SectionHeading>
+                <SectionHeading>Tracking style</SectionHeading>
                 <RadioGroup
                   value={kind}
                   onValueChange={(v) => {
@@ -269,20 +271,29 @@ export function NewItemSheet({
                   disabled={submitting}
                 >
                   <div className="flex items-start gap-3">
-                    <RadioGroupItem value="serialized" id="kind-serialized" className="mt-0.5" />
+                    <RadioGroupItem value="standard" id="kind-standard" className="mt-0.5" />
                     <div>
-                      <Label htmlFor="kind-serialized" className="font-medium cursor-pointer">As an individual item</Label>
+                      <Label htmlFor="kind-standard" className="font-medium cursor-pointer">Standard</Label>
                       <p className="text-xs text-muted-foreground">
-                        Recommended for unique, high-cost items (cameras, computers, etc.)
+                        One physical item with its own identity. Examples: camera body, lens, laptop.
                       </p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
-                    <RadioGroupItem value="bulk" id="kind-bulk" className="mt-0.5" />
+                    <RadioGroupItem value="units" id="kind-units" className="mt-0.5" />
                     <div>
-                      <Label htmlFor="kind-bulk" className="font-medium cursor-pointer">As a bulk item</Label>
+                      <Label htmlFor="kind-units" className="font-medium cursor-pointer">Units</Label>
                       <p className="text-xs text-muted-foreground">
-                        Recommended for low-cost items (batteries, cables, sandbags, etc.)
+                        One item with many scannable units. Examples: batteries, radios, card readers.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <RadioGroupItem value="quantity" id="kind-quantity" className="mt-0.5" />
+                    <div>
+                      <Label htmlFor="kind-quantity" className="font-medium cursor-pointer">Quantity</Label>
+                      <p className="text-xs text-muted-foreground">
+                        One item tracked by count only. Examples: tape, zip ties, cleaning supplies.
                       </p>
                     </div>
                   </div>
@@ -300,7 +311,7 @@ export function NewItemSheet({
                 </Alert>
               )}
 
-              {kind === "serialized" ? (
+              {kind === "standard" ? (
                 <SerializedItemForm
                   ref={serializedRef}
                   categories={categories}
@@ -314,6 +325,7 @@ export function NewItemSheet({
                   categories={categories}
                   locations={locations}
                   open={open}
+                  trackingMode={kind}
                   disabled={submitting}
                 />
               )}
@@ -327,7 +339,7 @@ export function NewItemSheet({
               <div className="flex-1" />
               {addAnother && (
                 <Button variant="outline" type="button" onClick={() => finishCreatedHandoff("another")}>
-                  Add another asset
+                  Add another item
                 </Button>
               )}
               {createdHandoff && (
@@ -362,7 +374,7 @@ export function NewItemSheet({
                 Cancel
               </Button>
               <Button type="submit" form="new-item-form" disabled={submitting}>
-                {submitting ? "Adding..." : "Add asset"}
+                {submitting ? "Adding..." : "Add item"}
               </Button>
             </>
           )}

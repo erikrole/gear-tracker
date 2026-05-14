@@ -14,7 +14,7 @@ Badges are lightweight recognition for every active user inside the existing ops
 
 ## Core Rules
 1. `BADGES_ENABLED !== "true"` returns before any badge evaluator work, database query, or side effect.
-2. Badge events attach to service-level outcomes: kiosk checkout/pickup open, checkout return completion, kiosk scan result, trade completion, and future shift attendance completion.
+2. Badge events attach to service-level outcomes: kiosk checkout/pickup open, checkout return completion, kiosk scan result, and trade completion.
 3. Legacy app checkout scan stubs remain non-events. They stay kiosk-gated 403 routes and award nothing.
 4. Badge definitions are seeded by immutable `key`. Typos are fixed by retiring a definition with `active=false` and creating a new key.
 5. User awards are idempotent by `(userId, definitionId)`.
@@ -32,7 +32,6 @@ Badges are lightweight recognition for every active user inside the existing ops
 | `onCheckoutReturned` | `src/lib/services/bookings-checkin.ts:markCheckoutCompleted` and `maybeAutoComplete` only when status flips into `COMPLETED` | Complete |
 | `onScanResult` | `src/app/api/kiosk/checkout/scan`, `src/app/api/kiosk/pickup/[id]/scan`, `src/app/api/kiosk/checkin/[id]/scan` | Complete |
 | `onTradeCompleted` | `src/lib/services/shift-trades.ts:claimTrade` immediate-complete branch and `approveTrade`, through one transition helper | Complete |
-| `onShiftCompleted` | Deferred until attendance/no-show has a real completion signal | 6 |
 
 ## Data Model
 - `BadgeDefinition`: seeded catalog. Uses immutable `key`, display copy, icon name, category, kind, trigger, threshold, rule key, active flag, and sort order. The canonical launch catalog is seeded by migration `0064_seed_badge_definitions` so production deploys do not depend on `prisma/seed.mjs`.
@@ -52,7 +51,7 @@ Badges are lightweight recognition for every active user inside the existing ops
 - Badge cards show UI-derived rarity labels, artifact-style CSS/SVG medallions, manual award notes, recent-award "New" state and glow treatment, and real progress for supported threshold badges.
 - A few surprise badges stay hidden from the locked grid until earned; the available section shows how many surprise badges remain hidden.
 - The badge profile API loads active definitions plus historical earned inactive definitions in one Prisma call that includes the user's award row.
-- The badge profile API adds progress only when it can derive it from real counters or streak state. Manual, deferred shift, and unsupported rule badges remain rule-based with no fake progress bar.
+- The badge profile API adds progress only when it can derive it from real counters or streak state. Manual and unsupported rule badges remain rule-based with no fake progress bar.
 - With `BADGES_ENABLED` off, badge APIs return disabled/empty payloads before any badge table query. This keeps un-migrated local or preview databases from failing on badge UI routes.
 - `/reports/badges` is staff analytics only and follows existing report layout patterns. It shows aggregate award metrics, manual award rate, user leaderboard, badge distribution, underused active definitions, recent manual recognition, and recent awards.
 - Manual awards launch from the existing user admin actions menu, not from permanent hero chrome.
@@ -64,9 +63,8 @@ Badges are lightweight recognition for every active user inside the existing ops
 - Checkout: `first_checkout`, `checkout_5`, `checkout_25`, `checkout_100`
 - On-time return: `on_time_1`, `on_time_10`, `on_time_50`
 - Scan: `first_scan`, `scan_25`, `scan_100`, `zero_errors`
-- Shift, deferred until attendance completion: `first_shift`, `shift_10`, `shift_50`
 - Trade: `first_trade`, `trade_10`
-- Streak: `streak_on_time_5`, `streak_on_time_10`, `streak_shifts_5`, `streak_shifts_10`
+- Streak: `streak_on_time_5`, `streak_on_time_10`
 - Fun/manual: `perfect_handoff`, `clean_loop`, `clutch_cover`, `full_kit_no_misses`, `semester_streak`, `category_collector`, `event_hero`, `rookie_run`, `reliable_regular`, `above_and_beyond`
 
 ## Acceptance Criteria
@@ -96,6 +94,7 @@ Badges are lightweight recognition for every active user inside the existing ops
 ## Change Log
 | Date | Change |
 |---|---|
+| 2026-05-13 | Product scope cleanup retired attendance-based shift badges. `first_shift`, `shift_10`, `shift_50`, `streak_shifts_5`, and `streak_shifts_10` are no longer active catalog goals because attendance tracking is not a planned badge source. Shift request approval remains a non-event for badge awards. |
 | 2026-05-12 | Badge on-time counts now use durable `Booking.completedAt` instead of mutable `updatedAt`. Checkout completion paths set the booking and scan-session completion timestamps from the same transaction timestamp, while badge progress falls back to `updatedAt` only for old completed rows. |
 | 2026-05-12 | Badge MVP closeout fixed stale `RETURN` category handling to match the shipped `ON_TIME` schema category on web and iOS, and verified shift request approval remains a non-event for badge awards. |
 | 2026-05-12 | Web badge gallery moved to an award-collection model inspired by Apple Fitness. The profile tab now opens with collection shelves for Gear Flow, Reliability, Scans, Teamwork, and Staff Picks; each shelf features a larger artifact medallion, preview stack, earned/visible counts, and a category drill-in gallery with the existing filters and detail modal. Shared badge medallions now render clean CSS/SVG artifact rims, rarity finish, locked grayscale state, and category shape variants without busy patterning behind the icon. |

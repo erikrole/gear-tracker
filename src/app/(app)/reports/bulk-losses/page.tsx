@@ -138,7 +138,7 @@ export default function BulkLossesReportPage() {
       <ReportErrorState
         error={error}
         onRetry={reload}
-        title="Failed to load bulk losses report"
+        title="Failed to load missing units report"
       />
     );
   }
@@ -157,28 +157,28 @@ export default function BulkLossesReportPage() {
 
       {/* Metrics row */}
       <ReportMetricGrid>
-        <MetricCard label="Total units lost" value={data.totalLost} />
-        <MetricCard label="SKUs affected" value={data.bySku.length} />
+        <MetricCard label="Missing units" value={data.totalLost} />
+        <MetricCard label="Families affected" value={data.bySku.length} />
         <MetricCard label="Users involved" value={data.byUser.length} />
       </ReportMetricGrid>
 
       <ReportSectionCard
-        title="Battery audit"
-        description="Numbered battery losses, current missing units, repeated missing patterns, and recent custody history."
+        title="Battery missing units"
+        description="Battery unit exceptions, current missing units, repeated missing patterns, and recent custody history."
       >
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="text-sm text-muted-foreground">
-            {data.batteryAudit.totals.skuCount} numbered battery SKUs tracked
+            {data.batteryAudit.totals.skuCount} battery families using Units tracked
           </div>
           <Button asChild variant="outline" size="sm">
-            <Link href="/bulk-inventory/batteries">Open battery cockpit</Link>
+            <Link href="/bulk-inventory/batteries">Open Battery Ops</Link>
           </Button>
         </div>
 
         <ReportMetricGrid>
           <MetricCard label="Battery units" value={data.batteryAudit.totals.totalUnits} />
           <MetricCard label="Missing batteries" value={data.batteryAudit.totals.lost} />
-          <MetricCard label="Battery loss rate" value={formatPercent(data.batteryAudit.totals.lossRate)} />
+          <MetricCard label="Missing rate" value={formatPercent(data.batteryAudit.totals.lossRate)} />
           <MetricCard label="Repeat patterns" value={data.batteryAudit.totals.repeatPatternCount} />
         </ReportMetricGrid>
 
@@ -186,8 +186,8 @@ export default function BulkLossesReportPage() {
           <ReportEmptyState
             compact
             icon="check"
-            title="No numbered battery SKUs found"
-            description="Battery audit rows appear when active numbered battery SKUs exist."
+            title="No battery families using Units found"
+            description="Battery audit rows appear when active battery families use Units."
           />
         ) : (
           <div className="grid gap-4 xl:grid-cols-2">
@@ -195,9 +195,9 @@ export default function BulkLossesReportPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Battery SKU</TableHead>
+                    <TableHead>Battery family</TableHead>
                     <TableHead className="text-right">Missing</TableHead>
-                    <TableHead className="text-right">Loss Rate</TableHead>
+                    <TableHead className="text-right">Missing rate</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -225,7 +225,7 @@ export default function BulkLossesReportPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Missing Unit</TableHead>
+                    <TableHead>Missing unit</TableHead>
                     <TableHead>Last Holder</TableHead>
                     <TableHead className="text-right">Detected</TableHead>
                   </TableRow>
@@ -289,7 +289,7 @@ export default function BulkLossesReportPage() {
       {data.batteryAudit.checkoutHistory.length > 0 && (
         <ReportSectionCard
           title="Battery checkout history"
-          description="Most recent numbered battery custody records from active battery SKUs."
+          description="Most recent battery unit custody records from active battery families."
           contentClassName="p-0"
         >
           <div className="overflow-x-auto">
@@ -328,21 +328,21 @@ export default function BulkLossesReportPage() {
         </ReportSectionCard>
       )}
 
-      {/* Loss by SKU */}
-      <ReportSectionCard title="Lost units by item" contentClassName="p-0">
+      {/* Loss by item family */}
+      <ReportSectionCard title="Missing units by family" contentClassName="p-0">
           {data.bySku.length === 0 ? (
             <ReportEmptyState
               compact
               icon="check"
-              title="No lost units recorded"
-              description="Bulk loss rows appear after check-in records missing numbered units."
+              title="No missing units recorded"
+              description="Missing unit rows appear after check-in records a unit as missing."
             />
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Item</TableHead>
-                  <TableHead className="text-right">Lost</TableHead>
+                  <TableHead>Item family</TableHead>
+                  <TableHead className="text-right">Missing</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -360,20 +360,20 @@ export default function BulkLossesReportPage() {
       </ReportSectionCard>
 
       {/* Loss by user leaderboard */}
-      <ReportSectionCard title="Loss by requester" contentClassName="p-0">
+      <ReportSectionCard title="Missing units by requester" contentClassName="p-0">
           {data.byUser.length === 0 ? (
             <ReportEmptyState
               compact
               icon="users"
-              title="No user-attributed losses found"
-              description="Requester rankings appear once loss events can be tied back to a booking."
+              title="No requester-attributed missing units found"
+              description="Requester rankings appear once missing-unit events can be tied back to a booking."
             />
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Requester</TableHead>
-                  <TableHead className="text-right">Units Lost</TableHead>
+                  <TableHead className="text-right">Missing units</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -397,9 +397,9 @@ export default function BulkLossesReportPage() {
           )}
       </ReportSectionCard>
 
-      {/* Recent auto-loss events */}
+      {/* Recent missing-unit events */}
       {data.recentLosses.length > 0 && (
-        <ReportSectionCard title="Recent loss events">
+        <ReportSectionCard title="Recent missing-unit events">
             <div className="flex flex-col gap-2">
               {data.recentLosses.map((event) => (
                 <ReportListRow key={event.id} className="px-0 py-2">

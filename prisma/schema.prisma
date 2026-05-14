@@ -125,6 +125,7 @@ model User {
   locationId           String?                    @map("location_id")
   createdAt            DateTime                   @default(now()) @map("created_at")
   updatedAt            DateTime                   @updatedAt @map("updated_at")
+  lastActiveAt         DateTime?                  @map("last_active_at")
   location             Location?                  @relation(fields: [locationId], references: [id], onDelete: SetNull)
   sessions             Session[]
   requested            Booking[]                  @relation("BookingRequester")

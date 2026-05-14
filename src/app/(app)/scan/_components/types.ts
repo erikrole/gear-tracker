@@ -10,6 +10,17 @@ export type LookupResult = {
 export type ItemPreview = {
   id: string;
   assetTag: string;
+  itemFamily?: boolean;
+  itemFamilyTracking?: "units" | "quantity";
+  unitLabel?: string | null;
+  availabilityLabel?: string | null;
+  scannedUnit?: {
+    number: number;
+    status: string;
+    holder?: string | null;
+    dueAt?: string | null;
+    bookingTitle?: string | null;
+  } | null;
   name?: string | null;
   brand: string;
   model: string;

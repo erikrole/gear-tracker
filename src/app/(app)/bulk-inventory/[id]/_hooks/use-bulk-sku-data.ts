@@ -38,7 +38,7 @@ export default function useBulkSkuData(id: string): UseBulkSkuDataReturn {
     fetch(`/api/bulk-skus/${id}`, { signal: controller.signal })
       .then((res) => {
         if (controller.signal.aborted) return null;
-        if (handleAuthRedirect(res, `/bulk-inventory/${id}`)) return null;
+        if (handleAuthRedirect(res, `/items/bulk-${id}`)) return null;
         if (res.status === 404) {
           if (!isRefresh) setFetchError("not-found");
           return null;

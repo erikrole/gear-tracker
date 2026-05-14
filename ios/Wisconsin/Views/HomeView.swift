@@ -23,7 +23,7 @@ final class HomeViewModel {
             dashboard = try await APIClient.shared.dashboard()
             if let appState {
                 appState.overdueCount = dashboard?.overdueCount ?? 0
-                appState.myShiftCount = dashboard?.myShifts.count ?? 0
+                appState.myShiftCount = dashboard?.myEventWork.count ?? 0
             }
             error = nil
             lastLoadedAt = Date()
@@ -45,10 +45,9 @@ struct HomeView: View {
     @State private var pendingAssetId: String?
     @State private var pendingUserId: String?
     @State private var pendingShowTrades = false
-    @State private var selectedScheduleEvent: ScheduleEvent?
+    @State private var selectedEventWork: DashboardEventWork?
     @Environment(AppState.self) private var appState
     @Environment(SessionStore.self) private var session
-    @Environment(KioskStore.self) private var kiosk
 
     @ViewBuilder private var mainContent: some View {
         if vm.dashboard == nil && vm.error == nil {
@@ -91,7 +90,7 @@ struct HomeView: View {
         return dash.myCheckouts.items.isEmpty
             && dash.myReservations.isEmpty
             && !hasMyPendingPickup
-            && dash.myShifts.isEmpty
+            && dash.myEventWork.isEmpty
             && !dash.myCheckouts.items.contains(where: \.isOverdue)
             && dash.flaggedItems.isEmpty
             && dash.lostBulkUnits.isEmpty
@@ -106,26 +105,16 @@ struct HomeView: View {
                 StatStrip(
                     stats: dash.stats,
                     pendingPickupCount: dash.pendingPickups.total,
-                    shiftCount: dash.myShifts.count,
+                    shiftCount: dash.myEventWork.count,
+                    lastLoadedAt: vm.lastLoadedAt,
                     openBookings: { appState.selectedTab = 1 },
                     openSchedule: { appState.selectedTab = 4 }
                 )
-                if let loadedAt = vm.lastLoadedAt {
-                    Text("Updated \(loadedAt.formatted(.relative(presentation: .named)))")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                        .padding(.top, -8)
-                }
                 if HomeActionQueue.hasActions(in: dash, currentUserId: session.currentUser?.id) {
                     HomeActionQueue(
                         dash: dash,
-                        openBookingId: { navigationPath.append($0) },
                         openBookingSummary: { navigationPath.append($0) },
-                        openShift: { selectedScheduleEvent = $0.asScheduleEvent },
-                        openBookings: { appState.selectedTab = 1 },
-                        openSchedule: { appState.selectedTab = 4 },
-                        createBooking: { showCreate = true },
+                        openEventWork: { selectedEventWork = $0 },
                         currentUserId: session.currentUser?.id
                     )
                 } else if isAllEmpty(dash) || !hasStaffFollowUp(dash) {
@@ -137,8 +126,8 @@ struct HomeView: View {
             }
             .padding()
         }
-        .sheet(item: $selectedScheduleEvent) { event in
-            EventDetailSheet(event: event, myShift: nil)
+        .sheet(item: $selectedEventWork) { work in
+            EventDetailSheet(event: work.asScheduleEvent, myShift: nil, eventWork: work)
         }
     }
 
@@ -190,14 +179,7 @@ struct HomeView: View {
                     .padding(.bottom, 22)
                 }
             .toolbar {
-                #if DEBUG
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Kiosk") { kiosk.enterKiosk() }
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
-                #endif
-                ToolbarItemGroup(placement: .topBarTrailing) {
                     Button {
                         showProfile = true
                     } label: {
@@ -207,6 +189,8 @@ struct HomeView: View {
                             )
                     }
                     .accessibilityLabel("Profile")
+                }
+                ToolbarItemGroup(placement: .topBarTrailing) {
                     Button {
                         showNotifications = true
                     } label: {
@@ -237,7 +221,7 @@ struct HomeView: View {
                 showTrades = false
                 showProfile = false
                 showCreate = false
-                selectedScheduleEvent = nil
+                selectedEventWork = nil
             }
             .navigationDestination(for: BookingSummary.self) { summary in
                 BookingDetailView(bookingId: summary.id)
@@ -304,19 +288,34 @@ private struct StatStrip: View {
     let stats: DashboardStats
     let pendingPickupCount: Int
     let shiftCount: Int
+    let lastLoadedAt: Date?
     let openBookings: () -> Void
     let openSchedule: () -> Void
 
     var body: some View {
-        HStack(spacing: 8) {
-            StatCell(value: stats.overdue, label: "Overdue",
-                     tone: stats.overdue > 0 ? .red : nil, onTap: openBookings)
-            StatCell(value: stats.dueToday, label: "Due Today",
-                     tone: stats.dueToday > 0 ? .orange : nil, onTap: openBookings)
-            StatCell(value: pendingPickupCount, label: "Pickups",
-                     tone: pendingPickupCount > 0 ? .green : nil, onTap: openBookings)
-            StatCell(value: shiftCount, label: "Shifts",
-                     tone: shiftCount > 0 ? .blue : nil, onTap: openSchedule)
+        VStack(alignment: .trailing, spacing: 6) {
+            HStack(spacing: 8) {
+                StatCell(value: stats.overdue, label: "Overdue",
+                         tone: stats.overdue > 0 ? .red : nil, onTap: openBookings)
+                StatCell(value: stats.dueToday, label: "Due Today",
+                         tone: stats.dueToday > 0 ? .orange : nil, onTap: openBookings)
+                StatCell(value: pendingPickupCount, label: "Pickups",
+                         tone: pendingPickupCount > 0 ? .green : nil, onTap: openBookings)
+                StatCell(value: shiftCount, label: "Shifts",
+                         tone: shiftCount > 0 ? .blue : nil, onTap: openSchedule)
+            }
+            if let lastLoadedAt {
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .font(.caption2.weight(.semibold))
+                        .accessibilityHidden(true)
+                    Text("Synced \(lastLoadedAt.formatted(.relative(presentation: .named)))")
+                        .font(.caption2)
+                        .monospacedDigit()
+                }
+                .foregroundStyle(.tertiary)
+                .accessibilityLabel("Dashboard synced \(lastLoadedAt.formatted(.relative(presentation: .named)))")
+            }
         }
     }
 }
@@ -381,12 +380,8 @@ private struct StatStripSkeleton: View {
 
 private struct HomeActionQueue: View {
     let dash: DashboardData
-    let openBookingId: (String) -> Void
     let openBookingSummary: (BookingSummary) -> Void
-    let openShift: (DashboardShift) -> Void
-    let openBookings: () -> Void
-    let openSchedule: () -> Void
-    let createBooking: () -> Void
+    let openEventWork: (DashboardEventWork) -> Void
     let currentUserId: String?
 
     private var myOverdueBookings: [BookingSummary] {
@@ -411,6 +406,46 @@ private struct HomeActionQueue: View {
         }
     }
 
+    private var eventLinkedGearIds: Set<String> {
+        Set(dash.myEventWork.flatMap { $0.gearBookings.map(\.id) })
+    }
+
+    private var standalonePendingPickups: [BookingSummary] {
+        myPendingPickups.filter { !eventLinkedGearIds.contains($0.id) }
+    }
+
+    private var standaloneReservations: [BookingSummary] {
+        dash.myReservations.filter { !eventLinkedGearIds.contains($0.id) }
+    }
+
+    private func shiftLinked(to summary: BookingSummary) -> DashboardShift? {
+        let ids = Set(summary.eventIds + [summary.linkedEventId, summary.eventId].compactMap { $0 })
+        guard !ids.isEmpty else { return nil }
+        return dash.myShifts
+            .filter { ids.contains($0.event.id) }
+            .sorted { $0.startsAt < $1.startsAt }
+            .first
+    }
+
+    private func gearInstruction(for summary: BookingSummary) -> String {
+        let time = summary.startsAt.formatted(date: .omitted, time: .shortened)
+        if summary.status == .pendingPickup && summary.startsAt < Date() {
+            return "Pickup gear now"
+        }
+        return "Pickup gear at \(time)"
+    }
+
+    private func eventDetailLines(for summary: BookingSummary) -> [QueueDetailLine] {
+        var lines = [QueueDetailLine(text: gearInstruction(for: summary), tone: summary.startsAt < Date() ? .orange : .green)]
+        if let shift = shiftLinked(to: summary) {
+            lines.append(QueueDetailLine(
+                text: "Call time at \(shift.startsAt.formatted(date: .omitted, time: .shortened))",
+                tone: .blue
+            ))
+        }
+        return lines
+    }
+
     static func hasActions(in dash: DashboardData, currentUserId: String?) -> Bool {
         let hasMyPendingPickup = currentUserId.map { id in
             dash.pendingPickups.items.contains { $0.requesterUserId == id }
@@ -418,7 +453,7 @@ private struct HomeActionQueue: View {
         return dash.myCheckouts.items.contains(where: \.isOverdue)
             || hasMyPendingPickup
             || !dash.myReservations.isEmpty
-            || !dash.myShifts.isEmpty
+            || !dash.myEventWork.isEmpty
             || !dash.myCheckouts.items.isEmpty
     }
 
@@ -450,42 +485,34 @@ private struct HomeActionQueue: View {
                 )
             }
 
-            ForEach(myPendingPickups.prefix(3)) { summary in
-                ActionQueueRow(
-                    tone: summary.startsAt < Date() ? .orange : .green,
-                    title: summary.title,
-                    subtitle: summary.requesterName,
-                    meta: summary.startsAt < Date()
-                        ? "Pickup \(summary.startsAt.lateLabel)"
-                        : "Pickup \(summary.startsAt.formatted(date: .omitted, time: .shortened))",
-                    primaryLabel: "Open",
-                    action: { openBookingSummary(summary) }
-                )
-            }
+            ForEach(standalonePendingPickups.prefix(3)) { summary in
+                    ActionQueueRow(
+                        tone: summary.startsAt < Date() ? .orange : .green,
+                        title: summary.title,
+                        subtitle: summary.linkedEventId == nil ? summary.requesterName : nil,
+                        meta: summary.startsAt < Date()
+                            ? "Pickup \(summary.startsAt.lateLabel)"
+                            : "Pickup \(summary.startsAt.formatted(date: .omitted, time: .shortened))",
+                        primaryLabel: "Open",
+                        detailLines: summary.linkedEventId == nil ? [] : eventDetailLines(for: summary),
+                        action: { openBookingSummary(summary) }
+                    )
+                }
 
-            ForEach(dash.myReservations.prefix(3)) { summary in
-                ActionQueueRow(
-                    tone: .purple,
-                    title: summary.title,
-                    subtitle: summary.requesterName,
-                    meta: summary.startsAt.formatted(.dateTime.weekday(.abbreviated).hour().minute()),
-                    primaryLabel: "Open",
-                    action: { openBookingSummary(summary) }
-                )
-            }
+            ForEach(standaloneReservations.prefix(3)) { summary in
+                    ActionQueueRow(
+                        tone: .purple,
+                        title: summary.title,
+                        subtitle: summary.linkedEventId == nil ? summary.requesterName : nil,
+                        meta: summary.startsAt.formatted(.dateTime.weekday(.abbreviated).hour().minute()),
+                        primaryLabel: "Open",
+                        detailLines: summary.linkedEventId == nil ? [] : eventDetailLines(for: summary),
+                        action: { openBookingSummary(summary) }
+                    )
+                }
 
-            ForEach(dash.myShifts.prefix(2)) { shift in
-                ActionQueueRow(
-                    tone: shift.hasGear ? .green : .blue,
-                    title: shift.event.summary,
-                    subtitle: "\(shift.area.shiftAreaLabel) shift",
-                    meta: shift.startsAt.formatted(.dateTime.weekday(.abbreviated).hour().minute()),
-                    primaryLabel: "View",
-                    action: { openShift(shift) },
-                    secondaryLabel: "Schedule",
-                    secondarySystemImage: "calendar",
-                    secondaryAction: openSchedule
-                )
+            ForEach(dash.myEventWork.prefix(3)) { work in
+                EventActionQueueRow(work: work, openEventWork: openEventWork)
             }
         }
         .padding(16)
@@ -506,14 +533,102 @@ private struct HomeActionQueue: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Button {
-                createBooking()
-            } label: {
-                Label("Create", systemImage: "plus")
-                    .labelStyle(.iconOnly)
+        }
+    }
+}
+
+private struct QueueDetailLine {
+    let text: String
+    let tone: StatusTone
+}
+
+private struct EventActionQueueRow: View {
+    let work: DashboardEventWork
+    let openEventWork: (DashboardEventWork) -> Void
+    @State private var hapticTrigger = false
+
+    private var tone: StatusTone { work.needsGear ? .blue : .green }
+    private var firstTime: Date { min(work.primaryGear?.startsAt ?? work.shift.startsAt, work.shift.startsAt) }
+
+    var body: some View {
+        Button {
+            hapticTrigger.toggle()
+            openEventWork(work)
+        } label: {
+            HStack(spacing: 12) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Color.statusText(tone))
+                    .frame(width: 4, height: 56)
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: 7) {
+                    Text(work.event.summary)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(2)
+                    VStack(alignment: .leading, spacing: 3) {
+                        if let gear = work.primaryGear, !work.needsGear {
+                            queueTextLine(gearInstruction(for: gear), tone: gearTone(for: gear))
+                        } else {
+                            queueTextLine("Reserve gear now", tone: .blue)
+                        }
+                        queueTextLine(
+                            "Call time at \(work.shift.startsAt.formatted(date: .omitted, time: .shortened))",
+                            tone: .blue
+                        )
+                    }
+                }
+
+                Spacer(minLength: 8)
+
+                Text(firstTime.formatted(.dateTime.weekday(.abbreviated).hour().minute()))
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(Color.statusText(tone))
+                    .multilineTextAlignment(.trailing)
+                    .lineLimit(2)
             }
-            .buttonStyle(.glass)
-            .accessibilityLabel("Create booking")
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .frame(minHeight: 68)
+        .padding(.vertical, 4)
+        .sensoryFeedback(.selection, trigger: hapticTrigger)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var accessibilityLabel: String {
+        var parts = [work.event.summary]
+        if let gear = work.primaryGear, !work.needsGear {
+            parts.append(gearInstruction(for: gear))
+        } else {
+            parts.append("Reserve gear now")
+        }
+        parts.append("Call time at \(work.shift.startsAt.formatted(date: .omitted, time: .shortened))")
+        return parts.joined(separator: ", ")
+    }
+
+    private func gearInstruction(for gear: BookingSummary) -> String {
+        let time = gear.startsAt.formatted(date: .omitted, time: .shortened)
+        if gear.status == .pendingPickup && gear.startsAt < Date() {
+            return "Pickup gear now"
+        }
+        return "Pickup gear at \(time)"
+    }
+
+    private func gearTone(for gear: BookingSummary) -> StatusTone {
+        gear.status == .pendingPickup && gear.startsAt < Date() ? .orange : .green
+    }
+
+    private func queueTextLine(_ text: String, tone: StatusTone) -> some View {
+        HStack(spacing: 5) {
+            Circle()
+                .fill(Color.statusText(tone))
+                .frame(width: 5, height: 5)
+                .accessibilityHidden(true)
+            Text(text)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
         }
     }
 }
@@ -521,9 +636,10 @@ private struct HomeActionQueue: View {
 private struct ActionQueueRow: View {
     let tone: StatusTone
     let title: String
-    let subtitle: String
+    let subtitle: String?
     let meta: String
     let primaryLabel: String
+    var detailLines: [QueueDetailLine] = []
     let action: () -> Void
     var secondaryLabel: String? = nil
     var secondarySystemImage: String? = nil
@@ -548,10 +664,27 @@ private struct ActionQueueRow: View {
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.primary)
                             .lineLimit(2)
-                        Text(subtitle)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
+                        if detailLines.isEmpty, let subtitle {
+                            Text(subtitle)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        } else {
+                            VStack(alignment: .leading, spacing: 3) {
+                                ForEach(detailLines, id: \.text) { line in
+                                    HStack(spacing: 5) {
+                                        Circle()
+                                            .fill(Color.statusText(line.tone))
+                                            .frame(width: 5, height: 5)
+                                            .accessibilityHidden(true)
+                                        Text(line.text)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(1)
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     Spacer(minLength: 8)
@@ -565,9 +698,9 @@ private struct ActionQueueRow: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .frame(minHeight: 48)
+            .frame(minHeight: detailLines.isEmpty ? 48 : 68)
             .sensoryFeedback(.selection, trigger: hapticTrigger)
-            .accessibilityLabel("\(title), \(subtitle), \(meta). \(primaryLabel).")
+            .accessibilityLabel(accessibilityLabel)
 
             if let secondaryLabel, let secondarySystemImage, let secondaryAction {
                 Button {
@@ -585,6 +718,11 @@ private struct ActionQueueRow: View {
             }
         }
         .padding(.vertical, 4)
+    }
+
+    private var accessibilityLabel: String {
+        let detail = detailLines.isEmpty ? (subtitle ?? "") : detailLines.map(\.text).joined(separator: ", ")
+        return "\(title), \(detail), \(meta). \(primaryLabel)."
     }
 }
 

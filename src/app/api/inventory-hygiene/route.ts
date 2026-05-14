@@ -374,7 +374,7 @@ export const GET = withAuth(async (_req, { user }) => {
     ),
     issue(
       "low-bulk-stock",
-      "Bulk SKUs below threshold",
+      "Item families below threshold",
       "Low stock makes picker guidance and day-of fulfillment less reliable.",
       lowBulkRows.length,
       lowBulkRows.slice(0, SAMPLE_LIMIT).map(({ sku, available, threshold }) => ({

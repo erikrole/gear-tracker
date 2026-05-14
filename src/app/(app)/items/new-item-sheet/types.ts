@@ -10,7 +10,7 @@ export type ParentSearchResult = {
   model: string;
 };
 
-export type ItemKind = "serialized" | "bulk";
+export type ItemKind = "standard" | "units" | "quantity";
 export type BulkMode = "new" | "existing";
 
 export interface NewItemSheetProps {

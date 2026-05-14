@@ -218,9 +218,10 @@ export function statusBadge(asset: Asset) {
         </Badge>
       );
     default:
-      // Bulk items: "N Available"
-      if (/^\d+ Available$/.test(computedStatus)) {
-        const qty = parseInt(computedStatus, 10);
+      // Item families: "43/46 available"
+      const familyAvailability = computedStatus.match(/^(\d+)\/(\d+) available$/);
+      if (familyAvailability) {
+        const qty = parseInt(familyAvailability[1]!, 10);
         const color = qty === 0 ? "red" : "green";
         return (
           <Badge className={STATUS_STYLES[color].badge}>
@@ -272,7 +273,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
             checked={canSelect ? row.getIsSelected() : false}
             disabled={!canSelect}
             onCheckedChange={(value) => row.toggleSelected(!!value)}
-            aria-label={canSelect ? "Select row" : "Bulk SKU rows cannot be selected here"}
+            aria-label={canSelect ? "Select row" : "Item-family rows use detail-page actions"}
           />
         </div>
       );

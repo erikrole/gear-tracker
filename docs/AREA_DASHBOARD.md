@@ -175,6 +175,8 @@ Make dashboard an action console for daily operations, not a reporting screen.
 7. Add regression tests for permissions, window filtering (7 days), and overdue consistency.
 
 ## Change Log
+- 2026-05-13: **Event work payload for iOS Home** — `/api/dashboard` now returns booking summaries with `eventIds` and `linkedEventId`, and adds `myEventWork` for the signed-in user's event-linked shift plus gear. Gear linkage now checks primary `Booking.eventId`, the `BookingEvent` junction, and `Booking.shiftAssignmentId`, so native Home can render one event row instead of separately inferring reservation/pickup and shift rows.
+- 2026-05-13: **Admin Fix Today queue shipped** — `/admin/fix-today` gives admins a read-only daily action queue for overdue checkouts, pending pickup handoffs, offline kiosks, flagged maintenance items, low battery families, calendar sync failures, and license expirations. `GET /api/admin/fix-today` is `ADMIN`-only, uses bounded parallel reads with partial-failure metadata, and links every issue back to existing repair surfaces instead of adding one-off mutation paths.
 - 2026-05-10: Status/data wiring ship fixes. The stat strip now labels custody as `Checked out` and deep-links to `OPEN` checkouts only, while Awaiting Pickup remains a separate `PENDING_PICKUP` operational lane.
 - 2026-05-10: Scan handoff cleanup. Overdue banner quick action now opens the checkout detail instead of routing to stale app `/scan?checkout=...`; return scanning remains a kiosk flow.
 - 2026-05-10: Schedule ownership pass. Dashboard Upcoming Events remains read-only and now avoids repeating open-slot copy when the coverage badge and row severity already communicate staffing state, keeping `/schedule` as the full management surface.

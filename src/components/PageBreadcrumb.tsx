@@ -31,7 +31,7 @@ import { cn } from "@/lib/utils";
 // Anything else falls through to formatSegment().
 const SEGMENT_OVERRIDE: Record<string, { label: string; href?: string }> = {
   events: { label: "Schedule", href: "/schedule" },
-  "bulk-inventory": { label: "Bulk Inventory", href: "/items" },
+  "bulk-inventory": { label: "Item family operations", href: "/items" },
   scan: { label: "Lookup", href: "/scan" },
 };
 
@@ -99,6 +99,7 @@ function formatSegment(segment: string): string {
 function isDynamicSegment(segment: string): boolean {
   if (/^[0-9a-f-]{8,}$/i.test(segment)) return true;
   if (/^c[a-z0-9]{20,}$/.test(segment)) return true;
+  if (/^bulk-c[a-z0-9]{20,}$/.test(segment)) return true;
   return false;
 }
 

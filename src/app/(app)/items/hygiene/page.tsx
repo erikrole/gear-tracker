@@ -100,12 +100,12 @@ const ISSUE_META: Record<HygieneIssueKey, IssueMeta> = {
     cleanLabel: "Tracked items have canonical scan values.",
   },
   "low-bulk-stock": {
-    area: "Bulk stock",
+    area: "Item families",
     priority: 4,
     tone: "orange",
     repairHref: "/bulk-inventory",
-    repairLabel: "Open bulk inventory",
-    cleanLabel: "Active bulk SKUs are at or above their thresholds.",
+    repairLabel: "Open item-family operations",
+    cleanLabel: "Active item families are at or above their thresholds.",
   },
   "camera-missing-attachments": {
     area: "Camera systems",

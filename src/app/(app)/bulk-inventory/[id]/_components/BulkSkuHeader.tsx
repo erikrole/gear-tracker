@@ -1,9 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { AssetImage } from "@/components/AssetImage";
 import ChooseImageModal from "@/components/ChooseImageModal";
 import type { BulkSkuDetail } from "../types";
@@ -14,12 +14,14 @@ export function BulkSkuHeader({
   canEdit,
   onRefresh,
   onImageChanged,
+  operationsHref,
 }: {
   sku: BulkSkuDetail;
   refreshing: boolean;
   canEdit: boolean;
   onRefresh: () => void;
   onImageChanged?: (url: string | null) => void;
+  operationsHref?: string;
 }) {
   const [imageModalOpen, setImageModalOpen] = useState(false);
 
@@ -56,19 +58,29 @@ export function BulkSkuHeader({
 
             {/* Meta line */}
             <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-              <Badge variant="secondary" className="text-xs rounded-sm">Bulk</Badge>
+              <span className="text-sm font-medium text-muted-foreground">
+                {sku.trackByNumber ? "Units" : "Quantity"}
+              </span>
               {sku.categoryRel?.name && (
                 <span className="text-sm text-muted-foreground">{sku.categoryRel.name}</span>
               )}
               <span className="text-sm text-muted-foreground">{sku.location.name}</span>
               {!sku.active && (
-                <Badge variant="outline" className="text-xs text-muted-foreground">Archived</Badge>
+                <span className="rounded-sm border border-border px-1.5 py-0.5 text-xs text-muted-foreground">Archived</span>
               )}
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-2 mt-2 sm:mt-0">
+          {operationsHref && canEdit && (
+            <Button variant="outline" size="sm" asChild>
+              <Link href={operationsHref}>
+                <Settings className="size-3.5" />
+                Stockroom view
+              </Link>
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"

@@ -48,7 +48,7 @@ function usageLabel(counts?: DepartmentCounts) {
   if (total === 0) return "No linked inventory";
   const parts: string[] = [];
   if (counts.assets > 0) parts.push(`${counts.assets} item${counts.assets === 1 ? "" : "s"}`);
-  if (counts.bulkSkus > 0) parts.push(`${counts.bulkSkus} bulk SKU${counts.bulkSkus === 1 ? "" : "s"}`);
+  if (counts.bulkSkus > 0) parts.push(`${counts.bulkSkus} item famil${counts.bulkSkus === 1 ? "y" : "ies"}`);
   return parts.join(" + ");
 }
 
@@ -188,7 +188,7 @@ export default function DepartmentsSettingsPage() {
     <div className="sticky top-20 max-lg:static">
       <h2 className="text-2xl font-bold mb-2">Departments</h2>
       <p className="text-sm text-muted-foreground leading-relaxed">
-        Manage the inventory ownership groups used by item forms, filters, bulk SKUs, and utilization reports.
+        Manage the inventory ownership groups used by item forms, filters, item families, and utilization reports.
       </p>
     </div>
   );

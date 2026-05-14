@@ -559,13 +559,13 @@ function GapItemImage({ item }: { item: GapItem }) {
 }
 
 function getKindLabel(item: GapItem) {
-  return item.kind === "bulk" ? "Bulk SKU" : "Serialized";
+  return item.kind === "bulk" ? "Item family" : "Standard";
 }
 
 function getProductLine(item: GapItem) {
   const product = [item.brand, item.model].filter(Boolean).join(" ").trim();
   if (product && product !== "Bulk SKU") return product;
-  return item.kind === "bulk" ? "Bulk inventory" : "No product metadata";
+  return item.kind === "bulk" ? "Item family" : "No product metadata";
 }
 
 function tokenize(value: string): string[] {

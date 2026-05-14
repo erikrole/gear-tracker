@@ -272,6 +272,42 @@
   --heatmap-zero: rgb(221, 221, 221);
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  html.theme-transitioning,
+  html.theme-transitioning *,
+  html.theme-transitioning *::before,
+  html.theme-transitioning *::after {
+    transition-property: background-color, border-color, box-shadow, color, fill, stroke;
+    transition-duration: 180ms;
+    transition-timing-function: var(--ease-out);
+  }
+
+  html.theme-view-transitioning::view-transition-old(root),
+  html.theme-view-transitioning::view-transition-new(root) {
+    animation-duration: 180ms;
+    animation-timing-function: var(--ease-out);
+    mix-blend-mode: normal;
+  }
+
+  html.theme-view-transitioning::view-transition-old(root) {
+    animation-name: theme-fade-out;
+  }
+
+  html.theme-view-transitioning::view-transition-new(root) {
+    animation-name: theme-fade-in;
+  }
+}
+
+@keyframes theme-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes theme-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 /* ===== Dark Mode =====
    Theme script in layout.tsx always resolves to data-theme="dark"|"light",
    including system-preference detection. Single CSS block needed. */

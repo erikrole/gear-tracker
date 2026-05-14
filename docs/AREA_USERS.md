@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Users
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-12
+- Last Updated: 2026-05-13
 - Status: Active
 - Version: V1.2
 
@@ -112,6 +112,9 @@ Use a simple tiered permission model with inheritance so behavior is predictable
 6. Ensure audit logs include actor role, target owner, and exception metadata.
 
 ## Change Log
+- 2026-05-13: Users list UI polish shipped. Roster summary metrics now fit evenly on desktop with admins counted in Staff, admin rows show Staff in the Role column with a stable Admin badge beside the name, table headers use cleaner sentence-case copy, Area appears before Location in sentence case, active users get a standard avatar presence dot with `Now`, and never-active users use a softer badge treatment.
+- 2026-05-13: Users search responsiveness shipped. The roster search box now keeps local typing responsive, debounces URL/API updates at the input boundary, and keeps the previous result list visible while a filtered query refreshes.
+- 2026-05-13: Last-active roster signal shipped. Users now record a debounced `lastActiveAt` timestamp during authenticated app activity, and the Users list exposes a sortable Last active column with compact mobile metadata.
 - 2026-05-12: Admin profile-photo management shipped. Admins can now use the profile-photo menu on any user detail page to upload, replace, or remove that user's photo through the existing avatar route; staff remain blocked from changing another user's photo.
 - 2026-05-12: Allowed-email backfill fix. Adding an email that already belongs to a registered user now creates a visible claimed allowlist row when one is missing, so Settings > Allowed Emails reflects existing account access instead of showing a skipped no-op toast.
 - 2026-05-12: Invite/login bug fix. Users created from Users > Add User now have `forcePasswordChange` set with the temporary password, direct-created staff/student users create or claim a visible claimed allowlist row, Settings > Allowed Emails no longer says a skipped duplicate was added, and forgot-password stops promising reset emails when email delivery is not configured.

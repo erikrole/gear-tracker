@@ -11,7 +11,7 @@ Audit the remaining Phase B+ cross-page state awareness work and clean up stale 
 - Verify whether booking detail date range grouping is already shipped.
 - Verify event-context propagation from dashboard and event command paths into booking creation.
 - Verify whether dashboard-to-detail navigation preserves useful state or has a concrete regression.
-- Leave Game-Day Readiness Score deferred unless the audit finds a dependency that should move earlier.
+- Confirm Game-Day Readiness Score is not a dependency for the cross-page state work.
 
 ## Checklist
 
@@ -28,4 +28,4 @@ Audit the remaining Phase B+ cross-page state awareness work and clean up stale 
 - `eventId` propagation was already present from dashboard/event paths into the wizard.
 - Missing-gear "Create checkout" links passed `requesterUserId`, but the intermediate booking list redirect and wizard ignored it. Fixed so the assigned user stays selected.
 - Dashboard and booking list detail interactions preserve scroll by opening `BookingDetailsSheet` in-place rather than navigating away.
-- Game-Day Readiness Score remains Phase C; no build work is recommended until operators ask for game-day command visibility.
+- Game-Day Readiness Score is not a dependency and is no longer recommended as future build work.

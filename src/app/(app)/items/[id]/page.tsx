@@ -21,6 +21,8 @@ import { AccessoriesSection } from "./ItemSettingsTab";
 import useItemData from "./_hooks/use-item-data";
 import useItemActions from "./_hooks/use-item-actions";
 import { ItemHeader } from "./_components/ItemHeader";
+import { BulkSkuDetailExperience } from "../../bulk-inventory/[id]/BulkSkuDetailExperience";
+import { BULK_ID_PREFIX } from "../lib/item-href";
 
 /* ── Tab Definitions ──────────────────────────────────────── */
 
@@ -39,6 +41,21 @@ const tabDefs: Array<{ key: TabKey; label: string }> = [
 
 export default function ItemDetailsPage() {
   const { id } = useParams<{ id: string }>();
+
+  if (id.startsWith(BULK_ID_PREFIX)) {
+    const bulkSkuId = id.slice(BULK_ID_PREFIX.length);
+    return (
+      <BulkSkuDetailExperience
+        id={bulkSkuId}
+        operationsHref={`/bulk-inventory/${bulkSkuId}`}
+      />
+    );
+  }
+
+  return <SerializedItemDetailsPage id={id} />;
+}
+
+function SerializedItemDetailsPage({ id }: { id: string }) {
   const searchParams = useSearchParams();
   const initialTab = (searchParams.get("tab") as TabKey) || "info";
   const [activeTab, setActiveTab] = useState<TabKey>(

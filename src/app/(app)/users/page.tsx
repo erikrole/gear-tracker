@@ -24,7 +24,7 @@ import { useFetch } from "@/hooks/use-fetch";
 import { PageHeader } from "@/components/PageHeader";
 import { FadeUp } from "@/components/ui/motion";
 import { formatRelativeTime } from "@/lib/format";
-import { useDebounce, useUrlState } from "@/hooks/use-url-state";
+import { useUrlState } from "@/hooks/use-url-state";
 import { SPORT_CODES } from "@/lib/sports";
 
 const LIMIT = 50;
@@ -39,6 +39,8 @@ const SORT_VALUES = new Set([
   "email_desc",
   "created",
   "created_desc",
+  "lastActive",
+  "lastActive_desc",
 ]);
 const YEAR_VALUES = new Set<string>(STUDENT_YEAR_OPTIONS.map((option) => option.value));
 const AREA_VALUES = new Set(Object.keys(AREA_LABELS));
@@ -143,8 +145,7 @@ function RosterSummary({ stats, canEdit }: { stats: NonNullable<ListResponse["st
     { label: "Total", value: stats.total },
     { label: "Active", value: stats.active },
     { label: "Students", value: stats.byRole.STUDENT },
-    { label: "Staff", value: stats.byRole.STAFF },
-    { label: "Admins", value: stats.byRole.ADMIN },
+    { label: "Staff", value: stats.byRole.STAFF + stats.byRole.ADMIN },
   ];
 
   if (stats.inactive > 0) {
@@ -155,12 +156,14 @@ function RosterSummary({ stats, canEdit }: { stats: NonNullable<ListResponse["st
     buckets.push({ label: "No photos", value: stats.missingPhotos });
   }
 
+  const desktopCols = buckets.length >= 6 ? "lg:grid-cols-6" : "lg:grid-cols-5";
+
   return (
-    <div className="grid grid-cols-2 gap-2 rounded-md border border-border/60 bg-muted/20 p-2 sm:grid-cols-3 lg:grid-cols-5">
+    <div className={`grid grid-cols-2 gap-2 rounded-md border border-border/60 bg-muted/20 p-2 sm:grid-cols-3 ${desktopCols}`}>
       {buckets.map((bucket) => (
         <div key={bucket.label} className="flex min-h-14 items-center justify-between rounded-sm bg-background px-3 shadow-xs">
           <div className="min-w-0">
-            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+            <div className="text-[11px] font-medium text-muted-foreground">
               {bucket.label}
             </div>
             <div className="mt-0.5 text-xl font-bold leading-none tabular-nums" style={{ fontFamily: "var(--font-heading)" }}>
@@ -182,7 +185,6 @@ export default function UsersPage() {
     parseStringParam,
     serializeOptionalString,
   );
-  const debouncedSearch = useDebounce(search, 300);
   const [roleFilter, setRoleFilter] = useUrlState<string>(
     "role",
     parseRoleParam,
@@ -235,14 +237,14 @@ export default function UsersPage() {
       return;
     }
     setPage(0);
-  }, [debouncedSearch, roleFilter, locationFilter, yearFilter, sportFilter, areaFilter, sort, showInactive, setPage]);
+  }, [search, roleFilter, locationFilter, yearFilter, sportFilter, areaFilter, sort, showInactive, setPage]);
 
   // ── Build URL for user list fetch ──
   const usersUrl = useMemo(() => {
     const params = new URLSearchParams();
     params.set("limit", String(LIMIT));
     params.set("offset", String(page * LIMIT));
-    const query = debouncedSearch.trim();
+    const query = search.trim();
     if (query) params.set("q", query);
     if (sort) params.set("sort", sort);
     if (roleFilter) params.set("role", roleFilter);
@@ -252,11 +254,11 @@ export default function UsersPage() {
     if (areaFilter) params.set("area", areaFilter);
     if (showInactive) params.set("active", "all");
     return `/api/users?${params}`;
-  }, [page, debouncedSearch, sort, roleFilter, locationFilter, yearFilter, sportFilter, areaFilter, showInactive]);
+  }, [page, search, sort, roleFilter, locationFilter, yearFilter, sportFilter, areaFilter, showInactive]);
 
   const exportHref = useMemo(() => {
     const params = new URLSearchParams();
-    const query = debouncedSearch.trim();
+    const query = search.trim();
     if (query) params.set("q", query);
     if (roleFilter) params.set("role", roleFilter);
     if (locationFilter) params.set("locationId", locationFilter);
@@ -266,17 +268,19 @@ export default function UsersPage() {
     if (showInactive) params.set("active", "all");
     const qs = params.toString();
     return qs ? `/api/users/export?${qs}` : "/api/users/export";
-  }, [debouncedSearch, roleFilter, locationFilter, yearFilter, sportFilter, areaFilter, showInactive]);
+  }, [search, roleFilter, locationFilter, yearFilter, sportFilter, areaFilter, showInactive]);
 
   const {
     data: listData,
     loading,
+    refreshing,
     error: loadError,
     lastRefreshed: lastFetched,
     reload,
   } = useFetch<ListResponse>({
     url: usersUrl,
     transform: (json) => json as unknown as ListResponse,
+    keepPreviousData: true,
   });
 
   const users = listData?.data ?? [];
@@ -378,6 +382,7 @@ export default function UsersPage() {
           onAreaChange={setAreaFilter}
           showInactive={showInactive}
           onShowInactiveChange={setShowInactive}
+          searching={refreshing && !loading}
           onClearAll={() => {
             setRoleFilter("");
             setLocationFilter("");
@@ -402,6 +407,7 @@ export default function UsersPage() {
                   <TableHead className="hidden lg:table-cell"><Skeleton className="h-4 w-20" /></TableHead>
                   <TableHead className="hidden md:table-cell"><Skeleton className="h-4 w-20" /></TableHead>
                   <TableHead className="hidden md:table-cell"><Skeleton className="h-4 w-14" /></TableHead>
+                  <TableHead className="hidden xl:table-cell"><Skeleton className="h-4 w-20" /></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -420,6 +426,7 @@ export default function UsersPage() {
                     <TableCell className="hidden lg:table-cell"><Skeleton className="h-3.5" style={{ width: `${45 + (r % 3) * 15}%` }} /></TableCell>
                     <TableCell className="hidden md:table-cell"><Skeleton className="h-3.5" style={{ width: `${50 + (r % 3) * 20}%` }} /></TableCell>
                     <TableCell className="hidden md:table-cell"><Skeleton className="h-3.5" style={{ width: `${40 + (r % 4) * 15}%` }} /></TableCell>
+                    <TableCell className="hidden xl:table-cell"><Skeleton className="h-3.5 w-16" /></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -455,11 +462,12 @@ export default function UsersPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <SortableHead label="Name" sortKey="name" currentSort={sort} onSort={setSort} />
-                      <SortableHead label="Role" sortKey="role" currentSort={sort} onSort={setSort} />
-                      <TableHead className="hidden lg:table-cell">Title / Year</TableHead>
-                      <TableHead className="hidden md:table-cell">Location</TableHead>
-                      <TableHead className="hidden md:table-cell">Area</TableHead>
+                      <SortableHead label="Name" sortKey="name" currentSort={sort} onSort={setSort} className="w-[26rem] normal-case tracking-normal" />
+                      <SortableHead label="Role" sortKey="role" currentSort={sort} onSort={setSort} className="w-28 normal-case tracking-normal" />
+                      <TableHead className="hidden min-w-[16rem] normal-case tracking-normal lg:table-cell">Title</TableHead>
+                      <TableHead className="hidden w-32 normal-case tracking-normal md:table-cell">Area</TableHead>
+                      <TableHead className="hidden w-40 normal-case tracking-normal md:table-cell">Location</TableHead>
+                      <SortableHead label="Last active" sortKey="lastActive" currentSort={sort} onSort={setSort} className="hidden w-36 normal-case tracking-normal xl:table-cell" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>

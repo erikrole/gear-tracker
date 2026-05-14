@@ -103,10 +103,10 @@ function formatContentDetail(kit: KitRow) {
 
   if (total === 0) return "No contents yet";
   if (serialized > 0 && bulk > 0) {
-    return `${pluralize(serialized, "asset")} + ${pluralize(bulk, "bulk SKU")}`;
+    return `${pluralize(serialized, "asset")} + ${pluralize(bulk, "item family", "item families")}`;
   }
   if (serialized > 0) return pluralize(serialized, "asset");
-  return pluralize(bulk, "bulk SKU");
+  return pluralize(bulk, "item family", "item families");
 }
 
 function getKitStatus(kit: KitRow) {

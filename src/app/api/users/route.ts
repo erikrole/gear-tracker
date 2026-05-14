@@ -106,24 +106,34 @@ export const GET = withAuth(async (req, { user }) => {
     conditions.length > 0 ? { AND: conditions } : {};
 
   // Build orderBy
-  const orderBy: Prisma.UserOrderByWithRelationInput = (() => {
+  const orderBy: Prisma.UserOrderByWithRelationInput[] = (() => {
     switch (sort) {
       case "name_desc":
-        return { name: "desc" as const };
+        return [{ name: "desc" as const }];
       case "role":
-        return { role: "asc" as const };
+        return [{ role: "asc" as const }, { name: "asc" as const }];
       case "role_desc":
-        return { role: "desc" as const };
+        return [{ role: "desc" as const }, { name: "asc" as const }];
       case "email":
-        return { email: "asc" as const };
+        return [{ email: "asc" as const }];
       case "email_desc":
-        return { email: "desc" as const };
+        return [{ email: "desc" as const }];
       case "created":
-        return { createdAt: "asc" as const };
+        return [{ createdAt: "asc" as const }, { name: "asc" as const }];
       case "created_desc":
-        return { createdAt: "desc" as const };
+        return [{ createdAt: "desc" as const }, { name: "asc" as const }];
+      case "lastActive":
+        return [
+          { lastActiveAt: { sort: "asc" as const, nulls: "last" as const } },
+          { name: "asc" as const },
+        ];
+      case "lastActive_desc":
+        return [
+          { lastActiveAt: { sort: "desc" as const, nulls: "last" as const } },
+          { name: "asc" as const },
+        ];
       default:
-        return { name: "asc" as const };
+        return [{ name: "asc" as const }];
     }
   })();
 
@@ -174,6 +184,7 @@ export const GET = withAuth(async (req, { user }) => {
       title: u.title ?? null,
       gradYear: u.gradYear ?? null,
       studentYearOverride: u.studentYearOverride ?? null,
+      lastActiveAt: u.lastActiveAt?.toISOString() ?? null,
     })),
     total,
     limit,

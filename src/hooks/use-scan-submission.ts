@@ -8,6 +8,7 @@ import type {
 } from "@/app/(app)/scan/_components/types";
 import { scanFeedbackSuccess } from "@/lib/scan-feedback";
 import { handleAuthRedirect } from "@/lib/errors";
+import type { BulkItem } from "@/app/(app)/items/hooks/use-items-query";
 
 type UseScanSubmissionResult = {
   processing: boolean;
@@ -17,6 +18,61 @@ type UseScanSubmissionResult = {
   setItemPreview: (item: ItemPreview | null) => void;
   handleScan: (value: string) => void;
 };
+
+function unitStatusLabel(status: string | undefined) {
+  switch (status) {
+    case "AVAILABLE":
+      return "Available";
+    case "CHECKED_OUT":
+      return "Checked out";
+    case "LOST":
+      return "Missing";
+    case "RETIRED":
+      return "Retired";
+    default:
+      return status ? status.replace(/_/g, " ").toLowerCase() : "Unknown";
+  }
+}
+
+function normalizedScanVariants(value: string) {
+  const normalized = value.trim().toLowerCase();
+  return new Set([normalized, normalized.startsWith("qr-") ? normalized.slice(3) : `qr-${normalized}`]);
+}
+
+function toItemFamilyPreview(familyMatch: BulkItem): ItemPreview {
+  const scannedUnit = familyMatch.matchedUnitNumber
+    ? {
+        number: familyMatch.matchedUnitNumber,
+        status: familyMatch.matchedUnitStatus ?? "UNKNOWN",
+        holder: familyMatch.matchedUnitHolder ?? null,
+        dueAt: familyMatch.matchedUnitDueAt ?? null,
+        bookingTitle: familyMatch.matchedUnitBookingTitle ?? null,
+      }
+    : null;
+  const unitLabel = scannedUnit
+    ? `Unit #${scannedUnit.number} · ${unitStatusLabel(scannedUnit.status)}`
+    : null;
+
+  return {
+    id: `bulk-${familyMatch.id}`,
+    assetTag: `${familyMatch.availableQuantity}/${familyMatch.onHandQuantity} available`,
+    itemFamily: true,
+    itemFamilyTracking: familyMatch.trackByNumber ? "units" : "quantity",
+    unitLabel,
+    scannedUnit,
+    availabilityLabel: `${familyMatch.availableQuantity}/${familyMatch.onHandQuantity} available`,
+    name: familyMatch.name,
+    brand: "",
+    model: familyMatch.trackByNumber ? "Units" : "Quantity",
+    serialNumber: "",
+    imageUrl: familyMatch.imageUrl,
+    computedStatus: familyMatch.availableQuantity > 0 ? "AVAILABLE" : "RETIRED",
+    location: { name: familyMatch.locationName },
+    category: { name: familyMatch.category },
+    parentAsset: null,
+    activeBooking: null,
+  };
+}
 
 export function useScanSubmission(): UseScanSubmissionResult {
   const [processing, setProcessing] = useState(false);
@@ -65,8 +121,21 @@ export function useScanSubmission(): UseScanSubmissionResult {
 
         const json = await res.json();
         const assets: LookupResult[] = json.data ?? [];
-        const normalizedValue = value.toLowerCase();
-        const normalizedSearchTerm = searchTerm.toLowerCase();
+        const itemFamilies: BulkItem[] = json.bulkItems ?? [];
+        const scanVariants = normalizedScanVariants(value);
+        const normalizedValue = value.trim().toLowerCase();
+        const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+        const exactFamily = itemFamilies.find((family) => {
+          const familyQr = family.binQrCodeValue.trim().toLowerCase();
+          return Boolean(family.matchedUnitNumber) || scanVariants.has(familyQr);
+        });
+
+        if (exactFamily) {
+          scanFeedbackSuccess();
+          setItemPreview(toItemFamilyPreview(exactFamily));
+          return;
+        }
+
         const exact = assets.find((asset) => {
           const qr = asset.qrCodeValue?.toLowerCase() ?? "";
           const scanCode = asset.primaryScanCode?.toLowerCase() ?? "";
@@ -101,6 +170,13 @@ export function useScanSubmission(): UseScanSubmissionResult {
               activeBooking: null,
             });
           }
+          return;
+        }
+
+        const familyMatch = itemFamilies[0];
+        if (familyMatch) {
+          scanFeedbackSuccess();
+          setItemPreview(toItemFamilyPreview(familyMatch));
           return;
         }
 

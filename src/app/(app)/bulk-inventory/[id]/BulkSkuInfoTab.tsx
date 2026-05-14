@@ -146,7 +146,7 @@ export function BulkSkuInfoTab({
       </InfoRow>
 
       {/* ── Configuration ─────────────────────────── */}
-      <InfoRow label="Min threshold">
+      <InfoRow label="Low-stock threshold">
         {canEdit ? (
           <div className="flex flex-col items-end gap-0.5">
             <EditableNumber
@@ -168,7 +168,7 @@ export function BulkSkuInfoTab({
         )}
       </InfoRow>
 
-      <InfoRow label="Bin QR">
+      <InfoRow label="QR code">
         {canEdit ? (
           <EditableText
             value={sku.binQrCodeValue}
@@ -180,9 +180,9 @@ export function BulkSkuInfoTab({
         )}
       </InfoRow>
 
-      <InfoRow label="Tracked by #">
+      <InfoRow label="Tracking">
         <Badge variant={sku.trackByNumber ? "secondary" : "outline"} className="text-xs">
-          {sku.trackByNumber ? "Numbered units" : "Quantity only"}
+          {sku.trackByNumber ? "Units" : "Quantity"}
         </Badge>
       </InfoRow>
 

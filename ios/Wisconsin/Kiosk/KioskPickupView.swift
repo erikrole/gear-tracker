@@ -15,6 +15,7 @@ struct KioskPickupView: View {
     @State private var error: String?
     @State private var showCamera = false
     @State private var lastConfirmedId: String?
+    @State private var confirmedItemOverrides: [String: KioskScanResult.ScannedItem] = [:]
 
     enum ScanFeedback: Equatable {
         case success(String)
@@ -31,6 +32,15 @@ struct KioskPickupView: View {
     private var totalItems: Int { detail?.items.count ?? 0 }
     private var confirmedCount: Int { confirmedIds.count }
     private var allConfirmed: Bool { confirmedCount >= totalItems && totalItems > 0 }
+    private var batteryTotal: Int { detail?.scanSummary?.numberedBulkTotal ?? detail?.numberedBulkItems.count ?? 0 }
+    private var confirmedBatteryCount: Int {
+        detail?.numberedBulkItems.filter { confirmedIds.contains($0.id) }.count ?? 0
+    }
+    private var hasBatteryScanStep: Bool { batteryTotal > 0 }
+    private var remainingBatteryCount: Int { max(0, batteryTotal - confirmedBatteryCount) }
+    private var scannedBatteryUnits: [KioskScanResult.ScannedItem] {
+        detail?.numberedBulkItems.compactMap { confirmedItemOverrides[$0.id] } ?? []
+    }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -95,6 +105,16 @@ struct KioskPickupView: View {
                         .foregroundStyle(allConfirmed ? Color.statusText(.green) : .secondary)
                         .multilineTextAlignment(.center)
 
+                    if hasBatteryScanStep {
+                        BatteryScanStatus(
+                            title: "Battery Units",
+                            count: confirmedBatteryCount,
+                            total: batteryTotal,
+                            pendingCopy: "Scan each battery unit QR before confirming pickup.",
+                            scannedUnits: scannedBatteryUnits
+                        )
+                    }
+
                     if let result = lastResult {
                         FeedbackBanner(result: result)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -143,7 +163,7 @@ struct KioskPickupView: View {
             confirmPickup()
         } label: {
             HStack {
-                Text(isConfirming ? "Confirming..." : "Confirm Pickup")
+                Text(isConfirming ? "Confirming..." : confirmButtonTitle)
                     .font(.headline)
                 if isConfirming { ProgressView().tint(.white).scaleEffect(0.8) }
             }
@@ -164,8 +184,20 @@ struct KioskPickupView: View {
     private var confirmAccessibilityLabel: String {
         if isConfirming { return "Confirming pickup" }
         if allConfirmed { return "Confirm Pickup, \(totalItems) item\(totalItems == 1 ? "" : "s")" }
+        if remainingBatteryCount > 0 {
+            return "Scan \(remainingBatteryCount) more battery unit\(remainingBatteryCount == 1 ? "" : "s") before confirming"
+        }
         let remaining = totalItems - confirmedCount
         return "Scan \(remaining) more item\(remaining == 1 ? "" : "s") before confirming"
+    }
+
+    private var confirmButtonTitle: String {
+        if allConfirmed { return "Confirm Pickup" }
+        if remainingBatteryCount > 0 {
+            return "Scan \(remainingBatteryCount) Battery Unit\(remainingBatteryCount == 1 ? "" : "s")"
+        }
+        let remaining = max(0, totalItems - confirmedCount)
+        return "Scan \(remaining) More Item\(remaining == 1 ? "" : "s")"
     }
 
     // MARK: - Checklist Panel
@@ -191,7 +223,11 @@ struct KioskPickupView: View {
                     ScrollView {
                         LazyVStack(spacing: 0) {
                             ForEach(items) { item in
-                                PickupItemRow(item: item, confirmed: confirmedIds.contains(item.id))
+                                PickupItemRow(
+                                    item: item,
+                                    confirmed: confirmedIds.contains(item.id),
+                                    scannedItem: confirmedItemOverrides[item.id]
+                                )
                                     .id(item.id)
                                 Divider().background(Color.white.opacity(0.06))
                             }
@@ -262,6 +298,7 @@ struct KioskPickupView: View {
                         showFeedback(.alreadyConfirmed("\(item.tagName) already confirmed"))
                     } else {
                         confirmedIds.insert(item.id)
+                        confirmedItemOverrides[item.id] = item
                         lastConfirmedId = item.id
                         showFeedback(.success(item.name))
                     }
@@ -324,6 +361,10 @@ struct KioskPickupView: View {
 private struct PickupItemRow: View {
     let item: KioskCheckoutDetail.ReturnItem
     let confirmed: Bool
+    let scannedItem: KioskScanResult.ScannedItem?
+
+    private var displayName: String { scannedItem?.name ?? item.name }
+    private var displayTag: String { scannedItem?.tagName ?? item.tagName }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -333,10 +374,18 @@ private struct PickupItemRow: View {
                 .frame(width: 28)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.name)
-                    .font(.subheadline)
-                    .foregroundStyle(confirmed ? Color.white.opacity(0.6) : .white)
-                Text(item.tagName)
+                HStack(spacing: 6) {
+                    Text(displayName)
+                        .font(.subheadline)
+                        .foregroundStyle(confirmed ? Color.white.opacity(0.6) : .white)
+                    if item.isNumberedBulk {
+                        Image(systemName: "battery.100percent")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(Color.statusText(.orange))
+                            .accessibilityLabel("Battery unit")
+                    }
+                }
+                Text(displayTag)
                     .font(.caption.monospaced())
                     .foregroundStyle(.secondary)
             }
@@ -346,7 +395,79 @@ private struct PickupItemRow: View {
         .padding(.vertical, 14)
         .animation(.spring(response: 0.25), value: confirmed)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(item.name), tag \(item.tagName), \(confirmed ? "confirmed" : "pending")")
+        .accessibilityLabel("\(displayName), tag \(displayTag), \(confirmed ? "confirmed" : "pending")")
+    }
+}
+
+private struct BatteryScanStatus: View {
+    let title: String
+    let count: Int
+    let total: Int
+    let pendingCopy: String
+    let scannedUnits: [KioskScanResult.ScannedItem]
+
+    var complete: Bool { count >= total && total > 0 }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: complete ? "battery.100percent" : "battery.25percent")
+                    .font(.title3)
+                    .foregroundStyle(complete ? Color.statusText(.green) : Color.statusText(.orange))
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white)
+                    Text(complete ? "All \(total) units scanned" : "\(count) of \(total) units scanned")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                    if !complete {
+                        Text(pendingCopy)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+            }
+            if !scannedUnits.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Scanned units")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    FlexibleUnitChips(units: scannedUnits)
+                }
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))
+        .accessibilityElement(children: .combine)
+    }
+}
+
+private struct FlexibleUnitChips: View {
+    let units: [KioskScanResult.ScannedItem]
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 6) { chipContent }
+            VStack(alignment: .leading, spacing: 6) { chipContent }
+        }
+    }
+
+    @ViewBuilder
+    private var chipContent: some View {
+        ForEach(units) { unit in
+            Text(unit.tagName)
+                .font(.caption2.monospaced().weight(.semibold))
+                .foregroundStyle(Color.statusText(.green))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.statusText(.green).opacity(0.12), in: Capsule())
+                .overlay(Capsule().stroke(Color.statusText(.green).opacity(0.25), lineWidth: 1))
+        }
     }
 }
 

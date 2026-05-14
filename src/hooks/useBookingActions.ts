@@ -164,7 +164,7 @@ export function useBookingActions(
         quantity,
       });
       if (result.ok) {
-        toast.success("Bulk items returned");
+        toast.success("Item-family quantity returned");
         onSuccess();
       } else {
         toast.error(result.error!);

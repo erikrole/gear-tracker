@@ -44,14 +44,56 @@ Last updated: 2026-05-13
 
 ## Open Items
 
+### Bulk Item Families Follow-Through (2026-05-13)
+- [x] **Labels parity:** Include item-family parent/bin QR labels in the global print-label queue alongside serialized item labels.
+- [x] **Admin/report copy:** Replace remaining normal-user-facing SKU/bulk wording in touched Battery Ops, item-family settings, and missing-unit reporting surfaces.
+- [x] **Report naming:** Rename the report tab to Missing Units so staff see the operational problem, not item-family jargon.
+- [x] **Creation naming:** Change Add Item tracking choices to Standard, Units, and Quantity with examples, and keep list/picker rows focused on availability instead of type badges.
+- [x] **Detail naming:** Polish item-family details so availability, unit grids, QR, settings, and status actions read as normal item detail language with Missing instead of Lost where the UI describes staff follow-up work.
+- [x] **Battery Ops naming:** Align Battery Ops and Missing Units report with Missing and Units language instead of Lost, numbered, or implementation-heavy terms.
+- [x] **Ops navigation naming:** Rename the admin battery surface to Battery Ops and the item-family operations handoff to Stockroom view.
+- [x] **Booking picker guidance:** Recommend compatible battery families from selected cameras, label item-family quantities as requested, and keep exact unit binding at kiosk pickup.
+- [x] **Scan lookup polish:** Show exact unit QR scans inside the parent item-family context with explicit unit status and checkout custody details, while keeping app scan lookup-only.
+- [x] **Kiosk battery clarity:** Make native kiosk pickup/return battery progress show required/scanned unit counts, exact scanned unit chips, and disabled-confirm guidance.
+- [x] **Doc sync:** Update bulk inventory, reports, and the bulk item families plan with the follow-through outcome.
+- [x] **Verification:** Run TypeScript, migration-prefix check, whitespace check, and app build.
+
+**Review**
+- Naming is now centered on Missing Units for the report surface, battery families for low-stock operations, and item-family/unit language where the UI still needs the family model.
+- Add Item now maps Standard to serialized assets, Units to numbered/scannable item families, and Quantity to count-only item families.
+- Item-family detail pages now use normal item wording, compact tracking labels, QR copy without web-print assumptions, and Missing language for unit exception states.
+- Battery cockpit and Missing Units report now describe battery families using Units and missing-unit events without exposing old numbered/lost wording.
+- The admin nav now says Battery Ops, and `/items/bulk-{id}` points staff toward a Stockroom view instead of generic admin operations.
+- Booking picker guidance now supports the "request quantity now, scan exact units at pickup" model for battery families.
+- App scan exact unit QR results now show the parent item family, unit number, Missing/Checked out/Available status, and checked-out custody context when present.
+- Native kiosk pickup and return now show battery unit progress as required/scanned counts, exact scanned/returned unit chips, and clearer disabled pickup-confirm copy when unit scans are still missing.
+- Verified with `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, and `npx next build`.
+
+### iOS Home Event Queue Cleanup (2026-05-13)
+- [x] **Header cleanup:** Remove the debug Kiosk button from iOS Home, move Profile to the top-left toolbar, and leave notifications on the top-right.
+- [x] **Queue controls:** Remove the inline create button from the Next Up card and remove the shift row calendar shortcut.
+- [x] **Freshness placement:** Move the "Updated now" signal into the stat strip so it reads as metadata for the numbers, not a stray page element.
+- [x] **Event core model:** Add a dashboard `myEventWork` payload that ties a user's event shift to gear through primary event, `BookingEvent`, and shift-assignment links.
+- [x] **Event grouping:** Render event-linked shift and gear work as one Home queue row and suppress the linked standalone gear rows.
+- [x] **Event detail:** Open one event page from Home with shift call time and gear reservation or reserve-now action together.
+- [x] **Verification:** Run iOS drift/audit checks, scoped whitespace checks, and the Wisconsin simulator build.
+
+**Review**
+- Dashboard booking summaries now include all linked event IDs, and `/api/dashboard` exposes `myEventWork` as the event-centric source of truth for a user's shift plus gear.
+- Home keeps the bottom-right create action, removes duplicate card-level create and shift calendar buttons, and moves sync freshness into the stat strip as "Synced now" metadata.
+- Combined event rows now suppress every event-linked gear booking and show student-facing sublines like "Pickup gear at 10:00 AM" plus "Call time at 10:30 AM"; if no reserved gear exists, the row says "Reserve gear now."
+- Event detail now carries the same event work context so the gear action and call time live on one page instead of sending students to separate shift and booking views.
+- Follow-up fix: iOS dashboard decoding now defaults new event-linkage fields when the app talks to a server that has not deployed the new `myEventWork` payload yet.
+- Verification passed with `npx tsc --noEmit`, `npm run drift:ios`, `npm run audit:ios:gaps`, scoped `git diff --check`, the Wisconsin iOS simulator build, and compile-only `npx next build`.
+
 ### Battery Audit Reporting (2026-05-13)
-- [x] **GAP-37:** Bulk Losses now reports numbered battery missing units by unit number, loss rate by SKU, recent checkout history, and repeated missing SKU/requester patterns.
+- [x] **GAP-37:** Missing Units now reports unit-tracked battery missing units by unit number, missing rate by family, recent checkout history, and repeated missing family/requester patterns.
 - [x] **Shared battery detection:** Battery cockpit and report aggregation now use the same term-boundary SKU matcher.
 - [x] **Verification:** Focused report service coverage and TypeScript passed before closeout.
 
 **Review**
 - `tasks/archive/battery-audit-reporting-plan.md` tracks the one-slice implementation and doc sync.
-- `docs/GAPS_AND_RISKS.md` closes GAP-37 with the shipped Bulk Losses reporting behavior.
+- `docs/GAPS_AND_RISKS.md` closes GAP-37 with the shipped Missing Units reporting behavior.
 
 ### Gap Reliability Closure (2026-05-13)
 - [x] **GAP-58:** Kiosk dashboard now uses partial-result fallbacks instead of failing the idle screen when one read fails.
@@ -300,7 +342,7 @@ Last updated: 2026-05-13
 
 **Review**
 - Shipped: `/items` now restores density and column visibility after hydration instead of reading localStorage during the initial render.
-- Shipped: Bulk SKU rows now open Bulk Inventory but cannot be selected for serialized bulk actions, favorited from the Items list, printed as asset labels, or sent through serialized lifecycle actions.
+- Shipped: Item-family rows now open their item detail route but cannot be selected for serialized bulk actions, favorited from the Items list, printed as serialized asset labels, or sent through serialized lifecycle actions.
 - Shipped: The Items toolbar and pagination controls now use larger hit areas, cleaner pagination copy, and a bulk-only footer that does not expose an invalid rows-per-page selector.
 - Verified: `npx tsc --noEmit`, `npm run db:migrate:check`, `npx vitest run tests/asset-action-hardening.test.ts tests/api-hardening-wave12.test.ts`, `git diff --check -- src/app/(app)/items/page.tsx src/app/(app)/items/data-table.tsx src/app/(app)/items/columns.tsx src/app/(app)/items/components/items-toolbar.tsx src/app/(app)/items/components/items-pagination.tsx src/app/(app)/items/hooks/use-bulk-actions.ts docs/AREA_ITEMS.md tasks/todo.md tasks/archive/items-ownership-pass.md`, `npx next build`, and authenticated browser smoke on `/items`, `/items?type=bulk`, and `/items?type=serialized`.
 
@@ -574,8 +616,8 @@ Last updated: 2026-05-13
 
 ### Reports UI Polish Slice 1 (2026-05-09)
 - [x] **Shared Reports shell** — Add shared toolbar, metric-grid, section-card, and loading patterns for Reports.
-- [x] **Six-page migration** — Apply the shared rhythm to Utilization, Checkouts, Overdue, Scans, Bulk Losses, and Audit without changing data contracts.
-- [x] **Verification + browser smoke** — TypeScript, migration-prefix, whitespace, and app build gates pass; authenticated Chrome DevTools smoke rendered Utilization, Checkouts, Overdue, Bulk Losses, Scans, and Audit with the seeded admin session.
+- [x] **Six-page migration** — Apply the shared rhythm to Utilization, Checkouts, Overdue, Scans, Missing Units, and Audit without changing data contracts.
+- [x] **Verification + browser smoke** — TypeScript, migration-prefix, whitespace, and app build gates pass; authenticated Chrome DevTools smoke rendered Utilization, Checkouts, Overdue, Missing Units, Scans, and Audit with the seeded admin session.
 
 ### Reports Chart Runtime Cleanup (2026-05-09)
 - [x] **Recharts sizing guard** — Add stable responsive-container sizing in the shared shadcn chart wrapper after authenticated browser smoke exposed an initial width/height warning.
@@ -593,13 +635,13 @@ Last updated: 2026-05-13
 
 ### Reports State Polish Slice 4 (2026-05-09)
 - [x] **Shared states** — Add report-level error, empty, and pagination helpers.
-- [x] **Page migration** — Utilization, Checkouts, Overdue, Scans, Bulk Losses, and Audit now share retry/error handling where applicable.
+- [x] **Page migration** — Utilization, Checkouts, Overdue, Scans, Missing Units, and Audit now share retry/error handling where applicable.
 - [x] **Empty copy** — Report empty states explain what data would populate the section instead of stopping at terse labels.
 - [x] **Verification** — TypeScript, migration-prefix, whitespace, and app build gates pass.
 
 ### Reports Row Polish Slice 5 (2026-05-09)
 - [x] **Shared row primitives** — Add report-level table-link, mobile-card, mobile-card-link, and compact-list-row helpers.
-- [x] **List migration** — Checkouts, Scans, Utilization, Bulk Losses, and Overdue use the shared row rhythm where applicable.
+- [x] **List migration** — Checkouts, Scans, Utilization, Missing Units, and Overdue use the shared row rhythm where applicable.
 - [x] **Disclosure polish** — Overdue expandable rows use lucide chevrons while preserving click and keyboard expansion.
 - [x] **Verification** — TypeScript, migration-prefix, whitespace, and app build gates pass.
 
@@ -735,11 +777,11 @@ Last updated: 2026-05-13
 - [x] **Verification + docs** — `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, `npx next build`, and checkout/scan/users docs synced.
 
 ### Active Backlog Index (2026-05-06)
-- [ ] **Next recommended slice: Admin Fix Today queue** — Build the daily action queue first so admins stop checking separate pages for overdue gear, pending pickup orphans, offline kiosks, flagged items, low batteries, sync failures, and license expirations.
-- [ ] **Battery follow-through** — Finish the remaining battery workflow polish in Bulk Battery Hardening: explicit kiosk battery scan step, override visibility, booking-create guidance, and optional gear suggestions.
+- [x] **Next recommended slice: Admin Fix Today queue** — Shipped `/admin/fix-today` as an admin-only read queue for overdue gear, pending pickup handoffs, offline kiosks, flagged maintenance items, low batteries, calendar sync failures, and license expirations.
+- [x] **Battery follow-through** — Shipped the explicit kiosk battery scan step: typed numbered-battery rows and scan-summary counts in checkout detail, plus dedicated iOS pickup/return battery progress cards.
 - [ ] **Admin helpers** — Work through Admin Helper Backlog in this order: Fix Today queue, Kiosk admin cockpit, People offboarding assistant, Inventory hygiene center, Admin exception review, Renewal and expiry calendar, Morning digest.
 - [ ] **Ops V2/V3 deferred work** — Keep deeper battery reporting, inventory health, attachment slot schema, and templates/presets behind slice plans.
-- [ ] **Low-priority systemic gaps** — Keep SystemConfig UI, scan endpoint rate limiting, PENDING_PICKUP auto-expiry, and Game-Day Readiness Score visible but behind daily-ops work.
+- [ ] **Low-priority systemic gaps** — Keep SystemConfig UI and scan endpoint rate limiting visible but behind daily-ops work.
 
 ### Avatar + shadcn Cleanup (2026-05-07)
 - [x] **Shared people avatar groups** — Added `UserAvatarGroup` and migrated schedule/dashboard assignment previews to one tooltip/overflow pattern.
@@ -930,15 +972,15 @@ Last updated: 2026-05-13
 ### Bulk Battery Hardening (2026-05-05)
 - [x] **Kiosk-scanned numbered batteries** — Treat battery booking as quantity at creation, then bind/return specific numbered units through kiosk unit QR scans. Add low-availability camera-model battery warnings at creation. Verified with focused tests, TypeScript, migration-prefix check, local Next build, and whitespace check.
 - [x] **Kiosk battery client and labels** — Include batteries in iOS kiosk pickup/return checklists, block pickup confirm until planned units are scanned, align compatibility rules to the current import snapshot, and improve Brother P-Touch unit labels. Verified with focused tests, TypeScript, migration-prefix check, local Next build, iOS simulator build, and whitespace check.
-- [x] **Battery Unit Cockpit** — Added `/bulk-inventory/batteries` plus an Admin nav entry for active numbered battery SKUs, unit status counts, low-stock signals, checked-out aging, booking/requester context, and audited unit status actions.
+- [x] **Battery Unit Cockpit** — Added `/bulk-inventory/batteries` plus an Admin nav entry for active unit-tracked battery families, unit status counts, low-stock signals, checked-out aging, booking/requester context, and audited unit status actions.
 - [x] **Kiosk battery mismatch polish** — Kiosk pickup/return now distinguishes wrong battery type, duplicate scans, units checked out elsewhere, units not checked out on the booking, and lost/retired units.
-- [x] **Battery compatibility lows** — Battery Cockpit now flags low compatible battery families by matching active camera inventory against existing battery compatibility rules.
+- [x] **Battery compatibility lows** — Battery Ops now flags low compatible battery families by matching active camera inventory against existing battery compatibility rules.
 - [ ] **Kiosk explicit battery scan step** — Make pickup clearly call out required battery unit scans before confirm, while preserving current unit-binding behavior.
 - [ ] **Kiosk admin override visibility** — Preserve admin override, but make battery-related override use visible and audit-friendly in the pickup flow.
 - [ ] **Booking-create battery guidance polish** — Make compatible battery warnings feel like actionable guidance instead of generic alerts, without requiring unit selection before pickup.
 - [ ] **Booking-create optional gear suggestions** — Suggest compatible support gear such as batteries, media, readers, and cages from selected camera context.
 - [ ] **Attachment management polish** — Improve camera attachment attach, detach, and replace flows while keeping slot identity display-only for now.
-- [ ] **Battery audit/reporting** — Add missing batteries by unit, loss rate by SKU, unit checkout history, repeated missing-unit patterns, and aging checked-out battery reporting.
+- [x] **Battery audit/reporting** — Add missing batteries by unit, loss rate by family, unit checkout history, repeated missing-unit patterns, and aging checked-out battery reporting.
 - [ ] **Inventory health dashboard** — Add operational health signals for low stock by location, missing camera-system attachments, batteries below threshold by camera family, and retired/lost trends.
 - [ ] **Attachment slot schema decision** — Revisit nullable `attachmentSlot` only if slot filters, required attachment checks, completeness reports, or slot-level maintenance workflows justify schema work.
 - [ ] **Templates/presets** — Add camera kit presets such as FX6 shoot or FX3 shoot that suggest batteries and optional gear while keeping batteries as numbered bulk inventory.
@@ -996,7 +1038,7 @@ Last updated: 2026-05-13
 - Camera Attachments shipped: item detail now uses grouped Attachments, SD card slot labels render for tags such as `MBB 17 IV 1A`, scan lookup shows parent/slot context, and docs lock QR-coded batteries to numbered bulk semantics. Follow-up 2026-05-12: full `npm run build` now passes through the shared Prisma/Neon migration wrapper.
 - Derived Bulk Unit QR Scans shipped: QR values generated by the numbered bulk QR tab, such as `94e068d1-7`, now submit as one validated numbered unit under the parent SKU without converting batteries into serialized items.
 - Bulk Battery Hardening shipped: kiosk pickup/check-in now scans numbered battery unit QRs one by one, lookup resolves unit QRs, checkout creation warns on low compatible battery availability, and camera-battery guidance is no longer a hard gate.
-- Battery Unit Cockpit shipped: admins/staff now have `/bulk-inventory/batteries` for active numbered battery SKUs, low-stock signals, checked-out aging, booking/requester context, and audited quick unit actions.
+- Battery Unit Cockpit shipped: admins/staff now have `/bulk-inventory/batteries` for active unit-tracked battery families, low-stock signals, checked-out aging, booking/requester context, and audited quick unit actions.
 - Kiosk battery mismatch polish shipped: derived unit scans now return operator-specific feedback for wrong battery type, duplicate pickup scan, checked-out elsewhere, not checked out on this booking, and lost/retired unit cases.
 - Kiosk battery client and labels shipped: kiosk detail payloads include battery units in the checklist, pickup confirm blocks unscanned planned battery quantities, the iOS pickup subtitle counts bulk quantities, Brother P-Touch labels emphasize the unit number, and battery reporting is pinned as GAP-37.
 - React Query cache migration was already shipped in code and documented in `docs/NORTH_STAR.md`; stale GAP-11 status is reconciled in `docs/GAPS_AND_RISKS.md`.
@@ -1039,7 +1081,7 @@ Last updated: 2026-05-13
 - [x] ~~**Shift email notifications**~~ — Trade lifecycle emails shipped for claimed, completed, approved, and declined trades; broader assignment emails remain out of scope
 - [x] ~~**Student availability tracking**~~ — Shipped as recurring weekly unavailability blocks with profile Availability tab and assignment conflict indicators; date-specific exceptions remain optional follow-up
 - [x] ~~**Date range grouping**~~ — Already shipped in `BookingInfoTab`: the booking detail "When" field shows connected start/end values with duration. Reconciled 2026-05-05.
-- [ ] **Game-Day Readiness Score** — Aggregate metric per event (deferred from scheduling Slice 5)
+- [x] ~~**Game-Day Readiness Score**~~ — Scrubbed 2026-05-13. We are not planning a readiness-score / ops-view surface.
 
 ---
 

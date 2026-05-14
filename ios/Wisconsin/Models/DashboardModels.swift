@@ -12,6 +12,9 @@ struct BookingSummary: Codable, Identifiable, Hashable {
     let kind: BookingKind
     let title: String
     let refNumber: String?
+    let eventId: String?
+    let eventIds: [String]
+    let linkedEventId: String?
     let sportCode: String?
     let requesterUserId: String
     let requesterName: String
@@ -23,6 +26,34 @@ struct BookingSummary: Codable, Identifiable, Hashable {
     let itemCount: Int
     let status: BookingStatus
     let isOverdue: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case id, kind, title, refNumber, eventId, eventIds, linkedEventId, sportCode
+        case requesterUserId, requesterName, requesterInitials, requesterAvatarUrl
+        case locationName, startsAt, endsAt, itemCount, status, isOverdue
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        kind = try c.decode(BookingKind.self, forKey: .kind)
+        title = try c.decode(String.self, forKey: .title)
+        refNumber = try c.decodeIfPresent(String.self, forKey: .refNumber)
+        eventId = try c.decodeIfPresent(String.self, forKey: .eventId)
+        eventIds = try c.decodeIfPresent([String].self, forKey: .eventIds) ?? eventId.map { [$0] } ?? []
+        linkedEventId = try c.decodeIfPresent(String.self, forKey: .linkedEventId) ?? eventId ?? eventIds.first
+        sportCode = try c.decodeIfPresent(String.self, forKey: .sportCode)
+        requesterUserId = try c.decode(String.self, forKey: .requesterUserId)
+        requesterName = try c.decode(String.self, forKey: .requesterName)
+        requesterInitials = try c.decode(String.self, forKey: .requesterInitials)
+        requesterAvatarUrl = try c.decodeIfPresent(String.self, forKey: .requesterAvatarUrl)
+        locationName = try c.decodeIfPresent(String.self, forKey: .locationName)
+        startsAt = try c.decode(Date.self, forKey: .startsAt)
+        endsAt = try c.decode(Date.self, forKey: .endsAt)
+        itemCount = try c.decode(Int.self, forKey: .itemCount)
+        status = try c.decode(BookingStatus.self, forKey: .status)
+        isOverdue = try c.decode(Bool.self, forKey: .isOverdue)
+    }
 
     static func == (lhs: BookingSummary, rhs: BookingSummary) -> Bool { lhs.id == rhs.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
@@ -60,12 +91,46 @@ struct DashboardShift: Codable, Identifiable {
     var gearLabel: String {
         switch gearStatus {
         case "checked_out": return "Gear out"
+        case "pickup_ready": return "Gear ready"
         case "reserved":    return "Gear reserved"
         case "draft":       return "Gear draft"
         default:            return ""
         }
     }
     var hasGear: Bool { gearStatus != "none" }
+}
+
+struct DashboardEventWorkEvent: Codable {
+    let id: String
+    let summary: String
+    let startsAt: Date
+    let endsAt: Date
+    let allDay: Bool
+    let sportCode: String?
+    let opponent: String?
+    let isHome: Bool?
+    let locationId: String?
+    let locationName: String?
+}
+
+struct DashboardEventWorkShift: Codable, Identifiable {
+    let id: String
+    let area: String
+    let workerType: String
+    let startsAt: Date
+    let endsAt: Date
+}
+
+struct DashboardEventWork: Codable, Identifiable {
+    let id: String
+    let event: DashboardEventWorkEvent
+    let shift: DashboardEventWorkShift
+    let gearStatus: String
+    let gearBookings: [BookingSummary]
+    let needsGear: Bool
+
+    var primaryGear: BookingSummary? { gearBookings.first }
+    var hasReservedGear: Bool { !needsGear }
 }
 
 struct DashboardUpcomingEvent: Codable, Identifiable {
@@ -145,6 +210,32 @@ struct DashboardData: Codable {
     let drafts: [DashboardDraft]
     let flaggedItems: [DashboardFlaggedItem]
     let lostBulkUnits: [DashboardLostBulkUnit]
+    let myEventWork: [DashboardEventWork]
+
+    enum CodingKeys: String, CodingKey {
+        case role, stats, myCheckouts, teamCheckouts, teamReservations, pendingPickups
+        case myReservations, overdueCount, overdueItems, myShifts, upcomingEvents
+        case drafts, flaggedItems, lostBulkUnits, myEventWork
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        role = try c.decode(String.self, forKey: .role)
+        stats = try c.decode(DashboardStats.self, forKey: .stats)
+        myCheckouts = try c.decode(CheckoutGroup.self, forKey: .myCheckouts)
+        teamCheckouts = try c.decode(CheckoutGroup.self, forKey: .teamCheckouts)
+        teamReservations = try c.decode(ReservationGroup.self, forKey: .teamReservations)
+        pendingPickups = try c.decode(ReservationGroup.self, forKey: .pendingPickups)
+        myReservations = try c.decode([BookingSummary].self, forKey: .myReservations)
+        overdueCount = try c.decode(Int.self, forKey: .overdueCount)
+        overdueItems = try c.decode([DashboardOverdueItem].self, forKey: .overdueItems)
+        myShifts = try c.decode([DashboardShift].self, forKey: .myShifts)
+        upcomingEvents = try c.decode([DashboardUpcomingEvent].self, forKey: .upcomingEvents)
+        drafts = try c.decode([DashboardDraft].self, forKey: .drafts)
+        flaggedItems = try c.decode([DashboardFlaggedItem].self, forKey: .flaggedItems)
+        lostBulkUnits = try c.decode([DashboardLostBulkUnit].self, forKey: .lostBulkUnits)
+        myEventWork = try c.decodeIfPresent([DashboardEventWork].self, forKey: .myEventWork) ?? []
+    }
 
     var isStaff: Bool { role == "STAFF" || role == "ADMIN" }
     var isAdmin: Bool { role == "ADMIN" }
@@ -185,6 +276,24 @@ extension DashboardShift {
             opponent: nil,
             isHome: nil,
             location: nil
+        )
+    }
+}
+
+extension DashboardEventWork {
+    /// Convert to ScheduleEvent so EventDetailSheet can be presented from Home.
+    var asScheduleEvent: ScheduleEvent {
+        ScheduleEvent(
+            id: event.id,
+            summary: event.summary,
+            startsAt: event.startsAt,
+            endsAt: event.endsAt,
+            allDay: event.allDay,
+            status: "CONFIRMED",
+            sportCode: event.sportCode,
+            opponent: event.opponent,
+            isHome: event.isHome,
+            location: event.locationId.map { EventLocation(id: $0, name: event.locationName ?? "") }
         )
     }
 }

@@ -11,7 +11,6 @@ import type {
   CheckoutOpenedBadgeEvent,
   CheckoutReturnedBadgeEvent,
   ScanResultBadgeEvent,
-  ShiftCompletedBadgeEvent,
   TradeCompletedBadgeEvent,
 } from "./types";
 
@@ -292,8 +291,4 @@ export async function onTradeCompleted(event: TradeCompletedBadgeEvent): Promise
       count: tradeCount,
     });
   });
-}
-
-export async function onShiftCompleted(event: ShiftCompletedBadgeEvent): Promise<void> {
-  void event;
 }

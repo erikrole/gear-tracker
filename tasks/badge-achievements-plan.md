@@ -105,7 +105,6 @@ export const badges = {
   onCheckoutReturned: safeCall(_onCheckoutReturned),
   onScanResult: safeCall(_onScanResult),
   onTradeCompleted: safeCall(_onTradeCompleted),
-  onShiftCompleted: safeCall(_onShiftCompleted),
 };
 ```
 
@@ -125,7 +124,6 @@ Notes on the wrapper:
 | `onCheckoutReturned` | `bookings-checkin.ts` status flip into `COMPLETED` (single emit point inside `markCheckoutCompleted` and `maybeAutoComplete`'s "just transitioned" branch) | `{ userId, bookingId, completedAt, wasOnTime, sourceKey: bookingId }` |
 | `onScanResult` | `kiosk/checkout/scan`, `kiosk/pickup/[id]/scan`, `kiosk/checkin/[id]/scan` | `{ userId, bookingId?, phase: "checkout" \| "pickup" \| "checkin", ok, errorCode?: BadgeScanErrorCode, sourceKey }` |
 | `onTradeCompleted` | `shift-trades.ts` at the line that flips status to `COMPLETED` (one helper, called from both `claimTrade` immediate-complete and `approveTrade`) | `{ userId, tradeId, sourceKey: tradeId }` |
-| `onShiftCompleted` | future attendance/no-show transition only | `{ userId, shiftAssignmentId, attended, sourceKey: shiftAssignmentId }` |
 
 Required for every event payload:
 - `sourceKey: string` — stable identifier of the underlying domain event used
@@ -158,7 +156,8 @@ This is the only correct way given two paths can race for the same booking.
 - Do not wire `src/app/api/checkouts/[id]/scan/route.ts`; it is a kiosk-gated
   403 stub and must keep awarding nothing.
 - Do not award shift completion badges from `shift-assignments/[id]/approve`.
-  Approval is not attendance.
+  Approval is not a badge event, and attendance-based shift badges are out of
+  scope.
 - Do not add an app-level nav item for badges.
 
 ---
@@ -285,14 +284,6 @@ Ship 20 starter definitions, seeded idempotently by `key` from `prisma/seed.mjs`
 | `scan_100` | Scan Master | 100 | `scan:success` |
 | `zero_errors` | Clean Scanner | 10 consecutive successes | `scan:rule` |
 
-### Shift
-
-| Key | Name | Threshold | Trigger |
-|---|---|---:|---|
-| `first_shift` | On Duty | 1 | deferred until attendance completion |
-| `shift_10` | Shift Regular | 10 | deferred until attendance completion |
-| `shift_50` | Shift Veteran | 50 | deferred until attendance completion |
-
 ### Trade
 
 | Key | Name | Threshold | Trigger |
@@ -306,8 +297,6 @@ Ship 20 starter definitions, seeded idempotently by `key` from `prisma/seed.mjs`
 |---|---|---:|---|
 | `streak_on_time_5` | On a Roll | 5 | on-time return streak |
 | `streak_on_time_10` | Locked In | 10 | on-time return streak |
-| `streak_shifts_5` | Showing Up | 5 | deferred until attendance completion |
-| `streak_shifts_10` | Iron Schedule | 10 | deferred until attendance completion |
 
 ---
 
@@ -330,8 +319,7 @@ Badges should feel like lightweight recognition inside an ops app.
   medallion, name, one-line description, earned date, and manual note when one
   exists. Locked badges are muted.
 - Progress bars appear only for threshold badges backed by real counters or
-  streak rows. Manual badges and deferred shift badges must not show invented
-  progress.
+  streak rows. Manual badges must not show invented progress.
 - A few surprise badges remain hidden until earned, but the available section
   shows the count of hidden surprise badges so completion does not feel
   misleading.
@@ -459,13 +447,12 @@ Slice 5 implementation notes:
   shapes to enabled.
 - Manual awards can target any active user, including staff and admins.
 
-### Slice 6: Shift attendance badges
+### Slice 6: Retired shift attendance badges
 
-- [ ] Do not wire request approval.
-- [ ] Implement only after a real attendance/no-show completion event exists.
-- [ ] Award shift counts and shift streaks from that event using
-  `sourceKey = shiftAssignmentId`.
-- [ ] Update `docs/AREA_BADGES.md`.
+- [x] Do not wire request approval.
+- [x] Retire attendance-based shift badge definitions from the active catalog.
+- [x] Keep shift attendance tracking out of badge scope unless a future product
+  decision explicitly reopens it.
 
 ### Slice 7: Staff report, hardening, GA
 

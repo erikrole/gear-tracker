@@ -78,13 +78,13 @@ Make `/reports` feel like one engineered analytics surface instead of six adjace
 
 ## Review Notes
 
-Slice 1 shipped shared report UI helpers in `src/app/(app)/reports/report-ui.tsx`, updated the Reports layout tabs and header, and migrated Utilization, Checkouts, Overdue, Scans, Bulk Losses, and Audit to the shared toolbar, metric grid, section card, and loading patterns. Product behavior stayed read-only.
+Slice 1 shipped shared report UI helpers in `src/app/(app)/reports/report-ui.tsx`, updated the Reports layout tabs and header, and migrated Utilization, Checkouts, Overdue, Scans, Missing Units, and Audit to the shared toolbar, metric grid, section card, and loading patterns. Product behavior stayed read-only.
 
 Slice 2 moved all Reports chart components onto the shared chart card wrapper, centralized the chart color palette, added tabular legends where counts render inline, and stopped the utilization breakdown chart from mutating its input array during sort.
 
 Slice 3 replaced report filter button loops with the shared `ReportSegmentedControl`, keeping the same query-param behavior while making the segmented controls consistent and accessible.
 
-Slice 4 added shared error, empty, and pagination helpers so report states now use the same retry language, responsive action layout, and explanatory empty-state copy across Utilization, Checkouts, Overdue, Scans, Bulk Losses, and Audit.
+Slice 4 added shared error, empty, and pagination helpers so report states now use the same retry language, responsive action layout, and explanatory empty-state copy across Utilization, Checkouts, Overdue, Scans, Missing Units, and Audit.
 
 Slice 5 added shared row primitives for dense report lists, normalized table link focus/hover treatment, reused the mobile card/list-row rhythm, and replaced text disclosure arrows in Overdue with chevrons without changing navigation or expansion semantics.
 

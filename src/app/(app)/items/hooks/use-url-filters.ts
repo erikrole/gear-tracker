@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { SortingState } from "@tanstack/react-table";
 
+export type ItemTypeFilter = "all" | "serialized" | "unit-tracked" | "quantity-tracked";
+
 export type FilterState = {
   search: string;
   debouncedSearch: string;
@@ -41,8 +43,12 @@ export function useUrlFilters() {
   const [categoryFilter, setCategoryFilter] = useState<Set<string>>(() => readSet(searchParams, "category"));
   const [brandFilter, setBrandFilter] = useState<Set<string>>(() => readSet(searchParams, "brand"));
   const [departmentFilter, setDepartmentFilter] = useState<Set<string>>(() => readSet(searchParams, "department"));
-  const [itemType, setItemType] = useState<"all" | "serialized" | "bulk">(
-    () => (searchParams.get("type") as "serialized" | "bulk") ?? "all"
+  const [itemType, setItemType] = useState<ItemTypeFilter>(() => {
+    const raw = searchParams.get("type");
+    if (raw === "bulk") return "unit-tracked";
+    if (raw === "serialized" || raw === "unit-tracked" || raw === "quantity-tracked") return raw;
+    return "all";
+  }
   );
   const [showAccessories, setShowAccessories] = useState(() => searchParams.get("accessories") === "1");
   const [favoritesOnly, setFavoritesOnly] = useState(() => searchParams.get("favorites") === "1");

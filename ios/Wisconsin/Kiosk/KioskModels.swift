@@ -146,13 +146,30 @@ struct KioskCheckoutDetail: Decodable {
     let refNumber: String?
     let status: String
     let endsAt: Date
+    let scanSummary: ScanSummary?
     let items: [ReturnItem]
+
+    struct ScanSummary: Decodable {
+        let serializedTotal: Int
+        let numberedBulkTotal: Int
+        let numberedBulkCompleted: Int
+    }
 
     struct ReturnItem: Decodable, Identifiable {
         let id: String
         let tagName: String
         let name: String
         let returned: Bool
+        let type: String?
+        let bulkSkuId: String?
+        let bulkSkuName: String?
+        let unitNumber: Int?
+
+        var isNumberedBulk: Bool { type == "numbered_bulk" }
+    }
+
+    var numberedBulkItems: [ReturnItem] {
+        items.filter(\.isNumberedBulk)
     }
 }
 

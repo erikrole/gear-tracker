@@ -7,6 +7,9 @@ vi.mock("@/lib/auth", () => ({
 vi.mock("@/lib/db", () => ({
   db: {
     user: {
+      findMany: vi.fn(),
+      count: vi.fn(),
+      groupBy: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
     },
@@ -28,6 +31,7 @@ vi.mock("@sentry/nextjs", () => ({
 import { requireAuth } from "@/lib/auth";
 import { createAuditEntry } from "@/lib/audit";
 import { db } from "@/lib/db";
+import { GET } from "@/app/api/users/route";
 import { PATCH } from "@/app/api/users/[id]/route";
 
 const adminUser = {
@@ -71,6 +75,7 @@ function makeUser(overrides: Record<string, unknown> = {}) {
     primaryArea: null,
     avatarUrl: null,
     active: true,
+    lastActiveAt: null,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     sportAssignments: [],
     areaAssignments: [],
@@ -92,7 +97,45 @@ function makeUser(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(requireAuth).mockResolvedValue(adminUser);
+  vi.mocked(db.user.findMany).mockResolvedValue([]);
+  vi.mocked(db.user.count).mockResolvedValue(0);
+  vi.mocked(db.user.groupBy).mockResolvedValue([]);
   vi.mocked(db.user.update).mockResolvedValue(makeUser({ directReportId: managerId }) as any);
+});
+
+describe("GET /api/users", () => {
+  it("returns lastActiveAt and supports last-active sorting", async () => {
+    const lastActiveAt = new Date("2026-05-13T14:00:00.000Z");
+    vi.mocked(db.user.findMany).mockResolvedValue([
+      makeUser({
+        id: targetId,
+        name: "Student One",
+        lastActiveAt,
+        location: { id: "loc-1", name: "Camp Randall" },
+      }) as any,
+    ]);
+    vi.mocked(db.user.count).mockResolvedValue(1);
+    vi.mocked(db.user.groupBy).mockResolvedValue([
+      { role: "STUDENT", _count: { _all: 1 } },
+    ] as any);
+
+    const res = await GET(
+      new Request("https://app.example.com/api/users?sort=lastActive_desc"),
+      { params: Promise.resolve({}) },
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(db.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: [
+          { lastActiveAt: { sort: "desc", nulls: "last" } },
+          { name: "asc" },
+        ],
+      }),
+    );
+    expect(body.data[0].lastActiveAt).toBe("2026-05-13T14:00:00.000Z");
+  });
 });
 
 describe("PATCH /api/users/[id]", () => {

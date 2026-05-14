@@ -6,11 +6,16 @@ import { toast } from "sonner";
 import { FadeUp } from "@/components/ui/motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  applyThemeChoice,
+  readStoredThemeChoice,
+  setThemeChoice,
+  subscribeToThemeChoice,
+  subscribeToSystemTheme,
+  type ThemeChoice,
+} from "@/lib/theme";
 
-const THEME_KEY = "theme";
 const SCALE_KEY = "text-scale";
-
-type ThemeChoice = "system" | "light" | "dark";
 
 type ScaleChoice = {
   id: "small" | "default" | "large" | "xlarge";
@@ -24,26 +29,6 @@ const SCALE_CHOICES: ScaleChoice[] = [
   { id: "large",   label: "Large",       value: 1.15 },
   { id: "xlarge",  label: "Extra large", value: 1.3 },
 ];
-
-function applyTheme(choice: ThemeChoice) {
-  const root = document.documentElement;
-  if (choice === "light") {
-    root.setAttribute("data-theme", "light");
-  } else if (choice === "dark") {
-    root.setAttribute("data-theme", "dark");
-  } else {
-    const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
-    root.setAttribute("data-theme", prefersDark ? "dark" : "light");
-  }
-}
-
-function readStoredTheme(): ThemeChoice {
-  try {
-    const v = localStorage.getItem(THEME_KEY);
-    if (v === "light" || v === "dark") return v;
-  } catch { /* ignore */ }
-  return "system";
-}
 
 function applyScale(value: number) {
   document.documentElement.style.setProperty("--text-scale", String(value));
@@ -64,28 +49,23 @@ export default function AppearancePage() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setTheme(readStoredTheme());
+    const storedTheme = readStoredThemeChoice();
+    setTheme(storedTheme);
+    applyThemeChoice(storedTheme);
     setScale(readStoredScale());
     setMounted(true);
   }, []);
 
+  useEffect(() => subscribeToThemeChoice(setTheme), []);
+
   // Re-apply theme when OS preference changes while in "system" mode.
   useEffect(() => {
     if (theme !== "system") return;
-    const mq = window.matchMedia?.("(prefers-color-scheme: dark)");
-    if (!mq) return;
-    const handler = () => applyTheme("system");
-    mq.addEventListener?.("change", handler);
-    return () => mq.removeEventListener?.("change", handler);
+    return subscribeToSystemTheme(() => applyThemeChoice("system"));
   }, [theme]);
 
   function pickTheme(choice: ThemeChoice) {
-    setTheme(choice);
-    applyTheme(choice);
-    try {
-      if (choice === "system") localStorage.removeItem(THEME_KEY);
-      else localStorage.setItem(THEME_KEY, choice);
-    } catch { /* ignore */ }
+    setThemeChoice(choice, { animate: true });
     toast.success(
       choice === "system" ? "Following your system theme" : `Switched to ${choice} mode`,
       { duration: 1500 }

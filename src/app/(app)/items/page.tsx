@@ -176,19 +176,27 @@ export default function ItemsPage() {
     }
   }, [filters]);
 
-  // Merge bulk items into the main table as Asset-shaped rows
+  const itemFamilyOnly = filters.itemType === "unit-tracked" || filters.itemType === "quantity-tracked";
+
+  // Merge item-family rows into the main table as Asset-shaped rows.
   const mergedData = useMemo(() => {
+    const familyItems = query.bulkItems.filter((item) => {
+      if (filters.itemType === "unit-tracked") return item.trackByNumber;
+      if (filters.itemType === "quantity-tracked") return !item.trackByNumber;
+      return filters.itemType !== "serialized";
+    });
+
     const bulkAssets: Asset[] = filters.itemType !== "serialized"
-      ? query.bulkItems.map((b: BulkItem) => ({
+      ? familyItems.map((b: BulkItem) => ({
           id: buildBulkRowId(b.id),
           assetTag: b.name,
-          name: null,
+          name: b.trackByNumber ? "Unit-tracked item family" : "Quantity-tracked item family",
           type: b.category,
           brand: "",
           model: "",
           serialNumber: "",
           status: "AVAILABLE",
-          computedStatus: `${b.availableQuantity} Available`,
+          computedStatus: `${b.availableQuantity}/${b.onHandQuantity} available`,
           createdAt: "",
           location: { id: b.locationId, name: b.locationName },
           category: b.categoryId ? { id: b.categoryId, name: b.category } : null,
@@ -199,7 +207,7 @@ export default function ItemsPage() {
         }))
       : [];
 
-    const serializedItems = filters.itemType !== "bulk" ? query.items : [];
+    const serializedItems = filters.itemType === "all" || filters.itemType === "serialized" ? query.items : [];
 
     // When sorted by name (default), interleave everything together alphabetically.
     // For other sort fields, bulks append at bottom since server sort doesn't apply to them.
@@ -222,7 +230,7 @@ export default function ItemsPage() {
   // Optimistic favorite toggle
   const handleToggleFavorite = useCallback(async (asset: Asset) => {
     if (isBulkRowId(asset.id)) {
-      toast.info("Bulk SKUs are managed from Bulk Inventory");
+      toast.info("Item-family favorites are not available yet");
       return;
     }
     const prev = asset.isFavorited;
@@ -284,7 +292,7 @@ export default function ItemsPage() {
   const handleRowAction = useCallback(async (action: string, asset: Asset) => {
     if (busyRef.current) return;
     if (isBulkRowId(asset.id) && action !== "open") {
-      toast.info("Bulk SKU actions live in Bulk Inventory");
+      toast.info("Open the item family for unit labels, status, and admin operations");
       return;
     }
     switch (action) {
@@ -657,15 +665,15 @@ export default function ItemsPage() {
         {/* Pagination footer */}
         {!pageLoading && !query.loadError && visibleRowCount > 0 && (
           <ItemsPagination
-            total={filters.itemType === "bulk" ? query.bulkItems.length : query.total}
+            total={itemFamilyOnly ? mergedData.length : query.total}
             page={query.page}
-            totalPages={filters.itemType === "bulk" ? 1 : query.totalPages}
-            limit={filters.itemType === "bulk" ? Math.max(query.bulkItems.length, 1) : query.limit}
-            offset={filters.itemType === "bulk" ? 0 : query.page * query.limit}
+            totalPages={itemFamilyOnly ? 1 : query.totalPages}
+            limit={itemFamilyOnly ? Math.max(mergedData.length, 1) : query.limit}
+            offset={itemFamilyOnly ? 0 : query.page * query.limit}
             selectedCount={selectedCount}
             onPageChange={query.setPage}
             onLimitChange={(v) => { query.setLimit(v); query.setPage(0); }}
-            rowsPerPageDisabled={filters.itemType === "bulk"}
+            rowsPerPageDisabled={itemFamilyOnly}
           />
         )}
       </div>

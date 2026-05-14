@@ -43,7 +43,10 @@ function toBookingSummary(c: {
   kind: string;
   title: string;
   refNumber: string | null;
+  eventId: string | null;
   sportCode: string | null;
+  events?: Array<{ eventId: string }>;
+  shiftAssignment?: { shift: { shiftGroup: { eventId: string } } } | null;
   requester: { name: string; avatarUrl: string | null };
   requesterUserId: string;
   location?: { name: string } | null;
@@ -54,11 +57,15 @@ function toBookingSummary(c: {
   serializedItems: Array<{ asset: { id: string; name: string | null; imageUrl: string | null; category: { name: string } | null } }>;
 }, now: Date, canBeOverdue: boolean) {
   const sorted = sortItemsByCategory(c.serializedItems);
+  const eventIds = bookingEventIds(c);
   return {
     id: c.id,
     kind: c.kind,
     title: c.title,
     refNumber: c.refNumber,
+    eventId: c.eventId ?? null,
+    eventIds,
+    linkedEventId: c.shiftAssignment?.shift.shiftGroup.eventId ?? c.eventId ?? eventIds[0] ?? null,
     sportCode: c.sportCode ?? null,
     requesterName: c.requester.name,
     requesterUserId: c.requesterUserId,
@@ -78,6 +85,41 @@ function toBookingSummary(c: {
   };
 }
 
+function bookingEventIds(c: {
+  eventId: string | null;
+  events?: Array<{ eventId: string }>;
+  shiftAssignment?: { shift: { shiftGroup: { eventId: string } } } | null;
+}) {
+  const ids = new Set<string>();
+  if (c.eventId) ids.add(c.eventId);
+  for (const event of c.events ?? []) ids.add(event.eventId);
+  const shiftEventId = c.shiftAssignment?.shift.shiftGroup.eventId;
+  if (shiftEventId) ids.add(shiftEventId);
+  return [...ids];
+}
+
+function gearStatusForBooking(status: string) {
+  if (status === "OPEN") return "checked_out";
+  if (status === "PENDING_PICKUP") return "pickup_ready";
+  if (status === "BOOKED") return "reserved";
+  return "draft";
+}
+
+function gearStatusPriority(status: string) {
+  switch (status) {
+    case "pickup_ready":
+      return 4;
+    case "checked_out":
+      return 3;
+    case "reserved":
+      return 2;
+    case "draft":
+      return 1;
+    default:
+      return 0;
+  }
+}
+
 export const GET = withAuth(async (_req, { user }) => {
   const { allowed } = checkRateLimit(`dashboard:full:${user.id}`, DASHBOARD_LIMIT);
   if (!allowed) throw new HttpError(429, "Too many requests. Please wait a moment.");
@@ -94,6 +136,16 @@ export const GET = withAuth(async (_req, { user }) => {
   const bookingInclude = {
     requester: { select: { id: true, name: true, avatarUrl: true } },
     location: { select: { id: true, name: true } },
+    events: { select: { eventId: true } },
+    shiftAssignment: {
+      select: {
+        shift: {
+          select: {
+            shiftGroup: { select: { eventId: true } },
+          },
+        },
+      },
+    },
     _count: { select: { serializedItems: true, bulkItems: true } },
     serializedItems: {
       take: 3,
@@ -227,15 +279,7 @@ export const GET = withAuth(async (_req, { user }) => {
       },
       orderBy: { startsAt: "asc" },
       take: 5,
-      include: {
-        requester: { select: { id: true, name: true, avatarUrl: true } },
-        location: { select: { id: true, name: true } },
-        _count: { select: { serializedItems: true, bulkItems: true } },
-        serializedItems: {
-          take: 3,
-          include: { asset: { select: { id: true, name: true, imageUrl: true, category: { select: { name: true } } } } },
-        },
-      },
+      include: bookingInclude,
     }),
     // Top overdue for banner — all roles see all overdue
     db.booking.findMany({
@@ -448,18 +492,16 @@ export const GET = withAuth(async (_req, { user }) => {
       ? db.booking.findMany({
           where: {
             requesterUserId: user.id,
-            eventId: { in: shiftEventIds },
-            status: { in: ["DRAFT", "BOOKED", "OPEN"] },
+            status: { in: ["DRAFT", "BOOKED", "PENDING_PICKUP", "OPEN"] },
+            OR: [
+              { eventId: { in: shiftEventIds } },
+              { events: { some: { eventId: { in: shiftEventIds } } } },
+              { shiftAssignmentId: { in: myShiftsRaw.map((a) => a.id) } },
+              { shiftAssignment: { shift: { shiftGroup: { eventId: { in: shiftEventIds } } } } },
+            ],
           },
-          select: {
-            eventId: true,
-            status: true,
-            serializedItems: {
-              take: 3,
-              include: { asset: { select: { id: true, name: true, imageUrl: true, category: { select: { name: true } } } } },
-            },
-            _count: { select: { serializedItems: true, bulkItems: true } },
-          },
+          orderBy: [{ startsAt: "asc" }],
+          include: bookingInclude,
         })
       : Promise.resolve([]),
     lostSkuIds.length > 0
@@ -470,7 +512,19 @@ export const GET = withAuth(async (_req, { user }) => {
       : Promise.resolve([]),
   ]);
   const shiftGearBookings = settledValue(shiftGearBookingsResult, [] as Array<{
+    id: string;
+    kind: string;
+    title: string;
+    refNumber: string | null;
     eventId: string | null;
+    sportCode: string | null;
+    events?: Array<{ eventId: string }>;
+    shiftAssignment?: { shift: { shiftGroup: { eventId: string } } } | null;
+    requester: { name: string; avatarUrl: string | null };
+    requesterUserId: string;
+    location?: { name: string } | null;
+    startsAt: Date;
+    endsAt: Date;
     status: string;
     serializedItems: Array<{ asset: { id: string; name: string | null; imageUrl: string | null; category: { name: string } | null } }>;
     _count: { serializedItems: number; bulkItems: number };
@@ -590,24 +644,32 @@ export const GET = withAuth(async (_req, { user }) => {
     })),
   }));
 
-  // Build my shifts with gear status
-  const gearByEvent = new Map<string, { status: string; items: Array<{ asset: { id: string; name: string | null; imageUrl: string | null } }>; itemCount: number }>();
+  const shiftEventIdSet = new Set(shiftEventIds);
+  const shiftGearSummaries = shiftGearBookings.map((b) => toBookingSummary(b, now, false));
+
+  // Build event-linked gear from every durable relationship path. Home should
+  // receive one event work item, not infer "same event" from row titles.
+  const gearByEvent = new Map<string, ReturnType<typeof toBookingSummary>[]>();
   for (const b of shiftGearBookings) {
-    if (!b.eventId) continue;
-    const current = gearByEvent.get(b.eventId);
-    const gearStatus = b.status === "OPEN" ? "checked_out" : b.status === "BOOKED" ? "reserved" : "draft";
-    const priority = { checked_out: 3, reserved: 2, draft: 1 };
-    if (!current || priority[gearStatus as keyof typeof priority] > priority[current.status as keyof typeof priority]) {
-      gearByEvent.set(b.eventId, {
-        status: gearStatus,
-        items: sortItemsByCategory(b.serializedItems).slice(0, 3),
-        itemCount: b._count.serializedItems + b._count.bulkItems,
+    const summary = shiftGearSummaries.find((candidate) => candidate.id === b.id);
+    if (!summary) continue;
+    for (const eventId of bookingEventIds(b)) {
+      if (!shiftEventIdSet.has(eventId)) continue;
+      const rows = gearByEvent.get(eventId) ?? [];
+      rows.push(summary);
+      rows.sort((a, b) => {
+        const statusDelta = gearStatusPriority(gearStatusForBooking(b.status)) - gearStatusPriority(gearStatusForBooking(a.status));
+        if (statusDelta !== 0) return statusDelta;
+        return new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime();
       });
+      gearByEvent.set(eventId, rows);
     }
   }
 
   const myShifts = myShiftsRaw.map((a) => {
     const ev = a.shift.shiftGroup.event;
+    const primaryGear = gearByEvent.get(ev.id)?.[0] ?? null;
+    const primaryGearStatus = primaryGear ? gearStatusForBooking(primaryGear.status) : "none";
     return {
       id: a.id,
       area: a.shift.area,
@@ -625,13 +687,53 @@ export const GET = withAuth(async (_req, { user }) => {
         locationId: ev.locationId,
         locationName: ev.location?.name ?? null,
       },
-      gearStatus: gearByEvent.get(ev.id)?.status ?? "none",
-      gearItems: (gearByEvent.get(ev.id)?.items ?? []).map((si) => ({
-        id: si.asset.id,
-        name: si.asset.name,
-        imageUrl: si.asset.imageUrl,
-      })),
-      gearItemCount: gearByEvent.get(ev.id)?.itemCount ?? 0,
+      gearStatus: primaryGearStatus,
+      gearItems: primaryGear?.items ?? [],
+      gearItemCount: primaryGear?.itemCount ?? 0,
+    };
+  });
+
+  const assignmentByEvent = new Map<string, (typeof myShiftsRaw)[number]>();
+  for (const assignment of myShiftsRaw) {
+    const eventId = assignment.shift.shiftGroup.event.id;
+    const current = assignmentByEvent.get(eventId);
+    if (!current || assignment.shift.startsAt < current.shift.startsAt) {
+      assignmentByEvent.set(eventId, assignment);
+    }
+  }
+
+  const myEventWork = [...assignmentByEvent.values()].map((a) => {
+    const ev = a.shift.shiftGroup.event;
+    const gearBookings = gearByEvent.get(ev.id) ?? [];
+    const primaryGear = gearBookings[0] ?? null;
+    return {
+      id: ev.id,
+      event: {
+        id: ev.id,
+        summary: ev.summary,
+        startsAt: ev.startsAt.toISOString(),
+        endsAt: ev.endsAt.toISOString(),
+        allDay: false,
+        sportCode: ev.sportCode,
+        opponent: ev.opponent,
+        isHome: ev.isHome,
+        locationId: ev.locationId,
+        locationName: ev.location?.name ?? null,
+      },
+      shift: {
+        id: a.id,
+        area: a.shift.area,
+        workerType: a.shift.workerType,
+        startsAt: a.shift.startsAt.toISOString(),
+        endsAt: a.shift.endsAt.toISOString(),
+      },
+      gearStatus: primaryGear ? gearStatusForBooking(primaryGear.status) : "none",
+      gearBookings,
+      needsGear: gearBookings.every((booking) => (
+        booking.status !== "BOOKED"
+        && booking.status !== "PENDING_PICKUP"
+        && booking.status !== "OPEN"
+      )),
     };
   });
 
@@ -680,6 +782,7 @@ export const GET = withAuth(async (_req, { user }) => {
         updatedAt: d.updatedAt.toISOString(),
       })),
       myShifts,
+      myEventWork,
       lostBulkUnits,
       flaggedItems: [
         ...recentReports.map((r) => ({

@@ -113,7 +113,7 @@ const STATUS_META: Record<UnitStatus, { label: string; className: string; dot: s
     dot: "bg-[var(--blue)]",
   },
   LOST: {
-    label: "Lost",
+    label: "Missing",
     className: "bg-[var(--red-bg)] text-[var(--red-text)] hover:bg-[var(--red-bg)]",
     dot: "bg-destructive",
   },
@@ -225,7 +225,7 @@ export default function BatteryCockpitPage() {
     return (
       <EmptyState
         icon="wifi-off"
-        title="Battery cockpit unavailable"
+        title="Battery Ops unavailable"
         description={error}
         actionLabel="Retry"
         onAction={() => void load()}
@@ -237,7 +237,7 @@ export default function BatteryCockpitPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Battery Cockpit">
+      <PageHeader title="Battery Ops">
         <Button variant="outline" size="sm" onClick={() => void load({ refresh: true })} disabled={refreshing}>
           <RefreshCw className={cn("size-3.5", refreshing && "animate-spin")} />
           {refreshing ? "Refreshing..." : "Refresh"}
@@ -248,9 +248,9 @@ export default function BatteryCockpitPage() {
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
           <MetricCard label="Available" value={totals.available} tone="green" />
           <MetricCard label="Checked out" value={totals.checkedOut} tone="blue" />
-          <MetricCard label="Lost" value={totals.lost} tone="red" />
+          <MetricCard label="Missing" value={totals.lost} tone="red" />
           <MetricCard label="Retired" value={totals.retired} tone="muted" />
-          <MetricCard label="Low SKUs" value={totals.lowSkus} tone={totals.lowSkus ? "red" : "muted"} />
+          <MetricCard label="Low families" value={totals.lowSkus} tone={totals.lowSkus ? "red" : "muted"} />
         </div>
       )}
 
@@ -278,8 +278,8 @@ export default function BatteryCockpitPage() {
       {data && data.skus.length === 0 ? (
         <EmptyState
           icon="box"
-          title="No numbered batteries found"
-          description="Battery SKUs appear here when they are active, numbered bulk inventory."
+          title="No batteries using Units found"
+          description="Battery families appear here when they use Units and are active."
           actionLabel="Back to Items"
           actionHref="/items"
         />
@@ -371,7 +371,7 @@ export default function BatteryCockpitPage() {
                   <div className="grid grid-cols-4 gap-2 text-sm">
                     <Count label="Avail" value={sku.counts.available} dot={STATUS_META.AVAILABLE.dot} />
                     <Count label="Out" value={sku.counts.checkedOut} dot={STATUS_META.CHECKED_OUT.dot} />
-                    <Count label="Lost" value={sku.counts.lost} dot={STATUS_META.LOST.dot} />
+                    <Count label="Missing" value={sku.counts.lost} dot={STATUS_META.LOST.dot} />
                     <Count label="Retired" value={sku.counts.retired} dot={STATUS_META.RETIRED.dot} />
                   </div>
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(74px,1fr))] gap-2">
@@ -521,7 +521,7 @@ function UnitMenu({
           className="text-destructive focus:text-destructive"
           onClick={() => onPendingAction({ skuId: sku.id, skuName: sku.name, unitNumber: unit.unitNumber, status: "LOST" })}
         >
-          Mark lost
+          Mark missing
         </DropdownMenuItem>
         <DropdownMenuItem
           disabled={unit.status === "RETIRED"}

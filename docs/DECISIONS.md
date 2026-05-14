@@ -29,7 +29,7 @@
 - D-019: Department model is Phase B
 - D-020: Kit management is Phase B
 - D-021: UW asset tag is an optional import field
-- D-022: Numbered bulk items — one QR, individually numbered units for loss tracking
+- D-022: Item families with checkoutable units — one catalog row, optional unit custody
 - D-023: Item Bundling via Parent-Child Accessories
 - D-024: Booking reference numbers use kind prefix (CO/RV) with global sequence
 - D-025: User-facing status labels are display-only — DB enum stays unchanged
@@ -348,28 +348,31 @@
 - Consequences:
   - Supports institutional tracking without polluting the tag-first identity model.
 
-## D-022: Numbered Bulk Items
+## D-022: Item Families With Checkoutable Units
 - Date: 2026-03-14
 - Status: Accepted
 - Context:
-  - Items like batteries (40+) and chargers don't warrant individual QR codes but need individual identity for loss tracking ("Battery #7 is missing").
-  - Serialized tracking is overkill (40 QR codes). Plain bulk tracking is too anonymous (just a count).
+  - Items like batteries and consumables are still normal catalog items, but one row represents many identical checkoutable units.
+  - Cameras and other serialized gear remain one row per physical asset because serial, history, condition, and identity matter at the catalog level.
+  - QR-coded batteries need unit-level custody for pickup, return, loss, and audit without exploding the item catalog into 40+ rows.
 - Decision:
-  - Extend `BulkSku` with `trackByNumber: boolean` rather than creating a third item type.
-  - When enabled, numbered `BulkSkuUnit` records (1..N) are created under the single bin QR.
+  - Keep `BulkSku` as the implementation record for item families and `BulkSkuUnit` as the optional unit-custody record.
+  - Product language treats these as item families, not a separate normal-user inventory bucket.
+  - `/items` is the primary discovery surface for serialized assets, unit-tracked item families, and quantity-tracked item families.
+  - `/bulk-inventory` remains an admin/staff operations cockpit for adjustments, thresholds, unit status, QR labels, and audits.
+  - When enabled, numbered `BulkSkuUnit` records (1..N) are created under the parent item family.
   - Unit status (AVAILABLE, CHECKED_OUT, LOST, RETIRED) is stored directly on the unit, not derived.
-  - During checkout scan, staff selects specific unit numbers via a picker; during check-in, missing units are flagged by number.
+  - Booking creation requests quantity. Kiosk pickup scans bind exact physical units; kiosk return scans verify those units.
   - Unit QR values derived as `{binQrCodeValue}-{unitNumber}` are accepted as a direct scan of that specific numbered unit.
-  - Kiosk pickup/check-in is the source of truth for QR-coded batteries: booking creation records quantity only, and kiosk scans bind/return the physical unit numbers.
   - `BookingBulkUnitAllocation` links specific units to bookings with checkout/checkin timestamps.
   - Existing quantity-only SKUs can be converted to numbered tracking via a dedicated endpoint.
 - Consequences:
-  - One QR code serves 40+ items — faster than individual scanning.
-  - Loss tracking works at the individual unit level.
-  - Physical labels must match unit numbers (user responsibility).
+  - One item-family row can display availability like `43/46 available`.
+  - Loss tracking works at the individual unit level without creating catalog rows for every battery.
+  - Physical unit labels must match unit numbers.
   - All unit operations use `createMany`/`updateMany` to batch DB calls efficiently.
-  - QR-coded batteries continue to use this model when they behave like the existing Sony battery flow: one battery SKU with unit-level tracking beneath it.
-  - Derived unit QR scans keep batteries out of top-level serialized assets while still supporting individual QR labels.
+  - QR-coded batteries continue to use this model when they behave like the existing Sony battery flow: one item family with unit-level tracking beneath it.
+  - Derived unit QR scans keep batteries out of top-level serialized assets while still supporting individual QR labels and custody.
   - Camera-model battery compatibility warnings are advisory at creation; they do not block checkout creation because physical battery accountability happens at kiosk pickup.
 - Guardrails:
   - Unit status is NOT derived like serialized assets (D-001). It is stored directly because units lack the full allocation time-window model.
@@ -609,7 +612,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - Current kiosk and scan flows have clear domain outcome boundaries, while the legacy app scan routes are 403 stubs.
   - Recognition should not compete with operational profile signals such as role, availability, overdue gear, or admin actions.
 - Decision:
-  - Badge events are emitted only from domain outcomes: kiosk checkout or pickup opens a checkout, checkout return completion flips to `COMPLETED`, kiosk scan succeeds or fails, trade status flips to `COMPLETED`, and future shift attendance completion.
+  - Badge events are emitted only from domain outcomes: kiosk checkout or pickup opens a checkout, checkout return completion flips to `COMPLETED`, kiosk scan succeeds or fails, and trade status flips to `COMPLETED`.
   - `BADGES_ENABLED !== "true"` returns before evaluator work, badge database queries, or side effects.
   - Launch has no retroactive backfill. Only post-enable domain events can award badges.
   - On-time return logic uses a 15-minute UTC grace window after `booking.endsAt`.
@@ -618,14 +621,14 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - Peer badge visibility defaults to true via `SystemConfig["badges.peerVisible"]`; staff/admin can always see user badges.
   - The primary user UI is a `Badges` tab on `/users/{id}` for students, staff, and admins. No top-level nav item and no badge chrome in the profile hero.
   - The legacy `StudentBadge` model/table name remains in place until a dedicated cleanup migration. Product language and UI should say user awards or badge awards.
-  - Badge progress is displayed only when it is backed by real counters or streak rows. Manual and deferred badges must not show invented progress.
+  - Badge progress is displayed only when it is backed by real counters or streak rows. Manual badges must not show invented progress.
 - Consequences:
   - The system can ship in independent slices with the flag off until preview verification passes.
   - Historical badge data remains stable if users are deactivated or definitions are retired.
   - Reports can aggregate from the legacy-named `StudentBadge` award table without becoming the primary profile experience.
 - Guardrails:
   - Legacy checkout scan stubs stay non-events.
-  - Shift approval is not attendance and must not award shift badges.
+  - Shift approval is not a badge event. Attendance-based shift badges are out of scope unless a future product decision reopens them.
   - Award notification delivery is persistent inbox first; push fan-out is deferred.
 
 ---
@@ -664,7 +667,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - 2026-03-02: Added student-first mobile operations contract decision.
 - 2026-03-09: Updated D-009 to reflect partial implementation and pending acceptance criteria. Updated D-010 to mark shipped items. Added D-016 (code-defined picker sections/rules) and D-017 (DRAFT booking state).
 - 2026-03-11: Docs hardening — moved D-017 to Accepted. Clarified D-009 email as Phase B. Added AREA_NOTIFICATIONS.md cross-reference to D-009. Folded AREA_PLATFORM_INTEGRITY.md into Platform Invariants section. Added D-018 (asset financial fields → Phase B), D-019 (department → Phase B), D-020 (kit management → Phase B), D-021 (UW asset tag → optional import field).
-- 2026-03-14: Added D-022 (numbered bulk items — trackByNumber flag, unit picker, conversion endpoint).
+- 2026-03-14: Added D-022 (item families with checkoutable units — trackByNumber flag, unit picker, conversion endpoint).
 - 2026-03-15: Withdrew D-005 (B&H enrichment) — scraping blocked by source, feature removed.
 - 2026-03-16: Shipped D-017 (DRAFT booking lifecycle). Shipped D-018 (asset financial fields — Procurement section in item detail).
 - 2026-03-16: Added D-024 (booking reference numbers — CO/RV kind prefix + global sequence).
@@ -681,4 +684,5 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - 2026-05-05: Updated D-022/D-023 for camera attachment scope — camera-tied SD cards/cages/fixed parts stay as non-bookable asset attachments, while QR-coded batteries keep numbered bulk semantics.
 - 2026-05-05: Updated D-022 for derived numbered bulk unit QR scans using `{binQrCodeValue}-{unitNumber}`.
 - 2026-05-05: Updated D-022 for kiosk-scanned numbered batteries and non-blocking camera-model battery availability warnings.
+- 2026-05-13: Reframed D-022 around first-class item families: `BulkSku` remains the implementation model, but `/items` is the normal discovery/detail surface and `/bulk-inventory` is admin operations.
 - 2026-05-09: Added D-034 for badge achievements: event-sourced service boundary, feature flag off path, no retroactive backfill, 15-minute on-time grace, immutable definition keys, single-emit status helpers, peer visibility default, and profile-first UI.

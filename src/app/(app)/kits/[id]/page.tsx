@@ -570,9 +570,9 @@ export default function KitDetailPage() {
                                 try {
                                   await fetch(`/api/kits/${kit.id}/bulk-members?membershipId=${bm.id}`, { method: "DELETE" });
                                   setKit((prev) => prev ? { ...prev, bulkMembers: prev.bulkMembers.filter((m) => m.id !== bm.id) } : prev);
-                                  toast.success("Bulk item removed from kit");
+                                  toast.success("Item family removed from kit");
                                 } catch {
-                                  toast.error("Failed to remove bulk item");
+                                  toast.error("Failed to remove item family");
                                 }
                               }}
                             >
@@ -585,7 +585,7 @@ export default function KitDetailPage() {
                   </TableBody>
                 </Table>
               ) : (
-                <p className="text-sm text-muted-foreground py-4 text-center">No bulk items in this kit. Add batteries or consumables below.</p>
+                <p className="text-sm text-muted-foreground py-4 text-center">No item families in this kit. Add batteries or consumables below.</p>
               )}
             </CardContent>
           </Card>

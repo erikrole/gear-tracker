@@ -78,4 +78,4 @@ None critical. All shift-related gaps closed:
 | V2 Redesign | Complete | Per-event editing, universal assignment, avatar picker. Shipped 2026-03-26. |
 | V1.5 Polish | Complete | My hours, week view, hardening, stress test. Shipped 2026-04-03. |
 | Phase B | Complete | Student availability V1 and shift trade email notifications shipped. |
-| Phase C | Deferred | Game-Day Readiness Score, templates, recurring patterns, time-clock editing. |
+| Phase C | Deferred | Templates and recurring patterns only if concrete operator demand appears. Game-Day Readiness Score / ops view and time-clock-style attendance expansion are out of scope. |

@@ -20,6 +20,7 @@ export type AuthUser = {
 const SESSION_12H_MS = 1000 * 60 * 60 * 12;
 const SESSION_30D_MS = 1000 * 60 * 60 * 24 * 30;
 const KIOSK_SESSION_7D_MS = 1000 * 60 * 60 * 24 * 7;
+export const LAST_ACTIVE_REFRESH_MS = 1000 * 60 * 5;
 
 export async function tokenHash(token: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -66,6 +67,31 @@ export async function createSession(userId: string, rememberMe = false) {
   });
 }
 
+export function shouldRefreshLastActive(lastActiveAt: Date | null | undefined, now = new Date()): boolean {
+  return !lastActiveAt || now.getTime() - lastActiveAt.getTime() >= LAST_ACTIVE_REFRESH_MS;
+}
+
+async function refreshUserLastActive(userId: string, lastActiveAt: Date | null | undefined, now = new Date()) {
+  if (!shouldRefreshLastActive(lastActiveAt, now)) return;
+
+  const staleBefore = new Date(now.getTime() - LAST_ACTIVE_REFRESH_MS);
+
+  try {
+    await db.user.updateMany({
+      where: {
+        id: userId,
+        OR: [
+          { lastActiveAt: null },
+          { lastActiveAt: { lt: staleBefore } },
+        ],
+      },
+      data: { lastActiveAt: now },
+    });
+  } catch (error) {
+    console.error("Failed to update user last active timestamp", error);
+  }
+}
+
 export async function destroySession() {
   const cookieStore = await cookies();
   const token = cookieStore.get(env.sessionCookieName)?.value;
@@ -99,6 +125,8 @@ export async function requireAuth(): Promise<AuthUser> {
   if (!session.user.active) {
     throw new HttpError(401, "Account deactivated");
   }
+
+  await refreshUserLastActive(session.user.id, session.user.lastActiveAt);
 
   return {
     id: session.user.id,

@@ -25,6 +25,7 @@ export type FilteredDashboardData = {
   myReservations: DashboardData["myReservations"];
   upcomingEvents: DashboardData["upcomingEvents"];
   myShifts: DashboardData["myShifts"];
+  myEventWork: DashboardData["myEventWork"];
   overdueItems: DashboardData["overdueItems"];
 };
 
@@ -69,6 +70,7 @@ export function useDashboardFilters(data: DashboardData | null): UseDashboardFil
     for (const r of data.myReservations) if (r.sportCode) codes.add(r.sportCode);
     for (const e of data.upcomingEvents) if (e.sportCode) codes.add(e.sportCode);
     for (const s of data.myShifts) if (s.event.sportCode) codes.add(s.event.sportCode);
+    for (const e of data.myEventWork) if (e.event.sportCode) codes.add(e.event.sportCode);
     return [...codes].sort();
   }, [data]);
 
@@ -83,6 +85,7 @@ export function useDashboardFilters(data: DashboardData | null): UseDashboardFil
     for (const r of data.myReservations) if (r.locationName) names.add(r.locationName);
     for (const e of data.upcomingEvents) if (e.location) names.add(e.location);
     for (const s of data.myShifts) if (s.event.locationName) names.add(s.event.locationName);
+    for (const e of data.myEventWork) if (e.event.locationName) names.add(e.event.locationName);
     return [...names].sort();
   }, [data]);
 
@@ -105,6 +108,7 @@ export function useDashboardFilters(data: DashboardData | null): UseDashboardFil
       myReservations: data.myReservations.filter((r) => matchesFilters(r.sportCode, r.locationName)),
       upcomingEvents: data.upcomingEvents.filter((e) => matchesFilters(e.sportCode, e.location)),
       myShifts: data.myShifts.filter((s) => matchesFilters(s.event.sportCode, s.event.locationName)),
+      myEventWork: data.myEventWork.filter((e) => matchesFilters(e.event.sportCode, e.event.locationName)),
       overdueItems: data.overdueItems, // overdue banner always shows all — safety-critical
     };
   }, [data, activeSport, activeLocation, matchesFilters]);

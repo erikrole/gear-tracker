@@ -13,7 +13,7 @@ export default function ReportsLayout({ children }: { children: React.ReactNode 
     <>
       <PageHeader
         title="Reports"
-        description="Read-only analytics for inventory, checkouts, scan health, bulk losses, badges, and audit history."
+        description="Read-only analytics for inventory, checkouts, scan health, missing units, badges, and audit history."
         className="mb-4"
       />
 

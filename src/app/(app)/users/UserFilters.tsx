@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { SearchIcon, SlidersHorizontal, X } from "lucide-react";
+import { Loader2, SearchIcon, SlidersHorizontal, X } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -32,6 +32,7 @@ export default function UserFilters({
   showInactive,
   onShowInactiveChange,
   onClearAll,
+  searching = false,
 }: {
   search: string;
   onSearchChange: (v: string) => void;
@@ -49,7 +50,9 @@ export default function UserFilters({
   showInactive: boolean;
   onShowInactiveChange: (v: boolean) => void;
   onClearAll: () => void;
+  searching?: boolean;
 }) {
+  const [draftSearch, setDraftSearch] = useState(search);
   const [filtersOpen, setFiltersOpen] = useState(
     !!roleFilter || !!locationFilter || !!yearFilter || !!sportFilter || !!areaFilter || showInactive,
   );
@@ -70,6 +73,18 @@ export default function UserFilters({
     previousFilterCountRef.current = activeFilterCount;
   }, [activeFilterCount]);
 
+  useEffect(() => {
+    setDraftSearch(search);
+  }, [search]);
+
+  useEffect(() => {
+    if (draftSearch === search) return;
+    const timer = window.setTimeout(() => {
+      onSearchChange(draftSearch);
+    }, 150);
+    return () => window.clearTimeout(timer);
+  }, [draftSearch, onSearchChange, search]);
+
   return (
     <div className="flex w-full flex-col gap-2 rounded-md border border-border/60 bg-card/70 p-2 shadow-xs">
       <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
@@ -80,25 +95,32 @@ export default function UserFilters({
             className="peer h-9 pl-9 pr-9 text-base md:text-sm"
             type="text"
             placeholder="Search name or email"
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
+            value={draftSearch}
+            onChange={(e) => setDraftSearch(e.target.value)}
             aria-label="Search users"
           />
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center justify-center pl-3 text-muted-foreground/80 peer-disabled:opacity-50">
             <SearchIcon size={16} />
           </div>
-          {search && (
+          {searching ? (
+            <div className="pointer-events-none absolute inset-y-0 right-2.5 my-auto flex items-center text-muted-foreground/80">
+              <Loader2 className="size-3.5 animate-spin" />
+            </div>
+          ) : draftSearch ? (
             <Button
               type="button"
               variant="ghost"
               size="icon-xs"
               className="absolute inset-y-0 right-1.5 my-auto text-muted-foreground/80 hover:text-foreground"
-              onClick={() => onSearchChange("")}
+              onClick={() => {
+                setDraftSearch("");
+                onSearchChange("");
+              }}
               aria-label="Clear search"
             >
               <X size={14} />
             </Button>
-          )}
+          ) : null}
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Button

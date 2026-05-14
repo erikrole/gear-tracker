@@ -13,9 +13,6 @@ vi.mock("@/lib/badges/evaluator", () => ({
   onTradeCompleted: vi.fn(async () => {
     throw new Error("trade evaluator should not run");
   }),
-  onShiftCompleted: vi.fn(async () => {
-    throw new Error("shift evaluator should not run");
-  }),
 }));
 
 vi.mock("@/lib/observability", () => ({

@@ -103,9 +103,32 @@ describe("kiosk checkout detail bulk units", () => {
     const json = await res.json();
 
     expect(json.items).toEqual([
-      { id: "bulk-item-1:slot:1", tagName: "#1", name: "Sony Battery 1", returned: false },
-      { id: "bulk-item-1:slot:2", tagName: "#2", name: "Sony Battery 2", returned: false },
+      {
+        id: "bulk-item-1:slot:1",
+        tagName: "#1",
+        name: "Sony Battery 1",
+        returned: false,
+        type: "numbered_bulk",
+        bulkSkuId: "sku-1",
+        bulkSkuName: "Sony Battery",
+        unitNumber: null,
+      },
+      {
+        id: "bulk-item-1:slot:2",
+        tagName: "#2",
+        name: "Sony Battery 2",
+        returned: false,
+        type: "numbered_bulk",
+        bulkSkuId: "sku-1",
+        bulkSkuName: "Sony Battery",
+        unitNumber: null,
+      },
     ]);
+    expect(json.scanSummary).toEqual({
+      serializedTotal: 0,
+      numberedBulkTotal: 2,
+      numberedBulkCompleted: 0,
+    });
   });
 
   it("includes checked-out battery units in return detail", async () => {
@@ -147,9 +170,32 @@ describe("kiosk checkout detail bulk units", () => {
     const json = await res.json();
 
     expect(json.items).toEqual([
-      { id: "unit-7", tagName: "#7", name: "Sony Battery #7", returned: false },
-      { id: "unit-11", tagName: "#11", name: "Sony Battery #11", returned: true },
+      {
+        id: "unit-7",
+        tagName: "#7",
+        name: "Sony Battery #7",
+        returned: false,
+        type: "numbered_bulk",
+        bulkSkuId: "sku-1",
+        bulkSkuName: "Sony Battery",
+        unitNumber: 7,
+      },
+      {
+        id: "unit-11",
+        tagName: "#11",
+        name: "Sony Battery #11",
+        returned: true,
+        type: "numbered_bulk",
+        bulkSkuId: "sku-1",
+        bulkSkuName: "Sony Battery",
+        unitNumber: 11,
+      },
     ]);
+    expect(json.scanSummary).toEqual({
+      serializedTotal: 0,
+      numberedBulkTotal: 2,
+      numberedBulkCompleted: 1,
+    });
   });
 });
 
