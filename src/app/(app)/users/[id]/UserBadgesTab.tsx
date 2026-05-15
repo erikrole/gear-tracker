@@ -113,6 +113,7 @@ type AwardCollection = AwardCollectionDefinition & {
   badges: UserBadge[];
   earnedCount: number;
   hiddenCount: number;
+  hasNewBadge: boolean;
   featuredBadge: UserBadge | null;
   previewBadges: UserBadge[];
 };
@@ -362,6 +363,7 @@ function buildAwardCollections(badges: UserBadge[]) {
         badges: collectionBadges,
         earnedCount: earnedBadges.length,
         hiddenCount: collectionBadges.filter((badge) => !badge.earned && isHiddenUntilEarnedBadge(badge.key)).length,
+        hasNewBadge: earnedBadges.some((badge) => isRecentlyEarned(badge.awardedAt)),
         featuredBadge,
         previewBadges: sortedForDisplay(collectionBadges).slice(0, 4),
       };
@@ -514,7 +516,10 @@ function AwardCollectionCard({
       <span className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background/70 to-transparent" />
       <div className="relative flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-balance text-2xl font-semibold leading-tight tracking-tight">{collection.title}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-balance text-2xl font-semibold leading-tight tracking-tight">{collection.title}</h3>
+            {collection.hasNewBadge ? <Badge variant="green" size="sm">New</Badge> : null}
+          </div>
           <p className="mt-2 line-clamp-2 max-w-[28ch] text-sm leading-6 text-muted-foreground">{collection.description}</p>
         </div>
         <ChevronRight className="mt-1 size-5 shrink-0 text-muted-foreground transition-[transform,color] duration-200 group-hover:translate-x-0.5 group-hover:text-foreground" aria-hidden="true" />
@@ -620,39 +625,38 @@ function AwardCollectionDetail({
   return (
     <div className="flex flex-col gap-4">
       <div className="rounded-2xl bg-card p-5 shadow-[0_0_0_1px_hsl(var(--border))]">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex min-w-0 gap-4">
-            <Button variant="ghost" size="icon" onClick={onBack} aria-label="Back to award collections" className="shrink-0">
-              <ArrowLeft data-icon="inline-start" />
-            </Button>
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Award collection</p>
-              <h3 className="mt-1 text-balance text-3xl font-semibold leading-tight tracking-tight">{collection.title}</h3>
-              <p className="mt-2 max-w-[62ch] text-sm leading-6 text-muted-foreground">{collection.description}</p>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Badge variant="secondary" className="tabular-nums">{collection.earnedCount} earned</Badge>
-                <Badge variant="outline" className="tabular-nums">{collection.badges.length} visible</Badge>
-                {hiddenSurpriseCount > 0 ? <Badge variant="outline" className="tabular-nums">{hiddenSurpriseCount} hidden</Badge> : null}
-              </div>
+        <div className="flex min-w-0 gap-4">
+          <Button variant="ghost" size="icon" onClick={onBack} aria-label="Back to award collections" className="shrink-0">
+            <ArrowLeft data-icon="inline-start" />
+          </Button>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Award collection</p>
+            <h3 className="mt-1 text-balance text-3xl font-semibold leading-tight tracking-tight">{collection.title}</h3>
+            <p className="mt-2 max-w-[62ch] text-sm leading-6 text-muted-foreground">{collection.description}</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Badge variant="secondary" className="tabular-nums">{collection.earnedCount} earned</Badge>
+              <Badge variant="outline" className="tabular-nums">{collection.badges.length} visible</Badge>
+              {hiddenSurpriseCount > 0 ? <Badge variant="outline" className="tabular-nums">{hiddenSurpriseCount} hidden</Badge> : null}
             </div>
           </div>
-          <ToggleGroup
-            type="single"
-            value={filter}
-            onValueChange={(value) => {
-              if (value) onFilterChange(value as BadgeFilter);
-            }}
-            className="flex-wrap justify-start sm:justify-end"
-            aria-label="Filter badges"
-          >
-            {(Object.keys(filterLabels) as BadgeFilter[]).map((key) => (
-              <ToggleGroupItem key={key} value={key} aria-label={`Show ${filterLabels[key].toLowerCase()} badges`}>
-                {filterLabels[key]}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
         </div>
       </div>
+
+      <ToggleGroup
+        type="single"
+        value={filter}
+        onValueChange={(value) => {
+          if (value) onFilterChange(value as BadgeFilter);
+        }}
+        className="flex-wrap"
+        aria-label="Filter badges"
+      >
+        {(Object.keys(filterLabels) as BadgeFilter[]).map((key) => (
+          <ToggleGroupItem key={key} value={key} aria-label={`Show ${filterLabels[key].toLowerCase()} badges`}>
+            {filterLabels[key]}
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
 
       {filteredBadges.length > 0 || showHiddenSurpriseTile ? (
         <BadgeGallery
@@ -941,9 +945,9 @@ export default function UserBadgesTab({
   return (
     <div className="flex flex-col gap-5">
       <div className="grid gap-3 sm:grid-cols-3">
-        <SummaryCard label="Earned badges" value={data.earnedCount} hint="Unlocked recognition" />
-        <SummaryCard label="Gallery" value={visibleTotalCount} hint="Visible badges" />
-        <SummaryCard label="Completion" value={`${completion}%`} hint="Visible catalog" />
+        <SummaryCard label="Earned" value={data.earnedCount} hint="Unlocked recognition" />
+        <SummaryCard label="Remaining" value={Math.max(0, visibleTotalCount - data.earnedCount)} hint="Still to unlock" />
+        <SummaryCard label="Completion" value={`${completion}%`} hint="Of visible catalog" />
       </div>
 
       {data.disabled ? (
