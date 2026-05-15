@@ -7,16 +7,15 @@ import {
 } from "@prisma/client";
 import { db } from "@/lib/db";
 
-import type {
-  CheckoutOpenedBadgeEvent,
-  CheckoutReturnedBadgeEvent,
-  ScanResultBadgeEvent,
-  TradeCompletedBadgeEvent,
+import {
+  ON_TIME_GRACE_MS,
+  type CheckoutOpenedBadgeEvent,
+  type CheckoutReturnedBadgeEvent,
+  type ScanResultBadgeEvent,
+  type TradeCompletedBadgeEvent,
 } from "./types";
 
 type TxClient = Prisma.TransactionClient;
-
-const ON_TIME_GRACE_MS = 15 * 60 * 1000;
 const MAX_TRANSACTION_ATTEMPTS = 2;
 
 async function runBadgeTransaction<T>(fn: (tx: TxClient) => Promise<T>): Promise<T> {

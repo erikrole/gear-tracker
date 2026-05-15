@@ -178,7 +178,7 @@ export default function BookingOverview({
                   >
                     <span>{ev.summary}</span>
                     {ev.sportCode && (
-                      <Badge variant="outline" className="text-[10px] align-middle">{ev.sportCode}</Badge>
+                      <Badge variant="outline" size="sm">{ev.sportCode}</Badge>
                     )}
                   </Link>
                 ))}
@@ -190,13 +190,13 @@ export default function BookingOverview({
                 {booking.event.summary}
               </Link>
               {booking.event.sportCode && (
-                <Badge variant="outline" className="ml-1.5 text-[10px] align-middle">{booking.event.sportCode}</Badge>
+                <Badge variant="outline" size="sm" className="ml-1.5">{booking.event.sportCode}</Badge>
               )}
             </InfoRow>
           )}
           {booking.shiftAssignment && (
             <InfoRow icon={CalendarCheckIcon} label="Shift">
-              <Badge variant="outline" className="text-[10px]">{booking.shiftAssignment.shift.area}</Badge>
+              <Badge variant="outline" size="sm">{booking.shiftAssignment.shift.area}</Badge>
             </InfoRow>
           )}
           {booking.sourceReservation && (

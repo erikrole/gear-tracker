@@ -26,6 +26,7 @@ import {
   ShieldCheck,
   Sparkles,
   Star,
+  Trash2,
   Trophy,
   UserCheck,
   Warehouse,
@@ -83,6 +84,7 @@ type UserBadge = {
   awardedAt: string | null;
   source: "AUTO" | "MANUAL" | null;
   note: string | null;
+  awardedByName: string | null;
   progressCurrent: number | null;
   progressTarget: number | null;
 };
@@ -673,15 +675,37 @@ function AwardCollectionDetail({
 
 function BadgeDetailDialog({
   badge,
+  canRevoke = false,
+  canAward = false,
   onOpenChange,
+  onRevoke,
+  onAwardRequest,
 }: {
   badge: UserBadge | null;
+  canRevoke?: boolean;
+  canAward?: boolean;
   onOpenChange: (open: boolean) => void;
+  onRevoke?: (badgeId: string) => void;
+  onAwardRequest?: (badge: UserBadge) => void;
 }) {
+  const [revokeBusy, setRevokeBusy] = useState(false);
   const Icon = badge ? iconMap[badge.icon] ?? Trophy : Trophy;
   const rarity = badge ? getBadgeRarity(badge) : "Common";
   const progressValue = badge ? progressPercent(badge) : 0;
   const recentlyEarned = badge ? badge.earned && isRecentlyEarned(badge.awardedAt) : false;
+
+  async function handleRevoke() {
+    if (!badge || revokeBusy) return;
+    setRevokeBusy(true);
+    try {
+      const res = await fetch(`/api/badges/award/${badge.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Revoke failed");
+      onRevoke?.(badge.id);
+      onOpenChange(false);
+    } finally {
+      setRevokeBusy(false);
+    }
+  }
 
   return (
     <Dialog open={Boolean(badge)} onOpenChange={onOpenChange}>
@@ -749,28 +773,47 @@ function BadgeDetailDialog({
                 </div>
               ) : null}
 
-              {badge.note ? (
+              {(badge.note || badge.awardedByName) ? (
                 <div className="mt-5 rounded-2xl bg-muted/40 p-5 shadow-[inset_0_0_0_1px_hsl(var(--border))]">
                   <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                     <BadgeCheck className="size-3.5" aria-hidden="true" />
                     Award note
                   </p>
-                  <p className="mt-3 text-pretty text-sm leading-6 text-foreground">{badge.note}</p>
+                  {badge.note ? <p className="mt-3 text-pretty text-sm leading-6 text-foreground">{badge.note}</p> : null}
+                  {badge.awardedByName ? (
+                    <p className="mt-2 text-xs text-muted-foreground">Awarded by {badge.awardedByName}</p>
+                  ) : null}
                 </div>
               ) : null}
 
               <Separator className="my-5" />
 
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <Badge variant="outline" size="sm" className="font-mono">{badge.kind.toLowerCase()}</Badge>
-                <Badge variant="outline" size="sm" className="font-mono">{badge.trigger}</Badge>
-                {badge.ruleKey ? <Badge variant="outline" size="sm" className="font-mono">{badge.ruleKey}</Badge> : null}
-                {!badge.earned && !hasProgress(badge) ? (
-                  <span className="inline-flex items-center gap-1">
-                    <LockKeyhole className="size-3.5" aria-hidden="true" />
-                    Unlocks from a qualifying workflow or staff recognition.
-                  </span>
-                ) : null}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <Badge variant="outline" size="sm" className="font-mono">{badge.kind.toLowerCase()}</Badge>
+                  <Badge variant="outline" size="sm" className="font-mono">{badge.trigger}</Badge>
+                  {badge.ruleKey ? <Badge variant="outline" size="sm" className="font-mono">{badge.ruleKey}</Badge> : null}
+                  {!badge.earned && !hasProgress(badge) ? (
+                    <span className="inline-flex items-center gap-1">
+                      <LockKeyhole className="size-3.5" aria-hidden="true" />
+                      Unlocks from a qualifying workflow or staff recognition.
+                    </span>
+                  ) : null}
+                </div>
+                <div className="flex items-center gap-2">
+                  {canAward && !badge.earned && badge.trigger === "manual" ? (
+                    <Button size="sm" variant="outline" onClick={() => onAwardRequest?.(badge)}>
+                      <Award className="size-3.5" />
+                      Award this badge
+                    </Button>
+                  ) : null}
+                  {canRevoke && badge.earned && badge.source === "MANUAL" ? (
+                    <Button size="sm" variant="destructive" onClick={handleRevoke} disabled={revokeBusy}>
+                      <Trash2 className="size-3.5" />
+                      {revokeBusy ? "Revoking..." : "Revoke award"}
+                    </Button>
+                  ) : null}
+                </div>
               </div>
             </DialogBody>
           </>
@@ -813,12 +856,23 @@ function filterBadges(badges: UserBadge[], filter: BadgeFilter) {
   return badges;
 }
 
-export default function UserBadgesTab({ userId }: { userId: string }) {
+export default function UserBadgesTab({
+  userId,
+  canRevoke = false,
+  canAward = false,
+  onAwardRequest,
+}: {
+  userId: string;
+  canRevoke?: boolean;
+  canAward?: boolean;
+  onAwardRequest?: (badge: UserBadge) => void;
+}) {
   const [filter, setFilter] = useState<BadgeFilter>("all");
   const [activeCollectionKey, setActiveCollectionKey] = useState<AwardCollectionKey | null>(null);
   const [selectedBadge, setSelectedBadge] = useState<UserBadge | null>(null);
+  const [revision, setRevision] = useState(0);
   const { data, loading, error } = useFetch<UserBadgesResponse>({
-    url: `/api/badges/user/${userId}`,
+    url: `/api/badges/user/${userId}?_r=${revision}`,
     returnTo: `/users/${userId}?tab=badges`,
     refetchOnFocus: false,
   });
@@ -937,9 +991,16 @@ export default function UserBadgesTab({ userId }: { userId: string }) {
 
       <BadgeDetailDialog
         badge={selectedBadge}
+        canRevoke={canRevoke}
+        canAward={canAward}
         onOpenChange={(open) => {
           if (!open) setSelectedBadge(null);
         }}
+        onRevoke={() => {
+          setSelectedBadge(null);
+          setRevision((r) => r + 1);
+        }}
+        onAwardRequest={onAwardRequest}
       />
     </div>
   );

@@ -26,6 +26,10 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
+vi.mock("@/lib/services/notifications", () => ({
+  sendPushToUser: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { awardBadgeManually } from "@/lib/badges/queries";
 
 const targetUser = {

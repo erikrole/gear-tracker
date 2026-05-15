@@ -379,11 +379,11 @@ export default function KioskDevicesPage() {
                   <div className="flex items-center gap-2">
                     <span className="font-medium truncate">{device.name}</span>
                     {device.active ? (
-                      <Badge variant="outline" className="text-xs">
+                      <Badge variant="outline" size="sm">
                         {device.activated ? "Active" : "Pending activation"}
                       </Badge>
                     ) : (
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge variant="secondary" size="sm">
                         Deactivated
                       </Badge>
                     )}

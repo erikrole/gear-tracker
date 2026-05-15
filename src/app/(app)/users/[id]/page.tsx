@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ComponentType } from "react";
 import type { UserDetail, Location, Role } from "../types";
 import { deriveStudentYear, STUDENT_YEAR_OPTIONS } from "../types";
 import { useFetch } from "@/hooks/use-fetch";
@@ -11,6 +11,7 @@ import UserInfoTab from "./UserInfoTab";
 import UserActivityTab from "./UserActivityTab";
 import UserAvailabilityTab from "./UserAvailabilityTab";
 import UserBadgesTab from "./UserBadgesTab";
+import { BadgeMedallion } from "@/components/badges/BadgeMedallion";
 import { toast } from "sonner";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -55,7 +56,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Award, AlertCircle, Briefcase, CalendarDays, CameraIcon, ChevronDown, Copy, GraduationCap, KeyRound, Shield, TrashIcon, UserRound } from "lucide-react";
+import { Award, AlertCircle, BadgeCheck, Briefcase, CalendarDays, CameraIcon, ChevronDown, Copy, Flame, GraduationCap, Handshake, KeyRound, PackageCheck, Shield, ShieldCheck, TrashIcon, Trophy, UserCheck, UserRound } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { badgeRarityVariant, customBadgeIconOptions, getBadgeRarity, manualAwardGuidance, type CustomBadgeIcon } from "@/lib/badges/display";
 import { formatDateFull } from "@/lib/format";
@@ -71,10 +72,21 @@ type BadgeDefinitionOption = {
   key: string;
   name: string;
   description: string;
+  icon: string;
   category: string;
   kind: string;
   trigger: string;
   threshold: number | null;
+};
+
+const customIconMap: Record<string, ComponentType<{ className?: string }>> = {
+  Trophy,
+  BadgeCheck,
+  ShieldCheck,
+  UserCheck,
+  Handshake,
+  Flame,
+  PackageCheck,
 };
 
 type AwardMode = "existing" | "custom";
@@ -317,7 +329,7 @@ export default function UserDetailPage() {
 
     setAwardDefinitionsLoading(true);
     try {
-      const res = await fetch("/api/badges");
+      const res = await fetch("/api/badges?manualOnly=true");
       if (handleAuthRedirect(res)) return;
       const json = await res.json();
       if (!res.ok) {
@@ -325,8 +337,7 @@ export default function UserDetailPage() {
         setAwardDefinitions([]);
         return;
       }
-      const definitions = ((json.data ?? []) as BadgeDefinitionOption[])
-        .filter((definition) => definition.category !== "SHIFT");
+      const definitions = (json.data ?? []) as BadgeDefinitionOption[];
       setAwardDefinitions(definitions);
       setSelectedAwardDefinitionId((prev) => prev || definitions[0]?.id || "");
       if (definitions.length === 0) {
@@ -404,6 +415,12 @@ export default function UserDetailPage() {
     } finally {
       setAwardBusy(false);
     }
+  }
+
+  function handleAwardRequest(badge: { id: string }) {
+    setAwardMode("existing");
+    setSelectedAwardDefinitionId(badge.id);
+    openManualAwardDialog();
   }
 
   if (fetchError) {
@@ -755,11 +772,19 @@ export default function UserDetailPage() {
                   )}
                   {selectedAwardDefinition && selectedAwardRarity && (
                     <div className="rounded-lg border bg-muted/30 p-3 text-sm">
-                      <div className="mb-1 flex flex-wrap items-center gap-2">
-                        <Badge variant={badgeRarityVariant(selectedAwardRarity)} size="sm">
-                          {selectedAwardRarity}
-                        </Badge>
-                        <span className="font-medium text-foreground">{selectedAwardDefinition.name}</span>
+                      <div className="mb-2 flex items-center gap-3">
+                        <BadgeMedallion
+                          icon={customIconMap[selectedAwardDefinition.icon] ?? Trophy}
+                          earned={false}
+                          rarity={selectedAwardRarity}
+                          className="size-10 shrink-0"
+                        />
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant={badgeRarityVariant(selectedAwardRarity)} size="sm">
+                            {selectedAwardRarity}
+                          </Badge>
+                          <span className="font-medium text-foreground">{selectedAwardDefinition.name}</span>
+                        </div>
                       </div>
                       <p className="text-muted-foreground">
                         {manualAwardGuidance[selectedAwardDefinition.key] ?? selectedAwardDefinition.description}
@@ -809,11 +834,17 @@ export default function UserDetailPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
-                          {customBadgeIconOptions.map((icon) => (
-                            <SelectItem key={icon} value={icon}>
-                              {icon}
-                            </SelectItem>
-                          ))}
+                          {customBadgeIconOptions.map((icon) => {
+                            const IconComponent = customIconMap[icon];
+                            return (
+                              <SelectItem key={icon} value={icon}>
+                                <span className="flex items-center gap-2">
+                                  {IconComponent && <IconComponent className="size-4 shrink-0" />}
+                                  {icon}
+                                </span>
+                              </SelectItem>
+                            );
+                          })}
                         </SelectGroup>
                       </SelectContent>
                     </Select>
@@ -836,6 +867,11 @@ export default function UserDetailPage() {
                 maxLength={500}
                 disabled={awardBusy}
               />
+              {(selectedAwardRarity === "Rare" || selectedAwardRarity === "Legendary") && !awardNote.trim() && (
+                <p className="text-xs text-amber-600">
+                  A note is recommended for {selectedAwardRarity} awards.
+                </p>
+              )}
             </div>
           </DialogBody>
           <DialogFooter>
@@ -898,7 +934,13 @@ export default function UserDetailPage() {
       )}
 
       {activeTab === "badges" && (
-        <UserBadgesTab key={badgesTabRevision} userId={user.id} />
+        <UserBadgesTab
+          key={badgesTabRevision}
+          userId={user.id}
+          canRevoke={currentUserRole === "ADMIN"}
+          canAward={currentUserRole === "ADMIN"}
+          onAwardRequest={handleAwardRequest}
+        />
       )}
     </FadeUp>
   );

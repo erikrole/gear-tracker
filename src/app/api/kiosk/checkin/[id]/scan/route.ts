@@ -7,7 +7,8 @@ import { kioskCheckinAsset } from "@/lib/services/bookings-checkin";
 import { scanKioskCheckinBulkUnit } from "@/lib/services/bulk-unit-scans";
 import { checkinScanBody } from "@/lib/schemas/kiosk";
 import { badges } from "@/lib/badges";
-import { badgeScanErrorCode, badgeScanSourceKey } from "@/lib/badges/scan";
+import { badgeScanSourceKey } from "@/lib/badges/scan";
+import type { BadgeScanErrorCode } from "@/lib/badges/types";
 
 /**
  * Scan an item for kiosk check-in (return).
@@ -28,20 +29,19 @@ export const POST = withKiosk<{ id: string }>(async (req, { params }) => {
   }
   const activeBooking = booking;
 
-  async function emitScanResult(args: { ok: boolean; error?: string }) {
-    const errorCode = args.error ? badgeScanErrorCode(args.error) : undefined;
+  async function emitScanResult(args: { ok: boolean; errorCode?: BadgeScanErrorCode }) {
     await badges.onScanResult({
       userId: activeBooking.requesterUserId,
       bookingId: activeBooking.id,
       phase: "checkin",
       ok: args.ok,
-      errorCode,
+      errorCode: args.errorCode,
       sourceKey: badgeScanSourceKey({
         phase: "checkin",
         bookingId: activeBooking.id,
         scanValue,
         ok: args.ok,
-        errorCode,
+        errorCode: args.errorCode,
       }),
     });
   }
@@ -53,7 +53,7 @@ export const POST = withKiosk<{ id: string }>(async (req, { params }) => {
   if (bulkResult.handled) {
     await emitScanResult({
       ok: bulkResult.success,
-      error: bulkResult.success ? undefined : bulkResult.error,
+      errorCode: bulkResult.success ? undefined : bulkResult.errorCode,
     });
     return ok(bulkResult);
   }
@@ -65,7 +65,7 @@ export const POST = withKiosk<{ id: string }>(async (req, { params }) => {
   });
 
   if (!asset) {
-    await emitScanResult({ ok: false, error: "Item not found" });
+    await emitScanResult({ ok: false, errorCode: "not_found" });
     return ok({ success: false, error: "Item not found" });
   }
 
@@ -77,18 +77,12 @@ export const POST = withKiosk<{ id: string }>(async (req, { params }) => {
   if (!result.ok) {
     if (result.reason === "not_in_booking") {
       const error = `${asset.assetTag} is not in this checkout`;
-      await emitScanResult({ ok: false, error });
-      return ok({
-        success: false,
-        error,
-      });
+      await emitScanResult({ ok: false, errorCode: "not_in_booking" });
+      return ok({ success: false, error });
     }
     const error = `${asset.assetTag} already returned`;
-    await emitScanResult({ ok: false, error });
-    return ok({
-      success: false,
-      error,
-    });
+    await emitScanResult({ ok: false, errorCode: "already_returned" });
+    return ok({ success: false, error });
   }
 
   await emitScanResult({ ok: true });

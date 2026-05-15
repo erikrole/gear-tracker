@@ -3,7 +3,7 @@ import { sendEmail, buildNotificationEmail } from "@/lib/email";
 import { sendPush } from "@/lib/push/apns";
 import { loadUserPrefs, shouldDeliverEmail, shouldDeliverPush } from "@/lib/services/notification-prefs";
 
-async function sendPushToUser(
+export async function sendPushToUser(
   userId: string,
   opts: { title: string; body?: string | null; payload?: Record<string, unknown> }
 ): Promise<void> {

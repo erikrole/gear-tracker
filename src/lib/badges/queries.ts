@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import type { AuthUser } from "@/lib/auth";
 import { HttpError } from "@/lib/http";
 import { normalizePrefs } from "@/lib/services/notification-prefs";
+import { sendPushToUser } from "@/lib/services/notifications";
+import { ON_TIME_GRACE_MS } from "./types";
 
 type CustomBadgeDefinitionInput = {
   name: string;
@@ -32,9 +34,9 @@ type BadgeProgress = {
   target: number;
 };
 
-export async function listActiveBadgeDefinitions() {
+export async function listActiveBadgeDefinitions(where?: { trigger?: string }) {
   return db.badgeDefinition.findMany({
-    where: { active: true },
+    where: { active: true, ...where },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   });
 }
@@ -187,7 +189,7 @@ async function getProgressByBadgeKey(userId: string, definitions: BadgeDefinitio
   ]);
 
   const onTimeReturnCount = completedCheckouts.filter(
-    (booking) => (booking.completedAt ?? booking.updatedAt).getTime() <= booking.endsAt.getTime() + 15 * 60 * 1000,
+    (booking) => (booking.completedAt ?? booking.updatedAt).getTime() <= booking.endsAt.getTime() + ON_TIME_GRACE_MS,
   ).length;
   const streakMap = new Map(streaks.map((streak) => [streak.streakType, streak]));
 
@@ -252,6 +254,7 @@ export async function getUserBadgeProfile(viewer: AuthUser, userId: string) {
           awardedAt: true,
           source: true,
           note: true,
+          awardedBy: { select: { name: true } },
         },
       },
     },
@@ -280,6 +283,7 @@ export async function getUserBadgeProfile(viewer: AuthUser, userId: string) {
       awardedAt: award?.awardedAt.toISOString() ?? null,
       source: award?.source ?? null,
       note: award?.note ?? null,
+      awardedByName: award?.awardedBy?.name ?? null,
       progressCurrent: progress?.current ?? null,
       progressTarget: progress?.target ?? null,
     };
@@ -297,7 +301,7 @@ export async function getUserBadgeProfile(viewer: AuthUser, userId: string) {
 export async function awardBadgeManually(args: ManualAwardArgs) {
   const note = args.note?.trim() || null;
 
-  return db.$transaction(async (tx) => {
+  const result = await db.$transaction(async (tx) => {
     const [target, definition] = await Promise.all([
       tx.user.findUnique({
         where: { id: args.userId },
@@ -333,33 +337,41 @@ export async function awardBadgeManually(args: ManualAwardArgs) {
       throw new HttpError(409, "Badge already awarded");
     }
 
-    const award = await tx.studentBadge.create({
-      data: {
-        userId: args.userId,
-        definitionId: definition.id,
-        source: "MANUAL",
-        awardedById: args.awardedById,
-        note,
-      },
-      include: {
-        definition: {
-          select: {
-            id: true,
-            key: true,
-            name: true,
-            description: true,
-            icon: true,
-            category: true,
-            kind: true,
-            trigger: true,
-            threshold: true,
-            ruleKey: true,
-            active: true,
-            sortOrder: true,
+    let award;
+    try {
+      award = await tx.studentBadge.create({
+        data: {
+          userId: args.userId,
+          definitionId: definition.id,
+          source: "MANUAL",
+          awardedById: args.awardedById,
+          note,
+        },
+        include: {
+          definition: {
+            select: {
+              id: true,
+              key: true,
+              name: true,
+              description: true,
+              icon: true,
+              category: true,
+              kind: true,
+              trigger: true,
+              threshold: true,
+              ruleKey: true,
+              active: true,
+              sortOrder: true,
+            },
           },
         },
-      },
-    });
+      });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        throw new HttpError(409, "Badge already awarded");
+      }
+      throw err;
+    }
 
     const prefs = normalizePrefs(target.notificationPrefs);
     if (prefs.badges !== false) {
@@ -384,4 +396,29 @@ export async function awardBadgeManually(args: ManualAwardArgs) {
 
     return award;
   });
+
+  void sendPushToUser(result.userId, {
+    title: `You earned ${result.definition.name}`,
+    body: result.definition.description || "Keep up the great work.",
+    payload: { studentBadgeId: result.id, href: `/users/${result.userId}?tab=badges` },
+  });
+
+  return result;
+}
+
+export async function revokeStudentBadge(args: { studentBadgeId: string; revokedById: string }) {
+  const badge = await db.studentBadge.findUnique({
+    where: { id: args.studentBadgeId },
+    select: { id: true, source: true, userId: true, definitionId: true },
+  });
+
+  if (!badge) throw new HttpError(404, "Badge award not found");
+  if (badge.source !== "MANUAL") throw new HttpError(409, "Only manually awarded badges can be revoked");
+
+  await db.$transaction([
+    db.studentBadge.delete({ where: { id: args.studentBadgeId } }),
+    db.notification.deleteMany({ where: { dedupeKey: `badge_awarded_${args.studentBadgeId}` } }),
+  ]);
+
+  return badge;
 }

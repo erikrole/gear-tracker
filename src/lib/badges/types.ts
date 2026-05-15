@@ -1,3 +1,5 @@
+export const ON_TIME_GRACE_MS = 15 * 60 * 1000;
+
 export type BadgeEventSource = "kiosk_checkout" | "kiosk_pickup";
 
 export type BadgeScanPhase = "checkout" | "pickup" | "checkin";
