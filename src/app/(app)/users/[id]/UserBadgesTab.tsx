@@ -757,9 +757,11 @@ function BadgeDetailDialog({
               </div>
             </DialogHeader>
             <DialogBody className="bg-background px-6 pb-7 pt-5 sm:px-8">
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="flex flex-wrap gap-4 rounded-2xl bg-muted/35 px-5 py-4 shadow-[inset_0_0_0_1px_hsl(var(--border))]">
                 <DetailMetric icon={Trophy} label="Category" value={readableCategory(badge.category)} />
-                <DetailMetric icon={Sparkles} label="Source" value={badge.source === "MANUAL" ? "Manual award" : badge.earned ? "Automatic" : "Not earned"} />
+                <div className="w-px self-stretch bg-border/60" aria-hidden="true" />
+                <DetailMetric icon={UserCheck} label="Source" value={badge.source === "MANUAL" ? "Manual award" : badge.earned ? "Automatic" : "Not earned"} />
+                <div className="w-px self-stretch bg-border/60" aria-hidden="true" />
                 <DetailMetric icon={CalendarCheck2} label="Earned date" value={badge.awardedAt ? formatDateFull(badge.awardedAt) : "Not earned yet"} />
               </div>
 
@@ -774,47 +776,56 @@ function BadgeDetailDialog({
               ) : null}
 
               {(badge.note || badge.awardedByName) ? (
-                <div className="mt-5 rounded-2xl bg-muted/40 p-5 shadow-[inset_0_0_0_1px_hsl(var(--border))]">
-                  <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                    <BadgeCheck className="size-3.5" aria-hidden="true" />
-                    Award note
-                  </p>
-                  {badge.note ? <p className="mt-3 text-pretty text-sm leading-6 text-foreground">{badge.note}</p> : null}
-                  {badge.awardedByName ? (
-                    <p className="mt-2 text-xs text-muted-foreground">Awarded by {badge.awardedByName}</p>
-                  ) : null}
+                <div className="mt-5 flex gap-4 overflow-hidden rounded-2xl bg-muted/30 shadow-[inset_0_0_0_1px_hsl(var(--border))]">
+                  <div className="w-1 shrink-0 rounded-l-2xl bg-primary/40" aria-hidden="true" />
+                  <div className="py-5 pr-5">
+                    <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                      <BadgeCheck className="size-3.5" aria-hidden="true" />
+                      Award note
+                    </p>
+                    {badge.note ? <p className="mt-3 text-pretty text-sm leading-6 text-foreground">{badge.note}</p> : null}
+                    {badge.awardedByName ? (
+                      <p className="mt-2 text-xs text-muted-foreground">-- {badge.awardedByName}</p>
+                    ) : null}
+                  </div>
                 </div>
               ) : null}
 
-              <Separator className="my-5" />
-
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <Badge variant="outline" size="sm" className="font-mono">{badge.kind.toLowerCase()}</Badge>
-                  <Badge variant="outline" size="sm" className="font-mono">{badge.trigger}</Badge>
-                  {badge.ruleKey ? <Badge variant="outline" size="sm" className="font-mono">{badge.ruleKey}</Badge> : null}
-                  {!badge.earned && !hasProgress(badge) ? (
-                    <span className="inline-flex items-center gap-1">
-                      <LockKeyhole className="size-3.5" aria-hidden="true" />
-                      Unlocks from a qualifying workflow or staff recognition.
-                    </span>
-                  ) : null}
-                </div>
-                <div className="flex items-center gap-2">
-                  {canAward && !badge.earned && badge.trigger === "manual" ? (
-                    <Button size="sm" variant="outline" onClick={() => onAwardRequest?.(badge)}>
-                      <Award className="size-3.5" />
-                      Award this badge
-                    </Button>
-                  ) : null}
-                  {canRevoke && badge.earned && badge.source === "MANUAL" ? (
-                    <Button size="sm" variant="destructive" onClick={handleRevoke} disabled={revokeBusy}>
-                      <Trash2 className="size-3.5" />
-                      {revokeBusy ? "Revoking..." : "Revoke award"}
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
+              {(!badge.earned && !hasProgress(badge)) || canRevoke || (canAward && !badge.earned && badge.trigger === "manual") ? (
+                <>
+                  <Separator className="my-5" />
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      {!badge.earned && !hasProgress(badge) ? (
+                        <span className="inline-flex items-center gap-1">
+                          <LockKeyhole className="size-3.5" aria-hidden="true" />
+                          Unlocks from a qualifying workflow or staff recognition.
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {canAward && !badge.earned && badge.trigger === "manual" ? (
+                        <Button size="sm" variant="outline" onClick={() => onAwardRequest?.(badge)}>
+                          <Award className="size-3.5" />
+                          Award this badge
+                        </Button>
+                      ) : null}
+                      {canRevoke && badge.earned && badge.source === "MANUAL" ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={handleRevoke}
+                          disabled={revokeBusy}
+                          className="text-destructive hover:border-destructive hover:bg-destructive hover:text-destructive-foreground"
+                        >
+                          <Trash2 className="size-3.5" />
+                          {revokeBusy ? "Revoking..." : "Revoke award"}
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                </>
+              ) : null}
             </DialogBody>
           </>
         ) : null}
@@ -833,12 +844,14 @@ function DetailMetric({
   value: string;
 }) {
   return (
-    <div className="rounded-2xl bg-muted/35 p-4 shadow-[inset_0_0_0_1px_hsl(var(--border))]">
-      <div className="mb-3 flex size-8 items-center justify-center rounded-lg bg-background text-muted-foreground shadow-[inset_0_0_0_1px_hsl(var(--border))]" aria-hidden="true">
+    <div className="flex min-w-0 flex-1 items-center gap-3">
+      <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-background text-muted-foreground shadow-[inset_0_0_0_1px_hsl(var(--border))]" aria-hidden="true">
         <Icon className="size-4" />
       </div>
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className="mt-1 text-sm font-semibold text-foreground text-balance">{value}</p>
+      <div className="min-w-0">
+        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+        <p className="mt-0.5 text-sm font-semibold text-foreground text-balance">{value}</p>
+      </div>
     </div>
   );
 }
