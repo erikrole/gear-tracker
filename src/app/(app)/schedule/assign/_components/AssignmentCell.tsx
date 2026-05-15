@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -26,6 +26,7 @@ type Props = {
 export function AssignmentCell({ shifts, shiftGroupId, area, allUsers, usersLoading, isStaff, onRefetch }: Props) {
   const [search, setSearch] = useState("");
   const [acting, setActing] = useState<string | null>(null);
+  const actingRef = useRef(false);
   const [conflictMap, setConflictMap] = useState<Record<string, string>>({});
   const [conflictsLoading, setConflictsLoading] = useState(false);
 
@@ -51,7 +52,8 @@ export function AssignmentCell({ shifts, shiftGroupId, area, allUsers, usersLoad
 
   const handleAssign = useCallback(
     async (shiftId: string, userId: string) => {
-      if (acting) return;
+      if (actingRef.current) return;
+      actingRef.current = true;
       setActing(`assign-${shiftId}`);
       try {
         const res = await fetch("/api/shift-assignments", {
@@ -66,18 +68,21 @@ export function AssignmentCell({ shifts, shiftGroupId, area, allUsers, usersLoad
           return;
         }
         onRefetch();
+        toast.success("Assigned shift");
       } catch {
         toast.error("Network error - could not assign");
       } finally {
+        actingRef.current = false;
         setActing(null);
       }
     },
-    [acting, onRefetch],
+    [onRefetch],
   );
 
   const handleRemove = useCallback(
     async (assignmentId: string) => {
-      if (acting) return;
+      if (actingRef.current) return;
+      actingRef.current = true;
       setActing(`remove-assignment-${assignmentId}`);
       try {
         const res = await fetch(`/api/shift-assignments/${assignmentId}`, { method: "DELETE" });
@@ -88,17 +93,20 @@ export function AssignmentCell({ shifts, shiftGroupId, area, allUsers, usersLoad
           return;
         }
         onRefetch();
+        toast.success("Removed assignment");
       } catch {
         toast.error("Network error - could not remove");
       } finally {
+        actingRef.current = false;
         setActing(null);
       }
     },
-    [acting, onRefetch],
+    [onRefetch],
   );
 
   const handleAddShift = useCallback(async () => {
-    if (!shiftGroupId || acting) return;
+    if (!shiftGroupId || actingRef.current) return;
+    actingRef.current = true;
     setActing(`add-${area}`);
     try {
       const res = await fetch(`/api/shift-groups/${shiftGroupId}/shifts`, {
@@ -113,15 +121,18 @@ export function AssignmentCell({ shifts, shiftGroupId, area, allUsers, usersLoad
         return;
       }
       onRefetch();
+      toast.success("Added slot");
     } catch {
       toast.error("Network error - could not add slot");
     } finally {
+      actingRef.current = false;
       setActing(null);
     }
-  }, [acting, area, onRefetch, shiftGroupId]);
+  }, [area, onRefetch, shiftGroupId]);
 
   const handleDeleteShift = useCallback(async (shiftId: string) => {
-    if (!shiftGroupId || acting) return;
+    if (!shiftGroupId || actingRef.current) return;
+    actingRef.current = true;
     setActing(`delete-${shiftId}`);
     try {
       const res = await fetch(`/api/shift-groups/${shiftGroupId}/shifts/${shiftId}`, { method: "DELETE" });
@@ -132,12 +143,14 @@ export function AssignmentCell({ shifts, shiftGroupId, area, allUsers, usersLoad
         return;
       }
       onRefetch();
+      toast.success("Removed slot");
     } catch {
       toast.error("Network error - could not remove slot");
     } finally {
+      actingRef.current = false;
       setActing(null);
     }
-  }, [acting, onRefetch, shiftGroupId]);
+  }, [onRefetch, shiftGroupId]);
 
   const canEditSlots = isStaff && Boolean(shiftGroupId);
   const assignedShifts = shifts
@@ -197,12 +210,12 @@ export function AssignmentCell({ shifts, shiftGroupId, area, allUsers, usersLoad
                           className="ring-2 ring-background transition-[box-shadow] group-hover/avatar:ring-destructive/60"
                           fallbackClassName={
                             assignment.hasConflict
-                              ? "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
+                              ? "bg-[var(--orange-bg)] text-[var(--orange-text)]"
                               : undefined
                           }
                         />
                         {assignment.hasConflict && (
-                          <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border border-background bg-yellow-400" />
+                          <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border border-background bg-[var(--orange)]" />
                         )}
                       </span>
                     </TooltipTrigger>

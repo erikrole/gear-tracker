@@ -13,6 +13,7 @@ import { VENUE_TONES, venueToneFromEvent } from "@/lib/venue-tone";
 import {
   type CalendarEntry,
   coverageVariant,
+  getMonday,
   scheduleEventTitleParts,
   userHasShift,
   formatTime,
@@ -73,14 +74,6 @@ function weekRangeLabel(weekStart: Date): string {
 function shiftWeek(weekStart: Date, delta: number): Date {
   const d = new Date(weekStart);
   d.setDate(weekStart.getDate() + 7 * delta);
-  return d;
-}
-
-function getThisMonday(): Date {
-  const d = new Date();
-  const day = d.getDay();
-  d.setDate(d.getDate() - ((day + 6) % 7));
-  d.setHours(0, 0, 0, 0);
   return d;
 }
 
@@ -393,7 +386,8 @@ export function WeekView({
     return map;
   }, [entries, weekDays]);
 
-  const isThisWeek = isSameDay(weekStart, getThisMonday());
+  const thisMonday = getMonday(new Date());
+  const isThisWeek = isSameDay(weekStart, thisMonday);
 
   return (
     <div>
@@ -418,7 +412,7 @@ export function WeekView({
             <Button
               variant="ghost"
               className="ml-1 h-10"
-              onClick={() => setWeekStart(getThisMonday())}
+              onClick={() => setWeekStart(thisMonday)}
             >
               Today
             </Button>

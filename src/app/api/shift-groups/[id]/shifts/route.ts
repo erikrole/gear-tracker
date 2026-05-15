@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
+import { assertDateOrder, parseOptionalDate } from "@/lib/api-dates";
 import { z } from "zod";
 import { Prisma, ShiftArea, ShiftWorkerType } from "@prisma/client";
 
@@ -19,6 +20,9 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   const { id } = params;
 
   const body = addShiftSchema.parse(await req.json());
+  const overrideStartsAt = parseOptionalDate(body.startsAt, "startsAt");
+  const overrideEndsAt = parseOptionalDate(body.endsAt, "endsAt");
+  assertDateOrder(overrideStartsAt, overrideEndsAt, "endsAt must be after startsAt", { allowEqual: false });
 
   const result = await db.$transaction(async (tx) => {
     const group = await tx.shiftGroup.findUnique({
@@ -27,8 +31,9 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
     });
     if (!group) throw new HttpError(404, "Shift group not found");
 
-    const startsAt = body.startsAt ? new Date(body.startsAt) : group.event.startsAt;
-    const endsAt = body.endsAt ? new Date(body.endsAt) : group.event.endsAt;
+    const startsAt = overrideStartsAt ?? group.event.startsAt;
+    const endsAt = overrideEndsAt ?? group.event.endsAt;
+    assertDateOrder(startsAt, endsAt, "endsAt must be after startsAt", { allowEqual: false });
 
     const shift = await tx.shift.create({
       data: {

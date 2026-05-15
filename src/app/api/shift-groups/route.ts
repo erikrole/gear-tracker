@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { ok, fail, HttpError, parsePagination } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
+import { assertDateOrder, parseOptionalDate } from "@/lib/api-dates";
 
 export const GET = withAuth(async (req, { user }) => {
   requirePermission(user.role, "shift", "view");
@@ -15,6 +16,9 @@ export const GET = withAuth(async (req, { user }) => {
   const startDate = url.searchParams.get("startDate");
   const endDate = url.searchParams.get("endDate");
   const eventId = url.searchParams.get("eventId");
+  const parsedStartDate = parseOptionalDate(startDate, "startDate");
+  const parsedEndDate = parseOptionalDate(endDate, "endDate");
+  assertDateOrder(parsedStartDate, parsedEndDate);
 
   const where: Record<string, unknown> = {};
   if (eventId) where.eventId = eventId;
@@ -22,9 +26,9 @@ export const GET = withAuth(async (req, { user }) => {
   // Filter by event properties via nested where
   const eventWhere: Record<string, unknown> = {};
   if (sportCode) eventWhere.sportCode = sportCode;
-  if (startDate) eventWhere.startsAt = { gte: new Date(startDate) };
-  if (endDate) {
-    eventWhere.endsAt = { ...(eventWhere.endsAt as object ?? {}), lte: new Date(endDate) };
+  if (parsedStartDate) eventWhere.startsAt = { gte: parsedStartDate };
+  if (parsedEndDate) {
+    eventWhere.endsAt = { ...(eventWhere.endsAt as object ?? {}), lte: parsedEndDate };
   }
   if (Object.keys(eventWhere).length > 0) {
     where.event = eventWhere;

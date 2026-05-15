@@ -86,6 +86,15 @@ export function coverageDot(pct: number): string {
   return "var(--badge-red-bg, #ef4444)";
 }
 
+/** Get Monday of the week containing the given date. */
+export function getMonday(d: Date): Date {
+  const result = new Date(d);
+  const day = result.getDay(); // 0=Sun
+  result.setDate(result.getDate() - ((day + 6) % 7));
+  result.setHours(0, 0, 0, 0);
+  return result;
+}
+
 function cleanTitleText(value: string): string {
   return value
     .replace(/^\s*\[[A-Z]\]\s*/i, "")
@@ -146,15 +155,6 @@ export function userShiftStatus(
     }
   }
   return null;
-}
-
-export function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 }
 
 export function formatTime(iso: string) {

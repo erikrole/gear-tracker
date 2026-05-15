@@ -2,6 +2,7 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok, parsePagination } from "@/lib/http";
 import { createAuditEntry } from "@/lib/audit";
+import { assertDateOrder, parseOptionalDate } from "@/lib/api-dates";
 
 export const GET = withAuth(async (req) => {
   const { searchParams } = new URL(req.url);
@@ -14,11 +15,14 @@ export const GET = withAuth(async (req) => {
 
   const sportCode = searchParams.get("sportCode");
   const includeHidden = searchParams.get("includeHidden") === "true";
+  const parsedStartDate = parseOptionalDate(startDate, "startDate");
+  const parsedEndDate = parseOptionalDate(endDate, "endDate");
+  assertDateOrder(parsedStartDate, parsedEndDate);
 
   // Default to upcoming events from now unless includePast or explicit startDate
   const startsAtFilter = includePast
-    ? { ...(startDate ? { gte: new Date(startDate) } : {}), ...(endDate ? { lte: new Date(endDate) } : {}) }
-    : { gte: startDate ? new Date(startDate) : new Date(), ...(endDate ? { lte: new Date(endDate) } : {}) };
+    ? { ...(parsedStartDate ? { gte: parsedStartDate } : {}), ...(parsedEndDate ? { lte: parsedEndDate } : {}) }
+    : { gte: parsedStartDate ?? new Date(), ...(parsedEndDate ? { lte: parsedEndDate } : {}) };
 
   const where = {
     ...(Object.keys(startsAtFilter).length > 0 ? { startsAt: startsAtFilter } : {}),

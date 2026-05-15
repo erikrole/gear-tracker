@@ -8,7 +8,7 @@ import type {
   CalendarEntry,
   ShiftGroup,
 } from "@/app/(app)/schedule/_components/types";
-import { userHasShift, LS_VIEW_MODE, LS_MY_SHIFTS } from "@/app/(app)/schedule/_components/types";
+import { getMonday, userHasShift, LS_VIEW_MODE, LS_MY_SHIFTS } from "@/app/(app)/schedule/_components/types";
 import { handleAuthRedirect } from "@/lib/errors";
 import type { VenueFilter } from "@/lib/venue-tone";
 
@@ -151,19 +151,10 @@ async function fetchSchedule(eventsUrl: string, groupsUrl: string, signal?: Abor
 }
 
 async function fetchTradeCount(): Promise<number> {
-  const r = await fetch("/api/shift-trades?status=OPEN");
+  const r = await fetch("/api/shift-trades?status=OPEN&limit=1");
   if (!r.ok) return 0;
   const j = await r.json();
-  return j?.data?.length ?? 0;
-}
-
-/** Get Monday of the week containing the given date */
-function getMonday(d: Date): Date {
-  const result = new Date(d);
-  const day = result.getDay(); // 0=Sun
-  result.setDate(result.getDate() - ((day + 6) % 7));
-  result.setHours(0, 0, 0, 0);
-  return result;
+  return typeof j?.total === "number" ? j.total : j?.data?.length ?? 0;
 }
 
 export function useScheduleData(): UseScheduleDataResult {
@@ -335,7 +326,7 @@ export function useScheduleData(): UseScheduleDataResult {
     openTradeCount: tradeCount,
     tradeSheetOpen,
     setTradeSheetOpen,
-    loadTradeCount: () => { refetchTrades(); },
+    loadTradeCount: refetchTrades,
     selectedGroupId,
     setSelectedGroupId,
     expandedRowId,

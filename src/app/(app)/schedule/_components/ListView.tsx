@@ -13,6 +13,17 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { UserAvatarGroup } from "@/components/UserAvatarGroup";
 import { UserAvatarPicker, type PickerUser } from "@/components/shift-detail/UserAvatarPicker";
 import { handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
@@ -468,31 +479,58 @@ export function ListView({
 
   const [postingTradeId, setPostingTradeId] = useState<string | null>(null);
   const postingTradeRef = useRef<string | null>(null);
+  const [tradeDialogAssignmentId, setTradeDialogAssignmentId] = useState<string | null>(null);
+  const [tradeNotes, setTradeNotes] = useState("");
+  const [tradeError, setTradeError] = useState<string | null>(null);
   const [addingShiftId, setAddingShiftId] = useState<string | null>(null);
   const addingShiftRef = useRef(false);
   const [removingAssignmentId, setRemovingAssignmentId] = useState<string | null>(null);
   const removingAssignmentRef = useRef(false);
 
-  const handlePostTrade = useCallback(async (assignmentId: string) => {
+  const openTradeDialog = useCallback((assignmentId: string) => {
+    if (postingTradeRef.current) return;
+    setTradeDialogAssignmentId(assignmentId);
+    setTradeNotes("");
+    setTradeError(null);
+  }, []);
+
+  const closeTradeDialog = useCallback(() => {
+    if (postingTradeRef.current) return;
+    setTradeDialogAssignmentId(null);
+    setTradeNotes("");
+    setTradeError(null);
+  }, []);
+
+  const handlePostTrade = useCallback(async (assignmentId: string, notes: string) => {
     if (postingTradeRef.current) return;
     postingTradeRef.current = assignmentId;
     setPostingTradeId(assignmentId);
+    setTradeError(null);
     try {
+      const trimmedNotes = notes.trim();
       const res = await fetch("/api/shift-trades", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shiftAssignmentId: assignmentId }),
+        body: JSON.stringify({
+          shiftAssignmentId: assignmentId,
+          ...(trimmedNotes ? { notes: trimmedNotes } : {}),
+        }),
       });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
         toast.success("Shift posted to trade board");
+        setTradeDialogAssignmentId(null);
+        setTradeNotes("");
         loadData();
       } else {
         const msg = await parseErrorMessage(res, "Failed to post trade");
+        setTradeError(msg);
         toast.error(msg);
       }
     } catch {
-      toast.error("Network error - could not post trade");
+      const msg = "Network error - could not post trade";
+      setTradeError(msg);
+      toast.error(msg);
     } finally {
       postingTradeRef.current = null;
       setPostingTradeId(null);
@@ -513,6 +551,7 @@ export function ListView({
       if (res.ok) {
         setUserSearch("");
         loadData();
+        toast.success("Assigned shift");
       } else {
         const msg = await parseErrorMessage(res, "Failed to assign shift");
         toast.error(msg);
@@ -582,74 +621,75 @@ export function ListView({
   }, [loadData]);
 
   return (
-    <div className="border border-border/60 rounded-lg overflow-hidden bg-card">
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border/60 bg-muted/20">
-        <div className="flex items-center gap-2">
-          <h3
-            className="text-sm font-bold uppercase tracking-wider text-foreground"
-            style={{ fontFamily: "var(--font-heading)" }}
-          >
-            {myShiftsOnly ? "My Shifts" : includePast ? "All Events" : "Upcoming Events"}
-          </h3>
-          <span className="text-xs text-muted-foreground font-medium">
-            {filteredEntries.length !== entries.length
-              ? `${filteredEntries.length} of ${entries.length}`
-              : filteredEntries.length}
-          </span>
+    <>
+      <div className="border border-border/60 rounded-lg overflow-hidden bg-card">
+        {/* ── Header ── */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border/60 bg-muted/20">
+          <div className="flex items-center gap-2">
+            <h3
+              className="text-sm font-bold uppercase tracking-wider text-foreground"
+              style={{ fontFamily: "var(--font-heading)" }}
+            >
+              {myShiftsOnly ? "My Shifts" : includePast ? "All Events" : "Upcoming Events"}
+            </h3>
+            <span className="text-xs text-muted-foreground font-medium">
+              {filteredEntries.length !== entries.length
+                ? `${filteredEntries.length} of ${entries.length}`
+                : filteredEntries.length}
+            </span>
+          </div>
         </div>
-      </div>
 
-      {loading ? (
-        <SkeletonTable rows={6} cols={3} />
-      ) : loadError ? (
-        <div className="p-8 text-center">
-          <p className="text-sm text-muted-foreground mb-3">
-            {loadError === "network"
-              ? "You appear to be offline. Check your connection and try again."
-              : "Something went wrong loading schedule data."}
-          </p>
-          <Button variant="outline" size="sm" onClick={loadData}>
-            Retry
-          </Button>
-        </div>
-      ) : filteredEntries.length === 0 ? (
-        <EmptyState
-          icon="calendar"
-          title={myShiftsOnly ? "No shifts assigned" : "No events found"}
-          description={
-            myShiftsOnly
-              ? "You don't have any upcoming shift assignments."
-              : hasFilters
-                ? "Try adjusting your filters."
-                : "No upcoming events. Check Settings > Calendar Sources to add an ICS feed."
-          }
-          actionLabel={
-            myShiftsOnly
-              ? "Show all events"
-              : hasFilters
-                ? "Clear filters"
-                : "Calendar Sources"
-          }
-          actionHref={
-            myShiftsOnly
-              ? undefined
-              : hasFilters
+        {loading ? (
+          <SkeletonTable rows={6} cols={3} />
+        ) : loadError ? (
+          <div className="p-8 text-center">
+            <p className="text-sm text-muted-foreground mb-3">
+              {loadError === "network"
+                ? "You appear to be offline. Check your connection and try again."
+                : "Something went wrong loading schedule data."}
+            </p>
+            <Button variant="outline" size="sm" onClick={loadData}>
+              Retry
+            </Button>
+          </div>
+        ) : filteredEntries.length === 0 ? (
+          <EmptyState
+            icon="calendar"
+            title={myShiftsOnly ? "No shifts assigned" : "No events found"}
+            description={
+              myShiftsOnly
+                ? "You don't have any upcoming shift assignments."
+                : hasFilters
+                  ? "Try adjusting your filters."
+                  : "No upcoming events. Check Settings > Calendar Sources to add an ICS feed."
+            }
+            actionLabel={
+              myShiftsOnly
+                ? "Show all events"
+                : hasFilters
+                  ? "Clear filters"
+                  : "Calendar Sources"
+            }
+            actionHref={
+              myShiftsOnly
                 ? undefined
-                : "/settings/calendar-sources"
-          }
-          onAction={
-            myShiftsOnly ? () => setMyShiftsOnly(false) : hasFilters ? clearFilters : undefined
-          }
-        />
-      ) : (
-        <>
-          {/* ── Desktop: timeline table ── */}
-          <div className="max-md:hidden">
-            {groupedEntries.map(([dateKey, groupEntries], groupIdx) => {
-              const groupDate = new Date(dateKey);
-              const isGroupToday =
-                groupDate.toDateString() === new Date().toDateString();
+                : hasFilters
+                  ? undefined
+                  : "/settings/calendar-sources"
+            }
+            onAction={
+              myShiftsOnly ? () => setMyShiftsOnly(false) : hasFilters ? clearFilters : undefined
+            }
+          />
+        ) : (
+          <>
+            {/* ── Desktop: timeline table ── */}
+            <div className="max-md:hidden">
+              {groupedEntries.map(([dateKey, groupEntries], groupIdx) => {
+                const groupDate = new Date(dateKey);
+                const isGroupToday =
+                  groupDate.toDateString() === new Date().toDateString();
 
               return (
                 <div key={dateKey}>
@@ -771,7 +811,7 @@ export function ListView({
                             onAddShift={(shift, workerType) => handleAddMatchingShift(entry, shift, workerType)}
                             removingAssignmentId={removingAssignmentId}
                             onRemoveAssignment={handleRemoveAssignment}
-                            onPostTrade={isStaff ? undefined : handlePostTrade}
+                            onPostTrade={isStaff ? undefined : openTradeDialog}
                           />
                         );
                       })}
@@ -911,7 +951,7 @@ export function ListView({
                         onAddShift={(shift, workerType) => handleAddMatchingShift(entry, shift, workerType)}
                         removingAssignmentId={removingAssignmentId}
                         onRemoveAssignment={handleRemoveAssignment}
-                        onPostTrade={isStaff ? undefined : handlePostTrade}
+                        onPostTrade={isStaff ? undefined : openTradeDialog}
                         onSelectGroup={() => onSelectGroup(entry.shiftGroupId)}
                         compact
                       />
@@ -921,9 +961,64 @@ export function ListView({
               );
             })}
           </div>
-        </>
-      )}
-    </div>
+          </>
+        )}
+      </div>
+
+      <Dialog
+        open={Boolean(tradeDialogAssignmentId)}
+        onOpenChange={(open) => {
+          if (!open) closeTradeDialog();
+        }}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <div className="space-y-1">
+              <DialogTitle>Post shift for trade</DialogTitle>
+              <DialogDescription>
+                Add a short note so teammates understand the swap.
+              </DialogDescription>
+            </div>
+          </DialogHeader>
+          <div className="space-y-3 px-6 py-1">
+            {tradeError && (
+              <Alert variant="destructive" className="py-2.5">
+                <AlertDescription>{tradeError}</AlertDescription>
+              </Alert>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="schedule-trade-notes" className="text-xs font-medium">
+                Notes <span className="font-normal text-muted-foreground">(optional)</span>
+              </Label>
+              <Textarea
+                id="schedule-trade-notes"
+                placeholder="e.g. Conflict with class, available all week"
+                value={tradeNotes}
+                onChange={(event) => {
+                  setTradeNotes(event.target.value);
+                  if (tradeError) setTradeError(null);
+                }}
+                className="min-h-24 resize-none text-sm"
+                maxLength={5000}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeTradeDialog} disabled={Boolean(postingTradeId)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (tradeDialogAssignmentId) void handlePostTrade(tradeDialogAssignmentId, tradeNotes);
+              }}
+              disabled={Boolean(postingTradeId)}
+            >
+              {postingTradeId ? "Posting..." : "Post trade"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
