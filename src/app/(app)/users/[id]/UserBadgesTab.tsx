@@ -712,7 +712,7 @@ function BadgeDetailDialog({
       <DialogContent className="max-w-[720px] overflow-hidden border-0 p-0 shadow-[0_24px_80px_rgba(0,0,0,0.22),0_0_0_1px_var(--border)] sm:rounded-2xl">
         {badge ? (
           <>
-            <DialogHeader className={cn("relative isolate block overflow-hidden border-b-0 px-6 pb-6 pt-7 sm:px-8 sm:pt-8", rarityStageClass(rarity))}>
+            <DialogHeader className={cn("relative isolate block overflow-hidden border-b-0 px-6 pb-6 pt-7 shadow-[0_1px_0_0_hsl(var(--border)/0.5)] sm:px-8 sm:pt-8", rarityStageClass(rarity))}>
               <div className="pointer-events-none absolute inset-0 opacity-60 [background-image:linear-gradient(115deg,transparent_0%,rgba(255,255,255,0.40)_46%,transparent_58%)] motion-safe:animate-[badge-shine_4.8s_ease-in-out_infinite] motion-reduce:animate-none" />
               <div className="pointer-events-none absolute right-8 top-8 size-24 rounded-full bg-background/20 blur-2xl" />
               <div className="relative grid gap-5 pr-10 sm:grid-cols-[140px_minmax(0,1fr)] sm:items-center sm:gap-7">
@@ -736,17 +736,13 @@ function BadgeDetailDialog({
                 </div>
 
                 <div className="min-w-0">
-                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <div className="mb-4 flex flex-wrap items-center gap-2">
                     <Badge variant={badge.earned ? "secondary" : "outline"}>{badge.earned ? "Earned" : "Locked"}</Badge>
                     <Badge variant={badgeRarityVariant(rarity)}>{rarity}</Badge>
                     {badge.source === "MANUAL" ? <Badge variant="purple">Manual</Badge> : null}
                     {recentlyEarned ? <Badge variant="green">Fresh</Badge> : null}
                     {!badge.active && badge.earned ? <Badge variant="gray">Retired</Badge> : null}
                   </div>
-                  <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                    <Award className="size-3.5" aria-hidden="true" />
-                    {badgeStatusCopy(badge, rarity)}
-                  </p>
                   <DialogTitle className="text-balance !text-3xl font-semibold leading-none tracking-tight sm:!text-4xl">
                     {badge.name}
                   </DialogTitle>
@@ -777,7 +773,16 @@ function BadgeDetailDialog({
 
               {(badge.note || badge.awardedByName) ? (
                 <div className="mt-5 flex gap-4 overflow-hidden rounded-2xl bg-muted/30 shadow-[inset_0_0_0_1px_hsl(var(--border))]">
-                  <div className="w-1 shrink-0 rounded-l-2xl bg-primary/40" aria-hidden="true" />
+                  <div
+                    className={cn(
+                      "w-1 shrink-0 rounded-l-2xl",
+                      rarity === "Legendary" && "bg-[var(--purple-text)]/70",
+                      rarity === "Rare" && "bg-[var(--orange-text)]/70",
+                      rarity === "Uncommon" && "bg-[var(--blue-text)]/70",
+                      rarity === "Common" && "bg-primary/40",
+                    )}
+                    aria-hidden="true"
+                  />
                   <div className="py-5 pr-5">
                     <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                       <BadgeCheck className="size-3.5" aria-hidden="true" />
