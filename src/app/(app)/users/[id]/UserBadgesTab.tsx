@@ -712,44 +712,46 @@ function BadgeDetailDialog({
       <DialogContent className="max-w-[720px] overflow-hidden border-0 p-0 shadow-[0_24px_80px_rgba(0,0,0,0.22),0_0_0_1px_var(--border)] sm:rounded-2xl">
         {badge ? (
           <>
-            <DialogHeader className={cn("relative isolate block overflow-hidden border-b-0 px-6 pb-6 pt-7 shadow-[0_1px_0_0_hsl(var(--border)/0.5)] sm:px-8 sm:pt-8", rarityStageClass(rarity))}>
+            <DialogHeader className={cn("relative isolate block overflow-hidden border-b-0 px-6 pb-8 pt-10 shadow-[0_1px_0_0_hsl(var(--border)/0.5)] sm:px-10", rarityStageClass(rarity))}>
               <div className="pointer-events-none absolute inset-0 opacity-60 [background-image:linear-gradient(115deg,transparent_0%,rgba(255,255,255,0.40)_46%,transparent_58%)] motion-safe:animate-[badge-shine_4.8s_ease-in-out_infinite] motion-reduce:animate-none" />
-              <div className="pointer-events-none absolute right-8 top-8 size-24 rounded-full bg-background/20 blur-2xl" />
-              <div className="relative grid gap-5 pr-10 sm:grid-cols-[140px_minmax(0,1fr)] sm:items-center sm:gap-7">
-                <div className="relative mx-auto flex size-32 items-center justify-center sm:mx-0">
-                  <span className={cn("absolute inset-0 rounded-[2rem] opacity-25 blur-xl", rarityAccentClass(rarity))} aria-hidden="true" />
-                  <span className="absolute inset-2 rounded-[1.75rem] bg-background/45 shadow-[inset_0_1px_0_rgba(255,255,255,0.65),0_20px_40px_rgba(0,0,0,0.12)]" aria-hidden="true" />
-                  <BadgeMedallion
-                    icon={Icon}
-                    earned={badge.earned}
-                    rarity={rarity}
-                    shape={badgeShape(badge)}
-                    className="size-24"
-                    iconClassName="size-10"
-                  />
-                  {badge.earned ? (
-                    <>
-                      <Sparkles className="absolute -right-1 top-4 size-5 text-foreground/50 motion-safe:animate-[badge-float_2.8s_ease-in-out_infinite] motion-reduce:animate-none" aria-hidden="true" />
-                      <Star className="absolute bottom-5 left-0 size-4 text-foreground/40 motion-safe:animate-[badge-float_3.4s_ease-in-out_infinite] motion-reduce:animate-none" aria-hidden="true" />
-                    </>
-                  ) : null}
-                </div>
+              <div className="pointer-events-none absolute left-1/2 top-0 size-56 -translate-x-1/2 -translate-y-1/3 rounded-full bg-background/15 blur-3xl" />
+              <div className="pointer-events-none absolute bottom-0 left-1/4 size-32 rounded-full bg-background/10 blur-2xl" />
 
-                <div className="min-w-0">
-                  <div className="mb-4 flex flex-wrap items-center gap-2">
-                    <Badge variant={badge.earned ? "secondary" : "outline"}>{badge.earned ? "Earned" : "Locked"}</Badge>
-                    <Badge variant={badgeRarityVariant(rarity)}>{rarity}</Badge>
-                    {badge.source === "MANUAL" ? <Badge variant="purple">Manual</Badge> : null}
-                    {recentlyEarned ? <Badge variant="green">Fresh</Badge> : null}
-                    {!badge.active && badge.earned ? <Badge variant="gray">Retired</Badge> : null}
-                  </div>
-                  <DialogTitle className="text-balance !text-3xl font-semibold leading-none tracking-tight sm:!text-4xl">
-                    {badge.name}
-                  </DialogTitle>
-                  <DialogDescription className="mt-3 max-w-[52ch] text-pretty text-base leading-7 text-foreground/75">
-                    {badge.description}
-                  </DialogDescription>
+              {/* Centered medallion stage */}
+              <div className="relative mx-auto mb-6 flex size-44 items-center justify-center">
+                <span className={cn("absolute inset-0 rounded-[2.75rem] opacity-35 blur-2xl", rarityAccentClass(rarity))} aria-hidden="true" />
+                <span className="absolute inset-3 rounded-[2.25rem] bg-background/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.60),0_28px_56px_rgba(0,0,0,0.18)]" aria-hidden="true" />
+                <BadgeMedallion
+                  icon={Icon}
+                  earned={badge.earned}
+                  rarity={rarity}
+                  shape={badgeShape(badge)}
+                  className="size-32"
+                  iconClassName="size-14"
+                />
+                {badge.earned ? (
+                  <>
+                    <Sparkles className="absolute -right-2 top-6 size-5 text-foreground/50 motion-safe:animate-[badge-float_2.8s_ease-in-out_infinite] motion-reduce:animate-none" aria-hidden="true" />
+                    <Star className="absolute bottom-6 -left-2 size-4 text-foreground/40 motion-safe:animate-[badge-float_3.4s_ease-in-out_infinite] motion-reduce:animate-none" aria-hidden="true" />
+                  </>
+                ) : null}
+              </div>
+
+              {/* Centered text */}
+              <div className="relative text-center">
+                <div className="mb-4 flex flex-wrap justify-center gap-2">
+                  <Badge variant={badge.earned ? "secondary" : "outline"}>{badge.earned ? "Earned" : "Locked"}</Badge>
+                  <Badge variant={badgeRarityVariant(rarity)}>{rarity}</Badge>
+                  {badge.source === "MANUAL" ? <Badge variant="purple">Manual</Badge> : null}
+                  {recentlyEarned ? <Badge variant="green">Fresh</Badge> : null}
+                  {!badge.active && badge.earned ? <Badge variant="gray">Retired</Badge> : null}
                 </div>
+                <DialogTitle className="text-balance !text-3xl font-semibold leading-tight tracking-tight sm:!text-4xl">
+                  {badge.name}
+                </DialogTitle>
+                <DialogDescription className="mx-auto mt-3 max-w-[48ch] text-pretty text-base leading-7 text-foreground/75">
+                  {badge.description}
+                </DialogDescription>
               </div>
             </DialogHeader>
             <DialogBody className="bg-background px-6 pb-7 pt-5 sm:px-8">
