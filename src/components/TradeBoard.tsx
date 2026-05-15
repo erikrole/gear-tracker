@@ -1,19 +1,29 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import {
+  ArrowLeftRightIcon,
+  CalendarClockIcon,
+  CalendarDaysIcon,
+  CheckIcon,
+  Clock3Icon,
+  ShieldCheckIcon,
+  XIcon,
+} from "lucide-react";
 import { useConfirm } from "@/components/ConfirmDialog";
-import { FilterChip } from "@/components/FilterChip";
-import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
-import { formatDateShort, formatTimeShort } from "@/lib/format";
+import { FilterChip } from "@/components/FilterChip";
+import { UserAvatar } from "@/components/UserAvatar";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import { CalendarDaysIcon } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { scheduleEventTitleParts } from "@/app/(app)/schedule/_components/types";
+import { AREA_LABELS } from "@/types/areas";
+import { formatDateShort, formatTimeShort } from "@/lib/format";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
-
-/* ───── Types ───── */
+import { cn } from "@/lib/utils";
 
 type TradeEvent = {
   id: string;
@@ -21,12 +31,16 @@ type TradeEvent = {
   startsAt: string;
   endsAt: string;
   sportCode: string | null;
+  opponent?: string | null;
+  isHome?: boolean | null;
 };
 
 type TradeShift = {
   id: string;
   area: string;
   workerType: string;
+  startsAt: string;
+  endsAt: string;
   shiftGroup: { event: TradeEvent; isPremier: boolean };
 };
 
@@ -54,19 +68,75 @@ type Props = {
 };
 
 const AREAS = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS"] as const;
-const AREA_LABELS: Record<string, string> = {
-  VIDEO: "Video",
-  PHOTO: "Photo",
-  GRAPHICS: "Graphics",
-  COMMS: "Comms",
+
+const STATUS_OPTIONS = [
+  { value: "OPEN", label: "Open" },
+  { value: "CLAIMED", label: "Claimed" },
+  { value: "COMPLETED", label: "Completed" },
+  { value: "CANCELLED", label: "Cancelled" },
+];
+
+const STATUS_META: Record<string, { label: string; variant: BadgeProps["variant"]; helper: string }> = {
+  OPEN: {
+    label: "Open",
+    variant: "green",
+    helper: "Available to claim",
+  },
+  CLAIMED: {
+    label: "Claimed",
+    variant: "orange",
+    helper: "Awaiting staff review",
+  },
+  COMPLETED: {
+    label: "Completed",
+    variant: "gray",
+    helper: "Swap complete",
+  },
+  CANCELLED: {
+    label: "Cancelled",
+    variant: "red",
+    helper: "No longer available",
+  },
 };
 
-const STATUS_BADGES: Record<string, string> = {
-  OPEN: "green",
-  CLAIMED: "orange",
-  COMPLETED: "gray",
-  CANCELLED: "red",
-};
+function statusMeta(status: string) {
+  return STATUS_META[status] ?? {
+    label: status,
+    variant: "gray" as BadgeProps["variant"],
+    helper: "Trade status",
+  };
+}
+
+function formatShiftWindow(shift: TradeShift) {
+  const starts = new Date(shift.startsAt);
+  const ends = new Date(shift.endsAt);
+  const sameDay = starts.toDateString() === ends.toDateString();
+  const date = formatDateShort(shift.startsAt);
+  const startTime = formatTimeShort(shift.startsAt);
+  const endTime = formatTimeShort(shift.endsAt);
+
+  if (sameDay) return `${date}, ${startTime} - ${endTime}`;
+  return `${date}, ${startTime} - ${formatDateShort(shift.endsAt)}, ${endTime}`;
+}
+
+function TradeSkeleton() {
+  return (
+    <div className="space-y-3 p-3">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div key={index} className="rounded-lg border border-border/50 p-3">
+          <div className="flex items-start gap-3">
+            <Skeleton className="size-9 shrink-0 rounded-full" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/2" />
+              <Skeleton className="h-3 w-full" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
   const confirm = useConfirm();
@@ -74,8 +144,9 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [acting, setActing] = useState<string | null>(null);
+  const actingRef = useRef<string | null>(null);
+  const loadSeqRef = useRef(0);
 
-  // Filters
   const [areaFilter, setAreaFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [myTradesOnly, setMyTradesOnly] = useState(false);
@@ -83,13 +154,19 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
   const isStaff = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
 
   const loadTrades = useCallback(async () => {
+    const requestId = loadSeqRef.current + 1;
+    loadSeqRef.current = requestId;
     setLoading(true);
+
     try {
-      const params = new URLSearchParams();
+      const params = new URLSearchParams({ limit: "100" });
       if (areaFilter) params.set("area", areaFilter);
       if (statusFilter) params.set("status", statusFilter);
+
       const res = await fetch(`/api/shift-trades?${params}`);
       if (handleAuthRedirect(res)) return;
+      if (requestId !== loadSeqRef.current) return;
+
       if (res.ok) {
         const json = await res.json();
         setTrades(json.data ?? []);
@@ -98,28 +175,45 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
         setLoadError(true);
       }
     } catch {
-      setLoadError(true);
+      if (requestId === loadSeqRef.current) setLoadError(true);
+    } finally {
+      if (requestId === loadSeqRef.current) setLoading(false);
     }
-    setLoading(false);
   }, [areaFilter, statusFilter]);
 
-  useEffect(() => { loadTrades(); }, [loadTrades]);
+  useEffect(() => {
+    void loadTrades();
+  }, [loadTrades]);
 
   const filteredTrades = useMemo(() => {
     let result = trades;
     if (myTradesOnly) {
       result = result.filter(
-        (t) => t.postedBy.id === currentUserId || t.claimedBy?.id === currentUserId,
+        (trade) => trade.postedBy.id === currentUserId || trade.claimedBy?.id === currentUserId,
       );
     } else if (!statusFilter && !isStaff) {
-      // Default for students: OPEN trades + their own
-      result = result.filter((t) => t.status === "OPEN" || t.postedBy.id === currentUserId);
+      result = result.filter(
+        (trade) => trade.status === "OPEN" || trade.postedBy.id === currentUserId,
+      );
     }
     return result;
   }, [trades, statusFilter, isStaff, currentUserId, myTradesOnly]);
 
-  async function handleClaim(tradeId: string) {
+  const beginAction = useCallback((tradeId: string) => {
+    if (actingRef.current) return false;
+    actingRef.current = tradeId;
     setActing(tradeId);
+    return true;
+  }, []);
+
+  const endAction = useCallback((tradeId: string) => {
+    if (actingRef.current !== tradeId) return;
+    actingRef.current = null;
+    setActing(null);
+  }, []);
+
+  const handleClaim = useCallback(async (tradeId: string) => {
+    if (!beginAction(tradeId)) return;
     try {
       const res = await fetch(`/api/shift-trades/${tradeId}/claim`, { method: "POST" });
       if (handleAuthRedirect(res)) return;
@@ -127,54 +221,63 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
         toast.success("Trade claimed");
         await loadTrades();
       } else {
-        const msg = await parseErrorMessage(res, "Failed to claim");
+        const msg = await parseErrorMessage(res, "Failed to claim trade");
         toast.error(msg);
       }
-    } catch { toast.error("Network error"); }
-    setActing(null);
-  }
+    } catch {
+      toast.error("Network error: could not claim trade");
+    } finally {
+      endAction(tradeId);
+    }
+  }, [beginAction, endAction, loadTrades]);
 
-  async function handleApprove(tradeId: string) {
-    setActing(tradeId);
+  const handleApprove = useCallback(async (tradeId: string) => {
+    if (!beginAction(tradeId)) return;
     try {
       const res = await fetch(`/api/shift-trades/${tradeId}/approve`, { method: "PATCH" });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        toast.success("Trade approved — swap executed");
+        toast.success("Trade approved");
         await loadTrades();
       } else {
-        const msg = await parseErrorMessage(res, "Failed to approve");
+        const msg = await parseErrorMessage(res, "Failed to approve trade");
         toast.error(msg);
       }
-    } catch { toast.error("Network error"); }
-    setActing(null);
-  }
+    } catch {
+      toast.error("Network error: could not approve trade");
+    } finally {
+      endAction(tradeId);
+    }
+  }, [beginAction, endAction, loadTrades]);
 
-  async function handleDecline(tradeId: string) {
-    setActing(tradeId);
+  const handleDecline = useCallback(async (tradeId: string) => {
+    if (!beginAction(tradeId)) return;
     try {
       const res = await fetch(`/api/shift-trades/${tradeId}/decline`, { method: "PATCH" });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        toast.success("Trade declined — reopened");
+        toast.success("Trade declined");
         await loadTrades();
       } else {
-        const msg = await parseErrorMessage(res, "Failed to decline");
+        const msg = await parseErrorMessage(res, "Failed to decline trade");
         toast.error(msg);
       }
-    } catch { toast.error("Network error"); }
-    setActing(null);
-  }
+    } catch {
+      toast.error("Network error: could not decline trade");
+    } finally {
+      endAction(tradeId);
+    }
+  }, [beginAction, endAction, loadTrades]);
 
-  async function handleCancel(tradeId: string) {
+  const handleCancel = useCallback(async (tradeId: string) => {
     const ok = await confirm({
       title: "Cancel trade",
       message: "Cancel this trade posting?",
       confirmLabel: "Cancel trade",
       variant: "danger",
     });
-    if (!ok) return;
-    setActing(tradeId);
+    if (!ok || !beginAction(tradeId)) return;
+
     try {
       const res = await fetch(`/api/shift-trades/${tradeId}/cancel`, { method: "PATCH" });
       if (handleAuthRedirect(res)) return;
@@ -182,250 +285,248 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
         toast.success("Trade cancelled");
         await loadTrades();
       } else {
-        const msg = await parseErrorMessage(res, "Failed to cancel");
+        const msg = await parseErrorMessage(res, "Failed to cancel trade");
         toast.error(msg);
       }
-    } catch { toast.error("Network error"); }
-    setActing(null);
-  }
+    } catch {
+      toast.error("Network error: could not cancel trade");
+    } finally {
+      endAction(tradeId);
+    }
+  }, [beginAction, confirm, endAction, loadTrades]);
 
   const hasFilters = !!(areaFilter || statusFilter || myTradesOnly);
+  const countLabel = `${filteredTrades.length} ${filteredTrades.length === 1 ? "trade" : "trades"}`;
 
   return (
-    <>
-      {/* Student: how to post a trade */}
+    <div className="space-y-3">
       {!isStaff && (
-        <div className="flex items-start gap-2.5 px-3 py-2.5 mb-3 rounded-md bg-muted/50 border border-border/60 text-sm">
-          <CalendarDaysIcon className="size-4 text-muted-foreground shrink-0 mt-0.5" />
-          <p className="text-muted-foreground leading-snug">
-            To post a shift for trade, open any event you&apos;re scheduled for and tap{" "}
-            <span className="font-medium text-foreground">Post for trade</span> on your shift.
+        <div className="flex items-start gap-2.5 rounded-md border border-border/60 bg-muted/50 px-3 py-2.5 text-sm">
+          <CalendarDaysIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+          <p className="leading-snug text-muted-foreground">
+            To post a shift for trade, open an event you&apos;re scheduled for and use{" "}
+            <span className="font-medium text-foreground">Trade</span> on your assignment.
           </p>
         </div>
       )}
 
-      {/* Filters */}
-      <div className="flex flex-row items-center gap-2.5 flex-nowrap max-md:flex-wrap mb-1">
-        <div className="flex gap-2 flex-nowrap items-center shrink-0 max-md:flex-wrap max-md:w-full">
-          <FilterChip
-            label="Area"
-            value={areaFilter}
-            displayValue={areaFilter ? AREA_LABELS[areaFilter] ?? areaFilter : ""}
-            options={AREAS.map((a) => ({ value: a, label: AREA_LABELS[a] ?? a }))}
-            onSelect={(v) => setAreaFilter(v)}
-            onClear={() => setAreaFilter("")}
-          />
-          <FilterChip
-            label="Status"
-            value={statusFilter}
-            displayValue={statusFilter || ""}
-            options={[
-              { value: "OPEN", label: "Open" },
-              { value: "CLAIMED", label: "Claimed" },
-              { value: "COMPLETED", label: "Completed" },
-              { value: "CANCELLED", label: "Cancelled" },
-            ]}
-            onSelect={(v) => setStatusFilter(v)}
-            onClear={() => setStatusFilter("")}
-          />
-          <FilterChip
-            label="My trades"
-            value={myTradesOnly ? "mine" : ""}
-            displayValue={myTradesOnly ? "My trades" : ""}
-            options={[{ value: "mine", label: "My trades" }]}
-            onSelect={() => setMyTradesOnly(true)}
-            onClear={() => setMyTradesOnly(false)}
-          />
-          {hasFilters && (
-            <button
-              type="button"
-              className="text-xs text-muted-foreground hover:text-foreground cursor-pointer bg-transparent border-none font-medium whitespace-nowrap"
-              onClick={() => { setAreaFilter(""); setStatusFilter(""); setMyTradesOnly(false); }}
-            >
-              Clear all
-            </button>
-          )}
-        </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <FilterChip
+          label="Area"
+          value={areaFilter}
+          displayValue={areaFilter ? AREA_LABELS[areaFilter] ?? areaFilter : ""}
+          options={AREAS.map((area) => ({ value: area, label: AREA_LABELS[area] ?? area }))}
+          onSelect={(value) => setAreaFilter(value)}
+          onClear={() => setAreaFilter("")}
+        />
+        <FilterChip
+          label="Status"
+          value={statusFilter}
+          displayValue={STATUS_OPTIONS.find((option) => option.value === statusFilter)?.label ?? ""}
+          options={STATUS_OPTIONS}
+          onSelect={(value) => setStatusFilter(value)}
+          onClear={() => setStatusFilter("")}
+        />
+        <FilterChip
+          label="My trades"
+          value={myTradesOnly ? "mine" : ""}
+          displayValue={myTradesOnly ? "My trades" : ""}
+          options={[{ value: "mine", label: "My trades" }]}
+          onSelect={() => setMyTradesOnly(true)}
+          onClear={() => setMyTradesOnly(false)}
+        />
+        {hasFilters && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 rounded-full px-2.5 text-xs text-muted-foreground"
+            onClick={() => {
+              setAreaFilter("");
+              setStatusFilter("");
+              setMyTradesOnly(false);
+            }}
+          >
+            Clear all
+          </Button>
+        )}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Trade Board ({filteredTrades.length})</CardTitle>
+      <Card elevation="flat" className="overflow-hidden border-border/60 shadow-sm">
+        <CardHeader className="flex-row items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
+          <CardTitle className="text-sm">Trade Board</CardTitle>
+          <span className="text-xs font-medium tabular-nums text-muted-foreground">{countLabel}</span>
         </CardHeader>
 
         {loading ? (
-          <SkeletonTable rows={4} cols={6} />
+          <TradeSkeleton />
         ) : loadError ? (
-          <div className="p-4 text-center">
-            <p className="text-muted-foreground mb-2">Failed to load trades.</p>
-            <Button variant="outline" size="sm" onClick={loadTrades}>Retry</Button>
-          </div>
+          <CardContent className="p-4 text-center">
+            <p className="mb-3 text-sm text-muted-foreground">Failed to load trades.</p>
+            <Button variant="outline" size="sm" onClick={loadTrades}>
+              Retry
+            </Button>
+          </CardContent>
         ) : filteredTrades.length === 0 ? (
           <EmptyState
             icon="clipboard"
-            title="No trades found"
-            description={hasFilters ? "Try adjusting your filters." : "No shifts are currently posted for trade."}
+            title={hasFilters ? "No matching trades" : "No open trades"}
+            description={
+              hasFilters
+                ? "Clear or adjust the filters to see more trade activity."
+                : "No shifts are currently posted for trade."
+            }
+            actionLabel={hasFilters ? "Clear filters" : undefined}
+            onAction={hasFilters ? () => {
+              setAreaFilter("");
+              setStatusFilter("");
+              setMyTradesOnly(false);
+            } : undefined}
+            compact
           />
         ) : (
-          <>
-            {/* Desktop table */}
-            <table className="w-full border-collapse max-md:hidden [&_th]:text-left [&_th]:px-4 [&_th]:py-2.5 [&_th]:text-xs [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-wider [&_th]:text-muted-foreground [&_th]:border-b [&_th]:border-border [&_th]:bg-muted/40 [&_th]:whitespace-nowrap [&_td]:px-4 [&_td]:py-3 [&_td]:border-b [&_td]:border-border/40 [&_td]:text-sm [&_td]:align-top [&_tr:last-child_td]:border-b-0 [&_tbody_tr:hover_td]:bg-muted/50">
-              <thead>
-                <tr>
-                  <th>Event</th>
-                  <th>Date</th>
-                  <th>Area</th>
-                  <th>Posted by</th>
-                  <th>Status</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredTrades.map((t) => {
-                  const ev = t.shiftAssignment.shift.shiftGroup.event;
-                  const area = t.shiftAssignment.shift.area;
-                  return (
-                    <tr key={t.id}>
-                      <td className="font-semibold">{ev.summary}</td>
-                      <td className="text-nowrap">
-                        <div>{formatDateShort(ev.startsAt)}</div>
-                        <div className="text-xs text-muted-foreground">{formatTimeShort(ev.startsAt)}</div>
-                      </td>
-                      <td>
-                        <Badge variant="gray">{AREA_LABELS[area] ?? area}</Badge>
-                      </td>
-                      <td>{t.postedBy.name}</td>
-                      <td>
-                        <Badge variant={(STATUS_BADGES[t.status] ?? "gray") as BadgeProps["variant"]}>
-                          {t.status}
+          <div className="divide-y divide-border/50">
+            {filteredTrades.map((trade) => {
+              const shift = trade.shiftAssignment.shift;
+              const event = shift.shiftGroup.event;
+              const titleParts = scheduleEventTitleParts({
+                summary: event.summary,
+                sportCode: event.sportCode,
+                opponent: event.opponent ?? null,
+                isHome: event.isHome ?? null,
+              });
+              const areaLabel = AREA_LABELS[shift.area] ?? shift.area;
+              const meta = statusMeta(trade.status);
+              const isOwnTrade = trade.postedBy.id === currentUserId;
+              const isBusy = acting === trade.id;
+              const canClaim = !isStaff && trade.status === "OPEN" && !isOwnTrade;
+              const canCancel = isOwnTrade && (trade.status === "OPEN" || trade.status === "CLAIMED");
+              const canReview = isStaff && trade.status === "CLAIMED";
+
+              return (
+                <article
+                  key={trade.id}
+                  className="group/trade px-4 py-3 transition-colors hover:bg-muted/25"
+                >
+                  <div className="flex items-start gap-3">
+                    <UserAvatar name={trade.postedBy.name} size="sm" className="mt-0.5 shrink-0" />
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="flex min-w-0 items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="truncate text-sm font-semibold leading-tight">{titleParts.title}</h3>
+                          {titleParts.detail && (
+                            <p className="mt-0.5 truncate text-xs text-muted-foreground">{titleParts.detail}</p>
+                          )}
+                        </div>
+                        <Badge variant={meta.variant} size="sm">
+                          {meta.label}
                         </Badge>
-                        {t.claimedBy && (
-                          <div className="text-xs text-muted-foreground mt-2">
-                            Claimed by {t.claimedBy.name}
-                          </div>
+                      </div>
+
+                      <div className="grid gap-1.5 text-xs text-muted-foreground sm:grid-cols-2">
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <CalendarClockIcon className="size-3.5 shrink-0" />
+                          <span className="truncate tabular-nums">{formatShiftWindow(shift)}</span>
+                        </span>
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <ArrowLeftRightIcon className="size-3.5 shrink-0" />
+                          <span className="truncate">{areaLabel}</span>
+                        </span>
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <ShieldCheckIcon className="size-3.5 shrink-0" />
+                          <span className="truncate">
+                            {trade.requiresApproval ? "Staff approval required" : "Instant swap"}
+                          </span>
+                        </span>
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <Clock3Icon className="size-3.5 shrink-0" />
+                          <span className="truncate tabular-nums">Posted {formatDateShort(trade.postedAt)}</span>
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                        <span>
+                          Posted by <span className="font-medium text-foreground">{trade.postedBy.name}</span>
+                        </span>
+                        {trade.claimedBy && (
+                          <span>
+                            Claimed by <span className="font-medium text-foreground">{trade.claimedBy.name}</span>
+                          </span>
                         )}
-                      </td>
-                      <td>
-                        <div className="flex gap-1">
-                          {/* Student can claim open trades (not their own) */}
-                          {t.status === "OPEN" && t.postedBy.id !== currentUserId && (
+                        <span className={cn(
+                          "font-medium",
+                          trade.status === "OPEN" ? "text-[var(--green-text)]" : "text-muted-foreground",
+                        )}>
+                          {trade.status === "CLAIMED" && trade.requiresApproval
+                            ? "Awaiting staff review"
+                            : meta.helper}
+                        </span>
+                      </div>
+
+                      {trade.notes && (
+                        <p className="rounded-md bg-muted/40 px-2.5 py-2 text-xs leading-relaxed text-muted-foreground">
+                          {trade.notes}
+                        </p>
+                      )}
+
+                      {(canClaim || canCancel || canReview) && (
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                          {canClaim && (
                             <Button
                               size="sm"
-                              onClick={() => handleClaim(t.id)}
-                              disabled={acting !== null}                            >
-                              {acting === t.id ? "..." : "Claim"}
+                              className="h-8 gap-1.5"
+                              onClick={() => void handleClaim(trade.id)}
+                              disabled={acting !== null}
+                            >
+                              <CheckIcon className="size-3.5" />
+                              {isBusy ? "Claiming..." : "Claim"}
                             </Button>
                           )}
-
-                          {/* Poster can cancel open/claimed trades */}
-                          {(t.status === "OPEN" || t.status === "CLAIMED") && t.postedBy.id === currentUserId && (
-                            <Button
-                              variant="ghost" size="sm"
-                              className="text-destructive"
-                              onClick={() => handleCancel(t.id)}
-                              disabled={acting !== null}                            >
-                              Cancel
-                            </Button>
-                          )}
-
-                          {/* Staff can approve/decline claimed trades */}
-                          {isStaff && t.status === "CLAIMED" && (
+                          {canReview && (
                             <>
                               <Button
                                 size="sm"
-                                onClick={() => handleApprove(t.id)}
+                                className="h-8 gap-1.5"
+                                onClick={() => void handleApprove(trade.id)}
                                 disabled={acting !== null}
-                                style={{ fontSize: "var(--text-3xs)" }}
                               >
-                                {acting === t.id ? "..." : "Approve"}
+                                <CheckIcon className="size-3.5" />
+                                {isBusy ? "Approving..." : "Approve"}
                               </Button>
                               <Button
-                                variant="ghost" size="sm"
-                                className="text-destructive"
-                                onClick={() => handleDecline(t.id)}
+                                variant="outline"
+                                size="sm"
+                                className="h-8 gap-1.5 text-destructive hover:text-destructive"
+                                onClick={() => void handleDecline(trade.id)}
                                 disabled={acting !== null}
-                                style={{ fontSize: "var(--text-3xs)" }}
                               >
+                                <XIcon className="size-3.5" />
                                 Decline
                               </Button>
                             </>
                           )}
+                          {canCancel && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 gap-1.5 text-destructive hover:text-destructive"
+                              onClick={() => void handleCancel(trade.id)}
+                              disabled={acting !== null}
+                            >
+                              <XIcon className="size-3.5" />
+                              {isBusy ? "Cancelling..." : "Cancel"}
+                            </Button>
+                          )}
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-
-            {/* Mobile cards */}
-            <div className="hidden max-md:flex flex-col">
-              {filteredTrades.map((t) => {
-                const ev = t.shiftAssignment.shift.shiftGroup.event;
-                const area = t.shiftAssignment.shift.area;
-                return (
-                  <div key={t.id} className="block px-4 py-3 border-b border-border last:border-b-0 no-underline text-inherit active:bg-accent/50">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-semibold">{ev.summary}</span>
-                      <Badge variant={(STATUS_BADGES[t.status] ?? "gray") as BadgeProps["variant"]}>
-                        {t.status}
-                      </Badge>
-                    </div>
-                    <div className="text-xs text-muted-foreground flex gap-2 mb-1">
-                      <span>{formatDateShort(ev.startsAt)} {formatTimeShort(ev.startsAt)}</span>
-                      <Badge variant="gray">{AREA_LABELS[area] ?? area}</Badge>
-                    </div>
-                    <div className="text-xs mb-1">Posted by {t.postedBy.name}</div>
-                    {t.claimedBy && (
-                      <div className="text-xs text-muted-foreground mb-1">Claimed by {t.claimedBy.name}</div>
-                    )}
-                    <div className="flex gap-1">
-                      {t.status === "OPEN" && t.postedBy.id !== currentUserId && (
-                        <Button
-                          size="sm"
-                          onClick={() => handleClaim(t.id)}
-                          disabled={acting !== null}
-                        >
-                          {acting === t.id ? "..." : "Claim"}
-                        </Button>
-                      )}
-                      {(t.status === "OPEN" || t.status === "CLAIMED") && t.postedBy.id === currentUserId && (
-                        <Button
-                          variant="ghost" size="sm"
-                          className="text-destructive"
-                          onClick={() => handleCancel(t.id)}
-                          disabled={acting !== null}
-                        >
-                          Cancel
-                        </Button>
-                      )}
-                      {isStaff && t.status === "CLAIMED" && (
-                        <>
-                          <Button
-                            size="sm"
-                            onClick={() => handleApprove(t.id)}
-                            disabled={acting !== null}
-                          >
-                            {acting === t.id ? "..." : "Approve"}
-                          </Button>
-                          <Button
-                            variant="ghost" size="sm"
-                            className="text-destructive"
-                            onClick={() => handleDecline(t.id)}
-                            disabled={acting !== null}
-                          >
-                            Decline
-                          </Button>
-                        </>
                       )}
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          </>
+                </article>
+              );
+            })}
+          </div>
         )}
       </Card>
-    </>
+    </div>
   );
 }

@@ -34,6 +34,12 @@ function timeOverlaps(s1: string, e1: string, s2: string, e2: string) {
   return s1 < e2 && e1 > s2;
 }
 
+function assertShiftNotStarted(startsAt: Date) {
+  if (startsAt <= new Date()) {
+    throw new HttpError(400, "This shift has already started");
+  }
+}
+
 /* ── In-app notification helper ─────────────────────────────────────── */
 
 async function notify(
@@ -87,6 +93,7 @@ export async function postTrade(
     ) {
       throw new HttpError(400, "Only active assignments can be traded");
     }
+    assertShiftNotStarted(assignment.shift.startsAt);
 
     // Check no existing open trade for this assignment
     const existing = await tx.shiftTrade.findFirst({
@@ -153,6 +160,7 @@ export async function claimTrade(tradeId: string, userId: string) {
 
     // Validate claimant doesn't have a conflicting shift during this time
     const shift = trade.shiftAssignment.shift;
+    assertShiftNotStarted(shift.startsAt);
     await checkTimeConflict(tx, userId, shift.startsAt, shift.endsAt);
 
     // Validate claimant's primary area matches the shift area
@@ -293,6 +301,7 @@ export async function approveTrade(tradeId: string) {
     if (!trade.claimedByUserId) {
       throw new HttpError(400, "Trade has no claimer");
     }
+    assertShiftNotStarted(trade.shiftAssignment.shift.startsAt);
 
     await executeSwap(tx, trade.shiftAssignment.id, trade.claimedByUserId, trade.postedByUserId);
 
@@ -432,12 +441,23 @@ export async function listTrades(filters: {
   offset?: number;
 }) {
   const where: Prisma.ShiftTradeWhereInput = {};
+  const and: Prisma.ShiftTradeWhereInput[] = [];
   if (filters.status) where.status = filters.status;
   if (filters.area) {
-    where.shiftAssignment = {
-      shift: { area: filters.area as ShiftArea },
-    };
+    and.push({ shiftAssignment: { shift: { area: filters.area as ShiftArea } } });
   }
+  const actionableStatuses: ShiftTradeStatus[] = ["OPEN", "CLAIMED"];
+  if (filters.status && actionableStatuses.includes(filters.status)) {
+    and.push({ shiftAssignment: { shift: { startsAt: { gt: new Date() } } } });
+  } else if (!filters.status) {
+    and.push({
+      OR: [
+        { status: { notIn: actionableStatuses } },
+        { shiftAssignment: { shift: { startsAt: { gt: new Date() } } } },
+      ],
+    });
+  }
+  if (and.length > 0) where.AND = and;
 
   const data = await db.shiftTrade.findMany({
     where,
@@ -457,6 +477,8 @@ export async function listTrades(filters: {
                       startsAt: true,
                       endsAt: true,
                       sportCode: true,
+                      opponent: true,
+                      isHome: true,
                     },
                   },
                 },

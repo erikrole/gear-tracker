@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { makeShiftTrade, makeShiftAssignment, makeShift, makeUser } from "./_helpers/factories";
 import { expectSerializableIsolation } from "./_helpers/assert-transaction";
 
@@ -30,6 +30,10 @@ vi.mock("@/lib/db", () => {
         transactionCalls.push({ options });
         return fn(mockTx);
       }),
+      shiftTrade: {
+        findMany: vi.fn(),
+        count: vi.fn(),
+      },
       _mockTx: mockTx,
     },
   };
@@ -54,13 +58,20 @@ import { db } from "@/lib/db";
 import { badges } from "@/lib/badges";
 import { checkTimeConflict } from "@/lib/services/shift-assignments";
 import { sendShiftTradeEmail } from "@/lib/services/shift-trade-emails";
-import { postTrade, claimTrade, approveTrade, declineTrade, cancelTrade } from "@/lib/services/shift-trades";
+import { postTrade, claimTrade, approveTrade, declineTrade, cancelTrade, listTrades } from "@/lib/services/shift-trades";
 
 const mockTx = (db as any)._mockTx;
+const mockDb = db as any;
 
 beforeEach(() => {
   transactionCalls.length = 0;
   vi.clearAllMocks();
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-03-01T12:00:00.000Z"));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -122,6 +133,23 @@ describe("postTrade", () => {
     mockTx.shiftAssignment.findUnique.mockResolvedValue(assignment);
     mockTx.shiftTrade.findFirst.mockResolvedValue({ id: "existing-trade" });
     await expect(postTrade(assignment.id, "user-1")).rejects.toThrow("already has an open trade");
+  });
+
+  it("throws 400 when the shift has already started", async () => {
+    const assignment = {
+      ...makeShiftAssignment({ userId: "user-1" }),
+      shift: {
+        ...makeShift({
+          startsAt: new Date("2026-03-01T11:00:00.000Z"),
+          endsAt: new Date("2026-03-01T14:00:00.000Z"),
+        }),
+        shiftGroup: { isPremier: false },
+      },
+    };
+    mockTx.shiftAssignment.findUnique.mockResolvedValue(assignment);
+
+    await expect(postTrade(assignment.id, "user-1")).rejects.toThrow("already started");
+    expect(mockTx.shiftTrade.create).not.toHaveBeenCalled();
   });
 
   it("sets requiresApproval=true for premier shift groups", async () => {
@@ -214,6 +242,26 @@ describe("claimTrade", () => {
     mockTx.shiftTrade.findUnique.mockResolvedValue(openTrade());
     mockTx.user.findUnique.mockResolvedValue(makeUser({ primaryArea: "Courts" }));
     await expect(claimTrade("trade-1", "claimer-1")).rejects.toThrow("does not match");
+  });
+
+  it("throws 400 when claiming after the shift has started", async () => {
+    mockTx.shiftTrade.findUnique.mockResolvedValue(openTrade({
+      shiftAssignment: {
+        ...makeShiftAssignment(),
+        shift: {
+          ...makeShift({
+            area: "Field",
+            startsAt: new Date("2026-03-01T11:00:00.000Z"),
+            endsAt: new Date("2026-03-01T14:00:00.000Z"),
+          }),
+          shiftGroup: { event: { summary: "Wisconsin vs Iowa" } },
+        },
+      },
+    }));
+
+    await expect(claimTrade("trade-1", "claimer-1")).rejects.toThrow("already started");
+    expect(checkTimeConflict).not.toHaveBeenCalled();
+    expect(mockTx.shiftTrade.update).not.toHaveBeenCalled();
   });
 
   it("sets CLAIMED status when requiresApproval=true", async () => {
@@ -349,6 +397,27 @@ describe("approveTrade", () => {
     });
     await expect(approveTrade("trade-1")).rejects.toThrow("no claimer");
   });
+
+  it("throws 400 when approving after the shift has started", async () => {
+    const trade = {
+      ...makeShiftTrade({ status: "CLAIMED", claimedByUserId: "claimer-1", postedByUserId: "poster-1" }),
+      shiftAssignment: {
+        ...makeShiftAssignment(),
+        shift: {
+          ...makeShift({
+            startsAt: new Date("2026-03-01T11:00:00.000Z"),
+            endsAt: new Date("2026-03-01T14:00:00.000Z"),
+          }),
+          shiftGroup: { event: { summary: "Wisconsin vs Iowa" } },
+        },
+      },
+    };
+    mockTx.shiftTrade.findUnique.mockResolvedValue(trade);
+
+    await expect(approveTrade(trade.id)).rejects.toThrow("already started");
+    expect(mockTx.shiftAssignment.update).not.toHaveBeenCalled();
+    expect(mockTx.shiftTrade.update).not.toHaveBeenCalled();
+  });
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -437,5 +506,51 @@ describe("cancelTrade", () => {
     const trade = makeShiftTrade({ postedByUserId: "user-1", status: "COMPLETED" });
     mockTx.shiftTrade.findUnique.mockResolvedValue(trade);
     await expect(cancelTrade(trade.id, "user-1")).rejects.toThrow("cannot be cancelled");
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// listTrades
+// ═════════════════════════════════════════════════════════════════════════════
+describe("listTrades", () => {
+  it("hides stale open trades from the default board query", async () => {
+    mockDb.shiftTrade.findMany.mockResolvedValue([]);
+    mockDb.shiftTrade.count.mockResolvedValue(0);
+
+    await listTrades({ limit: 100, offset: 0 });
+
+    expect(mockDb.shiftTrade.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: expect.arrayContaining([
+            {
+              OR: [
+                { status: { notIn: ["OPEN", "CLAIMED"] } },
+                { shiftAssignment: { shift: { startsAt: { gt: new Date("2026-03-01T12:00:00.000Z") } } } },
+              ],
+            },
+          ]),
+        }),
+      }),
+    );
+  });
+
+  it("hides stale trades for explicit OPEN queries", async () => {
+    mockDb.shiftTrade.findMany.mockResolvedValue([]);
+    mockDb.shiftTrade.count.mockResolvedValue(0);
+
+    await listTrades({ status: "OPEN", area: "VIDEO", limit: 100, offset: 0 });
+
+    expect(mockDb.shiftTrade.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: "OPEN",
+          AND: expect.arrayContaining([
+            { shiftAssignment: { shift: { area: "VIDEO" } } },
+            { shiftAssignment: { shift: { startsAt: { gt: new Date("2026-03-01T12:00:00.000Z") } } } },
+          ]),
+        }),
+      }),
+    );
   });
 });

@@ -1,27 +1,42 @@
 import { withAuth } from "@/lib/api";
-import { ok, parsePagination } from "@/lib/http";
+import { HttpError, ok, parsePagination } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { postTradeSchema } from "@/lib/validation";
 import { listTrades, postTrade } from "@/lib/services/shift-trades";
 import { createAuditEntry } from "@/lib/audit";
 import type { ShiftTradeStatus } from "@prisma/client";
+import { AREAS, type Area } from "@/types/areas";
+
+const TRADE_STATUS_FILTERS = ["OPEN", "CLAIMED", "COMPLETED", "CANCELLED"] as const;
+
+function parseStatusFilter(value: string | null): ShiftTradeStatus | undefined {
+  if (!value) return undefined;
+  if (!(TRADE_STATUS_FILTERS as readonly string[]).includes(value)) {
+    throw new HttpError(400, "status must be OPEN, CLAIMED, COMPLETED, or CANCELLED");
+  }
+  return value as ShiftTradeStatus;
+}
+
+function parseAreaFilter(value: string | null): Area | undefined {
+  if (!value) return undefined;
+  if (!(AREAS as readonly string[]).includes(value)) {
+    throw new HttpError(400, "area must be VIDEO, PHOTO, GRAPHICS, or COMMS");
+  }
+  return value as Area;
+}
 
 export const GET = withAuth(async (req, { user }) => {
   requirePermission(user.role, "shift_trade", "view");
 
   const url = new URL(req.url);
-  const statusParam = url.searchParams.get("status");
-  const validStatuses: ShiftTradeStatus[] = ["OPEN", "CLAIMED", "COMPLETED", "CANCELLED"];
-  const status = statusParam && validStatuses.includes(statusParam as ShiftTradeStatus)
-    ? (statusParam as ShiftTradeStatus)
-    : undefined;
-  const area = url.searchParams.get("area");
+  const status = parseStatusFilter(url.searchParams.get("status"));
+  const area = parseAreaFilter(url.searchParams.get("area"));
   const { limit: rawLimit, offset } = parsePagination(url.searchParams);
   const limit = Math.min(rawLimit, 100);
 
   const { data: trades, total } = await listTrades({
     status,
-    area: area ?? undefined,
+    area,
     limit,
     offset,
   });
