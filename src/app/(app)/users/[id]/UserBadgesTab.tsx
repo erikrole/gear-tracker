@@ -159,6 +159,14 @@ const filterLabels: Record<BadgeFilter, string> = {
   rare: "Rare",
 };
 
+const collectionAccent: Record<AwardCollectionKey, string> = {
+  gear_flow: "var(--orange-bg)",
+  reliability: "var(--blue-bg)",
+  scans: "var(--blue-bg)",
+  teamwork: "var(--purple-bg)",
+  staff_picks: "var(--purple-bg)",
+};
+
 const awardCollectionDefinitions: AwardCollectionDefinition[] = [
   {
     key: "gear_flow",
@@ -267,7 +275,7 @@ function badgeMetaLine(badge: UserBadge) {
   if (badge.earned && badge.awardedAt) return `Earned ${formatDateFull(badge.awardedAt)}`;
   if (hasProgress(badge)) return `${badge.progressCurrent}/${badge.progressTarget}`;
   if (badge.threshold) return `${badge.threshold} required`;
-  return badge.earned ? "Earned" : "Rule badge";
+  return badge.earned ? "Earned" : badge.trigger === "manual" ? "Staff recognition" : "Unlocks automatically";
 }
 
 function rarityGlowClass(rarity: BadgeRarity) {
@@ -295,12 +303,6 @@ function rarityAccentClass(rarity: BadgeRarity) {
   if (rarity === "Rare") return "bg-[var(--orange-text)] text-[var(--orange-bg)]";
   if (rarity === "Uncommon") return "bg-[var(--blue-text)] text-[var(--blue-bg)]";
   return "bg-primary text-primary-foreground";
-}
-
-function badgeStatusCopy(badge: UserBadge, rarity: BadgeRarity) {
-  if (!badge.earned) return "Locked in the catalog";
-  if (badge.source === "MANUAL") return `${rarity} manual recognition`;
-  return `${rarity} achievement unlocked`;
 }
 
 function isManualBadge(badge: UserBadge) {
@@ -505,7 +507,10 @@ function AwardCollectionCard({
       className="group relative flex min-h-[320px] w-full flex-col overflow-hidden rounded-2xl bg-card p-5 text-left shadow-[0_0_0_1px_hsl(var(--border)),0_16px_44px_rgba(0,0,0,0.06)] outline-none transition-[transform,box-shadow,background-color] duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_60px_rgba(0,0,0,0.10),0_0_0_1px_hsl(var(--border))] focus-visible:ring-[3px] focus-visible:ring-ring/50 active:scale-[0.96]"
       aria-label={`${collection.title}, ${collection.earnedCount} of ${collection.badges.length} awards earned. Open collection.`}
     >
-      <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.70),transparent_32%),radial-gradient(circle_at_75%_12%,var(--blue-bg),transparent_34%)] opacity-60 transition-opacity duration-200 group-hover:opacity-90" />
+      <span
+        className="pointer-events-none absolute inset-0 opacity-60 transition-opacity duration-200 group-hover:opacity-90"
+        style={{ background: `radial-gradient(circle at 30% 20%,rgba(255,255,255,0.70),transparent 32%),radial-gradient(circle at 75% 12%,${collectionAccent[collection.key]},transparent 34%)` }}
+      />
       <span className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background/70 to-transparent" />
       <div className="relative flex items-start justify-between gap-3">
         <div>
