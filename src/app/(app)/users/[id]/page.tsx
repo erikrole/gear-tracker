@@ -58,7 +58,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Award, AlertCircle, BadgeCheck, Briefcase, CalendarDays, CameraIcon, ChevronDown, Copy, Flame, GraduationCap, Handshake, KeyRound, PackageCheck, Shield, ShieldCheck, TrashIcon, Trophy, UserCheck, UserRound } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
-import { badgeRarityVariant, customBadgeIconOptions, getBadgeRarity, manualAwardGuidance, type CustomBadgeIcon } from "@/lib/badges/display";
+import { badgeRarityVariant, customBadgeIconOptions, getBadgeRarity, manualAwardGuidance, type BadgeRarity, type CustomBadgeIcon } from "@/lib/badges/display";
+import { cn } from "@/lib/utils";
 import { formatDateFull } from "@/lib/format";
 import { FadeUp } from "@/components/ui/motion";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
@@ -90,6 +91,97 @@ const customIconMap: Record<string, ComponentType<{ className?: string }>> = {
 };
 
 type AwardMode = "existing" | "custom";
+
+function awardPreviewGradient(rarity: BadgeRarity): string {
+  if (rarity === "Legendary") return "bg-[radial-gradient(circle_at_50%_100%,var(--purple-bg),transparent_60%),linear-gradient(165deg,var(--background),hsl(var(--muted)))]";
+  if (rarity === "Rare") return "bg-[radial-gradient(circle_at_50%_100%,var(--orange-bg),transparent_60%),linear-gradient(165deg,var(--background),hsl(var(--muted)))]";
+  if (rarity === "Uncommon") return "bg-[radial-gradient(circle_at_50%_100%,var(--blue-bg),transparent_60%),linear-gradient(165deg,var(--background),hsl(var(--muted)))]";
+  return "bg-[linear-gradient(165deg,var(--background),hsl(var(--muted)))]";
+}
+
+function AwardPreviewHeader({
+  mode,
+  selectedDefinition,
+  selectedRarity,
+  customName,
+  customIcon,
+  profileName,
+}: {
+  mode: AwardMode;
+  selectedDefinition: BadgeDefinitionOption | null;
+  selectedRarity: BadgeRarity | null;
+  customName: string;
+  customIcon: CustomBadgeIcon;
+  profileName: string;
+}) {
+  const icon =
+    mode === "existing"
+      ? (selectedDefinition ? customIconMap[selectedDefinition.icon] ?? Trophy : null)
+      : customIconMap[customIcon] ?? Trophy;
+  const rarity: BadgeRarity = mode === "existing" ? (selectedRarity ?? "Common") : "Uncommon";
+  const name = mode === "existing" ? (selectedDefinition?.name ?? "") : customName;
+
+  return (
+    <div className={cn("relative isolate overflow-hidden border-b border-border/40 px-6 py-7 text-center", awardPreviewGradient(rarity))}>
+      <div className="pointer-events-none absolute inset-0 [background-image:linear-gradient(115deg,transparent_0%,rgba(255,255,255,0.30)_46%,transparent_58%)]" />
+      <p className="relative mb-5 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+        Awarding to {profileName}
+      </p>
+      <div className="relative flex justify-center">
+        <BadgeMedallion
+          icon={icon ?? Trophy}
+          earned={false}
+          rarity={rarity}
+          shape="hex"
+          className="size-24 shadow-[0_16px_40px_rgba(0,0,0,0.18)]"
+          iconClassName="size-9"
+        />
+      </div>
+      {name ? (
+        <p className="relative mt-5 text-balance text-lg font-semibold leading-tight">{name}</p>
+      ) : mode === "existing" ? (
+        <p className="relative mt-5 text-sm text-muted-foreground">Choose a badge below</p>
+      ) : (
+        <p className="relative mt-5 text-sm text-muted-foreground">New custom badge</p>
+      )}
+    </div>
+  );
+}
+
+function CustomIconPicker({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: CustomBadgeIcon;
+  onChange: (icon: CustomBadgeIcon) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {customBadgeIconOptions.map((icon) => {
+        const IconComponent = customIconMap[icon];
+        return (
+          <button
+            key={icon}
+            type="button"
+            onClick={() => onChange(icon)}
+            disabled={disabled}
+            title={icon}
+            className={cn(
+              "flex size-10 items-center justify-center rounded-lg border transition-colors",
+              value === icon
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
+          >
+            {IconComponent && <IconComponent className="size-5" />}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 const tabDefs: Array<{ key: TabKey; label: string }> = [
   { key: "info", label: "Info" },
@@ -711,16 +803,20 @@ export default function UserDetailPage() {
       </AlertDialog>
 
       <Dialog open={awardDialogOpen} onOpenChange={setAwardDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <div>
-              <DialogTitle>Award badge</DialogTitle>
-              <DialogDescription>
-                Add an existing badge or create a custom manual badge for {profile.name}.
-              </DialogDescription>
-            </div>
-          </DialogHeader>
-          <DialogBody className="flex flex-col gap-4 py-1">
+        <DialogContent className="max-w-lg overflow-hidden border-0 p-0 shadow-[0_24px_80px_rgba(0,0,0,0.22),0_0_0_1px_var(--border)] sm:rounded-2xl">
+          <DialogTitle className="sr-only">Award badge to {profile.name}</DialogTitle>
+          <DialogDescription className="sr-only">
+            Award an existing catalog badge or create a custom manual badge for {profile.name}.
+          </DialogDescription>
+          <AwardPreviewHeader
+            mode={awardMode}
+            selectedDefinition={selectedAwardDefinition}
+            selectedRarity={selectedAwardRarity}
+            customName={customAwardName.trim()}
+            customIcon={customAwardIcon}
+            profileName={profile.name}
+          />
+          <DialogBody className="flex flex-col gap-4 bg-background px-6 py-5">
             <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">
               <Button
                 type="button"
@@ -741,54 +837,46 @@ export default function UserDetailPage() {
                 Custom
               </Button>
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-3">
               {awardMode === "existing" ? (
                 <>
-                  <label htmlFor="badge-definition" className="text-sm font-medium">
-                    Badge
-                  </label>
-                  <Select
-                    value={selectedAwardDefinitionId}
-                    onValueChange={setSelectedAwardDefinitionId}
-                    disabled={awardDefinitionsLoading || awardBusy}
-                  >
-                    <SelectTrigger id="badge-definition">
-                      <SelectValue placeholder={awardDefinitionsLoading ? "Loading badges..." : "Select a badge"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {(awardDefinitions ?? []).map((definition) => (
-                          <SelectItem key={definition.id} value={definition.id}>
-                            {definition.name}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="badge-definition" className="text-sm font-medium">
+                      Badge
+                    </label>
+                    <Select
+                      value={selectedAwardDefinitionId}
+                      onValueChange={setSelectedAwardDefinitionId}
+                      disabled={awardDefinitionsLoading || awardBusy}
+                    >
+                      <SelectTrigger id="badge-definition">
+                        <SelectValue placeholder={awardDefinitionsLoading ? "Loading badges..." : "Select a badge"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {(awardDefinitions ?? []).map((definition) => (
+                            <SelectItem key={definition.id} value={definition.id}>
+                              {definition.name}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   {awardDefinitions?.length === 0 && !awardDefinitionsLoading && (
                     <p className="text-sm text-muted-foreground">
                       No active manual-awardable badges are available. Create a custom badge instead.
                     </p>
                   )}
                   {selectedAwardDefinition && selectedAwardRarity && (
-                    <div className="rounded-lg border bg-muted/30 p-3 text-sm">
-                      <div className="mb-2 flex items-center gap-3">
-                        <BadgeMedallion
-                          icon={customIconMap[selectedAwardDefinition.icon] ?? Trophy}
-                          earned={false}
-                          rarity={selectedAwardRarity}
-                          className="size-10 shrink-0"
-                        />
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant={badgeRarityVariant(selectedAwardRarity)} size="sm">
-                            {selectedAwardRarity}
-                          </Badge>
-                          <span className="font-medium text-foreground">{selectedAwardDefinition.name}</span>
-                        </div>
-                      </div>
-                      <p className="text-muted-foreground">
+                    <div className="rounded-xl bg-muted/40 px-4 py-3 shadow-[inset_0_0_0_1px_hsl(var(--border))]">
+                      <p className="text-sm leading-6 text-muted-foreground">
                         {manualAwardGuidance[selectedAwardDefinition.key] ?? selectedAwardDefinition.description}
                       </p>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <Badge variant={badgeRarityVariant(selectedAwardRarity)} size="sm">{selectedAwardRarity}</Badge>
+                        <Badge variant="outline" size="sm" className="font-mono">{selectedAwardDefinition.category.toLowerCase()}</Badge>
+                      </div>
                     </div>
                   )}
                 </>
@@ -796,7 +884,7 @@ export default function UserDetailPage() {
                 <div className="grid gap-3">
                   <div className="grid gap-2">
                     <label htmlFor="custom-badge-name" className="text-sm font-medium">
-                      Custom badge name
+                      Badge name
                     </label>
                     <Input
                       id="custom-badge-name"
@@ -821,33 +909,12 @@ export default function UserDetailPage() {
                     />
                   </div>
                   <div className="grid gap-2">
-                    <label htmlFor="custom-badge-icon" className="text-sm font-medium">
-                      Icon
-                    </label>
-                    <Select
+                    <span className="text-sm font-medium">Icon</span>
+                    <CustomIconPicker
                       value={customAwardIcon}
-                      onValueChange={(value) => setCustomAwardIcon(value as CustomBadgeIcon)}
+                      onChange={setCustomAwardIcon}
                       disabled={awardBusy}
-                    >
-                      <SelectTrigger id="custom-badge-icon">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          {customBadgeIconOptions.map((icon) => {
-                            const IconComponent = customIconMap[icon];
-                            return (
-                              <SelectItem key={icon} value={icon}>
-                                <span className="flex items-center gap-2">
-                                  {IconComponent && <IconComponent className="size-4 shrink-0" />}
-                                  {icon}
-                                </span>
-                              </SelectItem>
-                            );
-                          })}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
+                    />
                   </div>
                   <p className="text-xs leading-5 text-muted-foreground">
                     Custom badges are saved to the active catalog, so you can reuse this badge for the next staff member.
@@ -857,15 +924,16 @@ export default function UserDetailPage() {
             </div>
             <div className="flex flex-col gap-2">
               <label htmlFor="badge-note" className="text-sm font-medium">
-                Note
+                Note <span className="font-normal text-muted-foreground">(optional)</span>
               </label>
               <Textarea
                 id="badge-note"
                 value={awardNote}
                 onChange={(event) => setAwardNote(event.target.value)}
-                placeholder="Optional staff context"
+                placeholder="Why this person deserves this recognition..."
                 maxLength={500}
                 disabled={awardBusy}
+                rows={3}
               />
               {(selectedAwardRarity === "Rare" || selectedAwardRarity === "Legendary") && !awardNote.trim() && (
                 <p className="text-xs text-amber-600">
@@ -874,7 +942,7 @@ export default function UserDetailPage() {
               )}
             </div>
           </DialogBody>
-          <DialogFooter>
+          <DialogFooter className="border-t border-border/40 bg-background px-6 py-4">
             <Button
               type="button"
               variant="ghost"

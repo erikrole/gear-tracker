@@ -44,6 +44,24 @@ Last updated: 2026-05-14
 
 ## Open Items
 
+### Trade Board UX/UI Ownership Pass (2026-05-14)
+- [x] **Plan:** Audit the current Trade Board against docs, schema, API routes, service behavior, and peer schedule list patterns.
+- [x] **Scenarios:** Work through student open/own trade flows, staff claimed-trade review, filters, empty/error states, duplicate clicks, and invalid API filters.
+- [x] **Implementation:** Tighten the sheet layout, status language, event/shift context, visible notes/approval context, action states, and API filter validation.
+- [x] **Verification:** Run focused trade tests, static checks, production build, and a browser smoke of the Trade Board sheet.
+
+**Review**
+- Trade Board now uses compact card rows that fit the right-side sheet instead of a dense six-column table.
+- Rows show cleaned schedule titles, shift time, area, approval mode, poster/claimer, notes, and clearer status helper text.
+- The normal Schedule list `Trade` shortcut now opens a notes dialog before posting, so the board's note field has a real lightweight entry path outside the full event detail sheet.
+- Stale open/claimed trades whose shifts have already started are no longer postable, claimable, approvable, listed as actionable, or counted in the Schedule header badge.
+- Trade Board rows now receive opponent and home-away event fields from the API, so their titles use the same cleanup rules as the rest of Schedule.
+- Student actions focus on claiming and cancelling their own posts; staff/admin actions focus on approve/decline for claimed trades.
+- Mutation handlers now clean up on auth redirects/network failures and use a ref-backed guard against duplicate submits.
+- The trade list API now rejects invalid `status` and `area` filters with 400s before querying.
+- Verified with focused trade tests, TypeScript, migration-prefix check, whitespace check, and production Next build. Codex browser reached the local dev server and redirected to `/login` without console errors; authenticated sheet review is available on `http://127.0.0.1:3012`.
+
+
 ### Schedule Browser UI Prototype (2026-05-14)
 - [x] **Normal schedule hierarchy:** Promote `Assign shifts` as the primary staff action, quiet repeated open-slot badges, and move `Next call` to the first readiness card.
 - [x] **Verification:** Browser-check `/schedule`, run focused static checks, and ask for feedback before changing schedule subpages.
@@ -66,6 +84,9 @@ Last updated: 2026-05-14
 - Direct assignment now syncs shift worker type from the assigned user's role, keeping the hidden `FT`/`ST` data aligned with the Staff/Student labels derived in the UI.
 - Event titles now share one formatter across list, week, and calendar views; matchup text stays primary while dash-suffix event context moves to smaller secondary text.
 - Venue indicators now use one shared treatment: Home green, Away orange, Neutral gray. The dashboard Upcoming Events control now includes a Neutral tab.
+- Follow-up hardening audit resolved: `/schedule/assign` is now server-gated for staff/admin, assignment mutations use ref-backed duplicate-submit guards with success feedback, and calendar/shift date APIs reject invalid or inverted dates with 400 responses.
+- Normal `/schedule` peer pass resolved the remaining current findings from the older audit: inline assignment success feedback, shared week-start math, direct trade-count refetching, stale helper removal, and tokenized conflict colors.
+- Follow-up verified with focused Vitest coverage, TypeScript, migration-prefix check, whitespace check, and production Next build.
 - Verified with `npx tsc --noEmit`, `git diff --check`, and a live `/schedule` browser refresh with no console warnings or errors.
 
 ### Dashboard Browser UI Prototype (2026-05-14)

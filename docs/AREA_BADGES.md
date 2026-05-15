@@ -94,6 +94,7 @@ Badges are lightweight recognition for every active user inside the existing ops
 ## Change Log
 | Date | Change |
 |---|---|
+| 2026-05-14 | Award badge dialog redesigned with a live preview header (rarity-aware gradient, centered hex medallion, badge name updates as you configure), custom icon grid picker replacing the Select dropdown, and a cleaner form layout with explicit note label + updated placeholder. No logic changes. |
 | 2026-05-13 | Product scope cleanup retired attendance-based shift badges. `first_shift`, `shift_10`, `shift_50`, `streak_shifts_5`, and `streak_shifts_10` are no longer active catalog goals because attendance tracking is not a planned badge source. Shift request approval remains a non-event for badge awards. |
 | 2026-05-12 | Badge on-time counts now use durable `Booking.completedAt` instead of mutable `updatedAt`. Checkout completion paths set the booking and scan-session completion timestamps from the same transaction timestamp, while badge progress falls back to `updatedAt` only for old completed rows. |
 | 2026-05-12 | Badge MVP closeout fixed stale `RETURN` category handling to match the shipped `ON_TIME` schema category on web and iOS, and verified shift request approval remains a non-event for badge awards. |
