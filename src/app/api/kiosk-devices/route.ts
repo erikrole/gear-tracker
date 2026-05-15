@@ -14,7 +14,7 @@ function generateActivationCode(): string {
   return code.toString();
 }
 
-/** List kiosk devices (ADMIN only) */
+/** List kiosk devices with health stats (ADMIN only) */
 export const GET = withAuth(async (req, { user }) => {
   requirePermission(user.role, "kiosk_device", "view");
 
@@ -25,18 +25,78 @@ export const GET = withAuth(async (req, { user }) => {
     },
   });
 
+  // Aggregate pending pickup + open checkout counts per location in one query
+  const locationIds = [...new Set(devices.map((d) => d.locationId))];
+  const [bookingStats, pendingPickupsByLocation] = await Promise.all([
+    db.booking.groupBy({
+      by: ["locationId", "status"],
+      where: {
+        locationId: { in: locationIds },
+        status: { in: ["PENDING_PICKUP", "OPEN"] },
+        kind: "CHECKOUT",
+      },
+      _count: { id: true },
+    }),
+    db.booking.findMany({
+      where: {
+        locationId: { in: locationIds },
+        status: "PENDING_PICKUP",
+        kind: "CHECKOUT",
+      },
+      select: {
+        id: true,
+        title: true,
+        locationId: true,
+        startsAt: true,
+        endsAt: true,
+        requester: { select: { name: true } },
+      },
+      orderBy: { startsAt: "asc" },
+      take: 50,
+    }),
+  ]);
+
+  const statsByLocation = new Map<string, { pendingPickup: number; open: number }>();
+  for (const row of bookingStats) {
+    const entry = statsByLocation.get(row.locationId) ?? { pendingPickup: 0, open: 0 };
+    if (row.status === "PENDING_PICKUP") entry.pendingPickup = row._count.id;
+    if (row.status === "OPEN") entry.open = row._count.id;
+    statsByLocation.set(row.locationId, entry);
+  }
+
+  const pickupsByLocation = new Map<string, typeof pendingPickupsByLocation>();
+  for (const b of pendingPickupsByLocation) {
+    const arr = pickupsByLocation.get(b.locationId) ?? [];
+    arr.push(b);
+    pickupsByLocation.set(b.locationId, arr);
+  }
+
   // Never expose hashed tokens/codes to the client
-  const data = devices.map((d) => ({
-    id: d.id,
-    name: d.name,
-    locationId: d.locationId,
-    location: d.location,
-    active: d.active,
-    activated: !!d.activatedAt,
-    activatedAt: d.activatedAt,
-    lastSeenAt: d.lastSeenAt,
-    createdAt: d.createdAt,
-  }));
+  const data = devices.map((d) => {
+    const stats = statsByLocation.get(d.locationId) ?? { pendingPickup: 0, open: 0 };
+    const pickups = (pickupsByLocation.get(d.locationId) ?? []).slice(0, 10);
+    return {
+      id: d.id,
+      name: d.name,
+      locationId: d.locationId,
+      location: d.location,
+      active: d.active,
+      activated: !!d.activatedAt,
+      activatedAt: d.activatedAt,
+      lastSeenAt: d.lastSeenAt,
+      sessionExpiresAt: d.sessionExpiresAt,
+      createdAt: d.createdAt,
+      pendingPickupCount: stats.pendingPickup,
+      openCheckoutCount: stats.open,
+      pendingPickups: pickups.map((b) => ({
+        id: b.id,
+        title: b.title,
+        requesterName: b.requester.name,
+        startsAt: b.startsAt,
+        endsAt: b.endsAt,
+      })),
+    };
+  });
 
   return ok({ data });
 });

@@ -28,18 +28,32 @@ import {
 } from "@/components/ui/dialog";
 import {
   AlertTriangle,
+  CheckCircle2,
+  Circle,
+  Clock,
   Copy,
   Monitor,
   Plus,
   Power,
   PowerOff,
   RefreshCw,
+  ShoppingBag,
   Trash2,
   WifiOff,
+  X,
 } from "lucide-react";
 import { handleAuthRedirect, parseErrorMessage, classifyError, isAbortError } from "@/lib/errors";
 import { useFetch } from "@/hooks/use-fetch";
 import { formatRelativeTime } from "@/lib/format";
+import { cn } from "@/lib/utils";
+
+type PendingPickup = {
+  id: string;
+  title: string;
+  requesterName: string;
+  startsAt: string;
+  endsAt: string;
+};
 
 type KioskDevice = {
   id: string;
@@ -50,11 +64,41 @@ type KioskDevice = {
   activated: boolean;
   activatedAt: string | null;
   lastSeenAt: string | null;
+  sessionExpiresAt: string | null;
   createdAt: string;
+  pendingPickupCount: number;
+  openCheckoutCount: number;
+  pendingPickups: PendingPickup[];
 };
 
 type LocationOption = { id: string; name: string };
 type ErrorState = { type: "network" | "server" | "auth"; message: string };
+
+/** Online = heartbeat in last 5 min, Recent = last 24h, Offline = stale */
+function connectionStatus(device: KioskDevice): "online" | "recent" | "offline" | "inactive" {
+  if (!device.activated || !device.active) return "inactive";
+  if (!device.lastSeenAt) return "offline";
+  const mins = (Date.now() - new Date(device.lastSeenAt).getTime()) / 60000;
+  if (mins <= 5) return "online";
+  if (mins <= 60 * 24) return "recent";
+  return "offline";
+}
+
+function sessionExpiringSoon(device: KioskDevice): boolean {
+  if (!device.sessionExpiresAt || !device.activated) return false;
+  const daysLeft = (new Date(device.sessionExpiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+  return daysLeft <= 3;
+}
+
+function StatusDot({ status }: { status: ReturnType<typeof connectionStatus> }) {
+  if (status === "online")
+    return <span className="relative flex size-2"><span className="absolute inline-flex size-full rounded-full bg-emerald-500 opacity-75 animate-ping" /><span className="relative inline-flex size-2 rounded-full bg-emerald-500" /></span>;
+  if (status === "recent")
+    return <span className="size-2 rounded-full bg-amber-400" />;
+  if (status === "offline")
+    return <span className="size-2 rounded-full bg-destructive" />;
+  return <span className="size-2 rounded-full bg-muted-foreground/40" />;
+}
 
 export default function KioskDevicesPage() {
   const confirm = useConfirm();
@@ -62,6 +106,7 @@ export default function KioskDevicesPage() {
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
+  const [cancellingPickupId, setCancellingPickupId] = useState<string | null>(null);
 
   // Add form
   const [showAdd, setShowAdd] = useState(false);
@@ -70,10 +115,10 @@ export default function KioskDevicesPage() {
   const [adding, setAdding] = useState(false);
 
   // Activation code display
-  const [codeDialog, setCodeDialog] = useState<{
-    name: string;
-    code: string;
-  } | null>(null);
+  const [codeDialog, setCodeDialog] = useState<{ name: string; code: string } | null>(null);
+
+  // Pending pickup clear dialog
+  const [pickupDialog, setPickupDialog] = useState<KioskDevice | null>(null);
 
   const {
     data: devices,
@@ -124,7 +169,7 @@ export default function KioskDevicesPage() {
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      toast.error(kind === "network" ? "You’re offline. Check your connection." : "Failed to create kiosk device");
+      toast.error(kind === "network" ? "You're offline. Check your connection." : "Failed to create kiosk device");
     } finally {
       setAdding(false);
     }
@@ -159,7 +204,7 @@ export default function KioskDevicesPage() {
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      toast.error(kind === "network" ? "You’re offline. Check your connection." : `Failed to ${action} kiosk`);
+      toast.error(kind === "network" ? "You're offline. Check your connection." : `Failed to ${action} kiosk`);
     } finally {
       setTogglingId(null);
     }
@@ -187,7 +232,7 @@ export default function KioskDevicesPage() {
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      toast.error(kind === "network" ? "You’re offline. Check your connection." : "Failed to regenerate code");
+      toast.error(kind === "network" ? "You're offline. Check your connection." : "Failed to regenerate code");
     } finally {
       setRegeneratingId(null);
     }
@@ -217,9 +262,42 @@ export default function KioskDevicesPage() {
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      toast.error(kind === "network" ? "You’re offline. Check your connection." : "Failed to delete kiosk device");
+      toast.error(kind === "network" ? "You're offline. Check your connection." : "Failed to delete kiosk device");
     } finally {
       setDeletingId(null);
+    }
+  }
+
+  async function handleCancelPickup(booking: PendingPickup) {
+    const ok = await confirm({
+      title: "Cancel pending pickup?",
+      message: `Cancel "${booking.title}" for ${booking.requesterName}? This releases all reserved items.`,
+      confirmLabel: "Cancel pickup",
+      variant: "danger",
+    });
+    if (!ok) return;
+
+    setCancellingPickupId(booking.id);
+    try {
+      const res = await fetch(`/api/bookings/${booking.id}/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (handleAuthRedirect(res, "/settings/kiosk-devices")) return;
+      if (res.ok) {
+        toast.success("Pickup cancelled");
+        setPickupDialog(null);
+        load();
+      } else {
+        const msg = await parseErrorMessage(res, "Failed to cancel pickup");
+        toast.error(msg);
+      }
+    } catch (err) {
+      if (isAbortError(err)) return;
+      const kind = classifyError(err);
+      toast.error(kind === "network" ? "You're offline. Check your connection." : "Failed to cancel pickup");
+    } finally {
+      setCancellingPickupId(null);
     }
   }
 
@@ -233,11 +311,8 @@ export default function KioskDevicesPage() {
     return formatRelativeTime(dateStr, new Date());
   }
 
-  /** Activated kiosks that haven't checked in for >24h are likely offline. */
-  function isStale(device: KioskDevice): boolean {
-    if (!device.activated || !device.lastSeenAt) return false;
-    const hoursSince = (Date.now() - new Date(device.lastSeenAt).getTime()) / (1000 * 60 * 60);
-    return hoursSince > 24;
+  function formatDate(dateStr: string): string {
+    return new Date(dateStr).toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
   }
 
   return (
@@ -355,7 +430,7 @@ export default function KioskDevicesPage() {
         </div>
       )}
 
-      {/* Device list */}
+      {/* Empty state */}
       {!loading && !error && (devices ?? []).length === 0 && (
         <Card>
           <CardContent className="py-10 text-center">
@@ -367,87 +442,145 @@ export default function KioskDevicesPage() {
         </Card>
       )}
 
+      {/* Device list */}
       {!loading && !error && (devices ?? []).length > 0 && (
         <div className="space-y-3">
-          {(devices ?? []).map((device) => (
-            <Card key={device.id} className={!device.active ? "opacity-60" : ""}>
-              <CardContent className="flex items-center gap-4 py-4">
-                <div className="flex size-10 items-center justify-center rounded bg-muted">
-                  <Monitor className="size-5 text-muted-foreground" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium truncate">{device.name}</span>
-                    {device.active ? (
-                      <Badge variant="outline" size="sm">
-                        {device.activated ? "Active" : "Pending activation"}
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary" size="sm">
-                        Deactivated
-                      </Badge>
-                    )}
-                    {isStale(device) && (
-                      <Badge variant="orange" size="sm" title="No check-in in over 24 hours — kiosk may be offline.">
-                        Offline
-                      </Badge>
-                    )}
+          {(devices ?? []).map((device) => {
+            const status = connectionStatus(device);
+            const expiringSession = sessionExpiringSoon(device);
+            return (
+              <Card key={device.id} className={cn(!device.active && "opacity-60")}>
+                <CardContent className="py-4 space-y-3">
+                  {/* Main row */}
+                  <div className="flex items-center gap-4">
+                    <div className="flex size-10 items-center justify-center rounded bg-muted shrink-0">
+                      <Monitor className="size-5 text-muted-foreground" />
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <StatusDot status={status} />
+                        <span className="font-medium truncate">{device.name}</span>
+                        {device.active ? (
+                          <Badge variant="outline" size="sm">
+                            {device.activated ? "Active" : "Pending activation"}
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" size="sm">Deactivated</Badge>
+                        )}
+                        {status === "offline" && (
+                          <Badge variant="orange" size="sm" title="No heartbeat in over 24 hours">
+                            Offline
+                          </Badge>
+                        )}
+                        {expiringSession && (
+                          <Badge variant="orange" size="sm" title={`Session expires ${formatRelative(device.sessionExpiresAt)}`}>
+                            Session expiring
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                        <span>{device.location.name}</span>
+                        {device.activated && (
+                          <>
+                            <span>·</span>
+                            <span>Last seen: {formatRelative(device.lastSeenAt)}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="flex items-center gap-1 shrink-0">
+                      {!device.activated && device.active && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRegenerate(device)}
+                          disabled={regeneratingId === device.id}
+                          title="Regenerate activation code"
+                        >
+                          {regeneratingId === device.id ? <Spinner /> : <RefreshCw className="size-4" />}
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleToggle(device)}
+                        disabled={togglingId === device.id}
+                        title={device.active ? "Deactivate" : "Activate"}
+                      >
+                        {togglingId === device.id ? (
+                          <Spinner />
+                        ) : device.active ? (
+                          <PowerOff className="size-4" />
+                        ) : (
+                          <Power className="size-4" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(device)}
+                        disabled={deletingId === device.id}
+                        className="text-destructive hover:text-destructive"
+                        title="Delete"
+                      >
+                        {deletingId === device.id ? <Spinner /> : <Trash2 className="size-4" />}
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-                    <span>{device.location.name}</span>
-                    {device.activated && (
-                      <>
-                        <span>·</span>
-                        <span>Last seen: {formatRelative(device.lastSeenAt)}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1">
-                  {!device.activated && device.active && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRegenerate(device)}
-                      disabled={regeneratingId === device.id}
-                      title="Regenerate activation code"
-                    >
-                      {regeneratingId === device.id ? <Spinner /> : <RefreshCw className="size-4" />}
-                    </Button>
+
+                  {/* Health stats strip — only when activated */}
+                  {device.activated && (
+                    <div className="flex items-center gap-3 px-1 pt-1 border-t">
+                      {/* Pending pickups */}
+                      <button
+                        type="button"
+                        onClick={() => device.pendingPickupCount > 0 && setPickupDialog(device)}
+                        className={cn(
+                          "flex items-center gap-1.5 text-xs rounded px-2 py-1 transition-colors",
+                          device.pendingPickupCount > 0
+                            ? "text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 cursor-pointer"
+                            : "text-muted-foreground cursor-default"
+                        )}
+                        title={device.pendingPickupCount > 0 ? "View and clear pending pickups" : "No pending pickups"}
+                        disabled={device.pendingPickupCount === 0}
+                      >
+                        <ShoppingBag className="size-3.5" />
+                        <span>{device.pendingPickupCount} pending pickup{device.pendingPickupCount !== 1 ? "s" : ""}</span>
+                      </button>
+
+                      <span className="w-px h-3 bg-border" />
+
+                      {/* Open checkouts */}
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-2 py-1">
+                        {device.openCheckoutCount > 0
+                          ? <CheckCircle2 className="size-3.5 text-emerald-500" />
+                          : <Circle className="size-3.5" />
+                        }
+                        <span>{device.openCheckoutCount} active checkout{device.openCheckoutCount !== 1 ? "s" : ""}</span>
+                      </div>
+
+                      {/* Session expiry */}
+                      {device.sessionExpiresAt && (
+                        <>
+                          <span className="w-px h-3 bg-border" />
+                          <div className={cn(
+                            "flex items-center gap-1.5 text-xs px-2 py-1",
+                            expiringSession ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"
+                          )}>
+                            <Clock className="size-3.5" />
+                            <span>Session expires {formatRelative(device.sessionExpiresAt)}</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleToggle(device)}
-                    disabled={togglingId === device.id}
-                    title={device.active ? "Deactivate" : "Activate"}
-                  >
-                    {togglingId === device.id ? (
-                      <Spinner />
-                    ) : device.active ? (
-                      <PowerOff className="size-4" />
-                    ) : (
-                      <Power className="size-4" />
-                    )}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDelete(device)}
-                    disabled={deletingId === device.id}
-                    className="text-destructive hover:text-destructive"
-                    title="Delete"
-                  >
-                    {deletingId === device.id ? (
-                      <Spinner />
-                    ) : (
-                      <Trash2 className="size-4" />
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
@@ -457,8 +590,7 @@ export default function KioskDevicesPage() {
           <DialogHeader>
             <DialogTitle>Kiosk Activation Code</DialogTitle>
             <DialogDescription>
-              Enter this code on the iPad at <strong>/kiosk</strong> to activate{" "}
-              <strong>{codeDialog?.name}</strong>. This code is shown only once.
+              Enter this code on the iPad to activate <strong>{codeDialog?.name}</strong>. This code is shown only once.
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center justify-center gap-3 py-6">
@@ -476,6 +608,45 @@ export default function KioskDevicesPage() {
           </div>
           <DialogFooter>
             <Button onClick={() => setCodeDialog(null)}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pending pickup clear dialog */}
+      <Dialog open={!!pickupDialog} onOpenChange={() => setPickupDialog(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Pending Pickups</DialogTitle>
+            <DialogDescription>
+              Pickups at <strong>{pickupDialog?.location.name}</strong> waiting to be collected. Cancel any that are stuck or expired.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-1 max-h-72 overflow-y-auto">
+            {(pickupDialog?.pendingPickups ?? []).length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">No pending pickups</p>
+            )}
+            {(pickupDialog?.pendingPickups ?? []).map((b) => (
+              <div key={b.id} className="flex items-start gap-3 rounded-lg border px-3 py-2.5">
+                <ShoppingBag className="size-4 mt-0.5 text-muted-foreground shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{b.title}</p>
+                  <p className="text-xs text-muted-foreground">{b.requesterName} &middot; {formatDate(b.startsAt)}</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
+                  onClick={() => handleCancelPickup(b)}
+                  disabled={cancellingPickupId === b.id}
+                  title="Cancel this pickup"
+                >
+                  {cancellingPickupId === b.id ? <Spinner /> : <X className="size-4" />}
+                </Button>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPickupDialog(null)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
