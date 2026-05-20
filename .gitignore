@@ -3,8 +3,10 @@ node_modules/
 .vercel/
 .env
 .env.local
+.env*.local
 .env.production
 tsconfig.tsbuildinfo
+tmp/
 .DS_Store
 .claude/
 xcuserdata/
