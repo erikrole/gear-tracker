@@ -364,7 +364,7 @@ export function NewGuideClient() {
       toast.success(published ? "Resource published" : "Draft saved");
       router.push(`/resources/${json.data.slug}`);
     } catch {
-      toast.error("Network error — try again");
+      toast.error("Network error. Try again.");
     } finally {
       setSubmitting(false);
     }

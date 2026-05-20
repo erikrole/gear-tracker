@@ -42,7 +42,7 @@ export default function BulkSkuUnitsTab({
       if (!res.ok) { toast.error(await parseErrorMessage(res, "Failed to update unit")); return; }
       onRefresh();
     } catch {
-      toast.error("Network error — try again");
+      toast.error("Network error. Try again.");
     }
   }
 
@@ -62,7 +62,7 @@ export default function BulkSkuUnitsTab({
       onUnitsAdded?.(addCount);
       onRefresh();
     } catch {
-      toast.error("Network error — try again");
+      toast.error("Network error. Try again.");
     } finally {
       setBusy(false);
     }

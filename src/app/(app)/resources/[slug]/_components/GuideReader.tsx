@@ -118,7 +118,7 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
       setUpdatedAt(json.data.updatedAt);
       toast.success("Resource marked verified");
     } catch {
-      toast.error("Network error — try again");
+      toast.error("Network error. Try again.");
     } finally {
       setVerifying(false);
     }

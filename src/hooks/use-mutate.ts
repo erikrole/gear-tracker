@@ -74,7 +74,7 @@ export function useMutate(defaults?: MutateOptions): MutateState & { mutate: Mut
       defaults?.onSuccess?.(data);
       return { ok: true, data };
     } catch {
-      const msg = "Network error — try again";
+      const msg = "Network error. Try again.";
       setError(msg);
       defaults?.onError?.(msg);
       return { ok: false, error: msg };

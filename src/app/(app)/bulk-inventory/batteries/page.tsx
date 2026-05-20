@@ -159,7 +159,7 @@ export default function BatteryCockpitPage() {
       setError(null);
     } catch {
       if (refresh) toast.error("Network error — battery data may be stale.");
-      else setError("Network error — try again.");
+      else setError("Network error. Try again..");
     } finally {
       setLoading(false);
       setRefreshing(false);

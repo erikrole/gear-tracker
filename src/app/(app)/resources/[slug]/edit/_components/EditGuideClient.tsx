@@ -139,7 +139,7 @@ export function EditGuideClient({ slug, userRole }: Props) {
       toast.success("Resource saved");
       router.push(`/resources/${json.data.slug}`);
     } catch {
-      toast.error("Network error — try again");
+      toast.error("Network error. Try again.");
     } finally {
       setSubmitting(false);
     }
@@ -157,7 +157,7 @@ export function EditGuideClient({ slug, userRole }: Props) {
       toast.success("Resource deleted");
       router.push("/resources");
     } catch {
-      toast.error("Network error — try again");
+      toast.error("Network error. Try again.");
     } finally {
       setSubmitting(false);
     }
