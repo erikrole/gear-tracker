@@ -102,6 +102,9 @@ export default function ItemsPage() {
   const [retireTarget, setRetireTarget] = useState<Asset | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
   const busyRef = useRef(false);
+  // Per-asset lock so rapid star clicks don't fire racing toggles that desync
+  // the optimistic UI from server state.
+  const favoriteInFlight = useRef<Set<string>>(new Set());
 
   // Clear selection when page/filters change
   useEffect(() => {
@@ -233,6 +236,9 @@ export default function ItemsPage() {
       toast.info("Item-family favorites are not available yet");
       return;
     }
+    // Ignore re-clicks while a toggle for this asset is still resolving.
+    if (favoriteInFlight.current.has(asset.id)) return;
+    favoriteInFlight.current.add(asset.id);
     const prev = asset.isFavorited;
     query.setItems((items) =>
       items.map((a) => a.id === asset.id ? { ...a, isFavorited: !prev } : a)
@@ -241,11 +247,22 @@ export default function ItemsPage() {
       const res = await fetch(`/api/assets/${asset.id}/favorite`, { method: "POST" });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) throw new Error();
+      // Reconcile to the server's authoritative state: the endpoint toggles
+      // based on its own row, which may differ from our optimistic guess.
+      const json = await res.json().catch(() => null);
+      if (typeof json?.favorited === "boolean") {
+        const favorited = json.favorited;
+        query.setItems((items) =>
+          items.map((a) => a.id === asset.id ? { ...a, isFavorited: favorited } : a)
+        );
+      }
     } catch {
       query.setItems((items) =>
         items.map((a) => a.id === asset.id ? { ...a, isFavorited: prev } : a)
       );
       toast.error("Failed to update favorite");
+    } finally {
+      favoriteInFlight.current.delete(asset.id);
     }
   }, [query]);
 

@@ -10,6 +10,8 @@
 ## Direction
 Treat physical gear identity as primary, make list and detail views action-oriented, and keep item state reliable through derived logic.
 
+Design language reference: `docs/DESIGN_LANGUAGE.md`.
+
 ## Core Rules
 1. `tagName` is the primary label for serialized assets.
 2. `productName`, `brand`, and `model` are supporting metadata.
@@ -395,6 +397,11 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-05-20: **Favorites hardening pass**: (1) Bulk favorites (`/api/assets/favorites/bulk`) cap raised 100 to 5,000 to match `/api/assets/bulk`, so "Select all matching" can be starred/unstarred in one request instead of returning a 400. (2) Bulk route now filters to existing, not-already-favorited assets before `createMany`, preventing an FK-violation 500 on stale/invalid ids and keeping the returned count accurate. (3) Bulk route now enforces `asset.favorite` permission and writes batched audit entries (`favorite_added`/`favorite_removed`), matching the single-item endpoint. (4) Single-item star toggle now ignores re-clicks while a request is in flight (per-asset lock) and reconciles the row to the server's authoritative `favorited` value instead of trusting the optimistic guess, fixing double-click and multi-tab desync.
+- 2026-05-20: **Design language slice 6:** Items table row actions now use the shared `OperationalRowActions` trigger, preserving existing open, label, duplicate, maintenance, and retire behavior while aligning overflow hit area and destructive styling.
+- 2026-05-20: **Design language slice 5:** Items filters now expose shared removable active-filter chips for type, favorites, status, category, location, department, brand, and attachments-only filters, matching Users toolbar recovery behavior.
+- 2026-05-20: **Design language slice 3:** Items toolbar now uses the shared `OperationalToolbar` shell, keeping its search, item-type toggle, filter disclosure, and attachment switch as the reference command surface for operational list pages.
+- 2026-05-20: **Design language slice 2:** Inventory Hygiene now uses the shared operational metric card and partial-results warning primitives so cleanup queue status, warning tone, and fallback copy match Fix Today.
 - 2026-05-20: **Human-pick product image search shipped.** Staff/admin image selection now includes an optional Search tab when `BRAVE_SEARCH_API_KEY` is configured. Searches are seeded from the submitted or current product title, try B&H first through Brave's `site:bhphotovideo.com` operator, mix in broader product-photo-biased Brave results so blocked retailer previews do not monopolize the grid, show source domains, and save the selected result through the existing Vercel Blob image routes. This replaces the withdrawn B&H scraping direction for photos only and does not perform metadata enrichment.
 - 2026-05-20: **Asset photos no longer go missing after CSV import.** Image re-hosting moved out of the import request path: the importer used to mirror external Cheqroom CDN images to Vercel Blob inline in batches, which blew the serverless timeout on large imports and left most assets pointing at fragile third-party URLs (the cause of "asset photos not displaying" once the team migrated off that SaaS). Imported assets now keep their source URL and a new daily cron (`/api/cron/rehost-images`) drains any non-Blob `imageUrl` in small batches well under the 10s budget, rewriting to Blob on success and capping retries via `Asset.imageRehostAttempts` (migration `0069`) so dead URLs stop being retried. The import response/audit now reports `imagesQueued` instead of `imagesHosted`. The existing ~180-image production backlog is fixed out-of-band by running `scripts/backfill-asset-images.mjs --apply` once.
 - 2026-05-13: Item-family detail pages now read as normal item detail pages: headers use Units or Quantity without row badges, QR copy avoids web-print assumptions, settings say item instead of implementation terms, and unit exception states use Missing language.
