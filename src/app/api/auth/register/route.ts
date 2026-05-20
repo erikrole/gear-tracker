@@ -7,7 +7,9 @@ import { withHandler } from "@/lib/api";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { createAuditEntry } from "@/lib/audit";
 
-const REGISTER_LIMIT = { max: 5, windowMs: 15 * 60 * 1000 }; // 5 attempts per 15 min
+// Registration is invitation-gated (allowlist), so the IP ceiling is sized for
+// an onboarding wave from a shared network rather than for abuse defense.
+const REGISTER_LIMIT = { max: 40, windowMs: 15 * 60 * 1000 }; // per IP per 15 min
 
 export const POST = withHandler(async (req) => {
   const ip = getClientIp(req);

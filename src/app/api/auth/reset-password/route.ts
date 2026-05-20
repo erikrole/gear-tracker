@@ -7,7 +7,7 @@ import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { createAuditEntry } from "@/lib/audit";
 import { Prisma } from "@prisma/client";
 
-const RESET_LIMIT = { max: 5, windowMs: 15 * 60 * 1000 }; // 5 per 15 min
+const RESET_LIMIT = { max: 20, windowMs: 15 * 60 * 1000 }; // per IP; sized for shared NAT
 
 export const POST = withHandler(async (req) => {
   const ip = getClientIp(req);

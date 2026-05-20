@@ -8,7 +8,7 @@ import { withHandler } from "@/lib/api";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 const RESET_TOKEN_EXPIRY_MS = 1000 * 60 * 60; // 1 hour
-const FORGOT_LIMIT = { max: 5, windowMs: 15 * 60 * 1000 }; // 5 per 15 min
+const FORGOT_LIMIT = { max: 20, windowMs: 15 * 60 * 1000 }; // per IP; sized for shared NAT
 
 export const POST = withHandler(async (req) => {
   const ip = getClientIp(req);
