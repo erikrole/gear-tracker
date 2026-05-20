@@ -1,6 +1,6 @@
 # Task Queue
 
-Last updated: 2026-05-19
+Last updated: 2026-05-20
 
 **Current release**: Beta — CalVer versioning adopted.
 **Release workflow**: `npm run release` creates CalVer tag + GitHub Release.
@@ -52,6 +52,12 @@ Last updated: 2026-05-19
 - [x] Slice 5: Shared active-filter chips for operational toolbars.
 - [x] Slice 6: Shared row-action menu trigger for operational rows.
 - [x] Slice 7: Inline shared empty states for card/table interiors.
+- [x] Slice 8: Booking row overflow actions on `OperationalRowActions`.
+- [x] Slice 9: Trade Board secondary/destructive row actions on `OperationalRowActions`.
+- [x] Slice 10: Trade Board active filter chips.
+- [x] Slice 11: Reports active filter chips.
+- [x] Slice 12: Item detail secondary actions on `OperationalRowActions`.
+- [x] Slice 13: Bulk SKU units inline empty state.
 
 **Review**
 - Active tracking lives in `tasks/design-language-plan.md`.
@@ -70,6 +76,16 @@ Last updated: 2026-05-19
 - Slice 6 verified with `npx tsc --noEmit`, `git diff --check`, `npx next build`, and protected-route browser smoke for `/items` plus `/settings/categories`.
 - Slice 7 added inline sizing to `EmptyState` and moved Settings Categories plus Departments off local text-only empty placeholders.
 - Slice 7 verified with `npx tsc --noEmit`, `git diff --check`, `npx next build`, and protected-route browser smoke for `/settings/categories` plus `/settings/departments`.
+- Slice 8 moved booking table rows, mobile rows, and booking cards onto `OperationalRowActions` while preserving shared menu items and right-click context menus.
+- Slice 8 verified with `npx tsc --noEmit`, `git diff --check`, `npx next build`, and protected-route browser smoke for `/bookings`.
+- Slice 9 kept Trade Board Claim/Approve visible and moved Cancel/Decline into `OperationalRowActions` to align row secondary/destructive commands with the shared trigger.
+- Slice 9 verified with `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, `npx next build`, and protected-route browser smoke for `/schedule`.
+- Slice 10 moved Trade Board Area, Status, and My trades filter feedback onto `OperationalActiveFilterChips` while preserving existing selector controls and filter query behavior.
+- Slice 10 verified with `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, `npx next build`, and protected-route browser smoke for `/schedule`.
+- Slice 11 moved non-default Checkouts, Scans, and Audit report filters onto shared removable active-filter chips through `ReportToolbar`.
+- Slice 12 moved item detail secondary actions onto the shared `OperationalRowActions` dropdown wrapper while preserving the existing action policy.
+- Slice 13 replaced the Bulk SKU units text-only empty row with shared inline `EmptyState` copy and Add units recovery.
+- Slices 11-13 verified with `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, `npx next build`, and protected-route browser smoke for Reports, item detail, and Bulk SKU detail.
 
 ### Settings Navigation Rail (2026-05-20)
 - [x] Add grouped desktop Settings rail using existing role-aware section config.

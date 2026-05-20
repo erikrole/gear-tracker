@@ -193,11 +193,36 @@ export default function ScanHistoryPage() {
   if (!data) return null;
 
   const entries = data.data ?? [];
+  const activeFilters = [
+    ...(periodDays > 0
+      ? [{
+          key: "period",
+          label: `Period: ${periodDays}d`,
+          onRemove: () => {
+            setPeriodDays(0);
+            setPage(0);
+            syncUrl({ period: "", page: "" });
+          },
+        }]
+      : []),
+    ...(phaseFilter !== PHASE_ALL
+      ? [{
+          key: "phase",
+          label: `Phase: ${phaseFilter === "CHECKOUT" ? "Checkout" : "Check-in"}`,
+          onRemove: () => {
+            setPhaseFilter(PHASE_ALL);
+            setPage(0);
+            syncUrl({ phase: "", page: "" });
+          },
+        }]
+      : []),
+  ];
 
   return (
     <FadeUp>
       {/* Filters */}
       <ReportToolbar
+        activeFilters={activeFilters}
         lastRefreshed={lastRefreshed}
         loading={loading}
         now={now}

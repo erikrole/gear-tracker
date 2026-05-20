@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { InlineTitle } from "@/components/InlineTitle";
+import { OperationalRowActions } from "@/components/OperationalRowActions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -12,11 +13,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { PencilIcon, ImageIcon, RefreshCw, Star, ChevronRight } from "lucide-react";
 
@@ -76,28 +74,27 @@ function ActionsMenu({
   onAction: (action: string) => void;
 }) {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" disabled={disabled}>Actions</Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onSelect={() => onAction("duplicate")}>Duplicate</DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onAction("print-label")}>Print label</DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onAction("maintenance")}>
-          {asset.status === "MAINTENANCE" ? "Clear Maintenance" : "Needs Maintenance"}
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onAction("retire")}>Retire</DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          variant="destructive"
-          disabled={asset.hasBookingHistory}
-          title={asset.hasBookingHistory ? "Item has booking history — use Retire instead" : "Permanently delete this item"}
-          onSelect={() => onAction("delete")}
-        >
-          Delete
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <OperationalRowActions
+      label={`Actions for ${asset.assetTag}`}
+      triggerClassName="h-9 w-auto px-3 text-xs font-medium text-foreground"
+      icon={<span>Actions</span>}
+    >
+      <DropdownMenuItem disabled={disabled} onSelect={() => onAction("duplicate")}>Duplicate</DropdownMenuItem>
+      <DropdownMenuItem disabled={disabled} onSelect={() => onAction("print-label")}>Print label</DropdownMenuItem>
+      <DropdownMenuItem disabled={disabled} onSelect={() => onAction("maintenance")}>
+        {asset.status === "MAINTENANCE" ? "Clear Maintenance" : "Needs Maintenance"}
+      </DropdownMenuItem>
+      <DropdownMenuItem disabled={disabled} onSelect={() => onAction("retire")}>Retire</DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        variant="destructive"
+        disabled={disabled || asset.hasBookingHistory}
+        title={asset.hasBookingHistory ? "Item has booking history. Use Retire instead." : "Permanently delete this item"}
+        onSelect={() => onAction("delete")}
+      >
+        Delete
+      </DropdownMenuItem>
+    </OperationalRowActions>
   );
 }
 

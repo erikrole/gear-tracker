@@ -71,6 +71,8 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - Sports code mappings (existing — `src/lib/sports.ts`)
 
 ## Change Log
+- 2026-05-20: Trade Board filter state now uses the shared `OperationalActiveFilterChips` row for Area, Status, and My trades so each active filter can be removed without reopening its selector.
+- 2026-05-20: Trade Board secondary/destructive row commands now use the shared `OperationalRowActions` trigger. Claim and staff approval stay visible as primary row actions, while cancel and decline move into the shared accessible overflow menu.
 - 2026-05-14: Trade Board stale-state closure. Trade posting, claiming, approval, listing, and the schedule header count now ignore or reject open/claimed trades whose shift has already started, while the Trade Board API includes event opponent/home-away fields so board titles match the rest of Schedule.
 - 2026-05-14: Trade posting flow polish. The normal Schedule list shortcut now opens a shadcn dialog with optional notes and visible posting errors before creating a trade, matching the richer event-detail posting flow instead of one-click posting without context.
 - 2026-05-14: Trade Board UX hardening. The schedule Trade Board sheet now uses compact card rows instead of a cramped side-sheet table, reuses schedule event-title cleanup, surfaces shift time, area, approval mode, poster/claimer, notes, and clearer action ownership, guards duplicate mutations with ref-backed state cleanup, and rejects invalid trade status/area filters with controlled 400 responses.

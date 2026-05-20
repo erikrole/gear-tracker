@@ -20,6 +20,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { OperationalActiveFilterChips, type OperationalActiveFilter } from "@/components/OperationalToolbar";
 import { cn } from "@/lib/utils";
 import { formatRelativeTime } from "@/lib/format";
 
@@ -76,6 +77,7 @@ export function ReportExportButton({
 }
 
 export function ReportToolbar({
+  activeFilters = [],
   children,
   className,
   exportAction,
@@ -84,6 +86,7 @@ export function ReportToolbar({
   now,
   onRefresh,
 }: {
+  activeFilters?: OperationalActiveFilter[];
   children?: ReactNode;
   className?: string;
   exportAction?: ReactNode;
@@ -95,24 +98,27 @@ export function ReportToolbar({
   return (
     <div
       className={cn(
-        "mb-4 flex flex-col gap-3 rounded-lg border bg-card/60 p-3 shadow-xs sm:flex-row sm:items-center sm:justify-between",
+        "mb-4 flex flex-col gap-3 rounded-lg border bg-card/60 p-3 shadow-xs",
         className,
       )}
     >
-      <div className="flex min-w-0 flex-wrap items-center gap-2">{children}</div>
-      <div className="flex shrink-0 items-center gap-2">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-sm" onClick={onRefresh} aria-label="Refresh report">
-              <RefreshCw className={cn(loading && "animate-spin")} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            {lastRefreshed ? `Updated ${formatRelativeTime(lastRefreshed.toISOString(), now)}` : "Refresh"}
-          </TooltipContent>
-        </Tooltip>
-        {exportAction}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">{children}</div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon-sm" onClick={onRefresh} aria-label="Refresh report">
+                <RefreshCw className={cn(loading && "animate-spin")} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {lastRefreshed ? `Updated ${formatRelativeTime(lastRefreshed.toISOString(), now)}` : "Refresh"}
+            </TooltipContent>
+          </Tooltip>
+          {exportAction}
+        </div>
       </div>
+      <OperationalActiveFilterChips filters={activeFilters} />
     </div>
   );
 }

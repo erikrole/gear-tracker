@@ -141,6 +141,17 @@ export default function AuditReportPage() {
 
   const totalPages = Math.ceil(data.total / limit);
   const entries = data.data ?? [];
+  const activeFilters = periodDays > 0
+    ? [{
+        key: "period",
+        label: `Period: ${periodDays}d`,
+        onRemove: () => {
+          setPeriodDays(0);
+          setPage(0);
+          syncUrl({ period: "", page: "" });
+        },
+      }]
+    : [];
 
   return (
     <FadeUp>
@@ -151,6 +162,7 @@ export default function AuditReportPage() {
 
       {/* Filters */}
       <ReportToolbar
+        activeFilters={activeFilters}
         lastRefreshed={lastRefreshed}
         loading={loading}
         now={now}

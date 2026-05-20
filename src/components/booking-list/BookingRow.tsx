@@ -5,7 +5,6 @@ import { formatDateCol, formatDuration, getStatusVisual, type BookingItem } from
 import { BookingContextMenuWrapper, BookingOverflowMenu, type BookingMenuProps } from "./BookingContextMenu";
 import { UserAvatar } from "@/components/UserAvatar";
 import { TableRow, TableCell } from "@/components/ui/table";
-import { MoreHorizontalIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /* ───── Desktop table row ───── */
@@ -126,14 +125,7 @@ export function BookingTableRow({
           </span>
         </TableCell>
         <TableCell onClick={(e) => e.stopPropagation()}>
-          <BookingOverflowMenu item={item} {...menuProps}>
-            <button
-              className="flex items-center justify-center size-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent [-webkit-tap-highlight-color:transparent] cursor-pointer bg-transparent border-none"
-              aria-label="More actions"
-            >
-              <MoreHorizontalIcon className="size-4" />
-            </button>
-          </BookingOverflowMenu>
+          <BookingOverflowMenu item={item} {...menuProps} />
         </TableCell>
       </TableRow>
     </BookingContextMenuWrapper>
@@ -205,15 +197,9 @@ export function BookingMobileCard({
             </span>
           </span>
         </div>
-        <BookingOverflowMenu item={item} {...menuProps}>
-          <button
-            className="pointer-events-auto relative z-20 flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-muted-foreground [-webkit-tap-highlight-color:transparent] hover:bg-accent hover:text-foreground"
-            aria-label="More actions"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <MoreHorizontalIcon className="size-4" />
-          </button>
-        </BookingOverflowMenu>
+        <div className="pointer-events-auto relative z-20" onClick={(e) => e.stopPropagation()}>
+          <BookingOverflowMenu item={item} {...menuProps} />
+        </div>
       </div>
 
       <div

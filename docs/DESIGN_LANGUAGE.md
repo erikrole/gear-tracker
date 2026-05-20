@@ -123,11 +123,9 @@ System rules, not feature ideas:
 
 Feature ideas to consider separately:
 - Authenticated visual regression smoke for dashboard, items, users, scan, settings, booking creation, Fix Today, and Hygiene.
-- A reusable row-action menu pattern for operational tables.
+- Apply the existing `OperationalRowActions` pattern to remaining operational menus instead of creating route-local dropdown wrappers.
 - A reusable partial-results payload type for API routes returning `partialFailures`.
-- Continue migrating active-filter displays to `OperationalActiveFilterChips` across Trade Board and Reports when those surfaces are touched.
-- Continue migrating icon overflow row menus to `OperationalRowActions` across booking rows and Trade Board as those surfaces are touched.
-- Continue replacing local text-only empty rows with `EmptyState inline` in admin tables when those surfaces are touched.
+- Continue replacing local text-only empty rows with `EmptyState inline` in remaining admin tables when those surfaces are touched.
 
 ## Consistency Audit
 - `/dashboard`: pending pickup previously used green row accent. Fixed to orange waiting semantics.
@@ -135,12 +133,18 @@ Feature ideas to consider separately:
 - `/scan`: custom page heading and small controls drifted from shared page/header and target-size rules. Header and controls now align.
 - `/items`: toolbar was the best existing command surface. It now uses `OperationalToolbar` and shared active-filter chips.
 - `/items` row actions: table overflow actions now use `OperationalRowActions`.
+- `/bookings`: table rows, mobile rows, and booking cards now use `OperationalRowActions` for overflow commands while preserving right-click context menus.
+- `/schedule` Trade Board: claim and staff approval stay visible; cancel and decline now use `OperationalRowActions` as secondary/destructive row commands.
+- `/schedule` Trade Board filters: active Area, Status, and My trades filters now use `OperationalActiveFilterChips`.
 - `/users`: filter surface matched the idea but used smaller controls and its own frame. It now uses `OperationalToolbar`, 40px controls, and shared active-filter chips.
 - `/settings/categories`: category row actions now use the shared row-action trigger instead of a page-local kebab button.
 - `/settings/categories`, `/settings/departments`, `/settings/locations`, `/settings/allowed-emails`, `/settings/calendar-sources`, `/settings/venue-mappings`, `/settings/bookings`, and `/settings/kiosk-devices`: local text-only empty rows now use shared inline empty states.
 - `/settings/departments`, `/settings/locations`, `/settings/allowed-emails`, `/settings/calendar-sources`, `/settings/venue-mappings`, and `/settings/kiosk-devices`: table/list row actions now use the shared row-action trigger for lifecycle and destructive commands.
 - `/admin/fix-today` and `/items/hygiene`: duplicate metric and partial-results patterns now use shared primitives.
 - `/settings`: uses `PageHeader` plus role-aware grouped navigation. Large desktop uses a left rail; smaller screens keep a horizontal section scroller. Sub-pages now share `SettingsPageShell` for the compact intro/main split.
+- `/reports/checkouts`, `/reports/scans`, and `/reports/audit`: non-default period and phase filters now render removable shared active-filter chips through the report toolbar.
+- `/items/[id]`: item detail secondary actions now use the shared dropdown wrapper instead of a route-local menu shell.
+- `/bulk-inventory/[id]`: unit-tracked item-family units tab now uses shared inline empty states when no units exist.
 
 ## Implementation Roadmap
 Quick wins:
@@ -151,7 +155,7 @@ Quick wins:
 
 Medium slices:
 - Keep active-filter chips shared through `OperationalActiveFilterChips`.
-- Standardize row action menus across Items, Users, Bookings, and Trade Board.
+- Standardize remaining row action menus across Users and any future operational tables.
 - Keep operational empty states on `EmptyState`, using the inline mode for table/card interiors.
 
 Larger design-system work:

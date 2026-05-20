@@ -243,6 +243,7 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 8. Implement list page controls and row behavior from V1 list surface spec.
 
 ## Change Log
+- 2026-05-20: Booking row overflow actions now use the shared `OperationalRowActions` trigger in reservation table rows, mobile rows, and booking cards while preserving right-click context menus and reservation action policy.
 - 2026-03-01: Initial standalone area scope created.
 - 2026-03-01: Rewritten into hardened V1 workflow, logic, and transition spec.
 - 2026-03-01: Added reservation detail-page and actions-menu behavior from Cheqroom context.

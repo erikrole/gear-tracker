@@ -14,10 +14,16 @@ import {
 import { useConfirm } from "@/components/ConfirmDialog";
 import EmptyState from "@/components/EmptyState";
 import { FilterChip } from "@/components/FilterChip";
+import { OperationalActiveFilterChips, type OperationalActiveFilter } from "@/components/OperationalToolbar";
+import { OperationalRowActions } from "@/components/OperationalRowActions";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { scheduleEventTitleParts } from "@/app/(app)/schedule/_components/types";
 import { AREA_LABELS } from "@/types/areas";
@@ -296,6 +302,29 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
   }, [beginAction, confirm, endAction, loadTrades]);
 
   const hasFilters = !!(areaFilter || statusFilter || myTradesOnly);
+  const activeFilters: OperationalActiveFilter[] = [
+    ...(areaFilter
+      ? [{
+        key: "area",
+        label: `Area: ${AREA_LABELS[areaFilter] ?? areaFilter}`,
+        onRemove: () => setAreaFilter(""),
+      }]
+      : []),
+    ...(statusFilter
+      ? [{
+        key: "status",
+        label: `Status: ${STATUS_OPTIONS.find((option) => option.value === statusFilter)?.label ?? statusFilter}`,
+        onRemove: () => setStatusFilter(""),
+      }]
+      : []),
+    ...(myTradesOnly
+      ? [{
+        key: "my-trades",
+        label: "My trades",
+        onRemove: () => setMyTradesOnly(false),
+      }]
+      : []),
+  ];
   const countLabel = `${filteredTrades.length} ${filteredTrades.length === 1 ? "trade" : "trades"}`;
 
   return (
@@ -310,46 +339,49 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <FilterChip
-          label="Area"
-          value={areaFilter}
-          displayValue={areaFilter ? AREA_LABELS[areaFilter] ?? areaFilter : ""}
-          options={AREAS.map((area) => ({ value: area, label: AREA_LABELS[area] ?? area }))}
-          onSelect={(value) => setAreaFilter(value)}
-          onClear={() => setAreaFilter("")}
-        />
-        <FilterChip
-          label="Status"
-          value={statusFilter}
-          displayValue={STATUS_OPTIONS.find((option) => option.value === statusFilter)?.label ?? ""}
-          options={STATUS_OPTIONS}
-          onSelect={(value) => setStatusFilter(value)}
-          onClear={() => setStatusFilter("")}
-        />
-        <FilterChip
-          label="My trades"
-          value={myTradesOnly ? "mine" : ""}
-          displayValue={myTradesOnly ? "My trades" : ""}
-          options={[{ value: "mine", label: "My trades" }]}
-          onSelect={() => setMyTradesOnly(true)}
-          onClear={() => setMyTradesOnly(false)}
-        />
-        {hasFilters && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 rounded-full px-2.5 text-xs text-muted-foreground"
-            onClick={() => {
-              setAreaFilter("");
-              setStatusFilter("");
-              setMyTradesOnly(false);
-            }}
-          >
-            Clear all
-          </Button>
-        )}
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <FilterChip
+            label="Area"
+            value={areaFilter}
+            displayValue={areaFilter ? AREA_LABELS[areaFilter] ?? areaFilter : ""}
+            options={AREAS.map((area) => ({ value: area, label: AREA_LABELS[area] ?? area }))}
+            onSelect={(value) => setAreaFilter(value)}
+            onClear={() => setAreaFilter("")}
+          />
+          <FilterChip
+            label="Status"
+            value={statusFilter}
+            displayValue={STATUS_OPTIONS.find((option) => option.value === statusFilter)?.label ?? ""}
+            options={STATUS_OPTIONS}
+            onSelect={(value) => setStatusFilter(value)}
+            onClear={() => setStatusFilter("")}
+          />
+          <FilterChip
+            label="My trades"
+            value={myTradesOnly ? "mine" : ""}
+            displayValue={myTradesOnly ? "My trades" : ""}
+            options={[{ value: "mine", label: "My trades" }]}
+            onSelect={() => setMyTradesOnly(true)}
+            onClear={() => setMyTradesOnly(false)}
+          />
+          {hasFilters && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 rounded-full px-2.5 text-xs text-muted-foreground"
+              onClick={() => {
+                setAreaFilter("");
+                setStatusFilter("");
+                setMyTradesOnly(false);
+              }}
+            >
+              Clear all
+            </Button>
+          )}
+        </div>
+        <OperationalActiveFilterChips filters={activeFilters} />
       </div>
 
       <Card elevation="flat" className="overflow-hidden border-border/60 shadow-sm">
@@ -483,39 +515,42 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
                             </Button>
                           )}
                           {canReview && (
-                            <>
-                              <Button
-                                size="sm"
-                                className="h-8 gap-1.5"
-                                onClick={() => void handleApprove(trade.id)}
-                                disabled={acting !== null}
-                              >
-                                <CheckIcon className="size-3.5" />
-                                {isBusy ? "Approving..." : "Approve"}
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-8 gap-1.5 text-destructive hover:text-destructive"
-                                onClick={() => void handleDecline(trade.id)}
-                                disabled={acting !== null}
-                              >
-                                <XIcon className="size-3.5" />
-                                Decline
-                              </Button>
-                            </>
-                          )}
-                          {canCancel && (
                             <Button
-                              variant="ghost"
                               size="sm"
-                              className="h-8 gap-1.5 text-destructive hover:text-destructive"
-                              onClick={() => void handleCancel(trade.id)}
+                              className="h-8 gap-1.5"
+                              onClick={() => void handleApprove(trade.id)}
                               disabled={acting !== null}
                             >
-                              <XIcon className="size-3.5" />
-                              {isBusy ? "Cancelling..." : "Cancel"}
+                              <CheckIcon className="size-3.5" />
+                              {isBusy ? "Approving..." : "Approve"}
                             </Button>
+                          )}
+                          {(canCancel || canReview) && (
+                            <OperationalRowActions
+                              label={`Actions for ${titleParts.title} trade`}
+                            >
+                              {canReview && (
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  disabled={acting !== null}
+                                  onSelect={() => void handleDecline(trade.id)}
+                                >
+                                  <XIcon className="size-4" />
+                                  Decline
+                                </DropdownMenuItem>
+                              )}
+                              {canReview && canCancel && <DropdownMenuSeparator />}
+                              {canCancel && (
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  disabled={acting !== null}
+                                  onSelect={() => void handleCancel(trade.id)}
+                                >
+                                  <XIcon className="size-4" />
+                                  {isBusy ? "Cancelling..." : "Cancel"}
+                                </DropdownMenuItem>
+                              )}
+                            </OperationalRowActions>
                           )}
                         </div>
                       )}

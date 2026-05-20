@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { PlusIcon } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -104,7 +105,14 @@ export default function BulkSkuUnitsTab({
         </CardHeader>
         <CardContent className="pt-0">
           {units.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">No units yet. Add units to track them individually.</p>
+            <EmptyState
+              inline
+              icon="box"
+              title="No units yet"
+              description="Add units to track this item family individually."
+              actionLabel={canEdit ? "Add units" : undefined}
+              onAction={canEdit ? () => setAddingUnits(true) : undefined}
+            />
           ) : (
             <>
               <BulkUnitGrid

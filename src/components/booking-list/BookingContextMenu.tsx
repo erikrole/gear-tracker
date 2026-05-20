@@ -10,12 +10,10 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { OperationalRowActions } from "@/components/OperationalRowActions";
 import type { BookingItem, BookingListConfig } from "./types";
 
 export type BookingMenuProps = {
@@ -118,15 +116,11 @@ export function BookingContextMenuWrapper({
 
 /** DropdownMenu for overflow button (mobile + desktop "..." button) */
 export function BookingOverflowMenu({
-  children,
   ...menuProps
-}: BookingMenuProps & { children: React.ReactNode }) {
+}: BookingMenuProps) {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <MenuItems {...menuProps} Separator={DropdownMenuSeparator} Item={DropdownMenuItem} />
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <OperationalRowActions label={`Actions for ${menuProps.item.title}`}>
+      <MenuItems {...menuProps} Separator={DropdownMenuSeparator} Item={DropdownMenuItem} />
+    </OperationalRowActions>
   );
 }

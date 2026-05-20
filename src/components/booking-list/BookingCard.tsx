@@ -3,10 +3,8 @@
 import { formatDuration, getStatusVisual, type BookingItem } from "./types";
 import { cn } from "@/lib/utils";
 import { BookingContextMenuWrapper, BookingOverflowMenu, type BookingMenuProps } from "./BookingContextMenu";
-import { Button } from "@/components/ui/button";
 import { ItemThumbnailStack } from "@/components/ItemThumbnailStack";
 import { UserAvatar } from "@/components/UserAvatar";
-import { MoreHorizontalIcon } from "lucide-react";
 
 /* ───── Helpers ───── */
 
@@ -172,17 +170,7 @@ export function BookingCard({ item, overdueStatus, onClick, menuProps }: Booking
           className="absolute top-3 right-3 z-20 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100"
           onClick={(e) => e.stopPropagation()}
         >
-          <BookingOverflowMenu item={item} {...menuProps}>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-xs"
-              className="text-muted-foreground hover:text-foreground"
-              aria-label="More actions"
-            >
-              <MoreHorizontalIcon className="size-4" />
-            </Button>
-          </BookingOverflowMenu>
+          <BookingOverflowMenu item={item} {...menuProps} />
         </div>
       </div>
     </BookingContextMenuWrapper>

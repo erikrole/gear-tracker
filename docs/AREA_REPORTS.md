@@ -133,6 +133,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - [x] AC-8: Missing Units report includes unit-tracked battery missing-unit, missing-rate, custody-history, and repeat-pattern reporting
 
 ## Change Log
+- 2026-05-20: Reports period and phase filter state now uses shared `OperationalActiveFilterChips` through the report toolbar on Checkouts, Scans, and Audit so non-default filters can be removed without changing the segmented control directly.
 - 2026-05-13: Missing Units report copy now avoids old lost/numbered wording in the battery audit sections, using Missing and battery families using Units instead.
 - 2026-05-13: Battery audit reporting now lives under Missing Units. Staff/admin can see missing unit-tracked batteries by unit, missing rate by family, recent unit checkout history, repeated missing family/requester patterns, and a direct handoff to Battery Ops.
 - 2026-05-10: Reports ownership pass. Checkout analytics now exclude draft bookings, overdue reports count only outstanding gear, and scan report filters are normalized in the UI with API-side validation for invalid dates and phases. Browser smoke also fixed the shared React Query provider hydration path so report pages no longer log hydration mismatches after reloads.

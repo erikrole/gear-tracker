@@ -135,10 +135,22 @@ export default function CheckoutsReportPage() {
 
   if (!data) return null;
 
+  const activeFilters = days === 30
+    ? []
+    : [{
+        key: "period",
+        label: `Period: ${days}d`,
+        onRemove: () => {
+          setDays(30);
+          syncUrl({ days: "" });
+        },
+      }];
+
   return (
     <FadeUp>
       {/* Period selector */}
       <ReportToolbar
+        activeFilters={activeFilters}
         lastRefreshed={lastRefreshed}
         loading={loading}
         now={now}
