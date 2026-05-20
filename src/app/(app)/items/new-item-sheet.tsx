@@ -42,6 +42,18 @@ function payloadSuccessMessage(label: string, openLabel: string) {
   return `"${label}" created successfully.`;
 }
 
+function buildImageSearchSeed(name?: unknown, brand?: unknown, model?: unknown, fallback?: unknown) {
+  const productName = typeof name === "string" ? name.trim() : "";
+  const brandText = typeof brand === "string" ? brand.trim() : "";
+  const modelText = typeof model === "string" ? model.trim() : "";
+  const fallbackText = typeof fallback === "string" ? fallback.trim() : "";
+  const productLower = productName.toLowerCase();
+  const metadata = [brandText, modelText].filter((part) => part && !productLower.includes(part.toLowerCase()));
+  return [productName, ...metadata].filter(Boolean).join(" ")
+    || [brandText, modelText].filter(Boolean).join(" ")
+    || fallbackText;
+}
+
 export function NewItemSheet({
   open,
   onOpenChange,
@@ -63,6 +75,7 @@ export function NewItemSheet({
   const [createdAssetId, setCreatedAssetId] = useState<string | null>(null);
   const [createdHandoff, setCreatedHandoff] = useState<CreatedHandoff | null>(null);
   const [showImageModal, setShowImageModal] = useState(false);
+  const [imageSearchSeed, setImageSearchSeed] = useState("");
 
   const serializedRef = useRef<SerializedFormHandle>(null);
   const bulkRef = useRef<BulkFormHandle>(null);
@@ -75,6 +88,7 @@ export function NewItemSheet({
     setCreatedAssetId(null);
     setCreatedHandoff(null);
     setShowImageModal(false);
+    setImageSearchSeed("");
     serializedRef.current?.reset();
     bulkRef.current?.reset();
   }, []);
@@ -123,6 +137,7 @@ export function NewItemSheet({
     try {
       let res: globalThis.Response;
       let label = "";
+      let searchSeed = "";
       let bulkHandoffHref: string | null = null;
       let bulkHandoffLabel = "Open item";
 
@@ -134,6 +149,7 @@ export function NewItemSheet({
         }
         const body = serializedRef.current!.getSubmitBody();
         label = (body.assetTag as string) || (body.name as string) || "Asset";
+        searchSeed = buildImageSearchSeed(body.name, body.brand, body.model, body.assetTag);
 
         setSubmitting(true);
         submittingRef.current = true;
@@ -175,6 +191,7 @@ export function NewItemSheet({
       // For serialized items, show image upload prompt before proceeding
       if (kind === "standard" && json.data?.id) {
         setCreatedAssetId(json.data.id);
+        setImageSearchSeed(searchSeed);
         setCreatedHandoff({
           kind: "standard",
           label,
@@ -388,6 +405,7 @@ export function NewItemSheet({
           onClose={() => setShowImageModal(false)}
           assetId={createdAssetId}
           currentImageUrl={null}
+          searchQuery={imageSearchSeed}
           onImageChanged={() => {
             setShowImageModal(false);
             finishCreatedHandoff(addAnother ? "another" : "list");

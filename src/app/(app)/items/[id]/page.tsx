@@ -23,6 +23,7 @@ import useItemActions from "./_hooks/use-item-actions";
 import { ItemHeader } from "./_components/ItemHeader";
 import { BulkSkuDetailExperience } from "../../bulk-inventory/[id]/BulkSkuDetailExperience";
 import { BULK_ID_PREFIX } from "../lib/item-href";
+import type { AssetDetail } from "./types";
 
 /* ── Tab Definitions ──────────────────────────────────────── */
 
@@ -36,6 +37,17 @@ const tabDefs: Array<{ key: TabKey; label: string }> = [
   { key: "accessories", label: "Attachments" },
   { key: "settings", label: "Settings" },
 ];
+
+function buildImageSearchSeed(asset: AssetDetail) {
+  const productName = asset.name?.trim() ?? "";
+  const brand = asset.brand.trim();
+  const model = asset.model.trim();
+  const productLower = productName.toLowerCase();
+  const metadata = [brand, model].filter((part) => part && !productLower.includes(part.toLowerCase()));
+  return [productName, ...metadata].filter(Boolean).join(" ")
+    || [brand, model].filter(Boolean).join(" ")
+    || asset.assetTag;
+}
 
 /* ── Main Page ──────────────────────────────────────────── */
 
@@ -329,6 +341,7 @@ function SerializedItemDetailsPage({ id }: { id: string }) {
         onClose={() => setImageModalOpen(false)}
         assetId={asset.id}
         currentImageUrl={asset.imageUrl}
+        searchQuery={buildImageSearchSeed(asset)}
         onImageChanged={(newUrl) => setAsset((prev) => prev ? { ...prev, imageUrl: newUrl } : prev)}
       />
     </FadeUp>

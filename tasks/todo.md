@@ -44,6 +44,84 @@ Last updated: 2026-05-19
 
 ## Open Items
 
+### Product Image Search Slice 1 (2026-05-20)
+- [x] Add optional image-search provider env configuration.
+- [x] Add Brave-backed image search helper with filtering and short cache.
+- [x] Add authenticated `/api/image-search` probe/search endpoint with RBAC and rate limiting.
+- [x] Document env setup in `.env.example`.
+- [x] Verify with TypeScript and whitespace checks.
+
+**Review**
+- Slice 1 shipped the server foundation.
+- Brave is the only shipped provider through `BRAVE_SEARCH_API_KEY`; the old Google fallback was dropped to avoid setup drag.
+- `/api/image-search?probe=1` reports configured/provider state without spending provider quota.
+- Normal search requests require `asset.edit`, are user-rate-limited, normalize query text, use the provider cache, and return only the modal-ready result shape.
+- Verified with `npx tsc --noEmit`, `git diff --check`, and `npx next build`.
+
+### Product Image Search Slice 2 (2026-05-20)
+- [x] Add a Search tab to `ChooseImageModal` that self-hides when Brave is unconfigured.
+- [x] Auto-probe and auto-search when a seeded item query is available.
+- [x] Render loading, empty, quota, failed, and selectable-result states.
+- [x] Reuse the existing image URL save path and retry with the thumbnail URL if the full image cannot be re-hosted.
+- [x] Thread search seeds through the post-create item handoff, item detail image modal, and bulk SKU header.
+
+**Review**
+- Search now appears as the first tab only when Brave is configured and the modal has a search seed.
+- Seeded searches auto-run from the product title so staff sees candidates immediately after choosing Add image.
+- Brave queries add a hidden `product photo white background` bias while keeping the visible search field clean and editable.
+- Paste URL, Upload, and Remove behavior still use the existing modal paths.
+- Search-result saves still flow through the existing image re-host endpoints, preserving Blob ownership and audit behavior.
+- Verified with TypeScript, whitespace checks, production build, and an unauthenticated route probe. Authenticated browser smoke is blocked locally by Prisma P1000 invalid database credentials during login.
+
+### Product Image Search Slice 4 (2026-05-20)
+- [x] Add provider tests for normalization, configuration, Brave mapping, quota handling, filtering, de-dupe, and cache behavior.
+- [x] Add API route tests for auth, RBAC, probe, validation, success, quota, and rate limiting.
+- [x] Run focused image-search tests.
+- [x] Re-run TypeScript and whitespace checks.
+
+**Review**
+- Added provider coverage for Brave configuration, outbound request shape, result mapping, image URL filtering, duplicate suppression, quota handling, and cache reuse.
+- Added API route coverage for unauthenticated access, student RBAC, provider probe, invalid queries, rate limiting, unconfigured fallback, quota responses, and successful mapped results.
+- Verified with `npx vitest run tests/image-search.test.ts tests/api-image-search.test.ts`, `npx tsc --noEmit`, `git diff --check`, and `npx next build`.
+
+### Product Image Search Slice 5 (2026-05-20)
+- [x] Update Items docs for Brave-backed human-pick image search.
+- [x] Update Bulk Inventory docs for item-family image search handoff.
+- [x] Add a durable decision record for the Brave image-search direction.
+- [x] Reconcile Gaps and Risks without closing the remaining BulkSku backfill risk.
+- [x] Re-run doc/static verification.
+
+**Review**
+- Docs now record Brave as the only shipped image-search provider, with no Google setup path and no retailer scraping path.
+- Items docs describe the Search tab, seeded product-title searches, source-domain review, and Blob re-host save path.
+- Bulk docs describe item-family search seeding through `sku.name` and clarify that future manual picks are re-hosted through the existing bulk image endpoint.
+- `GAPS_AND_RISKS.md` keeps the remaining BulkSku cron/backfill issue open because existing external `BulkSku.imageUrl` values are not automatically drained yet.
+
+### Product Image Search Follow-up (2026-05-20)
+- [x] Add a source inspection link on search result tiles.
+- [x] Re-run focused tests and static checks.
+
+**Review**
+- Search result tiles now separate selection from source inspection: clicking the image selects it, and the external-link control opens the source page in a new tab for staff review.
+- Verified with `npx vitest run tests/image-search.test.ts tests/api-image-search.test.ts`, `npx tsc --noEmit`, `git diff --check`, and `npx next build`.
+
+### Product Image Search QC Polish (2026-05-20)
+- [x] Add lightweight source trust cues for manufacturer, retailer, marketplace, and unknown domains.
+- [x] Add quick search suggestion chips for product photo, front, and kit variants.
+- [x] Make normal searches prefer B&H through Brave with automatic broad fallback.
+- [x] Add focused helper coverage for B&H query construction and result merging.
+- [x] Add fallback handling for broken search-result preview images and route 429 responses.
+- [x] Add query-free provider usage logging with provider, status, result count, latency, and quota flag.
+- [x] Re-run focused tests and static checks.
+
+**Review**
+- Result tiles now show source type cues without blocking or auto-ranking results.
+- Query chips refine the current product-title seed while preserving the editable search field.
+- Normal searches now try B&H first through Brave's `site:bhphotovideo.com` operator without extra broad bias terms, then automatically merge broader Brave results when B&H returns fewer than four candidates.
+- QC follow-up added pure helper tests for B&H query construction and merge de-dupe order, direct-image preview fallback, and temporary-limit handling for 429 responses.
+- Server logging intentionally omits query contents so usage can be observed without recording item-specific searches.
+- Verified with `npx vitest run tests/api-image-search.test.ts tests/image-search.test.ts`, `npx tsc --noEmit`, `git diff --check`, `npx next build`, and authenticated browser smoke on `http://localhost:3000`.
+
 ### Resources Model Rename (2026-05-19)
 - [x] **Prisma rename:** Rename Prisma `Guide` model to `Resource` and update `User` relations.
 - [x] **DB migration:** Add and apply `0068_rename_guides_to_resources` to rename the live table, indexes, and FK constraints from guides to resources.

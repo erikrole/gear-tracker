@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,13 +9,39 @@ import {
   DialogDescription,
   DialogBody,
 } from "@/components/ui/dialog";
-import { ImageIcon } from "lucide-react";
+import { ExternalLinkIcon, ImageIcon, SearchIcon } from "lucide-react";
 import { useConfirm } from "./ConfirmDialog";
 import { toast } from "sonner";
-import { parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  buildBandHImageSearchQuery,
+  buildBiasedImageSearchQuery,
+  buildImageSearchSuggestions,
+  mergeImageSearchResults,
+} from "@/lib/image-search-modal";
+
+type ImageSearchResult = {
+  id: string;
+  url: string;
+  thumbnailUrl: string;
+  title: string;
+  sourceUrl: string;
+  sourceDomain: string;
+  width: number | null;
+  height: number | null;
+};
+
+type ImageSearchResponse = {
+  data?: {
+    configured?: boolean;
+    quotaExceeded?: boolean;
+    results?: ImageSearchResult[];
+  };
+};
 
 type Props = {
   open: boolean;
@@ -24,17 +50,60 @@ type Props = {
   uploadEndpoint?: string;
   currentImageUrl: string | null;
   onImageChanged: (newUrl: string | null) => void;
+  searchQuery?: string;
   /** @deprecated Use uploadEndpoint instead */
   assetId?: string;
 };
 
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const MAX_SIZE = 4.5 * 1024 * 1024;
+const B_AND_H_FALLBACK_THRESHOLD = 4;
 
-export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetId, currentImageUrl, onImageChanged }: Props) {
+type ImageTab = "url" | "upload" | "search";
+type SearchState = "idle" | "loading" | "empty" | "quota" | "failed" | "ready";
+type SourceCue = "manufacturer" | "retailer" | "marketplace" | "unknown";
+
+const SOURCE_CUE_STYLES: Record<SourceCue, string> = {
+  manufacturer: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300",
+  retailer: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/50 dark:bg-sky-950/40 dark:text-sky-300",
+  marketplace: "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300",
+  unknown: "border-border bg-muted text-muted-foreground",
+};
+
+const SOURCE_CUE_LABELS: Record<SourceCue, string> = {
+  manufacturer: "Manufacturer",
+  retailer: "Retailer",
+  marketplace: "Marketplace",
+  unknown: "Unknown",
+};
+
+function classifySourceDomain(domain: string): SourceCue {
+  const normalized = domain.toLowerCase();
+  if (!normalized) return "unknown";
+  if (/(amazon|ebay|walmart|aliexpress|temu|etsy|facebook|marketplace)/.test(normalized)) return "marketplace";
+  if (/(bhphotovideo|adorama|bestbuy|crutchfield|sweetwater|guitarcenter|target|costco|newegg)/.test(normalized)) return "retailer";
+  if (/(sony|canon|nikon|panasonic|fujifilm|blackmagicdesign|dji|apple|rode|sennheiser|shure|gopro|manfrotto|smallrig|teradek|aputure|nanlite)/.test(normalized)) {
+    return "manufacturer";
+  }
+  return "unknown";
+}
+
+async function fetchSearchData(query: string, controller: AbortController) {
+  const res = await fetch(`/api/image-search?q=${encodeURIComponent(query)}`, { signal: controller.signal });
+  if (handleAuthRedirect(res)) return null;
+  if (res.status === 429) return { quotaExceeded: true };
+  if (!res.ok) {
+    const msg = await parseErrorMessage(res, "Image search failed");
+    throw new Error(msg);
+  }
+  const json = (await res.json()) as ImageSearchResponse;
+  return json.data ?? {};
+}
+
+export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetId, currentImageUrl, onImageChanged, searchQuery }: Props) {
   // Support legacy assetId prop
   const endpoint = uploadEndpoint ?? `/api/assets/${assetId}/image`;
-  const [tab, setTab] = useState<"url" | "upload">("url");
+  const [tab, setTab] = useState<ImageTab>("url");
   const [url, setUrl] = useState("");
   const [urlPreview, setUrlPreview] = useState<string | null>(null);
   const [urlError, setUrlError] = useState(false);
@@ -43,10 +112,22 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
   const [fileError, setFileError] = useState("");
   const [saving, setSaving] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [searchConfigured, setSearchConfigured] = useState(false);
+  const [searchText, setSearchText] = useState(searchQuery ?? "");
+  const [searchResults, setSearchResults] = useState<ImageSearchResult[]>([]);
+  const [selectedSearchResult, setSelectedSearchResult] = useState<ImageSearchResult | null>(null);
+  const [searchState, setSearchState] = useState<SearchState>("idle");
+  const [searching, setSearching] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const searchAbortRef = useRef<AbortController | null>(null);
+  const savingRef = useRef(false);
   const confirm = useConfirm();
+  const searchSuggestions = buildImageSearchSuggestions(searchText);
 
   const reset = useCallback(() => {
+    searchAbortRef.current?.abort();
+    searchAbortRef.current = null;
+    setTab("url");
     setUrl("");
     setUrlPreview(null);
     setUrlError(false);
@@ -55,7 +136,109 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
     setFileError("");
     setSaving(false);
     setDragging(false);
+    setSearchConfigured(false);
+    setSearchText("");
+    setSearchResults([]);
+    setSelectedSearchResult(null);
+    setSearchState("idle");
+    setSearching(false);
   }, []);
+
+  const runSearch = useCallback(async (query: string) => {
+    const trimmed = query.trim();
+    const bandHQuery = buildBandHImageSearchQuery(trimmed);
+    const broadQuery = buildBiasedImageSearchQuery(trimmed);
+    if (!bandHQuery || !broadQuery) {
+      setSearchResults([]);
+      setSelectedSearchResult(null);
+      setSearchState("idle");
+      return;
+    }
+
+    searchAbortRef.current?.abort();
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
+    setSearching(true);
+    setSearchState("loading");
+    setSelectedSearchResult(null);
+
+    try {
+      const data = await fetchSearchData(bandHQuery, controller);
+      if (!data) return;
+
+      let results = data.results ?? [];
+      if (!data.quotaExceeded && results.length < B_AND_H_FALLBACK_THRESHOLD) {
+        const fallbackData = await fetchSearchData(broadQuery, controller);
+        if (!fallbackData) return;
+        if (fallbackData.quotaExceeded) {
+          setSearchResults(results);
+          setSearchState(results.length ? "ready" : "quota");
+          return;
+        }
+        results = mergeImageSearchResults(results, fallbackData.results ?? []);
+      }
+
+      if (data.quotaExceeded) {
+        setSearchResults([]);
+        setSearchState("quota");
+        return;
+      }
+      setSearchResults(results);
+      setSearchState(results.length ? "ready" : "empty");
+    } catch (err) {
+      if (isAbortError(err)) return;
+      setSearchResults([]);
+      setSearchState("failed");
+    } finally {
+      if (searchAbortRef.current === controller) {
+        searchAbortRef.current = null;
+      }
+      setSearching(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const seed = searchQuery?.trim() ?? "";
+    setSearchText(seed);
+
+    if (!seed) {
+      setSearchConfigured(false);
+      setTab("url");
+      return;
+    }
+
+    const controller = new AbortController();
+    let cancelled = false;
+
+    async function probeSearch() {
+      try {
+        const res = await fetch("/api/image-search?probe=1", { signal: controller.signal });
+        if (handleAuthRedirect(res)) return;
+        if (!res.ok) return;
+        const json = (await res.json()) as ImageSearchResponse;
+        const configured = !!json.data?.configured;
+        if (cancelled) return;
+        setSearchConfigured(configured);
+        if (configured) {
+          setTab("search");
+          void runSearch(seed);
+        }
+      } catch (err) {
+        if (!isAbortError(err) && !cancelled) {
+          setSearchConfigured(false);
+        }
+      }
+    }
+
+    void probeSearch();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [open, runSearch, searchQuery]);
 
   function handleClose() {
     reset();
@@ -100,26 +283,62 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
     if (f) handleFileSelect(f);
   }
 
+  async function putImageUrl(imageUrl: string): Promise<string | null> {
+    const res = await fetch(endpoint, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: imageUrl }),
+    });
+    if (handleAuthRedirect(res)) return null;
+    if (!res.ok) {
+      const msg = await parseErrorMessage(res, "Failed to save image URL");
+      throw new Error(msg);
+    }
+    const json = await res.json();
+    return json.imageUrl ?? null;
+  }
+
   async function saveUrl() {
-    if (!urlPreview) return;
+    if (!urlPreview || savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     try {
-      const res = await fetch(endpoint, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: urlPreview }),
-      });
-      if (!res.ok) {
-        const msg = await parseErrorMessage(res, "Failed to save image URL");
-        throw new Error(msg);
-      }
-      const json = await res.json();
+      const imageUrl = await putImageUrl(urlPreview);
+      if (!imageUrl) return;
       toast.success("Image updated");
-      onImageChanged(json.imageUrl);
+      onImageChanged(imageUrl);
       handleClose();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save image");
     } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  }
+
+  async function saveSearchResult() {
+    if (!selectedSearchResult || savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
+    try {
+      let imageUrl: string | null = null;
+      try {
+        imageUrl = await putImageUrl(selectedSearchResult.url);
+      } catch (err) {
+        if (selectedSearchResult.thumbnailUrl && selectedSearchResult.thumbnailUrl !== selectedSearchResult.url) {
+          imageUrl = await putImageUrl(selectedSearchResult.thumbnailUrl);
+        } else {
+          throw err;
+        }
+      }
+      if (!imageUrl) return;
+      toast.success("Image updated");
+      onImageChanged(imageUrl);
+      handleClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save image");
+    } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -182,11 +401,170 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
           <DialogDescription className="sr-only">Upload or paste a URL for the item image</DialogDescription>
         </DialogHeader>
         <DialogBody className="pb-6">
-          <Tabs value={tab} onValueChange={(v) => setTab(v as "url" | "upload")}>
+          <Tabs value={tab} onValueChange={(v) => setTab(v as ImageTab)}>
             <TabsList className="mb-1">
+              {searchConfigured && <TabsTrigger value="search">Search</TabsTrigger>}
               <TabsTrigger value="url">Paste URL</TabsTrigger>
               <TabsTrigger value="upload">Upload</TabsTrigger>
             </TabsList>
+
+            {searchConfigured && (
+              <TabsContent value="search">
+                <div className="flex gap-2">
+                  <Input
+                    id="image-search-query"
+                    name="imageSearchQuery"
+                    value={searchText}
+                    onChange={(e) => setSearchText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        void runSearch(searchText);
+                      }
+                    }}
+                    placeholder="Search by product title"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => runSearch(searchText)}
+                    disabled={searching || !searchText.trim()}
+                    aria-label="Search images"
+                  >
+                    <SearchIcon className="size-4" />
+                    Search
+                  </Button>
+                </div>
+                {searchSuggestions.length > 1 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {searchSuggestions.slice(1).map((suggestion) => (
+                      <Button
+                        key={suggestion}
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => {
+                          setSearchText(suggestion);
+                          void runSearch(suggestion);
+                        }}
+                        disabled={searching}
+                      >
+                        {suggestion.replace(searchSuggestions[0] ?? "", "").trim() || suggestion}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+
+                <div className="mt-4 min-h-[220px]">
+                  {searchState === "loading" && (
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      {Array.from({ length: 8 }).map((_, index) => (
+                        <div key={index} className="space-y-2">
+                          <Skeleton className="aspect-square w-full" />
+                          <Skeleton className="h-3 w-2/3" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {searchState === "ready" && (
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      {searchResults.map((result) => {
+                        const selected = selectedSearchResult?.id === result.id;
+                        const sourceCue = classifySourceDomain(result.sourceDomain);
+                        return (
+                          <div
+                            key={result.id}
+                            className={`group flex min-h-0 flex-col rounded-md border p-1 transition ${
+                              selected ? "border-primary ring-2 ring-primary/20" : "border-border hover:border-primary/60"
+                            }`}
+                          >
+                            <button
+                              type="button"
+                              className="flex aspect-square w-full items-center justify-center overflow-hidden rounded bg-muted"
+                              onClick={() => setSelectedSearchResult(result)}
+                              aria-pressed={selected}
+                            >
+                              <img
+                                src={result.url || result.thumbnailUrl}
+                                alt={result.title}
+                                className="h-full w-full object-contain"
+                                loading="lazy"
+                                decoding="async"
+                                referrerPolicy="no-referrer"
+                                onError={(event) => {
+                                  const img = event.currentTarget;
+                                  if (result.thumbnailUrl && img.src !== result.thumbnailUrl) {
+                                    img.src = result.thumbnailUrl;
+                                    return;
+                                  }
+                                  img.style.display = "none";
+                                }}
+                              />
+                            </button>
+                            <div className="mt-1 flex min-w-0 items-center justify-between gap-1">
+                              <span className="truncate text-xs text-muted-foreground">
+                                {result.sourceDomain || "Unknown source"}
+                              </span>
+                              {result.sourceUrl && (
+                                <a
+                                  href={result.sourceUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                  aria-label={`Open source for ${result.title}`}
+                                  title="Open source"
+                                >
+                                  <ExternalLinkIcon className="size-3.5" />
+                                </a>
+                              )}
+                            </div>
+                            <span className={`mt-1 w-fit rounded border px-1.5 py-0.5 text-[10px] font-medium ${SOURCE_CUE_STYLES[sourceCue]}`}>
+                              {SOURCE_CUE_LABELS[sourceCue]}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {searchState === "empty" && (
+                    <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                      No images found. Try a more specific search.
+                    </p>
+                  )}
+                  {searchState === "quota" && (
+                    <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                      Image search is temporarily limited. Paste a URL or upload a file instead.
+                    </p>
+                  )}
+                  {searchState === "failed" && (
+                    <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                      Image search failed. Paste a URL or upload a file instead.
+                    </p>
+                  )}
+                  {searchState === "idle" && (
+                    <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                      Search by brand and model to find product photos.
+                    </p>
+                  )}
+                </div>
+
+                <p className="mt-3 text-xs text-muted-foreground">Pick a manufacturer or product photo.</p>
+                <div className="mt-4 flex justify-end gap-2">
+                  {currentImageUrl && (
+                    <Button variant="destructive" onClick={removeImage} disabled={saving} className="mr-auto">
+                      Remove
+                    </Button>
+                  )}
+                  <Button variant="outline" onClick={handleClose}>Cancel</Button>
+                  <Button onClick={saveSearchResult} disabled={!selectedSearchResult || saving}>
+                    {saving ? "Saving..." : "Save"}
+                  </Button>
+                </div>
+              </TabsContent>
+            )}
 
             {/* Paste URL tab */}
             <TabsContent value="url">

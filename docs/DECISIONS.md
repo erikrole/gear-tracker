@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-05-10
+- Last Updated: 2026-05-20
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -39,6 +39,7 @@
 - D-031: Multi-event booking via junction table with preserved primary FK
 - D-034: Badge achievements are event-sourced, flag-gated, and profile-first
 - D-035: Daily maintenance work is consolidated into morning-refresh
+- D-036: Product image search is Brave-backed and human-picked
 
 ---
 
@@ -654,6 +655,33 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 
 ---
 
+## D-036: Product Image Search Is Brave-Backed and Human-Picked
+- Date: 2026-05-20
+- Status: Accepted
+- Context:
+  - D-005 withdrew B&H enrichment because scraping was blocked.
+  - Staff still need a fast way to pick clean item photos during item creation and replacement.
+  - Metadata enrichment remains out of scope for V1, and item identity must stay tag-first.
+- Decision:
+  - Use Brave Search API as the only shipped product image-search provider.
+  - Hide the Search tab unless `BRAVE_SEARCH_API_KEY` is configured.
+  - Seed searches from product title, brand, model, or item-family name when available.
+  - Bias outbound searches toward product photos on white backgrounds while keeping the visible field editable.
+  - Prefer B&H image candidates through Brave's `site:bhphotovideo.com` operator, then merge broader product-photo-biased Brave results when B&H returns too few usable matches.
+  - Keep the human in the loop: staff selects a result, sees the source domain, and the app re-hosts the chosen URL through the existing image endpoint.
+  - Do not scrape B&H, Google Images HTML, retailer pages, or CDN pages.
+  - Do not write metadata from search results into item identity fields.
+- Consequences:
+  - Setup stays to one optional provider key instead of carrying unused fallback branches.
+  - Result quality is good enough for image selection but still requires human judgment.
+  - Existing paste URL and upload paths remain the fallback when Brave is unconfigured or quota is exhausted.
+- Guardrails:
+  - Search route requires `asset.edit`, validates query length, and rate-limits by user.
+  - Result saves must continue through Blob re-hosting endpoints so stored item photos are app-owned.
+  - Provider failures and quota exhaustion must leave paste URL and upload available.
+
+---
+
 ## Pending Decisions
 1. ~~Event sync refresh cadence and staleness thresholds~~ — Resolved: D-026.
 2. ~~Venue mapping governance owner~~ — Resolved: D-027.
@@ -661,6 +689,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 4. ~~Student mobile KPI definitions~~ — resolved (PD-5): taps-to-checkout ≤3, scan success ≥95%, task completion <30s. Telemetry deferred to Phase B.
 
 ## Change Log
+- 2026-05-20: Added D-036 for Brave-backed human-pick product image search. This replaces any revival of the withdrawn B&H scraping path for photos and keeps metadata enrichment out of scope.
 - 2026-05-13: Added D-035 for daily maintenance consolidation: morning-refresh owns shift archiving, stale trade expiry, and pending-pickup auto-expiry; duplicate unscheduled cron routes should be deleted.
 - 2026-05-10: Amended D-028 to match the kiosk custody boundary: app `/scan` is lookup-only, while checkout pickup and return scans run through kiosk routes.
 - 2026-03-01: Initial decision log created from project memory dump.

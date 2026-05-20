@@ -100,6 +100,7 @@ export function BulkSkuHeader({
           onClose={() => setImageModalOpen(false)}
           uploadEndpoint={`/api/bulk-skus/${sku.id}/image`}
           currentImageUrl={sku.imageUrl}
+          searchQuery={sku.name}
           onImageChanged={(url) => {
             setImageModalOpen(false);
             onImageChanged?.(url);

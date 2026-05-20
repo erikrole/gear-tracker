@@ -38,6 +38,7 @@
 
 ## API Patterns
 
+- **Do not keep legacy providers without a real operational path**: If the chosen integration is Brave, do not preserve Google/legacy setup just because it was in an earlier plan. Extra provider branches add env churn, tests, docs, and support cost unless the user explicitly wants fallback optionality.
 - **`withAuth` for authenticated routes, `withHandler` for public**: Both wrap try/catch and resolve dynamic params.
 - **`requirePermission(role, resource, action)`** for RBAC on every mutation endpoint.
 - **`createAuditEntry`** on every mutation (D-007). Include `before` + `after` snapshots for field-level diffs.
@@ -48,6 +49,7 @@
 
 ## UI Reliability
 
+- **Put non-trivial client search policy in testable helpers**: If a UI owns provider-query orchestration such as B&H-first plus broad fallback merging, extract the query builders and merge logic into a pure helper module and test it directly. Server tests alone will miss client-side quota/cost and ordering behavior.
 - **Recognition systems may apply beyond the original persona**: Before adding badge definitions or badge UI, confirm whether the scope is students-only or all users. Do not keep student-only guards just because the first plan used student language.
 - **Dev CSRF origin must use the actual request origin**: Do not hardcode `https://${host}` as the expected origin in shared API wrappers. Local dev pages run on `http://localhost:*`, so mutating requests can be blocked before auth/permission checks. Compare `Origin` to `new URL(req.url).origin` and keep bad-origin requests returning 403.
 - **Distinguish initial load from refresh**: Initial = skeletons. Refresh = keep visible data, show subtle spinner. Use `hasLoadedRef` (not state) to track.

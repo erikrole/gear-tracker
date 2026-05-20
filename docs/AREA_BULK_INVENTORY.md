@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Bulk Inventory Management
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-13
+- Last Updated: 2026-05-20
 - Status: Active
 - Version: V1
 
@@ -136,6 +136,7 @@ Operate item families backed by `BulkSku` records. Normal discovery happens in `
 See `AREA_ITEMS.md` 2026-04-06 entry for bulk inventory page hardening:
 - All 3 mutations (add units, convert to numbered, unit status change) wrapped with `requireAuth()` + 401 redirect
 - List data already uses `useFetch` hook (AbortController, 401 handling, focus refresh)
+- Item-family image replacement uses the shared image modal. When Brave image search is configured, `BulkSku` detail headers seed the search from the SKU name and save the chosen result through `/api/bulk-skus/[id]/image`, preserving the same re-host and audit path as pasted URLs.
 
 ## Acceptance Criteria
 - [x] AC-1: Staff can add bulk SKU with name, category, unit type, location
@@ -147,6 +148,7 @@ See `AREA_ITEMS.md` 2026-04-06 entry for bulk inventory page hardening:
 - [x] AC-7: Unit-tracked battery audit/reporting exposes missing units, loss rate by family, custody history, and repeated missing-unit patterns
 
 ## Change Log
+- 2026-05-20: Item-family image replacement now participates in the shared Brave-backed product image search flow. Bulk SKU detail headers seed search from `sku.name`, and selected results still save through the existing bulk image endpoint so future manually chosen photos are re-hosted rather than stored as raw third-party image URLs.
 - 2026-05-13: Admin navigation now labels the battery operations surface as Battery Ops, and item-family detail handoff copy uses Stockroom view for the direct staff/admin operations path.
 - 2026-05-13: Native kiosk battery-unit scan clarity now shows required/scanned unit counts, exact scanned/returned unit chips, and clearer blocked pickup-confirm guidance for unit-tracked battery families.
 - 2026-05-13: Battery cockpit and Missing Units report copy now use Missing and Units language in metrics, empty states, unit actions, and section descriptions instead of old lost/numbered wording.
