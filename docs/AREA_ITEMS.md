@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Items
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-13
+- Last Updated: 2026-05-20
 - Status: Active
 - Version: V1
 
@@ -394,6 +394,7 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-05-20: **Asset photos no longer go missing after CSV import.** Image re-hosting moved out of the import request path: the importer used to mirror external Cheqroom CDN images to Vercel Blob inline in batches, which blew the serverless timeout on large imports and left most assets pointing at fragile third-party URLs (the cause of "asset photos not displaying" once the team migrated off that SaaS). Imported assets now keep their source URL and a new daily cron (`/api/cron/rehost-images`) drains any non-Blob `imageUrl` in small batches well under the 10s budget, rewriting to Blob on success and capping retries via `Asset.imageRehostAttempts` (migration `0069`) so dead URLs stop being retried. The import response/audit now reports `imagesQueued` instead of `imagesHosted`. The existing ~180-image production backlog is fixed out-of-band by running `scripts/backfill-asset-images.mjs --apply` once.
 - 2026-05-13: Item-family detail pages now read as normal item detail pages: headers use Units or Quantity without row badges, QR copy avoids web-print assumptions, settings say item instead of implementation terms, and unit exception states use Missing language.
 - 2026-05-13: Item creation now uses friendlier Standard, Units, and Quantity tracking-style choices with examples, while the Items list lets availability carry the distinction instead of adding kind badges. Unit creation sends `trackByNumber=true`; quantity creation stays count-only.
 - 2026-05-13: Reframed bulk SKUs as first-class item families in `/items`: one mixed catalog row per SKU, unit-tracked/quantity-tracked filter language, `/items/bulk-{id}` detail routing, and app scan lookup for parent and derived unit QR values.

@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
-import { downloadImageToBlob, isBlobUrl } from "@/lib/blob";
+import { isBlobUrl } from "@/lib/blob";
 
 const mappingSchema = z.record(z.string().min(1), z.string().min(1));
 
@@ -677,47 +677,15 @@ export const POST = withAuth(async (req, { user }) => {
     }
   });
 
-  // 7. Best-effort: download external images to Vercel Blob
-  const rowsWithExternalImages = validRows.filter(
+  // 7. Defer image re-hosting to the rehost-images cron.
+  // Re-hosting external CDN images to Blob inline used to run here in batches,
+  // but with large imports it blew the serverless timeout, leaving most assets
+  // on fragile third-party URLs. Imported assets keep whatever URL the CSV
+  // carried; the cron picks up any non-blob `imageUrl` (attempts default to 0)
+  // and mirrors it to Blob in small batches. See /api/cron/rehost-images.
+  const imagesQueued = validRows.filter(
     (r) => r.imageUrl && !isBlobUrl(r.imageUrl)
-  );
-  let imagesHosted = 0;
-
-  if (rowsWithExternalImages.length > 0) {
-    // Look up asset IDs for rows that have external images
-    const imageTags = rowsWithExternalImages.map((r) => r.assetTag);
-    const imageAssets = await db.asset.findMany({
-      where: { assetTag: { in: imageTags } },
-      select: { id: true, assetTag: true, imageUrl: true },
-    });
-    const assetByTag = new Map(imageAssets.map((a) => [a.assetTag, a]));
-
-    // Download in batches of 5 with a short per-image timeout
-    const CONCURRENCY = 5;
-    for (let i = 0; i < rowsWithExternalImages.length; i += CONCURRENCY) {
-      const batch = rowsWithExternalImages.slice(i, i + CONCURRENCY);
-      const results = await Promise.allSettled(
-        batch.map(async (row) => {
-          const asset = assetByTag.get(row.assetTag);
-          if (!asset) return;
-          const blobUrl = await downloadImageToBlob(row.imageUrl, asset.id, 5000);
-          if (blobUrl && blobUrl !== row.imageUrl) {
-            await db.asset.update({
-              where: { id: asset.id },
-              data: { imageUrl: blobUrl },
-            });
-            imagesHosted++;
-          }
-        })
-      );
-      // Log failures as warnings but don't block the import
-      for (const r of results) {
-        if (r.status === "rejected") {
-          // Non-fatal — external URL stays as-is
-        }
-      }
-    }
-  }
+  ).length;
 
   // 8. Audit log (1 call)
   await createAuditEntry({
@@ -732,7 +700,7 @@ export const POST = withAuth(async (req, { user }) => {
       bulkCreated: bulkCreatedCount,
       skipped: skippedCount,
       kitsCreated,
-      imagesHosted,
+      imagesQueued,
       errorCount: importErrors.length,
     },
   });
@@ -743,7 +711,7 @@ export const POST = withAuth(async (req, { user }) => {
     bulkCreated: bulkCreatedCount,
     skipped: skippedCount,
     kitsCreated,
-    imagesHosted,
+    imagesQueued,
     errors: importErrors,
   });
 });

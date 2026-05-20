@@ -52,7 +52,8 @@ export async function uploadImage(
 export async function downloadImageToBlob(
   url: string,
   assetId: string,
-  timeoutMs = 8000
+  timeoutMs = 8000,
+  maxBytes = MAX_SIZE
 ): Promise<string | null> {
   // Already hosted — nothing to do
   if (isBlobUrl(url)) return url;
@@ -74,7 +75,7 @@ export async function downloadImageToBlob(
     if (!ext) return null; // unrecognised image type
 
     const body = await res.arrayBuffer();
-    if (body.byteLength === 0 || body.byteLength > MAX_SIZE) return null;
+    if (body.byteLength === 0 || body.byteLength > maxBytes) return null;
 
     const pathname = `assets/${assetId}/${Date.now()}.${ext}`;
     const blob = await put(pathname, Buffer.from(body), {
