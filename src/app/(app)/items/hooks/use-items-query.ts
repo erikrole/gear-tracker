@@ -157,6 +157,22 @@ export function useItemsQuery(deps: QueryDeps) {
     [url, queryClient],
   );
 
+  // Invalidate every cached filter combination, not just the active one. A
+  // favorite (or bulk mutation) changes data that other cached filter views
+  // also depend on; without this they keep serving stale rows within
+  // `staleTime` when the user toggles a filter back. `refetchActive: false`
+  // leaves the current view's optimistic state untouched (no flicker) while
+  // marking siblings stale so they refetch when next viewed.
+  const invalidate = useCallback(
+    (refetchActive: boolean) => {
+      queryClient.invalidateQueries({
+        queryKey: ["items"],
+        refetchType: refetchActive ? "active" : "none",
+      });
+    },
+    [queryClient],
+  );
+
   return {
     items,
     bulkItems,
@@ -172,5 +188,6 @@ export function useItemsQuery(deps: QueryDeps) {
     refreshing: isFetching && !isLoading,
     loadError: isError && !response,
     reload: () => { refetch(); },
+    invalidate,
   };
 }

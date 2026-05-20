@@ -139,7 +139,10 @@ export default function ItemsPage() {
 
   const bulk = useBulkActions(
     () => selectedIds,
-    () => { setRowSelection({}); query.reload(); }
+    // Refetch the active view and mark sibling filter caches stale so a bulk
+    // star/unstar (or any bulk mutation) doesn't leave stale rows behind when
+    // the user switches filters.
+    () => { setRowSelection({}); query.invalidate(true); }
   );
 
   const [selectingAll, setSelectingAll] = useState(false);
@@ -256,6 +259,9 @@ export default function ItemsPage() {
           items.map((a) => a.id === asset.id ? { ...a, isFavorited: favorited } : a)
         );
       }
+      // Mark other cached filter views (e.g. favorites-only) stale so toggling
+      // a filter doesn't resurrect a fav state this toggle just changed.
+      query.invalidate(false);
     } catch {
       query.setItems((items) =>
         items.map((a) => a.id === asset.id ? { ...a, isFavorited: prev } : a)
