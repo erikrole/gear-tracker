@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { FadeUp } from "@/components/ui/motion";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,6 +45,7 @@ import { handleAuthRedirect, parseErrorMessage, classifyError, isAbortError } fr
 import { useFetch } from "@/hooks/use-fetch";
 import { formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { SettingsPageShell } from "../SettingsPageShell";
 
 type PendingPickup = {
   id: string;
@@ -316,16 +316,11 @@ export default function KioskDevicesPage() {
   }
 
   return (
-    <FadeUp>
-    <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
-      <div className="sticky top-20 max-lg:static">
-        <h2 className="text-2xl font-bold mb-2">Kiosk Devices</h2>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          Manage iPad kiosk stations for self-serve gear checkout.
-        </p>
-      </div>
-
-      <div className="min-w-0 space-y-4">
+    <SettingsPageShell
+      title="Kiosk Devices"
+      description="Manage iPad kiosk stations for self-serve gear checkout."
+      mainClassName="space-y-4"
+    >
         <div className="flex justify-end">
           {!showAdd && (
             <Button onClick={() => setShowAdd(true)} size="sm">
@@ -646,12 +641,10 @@ export default function KioskDevicesPage() {
             ))}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPickupDialog(null)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      </div>
-    </div>
-    </FadeUp>
+        <Button variant="outline" onClick={() => setPickupDialog(null)}>Close</Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
+    </SettingsPageShell>
   );
 }

@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { FadeUp } from "@/components/ui/motion";
 import { handleAuthRedirect, classifyError, isAbortError } from "@/lib/errors";
+import { SettingsPageShell } from "../SettingsPageShell";
 
 type MigrationRow = { name: string; appliedAt: string | null };
 type DriftItem = { table: string; column: string; status: string };
@@ -57,16 +57,10 @@ export default function DatabasePage() {
   }
 
   return (
-    <FadeUp>
-    <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
-      <div className="sticky top-20 max-lg:static">
-        <h2 className="text-2xl font-bold mb-2">Database Health</h2>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          Check that your database schema matches the expected Prisma migrations. Surfaces missing tables, enums, columns, and migration drift.
-        </p>
-      </div>
-
-      <div className="min-w-0">
+    <SettingsPageShell
+      title="Database Health"
+      description="Check that your database schema matches the expected Prisma migrations. Surfaces missing tables, enums, columns, and migration drift."
+    >
         <div className="flex justify-end mb-3">
           <Button onClick={runCheck} loading={loading}>
             {loading ? "Checking\u2026" : "Run diagnostics"}
@@ -239,9 +233,7 @@ export default function DatabasePage() {
             </div>
           </Card>
         )}
-      </div>
-    </div>
-    </FadeUp>
+    </SettingsPageShell>
   );
 }
 

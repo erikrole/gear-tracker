@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { FadeUp } from "@/components/ui/motion";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -33,6 +32,7 @@ import { useFetch } from "@/hooks/use-fetch";
 import { useLastAudit } from "@/hooks/use-last-audit";
 import { LastEditedHint } from "@/components/LastEditedHint";
 import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage } from "@/lib/errors";
+import { SettingsPageShell } from "../SettingsPageShell";
 
 type AllowedEmail = {
   id: string;
@@ -242,41 +242,25 @@ export default function AllowedEmailsPage() {
     setDeletingId(null);
   }
 
-  const sidebar = (
-    <div className="sticky top-20 max-lg:static">
-      <h2 className="text-2xl font-bold mb-2">Allowed Emails</h2>
-      <p className="text-sm text-muted-foreground leading-relaxed">
-        Manage which email addresses can register for an account.
-        Only pre-approved emails can sign up.
-      </p>
-    </div>
-  );
+  const description = "Manage which email addresses can register for an account. Only pre-approved emails can sign up.";
 
   if (loading) {
     return (
-      <FadeUp>
-        <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
-          {sidebar}
-          <div className="min-w-0 space-y-3">
+      <SettingsPageShell title="Allowed Emails" description={description} mainClassName="space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="flex items-center gap-4 rounded-md border p-4">
                 <Skeleton className="h-5 w-48" />
                 <Skeleton className="h-5 w-16 rounded-full" />
               </div>
             ))}
-          </div>
-        </div>
-      </FadeUp>
+      </SettingsPageShell>
     );
   }
 
   if (error) {
     const Icon = error === "network" ? WifiOff : AlertTriangle;
     return (
-      <FadeUp>
-        <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
-          {sidebar}
-          <div className="min-w-0">
+      <SettingsPageShell title="Allowed Emails" description={description}>
             <Card>
               <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
                 <Icon className="size-10 text-muted-foreground" />
@@ -296,18 +280,12 @@ export default function AllowedEmailsPage() {
                 </Button>
               </CardContent>
             </Card>
-          </div>
-        </div>
-      </FadeUp>
+      </SettingsPageShell>
     );
   }
 
   return (
-    <FadeUp>
-    <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
-      {sidebar}
-
-      <div className="min-w-0 space-y-4">
+    <SettingsPageShell title="Allowed Emails" description={description} mainClassName="space-y-4">
         {/* Controls row */}
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -549,8 +527,6 @@ export default function AllowedEmailsPage() {
             </Table>
           )}
         </Card>
-      </div>
-    </div>
-    </FadeUp>
+    </SettingsPageShell>
   );
 }

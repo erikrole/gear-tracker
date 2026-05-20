@@ -71,6 +71,31 @@ Last updated: 2026-05-19
 - Slice 7 added inline sizing to `EmptyState` and moved Settings Categories plus Departments off local text-only empty placeholders.
 - Slice 7 verified with `npx tsc --noEmit`, `git diff --check`, `npx next build`, and protected-route browser smoke for `/settings/categories` plus `/settings/departments`.
 
+### Settings Navigation Rail (2026-05-20)
+- [x] Add grouped desktop Settings rail using existing role-aware section config.
+- [x] Preserve horizontal section scroller on smaller screens.
+- [x] Preserve Settings search palette and last-tab resume behavior.
+- [x] Run verification.
+
+**Review**
+- Active tracking lives in `tasks/settings-navigation-rail-plan.md`.
+- The current issue is navigation density: 13 settings sections plus Overview were packed into a horizontal tab strip.
+- A full always-visible labeled rail would fight the existing settings-split intro columns on laptop screens, so this slice uses the rail only at large desktop sizes and keeps the existing smaller-screen scroller.
+- Verified with `npx tsc --noEmit`, `git diff --check`, `npx next build`, and protected-route browser smoke for `/settings` plus `/settings/categories`.
+
+### Settings Shell Cleanup (2026-05-20)
+- [x] Add a shared `SettingsPageShell` component.
+- [x] Migrate Settings sub-pages off repeated split-grid markup.
+- [x] Keep loading, error, and normal states aligned inside the shared shell.
+- [x] Update Settings and design-language docs.
+- [x] Run full verification.
+
+**Review**
+- Active tracking lives in `tasks/settings-shell-cleanup-plan.md`.
+- The current issue was not visual taste. Every Settings sub-page repeated the same intro/main grid, and several pages repeated it again for loading and error states.
+- The shared shell makes the intro rail narrower, the heading quieter, and the main column consistent under the new Settings rail.
+- Verified with `npx tsc --noEmit`, `git diff --check`, `npx next build`, and protected-route browser smoke for `/settings/categories`, `/settings/notifications`, and `/settings/kiosk-devices`.
+
 ### Product Image Search Slice 1 (2026-05-20)
 - [x] Add optional image-search provider env configuration.
 - [x] Add Brave-backed image search helper with filtering and short cache.

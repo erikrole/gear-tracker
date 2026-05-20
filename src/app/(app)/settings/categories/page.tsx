@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { FadeUp } from "@/components/ui/motion";
 import { useFetch } from "@/hooks/use-fetch";
 import { useLastAudit } from "@/hooks/use-last-audit";
 import EmptyState from "@/components/EmptyState";
@@ -17,6 +16,7 @@ import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage } fr
 import type { Category } from "./types";
 import { buildTree } from "./types";
 import CategoryRow from "./CategoryRow";
+import { SettingsPageShell } from "../SettingsPageShell";
 
 export default function CategoriesPage() {
   const { data: categories, loading, error, reload } = useFetch<Category[]>({
@@ -104,16 +104,10 @@ export default function CategoriesPage() {
       : "Something went wrong loading categories. Please try again.";
 
   return (
-    <FadeUp>
-    <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
-      <div className="sticky top-20 max-lg:static">
-        <h2 className="text-2xl font-bold mb-2">Categories</h2>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          Organize your inventory under categories and subcategories to make equipment easier to find and manage.
-        </p>
-      </div>
-
-      <div className="min-w-0">
+    <SettingsPageShell
+      title="Categories"
+      description="Organize inventory under categories and subcategories to make equipment easier to find and manage."
+    >
         <div className="flex justify-end mb-3">
           <Button onClick={() => { setAdding(true); setAddError(""); }}>
             Add new category
@@ -230,8 +224,6 @@ export default function CategoriesPage() {
             </div>
           )}
         </Card>
-      </div>
-    </div>
-    </FadeUp>
+    </SettingsPageShell>
   );
 }

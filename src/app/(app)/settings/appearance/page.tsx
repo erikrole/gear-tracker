@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { Monitor, Moon, Sun, Type } from "lucide-react";
 import { toast } from "sonner";
-import { FadeUp } from "@/components/ui/motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { SettingsPageShell } from "../SettingsPageShell";
 import {
   applyThemeChoice,
   readStoredThemeChoice,
@@ -87,17 +87,11 @@ export default function AppearancePage() {
   }
 
   return (
-    <FadeUp>
-    <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
-      <div className="sticky top-20 max-lg:static">
-        <h2 className="text-2xl font-bold mb-2">Appearance</h2>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          Choose how the app looks. Saved on this device only — set it again on
-          your phone or other browsers.
-        </p>
-      </div>
-
-      <div className="min-w-0 space-y-4">
+    <SettingsPageShell
+      title="Appearance"
+      description="Choose how the app looks. Saved on this device only, so set it again on your phone or other browsers."
+      mainClassName="space-y-4"
+    >
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Theme</CardTitle>
@@ -185,9 +179,7 @@ export default function AppearancePage() {
             Reset to defaults
           </Button>
         </div>
-      </div>
-    </div>
-    </FadeUp>
+    </SettingsPageShell>
   );
 }
 

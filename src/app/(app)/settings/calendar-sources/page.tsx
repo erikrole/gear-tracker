@@ -10,10 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FadeUp } from "@/components/ui/motion";
 import { useFetch } from "@/hooks/use-fetch";
 import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage } from "@/lib/errors";
 import StatusIndicator from "@/components/ui/status-indicator";
+import { SettingsPageShell } from "../SettingsPageShell";
 
 type CalendarSource = {
   id: string;
@@ -211,16 +211,10 @@ export default function CalendarSourcesPage() {
   }
 
   return (
-    <FadeUp>
-    <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
-      <div className="sticky top-20 max-lg:static">
-        <h2 className="text-2xl font-bold mb-2">Calendar Sources</h2>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          Manage ICS calendar feeds for event syncing. Events are automatically imported and used for shift scheduling.
-        </p>
-      </div>
-
-      <div className="min-w-0">
+    <SettingsPageShell
+      title="Calendar Sources"
+      description="Manage ICS calendar feeds for event syncing. Events are automatically imported and used for shift scheduling."
+    >
         <div className="flex gap-2">
           {!showAdd && (
             <Button size="sm" onClick={() => setShowAdd(true)}>
@@ -384,8 +378,6 @@ export default function CalendarSourcesPage() {
             )}
           </Card>
         )}
-      </div>
-    </div>
-    </FadeUp>
+    </SettingsPageShell>
   );
 }

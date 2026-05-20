@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { FadeUp } from "@/components/ui/motion";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,6 +24,7 @@ import {
 import { WifiOff, AlertTriangle, RefreshCw } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
 import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage } from "@/lib/errors";
+import { SettingsPageShell } from "../SettingsPageShell";
 
 type EscalationRule = {
   id: string;
@@ -120,13 +120,11 @@ export default function EscalationSettingsPage() {
     return `${h}h after due`;
   }
 
+  const description = "Configure when and how overdue checkout notifications are sent. Notifications are deduped per booking, and each trigger fires at most once.";
+
   if (loading) {
     return (
-      <FadeUp><div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
-        <div className="sticky top-20 max-lg:static">
-          <h2 className="text-2xl font-bold mb-2">Escalation</h2>
-        </div>
-        <div className="min-w-0">
+      <SettingsPageShell title="Escalation" description={description}>
           <Card className="mb-1">
             <CardHeader><CardTitle>Notification Triggers</CardTitle></CardHeader>
             <div className="px-4 pb-4 flex flex-col gap-3">
@@ -160,19 +158,14 @@ export default function EscalationSettingsPage() {
               <Skeleton className="h-4 w-80" />
             </div>
           </Card>
-        </div>
-      </div></FadeUp>
+      </SettingsPageShell>
     );
   }
 
   if (error) {
     const Icon = error === "network" ? WifiOff : AlertTriangle;
     return (
-      <FadeUp><div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
-        <div className="sticky top-20 max-lg:static">
-          <h2 className="text-2xl font-bold mb-2">Escalation</h2>
-        </div>
-        <div className="min-w-0">
+      <SettingsPageShell title="Escalation" description={description}>
           <Card>
             <div className="flex flex-col items-center justify-center gap-4 py-12 px-4 text-center">
               <Icon className="size-10 text-muted-foreground" />
@@ -192,23 +185,12 @@ export default function EscalationSettingsPage() {
               </Button>
             </div>
           </Card>
-        </div>
-      </div></FadeUp>
+      </SettingsPageShell>
     );
   }
 
   return (
-    <FadeUp>
-    <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
-      <div className="sticky top-20 max-lg:static">
-        <h2 className="text-2xl font-bold mb-2">Escalation</h2>
-        <p className="text-muted-foreground text-sm leading-relaxed">
-          Configure when and how overdue checkout notifications are sent.
-          Notifications are deduped per booking — each trigger fires at most once.
-        </p>
-      </div>
-
-      <div className="min-w-0">
+    <SettingsPageShell title="Escalation" description={description}>
         {/* Rules table */}
         <Card className="mb-1">
           <CardHeader>
@@ -292,8 +274,6 @@ export default function EscalationSettingsPage() {
             </p>
           </div>
         </Card>
-      </div>
-    </div>
-    </FadeUp>
+    </SettingsPageShell>
   );
 }

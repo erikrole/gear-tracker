@@ -6,12 +6,12 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FadeUp } from "@/components/ui/motion";
 import { useFetch } from "@/hooks/use-fetch";
 import { handleAuthRedirect, classifyError, isAbortError } from "@/lib/errors";
 import type { SportConfig } from "./types";
 import { AREAS, SPORT_GROUPS, defaultShiftConfigs } from "./types";
 import ShiftConfigTable from "./ShiftConfigTable";
+import { SettingsPageShell } from "../SettingsPageShell";
 
 export default function SportsSettingsPage() {
   const { data: fetchedConfigs, loading, error, reload } = useFetch<SportConfig[]>({
@@ -129,14 +129,12 @@ export default function SportsSettingsPage() {
     await applyGroupPatch(sportCode, `${sportCode}-calltime`, { [field]: value });
   }
 
+  const description = "Configure shift coverage and call times for each sport. Grouped sports share the same settings across men's and women's programs.";
+
   /* ---------- Loading skeleton ---------- */
   if (loading) {
     return (
-      <FadeUp><div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
-        <div className="sticky top-20 max-lg:static">
-          <h2 className="text-2xl font-bold mb-2">Sports</h2>
-        </div>
-        <div className="min-w-0 space-y-4">
+      <SettingsPageShell title="Sports" description={description} mainClassName="space-y-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="rounded-md border p-4 space-y-3">
               <div className="flex items-center justify-between">
@@ -146,8 +144,7 @@ export default function SportsSettingsPage() {
               <Skeleton className="h-16 w-full" />
             </div>
           ))}
-        </div>
-      </div></FadeUp>
+      </SettingsPageShell>
     );
   }
 
@@ -155,11 +152,7 @@ export default function SportsSettingsPage() {
   if (error) {
     const Icon = error === "network" ? WifiOff : AlertTriangle;
     return (
-      <FadeUp><div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
-        <div className="sticky top-20 max-lg:static">
-          <h2 className="text-2xl font-bold mb-2">Sports</h2>
-        </div>
-        <div className="min-w-0">
+      <SettingsPageShell title="Sports" description={description}>
           <Card className="mx-auto max-w-md">
             <CardContent className="flex flex-col items-center gap-4 py-10 text-center">
               <Icon className="size-10 text-muted-foreground" />
@@ -179,24 +172,13 @@ export default function SportsSettingsPage() {
               </Button>
             </CardContent>
           </Card>
-        </div>
-      </div></FadeUp>
+      </SettingsPageShell>
     );
   }
 
   /* ---------- Normal render ---------- */
   return (
-    <FadeUp>
-    <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
-      <div className="sticky top-20 max-lg:static">
-        <h2 className="text-2xl font-bold mb-2">Sports</h2>
-        <p className="text-muted-foreground text-sm leading-relaxed">
-          Configure shift coverage and call times for each sport.
-          Grouped sports share the same settings across men&apos;s and women&apos;s programs.
-        </p>
-      </div>
-
-      <div className="min-w-0">
+    <SettingsPageShell title="Sports" description={description}>
         <ShiftConfigTable
           configs={configs}
           saving={saving}
@@ -204,8 +186,6 @@ export default function SportsSettingsPage() {
           onUpdateShift={updateShiftCount}
           onUpdateOffset={updateOffset}
         />
-      </div>
-    </div>
-    </FadeUp>
+    </SettingsPageShell>
   );
 }

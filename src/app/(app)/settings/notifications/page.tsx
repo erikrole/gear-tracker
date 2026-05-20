@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { AlertTriangle, BellOff, Mail, Smartphone, WifiOff } from "lucide-react";
-import { FadeUp } from "@/components/ui/motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -17,6 +16,7 @@ import {
   isAbortError,
   parseErrorMessage,
 } from "@/lib/errors";
+import { SettingsPageShell } from "../SettingsPageShell";
 
 type Prefs = {
   pausedUntil: string | null;
@@ -102,38 +102,21 @@ export default function NotificationsSettingsPage() {
     toast.success("Notifications resumed");
   }
 
-  const sidebar = (
-    <div className="sticky top-20 max-lg:static">
-      <h2 className="text-2xl font-bold mb-2">Notifications</h2>
-      <p className="text-sm text-muted-foreground leading-relaxed">
-        Control how and when you receive updates about gear, shifts, and
-        reservations. The in-app inbox always stays available regardless of
-        these settings.
-      </p>
-    </div>
-  );
+  const description = "Control how and when you receive updates about gear, shifts, and reservations. The in-app inbox always stays available regardless of these settings.";
 
   if (loading) {
     return (
-      <FadeUp>
-        <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
-          {sidebar}
-          <div className="min-w-0 space-y-3">
+      <SettingsPageShell title="Notifications" description={description} mainClassName="space-y-3">
             <Skeleton className="h-32 w-full rounded-md" />
             <Skeleton className="h-44 w-full rounded-md" />
-          </div>
-        </div>
-      </FadeUp>
+      </SettingsPageShell>
     );
   }
 
   if (error || !prefs) {
     const Icon = error === "network" ? WifiOff : AlertTriangle;
     return (
-      <FadeUp>
-        <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
-          {sidebar}
-          <div className="min-w-0">
+      <SettingsPageShell title="Notifications" description={description}>
             <Card>
               <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
                 <Icon className="size-10 text-muted-foreground" />
@@ -145,9 +128,7 @@ export default function NotificationsSettingsPage() {
                 <Button variant="outline" onClick={reload}>Retry</Button>
               </CardContent>
             </Card>
-          </div>
-        </div>
-      </FadeUp>
+      </SettingsPageShell>
     );
   }
 
@@ -155,11 +136,7 @@ export default function NotificationsSettingsPage() {
   const isPaused = !!pausedLabel;
 
   return (
-    <FadeUp>
-    <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
-      {sidebar}
-
-      <div className="min-w-0 space-y-4">
+    <SettingsPageShell title="Notifications" description={description} mainClassName="space-y-4">
         {/* Pause */}
         <Card>
           <CardHeader>
@@ -238,9 +215,7 @@ export default function NotificationsSettingsPage() {
           Note: in-app notifications always fire and appear in your{" "}
           <a href="/notifications" className="underline">notifications inbox</a>.
         </p>
-      </div>
-    </div>
-    </FadeUp>
+    </SettingsPageShell>
   );
 }
 

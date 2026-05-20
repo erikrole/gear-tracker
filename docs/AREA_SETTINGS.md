@@ -14,8 +14,8 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 
 ## Core Rules
 1. The Settings surface is open to any authenticated user (STUDENT / STAFF / ADMIN). Each sub-page declares its own `requiredRole`; the layout filters tabs accordingly. STUDENTs only see the Personal group.
-2. Settings layout provides unified tab navigation — sub-pages should not render their own page-level `<h1>`.
-3. Each sub-page uses the `settings-split` layout: sidebar (title + description) and main (forms/tables).
+2. Settings layout provides unified role-aware section navigation — sub-pages should not render their own page-level `<h1>`.
+3. Each sub-page uses `SettingsPageShell`: compact intro rail (title + description) and main content for forms, tables, loading states, and errors.
 4. Mutations should provide immediate feedback via toast notifications and visible form-level errors for create/add forms.
 5. Personal-group preferences belong in **Personal** (top group). System configuration belongs in **People · Inventory · Scheduling · Devices · System**.
 
@@ -112,7 +112,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - Filter by status (all/unclaimed/claimed).
 
 ## Acceptance Criteria
-- [x] AC-1: Tab-based navigation across all settings pages
+- [x] AC-1: Role-aware grouped navigation across all settings pages
 - [x] AC-2: Categories: tree CRUD with search and sort
 - [x] AC-3: Sports: shift config table + roster management
 - [x] AC-4: Escalation: toggle-based rule management + fatigue cap
@@ -131,6 +131,8 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages.
 
 ## Change Log
+- 2026-05-20: Settings shell cleanup shipped. Settings sub-pages now share one `SettingsPageShell` for the intro column and main content, reducing repeated split-grid markup and keeping loading, error, and normal states aligned under the new grouped rail.
+- 2026-05-20: Settings navigation rail shipped. Large desktop Settings now uses a grouped left rail for Overview, Personal, People, Inventory, Scheduling, Devices, and System while preserving the horizontal section scroller on smaller screens, role-gated visibility, search palette, and last-tab resume behavior.
 - 2026-05-20: Design language slice 7. Settings Categories and Departments now use shared inline empty states instead of local text-only placeholders, keeping first-run and filtered-empty recovery copy aligned with the rest of the app.
 - 2026-05-20: Design language slice 6. Settings Categories row actions now use the shared `OperationalRowActions` trigger, replacing the page-local kebab button while preserving rename, add subcategory, and delete behavior.
 - 2026-05-20: Design language slice 4. Settings now links to the shared design-language reference while preserving the Settings-specific layout rule that the layout owns the page header and tab navigation.

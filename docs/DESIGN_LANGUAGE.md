@@ -34,7 +34,7 @@ Avoid:
 - Use `PageHeader` for page title, optional description, and right-side actions.
 - Use page sections as full-width groups or direct content, not cards inside cards.
 - Use `OperationalToolbar` for search, filters, quick toggles, and clear actions on operational list pages.
-- Keep settings sub-pages under the Settings layout header; sub-pages should not render their own page-level `h1`.
+- Keep settings sub-pages under the Settings layout header and grouped Settings navigation; use `SettingsPageShell` for the compact section intro and main content, and do not render page-level `h1` inside sub-pages.
 
 ### Spacing And Density
 - Default operational surfaces should use compact spacing: `gap-2` to `gap-4`, `p-2` to `p-4`, rows at 44px+ where clickable.
@@ -138,13 +138,14 @@ Feature ideas to consider separately:
 - `/settings/categories`: category row actions now use the shared row-action trigger instead of a page-local kebab button.
 - `/settings/categories` and `/settings/departments`: local text-only empty rows now use shared inline empty states.
 - `/admin/fix-today` and `/items/hygiene`: duplicate metric and partial-results patterns now use shared primitives.
-- `/settings`: already mirrors `PageHeader` through layout and remains the settings-specific header standard.
+- `/settings`: uses `PageHeader` plus role-aware grouped navigation. Large desktop uses a left rail; smaller screens keep a horizontal section scroller. Sub-pages now share `SettingsPageShell` for the compact intro/main split.
 
 ## Implementation Roadmap
 Quick wins:
 - Keep replacing page-local metric cards and partial-result warnings with shared primitives.
 - Convert route-local filter shells to `OperationalToolbar` when they match the search/filter/clear pattern.
 - Audit icon-only buttons for labels and target size during each page pass.
+- Keep Settings sub-pages on `SettingsPageShell`; new Settings pages should not copy local split-grid markup.
 
 Medium slices:
 - Keep active-filter chips shared through `OperationalActiveFilterChips`.

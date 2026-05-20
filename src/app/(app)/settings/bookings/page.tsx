@@ -9,8 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NativeSelect } from "@/components/ui/native-select";
 import { PlusIcon, Trash2Icon, GripVerticalIcon } from "lucide-react";
-import { FadeUp } from "@/components/ui/motion";
 import { parseErrorMessage } from "@/lib/errors";
+import { SettingsPageShell } from "../SettingsPageShell";
 
 type Preset = { label: string; minutes: number };
 
@@ -106,16 +106,11 @@ export default function BookingSettingsPage() {
   }
 
   return (
-    <FadeUp>
-    <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
-      <div className="sticky top-20 max-lg:static">
-        <h2 className="text-2xl font-bold mb-2">Extend Presets</h2>
-        <p className="text-muted-foreground text-sm leading-relaxed">
-          Configure the preset buttons shown when extending a booking&apos;s due date.
-        </p>
-      </div>
-
-      <div className="min-w-0 space-y-6">
+    <SettingsPageShell
+      title="Extend Presets"
+      description="Configure the preset buttons shown when extending a booking's due date."
+      mainClassName="space-y-6"
+    >
         <Card>
           <CardHeader className="flex-row items-center justify-between">
             <CardTitle>Extend due date presets</CardTitle>
@@ -180,8 +175,6 @@ export default function BookingSettingsPage() {
             )}
           </CardContent>
         </Card>
-      </div>
-    </div>
-    </FadeUp>
+    </SettingsPageShell>
   );
 }

@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { FadeUp } from "@/components/ui/motion";
 import { useFetch } from "@/hooks/use-fetch";
 import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage } from "@/lib/errors";
 import {
@@ -19,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SettingsPageShell } from "../SettingsPageShell";
 
 type LocationMapping = {
   id: string;
@@ -134,19 +134,10 @@ export default function VenueMappingsPage() {
   }
 
   return (
-    <FadeUp>
-    <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
-      <div className="sticky top-20 max-lg:static">
-        <h2 className="text-2xl font-bold mb-2">Venue Mappings</h2>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          Map raw venue text from calendar feeds (e.g. &ldquo;Camp Randall&rdquo;) to one of your
-          locations. Events whose venue matches one of your home locations are automatically
-          flagged as home games for shift coverage. Manage the locations themselves on the
-          Locations tab.
-        </p>
-      </div>
-
-      <div className="min-w-0">
+    <SettingsPageShell
+      title="Venue Mappings"
+      description="Map raw venue text from calendar feeds to one of your locations. Home-location matches flag events as home games for shift coverage. Manage locations on the Locations tab."
+    >
         {/* ── Venue Pattern Mappings ── */}
         <Card>
           <CardHeader>
@@ -280,8 +271,6 @@ export default function VenueMappingsPage() {
             </Table>
           )}
         </Card>
-      </div>
-    </div>
-    </FadeUp>
+    </SettingsPageShell>
   );
 }

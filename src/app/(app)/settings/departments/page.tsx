@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { AlertTriangle, Plus, Power, PowerOff, WifiOff } from "lucide-react";
-import { FadeUp } from "@/components/ui/motion";
 import { useConfirm } from "@/components/ConfirmDialog";
 import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
@@ -30,6 +29,7 @@ import {
   isAbortError,
   parseErrorMessage,
 } from "@/lib/errors";
+import { SettingsPageShell } from "../SettingsPageShell";
 
 type DepartmentCounts = {
   assets: number;
@@ -185,37 +185,22 @@ export default function DepartmentsSettingsPage() {
     setBusy(null);
   }
 
-  const sidebar = (
-    <div className="sticky top-20 max-lg:static">
-      <h2 className="text-2xl font-bold mb-2">Departments</h2>
-      <p className="text-sm text-muted-foreground leading-relaxed">
-        Manage the inventory ownership groups used by item forms, filters, item families, and utilization reports.
-      </p>
-    </div>
-  );
+  const description = "Manage the inventory ownership groups used by item forms, filters, item families, and utilization reports.";
 
   if (loading) {
     return (
-      <FadeUp>
-        <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
-          {sidebar}
-          <div className="min-w-0 space-y-3">
+      <SettingsPageShell title="Departments" description={description} mainClassName="space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-12 w-full rounded-md" />
             ))}
-          </div>
-        </div>
-      </FadeUp>
+      </SettingsPageShell>
     );
   }
 
   if (error) {
     const Icon = error === "network" ? WifiOff : AlertTriangle;
     return (
-      <FadeUp>
-        <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
-          {sidebar}
-          <div className="min-w-0">
+      <SettingsPageShell title="Departments" description={description}>
             <Card>
               <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
                 <Icon className="size-10 text-muted-foreground" />
@@ -225,9 +210,7 @@ export default function DepartmentsSettingsPage() {
                 <Button variant="outline" onClick={reload}>Retry</Button>
               </CardContent>
             </Card>
-          </div>
-        </div>
-      </FadeUp>
+      </SettingsPageShell>
     );
   }
 
@@ -235,11 +218,7 @@ export default function DepartmentsSettingsPage() {
   const inactive = items.filter((department) => !department.active);
 
   return (
-    <FadeUp>
-      <div className="grid grid-cols-[260px_1fr] gap-8 items-start max-lg:grid-cols-1 max-lg:gap-4">
-        {sidebar}
-
-        <div className="min-w-0 space-y-4">
+    <SettingsPageShell title="Departments" description={description} mainClassName="space-y-4">
           <div className="flex justify-end">
             {!showAdd && (
               <Button size="sm" onClick={() => setShowAdd(true)}>
@@ -320,9 +299,7 @@ export default function DepartmentsSettingsPage() {
               onToggleActive={toggleActive}
             />
           )}
-        </div>
-      </div>
-    </FadeUp>
+    </SettingsPageShell>
   );
 }
 
