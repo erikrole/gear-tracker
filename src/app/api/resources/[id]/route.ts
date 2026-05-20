@@ -10,22 +10,22 @@ import { Role } from "@prisma/client";
 const CUID_RE = /^c[a-z0-9]{24}$/;
 
 export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
-  requirePermission(user.role, "guide", "view");
+  requirePermission(user.role, "resource", "view");
 
   const guide = CUID_RE.test(params.id)
     ? await getGuide(params.id)
     : await getGuideBySlug(params.id);
 
-  // Students cannot access unpublished guides
+  // Students cannot access unpublished resources
   if (user.role === Role.STUDENT && !guide.published) {
-    throw new HttpError(404, "Guide not found");
+    throw new HttpError(404, "Resource not found");
   }
 
   return ok({ data: guide });
 });
 
 export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
-  requirePermission(user.role, "guide", "edit");
+  requirePermission(user.role, "resource", "edit");
 
   const body = updateGuideSchema.parse(await req.json());
   const before = await getGuide(params.id);
@@ -33,12 +33,12 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   const markOnly =
     body.markVerified === true &&
     Object.keys(body).every((key) => key === "markVerified" || key === "expectedUpdatedAt");
-  const action = markOnly ? "guide_verified" : "guide_updated";
+  const action = markOnly ? "resource_verified" : "resource_updated";
 
   await createAuditEntry({
     actorId: user.id,
     actorRole: user.role,
-    entityType: "guide",
+    entityType: "resource",
     entityId: params.id,
     action,
     before: {
@@ -69,7 +69,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
 });
 
 export const DELETE = withAuth<{ id: string }>(async (_req, { user, params }) => {
-  requirePermission(user.role, "guide", "delete");
+  requirePermission(user.role, "resource", "delete");
 
   const guide = await getGuide(params.id);
   await deleteGuide(params.id);
@@ -77,9 +77,9 @@ export const DELETE = withAuth<{ id: string }>(async (_req, { user, params }) =>
   await createAuditEntry({
     actorId: user.id,
     actorRole: user.role,
-    entityType: "guide",
+    entityType: "resource",
     entityId: params.id,
-    action: "guide_deleted",
+    action: "resource_deleted",
     before: { title: guide.title, category: guide.category },
   });
 

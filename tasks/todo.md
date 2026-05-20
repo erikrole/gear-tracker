@@ -1,6 +1,6 @@
 # Task Queue
 
-Last updated: 2026-05-14
+Last updated: 2026-05-19
 
 **Current release**: Beta — CalVer versioning adopted.
 **Release workflow**: `npm run release` creates CalVer tag + GitHub Release.
@@ -43,6 +43,17 @@ Last updated: 2026-05-14
 ---
 
 ## Open Items
+
+### Resources Model Rename (2026-05-19)
+- [x] **Prisma rename:** Rename Prisma `Guide` model to `Resource` and update `User` relations.
+- [x] **DB migration:** Add and apply `0068_rename_guides_to_resources` to rename the live table, indexes, and FK constraints from guides to resources.
+- [x] **API identity:** Move `/api/resources` RBAC and audit strings from `guide` to `resource`.
+- [x] **Verification:** Run focused resource tests, TypeScript, migration checks, build, live Neon table inspection, and `/resources` route smoke.
+
+**Review**
+- Neon now has `public.resources`, `public.guides` is gone, and migration health reports 69/69 applied migrations.
+- `@/lib/guides` remains as the compatibility service name, but Prisma access now goes through `db.resource`.
+- Unauthenticated smoke proves `/resources` compiles and redirects to `/login`, `/api/resources` returns the expected 401, and `/guides` redirects to `/resources`.
 
 ### Trade Board UX/UI Ownership Pass (2026-05-14)
 - [x] **Plan:** Audit the current Trade Board against docs, schema, API routes, service behavior, and peer schedule list patterns.

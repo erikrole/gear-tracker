@@ -13,9 +13,9 @@ function sanitizeFileName(name: string) {
 }
 
 export const POST = withAuth(async (req, { user }) => {
-  requirePermission(user.role, "guide", "edit");
+  requirePermission(user.role, "resource", "edit");
 
-  const { allowed } = checkRateLimit(`guide:upload:${user.id}`, UPLOAD_LIMIT);
+  const { allowed } = checkRateLimit(`resource:upload:${user.id}`, UPLOAD_LIMIT);
   if (!allowed) {
     throw new HttpError(429, "Too many uploads. Please wait a moment.");
   }
@@ -36,7 +36,7 @@ export const POST = withAuth(async (req, { user }) => {
     throw new HttpError(413, "Image too large (max 10MB)");
   }
 
-  const blob = await put(`guides/${Date.now()}-${sanitizeFileName(file.name)}`, file, {
+  const blob = await put(`resources/${Date.now()}-${sanitizeFileName(file.name)}`, file, {
     access: "public",
   });
 

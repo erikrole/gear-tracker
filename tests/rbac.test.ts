@@ -77,7 +77,7 @@ describe("PERMISSIONS map completeness", () => {
     "bulk_sku", "calendar_source", "location", "location_mapping",
     "report", "notification", "diagnostics", "shift", "shift_assignment",
     "sport_config", "student_sport", "student_area", "shift_trade",
-    "allowed_email", "kit", "kiosk_device", "guide", "license",
+    "allowed_email", "kit", "kiosk_device", "resource", "license",
   ];
 
   it("has all expected resources", () => {

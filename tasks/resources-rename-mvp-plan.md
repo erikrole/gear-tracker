@@ -25,25 +25,25 @@
 - Authoring permissions unchanged. Empty / loading / error states preserved.
 
 ### Must Not Include (V2)
-- Prisma model rename `Guide` → `Resource` (slice 2 — migration with cascade rules).
-- DB column / API payload key rename. Internal lib names stay `Guide`-prefixed.
+- Prisma model rename `Guide` → `Resource` shipped in Slice 2 with migration `0068_rename_guides_to_resources`.
+- DB table renamed from `guides` to `resources`; internal `@/lib/guides` service names remain compatibility wrappers.
 - New filtering primitives (saved filters, multi-select).
 - Bulk admin tools.
 
 ### Acceptance Criteria
-- [ ] Sidebar shows "Resources" → `/resources`
-- [ ] `/resources` renders with left rail + results grid
-- [ ] Filter rail collapses former Area + Reference + Utility cards into one grouped vertical list with counts
-- [ ] No "Featured for you" strip; featured cards carry a Featured badge
-- [ ] Search input lives at the top of the results column
-- [ ] Category pill row removed (categories live in the rail)
-- [ ] `/resources/new`, `/resources/[slug]`, `/resources/[slug]/edit` all work
-- [ ] `/api/resources` endpoints functional
-- [ ] Visiting `/guides` redirects to `/resources` (and `/guides/[slug]` → `/resources/[slug]`)
-- [ ] STAFF/ADMIN see "New Resource" CTA; STUDENT does not
-- [ ] Contacts directory hidden unless rail filter = Contacts
-- [ ] Mobile: rail collapses to a top filter sheet
-- [ ] `npm run build` passes
+- [x] Sidebar shows "Resources" → `/resources`
+- [x] `/resources` renders with left rail + results grid
+- [x] Filter rail collapses former Area + Reference + Utility cards into one grouped vertical list with counts
+- [x] No "Featured for you" strip; featured cards carry a Featured badge
+- [x] Search input lives at the top of the results column
+- [x] Category pill row removed (categories live in the rail)
+- [x] `/resources/new`, `/resources/[slug]`, `/resources/[slug]/edit` all work
+- [x] `/api/resources` endpoints functional
+- [x] Visiting `/guides` redirects to `/resources` (and `/guides/[slug]` → `/resources/[slug]`)
+- [x] STAFF/ADMIN see "New Resource" CTA; STUDENT does not
+- [x] Contacts directory hidden unless rail filter = Contacts
+- [x] Mobile: rail collapses to a top filter sheet
+- [x] `npm run build` passes
 
 ### Verification Plan
 - `npx tsc --noEmit`
@@ -51,5 +51,13 @@
 - Manual smoke: `/resources`, switch filters, search, open a guide, edit (as staff), check `/guides` redirect.
 
 ## Slices
-1. **Slice 1 (this PR)** — Route rename + UI rebuild + sidebar + redirects.
-2. **Slice 2 (future)** — Prisma model `Guide` → `Resource` + migration + payload key rename.
+1. **Slice 1** — Route rename + UI rebuild + sidebar + redirects.
+2. **Slice 2** — Prisma model `Guide` → `Resource`, table rename to `resources`, route RBAC/audit identity rename, migration apply, and route smoke.
+
+## Slice 2 Review
+
+- Shipped migration `0068_rename_guides_to_resources`, preserving existing data while renaming the live Neon table from `guides` to `resources`.
+- Prisma now exposes `Resource` / `db.resource`; the existing `@/lib/guides` service remains as the compatibility service for route/page code.
+- `/api/resources` routes now require `resource.*` permissions and write `resource_*` audit actions with `entityType: "resource"`.
+- Verified live Neon has `public.resources`, no `public.guides`, and the existing resource count survived the rename.
+- Verified `/resources` compiles and redirects unauthenticated requests to `/login`, `/api/resources` returns the expected unauthenticated 401, and `/guides` redirects to `/resources`.

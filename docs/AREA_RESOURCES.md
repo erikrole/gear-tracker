@@ -1,6 +1,6 @@
 # AREA: Resources
 
-> Renamed from "Guides" on 2026-05-19. URLs `/guides*` permanently redirect to `/resources*`. The Prisma `Guide` model and `@/lib/guides` service retain their internal names (a future slice covers the model rename).
+> Renamed from "Guides" on 2026-05-19. URLs `/guides*` permanently redirect to `/resources*`. The Prisma model is now `Resource`; `@/lib/guides` keeps its service name as a compatibility wrapper around resource records.
 
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
@@ -18,7 +18,7 @@ In-app Markdown knowledge base for Wisconsin Athletics Creative operational refe
 - `/resources/[slug]/edit` — edit page with publish toggle and admin delete
 
 ## Data Model
-`Guide` model in `prisma/schema.prisma`:
+`Resource` model in `prisma/schema.prisma`:
 - `id`, `title`, `slug` (unique, auto-generated from title), `category` (freeform)
 - `markdown` (Text — Markdown source of truth)
 - `targetRoles` (`Role[]` — empty means all roles)
@@ -29,7 +29,7 @@ In-app Markdown knowledge base for Wisconsin Athletics Creative operational refe
 - `published` (boolean, default false)
 - `authorId` → `User` (Restrict on delete)
 
-Migrations: `prisma/migrations/0032_add_guides/migration.sql`, `prisma/migrations/0045_drop_guide_order/migration.sql` (drops unused `order` column), `prisma/migrations/0057_add_guide_markdown/migration.sql`, `prisma/migrations/0058_guide_personalization/migration.sql`, `prisma/migrations/0061_add_guide_freshness/migration.sql`
+Migrations: `prisma/migrations/0032_add_guides/migration.sql`, `prisma/migrations/0045_drop_guide_order/migration.sql` (drops unused `order` column), `prisma/migrations/0057_add_guide_markdown/migration.sql`, `prisma/migrations/0058_guide_personalization/migration.sql`, `prisma/migrations/0061_add_guide_freshness/migration.sql`, `prisma/migrations/0068_rename_guides_to_resources/migration.sql`
 
 ## Auth Rules
 | Action | Roles |
@@ -81,7 +81,8 @@ All mutations use `createAuditEntry` per D-007.
 ## Change Log
 | Date | Change |
 |------|--------|
-| 2026-05-19 | Renamed Guides to Resources: routes moved to `/resources*` (old `/guides*` 301-redirect via `next.config.ts`), sidebar entry relabeled, and the landing page rebuilt as a directory with a sticky left filter rail, top search + sort toolbar, active-filter chips, and Featured badges. Removed the "Featured for you" strip and the three stacked quick-card grids; Contacts directory now shows only under the Contacts filter. Prisma `Guide` model and `@/lib/guides` service keep internal names (model rename deferred to a follow-up slice). |
+| 2026-05-19 | Slice 2 closeout: Prisma model renamed from `Guide` to `Resource`, the database table was renamed from `guides` to `resources`, resource routes now use `resource` RBAC/audit identities, and Vercel Blob uploads now write under `resources/`. Migration `0068_rename_guides_to_resources` was applied to Neon and verified with `/resources` route smoke. |
+| 2026-05-19 | Renamed Guides to Resources: routes moved to `/resources*` (old `/guides*` 301-redirect via `next.config.ts`), sidebar entry relabeled, and the landing page rebuilt as a directory with a sticky left filter rail, top search + sort toolbar, active-filter chips, and Featured badges. Removed the "Featured for you" strip and the three stacked quick-card grids; Contacts directory now shows only under the Contacts filter. |
 | 2026-05-10 | Guides review fixes: landing search now matches full Markdown guide text beyond card summaries, reader heading IDs stay aligned with ToC IDs for rich headings, and partial featured-rank PATCHes preserve or clear rank from the final featured state. |
 | 2026-05-10 | Guide freshness closeout: guides now store last verification metadata, show Verified/Needs review badges on landing cards and reader pages, and allowed editors can mark entries verified from the reader. |
 | 2026-05-10 | URL-backed Guides navigation: `/guides` now preserves search, category, area, and reference filters in query params so links such as `/guides?view=contacts`, `/guides?view=media-drive`, and `/guides?area=video` are shareable and reload-safe. |

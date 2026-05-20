@@ -7,7 +7,7 @@ import { createAuditEntry } from "@/lib/audit";
 import { Role } from "@prisma/client";
 
 export const GET = withAuth(async (req, { user }) => {
-  requirePermission(user.role, "guide", "view");
+  requirePermission(user.role, "resource", "view");
 
   const { searchParams } = new URL(req.url);
   const category = searchParams.get("category") || undefined;
@@ -22,7 +22,7 @@ export const GET = withAuth(async (req, { user }) => {
 });
 
 export const POST = withAuth(async (req, { user }) => {
-  requirePermission(user.role, "guide", "create");
+  requirePermission(user.role, "resource", "create");
 
   const body = createGuideSchema.parse(await req.json());
   const guide = await createGuide({
@@ -41,9 +41,9 @@ export const POST = withAuth(async (req, { user }) => {
   await createAuditEntry({
     actorId: user.id,
     actorRole: user.role,
-    entityType: "guide",
+    entityType: "resource",
     entityId: guide.id,
-    action: "guide_created",
+    action: "resource_created",
     after: {
       title: guide.title,
       category: guide.category,

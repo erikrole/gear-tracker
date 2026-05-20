@@ -5,7 +5,7 @@ import { listGuides, updateGuide } from "@/lib/guides";
 
 vi.mock("@/lib/db", () => ({
   db: {
-    guide: {
+    resource: {
       findMany: vi.fn(),
       findUnique: vi.fn(),
       update: vi.fn(),
@@ -56,7 +56,7 @@ describe("guide service", () => {
   });
 
   it("searches full guide Markdown beyond the visible summary", async () => {
-    vi.mocked(db.guide.findMany).mockResolvedValue([
+    vi.mocked(db.resource.findMany).mockResolvedValue([
       guideListRow({
         markdown: [
           "# Camera setup",
@@ -76,23 +76,23 @@ describe("guide service", () => {
   });
 
   it("preserves featured rank when only the rank changes on an already featured guide", async () => {
-    vi.mocked(db.guide.findUnique).mockResolvedValue(currentGuide() as never);
-    vi.mocked(db.guide.update).mockResolvedValue({} as never);
+    vi.mocked(db.resource.findUnique).mockResolvedValue(currentGuide() as never);
+    vi.mocked(db.resource.update).mockResolvedValue({} as never);
 
     await updateGuide("guide-1", { featuredRank: 3 }, Role.ADMIN, "admin-1");
 
-    const updateCall = vi.mocked(db.guide.update).mock.calls[0]?.[0];
+    const updateCall = vi.mocked(db.resource.update).mock.calls[0]?.[0];
     expect(updateCall?.data).toMatchObject({ featuredRank: 3 });
     expect(updateCall?.data).not.toHaveProperty("featured");
   });
 
   it("clears stale featured rank when a guide is unfeatured without sending rank", async () => {
-    vi.mocked(db.guide.findUnique).mockResolvedValue(currentGuide() as never);
-    vi.mocked(db.guide.update).mockResolvedValue({} as never);
+    vi.mocked(db.resource.findUnique).mockResolvedValue(currentGuide() as never);
+    vi.mocked(db.resource.update).mockResolvedValue({} as never);
 
     await updateGuide("guide-1", { featured: false }, Role.ADMIN, "admin-1");
 
-    const updateCall = vi.mocked(db.guide.update).mock.calls[0]?.[0];
+    const updateCall = vi.mocked(db.resource.update).mock.calls[0]?.[0];
     expect(updateCall?.data).toMatchObject({
       featured: false,
       featuredRank: null,

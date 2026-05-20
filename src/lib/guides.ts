@@ -26,7 +26,7 @@ async function uniqueSlug(base: string, excludeId?: string): Promise<string> {
   let suffix = 1;
 
   while (true) {
-    const existing = await db.guide.findUnique({
+    const existing = await db.resource.findUnique({
       where: { slug: candidate },
       select: { id: true },
     });
@@ -83,7 +83,7 @@ export async function listGuides(opts: {
   search?: string;
   audience?: GuideAudience;
 }): Promise<GuideListItem[]> {
-  const guides = await db.guide.findMany({
+  const guides = await db.resource.findMany({
     where: {
       ...(opts.published !== undefined && { published: opts.published }),
       ...(opts.category && { category: opts.category }),
@@ -161,26 +161,26 @@ export async function listGuides(opts: {
 }
 
 export async function getGuide(id: string) {
-  const guide = await db.guide.findUnique({
+  const guide = await db.resource.findUnique({
     where: { id },
     include: {
       author: { select: { id: true, name: true } },
       lastVerifiedBy: { select: { id: true, name: true } },
     },
   });
-  if (!guide) throw new HttpError(404, "Guide not found");
+  if (!guide) throw new HttpError(404, "Resource not found");
   return guide;
 }
 
 export async function getGuideBySlug(slug: string) {
-  const guide = await db.guide.findUnique({
+  const guide = await db.resource.findUnique({
     where: { slug },
     include: {
       author: { select: { id: true, name: true } },
       lastVerifiedBy: { select: { id: true, name: true } },
     },
   });
-  if (!guide) throw new HttpError(404, "Guide not found");
+  if (!guide) throw new HttpError(404, "Resource not found");
   return guide;
 }
 
@@ -200,7 +200,7 @@ export async function createGuide(data: {
   const slug = await uniqueSlug(base);
   const markdown = sanitizeText(data.markdown ?? "");
 
-  return db.guide.create({
+  return db.resource.create({
     data: {
       title: data.title,
       slug,
@@ -239,7 +239,7 @@ export async function updateGuide(
   editorRole: Role,
   editorId: string,
 ) {
-  const guide = await db.guide.findUnique({
+  const guide = await db.resource.findUnique({
     where: { id },
     select: {
       id: true,
@@ -251,11 +251,11 @@ export async function updateGuide(
       featuredRank: true,
     },
   });
-  if (!guide) throw new HttpError(404, "Guide not found");
+  if (!guide) throw new HttpError(404, "Resource not found");
 
   // STAFF can only edit their own guides
   if (editorRole === Role.STAFF && guide.authorId !== editorId) {
-    throw new HttpError(403, "You can only edit your own guides");
+    throw new HttpError(403, "You can only edit your own resources");
   }
 
   // Optimistic concurrency check
@@ -265,7 +265,7 @@ export async function updateGuide(
   ) {
     throw new HttpError(
       409,
-      "This guide was edited by someone else since you opened it. Reload to see their changes.",
+      "This resource was edited by someone else since you opened it. Reload to see their changes.",
     );
   }
 
@@ -285,7 +285,7 @@ export async function updateGuide(
       : guide.featuredRank
     : null;
 
-  return db.guide.update({
+  return db.resource.update({
     where: { id },
     data: {
       ...(patch.title !== undefined && { title: patch.title }),
@@ -312,10 +312,10 @@ export async function updateGuide(
 }
 
 export async function deleteGuide(id: string) {
-  const guide = await db.guide.findUnique({
+  const guide = await db.resource.findUnique({
     where: { id },
     select: { id: true },
   });
-  if (!guide) throw new HttpError(404, "Guide not found");
-  return db.guide.delete({ where: { id } });
+  if (!guide) throw new HttpError(404, "Resource not found");
+  return db.resource.delete({ where: { id } });
 }

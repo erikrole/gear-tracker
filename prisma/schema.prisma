@@ -152,8 +152,8 @@ model User {
   licenseCodesHeld     LicenseCode[]              @relation("LicenseClaimedBy")
   licenseCodesCreated  LicenseCode[]              @relation("LicenseCreatedBy")
   licenseClaims        LicenseCodeClaim[]
-  guides               Guide[]
-  guidesVerified       Guide[]                    @relation("GuideLastVerifiedBy")
+  resources            Resource[]
+  resourcesVerified    Resource[]                 @relation("ResourceLastVerifiedBy")
   availabilityBlocks   StudentAvailabilityBlock[]
   travelMemberships    EventTravelMember[]        @relation("TravelMembers")
   badges               StudentBadge[]
@@ -1159,9 +1159,9 @@ model KioskDevice {
   @@map("kiosk_devices")
 }
 
-// ── Guides ────────────────────────────────────────────────
+// ── Resources ─────────────────────────────────────────────
 
-model Guide {
+model Resource {
   id               String      @id @default(cuid())
   title            String
   slug             String      @unique
@@ -1180,14 +1180,14 @@ model Guide {
   updatedAt        DateTime    @updatedAt @map("updated_at")
 
   author         User  @relation(fields: [authorId], references: [id], onDelete: Restrict)
-  lastVerifiedBy User? @relation("GuideLastVerifiedBy", fields: [lastVerifiedById], references: [id], onDelete: SetNull)
+  lastVerifiedBy User? @relation("ResourceLastVerifiedBy", fields: [lastVerifiedById], references: [id], onDelete: SetNull)
 
   @@index([category])
   @@index([featured, featuredRank])
   @@index([lastVerifiedAt])
   @@index([lastVerifiedById])
   @@index([published])
-  @@map("guides")
+  @@map("resources")
 }
 
 // ── Away Travel Roster ────────────────────────────────────
