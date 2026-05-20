@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { OperationalActiveFilterChips, type OperationalActiveFilter, OperationalToolbar } from "@/components/OperationalToolbar";
 import { Loader2, SearchIcon, SlidersHorizontal, X } from "lucide-react";
 import {
   Select,
@@ -65,6 +66,50 @@ export default function UserFilters({
     (sportFilter ? 1 : 0) +
     (showInactive ? 1 : 0);
   const hasFilters = activeFilterCount > 0;
+  const activeFilters: OperationalActiveFilter[] = [
+    ...(roleFilter
+      ? [{
+        key: "role",
+        label: `Role: ${ROLE_OPTIONS.find((o) => o.value === roleFilter)?.label ?? roleFilter}`,
+        onRemove: () => onRoleChange(""),
+      }]
+      : []),
+    ...(locationFilter
+      ? [{
+        key: "location",
+        label: `Location: ${locations.find((l) => l.id === locationFilter)?.name ?? locationFilter}`,
+        onRemove: () => onLocationChange(""),
+      }]
+      : []),
+    ...(areaFilter
+      ? [{
+        key: "area",
+        label: `Area: ${AREA_LABELS[areaFilter] ?? areaFilter}`,
+        onRemove: () => onAreaChange(""),
+      }]
+      : []),
+    ...(yearFilter
+      ? [{
+        key: "year",
+        label: `Year: ${STUDENT_YEAR_OPTIONS.find((o) => o.value === yearFilter)?.label ?? yearFilter}`,
+        onRemove: () => onYearChange(""),
+      }]
+      : []),
+    ...(sportFilter
+      ? [{
+        key: "sport",
+        label: `Sport: ${sportLabel(sportFilter)}`,
+        onRemove: () => onSportChange(""),
+      }]
+      : []),
+    ...(showInactive
+      ? [{
+        key: "inactive",
+        label: "Showing inactive",
+        onRemove: () => onShowInactiveChange(false),
+      }]
+      : []),
+  ];
 
   useEffect(() => {
     if (previousFilterCountRef.current > 0 && activeFilterCount === 0) {
@@ -86,13 +131,13 @@ export default function UserFilters({
   }, [draftSearch, onSearchChange, search]);
 
   return (
-    <div className="flex w-full flex-col gap-2 rounded-md border border-border/60 bg-card/70 p-2 shadow-xs">
+    <OperationalToolbar>
       <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
         <div className="relative min-w-0 flex-1">
           <Input
             id="users-search"
             name="users-search"
-            className="peer h-9 pl-9 pr-9 text-base md:text-sm"
+            className="peer h-10 pl-9 pr-9 text-base md:text-sm"
             type="text"
             placeholder="Search name or email"
             value={draftSearch}
@@ -111,7 +156,7 @@ export default function UserFilters({
               type="button"
               variant="ghost"
               size="icon-xs"
-              className="absolute inset-y-0 right-1.5 my-auto text-muted-foreground/80 hover:text-foreground"
+              className="absolute inset-y-0 right-1.5 my-auto size-8 text-muted-foreground/80 hover:text-foreground"
               onClick={() => {
                 setDraftSearch("");
                 onSearchChange("");
@@ -126,7 +171,7 @@ export default function UserFilters({
           <Button
             variant={filtersOpen || activeFilterCount > 0 ? "secondary" : "outline"}
             size="sm"
-            className="h-9 gap-1.5 active:scale-[0.96] transition-transform"
+            className="h-10 gap-1.5 active:scale-[0.96] transition-transform"
             onClick={() => setFiltersOpen((open) => !open)}
             aria-expanded={filtersOpen}
           >
@@ -139,7 +184,7 @@ export default function UserFilters({
             )}
           </Button>
           {hasFilters && (
-            <Button variant="ghost" size="sm" className="h-9 gap-1.5 active:scale-[0.96] transition-transform" onClick={onClearAll}>
+            <Button variant="ghost" size="sm" className="h-10 gap-1.5 active:scale-[0.96] transition-transform" onClick={onClearAll}>
               Clear
               <X className="size-4" />
             </Button>
@@ -149,7 +194,7 @@ export default function UserFilters({
       {filtersOpen && (
         <div className="flex flex-wrap items-center gap-2 border-t border-border/50 pt-2">
           <Select value={roleFilter || "__all__"} onValueChange={(v) => onRoleChange(v === "__all__" ? "" : v)}>
-            <SelectTrigger size="sm" className="w-[130px]">
+            <SelectTrigger size="sm" className="h-10 w-[130px]">
               <SelectValue placeholder="All roles" />
             </SelectTrigger>
             <SelectContent>
@@ -160,7 +205,7 @@ export default function UserFilters({
             </SelectContent>
           </Select>
           <Select value={locationFilter || "__all__"} onValueChange={(v) => onLocationChange(v === "__all__" ? "" : v)}>
-            <SelectTrigger size="sm" className="w-[150px]">
+            <SelectTrigger size="sm" className="h-10 w-[150px]">
               <SelectValue placeholder="All locations" />
             </SelectTrigger>
             <SelectContent>
@@ -171,7 +216,7 @@ export default function UserFilters({
             </SelectContent>
           </Select>
           <Select value={areaFilter || "__all__"} onValueChange={(v) => onAreaChange(v === "__all__" ? "" : v)}>
-            <SelectTrigger size="sm" className="w-[130px]">
+            <SelectTrigger size="sm" className="h-10 w-[130px]">
               <SelectValue placeholder="All areas" />
             </SelectTrigger>
             <SelectContent>
@@ -182,7 +227,7 @@ export default function UserFilters({
             </SelectContent>
           </Select>
           <Select value={yearFilter || "__all__"} onValueChange={(v) => onYearChange(v === "__all__" ? "" : v)}>
-            <SelectTrigger size="sm" className="w-[130px]">
+            <SelectTrigger size="sm" className="h-10 w-[130px]">
               <SelectValue placeholder="All years" />
             </SelectTrigger>
             <SelectContent>
@@ -193,7 +238,7 @@ export default function UserFilters({
             </SelectContent>
           </Select>
           <Select value={sportFilter || "__all__"} onValueChange={(v) => onSportChange(v === "__all__" ? "" : v)}>
-            <SelectTrigger size="sm" className="w-[150px]">
+            <SelectTrigger size="sm" className="h-10 w-[150px]">
               <SelectValue placeholder="All sports" />
             </SelectTrigger>
             <SelectContent className="max-h-[300px]">
@@ -203,7 +248,7 @@ export default function UserFilters({
               ))}
             </SelectContent>
           </Select>
-          <div className="flex items-center gap-1.5">
+          <div className="flex h-10 items-center gap-2 rounded-md border border-border/70 bg-background px-3">
             <Checkbox
               id="show-inactive"
               checked={showInactive}
@@ -215,46 +260,7 @@ export default function UserFilters({
           </div>
         </div>
       )}
-      {hasFilters && (
-        <div className="flex items-center gap-2 flex-wrap">
-          {roleFilter && (
-            <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs active:scale-[0.96] transition-transform" onClick={() => onRoleChange("")}>
-              Role: {ROLE_OPTIONS.find((o) => o.value === roleFilter)?.label}
-              <X className="size-3" />
-            </Button>
-          )}
-          {locationFilter && (
-            <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs active:scale-[0.96] transition-transform" onClick={() => onLocationChange("")}>
-              Location: {locations.find((l) => l.id === locationFilter)?.name}
-              <X className="size-3" />
-            </Button>
-          )}
-          {areaFilter && (
-            <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs active:scale-[0.96] transition-transform" onClick={() => onAreaChange("")}>
-              Area: {AREA_LABELS[areaFilter] ?? areaFilter}
-              <X className="size-3" />
-            </Button>
-          )}
-          {yearFilter && (
-            <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs active:scale-[0.96] transition-transform" onClick={() => onYearChange("")}>
-              Year: {STUDENT_YEAR_OPTIONS.find((o) => o.value === yearFilter)?.label ?? yearFilter}
-              <X className="size-3" />
-            </Button>
-          )}
-          {sportFilter && (
-            <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs active:scale-[0.96] transition-transform" onClick={() => onSportChange("")}>
-              Sport: {sportLabel(sportFilter)}
-              <X className="size-3" />
-            </Button>
-          )}
-          {showInactive && (
-            <Button variant="secondary" size="sm" className="h-7 gap-1 text-xs active:scale-[0.96] transition-transform" onClick={() => onShowInactiveChange(false)}>
-              Showing inactive
-              <X className="size-3" />
-            </Button>
-          )}
-        </div>
-      )}
-    </div>
+      <OperationalActiveFilterChips filters={activeFilters} />
+    </OperationalToolbar>
   );
 }

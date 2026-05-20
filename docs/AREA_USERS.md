@@ -3,12 +3,14 @@
 ## Document Control
 - Area: Users
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-13
+- Last Updated: 2026-05-20
 - Status: Active
 - Version: V1.2
 
 ## Direction
 Use a simple tiered permission model with inheritance so behavior is predictable in UI and backend authorization.
+
+Design language reference: `docs/DESIGN_LANGUAGE.md`.
 
 ## Role Hierarchy
 1. `ADMIN`
@@ -112,6 +114,8 @@ Use a simple tiered permission model with inheritance so behavior is predictable
 6. Ensure audit logs include actor role, target owner, and exception metadata.
 
 ## Change Log
+- 2026-05-20: **Design language slice 5:** Users roster active-filter chips now use the shared `OperationalActiveFilterChips` row, keeping role, location, area, year, sport, and inactive filter removal aligned with Items.
+- 2026-05-20: **Design language slice 3:** Users roster filters now use the shared `OperationalToolbar` shell and 40px command controls, aligning search, filter disclosure, clear action, and inactive visibility with Items.
 - 2026-05-13: Users list UI polish shipped. Roster summary metrics now fit evenly on desktop with admins counted in Staff, admin rows show Staff in the Role column with a stable Admin badge beside the name, table headers use cleaner sentence-case copy, Area appears before Location in sentence case, active users get a standard avatar presence dot with `Now`, and never-active users use a softer badge treatment.
 - 2026-05-13: Users search responsiveness shipped. The roster search box now keeps local typing responsive, debounces URL/API updates at the input boundary, and keeps the previous result list visible while a filtered query refreshes.
 - 2026-05-13: Last-active roster signal shipped. Users now record a debounced `lastActiveAt` timestamp during authenticated app activity, and the Users list exposes a sortable Last active column with compact mobile metadata.

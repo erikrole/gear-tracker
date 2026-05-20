@@ -15,8 +15,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import EmptyState from "@/components/EmptyState";
+import { OperationalMetricCard, OperationalPartialResultsAlert } from "@/components/OperationalFeedback";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -254,21 +254,13 @@ export default function InventoryHygienePage() {
       {data && (
         <>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <MetricCard label="Open records" value={data.totals.openIssues} tone={data.totals.openIssues ? "orange" : "green"} />
-            <MetricCard label="Checks needing work" value={data.totals.checksNeedingWork} tone={data.totals.checksNeedingWork ? "orange" : "green"} />
-            <MetricCard label="Clean checks" value={cleanChecks} tone="green" />
-            <MetricCard label="Checks running" value={data.totals.activeChecks} tone="muted" />
+            <OperationalMetricCard label="Open records" value={data.totals.openIssues} tone={data.totals.openIssues ? "orange" : "green"} />
+            <OperationalMetricCard label="Checks needing work" value={data.totals.checksNeedingWork} tone={data.totals.checksNeedingWork ? "orange" : "green"} />
+            <OperationalMetricCard label="Clean checks" value={cleanChecks} tone="green" />
+            <OperationalMetricCard label="Checks running" value={data.totals.activeChecks} tone="muted" />
           </div>
 
-          {partialFailures.length > 0 && (
-            <Alert className="border-[var(--orange-text)] bg-[var(--orange-bg)]">
-              <AlertTriangle className="size-4 text-[var(--orange-text)]" />
-              <AlertTitle>Some checks used fallback data</AlertTitle>
-              <AlertDescription className="text-muted-foreground">
-                {pluralize(partialFailures.length, "check")} could not finish. Refresh before treating a clean result as final.
-              </AlertDescription>
-            </Alert>
-          )}
+          <OperationalPartialResultsAlert failures={partialFailures} title="Some checks used fallback data" />
 
           <QueueSummary
             completion={completion}
@@ -480,25 +472,6 @@ function IssueFilterBar({
         </ToggleGroupItem>
       </ToggleGroup>
     </div>
-  );
-}
-
-function MetricCard({ label, value, tone }: { label: string; value: number; tone: "green" | "orange" | "muted" }) {
-  const toneClass = {
-    green: "text-[var(--green-text)]",
-    orange: "text-[var(--orange-text)]",
-    muted: "text-foreground",
-  }[tone];
-
-  return (
-    <Card className="border-border/40 shadow-none">
-      <CardContent className="p-4">
-        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
-        <div className={cn("mt-1 text-2xl font-black tabular-nums", toneClass)} style={{ fontFamily: "var(--font-heading)" }}>
-          {value}
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 

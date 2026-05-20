@@ -1,12 +1,10 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { MoreVerticalIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { OperationalRowActions } from "@/components/OperationalRowActions";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
 export default function KebabMenu({
@@ -25,34 +23,28 @@ export default function KebabMenu({
   const canDelete = !hasItems && !hasChildren;
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          aria-label="Category actions"
-          onClick={(e) => e.stopPropagation()}
-        >
-          &#8942;
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onSelect={onRename}>
-          Rename
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={onAddSub}>
-          Add subcategory
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          variant="destructive"
-          disabled={!canDelete}
-          onSelect={onDelete}
-          title={hasItems ? "Remove linked items first" : hasChildren ? "Remove subcategories first" : ""}
-        >
-          Delete
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <OperationalRowActions
+      label="Category actions"
+      icon={<MoreVerticalIcon className="size-4" aria-hidden="true" />}
+    >
+      <DropdownMenuItem onSelect={onRename}>
+        <PencilIcon className="size-4" />
+        Rename
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={onAddSub}>
+        <PlusIcon className="size-4" />
+        Add subcategory
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        variant="destructive"
+        disabled={!canDelete}
+        onSelect={onDelete}
+        title={hasItems ? "Remove linked items first" : hasChildren ? "Remove subcategories first" : ""}
+      >
+        <Trash2Icon className="size-4" />
+        Delete
+      </DropdownMenuItem>
+    </OperationalRowActions>
   );
 }

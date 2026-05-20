@@ -9,8 +9,8 @@ import {
   RefreshCw,
   ShieldCheck,
 } from "lucide-react";
+import { OperationalMetricCard, OperationalPartialResultsAlert } from "@/components/OperationalFeedback";
 import { PageHeader } from "@/components/PageHeader";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -150,10 +150,10 @@ export default function FixTodayClient() {
                   One place to catch overdue custody, kiosk health, calendar sync, inventory exceptions, low batteries, pending handoffs, and license expirations.
                 </p>
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                  <QueueMetric label="Open items" value={data.totals.openItems} tone={data.totals.openItems ? "orange" : "green"} />
-                  <QueueMetric label="Critical checks" value={data.totals.criticalChecks} tone={data.totals.criticalChecks ? "red" : "green"} />
-                  <QueueMetric label="Checks needing work" value={data.totals.checksNeedingWork} tone={data.totals.checksNeedingWork ? "orange" : "green"} />
-                  <QueueMetric label="Checks running" value={data.totals.activeChecks} tone="muted" />
+                  <OperationalMetricCard label="Open items" value={data.totals.openItems} tone={data.totals.openItems ? "orange" : "green"} />
+                  <OperationalMetricCard label="Critical checks" value={data.totals.criticalChecks} tone={data.totals.criticalChecks ? "red" : "green"} />
+                  <OperationalMetricCard label="Checks needing work" value={data.totals.checksNeedingWork} tone={data.totals.checksNeedingWork ? "orange" : "green"} />
+                  <OperationalMetricCard label="Checks running" value={data.totals.activeChecks} tone="muted" />
                 </div>
               </div>
               <div className="w-full max-w-xs rounded-md bg-muted/50 p-3">
@@ -166,15 +166,7 @@ export default function FixTodayClient() {
             </div>
           </section>
 
-          {partialFailures.length > 0 && (
-            <Alert variant="destructive">
-              <AlertTriangle className="size-4" />
-              <AlertTitle>Some checks did not load</AlertTitle>
-              <AlertDescription>
-                Showing partial results. Failed checks: {partialFailures.join(", ")}.
-              </AlertDescription>
-            </Alert>
-          )}
+          <OperationalPartialResultsAlert failures={partialFailures} />
 
           {activeSections.length === 0 && (
             <Card className="border-green-200/80 bg-green-50/50 dark:border-green-950 dark:bg-green-950/10">
@@ -199,24 +191,6 @@ export default function FixTodayClient() {
           </div>
         </>
       )}
-    </div>
-  );
-}
-
-function QueueMetric({ label, value, tone }: { label: string; value: number; tone: "red" | "orange" | "green" | "muted" }) {
-  const toneClass =
-    tone === "red"
-      ? "text-red-700 dark:text-red-400"
-      : tone === "orange"
-      ? "text-orange-700 dark:text-orange-400"
-      : tone === "green"
-      ? "text-green-700 dark:text-green-400"
-      : "text-foreground";
-
-  return (
-    <div className="rounded-md bg-background px-3 py-2 shadow-xs">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className={cn("mt-1 text-2xl font-semibold tabular-nums", toneClass)}>{value}</div>
     </div>
   );
 }

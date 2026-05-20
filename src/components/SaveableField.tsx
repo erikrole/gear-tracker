@@ -130,24 +130,24 @@ export function SaveableField({
       <div className="flex items-center gap-2 flex-1 min-w-0">
         <div className="flex-1 min-w-0">{children}</div>
         {isDirty && onCommit && onCancel && status !== "saving" ? (
-          <div className="flex items-center gap-0.5 shrink-0">
+          <div className="flex items-center gap-1 shrink-0">
             <Button
               variant="ghost"
               size="icon"
-              className="size-6 text-green-600 hover:text-green-700 hover:bg-green-500/10"
+              className="size-10 text-green-600 hover:text-green-700 hover:bg-green-500/10"
               onClick={onCommit}
               aria-label="Save"
             >
-              <Check className="size-3.5" />
+              <Check className="size-4" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="size-6 text-muted-foreground hover:text-foreground"
+              className="size-10 text-muted-foreground hover:text-foreground"
               onClick={onCancel}
               aria-label="Cancel"
             >
-              <X className="size-3.5" />
+              <X className="size-4" />
             </Button>
           </div>
         ) : (

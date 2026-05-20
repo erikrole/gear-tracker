@@ -67,8 +67,11 @@ export function ScanControls({
               active={scanning}
             />
           </div>
-          <button
-            className="absolute top-2 right-2 size-8 rounded-full bg-black/50 text-white border-none flex items-center justify-center cursor-pointer z-[1] [-webkit-tap-highlight-color:transparent]"
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="absolute right-2 top-2 z-[1] size-11 rounded-full border border-white/15 bg-black/55 text-white shadow-sm [-webkit-tap-highlight-color:transparent] hover:bg-black/70 hover:text-white focus-visible:ring-white/50"
             onClick={() => {
               setScanning(false);
               setCameraError("");
@@ -77,11 +80,13 @@ export function ScanControls({
             aria-label="Stop camera"
           >
             <XIcon className="size-4" />
-          </button>
+          </Button>
         </div>
       ) : (
-        <button
-          className="flex items-center justify-center gap-2 w-full px-4 py-6 bg-zinc-900 border-none text-white/70 cursor-pointer font-inherit text-sm [-webkit-tap-highlight-color:transparent] active:bg-zinc-800 rounded-t-xl transition-colors"
+        <Button
+          type="button"
+          variant="ghost"
+          className="flex h-auto w-full items-center justify-center gap-2 rounded-t-xl rounded-b-none bg-zinc-900 px-4 py-6 text-sm font-medium text-white/70 [-webkit-tap-highlight-color:transparent] hover:bg-zinc-800 hover:text-white focus-visible:ring-white/40 active:bg-zinc-800"
           onClick={() => {
             setScanning(true);
             setCameraError("");
@@ -90,7 +95,7 @@ export function ScanControls({
         >
           <ScanIcon className="size-5" />
           <span>Resume scanning</span>
-        </button>
+        </Button>
       )}
 
       <form
@@ -103,20 +108,21 @@ export function ScanControls({
         <div className="flex gap-2">
           <Input
             id="scan-manual-entry"
+            name="scan-manual-entry"
             value={manualValue}
             onChange={handleManualChange}
             onInput={handleManualChange}
             placeholder="Asset tag, QR, serial, or scan code"
             autoComplete="off"
             disabled={processing}
-            className="h-10 min-w-0 border-white/15 bg-white/10 text-white placeholder:text-white/45 focus-visible:ring-white/30 disabled:opacity-60"
+            className="h-11 min-w-0 border-white/15 bg-white/10 text-white placeholder:text-white/45 focus-visible:ring-white/30 disabled:opacity-60"
           />
           <Button
             type="submit"
             variant="secondary"
             size="sm"
             disabled={processing || manualValue.trim().length === 0}
-            className="h-10 shrink-0 transition-transform active:scale-[0.96]"
+            className="h-11 shrink-0 transition-transform active:scale-[0.96]"
           >
             {processing ? (
               <Spinner data-icon="inline-start" />
@@ -142,13 +148,15 @@ export function ScanControls({
             ) : (
               <>
                 <span>{cameraError}</span>
-                <button
+                <Button
                   type="button"
-                  className="self-start text-xs underline underline-offset-2 opacity-80 hover:opacity-100"
+                  variant="link"
+                  size="sm"
+                  className="h-10 self-start px-0 text-xs text-destructive underline-offset-2"
                   onClick={() => { setScanning(true); setCameraError(""); }}
                 >
                   Try again
-                </button>
+                </Button>
               </>
             )}
           </AlertDescription>

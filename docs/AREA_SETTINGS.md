@@ -3,12 +3,14 @@
 ## Document Control
 - Area: Settings
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-12
+- Last Updated: 2026-05-20
 - Status: Active
 - Version: V1
 
 ## Direction
 Single Settings surface for both **personal preferences** (visible to every authenticated user) and **system configuration** (admin/staff only, hidden by role-aware nav). Each sub-page is a focused domain. Keep pages self-contained with clear feedback loops (toasts, inline saves).
+
+Design language reference: `docs/DESIGN_LANGUAGE.md`.
 
 ## Core Rules
 1. The Settings surface is open to any authenticated user (STUDENT / STAFF / ADMIN). Each sub-page declares its own `requiredRole`; the layout filters tabs accordingly. STUDENTs only see the Personal group.
@@ -129,6 +131,8 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages.
 
 ## Change Log
+- 2026-05-20: Design language slice 6. Settings Categories row actions now use the shared `OperationalRowActions` trigger, replacing the page-local kebab button while preserving rename, add subcategory, and delete behavior.
+- 2026-05-20: Design language slice 4. Settings now links to the shared design-language reference while preserving the Settings-specific layout rule that the layout owns the page header and tab navigation.
 - 2026-05-13: Appearance polish. Light/Dark/System switching now runs through a shared theme controller used by both Appearance and the Sidebar, keeps System as a no-override localStorage state, and adds a short reduced-motion-safe theme transition without animating first paint.
 - 2026-05-12: Creation flow standardization. Categories, Departments, Locations, and Allowed Emails add forms now show visible form-level validation/API/network errors and keep submit/cancel controls in a clear disabled state during slow saves.
 - 2026-05-12: Security audit patch. Kiosk device deactivation now clears both the stored session token and `sessionExpiresAt`, matching the server-side kiosk expiry model documented in `AREA_KIOSK.md`.

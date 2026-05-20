@@ -45,7 +45,8 @@ const accentClasses: Record<Accent, string> = {
   reservation: "border-l-[var(--purple)] hover:bg-muted/50",
   due: "border-l-[var(--orange)] bg-[var(--orange)]/[0.04] dark:bg-[var(--orange)]/[0.12] hover:bg-[var(--orange)]/[0.08] dark:hover:bg-[var(--orange)]/[0.18]",
   overdue: "border-l-[var(--wi-red)] bg-[var(--wi-red)]/[0.06] dark:bg-[var(--wi-red)]/[0.18] hover:bg-[var(--wi-red)]/10 dark:hover:bg-[var(--wi-red)]/25",
-  "pending-pickup": "border-l-[var(--green)] hover:bg-muted/50",
+  "pending-pickup":
+    "border-l-[var(--orange)] bg-[var(--orange)]/[0.03] dark:bg-[var(--orange)]/[0.10] hover:bg-[var(--orange)]/[0.07] dark:hover:bg-[var(--orange)]/[0.16]",
   "pending-pickup-late": "border-l-[var(--orange)] bg-[var(--orange)]/[0.04] dark:bg-[var(--orange)]/[0.12] hover:bg-[var(--orange)]/[0.08] dark:hover:bg-[var(--orange)]/[0.18]",
 };
 

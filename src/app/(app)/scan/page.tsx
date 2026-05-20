@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { ScanIcon, ShieldCheckIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { PageHeader } from "@/components/PageHeader";
 import { useScanSubmission } from "@/hooks/use-scan-submission";
 import { ScanControls } from "./_components/ScanControls";
 import { ItemPreviewDrawer } from "./_components/ItemPreviewDrawer";
@@ -27,18 +28,16 @@ export default function ScanPage() {
   return (
     <FadeUp>
       <div className="mx-auto flex max-w-[640px] flex-col gap-3 pb-4 max-md:pb-[100px]">
-        <div className="flex items-center justify-between gap-3 py-1">
-          <div className="min-w-0">
-            <h1 className="text-balance">Lookup</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Scan an item tag, QR code, serial number, or primary scan code.
-            </p>
-          </div>
+        <PageHeader
+          title="Lookup"
+          description="Scan an item tag, QR code, serial number, or primary scan code."
+          className="mb-2"
+        >
           <Badge variant="gray" className="gap-1.5 py-1 font-bold shrink-0">
             <div className="size-[6px] rounded-full bg-muted-foreground" />
             Look Up
           </Badge>
-        </div>
+        </PageHeader>
 
         {requestedBookingFlow && (
           <Alert className="border-blue-200 bg-blue-50/60 text-blue-950 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100">

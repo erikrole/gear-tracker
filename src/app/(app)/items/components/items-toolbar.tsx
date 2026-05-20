@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { OperationalActiveFilterChips, type OperationalActiveFilter, OperationalToolbar } from "@/components/OperationalToolbar";
 import { FacetedFilter } from "../faceted-filter";
 import type { ItemTypeFilter } from "../hooks/use-url-filters";
 
@@ -18,6 +19,13 @@ const STATUS_OPTIONS = [
   { value: "MAINTENANCE", label: "Maintenance" },
   { value: "RETIRED", label: "Retired" },
 ];
+
+const ITEM_TYPE_LABELS: Record<ItemTypeFilter, string> = {
+  all: "All",
+  serialized: "Standard",
+  "unit-tracked": "Units",
+  "quantity-tracked": "Quantity",
+};
 
 type Location = { id: string; name: string };
 type Department = { id: string; name: string };
@@ -83,7 +91,77 @@ export function ItemsToolbar({
     categoryFilter.size +
     brandFilter.size +
     departmentFilter.size +
-    (showAccessories ? 1 : 0);
+    (showAccessories ? 1 : 0) +
+    (favoritesOnly ? 1 : 0) +
+    (itemType !== "all" ? 1 : 0);
+  const activeFilters: OperationalActiveFilter[] = [
+    ...(itemType !== "all"
+      ? [{
+        key: "item-type",
+        label: `Type: ${ITEM_TYPE_LABELS[itemType]}`,
+        onRemove: () => onItemTypeChange("all"),
+      }]
+      : []),
+    ...(favoritesOnly
+      ? [{
+        key: "favorites",
+        label: "Favorites",
+        onRemove: () => onFavoritesOnlyChange(false),
+      }]
+      : []),
+    ...[...statusFilter].map((value) => ({
+      key: `status-${value}`,
+      label: `Status: ${STATUS_OPTIONS.find((option) => option.value === value)?.label ?? value}`,
+      onRemove: () => {
+        const next = new Set(statusFilter);
+        next.delete(value);
+        onStatusFilterChange(next);
+      },
+    })),
+    ...[...categoryFilter].map((value) => ({
+      key: `category-${value}`,
+      label: `Category: ${categoryOptions.find((option) => option.value === value)?.label ?? value}`,
+      onRemove: () => {
+        const next = new Set(categoryFilter);
+        next.delete(value);
+        onCategoryFilterChange(next);
+      },
+    })),
+    ...[...locationFilter].map((value) => ({
+      key: `location-${value}`,
+      label: `Location: ${locations.find((location) => location.id === value)?.name ?? value}`,
+      onRemove: () => {
+        const next = new Set(locationFilter);
+        next.delete(value);
+        onLocationFilterChange(next);
+      },
+    })),
+    ...[...departmentFilter].map((value) => ({
+      key: `department-${value}`,
+      label: `Department: ${departments.find((department) => department.id === value)?.name ?? value}`,
+      onRemove: () => {
+        const next = new Set(departmentFilter);
+        next.delete(value);
+        onDepartmentFilterChange(next);
+      },
+    })),
+    ...[...brandFilter].map((value) => ({
+      key: `brand-${value}`,
+      label: `Brand: ${value}`,
+      onRemove: () => {
+        const next = new Set(brandFilter);
+        next.delete(value);
+        onBrandFilterChange(next);
+      },
+    })),
+    ...(showAccessories
+      ? [{
+        key: "attachments",
+        label: "Attachments only",
+        onRemove: () => onShowAccessoriesChange(false),
+      }]
+      : []),
+  ];
 
   useEffect(() => {
     if (previousActiveFilterCountRef.current > 0 && activeFilterCount === 0) {
@@ -93,7 +171,7 @@ export function ItemsToolbar({
   }, [activeFilterCount]);
 
   return (
-    <div className="flex w-full flex-col gap-2 rounded-md border border-border/60 bg-card/70 p-2 shadow-xs">
+    <OperationalToolbar>
       <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
         <div className="relative min-w-0 flex-1">
           <Input
@@ -224,6 +302,7 @@ export function ItemsToolbar({
           </div>
         </div>
       )}
-    </div>
+      <OperationalActiveFilterChips filters={activeFilters} />
+    </OperationalToolbar>
   );
 }

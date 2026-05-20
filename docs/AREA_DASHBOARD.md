@@ -3,12 +3,14 @@
 ## Document Control
 - Area: Dashboard
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-10
+- Last Updated: 2026-05-20
 - Status: Active — V3 shipped, reliability + UX polish complete
 - Version: V3
 
 ## Direction
 Make dashboard an action console for daily operations, not a reporting screen.
+
+Design language reference: `docs/DESIGN_LANGUAGE.md`.
 
 ## Confirmed Product Decisions
 1. Same dashboard layout for all users.
@@ -175,6 +177,8 @@ Make dashboard an action console for daily operations, not a reporting screen.
 7. Add regression tests for permissions, window filtering (7 days), and overdue consistency.
 
 ## Change Log
+- 2026-05-20: **Design language slice 2:** Fix Today now uses the shared operational metric card and partial-results warning primitives so admin queue status, warning tone, and fallback copy match Inventory Hygiene.
+- 2026-05-20: **Design language quick win:** Awaiting Pickup rows now use orange waiting treatment instead of green success treatment, keeping pending kiosk pickup visually separate from available/clean states.
 - 2026-05-14: **Upcoming Events venue filter** — Home, Away, and Neutral now share the same venue tone system as Schedule: green for Home, orange for Away, and gray for Neutral. The dashboard Upcoming Events filter now includes a Neutral tab instead of hiding neutral-site events under All only.
 - 2026-05-13: **Event work payload for iOS Home** — `/api/dashboard` now returns booking summaries with `eventIds` and `linkedEventId`, and adds `myEventWork` for the signed-in user's event-linked shift plus gear. Gear linkage now checks primary `Booking.eventId`, the `BookingEvent` junction, and `Booking.shiftAssignmentId`, so native Home can render one event row instead of separately inferring reservation/pickup and shift rows.
 - 2026-05-13: **Admin Fix Today queue shipped** — `/admin/fix-today` gives admins a read-only daily action queue for overdue checkouts, pending pickup handoffs, offline kiosks, flagged maintenance items, low battery families, calendar sync failures, and license expirations. `GET /api/admin/fix-today` is `ADMIN`-only, uses bounded parallel reads with partial-failure metadata, and links every issue back to existing repair surfaces instead of adding one-off mutation paths.

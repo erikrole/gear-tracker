@@ -8,6 +8,7 @@ import { UserAvatar } from "@/components/UserAvatar";
 import {
   CalendarClockIcon,
   CheckCircle2Icon,
+  Clock3Icon,
   ClipboardCheckIcon,
   MapPinIcon,
   SmartphoneIcon,
@@ -116,16 +117,26 @@ export function WizardStep3({
       {/* ── Handoff outcome ── */}
       <div className="rounded-md border border-border/60 bg-card/70 p-3 shadow-xs">
         <div className="flex items-start gap-3">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-green-500/[0.08] text-green-600">
-            <CheckCircle2Icon className="size-5" />
+          <div
+            className={
+              isCheckout
+                ? "flex size-9 shrink-0 items-center justify-center rounded-sm bg-[var(--orange-bg)] text-[var(--orange-text)]"
+                : "flex size-9 shrink-0 items-center justify-center rounded-sm bg-[var(--purple-bg)] text-[var(--purple-text)]"
+            }
+          >
+            {isCheckout ? (
+              <Clock3Icon className="size-5" />
+            ) : (
+              <CheckCircle2Icon className="size-5" />
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-base font-semibold text-balance">
-                {isCheckout ? "Ready for kiosk pickup" : "Ready to reserve"}
+                {isCheckout ? "Pending kiosk pickup" : "Reservation ready"}
               </h3>
-              <Badge variant={isCheckout ? "red" : "blue"} size="sm">
-                {isCheckout ? "Pickup required" : "Confirmed later"}
+              <Badge variant={isCheckout ? "orange" : "purple"} size="sm">
+                {isCheckout ? "Pending pickup" : "Reserved window"}
               </Badge>
             </div>
             <p className="mt-1 text-sm text-muted-foreground text-pretty">

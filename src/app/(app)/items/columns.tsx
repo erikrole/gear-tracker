@@ -2,7 +2,6 @@
 
 import { type ColumnDef } from "@tanstack/react-table";
 import {
-  MoreHorizontal,
   ExternalLink,
   Copy,
   Wrench,
@@ -15,12 +14,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { OperationalRowActions } from "@/components/OperationalRowActions";
 import { STATUS_STYLES, statusColor, type StatusColor } from "@/lib/status-styles";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -412,49 +409,39 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
         const asset = row.original;
         const isBulk = isBulkRowId(asset.id);
         return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-9 opacity-0 transition-[opacity,transform] active:scale-[0.96] group-hover/row:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 [@media(pointer:coarse)]:opacity-100"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <MoreHorizontal className="size-4" />
-                <span className="sr-only">Open menu</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-              <DropdownMenuItem onClick={() => meta.onRowAction?.("open", asset)}>
-                <ExternalLink className="mr-2 size-4" />
-                Open
-              </DropdownMenuItem>
-              {!isBulk && (
-                <>
-                  <DropdownMenuItem onClick={() => meta.onRowAction?.("print-label", asset)}>
-                    <Printer className="mr-2 size-4" />
-                    Print label
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => meta.onRowAction?.("duplicate", asset)}>
-                    <Copy className="mr-2 size-4" />
-                    Duplicate
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => meta.onRowAction?.("maintenance", asset)}>
-                    <Wrench className="mr-2 size-4" />
-                    Maintenance
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="text-destructive"
-                    onClick={() => meta.onRowAction?.("retire", asset)}
-                  >
-                    <Archive className="mr-2 size-4" />
-                    Retire
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <OperationalRowActions
+            label={`Actions for ${asset.assetTag}`}
+            triggerClassName="opacity-0 transition-[opacity,scale] group-hover/row:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 [@media(pointer:coarse)]:opacity-100"
+          >
+            <DropdownMenuItem onClick={() => meta.onRowAction?.("open", asset)}>
+              <ExternalLink className="size-4" />
+              Open
+            </DropdownMenuItem>
+            {!isBulk && (
+              <>
+                <DropdownMenuItem onClick={() => meta.onRowAction?.("print-label", asset)}>
+                  <Printer className="size-4" />
+                  Print label
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => meta.onRowAction?.("duplicate", asset)}>
+                  <Copy className="size-4" />
+                  Duplicate
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => meta.onRowAction?.("maintenance", asset)}>
+                  <Wrench className="size-4" />
+                  Maintenance
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => meta.onRowAction?.("retire", asset)}
+                >
+                  <Archive className="size-4" />
+                  Retire
+                </DropdownMenuItem>
+              </>
+            )}
+          </OperationalRowActions>
         );
       },
     });

@@ -44,6 +44,30 @@ Last updated: 2026-05-19
 
 ## Open Items
 
+### Gear Tracker Design Language (2026-05-20)
+- [x] Slice 1: Status and accessibility quick wins.
+- [x] Slice 2: Shared operational feedback primitives.
+- [x] Slice 3: Shared list/filter/page structure.
+- [x] Slice 4: Durable docs in `docs/DESIGN_LANGUAGE.md`.
+- [x] Slice 5: Shared active-filter chips for operational toolbars.
+- [x] Slice 6: Shared row-action menu trigger for operational rows.
+
+**Review**
+- Active tracking lives in `tasks/design-language-plan.md`.
+- Initial audit found an existing system foundation, but route-specific drift in status color, queue cards, filter toolbars, hit targets, and page headers.
+- Slice 1 corrected pending-pickup color semantics, checkout handoff copy, scan control hit targets, and inline save/cancel target sizes.
+- Verified with `npx tsc --noEmit`, `git diff --check`, `npx next build`, and a protected-route browser smoke to `/scan`.
+- Slice 2 added shared operational metric and partial-results warning primitives, then wired them into Fix Today and Inventory Hygiene.
+- Slice 2 verified with `npx tsc --noEmit`, `git diff --check`, `npx next build`, and protected-route browser smoke for `/admin/fix-today` plus `/items/hygiene`.
+- Slice 3 added the shared `OperationalToolbar`, moved Items and Users onto it, and put Scan on `PageHeader`.
+- Slice 3 verified with `npx tsc --noEmit`, `git diff --check`, `npx next build`, and protected-route browser smoke for `/items`, `/users`, `/scan`, and `/settings`.
+- Slice 4 added `docs/DESIGN_LANGUAGE.md` and cross-linked Dashboard, Items, Users, Scan, and Settings.
+- Slice 4 verified with `npx tsc --noEmit`, `git diff --check`, and `npx next build`.
+- Slice 5 added a shared active-filter chip row, gave Items removable chips for active facets, and moved Users off its local chip implementation.
+- Slice 5 verified with `npx tsc --noEmit`, `git diff --check`, `npx next build`, and protected-route browser smoke for `/items` plus `/users`.
+- Slice 6 added `OperationalRowActions`, moved Items table row actions and Settings Categories row actions onto the shared 40px shadcn dropdown trigger, and preserved existing actions.
+- Slice 6 verified with `npx tsc --noEmit`, `git diff --check`, `npx next build`, and protected-route browser smoke for `/items` plus `/settings/categories`.
+
 ### Product Image Search Slice 1 (2026-05-20)
 - [x] Add optional image-search provider env configuration.
 - [x] Add Brave-backed image search helper with filtering and short cache.

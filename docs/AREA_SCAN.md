@@ -3,6 +3,8 @@
 ## Overview
 The app scan page is a camera and manual-code lookup tool for finding inventory items by tag, QR value, serial number, or primary scan code. Checkout pickup and return scans are executed by kiosk flows, not by the signed-in web app scan page.
 
+Design language reference: `docs/DESIGN_LANGUAGE.md`.
+
 ## Architecture
 
 ```
@@ -55,6 +57,8 @@ Kiosk execution endpoints are documented in `docs/AREA_KIOSK.md`.
 
 | Date | Change |
 |---|---|
+| 2026-05-20 | Design language slice 3: lookup now uses the shared `PageHeader` title/description/action rhythm instead of a custom local heading block. |
+| 2026-05-20 | Design language quick win: scan camera dismiss, manual lookup, and retry controls now use shadcn-sized targets with labels/focus behavior while preserving lookup-only scope. |
 | 2026-05-13 | Scan lookup polish: exact item-family unit QR scans now show the parent family, scanned unit number, unit status, and checked-out custody context while keeping app scan lookup-only. |
 | 2026-05-13 | Item-family lookup: app scan now resolves parent/bin QR and derived unit QR values to the parent item-family detail context while preserving kiosk-only custody scans. |
 | 2026-05-10 | Scan ownership pass: app `/scan` is now lookup-only, stale booking deep links show kiosk handoff instead of a broken camera checklist, mobile nav says Lookup, and booking/dashboard links no longer target `/scan?checkout=...`. |
