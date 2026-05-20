@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useFetch } from "@/hooks/use-fetch";
 import { toast } from "sonner";
+import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -153,6 +154,7 @@ export default function BookingSettingsPage() {
                       size="icon-xs"
                       onClick={() => removePreset(index)}
                       className="text-muted-foreground hover:text-destructive"
+                      aria-label={`Remove ${preset.label || "preset"}`}
                     >
                       <Trash2Icon className="size-3.5" />
                     </Button>
@@ -167,9 +169,12 @@ export default function BookingSettingsPage() {
                 )}
 
                 {presets.length === 0 && (
-                  <p className="text-sm text-muted-foreground py-4 text-center">
-                    No presets configured. Users will only see the custom option.
-                  </p>
+                  <EmptyState
+                    inline
+                    icon="calendar"
+                    title="No extend presets configured"
+                    description="Users will only see the custom due-date option until a preset is added."
+                  />
                 )}
               </div>
             )}

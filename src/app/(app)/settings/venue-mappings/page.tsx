@@ -3,10 +3,13 @@
 import { FormEvent, useState } from "react";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/ConfirmDialog";
+import EmptyState from "@/components/EmptyState";
+import { OperationalRowActions } from "@/components/OperationalRowActions";
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useFetch } from "@/hooks/use-fetch";
@@ -19,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SettingsPageShell } from "../SettingsPageShell";
+import { Trash2 } from "lucide-react";
 
 type LocationMapping = {
   id: string;
@@ -105,17 +109,17 @@ export default function VenueMappingsPage() {
     setAddingMapping(false);
   }
 
-  async function handleDeleteMapping(id: string) {
+  async function handleDeleteMapping(mapping: LocationMapping) {
     const ok = await confirm({
       title: "Delete venue mapping",
-      message: "Delete this venue mapping?",
+      message: `Delete the "${mapping.pattern}" mapping to ${mapping.location.name}? Future synced events matching this venue text will not auto-assign this location.`,
       confirmLabel: "Delete",
       variant: "danger",
     });
     if (!ok) return;
-    setDeletingId(id);
+    setDeletingId(mapping.id);
     try {
-      const res = await fetch(`/api/location-mappings/${id}`, {
+      const res = await fetch(`/api/location-mappings/${mapping.id}`, {
         method: "DELETE",
       });
       if (handleAuthRedirect(res, "/settings/venue-mappings")) return;
@@ -234,8 +238,13 @@ export default function VenueMappingsPage() {
               <Spinner className="size-8" />
             </CardContent>
           ) : mappings.length === 0 ? (
-            <CardContent className="py-10 text-center text-muted-foreground text-sm">
-              No venue mappings configured. Add patterns to automatically assign locations to calendar events.
+            <CardContent className="py-0">
+              <EmptyState
+                inline
+                icon="calendar"
+                title="No venue mappings configured"
+                description="Add patterns to automatically assign raw calendar venue text to locations."
+              />
             </CardContent>
           ) : (
             <Table>
@@ -256,14 +265,19 @@ export default function VenueMappingsPage() {
                     </TableCell>
                     <TableCell>{m.priority}</TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDeleteMapping(m.id)}
-                        disabled={deletingId === m.id}
+                      <OperationalRowActions
+                        label={`Actions for ${m.pattern}`}
+                        icon={deletingId === m.id ? <Spinner /> : undefined}
                       >
-                        {deletingId === m.id ? "..." : "Delete"}
-                      </Button>
+                        <DropdownMenuItem
+                          onSelect={() => handleDeleteMapping(m)}
+                          disabled={deletingId === m.id}
+                          variant="destructive"
+                        >
+                          <Trash2 className="size-4" />
+                          Delete mapping
+                        </DropdownMenuItem>
+                      </OperationalRowActions>
                     </TableCell>
                   </TableRow>
                 ))}

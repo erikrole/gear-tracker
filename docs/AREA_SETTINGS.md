@@ -131,6 +131,7 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages.
 
 ## Change Log
+- 2026-05-20: Settings actions, empty states, and warning copy cleanup shipped. Calendar Sources, Venue Mappings, Locations, Departments, Allowed Emails, and Kiosk Devices now use the shared row-action trigger where rows have destructive or multi-step actions; remaining text-only empty states moved to shared inline empty states; destructive confirmations now name the target and operational consequence.
 - 2026-05-20: Settings shell cleanup shipped. Settings sub-pages now share one `SettingsPageShell` for the intro column and main content, reducing repeated split-grid markup and keeping loading, error, and normal states aligned under the new grouped rail.
 - 2026-05-20: Settings navigation rail shipped. Large desktop Settings now uses a grouped left rail for Overview, Personal, People, Inventory, Scheduling, Devices, and System while preserving the horizontal section scroller on smaller screens, role-gated visibility, search palette, and last-tab resume behavior.
 - 2026-05-20: Design language slice 7. Settings Categories and Departments now use shared inline empty states instead of local text-only placeholders, keeping first-run and filtered-empty recovery copy aligned with the rest of the app.

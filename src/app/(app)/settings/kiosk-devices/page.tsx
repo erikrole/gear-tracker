@@ -3,8 +3,11 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/ConfirmDialog";
+import EmptyState from "@/components/EmptyState";
+import { OperationalRowActions } from "@/components/OperationalRowActions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -180,7 +183,7 @@ export default function KioskDevicesPage() {
     if (device.active) {
       const ok = await confirm({
         title: "Deactivate kiosk?",
-        message: `This will sign out "${device.name}" and require re-activation with a new code.`,
+        message: `Deactivate "${device.name}"? This signs out the iPad, clears its session, and requires a new activation code before it can be used again.`,
         confirmLabel: "Deactivate",
         variant: "danger",
       });
@@ -241,7 +244,7 @@ export default function KioskDevicesPage() {
   async function handleDelete(device: KioskDevice) {
     const ok = await confirm({
       title: "Delete kiosk device?",
-      message: `Permanently delete "${device.name}"? This cannot be undone.`,
+      message: `Permanently delete "${device.name}"? Use this only for retired or duplicate devices. This cannot be undone.`,
       confirmLabel: "Delete",
       variant: "danger",
     });
@@ -428,11 +431,13 @@ export default function KioskDevicesPage() {
       {/* Empty state */}
       {!loading && !error && (devices ?? []).length === 0 && (
         <Card>
-          <CardContent className="py-10 text-center">
-            <Monitor className="size-10 mx-auto mb-3 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              No kiosk devices yet. Add one to enable self-serve checkout on an iPad.
-            </p>
+          <CardContent className="py-0">
+            <EmptyState
+              inline
+              icon="clipboard"
+              title="No kiosk devices yet"
+              description="Add a kiosk device to enable self-serve checkout on an iPad."
+            />
           </CardContent>
         </Card>
       )}
@@ -485,44 +490,41 @@ export default function KioskDevicesPage() {
                       </div>
                     </div>
 
-                    {/* Action buttons */}
-                    <div className="flex items-center gap-1 shrink-0">
-                      {!device.activated && device.active && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRegenerate(device)}
-                          disabled={regeneratingId === device.id}
-                          title="Regenerate activation code"
-                        >
-                          {regeneratingId === device.id ? <Spinner /> : <RefreshCw className="size-4" />}
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleToggle(device)}
-                        disabled={togglingId === device.id}
-                        title={device.active ? "Deactivate" : "Activate"}
+                    <div className="shrink-0">
+                      <OperationalRowActions
+                        label={`Actions for ${device.name}`}
+                        icon={
+                          togglingId === device.id || deletingId === device.id || regeneratingId === device.id
+                            ? <Spinner />
+                            : undefined
+                        }
                       >
-                        {togglingId === device.id ? (
-                          <Spinner />
-                        ) : device.active ? (
-                          <PowerOff className="size-4" />
-                        ) : (
-                          <Power className="size-4" />
+                        {!device.activated && device.active && (
+                          <DropdownMenuItem
+                            onSelect={() => handleRegenerate(device)}
+                            disabled={regeneratingId === device.id}
+                          >
+                            <RefreshCw className="size-4" />
+                            Regenerate code
+                          </DropdownMenuItem>
                         )}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(device)}
-                        disabled={deletingId === device.id}
-                        className="text-destructive hover:text-destructive"
-                        title="Delete"
-                      >
-                        {deletingId === device.id ? <Spinner /> : <Trash2 className="size-4" />}
-                      </Button>
+                        <DropdownMenuItem
+                          onSelect={() => handleToggle(device)}
+                          disabled={togglingId === device.id}
+                          variant={device.active ? "destructive" : "default"}
+                        >
+                          {device.active ? <PowerOff className="size-4" /> : <Power className="size-4" />}
+                          {device.active ? "Deactivate kiosk" : "Activate kiosk"}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => handleDelete(device)}
+                          disabled={deletingId === device.id}
+                          variant="destructive"
+                        >
+                          <Trash2 className="size-4" />
+                          Delete device
+                        </DropdownMenuItem>
+                      </OperationalRowActions>
                     </div>
                   </div>
 
@@ -596,7 +598,7 @@ export default function KioskDevicesPage() {
               variant="outline"
               size="icon"
               onClick={() => codeDialog && copyCode(codeDialog.code)}
-              title="Copy code"
+              aria-label="Copy activation code"
             >
               <Copy className="size-4" />
             </Button>

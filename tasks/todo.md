@@ -96,6 +96,19 @@ Last updated: 2026-05-19
 - The shared shell makes the intro rail narrower, the heading quieter, and the main column consistent under the new Settings rail.
 - Verified with `npx tsc --noEmit`, `git diff --check`, `npx next build`, and protected-route browser smoke for `/settings/categories`, `/settings/notifications`, and `/settings/kiosk-devices`.
 
+### Settings Actions, Empty States, And Copy (2026-05-20)
+- [x] Move Settings lifecycle/destructive row actions onto `OperationalRowActions`.
+- [x] Replace remaining local text-only empty states with shared inline empty states.
+- [x] Tighten destructive/admin confirmation copy.
+- [x] Update Settings and design-language docs.
+- [x] Run full verification.
+
+**Review**
+- Active tracking lives in `tasks/settings-actions-empty-copy-plan.md`.
+- This finishes the three follow-up Settings slices requested after the rail/shell work.
+- The batch touched Settings catalog rows, feed/mapping rows, kiosk device cards, extend-presets empty state, and destructive confirmation copy.
+- Verified with `npx tsc --noEmit`, `git diff --check`, `npx next build`, and protected-route browser smoke for `/settings/calendar-sources`, `/settings/locations`, and `/settings/kiosk-devices`.
+
 ### Product Image Search Slice 1 (2026-05-20)
 - [x] Add optional image-search provider env configuration.
 - [x] Add Brave-backed image search helper with filtering and short cache.

@@ -5,8 +5,10 @@ import { toast } from "sonner";
 import { AlertTriangle, Plus, Power, PowerOff, WifiOff } from "lucide-react";
 import { useConfirm } from "@/components/ConfirmDialog";
 import EmptyState from "@/components/EmptyState";
+import { OperationalRowActions } from "@/components/OperationalRowActions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -170,7 +172,7 @@ export default function DepartmentsSettingsPage() {
     if (department.active) {
       const ok = await confirm({
         title: `Deactivate "${department.name}"?`,
-        message: `${usageLabel(department._count)} will keep its existing department, but this department will be hidden from new item pickers.`,
+        message: `${usageLabel(department._count)} will keep its existing department. New item and item-family forms will stop offering this department until it is reactivated.`,
         confirmLabel: "Deactivate",
         variant: "danger",
       });
@@ -391,19 +393,19 @@ function DepartmentTable({
                   {usageLabel(department._count)}
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onToggleActive(department)}
-                    disabled={busy === `active-${department.id}`}
-                    title={department.active ? "Deactivate" : "Reactivate"}
+                  <OperationalRowActions
+                    label={`Actions for ${department.name}`}
+                    icon={busy === `active-${department.id}` ? <Spinner /> : undefined}
                   >
-                    {busy === `active-${department.id}`
-                      ? <Spinner />
-                      : department.active
-                        ? <PowerOff className="size-4" />
-                        : <Power className="size-4" />}
-                  </Button>
+                    <DropdownMenuItem
+                      onSelect={() => onToggleActive(department)}
+                      disabled={busy === `active-${department.id}`}
+                      variant={department.active ? "destructive" : "default"}
+                    >
+                      {department.active ? <PowerOff className="size-4" /> : <Power className="size-4" />}
+                      {department.active ? "Deactivate" : "Reactivate"}
+                    </DropdownMenuItem>
+                  </OperationalRowActions>
                 </TableCell>
               </TableRow>
             ))}

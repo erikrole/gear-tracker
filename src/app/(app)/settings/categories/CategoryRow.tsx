@@ -101,7 +101,7 @@ export default function CategoryRow({
     if (deleting) return;
     const ok = await confirm({
       title: "Delete category",
-      message: `Delete "${node.name}"? Items in this category will be uncategorized.`,
+      message: `Delete "${node.name}"? This is only available when the category has no items and no subcategories. Item forms and filters will stop showing it immediately.`,
       confirmLabel: "Delete",
       variant: "danger",
     });

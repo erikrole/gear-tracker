@@ -3,10 +3,13 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/ConfirmDialog";
+import EmptyState from "@/components/EmptyState";
+import { OperationalRowActions } from "@/components/OperationalRowActions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,7 +30,6 @@ import {
   WifiOff,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFetch } from "@/hooks/use-fetch";
 import { useLastAudit } from "@/hooks/use-last-audit";
 import { LastEditedHint } from "@/components/LastEditedHint";
@@ -215,7 +217,7 @@ export default function AllowedEmailsPage() {
   async function handleDelete(item: AllowedEmail) {
     const ok = await confirm({
       title: "Remove from allowlist",
-      message: `Remove ${item.email} from the allowlist? They won't be able to register.`,
+      message: `Remove ${item.email} from the registration allowlist? This only affects unclaimed registration access; existing users are not changed.`,
       confirmLabel: "Remove",
       variant: "danger",
     });
@@ -447,12 +449,17 @@ export default function AllowedEmailsPage() {
             </CardTitle>
           </CardHeader>
           {items.length === 0 ? (
-            <CardContent className="py-12 text-center">
-              <p className="text-sm text-muted-foreground">
-                {statusFilter === "all"
-                  ? "No emails on the allowlist yet. Add one to get started."
-                  : "No results for this filter."}
-              </p>
+            <CardContent className="py-0">
+              <EmptyState
+                inline
+                icon={statusFilter === "all" ? "users" : "search"}
+                title={statusFilter === "all" ? "No allowed emails yet" : "No emails match this filter"}
+                description={
+                  statusFilter === "all"
+                    ? "Add an address to let someone register with the assigned role."
+                    : "Switch filters to review pending or claimed allowlist entries."
+                }
+              />
             </CardContent>
           ) : (
             <Table>
@@ -490,36 +497,19 @@ export default function AllowedEmailsPage() {
                       {item.createdBy.name}
                     </TableCell>
                     <TableCell className="text-right">
-                      {item.claimedAt ? (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="inline-flex">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                disabled
-                                aria-label="Cannot remove a claimed allowlist entry"
-                                className="text-muted-foreground/50 cursor-not-allowed"
-                              >
-                                <Trash2 className="size-4" />
-                              </Button>
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            Already claimed — deactivate the user instead.
-                          </TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(item)}
-                          disabled={deletingId === item.id}
-                          className="text-destructive hover:text-destructive"
+                      <OperationalRowActions
+                        label={`Actions for ${item.email}`}
+                        icon={deletingId === item.id ? <Spinner /> : undefined}
+                      >
+                        <DropdownMenuItem
+                          onSelect={() => handleDelete(item)}
+                          disabled={!!item.claimedAt || deletingId === item.id}
+                          variant="destructive"
                         >
-                          {deletingId === item.id ? <Spinner /> : <Trash2 className="size-4" />}
-                        </Button>
-                      )}
+                          <Trash2 className="size-4" />
+                          {item.claimedAt ? "Claimed entries stay for audit" : "Remove from allowlist"}
+                        </DropdownMenuItem>
+                      </OperationalRowActions>
                     </TableCell>
                   </TableRow>
                 ))}

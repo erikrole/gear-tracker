@@ -3,17 +3,21 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/ConfirmDialog";
+import EmptyState from "@/components/EmptyState";
+import { OperationalRowActions } from "@/components/OperationalRowActions";
 import { formatDateTime } from "@/lib/format";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useFetch } from "@/hooks/use-fetch";
 import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage } from "@/lib/errors";
 import StatusIndicator from "@/components/ui/status-indicator";
 import { SettingsPageShell } from "../SettingsPageShell";
+import { RefreshCw, Trash2, Power, PowerOff } from "lucide-react";
 
 type CalendarSource = {
   id: string;
@@ -149,7 +153,7 @@ export default function CalendarSourcesPage() {
   async function handleDelete(source: CalendarSource) {
     const ok = await confirm({
       title: "Delete calendar source",
-      message: `Delete "${source.name}"? This will also delete all ${source._count?.events ?? 0} synced events.`,
+      message: `Delete "${source.name}" and its ${source._count?.events ?? 0} synced event${source._count?.events === 1 ? "" : "s"}? Shift coverage that depends on those events will no longer have this feed as a source.`,
       confirmLabel: "Delete",
       variant: "danger",
     });
@@ -305,8 +309,13 @@ export default function CalendarSourcesPage() {
             </div>
           </Card>
         ) : sources.length === 0 ? (
-          <Card className="flex items-center justify-center p-10 text-center text-muted-foreground text-sm">
-            No calendar sources configured. Add one to start syncing events.
+          <Card>
+            <EmptyState
+              inline
+              icon="calendar"
+              title="No calendar sources configured"
+              description="Add an ICS feed to start syncing events for shift scheduling."
+            />
           </Card>
         ) : (
           <Card>
@@ -335,31 +344,33 @@ export default function CalendarSourcesPage() {
                       {source.lastFetchedAt ? formatDateTime(source.lastFetchedAt) : "—"}
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-1.5 justify-end flex-wrap">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleToggle(source)}
-                          disabled={toggling === source.id}
+                      <div className="flex justify-end">
+                        <OperationalRowActions
+                          label={`Actions for ${source.name}`}
+                          icon={syncing === source.id || toggling === source.id ? <RefreshCw className="size-4 animate-spin" /> : undefined}
                         >
-                          {source.enabled ? "Disable" : "Enable"}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleSync(source)}
-                          disabled={syncing === source.id || !source.enabled}
-                          title={!source.enabled ? "Enable source first" : undefined}
-                        >
-                          {syncing === source.id ? "Syncing..." : "Sync now"}
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleDelete(source)}
-                        >
-                          Delete
-                        </Button>
+                          <DropdownMenuItem
+                            onSelect={() => handleToggle(source)}
+                            disabled={toggling === source.id}
+                          >
+                            {source.enabled ? <PowerOff className="size-4" /> : <Power className="size-4" />}
+                            {source.enabled ? "Disable source" : "Enable source"}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onSelect={() => handleSync(source)}
+                            disabled={syncing === source.id || !source.enabled}
+                          >
+                            <RefreshCw className="size-4" />
+                            {syncing === source.id ? "Syncing" : "Sync now"}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onSelect={() => handleDelete(source)}
+                            variant="destructive"
+                          >
+                            <Trash2 className="size-4" />
+                            Delete source
+                          </DropdownMenuItem>
+                        </OperationalRowActions>
                       </div>
                     </TableCell>
                   </TableRow>

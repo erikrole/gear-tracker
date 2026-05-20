@@ -4,8 +4,11 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { AlertTriangle, Plus, Power, PowerOff, WifiOff } from "lucide-react";
 import { useConfirm } from "@/components/ConfirmDialog";
+import EmptyState from "@/components/EmptyState";
+import { OperationalRowActions } from "@/components/OperationalRowActions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -171,8 +174,8 @@ export default function LocationsSettingsPage() {
       const ok = await confirm({
         title: `Deactivate "${loc.name}"?`,
         message: usage
-          ? `This location is referenced by ${usage}. Deactivating hides it from new pickers but keeps existing references intact. You can reactivate later.`
-          : "Hide this location from new pickers? Existing references stay intact.",
+          ? `This location is referenced by ${usage}. Existing records stay intact, but new item, kiosk, and venue-mapping pickers will stop offering it until reactivated.`
+          : "Existing records stay intact. New item, kiosk, and venue-mapping pickers will stop offering this location until reactivated.",
         confirmLabel: "Deactivate",
         variant: "danger",
       });
@@ -324,8 +327,13 @@ export default function LocationsSettingsPage() {
             </CardTitle>
           </CardHeader>
           {active.length === 0 ? (
-            <CardContent className="py-10 text-center text-sm text-muted-foreground">
-              No locations yet. Add one to get started.
+            <CardContent className="py-0">
+              <EmptyState
+                inline
+                icon="folder"
+                title="No locations yet"
+                description="Add one to support item forms, kiosks, calendar events, and venue mappings."
+              />
             </CardContent>
           ) : (
             <Table>
@@ -383,15 +391,19 @@ export default function LocationsSettingsPage() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right align-top">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => toggleActive(loc)}
-                        disabled={busy === `active-${loc.id}`}
-                        title="Deactivate"
+                      <OperationalRowActions
+                        label={`Actions for ${loc.name}`}
+                        icon={busy === `active-${loc.id}` ? <Spinner /> : undefined}
                       >
-                        {busy === `active-${loc.id}` ? <Spinner /> : <PowerOff className="size-4" />}
-                      </Button>
+                        <DropdownMenuItem
+                          onSelect={() => toggleActive(loc)}
+                          disabled={busy === `active-${loc.id}`}
+                          variant="destructive"
+                        >
+                          <PowerOff className="size-4" />
+                          Deactivate
+                        </DropdownMenuItem>
+                      </OperationalRowActions>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -423,15 +435,18 @@ export default function LocationsSettingsPage() {
                       {describeUsage(loc._count) || "Nothing"}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => toggleActive(loc)}
-                        disabled={busy === `active-${loc.id}`}
-                        title="Reactivate"
+                      <OperationalRowActions
+                        label={`Actions for ${loc.name}`}
+                        icon={busy === `active-${loc.id}` ? <Spinner /> : undefined}
                       >
-                        {busy === `active-${loc.id}` ? <Spinner /> : <Power className="size-4" />}
-                      </Button>
+                        <DropdownMenuItem
+                          onSelect={() => toggleActive(loc)}
+                          disabled={busy === `active-${loc.id}`}
+                        >
+                          <Power className="size-4" />
+                          Reactivate
+                        </DropdownMenuItem>
+                      </OperationalRowActions>
                     </TableCell>
                   </TableRow>
                 ))}
