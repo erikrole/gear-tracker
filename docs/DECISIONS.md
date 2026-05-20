@@ -667,7 +667,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - Hide the Search tab unless `BRAVE_SEARCH_API_KEY` is configured.
   - Seed searches from product title, brand, model, or item-family name when available.
   - Bias outbound searches toward product photos on white backgrounds while keeping the visible field editable.
-  - Prefer B&H image candidates through Brave's `site:bhphotovideo.com` operator, then merge broader product-photo-biased Brave results when B&H returns too few usable matches.
+  - Prefer B&H image candidates through Brave's `site:bhphotovideo.com` operator, then merge broader product-photo-biased Brave results so B&H source links do not monopolize the grid when retailer previews are blocked.
   - Keep the human in the loop: staff selects a result, sees the source domain, and the app re-hosts the chosen URL through the existing image endpoint.
   - Do not scrape B&H, Google Images HTML, retailer pages, or CDN pages.
   - Do not write metadata from search results into item identity fields.

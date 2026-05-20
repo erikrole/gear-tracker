@@ -58,6 +58,7 @@ type Props = {
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const MAX_SIZE = 4.5 * 1024 * 1024;
 const B_AND_H_FALLBACK_THRESHOLD = 4;
+const B_AND_H_DISPLAY_LIMIT = 3;
 
 type ImageTab = "url" | "upload" | "search";
 type SearchState = "idle" | "loading" | "empty" | "quota" | "failed" | "ready";
@@ -167,7 +168,7 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
       if (!data) return;
 
       let results = data.results ?? [];
-      if (!data.quotaExceeded && results.length < B_AND_H_FALLBACK_THRESHOLD) {
+      if (!data.quotaExceeded) {
         const fallbackData = await fetchSearchData(broadQuery, controller);
         if (!fallbackData) return;
         if (fallbackData.quotaExceeded) {
@@ -175,7 +176,9 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
           setSearchState(results.length ? "ready" : "quota");
           return;
         }
-        results = mergeImageSearchResults(results, fallbackData.results ?? []);
+        results = mergeImageSearchResults(results, fallbackData.results ?? [], {
+          primaryLimit: results.length >= B_AND_H_FALLBACK_THRESHOLD ? B_AND_H_DISPLAY_LIMIT : undefined,
+        });
       }
 
       if (data.quotaExceeded) {
@@ -503,6 +506,9 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
                                 }}
                               />
                             </button>
+                            <span className="mt-1 min-h-8 overflow-hidden text-xs leading-4 text-foreground">
+                              {result.title}
+                            </span>
                             <div className="mt-1 flex min-w-0 items-center justify-between gap-1">
                               <span className="truncate text-xs text-muted-foreground">
                                 {result.sourceDomain || "Unknown source"}

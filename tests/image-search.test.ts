@@ -93,6 +93,21 @@ describe("image search modal helpers", () => {
 
     expect(mergeImageSearchResults(primary, fallback).map((result) => result.id)).toEqual(["bh-1", "bh-2", "broad-1"]);
   });
+
+  it("limits B&H results when broad fallback should fill the grid", () => {
+    const primary = [
+      imageResult({ id: "bh-1", url: "https://images.example/bh-1.jpg", thumbnailUrl: "https://images.example/bh-1-thumb.jpg" }),
+      imageResult({ id: "bh-2", url: "https://images.example/bh-2.jpg", thumbnailUrl: "https://images.example/bh-2-thumb.jpg" }),
+      imageResult({ id: "bh-3", url: "https://images.example/bh-3.jpg", thumbnailUrl: "https://images.example/bh-3-thumb.jpg" }),
+      imageResult({ id: "bh-4", url: "https://images.example/bh-4.jpg", thumbnailUrl: "https://images.example/bh-4-thumb.jpg" }),
+    ];
+    const fallback = [
+      imageResult({ id: "broad-1", url: "https://images.example/broad-1.jpg", thumbnailUrl: "https://images.example/broad-1-thumb.jpg" }),
+      imageResult({ id: "broad-2", url: "https://images.example/broad-2.jpg", thumbnailUrl: "https://images.example/broad-2-thumb.jpg" }),
+    ];
+
+    expect(mergeImageSearchResults(primary, fallback, { primaryLimit: 2 }).map((result) => result.id)).toEqual(["bh-1", "bh-2", "broad-1", "broad-2"]);
+  });
 });
 
 describe("image search provider", () => {

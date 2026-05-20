@@ -111,13 +111,14 @@ Last updated: 2026-05-19
 - [x] Make normal searches prefer B&H through Brave with automatic broad fallback.
 - [x] Add focused helper coverage for B&H query construction and result merging.
 - [x] Add fallback handling for broken search-result preview images and route 429 responses.
+- [x] Limit B&H dominance in the result grid when retailer preview images are blocked.
 - [x] Add query-free provider usage logging with provider, status, result count, latency, and quota flag.
 - [x] Re-run focused tests and static checks.
 
 **Review**
 - Result tiles now show source type cues without blocking or auto-ranking results.
 - Query chips refine the current product-title seed while preserving the editable search field.
-- Normal searches now try B&H first through Brave's `site:bhphotovideo.com` operator without extra broad bias terms, then automatically merge broader Brave results when B&H returns fewer than four candidates.
+- Normal searches now try B&H first through Brave's `site:bhphotovideo.com` operator without extra broad bias terms, then merge broader Brave results so B&H can lead the grid without filling every tile when retailer previews are blocked.
 - QC follow-up added pure helper tests for B&H query construction and merge de-dupe order, direct-image preview fallback, and temporary-limit handling for 429 responses.
 - Server logging intentionally omits query contents so usage can be observed without recording item-specific searches.
 - Verified with `npx vitest run tests/api-image-search.test.ts tests/image-search.test.ts`, `npx tsc --noEmit`, `git diff --check`, `npx next build`, and authenticated browser smoke on `http://localhost:3000`.
