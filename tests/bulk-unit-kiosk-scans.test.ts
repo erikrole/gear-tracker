@@ -100,6 +100,7 @@ describe("scanKioskPickupBulkUnit", () => {
       handled: true,
       success: false,
       error: "Sony Battery #7 already scanned",
+      errorCode: "duplicate",
     });
   });
 
@@ -126,6 +127,7 @@ describe("scanKioskPickupBulkUnit", () => {
       handled: true,
       success: false,
       error: "Wrong battery type: scanned Canon Battery #4, but this pickup expects Sony Battery",
+      errorCode: "not_in_booking",
     });
   });
 
@@ -157,6 +159,7 @@ describe("scanKioskPickupBulkUnit", () => {
       handled: true,
       success: false,
       error: "Sony Battery #7 is already checked out to Bucky Badger",
+      errorCode: "already_checked_out",
     });
   });
 });
@@ -240,6 +243,7 @@ describe("scanKioskCheckinBulkUnit", () => {
       handled: true,
       success: false,
       error: "Wrong battery type: scanned Canon Battery #4, but this return expects Sony Battery",
+      errorCode: "not_in_booking",
     });
   });
 
@@ -279,6 +283,7 @@ describe("scanKioskCheckinBulkUnit", () => {
       handled: true,
       success: false,
       error: "Sony Battery #7 is checked out on another booking to Bucky Badger",
+      errorCode: "wrong_status",
     });
   });
 });
