@@ -12,7 +12,7 @@ const FORGOT_LIMIT = { max: 5, windowMs: 15 * 60 * 1000 }; // 5 per 15 min
 
 export const POST = withHandler(async (req) => {
   const ip = getClientIp(req);
-  const { allowed } = checkRateLimit(`forgot:${ip}`, FORGOT_LIMIT);
+  const { allowed } = await checkRateLimit(`forgot:${ip}`, FORGOT_LIMIT);
   if (!allowed) throw new HttpError(429, "Too many requests. Please try again later.");
 
   const body = forgotPasswordSchema.parse(await req.json());

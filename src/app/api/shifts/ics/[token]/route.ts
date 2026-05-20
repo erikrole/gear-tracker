@@ -27,8 +27,8 @@ export async function GET(
   }
 
   const ip = getClientIp(req);
-  const ipLimit = checkRateLimit(`shifts:ics:ip:${ip}`, IP_LIMIT);
-  const tokenLimit = checkRateLimit(`shifts:ics:token:${token}`, TOKEN_LIMIT);
+  const ipLimit = await checkRateLimit(`shifts:ics:ip:${ip}`, IP_LIMIT);
+  const tokenLimit = await checkRateLimit(`shifts:ics:token:${token}`, TOKEN_LIMIT);
   if (!ipLimit.allowed || !tokenLimit.allowed) {
     const resetAt = Math.max(ipLimit.resetAt, tokenLimit.resetAt);
     const retryAfterSec = Math.max(1, Math.ceil((resetAt - Date.now()) / 1000));

@@ -91,7 +91,7 @@ beforeEach(() => {
   vi.mocked(hashPassword).mockResolvedValue("next-hash");
   vi.mocked(verifyPassword).mockResolvedValue(true);
   vi.mocked(tokenHash).mockResolvedValue("hashed-token");
-  vi.mocked(checkRateLimit).mockReturnValue({
+  vi.mocked(checkRateLimit).mockResolvedValue({
     allowed: true,
     remaining: 4,
     resetAt: Date.now() + 60_000,

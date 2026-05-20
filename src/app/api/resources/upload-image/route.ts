@@ -15,7 +15,7 @@ function sanitizeFileName(name: string) {
 export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "resource", "edit");
 
-  const { allowed } = checkRateLimit(`resource:upload:${user.id}`, UPLOAD_LIMIT);
+  const { allowed } = await checkRateLimit(`resource:upload:${user.id}`, UPLOAD_LIMIT);
   if (!allowed) {
     throw new HttpError(429, "Too many uploads. Please wait a moment.");
   }

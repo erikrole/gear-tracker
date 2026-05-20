@@ -31,7 +31,7 @@ function request() {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(getClientIp).mockReturnValue("203.0.113.10");
-  vi.mocked(checkRateLimit).mockReturnValue({
+  vi.mocked(checkRateLimit).mockResolvedValue({
     allowed: true,
     remaining: 10,
     resetAt: Date.now() + 60_000,
@@ -71,8 +71,8 @@ describe("shift ICS feed hardening", () => {
 
   it("rate limits by client IP and token before querying the feed", async () => {
     vi.mocked(checkRateLimit)
-      .mockReturnValueOnce({ allowed: true, remaining: 0, resetAt: Date.now() + 30_000 })
-      .mockReturnValueOnce({ allowed: false, remaining: 0, resetAt: Date.now() + 60_000 });
+      .mockResolvedValueOnce({ allowed: true, remaining: 0, resetAt: Date.now() + 30_000 })
+      .mockResolvedValueOnce({ allowed: false, remaining: 0, resetAt: Date.now() + 60_000 });
 
     const res = await GET(request(), { params: Promise.resolve({ token: validToken }) });
 

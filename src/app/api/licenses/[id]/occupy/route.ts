@@ -13,7 +13,7 @@ const OCCUPY_LIMIT = { max: 20, windowMs: 60_000 };
 
 export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "license", "manage");
-  const { allowed } = checkRateLimit(`license:occupy:${user.id}`, OCCUPY_LIMIT);
+  const { allowed } = await checkRateLimit(`license:occupy:${user.id}`, OCCUPY_LIMIT);
   if (!allowed) throw new HttpError(429, "Too many requests. Please wait a moment.");
   const { label } = bodySchema.parse(await req.json());
   const code = await addUnknownOccupant(params.id, label, user.id);

@@ -49,7 +49,7 @@ function forgotPasswordRequest() {
 beforeEach(() => {
   vi.clearAllMocks();
   delete process.env.RESEND_API_KEY;
-  vi.mocked(checkRateLimit).mockReturnValue({
+  vi.mocked(checkRateLimit).mockResolvedValue({
     allowed: true,
     remaining: 4,
     resetAt: Date.now() + 60_000,

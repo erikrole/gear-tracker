@@ -121,7 +121,7 @@ function gearStatusPriority(status: string) {
 }
 
 export const GET = withAuth(async (_req, { user }) => {
-  const { allowed } = checkRateLimit(`dashboard:full:${user.id}`, DASHBOARD_LIMIT);
+  const { allowed } = await checkRateLimit(`dashboard:full:${user.id}`, DASHBOARD_LIMIT);
   if (!allowed) throw new HttpError(429, "Too many requests. Please wait a moment.");
 
   const now = new Date();

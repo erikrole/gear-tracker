@@ -10,7 +10,7 @@ const LOGIN_LIMIT = { max: 10, windowMs: 15 * 60 * 1000 }; // 10 attempts per 15
 
 export const POST = withHandler(async (req) => {
   const ip = getClientIp(req);
-  const { allowed } = checkRateLimit(`login:${ip}`, LOGIN_LIMIT);
+  const { allowed } = await checkRateLimit(`login:${ip}`, LOGIN_LIMIT);
   if (!allowed) throw new HttpError(429, "Too many login attempts. Please try again later.");
 
   const body = loginSchema.parse(await req.json());

@@ -35,7 +35,7 @@ function deriveYear(
 export const GET = withAuth(async (req, { user }) => {
   // Full export is staff/admin only — student self-export not in v1.
   requireRole(user.role, ["ADMIN", "STAFF"]);
-  const { allowed } = checkRateLimit(`user:export:${user.id}`, EXPORT_LIMIT);
+  const { allowed } = await checkRateLimit(`user:export:${user.id}`, EXPORT_LIMIT);
   if (!allowed) throw new HttpError(429, "Too many requests. Please wait a moment.");
 
   const { searchParams } = new URL(req.url);

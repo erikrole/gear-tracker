@@ -11,7 +11,7 @@ const REGISTER_LIMIT = { max: 5, windowMs: 15 * 60 * 1000 }; // 5 attempts per 1
 
 export const POST = withHandler(async (req) => {
   const ip = getClientIp(req);
-  const { allowed } = checkRateLimit(`register:${ip}`, REGISTER_LIMIT);
+  const { allowed } = await checkRateLimit(`register:${ip}`, REGISTER_LIMIT);
   if (!allowed) throw new HttpError(429, "Too many registration attempts. Please try again later.");
 
   const body = registerSchema.parse(await req.json());

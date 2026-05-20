@@ -10,7 +10,7 @@ const EXPORT_LIMIT = { max: 5, windowMs: 60_000 };
 
 export const GET = withAuth(async (_req, { user }) => {
   requirePermission(user.role, "license", "manage");
-  const { allowed } = checkRateLimit(`license:export:${user.id}`, EXPORT_LIMIT);
+  const { allowed } = await checkRateLimit(`license:export:${user.id}`, EXPORT_LIMIT);
   if (!allowed) throw new HttpError(429, "Too many requests. Please wait a moment.");
 
   const codes = await listAllCodes();

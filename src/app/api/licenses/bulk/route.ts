@@ -20,7 +20,7 @@ const BULK_LIMIT = { max: 5, windowMs: 60_000 };
 
 export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "license", "manage");
-  const { allowed } = checkRateLimit(`license:bulk:${user.id}`, BULK_LIMIT);
+  const { allowed } = await checkRateLimit(`license:bulk:${user.id}`, BULK_LIMIT);
   if (!allowed) throw new HttpError(429, "Too many requests. Please wait a moment.");
   const body = bulkSchema.parse(await req.json());
   const result = await bulkCreateCodes(body.codes, user.id, {
@@ -42,7 +42,7 @@ export const POST = withAuth(async (req, { user }) => {
 
 export const PATCH = withAuth(async (req, { user }) => {
   requirePermission(user.role, "license", "manage");
-  const { allowed } = checkRateLimit(`license:bulk-renew:${user.id}`, BULK_LIMIT);
+  const { allowed } = await checkRateLimit(`license:bulk-renew:${user.id}`, BULK_LIMIT);
   if (!allowed) throw new HttpError(429, "Too many requests. Please wait a moment.");
 
   const body = bulkRenewSchema.parse(await req.json());

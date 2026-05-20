@@ -22,7 +22,7 @@ function settledValue<T>(
 // returns nothing else. Used by the dashboard to keep stat cards and the overdue
 // count fresh (60s TTL) without re-running the expensive full-payload queries.
 export const GET = withAuth(async (_req, { user }) => {
-  const { allowed } = checkRateLimit(`dashboard:stats:${user.id}`, STATS_LIMIT);
+  const { allowed } = await checkRateLimit(`dashboard:stats:${user.id}`, STATS_LIMIT);
   if (!allowed) throw new HttpError(429, "Too many requests. Please wait a moment.");
 
   const now = new Date();

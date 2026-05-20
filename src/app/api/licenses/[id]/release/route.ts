@@ -11,7 +11,7 @@ const RELEASE_LIMIT = { max: 20, windowMs: 60_000 };
 
 export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "license", "release");
-  const { allowed } = checkRateLimit(`license:release:${user.id}`, RELEASE_LIMIT);
+  const { allowed } = await checkRateLimit(`license:release:${user.id}`, RELEASE_LIMIT);
   if (!allowed) throw new HttpError(429, "Too many requests. Please wait a moment.");
   const isAdmin = user.role === "ADMIN" || user.role === "STAFF";
 

@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-13
+- Last Updated: 2026-05-20
 - Status: Living registry — update when shipping features or resolving decisions
 - Purpose: Single file listing every open gap, pending decision, and known risk across all docs
 
@@ -49,7 +49,7 @@
 | ~~GAP-29~~ | ~~URL state not persisted on Kits and Bulk Inventory pages~~ | ~~CROSS-CUTTING~~ | ~~Closed~~ | ~~Added useUrlState for location/archived on Kits, search on Bulk Inventory. 2026-04-03~~ |
 | ~~GAP-30~~ | ~~No CSP header~~ | ~~CROSS-CUTTING~~ | ~~Closed~~ | ~~CSP header added to next.config.ts with self/inline/blob rules. 2026-04-03~~ |
 | ~~GAP-31~~ | ~~User deactivation not fully wired~~ | ~~AREA_USERS~~ | ~~Closed~~ | ~~Login blocking, booking migration (block on OPEN checkouts, auto-cancel BOOKED/DRAFT/PENDING_PICKUP), allocation and scan-session cleanup, pending-pickup bulk stock restoration, admin toggle, inactive badge all shipped. 2026-04-03. Session-level enforcement added 2026-04-06: `requireAuth()` checks `user.active`, deactivation deletes sessions. Pending-pickup cleanup hardened 2026-05-10.~~ |
-| GAP-32 | Rate limiting is in-memory per serverless instance — resets on cold start | CROSS-CUTTING | Expected | Adequate for current 4-user team. Migrate to Redis/Upstash KV if user base grows significantly. |
+| ~~GAP-32~~ | ~~Rate limiting is in-memory per serverless instance, resets on cold start~~ | ~~CROSS-CUTTING~~ | ~~Closed (code)~~ | Code closed 2026-05-20: `src/lib/rate-limit.ts` now uses Upstash Redis (`@upstash/ratelimit`) when `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` are set, falling back to the in-memory limiter when unset or on Redis error. `checkRateLimit` is now async; all call sites await it. Pending live verification once an Upstash Redis is provisioned via Vercel Marketplace and the env vars are wired. |
 | ~~GAP-33~~ | ~~PENDING_PICKUP bookings have no auto-expiry — orphans can accumulate if student never shows up~~ | ~~AREA_KIOSK~~ | ~~Closed~~ | Closed 2026-05-13: morning-refresh now auto-cancels pending-pickup checkouts older than 48h after `startsAt`, releases allocations/held bulk stock/scanned numbered units, cancels scan sessions, and writes system audit evidence. |
 | GAP-34 | iOS Bookings list lacks status scope filters and column sorting available on web (DRAFT/BOOKED/OPEN/OVERDUE/CANCELLED/COMPLETED, sort) | AREA_MOBILE | Expected | iOS uses `activeOnly: true` only. Acceptable for V1 student bar (AREA_MOBILE focuses on student core flows). Power-user parity deferred. Source: `tasks/audit-bookings-ios.md`. |
 | GAP-35 | iOS Booking detail does not surface per-item conflict badges (web AC-8 from AREA_RESERVATIONS) | AREA_MOBILE | Expected | Needs `/api/availability/check` API client on iOS + per-row badge wiring in `ItemsSection`. Deferred — server-side enforcement is authoritative. Source: `tasks/audit-bookings-ios.md`. |
