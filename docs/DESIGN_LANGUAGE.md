@@ -77,7 +77,7 @@ Avoid:
 - **Badges**: use `Badge` semantic variants; do not define ad-hoc status color classes inline.
 - **Cards**: use for repeated queue items and focused tools; avoid cards inside cards.
 - **Nav**: role-aware, predictable, and stable; hidden routes must also be server-protected.
-- **Empty states**: explain the state and offer the next useful action when one exists.
+- **Empty states**: use `EmptyState`; explain the state and offer the next useful action when one exists. Use `inline` for card/table interiors so empty rows stay compact but still carry an icon, title, and recovery copy.
 - **Alerts**: use warnings for partial data and stale reads; destructive alerts are for failed/blocking work.
 - **Toasts**: use for completed background actions and refresh/save feedback; do not rely on toast as the only form error.
 
@@ -126,6 +126,7 @@ Feature ideas to consider separately:
 - A reusable partial-results payload type for API routes returning `partialFailures`.
 - Continue migrating active-filter displays to `OperationalActiveFilterChips` across Trade Board and Reports when those surfaces are touched.
 - Continue migrating icon overflow row menus to `OperationalRowActions` across Settings tables, booking rows, and Trade Board as those surfaces are touched.
+- Continue replacing local text-only empty rows with `EmptyState inline` in Settings and admin tables when those surfaces are touched.
 
 ## Consistency Audit
 - `/dashboard`: pending pickup previously used green row accent. Fixed to orange waiting semantics.
@@ -135,6 +136,7 @@ Feature ideas to consider separately:
 - `/items` row actions: table overflow actions now use `OperationalRowActions`.
 - `/users`: filter surface matched the idea but used smaller controls and its own frame. It now uses `OperationalToolbar`, 40px controls, and shared active-filter chips.
 - `/settings/categories`: category row actions now use the shared row-action trigger instead of a page-local kebab button.
+- `/settings/categories` and `/settings/departments`: local text-only empty rows now use shared inline empty states.
 - `/admin/fix-today` and `/items/hygiene`: duplicate metric and partial-results patterns now use shared primitives.
 - `/settings`: already mirrors `PageHeader` through layout and remains the settings-specific header standard.
 
@@ -147,7 +149,7 @@ Quick wins:
 Medium slices:
 - Keep active-filter chips shared through `OperationalActiveFilterChips`.
 - Standardize row action menus across Items, Users, Bookings, and Trade Board.
-- Add a reusable operational empty-state pattern for clean queues and filtered-empty results.
+- Keep operational empty states on `EmptyState`, using the inline mode for table/card interiors.
 
 Larger design-system work:
 - Add authenticated browser visual smoke coverage for the main operational surfaces.

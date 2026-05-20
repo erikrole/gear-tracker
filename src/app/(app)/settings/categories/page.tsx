@@ -12,6 +12,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { FadeUp } from "@/components/ui/motion";
 import { useFetch } from "@/hooks/use-fetch";
 import { useLastAudit } from "@/hooks/use-last-audit";
+import EmptyState from "@/components/EmptyState";
 import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage } from "@/lib/errors";
 import type { Category } from "./types";
 import { buildTree } from "./types";
@@ -209,9 +210,12 @@ export default function CategoriesPage() {
                 </div>
               )}
               {tree.length === 0 && !adding ? (
-                <div className="py-10 px-5 text-center text-muted-foreground">
-                  {search ? "No categories match your search" : "No categories yet"}
-                </div>
+                <EmptyState
+                  inline
+                  icon={search ? "search" : "folder"}
+                  title={search ? "No categories match your search" : "No categories yet"}
+                  description={search ? "Try a different category name." : "Add a category to keep item forms and filters organized."}
+                />
               ) : (
                 tree.map((node) => (
                   <CategoryRow

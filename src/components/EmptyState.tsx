@@ -30,6 +30,7 @@ type EmptyStateProps = {
   actionHref?: string;
   onAction?: () => void;
   compact?: boolean;
+  inline?: boolean;
 };
 
 const iconMap: Record<string, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
@@ -53,12 +54,13 @@ export default function EmptyState({
   actionHref,
   onAction,
   compact = false,
+  inline = false,
 }: EmptyStateProps) {
   const Icon = iconMap[icon] ?? BoxIcon;
   return (
-    <Empty className={compact ? "border-0 py-4" : "border-0 py-10"}>
+    <Empty className={inline ? "border-0 px-4 py-6" : compact ? "border-0 py-4" : "border-0 py-10"}>
       <EmptyHeader>
-        <EmptyMedia variant="icon">
+        <EmptyMedia variant="icon" className={inline ? "size-9 rounded-md" : undefined}>
           <Icon className="size-6 text-muted-foreground" />
         </EmptyMedia>
         <EmptyTitle>{title}</EmptyTitle>

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { AlertTriangle, Plus, Power, PowerOff, WifiOff } from "lucide-react";
 import { FadeUp } from "@/components/ui/motion";
 import { useConfirm } from "@/components/ConfirmDialog";
+import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -358,8 +359,13 @@ function DepartmentTable({
         <CardTitle className="text-base">{title}</CardTitle>
       </CardHeader>
       {departments.length === 0 ? (
-        <CardContent className="py-10 text-center text-sm text-muted-foreground">
-          No departments yet. Add one to make item ownership and reports easier to scan.
+        <CardContent className="py-0">
+          <EmptyState
+            inline
+            icon="folder"
+            title="No departments yet"
+            description="Add one to make item ownership and reports easier to scan."
+          />
         </CardContent>
       ) : (
         <Table>

@@ -131,6 +131,7 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages.
 
 ## Change Log
+- 2026-05-20: Design language slice 7. Settings Categories and Departments now use shared inline empty states instead of local text-only placeholders, keeping first-run and filtered-empty recovery copy aligned with the rest of the app.
 - 2026-05-20: Design language slice 6. Settings Categories row actions now use the shared `OperationalRowActions` trigger, replacing the page-local kebab button while preserving rename, add subcategory, and delete behavior.
 - 2026-05-20: Design language slice 4. Settings now links to the shared design-language reference while preserving the Settings-specific layout rule that the layout owns the page header and tab navigation.
 - 2026-05-13: Appearance polish. Light/Dark/System switching now runs through a shared theme controller used by both Appearance and the Sidebar, keeps System as a no-override localStorage state, and adds a short reduced-motion-safe theme transition without animating first paint.

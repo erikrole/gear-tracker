@@ -51,6 +51,7 @@ Last updated: 2026-05-19
 - [x] Slice 4: Durable docs in `docs/DESIGN_LANGUAGE.md`.
 - [x] Slice 5: Shared active-filter chips for operational toolbars.
 - [x] Slice 6: Shared row-action menu trigger for operational rows.
+- [x] Slice 7: Inline shared empty states for card/table interiors.
 
 **Review**
 - Active tracking lives in `tasks/design-language-plan.md`.
@@ -67,6 +68,8 @@ Last updated: 2026-05-19
 - Slice 5 verified with `npx tsc --noEmit`, `git diff --check`, `npx next build`, and protected-route browser smoke for `/items` plus `/users`.
 - Slice 6 added `OperationalRowActions`, moved Items table row actions and Settings Categories row actions onto the shared 40px shadcn dropdown trigger, and preserved existing actions.
 - Slice 6 verified with `npx tsc --noEmit`, `git diff --check`, `npx next build`, and protected-route browser smoke for `/items` plus `/settings/categories`.
+- Slice 7 added inline sizing to `EmptyState` and moved Settings Categories plus Departments off local text-only empty placeholders.
+- Slice 7 verified with `npx tsc --noEmit`, `git diff --check`, `npx next build`, and protected-route browser smoke for `/settings/categories` plus `/settings/departments`.
 
 ### Product Image Search Slice 1 (2026-05-20)
 - [x] Add optional image-search provider env configuration.
