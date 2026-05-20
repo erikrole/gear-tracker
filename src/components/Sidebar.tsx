@@ -73,7 +73,7 @@ const navGroups: NavGroup[] = [
       { label: "Schedule", href: "/schedule", icon: CalendarIcon },
       { label: "Items", href: "/items", icon: LayersIcon },
       { label: "Bookings", href: "/bookings", icon: BookOpenIcon, quickCreateHref: "/bookings?create=true" },
-      { label: "Guides", href: "/guides", icon: ScrollTextIcon },
+      { label: "Resources", href: "/resources", icon: ScrollTextIcon },
       { label: "Licenses", href: "/licenses", icon: KeyIcon },
       { label: "Notifications", href: "/notifications", icon: BellIcon },
     ],

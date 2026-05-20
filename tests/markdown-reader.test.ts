@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { MarkdownReader } from "@/components/guides/MarkdownReader";
+import { MarkdownReader } from "@/components/resources/MarkdownReader";
 
 describe("MarkdownReader", () => {
   it("uses visible rich heading text for rendered heading ids", () => {

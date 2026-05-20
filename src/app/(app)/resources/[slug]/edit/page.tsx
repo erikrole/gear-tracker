@@ -10,7 +10,7 @@ export default async function EditGuidePage({ params }: Props) {
   const user = await requireAuth();
 
   if (user.role !== Role.ADMIN && user.role !== Role.STAFF) {
-    redirect(`/guides/${slug}`);
+    redirect(`/resources/${slug}`);
   }
 
   return <EditGuideClient slug={slug} userRole={user.role} />;

@@ -7,7 +7,7 @@ export default async function NewGuidePage() {
   const user = await requireAuth();
 
   if (user.role !== Role.ADMIN && user.role !== Role.STAFF) {
-    redirect("/guides");
+    redirect("/resources");
   }
 
   return <NewGuideClient />;

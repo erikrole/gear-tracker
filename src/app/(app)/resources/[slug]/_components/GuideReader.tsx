@@ -6,7 +6,7 @@ import { ArrowLeftIcon, CheckCircle2Icon, PencilIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MarkdownReader } from "@/components/guides/MarkdownReader";
+import { MarkdownReader } from "@/components/resources/MarkdownReader";
 import { handleAuthRedirect } from "@/lib/errors";
 import { formatFreshnessDate, getGuideFreshness } from "@/lib/guide-freshness";
 import { legacyGuideMarkdown, markdownHeadings } from "@/lib/guide-content";
@@ -92,7 +92,7 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
     if (verifying) return;
     setVerifying(true);
     try {
-      const res = await fetch(`/api/guides/${guide.id}`, {
+      const res = await fetch(`/api/resources/${guide.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -103,7 +103,7 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
         const json = (await res.json().catch(() => ({}))) as { error?: string };
-        toast.error(json.error ?? "Failed to mark guide verified");
+        toast.error(json.error ?? "Failed to mark resource verified");
         return;
       }
       const json = (await res.json()) as {
@@ -116,7 +116,7 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
       setLastVerifiedAt(json.data.lastVerifiedAt);
       setLastVerifiedBy(json.data.lastVerifiedBy);
       setUpdatedAt(json.data.updatedAt);
-      toast.success("Guide marked verified");
+      toast.success("Resource marked verified");
     } catch {
       toast.error("Network error — try again");
     } finally {
@@ -162,7 +162,7 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
     <div className="guide-reader-shell mx-auto flex w-full max-w-[1280px] flex-col gap-8 px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
       <div>
         <Link
-          href="/guides"
+          href="/resources"
           className="inline-flex min-h-10 items-center gap-2 rounded-md text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeftIcon className="size-3.5" />
@@ -213,7 +213,7 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
               {verifying ? "Verifying..." : "Mark verified"}
             </Button>
             <Button asChild variant="outline" size="sm" className="shrink-0">
-              <Link href={`/guides/${slug}/edit`}>
+              <Link href={`/resources/${slug}/edit`}>
                 <PencilIcon className="mr-1.5 size-3.5" />
                 Edit
               </Link>

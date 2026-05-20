@@ -5,14 +5,15 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Role, ShiftArea } from "@prisma/client";
 import {
-  BookOpenTextIcon,
   BriefcaseBusinessIcon,
   Building2Icon,
   CameraIcon,
   ClockIcon,
   FileTextIcon,
+  FilterIcon,
   FolderTreeIcon,
   HardDriveIcon,
+  LayersIcon,
   MailIcon,
   MapPinIcon,
   MessageSquareIcon,
@@ -24,12 +25,14 @@ import {
   SparklesIcon,
   TargetIcon,
   VideoIcon,
+  XIcon,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/EmptyState";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -65,7 +68,10 @@ type ContactRoleFilter = "ALL" | Role;
 type ContactAreaFilter = "ALL" | ShiftArea | "UNASSIGNED";
 type ContactHygieneFilter = "ALL" | "MISSING_PHONE" | "MISSING_SLACK";
 
-type QuickFilter =
+type FilterKey =
+  | "all"
+  | "recent"
+  | "my-area"
   | "area-video"
   | "area-photo"
   | "area-graphics"
@@ -73,70 +79,35 @@ type QuickFilter =
   | "contacts"
   | "building-numbers"
   | "media-drive"
-  | "server-paths"
-  | "recent"
-  | "my-area";
+  | "server-paths";
 
-const AREA_QUICK_CARDS = [
-  {
-    key: "area-video" as const,
-    area: ShiftArea.VIDEO,
-    title: "Video",
-    detail: "Capture, ingest, editing, delivery, and game-day video workflows",
-    icon: VideoIcon,
-  },
-  {
-    key: "area-photo" as const,
-    area: ShiftArea.PHOTO,
-    title: "Photo",
-    detail: "Ingest, culling, metadata, exports, and photo operations",
-    icon: CameraIcon,
-  },
-  {
-    key: "area-graphics" as const,
-    area: ShiftArea.GRAPHICS,
-    title: "Graphics",
-    detail: "Templates, brand assets, exports, requests, and delivery rules",
-    icon: PaletteIcon,
-  },
-  {
-    key: "area-comms" as const,
-    area: ShiftArea.COMMS,
-    title: "Comms",
-    detail: "Communications workflows, contacts, approvals, and handoffs",
-    icon: MessageSquareIcon,
-  },
+type SortKey = "personalized" | "recent" | "title";
+
+type RailItem = {
+  key: FilterKey;
+  label: string;
+  icon: typeof PhoneIcon;
+  category?: string;
+  area?: ShiftArea;
+};
+
+const AREA_FILTERS: RailItem[] = [
+  { key: "area-video", label: "Video", icon: VideoIcon, area: ShiftArea.VIDEO },
+  { key: "area-photo", label: "Photo", icon: CameraIcon, area: ShiftArea.PHOTO },
+  { key: "area-graphics", label: "Graphics", icon: PaletteIcon, area: ShiftArea.GRAPHICS },
+  { key: "area-comms", label: "Comms", icon: MessageSquareIcon, area: ShiftArea.COMMS },
 ];
 
-const REFERENCE_QUICK_CARDS = [
-  {
-    key: "contacts" as const,
-    category: "contacts",
-    title: "Contacts",
-    detail: "Staff, vendors, escalation owners, and emergency numbers",
-    icon: PhoneIcon,
-  },
-  {
-    key: "building-numbers" as const,
-    category: "building numbers",
-    title: "Building Numbers",
-    detail: "Facility phone numbers, room numbers, codes, and location notes",
-    icon: Building2Icon,
-  },
-  {
-    key: "media-drive" as const,
-    category: "media drive",
-    title: "Media Drive",
-    detail: "Server overview, access notes, folder map, and ownership rules",
-    icon: HardDriveIcon,
-  },
-  {
-    key: "server-paths" as const,
-    category: "server paths",
-    title: "Server Paths",
-    detail: "Copyable exact paths for recurring workflows and deliveries",
-    icon: FolderTreeIcon,
-  },
+const REFERENCE_FILTERS: RailItem[] = [
+  { key: "contacts", label: "Contacts", icon: PhoneIcon, category: "contacts" },
+  { key: "building-numbers", label: "Building Numbers", icon: Building2Icon, category: "building numbers" },
+  { key: "media-drive", label: "Media Drive", icon: HardDriveIcon, category: "media drive" },
+  { key: "server-paths", label: "Server Paths", icon: FolderTreeIcon, category: "server paths" },
+];
+
+const SMART_FILTERS: RailItem[] = [
+  { key: "recent", label: "Recently Updated", icon: ClockIcon },
+  { key: "my-area", label: "My Area", icon: TargetIcon },
 ];
 
 const CONTACT_ROLE_FILTERS: { value: ContactRoleFilter; label: string }[] = [
@@ -161,50 +132,33 @@ const CONTACT_HYGIENE_FILTERS: { value: ContactHygieneFilter; label: string }[] 
   { value: "MISSING_SLACK", label: "Missing Slack" },
 ];
 
-const VIEW_PARAM_TO_QUICK_FILTER: Record<string, QuickFilter> = {
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: "personalized", label: "Personalized" },
+  { value: "recent", label: "Recently updated" },
+  { value: "title", label: "Title A-Z" },
+];
+
+const FILTER_PARAM_MAP: Record<string, FilterKey> = {
+  recent: "recent",
+  "my-area": "my-area",
+  "area-video": "area-video",
+  "area-photo": "area-photo",
+  "area-graphics": "area-graphics",
+  "area-comms": "area-comms",
   contacts: "contacts",
   "building-numbers": "building-numbers",
   "media-drive": "media-drive",
   "server-paths": "server-paths",
-  recent: "recent",
-  "my-area": "my-area",
 };
 
-const QUICK_FILTER_TO_VIEW_PARAM: Partial<Record<QuickFilter, string>> = {
-  contacts: "contacts",
-  "building-numbers": "building-numbers",
-  "media-drive": "media-drive",
-  "server-paths": "server-paths",
-  recent: "recent",
-  "my-area": "my-area",
-};
+function filterFromParams(params: { get(name: string): string | null }): FilterKey {
+  const raw = params.get("filter")?.trim().toLowerCase();
+  if (raw && FILTER_PARAM_MAP[raw]) return FILTER_PARAM_MAP[raw];
+  return "all";
+}
 
-const AREA_PARAM_TO_QUICK_FILTER: Record<string, QuickFilter> = {
-  video: "area-video",
-  photo: "area-photo",
-  graphics: "area-graphics",
-  comms: "area-comms",
-};
-
-const QUICK_FILTER_TO_AREA_PARAM: Partial<Record<QuickFilter, string>> = {
-  "area-video": "video",
-  "area-photo": "photo",
-  "area-graphics": "graphics",
-  "area-comms": "comms",
-};
-
-function quickFilterFromParams(params: { get(name: string): string | null }) {
-  const view = params.get("view")?.trim().toLowerCase();
-  if (view && VIEW_PARAM_TO_QUICK_FILTER[view]) {
-    return VIEW_PARAM_TO_QUICK_FILTER[view];
-  }
-
-  const area = params.get("area")?.trim().toLowerCase();
-  if (area && AREA_PARAM_TO_QUICK_FILTER[area]) {
-    return AREA_PARAM_TO_QUICK_FILTER[area];
-  }
-
-  return null;
+function normalizeCategory(category: string) {
+  return category.trim().toLowerCase();
 }
 
 function guideSearchText(guide: GuideListItem) {
@@ -236,10 +190,6 @@ function formatShortDate(value: Date | string) {
   return new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function normalizeCategory(category: string) {
-  return category.trim().toLowerCase();
-}
-
 function formatArea(area: ShiftArea | null) {
   if (!area) return null;
   const labels: Record<ShiftArea, string> = {
@@ -264,9 +214,7 @@ function formatStudentYear(user: ContactUser) {
 }
 
 function contactSubtitle(user: ContactUser) {
-  return user.role === Role.STUDENT
-    ? formatStudentYear(user)
-    : user.title;
+  return user.role === Role.STUDENT ? formatStudentYear(user) : user.title;
 }
 
 function hasSlackContact(user: ContactUser) {
@@ -279,16 +227,45 @@ function displaySlackHandle(value: string | null) {
   return normalized ? `@${normalized}` : null;
 }
 
-function GuideCard({ guide, compact = false }: { guide: GuideListItem; compact?: boolean }) {
+function matchesFilter(guide: GuideListItem, filter: FilterKey): boolean {
+  switch (filter) {
+    case "all":
+    case "recent":
+      return true;
+    case "my-area":
+      return guide.targetAreas.length > 0 && guide.personalizationReason !== "General";
+    case "area-video":
+      return guide.targetAreas.includes(ShiftArea.VIDEO);
+    case "area-photo":
+      return guide.targetAreas.includes(ShiftArea.PHOTO);
+    case "area-graphics":
+      return guide.targetAreas.includes(ShiftArea.GRAPHICS);
+    case "area-comms":
+      return guide.targetAreas.includes(ShiftArea.COMMS);
+    case "contacts":
+      return normalizeCategory(guide.category) === "contacts";
+    case "building-numbers":
+      return normalizeCategory(guide.category) === "building numbers";
+    case "media-drive":
+      return normalizeCategory(guide.category) === "media drive";
+    case "server-paths":
+      return normalizeCategory(guide.category) === "server paths";
+  }
+}
+
+function countMatching(guides: GuideListItem[] | null, filter: FilterKey) {
+  if (!guides) return 0;
+  if (filter === "all") return guides.length;
+  return guides.reduce((sum, g) => (matchesFilter(g, filter) ? sum + 1 : sum), 0);
+}
+
+function ResourceCard({ guide }: { guide: GuideListItem }) {
   const freshness = getGuideFreshness(guide);
 
   return (
     <Link
-      href={`/guides/${guide.slug}`}
-      className={cn(
-        "group flex flex-col rounded-lg border bg-card p-4 transition-[border-color,box-shadow,scale] hover:border-foreground/30 hover:shadow-sm active:scale-[0.99]",
-        compact ? "min-h-36" : "min-h-40",
-      )}
+      href={`/resources/${guide.slug}`}
+      className="group flex h-full flex-col rounded-lg border bg-card p-4 transition-[border-color,box-shadow,scale] hover:border-foreground/30 hover:shadow-sm active:scale-[0.99]"
     >
       <div className="mb-3 flex items-start gap-3">
         <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
@@ -299,18 +276,22 @@ function GuideCard({ guide, compact = false }: { guide: GuideListItem; compact?:
             <span className="line-clamp-2 text-sm font-semibold leading-snug group-hover:text-foreground">
               {guide.title}
             </span>
-            {!guide.published && (
-              <Badge variant="outline" className="shrink-0 text-[10px]">
-                Draft
-              </Badge>
-            )}
+            <div className="flex shrink-0 flex-col items-end gap-1">
+              {guide.featured && (
+                <Badge variant="purple" className="text-[10px]">
+                  Featured
+                </Badge>
+              )}
+              {!guide.published && (
+                <Badge variant="outline" className="text-[10px]">
+                  Draft
+                </Badge>
+              )}
+            </div>
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-2">
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
             <Badge variant="secondary" className="text-[10px]">
               {guide.category}
-            </Badge>
-            <Badge variant={guide.featured ? "purple" : "outline"} className="text-[10px]">
-              {guide.personalizationReason}
             </Badge>
             <Badge
               variant={freshness.status === "verified" ? "green" : "orange"}
@@ -326,31 +307,200 @@ function GuideCard({ guide, compact = false }: { guide: GuideListItem; compact?:
         {guide.summary || "No preview text yet."}
       </p>
       <div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-        <span>{guide.author.name}</span>
+        <span className="truncate">{guide.author.name}</span>
         <span className="shrink-0 tabular-nums">{formatShortDate(guide.updatedAt)}</span>
       </div>
-      {guide.lastVerifiedAt && (
-        <div className="mt-2 text-xs text-muted-foreground">
-          {freshness.detail}
-          {guide.lastVerifiedBy ? ` by ${guide.lastVerifiedBy.name}` : ""}
-        </div>
-      )}
     </Link>
   );
 }
 
-export default function GuidesPage() {
+function RailButton({
+  item,
+  active,
+  count,
+  onSelect,
+}: {
+  item: RailItem;
+  active: boolean;
+  count: number;
+  onSelect: (key: FilterKey) => void;
+}) {
+  const Icon = item.icon;
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(item.key)}
+      className={cn(
+        "flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors",
+        active
+          ? "bg-muted text-foreground"
+          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+      )}
+    >
+      <span className="flex min-w-0 items-center gap-2">
+        <Icon className="size-4 shrink-0" />
+        <span className="truncate">{item.label}</span>
+      </span>
+      <span
+        className={cn(
+          "shrink-0 rounded-md px-1.5 py-0.5 text-[11px] tabular-nums",
+          active ? "bg-background text-foreground" : "bg-muted text-muted-foreground",
+        )}
+      >
+        {count}
+      </span>
+    </button>
+  );
+}
+
+function RailSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="px-2.5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function CategoryButton({
+  label,
+  active,
+  onSelect,
+}: {
+  label: string;
+  active: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={cn(
+        "flex w-full items-center rounded-md px-2.5 py-2 text-left text-sm transition-colors",
+        active
+          ? "bg-muted text-foreground"
+          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+      )}
+    >
+      <span className="truncate">{label}</span>
+    </button>
+  );
+}
+
+function FilterRail({
+  guides,
+  contactsTotal,
+  activeFilter,
+  categories,
+  activeCategory,
+  onFilterSelect,
+  onCategorySelect,
+}: {
+  guides: GuideListItem[] | null;
+  contactsTotal: number;
+  activeFilter: FilterKey;
+  categories: string[];
+  activeCategory: string;
+  onFilterSelect: (key: FilterKey) => void;
+  onCategorySelect: (category: string) => void;
+}) {
+  const allCount = guides?.length ?? 0;
+  const allActive = activeFilter === "all" && activeCategory === "All";
+
+  return (
+    <nav aria-label="Resource filters" className="flex flex-col gap-3">
+      <RailButton
+        item={{ key: "all", label: "All resources", icon: LayersIcon }}
+        active={allActive}
+        count={allCount}
+        onSelect={onFilterSelect}
+      />
+
+      <Separator />
+
+      <RailSection title="Smart">
+        {SMART_FILTERS.map((item) => (
+          <RailButton
+            key={item.key}
+            item={item}
+            active={activeFilter === item.key}
+            count={countMatching(guides, item.key)}
+            onSelect={onFilterSelect}
+          />
+        ))}
+      </RailSection>
+
+      <RailSection title="By area">
+        {AREA_FILTERS.map((item) => (
+          <RailButton
+            key={item.key}
+            item={item}
+            active={activeFilter === item.key}
+            count={countMatching(guides, item.key)}
+            onSelect={onFilterSelect}
+          />
+        ))}
+      </RailSection>
+
+      <RailSection title="Reference">
+        {REFERENCE_FILTERS.map((item) => {
+          const count = item.key === "contacts" ? contactsTotal : countMatching(guides, item.key);
+          return (
+            <RailButton
+              key={item.key}
+              item={item}
+              active={activeFilter === item.key}
+              count={count}
+              onSelect={onFilterSelect}
+            />
+          );
+        })}
+      </RailSection>
+
+      {categories.length > 0 && (
+        <RailSection title="All categories">
+          {categories.map((category) => (
+            <CategoryButton
+              key={category}
+              label={category}
+              active={activeCategory === category}
+              onSelect={() => onCategorySelect(category)}
+            />
+          ))}
+        </RailSection>
+      )}
+    </nav>
+  );
+}
+
+function getFilterLabel(filter: FilterKey) {
+  if (filter === "all") return "All resources";
+  const all = [...SMART_FILTERS, ...AREA_FILTERS, ...REFERENCE_FILTERS];
+  return all.find((i) => i.key === filter)?.label ?? "Filtered";
+}
+
+export default function ResourcesPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const search = searchParams.get("q") ?? "";
   const activeCategory = searchParams.get("category") ?? "All";
-  const quickFilter = quickFilterFromParams(searchParams);
+  const activeFilter = filterFromParams(searchParams);
+  const sort = (searchParams.get("sort") as SortKey | null) ?? "personalized";
+  const [railOpen, setRailOpen] = useState(false);
   const [contactRoleFilter, setContactRoleFilter] = useState<ContactRoleFilter>("ALL");
   const [contactAreaFilter, setContactAreaFilter] = useState<ContactAreaFilter>("ALL");
   const [contactHygieneFilter, setContactHygieneFilter] = useState<ContactHygieneFilter>("ALL");
 
-  const replaceGuideParams = (mutate: (params: URLSearchParams) => void) => {
+  const replaceParams = (mutate: (params: URLSearchParams) => void) => {
     const next = new URLSearchParams(searchParams.toString());
     mutate(next);
     const query = next.toString();
@@ -358,45 +508,40 @@ export default function GuidesPage() {
   };
 
   const setSearchParam = (value: string) => {
-    replaceGuideParams((params) => {
+    replaceParams((params) => {
       const trimmed = value.trimStart();
-      if (trimmed) {
-        params.set("q", trimmed);
-      } else {
-        params.delete("q");
-      }
+      if (trimmed) params.set("q", trimmed);
+      else params.delete("q");
     });
   };
 
-  const setCategoryParam = (category: string) => {
-    replaceGuideParams((params) => {
-      params.delete("view");
-      params.delete("area");
-      if (category === "All") {
-        params.delete("category");
-      } else {
-        params.set("category", category);
-      }
-    });
-  };
-
-  const setQuickFilterParam = (key: QuickFilter | null) => {
-    replaceGuideParams((params) => {
+  const setFilter = (key: FilterKey) => {
+    replaceParams((params) => {
       params.delete("category");
-      params.delete("view");
-      params.delete("area");
+      if (key === "all") params.delete("filter");
+      else params.set("filter", key);
+    });
+    setRailOpen(false);
+  };
 
-      if (!key || quickFilter === key) return;
+  const setCategory = (category: string) => {
+    replaceParams((params) => {
+      params.delete("filter");
+      if (category === "All") params.delete("category");
+      else params.set("category", category);
+    });
+    setRailOpen(false);
+  };
 
-      const view = QUICK_FILTER_TO_VIEW_PARAM[key];
-      const area = QUICK_FILTER_TO_AREA_PARAM[key];
-      if (view) params.set("view", view);
-      if (area) params.set("area", area);
+  const setSort = (value: SortKey) => {
+    replaceParams((params) => {
+      if (value === "personalized") params.delete("sort");
+      else params.set("sort", value);
     });
   };
 
   const { data: guides, loading: guidesLoading } = useFetch<GuideListItem[]>({
-    url: "/api/guides",
+    url: "/api/resources",
     transform: (json) => (json as { data: GuideListItem[] }).data ?? [],
   });
 
@@ -415,7 +560,7 @@ export default function GuidesPage() {
   });
 
   const showContactsDirectory =
-    quickFilter === "contacts" || activeCategory === "Contacts";
+    activeFilter === "contacts" || activeCategory === "Contacts";
 
   const categories = useMemo(() => {
     if (!guides) return [];
@@ -424,69 +569,24 @@ export default function GuidesPage() {
     return [...seen].sort();
   }, [guides]);
 
-  const featuredGuides = useMemo(() => {
-    if (!guides) return [];
-    const curated = guides.filter((guide) => guide.featured);
-    return (curated.length > 0 ? curated : guides).slice(0, 4);
-  }, [guides]);
-
-  const quickCards = useMemo(() => {
-    const all = guides ?? [];
-    const areaCards = AREA_QUICK_CARDS.map((card) => ({
-      ...card,
-      count: all.filter((guide) => guide.targetAreas.includes(card.area)).length,
-    }));
-    const referenceCards = REFERENCE_QUICK_CARDS.map((card) => ({
-      ...card,
-      count: card.key === "contacts"
-        ? contactUsers?.total ?? all.filter((guide) => normalizeCategory(guide.category) === card.category).length
-        : all.filter((guide) => normalizeCategory(guide.category) === card.category).length,
-    }));
-    const myArea = all.filter((guide) => guide.targetAreas.length > 0 && guide.personalizationReason !== "General");
-    const recent = [...all].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-
-    const utilityCards = [
-      { key: "recent" as const, title: "Recently Updated", detail: recent[0] ? `Latest: ${recent[0].title}` : "No updates yet", count: recent.length, icon: ClockIcon },
-      { key: "my-area" as const, title: "My Area", detail: "Video, Photo, Graphics, or Comms matches", count: myArea.length, icon: TargetIcon },
-    ];
-
-    return { areaCards, referenceCards, utilityCards };
-  }, [guides, contactUsers?.total]);
-
-  const quickCardLookup = useMemo(() => {
-    const cards = [
-      ...quickCards.areaCards,
-      ...quickCards.referenceCards,
-      ...quickCards.utilityCards,
-    ];
-    return new Map(cards.map((card) => [card.key, card]));
-  }, [quickCards]);
-
   const filtered = useMemo(() => {
     if (!guides) return [];
-    const source = quickFilter === "recent"
-      ? [...guides].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-      : guides;
     const query = search.trim().toLowerCase();
-    return source.filter((guide) => {
+    const base = guides.filter((guide) => {
       const matchesSearch = !query || guideSearchText(guide).includes(query);
-      const matchesCategory =
-        activeCategory === "All" || guide.category === activeCategory;
-      const matchesQuickFilter =
-        quickFilter === null ||
-        (quickFilter === "area-video" && guide.targetAreas.includes(ShiftArea.VIDEO)) ||
-        (quickFilter === "area-photo" && guide.targetAreas.includes(ShiftArea.PHOTO)) ||
-        (quickFilter === "area-graphics" && guide.targetAreas.includes(ShiftArea.GRAPHICS)) ||
-        (quickFilter === "area-comms" && guide.targetAreas.includes(ShiftArea.COMMS)) ||
-        (quickFilter === "contacts" && normalizeCategory(guide.category) === "contacts") ||
-        (quickFilter === "building-numbers" && normalizeCategory(guide.category) === "building numbers") ||
-        (quickFilter === "media-drive" && normalizeCategory(guide.category) === "media drive") ||
-        (quickFilter === "server-paths" && normalizeCategory(guide.category) === "server paths") ||
-        quickFilter === "recent" ||
-        (quickFilter === "my-area" && guide.targetAreas.length > 0 && guide.personalizationReason !== "General");
-      return matchesSearch && matchesCategory && matchesQuickFilter;
+      const matchesCategory = activeCategory === "All" || guide.category === activeCategory;
+      return matchesSearch && matchesCategory && matchesFilter(guide, activeFilter);
     });
-  }, [guides, search, activeCategory, quickFilter]);
+    if (sort === "recent" || activeFilter === "recent") {
+      return [...base].sort(
+        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      );
+    }
+    if (sort === "title") {
+      return [...base].sort((a, b) => a.title.localeCompare(b.title));
+    }
+    return base;
+  }, [guides, search, activeCategory, activeFilter, sort]);
 
   const filteredContactUsers = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -515,209 +615,195 @@ export default function GuidesPage() {
     };
   }, [contactUsers, filteredContactUsers.length]);
 
-  const clearFilters = () => {
+  const clearAll = () => {
     router.replace(pathname, { scroll: false });
     setContactRoleFilter("ALL");
     setContactAreaFilter("ALL");
     setContactHygieneFilter("ALL");
   };
 
+  const hasAnyFilter =
+    Boolean(search) || activeCategory !== "All" || activeFilter !== "all" || sort !== "personalized";
+
+  const railProps = {
+    guides,
+    contactsTotal: contactUsers?.total ?? 0,
+    activeFilter,
+    categories,
+    activeCategory,
+    onFilterSelect: setFilter,
+    onCategorySelect: setCategory,
+  };
+
   return (
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
-        title="Guides"
-        description="Role-aware knowledge base for Creative area guides, contacts, building numbers, Media Drive, server paths, SOPs, and general operations."
+        title="Resources"
+        description="Area guides, contacts, building numbers, Media Drive, server paths, and SOPs -- one searchable directory."
       >
         {isStaffOrAdmin && (
           <Button asChild size="sm">
-            <Link href="/guides/new">
+            <Link href="/resources/new">
               <PlusIcon className="size-4 mr-1.5" />
-              New Guide
+              New Resource
             </Link>
           </Button>
         )}
       </PageHeader>
 
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="flex items-center gap-2 text-base font-semibold">
-              <SparklesIcon className="size-4 text-muted-foreground" />
-              Featured for you
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Admin-curated entries come first, then your role and Creative area shape the order.
-            </p>
+      <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)]">
+        <aside className="hidden lg:block">
+          <div className="sticky top-6 max-h-[calc(100vh-3rem)] overflow-y-auto rounded-lg border bg-card p-3">
+            <FilterRail {...railProps} />
           </div>
-          {!guidesLoading && guides && (
-            <Badge variant="outline" className="shrink-0 tabular-nums">
-              {guides.length} {guides.length === 1 ? "entry" : "entries"}
-            </Badge>
-          )}
-        </div>
+        </aside>
 
-        {guidesLoading ? (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <Skeleton key={index} className="h-36 rounded-lg" />
-            ))}
-          </div>
-        ) : featuredGuides.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {featuredGuides.map((guide) => (
-              <GuideCard key={guide.id} guide={guide} compact />
-            ))}
-          </div>
-        ) : null}
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <div>
-          <h2 className="text-sm font-semibold">Browse by area</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Jump into guides by Creative discipline. Personalized ranking still controls the order inside each area.
-          </p>
-        </div>
-        <QuickCardGrid
-          cards={quickCards.areaCards}
-          activeKey={quickFilter}
-          onToggle={setQuickFilterParam}
-        />
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <div>
-          <h2 className="text-sm font-semibold">Reference library</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Keep always-needed operational facts one tap away from longer workflow guides.
-          </p>
-        </div>
-        <QuickCardGrid
-          cards={quickCards.referenceCards}
-          activeKey={quickFilter}
-          onToggle={setQuickFilterParam}
-        />
-      </section>
-
-      <QuickCardGrid
-        cards={quickCards.utilityCards}
-        activeKey={quickFilter}
-        className="md:grid-cols-2 xl:grid-cols-2"
-        onToggle={setQuickFilterParam}
-      />
-
-      <div className="flex flex-col gap-3 rounded-lg border bg-card p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <BookOpenTextIcon className="size-4 text-muted-foreground" />
-              Browse knowledge base
+        <div className="flex min-w-0 flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-0 flex-1">
+              <SearchIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <Input
+                id="resources-search"
+                name="resources-search"
+                placeholder="Search titles, categories, authors, text..."
+                value={search}
+                onChange={(event) => setSearchParam(event.target.value)}
+                className="pl-9"
+              />
             </div>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              Search across titles, categories, authors, and guide text. Cards keep the personalized order inside your filters.
-            </p>
+            <Sheet open={railOpen} onOpenChange={setRailOpen}>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="sm" className="lg:hidden">
+                  <FilterIcon className="size-4 mr-1.5" />
+                  Filters
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72 overflow-y-auto p-4">
+                <SheetHeader className="mb-3 p-0">
+                  <SheetTitle>Filters</SheetTitle>
+                </SheetHeader>
+                <FilterRail {...railProps} />
+              </SheetContent>
+            </Sheet>
+            <select
+              value={sort}
+              onChange={(event) => setSort(event.target.value as SortKey)}
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+              aria-label="Sort resources"
+            >
+              {SORT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
-          {(search || activeCategory !== "All" || quickFilter) && (
-            <Button variant="outline" size="sm" onClick={clearFilters}>
-              Clear filters
-            </Button>
+
+          {hasAnyFilter && (
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              {activeFilter !== "all" && (
+                <Badge variant="secondary" className="gap-1">
+                  {getFilterLabel(activeFilter)}
+                  <button
+                    type="button"
+                    onClick={() => setFilter("all")}
+                    aria-label="Clear filter"
+                    className="ml-0.5 rounded hover:text-foreground"
+                  >
+                    <XIcon className="size-3" />
+                  </button>
+                </Badge>
+              )}
+              {activeCategory !== "All" && (
+                <Badge variant="secondary" className="gap-1">
+                  {activeCategory}
+                  <button
+                    type="button"
+                    onClick={() => setCategory("All")}
+                    aria-label="Clear category"
+                    className="ml-0.5 rounded hover:text-foreground"
+                  >
+                    <XIcon className="size-3" />
+                  </button>
+                </Badge>
+              )}
+              {search && (
+                <Badge variant="secondary" className="gap-1">
+                  &ldquo;{search}&rdquo;
+                  <button
+                    type="button"
+                    onClick={() => setSearchParam("")}
+                    aria-label="Clear search"
+                    className="ml-0.5 rounded hover:text-foreground"
+                  >
+                    <XIcon className="size-3" />
+                  </button>
+                </Badge>
+              )}
+              <Button variant="ghost" size="sm" onClick={clearAll}>
+                Clear all
+              </Button>
+              <span className="ml-auto tabular-nums">
+                {filtered.length} {filtered.length === 1 ? "result" : "results"}
+              </span>
+            </div>
           )}
-        </div>
-        <div className="relative max-w-md">
-          <SearchIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-          <Input
-            id="guides-search"
-            name="guides-search"
-            placeholder="Search titles, categories, authors, and text..."
-            value={search}
-            onChange={(event) => setSearchParam(event.target.value)}
-            className="pl-9"
-          />
+
+          {showContactsDirectory && (
+            <LiveContactsDirectory
+              users={filteredContactUsers}
+              loading={contactsLoading}
+              total={contactUsers?.total ?? 0}
+              hasGuideResults={filtered.length > 0}
+              search={search}
+              roleFilter={contactRoleFilter}
+              areaFilter={contactAreaFilter}
+              hygieneFilter={contactHygieneFilter}
+              onRoleFilterChange={setContactRoleFilter}
+              onAreaFilterChange={setContactAreaFilter}
+              onHygieneFilterChange={setContactHygieneFilter}
+              stats={contactStats}
+              canSeeContactHygiene={isStaffOrAdmin}
+            />
+          )}
+
+          {guidesLoading ? (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <Skeleton key={index} className="h-40 rounded-lg" />
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
+            showContactsDirectory ? null : hasAnyFilter ? (
+              <EmptyState
+                icon="search"
+                title="No resources match your filters"
+                description="Try a different keyword, category, or filter."
+                actionLabel="Clear filters"
+                onAction={clearAll}
+              />
+            ) : (
+              <EmptyState
+                icon="folder"
+                title="No resources yet"
+                description={
+                  isStaffOrAdmin
+                    ? "Add the first contact list, server path, SOP, or general reference note."
+                    : "Check back later for Creative operations references."
+                }
+                actionLabel={isStaffOrAdmin ? "New Resource" : undefined}
+                actionHref={isStaffOrAdmin ? "/resources/new" : undefined}
+              />
+            )
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {filtered.map((guide) => (
+                <ResourceCard key={guide.id} guide={guide} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
-
-      {!guidesLoading && categories.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {["All", ...categories].map((category) => (
-            <button
-              key={category}
-              onClick={() => setCategoryParam(category)}
-              className={cn(
-                "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-                activeCategory === category
-                  ? "bg-foreground text-background border-foreground"
-                  : "border-border text-muted-foreground hover:border-foreground/50 hover:text-foreground",
-              )}
-            >
-              {category}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {quickFilter && (
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span>Filtered by {quickCardLookup.get(quickFilter)?.title}</span>
-          <Button variant="ghost" size="sm" onClick={() => setQuickFilterParam(null)}>
-            Show all
-          </Button>
-        </div>
-      )}
-
-      {showContactsDirectory && (
-        <LiveContactsDirectory
-          users={filteredContactUsers}
-          loading={contactsLoading}
-          total={contactUsers?.total ?? 0}
-          hasGuideResults={filtered.length > 0}
-          search={search}
-          roleFilter={contactRoleFilter}
-          areaFilter={contactAreaFilter}
-          hygieneFilter={contactHygieneFilter}
-          onRoleFilterChange={setContactRoleFilter}
-          onAreaFilterChange={setContactAreaFilter}
-          onHygieneFilterChange={setContactHygieneFilter}
-          stats={contactStats}
-          canSeeContactHygiene={isStaffOrAdmin}
-        />
-      )}
-
-      {guidesLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <Skeleton key={index} className="h-40 rounded-lg" />
-          ))}
-        </div>
-      ) : filtered.length === 0 ? (
-        showContactsDirectory ? null :
-        search || activeCategory !== "All" || quickFilter ? (
-          <EmptyState
-            icon="search"
-            title="No knowledge base entries match your filters"
-            description="Try a different keyword, category, contact name, path fragment, or priority card."
-            actionLabel="Clear filters"
-            onAction={clearFilters}
-          />
-        ) : (
-          <EmptyState
-            icon="folder"
-            title="No knowledge base entries yet"
-            description={
-              isStaffOrAdmin
-                ? "Add the first contact list, server path, SOP, or general reference note."
-                : "Check back later for Creative operations references."
-            }
-            actionLabel={isStaffOrAdmin ? "New Entry" : undefined}
-            actionHref={isStaffOrAdmin ? "/guides/new" : undefined}
-          />
-        )
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((guide) => (
-            <GuideCard key={guide.id} guide={guide} />
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -824,7 +910,7 @@ function LiveContactsDirectory({
 
       {hasGuideResults && (
         <p className="text-xs text-muted-foreground">
-          Authored Contacts guides are listed below for vendor numbers, escalation notes, and anything that does not belong on a user profile.
+          Authored Contacts resources are listed below for vendor numbers, escalation notes, and anything that does not belong on a user profile.
         </p>
       )}
     </section>
@@ -999,72 +1085,10 @@ function ContactLine({
   }
 
   return (
-    <span
-      className="flex min-w-0 items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
-    >
+    <span className="flex min-w-0 items-center gap-2 text-muted-foreground transition-colors hover:text-foreground">
       <a href={href} className="flex min-w-0 items-center gap-2">
         {content}
       </a>
     </span>
-  );
-}
-
-function QuickCardGrid({
-  cards,
-  activeKey,
-  className,
-  onToggle,
-}: {
-  cards: Array<{
-    key: QuickFilter;
-    title: string;
-    detail: string;
-    count: number;
-    icon: typeof PhoneIcon;
-  }>;
-  activeKey: QuickFilter | null;
-  className?: string;
-  onToggle: (key: QuickFilter) => void;
-}) {
-  return (
-    <div className={cn("grid gap-3 md:grid-cols-2 xl:grid-cols-4", className)}>
-      {cards.map((card) => {
-        const Icon = card.icon;
-        return (
-          <Card
-            key={card.key}
-            role="button"
-            tabIndex={0}
-            elevation="flat"
-            className={cn(
-              "cursor-pointer border-border/60 transition-[border-color,background-color,scale] hover:border-foreground/30 hover:bg-muted/20 active:scale-[0.99]",
-              activeKey === card.key && "border-foreground/40 bg-muted/30",
-            )}
-            onClick={() => onToggle(card.key)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                onToggle(card.key);
-              }
-            }}
-          >
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center justify-between gap-3 text-sm">
-                <span className="flex min-w-0 items-center gap-2">
-                  <Icon className="size-4 shrink-0 text-muted-foreground" />
-                  <span className="truncate">{card.title}</span>
-                </span>
-                <Badge variant="secondary" className="tabular-nums">
-                  {card.count}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <p className="line-clamp-2 text-sm text-muted-foreground">{card.detail}</p>
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
   );
 }

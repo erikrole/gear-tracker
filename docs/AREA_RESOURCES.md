@@ -1,4 +1,6 @@
-# AREA: Guides
+# AREA: Resources
+
+> Renamed from "Guides" on 2026-05-19. URLs `/guides*` permanently redirect to `/resources*`. The Prisma `Guide` model and `@/lib/guides` service retain their internal names (a future slice covers the model rename).
 
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
@@ -10,10 +12,10 @@
 In-app Markdown knowledge base for Wisconsin Athletics Creative operational reference: contact numbers, building numbers, Media Drive context, server paths, SOPs, how-to guides, account notes, troubleshooting steps, and general information. Staff author documents in a Markdown WYSIWYG editor; students read published entries in-app. The landing page is role- and area-aware: admin-curated featured guides appear first, then users can browse by Creative area or reference category while ranked entries stay personalized for the viewer's app role and Creative area.
 
 ## Components
-- `/guides` — knowledge-base landing page with featured cards, URL-backed area/reference/search/category filters, reference quick cards for Contacts/Building Numbers/Media Drive/Server Paths, guide freshness badges, live Contacts directory from active User profiles with role/area/contact-hygiene filters, category chips, title/category/author/full-guide search, and role/area-ranked preview cards
-- `/guides/[slug]` — Markdown reader with editorial document styling, polished image treatment, sticky desktop table of contents, verification metadata, and an allowed-editor Mark verified action
-- `/guides/new` — create page (Staff/Admin only) with starter templates for Contacts, Building Numbers, Media Drive, Server Paths, SOPs, and Troubleshooting
-- `/guides/[slug]/edit` — edit page with publish toggle and admin delete
+- `/resources` — directory landing page with a sticky left filter rail (All / Smart: Recently Updated, My Area / By area: Video, Photo, Graphics, Comms / Reference: Contacts, Building Numbers, Media Drive, Server Paths / category list), a top search + sort (Personalized, Recently updated, Title A-Z) toolbar, active-filter chips, resource freshness badges, Featured badge on cards, and a live Contacts directory that appears only when the Contacts filter is active. Rail collapses into a Filters sheet on mobile. URL-backed via `filter`, `category`, `q`, `sort` params.
+- `/resources/[slug]` — Markdown reader with editorial document styling, polished image treatment, sticky desktop table of contents, verification metadata, and an allowed-editor Mark verified action
+- `/resources/new` — create page (Staff/Admin only) with starter templates for Contacts, Building Numbers, Media Drive, Server Paths, SOPs, and Troubleshooting
+- `/resources/[slug]/edit` — edit page with publish toggle and admin delete
 
 ## Data Model
 `Guide` model in `prisma/schema.prisma`:
@@ -52,12 +54,12 @@ All mutations use `createAuditEntry` per D-007.
 ## API Endpoints
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/guides` | All | List guides; STUDENT sees published only |
-| POST | `/api/guides` | STAFF/ADMIN | Create guide |
-| GET | `/api/guides/[id]` | All | Single guide by ID or slug |
-| PATCH | `/api/guides/[id]` | STAFF/ADMIN | Update guide |
-| DELETE | `/api/guides/[id]` | ADMIN | Delete guide |
-| POST | `/api/guides/upload-image` | STAFF/ADMIN | Upload image to Vercel Blob; returns `{ url }`. Max 10MB per image. Used by the Markdown editor image upload handler. |
+| GET | `/api/resources` | All | List resources; STUDENT sees published only |
+| POST | `/api/resources` | STAFF/ADMIN | Create resource |
+| GET | `/api/resources/[id]` | All | Single resource by ID or slug |
+| PATCH | `/api/resources/[id]` | STAFF/ADMIN | Update resource |
+| DELETE | `/api/resources/[id]` | ADMIN | Delete resource |
+| POST | `/api/resources/upload-image` | STAFF/ADMIN | Upload image to Vercel Blob; returns `{ url }`. Max 10MB per image. Used by the Markdown editor image upload handler. |
 
 ## Acceptance Criteria Status
 
@@ -79,6 +81,7 @@ All mutations use `createAuditEntry` per D-007.
 ## Change Log
 | Date | Change |
 |------|--------|
+| 2026-05-19 | Renamed Guides to Resources: routes moved to `/resources*` (old `/guides*` 301-redirect via `next.config.ts`), sidebar entry relabeled, and the landing page rebuilt as a directory with a sticky left filter rail, top search + sort toolbar, active-filter chips, and Featured badges. Removed the "Featured for you" strip and the three stacked quick-card grids; Contacts directory now shows only under the Contacts filter. Prisma `Guide` model and `@/lib/guides` service keep internal names (model rename deferred to a follow-up slice). |
 | 2026-05-10 | Guides review fixes: landing search now matches full Markdown guide text beyond card summaries, reader heading IDs stay aligned with ToC IDs for rich headings, and partial featured-rank PATCHes preserve or clear rank from the final featured state. |
 | 2026-05-10 | Guide freshness closeout: guides now store last verification metadata, show Verified/Needs review badges on landing cards and reader pages, and allowed editors can mark entries verified from the reader. |
 | 2026-05-10 | URL-backed Guides navigation: `/guides` now preserves search, category, area, and reference filters in query params so links such as `/guides?view=contacts`, `/guides?view=media-drive`, and `/guides?area=video` are shareable and reload-safe. |

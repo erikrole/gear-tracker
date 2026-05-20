@@ -23,8 +23,8 @@ import { useFetch } from "@/hooks/use-fetch";
 import type { GuideListItem } from "@/lib/guides";
 import { handleAuthRedirect } from "@/lib/errors";
 import { KNOWLEDGE_BASE_CATEGORY_SUGGESTIONS } from "@/lib/guide-categories";
-import { GuideTargetingControls } from "@/components/guides/GuideTargetingControls";
-import { MarkdownEditor } from "@/components/guides/MarkdownEditor";
+import { GuideTargetingControls } from "@/components/resources/GuideTargetingControls";
+import { MarkdownEditor } from "@/components/resources/MarkdownEditor";
 
 type GuideTemplate = {
   id: string;
@@ -305,14 +305,14 @@ export function NewGuideClient() {
   async function uploadFile(file: File): Promise<string> {
     const fd = new FormData();
     fd.append("file", file);
-    const res = await fetch("/api/guides/upload-image", { method: "POST", body: fd });
+    const res = await fetch("/api/resources/upload-image", { method: "POST", body: fd });
     if (!res.ok) throw new Error("Image upload failed");
     const json = (await res.json()) as { url: string };
     return json.url;
   }
 
   const { data: guides } = useFetch<GuideListItem[]>({
-    url: "/api/guides",
+    url: "/api/resources",
     transform: (json) => (json as { data: GuideListItem[] }).data ?? [],
   });
 
@@ -340,7 +340,7 @@ export function NewGuideClient() {
     }
     setSubmitting(true);
     try {
-      const res = await fetch("/api/guides", {
+      const res = await fetch("/api/resources", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -357,12 +357,12 @@ export function NewGuideClient() {
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
         const json = (await res.json().catch(() => ({}))) as { error?: string };
-        toast.error(json.error ?? "Failed to create guide");
+        toast.error(json.error ?? "Failed to create resource");
         return;
       }
       const json = (await res.json()) as { data: { slug: string } };
-      toast.success(published ? "Guide published" : "Draft saved");
-      router.push(`/guides/${json.data.slug}`);
+      toast.success(published ? "Resource published" : "Draft saved");
+      router.push(`/resources/${json.data.slug}`);
     } catch {
       toast.error("Network error — try again");
     } finally {
@@ -374,7 +374,7 @@ export function NewGuideClient() {
     <div className="flex flex-col gap-6 p-6 max-w-5xl mx-auto">
       <div>
         <Link
-          href="/guides"
+          href="/resources"
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeftIcon className="size-3.5" />
@@ -383,7 +383,7 @@ export function NewGuideClient() {
       </div>
 
       <div className="space-y-1">
-        <h1 className="text-2xl font-bold">New Knowledge Base Entry</h1>
+        <h1 className="text-2xl font-bold">New Resource</h1>
         <p className="text-sm text-muted-foreground">
           Capture reusable Creative operations context: contacts, building numbers, Media Drive details, server paths, SOPs, how-to steps, or general reference notes.
         </p>

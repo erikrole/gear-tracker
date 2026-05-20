@@ -87,6 +87,12 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      { source: "/guides", destination: "/resources", permanent: true },
+      { source: "/guides/:path*", destination: "/resources/:path*", permanent: true },
+    ];
+  },
 };
 
 const config = withBundleAnalyzer(nextConfig);

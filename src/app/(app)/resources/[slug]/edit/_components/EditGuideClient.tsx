@@ -26,8 +26,8 @@ import { Role, ShiftArea } from "@prisma/client";
 import { handleAuthRedirect } from "@/lib/errors";
 import { KNOWLEDGE_BASE_CATEGORY_SUGGESTIONS } from "@/lib/guide-categories";
 import { legacyGuideMarkdown } from "@/lib/guide-content";
-import { GuideTargetingControls } from "@/components/guides/GuideTargetingControls";
-import { MarkdownEditor } from "@/components/guides/MarkdownEditor";
+import { GuideTargetingControls } from "@/components/resources/GuideTargetingControls";
+import { MarkdownEditor } from "@/components/resources/MarkdownEditor";
 
 type Guide = {
   id: string;
@@ -66,14 +66,14 @@ export function EditGuideClient({ slug, userRole }: Props) {
   async function uploadFile(file: File): Promise<string> {
     const fd = new FormData();
     fd.append("file", file);
-    const res = await fetch("/api/guides/upload-image", { method: "POST", body: fd });
+    const res = await fetch("/api/resources/upload-image", { method: "POST", body: fd });
     if (!res.ok) throw new Error("Image upload failed");
     const json = (await res.json()) as { url: string };
     return json.url;
   }
 
   const { data: guide, loading } = useFetch<Guide>({
-    url: `/api/guides/${slug}`,
+    url: `/api/resources/${slug}`,
     transform: (json) => (json as { data: Guide }).data,
   });
 
@@ -113,7 +113,7 @@ export function EditGuideClient({ slug, userRole }: Props) {
     if (!category.trim()) { toast.error("Category is required"); return; }
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/guides/${guideId}`, {
+      const res = await fetch(`/api/resources/${guideId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -131,13 +131,13 @@ export function EditGuideClient({ slug, userRole }: Props) {
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
         const json = (await res.json().catch(() => ({}))) as { error?: string };
-        toast.error(json.error ?? "Failed to save guide");
+        toast.error(json.error ?? "Failed to save resource");
         return;
       }
       const json = (await res.json()) as { data: { slug: string } };
       setDirty(false);
-      toast.success("Guide saved");
-      router.push(`/guides/${json.data.slug}`);
+      toast.success("Resource saved");
+      router.push(`/resources/${json.data.slug}`);
     } catch {
       toast.error("Network error — try again");
     } finally {
@@ -148,14 +148,14 @@ export function EditGuideClient({ slug, userRole }: Props) {
   async function handleDelete() {
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/guides/${guideId}`, { method: "DELETE" });
+      const res = await fetch(`/api/resources/${guideId}`, { method: "DELETE" });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
-        toast.error("Failed to delete guide");
+        toast.error("Failed to delete resource");
         return;
       }
-      toast.success("Guide deleted");
-      router.push("/guides");
+      toast.success("Resource deleted");
+      router.push("/resources");
     } catch {
       toast.error("Network error — try again");
     } finally {
@@ -186,7 +186,7 @@ export function EditGuideClient({ slug, userRole }: Props) {
                 className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 <ArrowLeftIcon className="size-3.5" />
-                Back to guide
+                Back to resource
               </button>
             </AlertDialogTrigger>
             <AlertDialogContent>
@@ -198,7 +198,7 @@ export function EditGuideClient({ slug, userRole }: Props) {
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Keep editing</AlertDialogCancel>
-                <AlertDialogAction onClick={() => router.push(`/guides/${slug}`)}>
+                <AlertDialogAction onClick={() => router.push(`/resources/${slug}`)}>
                   Discard
                 </AlertDialogAction>
               </AlertDialogFooter>
@@ -206,16 +206,16 @@ export function EditGuideClient({ slug, userRole }: Props) {
           </AlertDialog>
         ) : (
           <Link
-            href={`/guides/${slug}`}
+            href={`/resources/${slug}`}
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeftIcon className="size-3.5" />
-            Back to guide
+            Back to resource
           </Link>
         )}
       </div>
 
-      <h1 className="text-2xl font-bold">Edit Knowledge Base Entry</h1>
+      <h1 className="text-2xl font-bold">Edit Resource</h1>
 
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
@@ -305,7 +305,7 @@ export function EditGuideClient({ slug, userRole }: Props) {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Keep editing</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => router.push(`/guides/${slug}`)}>
+                  <AlertDialogAction onClick={() => router.push(`/resources/${slug}`)}>
                     Discard
                   </AlertDialogAction>
                 </AlertDialogFooter>
@@ -313,7 +313,7 @@ export function EditGuideClient({ slug, userRole }: Props) {
             </AlertDialog>
           ) : (
             <Button variant="outline" asChild disabled={submitting}>
-              <Link href={`/guides/${slug}`}>Cancel</Link>
+              <Link href={`/resources/${slug}`}>Cancel</Link>
             </Button>
           )}
         </div>
@@ -328,7 +328,7 @@ export function EditGuideClient({ slug, userRole }: Props) {
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Delete guide?</AlertDialogTitle>
+                <AlertDialogTitle>Delete resource?</AlertDialogTitle>
                 <AlertDialogDescription>
                   This will permanently delete &ldquo;{title}&rdquo;. This action cannot be undone.
                 </AlertDialogDescription>
