@@ -298,49 +298,47 @@ export default function EventDetailPage() {
           {event.status.toLowerCase()}
         </Badge>
         {event.sportCode && <Badge variant="purple">{sportLabel(event.sportCode)}</Badge>}
-        {event.opponent && (
-          isStaffOrAdmin ? (
-            <div className="flex items-center gap-1.5">
-              <ToggleGroup
-                type="single"
-                value={venueToneFromIsHome(event.isHome)}
-                onValueChange={(val) => { if (val) handleSetHomeAway(val as VenueTone); }}
-                disabled={savingHomeAway}
-                className="h-7 gap-0 rounded-md border border-input bg-background p-0.5"
-              >
-                {(["home", "away", "neutral"] as VenueTone[]).map((tone) => (
-                  <ToggleGroupItem
-                    key={tone}
-                    value={tone}
-                    className="h-6 rounded-sm px-2 text-xs data-[state=on]:bg-muted data-[state=on]:text-foreground"
+        {isStaffOrAdmin && event.sportCode ? (
+          <div className="flex items-center gap-1.5">
+            <ToggleGroup
+              type="single"
+              value={venueToneFromIsHome(event.isHome)}
+              onValueChange={(val) => { if (val) handleSetHomeAway(val as VenueTone); }}
+              disabled={savingHomeAway}
+              className="h-7 gap-0 rounded-md border border-input bg-background p-0.5"
+            >
+              {(["home", "away", "neutral"] as VenueTone[]).map((tone) => (
+                <ToggleGroupItem
+                  key={tone}
+                  value={tone}
+                  className="h-6 rounded-sm px-2 text-xs data-[state=on]:bg-muted data-[state=on]:text-foreground"
+                >
+                  {VENUE_TONES[tone].label}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+            {event.isHomeLocked && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-6 text-amber-500 hover:text-amber-600"
+                    onClick={handleRevertHomeAway}
+                    disabled={savingHomeAway}
                   >
-                    {VENUE_TONES[tone].label}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-              {event.isHomeLocked && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-6 text-amber-500 hover:text-amber-600"
-                      onClick={handleRevertHomeAway}
-                      disabled={savingHomeAway}
-                    >
-                      <RotateCcw className="size-3" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Revert to synced value</TooltipContent>
-                </Tooltip>
-              )}
-            </div>
-          ) : (
-            <Badge variant={venueBadgeVariant(event.isHome)}>
-              {VENUE_TONES[venueToneFromIsHome(event.isHome)].label}
-            </Badge>
-          )
-        )}
+                    <RotateCcw className="size-3" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Revert to synced value</TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+        ) : event.opponent ? (
+          <Badge variant={venueBadgeVariant(event.isHome)}>
+            {VENUE_TONES[venueToneFromIsHome(event.isHome)].label}
+          </Badge>
+        ) : null}
       </div>
 
       <div className="flex items-center gap-4 text-sm text-muted-foreground mb-6 flex-wrap">
