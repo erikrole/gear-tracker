@@ -56,6 +56,18 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - Saved per-device in `localStorage` (`theme`, `text-scale`); the cold-load script in `src/app/layout.tsx` applies both on first paint to avoid FOUC.
 - Available to every authenticated user (STUDENT included).
 
+### Checkout Policies (`/settings/checkout-policies`) -- Inventory, ADMIN
+- **Default loan duration** (`defaultLoanDays`, default 3): used as the fallback `endsAt` when a checkout POST omits the end date. The creation form can use this to prefill the due-date picker.
+- **Overdue grace period** (`gracePeriodHours`, default 0): items only appear in the Overdue filter and trigger escalation notifications after `endsAt + gracePeriodHours`. Applied in both the checkout GET overdue filter and `processOverdueNotifications` (only for rules that fire at/after the due date; pre-due rules are not shifted).
+- **Max active checkouts per user** (`maxItemsPerUser`, default null = no limit): enforced at checkout POST time; counts OPEN + PENDING_PICKUP bookings for the requester. Rejects with 409 when at/over cap.
+- `GET/PUT /api/settings/checkout-policies` (ADMIN, rate-limited at `SETTINGS_MUTATION_LIMIT`). Stored in `SystemConfig.checkout_policies`. Missing/null key falls back to defaults -- no behavior change for existing data.
+
+### Reservation Rules (`/settings/reservation-rules`) -- Scheduling, ADMIN
+- **Advance booking window** (`advanceWindowDays`, default null = no limit): reservations whose `startsAt` is further out than the window are rejected with 409.
+- **No-show expiry** (`noShowExpiryHours`, default 48): replaces the former hardcoded `PENDING_PICKUP_AUTO_EXPIRY_HOURS = 48`. Loaded at cron run time in `expirePendingPickupCheckouts` so admin changes take effect immediately without a redeploy.
+- **Max concurrent reservations** (`maxConcurrentReservations`, default null = no limit): enforced at reservation POST time; counts BOOKED reservations for the requester. Rejects with 409 when at/over cap.
+- `GET/PUT /api/settings/reservation-rules` (ADMIN, rate-limited). Stored in `SystemConfig.reservation_rules`. Missing key falls back to defaults.
+
 ### Categories (`/settings/categories`)
 - Hierarchical tree of equipment categories with inline rename, subcategory creation, and delete.
 - Search filters the tree (preserves parent nodes for structure).
@@ -155,6 +167,7 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages.
 
 ## Change Log
+- 2026-05-21: Checkout Policies + Reservation Rules (roadmap slices 5 + 6). New `/settings/checkout-policies` (Inventory, ADMIN) and `/settings/reservation-rules` (Scheduling, ADMIN). Default loan duration and overdue grace period stored in `SystemConfig.checkout_policies`; advance booking window, no-show expiry (previously hardcoded 48h), and max concurrent reservations stored in `SystemConfig.reservation_rules`. Grace period now applied in both the Overdue list filter and the escalation cron. No-show expiry loaded at cron run time (no redeploy needed after a config change). New `GET/PUT /api/settings/checkout-policies` and `GET/PUT /api/settings/reservation-rules` (ADMIN, rate-limited, audit-logged).
 - 2026-05-21: Security settings (roadmap slice 4). New `/settings/security` (Personal, all roles) adds change-password form (current password verify, new password min-8, confirm, optional sign-out-others checkbox) and active sessions list (per-session sign-out, bulk sign-out-all-others). New `POST /api/me/change-password` (5/min), `GET/DELETE /api/me/sessions` (30/10 per min), `DELETE /api/me/sessions/:id` (10/min). Current session identified server-side by hashing the cookie token -- tokenHash never exposed to client.
 - 2026-05-21: Profile settings (roadmap slice 3). New `/settings/profile` (Personal, all roles) lets every authenticated user edit their name, phone, primary area, title, athletics email, and Slack handle. Avatar managed via the existing user avatar endpoint. New `GET/PUT /api/me/profile` -- rate-limited, audit-logged, 409 on duplicate athleticsEmail.
 - 2026-05-21: Data Export settings (roadmap slice 2). New `/settings/data-export` (System, ADMIN) surfaces all five CSV exports in one place. Items, Users, and Licenses reuse existing endpoints; new `GET /api/bookings/export` and `GET /api/audit/export` added. All capped at 5,000 rows with truncation headers + toast warning.

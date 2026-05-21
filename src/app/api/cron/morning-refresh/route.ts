@@ -4,10 +4,8 @@ import { db } from "@/lib/db";
 import { syncCalendarSource } from "@/lib/services/calendar-sync";
 import { generateShiftsForNewEvents } from "@/lib/services/shift-generation";
 import { expireOpenTrades } from "@/lib/services/shift-trades";
-import {
-  expirePendingPickupCheckouts,
-  PENDING_PICKUP_AUTO_EXPIRY_HOURS,
-} from "@/lib/services/pending-pickup-expiry";
+import { expirePendingPickupCheckouts } from "@/lib/services/pending-pickup-expiry";
+import { DEFAULT_RESERVATION_RULES } from "@/lib/services/reservation-rules";
 
 function maintenanceValue<T>(
   result: PromiseSettledResult<T>,
@@ -112,7 +110,7 @@ export const GET = withCron(async () => {
       scanned: 0,
       expired: 0,
       failed: 1,
-      cutoff: new Date(now.getTime() - PENDING_PICKUP_AUTO_EXPIRY_HOURS * 60 * 60 * 1000),
+      cutoff: new Date(now.getTime() - DEFAULT_RESERVATION_RULES.noShowExpiryHours * 3_600_000),
       errors: { pendingPickups: "Pending pickup expiry failed" },
     },
     "pendingPickups",

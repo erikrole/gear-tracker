@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { sendEmail, buildNotificationEmail } from "@/lib/email";
 import { sendPush } from "@/lib/push/apns";
 import { loadUserPrefs, shouldDeliverEmail, shouldDeliverPush } from "@/lib/services/notification-prefs";
+import { loadCheckoutPolicies } from "@/lib/services/checkout-policies";
 
 export async function sendPushToUser(
   userId: string,
@@ -80,8 +81,12 @@ export async function processOverdueNotifications(): Promise<{
   notificationsCreated: number;
 }> {
   const now = new Date();
-  const rules = await getEscalationRules();
-  const maxPerBooking = await getMaxNotificationsPerBooking();
+  const [rules, maxPerBooking, policies] = await Promise.all([
+    getEscalationRules(),
+    getMaxNotificationsPerBooking(),
+    loadCheckoutPolicies(),
+  ]);
+  const gracePeriodMs = policies.gracePeriodHours * 3_600_000;
 
   const [openCheckouts, admins] = await Promise.all([
     db.booking.findMany({
@@ -141,7 +146,9 @@ export async function processOverdueNotifications(): Promise<{
     let localCreated = 0;
 
     for (const rule of rules) {
-      const triggerTime = new Date(dueAt.getTime() + rule.hoursFromDue * 3600_000);
+      // Grace period shifts the effective overdue threshold for rules that fire after the due date
+      const graceShift = rule.hoursFromDue >= 0 ? gracePeriodMs : 0;
+      const triggerTime = new Date(dueAt.getTime() + graceShift + rule.hoursFromDue * 3600_000);
       if (now < triggerTime) continue;
       if (existingCount + localCreated >= maxPerBooking) break;
 

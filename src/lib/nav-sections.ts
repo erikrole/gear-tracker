@@ -100,7 +100,24 @@ export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSection> = [
     description: "Inventory ownership groups used by item forms, filters, and reports.",
     keywords: ["ownership", "team", "unit", "reporting", "items"],
   },
+  // Inventory
+  {
+    href: "/settings/checkout-policies",
+    label: "Checkout Policies",
+    requiredRole: "ADMIN",
+    group: "Inventory",
+    description: "Default loan duration, overdue grace period, and per-user item cap.",
+    keywords: ["loan", "duration", "grace", "overdue", "max items", "cap", "limit", "checkout"],
+  },
   // Scheduling
+  {
+    href: "/settings/reservation-rules",
+    label: "Reservation Rules",
+    requiredRole: "ADMIN",
+    group: "Scheduling",
+    description: "Advance booking window, no-show expiry, and concurrent reservation cap.",
+    keywords: ["advance", "window", "no-show", "expiry", "pending", "pickup", "max concurrent", "reservation"],
+  },
   {
     href: "/settings/calendar-sources",
     label: "Calendar",

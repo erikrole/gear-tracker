@@ -8,8 +8,8 @@ import {
 } from "@prisma/client";
 import { db } from "@/lib/db";
 import { createAuditEntryTx } from "@/lib/audit";
+import { loadReservationRules } from "@/lib/services/reservation-rules";
 
-export const PENDING_PICKUP_AUTO_EXPIRY_HOURS = 48;
 const DEFAULT_EXPIRY_LIMIT = 50;
 
 type PendingPickupExpiryResult = {
@@ -28,7 +28,8 @@ export async function expirePendingPickupCheckouts(
   now = new Date(),
   limit = DEFAULT_EXPIRY_LIMIT,
 ): Promise<PendingPickupExpiryResult> {
-  const cutoff = new Date(now.getTime() - PENDING_PICKUP_AUTO_EXPIRY_HOURS * 60 * 60 * 1000);
+  const rules = await loadReservationRules();
+  const cutoff = new Date(now.getTime() - rules.noShowExpiryHours * 3_600_000);
   const candidates = await db.booking.findMany({
     where: {
       kind: BookingKind.CHECKOUT,
@@ -45,7 +46,7 @@ export async function expirePendingPickupCheckouts(
 
   for (const candidate of candidates) {
     try {
-      const didExpire = await expirePendingPickupCheckout(candidate, cutoff, now);
+      const didExpire = await expirePendingPickupCheckout(candidate, cutoff, now, rules.noShowExpiryHours);
       if (didExpire) expired += 1;
     } catch (error) {
       console.error(`[pending-pickup-expiry] failed to expire ${candidate.id}`, error);
@@ -66,6 +67,7 @@ async function expirePendingPickupCheckout(
   candidate: PendingPickupCandidate,
   cutoff: Date,
   now: Date,
+  noShowExpiryHours: number,
 ) {
   return db.$transaction(async (tx) => {
     const booking = await tx.booking.findUnique({
@@ -156,7 +158,7 @@ async function expirePendingPickupCheckout(
       after: {
         status: BookingStatus.CANCELLED,
         expiredAt: now.toISOString(),
-        policyHours: PENDING_PICKUP_AUTO_EXPIRY_HOURS,
+        policyHours: noShowExpiryHours,
       },
     });
 

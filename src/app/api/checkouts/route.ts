@@ -1,7 +1,7 @@
-import { BookingKind, Prisma } from "@prisma/client";
+import { BookingKind, BookingStatus, Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { ok } from "@/lib/http";
+import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createBooking, listBookings } from "@/lib/services/bookings";
 import { notifyLowStock } from "@/lib/services/notifications";
@@ -9,20 +9,27 @@ import { resolveEventDefaults } from "@/lib/services/event-defaults";
 import { parseDateRange } from "@/lib/time";
 import { createCheckoutSchema, sanitizeBookingFields } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
+import { loadCheckoutPolicies } from "@/lib/services/checkout-policies";
 
 export const GET = withAuth(async (req, { user }) => {
   requirePermission(user.role, "checkout", "view");
   const { searchParams } = new URL(req.url);
   const filterParam = searchParams.get("filter");
 
-  // Checkout-specific derived filters: overdue = OPEN + past due, due-today = OPEN + due today
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
 
+  let overdueThreshold = now;
+  if (filterParam === "overdue") {
+    const policies = await loadCheckoutPolicies();
+    // Grace period: items are overdue only after endsAt + grace window has passed
+    overdueThreshold = new Date(now.getTime() - policies.gracePeriodHours * 3_600_000);
+  }
+
   const extraWhere: Prisma.BookingWhereInput | undefined =
     filterParam === "overdue"
-      ? { status: "OPEN" as never, endsAt: { lt: now } }
+      ? { status: "OPEN" as never, endsAt: { lt: overdueThreshold } }
       : filterParam === "due-today"
         ? { status: "OPEN" as never, endsAt: { gte: todayStart, lt: todayEnd } }
         : undefined;
@@ -40,7 +47,30 @@ export const POST = withAuth(async (req, { user }) => {
   if (user.role === "STUDENT") {
     body.requesterUserId = user.id;
   }
-  const { start, end } = parseDateRange(body.startsAt, body.endsAt, { requireFutureStart: true });
+
+  const policies = await loadCheckoutPolicies();
+
+  // Enforce max items per user (counts OPEN + PENDING_PICKUP checkouts)
+  if (policies.maxItemsPerUser !== null) {
+    const activeCount = await db.booking.count({
+      where: {
+        requesterUserId: body.requesterUserId,
+        kind: BookingKind.CHECKOUT,
+        status: { in: [BookingStatus.OPEN, BookingStatus.PENDING_PICKUP] },
+      },
+    });
+    if (activeCount >= policies.maxItemsPerUser) {
+      throw new HttpError(
+        409,
+        `This user already has ${activeCount} active checkout${activeCount === 1 ? "" : "s"} (limit: ${policies.maxItemsPerUser}).`
+      );
+    }
+  }
+
+  // Default endsAt to startsAt + defaultLoanDays if not supplied
+  const rawEndsAt = body.endsAt
+    ?? new Date(Date.parse(body.startsAt) + policies.defaultLoanDays * 86_400_000).toISOString();
+  const { start, end } = parseDateRange(body.startsAt, rawEndsAt, { requireFutureStart: true });
 
   // Event-default prefill: if sportCode provided but no eventId,
   // look up next upcoming event and use as defaults (ad hoc fallback if none found)

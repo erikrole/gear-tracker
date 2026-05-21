@@ -52,6 +52,7 @@ export const createReservationSchema = z.object(bookingBaseShape).refine(eventId
 
 export const createCheckoutSchema = z.object({
   ...bookingBaseShape,
+  endsAt: z.string().optional(),
   sourceReservationId: z.string().cuid().optional(),
 }).refine(eventIdsExclusive, eventIdsExclusiveMsg);
 
