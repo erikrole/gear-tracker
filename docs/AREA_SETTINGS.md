@@ -26,6 +26,12 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - Groups settings into Personal, People, Inventory, Scheduling, Devices, and System with short descriptions.
 - Preserves the previous last-tab behavior as a "Resume" action instead of immediately redirecting.
 
+### Profile (`/settings/profile`) — Personal
+- Self-service identity editing for every authenticated user.
+- Editable: `name` (required), `phone`, `avatarUrl`, `primaryArea` (Video/Photo/Graphics/Comms), `title`, `athleticsEmail`, `slackHandle`. NOT `email` (login email stays admin-gated).
+- Avatar managed via the existing `/api/users/[id]/avatar` endpoint (POST upload + DELETE remove) -- separately from the profile form save.
+- `GET/PUT /api/me/profile` (rate-limited at `SETTINGS_MUTATION_LIMIT`). Validates + trims all fields; blocks duplicate `athleticsEmail` with 409. Changes audit-logged as `profile_updated`.
+
 ### Notifications (`/settings/notifications`) — Personal
 - "Quiet hours" pause (1 hour / 1 day / 1 week) — sets `pausedUntil` on the user's prefs row; while active, all email + push delivery skips. The in-app inbox always continues.
 - Channel toggles: Email and Push (master switches per channel). Disabled while a pause is active.
@@ -65,6 +71,14 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - Configure overdue notification triggers (timing, recipients, enabled state).
 - Fatigue controls: max notifications per booking (prevents alert fatigue).
 - Per D-009: escalation schedule is -4h, 0h, +2h, +24h relative to booking.endsAt.
+
+### Data Export (`/settings/data-export`) — System, ADMIN
+- Admin-only hub for exporting data as CSV.
+- Five exports: Items (assets), Users, Licenses, Bookings (checkouts + reservations), Audit Log.
+- Bookings and Audit Log are new -- the other three surface existing endpoints in one place.
+- All exports capped at 5,000 rows; `X-Truncated` + `X-Total-Count` response headers surface truncation; the UI shows a warning toast when capped.
+- `GET /api/bookings/export` (ADMIN, 5/min, optional `?from=&to=&kind=`).
+- `GET /api/audit/export` (ADMIN, 5/min, optional `?from=&to=&entity_type=`).
 
 ### Database (`/settings/database`)
 - On-demand schema health diagnostics.
@@ -132,6 +146,8 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages.
 
 ## Change Log
+- 2026-05-21: Profile settings (roadmap slice 3). New `/settings/profile` (Personal, all roles) lets every authenticated user edit their name, phone, primary area, title, athletics email, and Slack handle. Avatar managed via the existing user avatar endpoint. New `GET/PUT /api/me/profile` -- rate-limited, audit-logged, 409 on duplicate athleticsEmail.
+- 2026-05-21: Data Export settings (roadmap slice 2). New `/settings/data-export` (System, ADMIN) surfaces all five CSV exports in one place. Items, Users, and Licenses reuse existing endpoints; new `GET /api/bookings/export` and `GET /api/audit/export` added. All capped at 5,000 rows with truncation headers + toast warning.
 - 2026-05-20: Kiosk always-on sessions (Settings roadmap slice 1). Removed the 7-day kiosk session expiry — `createKioskSession` no longer stamps `sessionExpiresAt` and `requireKiosk` no longer rejects on elapsed time, so a bound iPad stays active until an admin deactivates it. The kiosk cookie is now rolled forward on every authenticated kiosk request (~395-day expiry) to survive browser cookie-lifetime caps. Deactivation still clears `sessionToken`, ending the session at once. Removed the now-dead "Session expiring" badge, "Session expires" footer, and `sessionExpiresAt` exposure from the kiosk-devices list. The `session_expires_at` column is retained (unused, nullable) — a pure-hygiene drop can follow later.
 - 2026-05-21: Design language Area 4 Settings follow-through shipped. Settings sub-pages were inventoried for `SettingsPageShell`, shared inline empty states, shared row actions, destructive confirmation copy, and sub-40px controls. Extend Presets remove controls, Kiosk pending-pickup/copy/cancel controls, Allowed Emails add-mode controls, and Database initial empty state were aligned with the shared operational baseline.
 - 2026-05-20: Settings actions, empty states, and warning copy cleanup shipped. Calendar Sources, Venue Mappings, Locations, Departments, Allowed Emails, and Kiosk Devices now use the shared row-action trigger where rows have destructive or multi-step actions; remaining text-only empty states moved to shared inline empty states; destructive confirmations now name the target and operational consequence.

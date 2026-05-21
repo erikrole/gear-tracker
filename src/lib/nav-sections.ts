@@ -35,6 +35,14 @@ export const SETTINGS_GROUP_ORDER: SettingsGroup[] = [
 export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSection> = [
   // Personal — visible to every authenticated user
   {
+    href: "/settings/profile",
+    label: "Profile",
+    requiredRole: "STUDENT",
+    group: "Personal",
+    description: "Your name, contact info, area, and profile photo.",
+    keywords: ["name", "phone", "avatar", "photo", "area", "title", "slack", "athletics email"],
+  },
+  {
     href: "/settings/notifications",
     label: "Notifications",
     requiredRole: "STUDENT",
@@ -142,6 +150,14 @@ export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSection> = [
     group: "System",
     description: "On-demand schema health diagnostics.",
     keywords: ["schema", "migration", "diagnostics", "drift", "prisma"],
+  },
+  {
+    href: "/settings/data-export",
+    label: "Data Export",
+    requiredRole: "ADMIN",
+    group: "System",
+    description: "Download inventory, bookings, users, and audit logs as CSV.",
+    keywords: ["csv", "export", "download", "backup", "report", "audit", "bookings", "users", "items"],
   },
 ] as const;
 
