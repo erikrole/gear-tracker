@@ -702,7 +702,7 @@ export function ListView({
                   groupDate.toDateString() === new Date().toDateString();
 
               return (
-                <div key={dateKey}>
+                <div key={dateKey} ref={isGroupToday ? todayGroupRef : undefined}>
                   {/* Date group header - timeline style */}
                   <div
                     className={cn(
