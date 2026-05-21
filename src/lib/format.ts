@@ -51,9 +51,21 @@ export function formatCountdown(endsAt: string, now: Date): string {
 
 // ── Date formatting ──────────────────────────────────────
 
+/**
+ * For all-day events, ICS dates are stored as midnight UTC (e.g. "2026-09-05T00:00:00Z").
+ * Converting to local time shifts them to the previous evening in CDT/CST, showing the
+ * wrong day. This helper returns a local Date object that preserves the correct calendar
+ * date by reading UTC parts directly for all-day events.
+ */
+export function calendarDate(iso: string, allDay: boolean): Date {
+  if (!allDay) return new Date(iso);
+  const d = new Date(iso);
+  return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
 /** "Mar 11" */
-export function formatDateShort(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", {
+export function formatDateShort(iso: string, allDay = false) {
+  return calendarDate(iso, allDay).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
   });

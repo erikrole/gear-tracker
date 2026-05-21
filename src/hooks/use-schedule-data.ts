@@ -10,6 +10,7 @@ import type {
 } from "@/app/(app)/schedule/_components/types";
 import { getMonday, userHasShift, LS_VIEW_MODE, LS_MY_SHIFTS } from "@/app/(app)/schedule/_components/types";
 import { handleAuthRedirect } from "@/lib/errors";
+import { calendarDate } from "@/lib/format";
 import type { VenueFilter } from "@/lib/venue-tone";
 
 export type ViewMode = "list" | "calendar" | "week";
@@ -279,7 +280,7 @@ export function useScheduleData(): UseScheduleDataResult {
     const groups: [string, CalendarEntry[]][] = [];
     let lastKey = "";
     for (const entry of filteredEntries) {
-      const key = new Date(entry.startsAt).toDateString();
+      const key = calendarDate(entry.startsAt, entry.allDay).toDateString();
       if (key !== lastKey) {
         groups.push([key, []]);
         lastKey = key;

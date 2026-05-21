@@ -84,8 +84,11 @@ export function formatDateTime(iso: string) {
   });
 }
 
-export function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", {
+export function formatDate(iso: string, allDay = false) {
+  const d = allDay
+    ? (() => { const u = new Date(iso); return new Date(u.getUTCFullYear(), u.getUTCMonth(), u.getUTCDate()); })()
+    : new Date(iso);
+  return d.toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",

@@ -159,7 +159,7 @@ export function CalendarView({
   const calEntriesByDay = useMemo(() => {
     const map = new Map<number, CalendarEntry[]>();
     for (const entry of entries) {
-      const d = new Date(entry.startsAt).getDate();
+      const d = entry.allDay ? new Date(entry.startsAt).getUTCDate() : new Date(entry.startsAt).getDate();
       if (!map.has(d)) map.set(d, []);
       map.get(d)!.push(entry);
     }

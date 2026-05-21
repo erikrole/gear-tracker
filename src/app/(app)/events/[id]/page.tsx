@@ -269,7 +269,7 @@ export default function EventDetailPage() {
   const showCallTime = callTime && callTime !== event.startsAt;
 
   const eventDate = event.allDay
-    ? formatDate(event.startsAt)
+    ? formatDate(event.startsAt, true)
     : new Date(event.startsAt).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
   const opponentText = opponentLabel(event);
   const anyFieldLocked = event.summaryLocked || event.isHomeLocked || event.locationLocked;

@@ -919,7 +919,7 @@ export function ListView({
                     </div>
                     <div className="text-xs text-muted-foreground flex gap-2 flex-wrap pl-5">
                       <span>
-                        {formatDateShort(entry.startsAt)}
+                        {formatDateShort(entry.startsAt, entry.allDay)}
                       </span>
                       {entry.sportCode && (
                         <span>{sportLabel(entry.sportCode)}</span>

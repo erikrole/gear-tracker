@@ -373,7 +373,9 @@ export function WeekView({
       map.set(day.toDateString(), []);
     }
     for (const entry of entries) {
-      const entryDate = new Date(entry.startsAt);
+      const entryDate = entry.allDay
+        ? (() => { const d = new Date(entry.startsAt); return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()); })()
+        : new Date(entry.startsAt);
       const key = entryDate.toDateString();
       const dayEntries = map.get(key);
       if (dayEntries) dayEntries.push(entry);
