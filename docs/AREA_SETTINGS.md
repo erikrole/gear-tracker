@@ -95,6 +95,15 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - Fatigue controls: max notifications per booking (prevents alert fatigue).
 - Per D-009: escalation schedule is -4h, 0h, +2h, +24h relative to booking.endsAt.
 
+### Audit Log (`/settings/audit`) — System, ADMIN
+- Admin-only live feed of every create, update, and delete action across the system.
+- First page loads on mount; "Load older entries" button fetches the next keyset-paginated page via `?cursor=<nextCursor>`.
+- **Auto-refresh** toggle: when on, polls `GET /api/audit?after=<newestCursor>` every 30 seconds and prepends new rows with a dismissible new-count banner.
+- Filters: entity type (exact), action (substring), from date, to date. Apply button triggers a fresh first-page load; "Clear filters" resets to unfiltered.
+- Retention banner shows the configured retention window (90 days) from the API response.
+- Each row: timestamp, entity type + entity ID (8-char prefix), action badge, actor name (or "System" for server-generated events).
+- `GET /api/audit` (ADMIN, 60/min): keyset pagination on `(createdAt DESC, id DESC)`; supports `?cursor`, `?after`, `?entityType`, `?actor`, `?action`, `?from`, `?to`, `?limit` (default 50, max 100). Returns `{ data, nextCursor, hasMore, retentionDays }`.
+
 ### Data Export (`/settings/data-export`) — System, ADMIN
 - Admin-only hub for exporting data as CSV.
 - Five exports: Items (assets), Users, Licenses, Bookings (checkouts + reservations), Audit Log.
@@ -169,6 +178,7 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages.
 
 ## Change Log
+- 2026-05-21: Audit Log viewer (roadmap slice 9). New `/settings/audit` (System, ADMIN) -- admin live-tail feed of all system actions. Keyset-paginated `GET /api/audit` (60/min) with `cursor`/`after`/`entityType`/`action`/`from`/`to`/`limit` params. UI has filter bar, "Load older entries" pagination, 30-second auto-refresh polling via `?after=<newestCursor>`, new-row count banner, and retention notice. Cursor is a client-built base64url encoding of `{createdAt, id}` matching the server format.
 - 2026-05-21: Notification granularity (roadmap slice 7). Added per-category toggles to Settings > Notifications: Checkout due reminders, Checkout overdue alerts, Reservation updates, License expiry reminders. Stored in `notification_prefs.categories`; missing/null keys default to true (no change for existing users). Category gating threaded through `sendPushToUser`/`sendEmailToUser` in `notifications.ts` and `licenses.ts`. In-app notifications bypass category gating and always fire.
 - 2026-05-21: Checkout Policies + Reservation Rules (roadmap slices 5 + 6). New `/settings/checkout-policies` (Inventory, ADMIN) and `/settings/reservation-rules` (Scheduling, ADMIN). Default loan duration and overdue grace period stored in `SystemConfig.checkout_policies`; advance booking window, no-show expiry (previously hardcoded 48h), and max concurrent reservations stored in `SystemConfig.reservation_rules`. Grace period now applied in both the Overdue list filter and the escalation cron. No-show expiry loaded at cron run time (no redeploy needed after a config change). New `GET/PUT /api/settings/checkout-policies` and `GET/PUT /api/settings/reservation-rules` (ADMIN, rate-limited, audit-logged).
 - 2026-05-21: Security settings (roadmap slice 4). New `/settings/security` (Personal, all roles) adds change-password form (current password verify, new password min-8, confirm, optional sign-out-others checkbox) and active sessions list (per-session sign-out, bulk sign-out-all-others). New `POST /api/me/change-password` (5/min), `GET/DELETE /api/me/sessions` (30/10 per min), `DELETE /api/me/sessions/:id` (10/min). Current session identified server-side by hashing the cookie token -- tokenHash never exposed to client.

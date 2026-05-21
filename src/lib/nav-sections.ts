@@ -184,6 +184,14 @@ export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSection> = [
     description: "Download inventory, bookings, users, and audit logs as CSV.",
     keywords: ["csv", "export", "download", "backup", "report", "audit", "bookings", "users", "items"],
   },
+  {
+    href: "/settings/audit",
+    label: "Audit Log",
+    requiredRole: "ADMIN",
+    group: "System",
+    description: "Live admin feed of all create, update, and delete actions across the system.",
+    keywords: ["history", "activity", "log", "trail", "changes", "who", "when", "admin"],
+  },
 ] as const;
 
 const ROLE_RANK: Record<string, number> = { STUDENT: 0, STAFF: 1, ADMIN: 2 };
