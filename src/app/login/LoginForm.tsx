@@ -104,6 +104,7 @@ export default function LoginForm() {
               <Input
                 ref={emailRef}
                 id="email"
+                name="email"
                 type="email"
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); clearFieldError("email"); }}
@@ -133,6 +134,7 @@ export default function LoginForm() {
                 <Input
                   ref={passwordRef}
                   id="password"
+                  name="password"
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); clearFieldError("password"); }}
@@ -174,6 +176,7 @@ export default function LoginForm() {
             <div className="flex items-center gap-2">
               <Checkbox
                 id="rememberMe"
+                name="rememberMe"
                 checked={rememberMe}
                 onCheckedChange={(checked) => setRememberMe(checked === true)}
                 className="shrink-0"

@@ -144,7 +144,17 @@ Feature ideas to consider separately:
 - `/settings`: uses `PageHeader` plus role-aware grouped navigation. Large desktop uses a left rail; smaller screens keep a horizontal section scroller. Sub-pages now share `SettingsPageShell` for the compact intro/main split.
 - `/reports/checkouts`, `/reports/scans`, and `/reports/audit`: non-default period and phase filters now render removable shared active-filter chips through the report toolbar.
 - `/items/[id]`: item detail secondary actions now use the shared dropdown wrapper instead of a route-local menu shell.
+- `/items/[id]`: item detail tab empty states now use shared inline empty states for no booking history, empty calendar windows, failed/empty insights, and empty attachment groups.
+- `/items/[id]`: header utility controls now follow the 40px target baseline for refresh, favorite, and the secondary action trigger.
+- `/items/[id]`: item image edit/add controls now expose the same affordance on keyboard focus as hover, with visible focus rings.
+- `/items`: bulk selection actions now use clearer toolbar semantics, 40px controls, and a specific `Bulk actions` dropdown label for selected-row commands.
+- `/login`: auth fields now include both labels and form `name` attributes so browser accessibility checks can identify the inputs after protected-route redirects.
+- `/register`, `/forgot-password`, `/reset-password`, and `/change-password`: auth fields now match the login form's label/id/name/autocomplete pattern.
+- `/events/[id]`: crew coverage empty area rows now use shared inline empty-state language instead of one-off italic placeholders.
+- `/events/[id]`: crew assignment/remove/request controls now use visible keyboard-friendly 40px targets instead of hover-only or sub-40px controls.
+- `/events/[id]`: missing-gear Nudge and Create checkout actions now use the 40px operational action baseline and wrap cleanly on narrow rows.
 - `/bulk-inventory/[id]`: unit-tracked item-family units tab now uses shared inline empty states when no units exist.
+- `/bulk-inventory/batteries`: checked-out battery units panel now uses shared inline empty states when no units are out.
 
 ## Implementation Roadmap
 Quick wins:
@@ -152,6 +162,7 @@ Quick wins:
 - Convert route-local filter shells to `OperationalToolbar` when they match the search/filter/clear pattern.
 - Audit icon-only buttons for labels and target size during each page pass.
 - Keep Settings sub-pages on `SettingsPageShell`; new Settings pages should not copy local split-grid markup.
+- Keep item-detail and schedule card/table interiors on shared `EmptyState inline` when there is no data to act on.
 
 Medium slices:
 - Keep active-filter chips shared through `OperationalActiveFilterChips`.

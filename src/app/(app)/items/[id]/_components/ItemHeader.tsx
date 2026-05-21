@@ -76,7 +76,7 @@ function ActionsMenu({
   return (
     <OperationalRowActions
       label={`Actions for ${asset.assetTag}`}
-      triggerClassName="h-9 w-auto px-3 text-xs font-medium text-foreground"
+      triggerClassName="h-10 w-auto px-3 text-xs font-medium text-foreground"
       icon={<span>Actions</span>}
     >
       <DropdownMenuItem disabled={disabled} onSelect={() => onAction("duplicate")}>Duplicate</DropdownMenuItem>
@@ -189,7 +189,7 @@ export function ItemHeader({
             <div className="shrink-0 self-start">
             {imageSrc && !imageFailed ? (
               <button
-                className={`relative flex size-[88px] items-center justify-center overflow-hidden rounded-md border border-border bg-muted shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)] sm:size-[96px] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)] ${canEdit ? "cursor-pointer active:scale-[0.96]" : "cursor-default"} group transition-[border-color,background-color,box-shadow,transform]`}
+                className={`relative flex size-[88px] items-center justify-center overflow-hidden rounded-md border border-border bg-muted shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:size-[96px] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)] ${canEdit ? "cursor-pointer active:scale-[0.96]" : "cursor-default"} group transition-[border-color,background-color,box-shadow,transform]`}
                 onClick={() => canEdit && onImageModalOpen()}
                 title={canEdit ? "Change image" : undefined}
                 aria-label={canEdit ? `Change image for ${asset.assetTag}` : `Image of ${asset.assetTag}`}
@@ -205,19 +205,19 @@ export function ItemHeader({
                   onError={() => setImageFailed(true)}
                 />
                 {canEdit && (
-                  <div className="absolute inset-0 bg-black/45 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white">
+                  <div className="absolute inset-0 bg-black/45 flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity text-white">
                     <PencilIcon className="size-4" />
                   </div>
                 )}
               </button>
             ) : canEdit ? (
               <button
-                className="group relative flex size-[88px] cursor-pointer items-center justify-center rounded-md border border-dashed border-border bg-muted/40 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.06)] transition-[border-color,background-color,transform] hover:border-[var(--wi-red)]/50 hover:bg-[var(--wi-red)]/5 active:scale-[0.96] sm:size-[96px] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
+                className="group relative flex size-[88px] cursor-pointer items-center justify-center rounded-md border border-dashed border-border bg-muted/40 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.06)] outline-none transition-[border-color,background-color,box-shadow,transform] hover:border-[var(--wi-red)]/50 hover:bg-[var(--wi-red)]/5 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 active:scale-[0.96] sm:size-[96px] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
                 onClick={onImageModalOpen}
                 title="Add image"
                 aria-label="Add image"
               >
-                <ImageIcon className="size-5 text-muted-foreground/40 group-hover:text-muted-foreground/70 transition-colors" />
+                <ImageIcon className="size-5 text-muted-foreground/40 group-hover:text-muted-foreground/70 group-focus-visible:text-muted-foreground/70 transition-colors" />
               </button>
             ) : (
               <div className="flex size-[88px] items-center justify-center rounded-md border border-border bg-muted/20 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.06)] sm:size-[96px] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]">
@@ -335,7 +335,7 @@ export function ItemHeader({
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-8 active:scale-[0.96] transition-[background-color,color,box-shadow,transform]"
+                className="size-10 active:scale-[0.96] transition-[background-color,color,box-shadow,transform]"
                 onClick={onRefresh}
                 disabled={refreshing || actionBusy}
                 aria-label={
@@ -350,7 +350,7 @@ export function ItemHeader({
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-8 active:scale-[0.96] transition-[background-color,color,box-shadow,transform]"
+                className="size-10 active:scale-[0.96] transition-[background-color,color,box-shadow,transform]"
                 onClick={onToggleFavorite}
                 disabled={actionBusy}
                 aria-label={asset.isFavorited ? "Remove from favorites" : "Add to favorites"}

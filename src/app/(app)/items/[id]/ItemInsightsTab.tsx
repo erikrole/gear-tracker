@@ -1,12 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Empty, EmptyDescription } from "@/components/ui/empty";
+import EmptyState from "@/components/EmptyState";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { handleAuthRedirect, isAbortError } from "@/lib/errors";
 import type { InsightsData, WindowKey, WindowStats } from "./types";
@@ -46,7 +45,14 @@ function MonthlyBars({ stats }: { stats: WindowStats }) {
   const max = Math.max(1, ...months.map((m) => m.checkouts + m.reservations));
 
   if (months.length === 0) {
-    return <Empty className="py-8 border-0"><EmptyDescription>No monthly pattern yet.</EmptyDescription></Empty>;
+    return (
+      <EmptyState
+        inline
+        icon="chart"
+        title="No monthly pattern yet"
+        description="Booking totals will appear here after this item has activity in the selected window."
+      />
+    );
   }
 
   return (
@@ -94,7 +100,12 @@ function RankedList({
       </CardHeader>
       <CardContent className="p-0 py-1">
         {items.length === 0 ? (
-          <Empty className="py-8 border-0"><EmptyDescription>{empty}</EmptyDescription></Empty>
+          <EmptyState
+            inline
+            icon="chart"
+            title={empty}
+            description="Try a longer time window if this item has older activity."
+          />
         ) : (
           items.slice(0, 5).map((item, index) => (
             <div key={`${item.name}-${index}`} className="flex min-h-11 items-center justify-between gap-3 px-4 py-2 [&+&]:border-t [&+&]:border-border/30">
@@ -151,13 +162,16 @@ export default function ItemInsightsTab({ assetId }: { assetId: string }) {
 
   if (error || !data) {
     return (
-      <Empty className="py-8 mt-3.5">
-        <AlertTriangle className="size-8 text-muted-foreground opacity-50 mx-auto mb-2" />
-        <EmptyDescription>Failed to load insights.</EmptyDescription>
-        <Button variant="outline" size="sm" className="mt-3" onClick={() => loadInsights()}>
-          Retry
-        </Button>
-      </Empty>
+      <div className="mt-3.5">
+        <EmptyState
+          inline
+          icon="wifi-off"
+          title="Could not load insights"
+          description="Retry to refresh demand, borrower, and lifecycle signals for this item."
+          actionLabel="Retry"
+          onAction={() => loadInsights()}
+        />
+      </div>
     );
   }
 
@@ -167,9 +181,12 @@ export default function ItemInsightsTab({ assetId }: { assetId: string }) {
   if (!allHasData) {
     return (
       <div className="mt-3.5">
-        <Empty className="py-8">
-          <EmptyDescription>No booking history yet. Insights will appear after this item is checked out or reserved.</EmptyDescription>
-        </Empty>
+        <EmptyState
+          inline
+          icon="chart"
+          title="No booking history yet"
+          description="Insights will appear after this item is checked out or reserved."
+        />
       </div>
     );
   }
@@ -199,9 +216,12 @@ export default function ItemInsightsTab({ assetId }: { assetId: string }) {
       </div>
 
       {stats.totalBookings === 0 ? (
-        <Empty className="py-8">
-          <EmptyDescription>No bookings in this time window. Try a longer period or switch to All.</EmptyDescription>
-        </Empty>
+        <EmptyState
+          inline
+          icon="chart"
+          title="No bookings in this window"
+          description="Try a longer period or switch to All."
+        />
       ) : (
         <>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">

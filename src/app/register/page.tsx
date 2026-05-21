@@ -106,6 +106,7 @@ export default function RegisterPage() {
               <Input
                 ref={nameRef}
                 id="name"
+                name="name"
                 type="text"
                 value={name}
                 onChange={(e) => { setName(e.target.value); clearFieldError("name"); }}
@@ -129,6 +130,7 @@ export default function RegisterPage() {
               <Input
                 ref={emailRef}
                 id="email"
+                name="email"
                 type="email"
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); clearFieldError("email"); }}
@@ -152,6 +154,7 @@ export default function RegisterPage() {
                 <Input
                   ref={passwordRef}
                   id="password"
+                  name="password"
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); clearFieldError("password"); }}

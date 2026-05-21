@@ -71,6 +71,9 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - Sports code mappings (existing — `src/lib/sports.ts`)
 
 ## Change Log
+- 2026-05-20: Event detail missing-gear Nudge and Create checkout actions now use 40px operational targets and wrap cleanly in narrow rows.
+- 2026-05-20: Event detail crew assignment, request-review, and remove controls now use visible keyboard-friendly 40px targets instead of hover-only or sub-40px controls.
+- 2026-05-20: Event detail crew coverage empty area rows now use the shared inline `EmptyState` treatment, and the add-shift icon target is aligned to the 40px operational action baseline.
 - 2026-05-20: Trade Board filter state now uses the shared `OperationalActiveFilterChips` row for Area, Status, and My trades so each active filter can be removed without reopening its selector.
 - 2026-05-20: Trade Board secondary/destructive row commands now use the shared `OperationalRowActions` trigger. Claim and staff approval stay visible as primary row actions, while cancel and decline move into the shared accessible overflow menu.
 - 2026-05-14: Trade Board stale-state closure. Trade posting, claiming, approval, listing, and the schedule header count now ignore or reject open/claimed trades whose shift has already started, while the Trade Board API includes event opponent/home-away fields so board titles match the rest of Schedule.

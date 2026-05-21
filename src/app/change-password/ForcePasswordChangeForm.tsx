@@ -124,6 +124,7 @@ export default function ForcePasswordChangeForm({ email }: { email: string }) {
               <Input
                 ref={currentRef}
                 id="currentPassword"
+                name="currentPassword"
                 type={showPasswords ? "text" : "password"}
                 value={currentPassword}
                 onChange={(e) => { setCurrentPassword(e.target.value); clearFieldError("currentPassword"); }}
@@ -147,6 +148,7 @@ export default function ForcePasswordChangeForm({ email }: { email: string }) {
                 <Input
                   ref={passwordRef}
                   id="newPassword"
+                  name="newPassword"
                   type={showPasswords ? "text" : "password"}
                   value={newPassword}
                   onChange={(e) => { setNewPassword(e.target.value); clearFieldError("newPassword"); }}
@@ -183,6 +185,7 @@ export default function ForcePasswordChangeForm({ email }: { email: string }) {
               <Input
                 ref={confirmRef}
                 id="confirmPassword"
+                name="confirmPassword"
                 type={showPasswords ? "text" : "password"}
                 value={confirmPassword}
                 onChange={(e) => { setConfirmPassword(e.target.value); clearFieldError("confirmPassword"); }}

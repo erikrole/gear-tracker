@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { PlusIcon, XIcon } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -239,10 +240,10 @@ export function ShiftCoverageCard({
                 <Button
                   type="button"
                   variant="ghost"
-                  size="icon-sm"
+                  size="icon"
                   onClick={() => handleRemove(activeAssignment.id)}
                   disabled={isActing || inlineActing !== null}
-                  className="text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+                  className="size-10 text-muted-foreground transition-[background-color,color,box-shadow] hover:text-destructive focus-visible:text-destructive sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
                   aria-label="Remove assignment"
                 >
                   <XIcon className="size-3.5" />
@@ -270,7 +271,7 @@ export function ShiftCoverageCard({
             type="button"
             variant="ghost"
             size="sm"
-            className="group h-9 justify-start gap-1.5 px-1.5 text-muted-foreground/60 hover:text-muted-foreground"
+            className="group h-10 justify-start gap-1.5 px-1.5 text-muted-foreground/60 hover:text-muted-foreground"
             disabled={isActing || inlineActing !== null}
           >
             {isActing ? <span className="text-xs">Assigning...</span> : (
@@ -306,7 +307,7 @@ export function ShiftCoverageCard({
       return (
         <Popover open={requestsShiftId === shift.id} onOpenChange={(open) => setRequestsShiftId(open ? shift.id : null)}>
           <PopoverTrigger asChild>
-              <Button type="button" variant="ghost" size="sm" className="h-9 px-1.5">
+              <Button type="button" variant="ghost" size="sm" className="h-10 px-1.5" aria-label={`${pendingRequests.length} pending shift request${pendingRequests.length === 1 ? "" : "s"}`}>
               <Badge variant="orange" className="cursor-pointer">
                 {pendingRequests.length} req
               </Badge>
@@ -319,10 +320,10 @@ export function ShiftCoverageCard({
                 <div key={req.id} className="flex items-center justify-between gap-2">
                   <span className="text-sm truncate">{req.user.name}</span>
                   <div className="flex gap-1 shrink-0">
-                    <Button size="sm" className="h-8 px-2 text-xs" onClick={() => handleApprove(req.id)} disabled={inlineActing !== null}>
+                    <Button size="sm" className="h-10 px-2 text-xs" onClick={() => handleApprove(req.id)} disabled={inlineActing !== null}>
                       {inlineActing === req.id ? "..." : "Approve"}
                     </Button>
-                    <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-destructive" onClick={() => handleDecline(req.id)} disabled={inlineActing !== null}>
+                    <Button variant="ghost" size="sm" className="h-10 px-2 text-xs text-destructive" onClick={() => handleDecline(req.id)} disabled={inlineActing !== null}>
                       Decline
                     </Button>
                   </div>
@@ -362,13 +363,13 @@ export function ShiftCoverageCard({
               <Button
                 type="button"
                 variant="ghost"
-                size="icon-sm"
+                size="icon"
                 onClick={() => {
                   if (hasAssignment) setDeleteConfirmId(shift.id);
                   else handleDeleteShift(shift.id, false);
                 }}
                 disabled={inlineActing !== null}
-                className="text-muted-foreground/40 hover:text-destructive"
+                className="size-10 text-muted-foreground/50 hover:text-destructive focus-visible:text-destructive"
                 aria-label="Remove shift"
               >
                 <XIcon className="size-3.5" />
@@ -416,8 +417,8 @@ export function ShiftCoverageCard({
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
-                      size="icon-sm"
-                      className="text-muted-foreground"
+                      size="icon"
+                      className="size-10 text-muted-foreground"
                       disabled={inlineActing !== null}
                       aria-label={`Add ${AREA_LABELS[area] ?? area} shift`}
                     >
@@ -465,8 +466,13 @@ export function ShiftCoverageCard({
             // Empty area placeholder
             ...(shifts.length === 0 ? [
               <TableRow key={`empty-${area}`}>
-                <TableCell colSpan={commandCenter ? 5 : 4} className="py-1.5 text-xs text-muted-foreground/50 italic pl-4">
-                  No shifts
+                <TableCell colSpan={commandCenter ? 5 : 4} className="py-0">
+                  <EmptyState
+                    inline
+                    icon="users"
+                    title={`No ${AREA_LABELS[area] ?? area} shifts`}
+                    description="Add a student or staff shift when this area needs coverage."
+                  />
                 </TableCell>
               </TableRow>
             ] : []),
@@ -580,16 +586,22 @@ export function ShiftCoverageCard({
             <h3 className="text-sm mb-2">Missing Gear ({commandCenter.missingGear.length})</h3>
             <div className="flex flex-col gap-2">
               {commandCenter.missingGear.map((m) => (
-                <div key={`${m.shiftId}-${m.userId}`} className="flex items-center justify-between px-3 py-2 bg-muted rounded-lg text-sm">
-                  <div>
+                <div key={`${m.shiftId}-${m.userId}`} className="flex flex-col gap-2 rounded-lg bg-muted px-3 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
                     <strong>{m.userName}</strong>
                     <span className="text-muted-foreground ml-2">{AREA_LABELS[m.area] ?? m.area}</span>
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" disabled={acting !== null} onClick={() => onNudge(m.assignmentId, m.userName)}>
+                  <div className="flex flex-wrap gap-2 sm:justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-10"
+                      disabled={acting !== null}
+                      onClick={() => onNudge(m.assignmentId, m.userName)}
+                    >
                       {acting === m.assignmentId ? "Sending..." : "Nudge"}
                     </Button>
-                    <Button size="sm" asChild>
+                    <Button size="sm" className="h-10" asChild>
                       <Link href={`/checkouts?create=true&title=${titleParam}&startsAt=${dateParam}&endsAt=${endParam}${locationParam}${eventParam}&requesterUserId=${m.userId}`}>
                         Create checkout
                       </Link>

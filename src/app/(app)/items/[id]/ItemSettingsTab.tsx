@@ -9,7 +9,7 @@ import type { AssetDetail } from "./types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { Empty, EmptyDescription } from "@/components/ui/empty";
+import EmptyState from "@/components/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { Boxes, Link2, MemoryStick, Paperclip, Search, Unlink } from "lucide-react";
 import {
@@ -264,11 +264,14 @@ export function AccessoriesSection({
           )}
 
           {attachments.length === 0 && !attaching && (
-            <Empty className="py-6 border-0">
-              <EmptyDescription>
-                No attached items. Add fixed accessories only when they should travel with this item instead of being checked out on their own.
-              </EmptyDescription>
-            </Empty>
+            <EmptyState
+              inline
+              icon="box"
+              title="No attached items"
+              description="Add fixed accessories only when they should travel with this item instead of being checked out on their own."
+              actionLabel={canEdit ? "Add attachment" : undefined}
+              onAction={canEdit ? () => setAttaching(true) : undefined}
+            />
           )}
 
           {attachments.length > 0 && (

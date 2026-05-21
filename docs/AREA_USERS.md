@@ -114,6 +114,8 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 6. Ensure audit logs include actor role, target owner, and exception metadata.
 
 ## Change Log
+- 2026-05-20: **Design language slice 21:** Register, forgot-password, reset-password, and forced-password-change fields now include stable `name` attributes alongside labels, ids, and autocomplete, matching the login form's browser-accessibility pattern.
+- 2026-05-20: **Design language slice 18:** Login form fields now include stable `name` attributes alongside their labels/ids, clearing the browser form-field accessibility warning seen after protected-route redirects.
 - 2026-05-20: **Design language slice 5:** Users roster active-filter chips now use the shared `OperationalActiveFilterChips` row, keeping role, location, area, year, sport, and inactive filter removal aligned with Items.
 - 2026-05-20: **Design language slice 3:** Users roster filters now use the shared `OperationalToolbar` shell and 40px command controls, aligning search, filter disclosure, clear action, and inactive visibility with Items.
 - 2026-05-13: Users list UI polish shipped. Roster summary metrics now fit evenly on desktop with admins counted in Staff, admin rows show Staff in the Role column with a stable Admin badge beside the name, table headers use cleaner sentence-case copy, Area appears before Location in sentence case, active users get a standard avatar presence dot with `Now`, and never-active users use a softer badge treatment.

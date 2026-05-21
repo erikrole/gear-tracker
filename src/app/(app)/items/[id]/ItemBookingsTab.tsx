@@ -15,7 +15,7 @@ import { useSaveField } from "@/components/SaveableField";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { Empty, EmptyDescription } from "@/components/ui/empty";
+import EmptyState from "@/components/EmptyState";
 import { Switch } from "@/components/ui/switch";
 import { Spinner } from "@/components/ui/spinner";
 import { Label } from "@/components/ui/label";
@@ -171,9 +171,12 @@ export function PastBookingsPreview({
         {pastEntries.length > 0 && <Badge variant="gray" size="sm">{pastEntries.length}</Badge>}
       </CardHeader>
       {pastEntries.length === 0 ? (
-        <Empty className="py-8 border-0">
-          <EmptyDescription>No past bookings for this item yet.</EmptyDescription>
-        </Empty>
+        <EmptyState
+          inline
+          icon="calendar"
+          title="No past bookings yet"
+          description="Completed checkouts and reservations will appear here for quick context."
+        />
       ) : (
         <CardContent className="p-0 py-1">
           {pastEntries.map((entry) => {
@@ -333,9 +336,12 @@ export function OperationalOverview({
       ) : (
         <Card>
           <CardHeader><CardTitle>Active Checkout</CardTitle></CardHeader>
-          <Empty className="py-8 border-0">
-            <EmptyDescription>Not currently checked out</EmptyDescription>
-          </Empty>
+          <EmptyState
+            inline
+            icon="check"
+            title="Not currently checked out"
+            description="This item is available unless another active reservation is shown below."
+          />
         </Card>
       )}
 
@@ -352,9 +358,12 @@ export function OperationalOverview({
             <UpcomingReservationsList reservations={reservations} now={now} onSelectBooking={onSelectBooking} />
           </CardContent>
         ) : (
-          <Empty className="py-8 border-0">
-            <EmptyDescription>No upcoming reservations</EmptyDescription>
-          </Empty>
+          <EmptyState
+            inline
+            icon="calendar"
+            title="No upcoming reservations"
+            description="Future reservations for this item will appear here."
+          />
         )}
       </Card>
 
@@ -451,9 +460,12 @@ export function BookingKindTab({
           )}
         </CardHeader>
         {allEntries.length === 0 ? (
-          <Empty className="py-8 border-0">
-            <EmptyDescription>No {label} for this item.</EmptyDescription>
-          </Empty>
+          <EmptyState
+            inline
+            icon="calendar"
+            title={`No ${label} for this item`}
+            description="Matching booking history will appear here after this item is used."
+          />
         ) : (
           <Table>
             <TableHeader>
@@ -751,9 +763,12 @@ export function CalendarTab({ asset, onSelectBooking }: { asset: AssetDetail; on
               {monthBookings.length > 0 && <Badge variant="gray" size="sm">{monthBookings.length}</Badge>}
             </div>
             {monthBookings.length === 0 ? (
-              <Empty className="py-8 border-0">
-                <EmptyDescription>No bookings in {monthLabel}.</EmptyDescription>
-              </Empty>
+              <EmptyState
+                inline
+                icon="calendar"
+                title={`No bookings in ${monthLabel}`}
+                description="Use the month controls to review other booking windows."
+              />
             ) : (
               <div className="divide-y divide-border/30">
                 {monthBookings.map((booking) => (
@@ -846,11 +861,12 @@ export function BookingsTab({
           </ToggleGroup>
         </CardHeader>
         {allEntries.length === 0 ? (
-          <Empty className="py-8 border-0">
-            <EmptyDescription>
-              {filter === "checkouts" ? "No checkouts" : filter === "reservations" ? "No reservations" : "No bookings"} for this item.
-            </EmptyDescription>
-          </Empty>
+          <EmptyState
+            inline
+            icon="calendar"
+            title={`${filter === "checkouts" ? "No checkouts" : filter === "reservations" ? "No reservations" : "No bookings"} for this item`}
+            description="Matching booking history will appear here after this item is used."
+          />
         ) : (
           <Table>
             <TableHeader>

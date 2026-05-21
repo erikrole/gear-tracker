@@ -122,6 +122,7 @@ function ResetPasswordForm() {
           <Input
             ref={passwordRef}
             id="password"
+            name="password"
             type={showPassword ? "text" : "password"}
             value={password}
             onChange={(e) => { setPassword(e.target.value); clearFieldError("password"); }}
@@ -159,6 +160,7 @@ function ResetPasswordForm() {
         <Input
           ref={confirmRef}
           id="confirmPassword"
+          name="confirmPassword"
           type={showPassword ? "text" : "password"}
           value={confirmPassword}
           onChange={(e) => { setConfirmPassword(e.target.value); clearFieldError("confirmPassword"); }}

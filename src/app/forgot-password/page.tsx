@@ -72,6 +72,7 @@ export default function ForgotPasswordPage() {
                 <Label htmlFor="email">Email address</Label>
                 <Input
                   id="email"
+                  name="email"
                   type="email"
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); if (formError) { clearErrors(); setIsNetworkError(false); } }}

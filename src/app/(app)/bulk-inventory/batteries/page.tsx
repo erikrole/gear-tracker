@@ -299,7 +299,12 @@ export default function BatteryCockpitPage() {
             </CardHeader>
             <CardContent>
               {checkedOutUnits.length === 0 ? (
-                <p className="py-6 text-center text-sm text-muted-foreground">No battery units are currently checked out.</p>
+                <EmptyState
+                  inline
+                  icon="check"
+                  title="No battery units checked out"
+                  description="Checked-out battery units appear here with holder, booking, due date, and age."
+                />
               ) : (
                 <div className="overflow-x-auto">
                   <Table>

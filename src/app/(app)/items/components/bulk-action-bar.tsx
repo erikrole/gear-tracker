@@ -69,33 +69,33 @@ export function BulkActionBar({
   const canDelete = userRole === "ADMIN";
 
   return (
-    <div className="flex items-center gap-2 w-full flex-wrap">
+    <div className="flex w-full flex-wrap items-center gap-2" role="toolbar" aria-label={`Bulk actions for ${count} selected items`}>
       <span className="text-sm font-semibold" role="status" aria-live="polite">{count} selected</span>
-      <Button variant="ghost" size="sm" onClick={onClear} disabled={busy}>
+      <Button variant="ghost" size="sm" className="h-10" onClick={onClear} disabled={busy} aria-label="Clear selected items">
         Clear
       </Button>
       {onSelectAllMatching && selectAllMatchingTotal !== undefined && selectAllMatchingTotal > count && (
-        <Button variant="link" size="sm" onClick={onSelectAllMatching} disabled={busy} className="h-auto px-1">
+        <Button variant="link" size="sm" onClick={onSelectAllMatching} disabled={busy} className="h-10 px-1">
           Select all {selectAllMatchingTotal} matching
         </Button>
       )}
       <div className="flex-1" />
 
       {/* Favorites — available to all roles */}
-      <Button variant="outline" size="sm" disabled={busy} onClick={() => onAction("favorite")} className="gap-1.5">
-        <Star className="size-3.5" />
+      <Button variant="outline" size="sm" disabled={busy} onClick={() => onAction("favorite")} className="h-10 gap-1.5">
+        <Star className="size-3.5" aria-hidden="true" />
         Star
       </Button>
-      <Button variant="outline" size="sm" disabled={busy} onClick={() => onAction("unfavorite")} className="gap-1.5">
-        <StarOff className="size-3.5" />
+      <Button variant="outline" size="sm" disabled={busy} onClick={() => onAction("unfavorite")} className="h-10 gap-1.5">
+        <StarOff className="size-3.5" aria-hidden="true" />
         Unstar
       </Button>
 
       {userRole !== "STUDENT" && <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" disabled={busy}>
-            Actions
-            <ChevronDown className="ml-1.5 size-3.5" />
+          <Button variant="outline" size="sm" className="h-10" disabled={busy} aria-label={`Open bulk actions for ${count} selected items`}>
+            Bulk actions
+            <ChevronDown className="ml-1.5 size-3.5" aria-hidden="true" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-52">

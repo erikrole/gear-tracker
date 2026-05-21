@@ -58,6 +58,16 @@ Last updated: 2026-05-20
 - [x] Slice 11: Reports active filter chips.
 - [x] Slice 12: Item detail secondary actions on `OperationalRowActions`.
 - [x] Slice 13: Bulk SKU units inline empty state.
+- [x] Slice 14: Battery Ops checked-out units inline empty state.
+- [x] Slice 15: Item detail tab empty states on shared `EmptyState`.
+- [x] Slice 16: Items bulk action bar selected-toolbar semantics.
+- [x] Slice 17: Event crew coverage empty rows on shared inline empty states.
+- [x] Slice 18: Login form field names for browser accessibility checks.
+- [x] Slice 19: Event crew controls visible and 40px target aligned.
+- [x] Slice 20: Item detail header utility controls 40px target aligned.
+- [x] Slice 21: Remaining auth form field names aligned with login.
+- [x] Slice 22: Event missing-gear actions 40px target aligned.
+- [x] Slice 23: Item image edit/add controls keyboard-focus visible.
 
 **Review**
 - Active tracking lives in `tasks/design-language-plan.md`.
@@ -86,6 +96,18 @@ Last updated: 2026-05-20
 - Slice 12 moved item detail secondary actions onto the shared `OperationalRowActions` dropdown wrapper while preserving the existing action policy.
 - Slice 13 replaced the Bulk SKU units text-only empty row with shared inline `EmptyState` copy and Add units recovery.
 - Slices 11-13 verified with `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, `npx next build`, and protected-route browser smoke for Reports, item detail, and Bulk SKU detail.
+- Slice 14 replaced the Battery Ops checked-out-units text-only empty row with shared inline `EmptyState` copy.
+- Slice 14 verified with `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, `npx next build`, and protected-route browser smoke for `/bulk-inventory/batteries`.
+- Slice 15 replaced item detail booking, schedule, insights, and attachments empty states with shared inline `EmptyState` copy.
+- Slice 16 tightened the Items bulk action bar with toolbar semantics, clearer selected-item menu language, and 40px action targets.
+- Slice 17 replaced event crew coverage text-only empty area rows with shared inline empty states and aligned add-shift icon targets to the 40px baseline.
+- Slices 15-17 verified with `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, `npx next build`, and protected-route browser smoke for `/items`, `/items/test-item-id`, and `/events/test-event-id`.
+- Slice 18 added stable `name` attributes to the login email, password, and remember-me fields, clearing the browser form-field warning from protected-route smoke.
+- Slice 19 moved event crew assignment, pending-request, approve/decline, and remove controls to visible keyboard-friendly 40px targets.
+- Slice 20 moved item detail header refresh, favorite, and secondary action controls to the 40px target baseline.
+- Slice 21 added stable field names to register, forgot-password, reset-password, and forced-password-change forms.
+- Slice 22 moved event missing-gear Nudge and Create checkout controls to 40px action targets with cleaner narrow-row wrapping.
+- Slice 23 made item detail image edit/add buttons keyboard-focus visible instead of relying on hover-only reveal.
 
 ### Settings Navigation Rail (2026-05-20)
 - [x] Add grouped desktop Settings rail using existing role-aware section config.
