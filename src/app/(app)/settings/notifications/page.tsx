@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, BellOff, Mail, Smartphone, WifiOff } from "lucide-react";
+import { AlertTriangle, BellOff, Mail, ShoppingBag, Smartphone, Tag, WifiOff } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,19 @@ import { SettingsPageShell } from "../SettingsPageShell";
 type Prefs = {
   pausedUntil: string | null;
   channels: { email: boolean; push: boolean };
+  categories: {
+    checkoutDue: boolean;
+    checkoutOverdue: boolean;
+    reservation: boolean;
+    licenseExpiry: boolean;
+  };
+};
+
+const DEFAULT_CATEGORIES: Prefs["categories"] = {
+  checkoutDue: true,
+  checkoutOverdue: true,
+  reservation: true,
+  licenseExpiry: true,
 };
 
 const PAUSE_OPTIONS = [
@@ -87,6 +100,12 @@ export default function NotificationsSettingsPage() {
   function setChannel(channel: "email" | "push", value: boolean) {
     if (!prefs) return;
     save({ ...prefs, channels: { ...prefs.channels, [channel]: value } });
+  }
+
+  function setCategory(key: keyof Prefs["categories"], value: boolean) {
+    if (!prefs) return;
+    const categories = { ...(prefs.categories ?? DEFAULT_CATEGORIES), [key]: value };
+    save({ ...prefs, categories });
   }
 
   function pauseFor(ms: number) {
@@ -208,6 +227,53 @@ export default function NotificationsSettingsPage() {
                 Channels are temporarily overridden by your active pause.
               </p>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Notification types */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Notification types</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            <ChannelRow
+              icon={<ShoppingBag className="size-4" />}
+              label="Checkout due reminders"
+              description="Notified before a checkout is due back."
+              checked={(prefs.categories ?? DEFAULT_CATEGORIES).checkoutDue}
+              onChange={(v) => setCategory("checkoutDue", v)}
+              disabled={saving}
+            />
+            <div className="border-t border-border my-1" />
+            <ChannelRow
+              icon={<ShoppingBag className="size-4" />}
+              label="Checkout overdue alerts"
+              description="Notified when a checkout is past its due date."
+              checked={(prefs.categories ?? DEFAULT_CATEGORIES).checkoutOverdue}
+              onChange={(v) => setCategory("checkoutOverdue", v)}
+              disabled={saving}
+            />
+            <div className="border-t border-border my-1" />
+            <ChannelRow
+              icon={<Tag className="size-4" />}
+              label="Reservation updates"
+              description="Confirmation, pickup-ready, and cancellation notices for your reservations."
+              checked={(prefs.categories ?? DEFAULT_CATEGORIES).reservation}
+              onChange={(v) => setCategory("reservation", v)}
+              disabled={saving}
+            />
+            <div className="border-t border-border my-1" />
+            <ChannelRow
+              icon={<Tag className="size-4" />}
+              label="License expiry reminders"
+              description="Notified when a license you hold is approaching expiry."
+              checked={(prefs.categories ?? DEFAULT_CATEGORIES).licenseExpiry}
+              onChange={(v) => setCategory("licenseExpiry", v)}
+              disabled={saving}
+            />
+            <p className="text-xs text-muted-foreground pt-2 m-0">
+              In-app notifications always appear regardless of these toggles.
+            </p>
           </CardContent>
         </Card>
 

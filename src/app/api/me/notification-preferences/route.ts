@@ -15,6 +15,12 @@ const putSchema = z.object({
     push: z.boolean(),
   }),
   badges: z.boolean().default(true),
+  categories: z.object({
+    checkoutDue: z.boolean().default(true),
+    checkoutOverdue: z.boolean().default(true),
+    reservation: z.boolean().default(true),
+    licenseExpiry: z.boolean().default(true),
+  }).default({ checkoutDue: true, checkoutOverdue: true, reservation: true, licenseExpiry: true }),
 });
 
 /** GET /api/me/notification-preferences — returns the caller's prefs (or defaults). */

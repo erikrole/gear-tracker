@@ -2,7 +2,7 @@ import { LicenseCodeStatus, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { sendPush } from "@/lib/push/apns";
-import { loadUserPrefs, shouldDeliverPush } from "@/lib/services/notification-prefs";
+import { loadUserPrefs, shouldDeliverPush, shouldDeliverCategory, type NotificationCategory } from "@/lib/services/notification-prefs";
 
 const MAX_SLOTS = 2;
 
@@ -338,10 +338,11 @@ export async function getClaimHistoryForUser(userId: string, limit = 25) {
 
 async function sendPushToUser(
   userId: string,
-  opts: { title: string; body: string; payload?: Record<string, unknown> }
+  opts: { title: string; body: string; payload?: Record<string, unknown>; category?: NotificationCategory }
 ) {
   const prefs = await loadUserPrefs(userId);
   if (!shouldDeliverPush(prefs)) return;
+  if (opts.category && !shouldDeliverCategory(prefs, opts.category)) return;
 
   const tokens = await db.deviceToken.findMany({
     where: { userId, revokedAt: null },
@@ -471,6 +472,7 @@ export async function processLicenseNags() {
         title,
         body,
         payload: { type: "license_nag", licenseCodeId: claim.licenseCodeId },
+        category: "licenseExpiry",
       });
 
       await db.licenseCode.update({

@@ -1,15 +1,16 @@
 import { db } from "@/lib/db";
 import { sendEmail, buildNotificationEmail } from "@/lib/email";
 import { sendPush } from "@/lib/push/apns";
-import { loadUserPrefs, shouldDeliverEmail, shouldDeliverPush } from "@/lib/services/notification-prefs";
+import { loadUserPrefs, shouldDeliverEmail, shouldDeliverPush, shouldDeliverCategory, type NotificationCategory } from "@/lib/services/notification-prefs";
 import { loadCheckoutPolicies } from "@/lib/services/checkout-policies";
 
 export async function sendPushToUser(
   userId: string,
-  opts: { title: string; body?: string | null; payload?: Record<string, unknown> }
+  opts: { title: string; body?: string | null; payload?: Record<string, unknown>; category?: NotificationCategory }
 ): Promise<void> {
   const prefs = await loadUserPrefs(userId);
   if (!shouldDeliverPush(prefs)) return;
+  if (opts.category && !shouldDeliverCategory(prefs, opts.category)) return;
 
   const tokens = await db.deviceToken.findMany({
     where: { userId, revokedAt: null },
@@ -36,11 +37,13 @@ export async function sendPushToUser(
  */
 async function sendEmailToUser(
   userId: string | null,
-  args: Parameters<typeof sendEmail>[0]
+  args: Parameters<typeof sendEmail>[0],
+  category?: NotificationCategory
 ): Promise<boolean> {
   if (userId) {
     const prefs = await loadUserPrefs(userId);
     if (!shouldDeliverEmail(prefs)) return false;
+    if (category && !shouldDeliverCategory(prefs, category)) return false;
   }
   return sendEmail(args);
 }
@@ -179,10 +182,12 @@ export async function processOverdueNotifications(): Promise<{
             existingNotifications.add(dedupeKey);
             localCreated += 1;
 
+            const escalationCategory = rule.hoursFromDue < 0 ? "checkoutDue" as const : "checkoutOverdue" as const;
             void sendPushToUser(checkout.requesterUserId, {
               title: rule.title,
               body,
               payload: { bookingId: checkout.id },
+              category: escalationCategory,
             });
 
             if (checkout.requester.email) {
@@ -195,7 +200,7 @@ export async function processOverdueNotifications(): Promise<{
                   bookingTitle: checkout.title,
                   dueAt: dueAt.toISOString(),
                 }),
-              });
+              }, escalationCategory);
             }
           } catch (err) {
             console.error(`[NOTIFY] Failed to create notification for checkout ${checkout.id}, rule ${rule.type}:`, err);
@@ -420,7 +425,7 @@ export async function createReservationLifecycleNotification(args: {
       },
     });
 
-    void sendPushToUser(requesterUserId, { title, body, payload: { bookingId } });
+    void sendPushToUser(requesterUserId, { title, body, payload: { bookingId }, category: "reservation" });
   } catch (err) {
     console.error(`[NOTIFY] Failed to create reservation_${event} notification for booking ${bookingId}:`, err);
   }

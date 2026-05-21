@@ -41,12 +41,14 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - Avatar managed via the existing `/api/users/[id]/avatar` endpoint (POST upload + DELETE remove) -- separately from the profile form save.
 - `GET/PUT /api/me/profile` (rate-limited at `SETTINGS_MUTATION_LIMIT`). Validates + trims all fields; blocks duplicate `athleticsEmail` with 409. Changes audit-logged as `profile_updated`.
 
-### Notifications (`/settings/notifications`) — Personal
+### Notifications (`/settings/notifications`) -- Personal (updated)
 - "Quiet hours" pause (1 hour / 1 day / 1 week) — sets `pausedUntil` on the user's prefs row; while active, all email + push delivery skips. The in-app inbox always continues.
 - Channel toggles: Email and Push (master switches per channel). Disabled while a pause is active.
+- Notification type toggles (slice 7): Checkout due reminders, Checkout overdue alerts, Reservation updates, License expiry reminders. All on by default; null/missing prefs treated as all-on (no change for existing users). In-app notifications always fire regardless.
 - Persisted server-side in `users.notification_prefs` JSONB (added in migration `0046_user_notification_prefs`). Null = receive everything (matches pre-feature behavior).
-- Enforced in `sendPushToUser` / `sendEmailToUser` wrappers in `src/lib/services/notifications.ts` and `src/lib/services/licenses.ts`. Other dispatch sites (shift trades, password reset, system mails) intentionally bypass — system / security mails always send.
-- API: `GET/PUT /api/me/notification-preferences` (rate-limited at the standard settings budget).
+- Enforced in `sendPushToUser` / `sendEmailToUser` wrappers in `src/lib/services/notifications.ts` and `src/lib/services/licenses.ts` via `category` param. Other dispatch sites (shift trades, password reset, low-stock, item reports, system mails) intentionally bypass -- system / operational mails always send.
+- Category assignment: escalation rules with `hoursFromDue < 0` → `checkoutDue`; `hoursFromDue >= 0` → `checkoutOverdue`; reservation lifecycle → `reservation`; license nag → `licenseExpiry`.
+- API: `GET/PUT /api/me/notification-preferences` (rate-limited at the standard settings budget). `categories` field added to PUT schema; missing keys default to true.
 
 ### Appearance (`/settings/appearance`) — Personal
 - Theme picker: Light / Dark / System (follows OS preference).
@@ -167,6 +169,7 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages.
 
 ## Change Log
+- 2026-05-21: Notification granularity (roadmap slice 7). Added per-category toggles to Settings > Notifications: Checkout due reminders, Checkout overdue alerts, Reservation updates, License expiry reminders. Stored in `notification_prefs.categories`; missing/null keys default to true (no change for existing users). Category gating threaded through `sendPushToUser`/`sendEmailToUser` in `notifications.ts` and `licenses.ts`. In-app notifications bypass category gating and always fire.
 - 2026-05-21: Checkout Policies + Reservation Rules (roadmap slices 5 + 6). New `/settings/checkout-policies` (Inventory, ADMIN) and `/settings/reservation-rules` (Scheduling, ADMIN). Default loan duration and overdue grace period stored in `SystemConfig.checkout_policies`; advance booking window, no-show expiry (previously hardcoded 48h), and max concurrent reservations stored in `SystemConfig.reservation_rules`. Grace period now applied in both the Overdue list filter and the escalation cron. No-show expiry loaded at cron run time (no redeploy needed after a config change). New `GET/PUT /api/settings/checkout-policies` and `GET/PUT /api/settings/reservation-rules` (ADMIN, rate-limited, audit-logged).
 - 2026-05-21: Security settings (roadmap slice 4). New `/settings/security` (Personal, all roles) adds change-password form (current password verify, new password min-8, confirm, optional sign-out-others checkbox) and active sessions list (per-session sign-out, bulk sign-out-all-others). New `POST /api/me/change-password` (5/min), `GET/DELETE /api/me/sessions` (30/10 per min), `DELETE /api/me/sessions/:id` (10/min). Current session identified server-side by hashing the cookie token -- tokenHash never exposed to client.
 - 2026-05-21: Profile settings (roadmap slice 3). New `/settings/profile` (Personal, all roles) lets every authenticated user edit their name, phone, primary area, title, athletics email, and Slack handle. Avatar managed via the existing user avatar endpoint. New `GET/PUT /api/me/profile` -- rate-limited, audit-logged, 409 on duplicate athleticsEmail.
