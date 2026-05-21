@@ -42,6 +42,7 @@ export default function EventDetailPage() {
   const [crewSetupError, setCrewSetupError] = useState("");
   const [titleDialogOpen, setTitleDialogOpen] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
+  const [subtitleDraft, setSubtitleDraft] = useState("");
   const [savingTitle, setSavingTitle] = useState(false);
   const [savingHomeAway, setSavingHomeAway] = useState(false);
 
@@ -120,7 +121,10 @@ export default function EventDetailPage() {
     if (!titleDraft.trim()) return;
     setSavingTitle(true);
     try {
-      const ok = await patchEvent({ summary: titleDraft.trim() });
+      const body: Record<string, unknown> = { summary: titleDraft.trim() };
+      // Always send subtitle so clearing it (empty string → null) is persisted
+      body.subtitle = subtitleDraft.trim() || null;
+      const ok = await patchEvent(body);
       if (ok) { setTitleDialogOpen(false); reloadEvent(); toast.success("Title updated"); }
     } finally {
       setSavingTitle(false);
@@ -237,7 +241,7 @@ export default function EventDetailPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => { setTitleDraft(event.summary); setTitleDialogOpen(true); }}
+                  onClick={() => { setTitleDraft(event.summary); setSubtitleDraft(event.subtitle ?? ""); setTitleDialogOpen(true); }}
                   className={event.summaryLocked ? "text-amber-500 hover:text-amber-600" : ""}
                 >
                   <Pencil className="size-4" />
@@ -259,19 +263,32 @@ export default function EventDetailPage() {
         </TooltipProvider>
       </PageHeader>
 
+      {event.subtitle && (
+        <p className="text-sm font-medium text-muted-foreground -mt-3 mb-3">{event.subtitle}</p>
+      )}
+
       <Dialog open={titleDialogOpen} onOpenChange={setTitleDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit event title</DialogTitle>
           </DialogHeader>
-          <Input
-            value={titleDraft}
-            onChange={(e) => setTitleDraft(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") handleSaveTitle(); }}
-            maxLength={200}
-            placeholder="Event title"
-            disabled={savingTitle}
-          />
+          <div className="flex flex-col gap-2">
+            <Input
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleSaveTitle(); }}
+              maxLength={200}
+              placeholder="Event title"
+              disabled={savingTitle}
+            />
+            <Input
+              value={subtitleDraft}
+              onChange={(e) => setSubtitleDraft(e.target.value)}
+              maxLength={100}
+              placeholder="Label (e.g. Homecoming, Big Ten Tournament)"
+              disabled={savingTitle}
+            />
+          </div>
           <DialogFooter className="flex-col sm:flex-row gap-2">
             {event.summaryLocked && (
               <Button

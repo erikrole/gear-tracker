@@ -927,6 +927,9 @@ export function ListView({
                       {titleParts.detail && (
                         <span>{titleParts.detail}</span>
                       )}
+                      {entry.subtitle && (
+                        <span className="font-medium text-primary/70">{entry.subtitle}</span>
+                      )}
                       {entry.archivedAt && (
                         <span className="inline-flex items-center gap-0.5 text-muted-foreground/50">
                           <ArchiveIcon className="size-3" />
@@ -1156,6 +1159,11 @@ function EventRows({
               {titleParts.detail && (
                 <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
                   {titleParts.detail}
+                </span>
+              )}
+              {entry.subtitle && (
+                <span className="mt-0.5 block truncate text-[11px] font-medium text-primary/70">
+                  {entry.subtitle}
                 </span>
               )}
             </div>

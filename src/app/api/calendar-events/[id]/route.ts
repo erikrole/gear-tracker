@@ -13,6 +13,7 @@ import { z } from "zod";
 const patchSchema = z
   .object({
     summary: z.string().min(1).max(200).optional(),
+    subtitle: z.string().max(100).nullable().optional(),
     isHome: z.boolean().nullable().optional(),
     revertTitle: z.literal(true).optional(),
     revertHomeAway: z.literal(true).optional(),
@@ -21,6 +22,7 @@ const patchSchema = z
   .refine(
     (v) =>
       v.summary !== undefined ||
+      v.subtitle !== undefined ||
       v.isHome !== undefined ||
       v.revertTitle !== undefined ||
       v.revertHomeAway !== undefined,
@@ -44,6 +46,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
       select: {
         id: true,
         summary: true,
+        subtitle: true,
         isHome: true,
         rawSummary: true,
         rawLocationText: true,
@@ -56,6 +59,12 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     const patch: Record<string, unknown> = {};
     const before: Record<string, unknown> = {};
     const after: Record<string, unknown> = {};
+
+    if (body.subtitle !== undefined) {
+      before.subtitle = existing.subtitle;
+      patch.subtitle = body.subtitle === "" ? null : body.subtitle;
+      after.subtitle = patch.subtitle;
+    }
 
     if (body.revertTitle) {
       before.summary = existing.summary;
@@ -107,7 +116,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     const result = await tx.calendarEvent.update({
       where: { id },
       data: patch,
-      select: { id: true, summary: true, isHome: true, summaryLocked: true, isHomeLocked: true },
+      select: { id: true, summary: true, subtitle: true, isHome: true, summaryLocked: true, isHomeLocked: true },
     });
 
     await createAuditEntryTx(tx, {

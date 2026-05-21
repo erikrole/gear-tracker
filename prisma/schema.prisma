@@ -675,6 +675,7 @@ model CalendarEvent {
   summaryLocked   Boolean             @default(false) @map("summary_locked")
   isHomeLocked    Boolean             @default(false) @map("is_home_locked")
   archivedAt      DateTime?           @map("archived_at")
+  subtitle        String?
   opponent        String?
   createdAt       DateTime            @default(now()) @map("created_at")
   updatedAt       DateTime            @updatedAt @map("updated_at")
