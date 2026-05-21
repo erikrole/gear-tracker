@@ -510,6 +510,7 @@ function makeExistingRow(overrides: Partial<ExistingEventRow> & { id: string; ex
     isHome: null,
     summaryLocked: false,
     isHomeLocked: false,
+    locationLocked: false,
     ...overrides,
   };
 }

@@ -674,6 +674,7 @@ model CalendarEvent {
   isHidden        Boolean             @default(false) @map("is_hidden")
   summaryLocked   Boolean             @default(false) @map("summary_locked")
   isHomeLocked    Boolean             @default(false) @map("is_home_locked")
+  locationLocked  Boolean             @default(false) @map("location_locked")
   archivedAt      DateTime?           @map("archived_at")
   subtitle        String?
   opponent        String?

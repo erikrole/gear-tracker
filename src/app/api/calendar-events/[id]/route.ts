@@ -15,8 +15,10 @@ const patchSchema = z
     summary: z.string().min(1).max(200).optional(),
     subtitle: z.string().max(100).nullable().optional(),
     isHome: z.boolean().nullable().optional(),
+    locationId: z.string().cuid().nullable().optional(),
     revertTitle: z.literal(true).optional(),
     revertHomeAway: z.literal(true).optional(),
+    revertLocation: z.literal(true).optional(),
   })
   .strict()
   .refine(
@@ -24,8 +26,10 @@ const patchSchema = z
       v.summary !== undefined ||
       v.subtitle !== undefined ||
       v.isHome !== undefined ||
+      v.locationId !== undefined ||
       v.revertTitle !== undefined ||
-      v.revertHomeAway !== undefined,
+      v.revertHomeAway !== undefined ||
+      v.revertLocation !== undefined,
     { message: "At least one field is required" },
   );
 
@@ -48,10 +52,12 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
         summary: true,
         subtitle: true,
         isHome: true,
+        locationId: true,
         rawSummary: true,
         rawLocationText: true,
         summaryLocked: true,
         isHomeLocked: true,
+        locationLocked: true,
       },
     });
     if (!existing) throw new HttpError(404, "Event not found");
@@ -108,15 +114,40 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
       before.isHome = existing.isHome;
       before.isHomeLocked = existing.isHomeLocked;
       patch.isHome = body.isHome;
-      patch.isHomeLocked = true;
+      patch.isHomeLocked = body.isHome !== null;
       after.isHome = body.isHome;
-      after.isHomeLocked = true;
+      after.isHomeLocked = patch.isHomeLocked;
+    }
+
+    if (body.revertLocation) {
+      before.locationId = existing.locationId;
+      before.locationLocked = existing.locationLocked;
+      patch.locationLocked = false;
+      after.locationId = existing.locationId;
+      after.locationLocked = false;
+    } else if (body.locationId !== undefined) {
+      before.locationId = existing.locationId;
+      before.locationLocked = existing.locationLocked;
+      patch.locationId = body.locationId;
+      patch.locationLocked = body.locationId !== null;
+      after.locationId = body.locationId;
+      after.locationLocked = patch.locationLocked;
     }
 
     const result = await tx.calendarEvent.update({
       where: { id },
       data: patch,
-      select: { id: true, summary: true, subtitle: true, isHome: true, summaryLocked: true, isHomeLocked: true },
+      select: {
+        id: true,
+        summary: true,
+        subtitle: true,
+        isHome: true,
+        locationId: true,
+        summaryLocked: true,
+        isHomeLocked: true,
+        locationLocked: true,
+        location: { select: { id: true, name: true } },
+      },
     });
 
     await createAuditEntryTx(tx, {

@@ -15,6 +15,7 @@ export type CalendarEvent = {
   subtitle: string | null;
   summaryLocked: boolean;
   isHomeLocked: boolean;
+  locationLocked: boolean;
   location: { id: string; name: string } | null;
   source: { id: string; name: string } | null;
 };

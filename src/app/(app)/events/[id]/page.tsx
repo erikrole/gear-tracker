@@ -15,9 +15,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { PageHeader } from "@/components/PageHeader";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
@@ -28,10 +30,17 @@ import { EventSkeleton } from "./_components/EventSkeleton";
 import { ShiftCoverageCard } from "./_components/ShiftCoverageCard";
 import { EventTravelCard } from "./_components/EventTravelCard";
 
+type LocationOption = { id: string; name: string };
+
 function opponentLabel(event: CalendarEvent) {
   if (!event.opponent) return null;
   if (event.isHome === false) return `at ${event.opponent}`;
   return `vs ${event.opponent}`;
+}
+
+function locationDisplay(event: CalendarEvent): string | null {
+  if (event.locationLocked && event.location) return event.location.name;
+  return event.rawLocationText ?? event.location?.name ?? null;
 }
 
 export default function EventDetailPage() {
@@ -40,11 +49,16 @@ export default function EventDetailPage() {
   const [acting, setActing] = useState<string | null>(null);
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [crewSetupError, setCrewSetupError] = useState("");
-  const [titleDialogOpen, setTitleDialogOpen] = useState(false);
+
+  // Edit modal state
+  const [editOpen, setEditOpen] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const [subtitleDraft, setSubtitleDraft] = useState("");
-  const [savingTitle, setSavingTitle] = useState(false);
-  const [savingHomeAway, setSavingHomeAway] = useState(false);
+  const [homeAwayDraft, setHomeAwayDraft] = useState<VenueTone>("neutral");
+  const [locationIdDraft, setLocationIdDraft] = useState<string>("__none__");
+  const [saving, setSaving] = useState(false);
+  const [locations, setLocations] = useState<LocationOption[]>([]);
+  const [locationsLoading, setLocationsLoading] = useState(false);
 
   const {
     data: event,
@@ -96,6 +110,25 @@ export default function EventDetailPage() {
     if (isStaffOrAdmin) reloadCommandCenter();
   }, [reloadEvent, reloadShiftGroup, reloadCommandCenter, isStaffOrAdmin]);
 
+  function openEdit() {
+    if (!event) return;
+    setTitleDraft(event.summary);
+    setSubtitleDraft(event.subtitle ?? "");
+    setHomeAwayDraft(venueToneFromIsHome(event.isHome));
+    setLocationIdDraft(event.location?.id ?? "__none__");
+    setEditOpen(true);
+
+    // Fetch locations lazily
+    if (locations.length === 0) {
+      setLocationsLoading(true);
+      fetch("/api/locations")
+        .then((r) => r.json())
+        .then((json) => setLocations((json.data as LocationOption[]) ?? []))
+        .catch(() => {})
+        .finally(() => setLocationsLoading(false));
+    }
+  }
+
   async function patchEvent(body: Record<string, unknown>): Promise<boolean> {
     try {
       const res = await fetch(`/api/calendar-events/${id}`, {
@@ -117,48 +150,57 @@ export default function EventDetailPage() {
     }
   }
 
-  async function handleSaveTitle() {
-    if (!titleDraft.trim()) return;
-    setSavingTitle(true);
+  async function handleSaveEdit() {
+    if (!event || !titleDraft.trim()) return;
+    setSaving(true);
     try {
-      const body: Record<string, unknown> = { summary: titleDraft.trim() };
-      // Always send subtitle so clearing it (empty string → null) is persisted
+      const body: Record<string, unknown> = {};
+
+      if (titleDraft.trim() !== event.summary) {
+        body.summary = titleDraft.trim();
+      }
+      // Always send subtitle so clearing it is persisted
       body.subtitle = subtitleDraft.trim() || null;
+
+      const newIsHome = homeAwayDraft === "home" ? true : homeAwayDraft === "away" ? false : null;
+      if (newIsHome !== event.isHome) {
+        body.isHome = newIsHome;
+      }
+
+      const newLocationId = locationIdDraft === "__none__" ? null : locationIdDraft;
+      if (newLocationId !== (event.location?.id ?? null)) {
+        body.locationId = newLocationId;
+      }
+
+      if (Object.keys(body).length === 0) {
+        setEditOpen(false);
+        return;
+      }
+
       const ok = await patchEvent(body);
-      if (ok) { setTitleDialogOpen(false); reloadEvent(); toast.success("Title updated"); }
+      if (ok) {
+        setEditOpen(false);
+        reloadEvent();
+        toast.success("Event updated");
+      }
     } finally {
-      setSavingTitle(false);
+      setSaving(false);
     }
   }
 
-  async function handleRevertTitle() {
-    setSavingTitle(true);
+  async function handleRevertField(field: "title" | "homeAway" | "location") {
+    setSaving(true);
     try {
-      const ok = await patchEvent({ revertTitle: true });
-      if (ok) { setTitleDialogOpen(false); reloadEvent(); toast.success("Title reverted"); }
+      const key = field === "title" ? "revertTitle" : field === "homeAway" ? "revertHomeAway" : "revertLocation";
+      const ok = await patchEvent({ [key]: true });
+      if (ok) {
+        reloadEvent();
+        toast.success("Reverted to synced value");
+        // Refresh draft state from reloaded event
+        setEditOpen(false);
+      }
     } finally {
-      setSavingTitle(false);
-    }
-  }
-
-  async function handleSetHomeAway(tone: VenueTone) {
-    const isHomeValue = tone === "home" ? true : tone === "away" ? false : null;
-    setSavingHomeAway(true);
-    try {
-      const ok = await patchEvent({ isHome: isHomeValue });
-      if (ok) reloadEvent();
-    } finally {
-      setSavingHomeAway(false);
-    }
-  }
-
-  async function handleRevertHomeAway() {
-    setSavingHomeAway(true);
-    try {
-      const ok = await patchEvent({ revertHomeAway: true });
-      if (ok) reloadEvent();
-    } finally {
-      setSavingHomeAway(false);
+      setSaving(false);
     }
   }
 
@@ -230,6 +272,7 @@ export default function EventDetailPage() {
     ? formatDate(event.startsAt)
     : new Date(event.startsAt).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
   const opponentText = opponentLabel(event);
+  const anyFieldLocked = event.summaryLocked || event.isHomeLocked || event.locationLocked;
 
   return (
     <>
@@ -241,13 +284,13 @@ export default function EventDetailPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => { setTitleDraft(event.summary); setSubtitleDraft(event.subtitle ?? ""); setTitleDialogOpen(true); }}
-                  className={event.summaryLocked ? "text-amber-500 hover:text-amber-600" : ""}
+                  onClick={openEdit}
+                  className={anyFieldLocked ? "text-amber-500 hover:text-amber-600" : ""}
                 >
                   <Pencil className="size-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>{event.summaryLocked ? "Title edited — click to change or revert" : "Edit title"}</TooltipContent>
+              <TooltipContent>{anyFieldLocked ? "Event has manual overrides" : "Edit event"}</TooltipContent>
             </Tooltip>
           )}
           <Tooltip>
@@ -267,44 +310,129 @@ export default function EventDetailPage() {
         <p className="text-sm font-medium text-muted-foreground -mt-3 mb-3">{event.subtitle}</p>
       )}
 
-      <Dialog open={titleDialogOpen} onOpenChange={setTitleDialogOpen}>
-        <DialogContent>
+      {/* Edit Event Modal */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit event title</DialogTitle>
+            <DialogTitle>Edit event</DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col gap-2">
-            <Input
-              value={titleDraft}
-              onChange={(e) => setTitleDraft(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleSaveTitle(); }}
-              maxLength={200}
-              placeholder="Event title"
-              disabled={savingTitle}
-            />
-            <Input
-              value={subtitleDraft}
-              onChange={(e) => setSubtitleDraft(e.target.value)}
-              maxLength={100}
-              placeholder="Label (e.g. Homecoming, Big Ten Tournament)"
-              disabled={savingTitle}
-            />
-          </div>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            {event.summaryLocked && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="sm:mr-auto text-muted-foreground"
-                onClick={handleRevertTitle}
-                disabled={savingTitle}
+
+          <div className="flex flex-col gap-4 py-1">
+            {/* Title */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="edit-title">Title</Label>
+                {event.summaryLocked && (
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 text-[11px] text-amber-500 hover:text-amber-600"
+                    onClick={() => handleRevertField("title")}
+                    disabled={saving}
+                  >
+                    <RotateCcw className="size-3" />
+                    Revert to synced
+                  </button>
+                )}
+              </div>
+              <Input
+                id="edit-title"
+                value={titleDraft}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                maxLength={200}
+                placeholder="Event title"
+                disabled={saving}
+              />
+            </div>
+
+            {/* Subtitle */}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="edit-subtitle">Label <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Input
+                id="edit-subtitle"
+                value={subtitleDraft}
+                onChange={(e) => setSubtitleDraft(e.target.value)}
+                maxLength={100}
+                placeholder="e.g. Homecoming, Big Ten Tournament"
+                disabled={saving}
+              />
+            </div>
+
+            {/* Home / Away / Neutral */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <Label>Home / Away / Neutral</Label>
+                {event.isHomeLocked && (
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 text-[11px] text-amber-500 hover:text-amber-600"
+                    onClick={() => handleRevertField("homeAway")}
+                    disabled={saving}
+                  >
+                    <RotateCcw className="size-3" />
+                    Revert to synced
+                  </button>
+                )}
+              </div>
+              <ToggleGroup
+                type="single"
+                value={homeAwayDraft}
+                onValueChange={(val) => { if (val) setHomeAwayDraft(val as VenueTone); }}
+                disabled={saving}
+                className="h-9 w-full gap-0 rounded-md border border-input bg-background p-0.5"
               >
-                <RotateCcw className="size-3.5 mr-1.5" />
-                Revert to synced
-              </Button>
-            )}
-            <Button variant="outline" onClick={() => setTitleDialogOpen(false)} disabled={savingTitle}>Cancel</Button>
-            <Button onClick={handleSaveTitle} disabled={savingTitle || !titleDraft.trim()}>
-              {savingTitle ? "Saving…" : "Save"}
+                {(["home", "away", "neutral"] as VenueTone[]).map((tone) => (
+                  <ToggleGroupItem
+                    key={tone}
+                    value={tone}
+                    className="h-8 flex-1 rounded-sm px-2 text-sm data-[state=on]:bg-muted data-[state=on]:text-foreground capitalize"
+                  >
+                    {VENUE_TONES[tone].label}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            </div>
+
+            {/* Location */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="edit-location">Location</Label>
+                {event.locationLocked && (
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 text-[11px] text-amber-500 hover:text-amber-600"
+                    onClick={() => handleRevertField("location")}
+                    disabled={saving}
+                  >
+                    <RotateCcw className="size-3" />
+                    Revert to synced
+                  </button>
+                )}
+              </div>
+              <Select
+                value={locationIdDraft}
+                onValueChange={setLocationIdDraft}
+                disabled={saving || locationsLoading}
+              >
+                <SelectTrigger id="edit-location">
+                  <SelectValue placeholder={locationsLoading ? "Loading…" : "No location"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">No location</SelectItem>
+                  {locations.map((loc) => (
+                    <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {event.rawLocationText && (
+                <p className="text-[11px] text-muted-foreground">ICS venue: {event.rawLocationText}</p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={saving}>Cancel</Button>
+            <Button onClick={handleSaveEdit} disabled={saving || !titleDraft.trim()}>
+              {saving ? "Saving…" : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -315,43 +443,7 @@ export default function EventDetailPage() {
           {event.status.toLowerCase()}
         </Badge>
         {event.sportCode && <Badge variant="purple">{sportLabel(event.sportCode)}</Badge>}
-        {isStaffOrAdmin && event.sportCode ? (
-          <div className="flex items-center gap-1.5">
-            <ToggleGroup
-              type="single"
-              value={venueToneFromIsHome(event.isHome)}
-              onValueChange={(val) => { if (val) handleSetHomeAway(val as VenueTone); }}
-              disabled={savingHomeAway}
-              className="h-7 gap-0 rounded-md border border-input bg-background p-0.5"
-            >
-              {(["home", "away", "neutral"] as VenueTone[]).map((tone) => (
-                <ToggleGroupItem
-                  key={tone}
-                  value={tone}
-                  className="h-6 rounded-sm px-2 text-xs data-[state=on]:bg-muted data-[state=on]:text-foreground"
-                >
-                  {VENUE_TONES[tone].label}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-            {event.isHomeLocked && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-6 text-amber-500 hover:text-amber-600"
-                    onClick={handleRevertHomeAway}
-                    disabled={savingHomeAway}
-                  >
-                    <RotateCcw className="size-3" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Revert to synced value</TooltipContent>
-              </Tooltip>
-            )}
-          </div>
-        ) : event.opponent ? (
+        {event.opponent ? (
           <Badge variant={venueBadgeVariant(event.isHome)}>
             {VENUE_TONES[venueToneFromIsHome(event.isHome)].label}
           </Badge>
@@ -375,10 +467,10 @@ export default function EventDetailPage() {
           </span>
         )}
         {opponentText && <span>{opponentText}</span>}
-        {(event.rawLocationText || event.location) && (
+        {locationDisplay(event) && (
           <span className="flex items-center gap-1.5">
             <MapPin className="size-3.5 shrink-0" />
-            {event.rawLocationText ?? event.location?.name}
+            {locationDisplay(event)}
           </span>
         )}
       </div>
