@@ -32,7 +32,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   Circle,
-  Clock,
   Copy,
   Monitor,
   Plus,
@@ -67,7 +66,6 @@ type KioskDevice = {
   activated: boolean;
   activatedAt: string | null;
   lastSeenAt: string | null;
-  sessionExpiresAt: string | null;
   createdAt: string;
   pendingPickupCount: number;
   openCheckoutCount: number;
@@ -85,12 +83,6 @@ function connectionStatus(device: KioskDevice): "online" | "recent" | "offline" 
   if (mins <= 5) return "online";
   if (mins <= 60 * 24) return "recent";
   return "offline";
-}
-
-function sessionExpiringSoon(device: KioskDevice): boolean {
-  if (!device.sessionExpiresAt || !device.activated) return false;
-  const daysLeft = (new Date(device.sessionExpiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
-  return daysLeft <= 3;
 }
 
 function StatusDot({ status }: { status: ReturnType<typeof connectionStatus> }) {
@@ -326,7 +318,7 @@ export default function KioskDevicesPage() {
     >
         <div className="flex justify-end">
           {!showAdd && (
-            <Button onClick={() => setShowAdd(true)} size="sm">
+            <Button onClick={() => setShowAdd(true)} className="min-h-10">
               <Plus className="size-4 mr-1.5" />
               Add Kiosk
             </Button>
@@ -401,7 +393,7 @@ export default function KioskDevicesPage() {
               <AlertTriangle className="size-5 text-destructive" />
             )}
             <span className="text-sm text-destructive">{error.message}</span>
-            <Button variant="outline" size="sm" className="ml-auto" onClick={load}>
+            <Button variant="outline" className="ml-auto min-h-10" onClick={load}>
               Retry
             </Button>
           </CardContent>
@@ -447,7 +439,6 @@ export default function KioskDevicesPage() {
         <div className="space-y-3">
           {(devices ?? []).map((device) => {
             const status = connectionStatus(device);
-            const expiringSession = sessionExpiringSoon(device);
             return (
               <Card key={device.id} className={cn(!device.active && "opacity-60")}>
                 <CardContent className="py-4 space-y-3">
@@ -471,11 +462,6 @@ export default function KioskDevicesPage() {
                         {status === "offline" && (
                           <Badge variant="orange" size="sm" title="No heartbeat in over 24 hours">
                             Offline
-                          </Badge>
-                        )}
-                        {expiringSession && (
-                          <Badge variant="orange" size="sm" title={`Session expires ${formatRelative(device.sessionExpiresAt)}`}>
-                            Session expiring
                           </Badge>
                         )}
                       </div>
@@ -536,11 +522,16 @@ export default function KioskDevicesPage() {
                         type="button"
                         onClick={() => device.pendingPickupCount > 0 && setPickupDialog(device)}
                         className={cn(
-                          "flex items-center gap-1.5 text-xs rounded px-2 py-1 transition-colors",
+                          "flex min-h-10 items-center gap-1.5 rounded-md px-3 py-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                           device.pendingPickupCount > 0
                             ? "text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 cursor-pointer"
                             : "text-muted-foreground cursor-default"
                         )}
+                        aria-label={
+                          device.pendingPickupCount > 0
+                            ? `View pending pickups for ${device.name}`
+                            : `No pending pickups for ${device.name}`
+                        }
                         title={device.pendingPickupCount > 0 ? "View and clear pending pickups" : "No pending pickups"}
                         disabled={device.pendingPickupCount === 0}
                       >
@@ -558,20 +549,6 @@ export default function KioskDevicesPage() {
                         }
                         <span>{device.openCheckoutCount} active checkout{device.openCheckoutCount !== 1 ? "s" : ""}</span>
                       </div>
-
-                      {/* Session expiry */}
-                      {device.sessionExpiresAt && (
-                        <>
-                          <span className="w-px h-3 bg-border" />
-                          <div className={cn(
-                            "flex items-center gap-1.5 text-xs px-2 py-1",
-                            expiringSession ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"
-                          )}>
-                            <Clock className="size-3.5" />
-                            <span>Session expires {formatRelative(device.sessionExpiresAt)}</span>
-                          </div>
-                        </>
-                      )}
                     </div>
                   )}
                 </CardContent>
@@ -597,6 +574,7 @@ export default function KioskDevicesPage() {
             <Button
               variant="outline"
               size="icon"
+              className="size-10"
               onClick={() => codeDialog && copyCode(codeDialog.code)}
               aria-label="Copy activation code"
             >
@@ -620,7 +598,13 @@ export default function KioskDevicesPage() {
           </DialogHeader>
           <div className="space-y-2 py-1 max-h-72 overflow-y-auto">
             {(pickupDialog?.pendingPickups ?? []).length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-4">No pending pickups</p>
+              <EmptyState
+                inline
+                compact
+                icon="clipboard"
+                title="No pending pickups"
+                description="This kiosk has no pickup work waiting right now."
+              />
             )}
             {(pickupDialog?.pendingPickups ?? []).map((b) => (
               <div key={b.id} className="flex items-start gap-3 rounded-lg border px-3 py-2.5">
@@ -631,11 +615,12 @@ export default function KioskDevicesPage() {
                 </div>
                 <Button
                   variant="ghost"
-                  size="sm"
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
+                  size="icon"
+                  className="size-10 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
                   onClick={() => handleCancelPickup(b)}
                   disabled={cancellingPickupId === b.id}
-                  title="Cancel this pickup"
+                  aria-label={`Cancel pending pickup ${b.title}`}
+                  title="Cancel pending pickup"
                 >
                   {cancellingPickupId === b.id ? <Spinner /> : <X className="size-4" />}
                 </Button>

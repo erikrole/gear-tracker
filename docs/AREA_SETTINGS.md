@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Settings
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-20
+- Last Updated: 2026-05-21
 - Status: Active
 - Version: V1
 
@@ -103,7 +103,8 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - Create device → server returns a one-shot 6-digit activation code; admin enters it on the iPad at `/kiosk` to bind the device.
 - Pending-activation devices have a "Regenerate code" affordance — invalidates the prior hash and surfaces a fresh code in the same dialog.
 - Activated kiosks can't regenerate (must deactivate first; server returns 409).
-- Toggle active/inactive (deactivating clears the session token and stored expiry), delete, and inspect last-seen timestamp.
+- Kiosk sessions are **always-on**: a bound device has no server-side session expiry and stays active until an admin deactivates it. The HTTP-only cookie is rolled forward on every authenticated kiosk request (~395-day window) to stay under browser cookie-lifetime caps without ever forcing a re-activation on a live device.
+- Toggle active/inactive (deactivating clears the session token, which ends the session immediately), delete, and inspect last-seen timestamp.
 
 ### Allowed Emails (`/settings/allowed-emails`)
 - Admin-managed email allowlist for registration gating (D-029).
@@ -131,6 +132,8 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages.
 
 ## Change Log
+- 2026-05-20: Kiosk always-on sessions (Settings roadmap slice 1). Removed the 7-day kiosk session expiry — `createKioskSession` no longer stamps `sessionExpiresAt` and `requireKiosk` no longer rejects on elapsed time, so a bound iPad stays active until an admin deactivates it. The kiosk cookie is now rolled forward on every authenticated kiosk request (~395-day expiry) to survive browser cookie-lifetime caps. Deactivation still clears `sessionToken`, ending the session at once. Removed the now-dead "Session expiring" badge, "Session expires" footer, and `sessionExpiresAt` exposure from the kiosk-devices list. The `session_expires_at` column is retained (unused, nullable) — a pure-hygiene drop can follow later.
+- 2026-05-21: Design language Area 4 Settings follow-through shipped. Settings sub-pages were inventoried for `SettingsPageShell`, shared inline empty states, shared row actions, destructive confirmation copy, and sub-40px controls. Extend Presets remove controls, Kiosk pending-pickup/copy/cancel controls, Allowed Emails add-mode controls, and Database initial empty state were aligned with the shared operational baseline.
 - 2026-05-20: Settings actions, empty states, and warning copy cleanup shipped. Calendar Sources, Venue Mappings, Locations, Departments, Allowed Emails, and Kiosk Devices now use the shared row-action trigger where rows have destructive or multi-step actions; remaining text-only empty states moved to shared inline empty states; destructive confirmations now name the target and operational consequence.
 - 2026-05-20: Settings shell cleanup shipped. Settings sub-pages now share one `SettingsPageShell` for the intro column and main content, reducing repeated split-grid markup and keeping loading, error, and normal states aligned under the new grouped rail.
 - 2026-05-20: Settings navigation rail shipped. Large desktop Settings now uses a grouped left rail for Overview, Personal, People, Inventory, Scheduling, Devices, and System while preserving the horizontal section scroller on smaller screens, role-gated visibility, search palette, and last-tab resume behavior.

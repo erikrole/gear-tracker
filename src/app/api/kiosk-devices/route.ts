@@ -84,7 +84,6 @@ export const GET = withAuth(async (req, { user }) => {
       activated: !!d.activatedAt,
       activatedAt: d.activatedAt,
       lastSeenAt: d.lastSeenAt,
-      sessionExpiresAt: d.sessionExpiresAt,
       createdAt: d.createdAt,
       pendingPickupCount: stats.pendingPickup,
       openCheckoutCount: stats.open,
