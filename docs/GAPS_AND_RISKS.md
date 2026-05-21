@@ -157,6 +157,7 @@
 ---
 
 ## Change Log
+- 2026-05-21: Search MVP hardening shipped. Quick search and `/search` now include role-aware page/settings/report destinations, preserve available matches during partial endpoint failures, and avoid silent empty states when only one search source fails. No new gap opened.
 - 2026-05-13: Reframed the bulk inventory product model around first-class item families. `BulkSku` remains the implementation model, `/items` owns normal discovery/detail routing, app scan resolves parent and derived unit QR values to item-family context, and `/bulk-inventory` remains admin operations. No new schema gap opened.
 - 2026-05-13: Closed GAP-37. Missing Units now includes a unit-tracked battery audit report covering missing units by unit number, missing rate by family, recent battery checkout history, and repeated missing family/requester patterns.
 - 2026-05-13: Closed GAP-33, GAP-54, and GAP-58. Morning-refresh now expires stale pending-pickup checkouts after 48h with inventory/session/audit cleanup, the dead archive-shifts route was deleted, and the kiosk dashboard returns partial data instead of 500ing when one read fails.

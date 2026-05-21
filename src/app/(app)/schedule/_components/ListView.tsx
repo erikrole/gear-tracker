@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import Link from "next/link";
 import { AlertTriangleIcon, ArchiveIcon, ChevronDownIcon, ChevronRightIcon, EyeOffIcon, PlusIcon, UserIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -429,6 +429,16 @@ export function ListView({
   hidingEventIds,
   onHideEvent,
 }: ListViewProps) {
+
+  // Scroll to today when includePast is toggled on and data has loaded
+  const todayGroupRef = useRef<HTMLDivElement>(null);
+  const didScrollRef = useRef(false);
+  useEffect(() => {
+    if (!includePast) { didScrollRef.current = false; return; }
+    if (didScrollRef.current || !todayGroupRef.current) return;
+    didScrollRef.current = true;
+    todayGroupRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [includePast, groupedEntries]);
 
   // Inline assignment state
   const [allUsers, setAllUsers] = useState<PickerUser[]>([]);

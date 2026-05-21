@@ -10,12 +10,14 @@ import { Card } from "@/components/ui/card";
 import EmptyState from "@/components/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { useUrlState } from "@/hooks/use-url-state";
-import { AlertCircleIcon, SearchIcon, WifiOff, XIcon } from "lucide-react";
+import { AlertCircleIcon, ArrowRightIcon, SearchIcon, WifiOff, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
 import { FadeUp } from "@/components/ui/motion";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { getVisiblePageSearchResults, type PageSearchResult } from "@/lib/search-pages";
 
-type SearchResult = {
+type EntitySearchResult = {
   type: "item" | "checkout" | "reservation" | "user";
   id: string;
   title: string;
@@ -23,6 +25,8 @@ type SearchResult = {
   href: string;
   status?: string;
 };
+
+type SearchResult = EntitySearchResult | PageSearchResult;
 
 function formatStatusLabel(status: string): string {
   switch (status) {
@@ -37,6 +41,7 @@ function formatStatusLabel(status: string): string {
 }
 
 export default function SearchPage() {
+  const { data: user } = useCurrentUser();
   const [urlQuery, setUrlQuery] = useUrlState<string>(
     "q",
     (v) => v ?? "",
@@ -48,6 +53,7 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [searchError, setSearchError] = useState<"network" | "server" | false>(false);
+  const [partialFailures, setPartialFailures] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -75,6 +81,7 @@ export default function SearchPage() {
     if (!trimmed) {
       setResults([]);
       setSearched(false);
+      setPartialFailures(0);
       return;
     }
 
@@ -85,35 +92,39 @@ export default function SearchPage() {
     setLoading(true);
     setSearched(true);
     setSearchError(false as const);
+    setPartialFailures(0);
 
     const encoded = encodeURIComponent(trimmed);
 
     try {
-      const [itemsRes, checkoutsRes, reservationsRes, usersRes] = await Promise.all([
+      const [itemsRes, checkoutsRes, reservationsRes, usersRes] = await Promise.allSettled([
         fetch(`/api/assets?q=${encoded}&limit=10`, { signal: controller.signal }),
         fetch(`/api/checkouts?q=${encoded}&status_in=OPEN,PENDING_PICKUP&limit=10`, { signal: controller.signal }),
         fetch(`/api/reservations?q=${encoded}&status=BOOKED&limit=10`, { signal: controller.signal }),
         fetch(`/api/users?q=${encoded}&limit=10`, { signal: controller.signal }),
       ]);
 
-      const merged: SearchResult[] = [];
+      const merged: SearchResult[] = getVisiblePageSearchResults(user?.role, trimmed, 12);
+      let failures = 0;
 
-      if (itemsRes.ok) {
-        const json = await itemsRes.json();
+      if (itemsRes.status === "fulfilled" && itemsRes.value.ok) {
+        const json = await itemsRes.value.json();
         for (const item of (json.data || []).slice(0, 10)) {
           merged.push({
             type: "item",
             id: item.id,
-            title: `${item.assetTag} — ${item.brand} ${item.model}`,
+            title: [item.assetTag, item.brand, item.model].filter(Boolean).join(" · "),
             subtitle: [item.type, item.location?.name].filter(Boolean).join(" · "),
             href: `/items/${item.id}`,
             status: item.computedStatus || item.status,
           });
         }
+      } else {
+        failures += 1;
       }
 
-      if (checkoutsRes.ok) {
-        const json = await checkoutsRes.json();
+      if (checkoutsRes.status === "fulfilled" && checkoutsRes.value.ok) {
+        const json = await checkoutsRes.value.json();
         for (const b of (json.data || []).slice(0, 10)) {
           merged.push({
             type: "checkout",
@@ -124,10 +135,12 @@ export default function SearchPage() {
             status: b.status,
           });
         }
+      } else {
+        failures += 1;
       }
 
-      if (reservationsRes.ok) {
-        const json = await reservationsRes.json();
+      if (reservationsRes.status === "fulfilled" && reservationsRes.value.ok) {
+        const json = await reservationsRes.value.json();
         for (const b of (json.data || []).slice(0, 10)) {
           merged.push({
             type: "reservation",
@@ -138,10 +151,12 @@ export default function SearchPage() {
             status: b.status,
           });
         }
+      } else {
+        failures += 1;
       }
 
-      if (usersRes.ok) {
-        const json = await usersRes.json();
+      if (usersRes.status === "fulfilled" && usersRes.value.ok) {
+        const json = await usersRes.value.json();
         for (const u of (json.data || []).slice(0, 10)) {
           merged.push({
             type: "user",
@@ -151,16 +166,16 @@ export default function SearchPage() {
             href: `/users/${u.id}`,
           });
         }
+      } else {
+        failures += 1;
       }
 
       if (!controller.signal.aborted) {
-        // If every source failed (server-side error), surface an error rather
-        // than silently showing an empty "No results" state.
-        const allFailed = !itemsRes.ok && !checkoutsRes.ok && !reservationsRes.ok && !usersRes.ok;
-        if (allFailed) {
+        if (failures === 4 && merged.length === 0) {
           setSearchError("server");
         } else {
           setResults(merged);
+          setPartialFailures(failures < 4 ? failures : 0);
         }
       }
     } catch (err) {
@@ -168,13 +183,14 @@ export default function SearchPage() {
       if (!controller.signal.aborted) {
         setResults([]);
         setSearchError("network");
+        setPartialFailures(0);
       }
     } finally {
       if (!controller.signal.aborted) {
         setLoading(false);
       }
     }
-  }, []);
+  }, [user?.role]);
 
   // Auto-search on debounced query change
   useEffect(() => {
@@ -182,6 +198,7 @@ export default function SearchPage() {
   }, [debouncedQuery, runSearch]);
 
   const grouped = {
+    page: results.filter((r) => r.type === "page"),
     item: results.filter((r) => r.type === "item"),
     checkout: results.filter((r) => r.type === "checkout"),
     reservation: results.filter((r) => r.type === "reservation"),
@@ -189,6 +206,7 @@ export default function SearchPage() {
   };
 
   const sectionLabels: Record<string, string> = {
+    page: "Go to",
     item: "Items",
     checkout: "Checkouts",
     reservation: "Reservations",
@@ -270,13 +288,19 @@ export default function SearchPage() {
         </div>
       )}
 
+      {!loading && !searchError && partialFailures > 0 && results.length > 0 && (
+        <div className="mb-4 rounded-lg border border-border/60 bg-muted/35 px-3 py-2 text-sm text-muted-foreground" role="status">
+          Some result types could not load. Showing available matches.
+        </div>
+      )}
+
       {!loading && !searchError && searched && results.length === 0 && (
-        <EmptyState icon="search" title="No results found" description={`Nothing matched "${query}". Try a different search term.`} />
+        <EmptyState icon="search" title="No results found" description={`Nothing matched "${query}". Try a tag, borrower, page name, setting, or report.`} />
       )}
 
       {!loading && results.length > 0 && (
         <div className="flex flex-col gap-6">
-          {(["item", "checkout", "reservation", "user"] as const).map((type) => {
+          {(["page", "item", "checkout", "reservation", "user"] as const).map((type) => {
             const items = grouped[type];
             if (items.length === 0) return null;
             return (
@@ -285,7 +309,7 @@ export default function SearchPage() {
                   <h2 className="text-sm text-muted-foreground uppercase m-0">
                     {sectionLabels[type]!} ({items.length}{items.length >= 10 ? "+" : ""})
                   </h2>
-                  {items.length >= 10 && (
+                  {type !== "page" && items.length >= 10 && (
                     <Link
                       href={sectionViewAllHrefs[type]!}
                       className="inline-flex min-h-10 items-center rounded-md px-2 text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
@@ -302,10 +326,13 @@ export default function SearchPage() {
                       className={`flex min-h-12 items-center justify-between gap-3 py-3 px-4 no-underline text-inherit cursor-pointer hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${i < items.length - 1 ? "border-b border-border" : ""}`}
                     >
                       <div>
-                        <div className="font-semibold">{r.title}</div>
+                        <div className="flex items-center gap-2 font-semibold">
+                          {r.type === "page" && <ArrowRightIcon className="size-4 text-muted-foreground" aria-hidden="true" />}
+                          <span>{r.title}</span>
+                        </div>
                         {r.subtitle && <div className="text-sm text-muted-foreground">{r.subtitle}</div>}
                       </div>
-                      {r.status && (
+                      {r.type !== "page" && r.status && (
                         <Badge variant={statusBadgeVariant(r.status) as BadgeProps["variant"]}>
                           {formatStatusLabel(r.status)}
                         </Badge>

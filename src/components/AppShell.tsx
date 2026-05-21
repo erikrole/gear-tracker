@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { SearchIcon, ClipboardCheckIcon, CalendarCheckIcon, BellIcon, UserIcon, LayoutGridIcon, LayersIcon, CalendarPlusIcon, ScanIcon } from "lucide-react";
+import { SearchIcon, ClipboardCheckIcon, CalendarCheckIcon, BellIcon, UserIcon, LayoutGridIcon, LayersIcon, CalendarPlusIcon, ScanIcon, ArrowRightIcon } from "lucide-react";
 import AppSidebar from "./Sidebar";
 import { AssetImage } from "@/components/AssetImage";
 import { Spinner } from "@/components/ui/spinner";
@@ -24,9 +24,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { STATUS_STYLES } from "@/lib/status-styles";
 import { type CurrentUser, useCurrentUser } from "@/hooks/use-current-user";
+import { getVisiblePageSearchResults, type PageSearchResult } from "@/lib/search-pages";
 import { cn } from "@/lib/utils";
 
-type SearchResult = {
+type EntitySearchResult = {
   type: "item" | "checkout" | "reservation" | "user";
   id: string;
   title: string;
@@ -37,6 +38,8 @@ type SearchResult = {
   computedStatus?: string;
   activeBooking?: { requesterName: string; isOverdue: boolean; endsAt?: string } | null;
 };
+
+type SearchResult = EntitySearchResult | PageSearchResult;
 
 const bottomNavItems = [
   { label: "Home", href: "/", icon: LayoutGridIcon },
@@ -86,6 +89,8 @@ export default function AppShell({
   const [cmdQuery, setCmdQuery] = useState("");
   const [cmdResults, setCmdResults] = useState<SearchResult[]>([]);
   const [cmdLoading, setCmdLoading] = useState(false);
+  const [cmdError, setCmdError] = useState<"network" | "server" | null>(null);
+  const [cmdPartialFailures, setCmdPartialFailures] = useState(0);
   const cmdAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -120,9 +125,11 @@ export default function AppShell({
   // Live search when query changes
   useEffect(() => {
     const q = cmdQuery.trim();
-    if (!q) { setCmdResults([]); setCmdLoading(false); return; }
+    if (!q) { setCmdResults([]); setCmdLoading(false); setCmdError(null); setCmdPartialFailures(0); return; }
 
     setCmdLoading(true);
+    setCmdError(null);
+    setCmdPartialFailures(0);
     cmdAbortRef.current?.abort();
     const controller = new AbortController();
     cmdAbortRef.current = controller;
@@ -130,16 +137,17 @@ export default function AppShell({
     const timer = setTimeout(async () => {
       const encoded = encodeURIComponent(q);
       try {
-        const [itemsRes, checkoutsRes, reservationsRes, usersRes] = await Promise.all([
+        const [itemsRes, checkoutsRes, reservationsRes, usersRes] = await Promise.allSettled([
           fetch(`/api/assets?q=${encoded}&limit=8`, { signal: controller.signal }),
-          fetch(`/api/checkouts?q=${encoded}&limit=8`, { signal: controller.signal }),
-          fetch(`/api/reservations?q=${encoded}&limit=8`, { signal: controller.signal }),
+          fetch(`/api/checkouts?q=${encoded}&status_in=OPEN,PENDING_PICKUP&limit=8`, { signal: controller.signal }),
+          fetch(`/api/reservations?q=${encoded}&status=BOOKED&limit=8`, { signal: controller.signal }),
           fetch(`/api/users?q=${encoded}&limit=5`, { signal: controller.signal }),
         ]);
         if (controller.signal.aborted) return;
-        const merged: SearchResult[] = [];
-        if (itemsRes.ok) {
-          const json = await itemsRes.json();
+        const merged: SearchResult[] = getVisiblePageSearchResults(user?.role, q);
+        let failures = 0;
+        if (itemsRes.status === "fulfilled" && itemsRes.value.ok) {
+          const json = await itemsRes.value.json();
           for (const item of (json.data || []).slice(0, 8)) {
             merged.push({
               type: "item", id: item.id,
@@ -151,34 +159,47 @@ export default function AppShell({
               activeBooking: item.activeBooking ? { requesterName: item.activeBooking.requesterName, isOverdue: item.activeBooking.isOverdue, endsAt: item.activeBooking.endsAt } : null,
             });
           }
+        } else {
+          failures += 1;
         }
-        if (checkoutsRes.ok) {
-          const json = await checkoutsRes.json();
+        if (checkoutsRes.status === "fulfilled" && checkoutsRes.value.ok) {
+          const json = await checkoutsRes.value.json();
           for (const b of (json.data || []).slice(0, 8)) {
             merged.push({ type: "checkout", id: b.id, title: b.title, subtitle: b.requester?.name || "", href: `/checkouts/${b.id}` });
           }
+        } else {
+          failures += 1;
         }
-        if (reservationsRes.ok) {
-          const json = await reservationsRes.json();
+        if (reservationsRes.status === "fulfilled" && reservationsRes.value.ok) {
+          const json = await reservationsRes.value.json();
           for (const b of (json.data || []).slice(0, 8)) {
             merged.push({ type: "reservation", id: b.id, title: b.title, subtitle: b.requester?.name || "", href: `/reservations/${b.id}` });
           }
+        } else {
+          failures += 1;
         }
-        if (usersRes.ok) {
-          const json = await usersRes.json();
+        if (usersRes.status === "fulfilled" && usersRes.value.ok) {
+          const json = await usersRes.value.json();
           for (const u of (json.data || []).slice(0, 5)) {
             merged.push({ type: "user", id: u.id, title: u.name, subtitle: u.email || "", href: `/users/${u.id}` });
           }
+        } else {
+          failures += 1;
         }
-        if (!controller.signal.aborted) { setCmdResults(merged); setCmdLoading(false); }
+        if (!controller.signal.aborted) {
+          setCmdResults(merged);
+          setCmdPartialFailures(failures < 4 ? failures : 0);
+          setCmdError(failures === 4 && merged.length === 0 ? "server" : null);
+          setCmdLoading(false);
+        }
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") return;
-        if (!controller.signal.aborted) { setCmdResults([]); setCmdLoading(false); }
+        if (!controller.signal.aborted) { setCmdResults([]); setCmdError("network"); setCmdLoading(false); }
       }
     }, 200);
 
     return () => { clearTimeout(timer); controller.abort(); };
-  }, [cmdQuery]);
+  }, [cmdQuery, user?.role]);
 
   // Recent searches (localStorage)
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
@@ -194,7 +215,9 @@ export default function AppShell({
     if (!trimmed) return;
     const updated = [trimmed, ...recentSearches.filter((s) => s !== trimmed)].slice(0, 5);
     setRecentSearches(updated);
-    localStorage.setItem("recent-searches", JSON.stringify(updated));
+    try {
+      localStorage.setItem("recent-searches", JSON.stringify(updated));
+    } catch { /* ignore */ }
   }
 
   function handleCmdSelect(href: string) {
@@ -241,8 +264,8 @@ export default function AppShell({
       <a href="#main-content" className="absolute -top-[100px] left-4 z-[var(--z-sidebar)] px-4 py-2 bg-[var(--btn-primary-bg)] text-[var(--btn-primary-text)] rounded-[var(--radius)] font-[var(--weight-semibold)] text-[var(--text-base)] no-underline transition-[top] duration-200 focus:top-4">Skip to content</a>
 
       {/* Command palette */}
-      <CommandDialog open={cmdOpen} onOpenChange={(open) => { setCmdOpen(open); if (!open) { setCmdQuery(""); setCmdResults([]); } }}>
-        <CommandInput placeholder="Search items, checkouts, reservations, users..." value={cmdQuery} onValueChange={setCmdQuery} />
+      <CommandDialog open={cmdOpen} onOpenChange={(open) => { setCmdOpen(open); if (!open) { setCmdQuery(""); setCmdResults([]); setCmdError(null); setCmdPartialFailures(0); } }}>
+        <CommandInput placeholder="Search tag, borrower, page, setting, report..." value={cmdQuery} onValueChange={setCmdQuery} />
         <CommandList>
           {!cmdQuery.trim() && recentSearches.length > 0 && (
             <CommandGroup heading="Recent searches">
@@ -255,12 +278,33 @@ export default function AppShell({
             </CommandGroup>
           )}
           {cmdLoading && <div className="py-4 text-center text-sm text-muted-foreground" role="status" aria-live="polite">Searching...</div>}
-          {!cmdLoading && cmdQuery.trim() && cmdResults.length === 0 && (
-            <CommandEmpty>No results found.</CommandEmpty>
+          {!cmdLoading && cmdError && cmdQuery.trim() && (
+            <CommandEmpty>{cmdError === "network" ? "Search is offline. Check your connection and try again." : "Search is temporarily unavailable. Try the page shortcut or search again."}</CommandEmpty>
+          )}
+          {!cmdLoading && !cmdError && cmdQuery.trim() && cmdResults.length === 0 && (
+            <CommandEmpty>No matches. Try a tag, borrower, page name, setting, or report.</CommandEmpty>
+          )}
+          {!cmdLoading && !cmdError && cmdPartialFailures > 0 && cmdResults.length > 0 && (
+            <div className="px-3 py-2 text-xs text-muted-foreground" role="status">
+              Some result types could not load. Showing available matches.
+            </div>
+          )}
+          {cmdResults.filter((r) => r.type === "page").length > 0 && (
+            <CommandGroup heading="Go to">
+              {cmdResults.filter((r): r is PageSearchResult => r.type === "page").map((r) => (
+                <CommandItem key={r.id} value={`${r.title} ${r.subtitle} ${r.href} ${r.keywords.join(" ")}`} onSelect={() => handleCmdSelect(r.href)} className="gap-3">
+                  <ArrowRightIcon className="size-4 shrink-0 text-muted-foreground" />
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">{r.title}</div>
+                    <div className="truncate text-xs text-muted-foreground">{r.subtitle}</div>
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
           )}
           {cmdResults.filter((r) => r.type === "item").length > 0 && (
             <CommandGroup heading="Items">
-              {cmdResults.filter((r) => r.type === "item").map((r) => {
+              {cmdResults.filter((r): r is EntitySearchResult => r.type === "item").map((r) => {
                 const status = r.computedStatus ?? "AVAILABLE";
                 const isOverdue = r.activeBooking?.isOverdue ?? false;
                 const dotColor = isOverdue ? STATUS_STYLES.red.dot
@@ -279,8 +323,8 @@ export default function AppShell({
                   ? ` · Due ${new Date(r.activeBooking.endsAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
                   : "";
                 const statusLabel = isOverdue ? `Overdue — ${r.activeBooking?.requesterName}${dueLabel}`
-                  : status === "CHECKED_OUT" ? `${r.activeBooking?.requesterName}${dueLabel}`
-                  : status === "RESERVED" ? `Reserved — ${r.activeBooking?.requesterName}${dueLabel}`
+                  : status === "CHECKED_OUT" ? [r.activeBooking?.requesterName ?? "Checked out", dueLabel.replace(/^ · /, "")].filter(Boolean).join(" · ")
+                  : status === "RESERVED" ? `Reserved — ${r.activeBooking?.requesterName ?? "scheduled"}${dueLabel}`
                   : status === "MAINTENANCE" ? "In maintenance"
                   : status === "RETIRED" ? "Retired"
                   : "Available";
@@ -302,7 +346,7 @@ export default function AppShell({
             <>
               <CommandSeparator />
               <CommandGroup heading="Checkouts">
-                {cmdResults.filter((r) => r.type === "checkout").map((r) => (
+                {cmdResults.filter((r): r is EntitySearchResult => r.type === "checkout").map((r) => (
                   <CommandItem key={r.id} value={`${r.title} ${r.subtitle}`} onSelect={() => handleCmdSelect(r.href)}>
                     <ClipboardCheckIcon className="mr-2 size-4 shrink-0 text-muted-foreground" />
                     <div className="min-w-0">
@@ -318,7 +362,7 @@ export default function AppShell({
             <>
               <CommandSeparator />
               <CommandGroup heading="Reservations">
-                {cmdResults.filter((r) => r.type === "reservation").map((r) => (
+                {cmdResults.filter((r): r is EntitySearchResult => r.type === "reservation").map((r) => (
                   <CommandItem key={r.id} value={`${r.title} ${r.subtitle}`} onSelect={() => handleCmdSelect(r.href)}>
                     <CalendarCheckIcon className="mr-2 size-4 shrink-0 text-muted-foreground" />
                     <div className="min-w-0">
@@ -334,7 +378,7 @@ export default function AppShell({
             <>
               <CommandSeparator />
               <CommandGroup heading="Users">
-                {cmdResults.filter((r) => r.type === "user").map((r) => (
+                {cmdResults.filter((r): r is EntitySearchResult => r.type === "user").map((r) => (
                   <CommandItem key={r.id} value={`${r.title} ${r.subtitle}`} onSelect={() => handleCmdSelect(r.href)}>
                     <UserIcon className="mr-2 size-4 shrink-0 text-muted-foreground" />
                     <div className="min-w-0">

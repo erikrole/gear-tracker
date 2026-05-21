@@ -44,6 +44,22 @@ Last updated: 2026-05-20
 
 ## Open Items
 
+### Global Search MVP Hardening (2026-05-21)
+- [x] Audit current quick search and full search behavior against navigation, role visibility, and search-page contracts.
+- [x] Harden quick search fetch behavior so partial endpoint failures do not collapse the palette.
+- [x] Add navigation/action results for common destinations that are not entity records.
+- [x] Align empty, loading, and error states between the quick palette and `/search`.
+- [x] Update docs and run focused verification.
+
+**Review**
+- Current gaps: quick search only returns records, page destinations are not searchable, partial API failures are silent, and the palette does not explain what to try when no results appear.
+- Implemented a shared role-aware page-search catalog for core pages, staff/admin tools, settings sections, and report tabs.
+- Quick search now uses `Promise.allSettled` across entity endpoints and keeps page/record matches visible when one source fails.
+- `/search` now shares the same page catalog and partial-failure behavior; item titles avoid blank brand/model placeholders.
+- Docs added in `docs/AREA_SEARCH.md` and `docs/GAPS_AND_RISKS.md`.
+- Verified with `npx vitest run tests/search-pages.test.ts`, `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, and `npx next build`.
+- Authenticated browser smoke was blocked by local Prisma `P1000` invalid database credentials during login; the protected search UI could not be reached in-browser in this environment.
+
 ### Gear Tracker Design Language (2026-05-20)
 - [x] Slice 1: Status and accessibility quick wins.
 - [x] Slice 2: Shared operational feedback primitives.
