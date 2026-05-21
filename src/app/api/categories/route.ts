@@ -2,7 +2,7 @@ import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { ok, cachedOk, HttpError } from "@/lib/http";
+import { ok, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
@@ -47,7 +47,9 @@ export const GET = withAuth(async () => {
     itemCount: countMap.get(c.id) ?? 0,
   }));
 
-  return cachedOk({ data });
+  // Admin-mutated taxonomy: do not HTTP-cache, or a rename/delete reload can
+  // serve a stale list from the browser cache for up to the max-age window.
+  return ok({ data });
 });
 
 export const POST = withAuth(async (req, { user }) => {

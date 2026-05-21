@@ -8,8 +8,9 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { LastEditedHint } from "@/components/LastEditedHint";
 import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage } from "@/lib/errors";
 import type { LastAuditMap } from "@/hooks/use-last-audit";
-import type { TreeNode } from "./types";
+import type { Category, TreeNode } from "./types";
 import KebabMenu from "./KebabMenu";
+import MoveCategoryDialog from "./MoveCategoryDialog";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 
@@ -17,11 +18,15 @@ export default function CategoryRow({
   node,
   depth,
   lastEdited,
+  isAdmin,
+  allCategories,
   onRefresh,
 }: {
   node: TreeNode;
   depth: number;
   lastEdited: LastAuditMap;
+  isAdmin: boolean;
+  allCategories: Category[];
   onRefresh: () => void;
 }) {
   const confirm = useConfirm();
@@ -29,6 +34,7 @@ export default function CategoryRow({
   const [newName, setNewName] = useState(node.name);
   const [addingSub, setAddingSub] = useState(false);
   const [subName, setSubName] = useState("");
+  const [moving, setMoving] = useState(false);
   const [savingRename, setSavingRename] = useState(false);
   const [savingSub, setSavingSub] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -126,8 +132,9 @@ export default function CategoryRow({
   }
 
   const isChild = depth > 0;
-  const totalChildItems = node.children.reduce((s, c) => s + c.itemCount, 0);
-  const displayCount = node.itemCount + totalChildItems;
+  // Direct items only. The badge links to /items?category=<id>, which filters
+  // to exactly this category (not descendants), so the count must match.
+  const displayCount = node.itemCount;
 
   return (
     <>
@@ -170,12 +177,24 @@ export default function CategoryRow({
           <KebabMenu
             onRename={() => { setNewName(node.name); setRenaming(true); }}
             onAddSub={() => setAddingSub(true)}
+            onMove={() => setMoving(true)}
             onDelete={handleDelete}
             hasItems={node.itemCount > 0}
             hasChildren={node.children.length > 0}
+            isAdmin={isAdmin}
           />
         </div>
       </div>
+
+      {moving && (
+        <MoveCategoryDialog
+          node={node}
+          allCategories={allCategories}
+          open={moving}
+          onOpenChange={setMoving}
+          onMoved={onRefresh}
+        />
+      )}
 
       {addingSub && (
         <div className="flex items-center justify-between py-3 px-4 border-b border-border min-h-12 last:border-b-0 hover:bg-muted" style={{ paddingLeft: 24 + (depth + 1) * 24 }}>
@@ -204,6 +223,8 @@ export default function CategoryRow({
           node={child}
           depth={depth + 1}
           lastEdited={lastEdited}
+          isAdmin={isAdmin}
+          allCategories={allCategories}
           onRefresh={onRefresh}
         />
       ))}

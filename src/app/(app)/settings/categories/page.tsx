@@ -10,6 +10,7 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useFetch } from "@/hooks/use-fetch";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import { useLastAudit } from "@/hooks/use-last-audit";
 import EmptyState from "@/components/EmptyState";
 import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage } from "@/lib/errors";
@@ -24,6 +25,8 @@ export default function CategoriesPage() {
     returnTo: "/settings/categories",
     transform: (json) => (json.data as Category[]) ?? [],
   });
+  const { data: currentUser } = useCurrentUser();
+  const isAdmin = currentUser?.role === "ADMIN";
   const [search, setSearch] = useState("");
   const [sortAsc, setSortAsc] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -38,8 +41,10 @@ export default function CategoriesPage() {
   async function createRoot() {
     if (creatingRoot) return;
     setAddError("");
+    // Empty input + blur/Enter cancels silently (matches subcategory add).
     if (!newName.trim()) {
-      setAddError("Category name is required.");
+      setAdding(false);
+      setNewName("");
       return;
     }
     setCreatingRoot(true);
@@ -217,6 +222,8 @@ export default function CategoriesPage() {
                     node={node}
                     depth={0}
                     lastEdited={lastEdited}
+                    isAdmin={isAdmin}
+                    allCategories={categories ?? []}
                     onRefresh={reload}
                   />
                 ))

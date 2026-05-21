@@ -1,8 +1,17 @@
 # Audit: /settings (web) — 2026-04-25
 
 **MVP verdict:** READY — 0 P0, 0 P1 open / 11 P1 fixed; 18/19 P2 also addressed
-**Last fix pass:** 2026-04-25 — P1 slices 1–7 + P2 polish slices A–D + landing-tab memory + Locations tab shipped on `main`
+**Last fix pass:** 2026-05-21 -- Categories hardening pass (count badge correctness, role-gated delete, reparent/move, empty-blur cancel, stale-list cache fix) + settings overview cleanup (deduped /api/me, dropped stat chips) on `main`
 **Ship bar:** all staff + students, zero hiccups
+
+## 2026-05-21 Categories hardening (post-audit follow-up)
+
+- [x] **[Flows] Count badge undercounted deep trees and mismatched its own link.** Summed node + direct children only (grandchildren dropped); clicking it filters `/items` to the exact category, not the rollup. → Badge now shows direct items only (`CategoryRow.tsx`).
+- [x] **[Hardening] STAFF got a silent 403 on Delete.** `category.delete` is ADMIN-only (`permissions.ts:38`) but the tab is STAFF-visible and the kebab enabled Delete by item/child count only. → Threaded `isAdmin` via `useCurrentUser`; Delete disabled for non-admins with inline reason.
+- [x] **[Hardening] Stale list after rename/delete.** `GET /api/categories` used `cachedOk` (max-age 60); POST invalidates the URL but PATCH/DELETE hit a different URL, so reload could serve a stale list. → Switched to `ok` (no HTTP cache for admin-mutated taxonomy).
+- [x] **[Flows] Inconsistent empty-blur on root Add.** Blurring the empty root add-input errored "Category name is required" while subcategory add cancelled silently. → Root add now cancels silently on empty, matching `saveSub`.
+- [x] **[Gap] No reparent in the UI.** PATCH supported `parentId` with cycle/depth guards but there was no way to move a mis-nested category. → New `MoveCategoryDialog` (combobox of valid targets, self+descendants excluded).
+- [x] **[Polish] Settings overview duplicated `/api/me` and showed vanity stat chips.** → Overview shares `useCurrentUser`; stat chips removed.
 
 > Settings is admin/staff-only — students never see it. Ship-bar still applies for staff/admins (zero hiccups).
 

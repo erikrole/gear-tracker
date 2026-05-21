@@ -6,7 +6,6 @@ import {
   Bell,
   CalendarDays,
   Database,
-  Eye,
   Monitor,
   Package,
   RotateCcw,
@@ -27,12 +26,10 @@ import {
   type SettingsGroup,
   type SettingsSection,
 } from "@/lib/nav-sections";
-import { useFetch } from "@/hooks/use-fetch";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 const STORAGE_KEY = "settings:last-tab";
 const VALID_HREFS = new Set(SETTINGS_SECTIONS.map((section) => section.href));
-
-type MeData = { user?: { role?: string } };
 
 const GROUP_META: Record<SettingsGroup, {
   description: string;
@@ -65,13 +62,8 @@ const GROUP_META: Record<SettingsGroup, {
 };
 
 export default function SettingsPage() {
-  const { data, loading } = useFetch<MeData>({
-    url: "/api/me",
-    returnTo: "/settings",
-    transform: (json) => json as unknown as MeData,
-    refetchOnFocus: false,
-  });
-  const role = data?.user?.role;
+  const { data: currentUser, isLoading: loading } = useCurrentUser();
+  const role = currentUser?.role;
   const [lastHref, setLastHref] = useState<string | null>(null);
 
   useEffect(() => {
@@ -130,15 +122,6 @@ export default function SettingsPage() {
               <p className="max-w-3xl text-sm text-muted-foreground text-pretty">
                 A role-aware map of the settings that shape daily gear operations. Use the sections below when you know the domain, or search when you know the intent.
               </p>
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2 py-1">
-                  <Eye className="size-3.5" />
-                  <span className="tabular-nums">{visibleSections.length}</span> visible sections
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2 py-1">
-                  <span className="tabular-nums">{groupedSections.length}</span> groups
-                </span>
-              </div>
             </div>
             {lastSection && (
               <Button asChild variant="outline" size="sm" className="min-h-10">

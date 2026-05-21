@@ -71,10 +71,12 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - `GET/PUT /api/settings/reservation-rules` (ADMIN, rate-limited). Stored in `SystemConfig.reservation_rules`. Missing key falls back to defaults.
 
 ### Categories (`/settings/categories`)
-- Hierarchical tree of equipment categories with inline rename, subcategory creation, and delete.
+- Hierarchical tree of equipment categories with inline rename, subcategory creation, move (reparent), and delete.
 - Search filters the tree (preserves parent nodes for structure).
 - Sort toggles A→Z / Z→A.
-- Delete is guarded: blocked if category has items or children.
+- Move opens a parent picker that excludes the category and its own descendants (server still enforces cycle/depth limits).
+- Item-count badge reflects items linked **directly** to that category, matching the `/items?category=` filter it links to (descendants are not rolled up).
+- Delete is guarded: blocked if category has items or children, and STAFF cannot delete (ADMIN-only). The kebab item is disabled with an inline reason in those cases.
 - Duplicate names are blocked within the same tree level, and rows show last audit actor/time when audit history exists.
 
 ### Departments (`/settings/departments`)
@@ -178,6 +180,7 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages.
 
 ## Change Log
+- 2026-05-21: Categories hardening pass. (1) Item-count badge now shows direct items only. It previously summed the node plus its direct children but dropped grandchildren, and the number never matched the exact-category `/items` view it links to. (2) Delete is role-gated in the UI: STAFF (who can see the Categories tab and rename/add) no longer get a silent 403 on Delete; the kebab item is disabled with an inline reason ("admin only" / "has items" / "has subcategories"). (3) New Move action reparents a category via a combobox of valid targets (self + descendants excluded; server enforces cycle/depth). (4) Empty root "Add" input now cancels silently on blur/Enter instead of throwing "Category name is required", matching subcategory add. (5) `GET /api/categories` switched from `cachedOk` to `ok`, since the 60s browser cache could serve a stale list after a rename or delete reload. Settings overview also dropped a duplicate `/api/me` fetch (now shares `useCurrentUser`) and removed the vanity "N sections / N groups" stat chips.
 - 2026-05-21: Audit Log viewer (roadmap slice 9). New `/settings/audit` (System, ADMIN) -- admin live-tail feed of all system actions. Keyset-paginated `GET /api/audit` (60/min) with `cursor`/`after`/`entityType`/`action`/`from`/`to`/`limit` params. UI has filter bar, "Load older entries" pagination, 30-second auto-refresh polling via `?after=<newestCursor>`, new-row count banner, and retention notice. Cursor is a client-built base64url encoding of `{createdAt, id}` matching the server format.
 - 2026-05-21: Notification granularity (roadmap slice 7). Added per-category toggles to Settings > Notifications: Checkout due reminders, Checkout overdue alerts, Reservation updates, License expiry reminders. Stored in `notification_prefs.categories`; missing/null keys default to true (no change for existing users). Category gating threaded through `sendPushToUser`/`sendEmailToUser` in `notifications.ts` and `licenses.ts`. In-app notifications bypass category gating and always fire.
 - 2026-05-21: Checkout Policies + Reservation Rules (roadmap slices 5 + 6). New `/settings/checkout-policies` (Inventory, ADMIN) and `/settings/reservation-rules` (Scheduling, ADMIN). Default loan duration and overdue grace period stored in `SystemConfig.checkout_policies`; advance booking window, no-show expiry (previously hardcoded 48h), and max concurrent reservations stored in `SystemConfig.reservation_rules`. Grace period now applied in both the Overdue list filter and the escalation cron. No-show expiry loaded at cron run time (no redeploy needed after a config change). New `GET/PUT /api/settings/checkout-policies` and `GET/PUT /api/settings/reservation-rules` (ADMIN, rate-limited, audit-logged).
