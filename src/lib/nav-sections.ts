@@ -43,6 +43,14 @@ export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSection> = [
     keywords: ["name", "phone", "avatar", "photo", "area", "title", "slack", "athletics email"],
   },
   {
+    href: "/settings/security",
+    label: "Security",
+    requiredRole: "STUDENT",
+    group: "Personal",
+    description: "Change your password and manage active sessions.",
+    keywords: ["password", "sessions", "sign out", "revoke", "devices", "logout"],
+  },
+  {
     href: "/settings/notifications",
     label: "Notifications",
     requiredRole: "STUDENT",

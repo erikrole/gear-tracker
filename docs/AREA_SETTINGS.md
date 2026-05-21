@@ -21,6 +21,15 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 
 ## Sub-Pages
 
+### Security (`/settings/security`) -- Personal
+- Change password: verify current password, set new one (min 8 chars), optional "sign out of all other devices" checkbox. Client-side confirm-password match before submit.
+- Active sessions list: shows each non-expired session with creation date, expiry date, and "This device" badge for the current session. Per-session "Sign out" button (cannot revoke the current session). "Sign out all other devices" bulk action.
+- `POST /api/me/change-password` (5/min rate limit -- brute-force protection; verifies bcrypt, sets new hash, optionally deletes other sessions).
+- `GET /api/me/sessions` (30/min; lists non-expired sessions with `isCurrent` flag -- tokenHash never exposed to client).
+- `DELETE /api/me/sessions/:id` (10/min; rejects current session with 400, confirms ownership before delete).
+- `DELETE /api/me/sessions` (10/min; revokes all sessions except current).
+- Available to every authenticated user (STUDENT included).
+
 ### Overview (`/settings`)
 - Role-aware control map for every visible settings section.
 - Groups settings into Personal, People, Inventory, Scheduling, Devices, and System with short descriptions.
@@ -146,6 +155,7 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages.
 
 ## Change Log
+- 2026-05-21: Security settings (roadmap slice 4). New `/settings/security` (Personal, all roles) adds change-password form (current password verify, new password min-8, confirm, optional sign-out-others checkbox) and active sessions list (per-session sign-out, bulk sign-out-all-others). New `POST /api/me/change-password` (5/min), `GET/DELETE /api/me/sessions` (30/10 per min), `DELETE /api/me/sessions/:id` (10/min). Current session identified server-side by hashing the cookie token -- tokenHash never exposed to client.
 - 2026-05-21: Profile settings (roadmap slice 3). New `/settings/profile` (Personal, all roles) lets every authenticated user edit their name, phone, primary area, title, athletics email, and Slack handle. Avatar managed via the existing user avatar endpoint. New `GET/PUT /api/me/profile` -- rate-limited, audit-logged, 409 on duplicate athleticsEmail.
 - 2026-05-21: Data Export settings (roadmap slice 2). New `/settings/data-export` (System, ADMIN) surfaces all five CSV exports in one place. Items, Users, and Licenses reuse existing endpoints; new `GET /api/bookings/export` and `GET /api/audit/export` added. All capped at 5,000 rows with truncation headers + toast warning.
 - 2026-05-20: Kiosk always-on sessions (Settings roadmap slice 1). Removed the 7-day kiosk session expiry — `createKioskSession` no longer stamps `sessionExpiresAt` and `requireKiosk` no longer rejects on elapsed time, so a bound iPad stays active until an admin deactivates it. The kiosk cookie is now rolled forward on every authenticated kiosk request (~395-day expiry) to survive browser cookie-lifetime caps. Deactivation still clears `sessionToken`, ending the session at once. Removed the now-dead "Session expiring" badge, "Session expires" footer, and `sessionExpiresAt` exposure from the kiosk-devices list. The `session_expires_at` column is retained (unused, nullable) — a pure-hygiene drop can follow later.
