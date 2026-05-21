@@ -1,12 +1,22 @@
 export type AttachmentKind = "sd-card" | "camera-rig" | "misc-part";
 
 export type AttachmentLike = {
+  id?: string;
   assetTag: string;
   name?: string | null;
   type?: string | null;
   brand?: string | null;
   model?: string | null;
+  parentAssetId?: string | null;
+  computedStatus?: string | null;
+  status?: string | null;
 };
+
+export type AttachmentCandidateState =
+  | "available"
+  | "self"
+  | "already-attached"
+  | "already-child";
 
 export type AttachmentGroup = {
   key: AttachmentKind;
@@ -103,4 +113,53 @@ export function getSdCardSlotLabel(item: AttachmentLike, parentAssetTag?: string
   const slot = match[2];
   if (!cameraNumber || !slot) return null;
   return `Camera ${cameraNumber}, Slot ${slot.toUpperCase()}`;
+}
+
+export function getAttachmentDisplayName(item: AttachmentLike): string {
+  const name = item.name?.trim();
+  if (name) return name;
+  const modelName = [item.brand, item.model].map((part) => part?.trim()).filter(Boolean).join(" ");
+  return modelName || item.type?.trim() || "Untitled item";
+}
+
+export function getAttachmentCandidateState(
+  item: AttachmentLike,
+  parentAssetId: string,
+  attachedIds: Set<string>,
+): AttachmentCandidateState {
+  if (item.id === parentAssetId) return "self";
+  if (item.id && attachedIds.has(item.id)) return "already-attached";
+  if (item.parentAssetId) return "already-child";
+  return "available";
+}
+
+export function getAttachmentCandidateBlockedReason(state: AttachmentCandidateState): string | null {
+  switch (state) {
+    case "self":
+      return "This is the parent item.";
+    case "already-attached":
+      return "Already attached to this item.";
+    case "already-child":
+      return "Already attached to another parent.";
+    case "available":
+      return null;
+  }
+}
+
+export function getAttachmentStatusWarning(item: AttachmentLike): string | null {
+  const status = item.computedStatus || item.status;
+  switch (status) {
+    case "CHECKED_OUT":
+      return "Currently checked out. Confirm before tying it to a parent.";
+    case "PENDING_PICKUP":
+      return "Awaiting pickup. Confirm before tying it to a parent.";
+    case "RESERVED":
+      return "Reserved soon. Confirm before tying it to a parent.";
+    case "MAINTENANCE":
+      return "In maintenance. It can be attached, but it still needs attention.";
+    case "RETIRED":
+      return "Retired. Attaching will keep it hidden from normal booking flows.";
+    default:
+      return null;
+  }
 }

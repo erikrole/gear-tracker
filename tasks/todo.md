@@ -1263,7 +1263,7 @@ Last updated: 2026-05-20
 - [ ] **Kiosk admin override visibility** — Preserve admin override, but make battery-related override use visible and audit-friendly in the pickup flow.
 - [ ] **Booking-create battery guidance polish** — Make compatible battery warnings feel like actionable guidance instead of generic alerts, without requiring unit selection before pickup.
 - [ ] **Booking-create optional gear suggestions** — Suggest compatible support gear such as batteries, media, readers, and cages from selected camera context.
-- [ ] **Attachment management polish** — Improve camera attachment attach, detach, and replace flows while keeping slot identity display-only for now.
+- [x] **Attachment management polish** — Improved camera attachment add, detach, and move-parent flows while keeping slot identity display-only for now. Shipped a structured candidate dialog, status warnings, clearer detach copy, parent count hover text, and hidden-attachment filter copy.
 - [x] **Battery audit/reporting** — Add missing batteries by unit, loss rate by family, unit checkout history, repeated missing-unit patterns, and aging checked-out battery reporting.
 - [ ] **Inventory health dashboard** — Add operational health signals for low stock by location, missing camera-system attachments, batteries below threshold by camera family, and retired/lost trends.
 - [ ] **Attachment slot schema decision** — Revisit nullable `attachmentSlot` only if slot filters, required attachment checks, completeness reports, or slot-level maintenance workflows justify schema work.

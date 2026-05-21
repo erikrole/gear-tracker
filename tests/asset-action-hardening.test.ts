@@ -42,6 +42,7 @@ import { db } from "@/lib/db";
 import { createAuditEntry, createAuditEntryTx } from "@/lib/audit";
 import { POST as retireAsset } from "@/app/api/assets/[id]/retire/route";
 import { POST as favoriteAsset } from "@/app/api/assets/[id]/favorite/route";
+import { PATCH as moveAccessory } from "@/app/api/assets/[id]/accessories/route";
 
 const assetParams = { params: Promise.resolve({ id: "asset-1" }) };
 
@@ -52,6 +53,18 @@ function post(path: string) {
       host: "app.example.com",
       origin: "https://app.example.com",
     },
+  });
+}
+
+function patch(path: string, body: Record<string, unknown>) {
+  return new Request(`https://app.example.com${path}`, {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json",
+      host: "app.example.com",
+      origin: "https://app.example.com",
+    },
+    body: JSON.stringify(body),
   });
 }
 
@@ -130,5 +143,42 @@ describe("asset action hardening", () => {
     expect(res.status).toBe(404);
     expect(db.favoriteItem.findUnique).not.toHaveBeenCalled();
     expect(db.favoriteItem.create).not.toHaveBeenCalled();
+  });
+
+  it("moves an accessory to a new standalone parent and audits the previous parent", async () => {
+    const newParentId = "ckm1ii0vw0000a01s6z6c3q8v";
+    mockTx.asset.findUnique
+      .mockResolvedValueOnce({ id: "child-1", parentAssetId: "old-parent" })
+      .mockResolvedValueOnce({ id: newParentId, parentAssetId: null });
+    mockTx.asset.update.mockResolvedValue({ id: "child-1", parentAssetId: newParentId });
+
+    const res = await moveAccessory(
+      patch("/api/assets/child-1/accessories", { newParentAssetId: newParentId }),
+      { params: Promise.resolve({ id: "child-1" }) },
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockTx.asset.findUnique).toHaveBeenNthCalledWith(1, {
+      where: { id: "child-1" },
+      select: { id: true, parentAssetId: true },
+    });
+    expect(mockTx.asset.findUnique).toHaveBeenNthCalledWith(2, {
+      where: { id: newParentId },
+      select: { id: true, parentAssetId: true },
+    });
+    expect(mockTx.asset.update).toHaveBeenCalledWith({
+      where: { id: "child-1" },
+      data: { parentAssetId: newParentId },
+    });
+    expect(createAuditEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorId: "staff-1",
+        entityType: "asset",
+        entityId: "child-1",
+        action: "accessory_moved",
+        before: { parentAssetId: "old-parent" },
+        after: { parentAssetId: newParentId },
+      }),
+    );
   });
 });

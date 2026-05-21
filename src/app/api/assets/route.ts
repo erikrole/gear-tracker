@@ -66,6 +66,7 @@ export const GET = withAuth(async (req, { user }) => {
   const q = searchParams.get("q")?.trim();
   const qr = searchParams.get("qr")?.trim(); // exact QR code value for scan lookup
   const showAccessories = searchParams.get("show_accessories") === "true";
+  const includeAccessories = searchParams.get("include_accessories") === "true";
   const favoritesOnly = searchParams.get("favorites_only") === "true";
 
   // Support multi-value filters: ?status=A&status=B or single ?status=A
@@ -97,8 +98,9 @@ export const GET = withAuth(async (req, { user }) => {
 
   // Build base where clause (non-status filters)
   // QR scan lookup (?qr=) must find accessories too, so skip the parentAssetId filter
+  // Attachment candidate search also needs all rows so the UI can explain blocked children.
   const baseWhere: Prisma.AssetWhereInput = {
-    ...(qr ? {} : showAccessories ? { parentAssetId: { not: null } } : { parentAssetId: null }),
+    ...(qr || includeAccessories ? {} : showAccessories ? { parentAssetId: { not: null } } : { parentAssetId: null }),
     ...(favoritesOnly ? { favoritedBy: { some: { userId: user.id } } } : {}),
     ...(locationIds.length === 1 ? { locationId: locationIds[0] } : {}),
     ...(locationIds.length > 1 ? { locationId: { in: locationIds } } : {}),
@@ -357,7 +359,7 @@ export const GET = withAuth(async (req, { user }) => {
     })
   );
 
-  // Fetch bulk items (only on first page and when not filtering accessories)
+  // Fetch bulk items (only on first page and when not filtering attachment-related rows)
   let bulkItems: Array<{
     id: string;
     kind: "bulk";
@@ -384,7 +386,7 @@ export const GET = withAuth(async (req, { user }) => {
     binQrCodeValue: string;
   }> = [];
 
-  if (offset === 0 && !showAccessories) {
+  if (offset === 0 && !showAccessories && !includeAccessories) {
     const bulkWhere: Prisma.BulkSkuWhereInput = {
       active: true,
       ...(locationIds.length === 1 ? { locationId: locationIds[0] } : {}),

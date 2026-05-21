@@ -157,7 +157,7 @@ export function ItemsToolbar({
     ...(showAccessories
       ? [{
         key: "attachments",
-        label: "Attachments only",
+        label: "Hidden attachments only",
         onRemove: () => onShowAccessoriesChange(false),
       }]
       : []),
@@ -297,7 +297,7 @@ export function ItemsToolbar({
               className="h-4 w-7 [&>span]:size-3 [&>span]:data-[state=checked]:translate-x-3"
             />
             <Label htmlFor="show-accessories" className="cursor-pointer whitespace-nowrap text-xs text-muted-foreground">
-              Attachments only
+              Hidden attachments only
             </Label>
           </div>
         </div>

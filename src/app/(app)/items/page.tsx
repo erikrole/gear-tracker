@@ -615,8 +615,12 @@ export default function ItemsPage() {
         ) : visibleRowCount === 0 ? (
           <EmptyState
             icon="search"
-            title="No items match your filters"
-            description="Try adjusting your search or filters."
+            title={filters.showAccessories ? "No hidden attachments match" : "No items match your filters"}
+            description={
+              filters.showAccessories
+                ? "Attachments are child items hidden from the normal list. Clear this filter to return to parent items and item families."
+                : "Try adjusting your search or filters."
+            }
             actionLabel="Clear filters"
             onAction={() => filters.clearAllFilters()}
           />

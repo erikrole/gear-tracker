@@ -346,9 +346,18 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
                   {item.assetTag}
                 </span>
                 {(item._count?.accessories ?? 0) > 0 && (
-                  <Badge variant="secondary" size="sm" className="shrink-0 rounded-sm px-1 font-normal">
-                    +{item._count!.accessories}
-                  </Badge>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge variant="secondary" size="sm" className="shrink-0 rounded-sm px-1 font-normal">
+                        +{item._count!.accessories}
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {item._count!.accessories === 1
+                        ? "1 attached child item hidden from normal booking lists"
+                        : `${item._count!.accessories} attached child items hidden from normal booking lists`}
+                    </TooltipContent>
+                  </Tooltip>
                 )}
               </div>
               {subtitle && (

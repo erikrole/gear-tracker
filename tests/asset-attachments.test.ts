@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  getAttachmentCandidateBlockedReason,
+  getAttachmentCandidateState,
+  getAttachmentDisplayName,
   getAttachmentKind,
+  getAttachmentStatusWarning,
   getSdCardSlotLabel,
   groupAttachments,
 } from "@/lib/asset-attachments";
@@ -29,5 +33,34 @@ describe("asset attachment helpers", () => {
     ]);
 
     expect(groups.map((group) => group.key)).toEqual(["sd-card", "camera-rig", "misc-part"]);
+  });
+
+  it("classifies attachment search candidates before mutation", () => {
+    const attachedIds = new Set(["child-1"]);
+
+    expect(getAttachmentCandidateState({ id: "parent-1", assetTag: "CAM-1" }, "parent-1", attachedIds)).toBe("self");
+    expect(getAttachmentCandidateState({ id: "child-1", assetTag: "SD-1" }, "parent-1", attachedIds)).toBe("already-attached");
+    expect(getAttachmentCandidateState({ id: "child-2", assetTag: "SD-2", parentAssetId: "other-parent" }, "parent-1", attachedIds)).toBe("already-child");
+    expect(getAttachmentCandidateState({ id: "loose-1", assetTag: "CAGE-1", parentAssetId: null }, "parent-1", attachedIds)).toBe("available");
+  });
+
+  it("explains blocked attachment candidates", () => {
+    expect(getAttachmentCandidateBlockedReason("self")).toBe("This is the parent item.");
+    expect(getAttachmentCandidateBlockedReason("already-attached")).toBe("Already attached to this item.");
+    expect(getAttachmentCandidateBlockedReason("already-child")).toBe("Already attached to another parent.");
+    expect(getAttachmentCandidateBlockedReason("available")).toBeNull();
+  });
+
+  it("warns when attaching operationally busy candidates", () => {
+    expect(getAttachmentStatusWarning({ assetTag: "CAM-1", computedStatus: "CHECKED_OUT" })).toContain("checked out");
+    expect(getAttachmentStatusWarning({ assetTag: "CAM-2", computedStatus: "RESERVED" })).toContain("Reserved");
+    expect(getAttachmentStatusWarning({ assetTag: "CAM-3", status: "MAINTENANCE" })).toContain("maintenance");
+    expect(getAttachmentStatusWarning({ assetTag: "CAM-4", computedStatus: "AVAILABLE" })).toBeNull();
+  });
+
+  it("builds stable attachment display names", () => {
+    expect(getAttachmentDisplayName({ assetTag: "SD-1", name: "Angelbird 128GB" })).toBe("Angelbird 128GB");
+    expect(getAttachmentDisplayName({ assetTag: "CAGE-1", brand: "SmallRig", model: "FX3 Cage" })).toBe("SmallRig FX3 Cage");
+    expect(getAttachmentDisplayName({ assetTag: "PART-1", type: "Adapter" })).toBe("Adapter");
   });
 });

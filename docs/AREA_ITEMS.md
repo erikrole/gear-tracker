@@ -102,7 +102,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 3. Kebab menu includes state-appropriate actions by role.
 4. Multi-select is allowed for future bulk actions; bulk mutations are out of scope for V1.
 5. Mobile list interactions should avoid deep category drilling as the primary path, favoring search and direct item rows.
-6. Attachments are hidden by default and only shown through the Attachments-only filter or direct scan/search.
+6. Attachments are hidden by default and only shown through the Hidden attachments only filter or direct scan/search.
 
 ### Pagination
 1. Show `Showing X to Y of Z`.
@@ -397,6 +397,7 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-05-21: **Attachments MVP hardening:** Item detail attachment management now uses a structured add/move dialog with searchable candidate states, status/location/category context, blocked-candidate explanations, and warnings for busy items. Child attachment detail now exposes the existing move-parent workflow, detach copy names the child and parent while pending states prevent repeat clicks, attachment rows show image/status/slot context, and `/items` makes hidden child attachments clearer through filter copy and informative parent count hover text. No schema change; the slot-schema decision remains deferred.
 - 2026-05-21: Labels and Search target audit raised compact clear/open/view controls to the 40px operational target baseline while preserving their focused print and global-command surface shapes.
 - 2026-05-21: **Design language slices 25-26:** Image-search result selection now exposes visible keyboard focus and 40px source-link targets. Item detail scan identity controls now use explicit keyboard-visible 40px QR/serial copy buttons, and the QR preview button exposes a focus ring.
 - 2026-05-20: **Design language slice 23:** Item detail image edit/add buttons now show visible focus rings and reveal the edit affordance on keyboard focus, not only hover.
