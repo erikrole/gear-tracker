@@ -28,6 +28,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { shiftWorkerLabel } from "@/lib/shift-display";
 
 /* ───── Types ───── */
 
@@ -44,6 +45,9 @@ type ShiftAssignment = {
   id: string;
   status: string;
   notes: string | null;
+  callStartsAt?: string | null;
+  callEndsAt?: string | null;
+  callNote?: string | null;
   hasConflict: boolean;
   conflictNote: string | null;
   attended: boolean | null;
@@ -58,6 +62,8 @@ type Shift = {
   workerType: string;
   startsAt: string;
   endsAt: string;
+  callStartsAt?: string | null;
+  callEndsAt?: string | null;
   notes: string | null;
   assignments: ShiftAssignment[];
 };
@@ -401,7 +407,7 @@ export default function ShiftDetailPanel({
 
   function handleAddShift(area: string, workerType: string) {
     if (!group) return;
-    const label = workerType === "FT" ? "Full-time" : "Student";
+    const label = shiftWorkerLabel(workerType);
     mutate(`add-${area}`, `/api/shift-groups/${group.id}/shifts`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

@@ -57,6 +57,20 @@ Implementation: `src/lib/services/notifications.ts`
 - Staff-wide claim fanout and direct-assignment emails are out of scope.
 - Implementation: `src/lib/services/shift-trades.ts` + `src/lib/services/shift-trade-emails.ts`
 
+## Shift Schedule Triggers (Implemented 2026-05-21)
+
+| Event | Type | Recipient | Channels |
+|---|---|---|---|
+| New direct assignment | `shift_assignment_new` | Assignee | In-app + email + push |
+| Approved request | `shift_assignment_approved` | Assignee | In-app + email + push |
+| Removed assignment | `shift_assignment_removed` | Assignee | In-app + email + push |
+| Shift call-time changed | `shift_call_time_changed` | Active assignee | In-app + email + push |
+| Personal call-time changed | `shift_personal_call_time_changed` | Assignee | In-app + email + push |
+
+- Copy uses Staff and Student labels plus the effective call time.
+- Deduplication includes assignment id, event type, and effective call window so retries do not duplicate unchanged messages.
+- Implementation: `createShiftScheduleNotification` in `src/lib/services/notifications.ts`.
+
 ## Badge Award Triggers (Implemented 2026-05-09)
 
 | Event | Type | Recipient | Channels |
@@ -196,6 +210,7 @@ Current behavior:
 | `EMAIL_FROM` | No | From address for transactional email. Default: `Gear Tracker <noreply@gear-tracker.app>` |
 
 ## Change Log
+- 2026-05-21: Shift schedule notifications now cover new assignments, approved requests, removed assignments, shift call-time changes, and personal call-time changes. Copy spells out Staff or Student and includes the effective call time.
 - 2026-05-21: Design-language cleanup moved notification summary metrics to the shared `OperationalMetricCard` primitive and raised notification-center header, retry, destination, and mark-read actions to the 40px operational target baseline.
 - 2026-05-12: iOS notification routing now recognizes `badge_awarded` inbox rows and opens the awarded user's native profile from the notification payload's `userId`. Badge award delivery remains persistent in-app only, with no push, email, or toast fanout.
 - 2026-05-12: Security audit patch. `GET /api/cron/notifications` now uses partial-failure handling across overdue, license nag, and license-expiry jobs so one rejected job no longer drops successful notification work.

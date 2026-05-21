@@ -12,6 +12,8 @@ const addShiftSchema = z.object({
   workerType: z.nativeEnum(ShiftWorkerType).default("ST"),
   startsAt: z.string().optional(),
   endsAt: z.string().optional(),
+  callStartsAt: z.string().optional().nullable(),
+  callEndsAt: z.string().optional().nullable(),
   notes: z.string().max(5000).optional(),
 });
 
@@ -22,7 +24,10 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   const body = addShiftSchema.parse(await req.json());
   const overrideStartsAt = parseOptionalDate(body.startsAt, "startsAt");
   const overrideEndsAt = parseOptionalDate(body.endsAt, "endsAt");
+  const callStartsAt = parseOptionalDate(body.callStartsAt ?? undefined, "callStartsAt");
+  const callEndsAt = parseOptionalDate(body.callEndsAt ?? undefined, "callEndsAt");
   assertDateOrder(overrideStartsAt, overrideEndsAt, "endsAt must be after startsAt", { allowEqual: false });
+  assertDateOrder(callStartsAt, callEndsAt, "callEndsAt must be after callStartsAt", { allowEqual: false });
 
   const result = await db.$transaction(async (tx) => {
     const group = await tx.shiftGroup.findUnique({
@@ -42,6 +47,8 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
         workerType: body.workerType,
         startsAt,
         endsAt,
+        callStartsAt,
+        callEndsAt,
         notes: body.notes,
       },
     });

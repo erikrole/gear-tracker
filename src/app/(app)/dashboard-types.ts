@@ -100,8 +100,12 @@ export type MyShift = {
   id: string;
   area: string;
   workerType: string;
+  workerLabel: string;
   startsAt: string;
   endsAt: string;
+  callStartsAt: string;
+  callEndsAt: string;
+  callNote: string | null;
   event: {
     id: string;
     summary: string;
@@ -136,8 +140,12 @@ export type MyEventWork = {
     id: string;
     area: string;
     workerType: string;
+    workerLabel: string;
     startsAt: string;
     endsAt: string;
+    callStartsAt: string;
+    callEndsAt: string;
+    callNote: string | null;
   };
   gearStatus: string;
   gearBookings: BookingSummary[];

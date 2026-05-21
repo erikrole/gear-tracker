@@ -36,7 +36,12 @@ export default function ShiftConfigTable({
   configs: SportConfig[];
   saving: string | null;
   onToggleActive: (sportCode: string) => void;
-  onUpdateShift: (sportCode: string, area: string, field: "homeCount" | "awayCount", value: number) => void;
+  onUpdateShift: (
+    sportCode: string,
+    area: string,
+    field: "homeStaffCount" | "homeStudentCount" | "awayStaffCount" | "awayStudentCount",
+    value: number,
+  ) => void;
   onUpdateOffset: (sportCode: string, field: "shiftStartOffset" | "shiftEndOffset", value: number) => void;
 }) {
   function getConfig(sportCode: string) {
@@ -56,11 +61,18 @@ export default function ShiftConfigTable({
     return codes.some((c) => getConfig(c)?.active);
   }
 
-  function getShiftCount(sportCode: string, area: string, field: "homeCount" | "awayCount"): number {
+  function getShiftCount(
+    sportCode: string,
+    area: string,
+    field: "homeStaffCount" | "homeStudentCount" | "awayStaffCount" | "awayStudentCount",
+  ): number {
     const config = getConfig(sportCode);
     if (!config) return 0;
     const sc = config.shiftConfigs.find((s) => s.area === area);
-    return sc ? sc[field] : 0;
+    if (!sc) return 0;
+    if (field === "homeStudentCount") return sc.homeStudentCount ?? sc.homeCount ?? 0;
+    if (field === "awayStudentCount") return sc.awayStudentCount ?? sc.awayCount ?? 0;
+    return sc[field] ?? 0;
   }
 
   return (
@@ -105,8 +117,15 @@ export default function ShiftConfigTable({
                       <tr>
                         <th className="w-24"></th>
                         {AREAS.map((a) => (
-                          <th key={a} className="text-center">{AREA_LABELS[a]}</th>
+                          <th key={a} className="text-center" colSpan={2}>{AREA_LABELS[a]}</th>
                         ))}
+                      </tr>
+                      <tr>
+                        <th></th>
+                        {AREAS.flatMap((a) => [
+                          <th key={`${a}-staff`} className="text-center normal-case">Staff</th>,
+                          <th key={`${a}-student`} className="text-center normal-case">Student</th>,
+                        ])}
                       </tr>
                     </thead>
                     <tbody>
@@ -114,41 +133,71 @@ export default function ShiftConfigTable({
                         <td>
                           <Badge variant="green" size="sm">Home</Badge>
                         </td>
-                        {AREAS.map((area) => (
-                          <td key={area} className="text-center">
+                        {AREAS.flatMap((area) => [
+                          <td key={`${area}-home-staff`} className="text-center">
                             <Input
                               type="number"
                               min={0}
                               max={20}
-                              value={getShiftCount(primaryCode, area, "homeCount")}
+                              value={getShiftCount(primaryCode, area, "homeStaffCount")}
                               onChange={(e) =>
-                                onUpdateShift(primaryCode, area, "homeCount", Math.max(0, parseInt(e.target.value) || 0))
+                                onUpdateShift(primaryCode, area, "homeStaffCount", Math.max(0, parseInt(e.target.value) || 0))
                               }
                               className="w-14 text-center inline-block"
                               disabled={saving?.startsWith(primaryCode) ?? false}
+                              aria-label={`${group.label} ${AREA_LABELS[area]} home Staff count`}
                             />
-                          </td>
-                        ))}
+                          </td>,
+                          <td key={`${area}-home-student`} className="text-center">
+                            <Input
+                              type="number"
+                              min={0}
+                              max={20}
+                              value={getShiftCount(primaryCode, area, "homeStudentCount")}
+                              onChange={(e) =>
+                                onUpdateShift(primaryCode, area, "homeStudentCount", Math.max(0, parseInt(e.target.value) || 0))
+                              }
+                              className="w-14 text-center inline-block"
+                              disabled={saving?.startsWith(primaryCode) ?? false}
+                              aria-label={`${group.label} ${AREA_LABELS[area]} home Student count`}
+                            />
+                          </td>,
+                        ])}
                       </tr>
                       <tr>
                         <td>
                           <Badge variant="orange" size="sm">Away</Badge>
                         </td>
-                        {AREAS.map((area) => (
-                          <td key={area} className="text-center">
+                        {AREAS.flatMap((area) => [
+                          <td key={`${area}-away-staff`} className="text-center">
                             <Input
                               type="number"
                               min={0}
                               max={20}
-                              value={getShiftCount(primaryCode, area, "awayCount")}
+                              value={getShiftCount(primaryCode, area, "awayStaffCount")}
                               onChange={(e) =>
-                                onUpdateShift(primaryCode, area, "awayCount", Math.max(0, parseInt(e.target.value) || 0))
+                                onUpdateShift(primaryCode, area, "awayStaffCount", Math.max(0, parseInt(e.target.value) || 0))
                               }
                               className="w-14 text-center inline-block"
                               disabled={saving?.startsWith(primaryCode) ?? false}
+                              aria-label={`${group.label} ${AREA_LABELS[area]} away Staff count`}
                             />
-                          </td>
-                        ))}
+                          </td>,
+                          <td key={`${area}-away-student`} className="text-center">
+                            <Input
+                              type="number"
+                              min={0}
+                              max={20}
+                              value={getShiftCount(primaryCode, area, "awayStudentCount")}
+                              onChange={(e) =>
+                                onUpdateShift(primaryCode, area, "awayStudentCount", Math.max(0, parseInt(e.target.value) || 0))
+                              }
+                              className="w-14 text-center inline-block"
+                              disabled={saving?.startsWith(primaryCode) ?? false}
+                              aria-label={`${group.label} ${AREA_LABELS[area]} away Student count`}
+                            />
+                          </td>,
+                        ])}
                       </tr>
                     </tbody>
                   </table>
@@ -156,7 +205,7 @@ export default function ShiftConfigTable({
 
                 {/* Call time config */}
                 <div className="flex flex-wrap items-center gap-4 pt-1">
-                  <span className="text-sm text-muted-foreground font-medium">Call time</span>
+                  <span className="text-sm text-muted-foreground font-medium">Default call time</span>
                   <div className="flex items-center gap-2">
                     <Select
                       value={String(config?.shiftStartOffset ?? 60)}

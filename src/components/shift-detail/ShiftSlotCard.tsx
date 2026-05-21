@@ -17,10 +17,12 @@ import {
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { AlertTriangle, CheckIcon, MinusIcon, PlusIcon, XIcon } from "lucide-react";
 import { UserAvatarPicker, type PickerUser } from "./UserAvatarPicker";
+import { assignedRoleMismatchLabel, shiftWorkerSlotLabel } from "@/lib/shift-display";
 
 type ShiftUser = {
   id: string;
   name: string;
+  role?: string;
   avatarUrl?: string | null;
 };
 
@@ -29,6 +31,9 @@ type ShiftAssignment = {
   status: string;
   hasConflict?: boolean;
   conflictNote?: string | null;
+  callStartsAt?: string | null;
+  callEndsAt?: string | null;
+  callNote?: string | null;
   attended?: boolean | null;
   user: ShiftUser;
 };
@@ -99,6 +104,9 @@ export function ShiftSlotCard({
   const isAssigned = !!activeAssignment;
   const userHasRequested = pendingRequests.some((a) => a.user.id === currentUserId);
   const isMyAssignment = activeAssignment?.user.id === currentUserId;
+  const mismatchLabel = activeAssignment
+    ? assignedRoleMismatchLabel({ plannedWorkerType: workerType, assignedRole: activeAssignment.user.role })
+    : null;
 
   const contextItems = (
     <ContextMenuContent className="w-48">
@@ -138,7 +146,7 @@ export function ShiftSlotCard({
           elevation="flat"
           className={`p-3 mb-2 ${isAssigned ? "border-[var(--green)]/20 bg-[var(--green-bg)]" : ""}`}
         >
-          {/* Header: status badge + FT indicator + delete */}
+          {/* Header: status badge + planned role */}
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-1.5">
               {isAssigned ? (
@@ -150,9 +158,7 @@ export function ShiftSlotCard({
               ) : (
                 <Badge variant="red" size="sm">Open</Badge>
               )}
-              {workerType === "FT" && (
-                <Badge variant="gray" size="sm">Full-time</Badge>
-              )}
+              <Badge variant="gray" size="sm">{shiftWorkerSlotLabel(workerType)}</Badge>
             </div>
             {isStaff && (
               <Tooltip>
@@ -193,6 +199,9 @@ export function ShiftSlotCard({
                         {activeAssignment.conflictNote ?? "Schedule conflict"}
                       </TooltipContent>
                     </Tooltip>
+                  )}
+                  {mismatchLabel && (
+                    <Badge variant="orange" size="sm">{mismatchLabel}</Badge>
                   )}
                 </span>
                 <div className="flex items-center gap-1">
@@ -329,7 +338,7 @@ export function ShiftSlotCard({
             </div>
           )}
 
-          {/* Empty slot - assign (staff) or request (student, ST shifts only) */}
+          {/* Empty slot - assign staff-side or let students request student slots. */}
           {!isAssigned && (
             <div className="mt-1">
               {isStaff && (

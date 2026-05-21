@@ -3,6 +3,18 @@ import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 
+function effectiveShiftWindow(shift: {
+  startsAt: Date;
+  endsAt: Date;
+  callStartsAt?: Date | null;
+  callEndsAt?: Date | null;
+}) {
+  return {
+    startsAt: shift.callStartsAt ?? shift.startsAt,
+    endsAt: shift.callEndsAt ?? shift.endsAt,
+  };
+}
+
 /**
  * Check if a user already has an active shift assignment during the given time window.
  * Optionally exclude a specific assignment (for swap scenarios).
@@ -17,19 +29,24 @@ export async function checkTimeConflict(
   const where: Prisma.ShiftAssignmentWhereInput = {
     userId,
     status: { in: ACTIVE_ASSIGNMENT_STATUSES as ShiftAssignmentStatus[] },
-    shift: {
-      startsAt: { lt: endsAt },
-      endsAt: { gt: startsAt },
-    },
+    OR: [
+      { shift: { startsAt: { lt: endsAt }, endsAt: { gt: startsAt } } },
+      { callStartsAt: { lt: endsAt }, callEndsAt: { gt: startsAt } },
+      { shift: { callStartsAt: { lt: endsAt }, callEndsAt: { gt: startsAt } } },
+    ],
   };
   if (excludeAssignmentId) {
     where.id = { not: excludeAssignmentId };
   }
-  const conflict = await tx.shiftAssignment.findFirst({
+  const conflicts = await tx.shiftAssignment.findMany({
     where,
-    include: { shift: { select: { startsAt: true, endsAt: true, area: true } } },
+    include: { shift: { select: { startsAt: true, endsAt: true, callStartsAt: true, callEndsAt: true, area: true } } },
+    take: 10,
   });
-  if (conflict) {
+  for (const conflict of conflicts) {
+    const conflictStartsAt = conflict.callStartsAt ?? conflict.shift.callStartsAt ?? conflict.shift.startsAt;
+    const conflictEndsAt = conflict.callEndsAt ?? conflict.shift.callEndsAt ?? conflict.shift.endsAt;
+    if (!(conflictStartsAt < endsAt && conflictEndsAt > startsAt)) continue;
     throw new HttpError(
       409,
       `User already has a shift during this time (${conflict.shift.area})`
@@ -44,7 +61,8 @@ export async function checkTimeConflict(
 export async function directAssignShift(
   shiftId: string,
   userId: string,
-  assignedBy: string
+  assignedBy: string,
+  opts: { callStartsAt?: Date | null; callEndsAt?: Date | null; callNote?: string | null; notes?: string | null } = {},
 ) {
   return db.$transaction(async (tx) => {
     const shift = await tx.shift.findUnique({ where: { id: shiftId } });
@@ -59,7 +77,11 @@ export async function directAssignShift(
     }
 
     // Check for time conflicts with the user's other shifts
-    await checkTimeConflict(tx, userId, shift.startsAt, shift.endsAt);
+    const conflictWindow = {
+      startsAt: opts.callStartsAt ?? effectiveShiftWindow(shift).startsAt,
+      endsAt: opts.callEndsAt ?? effectiveShiftWindow(shift).endsAt,
+    };
+    await checkTimeConflict(tx, userId, conflictWindow.startsAt, conflictWindow.endsAt);
 
     // Decline any pending requests — slot is being filled by direct assignment
     await tx.shiftAssignment.updateMany({
@@ -76,22 +98,15 @@ export async function directAssignShift(
         userId,
         status: "DIRECT_ASSIGNED",
         assignedBy,
+        callStartsAt: opts.callStartsAt,
+        callEndsAt: opts.callEndsAt,
+        callNote: opts.callNote,
+        notes: opts.notes,
       },
       include: {
         user: { select: { id: true, name: true, role: true, primaryArea: true, avatarUrl: true } },
       },
     });
-
-    const assignedUserRole = assignment.user?.role;
-    const derivedWorkerType = assignedUserRole
-      ? assignedUserRole === "STUDENT" ? "ST" : "FT"
-      : null;
-    if (derivedWorkerType && shift.workerType !== derivedWorkerType) {
-      await tx.shift.update({
-        where: { id: shiftId },
-        data: { workerType: derivedWorkerType },
-      });
-    }
 
     return assignment;
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
@@ -129,7 +144,8 @@ export async function requestShift(shiftId: string, userId: string) {
     }
 
     // Check for time conflicts with the user's other shifts
-    await checkTimeConflict(tx, userId, shift.startsAt, shift.endsAt);
+    const conflictWindow = effectiveShiftWindow(shift);
+    await checkTimeConflict(tx, userId, conflictWindow.startsAt, conflictWindow.endsAt);
 
     return tx.shiftAssignment.create({
       data: {
@@ -160,7 +176,8 @@ export async function approveRequest(assignmentId: string) {
 
     // Re-check time conflicts — the user may have been assigned another shift
     // between the time they requested and the time staff approves.
-    await checkTimeConflict(tx, assignment.userId, assignment.shift.startsAt, assignment.shift.endsAt);
+    const conflictWindow = effectiveShiftWindow(assignment.shift);
+    await checkTimeConflict(tx, assignment.userId, conflictWindow.startsAt, conflictWindow.endsAt);
 
     // Re-check no other active assignment was created on this shift since the request
     const existing = await tx.shiftAssignment.findFirst({
@@ -230,7 +247,8 @@ export async function initiateSwap(
     }
 
     // Check target user doesn't have a conflicting shift
-    await checkTimeConflict(tx, targetUserId, assignment.shift.startsAt, assignment.shift.endsAt);
+    const conflictWindow = effectiveShiftWindow(assignment.shift);
+    await checkTimeConflict(tx, targetUserId, conflictWindow.startsAt, conflictWindow.endsAt);
 
     // Mark old assignment as swapped
     await tx.shiftAssignment.update({

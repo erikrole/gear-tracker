@@ -31,6 +31,9 @@ export type ShiftAssignment = {
   id: string;
   status: string;
   user: ShiftUser;
+  callStartsAt?: string | null;
+  callEndsAt?: string | null;
+  callNote?: string | null;
 };
 
 export type Shift = {
@@ -39,6 +42,8 @@ export type Shift = {
   workerType: string;
   startsAt: string;
   endsAt: string;
+  callStartsAt?: string | null;
+  callEndsAt?: string | null;
   notes: string | null;
   assignments: ShiftAssignment[];
 };

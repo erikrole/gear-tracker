@@ -3,6 +3,7 @@ import { sendEmail, buildNotificationEmail } from "@/lib/email";
 import { sendPush } from "@/lib/push/apns";
 import { loadUserPrefs, shouldDeliverEmail, shouldDeliverPush, shouldDeliverCategory, type NotificationCategory } from "@/lib/services/notification-prefs";
 import { loadCheckoutPolicies } from "@/lib/services/checkout-policies";
+import { shiftWorkerLabel } from "@/lib/shift-display";
 
 export async function sendPushToUser(
   userId: string,
@@ -365,6 +366,168 @@ export async function createShiftGearUpNotification(assignmentId: string): Promi
     }
   } catch (err) {
     console.error(`[NOTIFY] Failed to create shift gear-up notification for assignment ${assignmentId}:`, err);
+  }
+}
+
+type ShiftScheduleEvent =
+  | "assigned"
+  | "approved"
+  | "removed"
+  | "shift_time_changed"
+  | "personal_call_time_changed";
+
+function formatShiftNotifyTime(dt: Date): string {
+  return dt.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function shiftScheduleNotificationCopy(args: {
+  event: ShiftScheduleEvent;
+  eventTitle: string;
+  area: string;
+  workerType: string;
+  callStartsAt: Date;
+  callEndsAt: Date;
+  callNote: string | null;
+}) {
+  const role = shiftWorkerLabel(args.workerType);
+  const callWindow = args.callStartsAt.getTime() === args.callEndsAt.getTime()
+    ? formatShiftNotifyTime(args.callStartsAt)
+    : `${formatShiftNotifyTime(args.callStartsAt)} - ${formatShiftNotifyTime(args.callEndsAt)}`;
+  const note = args.callNote ? ` ${args.callNote}` : "";
+
+  switch (args.event) {
+    case "approved":
+      return {
+        type: "shift_request_approved",
+        title: "Shift request approved",
+        body: `You're approved for the ${args.area} ${role} slot for ${args.eventTitle}. Call time: ${callWindow}.${note}`,
+      };
+    case "removed":
+      return {
+        type: "shift_assignment_removed",
+        title: "Shift assignment removed",
+        body: `You're no longer assigned to the ${args.area} ${role} slot for ${args.eventTitle}.`,
+      };
+    case "shift_time_changed":
+      return {
+        type: "shift_time_changed",
+        title: "Shift time updated",
+        body: `Your ${args.area} ${role} slot for ${args.eventTitle} has an updated call time: ${callWindow}.${note}`,
+      };
+    case "personal_call_time_changed":
+      return {
+        type: "shift_personal_call_time_changed",
+        title: "Your call time changed",
+        body: `Your call time for the ${args.area} ${role} slot for ${args.eventTitle} is now ${callWindow}.${note}`,
+      };
+    default:
+      return {
+        type: "shift_assigned",
+        title: "Shift assigned",
+        body: `You're assigned to the ${args.area} ${role} slot for ${args.eventTitle}. Call time: ${callWindow}.${note}`,
+      };
+  }
+}
+
+export async function createShiftScheduleNotification(
+  assignmentId: string,
+  event: ShiftScheduleEvent,
+): Promise<void> {
+  const assignment = await db.shiftAssignment.findUnique({
+    where: { id: assignmentId },
+    include: {
+      user: { select: { id: true, email: true } },
+      shift: {
+        include: {
+          shiftGroup: {
+            include: {
+              event: {
+                select: {
+                  id: true,
+                  summary: true,
+                  startsAt: true,
+                  sportCode: true,
+                  opponent: true,
+                  isHome: true,
+                  locationId: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!assignment) return;
+
+  const calendarEvent = assignment.shift.shiftGroup.event;
+  const eventTitle = calendarEvent.opponent
+    ? `${calendarEvent.isHome === false ? "at" : "vs"} ${calendarEvent.opponent}`
+    : calendarEvent.summary;
+  const callStartsAt = assignment.callStartsAt ?? assignment.shift.callStartsAt ?? assignment.shift.startsAt;
+  const callEndsAt = assignment.callEndsAt ?? assignment.shift.callEndsAt ?? assignment.shift.endsAt;
+  const copy = shiftScheduleNotificationCopy({
+    event,
+    eventTitle,
+    area: assignment.shift.area,
+    workerType: assignment.shift.workerType,
+    callStartsAt,
+    callEndsAt,
+    callNote: assignment.callNote,
+  });
+  const dedupeKey = `shift:${assignmentId}:${copy.type}:${callStartsAt.toISOString()}:${callEndsAt.toISOString()}:${assignment.callNote ?? ""}`;
+
+  const existing = await db.notification.findUnique({ where: { dedupeKey } });
+  if (existing) return;
+
+  try {
+    await db.notification.create({
+      data: {
+        userId: assignment.userId,
+        type: copy.type,
+        title: copy.title,
+        body: copy.body,
+        payload: {
+          assignmentId: assignment.id,
+          shiftId: assignment.shiftId,
+          eventId: calendarEvent.id,
+          eventSummary: calendarEvent.summary,
+          area: assignment.shift.area,
+          workerType: shiftWorkerLabel(assignment.shift.workerType),
+          startsAt: assignment.shift.startsAt.toISOString(),
+          callStartsAt: callStartsAt.toISOString(),
+          callEndsAt: callEndsAt.toISOString(),
+          sportCode: calendarEvent.sportCode,
+          locationId: calendarEvent.locationId,
+        },
+        channel: "IN_APP",
+        sentAt: new Date(),
+        dedupeKey,
+      },
+    });
+
+    void sendPushToUser(assignment.userId, { title: copy.title, body: copy.body });
+
+    if (assignment.user.email) {
+      await sendEmailToUser(assignment.userId, {
+        to: assignment.user.email,
+        subject: copy.title,
+        html: buildNotificationEmail({
+          title: copy.title,
+          body: copy.body,
+          bookingTitle: calendarEvent.summary,
+          dueAt: callStartsAt.toISOString(),
+        }),
+      });
+    }
+  } catch (err) {
+    console.error(`[NOTIFY] Failed to create shift schedule notification for assignment ${assignmentId}:`, err);
   }
 }
 

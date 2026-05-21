@@ -1,6 +1,7 @@
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
+import { shiftWorkerLabel } from "@/lib/shift-display";
 
 /**
  * GET /api/my-shifts
@@ -106,8 +107,12 @@ export const GET = withAuth(async (req, { user }) => {
       shiftId: a.shift.id,
       area: a.shift.area,
       workerType: a.shift.workerType,
+      workerLabel: shiftWorkerLabel(a.shift.workerType),
       startsAt: a.shift.startsAt.toISOString(),
       endsAt: a.shift.endsAt.toISOString(),
+      callStartsAt: (a.callStartsAt ?? a.shift.callStartsAt ?? a.shift.startsAt).toISOString(),
+      callEndsAt: (a.callEndsAt ?? a.shift.callEndsAt ?? a.shift.endsAt).toISOString(),
+      callNote: a.callNote,
       status: a.status,
       event: {
         id: event.id,

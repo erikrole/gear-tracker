@@ -11,6 +11,49 @@ type ShiftToCreate = {
   endsAt: Date;
 };
 
+type TemplateShiftConfig = {
+  area: ShiftArea;
+  homeCount: number;
+  awayCount: number;
+  homeStaffCount?: number | null;
+  homeStudentCount?: number | null;
+  awayStaffCount?: number | null;
+  awayStudentCount?: number | null;
+};
+
+function templateCounts(sc: TemplateShiftConfig, isHome: boolean): Record<ShiftWorkerType, number> {
+  if (isHome) {
+    return {
+      FT: sc.homeStaffCount ?? 0,
+      ST: sc.homeStudentCount ?? sc.homeCount,
+    };
+  }
+  return {
+    FT: sc.awayStaffCount ?? 0,
+    ST: sc.awayStudentCount ?? sc.awayCount,
+  };
+}
+
+function addTemplateShifts(
+  target: Omit<ShiftToCreate, "shiftGroupId">[],
+  sc: TemplateShiftConfig,
+  isHome: boolean,
+  startsAt: Date,
+  endsAt: Date,
+) {
+  const counts = templateCounts(sc, isHome);
+  for (const workerType of ["FT", "ST"] as const) {
+    for (let i = 0; i < counts[workerType]; i++) {
+      target.push({
+        area: sc.area,
+        workerType,
+        startsAt,
+        endsAt,
+      });
+    }
+  }
+}
+
 /**
  * Generate shifts for a single calendar event based on sport config.
  * Idempotent: skips events that already have a ShiftGroup.
@@ -48,15 +91,13 @@ export async function generateShiftsForEvent(eventId: string): Promise<{
 
   const shiftsData: Omit<ShiftToCreate, "shiftGroupId">[] = [];
   for (const sc of sportConfig.shiftConfigs) {
-    const count = isHome ? sc.homeCount : sc.awayCount;
-    for (let i = 0; i < count; i++) {
-      shiftsData.push({
-        area: sc.area,
-        workerType: "ST" as ShiftWorkerType, // Default to student; staff can override
-        startsAt: new Date(event.startsAt.getTime() - sportConfig.shiftStartOffset * 60_000),
-        endsAt: new Date(event.endsAt.getTime() + sportConfig.shiftEndOffset * 60_000),
-      });
-    }
+    addTemplateShifts(
+      shiftsData,
+      sc,
+      isHome,
+      new Date(event.startsAt.getTime() - sportConfig.shiftStartOffset * 60_000),
+      new Date(event.endsAt.getTime() + sportConfig.shiftEndOffset * 60_000),
+    );
   }
 
   if (shiftsData.length === 0) {
@@ -179,16 +220,18 @@ export async function generateShiftsForEvents(opts: {
     const shiftStart = new Date(event.startsAt.getTime() - config.shiftStartOffset * 60_000);
     const shiftEnd = new Date(event.endsAt.getTime() + config.shiftEndOffset * 60_000);
     for (const sc of config.shiftConfigs) {
-      const count = isHome ? sc.homeCount : sc.awayCount;
-      for (let j = 0; j < count; j++) {
-        pendingShifts.push({
-          eventIndex: groupsToCreate.length,
-          area: sc.area,
-          workerType: "ST",
-          startsAt: shiftStart,
-          endsAt: shiftEnd,
-        });
-        hasShifts = true;
+      const counts = templateCounts(sc, isHome);
+      for (const workerType of ["FT", "ST"] as const) {
+        for (let j = 0; j < counts[workerType]; j++) {
+          pendingShifts.push({
+            eventIndex: groupsToCreate.length,
+            area: sc.area,
+            workerType,
+            startsAt: shiftStart,
+            endsAt: shiftEnd,
+          });
+          hasShifts = true;
+        }
       }
     }
 
@@ -290,10 +333,11 @@ export async function regenerateShiftsForEvent(eventId: string): Promise<{
   const isHome = event.isHome ?? true;
   const existingShifts = event.shiftGroup.shifts;
 
-  // Count existing shifts per area
-  const existingCounts = new Map<ShiftArea, number>();
+  // Count existing shifts per area and planned worker kind.
+  const existingCounts = new Map<string, number>();
   for (const shift of existingShifts) {
-    existingCounts.set(shift.area, (existingCounts.get(shift.area) ?? 0) + 1);
+    const key = `${shift.area}:${shift.workerType}`;
+    existingCounts.set(key, (existingCounts.get(key) ?? 0) + 1);
   }
 
   // Add missing positions
@@ -306,18 +350,20 @@ export async function regenerateShiftsForEvent(eventId: string): Promise<{
   }> = [];
 
   for (const sc of sportConfig.shiftConfigs) {
-    const targetCount = isHome ? sc.homeCount : sc.awayCount;
-    const currentCount = existingCounts.get(sc.area) ?? 0;
-    const toAdd = Math.max(0, targetCount - currentCount);
+    const counts = templateCounts(sc, isHome);
+    for (const workerType of ["FT", "ST"] as const) {
+      const currentCount = existingCounts.get(`${sc.area}:${workerType}`) ?? 0;
+      const toAdd = Math.max(0, counts[workerType] - currentCount);
 
-    for (let i = 0; i < toAdd; i++) {
-      newShifts.push({
-        shiftGroupId: event.shiftGroup.id,
-        area: sc.area,
-        workerType: "ST",
-        startsAt: new Date(event.startsAt.getTime() - sportConfig.shiftStartOffset * 60_000),
-        endsAt: new Date(event.endsAt.getTime() + sportConfig.shiftEndOffset * 60_000),
-      });
+      for (let i = 0; i < toAdd; i++) {
+        newShifts.push({
+          shiftGroupId: event.shiftGroup.id,
+          area: sc.area,
+          workerType,
+          startsAt: new Date(event.startsAt.getTime() - sportConfig.shiftStartOffset * 60_000),
+          endsAt: new Date(event.endsAt.getTime() + sportConfig.shiftEndOffset * 60_000),
+        });
+      }
     }
   }
 

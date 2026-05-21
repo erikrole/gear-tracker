@@ -229,8 +229,12 @@ export const extendBookingSchema = z.object({
 
 export const sportShiftConfigSchema = z.object({
   area: z.nativeEnum(ShiftArea),
-  homeCount: z.number().int().min(0).max(20),
-  awayCount: z.number().int().min(0).max(20),
+  homeCount: z.number().int().min(0).max(20).optional(),
+  awayCount: z.number().int().min(0).max(20).optional(),
+  homeStaffCount: z.number().int().min(0).max(20).optional(),
+  homeStudentCount: z.number().int().min(0).max(20).optional(),
+  awayStaffCount: z.number().int().min(0).max(20).optional(),
+  awayStudentCount: z.number().int().min(0).max(20).optional(),
 });
 
 export const upsertSportConfigSchema = z.object({
@@ -282,12 +286,16 @@ export const createShiftSchema = z.object({
   workerType: z.nativeEnum(ShiftWorkerType),
   startsAt: z.string(),
   endsAt: z.string(),
+  callStartsAt: z.string().optional().nullable(),
+  callEndsAt: z.string().optional().nullable(),
   notes: z.string().max(5000).optional(),
 });
 
 export const updateShiftSchema = z.object({
   startsAt: z.string().optional(),
   endsAt: z.string().optional(),
+  callStartsAt: z.string().optional().nullable(),
+  callEndsAt: z.string().optional().nullable(),
   notes: z.string().max(5000).optional(),
 });
 
@@ -299,7 +307,17 @@ export const updateShiftGroupSchema = z.object({
 export const assignShiftSchema = z.object({
   shiftId: z.string().cuid(),
   userId: z.string().cuid(),
+  callStartsAt: z.string().optional().nullable(),
+  callEndsAt: z.string().optional().nullable(),
+  callNote: z.string().max(500).optional().nullable(),
   notes: z.string().max(5000).optional(),
+});
+
+export const updateShiftAssignmentSchema = z.object({
+  callStartsAt: z.string().optional().nullable(),
+  callEndsAt: z.string().optional().nullable(),
+  callNote: z.string().max(500).optional().nullable(),
+  notes: z.string().max(5000).optional().nullable(),
 });
 
 export const requestShiftSchema = z.object({

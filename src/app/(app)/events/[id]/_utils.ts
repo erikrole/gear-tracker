@@ -28,11 +28,17 @@ export type ShiftGroupSummary = {
     id: string;
     area: string;
     workerType: string;
+    workerLabel?: string;
     startsAt: string;
     endsAt: string;
+    callStartsAt?: string | null;
+    callEndsAt?: string | null;
     assignments: Array<{
       id: string;
       status: string;
+      callStartsAt?: string | null;
+      callEndsAt?: string | null;
+      callNote?: string | null;
       user: { id: string; name: string; avatarUrl: string | null };
     }>;
   }>;
@@ -43,9 +49,22 @@ export type CommandCenterData = {
     id: string;
     area: string;
     workerType: string;
+    workerLabel: string;
     startsAt: string;
     endsAt: string;
-    assignment: { id: string; userId: string; userName: string; status: string; linkedBookingId: string | null; linkedBookingStatus: string | null } | null;
+    callStartsAt: string;
+    callEndsAt: string;
+    assignment: {
+      id: string;
+      userId: string;
+      userName: string;
+      status: string;
+      callStartsAt: string;
+      callEndsAt: string;
+      callNote: string | null;
+      linkedBookingId: string | null;
+      linkedBookingStatus: string | null;
+    } | null;
     pendingRequests: number;
   }>;
   gearSummary: {

@@ -29,6 +29,7 @@ import { UserAvatarPicker, type PickerUser } from "@/components/shift-detail/Use
 import { handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 import { VENUE_TONES, venueToneFromEvent } from "@/lib/venue-tone";
+import { assignedRoleMismatchLabel, shiftWorkerLabel, shiftWorkerSlotLabel, type ShiftWorkerKind } from "@/lib/shift-display";
 import type { CalendarEntry, Shift } from "./types";
 import {
   ACTIVE_STATUSES,
@@ -68,8 +69,6 @@ const AREA_BADGE_VARIANT: Record<string, "green" | "purple" | "orange" | "blue">
   GRAPHICS: "blue",
 };
 
-type ShiftWorkerKind = "FT" | "ST";
-
 function shiftAssignee(shift: Shift) {
   const active = shift.assignments.find((a) => ACTIVE_STATUSES.includes(a.status));
   return active?.user ?? null;
@@ -88,24 +87,29 @@ function isShiftOpen(shift: Shift) {
   return !shift.assignments.some((a) => ACTIVE_STATUSES.includes(a.status));
 }
 
-function workerKindForShift(shift: Shift, user: ReturnType<typeof shiftAssignee>): ShiftWorkerKind {
-  if (user?.role === "STUDENT") return "ST";
-  if (user) return "FT";
-  return shift.workerType === "ST" ? "ST" : "FT";
+function workerKindForShift(shift: Shift, _user: ReturnType<typeof shiftAssignee>): ShiftWorkerKind {
+  return shift.workerType === "FT" ? "FT" : "ST";
 }
 
 function roleLabel(kind: ShiftWorkerKind) {
-  return kind === "ST" ? "Student" : "Staff";
+  return shiftWorkerLabel(kind);
 }
 
 function roleSlotLabel(kind: ShiftWorkerKind) {
-  return `${roleLabel(kind)} slot`;
+  return shiftWorkerSlotLabel(kind);
 }
 
 function RoleNeedSummary({ entry, compact = false }: { entry: CalendarEntry; compact?: boolean }) {
-  const openSlots = entry.shifts.filter(isShiftOpen).length;
+  const openSlots = entry.shifts.filter(isShiftOpen);
 
-  if (openSlots === 0) return null;
+  if (openSlots.length === 0) return null;
+
+  const staff = openSlots.filter((shift) => workerKindForShift(shift, null) === "FT").length;
+  const students = openSlots.length - staff;
+  const parts = [
+    staff > 0 ? `${staff} Staff` : null,
+    students > 0 ? `${students} Student${students === 1 ? "" : "s"}` : null,
+  ].filter(Boolean);
 
   return (
     <span className={cn("inline-flex items-center gap-1 text-[11px] leading-none", compact && "text-[10px]")}>
@@ -113,7 +117,7 @@ function RoleNeedSummary({ entry, compact = false }: { entry: CalendarEntry; com
         Needs
       </span>
       <span className="font-semibold text-muted-foreground">
-        {openSlots} staff
+        {parts.join(", ")}
       </span>
     </span>
   );
@@ -232,7 +236,10 @@ function ShiftRowList({
         const assignedLabel = user ? user.name : "Unassigned";
         const workerType = workerKindForShift(shift, user);
         const slotLabel = roleSlotLabel(workerType);
-        const emptyAssignLabel = "Assign staff";
+        const emptyAssignLabel = `Assign ${roleLabel(workerType)}`;
+        const mismatchLabel = activeAssignment
+          ? assignedRoleMismatchLabel({ plannedWorkerType: workerType, assignedRole: activeAssignment.user.role })
+          : null;
         const isAddingShift = addingShiftId === shift.id;
         const isRemovingAssignment = Boolean(activeAssignment && removingAssignmentId === activeAssignment.id);
 
@@ -316,7 +323,7 @@ function ShiftRowList({
                     </Tooltip>
                   )}
                   <span className="ml-auto shrink-0 text-xs font-medium text-muted-foreground">
-                    {roleLabel(workerType)}
+                    {mismatchLabel ?? roleLabel(workerType)}
                   </span>
                 </div>
               ) : isStaff ? (

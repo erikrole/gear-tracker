@@ -12,6 +12,7 @@ import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import type { GridShift, GridAssignment } from "@/hooks/use-assignment-grid";
 import { cn } from "@/lib/utils";
 import { PlusIcon, UserIcon, XIcon } from "lucide-react";
+import { shiftWorkerLabel } from "@/lib/shift-display";
 
 type Props = {
   shifts: GridShift[]; // all shifts for this event matching this area
@@ -104,15 +105,15 @@ export function AssignmentCell({ shifts, shiftGroupId, area, allUsers, usersLoad
     [onRefetch],
   );
 
-  const handleAddShift = useCallback(async () => {
+  const handleAddShift = useCallback(async (workerType: "FT" | "ST") => {
     if (!shiftGroupId || actingRef.current) return;
     actingRef.current = true;
-    setActing(`add-${area}`);
+    setActing(`add-${area}-${workerType}`);
     try {
       const res = await fetch(`/api/shift-groups/${shiftGroupId}/shifts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ area, workerType: "FT" }),
+        body: JSON.stringify({ area, workerType }),
       });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
@@ -121,7 +122,7 @@ export function AssignmentCell({ shifts, shiftGroupId, area, allUsers, usersLoad
         return;
       }
       onRefetch();
-      toast.success("Added slot");
+      toast.success(`Added ${shiftWorkerLabel(workerType)} slot`);
     } catch {
       toast.error("Network error - could not add slot");
     } finally {
@@ -163,22 +164,26 @@ export function AssignmentCell({ shifts, shiftGroupId, area, allUsers, usersLoad
   const firstOpenShift = openShifts[0];
   const openCount = openShifts.length;
   const addSlotButton = canEditSlots ? (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          className="relative size-8 shrink-0 text-muted-foreground/60 opacity-55 transition-[background-color,color,opacity,scale] before:absolute before:-inset-1 before:content-[''] hover:text-foreground hover:opacity-100 active:scale-[0.96] group-hover/cell:opacity-100 focus-visible:opacity-100"
-          disabled={Boolean(acting)}
-          aria-label={`Add ${area} slot`}
-          onClick={handleAddShift}
-        >
-          <PlusIcon className={cn("size-3.5", acting === `add-${area}` && "animate-pulse")} />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>Add slot</TooltipContent>
-    </Tooltip>
+    <div className="flex items-center gap-0.5">
+      {(["FT", "ST"] as const).map((workerType) => (
+        <Tooltip key={workerType}>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="relative size-8 shrink-0 text-muted-foreground/60 opacity-55 transition-[background-color,color,opacity,scale] before:absolute before:-inset-1 before:content-[''] hover:text-foreground hover:opacity-100 active:scale-[0.96] group-hover/cell:opacity-100 focus-visible:opacity-100"
+              disabled={Boolean(acting)}
+              aria-label={`Add ${area} ${shiftWorkerLabel(workerType)} slot`}
+              onClick={() => handleAddShift(workerType)}
+            >
+              <PlusIcon className={cn("size-3.5", acting === `add-${area}-${workerType}` && "animate-pulse")} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Add {shiftWorkerLabel(workerType)} slot</TooltipContent>
+        </Tooltip>
+      ))}
+    </div>
   ) : null;
 
   return (
@@ -269,7 +274,7 @@ export function AssignmentCell({ shifts, shiftGroupId, area, allUsers, usersLoad
                 >
                   <UserIcon className={cn("size-3.5 opacity-70", acting?.endsWith(firstOpenShift.id) && "animate-pulse")} />
                   <span className="min-w-0 truncate font-medium">
-                    {assignedShifts.length > 0 ? `${openCount} open` : "Assign staff"}
+                    {assignedShifts.length > 0 ? `${openCount} open` : `Assign ${shiftWorkerLabel(firstOpenShift.workerType)}`}
                   </span>
                 </button>
               </PopoverTrigger>

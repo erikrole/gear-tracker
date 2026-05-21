@@ -88,7 +88,8 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 
 ### Sports (`/settings/sports`)
 - Toggle sports active/inactive for shift generation.
-- Configure home/away shift counts per area (Video, Photo, Graphics, Comms).
+- Configure separate Staff and Student home/away shift counts per area (Video, Photo, Graphics, Comms).
+- Configure the sport-level default call time window used when a shift or assignment does not have a more specific call override.
 - Expandable roster panel per sport — add/remove users.
 - Mobile: card layout replaces dense table for shift configs.
 
@@ -172,6 +173,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - [x] AC-9: Venue mappings: admin-only CRUD with regex validation
 - [x] AC-10: Allowed emails: add/delete with role pre-assignment, registration gating enforced
 - [x] AC-11: Departments: staff/admin CRUD surface for inventory ownership groups
+- [x] AC-12: Sports: separate Staff and Student staffing counts plus default call-time copy
 
 ## Breadcrumb Roadmap
 
@@ -180,6 +182,7 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages.
 
 ## Change Log
+- 2026-05-21: Sports settings now treats Staff and Student as separate planned staffing requirements for every area and home/away row. The table labels are spelled out, legacy total counts stay derived for compatibility, and shift offset copy now reads as default call time.
 - 2026-05-21: Categories hardening pass. (1) Item-count badge now shows direct items only. It previously summed the node plus its direct children but dropped grandchildren, and the number never matched the exact-category `/items` view it links to. (2) Delete is role-gated in the UI: STAFF (who can see the Categories tab and rename/add) no longer get a silent 403 on Delete; the kebab item is disabled with an inline reason ("admin only" / "has items" / "has subcategories"). (3) New Move action reparents a category via a combobox of valid targets (self + descendants excluded; server enforces cycle/depth). (4) Empty root "Add" input now cancels silently on blur/Enter instead of throwing "Category name is required", matching subcategory add. (5) `GET /api/categories` switched from `cachedOk` to `ok`, since the 60s browser cache could serve a stale list after a rename or delete reload. Settings overview also dropped a duplicate `/api/me` fetch (now shares `useCurrentUser`) and removed the vanity "N sections / N groups" stat chips.
 - 2026-05-21: Audit Log viewer (roadmap slice 9). New `/settings/audit` (System, ADMIN) -- admin live-tail feed of all system actions. Keyset-paginated `GET /api/audit` (60/min) with `cursor`/`after`/`entityType`/`action`/`from`/`to`/`limit` params. UI has filter bar, "Load older entries" pagination, 30-second auto-refresh polling via `?after=<newestCursor>`, new-row count banner, and retention notice. Cursor is a client-built base64url encoding of `{createdAt, id}` matching the server format.
 - 2026-05-21: Notification granularity (roadmap slice 7). Added per-category toggles to Settings > Notifications: Checkout due reminders, Checkout overdue alerts, Reservation updates, License expiry reminders. Stored in `notification_prefs.categories`; missing/null keys default to true (no change for existing users). Category gating threaded through `sendPushToUser`/`sendEmailToUser` in `notifications.ts` and `licenses.ts`. In-app notifications bypass category gating and always fire.

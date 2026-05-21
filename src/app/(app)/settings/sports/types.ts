@@ -5,6 +5,10 @@ export type ShiftConfig = {
   area: Area;
   homeCount: number;
   awayCount: number;
+  homeStaffCount: number;
+  homeStudentCount: number;
+  awayStaffCount: number;
+  awayStudentCount: number;
 };
 
 export type SportConfig = {
@@ -20,7 +24,15 @@ export { AREAS, AREA_LABELS } from "@/types/areas";
 export type { Area };
 
 export function defaultShiftConfigs(): ShiftConfig[] {
-  return AREAS.map((area) => ({ area, homeCount: 1, awayCount: 1 }));
+  return AREAS.map((area) => ({
+    area,
+    homeCount: 1,
+    awayCount: 1,
+    homeStaffCount: 0,
+    homeStudentCount: 1,
+    awayStaffCount: 0,
+    awayStudentCount: 1,
+  }));
 }
 
 /** Big 6 sports that are NOT grouped by gender */

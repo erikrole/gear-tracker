@@ -29,7 +29,15 @@ export const PATCH = withAuth<{ sportCode: string }>(async (req, { user, params 
     config = await upsertSportConfig(
       sportCode,
       body.active ?? existing.active,
-      body.shiftConfigs ?? existing.shiftConfigs.map((sc) => ({ area: sc.area, homeCount: sc.homeCount, awayCount: sc.awayCount })),
+      body.shiftConfigs ?? existing.shiftConfigs.map((sc) => ({
+        area: sc.area,
+        homeCount: sc.homeCount,
+        awayCount: sc.awayCount,
+        homeStaffCount: sc.homeStaffCount,
+        homeStudentCount: sc.homeStudentCount,
+        awayStaffCount: sc.awayStaffCount,
+        awayStudentCount: sc.awayStudentCount,
+      })),
       body.shiftStartOffset,
       body.shiftEndOffset,
     );

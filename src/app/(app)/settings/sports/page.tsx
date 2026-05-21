@@ -106,20 +106,41 @@ export default function SportsSettingsPage() {
     setSaving(null);
   }
 
-  async function updateShiftCount(sportCode: string, area: string, field: "homeCount" | "awayCount", value: number) {
+  async function updateShiftCount(
+    sportCode: string,
+    area: string,
+    field: "homeStaffCount" | "homeStudentCount" | "awayStaffCount" | "awayStudentCount",
+    value: number,
+  ) {
     const config = getConfig(sportCode);
     if (!config) return;
 
     const updatedConfigs = AREAS.map((a) => {
       const existing = config.shiftConfigs.find((sc) => sc.area === a);
+      const homeStaffCount = a === area && field === "homeStaffCount" ? value : (existing?.homeStaffCount ?? 0);
+      const homeStudentCount = a === area && field === "homeStudentCount" ? value : (existing?.homeStudentCount ?? existing?.homeCount ?? 0);
+      const awayStaffCount = a === area && field === "awayStaffCount" ? value : (existing?.awayStaffCount ?? 0);
+      const awayStudentCount = a === area && field === "awayStudentCount" ? value : (existing?.awayStudentCount ?? existing?.awayCount ?? 0);
       if (a === area) {
         return {
           area: a,
-          homeCount: field === "homeCount" ? value : (existing?.homeCount ?? 0),
-          awayCount: field === "awayCount" ? value : (existing?.awayCount ?? 0),
+          homeCount: homeStaffCount + homeStudentCount,
+          awayCount: awayStaffCount + awayStudentCount,
+          homeStaffCount,
+          homeStudentCount,
+          awayStaffCount,
+          awayStudentCount,
         };
       }
-      return { area: a, homeCount: existing?.homeCount ?? 0, awayCount: existing?.awayCount ?? 0 };
+      return {
+        area: a,
+        homeCount: existing?.homeCount ?? 0,
+        awayCount: existing?.awayCount ?? 0,
+        homeStaffCount: existing?.homeStaffCount ?? 0,
+        homeStudentCount: existing?.homeStudentCount ?? existing?.homeCount ?? 0,
+        awayStaffCount: existing?.awayStaffCount ?? 0,
+        awayStudentCount: existing?.awayStudentCount ?? existing?.awayCount ?? 0,
+      };
     });
 
     await applyGroupPatch(sportCode, `${sportCode}-${area}`, { shiftConfigs: updatedConfigs });
@@ -129,7 +150,7 @@ export default function SportsSettingsPage() {
     await applyGroupPatch(sportCode, `${sportCode}-calltime`, { [field]: value });
   }
 
-  const description = "Configure shift coverage and call times for each sport. Grouped sports share the same settings across men's and women's programs.";
+  const description = "Configure Staff and Student shift coverage plus default call times for each sport. Grouped sports share the same settings across men's and women's programs.";
 
   /* ---------- Loading skeleton ---------- */
   if (loading) {

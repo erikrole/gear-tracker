@@ -13,6 +13,9 @@ export type GridAssignment = {
   status: string;
   hasConflict: boolean;
   conflictNote: string | null;
+  callStartsAt?: string | null;
+  callEndsAt?: string | null;
+  callNote?: string | null;
   user: { id: string; name: string; primaryArea: string | null; avatarUrl?: string | null };
 };
 
@@ -22,6 +25,8 @@ export type GridShift = {
   workerType: string;
   startsAt: string;
   endsAt: string;
+  callStartsAt?: string | null;
+  callEndsAt?: string | null;
   assignments: GridAssignment[];
 };
 
@@ -104,11 +109,16 @@ async function fetchGridData(
       workerType: s.workerType,
       startsAt: s.startsAt,
       endsAt: s.endsAt,
+      callStartsAt: s.callStartsAt,
+      callEndsAt: s.callEndsAt,
       assignments: s.assignments.map((a) => ({
         id: a.id,
         status: a.status,
         hasConflict: (a as { hasConflict?: boolean }).hasConflict ?? false,
         conflictNote: (a as { conflictNote?: string | null }).conflictNote ?? null,
+        callStartsAt: (a as { callStartsAt?: string | null }).callStartsAt ?? null,
+        callEndsAt: (a as { callEndsAt?: string | null }).callEndsAt ?? null,
+        callNote: (a as { callNote?: string | null }).callNote ?? null,
         user: a.user,
       })),
     }));

@@ -28,6 +28,9 @@ type ShiftAssignment = {
   hasConflict?: boolean;
   conflictNote?: string | null;
   attended?: boolean | null;
+  callStartsAt?: string | null;
+  callEndsAt?: string | null;
+  callNote?: string | null;
   user: ShiftUser;
 };
 
@@ -37,6 +40,8 @@ type Shift = {
   workerType: string;
   startsAt: string;
   endsAt: string;
+  callStartsAt?: string | null;
+  callEndsAt?: string | null;
   notes: string | null;
   assignments: ShiftAssignment[];
 };
@@ -117,7 +122,7 @@ export function ShiftAreaSection({
                 Student
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onAddShift("FT")}>
-                Full-time
+                Staff
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

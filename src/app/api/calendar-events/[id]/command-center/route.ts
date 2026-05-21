@@ -2,6 +2,7 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { shiftWorkerLabel } from "@/lib/shift-display";
 
 export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
   if (user.role === "STUDENT") {
@@ -110,14 +111,20 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
       id: shift.id,
       area: shift.area,
       workerType: shift.workerType,
+      workerLabel: shiftWorkerLabel(shift.workerType),
       startsAt: shift.startsAt.toISOString(),
       endsAt: shift.endsAt.toISOString(),
+      callStartsAt: (shift.callStartsAt ?? shift.startsAt).toISOString(),
+      callEndsAt: (shift.callEndsAt ?? shift.endsAt).toISOString(),
       assignment: activeAssignment
         ? {
             id: activeAssignment.id,
             userId: activeAssignment.userId,
             userName: activeAssignment.user.name,
             status: activeAssignment.status,
+            callStartsAt: (activeAssignment.callStartsAt ?? shift.callStartsAt ?? shift.startsAt).toISOString(),
+            callEndsAt: (activeAssignment.callEndsAt ?? shift.callEndsAt ?? shift.endsAt).toISOString(),
+            callNote: activeAssignment.callNote,
             linkedBookingId: linkedBooking?.id ?? null,
             linkedBookingStatus: linkedBooking?.status ?? null,
           }

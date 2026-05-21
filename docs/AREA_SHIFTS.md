@@ -9,8 +9,8 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 ## Key Concepts
 
 - **ShiftArea**: VIDEO, PHOTO, GRAPHICS, COMMS
-- **ShiftWorkerType**: FT (full-time staff), ST (student)
-- **SportConfig**: Per-sport shift counts for home/away events per area
+- **ShiftWorkerType**: Internal planned staffing kind; UI and notifications must display Staff or Student, never raw enum abbreviations
+- **SportConfig**: Per-sport Staff and Student shift counts for home/away events per area
 - **ShiftGroup**: 1:1 with CalendarEvent, container for all shifts at an event
 - **Premier Events**: Events where students can request to work (requires staff approval)
 - **Trade Board**: Area-filtered board where students post shifts they can't work; other students in the same area can claim them
@@ -35,6 +35,8 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - [x] Schedule readiness snapshot: staff-needed count, covered events, my shifts, trade count, and next call displayed on schedule page
 - [x] Student availability: profile Availability tab stores recurring weekly blocks and assignment flows show conflicts
 - [x] Shift trade emails: claimed, completed, approved, and declined trade events send best-effort email companions
+- [x] Staff/Student slot planning: sport templates generate separate Staff and Student slots and preserve the planned slot type after assignment
+- [x] Call-time overrides: default sport call windows can be overridden per shift and per assignment, with personal overrides used for conflict checks
 
 ## Information Architecture
 
@@ -71,6 +73,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - Sports code mappings (existing — `src/lib/sports.ts`)
 
 ## Change Log
+- 2026-05-21: Shift Staffing MVP shipped. Sport templates now store separate Staff and Student counts for each area/home-away row while keeping legacy totals in sync. Generated slots preserve their planned Staff or Student kind after assignment, cross-role fills display as explicit exceptions, shift-level and per-person call windows are available, and assignment conflict checks use the effective personal/shift/default call time.
 - 2026-05-21: Trade Board cancellation confirmation now names the event, shift window, and posted owner so users know exactly which trade posting is being cancelled and that the assignment remains with the original worker. The Trade Board sheet also exposes an accessible description for browser dialog checks.
 - 2026-05-21: Schedule filter view and venue segmented controls now use shadcn `ToggleGroup` while staying a documented schedule-specific command bar instead of a generic list toolbar.
 - 2026-05-21: Design language Area 5 state/copy audit. Shift detail confirmations and failures now say whether an assignment is removed, a slot reopens, a staffed shift is deleted, a trade failed to post, or an archive/attendance/autofill action was not saved.
@@ -100,7 +103,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - 2026-05-10: Schedule ownership pass. `/schedule` readiness now counts actual active shift assignments instead of events, filtered empty states can recover by clearing filters, manual all-day event creation treats the selected end date as an inclusive all-day date, list/week/calendar navigation controls now use larger deliberate targets, and `/schedule/assign` has stronger empty states plus accessible assignment/remove controls.
 - 2026-05-08: API hardening Wave 2 added audit coverage for shift attendance updates and enriched shift deletion audits with force-delete and active-assignment context.
 - 2026-05-08: API hardening Wave 1 fixed permission-map drift. `shift.manage` is now an explicit ADMIN/STAFF permission, matching existing shift-group and event-travel mutation route calls and preventing those routes from failing on an undefined permission action. Regression coverage added in `tests/rbac.test.ts`.
-- 2026-04-25: **iOS schedule authoring shipped** — STAFF/ADMIN can assign + unassign + add shifts directly from `EventDetailSheet`; STUDENTs can request open ST slots (premier flow shows "staff will review" copy). REQUESTED-state assignments render a Pending pill. Closes the iOS-side gap for "Staff assignment" and "Student requests" rows in this AC list. Trade board (post / claim / cancel) was already shipped 2026-04-24. ShiftDetailPanel-equivalent remains web-only — iOS uses the event sheet inline.
+- 2026-04-25: **iOS schedule authoring shipped** — STAFF/ADMIN can assign + unassign + add shifts directly from `EventDetailSheet`; STUDENTs can request open Student slots (premier flow shows "staff will review" copy). REQUESTED-state assignments render a Pending pill. Closes the iOS-side gap for "Staff assignment" and "Student requests" rows in this AC list. Trade board (post / claim / cancel) was already shipped 2026-04-24. ShiftDetailPanel-equivalent remains web-only — iOS uses the event sheet inline.
 
 
 | Date | Change | Slice |
@@ -150,7 +153,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 | 2026-05-05 | **Schedule readiness snapshot:** `/schedule` now includes a compact operational summary for open slots, ready events, the viewer's shifts, open trades, and next visible call time. | Polish |
 | 2026-05-05 | **Inline assignment matrix:** Expanded schedule events now render one assignment matrix with scannable area/worker slots. Staff can assign open slots from the matrix, students keep inline trade posting, and the full event manager remains one explicit action away. | Polish |
 | 2026-05-05 | **Collapsed staffing preview:** Collapsed schedule rows now show a shadcn-style avatar group plus open-slot count, fading away when expanded. Expanded events use dense assignment rows again so fully staffed events stay compact while open slots remain assignable. | Polish |
-| 2026-05-05 | **Schedule role language:** Schedule list rows now replace raw `ST`/`FT` labels with readable Staff/Student slot language, summarize open needs by role in the event metadata, and keep event start/all-day context in front of the event title. The right column is reserved for real home call times; away/neutral call-time placeholders are omitted because those events depend on travel logistics. The collapsed avatar preview only shows assignment state, while expanded rows keep role labels neutral so area remains the primary color signal. | Polish |
+| 2026-05-05 | **Schedule role language:** Schedule list rows now replace raw enum abbreviations with readable Staff/Student slot language, summarize open needs by role in the event metadata, and keep event start/all-day context in front of the event title. The right column is reserved for real home call times; away/neutral call-time placeholders are omitted because those events depend on travel logistics. The collapsed avatar preview only shows assignment state, while expanded rows keep role labels neutral so area remains the primary color signal. | Polish |
 | 2026-05-07 | **Avatar and picker cleanup:** Collapsed schedule staffing previews now use the shared `UserAvatarGroup`, and `UserAvatarPicker` conflict indicators use tokenized `Badge`/status colors instead of raw yellow styling. Event-detail staffing controls moved obvious icon/assign/request actions onto shadcn `Button` variants. | Polish |
 | 2026-05-08 | **API hardening Wave 10:** Public shift ICS feeds now reject malformed tokens, rate-limit by IP and token, only serve active users, and cap assignment reads to a 500-event rolling window. | Hardening |
 | 2026-05-08 | **API hardening Wave 11:** Shift regenerate was re-verified as additive-only: it skips manually edited groups, does not wipe shifts, and already audits `shift_group_regenerated` with the added-shift count. | Hardening |

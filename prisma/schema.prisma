@@ -972,14 +972,18 @@ model SportConfig {
 }
 
 model SportShiftConfig {
-  id            String      @id @default(cuid())
-  sportConfigId String      @map("sport_config_id")
-  area          ShiftArea
-  homeCount     Int         @default(1) @map("home_count")
-  awayCount     Int         @default(1) @map("away_count")
-  createdAt     DateTime    @default(now()) @map("created_at")
-  updatedAt     DateTime    @updatedAt @map("updated_at")
-  sportConfig   SportConfig @relation(fields: [sportConfigId], references: [id], onDelete: Cascade)
+  id               String      @id @default(cuid())
+  sportConfigId    String      @map("sport_config_id")
+  area             ShiftArea
+  homeCount        Int         @default(1) @map("home_count")
+  awayCount        Int         @default(1) @map("away_count")
+  homeStaffCount   Int         @default(0) @map("home_staff_count")
+  homeStudentCount Int         @default(1) @map("home_student_count")
+  awayStaffCount   Int         @default(0) @map("away_staff_count")
+  awayStudentCount Int         @default(1) @map("away_student_count")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+  sportConfig      SportConfig @relation(fields: [sportConfigId], references: [id], onDelete: Cascade)
 
   @@unique([sportConfigId, area])
   @@map("sport_shift_configs")
@@ -1008,6 +1012,8 @@ model Shift {
   workerType   ShiftWorkerType   @map("worker_type")
   startsAt     DateTime          @map("starts_at")
   endsAt       DateTime          @map("ends_at")
+  callStartsAt DateTime?         @map("call_starts_at")
+  callEndsAt   DateTime?         @map("call_ends_at")
   notes        String?
   createdAt    DateTime          @default(now()) @map("created_at")
   updatedAt    DateTime          @updatedAt @map("updated_at")
@@ -1027,6 +1033,9 @@ model ShiftAssignment {
   status       ShiftAssignmentStatus
   assignedBy   String?               @map("assigned_by")
   swapFromId   String?               @map("swap_from_id")
+  callStartsAt DateTime?             @map("call_starts_at")
+  callEndsAt   DateTime?             @map("call_ends_at")
+  callNote     String?               @map("call_note")
   notes        String?
   hasConflict  Boolean               @default(false) @map("has_conflict")
   conflictNote String?               @map("conflict_note")

@@ -45,14 +45,16 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
 
   const shift = await db.shift.findUnique({
     where: { id },
-    select: { startsAt: true, endsAt: true },
+    select: { startsAt: true, endsAt: true, callStartsAt: true, callEndsAt: true },
   });
   if (!shift) throw new HttpError(404, "Shift not found");
 
-  const { day, hhmm: startHhmm } = toLocalComponents(shift.startsAt);
-  const { hhmm: endHhmm } = toLocalComponents(shift.endsAt);
+  const effectiveStartsAt = shift.callStartsAt ?? shift.startsAt;
+  const effectiveEndsAt = shift.callEndsAt ?? shift.endsAt;
+  const { day, hhmm: startHhmm } = toLocalComponents(effectiveStartsAt);
+  const { hhmm: endHhmm } = toLocalComponents(effectiveEndsAt);
 
-  // Only check student availability (FT staff don't have class blocks)
+  // Only check student availability; Staff users don't have class blocks.
   const blocks = await db.studentAvailabilityBlock.findMany({
     where: { dayOfWeek: day },
     select: { userId: true, startsAt: true, endsAt: true, label: true },

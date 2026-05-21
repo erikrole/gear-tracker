@@ -14,6 +14,7 @@ vi.mock("@/lib/db", () => {
     },
     shiftAssignment: {
       findFirst: vi.fn(),
+      findMany: vi.fn(),
       findUnique: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
@@ -50,7 +51,15 @@ const mockTx = (db as any)._mockTx;
 
 beforeEach(() => {
   transactionCalls.length = 0;
-  vi.clearAllMocks();
+  mockTx.shift.findUnique.mockReset();
+  mockTx.shift.update.mockReset();
+  mockTx.shiftAssignment.findFirst.mockReset();
+  mockTx.shiftAssignment.findMany.mockReset();
+  mockTx.shiftAssignment.findUnique.mockReset();
+  mockTx.shiftAssignment.create.mockReset();
+  mockTx.shiftAssignment.update.mockReset();
+  mockTx.shiftAssignment.updateMany.mockReset();
+  mockTx.shiftAssignment.findMany.mockResolvedValue([]);
 });
 
 // ════════════��═══════════════════════════════════���════════════════════════════
@@ -138,12 +147,13 @@ describe("directAssignShift", () => {
     );
   });
 
-  it("syncs the shift worker type to the directly assigned user's role", async () => {
+  it("preserves the planned shift worker type when assigning a different role", async () => {
     const staffSlot = makeShift({ workerType: "FT" });
     mockTx.shift.findUnique.mockResolvedValue(staffSlot);
     mockTx.shiftAssignment.findFirst
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(null);
+    mockTx.shiftAssignment.findMany.mockResolvedValue([]);
     mockTx.shiftAssignment.updateMany.mockResolvedValue({ count: 0 });
     mockTx.shiftAssignment.create.mockResolvedValue({
       id: "sa-1",
@@ -155,10 +165,37 @@ describe("directAssignShift", () => {
 
     await directAssignShift(staffSlot.id, "student-1", "admin-1");
 
-    expect(mockTx.shift.update).toHaveBeenCalledWith({
-      where: { id: staffSlot.id },
-      data: { workerType: "ST" },
+    expect(mockTx.shift.update).not.toHaveBeenCalled();
+  });
+
+  it("uses personal call-time overrides when checking conflicts", async () => {
+    const shiftWithDefaultWindow = makeShift({
+      startsAt: new Date("2026-04-01T10:00:00Z"),
+      endsAt: new Date("2026-04-01T12:00:00Z"),
     });
+    mockTx.shift.findUnique.mockResolvedValue(shiftWithDefaultWindow);
+    mockTx.shiftAssignment.findFirst.mockResolvedValue(null);
+    mockTx.shiftAssignment.findMany.mockResolvedValue([
+      {
+        id: "existing-assignment",
+        callStartsAt: new Date("2026-04-01T08:30:00Z"),
+        callEndsAt: new Date("2026-04-01T09:30:00Z"),
+        shift: {
+          area: "VIDEO",
+          startsAt: new Date("2026-04-01T14:00:00Z"),
+          endsAt: new Date("2026-04-01T16:00:00Z"),
+          callStartsAt: null,
+          callEndsAt: null,
+        },
+      },
+    ]);
+
+    await expect(
+      directAssignShift(shiftWithDefaultWindow.id, "user-1", "admin-1", {
+        callStartsAt: new Date("2026-04-01T09:00:00Z"),
+        callEndsAt: new Date("2026-04-01T10:00:00Z"),
+      })
+    ).rejects.toThrow("User already has a shift during this time");
   });
 });
 

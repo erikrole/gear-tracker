@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { getInitials } from "@/lib/avatar";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { shiftWorkerLabel } from "@/lib/shift-display";
 import { Prisma } from "@prisma/client";
 
 const DASHBOARD_LIMIT = { max: 30, windowMs: 60_000 };
@@ -443,11 +444,16 @@ export const GET = withAuth(async (_req, { user }) => {
   const pendingPickupsRaw = settledValue(pendingPickupsRawResult, bookingRowsFallback, "pendingPickups", partialFailures);
   const myShiftsRaw = settledValue(myShiftsRawResult, [] as Array<{
     id: string;
+    callStartsAt: Date | null;
+    callEndsAt: Date | null;
+    callNote: string | null;
     shift: {
       area: string;
       workerType: string;
       startsAt: Date;
       endsAt: Date;
+      callStartsAt: Date | null;
+      callEndsAt: Date | null;
       shiftGroup: {
         event: {
           id: string;
@@ -674,8 +680,12 @@ export const GET = withAuth(async (_req, { user }) => {
       id: a.id,
       area: a.shift.area,
       workerType: a.shift.workerType,
+      workerLabel: shiftWorkerLabel(a.shift.workerType),
       startsAt: a.shift.startsAt.toISOString(),
       endsAt: a.shift.endsAt.toISOString(),
+      callStartsAt: (a.callStartsAt ?? a.shift.callStartsAt ?? a.shift.startsAt).toISOString(),
+      callEndsAt: (a.callEndsAt ?? a.shift.callEndsAt ?? a.shift.endsAt).toISOString(),
+      callNote: a.callNote,
       event: {
         id: ev.id,
         summary: ev.summary,
@@ -724,8 +734,12 @@ export const GET = withAuth(async (_req, { user }) => {
         id: a.id,
         area: a.shift.area,
         workerType: a.shift.workerType,
+        workerLabel: shiftWorkerLabel(a.shift.workerType),
         startsAt: a.shift.startsAt.toISOString(),
         endsAt: a.shift.endsAt.toISOString(),
+        callStartsAt: (a.callStartsAt ?? a.shift.callStartsAt ?? a.shift.startsAt).toISOString(),
+        callEndsAt: (a.callEndsAt ?? a.shift.callEndsAt ?? a.shift.endsAt).toISOString(),
+        callNote: a.callNote,
       },
       gearStatus: primaryGear ? gearStatusForBooking(primaryGear.status) : "none",
       gearBookings,

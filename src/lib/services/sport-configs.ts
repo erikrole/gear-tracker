@@ -3,9 +3,49 @@ import { db } from "@/lib/db";
 
 export type SportShiftConfigInput = {
   area: ShiftArea;
+  homeCount?: number;
+  awayCount?: number;
+  homeStaffCount?: number;
+  homeStudentCount?: number;
+  awayStaffCount?: number;
+  awayStudentCount?: number;
+};
+
+function normalizeShiftConfigInput(sc: SportShiftConfigInput) {
+  const homeStaffCount = sc.homeStaffCount ?? 0;
+  const homeStudentCount = sc.homeStudentCount ?? sc.homeCount ?? 0;
+  const awayStaffCount = sc.awayStaffCount ?? 0;
+  const awayStudentCount = sc.awayStudentCount ?? sc.awayCount ?? 0;
+  return {
+    area: sc.area,
+    homeCount: homeStaffCount + homeStudentCount,
+    awayCount: awayStaffCount + awayStudentCount,
+    homeStaffCount,
+    homeStudentCount,
+    awayStaffCount,
+    awayStudentCount,
+  };
+}
+
+function configInputFromExisting(sc: {
+  area: ShiftArea;
   homeCount: number;
   awayCount: number;
-};
+  homeStaffCount?: number | null;
+  homeStudentCount?: number | null;
+  awayStaffCount?: number | null;
+  awayStudentCount?: number | null;
+}): SportShiftConfigInput {
+  return {
+    area: sc.area,
+    homeCount: sc.homeCount,
+    awayCount: sc.awayCount,
+    homeStaffCount: sc.homeStaffCount ?? 0,
+    homeStudentCount: sc.homeStudentCount ?? sc.homeCount,
+    awayStaffCount: sc.awayStaffCount ?? 0,
+    awayStudentCount: sc.awayStudentCount ?? sc.awayCount,
+  };
+}
 
 /** Get all sport configs with their shift config rows */
 export async function getAllSportConfigs() {
@@ -40,7 +80,8 @@ export async function upsertSportConfig(
     });
 
     // Upsert each shift config row
-    for (const sc of shiftConfigs) {
+    for (const rawSc of shiftConfigs) {
+      const sc = normalizeShiftConfigInput(rawSc);
       await tx.sportShiftConfig.upsert({
         where: {
           sportConfigId_area: {
@@ -53,10 +94,18 @@ export async function upsertSportConfig(
           area: sc.area,
           homeCount: sc.homeCount,
           awayCount: sc.awayCount,
+          homeStaffCount: sc.homeStaffCount,
+          homeStudentCount: sc.homeStudentCount,
+          awayStaffCount: sc.awayStaffCount,
+          awayStudentCount: sc.awayStudentCount,
         },
         update: {
           homeCount: sc.homeCount,
           awayCount: sc.awayCount,
+          homeStaffCount: sc.homeStaffCount,
+          homeStudentCount: sc.homeStudentCount,
+          awayStaffCount: sc.awayStaffCount,
+          awayStudentCount: sc.awayStudentCount,
         },
       });
     }
@@ -95,7 +144,7 @@ export async function upsertSportConfigsForGroup(
       });
       const nextActive = patch.active ?? existing?.active ?? true;
       const nextShifts = patch.shiftConfigs
-        ?? existing?.shiftConfigs.map((sc) => ({ area: sc.area, homeCount: sc.homeCount, awayCount: sc.awayCount }))
+        ?? existing?.shiftConfigs.map(configInputFromExisting)
         ?? [];
 
       const config = await tx.sportConfig.upsert({
@@ -113,7 +162,8 @@ export async function upsertSportConfigsForGroup(
         },
       });
 
-      for (const sc of nextShifts) {
+      for (const rawSc of nextShifts) {
+        const sc = normalizeShiftConfigInput(rawSc);
         await tx.sportShiftConfig.upsert({
           where: { sportConfigId_area: { sportConfigId: config.id, area: sc.area } },
           create: {
@@ -121,8 +171,19 @@ export async function upsertSportConfigsForGroup(
             area: sc.area,
             homeCount: sc.homeCount,
             awayCount: sc.awayCount,
+            homeStaffCount: sc.homeStaffCount,
+            homeStudentCount: sc.homeStudentCount,
+            awayStaffCount: sc.awayStaffCount,
+            awayStudentCount: sc.awayStudentCount,
           },
-          update: { homeCount: sc.homeCount, awayCount: sc.awayCount },
+          update: {
+            homeCount: sc.homeCount,
+            awayCount: sc.awayCount,
+            homeStaffCount: sc.homeStaffCount,
+            homeStudentCount: sc.homeStudentCount,
+            awayStaffCount: sc.awayStaffCount,
+            awayStudentCount: sc.awayStudentCount,
+          },
         });
       }
 

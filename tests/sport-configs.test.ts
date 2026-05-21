@@ -130,7 +130,64 @@ describe("upsertSportConfig", () => {
       })
     );
     expect(mockTx.sportShiftConfig.upsert).toHaveBeenCalledTimes(1);
+    expect(mockTx.sportShiftConfig.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          homeCount: 4,
+          homeStaffCount: 0,
+          homeStudentCount: 4,
+          awayCount: 2,
+          awayStaffCount: 0,
+          awayStudentCount: 2,
+        }),
+        update: expect.objectContaining({
+          homeCount: 4,
+          homeStaffCount: 0,
+          homeStudentCount: 4,
+          awayCount: 2,
+          awayStaffCount: 0,
+          awayStudentCount: 2,
+        }),
+      })
+    );
     expect(result!.shiftConfigs).toHaveLength(1);
+  });
+
+  it("stores separate staff and student counts while preserving legacy totals", async () => {
+    mockTx.sportConfig.upsert.mockResolvedValue({ id: "sc-1" });
+    mockTx.sportShiftConfig.upsert.mockResolvedValue({});
+    mockTx.sportConfig.findUnique.mockResolvedValue({ id: "sc-1", shiftConfigs: [] });
+
+    await upsertSportConfig("FB", true, [
+      {
+        area: "FIELD" as any,
+        homeStaffCount: 1,
+        homeStudentCount: 2,
+        awayStaffCount: 1,
+        awayStudentCount: 1,
+      },
+    ]);
+
+    expect(mockTx.sportShiftConfig.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          homeCount: 3,
+          homeStaffCount: 1,
+          homeStudentCount: 2,
+          awayCount: 2,
+          awayStaffCount: 1,
+          awayStudentCount: 1,
+        }),
+        update: expect.objectContaining({
+          homeCount: 3,
+          homeStaffCount: 1,
+          homeStudentCount: 2,
+          awayCount: 2,
+          awayStaffCount: 1,
+          awayStudentCount: 1,
+        }),
+      })
+    );
   });
 
   it("uses SERIALIZABLE isolation", async () => {

@@ -24,6 +24,7 @@ import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import { UserAvatarPicker, type PickerUser } from "@/components/shift-detail/UserAvatarPicker";
 import type { ShiftGroupSummary, CommandCenterData } from "../_utils";
 import { AREA_LABELS } from "../_utils";
+import { shiftWorkerLabel, shiftWorkerSlotLabel } from "@/lib/shift-display";
 
 const AREAS = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS"] as const;
 
@@ -173,7 +174,7 @@ export function ShiftCoverageCard({
   }
 
   function handleAddShift(area: string, workerType: string) {
-    const label = workerType === "FT" ? "Staff" : "Student";
+    const label = shiftWorkerLabel(workerType);
     mutate(`add-${area}-${workerType}`, `/api/shift-groups/${groupId}/shifts`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -427,7 +428,7 @@ export function ShiftCoverageCard({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-32">
                     <DropdownMenuItem onClick={() => handleAddShift(area, "ST")}>Student</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleAddShift(area, "FT")}>Full-time</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleAddShift(area, "FT")}>Staff</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>
@@ -443,7 +444,7 @@ export function ShiftCoverageCard({
                   <TableCell>
                     <span className="tabular-nums text-sm text-muted-foreground">
                       {formatTimeShort(shift.startsAt)}
-                      {shift.workerType === "FT" && <Badge variant="gray" size="sm" className="ml-1.5">FT</Badge>}
+                      <Badge variant="gray" size="sm" className="ml-1.5">{shiftWorkerSlotLabel(shift.workerType)}</Badge>
                     </span>
                   </TableCell>
                   <TableCell>
@@ -504,7 +505,7 @@ export function ShiftCoverageCard({
               <TableCell>
                 <span className="flex items-center gap-1.5">
                   {AREA_LABELS[shift.area] ?? shift.area}
-                  {shift.workerType === "FT" && <Badge variant="gray" size="sm">FT</Badge>}
+                  <Badge variant="gray" size="sm">{shiftWorkerSlotLabel(shift.workerType)}</Badge>
                 </span>
               </TableCell>
               <TableCell>
