@@ -114,15 +114,15 @@ export function ShiftAreaSection({
                 disabled={acting !== null}
               >
                 <PlusIcon className="size-3.5 mr-0.5" />
-                Shift
+                Slot
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-36">
-              <DropdownMenuItem onClick={() => onAddShift("ST")}>
-                Student
-              </DropdownMenuItem>
+            <DropdownMenuContent align="end" className="w-40">
               <DropdownMenuItem onClick={() => onAddShift("FT")}>
-                Staff
+                Add Staff slot
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onAddShift("ST")}>
+                Add Student slot
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

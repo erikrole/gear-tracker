@@ -73,6 +73,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - Sports code mappings (existing — `src/lib/sports.ts`)
 
 ## Change Log
+- 2026-05-21: Manual slot creation now uses explicit Staff slot and Student slot choices in Shift Detail, Event Detail, and the Assign grid, replacing ambiguous add controls.
 - 2026-05-21: Shift Staffing MVP shipped. Sport templates now store separate Staff and Student counts for each area/home-away row while keeping legacy totals in sync. Generated slots preserve their planned Staff or Student kind after assignment, cross-role fills display as explicit exceptions, shift-level and per-person call windows are available, and assignment conflict checks use the effective personal/shift/default call time.
 - 2026-05-21: Trade Board cancellation confirmation now names the event, shift window, and posted owner so users know exactly which trade posting is being cancelled and that the assignment remains with the original worker. The Trade Board sheet also exposes an accessible description for browser dialog checks.
 - 2026-05-21: Schedule filter view and venue segmented controls now use shadcn `ToggleGroup` while staying a documented schedule-specific command bar instead of a generic list toolbar.

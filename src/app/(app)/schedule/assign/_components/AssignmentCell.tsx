@@ -3,6 +3,12 @@
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -164,26 +170,29 @@ export function AssignmentCell({ shifts, shiftGroupId, area, allUsers, usersLoad
   const firstOpenShift = openShifts[0];
   const openCount = openShifts.length;
   const addSlotButton = canEditSlots ? (
-    <div className="flex items-center gap-0.5">
-      {(["FT", "ST"] as const).map((workerType) => (
-        <Tooltip key={workerType}>
-          <TooltipTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="relative size-8 shrink-0 text-muted-foreground/60 opacity-55 transition-[background-color,color,opacity,scale] before:absolute before:-inset-1 before:content-[''] hover:text-foreground hover:opacity-100 active:scale-[0.96] group-hover/cell:opacity-100 focus-visible:opacity-100"
-              disabled={Boolean(acting)}
-              aria-label={`Add ${area} ${shiftWorkerLabel(workerType)} slot`}
-              onClick={() => handleAddShift(workerType)}
-            >
-              <PlusIcon className={cn("size-3.5", acting === `add-${area}-${workerType}` && "animate-pulse")} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Add {shiftWorkerLabel(workerType)} slot</TooltipContent>
-        </Tooltip>
-      ))}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-8 shrink-0 gap-1 px-2 text-xs text-muted-foreground/70 opacity-70 transition-[background-color,color,opacity,scale] hover:text-foreground hover:opacity-100 active:scale-[0.96] group-hover/cell:opacity-100 focus-visible:opacity-100"
+          disabled={Boolean(acting)}
+          aria-label={`Add ${area} staff or student slot`}
+        >
+          <PlusIcon className={cn("size-3.5", acting?.startsWith(`add-${area}-`) && "animate-pulse")} />
+          Slot
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-40">
+        <DropdownMenuItem onClick={() => handleAddShift("FT")}>
+          Add Staff slot
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleAddShift("ST")}>
+          Add Student slot
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   ) : null;
 
   return (

@@ -421,14 +421,14 @@ export function ShiftCoverageCard({
                       size="icon"
                       className="size-10 text-muted-foreground"
                       disabled={inlineActing !== null}
-                      aria-label={`Add ${AREA_LABELS[area] ?? area} shift`}
+                      aria-label={`Add ${AREA_LABELS[area] ?? area} staff or student slot`}
                     >
                       <PlusIcon className="size-3" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-32">
-                    <DropdownMenuItem onClick={() => handleAddShift(area, "ST")}>Student</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleAddShift(area, "FT")}>Staff</DropdownMenuItem>
+                  <DropdownMenuContent align="end" className="w-40">
+                    <DropdownMenuItem onClick={() => handleAddShift(area, "FT")}>Add Staff slot</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleAddShift(area, "ST")}>Add Student slot</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>
@@ -472,7 +472,7 @@ export function ShiftCoverageCard({
                     inline
                     icon="users"
                     title={`No ${AREA_LABELS[area] ?? area} shifts`}
-                    description="Add a student or staff shift when this area needs coverage."
+                    description="Add Staff and Student slots to match the crew minimum for this area."
                   />
                 </TableCell>
               </TableRow>

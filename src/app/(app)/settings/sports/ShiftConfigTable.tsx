@@ -112,6 +112,12 @@ export default function ShiftConfigTable({
               <CardContent className="pt-0 space-y-4">
                 {/* Shift counts table */}
                 <div className="overflow-x-auto">
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-medium">Minimum crew</p>
+                    <p className="text-xs text-muted-foreground">
+                      Generated shifts create both Staff slots and Student slots from these counts.
+                    </p>
+                  </div>
                   <table className="w-full border-collapse text-sm [&_th]:text-left [&_th]:px-4 [&_th]:py-2 [&_th]:text-xs [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-wider [&_th]:text-muted-foreground [&_th]:border-b [&_th]:border-border [&_th]:bg-muted/40 [&_td]:px-4 [&_td]:py-2.5 [&_td]:border-b [&_td]:border-border/40 [&_tr:last-child_td]:border-b-0">
                     <thead>
                       <tr>
@@ -123,8 +129,8 @@ export default function ShiftConfigTable({
                       <tr>
                         <th></th>
                         {AREAS.flatMap((a) => [
-                          <th key={`${a}-staff`} className="text-center normal-case">Staff</th>,
-                          <th key={`${a}-student`} className="text-center normal-case">Student</th>,
+                          <th key={`${a}-staff`} className="text-center normal-case">Staff slots</th>,
+                          <th key={`${a}-student`} className="text-center normal-case">Student slots</th>,
                         ])}
                       </tr>
                     </thead>
