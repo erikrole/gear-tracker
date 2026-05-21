@@ -19,15 +19,19 @@ function maintenanceValue<T>(
   return fallback;
 }
 
+/** Events older than this many months are soft-archived (archivedAt stamped). */
+const EVENT_ARCHIVE_MONTHS = 4;
+
 /**
  * Nightly 3 AM Central refresh (08:00 UTC):
  *   1. Sync all enabled calendar sources (fetch ICS, upsert events)
  *   2. Generate shifts for any newly synced events
  *   3. Archive shift groups for events that have ended
- *   4. Expire stale open trades and pending kiosk pickups
+ *   4. Archive calendar events older than EVENT_ARCHIVE_MONTHS
+ *   5. Expire stale open trades and pending kiosk pickups
  *
- * Events and shifts are never deleted by this job — archiving only sets
- * archivedAt so the records remain visible in the calendar and schedule.
+ * Nothing is deleted — archiving only sets archivedAt so all records remain
+ * available for historical stats (future Wrapped feature).
  */
 export const GET = withCron(async () => {
   const now = new Date();
@@ -92,7 +96,21 @@ export const GET = withCron(async () => {
     archived = result.count;
   }
 
-  // ── 3. Expire stale open/claimed trades and pending pickups ─────────
+  // ── 3. Archive old calendar events ───────────────────────────────────
+  const archiveCutoff = new Date(now);
+  archiveCutoff.setMonth(archiveCutoff.getMonth() - EVENT_ARCHIVE_MONTHS);
+  const eventsArchived = await db.calendarEvent
+    .updateMany({
+      where: { endsAt: { lt: archiveCutoff }, archivedAt: null },
+      data: { archivedAt: now },
+    })
+    .then((r) => r.count)
+    .catch((err) => {
+      console.error("morning-refresh: event archive step failed", err);
+      return 0;
+    });
+
+  // ── 4. Expire stale open/claimed trades and pending pickups ─────────
   const [tradeResult, pendingPickupResult] = await Promise.allSettled([
     expireOpenTrades(),
     expirePendingPickupCheckouts(now),
@@ -122,7 +140,8 @@ export const GET = withCron(async () => {
     runAt: now.toISOString(),
     sourcesProcessed: sources.length,
     syncResults,
-    archived,
+    shiftGroupsArchived: archived,
+    eventsArchived,
     tradesExpired,
     pendingPickups,
     maintenanceFailures,

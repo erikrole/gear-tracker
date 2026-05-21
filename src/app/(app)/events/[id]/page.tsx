@@ -3,18 +3,22 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { Calendar, Clock, MapPin, RefreshCw, WifiOff, AlertTriangle } from "lucide-react";
+import { Calendar, Clock, MapPin, RefreshCw, WifiOff, AlertTriangle, Pencil, RotateCcw } from "lucide-react";
 import { classifyError, handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
 import { useFetch } from "@/hooks/use-fetch";
 import { toast } from "sonner";
 import { sportLabel } from "@/lib/sports";
 import { formatTimeShort } from "@/lib/format";
 import { VENUE_TONES, venueBadgeVariant, venueToneFromIsHome } from "@/lib/venue-tone";
+import type { VenueTone } from "@/lib/venue-tone";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { PageHeader } from "@/components/PageHeader";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 import type { CalendarEvent, ShiftGroupSummary, CommandCenterData } from "./_utils";
@@ -36,6 +40,10 @@ export default function EventDetailPage() {
   const [acting, setActing] = useState<string | null>(null);
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [crewSetupError, setCrewSetupError] = useState("");
+  const [titleDialogOpen, setTitleDialogOpen] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+  const [savingTitle, setSavingTitle] = useState(false);
+  const [savingHomeAway, setSavingHomeAway] = useState(false);
 
   const {
     data: event,
@@ -86,6 +94,69 @@ export default function EventDetailPage() {
     reloadShiftGroup();
     if (isStaffOrAdmin) reloadCommandCenter();
   }, [reloadEvent, reloadShiftGroup, reloadCommandCenter, isStaffOrAdmin]);
+
+  async function patchEvent(body: Record<string, unknown>): Promise<boolean> {
+    try {
+      const res = await fetch(`/api/calendar-events/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (handleAuthRedirect(res)) return false;
+      if (!res.ok) {
+        const msg = await parseErrorMessage(res, "Failed to update event");
+        toast.error(msg);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      if (isAbortError(err)) return false;
+      toast.error("Network error");
+      return false;
+    }
+  }
+
+  async function handleSaveTitle() {
+    if (!titleDraft.trim()) return;
+    setSavingTitle(true);
+    try {
+      const ok = await patchEvent({ summary: titleDraft.trim() });
+      if (ok) { setTitleDialogOpen(false); reloadEvent(); toast.success("Title updated"); }
+    } finally {
+      setSavingTitle(false);
+    }
+  }
+
+  async function handleRevertTitle() {
+    setSavingTitle(true);
+    try {
+      const ok = await patchEvent({ revertTitle: true });
+      if (ok) { setTitleDialogOpen(false); reloadEvent(); toast.success("Title reverted"); }
+    } finally {
+      setSavingTitle(false);
+    }
+  }
+
+  async function handleSetHomeAway(tone: VenueTone) {
+    const isHomeValue = tone === "home" ? true : tone === "away" ? false : null;
+    setSavingHomeAway(true);
+    try {
+      const ok = await patchEvent({ isHome: isHomeValue });
+      if (ok) reloadEvent();
+    } finally {
+      setSavingHomeAway(false);
+    }
+  }
+
+  async function handleRevertHomeAway() {
+    setSavingHomeAway(true);
+    try {
+      const ok = await patchEvent({ revertHomeAway: true });
+      if (ok) reloadEvent();
+    } finally {
+      setSavingHomeAway(false);
+    }
+  }
 
   async function handleCreateShiftGroup() {
     if (!event) return;
@@ -160,6 +231,21 @@ export default function EventDetailPage() {
     <>
       <PageHeader title={event.summary}>
         <TooltipProvider>
+          {isStaffOrAdmin && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => { setTitleDraft(event.summary); setTitleDialogOpen(true); }}
+                  className={event.summaryLocked ? "text-amber-500 hover:text-amber-600" : ""}
+                >
+                  <Pencil className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{event.summaryLocked ? "Title edited — click to change or revert" : "Edit title"}</TooltipContent>
+            </Tooltip>
+          )}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={eventRefreshing}>
@@ -173,15 +259,87 @@ export default function EventDetailPage() {
         </TooltipProvider>
       </PageHeader>
 
+      <Dialog open={titleDialogOpen} onOpenChange={setTitleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit event title</DialogTitle>
+          </DialogHeader>
+          <Input
+            value={titleDraft}
+            onChange={(e) => setTitleDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleSaveTitle(); }}
+            maxLength={200}
+            placeholder="Event title"
+            disabled={savingTitle}
+          />
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            {event.summaryLocked && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="sm:mr-auto text-muted-foreground"
+                onClick={handleRevertTitle}
+                disabled={savingTitle}
+              >
+                <RotateCcw className="size-3.5 mr-1.5" />
+                Revert to synced
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setTitleDialogOpen(false)} disabled={savingTitle}>Cancel</Button>
+            <Button onClick={handleSaveTitle} disabled={savingTitle || !titleDraft.trim()}>
+              {savingTitle ? "Saving…" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <Badge variant={event.status === "CANCELLED" ? "red" : "green"}>
           {event.status.toLowerCase()}
         </Badge>
         {event.sportCode && <Badge variant="purple">{sportLabel(event.sportCode)}</Badge>}
         {event.opponent && (
-          <Badge variant={venueBadgeVariant(event.isHome)}>
-            {VENUE_TONES[venueToneFromIsHome(event.isHome)].label}
-          </Badge>
+          isStaffOrAdmin ? (
+            <div className="flex items-center gap-1.5">
+              <ToggleGroup
+                type="single"
+                value={venueToneFromIsHome(event.isHome)}
+                onValueChange={(val) => { if (val) handleSetHomeAway(val as VenueTone); }}
+                disabled={savingHomeAway}
+                className="h-7 gap-0 rounded-md border border-input bg-background p-0.5"
+              >
+                {(["home", "away", "neutral"] as VenueTone[]).map((tone) => (
+                  <ToggleGroupItem
+                    key={tone}
+                    value={tone}
+                    className="h-6 rounded-sm px-2 text-xs data-[state=on]:bg-muted data-[state=on]:text-foreground"
+                  >
+                    {VENUE_TONES[tone].label}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+              {event.isHomeLocked && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-6 text-amber-500 hover:text-amber-600"
+                      onClick={handleRevertHomeAway}
+                      disabled={savingHomeAway}
+                    >
+                      <RotateCcw className="size-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Revert to synced value</TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+          ) : (
+            <Badge variant={venueBadgeVariant(event.isHome)}>
+              {VENUE_TONES[venueToneFromIsHome(event.isHome)].label}
+            </Badge>
+          )
         )}
       </div>
 

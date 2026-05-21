@@ -15,6 +15,7 @@ export const GET = withAuth(async (req) => {
 
   const sportCode = searchParams.get("sportCode");
   const includeHidden = searchParams.get("includeHidden") === "true";
+  const includeArchived = searchParams.get("includeArchived") === "true";
   const parsedStartDate = parseOptionalDate(startDate, "startDate");
   const parsedEndDate = parseOptionalDate(endDate, "endDate");
   assertDateOrder(parsedStartDate, parsedEndDate);
@@ -30,6 +31,10 @@ export const GET = withAuth(async (req) => {
     ...(sportCode ? { sportCode } : {}),
     status: { not: "CANCELLED" as const },
     ...(!includeHidden ? { isHidden: false } : {}),
+    // Exclude archived events unless caller explicitly requests them.
+    // includePast=true still only shows non-archived recent history;
+    // includeArchived=true is the separate deep-history toggle.
+    ...(!includeArchived ? { archivedAt: null } : {}),
   };
 
   const [data, total] = await Promise.all([

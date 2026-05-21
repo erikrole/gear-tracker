@@ -508,6 +508,8 @@ function makeExistingRow(overrides: Partial<ExistingEventRow> & { id: string; ex
     sportCode: null,
     opponent: null,
     isHome: null,
+    summaryLocked: false,
+    isHomeLocked: false,
     ...overrides,
   };
 }
@@ -682,6 +684,79 @@ describe("splitEventsForSync", () => {
     })];
     const result = splitEventsForSync(parsed, [], []);
     expect(result.toCreate[0]!.isHome).toBe(true);
+  });
+
+  // ── lock guard tests ──
+
+  it("summaryLocked: sync does not overwrite a manually edited title", () => {
+    const parsed = [makeParsedEvent({ uid: "evt-1", summary: "New ICS Title" })];
+    const existing = [makeExistingRow({
+      id: "db-1", externalId: "evt-1",
+      summary: "My Custom Title",
+      summaryLocked: true,
+    })];
+    const result = splitEventsForSync(parsed, existing, []);
+    // Locked title survives: goes to unchanged, not toUpdate
+    expect(result.unchanged).toHaveLength(1);
+    expect(result.toUpdate).toHaveLength(0);
+  });
+
+  it("summaryLocked: other fields (e.g. startsAt) still trigger an update", () => {
+    const parsed = [makeParsedEvent({ uid: "evt-1", summary: "New ICS Title", dtstart: "20260320T100000Z" })];
+    const existing = [makeExistingRow({
+      id: "db-1", externalId: "evt-1",
+      summary: "My Custom Title",
+      summaryLocked: true,
+    })];
+    const result = splitEventsForSync(parsed, existing, []);
+    // Time changed → update fires, but the locked summary is preserved in the data
+    expect(result.toUpdate).toHaveLength(1);
+    expect(result.toUpdate[0]!.data.summary).toBe("My Custom Title");
+  });
+
+  it("isHomeLocked: sync does not overwrite a manually set home/away value", () => {
+    // ICS has no sport code so isHome parses to null (away),
+    // but staff locked it to home. Only isHome would differ — lock prevents update.
+    const parsed = [makeParsedEvent({
+      uid: "evt-1",
+      summary: "Test Event",
+    })];
+    const existing = [makeExistingRow({
+      id: "db-1", externalId: "evt-1",
+      isHome: true,
+      isHomeLocked: true,
+    })];
+    const result = splitEventsForSync(parsed, existing, []);
+    expect(result.unchanged).toHaveLength(1);
+    expect(result.toUpdate).toHaveLength(0);
+  });
+
+  it("isHomeLocked: other field changes still update while preserving isHome", () => {
+    const parsed = [makeParsedEvent({
+      uid: "evt-1",
+      summary: "Test Event",
+      dtstart: "20260320T100000Z", // changed start → triggers update
+    })];
+    const existing = [makeExistingRow({
+      id: "db-1", externalId: "evt-1",
+      isHome: true,
+      isHomeLocked: true,
+    })];
+    const result = splitEventsForSync(parsed, existing, []);
+    expect(result.toUpdate).toHaveLength(1);
+    expect(result.toUpdate[0]!.data.isHome).toBe(true);
+  });
+
+  it("unlocked fields are updated as normal", () => {
+    const parsed = [makeParsedEvent({ uid: "evt-1", summary: "Changed Title" })];
+    const existing = [makeExistingRow({
+      id: "db-1", externalId: "evt-1",
+      summary: "Old Title",
+      summaryLocked: false,
+    })];
+    const result = splitEventsForSync(parsed, existing, []);
+    expect(result.toUpdate).toHaveLength(1);
+    expect(result.toUpdate[0]!.data.summary).toBe("Changed Title");
   });
 });
 

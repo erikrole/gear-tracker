@@ -326,6 +326,8 @@ export type ExistingEventRow = {
   sportCode: string | null;
   opponent: string | null;
   isHome: boolean | null;
+  summaryLocked: boolean;
+  isHomeLocked: boolean;
 };
 
 export type ParsedIcsEvent = {
@@ -409,6 +411,10 @@ export function splitEventsForSync(
 
       const existing = existingMap.get(event.uid);
       if (existing) {
+        // Preserve manually locked fields: sync never overwrites them.
+        if (existing.summaryLocked) data.summary = existing.summary;
+        if (existing.isHomeLocked) data.isHome = existing.isHome;
+
         const changed =
           existing.summary !== data.summary ||
           existing.description !== data.description ||
@@ -541,6 +547,7 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
       id: true, externalId: true, summary: true, description: true,
       startsAt: true, endsAt: true, allDay: true, status: true, locationId: true,
       sportCode: true, opponent: true, isHome: true,
+      summaryLocked: true, isHomeLocked: true,
     }
   });
 

@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Events
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-21
+- Last Updated: 2026-05-22
 - Status: Active
 
 ## Direction
@@ -31,13 +31,19 @@ Make athletics schedule data the operational backbone for booking and checkout w
 12. Calendar Sources management remains at `/settings/calendar-sources` (unchanged).
 13. Manual Calendar Source sync uses a short database-backed per-source lease, so concurrent sync clicks return 409 instead of running duplicate external fetch and shift-generation work.
 
+## Now (Implemented — cont.)
+14. **Manual event edits (sync-safe)** — Staff/admin can edit event title (inline pencil → dialog) and toggle home/away/neutral on the event detail page. Both survive ICS re-sync via lock flags (`summaryLocked`, `isHomeLocked`) on `CalendarEvent`. Revert-to-synced re-derives from `rawSummary` + `rawLocationText`. Edits are audited. Migration 0070.
+15. **Soft archive** — `morning-refresh` cron stamps `archivedAt` on events older than 4 months. List API excludes archived events by default; `includeArchived=true` surfaces them. No data deleted — full event + booking + travel history preserved for future Wrapped-style stats.
+
 ## Next
 1. Better normalization for opponent and venue fields.
 2. Schedule V2 enhancements: week view, gear readiness indicators, conflict detection — see `tasks/schedule-roadmap.md`.
+3. "Show archived" toggle on `/schedule` page (filter UI for archived events — API param already wired).
 
 ## Later
 1. Multi-source event ingestion, if required.
 2. Event quality scoring for operator confidence.
+3. "Wrapped"-style stats feature — per-staff/student season analytics. Depends on the soft-archive pipeline in item 15 above (no data deleted, all history preserved).
 
 ## Acceptance Criteria
 - [x] AC-1: Event picker shows relevant upcoming events by sport.
@@ -68,6 +74,7 @@ Make athletics schedule data the operational backbone for booking and checkout w
 4. Fallback behavior for incomplete events is implemented — treat event context as non-blocking metadata on all booking flows.
 
 ## Change Log
+- 2026-05-22: Manual event edits + soft archive. Staff/admin can edit event title and toggle home/away/neutral on `/events/[id]`; both survive ICS re-sync (lock flags + revert-to-synced). Events older than 4 months are soft-archived by `morning-refresh` cron (archivedAt stamp, no deletes). List API gains `includeArchived` param. All history preserved for future Wrapped stats.
 - 2026-05-21: Event detail travel roster controls now use keyboard-visible 40px targets for default traveler, add, and remove actions, and the empty travel roster uses the shared inline empty-state treatment.
 - 2026-05-12: Creation flow standardization. Schedule New Event now keeps operators in the sheet after submit with an explicit handoff to open the created event, add another event, or return to the refreshed schedule, manual event create failures render as form-level alerts instead of toast-only failures, and manual events can persist without an external calendar source.
 - 2026-05-10: Status/data wiring ship fixes. Booking calendar reads now default to schedule-active booking states (`BOOKED`, `PENDING_PICKUP`, `OPEN`) instead of letting draft, completed, or cancelled records appear as occupying work. Event command-center gear summaries now count awaiting-pickup gear separately from checked-out and reserved gear.

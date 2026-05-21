@@ -672,6 +672,9 @@ model CalendarEvent {
   sportCode       String?             @map("sport_code")
   isHome          Boolean?            @map("is_home")
   isHidden        Boolean             @default(false) @map("is_hidden")
+  summaryLocked   Boolean             @default(false) @map("summary_locked")
+  isHomeLocked    Boolean             @default(false) @map("is_home_locked")
+  archivedAt      DateTime?           @map("archived_at")
   opponent        String?
   createdAt       DateTime            @default(now()) @map("created_at")
   updatedAt       DateTime            @updatedAt @map("updated_at")
@@ -686,6 +689,7 @@ model CalendarEvent {
   @@index([startsAt, endsAt])
   @@index([locationId])
   @@index([sportCode])
+  @@index([archivedAt])
   @@map("calendar_events")
 }
 

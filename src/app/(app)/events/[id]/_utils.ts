@@ -12,6 +12,8 @@ export type CalendarEvent = {
   sportCode: string | null;
   opponent: string | null;
   isHome: boolean | null;
+  summaryLocked: boolean;
+  isHomeLocked: boolean;
   location: { id: string; name: string } | null;
   source: { id: string; name: string } | null;
 };
