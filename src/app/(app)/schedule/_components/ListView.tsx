@@ -14,6 +14,12 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -259,25 +265,40 @@ function ShiftRowList({
                 {areaLabel}
               </Badge>
               {isStaff && onAddShift && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
                     <Button
                       type="button"
                       variant="ghost"
-                      size="icon-sm"
-                      className="relative size-8 text-muted-foreground transition-[background-color,color,scale] before:absolute before:-inset-1 before:content-[''] hover:text-foreground active:scale-[0.96]"
+                      size="sm"
+                      className="relative h-8 gap-1 px-2 text-xs text-muted-foreground transition-[background-color,color,scale] before:absolute before:-inset-1 before:content-[''] hover:text-foreground active:scale-[0.96]"
                       disabled={Boolean(addingShiftId)}
-                      aria-label={`Add another ${areaLabel} ${slotLabel.toLowerCase()}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onAddShift(shift, workerType);
-                      }}
+                      aria-label={`Add ${areaLabel} Staff or Student slot`}
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <PlusIcon className={cn("size-3.5", isAddingShift && "animate-pulse")} />
+                      Slot
                     </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Add another {slotLabel.toLowerCase()}</TooltipContent>
-                </Tooltip>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-40" onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAddShift(shift, "FT");
+                      }}
+                    >
+                      Add Staff slot
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAddShift(shift, "ST");
+                      }}
+                    >
+                      Add Student slot
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
             </div>
 
@@ -609,7 +630,7 @@ export function ListView({
     addingShiftRef.current = true;
     setAddingShiftId(shift.id);
     const areaLabel = AREA_LABELS[shift.area] ?? shift.area;
-    const slotLabel = roleLabel(workerType).toLowerCase();
+    const slotLabel = roleSlotLabel(workerType).toLowerCase();
     try {
       const res = await fetch(`/api/shift-groups/${entry.shiftGroupId}/shifts`, {
         method: "POST",
@@ -623,7 +644,7 @@ export function ListView({
       });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        toast.success(`Added ${areaLabel} ${slotLabel} shift`);
+        toast.success(`Added ${areaLabel} ${slotLabel}`);
         loadData();
       } else {
         const msg = await parseErrorMessage(res, "Failed to add shift");
