@@ -186,6 +186,24 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
         </div>
       )}
 
+      {/* Archived events toggle - list view only */}
+      {filters.viewMode === "list" && (
+        <div className="flex min-h-10 items-center gap-1.5 rounded-md border border-border bg-muted/30 px-2.5">
+          <Switch
+            id="archived-events-toggle"
+            checked={filters.includeArchived}
+            onCheckedChange={filters.setIncludeArchived}
+            className="scale-[0.8] origin-center"
+          />
+          <Label
+            htmlFor="archived-events-toggle"
+            className="text-[13px] font-medium cursor-pointer whitespace-nowrap"
+          >
+            Archived
+          </Label>
+        </div>
+      )}
+
       {/* Data filters popover */}
       <Popover>
         <PopoverTrigger asChild>

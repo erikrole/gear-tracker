@@ -29,6 +29,8 @@ export type ScheduleFilters = {
   setHomeAwayFilter: (v: HomeAwayFilter) => void;
   includePast: boolean;
   setIncludePast: (v: boolean) => void;
+  includeArchived: boolean;
+  setIncludeArchived: (v: boolean) => void;
   myShiftsOnly: boolean;
   setMyShiftsOnly: (v: boolean) => void;
   hasFilters: boolean;
@@ -80,7 +82,7 @@ function mergeData(events: CalendarEvent[], groups: ShiftGroup[]): CalendarEntry
 }
 
 /** Build schedule fetch URL based on current view params */
-function buildScheduleUrls(viewMode: string, calMonth: Date, weekStart: Date, includePast: boolean, sportFilter: string) {
+function buildScheduleUrls(viewMode: string, calMonth: Date, weekStart: Date, includePast: boolean, includeArchived: boolean, sportFilter: string) {
   const evParams = new URLSearchParams({ limit: "200" });
   const sgParams = new URLSearchParams({ limit: "200" });
 
@@ -119,6 +121,13 @@ function buildScheduleUrls(viewMode: string, calMonth: Date, weekStart: Date, in
   if (sportFilter) {
     evParams.set("sportCode", sportFilter);
     sgParams.set("sportCode", sportFilter);
+  }
+
+  // Archived events are always in the past — also pass includePast so the
+  // startsAt >= now default doesn't filter them out.
+  if (includeArchived) {
+    evParams.set("includeArchived", "true");
+    evParams.set("includePast", "true");
   }
 
   return {
@@ -173,6 +182,7 @@ export function useScheduleData(): UseScheduleDataResult {
   const [coverageFilter, setCoverageFilter] = useState("");
   const [homeAwayFilter, setHomeAwayFilter] = useState<HomeAwayFilter>("all");
   const [includePast, setIncludePast] = useState(false);
+  const [includeArchived, setIncludeArchived] = useState(false);
   const [myShiftsOnly, setMyShiftsOnly] = useState(false);
 
   // UI state
@@ -224,7 +234,7 @@ export function useScheduleData(): UseScheduleDataResult {
   });
 
   // --- React Query: schedule entries ---
-  const { eventsUrl, groupsUrl } = buildScheduleUrls(viewMode, calMonth, weekStart, includePast, sportFilter);
+  const { eventsUrl, groupsUrl } = buildScheduleUrls(viewMode, calMonth, weekStart, includePast, includeArchived, sportFilter);
   const scheduleQueryKey = ["schedule", eventsUrl, groupsUrl];
 
   const { data: entries = [], isLoading, error: scheduleError, refetch: refetchSchedule } = useQuery({
@@ -279,7 +289,7 @@ export function useScheduleData(): UseScheduleDataResult {
     return groups;
   }, [filteredEntries]);
 
-  const hasFilters = !!(sportFilter || areaFilter || coverageFilter || homeAwayFilter !== "all" || includePast || myShiftsOnly);
+  const hasFilters = !!(sportFilter || areaFilter || coverageFilter || homeAwayFilter !== "all" || includePast || includeArchived || myShiftsOnly);
 
   const loadData = useCallback(async () => {
     await refetchSchedule();
@@ -305,6 +315,8 @@ export function useScheduleData(): UseScheduleDataResult {
       setHomeAwayFilter,
       includePast,
       setIncludePast,
+      includeArchived,
+      setIncludeArchived,
       myShiftsOnly,
       setMyShiftsOnly,
       hasFilters,
@@ -314,6 +326,7 @@ export function useScheduleData(): UseScheduleDataResult {
         setCoverageFilter("");
         setHomeAwayFilter("all");
         setIncludePast(false);
+        setIncludeArchived(false);
         setMyShiftsOnly(false);
       },
     },
