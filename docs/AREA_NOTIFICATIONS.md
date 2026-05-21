@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Notifications
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-12
+- Last Updated: 2026-05-21
 - Status: Active — escalation schedule + iOS tap-through + APNs native push shipped
 - Version: V1.2
 
@@ -196,6 +196,7 @@ Current behavior:
 | `EMAIL_FROM` | No | From address for transactional email. Default: `Gear Tracker <noreply@gear-tracker.app>` |
 
 ## Change Log
+- 2026-05-21: Design-language cleanup moved notification summary metrics to the shared `OperationalMetricCard` primitive and raised notification-center header, retry, destination, and mark-read actions to the 40px operational target baseline.
 - 2026-05-12: iOS notification routing now recognizes `badge_awarded` inbox rows and opens the awarded user's native profile from the notification payload's `userId`. Badge award delivery remains persistent in-app only, with no push, email, or toast fanout.
 - 2026-05-12: Security audit patch. `GET /api/cron/notifications` now uses partial-failure handling across overdue, license nag, and license-expiry jobs so one rejected job no longer drops successful notification work.
 - 2026-05-09: Web notification-center UI polish. `/notifications` now reads as an action inbox with unread/read/total summary metrics, a clearer filter toolbar, role-gated overdue processing, explicit refresh, notification type badges, stronger unread/read row treatment, and destination actions that name the target surface without changing notification delivery or API contracts.

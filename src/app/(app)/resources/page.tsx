@@ -25,16 +25,17 @@ import {
   SparklesIcon,
   TargetIcon,
   VideoIcon,
-  XIcon,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/EmptyState";
+import { OperationalActiveFilterChips, type OperationalActiveFilter } from "@/components/OperationalToolbar";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useFetch } from "@/hooks/use-fetch";
 import { getGuideFreshness } from "@/lib/guide-freshness";
@@ -265,7 +266,7 @@ function ResourceCard({ guide }: { guide: GuideListItem }) {
   return (
     <Link
       href={`/resources/${guide.slug}`}
-      className="group flex h-full flex-col rounded-lg border bg-card p-4 transition-[border-color,box-shadow,scale] hover:border-foreground/30 hover:shadow-sm active:scale-[0.99]"
+      className="group flex h-full flex-col rounded-lg border bg-card p-4 transition-[border-color,box-shadow,scale] hover:border-foreground/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 active:scale-[0.99]"
     >
       <div className="mb-3 flex items-start gap-3">
         <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
@@ -331,7 +332,7 @@ function RailButton({
       type="button"
       onClick={() => onSelect(item.key)}
       className={cn(
-        "flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors",
+        "flex min-h-10 w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
         active
           ? "bg-muted text-foreground"
           : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
@@ -384,7 +385,7 @@ function CategoryButton({
       type="button"
       onClick={onSelect}
       className={cn(
-        "flex w-full items-center rounded-md px-2.5 py-2 text-left text-sm transition-colors",
+        "flex min-h-10 w-full items-center rounded-md px-2.5 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
         active
           ? "bg-muted text-foreground"
           : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
@@ -625,6 +626,37 @@ export default function ResourcesPage() {
   const hasAnyFilter =
     Boolean(search) || activeCategory !== "All" || activeFilter !== "all" || sort !== "personalized";
 
+  const activeFilters: OperationalActiveFilter[] = [
+    ...(activeFilter !== "all"
+      ? [{
+          key: "filter",
+          label: getFilterLabel(activeFilter),
+          onRemove: () => setFilter("all"),
+        }]
+      : []),
+    ...(activeCategory !== "All"
+      ? [{
+          key: "category",
+          label: activeCategory,
+          onRemove: () => setCategory("All"),
+        }]
+      : []),
+    ...(search
+      ? [{
+          key: "search",
+          label: `"${search}"`,
+          onRemove: () => setSearchParam(""),
+        }]
+      : []),
+    ...(sort !== "personalized"
+      ? [{
+          key: "sort",
+          label: SORT_OPTIONS.find((option) => option.value === sort)?.label ?? "Custom sort",
+          onRemove: () => setSort("personalized"),
+        }]
+      : []),
+  ];
+
   const railProps = {
     guides,
     contactsTotal: contactUsers?.total ?? 0,
@@ -642,7 +674,7 @@ export default function ResourcesPage() {
         description="Area guides, contacts, building numbers, Media Drive, server paths, and SOPs -- one searchable directory."
       >
         {isStaffOrAdmin && (
-          <Button asChild size="sm">
+          <Button asChild size="sm" className="h-10">
             <Link href="/resources/new">
               <PlusIcon className="size-4 mr-1.5" />
               New Resource
@@ -668,12 +700,12 @@ export default function ResourcesPage() {
                 placeholder="Search titles, categories, authors, text..."
                 value={search}
                 onChange={(event) => setSearchParam(event.target.value)}
-                className="pl-9"
+                className="h-10 pl-9"
               />
             </div>
             <Sheet open={railOpen} onOpenChange={setRailOpen}>
               <SheetTrigger asChild>
-                <Button variant="outline" size="sm" className="lg:hidden">
+                <Button variant="outline" size="sm" className="h-10 lg:hidden">
                   <FilterIcon className="size-4 mr-1.5" />
                   Filters
                 </Button>
@@ -685,62 +717,27 @@ export default function ResourcesPage() {
                 <FilterRail {...railProps} />
               </SheetContent>
             </Sheet>
-            <select
+            <Select
               value={sort}
-              onChange={(event) => setSort(event.target.value as SortKey)}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-              aria-label="Sort resources"
+              onValueChange={(value) => setSort(value as SortKey)}
             >
-              {SORT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="h-10 w-[180px]" aria-label="Sort resources">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SORT_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {hasAnyFilter && (
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              {activeFilter !== "all" && (
-                <Badge variant="secondary" className="gap-1">
-                  {getFilterLabel(activeFilter)}
-                  <button
-                    type="button"
-                    onClick={() => setFilter("all")}
-                    aria-label="Clear filter"
-                    className="ml-0.5 rounded hover:text-foreground"
-                  >
-                    <XIcon className="size-3" />
-                  </button>
-                </Badge>
-              )}
-              {activeCategory !== "All" && (
-                <Badge variant="secondary" className="gap-1">
-                  {activeCategory}
-                  <button
-                    type="button"
-                    onClick={() => setCategory("All")}
-                    aria-label="Clear category"
-                    className="ml-0.5 rounded hover:text-foreground"
-                  >
-                    <XIcon className="size-3" />
-                  </button>
-                </Badge>
-              )}
-              {search && (
-                <Badge variant="secondary" className="gap-1">
-                  &ldquo;{search}&rdquo;
-                  <button
-                    type="button"
-                    onClick={() => setSearchParam("")}
-                    aria-label="Clear search"
-                    className="ml-0.5 rounded hover:text-foreground"
-                  >
-                    <XIcon className="size-3" />
-                  </button>
-                </Badge>
-              )}
-              <Button variant="ghost" size="sm" onClick={clearAll}>
+              <OperationalActiveFilterChips filters={activeFilters} />
+              <Button variant="ghost" size="sm" className="h-10" onClick={clearAll}>
                 Clear all
               </Button>
               <span className="ml-auto tabular-nums">
@@ -1056,7 +1053,7 @@ function ContactCard({ user }: { user: ContactUser }) {
       </div>
 
       <div className="mt-4">
-        <Button asChild variant="outline" size="sm" className="h-8 w-full justify-center">
+        <Button asChild variant="outline" size="sm" className="h-10 w-full justify-center">
           <Link href={`/users/${user.id}`}>View profile</Link>
         </Button>
       </div>
@@ -1081,12 +1078,15 @@ function ContactLine({
   );
 
   if (!href) {
-    return <div className="flex min-w-0 items-center gap-2">{content}</div>;
+    return <div className="flex min-h-6 min-w-0 items-center gap-2">{content}</div>;
   }
 
   return (
     <span className="flex min-w-0 items-center gap-2 text-muted-foreground transition-colors hover:text-foreground">
-      <a href={href} className="flex min-w-0 items-center gap-2">
+      <a
+        href={href}
+        className="flex min-h-10 min-w-0 items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+      >
         {content}
       </a>
     </span>

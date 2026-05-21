@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Events
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-12
+- Last Updated: 2026-05-21
 - Status: Active
 
 ## Direction
@@ -68,6 +68,7 @@ Make athletics schedule data the operational backbone for booking and checkout w
 4. Fallback behavior for incomplete events is implemented — treat event context as non-blocking metadata on all booking flows.
 
 ## Change Log
+- 2026-05-21: Event detail travel roster controls now use keyboard-visible 40px targets for default traveler, add, and remove actions, and the empty travel roster uses the shared inline empty-state treatment.
 - 2026-05-12: Creation flow standardization. Schedule New Event now keeps operators in the sheet after submit with an explicit handoff to open the created event, add another event, or return to the refreshed schedule, manual event create failures render as form-level alerts instead of toast-only failures, and manual events can persist without an external calendar source.
 - 2026-05-10: Status/data wiring ship fixes. Booking calendar reads now default to schedule-active booking states (`BOOKED`, `PENDING_PICKUP`, `OPEN`) instead of letting draft, completed, or cancelled records appear as occupying work. Event command-center gear summaries now count awaiting-pickup gear separately from checked-out and reserved gear.
 - 2026-05-10: Schedule ownership pass. Event detail now labels away opponents as "at" instead of always "vs", keeps manual single-day all-day events creatable from the Schedule New Event sheet, and preserves `/events` as a redirect to `/schedule` while `/events/[id]` remains the deep-dive crew and gear surface.

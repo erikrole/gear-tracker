@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -228,9 +229,14 @@ export default function DatabasePage() {
 
         {!result && !error && !loading && (
           <Card>
-            <div className="py-10 px-5 text-center text-muted-foreground">
-              Click &ldquo;Run diagnostics&rdquo; to check schema health
-            </div>
+            <CardContent className="py-0">
+              <EmptyState
+                inline
+                icon="check"
+                title="No diagnostics run yet"
+                description="Run diagnostics to check migration, table, enum, extension, and column health."
+              />
+            </CardContent>
           </Card>
         )}
     </SettingsPageShell>

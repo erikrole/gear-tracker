@@ -235,7 +235,7 @@ export default function LabelsPage() {
         className="no-print"
       >
         <Button variant="outline" size="sm" asChild>
-          <Link href="/items">
+          <Link href="/items" className="h-10">
             <PackageSearch className="mr-1.5 size-4" />
             Items
           </Link>
@@ -244,6 +244,7 @@ export default function LabelsPage() {
           onClick={() => window.print()}
           disabled={selectedItems.length === 0}
           size="sm"
+          className="h-10"
         >
           <Printer className="mr-1.5 size-4" />
           {selectedItems.length > 0
@@ -281,7 +282,7 @@ export default function LabelsPage() {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="absolute right-1 top-1/2 size-8 -translate-y-1/2"
+                  className="absolute right-0.5 top-1/2 size-10 -translate-y-1/2"
                   onClick={() => setSearch("")}
                   aria-label="Clear search"
                 >
@@ -296,6 +297,7 @@ export default function LabelsPage() {
               <Button
                 variant="outline"
                 size="sm"
+                className="h-10"
                 onClick={selectAll}
                 disabled={matchingCount === 0 || allVisibleSelected}
               >
@@ -304,6 +306,7 @@ export default function LabelsPage() {
               <Button
                 variant="ghost"
                 size="sm"
+                className="h-10"
                 onClick={selectNone}
                 disabled={selectedItems.length === 0}
               >
@@ -387,7 +390,7 @@ export default function LabelsPage() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="size-8"
+                    className="size-10"
                     asChild
                   >
                     <Link href={item.href} aria-label={item.ariaLabel}>

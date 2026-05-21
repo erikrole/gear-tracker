@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Users
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-20
+- Last Updated: 2026-05-21
 - Status: Active
 - Version: V1.2
 
@@ -114,6 +114,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 6. Ensure audit logs include actor role, target owner, and exception metadata.
 
 ## Change Log
+- 2026-05-21: User detail assignment controls now keep sport/area selectors at the 40px operational target baseline, editable area assignment rows use `OperationalRowActions` for Set primary/Remove instead of tiny inline chip buttons, and profile-photo/size inputs expose stable id/name metadata for browser accessibility checks.
 - 2026-05-20: **Design language slice 21:** Register, forgot-password, reset-password, and forced-password-change fields now include stable `name` attributes alongside labels, ids, and autocomplete, matching the login form's browser-accessibility pattern.
 - 2026-05-20: **Design language slice 18:** Login form fields now include stable `name` attributes alongside their labels/ids, clearing the browser form-field accessibility warning seen after protected-route redirects.
 - 2026-05-20: **Design language slice 5:** Users roster active-filter chips now use the shared `OperationalActiveFilterChips` row, keeping role, location, area, year, sport, and inactive filter removal aligned with Items.

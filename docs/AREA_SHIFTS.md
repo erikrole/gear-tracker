@@ -1,6 +1,6 @@
 # AREA: Shift Calendar & Scheduling
 
-> Status: **Implemented** | Owner: TBD | Last Updated: 2026-05-14
+> Status: **Implemented** | Owner: TBD | Last Updated: 2026-05-21
 
 ## Purpose
 
@@ -71,6 +71,11 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - Sports code mappings (existing — `src/lib/sports.ts`)
 
 ## Change Log
+- 2026-05-21: Trade Board cancellation confirmation now names the event, shift window, and posted owner so users know exactly which trade posting is being cancelled and that the assignment remains with the original worker. The Trade Board sheet also exposes an accessible description for browser dialog checks.
+- 2026-05-21: Schedule filter view and venue segmented controls now use shadcn `ToggleGroup` while staying a documented schedule-specific command bar instead of a generic list toolbar.
+- 2026-05-21: Design language Area 5 state/copy audit. Shift detail confirmations and failures now say whether an assignment is removed, a slot reopens, a staffed shift is deleted, a trade failed to post, or an archive/attendance/autofill action was not saved.
+- 2026-05-21: Shift slot remove, attendance, approve/decline request, and student request controls now align with the 40px operational target baseline inside event staffing cards.
+- 2026-05-21: Event detail travel roster controls now align with the 40px operational target baseline, and the empty travel roster uses shared inline `EmptyState` copy.
 - 2026-05-20: Event detail missing-gear Nudge and Create checkout actions now use 40px operational targets and wrap cleanly in narrow rows.
 - 2026-05-20: Event detail crew assignment, request-review, and remove controls now use visible keyboard-friendly 40px targets instead of hover-only or sub-40px controls.
 - 2026-05-20: Event detail crew coverage empty area rows now use the shared inline `EmptyState` treatment, and the add-shift icon target is aligned to the 40px operational action baseline.

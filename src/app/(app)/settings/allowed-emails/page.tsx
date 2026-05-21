@@ -304,7 +304,7 @@ export default function AllowedEmailsPage() {
           </div>
 
           {!showAdd && (
-            <Button size="sm" onClick={() => { setShowAdd(true); setAddError(""); }}>
+            <Button className="min-h-10" onClick={() => { setShowAdd(true); setAddError(""); }}>
               <Plus className="size-4" />
               Add email
             </Button>
@@ -318,17 +318,19 @@ export default function AllowedEmailsPage() {
               <div className="mb-3 flex items-center gap-2 text-xs">
                 <button
                   type="button"
-                  className={`px-2 py-1 rounded-md font-medium ${addMode === "single" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  className={`min-h-10 rounded-md px-3 py-2 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${addMode === "single" ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}
                   onClick={() => { setAddMode("single"); setAddError(""); }}
                   disabled={adding}
+                  aria-pressed={addMode === "single"}
                 >
                   One email
                 </button>
                 <button
                   type="button"
-                  className={`px-2 py-1 rounded-md font-medium ${addMode === "bulk" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  className={`min-h-10 rounded-md px-3 py-2 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${addMode === "bulk" ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}
                   onClick={() => { setAddMode("bulk"); setAddError(""); }}
                   disabled={adding}
+                  aria-pressed={addMode === "bulk"}
                 >
                   Bulk paste (up to 50)
                 </button>
@@ -370,13 +372,13 @@ export default function AllowedEmailsPage() {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button type="submit" size="sm" disabled={adding}>
+                    <Button type="submit" className="min-h-10" disabled={adding}>
                       {adding ? (<><Spinner data-icon="inline-start" />Adding...</>) : "Add to allowlist"}
                     </Button>
                     <Button
                       type="button"
                       variant="outline"
-                      size="sm"
+                      className="min-h-10"
                       onClick={() => { setShowAdd(false); setAddEmail(""); setAddRole("STUDENT"); setAddError(""); }}
                       disabled={adding}
                     >
@@ -418,13 +420,13 @@ export default function AllowedEmailsPage() {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button type="submit" size="sm" disabled={adding || addBulk.trim().length === 0}>
+                    <Button type="submit" className="min-h-10" disabled={adding || addBulk.trim().length === 0}>
                       {adding ? (<><Spinner data-icon="inline-start" />Adding...</>) : "Add all to allowlist"}
                     </Button>
                     <Button
                       type="button"
                       variant="outline"
-                      size="sm"
+                      className="min-h-10"
                       onClick={() => { setShowAdd(false); setAddBulk(""); setAddMode("single"); setAddError(""); }}
                       disabled={adding}
                     >

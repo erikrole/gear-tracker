@@ -793,21 +793,27 @@ export default function ItemInfoCard({
             </div>
             <dl className="mt-3 grid grid-cols-[48px_minmax(0,1fr)] gap-x-2 gap-y-1.5 text-xs">
               <dt className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground/50">QR</dt>
-              <dd className="min-w-0">
+              <dd className="flex min-w-0 items-center gap-1">
                 {asset.qrCodeValue ? (
-                  <button
-                    type="button"
-                    className="group inline-flex max-w-full items-center gap-1 truncate font-mono text-muted-foreground transition-colors hover:text-foreground"
-                    onClick={() => copyScanValue("qr", asset.qrCodeValue)}
-                    aria-label={`Copy QR code ${asset.qrCodeValue}`}
-                  >
-                    <span className="truncate">{asset.qrCodeValue}</span>
-                    {copiedScanValue === "qr" ? (
-                      <Check className="size-3 shrink-0 text-green-600 dark:text-green-400" />
-                    ) : (
-                      <Copy className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-60 group-focus-visible:opacity-60" />
-                    )}
-                  </button>
+                  <>
+                    <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground">
+                      {asset.qrCodeValue}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-10 shrink-0 text-muted-foreground hover:text-foreground"
+                      onClick={() => copyScanValue("qr", asset.qrCodeValue)}
+                      aria-label={`Copy QR code ${asset.qrCodeValue}`}
+                    >
+                      {copiedScanValue === "qr" ? (
+                        <Check className="size-3 shrink-0 text-green-600 dark:text-green-400" />
+                      ) : (
+                        <Copy className="size-3 shrink-0" />
+                      )}
+                    </Button>
+                  </>
                 ) : (
                   <span className="font-mono text-muted-foreground">No QR code</span>
                 )}
@@ -815,20 +821,24 @@ export default function ItemInfoCard({
               {asset.serialNumber && (
                 <>
                   <dt className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground/50">Serial</dt>
-                  <dd className="min-w-0">
-                    <button
+                  <dd className="flex min-w-0 items-center gap-1">
+                    <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground">
+                      {asset.serialNumber}
+                    </span>
+                    <Button
                       type="button"
-                      className="group inline-flex max-w-full items-center gap-1 truncate font-mono text-muted-foreground transition-colors hover:text-foreground"
+                      variant="ghost"
+                      size="icon"
+                      className="size-10 shrink-0 text-muted-foreground hover:text-foreground"
                       onClick={() => copyScanValue("serial", asset.serialNumber)}
                       aria-label={`Copy serial number ${asset.serialNumber}`}
                     >
-                      <span className="truncate">{asset.serialNumber}</span>
                       {copiedScanValue === "serial" ? (
                         <Check className="size-3 shrink-0 text-green-600 dark:text-green-400" />
                       ) : (
-                        <Copy className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-60 group-focus-visible:opacity-60" />
+                        <Copy className="size-3 shrink-0" />
                       )}
-                    </button>
+                    </Button>
                   </dd>
                 </>
               )}
@@ -837,7 +847,7 @@ export default function ItemInfoCard({
           <div className="flex w-[92px] shrink-0 flex-col items-stretch">
             <button
               type="button"
-              className="group flex aspect-square w-full items-center justify-center rounded-md border bg-background p-1 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)] transition-[background-color,box-shadow,transform] hover:bg-muted/50 active:scale-[0.96] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]"
+              className="group flex aspect-square w-full items-center justify-center rounded-md border bg-background p-1 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)] outline-none transition-[background-color,box-shadow,transform] hover:bg-muted/50 active:scale-[0.96] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]"
               onClick={() => setShowQrModal(true)}
               aria-label={canEdit ? "Open QR code details" : "View QR code"}
             >

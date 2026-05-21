@@ -6,7 +6,6 @@ import { useParams, useRouter } from "next/navigation";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 import { toast } from "sonner";
 import {
-  BoxIcon,
   PlusIcon,
   Trash2Icon,
   SearchIcon,
@@ -20,6 +19,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -39,11 +39,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import EmptyState from "@/components/EmptyState";
 import { FadeUp } from "@/components/ui/motion";
+import { PageHeader } from "@/components/PageHeader";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
-import { handleAuthRedirect } from "@/lib/errors";
+import { OperationalRowActions } from "@/components/OperationalRowActions";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import { useFetch } from "@/hooks/use-fetch";
 import { classifyAssetType, EQUIPMENT_SECTIONS } from "@/lib/equipment-sections";
 import type { EquipmentSectionKey } from "@/lib/equipment-sections";
@@ -141,6 +144,7 @@ export default function KitDetailPage() {
   // Remove member
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [removeTarget, setRemoveTarget] = useState<KitMember | null>(null);
+  const [bulkRemoveTarget, setBulkRemoveTarget] = useState<KitBulkMember | null>(null);
 
   // Delete kit
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -259,6 +263,24 @@ export default function KitDetailPage() {
     }
   }
 
+  async function handleRemoveBulkMember(member: KitBulkMember) {
+    setRemovingId(member.id);
+    try {
+      const res = await fetch(`/api/kits/${id}/bulk-members?membershipId=${member.id}`, { method: "DELETE" });
+      if (handleAuthRedirect(res)) return;
+      if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to remove item family"));
+      setKit((prev) =>
+        prev ? { ...prev, bulkMembers: prev.bulkMembers.filter((m) => m.id !== member.id) } : prev
+      );
+      toast.success(`Removed ${member.bulkSku.name}`);
+    } catch (err) {
+      toast.error((err as Error).message || "Failed to remove item family");
+    } finally {
+      setRemovingId(null);
+      setBulkRemoveTarget(null);
+    }
+  }
+
   // ── Archive / Restore ───────────────────────────────────
 
   async function handleToggleActive() {
@@ -308,8 +330,9 @@ export default function KitDetailPage() {
   if (loading) {
     return (
       <>
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
-          <Skeleton className="h-8 w-48" />
+        <div className="mb-8 flex flex-col gap-2">
+          <Skeleton className="h-9 w-56" />
+          <Skeleton className="h-4 w-72" />
         </div>
         <div className="grid gap-4">
           <Card className="flex flex-col gap-4 p-6">
@@ -344,29 +367,26 @@ export default function KitDetailPage() {
 
   return (
     <FadeUp>
-      {/* Header */}
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" aria-label="Back to kits" onClick={() => router.push("/kits")}>
-            <ArrowLeftIcon className="size-4" />
-          </Button>
-          <BoxIcon className="size-5 text-muted-foreground" />
-          <h1>{kit.name}</h1>
-          {!kit.active && <Badge variant="outline">Archived</Badge>}
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleToggleActive}>
+      <PageHeader
+        title={kit.name}
+        description={`${kit.location.name} · ${kit.members.length + kit.bulkMembers.length} total contents`}
+      >
+        <Button variant="outline" className="h-10" onClick={() => router.push("/kits")}>
+          <ArrowLeftIcon className="size-4" />
+          Back
+        </Button>
+        {!kit.active && <Badge variant="outline" className="h-10 px-3">Archived</Badge>}
+        <Button variant="outline" className="h-10" onClick={handleToggleActive}>
             {kit.active ? (
               <><ArchiveIcon className="mr-2 size-4" />Archive</>
             ) : (
               <><ArchiveRestoreIcon className="mr-2 size-4" />Restore</>
             )}
-          </Button>
-          <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
-            <Trash2Icon className="mr-2 size-4" />Delete
-          </Button>
-        </div>
-      </div>
+        </Button>
+        <Button variant="destructive" className="h-10" onClick={() => setDeleteOpen(true)}>
+          <Trash2Icon className="mr-2 size-4" />Delete
+        </Button>
+      </PageHeader>
 
       <div className="grid gap-4">
         {/* Info Card */}
@@ -416,20 +436,30 @@ export default function KitDetailPage() {
             {/* Add member search */}
             <div className="flex flex-col gap-2">
               <div className="relative">
+                <Label htmlFor="kit-add-member-search" className="sr-only">
+                  Search items to add
+                </Label>
                 <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                 <Input
+                  id="kit-add-member-search"
+                  name="kitAddMemberSearch"
+                  aria-label="Search items to add"
                   placeholder="Search items to add…"
                   value={addSearch}
                   onChange={(e) => setAddSearch(e.target.value)}
                   className="pl-9 pr-9"
                 />
                 {addSearch && (
-                  <button
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-1/2 size-10 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label="Clear item search"
                     onClick={() => { setAddSearch(""); setSearchResults([]); }}
                   >
                     <XIcon className="size-4" />
-                  </button>
+                  </Button>
                 )}
               </div>
               {searching && (
@@ -508,19 +538,20 @@ export default function KitDetailPage() {
                               <AssetStatusBadge status={member.asset.status} />
                             </TableCell>
                             <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="size-8 text-muted-foreground hover:text-destructive"
-                                disabled={removingId === member.id}
-                                onClick={() => setRemoveTarget(member)}
-                              >
-                                {removingId === member.id ? (
-                                  <Spinner />
-                                ) : (
-                                  <Trash2Icon className="size-4" />
-                                )}
-                              </Button>
+                              <OperationalRowActions label={`Actions for ${member.asset.assetTag}`}>
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  disabled={removingId !== null}
+                                  onSelect={() => setRemoveTarget(member)}
+                                >
+                                  {removingId === member.id ? (
+                                    <Spinner data-icon="inline-start" />
+                                  ) : (
+                                    <Trash2Icon className="mr-2 size-4" aria-hidden="true" />
+                                  )}
+                                  Remove from kit
+                                </DropdownMenuItem>
+                              </OperationalRowActions>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -560,24 +591,22 @@ export default function KitDetailPage() {
                         <TableCell className="text-right">
                           <Badge variant="secondary" size="sm">{bm.quantity} {bm.bulkSku.unit}</Badge>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-right">
                           {kit.active && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="size-7 p-0 text-muted-foreground hover:text-destructive"
-                              onClick={async () => {
-                                try {
-                                  await fetch(`/api/kits/${kit.id}/bulk-members?membershipId=${bm.id}`, { method: "DELETE" });
-                                  setKit((prev) => prev ? { ...prev, bulkMembers: prev.bulkMembers.filter((m) => m.id !== bm.id) } : prev);
-                                  toast.success("Item family removed from kit");
-                                } catch {
-                                  toast.error("Failed to remove item family");
-                                }
-                              }}
-                            >
-                              <Trash2Icon className="size-3.5" />
-                            </Button>
+                            <OperationalRowActions label={`Actions for ${bm.bulkSku.name}`}>
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                disabled={removingId !== null}
+                                onSelect={() => setBulkRemoveTarget(bm)}
+                              >
+                                {removingId === bm.id ? (
+                                  <Spinner data-icon="inline-start" />
+                                ) : (
+                                  <Trash2Icon className="mr-2 size-4" aria-hidden="true" />
+                                )}
+                                Remove from kit
+                              </DropdownMenuItem>
+                            </OperationalRowActions>
                           )}
                         </TableCell>
                       </TableRow>
@@ -605,9 +634,34 @@ export default function KitDetailPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
+              disabled={removingId === removeTarget?.id}
               onClick={() => removeTarget && handleRemoveMember(removeTarget)}
             >
+              {removingId === removeTarget?.id && <Spinner data-icon="inline-start" />}
               Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Remove bulk member confirmation */}
+      <AlertDialog open={!!bulkRemoveTarget} onOpenChange={(v) => { if (!v) setBulkRemoveTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove item family from kit?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Remove <strong>{bulkRemoveTarget?.quantity} {bulkRemoveTarget?.bulkSku.unit} of {bulkRemoveTarget?.bulkSku.name}</strong> from this kit?
+              The item family and stock counts won&apos;t be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={removingId === bulkRemoveTarget?.id}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={removingId === bulkRemoveTarget?.id}
+              onClick={() => bulkRemoveTarget && handleRemoveBulkMember(bulkRemoveTarget)}
+            >
+              {removingId === bulkRemoveTarget?.id && <Spinner data-icon="inline-start" />}
+              Remove from Kit
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

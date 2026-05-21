@@ -598,9 +598,9 @@ export default function EquipmentPicker({
               <Button
                 type="button"
                 variant="ghost"
-                size="icon-xs"
+                size="icon"
                 onClick={() => setSectionSearch("")}
-                className="absolute right-1.5 top-1/2 -translate-y-1/2"
+                className="absolute right-0 top-1/2 size-10 -translate-y-1/2"
                 aria-label="Clear equipment search"
               >
                 <XIcon />
@@ -628,18 +628,20 @@ export default function EquipmentPicker({
             <Button
               type="button"
               variant="ghost"
-              size="xs"
+              size="sm"
               onClick={selectVisibleAvailable}
               disabled={visibleAvailableAssetIds.length === 0}
+              className="h-10 text-xs"
             >
               Select visible available
             </Button>
             <Button
               type="button"
               variant="ghost"
-              size="xs"
+              size="sm"
               onClick={clearCurrentSection}
               disabled={currentSectionSelected === 0}
+              className="h-10 text-xs"
             >
               Clear section
             </Button>
@@ -654,7 +656,14 @@ export default function EquipmentPicker({
               <p className="text-sm font-semibold">Scan to add</p>
               <p className="text-xs text-muted-foreground">Scan a QR code or barcode to add it without leaving this step.</p>
             </div>
-            <Button type="button" variant="ghost" size="icon-sm" onClick={() => setScannerOpen(false)} aria-label="Close scanner">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-10"
+              onClick={() => setScannerOpen(false)}
+              aria-label="Close scanner"
+            >
               <XIcon />
             </Button>
           </div>
@@ -900,7 +909,8 @@ export default function EquipmentPicker({
                       <Button
                         type="button"
                         variant="outline"
-                        size="icon-sm"
+                        size="icon"
+                        className="size-10"
                         onClick={() => setBulkQty(sku.id, current - 1)}
                         disabled={current === 0}
                         aria-label={`Remove one ${sku.name}`}
@@ -911,7 +921,8 @@ export default function EquipmentPicker({
                       <Button
                         type="button"
                         variant="outline"
-                        size="icon-sm"
+                        size="icon"
+                        className="size-10"
                         onClick={() => setBulkQty(sku.id, current + 1)}
                         disabled={current >= available}
                         aria-label={`Add one ${sku.name}`}
@@ -941,7 +952,7 @@ export default function EquipmentPicker({
                   Checking availability...
                 </span>
               )}
-              <Button type="button" variant="ghost" size="xs" onClick={clearAllSelections}>
+              <Button type="button" variant="ghost" size="sm" className="h-10 text-xs" onClick={clearAllSelections}>
                 Clear all
               </Button>
             </div>
@@ -1001,7 +1012,8 @@ export default function EquipmentPicker({
                     <Button
                       type="button"
                       variant="ghost"
-                      size="icon-xs"
+                      size="icon"
+                      className="size-10"
                       onClick={() => toggleAsset(asset.id)}
                       aria-label={`Remove ${asset.assetTag}`}
                     >
@@ -1030,7 +1042,8 @@ export default function EquipmentPicker({
                       <Button
                         type="button"
                         variant="ghost"
-                        size="icon-xs"
+                        size="icon"
+                        className="size-10"
                         onClick={() => toggleAsset(id)}
                         aria-label="Remove unavailable selected item"
                       >
@@ -1073,7 +1086,8 @@ export default function EquipmentPicker({
                       <Button
                         type="button"
                         variant="ghost"
-                        size="icon-xs"
+                        size="icon"
+                        className="size-10"
                         onClick={() => setBulkQty(sku.id, 0)}
                         aria-label={`Remove ${sku.name}`}
                       >

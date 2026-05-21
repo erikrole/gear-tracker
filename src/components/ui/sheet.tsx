@@ -76,9 +76,9 @@ function SheetContent({
         {children}
         <DialogPrimitive.Close
           data-slot="sheet-close-button"
-          className="absolute top-[18px] right-5 flex size-7 items-center justify-center rounded-sm text-muted-foreground outline-none transition-[background-color,color,box-shadow] hover:bg-muted hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/30 disabled:pointer-events-none"
+          className="absolute right-4 top-3 flex size-10 items-center justify-center rounded-md text-muted-foreground outline-none transition-[background-color,color,box-shadow] hover:bg-muted hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/30 disabled:pointer-events-none"
         >
-          <X className="size-3.5" />
+          <X className="size-4" />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>
       </DialogPrimitive.Content>

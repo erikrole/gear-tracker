@@ -38,6 +38,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import EmptyState from "@/components/EmptyState";
+import { OperationalMetricCard } from "@/components/OperationalFeedback";
 import { FadeUp } from "@/components/ui/motion";
 import { useFetch } from "@/hooks/use-fetch";
 import { type KitRow, useKitsQuery } from "./hooks/use-kits-query";
@@ -125,26 +126,6 @@ function KitStatusBadge({ kit }: { kit: KitRow }) {
     >
       {status.label}
     </Badge>
-  );
-}
-
-function MetricCard({
-  label,
-  value,
-  helper,
-}: {
-  label: string;
-  value: number;
-  helper: string;
-}) {
-  return (
-    <Card elevation="flat" className="bg-muted/30 p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </p>
-      <p className="mt-2 text-2xl font-semibold tabular-nums">{value}</p>
-      <p className="mt-1 text-sm text-muted-foreground">{helper}</p>
-    </Card>
   );
 }
 
@@ -309,25 +290,31 @@ export default function KitsPage() {
       </PageHeader>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
+        <OperationalMetricCard
           label="Matching kits"
           value={query.summary.total}
           helper={hasResultFilters ? "Current filters" : "Visible by default"}
+          className="bg-muted/30"
         />
-        <MetricCard
+        <OperationalMetricCard
           label="Active"
           value={query.summary.active}
           helper="Available to checkout flows"
+          tone="green"
+          className="bg-muted/30"
         />
-        <MetricCard
+        <OperationalMetricCard
           label="Archived"
           value={query.summary.archived}
           helper={includeArchived ? "Included in this view" : "Hidden until shown"}
+          className="bg-muted/30"
         />
-        <MetricCard
+        <OperationalMetricCard
           label="Empty"
           value={query.summary.empty}
           helper="Needs contents before use"
+          tone={query.summary.empty ? "orange" : "muted"}
+          className="bg-muted/30"
         />
       </div>
 

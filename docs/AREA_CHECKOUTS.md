@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Checkouts
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-13
+- Last Updated: 2026-05-21
 - Status: Active — V1 Shipped
 - Version: V1
 
@@ -285,6 +285,9 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 5. Add regression coverage for race conditions, partial returns, and permission bypass attempts.
 
 ## Change Log
+- 2026-05-21: Design language Area 6 shared-component consolidation. Checkout list filters now use `OperationalToolbar`, shared active-filter chips, and 40px shared filter controls instead of the previous route-local card-header filter row.
+- 2026-05-21: Design language Area 5 state/copy audit. Shared booking detail copy now names checkout cancellation, kiosk custody handoff, check-in, equipment-save, and extension consequences instead of using generic failure or yes/no confirmation text.
+- 2026-05-21: Shared checkout `EquipmentPicker` controls now follow the 40px operational target baseline for search clear, scanner close, select-visible, clear-section, bulk quantity, selected-shelf remove, and clear-all actions.
 - 2026-05-20: Booking row overflow actions now use the shared `OperationalRowActions` trigger in table rows, mobile rows, and booking cards while preserving right-click context menus and booking action policy.
 - 2026-05-13: EquipmentPicker battery guidance now recommends compatible battery families when cameras are selected, keeps battery selection quantity-first, labels selected item-family quantities as requested, and reminds staff that exact units are scanned at kiosk pickup.
 - 2026-05-13: **Pending-pickup auto-expiry** - GAP-33 closed. Morning-refresh now cancels `PENDING_PICKUP` checkouts older than 48 hours after `startsAt`, releases serialized allocations, restores held bulk stock, releases any scanned numbered units, cancels scan sessions, and writes a system audit entry.

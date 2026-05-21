@@ -159,10 +159,11 @@ export function ShiftSlotCard({
                 <TooltipTrigger asChild>
                   <Button
                     variant="ghost"
-                    size="icon-sm"
-                    className="text-muted-foreground hover:text-destructive"
+                    size="icon"
+                    className="size-10 text-muted-foreground hover:text-destructive"
                     onClick={onDeleteShift}
                     disabled={acting !== null}
+                    aria-label="Remove shift"
                   >
                     <XIcon className="size-3" />
                   </Button>
@@ -243,7 +244,7 @@ export function ShiftSlotCard({
                       )
                     }
                     disabled={acting !== null}
-                    className={`flex size-9 items-center justify-center rounded border transition-[background-color,border-color,color,scale] active:scale-[0.96] ${
+                    className={`flex size-10 items-center justify-center rounded border transition-[background-color,border-color,color,scale] active:scale-[0.96] ${
                       activeAssignment.attended === true
                         ? "bg-green-500/15 border-green-500/40 text-green-600"
                         : "border-border text-muted-foreground hover:border-green-400 hover:text-green-600"
@@ -267,7 +268,7 @@ export function ShiftSlotCard({
                       )
                     }
                     disabled={acting !== null}
-                    className={`flex size-9 items-center justify-center rounded border transition-[background-color,border-color,color,scale] active:scale-[0.96] ${
+                    className={`flex size-10 items-center justify-center rounded border transition-[background-color,border-color,color,scale] active:scale-[0.96] ${
                       activeAssignment.attended === false
                         ? "bg-red-500/15 border-red-500/40 text-red-600"
                         : "border-border text-muted-foreground hover:border-red-400 hover:text-red-600"
@@ -306,7 +307,7 @@ export function ShiftSlotCard({
                     <div className="flex gap-1">
                       <Button
                         size="sm"
-                        className="h-8 px-2 text-xs"
+                        className="h-10 px-3 text-xs"
                         onClick={() => onApprove(req.id)}
                         disabled={acting !== null}
                       >
@@ -315,7 +316,7 @@ export function ShiftSlotCard({
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-8 px-2 text-xs text-destructive"
+                        className="h-10 px-3 text-xs text-destructive"
                         onClick={() => onDecline(req.id)}
                         disabled={acting !== null}
                       >
@@ -368,7 +369,7 @@ export function ShiftSlotCard({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="mt-1 h-9 text-xs"
+                  className="mt-1 h-10 text-xs"
                   onClick={onRequest}
                   disabled={acting !== null}
                 >

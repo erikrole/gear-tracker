@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { BatteryCharging, CircleAlert, ExternalLink, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import EmptyState from "@/components/EmptyState";
+import { OperationalMetricCard } from "@/components/OperationalFeedback";
 import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -246,11 +247,11 @@ export default function BatteryCockpitPage() {
 
       {totals && (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          <MetricCard label="Available" value={totals.available} tone="green" />
-          <MetricCard label="Checked out" value={totals.checkedOut} tone="blue" />
-          <MetricCard label="Missing" value={totals.lost} tone="red" />
-          <MetricCard label="Retired" value={totals.retired} tone="muted" />
-          <MetricCard label="Low families" value={totals.lowSkus} tone={totals.lowSkus ? "red" : "muted"} />
+          <OperationalMetricCard label="Available" value={totals.available} tone="green" />
+          <OperationalMetricCard label="Checked out" value={totals.checkedOut} tone="blue" />
+          <OperationalMetricCard label="Missing" value={totals.lost} tone="red" />
+          <OperationalMetricCard label="Retired" value={totals.retired} tone="muted" />
+          <OperationalMetricCard label="Low families" value={totals.lowSkus} tone={totals.lowSkus ? "red" : "muted"} />
         </div>
       )}
 
@@ -416,26 +417,6 @@ export default function BatteryCockpitPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  );
-}
-
-function MetricCard({ label, value, tone }: { label: string; value: number; tone: "green" | "blue" | "red" | "muted" }) {
-  const toneClass = {
-    green: "text-[var(--green-text)]",
-    blue: "text-[var(--blue-text)]",
-    red: "text-destructive",
-    muted: "text-foreground",
-  }[tone];
-
-  return (
-    <Card className="border-border/40 shadow-none">
-      <CardContent className="p-4">
-        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
-        <div className={cn("mt-1 text-2xl font-black tabular-nums", toneClass)} style={{ fontFamily: "var(--font-heading)" }}>
-          {value}
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 

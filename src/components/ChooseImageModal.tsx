@@ -485,7 +485,7 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
                           >
                             <button
                               type="button"
-                              className="flex aspect-square w-full items-center justify-center overflow-hidden rounded bg-muted"
+                              className="flex aspect-square w-full items-center justify-center overflow-hidden rounded bg-muted outline-none transition-[box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                               onClick={() => setSelectedSearchResult(result)}
                               aria-pressed={selected}
                             >
@@ -518,7 +518,7 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
                                   href={result.sourceUrl}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="inline-flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                  className="inline-flex size-10 shrink-0 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
                                   aria-label={`Open source for ${result.title}`}
                                   title="Open source"
                                 >

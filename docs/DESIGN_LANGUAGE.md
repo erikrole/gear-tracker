@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-20
+- Last Updated: 2026-05-21
 - Status: Active
 - Purpose: Define the UI and UX rules that keep Gear Tracker cohesive, fast, dense, calm, and operationally clear.
 
@@ -69,12 +69,12 @@ Avoid:
 ## Component Language
 - **Buttons**: shadcn `Button`; primary action first; destructive actions use confirmations; icon buttons require `aria-label`.
 - **Forms**: shadcn `Input`, `Textarea`, `Select`, `Switch`, `Checkbox`, `Combobox` where available; show form-level errors for API, validation, permission, and network failures.
-- **Dialogs**: `Dialog` for create/edit flows; `AlertDialog` for destructive or irreversible choices; `Sheet` or `Drawer` for contextual details.
+- **Dialogs**: `Dialog` for create/edit flows; `AlertDialog` for destructive or irreversible choices; `Sheet` or `Drawer` for contextual details. Built-in overlay close controls must keep a visible 40px target and focus ring.
 - **Tables**: shadcn `Table`; compact rows; sticky headers when useful; row click and row actions must be siblings, not nested.
 - **Row actions**: use `OperationalRowActions` for icon overflow menus in operational rows; keep the trigger 40px, give it a specific accessible label, and use destructive menu variants for destructive actions.
 - **Settings row actions**: use `OperationalRowActions` for Settings table/list rows with destructive actions, lifecycle changes, or multiple row commands. Direct inline buttons are only for primary page actions, toggles, and form submit/cancel controls.
 - **Filters**: `OperationalToolbar` shell; search first, mode controls next, filter disclosure after; clear action visible when filters are active.
-- **Active filters**: use `OperationalActiveFilterChips` under operational toolbars so users can see and remove individual filters without reopening the filter panel.
+- **Active filters**: use `OperationalActiveFilterChips` under operational toolbars so users can see and remove individual filters without reopening the filter panel. Removable chips are controls and must keep the 40px target baseline.
 - **Badges**: use `Badge` semantic variants; do not define ad-hoc status color classes inline.
 - **Cards**: use for repeated queue items and focused tools; avoid cards inside cards.
 - **Nav**: role-aware, predictable, and stable; hidden routes must also be server-protected.
@@ -100,6 +100,8 @@ Avoid:
 - Confirmation text should name the target and consequence.
 - Success messages should be short: `Saved`, `Inventory hygiene refreshed`, `Checkout created`.
 - Admin warnings should be direct: `Refresh before treating a clean result as final.`
+- Network failures should say whether the attempted action was saved: `Could not reach the server. The shift change was not saved.`
+- Rollback messages should name the visible recovery state: `The draft has been restored on the dashboard.`
 
 ## Accessibility Baseline
 Non-negotiable for every page:
@@ -134,44 +136,75 @@ Feature ideas to consider separately:
 - `/items`: toolbar was the best existing command surface. It now uses `OperationalToolbar` and shared active-filter chips.
 - `/items` row actions: table overflow actions now use `OperationalRowActions`.
 - `/bookings`: table rows, mobile rows, and booking cards now use `OperationalRowActions` for overflow commands while preserving right-click context menus.
+- `/bookings`: list filters now use `OperationalToolbar` plus shared active-filter chips, matching Items and Users instead of a route-local card-header toolbar.
+- Shared filter controls: `FilterChip` and `OperationalActiveFilterChips` now use 40px removable targets across Bookings, Schedule, Dashboard, Trade Board, Items, Users, and Reports.
+- `/checkouts/new` and `/reservations/new`: shared `EquipmentPicker` search clear, scanner close, select-visible, clear-section, bulk quantity, selected-shelf remove, and clear-all controls now follow the 40px operational target baseline.
+- Shared overlay primitives: `Dialog`, `Sheet`, and `Drawer` built-in close controls now use visible 40px targets so modal dismissal is consistent across create/edit/detail flows.
+- Shared inline field rows: `SaveableField` now renders display-only labels as text instead of untargeted form labels, while preserving real label associations when `htmlFor` is provided.
+- `/schedule` filters: view and venue segmented controls now use shadcn `ToggleGroup` while Schedule remains a documented domain-specific command-bar exception.
 - `/schedule` Trade Board: claim and staff approval stay visible; cancel and decline now use `OperationalRowActions` as secondary/destructive row commands.
+- `/schedule` Trade Board: cancel confirmation now names the event, shift window, posted owner, and assignment consequence instead of asking a generic trade question.
+- `/schedule` Trade Board sheet: the overlay now includes an accessible description instead of title-only sheet content.
 - `/schedule` Trade Board filters: active Area, Status, and My trades filters now use `OperationalActiveFilterChips`.
 - `/users`: filter surface matched the idea but used smaller controls and its own frame. It now uses `OperationalToolbar`, 40px controls, and shared active-filter chips.
+- `/users/[id]`: editable area assignments now use 40px row actions through `OperationalRowActions` instead of tiny inline chip buttons for primary/remove commands, and profile-photo/size inputs expose stable id/name metadata.
 - `/settings/categories`: category row actions now use the shared row-action trigger instead of a page-local kebab button.
 - `/settings/categories`, `/settings/departments`, `/settings/locations`, `/settings/allowed-emails`, `/settings/calendar-sources`, `/settings/venue-mappings`, `/settings/bookings`, and `/settings/kiosk-devices`: local text-only empty rows now use shared inline empty states.
 - `/settings/departments`, `/settings/locations`, `/settings/allowed-emails`, `/settings/calendar-sources`, `/settings/venue-mappings`, and `/settings/kiosk-devices`: table/list row actions now use the shared row-action trigger for lifecycle and destructive commands.
+- `/settings/bookings`: Extend Presets label input, loading skeleton, add preset, and remove preset controls now match the 40px operational target baseline.
+- `/settings/kiosk-devices`: pending-pickup summary, activation-code copy, pending-pickup cancel, and empty pending-pickup dialog states now have named controls, visible focus, 40px targets, and shared inline empty-state language.
+- `/settings/allowed-emails`: add-mode controls now use 40px segmented targets with visible focus and `aria-pressed`.
+- `/settings/database`: initial no-diagnostics state now uses shared inline `EmptyState` copy instead of a route-local text placeholder.
 - `/admin/fix-today` and `/items/hygiene`: duplicate metric and partial-results patterns now use shared primitives.
 - `/settings`: uses `PageHeader` plus role-aware grouped navigation. Large desktop uses a left rail; smaller screens keep a horizontal section scroller. Sub-pages now share `SettingsPageShell` for the compact intro/main split.
+- `/reports/*`: report metric cards now render through `OperationalMetricCard` via the report adapter, preserving report links, tooltips, badges, and string values without maintaining a separate metric primitive.
 - `/reports/checkouts`, `/reports/scans`, and `/reports/audit`: non-default period and phase filters now render removable shared active-filter chips through the report toolbar.
 - `/items/[id]`: item detail secondary actions now use the shared dropdown wrapper instead of a route-local menu shell.
 - `/items/[id]`: item detail tab empty states now use shared inline empty states for no booking history, empty calendar windows, failed/empty insights, and empty attachment groups.
 - `/items/[id]`: header utility controls now follow the 40px target baseline for refresh, favorite, and the secondary action trigger.
 - `/items/[id]`: item image edit/add controls now expose the same affordance on keyboard focus as hover, with visible focus rings.
+- `/items/[id]`: scan identity QR/serial copy affordances now use explicit 40px icon buttons instead of hover-only inline icons, and the QR preview control has a visible focus ring.
+- `/kits/[id]`: detail header now uses `PageHeader`, archive/delete/back actions are 40px controls, and the local add-member clear affordance is a named shadcn icon button.
+- `/kits/[id]`: serialized and bulk member removal now uses `OperationalRowActions`; bulk removal confirms the quantity/item family, reports parsed API errors, and relies on a kit-scoped delete check.
+- Item image search results: result selection buttons now expose visible keyboard focus, and source links use the 40px operational target baseline.
 - `/items`: bulk selection actions now use clearer toolbar semantics, 40px controls, and a specific `Bulk actions` dropdown label for selected-row commands.
 - `/login`: auth fields now include both labels and form `name` attributes so browser accessibility checks can identify the inputs after protected-route redirects.
 - `/register`, `/forgot-password`, `/reset-password`, and `/change-password`: auth fields now match the login form's label/id/name/autocomplete pattern.
 - `/events/[id]`: crew coverage empty area rows now use shared inline empty-state language instead of one-off italic placeholders.
 - `/events/[id]`: crew assignment/remove/request controls now use visible keyboard-friendly 40px targets instead of hover-only or sub-40px controls.
+- `/events/[id]` shift slot interiors: remove-shift, attendance, approve/decline request, and student request controls now keep the same 40px action baseline as the rest of the event crew surface.
 - `/events/[id]`: missing-gear Nudge and Create checkout actions now use the 40px operational action baseline and wrap cleanly on narrow rows.
+- `/events/[id]`: travel roster default-traveler, add, and remove controls now follow the 40px operational action baseline, and the empty roster uses shared inline empty-state language.
 - `/bulk-inventory/[id]`: unit-tracked item-family units tab now uses shared inline empty states when no units exist.
+- `/kits` and `/bulk-inventory/batteries`: summary metric strips now use `OperationalMetricCard` instead of route-local metric card helpers.
 - `/bulk-inventory/batteries`: checked-out battery units panel now uses shared inline empty states when no units are out.
+- `/labels` and `/search`: compact clear, open, result, and view-all controls now meet the 40px operational target baseline on the focused print queue and global command surfaces.
+- `/notifications`: summary metrics now use `OperationalMetricCard`, and header/retry/destination/mark-read controls meet the 40px operational target baseline.
+- `/licenses`: license pool summary metrics now use `OperationalMetricCard`, and compact refresh/show-retired/export/admin controls meet the 40px operational target baseline.
+- `/resources`: active filter removals now use `OperationalActiveFilterChips`, sorting uses shadcn `Select`, and search/filter/sort/contact controls meet the 40px target baseline while keeping the documented Resources rail exception.
+- Route-by-route conformance checklist: Dashboard, Schedule, Items, Bookings, Users, and Settings are now tracked in `tasks/design-language-route-conformance-checklist.md`; future page work should update that checklist when it changes one of those route patterns.
+- State and copy audit Area 5: dashboard draft recovery, booking detail custody actions, and shift staffing changes now use operational failure, rollback, and confirmation language that names the affected record and consequence.
 
 ## Implementation Roadmap
 Quick wins:
 - Keep replacing page-local metric cards and partial-result warnings with shared primitives.
-- Convert route-local filter shells to `OperationalToolbar` when they match the search/filter/clear pattern.
+- Convert route-local filter shells to `OperationalToolbar` when they match the search/filter/clear pattern; route-local card-header filter rows are drift.
 - Audit icon-only buttons for labels and target size during each page pass.
 - Keep Settings sub-pages on `SettingsPageShell`; new Settings pages should not copy local split-grid markup.
+- Settings add-mode, copy, remove, and cancel controls must still meet the 40px target rule even when they sit inside compact admin forms or dialogs.
 - Keep item-detail and schedule card/table interiors on shared `EmptyState inline` when there is no data to act on.
+- Use `tasks/design-language-route-conformance-checklist.md` as the gate for Dashboard, Schedule, Items, Bookings, Users, and Settings route changes.
+- Lower-traffic route checklist entries now cover Kits, Licenses, Resources, Labels, Notifications, Search, Reports, Bulk Inventory, and detail pages. Keep that checklist current when touching those surfaces.
+- Treat generic `Failed to save`, `Network error`, and `Something went wrong` copy as drift on daily operational flows; replace it with object-specific outcome and recovery language when the surface is touched.
 
 Medium slices:
-- Keep active-filter chips shared through `OperationalActiveFilterChips`.
+- Keep active-filter chips shared through `OperationalActiveFilterChips`; do not introduce page-local removable-chip buttons.
 - Standardize remaining row action menus across Users and any future operational tables.
 - Keep operational empty states on `EmptyState`, using the inline mode for table/card interiors.
 
 Larger design-system work:
 - Add authenticated browser visual smoke coverage for the main operational surfaces.
-- Create a route-by-route design-system conformance checklist.
+- Extend the route-by-route design-system conformance checklist to lower-traffic routes once the six main routes stay stable.
 - Consider a small internal examples page only if component usage starts drifting again.
 
 ## Verification Plan

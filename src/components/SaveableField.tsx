@@ -121,12 +121,20 @@ export function SaveableField({
         className,
       )}
     >
-      <Label
-        htmlFor={htmlFor}
-        className={cn("text-sm text-muted-foreground shrink-0 w-[120px]", labelClassName)}
-      >
-        {label}
-      </Label>
+      {htmlFor ? (
+        <Label
+          htmlFor={htmlFor}
+          className={cn("text-sm text-muted-foreground shrink-0 w-[120px]", labelClassName)}
+        >
+          {label}
+        </Label>
+      ) : (
+        <span
+          className={cn("text-sm text-muted-foreground shrink-0 w-[120px]", labelClassName)}
+        >
+          {label}
+        </span>
+      )}
       <div className="flex items-center gap-2 flex-1 min-w-0">
         <div className="flex-1 min-w-0">{children}</div>
         {isDirty && onCommit && onCancel && status !== "saving" ? (

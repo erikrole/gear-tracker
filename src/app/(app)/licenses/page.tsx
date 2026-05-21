@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { FadeUp } from "@/components/ui/motion";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { OperationalMetricCard } from "@/components/OperationalFeedback";
 import { useFetch } from "@/hooks/use-fetch";
 import { formatRelativeTime } from "@/lib/format";
 import { LicenseTable } from "./LicenseTable";
@@ -35,32 +36,42 @@ function LicenseSummary({
 }) {
   const totalSlots = activeCodes * MAX_SLOTS;
   const openSlots = Math.max(totalSlots - usedSlots, 0);
-  const buckets = [
-    { label: "Active codes", value: activeCodes, tone: "bg-background" },
-    { label: "Slots in use", value: usedSlots, suffix: `/${totalSlots}`, tone: "bg-background" },
-    { label: "Open slots", value: openSlots, tone: "bg-green-50/70 dark:bg-green-950/20" },
-    { label: "Expiring soon", value: expiringCount, tone: "bg-yellow-50/70 dark:bg-yellow-950/20" },
-    { label: "Retired", value: retiredCount, tone: "bg-muted/50" },
-  ];
 
   return (
-    <div className="mb-4 grid gap-2 rounded-md border border-border/60 bg-muted/20 p-2 sm:grid-cols-3 lg:grid-cols-5">
-      {buckets.map((bucket) => (
-        <div
-          key={bucket.label}
-          className={`flex min-h-14 items-center justify-between rounded-sm px-3 shadow-xs ${bucket.tone}`}
-        >
-          <div className="min-w-0">
-            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-              {bucket.label}
-            </div>
-            <div className="mt-0.5 flex items-baseline gap-1 text-xl font-bold leading-none tabular-nums">
-              <span>{bucket.value.toLocaleString()}</span>
-              {bucket.suffix && <span className="text-xs font-medium text-muted-foreground">{bucket.suffix}</span>}
-            </div>
-          </div>
-        </div>
-      ))}
+    <div className="mb-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <OperationalMetricCard
+        label="Active codes"
+        value={activeCodes}
+        helper="Usable license codes"
+        className="bg-muted/30"
+      />
+      <OperationalMetricCard
+        label="Slots in use"
+        value={`${usedSlots}/${totalSlots}`}
+        helper="Two slots per code"
+        tone={usedSlots > 0 ? "blue" : "muted"}
+        className="bg-muted/30"
+      />
+      <OperationalMetricCard
+        label="Open slots"
+        value={openSlots}
+        helper="Claimable capacity"
+        tone={openSlots > 0 ? "green" : "muted"}
+        className="bg-muted/30"
+      />
+      <OperationalMetricCard
+        label="Expiring soon"
+        value={expiringCount}
+        helper="Within 30 days"
+        tone={expiringCount > 0 ? "orange" : "muted"}
+        className="bg-muted/30"
+      />
+      <OperationalMetricCard
+        label="Retired"
+        value={retiredCount}
+        helper="Hidden by default"
+        className="bg-muted/30"
+      />
       {myLicense && (
         <div className="px-1 text-xs text-muted-foreground sm:col-span-3 lg:col-span-5">
           You hold one slot.
@@ -147,7 +158,7 @@ export default function LicensesPage() {
             <Button
               variant="ghost"
               size="icon"
-              className="size-7"
+              className="size-10"
               onClick={reloadAll}
               disabled={codesLoading}
               aria-label="Refresh"
@@ -169,7 +180,7 @@ export default function LicensesPage() {
                   <Button
                     variant={showRetired ? "secondary" : "ghost"}
                     size="icon"
-                    className="size-7"
+                    className="size-10"
                     onClick={() => setShowRetired((v) => !v)}
                     aria-label="Toggle retired codes"
                   >
@@ -184,7 +195,7 @@ export default function LicensesPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="size-7"
+                  className="size-10"
                   onClick={handleExport}
                   aria-label="Export CSV"
                 >
@@ -193,19 +204,20 @@ export default function LicensesPage() {
               </TooltipTrigger>
               <TooltipContent>Export CSV</TooltipContent>
             </Tooltip>
-            <Button variant="outline" size="sm" onClick={() => setShowBulk(true)}>
+            <Button variant="outline" size="sm" className="h-10" onClick={() => setShowBulk(true)}>
               Bulk add
             </Button>
             <Button
               variant="outline"
               size="sm"
+              className="h-10"
               onClick={() => setShowRenew(true)}
               disabled={activeCodes.length === 0}
             >
               <CalendarClock className="size-3.5 mr-1" />
               Renew
             </Button>
-            <Button size="sm" onClick={() => setShowAdd(true)}>
+            <Button size="sm" className="h-10" onClick={() => setShowAdd(true)}>
               <Plus className="size-3.5 mr-1" />
               Add code
             </Button>

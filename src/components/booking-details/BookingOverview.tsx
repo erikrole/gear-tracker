@@ -75,7 +75,11 @@ export default function BookingOverview({
     const current = new Date(booking.endsAt);
     const extended = new Date(current.getTime() + minutes * 60 * 1000);
     const label = extended.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-    const ok = await confirm({ title: "Extend booking", message: `Extend due date to ${label}?`, confirmLabel: "Extend" });
+    const ok = await confirm({
+      title: "Extend booking due date?",
+      message: `Move the due date for "${booking.title}" to ${label}. Gear may stay checked out longer if no conflicts block the change.`,
+      confirmLabel: "Extend booking",
+    });
     if (!ok) return;
     onExtendTo(extended.toISOString());
   }
@@ -86,7 +90,11 @@ export default function BookingOverview({
     const target = new Date(v);
     if (isNaN(target.getTime())) return;
     const label = target.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-    const ok = await confirm({ title: "Extend booking", message: `Extend due date to ${label}?`, confirmLabel: "Extend" });
+    const ok = await confirm({
+      title: "Extend booking due date?",
+      message: `Move the due date for "${booking.title}" to ${label}. Gear may stay checked out longer if no conflicts block the change.`,
+      confirmLabel: "Extend booking",
+    });
     if (!ok) return;
     onExtendTo(target.toISOString());
     setCustomOpen(false);

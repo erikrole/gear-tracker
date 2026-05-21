@@ -16,7 +16,6 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import EmptyState from "@/components/EmptyState";
-import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +28,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { FadeUp } from "@/components/ui/motion";
 import { Item, ItemMedia, ItemContent, ItemTitle, ItemDescription, ItemActions } from "@/components/ui/item";
 import { Pagination, PaginationContent, PaginationPrevious, PaginationNext } from "@/components/ui/pagination";
+import { OperationalMetricCard } from "@/components/OperationalFeedback";
 import { useUrlState } from "@/hooks/use-url-state";
 
 type Notification = {
@@ -338,26 +338,42 @@ export default function NotificationsPage() {
         title="Notifications"
         description="Action triggers for overdue gear, bookings, shifts, and trades."
       >
-        <Button variant="outline" size="sm" onClick={reload} disabled={loading}>
+        <Button variant="outline" size="sm" className="h-10" onClick={reload} disabled={loading}>
           <RefreshCw className={loading ? "animate-spin" : undefined} />
           Refresh
         </Button>
         {canProcess && (
-          <Button variant="outline" size="sm" onClick={runProcessing} disabled={processing}>
+          <Button variant="outline" size="sm" className="h-10" onClick={runProcessing} disabled={processing}>
             {processing ? "Processing..." : "Check overdue"}
           </Button>
         )}
         {unreadCount > 0 && (
-          <Button variant="outline" size="sm" onClick={markAllRead} disabled={markingAll}>
+          <Button variant="outline" size="sm" className="h-10" onClick={markAllRead} disabled={markingAll}>
             {markingAll ? "Marking..." : "Mark all read"}
           </Button>
         )}
       </PageHeader>
 
-      <div className="mb-4 grid gap-2 rounded-lg border border-border/60 bg-muted/20 p-2 sm:grid-cols-3">
-        <NotificationMetric label="Unread" value={unreadCount} tone={unreadCount > 0 ? "orange" : "green"} />
-        <NotificationMetric label="Read" value={readCount} tone="muted" />
-        <NotificationMetric label="Total" value={total} tone="muted" />
+      <div className="mb-4 grid gap-3 sm:grid-cols-3">
+        <OperationalMetricCard
+          label="Unread"
+          value={unreadCount}
+          helper={unreadCount > 0 ? "Needs review" : "Caught up"}
+          tone={unreadCount > 0 ? "orange" : "green"}
+          className="bg-muted/30"
+        />
+        <OperationalMetricCard
+          label="Read"
+          value={readCount}
+          helper="Already handled"
+          className="bg-muted/30"
+        />
+        <OperationalMetricCard
+          label="Total"
+          value={total}
+          helper={unreadOnly ? "Unread filter active" : "Current inbox"}
+          className="bg-muted/30"
+        />
       </div>
 
       <Card>
@@ -400,7 +416,7 @@ export default function NotificationsPage() {
                   ? "Could not reach the server. Check your connection."
                   : "Something went wrong loading notifications."}
               </p>
-              <Button variant="outline" size="sm" onClick={reload}>
+              <Button variant="outline" size="sm" className="h-10" onClick={reload}>
                 Try again
               </Button>
             </div>
@@ -463,35 +479,6 @@ export default function NotificationsPage() {
         </div>
       )}
     </FadeUp>
-  );
-}
-
-function NotificationMetric({
-  label,
-  tone,
-  value,
-}: {
-  label: string;
-  tone: "green" | "orange" | "muted";
-  value: number;
-}) {
-  const toneClass = {
-    green: "text-[var(--green-text)]",
-    orange: "text-[var(--orange-text)]",
-    muted: "text-foreground",
-  }[tone];
-
-  return (
-    <div className="flex min-h-14 items-center justify-between rounded-md bg-background px-3 shadow-xs">
-      <div className="min-w-0">
-        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-          {label}
-        </div>
-        <div className={`mt-0.5 text-xl font-bold leading-none tabular-nums ${toneClass}`}>
-          {value.toLocaleString()}
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -559,7 +546,7 @@ function NotificationRow({
           <Button
             variant="outline"
             size="sm"
-            className="h-8 text-xs"
+            className="h-10 text-xs"
             asChild
           >
             <Link href={href}>
@@ -572,7 +559,7 @@ function NotificationRow({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 text-xs text-muted-foreground"
+            className="h-10 text-xs text-muted-foreground"
             onClick={() => onMarkRead(notification.id)}
             disabled={marking}
           >

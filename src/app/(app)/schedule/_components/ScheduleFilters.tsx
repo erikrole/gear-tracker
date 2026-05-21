@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { SPORT_CODES, sportLabel } from "@/lib/sports";
 import { cn } from "@/lib/utils";
 import { VENUE_FILTER_OPTIONS, venueFilterActiveClass } from "@/lib/venue-tone";
@@ -69,77 +70,87 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
   return (
     <div className="mb-4 rounded-lg border border-border/60 bg-card/80 p-2 shadow-sm">
       <div className="flex flex-row items-center gap-2 flex-wrap">
-      {/* View mode toggle */}
-      <ToolbarGroup label="View">
-        <div className="flex min-h-10 items-center overflow-hidden rounded-md border border-border bg-muted/30">
-          {VIEW_MODES.map((mode, i) => {
-            const isActive = filters.viewMode === mode.value;
-            return (
-              <button
-                key={mode.value}
-                onClick={() => filters.setViewMode(mode.value)}
-                aria-pressed={isActive}
-                className={cn(
-                  "flex h-10 items-center gap-1.5 px-3 text-[13px] font-medium transition-[background-color,color,box-shadow,scale] duration-150 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2",
-                  i > 0 && "border-l border-border",
-                  isActive
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground hover:bg-background/50",
-                )}
-              >
-                {mode.icon}
-                <span className="max-sm:hidden">{mode.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </ToolbarGroup>
+        {/* View mode toggle */}
+        <ToolbarGroup label="View">
+          <div className="flex min-h-10 items-center rounded-md border border-border bg-muted/30 p-0.5">
+            <ToggleGroup
+              type="single"
+              value={filters.viewMode}
+              onValueChange={(value) => {
+                if (value) filters.setViewMode(value as ViewMode);
+              }}
+              className="bg-transparent p-0"
+              aria-label="Schedule view"
+            >
+              {VIEW_MODES.map((mode) => (
+                <ToggleGroupItem
+                  key={mode.value}
+                  value={mode.value}
+                  aria-label={`${mode.label} view`}
+                  className="h-10 gap-1.5 px-3 text-[13px]"
+                >
+                  {mode.icon}
+                  <span className="max-sm:hidden">{mode.label}</span>
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
+        </ToolbarGroup>
 
-      {/* Divider */}
-      <div className="mx-0.5 h-6 w-px bg-border/80 max-sm:hidden" />
+        {/* Divider */}
+        <div className="mx-0.5 h-6 w-px bg-border/80 max-sm:hidden" />
 
-      {/* Venue filter */}
-      <ToolbarGroup label="Venue">
-        <div className="flex min-h-10 items-center overflow-hidden rounded-md border border-border bg-muted/30">
-          {HOME_AWAY_OPTIONS.map((opt, i) => {
-            const isActive = filters.homeAwayFilter === opt.value;
-            return (
-              <button
-                key={opt.value}
-                onClick={() => filters.setHomeAwayFilter(opt.value)}
-                aria-pressed={isActive}
-                className={cn(
-                  "h-10 px-2.5 text-[13px] font-medium transition-[background-color,color,box-shadow,scale] duration-150 active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2",
-                  i > 0 && "border-l border-border",
-                  isActive
-                    ? cn(venueFilterActiveClass(opt.value), "shadow-sm")
-                    : "text-muted-foreground hover:text-foreground hover:bg-background/50",
-                )}
-              >
-                {opt.label}
-              </button>
-            );
-          })}
-        </div>
-      </ToolbarGroup>
+        {/* Venue filter */}
+        <ToolbarGroup label="Venue">
+          <div className="flex min-h-10 items-center rounded-md border border-border bg-muted/30 p-0.5">
+            <ToggleGroup
+              type="single"
+              value={filters.homeAwayFilter}
+              onValueChange={(value) => {
+                if (value) filters.setHomeAwayFilter(value as HomeAwayFilter);
+              }}
+              className="bg-transparent p-0"
+              aria-label="Venue filter"
+            >
+              {HOME_AWAY_OPTIONS.map((opt) => {
+                const isActive = filters.homeAwayFilter === opt.value;
+                return (
+                  <ToggleGroupItem
+                    key={opt.value}
+                    value={opt.value}
+                    aria-label={`${opt.label} events`}
+                    className={cn(
+                      "h-10 px-2.5 text-[13px]",
+                      isActive
+                        ? cn(venueFilterActiveClass(opt.value), "shadow-sm")
+                        : "hover:bg-background/50",
+                    )}
+                  >
+                    {opt.label}
+                  </ToggleGroupItem>
+                );
+              })}
+            </ToggleGroup>
+          </div>
+        </ToolbarGroup>
 
-      {/* Divider */}
-      <div className="mx-0.5 h-6 w-px bg-border/80 max-sm:hidden" />
+        {/* Divider */}
+        <div className="mx-0.5 h-6 w-px bg-border/80 max-sm:hidden" />
 
-      <ToolbarGroup label="Coverage">
+        <ToolbarGroup label="Coverage">
           <Button
-          variant={needsStaffActive ? "default" : "outline"}
-          size="sm"
-          className={cn(
-            "h-10 gap-1.5 text-[13px]",
-            !needsStaffActive && needsStaffCount > 0 && "border-[var(--red-text)]/25 text-[var(--red-text)] hover:bg-[var(--red-bg)] hover:text-[var(--red-text)]",
-          )}
-          onClick={() => filters.setCoverageFilter(needsStaffActive ? "" : "unfilled")}
-        >
-          <AlertTriangleIcon className="size-3.5" />
-          Needs staff
-        </Button>
-      </ToolbarGroup>
+            variant={needsStaffActive ? "default" : "outline"}
+            size="sm"
+            className={cn(
+              "h-10 gap-1.5 text-[13px]",
+              !needsStaffActive && needsStaffCount > 0 && "border-[var(--red-text)]/25 text-[var(--red-text)] hover:bg-[var(--red-bg)] hover:text-[var(--red-text)]",
+            )}
+            onClick={() => filters.setCoverageFilter(needsStaffActive ? "" : "unfilled")}
+          >
+            <AlertTriangleIcon className="size-3.5" />
+            Needs staff
+          </Button>
+        </ToolbarGroup>
 
       {/* My Shifts toggle */}
       <div className="flex min-h-10 items-center gap-1.5 rounded-md border border-border bg-muted/30 px-2.5">

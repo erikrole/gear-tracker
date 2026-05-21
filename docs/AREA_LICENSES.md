@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Photo Mechanic license pool
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-07
+- Last Updated: 2026-05-21
 - Status: Active — 2-slot model, expiry tracking, unknown occupants, CSV export shipped
 - Version: V2
 
@@ -120,6 +120,7 @@ Implementation: `processLicenseNags` and `processExpiryWarnings` in `src/lib/ser
 - No full admin per-user license usage report beyond the user's own recent history and per-code admin history
 
 ## Change Log
+- **2026-05-21 (Design-language cleanup)**: License pool summary metrics now use the shared `OperationalMetricCard` primitive, and compact header/admin controls use the 40px operational target baseline while preserving the 2-slot claim, masking, and admin-sheet behavior.
 - **2026-05-08 (API hardening Wave 13)**: Code and personal claim history endpoints now apply bounded pagination instead of returning unbounded claim sets.
 - **2026-05-08 (API hardening Wave 8)**: CSV export now uses shared formula-safe escaping so holder names and unknown occupant labels that begin with spreadsheet formula characters are exported as inert text.
 - **2026-05-07 (User history)**: Added `/api/licenses/my/history` and a user-facing License history dialog from the active-license banner. The dialog shows recent claim/return timing while keeping released license codes hidden.

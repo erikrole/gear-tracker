@@ -11,3 +11,6 @@ tmp/
 .claude/
 xcuserdata/
 *.xcworkspace/xcuserdata/
+
+# Local UI proof artifacts captured during browser smoke.
+tasks/design-language-proof-*.png

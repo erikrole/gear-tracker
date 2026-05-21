@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Items
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-20
+- Last Updated: 2026-05-21
 - Status: Active
 - Version: V1
 
@@ -397,6 +397,8 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-05-21: Labels and Search target audit raised compact clear/open/view controls to the 40px operational target baseline while preserving their focused print and global-command surface shapes.
+- 2026-05-21: **Design language slices 25-26:** Image-search result selection now exposes visible keyboard focus and 40px source-link targets. Item detail scan identity controls now use explicit keyboard-visible 40px QR/serial copy buttons, and the QR preview button exposes a focus ring.
 - 2026-05-20: **Design language slice 23:** Item detail image edit/add buttons now show visible focus rings and reveal the edit affordance on keyboard focus, not only hover.
 - 2026-05-20: **Design language slice 20:** Item detail header utility controls now use the 40px target baseline for refresh, favorite, and the secondary action trigger.
 - 2026-05-20: **Design language slices 15-16:** Item detail empty states now use the shared inline `EmptyState` treatment across booking history, calendar agenda, insights, and attachments. The Items bulk action bar now reads as a selected-row toolbar with 40px controls and a clearer `Bulk actions` dropdown label.

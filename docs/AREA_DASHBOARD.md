@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Dashboard
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-20
+- Last Updated: 2026-05-21
 - Status: Active — V3 shipped, reliability + UX polish complete
 - Version: V3
 
@@ -177,6 +177,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 7. Add regression tests for permissions, window filtering (7 days), and overdue consistency.
 
 ## Change Log
+- 2026-05-21: Design language Area 5 state/copy audit. Dashboard draft deletion now names the recovery-point consequence, rollback failures say the draft was restored, and extend/convert failures explain that the booking or reservation was not changed.
 - 2026-05-20: **Design language slice 2:** Fix Today now uses the shared operational metric card and partial-results warning primitives so admin queue status, warning tone, and fallback copy match Inventory Hygiene.
 - 2026-05-20: **Design language quick win:** Awaiting Pickup rows now use orange waiting treatment instead of green success treatment, keeping pending kiosk pickup visually separate from available/clean states.
 - 2026-05-14: **Upcoming Events venue filter** — Home, Away, and Neutral now share the same venue tone system as Schedule: green for Home, orange for Away, and gray for Neutral. The dashboard Upcoming Events filter now includes a Neutral tab instead of hiding neutral-site events under All only.

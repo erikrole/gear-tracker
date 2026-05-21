@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Kits Management
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-12
+- Last Updated: 2026-05-21
 - Status: Active
 - Version: V1
 - Brief: `BRIEF_KIT_MANAGEMENT_V1.md`
@@ -48,7 +48,7 @@ Enable staff to group related gear items into named kits for faster checkout wor
 - **Page:** `src/app/(app)/kits/[id]/page.tsx`
 - **Type:** Detail view — kit settings, member list (serialized), bulk member list
 - **Sections:**
-  1. **Header:** Kit name (editable), location, description (editable), created/updated dates
+  1. **Header:** Shared `PageHeader` with kit name, location/content-count summary, archive/restore, delete, and back actions. Kit name, description, location, and created date remain editable/visible in the info card.
   2. **Serialized Items:** Table of kit members (asset tag, name, brand/model, type, status, date added). Search bar. Add items via `EquipmentPicker` (shares code with booking flow). Remove button per row.
   3. **Bulk Members:** Table of bulk SKU members (SKU name, category, unit, quantity). Search bar. Add bulk SKUs (quantity picker). Remove button per row.
   4. **Actions:** Archive/unarchive kit. Delete kit (deletes all memberships).
@@ -95,6 +95,9 @@ See `AREA_ITEMS.md` 2026-04-06 entry for kit detail page hardening work:
 - [x] AC-6: Mobile kit list responsive; detail scrollable
 
 ## Change Log
+- 2026-05-21: Kit detail now uses the shared `PageHeader` structure, keeps archive/delete/back actions at the 40px operational target baseline, and replaces the add-member search clear affordance with a named shadcn icon button.
+- 2026-05-21: Kit detail member tables now use the shared `OperationalRowActions` overflow trigger for serialized and bulk member removal. Bulk member removal now confirms the exact item family/quantity, parses API errors, and the API verifies the membership belongs to the current kit before deletion.
+- 2026-05-21: Kits list summary metrics now use the shared `OperationalMetricCard` primitive instead of a route-local metric card while preserving filter-aware helper copy.
 - 2026-05-12: Creation flow standardization. New Kit now uses the shared post-create handoff pattern so operators can open the created kit, return to the refreshed list, or create another kit without an automatic redirect.
 - 2026-03-16: Kit CRUD API and detail page shipped (D-020 implementation). Kit member add/remove with equipment picker reuse. Archive toggle. Hardening: 401 guards on all mutations, AbortController cleanup on list page.
 - 2026-04-06: Kits detail page hardening (5-pass audit) — 401 redirect on all 6 mutations (save name, save description, add member, remove member, toggle archive, delete). Kits list page already uses `useFetch` hook.

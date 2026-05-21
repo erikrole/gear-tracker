@@ -125,6 +125,21 @@ function formatShiftWindow(shift: TradeShift) {
   return `${date}, ${startTime} - ${formatDateShort(shift.endsAt)}, ${endTime}`;
 }
 
+function tradeCancelContext(trade: Trade) {
+  const shift = trade.shiftAssignment.shift;
+  const event = shift.shiftGroup.event;
+  const titleParts = scheduleEventTitleParts({
+    summary: event.summary,
+    sportCode: event.sportCode,
+    opponent: event.opponent ?? null,
+    isHome: event.isHome ?? null,
+  });
+  return {
+    eventLabel: titleParts.detail ? `${titleParts.title} (${titleParts.detail})` : titleParts.title,
+    windowLabel: formatShiftWindow(shift),
+  };
+}
+
 function TradeSkeleton() {
   return (
     <div className="space-y-3 p-3">
@@ -275,10 +290,12 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
     }
   }, [beginAction, endAction, loadTrades]);
 
-  const handleCancel = useCallback(async (tradeId: string) => {
+  const handleCancel = useCallback(async (trade: Trade) => {
+    const tradeId = trade.id;
+    const { eventLabel, windowLabel } = tradeCancelContext(trade);
     const ok = await confirm({
       title: "Cancel trade",
-      message: "Cancel this trade posting?",
+      message: `Cancel the trade posting for ${eventLabel} on ${windowLabel}? The shift stays assigned to ${trade.postedBy.name}.`,
       confirmLabel: "Cancel trade",
       variant: "danger",
     });
@@ -288,7 +305,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
       const res = await fetch(`/api/shift-trades/${tradeId}/cancel`, { method: "PATCH" });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        toast.success("Trade cancelled");
+        toast.success(`Trade cancelled for ${eventLabel}`);
         await loadTrades();
       } else {
         const msg = await parseErrorMessage(res, "Failed to cancel trade");
@@ -544,7 +561,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
                                 <DropdownMenuItem
                                   variant="destructive"
                                   disabled={acting !== null}
-                                  onSelect={() => void handleCancel(trade.id)}
+                                  onSelect={() => void handleCancel(trade)}
                                 >
                                   <XIcon className="size-4" />
                                   {isBusy ? "Cancelling..." : "Cancel"}

@@ -88,8 +88,8 @@ export default function DashboardPage() {
     const draft = data?.drafts.find((d) => d.id === draftId);
     if (!draft) return;
     const ok = await confirm({
-      title: "Delete draft",
-      message: `Delete this ${draft.kind === "CHECKOUT" ? "checkout" : "reservation"} draft? This can\u2019t be undone.`,
+      title: `Delete ${draft.kind === "CHECKOUT" ? "checkout" : "reservation"} draft?`,
+      message: "This removes the saved draft from your dashboard. The booking has not been created yet, and this recovery point cannot be restored.",
       confirmLabel: "Delete draft",
       variant: "danger",
     });
@@ -106,11 +106,11 @@ export default function DashboardPage() {
         toast.success("Draft deleted");
       } else {
         setData((prev) => prev ? { ...prev, drafts: prevDrafts } : prev);
-        toast.error("Failed to delete draft");
+        toast.error("Could not delete the draft. It has been restored on the dashboard.");
       }
     } catch {
       setData((prev) => prev ? { ...prev, drafts: prevDrafts } : prev);
-      toast.error("Network error \u2014 couldn\u2019t delete draft");
+      toast.error("Could not reach the server. The draft has been restored on the dashboard.");
     } finally {
       actionBusyRef.current = false;
       setActing(null);
@@ -136,11 +136,11 @@ export default function DashboardPage() {
         toast.success("Extended by 1 day");
         loadData();
       } else {
-        const msg = await parseErrorMessage(res, "Extend failed");
+        const msg = await parseErrorMessage(res, "Could not extend the booking. Refresh and check for conflicts.");
         toast.error(msg);
       }
     } catch {
-      toast.error("Network error — couldn\u2019t extend");
+      toast.error("Could not reach the server. The booking was not extended.");
     } finally {
       actionBusyRef.current = false;
       setActing(null);
@@ -159,11 +159,11 @@ export default function DashboardPage() {
         toast.success("Converted to checkout");
         loadData();
       } else {
-        const msg = await parseErrorMessage(res, "Convert failed");
+        const msg = await parseErrorMessage(res, "Could not start the checkout from this reservation. Refresh and try again.");
         toast.error(msg);
       }
     } catch {
-      toast.error("Network error — couldn\u2019t convert");
+      toast.error("Could not reach the server. The reservation was not converted.");
     } finally {
       actionBusyRef.current = false;
       setActing(null);
@@ -177,7 +177,7 @@ export default function DashboardPage() {
         title={fetchError === "network" ? "You\u2019re offline" : "Couldn\u2019t load your dashboard"}
         description={fetchError === "network"
           ? "Check your connection and try again."
-          : "Something went wrong on our end. This is usually temporary."}
+          : "The dashboard could not load. Refresh before using these counts for daily work."}
         actionLabel="Try again"
         onAction={() => loadData()}
       />

@@ -148,6 +148,7 @@ See `AREA_ITEMS.md` 2026-04-06 entry for bulk inventory page hardening:
 - [x] AC-7: Unit-tracked battery audit/reporting exposes missing units, loss rate by family, custody history, and repeated missing-unit patterns
 
 ## Change Log
+- 2026-05-21: Battery Ops summary metrics now use the shared `OperationalMetricCard` primitive instead of a route-local metric card helper, keeping available, checked-out, missing, retired, and low-family tones aligned with the design-language metric contract.
 - 2026-05-20: Battery Ops checked-out-units panel now uses shared inline `EmptyState` copy when no battery units are currently checked out, matching item-family detail empty-state behavior.
 - 2026-05-20: Unit-tracked item-family detail now uses shared inline `EmptyState` copy and recovery action when no units exist, replacing the local text-only empty row.
 - 2026-05-20: Item-family image replacement now participates in the shared Brave-backed product image search flow. Bulk SKU detail headers seed search from `sku.name`, and selected results still save through the existing bulk image endpoint so future manually chosen photos are re-hosted rather than stored as raw third-party image URLs.

@@ -209,9 +209,11 @@ export default function SearchPage() {
 
       <div className="relative mb-6 max-w-xl">
         <Input
+          id="global-search-query"
+          name="global-search-query"
           ref={inputRef}
           type="text"
-          className="peer pl-9 pr-9"
+          className="peer h-10 pl-9 pr-11"
           placeholder="Search items, checkouts, reservations, users..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -224,8 +226,8 @@ export default function SearchPage() {
           <Button
             type="button"
             variant="ghost"
-            size="icon-xs"
-            className="absolute inset-y-0 right-1.5 my-auto text-muted-foreground/80 hover:text-foreground"
+            size="icon"
+            className="absolute inset-y-0 right-0.5 my-auto size-10 text-muted-foreground/80 hover:text-foreground"
             onClick={() => setQuery("")}
             aria-label="Clear search"
           >
@@ -284,7 +286,10 @@ export default function SearchPage() {
                     {sectionLabels[type]!} ({items.length}{items.length >= 10 ? "+" : ""})
                   </h2>
                   {items.length >= 10 && (
-                    <Link href={sectionViewAllHrefs[type]!} className="text-xs text-primary hover:underline">
+                    <Link
+                      href={sectionViewAllHrefs[type]!}
+                      className="inline-flex min-h-10 items-center rounded-md px-2 text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    >
                       View all {sectionLabels[type]!.toLowerCase()}
                     </Link>
                   )}
@@ -294,7 +299,7 @@ export default function SearchPage() {
                     <Link
                       key={r.id}
                       href={r.href}
-                      className={`flex items-center justify-between gap-3 py-3 px-4 no-underline text-inherit cursor-pointer hover:bg-accent/50 ${i < items.length - 1 ? "border-b border-border" : ""}`}
+                      className={`flex min-h-12 items-center justify-between gap-3 py-3 px-4 no-underline text-inherit cursor-pointer hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${i < items.length - 1 ? "border-b border-border" : ""}`}
                     >
                       <div>
                         <div className="font-semibold">{r.title}</div>

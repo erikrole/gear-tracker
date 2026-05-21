@@ -227,8 +227,8 @@ export default function ShiftDetailPanel({
       }
     } catch {
       if (prev) setGroup(prev);
-      setActionError("Network error - check your connection");
-      toast.error("Network error");
+      setActionError("Could not reach the server. The shift change was not saved.");
+      toast.error("Could not reach the server. The shift change was not saved.");
     } finally {
       setActing(null);
     }
@@ -271,7 +271,12 @@ export default function ShiftDetailPanel({
     mutate(id, `/api/shift-assignments/${id}/decline`, { method: "PATCH" }, "Request declined");
 
   async function handleRemove(id: string) {
-    const yes = await confirm({ title: "Remove assignment", message: "Remove this shift assignment?", confirmLabel: "Remove", variant: "danger" });
+    const yes = await confirm({
+      title: "Remove shift assignment?",
+      message: "This removes the assigned worker from the shift and reopens the slot for staff assignment or student requests.",
+      confirmLabel: "Remove assignment",
+      variant: "danger",
+    });
     if (!yes) return;
     mutate(id, `/api/shift-assignments/${id}`, { method: "DELETE" }, "Assignment removed");
   }
@@ -296,7 +301,7 @@ export default function ShiftDetailPanel({
         if (assigned === 0) {
           toast.info("No eligible workers found for open shifts");
         } else if (conflicts > 0) {
-          toast.warning(`${assigned} shift${assigned !== 1 ? "s" : ""} filled - ${conflicts} have schedule conflicts`);
+          toast.warning(`${assigned} shift${assigned !== 1 ? "s" : ""} filled. Review ${conflicts} schedule conflict${conflicts !== 1 ? "s" : ""}.`);
         } else {
           toast.success(`${assigned} shift${assigned !== 1 ? "s" : ""} auto-filled`);
         }
@@ -307,7 +312,7 @@ export default function ShiftDetailPanel({
         toast.error(msg);
       }
     } catch {
-      toast.error("Network error");
+      toast.error("Could not reach the server. Open shifts were not auto-filled.");
     } finally {
       setAutoFilling(false);
     }
@@ -338,7 +343,7 @@ export default function ShiftDetailPanel({
         await fetchGroup(); // revert
       }
     } catch {
-      toast.error("Network error");
+      toast.error("Could not reach the server. Attendance was not saved.");
       await fetchGroup(); // revert
     }
   }
@@ -358,7 +363,7 @@ export default function ShiftDetailPanel({
         toast.error(msg);
       }
     } catch {
-      toast.error("Network error");
+      toast.error("Could not reach the server. The event was not archived.");
     } finally {
       setArchiving(false);
     }
@@ -387,8 +392,8 @@ export default function ShiftDetailPanel({
         toast.error(msg);
       }
     } catch {
-      setTradeError("Network error - check your connection");
-      toast.error("Network error");
+      setTradeError("Could not reach the server. The shift was not posted for trade.");
+      toast.error("Could not reach the server. The shift was not posted for trade.");
     } finally {
       setPosting(false);
     }
@@ -408,7 +413,12 @@ export default function ShiftDetailPanel({
 
   async function handleDeleteShift(shiftId: string, hasAssignment: boolean) {
     if (hasAssignment) {
-      const yes = await confirm({ title: "Remove shift", message: "This shift has an assigned worker. Remove it anyway?", confirmLabel: "Remove shift", variant: "danger" });
+      const yes = await confirm({
+        title: "Remove staffed shift?",
+        message: "This deletes the shift slot and removes the assigned worker from this event. Use this only when the role is no longer needed.",
+        confirmLabel: "Remove shift",
+        variant: "danger",
+      });
       if (!yes) return;
     }
     if (!group) return;
@@ -447,7 +457,7 @@ export default function ShiftDetailPanel({
             <p className="text-muted-foreground mb-2">
               {loadError === "network"
                 ? "Check your connection and try again."
-                : "Something went wrong loading shift details."}
+                : "Shift details could not load. Retry before changing assignments."}
             </p>
             <Button variant="outline" size="sm" onClick={fetchGroup}>Retry</Button>
           </div>

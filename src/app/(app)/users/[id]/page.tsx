@@ -601,8 +601,11 @@ export default function UserDetailPage() {
             {canManageProfilePhoto ? (
               <>
                 <input
+                  id="profile-avatar-upload"
+                  name="profileAvatarUpload"
                   ref={fileInputRef}
                   type="file"
+                  aria-label={`Upload profile photo for ${profile.name}`}
                   accept="image/jpeg,image/png,image/webp,image/gif"
                   className="hidden"
                   onChange={(e) => {

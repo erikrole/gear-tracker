@@ -68,6 +68,10 @@ Last updated: 2026-05-20
 - [x] Slice 21: Remaining auth form field names aligned with login.
 - [x] Slice 22: Event missing-gear actions 40px target aligned.
 - [x] Slice 23: Item image edit/add controls keyboard-focus visible.
+- [x] Slice 24: Kit detail member row actions and destructive bulk-remove copy aligned.
+- [x] Slice 25: Kit detail shared header and add-member clear control aligned.
+- [x] Slice 26: Trade Board cancellation confirmation names the affected shift.
+- [x] Slice 27: User detail area assignment row actions aligned.
 
 **Review**
 - Active tracking lives in `tasks/design-language-plan.md`.
@@ -108,6 +112,20 @@ Last updated: 2026-05-20
 - Slice 21 added stable field names to register, forgot-password, reset-password, and forced-password-change forms.
 - Slice 22 moved event missing-gear Nudge and Create checkout controls to 40px action targets with cleaner narrow-row wrapping.
 - Slice 23 made item detail image edit/add buttons keyboard-focus visible instead of relying on hover-only reveal.
+- Follow-on Area 1 captured authenticated visual proof for dashboard, items, users, scan, settings, checkout creation, Fix Today, Hygiene, item scan identity, item image modal, and event detail after starting local dev with the working `.env` Neon URL instead of the stale `.env.development.local` database host.
+- Follow-on Area 2 moved shared overlay close controls, booking `EquipmentPicker` dense controls, and shift-slot interior actions to the 40px operational target baseline.
+- Follow-on Area 3 created `tasks/design-language-route-conformance-checklist.md` for Dashboard, Schedule, Items, Bookings, Users, and Settings. The next design-language slice is Settings sub-page follow-through.
+- Follow-on Area 4 completed Settings consistency follow-through: Extend Presets, Kiosk Devices, Allowed Emails, and Database Health now align compact controls and empty states with the shared operational design-language baseline. Verified with TypeScript, migration-prefix check, whitespace check, production build, and authenticated Chrome smoke. The next design-language slice is the state and copy audit.
+- Follow-on Area 5 completed the state and copy audit for high-traffic daily flows: dashboard draft recovery, booking detail custody actions, and shift detail staffing actions now use object-specific confirmation, failure, rollback, and retry language. The next design-language slice is shared component consolidation.
+- Follow-on Area 6 moved Bookings filters onto `OperationalToolbar`, added shared active-filter chips, and raised shared removable filter controls to the 40px target baseline. Static checks and authenticated Bookings, Items, and Users browser smoke passed with no console errors.
+- Follow-on cleanup completed the requested 4, 3, 2 batch: completed design-language plans were archived, proof screenshots are ignored, lower-traffic route conformance coverage now includes Kits, Licenses, Resources, Labels, Notifications, Search, Reports, Battery Ops, Bulk SKU detail, and detail pages, and Schedule View/Venue segmented controls now use shadcn `ToggleGroup` while preserving the schedule-specific command bar.
+- Follow-on cleanup verified with `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, `npx next build`, and authenticated `/schedule` browser smoke with no console warnings, errors, or issues.
+- Follow-on metrics and targets batch completed Reports metric-card consolidation, Kits and Battery Ops shared metric strips, and Labels/Search compact target cleanup.
+- Follow-on metrics and targets batch verified with `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, `npx next build`, and authenticated browser smoke for `/reports/utilization`, `/kits`, `/bulk-inventory/batteries`, `/labels`, and `/search?q=sony`.
+- Follow-on low-traffic controls batch cleaned up Notifications, Licenses, and Resources: shared operational metrics where applicable, shadcn Resources sorting, shared active filter removals, and 40px action/link targets.
+- Follow-on low-traffic controls batch verified with `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, `npx next build`, and authenticated browser smoke for `/notifications`, `/licenses`, and `/resources?filter=contacts&q=erik&sort=recent`.
+- Kit detail follow-up moved serialized and bulk member removal onto `OperationalRowActions`, added confirmed/parsed-error bulk member removal copy, and tightened the bulk-member delete route to reject memberships outside the current kit.
+- Detail follow-up batch moved Kit detail onto `PageHeader`, clarified Trade Board cancel confirmations with event/shift/owner context, and replaced user area-assignment tiny chip actions with shared operational row actions.
 
 ### Settings Navigation Rail (2026-05-20)
 - [x] Add grouped desktop Settings rail using existing role-aware section config.
@@ -1273,6 +1291,9 @@ Last updated: 2026-05-20
 - [x] **Next optimization plan** — wrote `tasks/react-query-cache-plan.md`; GAP-11 is a cache-key audit follow-up, not a migration
 
 ### Review
+- Design Language Touch Target Batch shipped: event detail travel roster controls now use 40px shadcn action targets and shared inline empty state copy; image-search result selection/source controls now have visible focus and 40px source-link targets; item detail scan identity now uses explicit 40px QR/serial copy buttons and a focused QR preview. Verification is tracked in `tasks/design-language-touch-target-batch-plan.md`.
+- Design Language Goal Area 2 started: shared `Dialog`/`Sheet`/`Drawer` close buttons, booking `EquipmentPicker` dense controls, and event `ShiftSlotCard` staffing actions now use the 40px operational target baseline. Area 1 authenticated visual proof remains blocked by local Prisma `P1000` login failure and is tracked in `tasks/design-language-goal-plan.md`.
+- Design Language Goal Area 1 unblocked and completed: authenticated Chrome proof now covers dashboard, items, users, scan, settings, checkout creation, Fix Today, Hygiene, item scan identity, item image modal, and event detail. The blocker was stale `.env.development.local` database host drift; the working proof used quote-stripped `.env` `DATABASE_URL`/`DIRECT_URL` overrides for `next dev`.
 - Next.js May 2026 Security Patch shipped: package and lockfile now pin the patched 15.x framework floor (`next@15.5.16`) plus React `19.2.6`, matching the disclosed React Server Components patch floor. The local dependency tree confirms those installed versions, and the production Next build compiled successfully on `Next.js 15.5.16`. `npm audit --omit=dev` still reports the separate nested `next -> postcss@8.4.31` moderate advisory; a scoped override made npm mark the Next dependency invalid, so that was backed out and left for an upstream Next release.
 - Page Ownership Skill shipped: added a project skill for end-to-end web page and page-slice execution passes, including orientation, peer comparison, structure/UX/UI/consistency/hardening lenses, verification, docs sync, and propagation candidates. `audit-page-web` now points full-page implementation requests at the new skill while staying a diagnostic readiness audit. Verification passed for frontmatter/heading scan and `git diff --check`.
 - Dashboard Upcoming Events Parity shipped: the dashboard Upcoming Events card now uses schedule-style read-only coverage metadata from `/api/dashboard`, shows event title, time, location, home/away state, staffing avatars, filled/total coverage, open-slot warnings, and home call time when available. Quick-create controls were removed from the widget, keeping `/schedule` as the management surface. Verification passed for TypeScript, migration-prefix check, whitespace, and local Next build.

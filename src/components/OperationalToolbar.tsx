@@ -40,7 +40,7 @@ export function OperationalActiveFilterChips({
           type="button"
           variant="secondary"
           size="sm"
-          className="h-7 max-w-full min-w-0 gap-1 px-2 text-xs"
+          className="h-10 max-w-full min-w-0 gap-1.5 px-2.5 text-xs"
           onClick={filter.onRemove}
           aria-label={`Remove ${filter.label} filter`}
         >

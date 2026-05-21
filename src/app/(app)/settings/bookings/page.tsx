@@ -115,7 +115,7 @@ export default function BookingSettingsPage() {
         <Card>
           <CardHeader className="flex-row items-center justify-between">
             <CardTitle>Extend due date presets</CardTitle>
-            <Button size="sm" onClick={save} disabled={!dirty || saving}>
+            <Button onClick={save} disabled={!dirty || saving} className="min-h-10">
               {saving ? "Saving..." : dirty ? "Save changes" : "Saved"}
             </Button>
           </CardHeader>
@@ -124,9 +124,9 @@ export default function BookingSettingsPage() {
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
                   <div key={i} className="flex gap-3">
-                    <Skeleton className="h-9 flex-1" />
-                    <Skeleton className="h-9 w-[120px]" />
-                    <Skeleton className="h-9 w-9" />
+                    <Skeleton className="h-10 flex-1" />
+                    <Skeleton className="h-10 w-[120px]" />
+                    <Skeleton className="size-10" />
                   </div>
                 ))}
               </div>
@@ -139,7 +139,7 @@ export default function BookingSettingsPage() {
                       value={preset.label}
                       onChange={(e) => updatePresetLabel(index, e.target.value)}
                       placeholder="Button label"
-                      className="h-9 flex-1"
+                      className="h-10 flex-1"
                     />
                     <NativeSelect
                       value={preset.minutes}
@@ -151,19 +151,19 @@ export default function BookingSettingsPage() {
                     </NativeSelect>
                     <Button
                       variant="ghost"
-                      size="icon-xs"
+                      size="icon"
                       onClick={() => removePreset(index)}
-                      className="text-muted-foreground hover:text-destructive"
+                      className="size-10 text-muted-foreground hover:text-destructive"
                       aria-label={`Remove ${preset.label || "preset"}`}
                     >
-                      <Trash2Icon className="size-3.5" />
+                      <Trash2Icon className="size-4" />
                     </Button>
                   </div>
                 ))}
 
                 {presets.length < 10 && (
-                  <Button variant="outline" size="sm" onClick={addPreset} className="mt-2">
-                    <PlusIcon className="size-3.5 mr-1" />
+                  <Button variant="outline" onClick={addPreset} className="mt-2 min-h-10">
+                    <PlusIcon className="mr-1 size-4" />
                     Add preset
                   </Button>
                 )}

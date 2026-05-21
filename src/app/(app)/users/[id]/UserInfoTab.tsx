@@ -34,8 +34,10 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
+import { OperationalRowActions } from "@/components/OperationalRowActions";
 import { cn } from "@/lib/utils";
 import { handleAuthRedirect } from "@/lib/errors";
 
@@ -428,6 +430,8 @@ function SizeMiniInput({
 }) {
   const [draft, setDraft] = useState(value);
   const { status, save } = useSaveField<string | null>(onSave);
+  const id = useId();
+  const inputName = `${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-size`;
 
   useEffect(() => {
     setDraft(value);
@@ -440,7 +444,7 @@ function SizeMiniInput({
   }, [draft, value, save]);
 
   return (
-    <label className="flex flex-col gap-0.5 min-w-0 flex-1">
+    <label htmlFor={id} className="flex flex-col gap-0.5 min-w-0 flex-1">
       <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
         {label}
         {status === "saving" && " · saving"}
@@ -448,6 +452,8 @@ function SizeMiniInput({
         {status === "error" && " · error"}
       </span>
       <Input
+        id={id}
+        name={inputName}
         value={draft}
         placeholder={placeholder}
         onChange={(e) => setDraft(e.target.value)}
@@ -887,7 +893,7 @@ export default function UserInfoTab({
                   variant="outline"
                   role="combobox"
                   aria-label="Sports assignments"
-                  className="w-full justify-between h-auto min-h-9 font-normal"
+                  className="h-auto min-h-10 w-full justify-between font-normal"
                   disabled={addingSport}
                 >
                   {(user.sportAssignments ?? []).length === 0 ? (
@@ -959,7 +965,7 @@ export default function UserInfoTab({
                     variant="outline"
                     role="combobox"
                     aria-label="Area assignments"
-                    className="w-full justify-between h-auto min-h-9 font-normal"
+                    className="h-auto min-h-10 w-full justify-between font-normal"
                     disabled={addingArea}
                   >
                     {(user.areaAssignments ?? []).length === 0 ? (
@@ -1002,31 +1008,31 @@ export default function UserInfoTab({
                 </PopoverContent>
               </Popover>
               {(user.areaAssignments ?? []).length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
+                <div className="mt-2 grid gap-1.5">
                   {(user.areaAssignments ?? []).map((aa) => (
                     <div
                       key={aa.id}
-                      className="inline-flex h-7 items-center gap-1 rounded-md border border-border/60 bg-muted/40 pl-2 pr-1 text-xs"
+                      className="flex min-h-10 items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/40 py-1 pl-3 pr-1.5 text-sm"
                     >
-                      <button
-                        type="button"
-                        className="font-medium text-foreground hover:underline"
-                        onClick={() => toggleAreaPrimary(aa.area, !aa.isPrimary)}
-                        title={aa.isPrimary ? "Remove as primary" : "Set as primary"}
-                      >
-                        {AREA_LABELS[aa.area] || aa.area}
-                        {aa.isPrimary && " (Primary)"}
-                      </button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-xs"
-                        className="size-5 text-muted-foreground hover:text-destructive"
-                        onClick={() => removeArea(aa.id)}
-                        aria-label={`Remove ${AREA_LABELS[aa.area] || aa.area}`}
-                      >
-                        <X className="size-3" />
-                      </Button>
+                      <div className="min-w-0">
+                        <span className="font-medium text-foreground">
+                          {AREA_LABELS[aa.area] || aa.area}
+                        </span>
+                        {aa.isPrimary && (
+                          <Badge variant="purple" size="sm" className="ml-2">Primary</Badge>
+                        )}
+                      </div>
+                      <OperationalRowActions label={`Actions for ${AREA_LABELS[aa.area] || aa.area} area`}>
+                        <DropdownMenuItem onSelect={() => void toggleAreaPrimary(aa.area, !aa.isPrimary)}>
+                          {aa.isPrimary ? "Remove primary" : "Set primary"}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onSelect={() => void removeArea(aa.id)}
+                        >
+                          Remove area
+                        </DropdownMenuItem>
+                      </OperationalRowActions>
                     </div>
                   ))}
                 </div>

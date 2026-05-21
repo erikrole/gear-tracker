@@ -180,7 +180,7 @@ export default function BookingDetailsSheet({
       }
     } catch {
       setOptionsError(true);
-      toast.error("Failed to load equipment options");
+      toast.error("Could not load equipment options. Retry before saving equipment changes.");
     }
   }, []);
 
@@ -200,7 +200,7 @@ export default function BookingDetailsSheet({
         setHasMoreAuditLogs(json.hasMore ?? false);
       }
     } catch {
-      toast.error("Failed to load more history");
+      toast.error("Could not load older history. The visible activity is still current.");
     }
     setLoadingMoreAuditLogs(false);
   }, [bookingId, auditLogCursor, loadingMoreAuditLogs]);
@@ -320,10 +320,10 @@ export default function BookingDetailsSheet({
       } else {
         const json = await res.json().catch(() => ({}) as Record<string, unknown>);
         if (res.status === 409 && json.data) setConflictError(json.data as ConflictData);
-        toast.error((json.error as string) || "Failed to save equipment changes");
+        toast.error((json.error as string) || "Could not save equipment changes. Review conflicts and try again.");
       }
     } catch {
-      toast.error("Failed to save");
+      toast.error("Could not reach the server. Equipment changes were not saved.");
     }
     setEquipSaving(false);
   }
@@ -368,10 +368,10 @@ export default function BookingDetailsSheet({
       } else {
         const json = await res.json().catch(() => ({}) as Record<string, unknown>);
         if (res.status === 409 && json.data) setConflictError(json.data as ConflictData);
-        toast.error((json.error as string) || "Failed to save");
+        toast.error((json.error as string) || "Could not save booking changes. Review conflicts and try again.");
       }
     } catch {
-      toast.error("Failed to save");
+      toast.error("Could not reach the server. Booking changes were not saved.");
     }
     setSaving(false);
   }
@@ -413,11 +413,11 @@ export default function BookingDetailsSheet({
         await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
-        const msg = await parseErrorMessage(res, "Failed to extend");
+        const msg = await parseErrorMessage(res, "Could not extend the booking. Review conflicts and try again.");
         toast.error(msg);
       }
     } catch {
-      toast.error("Failed to extend");
+      toast.error("Could not reach the server. The booking was not extended.");
     }
     setExtending(false);
   }
@@ -426,8 +426,8 @@ export default function BookingDetailsSheet({
     if (!booking || cancelling) return;
     const typeLabel = booking.kind === "RESERVATION" ? "reservation" : "checkout";
     const ok = await confirm({
-      title: `Cancel ${typeLabel}`,
-      message: `Cancel "${booking.title}"? This will release all equipment and cannot be undone.`,
+      title: `Cancel ${typeLabel}?`,
+      message: `Cancel "${booking.title}" and release its reserved equipment. The record stays in history, but the ${typeLabel} cannot be reopened.`,
       confirmLabel: `Cancel ${typeLabel}`,
       variant: "danger",
     });
@@ -438,15 +438,15 @@ export default function BookingDetailsSheet({
       const res = await fetchWithTimeout(`/api/bookings/${booking.id}/cancel`, { method: "POST" });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        toast.success("Booking cancelled");
+        toast.success(`${typeLabel.charAt(0).toUpperCase() + typeLabel.slice(1)} cancelled`);
         await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
-        const msg = await parseErrorMessage(res, "Failed to cancel");
+        const msg = await parseErrorMessage(res, `Could not cancel the ${typeLabel}. Refresh and try again.`);
         toast.error(msg);
       }
     } catch {
-      toast.error("Failed to cancel");
+      toast.error(`Could not reach the server. The ${typeLabel} was not cancelled.`);
     }
     setCancelling(false);
   }
@@ -454,8 +454,8 @@ export default function BookingDetailsSheet({
   async function handleConvert() {
     if (!booking || converting) return;
     const ok = await confirm({
-      title: "Convert to checkout",
-      message: "Convert this reservation to a checkout? The reservation will be cancelled and a new checkout created.",
+      title: "Start checkout from reservation?",
+      message: `Create a checkout from "${booking.title}" and close the reservation record. Gear custody still begins at kiosk pickup.`,
       confirmLabel: "Start checkout",
     });
     if (!ok) return;
@@ -471,11 +471,11 @@ export default function BookingDetailsSheet({
         onClose();
         router.push(`/checkouts/${json.data.id}`);
       } else {
-        const msg = await parseErrorMessage(res, "Failed to convert");
+        const msg = await parseErrorMessage(res, "Could not start the checkout. Refresh the reservation and try again.");
         toast.error(msg);
       }
     } catch {
-      toast.error("Failed to convert");
+      toast.error("Could not reach the server. The checkout was not started.");
     }
     setConverting(false);
   }
@@ -496,11 +496,11 @@ export default function BookingDetailsSheet({
         await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
-        const msg = await parseErrorMessage(res, "Failed to check in");
+        const msg = await parseErrorMessage(res, "Could not check in this item. Refresh the booking and try again.");
         toast.error(msg);
       }
     } catch {
-      toast.error("Failed to check in");
+      toast.error("Could not reach the server. The item was not checked in.");
     }
     setCheckinLoading(false);
   }
@@ -511,7 +511,7 @@ export default function BookingDetailsSheet({
     if (activeItems.length === 0) return;
     const ok = await confirm({
       title: "Check in all items",
-      message: `Check in all ${activeItems.length} remaining item(s)?`,
+      message: `Check in all ${activeItems.length} remaining item${activeItems.length === 1 ? "" : "s"} for "${booking.title}". This records the remaining gear as returned.`,
       confirmLabel: "Check in all",
     });
     if (!ok) return;
@@ -529,11 +529,11 @@ export default function BookingDetailsSheet({
         await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
-        const msg = await parseErrorMessage(res, "Failed to check in");
+        const msg = await parseErrorMessage(res, "Could not check in all items. Refresh the booking and try again.");
         toast.error(msg);
       }
     } catch {
-      toast.error("Failed to check in");
+      toast.error("Could not reach the server. Items were not checked in.");
     }
     setCheckinLoading(false);
   }
@@ -607,7 +607,7 @@ export default function BookingDetailsSheet({
             </div>
           ) : fetchError ? (
             <div className="py-10 px-6 text-center space-y-3">
-              <p className="text-muted-foreground">Failed to load booking details.</p>
+              <p className="text-muted-foreground">Booking details could not load. Retry before taking action on this record.</p>
               <Button variant="outline" size="sm" onClick={() => fetchBooking()}>Retry</Button>
             </div>
           ) : !booking ? (
@@ -639,7 +639,7 @@ export default function BookingDetailsSheet({
               {optionsError && (
                 <Alert variant="destructive">
                   <AlertDescription className="flex items-center justify-between">
-                    <span>Failed to load equipment options.</span>
+                    <span>Equipment options could not load. Retry before saving equipment changes.</span>
                     <Button variant="outline" size="sm" onClick={loadFormOptions}>Retry</Button>
                   </AlertDescription>
                 </Alert>

@@ -6,6 +6,7 @@
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Status: Shipped
 - Created: 2026-04-14
+- Last Updated: 2026-05-21
 - Brief: `tasks/guides-plan.md` (archived)
 
 ## Description
@@ -81,6 +82,7 @@ All mutations use `createAuditEntry` per D-007.
 ## Change Log
 | Date | Change |
 |------|--------|
+| 2026-05-21 | Design-language cleanup moved Resources active filter removals to shared `OperationalActiveFilterChips`, replaced the native sort select with shadcn `Select`, and raised search/filter/sort/contact controls to the 40px operational target baseline while preserving the Resources rail exception. |
 | 2026-05-19 | Slice 2 closeout: Prisma model renamed from `Guide` to `Resource`, the database table was renamed from `guides` to `resources`, resource routes now use `resource` RBAC/audit identities, and Vercel Blob uploads now write under `resources/`. Migration `0068_rename_guides_to_resources` was applied to Neon and verified with `/resources` route smoke. |
 | 2026-05-19 | Renamed Guides to Resources: routes moved to `/resources*` (old `/guides*` 301-redirect via `next.config.ts`), sidebar entry relabeled, and the landing page rebuilt as a directory with a sticky left filter rail, top search + sort toolbar, active-filter chips, and Featured badges. Removed the "Featured for you" strip and the three stacked quick-card grids; Contacts directory now shows only under the Contacts filter. |
 | 2026-05-10 | Guides review fixes: landing search now matches full Markdown guide text beyond card summaries, reader heading IDs stay aligned with ToC IDs for rich headings, and partial featured-rank PATCHes preserve or clear rank from the final featured state. |

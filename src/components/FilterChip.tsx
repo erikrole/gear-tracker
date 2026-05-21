@@ -39,7 +39,7 @@ export function FilterChip({
     <Popover open={open} onOpenChange={setOpen}>
       <div
         className={cn(
-          "inline-flex h-7 overflow-hidden rounded-full border border-input bg-background shadow-xs",
+          "inline-flex h-10 overflow-hidden rounded-md border border-input bg-background shadow-xs",
           active ? "bg-muted/80 border-border" : "text-muted-foreground",
         )}
       >
@@ -60,7 +60,7 @@ export function FilterChip({
             variant="ghost"
             size="icon-xs"
             aria-label={`Clear ${label} filter`}
-            className="h-full w-7 rounded-none border-l border-border/50 text-muted-foreground shadow-none transition-[background-color,color,scale] hover:bg-muted hover:text-foreground active:scale-[0.96]"
+            className="h-full w-10 rounded-none border-l border-border/50 text-muted-foreground shadow-none transition-[background-color,color,scale] hover:bg-muted hover:text-foreground active:scale-[0.96]"
             onClick={() => { onClear(); setOpen(false); }}
           >
             <X className="size-3" />

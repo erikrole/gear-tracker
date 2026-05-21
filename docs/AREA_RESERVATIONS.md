@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-10
+- Last Updated: 2026-05-21
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
@@ -243,6 +243,9 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 8. Implement list page controls and row behavior from V1 list surface spec.
 
 ## Change Log
+- 2026-05-21: Design language Area 6 shared-component consolidation. Reservation list filters now use `OperationalToolbar`, shared active-filter chips, and 40px shared filter controls instead of the previous route-local card-header filter row.
+- 2026-05-21: Design language Area 5 state/copy audit. Shared booking detail copy now names reservation cancellation, checkout conversion, equipment-save, and extension consequences so operators know what record changed and what to retry.
+- 2026-05-21: Shared reservation `EquipmentPicker` controls now follow the 40px operational target baseline for search clear, scanner close, select-visible, clear-section, bulk quantity, selected-shelf remove, and clear-all actions.
 - 2026-05-20: Booking row overflow actions now use the shared `OperationalRowActions` trigger in reservation table rows, mobile rows, and booking cards while preserving right-click context menus and reservation action policy.
 - 2026-03-01: Initial standalone area scope created.
 - 2026-03-01: Rewritten into hardened V1 workflow, logic, and transition spec.

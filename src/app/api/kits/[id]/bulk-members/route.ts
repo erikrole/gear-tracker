@@ -46,6 +46,14 @@ export const DELETE = withAuth<{ id: string }>(async (req, { user, params }) => 
   const membershipId = searchParams.get("membershipId");
   if (!membershipId) throw new HttpError(400, "membershipId required");
 
+  const membership = await db.kitBulkMembership.findUnique({
+    where: { id: membershipId },
+    include: { bulkSku: { select: { id: true, name: true, unit: true } } },
+  });
+  if (!membership || membership.kitId !== params.id) {
+    throw new HttpError(404, "Bulk membership not found");
+  }
+
   await db.kitBulkMembership.delete({ where: { id: membershipId } });
 
   await createAuditEntry({
@@ -54,7 +62,13 @@ export const DELETE = withAuth<{ id: string }>(async (req, { user, params }) => 
     entityType: "kit",
     entityId: params.id,
     action: "bulk_member_removed",
-    after: { membershipId },
+    before: {
+      membershipId,
+      bulkSkuId: membership.bulkSkuId,
+      bulkSkuName: membership.bulkSku.name,
+      quantity: membership.quantity,
+      unit: membership.bulkSku.unit,
+    },
   });
 
   return ok({ success: true });

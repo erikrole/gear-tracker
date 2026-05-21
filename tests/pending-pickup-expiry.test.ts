@@ -27,11 +27,16 @@ vi.mock("@/lib/db", () => {
   };
 });
 
+vi.mock("@/lib/services/reservation-rules", () => ({
+  loadReservationRules: vi.fn(async () => ({
+    advanceWindowDays: null,
+    noShowExpiryHours: 48,
+    maxConcurrentReservations: null,
+  })),
+}));
+
 import { db } from "@/lib/db";
-import {
-  expirePendingPickupCheckouts,
-  PENDING_PICKUP_AUTO_EXPIRY_HOURS,
-} from "@/lib/services/pending-pickup-expiry";
+import { expirePendingPickupCheckouts } from "@/lib/services/pending-pickup-expiry";
 
 const mockDb = db as unknown as {
   booking: { findMany: ReturnType<typeof vi.fn> };
@@ -49,7 +54,7 @@ const mockDb = db as unknown as {
 
 const mockTx = mockDb._mockTx;
 const now = new Date("2026-05-13T12:00:00.000Z");
-const staleStart = new Date(now.getTime() - (PENDING_PICKUP_AUTO_EXPIRY_HOURS + 1) * 60 * 60 * 1000);
+const staleStart = new Date(now.getTime() - 49 * 60 * 60 * 1000);
 
 beforeEach(() => {
   vi.clearAllMocks();

@@ -17,6 +17,7 @@ import {
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import EmptyState from "@/components/EmptyState";
 
 /* ── Types ──────────────────────────────────────────────── */
 
@@ -161,10 +162,13 @@ function RosterPicker({
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
                   onClick={() => handleToggleDefault(entry)}
                   disabled={toggling === entry.id}
-                  className={`flex size-9 shrink-0 items-center justify-center rounded-md transition-[background-color,color,scale] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2 ${
+                  className={`size-10 ${
                     entry.defaultTraveler
                       ? "text-amber-400 hover:text-amber-500"
                       : "text-muted-foreground/30 hover:text-muted-foreground"
@@ -172,7 +176,7 @@ function RosterPicker({
                   aria-label={entry.defaultTraveler ? "Remove default traveler" : "Mark as default traveler"}
                 >
                   <Star className="size-3.5" fill={entry.defaultTraveler ? "currentColor" : "none"} />
-                </button>
+                </Button>
               </TooltipTrigger>
               <TooltipContent>
                 {entry.defaultTraveler ? "Default traveler - click to unset" : "Mark as default traveler"}
@@ -184,9 +188,9 @@ function RosterPicker({
             </Badge>
           </div>
           <Button
-            size="sm"
+            size="default"
             variant="ghost"
-            className="ml-2 h-9 shrink-0 px-2 text-xs"
+            className="ml-2 h-10 shrink-0 px-3 text-xs"
             onClick={() => handleAdd(entry.userId)}
             disabled={adding !== null}
           >
@@ -268,7 +272,7 @@ export function EventTravelCard({
         {isStaff && (
           <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9" disabled={loading}>
+              <Button variant="outline" size="default" className="h-10" disabled={loading}>
                 <Plus className="size-3.5 mr-1.5" />
                 Add
               </Button>
@@ -303,9 +307,12 @@ export function EventTravelCard({
             </AlertDescription>
           </Alert>
         ) : members.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-2 text-center">
-            No travelers added yet.
-          </p>
+          <EmptyState
+            inline
+            icon="users"
+            title="No travelers added"
+            description={isStaff ? "Add sport-roster travelers for this away event." : "Travelers will appear here once staff adds them."}
+          />
         ) : (
           <div className="space-y-1.5">
             {members.map((m) => (
@@ -323,14 +330,17 @@ export function EventTravelCard({
                   </Badge>
                 </div>
                 {isStaff && (
-                  <button
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
                     onClick={() => handleRemove(m.id)}
                     disabled={removing === m.id}
-                    className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-[background-color,color,scale] hover:bg-muted/50 hover:text-destructive active:scale-[0.96] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
+                    className="size-10 shrink-0 text-muted-foreground hover:text-destructive"
                     aria-label="Remove from travel roster"
                   >
                     <Trash2 className="size-3.5" />
-                  </button>
+                  </Button>
                 )}
               </div>
             ))}

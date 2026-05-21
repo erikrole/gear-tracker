@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetBody,
@@ -209,6 +210,9 @@ export default function SchedulePage() {
         <SheetContent side="right" className="sm:max-w-xl w-full">
           <SheetHeader>
             <SheetTitle>Trade Board</SheetTitle>
+            <SheetDescription>
+              Review, claim, approve, decline, or cancel posted shift trades.
+            </SheetDescription>
           </SheetHeader>
           <SheetBody>
             {data.tradeSheetOpen && (

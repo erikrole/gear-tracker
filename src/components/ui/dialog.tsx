@@ -57,7 +57,7 @@ function DialogContent({
         {children}
         <DialogPrimitive.Close
           data-slot="dialog-close-button"
-          className="absolute right-4 top-4 flex size-8 items-center justify-center rounded-md text-muted-foreground/80 opacity-70 outline-none transition-[background-color,color,box-shadow,opacity] hover:bg-muted hover:text-foreground hover:opacity-100 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none"
+          className="absolute right-3 top-3 flex size-10 items-center justify-center rounded-md text-muted-foreground/80 opacity-70 outline-none transition-[background-color,color,box-shadow,opacity] hover:bg-muted hover:text-foreground hover:opacity-100 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none"
         >
           <X className="size-4" />
           <span className="sr-only">Close</span>
@@ -137,7 +137,7 @@ function DialogCloseButton({
     <DialogPrimitive.Close
       data-slot="dialog-close-button"
       className={cn(
-        "data-[state=open]:bg-accent data-[state=open]:text-muted-foreground flex size-8 items-center justify-center rounded-md text-muted-foreground/80 opacity-70 outline-none transition-[background-color,color,box-shadow,opacity] hover:bg-muted hover:text-foreground hover:opacity-100 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none",
+        "data-[state=open]:bg-accent data-[state=open]:text-muted-foreground flex size-10 items-center justify-center rounded-md text-muted-foreground/80 opacity-70 outline-none transition-[background-color,color,box-shadow,opacity] hover:bg-muted hover:text-foreground hover:opacity-100 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none",
         className,
       )}
       {...props}

@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reports & Analytics
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-13
+- Last Updated: 2026-05-21
 - Status: Active
 - Version: V1
 
@@ -101,7 +101,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 ## Components
 
 **Shared across reports:**
-- `MetricCard` — displays key metric (number + label, optional trend indicator)
+- `MetricCard` — report-local adapter around `OperationalMetricCard`, preserving report drill-down links, tooltips, badges, and string values while using the shared operational metric primitive
 - Charts from `recharts` (line, bar, pie charts as needed per report)
 - `Card` + `CardHeader` + `CardContent` for sections
 - Filter bar with date range picker, select dropdowns
@@ -133,6 +133,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - [x] AC-8: Missing Units report includes unit-tracked battery missing-unit, missing-rate, custody-history, and repeat-pattern reporting
 
 ## Change Log
+- 2026-05-21: Report metric cards now render through the shared `OperationalMetricCard` primitive while preserving report-specific links, tooltips, badges, and string values.
 - 2026-05-20: Reports period and phase filter state now uses shared `OperationalActiveFilterChips` through the report toolbar on Checkouts, Scans, and Audit so non-default filters can be removed without changing the segmented control directly.
 - 2026-05-13: Missing Units report copy now avoids old lost/numbered wording in the battery audit sections, using Missing and battery families using Units instead.
 - 2026-05-13: Battery audit reporting now lives under Missing Units. Staff/admin can see missing unit-tracked batteries by unit, missing rate by family, recent unit checkout history, repeated missing family/requester patterns, and a direct handoff to Battery Ops.
