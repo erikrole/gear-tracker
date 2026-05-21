@@ -1,2 +1,2 @@
 -- AlterTable
-ALTER TABLE "calendar_events" ADD COLUMN "subtitle" TEXT;
+ALTER TABLE "calendar_events" ADD COLUMN IF NOT EXISTS "subtitle" TEXT;
