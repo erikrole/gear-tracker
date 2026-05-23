@@ -5,12 +5,12 @@ import { requirePermission } from "@/lib/rbac";
 import { removeAssignment } from "@/lib/services/shift-assignments";
 import { createAuditEntry } from "@/lib/audit";
 import { updateShiftAssignmentSchema } from "@/lib/validation";
-import { assertDateOrder, parseOptionalDate } from "@/lib/api-dates";
+import { assertCallTimePair, assertDateOrder, parseOptionalDate } from "@/lib/api-dates";
 import { createShiftScheduleNotification } from "@/lib/services/notifications";
 
 export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "shift_assignment", "assign");
-  const { id } = params;
+  const { id } = await params;
 
   const body = updateShiftAssignmentSchema.parse(await req.json());
   const existing = await db.shiftAssignment.findUnique({ where: { id } });
@@ -18,6 +18,11 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
 
   const callStartsAt = parseOptionalDate(body.callStartsAt ?? undefined, "callStartsAt");
   const callEndsAt = parseOptionalDate(body.callEndsAt ?? undefined, "callEndsAt");
+  // Require both fields together — partial pairs break conflict detection
+  if ((body.callStartsAt !== undefined) !== (body.callEndsAt !== undefined)) {
+    throw new HttpError(400, "callStartsAt and callEndsAt must both be provided or both omitted");
+  }
+  assertCallTimePair(callStartsAt, callEndsAt);
   assertDateOrder(callStartsAt, callEndsAt, "callEndsAt must be after callStartsAt", { allowEqual: false });
 
   const data: Record<string, unknown> = {};
@@ -55,7 +60,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
 
 export const DELETE = withAuth<{ id: string }>(async (_req, { user, params }) => {
   requirePermission(user.role, "shift_assignment", "assign");
-  const { id } = params;
+  const { id } = await params;
 
   const assignment = await removeAssignment(id);
 

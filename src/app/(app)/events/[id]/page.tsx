@@ -118,15 +118,13 @@ export default function EventDetailPage() {
     setLocationIdDraft(event.location?.id ?? "__none__");
     setEditOpen(true);
 
-    // Fetch locations lazily
-    if (locations.length === 0) {
-      setLocationsLoading(true);
-      fetch("/api/locations")
-        .then((r) => r.json())
-        .then((json) => setLocations((json.data as LocationOption[]) ?? []))
-        .catch(() => {})
-        .finally(() => setLocationsLoading(false));
-    }
+    // Fetch locations on every open so the list stays fresh
+    setLocationsLoading(true);
+    fetch("/api/locations")
+      .then((r) => r.json())
+      .then((json) => setLocations((json.data as LocationOption[]) ?? []))
+      .catch(() => {})
+      .finally(() => setLocationsLoading(false));
   }
 
   async function patchEvent(body: Record<string, unknown>): Promise<boolean> {
@@ -162,9 +160,11 @@ export default function EventDetailPage() {
       // Always send subtitle so clearing it is persisted
       body.subtitle = subtitleDraft.trim() || null;
 
-      const newIsHome = homeAwayDraft === "home" ? true : homeAwayDraft === "away" ? false : null;
-      if (newIsHome !== event.isHome) {
-        body.isHome = newIsHome;
+      if (event.sportCode) {
+        const newIsHome = homeAwayDraft === "home" ? true : homeAwayDraft === "away" ? false : null;
+        if (newIsHome !== event.isHome) {
+          body.isHome = newIsHome;
+        }
       }
 
       const newLocationId = locationIdDraft === "__none__" ? null : locationIdDraft;
@@ -357,40 +357,42 @@ export default function EventDetailPage() {
               />
             </div>
 
-            {/* Home / Away / Neutral */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <Label>Home / Away / Neutral</Label>
-                {event.isHomeLocked && (
-                  <button
-                    type="button"
-                    className="flex items-center gap-1 text-[11px] text-amber-500 hover:text-amber-600"
-                    onClick={() => handleRevertField("homeAway")}
-                    disabled={saving}
-                  >
-                    <RotateCcw className="size-3" />
-                    Revert to synced
-                  </button>
-                )}
+            {/* Home / Away / Neutral — only meaningful for sport events */}
+            {event.sportCode && (
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <Label>Home / Away / Neutral</Label>
+                  {event.isHomeLocked && (
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 text-[11px] text-amber-500 hover:text-amber-600"
+                      onClick={() => handleRevertField("homeAway")}
+                      disabled={saving}
+                    >
+                      <RotateCcw className="size-3" />
+                      Revert to synced
+                    </button>
+                  )}
+                </div>
+                <ToggleGroup
+                  type="single"
+                  value={homeAwayDraft}
+                  onValueChange={(val) => { if (val) setHomeAwayDraft(val as VenueTone); }}
+                  disabled={saving}
+                  className="h-9 w-full gap-0 rounded-md border border-input bg-background p-0.5"
+                >
+                  {(["home", "away", "neutral"] as VenueTone[]).map((tone) => (
+                    <ToggleGroupItem
+                      key={tone}
+                      value={tone}
+                      className="h-8 flex-1 rounded-sm px-2 text-sm data-[state=on]:bg-muted data-[state=on]:text-foreground capitalize"
+                    >
+                      {VENUE_TONES[tone].label}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
               </div>
-              <ToggleGroup
-                type="single"
-                value={homeAwayDraft}
-                onValueChange={(val) => { if (val) setHomeAwayDraft(val as VenueTone); }}
-                disabled={saving}
-                className="h-9 w-full gap-0 rounded-md border border-input bg-background p-0.5"
-              >
-                {(["home", "away", "neutral"] as VenueTone[]).map((tone) => (
-                  <ToggleGroupItem
-                    key={tone}
-                    value={tone}
-                    className="h-8 flex-1 rounded-sm px-2 text-sm data-[state=on]:bg-muted data-[state=on]:text-foreground capitalize"
-                  >
-                    {VENUE_TONES[tone].label}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-            </div>
+            )}
 
             {/* Location */}
             <div className="flex flex-col gap-1.5">

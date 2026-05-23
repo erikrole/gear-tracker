@@ -5,7 +5,7 @@ import { assignShiftSchema } from "@/lib/validation";
 import { directAssignShift } from "@/lib/services/shift-assignments";
 import { createAuditEntry } from "@/lib/audit";
 import { createShiftGearUpNotification, createShiftScheduleNotification } from "@/lib/services/notifications";
-import { assertDateOrder, parseOptionalDate } from "@/lib/api-dates";
+import { assertCallTimePair, assertDateOrder, parseOptionalDate } from "@/lib/api-dates";
 
 export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "shift_assignment", "assign");
@@ -13,6 +13,7 @@ export const POST = withAuth(async (req, { user }) => {
   const body = assignShiftSchema.parse(await req.json());
   const callStartsAt = parseOptionalDate(body.callStartsAt ?? undefined, "callStartsAt");
   const callEndsAt = parseOptionalDate(body.callEndsAt ?? undefined, "callEndsAt");
+  assertCallTimePair(callStartsAt, callEndsAt);
   assertDateOrder(callStartsAt, callEndsAt, "callEndsAt must be after callStartsAt", { allowEqual: false });
 
   const assignment = await directAssignShift(body.shiftId, body.userId, user.id, {
@@ -28,7 +29,7 @@ export const POST = withAuth(async (req, { user }) => {
     entityType: "shift_assignment",
     entityId: assignment.id,
     action: "shift_assigned",
-    after: { shiftId: body.shiftId, userId: body.userId },
+    after: { requestedShiftId: body.shiftId, shiftId: assignment.shiftId, userId: body.userId },
   });
 
   // Notify assigned user to reserve gear (non-blocking)

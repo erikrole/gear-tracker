@@ -35,7 +35,7 @@ import { UserAvatarPicker, type PickerUser } from "@/components/shift-detail/Use
 import { handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 import { VENUE_TONES, venueToneFromEvent } from "@/lib/venue-tone";
-import { assignedRoleMismatchLabel, shiftWorkerLabel, shiftWorkerSlotLabel, type ShiftWorkerKind } from "@/lib/shift-display";
+import { shiftWorkerLabel, shiftWorkerSlotLabel, type ShiftWorkerKind } from "@/lib/shift-display";
 import type { CalendarEntry, Shift } from "./types";
 import {
   ACTIVE_STATUSES,
@@ -242,10 +242,9 @@ function ShiftRowList({
         const assignedLabel = user ? user.name : "Unassigned";
         const workerType = workerKindForShift(shift, user);
         const slotLabel = roleSlotLabel(workerType);
-        const emptyAssignLabel = `Assign ${roleLabel(workerType)}`;
-        const mismatchLabel = activeAssignment
-          ? assignedRoleMismatchLabel({ plannedWorkerType: workerType, assignedRole: activeAssignment.user.role })
-          : null;
+        const workerRoleLabel = roleLabel(workerType);
+        const emptyAssignLabel = compact ? `Assign ${workerRoleLabel}` : "Assign";
+        const emptyAssignAriaLabel = `Assign ${workerRoleLabel} to ${areaLabel}`;
         const isAddingShift = addingShiftId === shift.id;
         const isRemovingAssignment = Boolean(activeAssignment && removingAssignmentId === activeAssignment.id);
 
@@ -254,10 +253,10 @@ function ShiftRowList({
             key={shift.id}
             className={cn(
               "min-h-12 rounded-md border border-border/40 bg-background/65 px-3 py-2 shadow-[0_1px_0_rgba(255,255,255,0.04)] transition-[background-color,border-color]",
-              compact ? "flex flex-col gap-2" : "flex items-center gap-3",
+              compact ? "flex flex-col gap-2" : "grid grid-cols-[132px_minmax(0,1fr)_80px_144px_96px] items-center gap-3",
             )}
           >
-            <div className={cn("flex min-w-0 items-center gap-1.5", !compact && "w-32 shrink-0")}>
+            <div className="flex min-w-0 items-center gap-1.5">
               <Badge
                 variant={AREA_BADGE_VARIANT[shift.area] ?? "gray"}
                 size="sm"
@@ -277,7 +276,7 @@ function ShiftRowList({
                       onClick={(e) => e.stopPropagation()}
                     >
                       <PlusIcon className={cn("size-3.5", isAddingShift && "animate-pulse")} />
-                      Slot
+                      Add
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" className="w-40" onClick={(e) => e.stopPropagation()}>
@@ -307,7 +306,7 @@ function ShiftRowList({
                 <div className="group/assignment flex min-h-10 w-full items-center rounded-md px-2 transition-[background-color] hover:bg-muted/45 focus-within:bg-muted/45">
                   <button
                     type="button"
-                    className="inline-grid min-w-0 max-w-[70%] grid-cols-[24px_minmax(0,1fr)] items-center gap-2 rounded-md text-left transition-[scale] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
+                    className="inline-grid min-w-0 grid-cols-[24px_minmax(0,1fr)] items-center gap-2 rounded-md text-left transition-[scale] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
                     aria-label={`Open ${areaLabel} shift assigned to ${user.name}`}
                     onClick={onSelectGroup}
                   >
@@ -329,7 +328,7 @@ function ShiftRowList({
                           type="button"
                           variant="ghost"
                           size="icon-sm"
-                          className="ml-1 size-8 text-muted-foreground opacity-0 transition-[background-color,color,opacity,scale] hover:text-destructive active:scale-[0.96] focus-visible:opacity-100 group-hover/assignment:opacity-100 group-focus-within/assignment:opacity-100"
+                          className="ml-1 size-8 text-muted-foreground transition-[background-color,color,scale] hover:text-destructive active:scale-[0.96]"
                           disabled={Boolean(removingAssignmentId)}
                           aria-label={`Remove ${user.name} from ${areaLabel} shift`}
                           onClick={(e) => {
@@ -343,9 +342,11 @@ function ShiftRowList({
                       <TooltipContent>Remove assignment</TooltipContent>
                     </Tooltip>
                   )}
-                  <span className="ml-auto shrink-0 text-xs font-medium text-muted-foreground">
-                    {mismatchLabel ?? roleLabel(workerType)}
-                  </span>
+                  {compact && (
+                    <span className="ml-auto shrink-0 text-xs font-medium text-muted-foreground">
+                      {workerRoleLabel}
+                    </span>
+                  )}
                 </div>
               ) : isStaff ? (
                 <Popover
@@ -359,7 +360,7 @@ function ShiftRowList({
                       type="button"
                       className="group grid min-h-10 w-full grid-cols-[24px_minmax(0,1fr)] items-center gap-2 rounded-md bg-muted/25 px-2 text-left transition-[background-color,scale] hover:bg-muted/45 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
                       disabled={assigning}
-                      aria-label={`${emptyAssignLabel} to ${areaLabel}`}
+                      aria-label={emptyAssignAriaLabel}
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-background/70 text-muted-foreground shadow-[inset_0_0_0_1px_hsl(var(--border)/0.55)]">
@@ -402,8 +403,16 @@ function ShiftRowList({
               )}
             </div>
 
-            {shiftTime && (
-              <div className={cn("min-w-0", !compact && "w-36 shrink-0")}>
+            {!compact && (
+              <div className="flex min-h-10 items-center justify-end">
+                <span className="text-xs font-medium text-muted-foreground">
+                  {workerRoleLabel}
+                </span>
+              </div>
+            )}
+
+            {compact ? shiftTime && (
+              <div className="min-w-0">
                 <span
                   className="truncate text-[11px] text-muted-foreground tabular-nums"
                   style={{ fontFamily: "var(--font-mono)" }}
@@ -411,6 +420,18 @@ function ShiftRowList({
                 >
                   {shiftTime}
                 </span>
+              </div>
+            ) : (
+              <div className="flex min-h-10 min-w-0 items-center justify-end">
+                {shiftTime && (
+                  <span
+                    className="truncate text-[11px] text-muted-foreground tabular-nums"
+                    style={{ fontFamily: "var(--font-mono)" }}
+                    title={`${assignedLabel} · ${shiftTime}`}
+                  >
+                    {shiftTime}
+                  </span>
+                )}
               </div>
             )}
 

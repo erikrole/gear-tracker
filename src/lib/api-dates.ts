@@ -22,3 +22,10 @@ export function assertDateOrder(
     throw new HttpError(400, label);
   }
 }
+
+/** Enforce that a call-time pair is always set together — never one without the other. */
+export function assertCallTimePair(start: Date | null, end: Date | null) {
+  if ((start === null) !== (end === null)) {
+    throw new HttpError(400, "callStartsAt and callEndsAt must both be provided or both omitted");
+  }
+}
