@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import MetricCard from "../MetricCard";
-import { type BadgeProps } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -14,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { FadeUp } from "@/components/ui/motion";
 import { useFetch } from "@/hooks/use-fetch";
+import { statusBadgeVariantEquipment, statusLabelEquipment } from "@/lib/status-colors";
 import {
   ReportChartLoading,
   downloadReportCsv,
@@ -41,14 +41,6 @@ type UtilizationData = {
   byLocation: { location: string; count: number }[];
   byType: { type: string; count: number }[];
   byDepartment: { department: string; count: number }[];
-};
-
-const STATUS_META: Record<string, { label: string; variant: BadgeProps["variant"] }> = {
-  AVAILABLE: { label: "Available", variant: "green" },
-  CHECKED_OUT: { label: "Checked out", variant: "blue" },
-  RESERVED: { label: "Reserved", variant: "purple" },
-  MAINTENANCE: { label: "Maintenance", variant: "orange" },
-  RETIRED: { label: "Retired", variant: "gray" },
 };
 
 function BreakdownCard({
@@ -101,7 +93,7 @@ function BreakdownCard({
 function downloadCsv(data: UtilizationData) {
   downloadReportCsv("utilization-report", [
     ["Section", "Label", "Count"],
-    ...Object.entries(data.statusCounts).map(([status, count]) => ["Status", status, count]),
+    ...Object.entries(data.statusCounts).map(([status, count]) => ["Status", statusLabelEquipment(status), count]),
     ...data.byLocation.map((r) => ["Location", r.location, r.count]),
     ...data.byType.map((r) => ["Type", r.type, r.count]),
     ...data.byDepartment.map((r) => ["Department", r.department, r.count]),
@@ -150,13 +142,13 @@ export default function UtilizationPage() {
       />
       <ReportMetricGrid>
         {Object.entries(data.statusCounts).map(([status, count]) => {
-          const meta = STATUS_META[status];
+          const label = statusLabelEquipment(status);
           return (
             <MetricCard
               key={status}
               value={count}
-              label={meta?.label || status}
-              badge={meta ? { text: meta.label, variant: meta.variant } : undefined}
+              label={label}
+              badge={{ text: label, variant: statusBadgeVariantEquipment(status) }}
               href={`/items?status=${status}`}
             />
           );

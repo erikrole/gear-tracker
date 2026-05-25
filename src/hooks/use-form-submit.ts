@@ -2,7 +2,12 @@
 
 import { useCallback, useRef, useState } from "react";
 import { type ZodSchema, ZodError } from "zod";
-import { classifyError, handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import {
+  classifyError,
+  handleAuthRedirect,
+  parseErrorMessage,
+  parseJsonSafely,
+} from "@/lib/errors";
 import { toast } from "sonner";
 
 export type FormState = "idle" | "submitting" | "success" | "error";
@@ -99,30 +104,29 @@ export function useFormSubmit<TInput, TOutput = unknown>(
     clearErrors();
     setState("submitting");
 
-    // 1. Client-side validation
-    let validated: TInput = data;
-    if (schema) {
-      try {
-        validated = schema.parse(data);
-      } catch (err) {
-        if (err instanceof ZodError) {
-          const errors: FieldErrors = {};
-          for (const issue of err.issues) {
-            const key = issue.path.join(".");
-            if (!errors[key]) errors[key] = issue.message;
-          }
-          setFieldErrors(errors);
-          setState("error");
-          busyRef.current = false;
-          onError?.("validation");
-          return false;
-        }
-        throw err;
-      }
-    }
-
-    // 2. Submit to API
     try {
+      // 1. Client-side validation
+      let validated: TInput = data;
+      if (schema) {
+        try {
+          validated = schema.parse(data);
+        } catch (err) {
+          if (err instanceof ZodError) {
+            const errors: FieldErrors = {};
+            for (const issue of err.issues) {
+              const key = issue.path.join(".");
+              if (!errors[key]) errors[key] = issue.message;
+            }
+            setFieldErrors(errors);
+            setState("error");
+            onError?.("validation");
+            return false;
+          }
+          throw err;
+        }
+      }
+
+      // 2. Submit to API
       const body = transformBody ? transformBody(validated) : validated;
       const res = await fetch(url, {
         method,
@@ -131,34 +135,31 @@ export function useFormSubmit<TInput, TOutput = unknown>(
       });
 
       if (!skipAuthRedirect && handleAuthRedirect(res, returnTo)) {
-        busyRef.current = false;
         return false;
       }
 
       if (!res.ok) {
         // Clone before parseErrorMessage consumes the body — we need fieldErrors too
-        const json = await res.clone().json().catch(() => ({}));
+        const json = await parseJsonSafely<Record<string, unknown>>(res.clone()) ?? {};
         const serverMsg = await parseErrorMessage(res, "Something went wrong. Please try again.");
 
         // Map server-side field errors if present
-        if ((json as Record<string, unknown>).fieldErrors) {
-          setFieldErrors((json as Record<string, FieldErrors>).fieldErrors as unknown as FieldErrors);
+        if (json.fieldErrors) {
+          setFieldErrors(json.fieldErrors as FieldErrors);
         }
 
         setFormError(serverMsg);
         setState("error");
         toast.error(serverMsg);
-        busyRef.current = false;
         onError?.("server", serverMsg);
         return false;
       }
 
       // 3. Success
-      const responseData = await res.json().catch(() => ({}));
+      const responseData = await parseJsonSafely<Record<string, unknown>>(res) ?? {};
       setState("success");
       if (successMessage) toast.success(successMessage);
       onSuccess?.((responseData as Record<string, unknown>).data as TOutput ?? responseData as TOutput);
-      busyRef.current = false;
       return true;
     } catch (err) {
       const kind = classifyError(err);
@@ -168,9 +169,10 @@ export function useFormSubmit<TInput, TOutput = unknown>(
       setFormError(msg);
       setState("error");
       toast.error(msg);
-      busyRef.current = false;
       onError?.(kind);
       return false;
+    } finally {
+      busyRef.current = false;
     }
   }, [schema, url, method, transformBody, returnTo, skipAuthRedirect, successMessage, onSuccess, onError, clearErrors]);
 

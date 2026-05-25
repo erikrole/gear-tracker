@@ -3,7 +3,7 @@
 import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { BookingDetail } from "@/components/booking-details/types";
-import { handleAuthRedirect } from "@/lib/errors";
+import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 
 export type BookingError = "not-found" | "network" | "auth" | "server" | null;
 
@@ -22,9 +22,9 @@ async function fetchBooking(id: string, signal?: AbortSignal): Promise<BookingDe
     throw err;
   }
   if (!res.ok) throw new Error("server");
-  const json = await res.json();
+  const json = await parseJsonSafely<{ data?: BookingDetail }>(res);
   if (!json?.data) throw new Error("server");
-  return json.data as BookingDetail;
+  return json.data;
 }
 
 function classifyBookingError(err: unknown): BookingError {

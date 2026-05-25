@@ -42,7 +42,7 @@ import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
 import { STATUS_STYLES } from "@/lib/status-styles";
 import { Download, Rows3, Rows4 } from "lucide-react";
 import { FadeUp } from "@/components/ui/motion";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { buildBulkRowId, getItemHref, isBulkRowId } from "./lib/item-href";
 
 export default function ItemsPage() {
@@ -165,8 +165,12 @@ export default function ItemsPage() {
         toast.error("Failed to expand selection");
         return;
       }
-      const json = await res.json();
-      const ids: string[] = json.ids ?? [];
+      const json = await parseJsonSafely<{ ids?: unknown; truncated?: boolean }>(res);
+      if (!json || !Array.isArray(json.ids)) {
+        toast.error("Could not read the selection response");
+        return;
+      }
+      const ids = json.ids.filter((id): id is string => typeof id === "string");
       const next: RowSelectionState = {};
       for (const id of ids) next[id] = true;
       setRowSelection(next);
@@ -252,12 +256,15 @@ export default function ItemsPage() {
       if (!res.ok) throw new Error();
       // Reconcile to the server's authoritative state: the endpoint toggles
       // based on its own row, which may differ from our optimistic guess.
-      const json = await res.json().catch(() => null);
+      const json = await parseJsonSafely<{ favorited?: unknown }>(res);
       if (typeof json?.favorited === "boolean") {
         const favorited = json.favorited;
         query.setItems((items) =>
           items.map((a) => a.id === asset.id ? { ...a, isFavorited: favorited } : a)
         );
+      } else {
+        toast.error("Favorite updated, but the response could not be confirmed. Refreshing items.");
+        query.invalidate(true);
       }
       // Mark other cached filter views (e.g. favorites-only) stale so toggling
       // a filter doesn't resurrect a fav state this toggle just changed.

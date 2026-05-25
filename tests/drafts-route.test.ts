@@ -60,6 +60,18 @@ function makePostRequest(body: Record<string, unknown>) {
   });
 }
 
+function makeMalformedPostRequest() {
+  return new Request("https://app.example.com/api/drafts", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      host: "app.example.com",
+      origin: "https://app.example.com",
+    },
+    body: "{not-json",
+  });
+}
+
 function makeGetRequest() {
   return new Request("https://app.example.com/api/drafts/cm000000000000000000000010", {
     method: "GET",
@@ -116,6 +128,16 @@ describe("POST /api/drafts", () => {
 
     expect(res.status).toBe(400);
     expect(mockTx.booking.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects malformed JSON before saving a draft", async () => {
+    const res = await POST(makeMalformedPostRequest(), noParams);
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("Request body must be valid JSON");
+    expect(mockTx.booking.create).not.toHaveBeenCalled();
+    expect(mockTx.booking.update).not.toHaveBeenCalled();
   });
 });
 

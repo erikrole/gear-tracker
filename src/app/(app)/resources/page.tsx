@@ -31,7 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/EmptyState";
@@ -41,6 +41,12 @@ import { useFetch } from "@/hooks/use-fetch";
 import { getGuideFreshness } from "@/lib/guide-freshness";
 import type { GuideListItem } from "@/lib/guides";
 import { cn } from "@/lib/utils";
+import {
+  parseResourceFilter,
+  parseResourceSort,
+  type ResourceFilterKey as FilterKey,
+  type ResourceSortKey as SortKey,
+} from "./filters";
 
 type MeResponse = { id: string; role: Role };
 type ContactUser = {
@@ -68,21 +74,6 @@ type ContactUsersResponse = {
 type ContactRoleFilter = "ALL" | Role;
 type ContactAreaFilter = "ALL" | ShiftArea | "UNASSIGNED";
 type ContactHygieneFilter = "ALL" | "MISSING_PHONE" | "MISSING_SLACK";
-
-type FilterKey =
-  | "all"
-  | "recent"
-  | "my-area"
-  | "area-video"
-  | "area-photo"
-  | "area-graphics"
-  | "area-comms"
-  | "contacts"
-  | "building-numbers"
-  | "media-drive"
-  | "server-paths";
-
-type SortKey = "personalized" | "recent" | "title";
 
 type RailItem = {
   key: FilterKey;
@@ -138,25 +129,6 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "recent", label: "Recently updated" },
   { value: "title", label: "Title A-Z" },
 ];
-
-const FILTER_PARAM_MAP: Record<string, FilterKey> = {
-  recent: "recent",
-  "my-area": "my-area",
-  "area-video": "area-video",
-  "area-photo": "area-photo",
-  "area-graphics": "area-graphics",
-  "area-comms": "area-comms",
-  contacts: "contacts",
-  "building-numbers": "building-numbers",
-  "media-drive": "media-drive",
-  "server-paths": "server-paths",
-};
-
-function filterFromParams(params: { get(name: string): string | null }): FilterKey {
-  const raw = params.get("filter")?.trim().toLowerCase();
-  if (raw && FILTER_PARAM_MAP[raw]) return FILTER_PARAM_MAP[raw];
-  return "all";
-}
 
 function normalizeCategory(category: string) {
   return category.trim().toLowerCase();
@@ -494,8 +466,8 @@ export default function ResourcesPage() {
   const searchParams = useSearchParams();
   const search = searchParams.get("q") ?? "";
   const activeCategory = searchParams.get("category") ?? "All";
-  const activeFilter = filterFromParams(searchParams);
-  const sort = (searchParams.get("sort") as SortKey | null) ?? "personalized";
+  const activeFilter = parseResourceFilter(searchParams);
+  const sort = parseResourceSort(searchParams.get("sort"));
   const [railOpen, setRailOpen] = useState(false);
   const [contactRoleFilter, setContactRoleFilter] = useState<ContactRoleFilter>("ALL");
   const [contactAreaFilter, setContactAreaFilter] = useState<ContactAreaFilter>("ALL");
@@ -519,6 +491,8 @@ export default function ResourcesPage() {
   const setFilter = (key: FilterKey) => {
     replaceParams((params) => {
       params.delete("category");
+      params.delete("view");
+      params.delete("area");
       if (key === "all") params.delete("filter");
       else params.set("filter", key);
     });
@@ -528,6 +502,8 @@ export default function ResourcesPage() {
   const setCategory = (category: string) => {
     replaceParams((params) => {
       params.delete("filter");
+      params.delete("view");
+      params.delete("area");
       if (category === "All") params.delete("category");
       else params.set("category", category);
     });
@@ -657,6 +633,8 @@ export default function ResourcesPage() {
       : []),
   ];
 
+  const sortLabel = SORT_OPTIONS.find((option) => option.value === sort)?.label ?? "Personalized";
+
   const railProps = {
     guides,
     contactsTotal: contactUsers?.total ?? 0,
@@ -722,7 +700,7 @@ export default function ResourcesPage() {
               onValueChange={(value) => setSort(value as SortKey)}
             >
               <SelectTrigger className="h-10 w-[180px]" aria-label="Sort resources">
-                <SelectValue />
+                <span className="truncate">{sortLabel}</span>
               </SelectTrigger>
               <SelectContent>
                 {SORT_OPTIONS.map((option) => (

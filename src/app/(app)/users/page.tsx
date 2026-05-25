@@ -8,6 +8,7 @@ import { UserTableRow, UserMobileCard } from "./UserRow";
 import UserFilters from "./UserFilters";
 import CreateUserDialog from "./CreateUserCard";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -288,7 +289,12 @@ export default function UsersPage() {
   const stats = listData?.stats;
 
   // Form options
-  const { data: formOptions } = useFetch<{ locations: Location[] }>({
+  const {
+    data: formOptions,
+    loading: formOptionsLoading,
+    error: formOptionsError,
+    reload: reloadFormOptions,
+  } = useFetch<{ locations: Location[] }>({
     url: "/api/form-options",
     transform: (json) => (json as Record<string, unknown>).data as { locations: Location[] },
     refetchOnFocus: false,
@@ -360,6 +366,9 @@ export default function UsersPage() {
         open={showCreate}
         onOpenChange={setShowCreate}
         locations={locations}
+        locationsLoading={formOptionsLoading}
+        locationsError={Boolean(formOptionsError)}
+        onRetryLocations={reloadFormOptions}
         currentUserRole={currentUserRole}
         onCreated={() => reload()}
       />
@@ -374,6 +383,8 @@ export default function UsersPage() {
           locationFilter={locationFilter}
           onLocationChange={setLocationFilter}
           locations={locations}
+          locationsLoading={formOptionsLoading}
+          locationsError={Boolean(formOptionsError)}
           yearFilter={yearFilter}
           onYearChange={setYearFilter}
           sportFilter={sportFilter}
@@ -392,6 +403,18 @@ export default function UsersPage() {
             setShowInactive(false);
           }}
         />
+
+        {formOptionsError && (
+          <Alert variant="destructive">
+            <WifiOff className="size-4" />
+            <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <span>Locations could not load. User location filters and Add User location assignment are unavailable until locations are readable.</span>
+              <Button type="button" variant="outline" size="sm" onClick={reloadFormOptions} className="h-8 shrink-0">
+                Retry locations
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {stats && !isInitialLoad && !loadError && (
           <RosterSummary stats={stats} canEdit={canEdit} />

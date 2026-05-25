@@ -31,7 +31,13 @@ export const GET = withAuth(async (req, { user }) => {
 
 export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "booking", "create");
-  const body = sanitizeBookingFields(createReservationSchema.parse(await req.json()));
+  let rawBody: unknown;
+  try {
+    rawBody = await req.json();
+  } catch {
+    throw new HttpError(400, "Request body must be valid JSON");
+  }
+  const body = sanitizeBookingFields(createReservationSchema.parse(rawBody));
   // Students may only create reservations for themselves.
   if (user.role === "STUDENT") {
     body.requesterUserId = user.id;

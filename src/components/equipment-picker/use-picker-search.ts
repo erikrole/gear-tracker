@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { EquipmentSectionKey } from "@/lib/equipment-sections";
 import type { PickerAsset } from "@/components/EquipmentPicker";
+import { handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 
 type UsePickerSearchParams = {
   activeSection: EquipmentSectionKey;
@@ -39,25 +40,37 @@ export function usePickerSearch({
       params.set("limit", "50");
       const res = await fetch(`/api/assets/picker-search?${params}`, { signal: controller.signal });
       if (controller.signal.aborted) return;
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        const json = await res.json();
-        const data = json.data as { assets: PickerAsset[]; total: number; sectionCounts: Record<string, number> | null };
+        const json = await parseJsonSafely<{
+          data?: { assets?: PickerAsset[]; total?: number; sectionCounts?: Record<string, number> | null };
+        }>(res);
+        const data = json?.data;
+        if (!data?.assets) {
+          toast.error("Equipment response was incomplete. Refresh and try again.");
+          setSearchError(true);
+          setSectionResults([]);
+          setTotal(0);
+          return;
+        }
         setSectionResults(data.assets);
-        setTotal(data.total);
-        setSectionCounts(data.sectionCounts);
+        setTotal(data.total ?? data.assets.length);
+        setSectionCounts(data.sectionCounts ?? null);
       } else {
+        toast.error(await parseErrorMessage(res, "Failed to load equipment"));
         setSearchError(true);
         setSectionResults([]);
         setTotal(0);
       }
     } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
+      if (isAbortError(err)) return;
       toast.error("Failed to load equipment — check your connection and try again.");
       setSearchError(true);
       setSectionResults([]);
       setTotal(0);
+    } finally {
+      if (!controller.signal.aborted) setSearchLoading(false);
     }
-    if (!controller.signal.aborted) setSearchLoading(false);
   }, []);
 
   useEffect(() => {

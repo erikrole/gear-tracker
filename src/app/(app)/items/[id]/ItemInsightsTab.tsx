@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import EmptyState from "@/components/EmptyState";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { handleAuthRedirect, isAbortError } from "@/lib/errors";
+import { handleAuthRedirect, isAbortError, parseJsonSafely } from "@/lib/errors";
 import type { InsightsData, WindowKey, WindowStats } from "./types";
 
 const windowLabels: Record<WindowKey, string> = {
@@ -134,7 +134,7 @@ export default function ItemInsightsTab({ assetId }: { assetId: string }) {
       .then((res) => {
         if (handleAuthRedirect(res)) return null;
         if (!res.ok) throw new Error();
-        return res.json();
+        return parseJsonSafely<{ data?: InsightsData }>(res);
       })
       .then((json) => {
         if (signal?.aborted) return;

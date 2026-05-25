@@ -91,7 +91,13 @@ export const GET = withAuth(async (_req, { user }) => {
 
 /** POST /api/drafts — create or update a draft booking */
 export const POST = withAuth(async (req, { user }) => {
-  const body = saveDraftSchema.parse(await req.json());
+  let rawBody: unknown;
+  try {
+    rawBody = await req.json();
+  } catch {
+    throw new HttpError(400, "Request body must be valid JSON");
+  }
+  const body = saveDraftSchema.parse(rawBody);
 
   // Default dates: now + 4 hours if not provided
   const now = new Date();

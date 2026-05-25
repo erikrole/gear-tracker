@@ -94,8 +94,18 @@ export const GET = withAuth(async (req, { user }) => {
 export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "shift", "manage");
 
-  const body = await req.json();
-  const eventId = typeof body.eventId === "string" ? body.eventId : null;
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    throw new HttpError(400, "Request body must be valid JSON");
+  }
+  if (!body || typeof body !== "object") {
+    throw new HttpError(400, "Request body must be valid JSON");
+  }
+  const eventId = typeof (body as { eventId?: unknown }).eventId === "string"
+    ? (body as { eventId: string }).eventId
+    : null;
   if (!eventId) return fail(new HttpError(400, "eventId required"));
 
   const group = await db.shiftGroup.create({

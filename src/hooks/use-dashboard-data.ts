@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { DashboardData, DashboardStats } from "@/app/(app)/dashboard-types";
+import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 
 export const DASHBOARD_KEY = ["dashboard"];
 export const DASHBOARD_STATS_KEY = ["dashboard-stats"];
@@ -35,24 +36,22 @@ function normalizeDashboard(d: DashboardData): DashboardData {
 
 async function fetchDashboard(signal?: AbortSignal): Promise<DashboardData> {
   const res = await fetch("/api/dashboard", { signal });
-  if (res.status === 401) {
-    window.location.href = "/login?returnTo=/";
+  if (handleAuthRedirect(res, "/")) {
     throw new DOMException("Auth redirect", "AbortError");
   }
   if (!res.ok) throw new Error("server");
-  const json = await res.json();
+  const json = await parseJsonSafely<{ data?: DashboardData }>(res);
   if (!json?.data) throw new Error("server");
   return normalizeDashboard(json.data as DashboardData);
 }
 
 async function fetchDashboardStats(signal?: AbortSignal): Promise<DashboardStats> {
   const res = await fetch("/api/dashboard/stats", { signal });
-  if (res.status === 401) {
-    window.location.href = "/login?returnTo=/";
+  if (handleAuthRedirect(res, "/")) {
     throw new DOMException("Auth redirect", "AbortError");
   }
   if (!res.ok) throw new Error("server");
-  const json = await res.json();
+  const json = await parseJsonSafely<{ data?: DashboardStats }>(res);
   if (!json?.data) throw new Error("server");
   return json.data as DashboardStats;
 }

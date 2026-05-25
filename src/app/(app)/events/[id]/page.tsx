@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Calendar, Clock, MapPin, RefreshCw, WifiOff, AlertTriangle, Pencil, RotateCcw } from "lucide-react";
-import { classifyError, handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
+import { classifyError, handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { useFetch } from "@/hooks/use-fetch";
 import { toast } from "sonner";
 import { sportLabel } from "@/lib/sports";
@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -59,6 +59,9 @@ export default function EventDetailPage() {
   const [saving, setSaving] = useState(false);
   const [locations, setLocations] = useState<LocationOption[]>([]);
   const [locationsLoading, setLocationsLoading] = useState(false);
+  const savingRef = useRef(false);
+  const creatingGroupRef = useRef(false);
+  const nudgeRef = useRef(false);
 
   const {
     data: event,
@@ -121,9 +124,20 @@ export default function EventDetailPage() {
     // Fetch locations on every open so the list stays fresh
     setLocationsLoading(true);
     fetch("/api/locations")
-      .then((r) => r.json())
-      .then((json) => setLocations((json.data as LocationOption[]) ?? []))
-      .catch(() => {})
+      .then(async (res) => {
+        if (handleAuthRedirect(res, `/events/${id}`)) return null;
+        if (!res.ok) {
+          toast.error(await parseErrorMessage(res, "Failed to load locations"));
+          return null;
+        }
+        return parseJsonSafely<{ data?: LocationOption[] }>(res);
+      })
+      .then((json) => {
+        if (json?.data) setLocations(json.data);
+      })
+      .catch((err) => {
+        toast.error(err instanceof TypeError ? "You’re offline. Check your connection." : "Failed to load locations");
+      })
       .finally(() => setLocationsLoading(false));
   }
 
@@ -150,6 +164,8 @@ export default function EventDetailPage() {
 
   async function handleSaveEdit() {
     if (!event || !titleDraft.trim()) return;
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     try {
       const body: Record<string, unknown> = {};
@@ -184,11 +200,14 @@ export default function EventDetailPage() {
         toast.success("Event updated");
       }
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
 
   async function handleRevertField(field: "title" | "homeAway" | "location") {
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     try {
       const key = field === "title" ? "revertTitle" : field === "homeAway" ? "revertHomeAway" : "revertLocation";
@@ -200,12 +219,15 @@ export default function EventDetailPage() {
         setEditOpen(false);
       }
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
 
   async function handleCreateShiftGroup() {
     if (!event) return;
+    if (creatingGroupRef.current) return;
+    creatingGroupRef.current = true;
     setCreatingGroup(true);
     setCrewSetupError("");
     try {
@@ -227,8 +249,9 @@ export default function EventDetailPage() {
     } catch (err) {
       if (isAbortError(err)) return;
       setCrewSetupError("Network error - check your connection");
-      toast.error("Network error");
+      toast.error(err instanceof TypeError ? "You’re offline. Check your connection." : "Failed to set up crew");
     } finally {
+      creatingGroupRef.current = false;
       setCreatingGroup(false);
     }
   }
@@ -285,6 +308,7 @@ export default function EventDetailPage() {
                   variant="ghost"
                   size="icon"
                   onClick={openEdit}
+                  aria-label={anyFieldLocked ? "Edit event with manual overrides" : "Edit event"}
                   className={anyFieldLocked ? "text-amber-500 hover:text-amber-600" : ""}
                 >
                   <Pencil className="size-4" />
@@ -295,7 +319,13 @@ export default function EventDetailPage() {
           )}
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={eventRefreshing}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleRefresh}
+                disabled={eventRefreshing}
+                aria-label="Refresh event data"
+              >
                 <RefreshCw className={`size-4 ${eventRefreshing ? "animate-spin" : ""}`} />
               </Button>
             </TooltipTrigger>
@@ -315,6 +345,9 @@ export default function EventDetailPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Edit event</DialogTitle>
+            <DialogDescription className="sr-only">
+              Update event display fields without changing the source calendar import.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="flex flex-col gap-4 py-1">
@@ -489,7 +522,8 @@ export default function EventDetailPage() {
             if (isStaffOrAdmin) reloadCommandCenter();
           }}
           onNudge={async (assignmentId, userName) => {
-            if (acting) return;
+            if (nudgeRef.current || acting) return;
+            nudgeRef.current = true;
             setActing(assignmentId);
             try {
               const res = await fetch("/api/notifications/nudge", {
@@ -509,6 +543,7 @@ export default function EventDetailPage() {
               const kind = classifyError(err);
               toast.error(kind === "network" ? "You're offline - nudge not sent" : "Something went wrong - nudge not sent");
             } finally {
+              nudgeRef.current = false;
               setActing(null);
             }
           }}

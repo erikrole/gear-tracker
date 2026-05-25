@@ -14,7 +14,7 @@ import {
   SheetTitle,
   SheetBody,
 } from "@/components/ui/sheet";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { ShiftAreaSection } from "./shift-detail/ShiftAreaSection";
 import type { PickerUser } from "./shift-detail/UserAvatarPicker";
 import {
@@ -87,6 +87,11 @@ type ShiftGroupDetail = {
   shifts: Shift[];
 };
 
+type UserListResponse = {
+  data?: PickerUser[];
+  users?: PickerUser[];
+};
+
 type Props = {
   groupId: string | null;
   onClose: () => void;
@@ -121,6 +126,11 @@ export default function ShiftDetailPanel({
   const [createdShiftNotice, setCreatedShiftNotice] = useState("");
   const abortRef = useRef<AbortController | null>(null);
   const usersAbortRef = useRef<AbortController | null>(null);
+  const actingRef = useRef<string | null>(null);
+  const autoFillingRef = useRef(false);
+  const archivingRef = useRef(false);
+  const postingRef = useRef(false);
+  const attendanceRef = useRef<Set<string>>(new Set());
 
   // User picker state
   const [pickerShiftId, setPickerShiftId] = useState<string | null>(null);
@@ -144,7 +154,8 @@ export default function ShiftDetailPanel({
       if (controller.signal.aborted) return;
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        setGroup((await res.json()).data ?? null);
+        const json = await parseJsonSafely<{ data?: ShiftGroupDetail | null }>(res);
+        setGroup(json?.data ?? null);
         setLoadError(false);
       } else {
         setLoadError("server");
@@ -152,8 +163,9 @@ export default function ShiftDetailPanel({
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       setLoadError("network");
+    } finally {
+      if (!controller.signal.aborted) setLoading(false);
     }
-    setLoading(false);
   }, [groupId]);
 
   useEffect(() => {
@@ -173,8 +185,8 @@ export default function ShiftDetailPanel({
       if (controller.signal.aborted) return;
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        const json = await res.json();
-        setAllUsers((json.data ?? json.users ?? []).map((u: Record<string, unknown>) => ({
+        const json = await parseJsonSafely<UserListResponse>(res);
+        setAllUsers((json?.data ?? json?.users ?? []).map((u) => ({
           id: u.id, name: u.name, role: u.role,
           primaryArea: u.primaryArea ?? null, avatarUrl: u.avatarUrl ?? null,
         })));
@@ -213,6 +225,8 @@ export default function ShiftDetailPanel({
     preAction?: () => ShiftGroupDetail | null,
     onSuccess?: () => void,
   ) {
+    if (actingRef.current) return;
+    actingRef.current = key;
     setActing(key);
     setActionError("");
     setCreatedShiftNotice("");
@@ -236,6 +250,7 @@ export default function ShiftDetailPanel({
       setActionError("Could not reach the server. The shift change was not saved.");
       toast.error("Could not reach the server. The shift change was not saved.");
     } finally {
+      actingRef.current = null;
       setActing(null);
     }
   }
@@ -296,14 +311,22 @@ export default function ShiftDetailPanel({
   }
 
   async function handleAutoFill() {
-    if (!group) return;
+    if (!group || autoFillingRef.current) return;
+    autoFillingRef.current = true;
     setAutoFilling(true);
     try {
       const res = await fetch(`/api/shift-groups/${group.id}/auto-assign`, { method: "POST" });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        const json = await res.json();
-        const { assigned, conflicts } = json.data as { assigned: number; conflicts: number; skipped: number };
+        const json = await parseJsonSafely<{ data?: { assigned?: number; conflicts?: number; skipped?: number } }>(res);
+        const assigned = json?.data?.assigned;
+        const conflicts = json?.data?.conflicts;
+        if (typeof assigned !== "number" || typeof conflicts !== "number") {
+          toast.error("Auto-fill finished, but the response could not be read. Refresh schedule before continuing.");
+          await fetchGroup();
+          onUpdated?.();
+          return;
+        }
         if (assigned === 0) {
           toast.info("No eligible workers found for open shifts");
         } else if (conflicts > 0) {
@@ -320,12 +343,14 @@ export default function ShiftDetailPanel({
     } catch {
       toast.error("Could not reach the server. Open shifts were not auto-filled.");
     } finally {
+      autoFillingRef.current = false;
       setAutoFilling(false);
     }
   }
 
   async function handleSetAttendance(assignmentId: string, attended: boolean | null) {
-    if (!group) return;
+    if (!group || attendanceRef.current.has(assignmentId)) return;
+    attendanceRef.current.add(assignmentId);
     // Optimistic update
     setGroup({
       ...group,
@@ -351,11 +376,14 @@ export default function ShiftDetailPanel({
     } catch {
       toast.error("Could not reach the server. Attendance was not saved.");
       await fetchGroup(); // revert
+    } finally {
+      attendanceRef.current.delete(assignmentId);
     }
   }
 
   async function handleArchive() {
-    if (!group) return;
+    if (!group || archivingRef.current) return;
+    archivingRef.current = true;
     setArchiving(true);
     try {
       const res = await fetch(`/api/shift-groups/${group.id}/archive`, { method: "POST" });
@@ -371,11 +399,14 @@ export default function ShiftDetailPanel({
     } catch {
       toast.error("Could not reach the server. The event was not archived.");
     } finally {
+      archivingRef.current = false;
       setArchiving(false);
     }
   }
 
   async function handlePostTrade(assignmentId: string) {
+    if (postingRef.current) return;
+    postingRef.current = true;
     setPosting(true);
     setTradeError("");
     try {
@@ -401,6 +432,7 @@ export default function ShiftDetailPanel({
       setTradeError("Could not reach the server. The shift was not posted for trade.");
       toast.error("Could not reach the server. The shift was not posted for trade.");
     } finally {
+      postingRef.current = false;
       setPosting(false);
     }
   }

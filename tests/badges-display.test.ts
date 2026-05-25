@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   badgeRarityMedallionClass,
+  formatBadgeCategoryLabel,
+  formatBadgeSourceLabel,
   getBadgeRarity,
   isHiddenUntilEarnedBadge,
   manualAwardGuidance,
@@ -46,5 +48,11 @@ describe("badge display metadata", () => {
     expect(badgeRarityMedallionClass("Legendary", true)).toContain("--purple-bg");
     expect(badgeRarityMedallionClass("Rare", true)).toContain("--orange-bg");
     expect(badgeRarityMedallionClass("Common", false)).toContain("text-muted-foreground");
+  });
+
+  it("formats enum-style report labels for operators", () => {
+    expect(formatBadgeCategoryLabel("ON_TIME")).toBe("On Time");
+    expect(formatBadgeCategoryLabel("MILESTONE")).toBe("Milestone");
+    expect(formatBadgeSourceLabel("MANUAL")).toBe("Manual");
   });
 });

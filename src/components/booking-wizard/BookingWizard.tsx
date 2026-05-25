@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
-import { handleAuthRedirect } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 import { EQUIPMENT_SECTIONS, classifyAssetType } from "@/lib/equipment-sections";
 import { getUnsatisfiedRequirements } from "@/lib/equipment-guidance";
@@ -187,8 +187,9 @@ export function BookingWizard({ kind }: BookingWizardProps) {
     queryKey: ["drafts"],
     queryFn: async ({ signal }) => {
       const res = await fetch("/api/drafts", { signal });
+      if (handleAuthRedirect(res)) return null;
       if (!res.ok) return null;
-      const json = await res.json();
+      const json = await parseJsonSafely<{ data?: Array<{ id: string; kind: string; title: string; itemCount: number; updatedAt: string }> }>(res);
       return json?.data ?? null;
     },
     staleTime: 30_000,
@@ -417,21 +418,20 @@ export function BookingWizard({ kind }: BookingWizardProps) {
       if (res.status === 401) await saveDraft();
       if (handleAuthRedirect(res)) return;
 
-      let json: Record<string, unknown>;
-      try { json = await res.json() as Record<string, unknown>; } catch {
-        setCreateError(`Couldn\u2019t create this ${config.label} \u2014 please try again`);
-        submittingRef.current = false;
-        setSubmitting(false);
-        return;
-      }
+      const json = await parseJsonSafely<{
+        error?: string;
+        data?: {
+          id?: string;
+          refNumber?: string | null;
+          conflicts?: Array<{ assetId: string; conflictingBookingTitle?: string }>;
+          unavailableAssets?: Array<{ assetId: string; status: string }>;
+          shortages?: Array<{ bulkSkuId: string; requested: number; available: number }>;
+        };
+      }>(res);
       if (!res.ok) {
-        if (res.status === 409 && json.data) {
+        if (res.status === 409 && json?.data) {
           const msgs: string[] = [];
-          const d = json.data as {
-            conflicts?: Array<{ assetId: string; conflictingBookingTitle?: string }>;
-            unavailableAssets?: Array<{ assetId: string; status: string }>;
-            shortages?: Array<{ bulkSkuId: string; requested: number; available: number }>;
-          };
+          const d = json.data;
           // Auto-remove conflicting/unavailable assets so user doesn't have to find them manually
           const tagFor = (id: string) => selectedAssetDetails.find((a) => a.id === id)?.assetTag || id;
           const conflictingAssetIds = new Set<string>([
@@ -448,10 +448,10 @@ export function BookingWizard({ kind }: BookingWizardProps) {
           }
           const removedCount = conflictingAssetIds.size;
           const removedSuffix = removedCount > 0 ? ` \u2014 ${removedCount} item${removedCount !== 1 ? "s" : ""} removed from your selection` : "";
-          setCreateError((msgs.length > 0 ? msgs.join(". ") : (json.error as string | undefined) || "Availability conflict") + removedSuffix);
+          setCreateError((msgs.length > 0 ? msgs.join(". ") : json?.error || "Availability conflict") + removedSuffix);
           setStep(2);
         } else {
-          setCreateError((json.error as string | undefined) || `Couldn\u2019t create this ${config.label} \u2014 please try again`);
+          setCreateError(json?.error || await parseErrorMessage(res, `Couldn\u2019t create this ${config.label} \u2014 please try again`));
         }
         submittingRef.current = false;
         setSubmitting(false);
@@ -459,7 +459,11 @@ export function BookingWizard({ kind }: BookingWizardProps) {
       }
 
       await deleteDraft();
-      const created = json.data as { id: string; refNumber?: string | null };
+      const created = json?.data;
+      if (!created?.id) {
+        setCreateError(`${config.label} was created, but the response was incomplete. Refresh the list to find it.`);
+        return;
+      }
       const refNumber = created.refNumber ?? undefined;
       toast.success(`${config.label.charAt(0).toUpperCase() + config.label.slice(1)} created${refNumber ? ` \u2014 ${refNumber}` : ""}`);
 

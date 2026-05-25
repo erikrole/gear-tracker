@@ -41,7 +41,13 @@ export const GET = withAuth(async (req, { user }) => {
 
 export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "checkout", "create");
-  const body = sanitizeBookingFields(createCheckoutSchema.parse(await req.json()));
+  let rawBody: unknown;
+  try {
+    rawBody = await req.json();
+  } catch {
+    throw new HttpError(400, "Request body must be valid JSON");
+  }
+  const body = sanitizeBookingFields(createCheckoutSchema.parse(rawBody));
   // Students may only create checkouts for themselves — silently override
   // any requesterUserId in the body to prevent framing other users.
   if (user.role === "STUDENT") {

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  assignedRoleMismatchLabel,
   shiftWorkerLabel,
   shiftWorkerSlotLabel,
   shiftWorkerTypeForRole,
@@ -20,24 +19,10 @@ describe("shift display helpers", () => {
     expect(shiftWorkerTypeForRole("STUDENT")).toBe("ST");
   });
 
-  it("describes cross-role assignments as explicit exceptions", () => {
-    expect(
-      assignedRoleMismatchLabel({
-        plannedWorkerType: "FT",
-        assignedRole: "STUDENT",
-      })
-    ).toBe("Student assigned to Staff slot");
-    expect(
-      assignedRoleMismatchLabel({
-        plannedWorkerType: "ST",
-        assignedRole: "STAFF",
-      })
-    ).toBe("Staff assigned to Student slot");
-    expect(
-      assignedRoleMismatchLabel({
-        plannedWorkerType: "ST",
-        assignedRole: "STUDENT",
-      })
-    ).toBeNull();
+  it("keeps role matching as a slot-selection concern, not display copy", () => {
+    expect(shiftWorkerTypeForRole("STAFF")).toBe("FT");
+    expect(shiftWorkerSlotLabel(shiftWorkerTypeForRole("STAFF"))).toBe("Staff slot");
+    expect(shiftWorkerTypeForRole("STUDENT")).toBe("ST");
+    expect(shiftWorkerSlotLabel(shiftWorkerTypeForRole("STUDENT"))).toBe("Student slot");
   });
 });

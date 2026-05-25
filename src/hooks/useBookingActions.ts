@@ -74,32 +74,38 @@ export function useBookingActions(
     });
     if (!ok) return;
     if (!guardStart("cancel")) return;
-    const result = await callAction(`/api/bookings/${bookingId}/cancel`);
-    if (result.ok) {
-      toast.success(`${label.charAt(0).toUpperCase() + label.slice(1)} cancelled`);
-      onSuccess();
-    } else {
-      toast.error(result.error!);
+    try {
+      const result = await callAction(`/api/bookings/${bookingId}/cancel`);
+      if (result.ok) {
+        toast.success(`${label.charAt(0).toUpperCase() + label.slice(1)} cancelled`);
+        onSuccess();
+      } else {
+        toast.error(result.error!);
+      }
+    } finally {
+      guardEnd();
     }
-    guardEnd();
   }, [bookingId, kind, confirm, toast, onSuccess]);
 
   const extend = useCallback(
     async (endsAt: string) => {
       if (!guardStart("extend")) return false;
-      const result = await callAction(`/api/bookings/${bookingId}/extend`, "POST", {
-        endsAt: new Date(endsAt).toISOString(),
-      });
-      if (result.ok) {
-        const d = new Date(endsAt);
-        const formatted = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-        toast.success(`Extended to ${formatted}`);
-        onSuccess();
-      } else {
-        toast.error(result.error!);
+      try {
+        const result = await callAction(`/api/bookings/${bookingId}/extend`, "POST", {
+          endsAt: new Date(endsAt).toISOString(),
+        });
+        if (result.ok) {
+          const d = new Date(endsAt);
+          const formatted = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+          toast.success(`Extended to ${formatted}`);
+          onSuccess();
+        } else {
+          toast.error(result.error!);
+        }
+        return result.ok;
+      } finally {
+        guardEnd();
       }
-      guardEnd();
-      return result.ok;
     },
     [bookingId, toast, onSuccess],
   );
@@ -113,44 +119,53 @@ export function useBookingActions(
     });
     if (!ok) return;
     if (!guardStart("convert")) return;
-    const result = await callAction(`/api/reservations/${bookingId}/convert`);
-    if (result.ok) {
-      toast.success("Reservation converted to active checkout");
-      const checkoutId = (result as { data?: { id?: string } }).data?.id;
-      router.push(checkoutId ? `/checkouts/${checkoutId}` : "/checkouts");
-    } else {
-      toast.error(result.error!);
+    try {
+      const result = await callAction(`/api/reservations/${bookingId}/convert`);
+      if (result.ok) {
+        toast.success("Reservation converted to active checkout");
+        const checkoutId = (result as { data?: { id?: string } }).data?.id;
+        router.push(checkoutId ? `/checkouts/${checkoutId}` : "/checkouts");
+      } else {
+        toast.error(result.error!);
+      }
+    } finally {
+      guardEnd();
     }
-    guardEnd();
   }, [bookingId, confirm, toast, router]);
 
   const duplicate = useCallback(async () => {
     if (!guardStart("duplicate")) return;
-    const result = await callAction(`/api/reservations/${bookingId}/duplicate`);
-    if (result.ok) {
-      const newId = (result as { data?: { id?: string } }).data?.id;
-      router.push(newId ? `/reservations/${newId}` : "/reservations");
-    } else {
-      toast.error(result.error!);
+    try {
+      const result = await callAction(`/api/reservations/${bookingId}/duplicate`);
+      if (result.ok) {
+        const newId = (result as { data?: { id?: string } }).data?.id;
+        router.push(newId ? `/reservations/${newId}` : "/reservations");
+      } else {
+        toast.error(result.error!);
+      }
+    } finally {
+      guardEnd();
     }
-    guardEnd();
   }, [bookingId, toast, router]);
 
   const checkinItems = useCallback(
     async (assetIds: string[]): Promise<boolean> => {
       if (assetIds.length === 0) return false;
       if (!guardStart("checkin")) return false;
-      const result = await callAction(`/api/checkouts/${bookingId}/checkin-items`, "POST", {
-        assetIds,
-      });
-      if (result.ok) {
-        toast.success(`${assetIds.length} item${assetIds.length > 1 ? "s" : ""} returned`);
-        onSuccess();
-      } else {
-        toast.error(result.error!);
+      try {
+        const result = await callAction(`/api/checkouts/${bookingId}/checkin-items`, "POST", {
+          assetIds,
+        });
+        if (result.ok) {
+          toast.success(`${assetIds.length} item${assetIds.length > 1 ? "s" : ""} returned`);
+          onSuccess();
+        } else {
+          toast.error(result.error!);
+        }
+        return result.ok;
+      } finally {
+        guardEnd();
       }
-      guardEnd();
-      return result.ok;
     },
     [bookingId, toast, onSuccess],
   );
@@ -159,18 +174,21 @@ export function useBookingActions(
     async (bulkItemId: string, quantity: number): Promise<boolean> => {
       if (quantity <= 0) return false;
       if (!guardStart(`bulk-${bulkItemId}`)) return false;
-      const result = await callAction(`/api/checkouts/${bookingId}/checkin-bulk`, "POST", {
-        bulkItemId,
-        quantity,
-      });
-      if (result.ok) {
-        toast.success("Item-family quantity returned");
-        onSuccess();
-      } else {
-        toast.error(result.error!);
+      try {
+        const result = await callAction(`/api/checkouts/${bookingId}/checkin-bulk`, "POST", {
+          bulkItemId,
+          quantity,
+        });
+        if (result.ok) {
+          toast.success("Item-family quantity returned");
+          onSuccess();
+        } else {
+          toast.error(result.error!);
+        }
+        return result.ok;
+      } finally {
+        guardEnd();
       }
-      guardEnd();
-      return result.ok;
     },
     [bookingId, toast, onSuccess],
   );
@@ -183,25 +201,31 @@ export function useBookingActions(
     });
     if (!ok) return;
     if (!guardStart("complete-checkin")) return;
-    const result = await callAction(`/api/checkouts/${bookingId}/complete-checkin`);
-    if (result.ok) {
-      toast.success("Check in completed");
-      onSuccess();
-    } else {
-      toast.error(result.error!);
+    try {
+      const result = await callAction(`/api/checkouts/${bookingId}/complete-checkin`);
+      if (result.ok) {
+        toast.success("Check in completed");
+        onSuccess();
+      } else {
+        toast.error(result.error!);
+      }
+    } finally {
+      guardEnd();
     }
-    guardEnd();
   }, [bookingId, confirm, toast, onSuccess]);
 
   const nudge = useCallback(async () => {
     if (!guardStart("nudge")) return;
-    const result = await callAction(`/api/bookings/${bookingId}/nudge`);
-    if (result.ok) {
-      toast.success("Nudge notification sent");
-    } else {
-      toast.error(result.error!);
+    try {
+      const result = await callAction(`/api/bookings/${bookingId}/nudge`);
+      if (result.ok) {
+        toast.success("Nudge notification sent");
+      } else {
+        toast.error(result.error!);
+      }
+    } finally {
+      guardEnd();
     }
-    guardEnd();
   }, [bookingId, toast]);
 
   const saveField = useCallback(
@@ -213,7 +237,9 @@ export function useBookingActions(
         headers,
         body: JSON.stringify({ [field]: value }),
       });
-      if (handleAuthRedirect(res)) return;
+      if (handleAuthRedirect(res)) {
+        throw new DOMException("Auth redirect", "AbortError");
+      }
       if (!res.ok) {
         if (res.status === 409) throw new Error("This booking was modified by someone else. Please refresh.");
         throw new Error("Save failed");

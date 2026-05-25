@@ -7,7 +7,7 @@ import type {
   ScanFeedbackResult,
 } from "@/app/(app)/scan/_components/types";
 import { scanFeedbackSuccess } from "@/lib/scan-feedback";
-import { handleAuthRedirect } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import type { BulkItem } from "@/app/(app)/items/hooks/use-items-query";
 
 type UseScanSubmissionResult = {
@@ -17,6 +17,15 @@ type UseScanSubmissionResult = {
   itemPreview: ItemPreview | null;
   setItemPreview: (item: ItemPreview | null) => void;
   handleScan: (value: string) => void;
+};
+
+type LookupResponse = {
+  data?: LookupResult[];
+  bulkItems?: BulkItem[];
+};
+
+type ItemDetailResponse = {
+  data?: ItemPreview;
 };
 
 function unitStatusLabel(status: string | undefined) {
@@ -115,13 +124,18 @@ export function useScanSubmission(): UseScanSubmissionResult {
         );
         if (handleAuthRedirect(res)) return;
         if (!res.ok) {
-          setFeedback({ message: "Failed to look up item", type: "error" });
+          const message = await parseErrorMessage(res, "Failed to look up item");
+          setFeedback({ message, type: "error" });
           return;
         }
 
-        const json = await res.json();
-        const assets: LookupResult[] = json.data ?? [];
-        const itemFamilies: BulkItem[] = json.bulkItems ?? [];
+        const json = await parseJsonSafely<LookupResponse>(res);
+        if (!json || (!Array.isArray(json.data) && !Array.isArray(json.bulkItems))) {
+          setFeedback({ message: "Item lookup returned an unreadable response. Try again.", type: "error" });
+          return;
+        }
+        const assets = Array.isArray(json.data) ? json.data : [];
+        const itemFamilies = Array.isArray(json.bulkItems) ? json.bulkItems : [];
         const scanVariants = normalizedScanVariants(value);
         const normalizedValue = value.trim().toLowerCase();
         const normalizedSearchTerm = searchTerm.trim().toLowerCase();
@@ -153,9 +167,25 @@ export function useScanSubmission(): UseScanSubmissionResult {
         if (match) {
           scanFeedbackSuccess();
           const detailRes = await fetch(`/api/assets/${match.id}`);
+          if (handleAuthRedirect(detailRes)) return;
           if (detailRes.ok) {
-            const detailJson = await detailRes.json();
-            setItemPreview(detailJson.data as ItemPreview);
+            const detailJson = await parseJsonSafely<ItemDetailResponse>(detailRes);
+            if (detailJson?.data) {
+              setItemPreview(detailJson.data);
+            } else {
+              setItemPreview({
+                id: match.id,
+                assetTag: match.assetTag,
+                brand: match.brand,
+                model: match.model,
+                serialNumber: "",
+                computedStatus: "AVAILABLE",
+                location: null,
+                category: null,
+                parentAsset: null,
+                activeBooking: null,
+              });
+            }
           } else {
             setItemPreview({
               id: match.id,

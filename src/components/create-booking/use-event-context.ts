@@ -8,6 +8,7 @@ import {
   type CalendarEvent,
 } from "../booking-list/types";
 import type { FormAction } from "./types";
+import { handleAuthRedirect, isAbortError, parseJsonSafely } from "@/lib/errors";
 
 const MAX_SELECTED_EVENTS = 3;
 const BOOKING_EVENT_LOOKAHEAD_DAYS = 30;
@@ -73,14 +74,18 @@ export function useEventContext({
     });
     if (sport) params.set("sportCode", sport);
     fetch(`/api/calendar-events?${params}`, { signal: controller.signal })
-      .then((res) => (res.ok ? res.json() : null))
+      .then(async (res) => {
+        if (handleAuthRedirect(res)) return null;
+        if (!res.ok) return null;
+        return parseJsonSafely<{ data?: CalendarEvent[] }>(res);
+      })
       .then((json) => {
         if (controller.signal.aborted) return;
         setEvents(json?.data || []);
         setEventsLoading(false);
       })
       .catch((err) => {
-        if (err?.name !== "AbortError") {
+        if (!isAbortError(err)) {
           setEventsLoading(false);
           toast.error("Couldn’t load events — try again");
         }
@@ -133,19 +138,24 @@ export function useEventContext({
     }
     const controller = new AbortController();
     fetch(`/api/my-shifts?eventId=${primary.id}`, { signal: controller.signal })
-      .then((res) => (res.ok ? res.json() : null))
+      .then(async (res) => {
+        if (handleAuthRedirect(res)) return null;
+        if (!res.ok) return null;
+        return parseJsonSafely<{ data?: Array<{ area: string; startsAt: string; endsAt: string; gear: { status: string } }> }>(res);
+      })
       .then((json) => {
         if (controller.signal.aborted) return;
-        const shifts = json?.data;
-        if (shifts?.length > 0) {
+        const shifts = json?.data ?? [];
+        if (shifts.length > 0) {
           const s = shifts[0];
+          if (!s) return;
           setMyShiftForEvent({ area: s.area, startsAt: s.startsAt, endsAt: s.endsAt, gearStatus: s.gear.status });
         } else {
           setMyShiftForEvent(null);
         }
       })
       .catch((err) => {
-        if (err?.name !== "AbortError") setMyShiftForEvent(null);
+        if (!isAbortError(err)) setMyShiftForEvent(null);
       });
     return () => controller.abort();
   // Primary id is what matters — track it explicitly.

@@ -337,6 +337,13 @@ export const POST = withAuth(async (req, { user }) => {
   const mode = searchParams.get("mode") || "import";
   const importMode = searchParams.get("importMode") || "upsert";
 
+  if (mode !== "preview" && mode !== "import") {
+    throw new HttpError(400, "Import mode must be preview or import");
+  }
+  if (importMode !== "upsert" && importMode !== "create_only") {
+    throw new HttpError(400, "Import write mode must be upsert or create_only");
+  }
+
   const formData = await req.formData();
   const file = formData.get("file");
   const mappingRaw = formData.get("mapping");
@@ -347,7 +354,15 @@ export const POST = withAuth(async (req, { user }) => {
 
   let userMapping: ColumnMapping | undefined;
   if (mappingRaw) {
-    const parsed = JSON.parse(mappingRaw as string);
+    if (typeof mappingRaw !== "string") {
+      throw new HttpError(400, "Mapping must be a JSON object");
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(mappingRaw);
+    } catch {
+      throw new HttpError(400, "Mapping must be valid JSON");
+    }
     userMapping = mappingSchema.parse(parsed);
   }
 

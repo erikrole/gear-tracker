@@ -22,6 +22,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Select,
   SelectContent,
@@ -204,13 +205,19 @@ export default function KitsPage() {
     sortOrder,
   });
 
-  const { data: locations } = useFetch<Location[]>({
+  const {
+    data: locations,
+    loading: locationsLoading,
+    error: locationsError,
+    reload: reloadLocations,
+  } = useFetch<Location[]>({
     url: "/api/locations",
     refetchOnFocus: false,
     transform: (json) => (Array.isArray(json) ? json : (json.data as Location[]) ?? []),
   });
 
   const locationOptions = locations ?? [];
+  const locationFilterUnavailable = locationsLoading || Boolean(locationsError) || locationOptions.length === 0;
 
   const handleCreated = useCallback(
     () => {
@@ -283,7 +290,7 @@ export default function KitsPage() {
         title="Kits"
         description="Reusable gear groups for faster checkout and booking setup."
       >
-        <Button onClick={() => setSheetOpen(true)} size="lg">
+        <Button onClick={() => setSheetOpen(true)} size="lg" disabled={locationsLoading || Boolean(locationsError)}>
           <PlusIcon className="size-4" />
           New Kit
         </Button>
@@ -340,8 +347,13 @@ export default function KitsPage() {
             <label htmlFor="kits-location-filter" className="sr-only">
               Filter by location
             </label>
-            <Select value={locationId || "all"} onValueChange={(value) => setLocationId(value === "all" ? "" : value)}>
-              <SelectTrigger id="kits-location-filter" className="h-10">
+            <Select
+              name="kitsLocationFilter"
+              value={locationId || "all"}
+              onValueChange={(value) => setLocationId(value === "all" ? "" : value)}
+              disabled={locationFilterUnavailable}
+            >
+              <SelectTrigger id="kits-location-filter" className="h-10" disabled={locationFilterUnavailable}>
                 <SelectValue placeholder="All locations" />
               </SelectTrigger>
               <SelectContent>
@@ -384,6 +396,17 @@ export default function KitsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {locationsError && (
+        <Alert variant="destructive" className="mt-4">
+          <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span>Locations could not load. Kit filters and new-kit assignment are unavailable until locations are readable.</span>
+            <Button type="button" size="sm" variant="outline" onClick={reloadLocations}>
+              Retry locations
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {query.loadError && (
         <Card className="mt-4">
@@ -566,6 +589,9 @@ export default function KitsPage() {
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         locations={locationOptions}
+        locationsError={Boolean(locationsError)}
+        locationsLoading={locationsLoading}
+        onRetryLocations={reloadLocations}
         onCreated={handleCreated}
       />
     </FadeUp>

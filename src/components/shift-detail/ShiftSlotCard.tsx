@@ -17,7 +17,7 @@ import {
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { AlertTriangle, CheckIcon, MinusIcon, PlusIcon, XIcon } from "lucide-react";
 import { UserAvatarPicker, type PickerUser } from "./UserAvatarPicker";
-import { assignedRoleMismatchLabel, shiftWorkerSlotLabel } from "@/lib/shift-display";
+import { shiftWorkerSlotLabel } from "@/lib/shift-display";
 
 type ShiftUser = {
   id: string;
@@ -104,9 +104,6 @@ export function ShiftSlotCard({
   const isAssigned = !!activeAssignment;
   const userHasRequested = pendingRequests.some((a) => a.user.id === currentUserId);
   const isMyAssignment = activeAssignment?.user.id === currentUserId;
-  const mismatchLabel = activeAssignment
-    ? assignedRoleMismatchLabel({ plannedWorkerType: workerType, assignedRole: activeAssignment.user.role })
-    : null;
 
   const contextItems = (
     <ContextMenuContent className="w-48">
@@ -199,9 +196,6 @@ export function ShiftSlotCard({
                         {activeAssignment.conflictNote ?? "Schedule conflict"}
                       </TooltipContent>
                     </Tooltip>
-                  )}
-                  {mismatchLabel && (
-                    <Badge variant="orange" size="sm">{mismatchLabel}</Badge>
                   )}
                 </span>
                 <div className="flex items-center gap-1">

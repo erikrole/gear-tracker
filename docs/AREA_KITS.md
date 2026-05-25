@@ -95,6 +95,10 @@ See `AREA_ITEMS.md` 2026-04-06 entry for kit detail page hardening work:
 - [x] AC-6: Mobile kit list responsive; detail scrollable
 
 ## Change Log
+- 2026-05-25: Web bug sweep Batch 54 made kit location loading explicit. `/kits` now shows a retryable locations-load failure instead of treating the location filter and New Kit assignment picker as empty, while still letting the existing kit list render.
+- 2026-05-25: Web bug sweep Batch 33 hardened the shared form-submit hook used by New Kit. Successful or failed kit-create responses now flow through shared safe JSON parsing, preserving the existing post-create handoff and form-level errors even if an upstream proxy returns an unreadable body.
+- 2026-05-25: Web bug sweep Batch 24 hardened URL-backed kit list state. Search, location, archived visibility, and sort controls now rehydrate from browser back/forward and external URL changes through the shared `useUrlState` hook.
+- 2026-05-24: Web bug sweep Batch 13. Kit detail inline saves, serialized member add/remove, bulk member removal, archive/restore, delete, and add-member search now use shared auth/error/safe-JSON handling where applicable. Duplicate member/archive/delete actions are ref-guarded, search failures no longer masquerade as empty results, the empty bulk-family copy no longer promises a missing add control, and New Kit fields expose stable form names for browser metadata checks.
 - 2026-05-21: Kit detail now uses the shared `PageHeader` structure, keeps archive/delete/back actions at the 40px operational target baseline, and replaces the add-member search clear affordance with a named shadcn icon button.
 - 2026-05-21: Kit detail member tables now use the shared `OperationalRowActions` overflow trigger for serialized and bulk member removal. Bulk member removal now confirms the exact item family/quantity, parses API errors, and the API verifies the membership belongs to the current kit before deletion.
 - 2026-05-21: Kits list summary metrics now use the shared `OperationalMetricCard` primitive instead of a route-local metric card while preserving filter-aware helper copy.

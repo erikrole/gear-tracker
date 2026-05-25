@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeftIcon, Trash2Icon } from "lucide-react";
 import Link from "next/link";
@@ -23,7 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { useFetch } from "@/hooks/use-fetch";
 import { Role, ShiftArea } from "@prisma/client";
-import { handleAuthRedirect } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { KNOWLEDGE_BASE_CATEGORY_SUGGESTIONS } from "@/lib/guide-categories";
 import { legacyGuideMarkdown } from "@/lib/guide-content";
 import { GuideTargetingControls } from "@/components/resources/GuideTargetingControls";
@@ -47,6 +47,16 @@ type Guide = {
 
 type Props = { slug: string; userRole: Role };
 
+type ResourceMutationResponse = {
+  data?: {
+    slug?: string;
+  };
+};
+
+type ResourceUploadResponse = {
+  url?: string;
+};
+
 export function EditGuideClient({ slug, userRole }: Props) {
   const router = useRouter();
   const [ready, setReady] = useState(false);
@@ -62,13 +72,17 @@ export function EditGuideClient({ slug, userRole }: Props) {
   const [loadedUpdatedAt, setLoadedUpdatedAt] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const submittingRef = useRef(false);
+  const deletingRef = useRef(false);
 
   async function uploadFile(file: File): Promise<string> {
     const fd = new FormData();
     fd.append("file", file);
     const res = await fetch("/api/resources/upload-image", { method: "POST", body: fd });
-    if (!res.ok) throw new Error("Image upload failed");
-    const json = (await res.json()) as { url: string };
+    if (handleAuthRedirect(res)) throw new Error("Session expired");
+    if (!res.ok) throw new Error(await parseErrorMessage(res, "Image upload failed"));
+    const json = await parseJsonSafely<ResourceUploadResponse>(res);
+    if (!json?.url) throw new Error("Upload succeeded but no image URL was returned");
     return json.url;
   }
 
@@ -109,8 +123,10 @@ export function EditGuideClient({ slug, userRole }: Props) {
   const canDelete = userRole === Role.ADMIN;
 
   async function submit() {
+    if (submittingRef.current) return;
     if (!title.trim()) { toast.error("Title is required"); return; }
     if (!category.trim()) { toast.error("Category is required"); return; }
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       const res = await fetch(`/api/resources/${guideId}`, {
@@ -130,28 +146,34 @@ export function EditGuideClient({ slug, userRole }: Props) {
       });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
-        const json = (await res.json().catch(() => ({}))) as { error?: string };
-        toast.error(json.error ?? "Failed to save resource");
+        toast.error(await parseErrorMessage(res, "Failed to save resource"));
         return;
       }
-      const json = (await res.json()) as { data: { slug: string } };
+      const json = await parseJsonSafely<ResourceMutationResponse>(res);
+      if (!json?.data?.slug) {
+        toast.error("Resource was saved, but the response was incomplete. Refresh resources and try again.");
+        return;
+      }
       setDirty(false);
       toast.success("Resource saved");
       router.push(`/resources/${json.data.slug}`);
     } catch {
       toast.error("Network error. Try again.");
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   }
 
   async function handleDelete() {
+    if (deletingRef.current) return;
+    deletingRef.current = true;
     setSubmitting(true);
     try {
       const res = await fetch(`/api/resources/${guideId}`, { method: "DELETE" });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
-        toast.error("Failed to delete resource");
+        toast.error(await parseErrorMessage(res, "Failed to delete resource"));
         return;
       }
       toast.success("Resource deleted");
@@ -159,6 +181,7 @@ export function EditGuideClient({ slug, userRole }: Props) {
     } catch {
       toast.error("Network error. Try again.");
     } finally {
+      deletingRef.current = false;
       setSubmitting(false);
     }
   }

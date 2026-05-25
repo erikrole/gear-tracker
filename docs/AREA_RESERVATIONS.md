@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-21
+- Last Updated: 2026-05-25
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
@@ -243,6 +243,10 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 8. Implement list page controls and row behavior from V1 list surface spec.
 
 ## Change Log
+- 2026-05-25: Web bug sweep Batch 28. Booking detail sheet deep links now preserve `sheetTab=equipment|history` through `/bookings` mounted-route handoff, clear the consumed URL parameter, and focus the requested detail section after the sheet data loads.
+- 2026-05-25: Web bug sweep Batch 21. Shared reservation/booking lists now safe-parse list responses, context-menu mutations use a ref-backed duplicate-submit guard, and menu extend actions always release their busy state through `finally`. Full reservation detail actions now also clear action locks through `finally`, expired-session inline saves throw instead of locally patching false success, extend presets safe-parse their settings response, and shared edit/search/date controls expose stable form metadata.
+- 2026-05-24: Web bug sweep Batch 18. Reservation creation, shared EquipmentPicker search/scan/hydration, event context loading, kit loading, draft resume/save, form-options, booking detail reads, and equipment conflict previews now use shared auth redirects and safe response parsing where applicable. Malformed JSON on reservation create, draft save, and availability check routes now returns 400 before booking, draft, or availability service work.
+- 2026-05-24: Web bug sweep Batch 7. Shared reservation detail sheets now safe-parse detail, form-options, audit-log, edit, equipment-save, and checkout-conversion responses, and their mutation handlers use ref-backed guards so stale React state cannot double-submit save, extend, cancel, or start-checkout actions.
 - 2026-05-21: Design language Area 6 shared-component consolidation. Reservation list filters now use `OperationalToolbar`, shared active-filter chips, and 40px shared filter controls instead of the previous route-local card-header filter row.
 - 2026-05-21: Design language Area 5 state/copy audit. Shared booking detail copy now names reservation cancellation, checkout conversion, equipment-save, and extension consequences so operators know what record changed and what to retry.
 - 2026-05-21: Shared reservation `EquipmentPicker` controls now follow the 40px operational target baseline for search clear, scanner close, select-visible, clear-section, bulk quantity, selected-shelf remove, and clear-all actions.

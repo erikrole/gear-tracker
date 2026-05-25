@@ -31,6 +31,9 @@ interface NewKitSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   locations: Location[];
+  locationsError?: boolean;
+  locationsLoading?: boolean;
+  onRetryLocations?: () => void;
   onCreated: (kitId: string) => void;
 }
 
@@ -43,7 +46,15 @@ const createKitSchema = z.object({
 type CreateKitInput = z.infer<typeof createKitSchema>;
 type CreatedKit = { id: string; name: string };
 
-export function NewKitSheet({ open, onOpenChange, locations, onCreated }: NewKitSheetProps) {
+export function NewKitSheet({
+  open,
+  onOpenChange,
+  locations,
+  locationsError = false,
+  locationsLoading = false,
+  onRetryLocations,
+  onCreated,
+}: NewKitSheetProps) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -51,6 +62,7 @@ export function NewKitSheet({ open, onOpenChange, locations, onCreated }: NewKit
   const [createdKit, setCreatedKit] = useState<CreatedKit | null>(null);
   const defaultLocationId = locations[0]?.id ?? "";
   const hasLocations = locations.length > 0;
+  const locationsUnavailable = locationsLoading || locationsError || !hasLocations;
 
   useEffect(() => {
     if (open && !locationId && defaultLocationId) {
@@ -142,7 +154,24 @@ export function NewKitSheet({ open, onOpenChange, locations, onCreated }: NewKit
             </Alert>
           )}
 
-          {!hasLocations && (
+          {locationsError ? (
+            <Alert variant="destructive">
+              <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <span>Locations could not load, so new kits cannot be assigned yet.</span>
+                {onRetryLocations && (
+                  <Button type="button" size="sm" variant="outline" onClick={onRetryLocations}>
+                    Retry locations
+                  </Button>
+                )}
+              </AlertDescription>
+            </Alert>
+          ) : locationsLoading ? (
+            <Alert>
+              <AlertDescription>
+                Loading locations before kit creation is available.
+              </AlertDescription>
+            </Alert>
+          ) : !hasLocations && (
             <Alert>
               <AlertDescription>
                 Add a location before creating kits. Kits are location-scoped so checkout availability stays accurate.
@@ -154,6 +183,7 @@ export function NewKitSheet({ open, onOpenChange, locations, onCreated }: NewKit
             <Label htmlFor="kit-name">Name</Label>
             <Input
               id="kit-name"
+              name="kitName"
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
@@ -176,6 +206,7 @@ export function NewKitSheet({ open, onOpenChange, locations, onCreated }: NewKit
             <Label htmlFor="kit-description">Description</Label>
             <Textarea
               id="kit-description"
+              name="kitDescription"
               value={description}
               onChange={(e) => {
                 setDescription(e.target.value);
@@ -197,12 +228,13 @@ export function NewKitSheet({ open, onOpenChange, locations, onCreated }: NewKit
           <div className="flex flex-col gap-2">
             <Label htmlFor="kit-location">Location</Label>
             <Select
+              name="kitLocationId"
               value={locationId}
               onValueChange={(value) => {
                 setLocationId(value);
                 if (fieldErrors.locationId || formError) clearErrors();
               }}
-              disabled={submitting || !hasLocations}
+              disabled={submitting || locationsUnavailable}
             >
               <SelectTrigger
                 id="kit-location"
@@ -247,7 +279,7 @@ export function NewKitSheet({ open, onOpenChange, locations, onCreated }: NewKit
               <Button type="button" variant="outline" onClick={() => handleOpenChange(false)} disabled={submitting}>
                 Cancel
               </Button>
-              <Button type="submit" form="new-kit-form" loading={submitting} disabled={!hasLocations || submitting}>
+              <Button type="submit" form="new-kit-form" loading={submitting} disabled={locationsUnavailable || submitting}>
                 Create kit
               </Button>
             </>

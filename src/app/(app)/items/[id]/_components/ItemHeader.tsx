@@ -200,6 +200,7 @@ export function ItemHeader({
                   width={208}
                   height={208}
                   sizes="104px"
+                  priority
                   className="aspect-square object-cover"
                   unoptimized
                   onError={() => setImageFailed(true)}

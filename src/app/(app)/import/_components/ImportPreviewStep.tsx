@@ -125,11 +125,11 @@ export function ImportPreviewStep({
       )}
 
       {/* Preview table */}
-      <Card>
+      <Card className="min-w-0">
         <CardHeader>
           <CardTitle>Preview ({preview.rows.length}{preview.totalRows > 200 ? ` of ${preview.totalRows}` : ""} rows)</CardTitle>
         </CardHeader>
-        <div className="overflow-x-auto">
+        <div className="max-w-full overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -191,10 +191,14 @@ export function ImportPreviewStep({
         </div>
       </Card>
 
-      <div className="flex items-center justify-between mt-4">
+      <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Mode:</span>
-          <Select value={importMode} onValueChange={(v) => onImportModeChange(v as "upsert" | "create_only")}>
+          <Select
+            name="importMode"
+            value={importMode}
+            onValueChange={(v) => onImportModeChange(v as "upsert" | "create_only")}
+          >
             <SelectTrigger className="w-[180px]">
               <SelectValue />
             </SelectTrigger>
@@ -204,7 +208,7 @@ export function ImportPreviewStep({
             </SelectContent>
           </Select>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
         <Button variant="outline" onClick={onBackToMapping}>Back to mapping</Button>
         <Button variant="outline" onClick={onCancel}>Cancel</Button>
         <Button

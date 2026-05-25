@@ -32,7 +32,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { UserAvatarGroup } from "@/components/UserAvatarGroup";
 import { UserAvatarPicker, type PickerUser } from "@/components/shift-detail/UserAvatarPicker";
-import { handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 import { VENUE_TONES, venueToneFromEvent } from "@/lib/venue-tone";
 import { shiftWorkerLabel, shiftWorkerSlotLabel, type ShiftWorkerKind } from "@/lib/shift-display";
@@ -510,7 +510,12 @@ export function ListView({
       if (controller.signal.aborted) return;
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        const json = await res.json();
+        const json = await parseJsonSafely<{ data?: Array<{ id: string; name: string; role: string; primaryArea: string | null; avatarUrl?: string | null }> }>(res);
+        if (!Array.isArray(json?.data)) {
+          usersLoadedRef.current = false;
+          toast.error("Failed to load users");
+          return;
+        }
         setAllUsers((json.data ?? []).map((u: { id: string; name: string; role: string; primaryArea: string | null; avatarUrl?: string | null }) => ({
           id: u.id, name: u.name, role: u.role, primaryArea: u.primaryArea, avatarUrl: u.avatarUrl,
         })));

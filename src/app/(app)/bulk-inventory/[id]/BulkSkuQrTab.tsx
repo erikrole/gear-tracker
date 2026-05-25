@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { QrCodeImage } from "@/components/QrCodeImage";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import type { BulkSkuDetail } from "./types";
 
 export default function BulkSkuQrTab({
@@ -21,9 +21,12 @@ export default function BulkSkuQrTab({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(sku.binQrCodeValue);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
 
   async function handleSave() {
     if (!draft.trim() || draft === sku.binQrCodeValue) { setEditing(false); return; }
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     try {
       const res = await fetch(`/api/bulk-skus/${sku.id}`, {
@@ -33,13 +36,18 @@ export default function BulkSkuQrTab({
       });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) { toast.error(await parseErrorMessage(res, "Failed to update QR value")); return; }
-      const json = await res.json();
+      const json = await parseJsonSafely<{ data?: Partial<BulkSkuDetail> }>(res);
+      if (!json?.data) {
+        toast.error("QR value updated, but the response was incomplete. Refresh and try again.");
+        return;
+      }
       onFieldSaved(json.data);
       toast.success("QR value updated");
       setEditing(false);
-    } catch {
-      toast.error("Network error");
+    } catch (err) {
+      toast.error(err instanceof TypeError ? "You’re offline. Check your connection." : "Failed to update QR value");
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -60,13 +68,16 @@ export default function BulkSkuQrTab({
                 {editing ? (
                   <div className="flex items-center gap-2">
                     <Input
+                      id="bulk-sku-qr-value"
+                      name="binQrCodeValue"
                       value={draft}
                       onChange={(e) => setDraft(e.target.value)}
                       className="font-mono text-sm"
                       autoFocus
+                      disabled={saving}
                     />
                     <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
-                    <Button size="sm" variant="outline" onClick={() => { setDraft(sku.binQrCodeValue); setEditing(false); }}>Cancel</Button>
+                    <Button size="sm" variant="outline" onClick={() => { setDraft(sku.binQrCodeValue); setEditing(false); }} disabled={saving}>Cancel</Button>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">

@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Events
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-22
+- Last Updated: 2026-05-25
 - Status: Active
 
 ## Direction
@@ -74,6 +74,10 @@ Make athletics schedule data the operational backbone for booking and checkout w
 4. Fallback behavior for incomplete events is implemented — treat event context as non-blocking metadata on all booking flows.
 
 ## Change Log
+- 2026-05-25: Web bug sweep Batch 60 hardened the event travel roster picker. Sport-roster load failures now render a retryable error inside the Add traveler popover instead of falling through to the "all roster members already added" empty state.
+- 2026-05-25: Web bug sweep Batch 58 cleaned up event travel roster display. Traveler role badges now use product labels and repeated default/add/remove controls include the user name in their accessible action labels.
+- 2026-05-25: Web bug sweep hardened the Schedule New Event sheet. Location loading and event-create reads now use shared safe response parsing, malformed create responses surface an explicit refresh-before-continuing error, and start/end time fields expose stable form metadata.
+- 2026-05-24: Web bug sweep hardened event detail, shift coverage, and travel roster client actions. Edit locations, event saves/reverts, crew setup, missing-gear nudges, travel add/remove/default toggles, user picker loading, shift assignment/add/remove/request decisions, and auto-fill now use shared safe response/error handling where applicable, ref-backed duplicate-action guards, and clearer network/server failure copy. Travel add-member and shift-group creation routes now reject malformed JSON with 400 before writes.
 - 2026-05-22: Manual event edits + soft archive. Staff/admin can edit event title and toggle home/away/neutral on `/events/[id]`; both survive ICS re-sync (lock flags + revert-to-synced). Events older than 4 months are soft-archived by `morning-refresh` cron (archivedAt stamp, no deletes). List API gains `includeArchived` param. All history preserved for future Wrapped stats.
 - 2026-05-21: Event detail travel roster controls now use keyboard-visible 40px targets for default traveler, add, and remove actions, and the empty travel roster uses the shared inline empty-state treatment.
 - 2026-05-12: Creation flow standardization. Schedule New Event now keeps operators in the sheet after submit with an explicit handoff to open the created event, add another event, or return to the refreshed schedule, manual event create failures render as form-level alerts instead of toast-only failures, and manual events can persist without an external calendar source.

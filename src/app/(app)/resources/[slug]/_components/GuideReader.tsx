@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeftIcon, CheckCircle2Icon, PencilIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MarkdownReader } from "@/components/resources/MarkdownReader";
-import { handleAuthRedirect } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { formatFreshnessDate, getGuideFreshness } from "@/lib/guide-freshness";
 import { legacyGuideMarkdown, markdownHeadings } from "@/lib/guide-content";
 import { cn } from "@/lib/utils";
@@ -33,6 +33,14 @@ type Props = {
 };
 
 type TocItem = { id: string; level: number; text: string };
+
+type ResourceVerifyResponse = {
+  data?: {
+    lastVerifiedAt?: string | null;
+    lastVerifiedBy?: { id: string; name: string } | null;
+    updatedAt?: string;
+  };
+};
 
 function TableOfContents({ items, activeId }: { items: TocItem[]; activeId: string | null }) {
   const scrollToHeading = useCallback((id: string) => {
@@ -80,6 +88,7 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
   const [lastVerifiedBy, setLastVerifiedBy] = useState<{ id: string; name: string } | null>(guide.lastVerifiedBy);
   const [updatedAt, setUpdatedAt] = useState<Date | string>(guide.updatedAt);
   const [verifying, setVerifying] = useState(false);
+  const verifyingRef = useRef(false);
   const markdown = useMemo(
     () => legacyGuideMarkdown(guide.markdown, guide.content),
     [guide.content, guide.markdown],
@@ -89,7 +98,8 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
   const [activeHeadingId, setActiveHeadingId] = useState<string | null>(null);
 
   async function markVerified() {
-    if (verifying) return;
+    if (verifyingRef.current) return;
+    verifyingRef.current = true;
     setVerifying(true);
     try {
       const res = await fetch(`/api/resources/${guide.id}`, {
@@ -102,24 +112,22 @@ export function GuideReader({ guide, canEdit, slug }: Props) {
       });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
-        const json = (await res.json().catch(() => ({}))) as { error?: string };
-        toast.error(json.error ?? "Failed to mark resource verified");
+        toast.error(await parseErrorMessage(res, "Failed to mark resource verified"));
         return;
       }
-      const json = (await res.json()) as {
-        data: {
-          lastVerifiedAt: string | null;
-          lastVerifiedBy: { id: string; name: string } | null;
-          updatedAt: string;
-        };
-      };
-      setLastVerifiedAt(json.data.lastVerifiedAt);
-      setLastVerifiedBy(json.data.lastVerifiedBy);
+      const json = await parseJsonSafely<ResourceVerifyResponse>(res);
+      if (!json?.data?.updatedAt) {
+        toast.error("Resource was verified, but the response was incomplete. Refresh and try again.");
+        return;
+      }
+      setLastVerifiedAt(json.data.lastVerifiedAt ?? null);
+      setLastVerifiedBy(json.data.lastVerifiedBy ?? null);
       setUpdatedAt(json.data.updatedAt);
       toast.success("Resource marked verified");
     } catch {
       toast.error("Network error. Try again.");
     } finally {
+      verifyingRef.current = false;
       setVerifying(false);
     }
   }

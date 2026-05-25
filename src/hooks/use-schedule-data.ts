@@ -9,7 +9,7 @@ import type {
   ShiftGroup,
 } from "@/app/(app)/schedule/_components/types";
 import { getMonday, userHasShift, LS_VIEW_MODE, LS_MY_SHIFTS } from "@/app/(app)/schedule/_components/types";
-import { handleAuthRedirect } from "@/lib/errors";
+import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 import { calendarDate } from "@/lib/format";
 import type { VenueFilter } from "@/lib/venue-tone";
 
@@ -148,12 +148,14 @@ async function fetchSchedule(eventsUrl: string, groupsUrl: string, signal?: Abor
   }
   if (!evRes.ok) throw new Error("events fetch failed");
 
-  const evJson = await evRes.json();
+  const evJson = await parseJsonSafely<{ data?: CalendarEvent[] }>(evRes);
+  if (!evJson?.data) throw new Error("events response malformed");
   const events: CalendarEvent[] = evJson.data ?? [];
 
   let groups: ShiftGroup[] = [];
   if (sgRes.ok) {
-    const sgJson = await sgRes.json();
+    const sgJson = await parseJsonSafely<{ data?: ShiftGroup[] }>(sgRes);
+    if (!sgJson?.data) throw new Error("shift groups response malformed");
     groups = sgJson.data ?? [];
   }
 
@@ -162,8 +164,9 @@ async function fetchSchedule(eventsUrl: string, groupsUrl: string, signal?: Abor
 
 async function fetchTradeCount(): Promise<number> {
   const r = await fetch("/api/shift-trades?status=OPEN&limit=1");
+  if (handleAuthRedirect(r)) return 0;
   if (!r.ok) return 0;
-  const j = await r.json();
+  const j = await parseJsonSafely<{ total?: number; data?: unknown[] }>(r);
   return typeof j?.total === "number" ? j.total : j?.data?.length ?? 0;
 }
 

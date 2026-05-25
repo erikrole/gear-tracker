@@ -22,7 +22,7 @@ export type BookingMenuProps = {
   currentUserRole: string;
   config: BookingListConfig;
   extendingId: string | null;
-  onViewDetails: (id: string) => void;
+  onViewDetails: (id: string, sheetTab?: BookingListConfig["contextMenuExtras"][number]["sheetTab"] | null) => void;
   onExtend: (bookingId: string, days: number) => void;
   items: BookingItem[];
   reload: () => Promise<void>;
@@ -86,7 +86,7 @@ function MenuItems({
             <Item
               className={extra.danger ? "text-destructive focus:text-destructive" : undefined}
               onSelect={() => {
-                if (extra.opensSheet) onViewDetails(item.id);
+                if (extra.opensSheet) onViewDetails(item.id, extra.sheetTab ?? null);
                 else extra.handler?.(item.id, items, reload, setItems);
               }}
             >

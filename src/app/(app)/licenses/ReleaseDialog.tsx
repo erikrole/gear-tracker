@@ -12,6 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 
 type Props = {
   open: boolean;
@@ -27,9 +28,9 @@ export function ReleaseDialog({ open, onOpenChange, licenseId, onReleased }: Pro
     setLoading(true);
     try {
       const res = await fetch(`/api/licenses/${licenseId}/release`, { method: "POST" });
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) {
-        const json = await res.json();
-        throw new Error(json.error ?? "Failed to release license");
+        throw new Error(await parseErrorMessage(res, "Failed to release license"));
       }
       toast.success("License returned");
       onReleased();

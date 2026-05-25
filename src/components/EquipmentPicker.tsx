@@ -49,6 +49,7 @@ import {
 } from "@/components/ui/item";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { getBatteryCompatibilitySummaries } from "@/lib/battery-compatibility";
 import { AssetImage } from "@/components/AssetImage";
 import QrScanner from "@/components/QrScanner";
@@ -307,12 +308,13 @@ export default function EquipmentPicker({
         params.set("ids", missingIds.join(","));
         params.set("limit", String(missingIds.length));
         const res = await fetch(`/api/assets/picker-search?${params}`, { signal: controller.signal });
+        if (handleAuthRedirect(res)) return;
         if (!res.ok) return;
-        const json = await res.json();
-        const assets = (json.data?.assets ?? []) as PickerAsset[];
+        const json = await parseJsonSafely<{ data?: { assets?: PickerAsset[] } }>(res);
+        const assets = json?.data?.assets ?? [];
         for (const asset of assets) rememberAsset(asset);
       } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") return;
+        if (isAbortError(err)) return;
       }
     }
     hydrateSelectedAssets();
@@ -482,12 +484,13 @@ export default function EquipmentPicker({
       }
       params.set("limit", "1");
       const res = await fetch(`/api/assets/picker-search?${params}`);
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) {
-        setScanFeedback({ kind: "error", message: "Could not look up that scan code" });
+        setScanFeedback({ kind: "error", message: await parseErrorMessage(res, "Could not look up that scan code") });
         return;
       }
-      const json = await res.json();
-      const asset = (json.data?.assets?.[0] ?? null) as PickerAsset | null;
+      const json = await parseJsonSafely<{ data?: { assets?: PickerAsset[] } }>(res);
+      const asset = json?.data?.assets?.[0] ?? null;
       if (!asset) {
         setScanFeedback({ kind: "error", message: "No matching item found in inventory" });
         return;

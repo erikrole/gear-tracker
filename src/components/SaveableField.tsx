@@ -144,7 +144,7 @@ export function SaveableField({
               size="icon"
               className="size-10 text-green-600 hover:text-green-700 hover:bg-green-500/10"
               onClick={onCommit}
-              aria-label="Save"
+              aria-label={`Save ${label}`}
             >
               <Check className="size-4" />
             </Button>
@@ -153,7 +153,7 @@ export function SaveableField({
               size="icon"
               className="size-10 text-muted-foreground hover:text-foreground"
               onClick={onCancel}
-              aria-label="Cancel"
+              aria-label={`Cancel ${label}`}
             >
               <X className="size-4" />
             </Button>

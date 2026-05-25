@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Checkouts
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-21
+- Last Updated: 2026-05-25
 - Status: Active — V1 Shipped
 - Version: V1
 
@@ -285,6 +285,11 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 5. Add regression coverage for race conditions, partial returns, and permission bypass attempts.
 
 ## Change Log
+- 2026-05-25: Web bug sweep Batch 29. Checkout row overflow and context-menu "Check in" now opens the booking detail sheet directly at the Equipment section instead of dropping operators at the top of the sheet.
+- 2026-05-25: Web bug sweep Batch 28. Booking detail sheet deep links now preserve `sheetTab=equipment|history` through `/bookings` mounted-route handoff, clear the consumed URL parameter, and focus the requested detail section after the sheet data loads.
+- 2026-05-25: Web bug sweep Batch 21. Shared checkout/booking lists now safe-parse list responses, context-menu mutations use a ref-backed duplicate-submit guard, and menu extend actions always release their busy state through `finally`. Full checkout detail actions now also clear action locks through `finally`, expired-session inline saves throw instead of locally patching false success, extend presets safe-parse their settings response, and shared edit/search/date controls expose stable form metadata.
+- 2026-05-24: Web bug sweep Batch 18. Checkout creation, EquipmentPicker search/scan/hydration, event context loading, kit loading, draft resume/save, form-options, booking detail reads, and equipment conflict previews now use shared auth redirects and safe response parsing where applicable. Malformed JSON on checkout create, draft save, and availability check routes now returns 400 before booking, draft, or availability service work.
+- 2026-05-24: Web bug sweep Batch 7. Shared checkout detail sheets now safe-parse detail, form-options, audit-log, edit, equipment-save, and conversion responses, and their mutation handlers use ref-backed guards so stale React state cannot double-submit save, extend, cancel, convert, or admin check-in actions.
 - 2026-05-21: Design language Area 6 shared-component consolidation. Checkout list filters now use `OperationalToolbar`, shared active-filter chips, and 40px shared filter controls instead of the previous route-local card-header filter row.
 - 2026-05-21: Design language Area 5 state/copy audit. Shared booking detail copy now names checkout cancellation, kiosk custody handoff, check-in, equipment-save, and extension consequences instead of using generic failure or yes/no confirmation text.
 - 2026-05-21: Shared checkout `EquipmentPicker` controls now follow the 40px operational target baseline for search clear, scanner close, select-visible, clear-section, bulk quantity, selected-shelf remove, and clear-all actions.

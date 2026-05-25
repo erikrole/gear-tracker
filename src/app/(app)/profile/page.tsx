@@ -16,7 +16,6 @@ export default function ProfileRedirect() {
 
   const { data, error } = useFetch<MeData>({
     url: "/api/me",
-    transform: (json) => json as unknown as MeData,
     refetchOnFocus: false,
   });
 

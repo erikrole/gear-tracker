@@ -1,6 +1,7 @@
 /* ───── Shared types and helpers for booking-list components ───── */
 
 import type { PickerAsset, PickerBulkSku } from "@/components/EquipmentPicker";
+import type { TabKey as BookingSheetSection } from "@/components/booking-details/types";
 import type { BookingKind } from "@/lib/booking-actions";
 
 /* ───── Types ───── */
@@ -49,6 +50,7 @@ export type ContextMenuExtra = {
   kind?: "CHECKOUT" | "RESERVATION";
   danger?: boolean;
   opensSheet?: boolean;
+  sheetTab?: BookingSheetSection;
   handler?: (bookingId: string, items: BookingItem[], reload: () => Promise<void>, setItems?: (updater: (items: BookingItem[]) => BookingItem[]) => void) => void | Promise<void>;
 };
 

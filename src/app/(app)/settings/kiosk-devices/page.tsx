@@ -43,7 +43,7 @@ import {
   WifiOff,
   X,
 } from "lucide-react";
-import { handleAuthRedirect, parseErrorMessage, classifyError, isAbortError } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, classifyError, isAbortError, parseJsonSafely } from "@/lib/errors";
 import { useFetch } from "@/hooks/use-fetch";
 import { formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -125,13 +125,19 @@ export default function KioskDevicesPage() {
     returnTo: "/settings/kiosk-devices",
   });
 
-  const { data: formOptions } = useFetch<{ locations: LocationOption[] }>({
+  const {
+    data: formOptions,
+    loading: formOptionsLoading,
+    error: formOptionsError,
+    reload: reloadFormOptions,
+  } = useFetch<{ locations: LocationOption[] }>({
     url: "/api/form-options",
     returnTo: "/settings/kiosk-devices",
     transform: (json) => (json as Record<string, unknown>).data as { locations: LocationOption[] },
     refetchOnFocus: false,
   });
   const locations = formOptions?.locations ?? [];
+  const locationsUnavailable = formOptionsLoading || Boolean(formOptionsError) || locations.length === 0;
 
   const error: ErrorState | null = fetchError
     ? { type: fetchError, message: fetchError === "network" ? "Could not connect to server" : "Failed to load kiosk devices" }
@@ -151,7 +157,12 @@ export default function KioskDevicesPage() {
       });
       if (handleAuthRedirect(res, "/settings/kiosk-devices")) return;
       if (res.ok) {
-        const json = await res.json();
+        const json = await parseJsonSafely<{ activationCode?: string }>(res);
+        if (!json?.activationCode) {
+          toast.error("Kiosk was created, but the activation code could not be read. Regenerate the code before using the iPad.");
+          load();
+          return;
+        }
         setCodeDialog({ name: trimmedName, code: json.activationCode });
         setShowAdd(false);
         setAddName("");
@@ -217,7 +228,11 @@ export default function KioskDevicesPage() {
       });
       if (handleAuthRedirect(res, "/settings/kiosk-devices")) return;
       if (res.ok) {
-        const json = await res.json();
+        const json = await parseJsonSafely<{ activationCode?: string }>(res);
+        if (!json?.activationCode) {
+          toast.error("New code was generated, but the response could not be read. Try regenerating again.");
+          return;
+        }
         setCodeDialog({ name: device.name, code: json.activationCode });
         toast.success("New activation code generated");
       } else {
@@ -332,11 +347,27 @@ export default function KioskDevicesPage() {
             <CardTitle className="text-base">New Kiosk Device</CardTitle>
           </CardHeader>
           <CardContent>
+            {formOptionsError ? (
+              <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="text-destructive">Locations could not load, so new kiosk devices cannot be assigned yet.</span>
+                  <Button type="button" size="sm" variant="outline" onClick={reloadFormOptions}>
+                    Retry locations
+                  </Button>
+                </div>
+              </div>
+            ) : locations.length === 0 && !formOptionsLoading ? (
+              <div className="mb-4 rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+                Add a location before creating kiosk devices.
+              </div>
+            ) : null}
+
             <form onSubmit={handleAdd} className="flex items-end gap-3">
               <div className="flex-1 space-y-1.5">
                 <Label htmlFor="kiosk-name">Name</Label>
                 <Input
                   id="kiosk-name"
+                  name="kioskName"
                   placeholder="e.g. Video Office iPad"
                   value={addName}
                   onChange={(e) => setAddName(e.target.value)}
@@ -346,11 +377,12 @@ export default function KioskDevicesPage() {
               <div className="flex-1 space-y-1.5">
                 <Label htmlFor="kiosk-location">Location</Label>
                 <Select
+                  name="kioskLocationId"
                   value={addLocationId}
                   onValueChange={setAddLocationId}
-                  disabled={adding}
+                  disabled={adding || locationsUnavailable}
                 >
-                  <SelectTrigger id="kiosk-location">
+                  <SelectTrigger id="kiosk-location" disabled={locationsUnavailable}>
                     <SelectValue placeholder="Select location" />
                   </SelectTrigger>
                   <SelectContent>
@@ -362,7 +394,7 @@ export default function KioskDevicesPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button type="submit" disabled={adding || !addName.trim() || !addLocationId}>
+              <Button type="submit" disabled={adding || locationsUnavailable || !addName.trim() || !addLocationId}>
                 {adding && <Spinner data-icon="inline-start" />}
                 Create
               </Button>
@@ -395,6 +427,20 @@ export default function KioskDevicesPage() {
             <span className="text-sm text-destructive">{error.message}</span>
             <Button variant="outline" className="ml-auto min-h-10" onClick={load}>
               Retry
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {!error && formOptionsError && (
+        <Card className="border-destructive">
+          <CardContent className="flex items-center gap-3 py-4">
+            <AlertTriangle className="size-5 text-destructive" />
+            <span className="text-sm text-destructive">
+              Locations could not load. Kiosk assignment controls are unavailable until locations are readable.
+            </span>
+            <Button variant="outline" className="ml-auto min-h-10" onClick={reloadFormOptions}>
+              Retry locations
             </Button>
           </CardContent>
         </Card>

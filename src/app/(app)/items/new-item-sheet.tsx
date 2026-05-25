@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/sheet";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import ChooseImageModal from "@/components/ChooseImageModal";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 
 import type { NewItemSheetProps, ItemKind } from "./new-item-sheet/types";
 import { SectionHeading, SuccessFlash } from "@/components/form-layout";
@@ -33,6 +33,12 @@ type CreatedHandoff = {
   openLabel: string;
   successMessage: string;
   description: string;
+};
+
+type ItemCreateResponse = {
+  data?: {
+    id?: string;
+  };
 };
 
 function payloadSuccessMessage(label: string, openLabel: string) {
@@ -186,16 +192,17 @@ export function NewItemSheet({
         return;
       }
 
-      const json = await res.json().catch(() => ({}));
+      const json = await parseJsonSafely<ItemCreateResponse>(res);
 
       // For serialized items, show image upload prompt before proceeding
-      if (kind === "standard" && json.data?.id) {
-        setCreatedAssetId(json.data.id);
+      if (kind === "standard" && json?.data?.id) {
+        const createdId = json.data.id;
+        setCreatedAssetId(createdId);
         setImageSearchSeed(searchSeed);
         setCreatedHandoff({
           kind: "standard",
           label,
-          href: `/items/${json.data.id}`,
+          href: `/items/${createdId}`,
           openLabel: "Open item",
           successMessage: `"${label}" created successfully.`,
           description: "Open the item record to finish photos, QR details, policy settings, and booking context.",
@@ -209,7 +216,7 @@ export function NewItemSheet({
         return;
       }
 
-      const bulkId = json.data?.id ?? bulkHandoffHref?.split("/").pop();
+      const bulkId = json?.data?.id ?? bulkHandoffHref?.split("/").pop();
       const handoffHref = bulkId ? `/items/bulk-${bulkId}` : "/items";
       if (addAnother) {
         onCreated();
@@ -280,6 +287,7 @@ export function NewItemSheet({
               <section className="flex flex-col gap-3">
                 <SectionHeading>Tracking style</SectionHeading>
                 <RadioGroup
+                  name="item-kind"
                   value={kind}
                   onValueChange={(v) => {
                     setError("");
@@ -380,6 +388,7 @@ export function NewItemSheet({
               <div className="flex items-center gap-2">
                 <Checkbox
                   id="add-another"
+                  name="addAnother"
                   checked={addAnother}
                   disabled={submitting}
                   onCheckedChange={(v) => setAddAnother(!!v)}

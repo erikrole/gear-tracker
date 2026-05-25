@@ -23,7 +23,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { SPORT_CODES } from "@/lib/sports";
-import { handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 
 type Location = { id: string; name: string };
 type CreatedEvent = { id: string; summary: string };
@@ -38,6 +38,7 @@ const NONE_LOCATION_VALUE = "__none";
 
 function DateTimeField({
   label,
+  fieldId,
   date,
   time,
   allDay,
@@ -46,6 +47,7 @@ function DateTimeField({
   disabled = false,
 }: {
   label: string;
+  fieldId: string;
   date: Date | undefined;
   time: string;
   allDay: boolean;
@@ -55,7 +57,7 @@ function DateTimeField({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <Label>{label}</Label>
+      <Label htmlFor={`${fieldId}-time`}>{label}</Label>
       <div className="flex gap-2">
         <Popover>
           <PopoverTrigger asChild>
@@ -70,6 +72,8 @@ function DateTimeField({
         </Popover>
         {!allDay && (
           <Input
+            id={`${fieldId}-time`}
+            name={`${fieldId}Time`}
             type="time"
             value={time}
             onChange={(e) => onTimeChange(e.target.value)}
@@ -139,7 +143,11 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
           setLocationsError("Locations could not be loaded.");
           return;
         }
-        const json = await res.json();
+        const json = await parseJsonSafely<{ data?: Location[] }>(res);
+        if (!Array.isArray(json?.data)) {
+          setLocationsError("Locations could not be loaded.");
+          return;
+        }
         setLocations(json.data ?? []);
       } catch (err) {
         if (isAbortError(err)) return;
@@ -220,8 +228,13 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
         return;
       }
 
-      const json = await res.json();
-      const event = json.data as CreatedEvent;
+      const json = await parseJsonSafely<{ data?: CreatedEvent }>(res);
+      const event = json?.data;
+      if (!event?.id || !event.summary) {
+        setError("The event was created, but the response could not be read. Refresh the schedule before adding another.");
+        onCreated();
+        return;
+      }
       toast.success(`"${event.summary}" added to schedule`);
       onCreated();
       reset();
@@ -286,6 +299,7 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
             {/* Start / End */}
             <DateTimeField
               label="Start"
+              fieldId="event-start"
               date={startDate}
               time={startTime}
               allDay={allDay}
@@ -299,6 +313,7 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
             />
             <DateTimeField
               label="End"
+              fieldId="event-end"
               date={endDate}
               time={endTime}
               allDay={allDay}

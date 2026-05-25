@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import { BookingKind, BookingStatus } from "@prisma/client";
 
 vi.mock("@/lib/auth", () => ({
@@ -16,11 +17,13 @@ vi.mock("@/lib/audit", () => ({
 
 vi.mock("@/lib/services/notifications", () => ({
   createReservationLifecycleNotification: vi.fn(),
+  notifyLowStock: vi.fn(),
 }));
 
 import { requireAuth } from "@/lib/auth";
-import { listBookings } from "@/lib/services/bookings";
-import { GET as getReservations } from "@/app/api/reservations/route";
+import { createBooking, listBookings } from "@/lib/services/bookings";
+import { POST as postCheckouts } from "@/app/api/checkouts/route";
+import { GET as getReservations, POST as postReservations } from "@/app/api/reservations/route";
 
 const adminUser = {
   id: "admin-1",
@@ -42,6 +45,18 @@ function get(path: string) {
   return new Request(`https://app.example.com${path}`, {
     method: "GET",
     headers: { host: "app.example.com" },
+  });
+}
+
+function malformedPost(path: string) {
+  return new Request(`https://app.example.com${path}`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      host: "app.example.com",
+      origin: "https://app.example.com",
+    },
+    body: "{not-json",
   });
 }
 
@@ -91,6 +106,16 @@ describe("booking list routes", () => {
     );
   });
 
+  it("keeps report overdue drill-down links on the special filter parameter", () => {
+    const checkoutsReport = readFileSync("src/app/(app)/reports/checkouts/page.tsx", "utf8");
+    const overdueReport = readFileSync("src/app/(app)/reports/overdue/page.tsx", "utf8");
+
+    expect(checkoutsReport).toContain('href="/checkouts?filter=overdue"');
+    expect(overdueReport).toContain('href="/checkouts?filter=overdue"');
+    expect(checkoutsReport).not.toContain("status=overdue");
+    expect(overdueReport).not.toContain("status=overdue");
+  });
+
   it("keeps student reservation list scope pinned to the student while applying special filters", async () => {
     vi.mocked(requireAuth).mockResolvedValue(studentUser);
 
@@ -109,5 +134,29 @@ describe("booking list routes", () => {
       }),
       "student-1",
     );
+  });
+
+  it("rejects malformed checkout create JSON before creating a booking", async () => {
+    const res = await postCheckouts(
+      malformedPost("/api/checkouts"),
+      { params: Promise.resolve({}) },
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("Request body must be valid JSON");
+    expect(createBooking).not.toHaveBeenCalled();
+  });
+
+  it("rejects malformed reservation create JSON before creating a booking", async () => {
+    const res = await postReservations(
+      malformedPost("/api/reservations"),
+      { params: Promise.resolve({}) },
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("Request body must be valid JSON");
+    expect(createBooking).not.toHaveBeenCalled();
   });
 });

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { ok, parsePagination } from "@/lib/http";
+import { HttpError, ok, parsePagination } from "@/lib/http";
 import { createAuditEntry } from "@/lib/audit";
 
 const patchNotificationSchema = z.object({
@@ -37,7 +37,14 @@ export const GET = withAuth(async (req, { user }) => {
 });
 
 export const PATCH = withAuth(async (req, { user }) => {
-  const body = patchNotificationSchema.parse(await req.json());
+  let rawBody: unknown;
+  try {
+    rawBody = await req.json();
+  } catch {
+    throw new HttpError(400, "Request body must be valid JSON");
+  }
+
+  const body = patchNotificationSchema.parse(rawBody);
 
   if (body.action === "mark_all_read") {
     const result = await db.notification.updateMany({
@@ -55,10 +62,14 @@ export const PATCH = withAuth(async (req, { user }) => {
     return ok({ success: true });
   }
 
-  await db.notification.updateMany({
+  const result = await db.notification.updateMany({
     where: { id: body.id!, userId: user.id },
     data: { readAt: new Date() }
   });
+  if (result.count === 0) {
+    throw new HttpError(404, "Notification not found");
+  }
+
   await createAuditEntry({
     actorId: user.id,
     actorRole: user.role,

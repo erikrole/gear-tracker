@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeftRightIcon,
@@ -23,7 +23,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFetch } from "@/hooks/use-fetch";
-import { handleAuthRedirect } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { PageHeader } from "@/components/PageHeader";
 import { FadeUp } from "@/components/ui/motion";
 import { Item, ItemMedia, ItemContent, ItemTitle, ItemDescription, ItemActions } from "@/components/ui/item";
@@ -165,6 +165,9 @@ export default function NotificationsPage() {
   const [processing, setProcessing] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
   const [markingId, setMarkingId] = useState<string | null>(null);
+  const processingRef = useRef(false);
+  const markingAllRef = useRef(false);
+  const markingIdsRef = useRef(new Set<string>());
 
   // URL-synced filters
   const [page, setPage] = useUrlState<number>(
@@ -224,6 +227,8 @@ export default function NotificationsPage() {
   );
 
   async function markAllRead() {
+    if (markingAllRef.current) return;
+    markingAllRef.current = true;
     setMarkingAll(true);
 
     // Save previous state for rollback
@@ -247,19 +252,26 @@ export default function NotificationsPage() {
       });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
+        const message = await parseErrorMessage(res, "Failed to mark notifications as read");
         // Rollback on server error
         if (prevData) queryClient.setQueryData(queryKey, prevData);
-        toast.error("Failed to mark notifications as read. Please try again.");
+        toast.error(message);
       }
-    } catch {
+    } catch (err) {
       // Rollback on network error
       if (prevData) queryClient.setQueryData(queryKey, prevData);
-      toast.error("Failed to mark notifications as read. Please try again.");
+      toast.error(err instanceof TypeError
+        ? "You’re offline. Check your connection."
+        : "Failed to mark notifications as read. Please try again.");
+    } finally {
+      markingAllRef.current = false;
+      setMarkingAll(false);
     }
-    setMarkingAll(false);
   }
 
   async function markRead(id: string) {
+    if (markingIdsRef.current.has(id)) return;
+    markingIdsRef.current.add(id);
     setMarkingId(id);
 
     // Save previous state for rollback
@@ -283,31 +295,50 @@ export default function NotificationsPage() {
       });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
+        const message = await parseErrorMessage(res, "Failed to mark notification as read");
         // Rollback on server error
         if (prevData) queryClient.setQueryData(queryKey, prevData);
-        toast.error("Failed to mark notification as read. Please try again.");
+        toast.error(message);
       }
-    } catch {
+    } catch (err) {
       // Rollback on network error
       if (prevData) queryClient.setQueryData(queryKey, prevData);
-      toast.error("Failed to mark notification as read. Please try again.");
+      toast.error(err instanceof TypeError
+        ? "You’re offline. Check your connection."
+        : "Failed to mark notification as read. Please try again.");
+    } finally {
+      markingIdsRef.current.delete(id);
+      setMarkingId(null);
     }
-    setMarkingId(null);
   }
 
   async function runProcessing() {
+    if (processingRef.current) return;
+    processingRef.current = true;
     setProcessing(true);
     try {
       const res = await fetch("/api/notifications/process", {
         method: "POST",
       });
-      if (res.ok) {
-        toast.success("Overdue check complete");
-        reload();
-      } else {
-        toast.error("Failed to process overdue notifications");
+      if (handleAuthRedirect(res, "/notifications")) return;
+      if (!res.ok) {
+        toast.error(await parseErrorMessage(res, "Failed to process overdue notifications"));
+        return;
       }
+      const json = await parseJsonSafely<{ scanned?: number; notificationsCreated?: number }>(res);
+      const created = json?.notificationsCreated ?? 0;
+      toast.success(
+        created > 0
+          ? `Overdue check complete: ${created} notification${created === 1 ? "" : "s"} created.`
+          : "Overdue check complete: no new notifications.",
+      );
+      reload();
+    } catch (err) {
+      toast.error(err instanceof TypeError
+        ? "You’re offline. Check your connection."
+        : "Failed to process overdue notifications");
     } finally {
+      processingRef.current = false;
       setProcessing(false);
     }
   }

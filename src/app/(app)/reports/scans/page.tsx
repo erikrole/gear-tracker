@@ -132,14 +132,21 @@ export default function ScanHistoryPage() {
   }, []);
 
   useEffect(() => {
+    const nextPage = parsePageParam(searchParams.get("page"));
+    const nextPhase = parsePhaseParam(searchParams.get("phase"));
+    const nextPeriod = parsePeriodParam(searchParams.get("period"));
+    setPage((current) => (current === nextPage ? current : nextPage));
+    setPhaseFilter((current) => (current === nextPhase ? current : nextPhase));
+    setPeriodDays((current) => (current === nextPeriod ? current : nextPeriod));
+
     const corrections: Record<string, string | number> = {};
-    if (searchParams.get("page") && parsePageParam(searchParams.get("page")) === 0) {
+    if (searchParams.get("page") && nextPage === 0) {
       corrections.page = "";
     }
-    if (searchParams.get("phase") && parsePhaseParam(searchParams.get("phase")) === PHASE_ALL) {
+    if (searchParams.get("phase") && nextPhase === PHASE_ALL) {
       corrections.phase = "";
     }
-    if (searchParams.get("period") && parsePeriodParam(searchParams.get("period")) === 0) {
+    if (searchParams.get("period") && nextPeriod === 0) {
       corrections.period = "";
     }
     if (Object.keys(corrections).length > 0) {

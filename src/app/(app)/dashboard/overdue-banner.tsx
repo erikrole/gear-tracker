@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AlertTriangleIcon, BellRingIcon, CheckIcon, ExternalLinkIcon } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { formatOverdueElapsed } from "@/lib/format";
@@ -13,7 +13,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { handleAuthRedirect } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import type { OverdueItem } from "../dashboard-types";
 import Link from "next/link";
 
@@ -28,23 +28,26 @@ type Props = {
 export function OverdueBanner({ overdueCount, overdueItems, now, onSelectBooking, canAction = true }: Props) {
   const [nudgedIds, setNudgedIds] = useState<Set<string>>(new Set());
   const [nudgingId, setNudgingId] = useState<string | null>(null);
+  const nudgeBusyRef = useRef(false);
 
   async function handleNudge(bookingId: string) {
-    if (nudgingId) return;
+    if (nudgeBusyRef.current) return;
+    nudgeBusyRef.current = true;
     setNudgingId(bookingId);
     try {
       const res = await fetch(`/api/bookings/${bookingId}/nudge`, { method: "POST" });
       if (handleAuthRedirect(res, "/")) return;
       if (!res.ok) {
-        const json = await res.json().catch(() => null);
-        toast.error(json?.error ?? "Failed to send nudge");
+        const message = await parseErrorMessage(res, "Failed to send nudge");
+        toast.error(message);
         return;
       }
       setNudgedIds((prev) => new Set(prev).add(bookingId));
       toast.success("Nudge sent");
     } catch {
-      toast.error("Network error — couldn't send nudge");
+      toast.error("Network error. Couldn't send nudge.");
     } finally {
+      nudgeBusyRef.current = false;
       setNudgingId(null);
     }
   }

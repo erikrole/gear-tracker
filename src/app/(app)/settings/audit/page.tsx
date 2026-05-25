@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { handleAuthRedirect, classifyError, isAbortError } from "@/lib/errors";
+import { handleAuthRedirect, classifyError, isAbortError, parseJsonSafely } from "@/lib/errors";
 import { SettingsPageShell } from "../SettingsPageShell";
 
 type AuditActor = { id: string; name: string; email: string } | null;
@@ -92,7 +92,11 @@ export default function AuditLogPage() {
       const res = await fetch(buildUrl("/api/audit", appliedFilters));
       if (handleAuthRedirect(res, "/settings/audit")) return;
       if (!res.ok) { setError("server"); return; }
-      const json: { data: AuditRow[]; nextCursor: string | null; hasMore: boolean; retentionDays: number } = await res.json();
+      const json = await parseJsonSafely<AuditResponse>(res);
+      if (!Array.isArray(json?.data)) {
+        setError("server");
+        return;
+      }
       setRows(json.data);
       setNextCursor(json.nextCursor);
       setRetentionDays(json.retentionDays);
@@ -114,7 +118,8 @@ export default function AuditLogPage() {
     try {
       const res = await fetch(buildUrl("/api/audit", filters, { after, limit: "100" }));
       if (!res.ok) return;
-      const json: AuditResponse = await res.json();
+      const json = await parseJsonSafely<AuditResponse>(res);
+      if (!Array.isArray(json?.data)) return;
       if (json.data.length === 0) return;
       setRows((prev) => [...json.data, ...prev]);
       const newest = json.data[0];
@@ -138,8 +143,13 @@ export default function AuditLogPage() {
     setLoadingMore(true);
     try {
       const res = await fetch(buildUrl("/api/audit", filters, { cursor: nextCursor }));
+      if (handleAuthRedirect(res, "/settings/audit")) return;
       if (!res.ok) { toast.error("Failed to load more entries."); return; }
-      const json: AuditResponse = await res.json();
+      const json = await parseJsonSafely<AuditResponse>(res);
+      if (!Array.isArray(json?.data)) {
+        toast.error("Failed to load more entries.");
+        return;
+      }
       setRows((prev) => [...prev, ...json.data]);
       setNextCursor(json.nextCursor);
     } catch (err) {
@@ -179,8 +189,10 @@ export default function AuditLogPage() {
       <div className="rounded-md border border-border bg-muted/30 p-3 space-y-3">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="space-y-1">
-            <Label className="text-xs">Entity type</Label>
+            <Label htmlFor="audit-entity-type" className="text-xs">Entity type</Label>
             <Input
+              id="audit-entity-type"
+              name="entityType"
               placeholder="e.g. Item, User"
               value={draftFilters.entityType}
               onChange={(e) => setDraftFilters((d) => ({ ...d, entityType: e.target.value }))}
@@ -188,8 +200,10 @@ export default function AuditLogPage() {
             />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">Action contains</Label>
+            <Label htmlFor="audit-action" className="text-xs">Action contains</Label>
             <Input
+              id="audit-action"
+              name="action"
               placeholder="e.g. create, update"
               value={draftFilters.action}
               onChange={(e) => setDraftFilters((d) => ({ ...d, action: e.target.value }))}
@@ -197,8 +211,10 @@ export default function AuditLogPage() {
             />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">From</Label>
+            <Label htmlFor="audit-from" className="text-xs">From</Label>
             <Input
+              id="audit-from"
+              name="from"
               type="date"
               value={draftFilters.from}
               onChange={(e) => setDraftFilters((d) => ({ ...d, from: e.target.value }))}
@@ -206,8 +222,10 @@ export default function AuditLogPage() {
             />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">To</Label>
+            <Label htmlFor="audit-to" className="text-xs">To</Label>
             <Input
+              id="audit-to"
+              name="to"
               type="date"
               value={draftFilters.to}
               onChange={(e) => setDraftFilters((d) => ({ ...d, to: e.target.value }))}

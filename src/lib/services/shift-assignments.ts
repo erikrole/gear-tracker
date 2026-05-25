@@ -1,7 +1,8 @@
-import { Prisma, ShiftAssignmentStatus } from "@prisma/client";
+import { Prisma, Role, ShiftArea, ShiftAssignmentStatus, ShiftWorkerType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
+import { shiftWorkerTypeForRole } from "@/lib/shift-display";
 
 function effectiveShiftWindow(shift: {
   startsAt: Date;
@@ -13,6 +14,59 @@ function effectiveShiftWindow(shift: {
     startsAt: shift.callStartsAt ?? shift.startsAt,
     endsAt: shift.callEndsAt ?? shift.endsAt,
   };
+}
+
+async function resolveAssignableShiftForUser(
+  tx: Prisma.TransactionClient,
+  shift: {
+    id: string;
+    shiftGroupId: string;
+    area: ShiftArea;
+    workerType: ShiftWorkerType;
+    startsAt: Date;
+    endsAt: Date;
+    callStartsAt?: Date | null;
+    callEndsAt?: Date | null;
+  },
+  userRole: Role,
+) {
+  const targetWorkerType = shiftWorkerTypeForRole(userRole);
+  if (targetWorkerType === shift.workerType) return shift;
+
+  const compatibleOpenShift = await tx.shift.findFirst({
+    where: {
+      shiftGroupId: shift.shiftGroupId,
+      area: shift.area,
+      workerType: targetWorkerType,
+      assignments: {
+        none: {
+          status: { in: ACTIVE_ASSIGNMENT_STATUSES as ShiftAssignmentStatus[] },
+        },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  if (compatibleOpenShift) return compatibleOpenShift;
+
+  const createdShift = await tx.shift.create({
+    data: {
+      shiftGroupId: shift.shiftGroupId,
+      area: shift.area,
+      workerType: targetWorkerType,
+      startsAt: shift.startsAt,
+      endsAt: shift.endsAt,
+      callStartsAt: shift.callStartsAt,
+      callEndsAt: shift.callEndsAt,
+    },
+  });
+
+  await tx.shiftGroup.update({
+    where: { id: shift.shiftGroupId },
+    data: { manuallyEdited: true },
+  });
+
+  return createdShift;
 }
 
 /**
@@ -67,10 +121,18 @@ export async function directAssignShift(
   return db.$transaction(async (tx) => {
     const shift = await tx.shift.findUnique({ where: { id: shiftId } });
     if (!shift) throw new HttpError(404, "Shift not found");
+    const assignee = await tx.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true, active: true },
+    });
+    if (!assignee) throw new HttpError(404, "User not found");
+    if (!assignee.active) throw new HttpError(400, "Cannot assign an inactive user");
+
+    const targetShift = await resolveAssignableShiftForUser(tx, shift, assignee.role);
 
     // Check for existing active assignment on this shift
     const existing = await tx.shiftAssignment.findFirst({
-      where: { shiftId, status: { in: ACTIVE_ASSIGNMENT_STATUSES as ShiftAssignmentStatus[] } },
+      where: { shiftId: targetShift.id, status: { in: ACTIVE_ASSIGNMENT_STATUSES as ShiftAssignmentStatus[] } },
     });
     if (existing) {
       throw new HttpError(409, "This shift already has an active assignment");
@@ -78,15 +140,15 @@ export async function directAssignShift(
 
     // Check for time conflicts with the user's other shifts
     const conflictWindow = {
-      startsAt: opts.callStartsAt ?? effectiveShiftWindow(shift).startsAt,
-      endsAt: opts.callEndsAt ?? effectiveShiftWindow(shift).endsAt,
+      startsAt: opts.callStartsAt ?? effectiveShiftWindow(targetShift).startsAt,
+      endsAt: opts.callEndsAt ?? effectiveShiftWindow(targetShift).endsAt,
     };
     await checkTimeConflict(tx, userId, conflictWindow.startsAt, conflictWindow.endsAt);
 
     // Decline any pending requests — slot is being filled by direct assignment
     await tx.shiftAssignment.updateMany({
       where: {
-        shiftId,
+        shiftId: targetShift.id,
         status: "REQUESTED",
       },
       data: { status: "DECLINED" },
@@ -94,7 +156,7 @@ export async function directAssignShift(
 
     const assignment = await tx.shiftAssignment.create({
       data: {
-        shiftId,
+        shiftId: targetShift.id,
         userId,
         status: "DIRECT_ASSIGNED",
         assignedBy,

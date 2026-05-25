@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Plus, Star, Trash2, AlertCircle } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/popover";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import EmptyState from "@/components/EmptyState";
 
 /* ── Types ──────────────────────────────────────────────── */
@@ -46,6 +46,16 @@ type RosterEntry = {
   user: { id: string; name: string; role: string; primaryArea: string | null };
 };
 
+const USER_ROLE_LABELS: Record<string, string> = {
+  ADMIN: "Admin",
+  STAFF: "Staff",
+  STUDENT: "Student",
+};
+
+function userRoleLabel(role: string) {
+  return USER_ROLE_LABELS[role] ?? role;
+}
+
 /* ── Roster picker ──────────────────────────────────────── */
 
 function RosterPicker({
@@ -64,8 +74,15 @@ function RosterPicker({
   const [adding, setAdding] = useState<string | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
   const [localRoster, setLocalRoster] = useState<RosterEntry[] | null>(null);
+  const addingRef = useRef(new Set<string>());
+  const togglingRef = useRef(new Set<string>());
 
-  const { data: fetchedRoster, loading } = useFetch<RosterEntry[]>({
+  const {
+    data: fetchedRoster,
+    loading,
+    error: rosterError,
+    reload: reloadRoster,
+  } = useFetch<RosterEntry[]>({
     url: `/api/sport-configs/${sportCode}/roster`,
     transform: (json) => (json.data as RosterEntry[]) ?? [],
   });
@@ -86,6 +103,8 @@ function RosterPicker({
   });
 
   async function handleAdd(userId: string) {
+    if (addingRef.current.has(userId)) return;
+    addingRef.current.add(userId);
     setAdding(userId);
     try {
       const res = await fetch(`/api/calendar-events/${eventId}/travel`, {
@@ -99,17 +118,24 @@ function RosterPicker({
         toast.error(msg);
         return;
       }
-      const json = await res.json();
+      const json = await parseJsonSafely<{ data?: TravelMember }>(res);
+      if (!json?.data) {
+        toast.error("Traveler was added, but the response was incomplete. Refresh and try again.");
+        return;
+      }
       onAdded(json.data);
       onClose();
-    } catch {
-      toast.error("Network error");
+    } catch (err) {
+      toast.error(err instanceof TypeError ? "You’re offline. Check your connection." : "Failed to add traveler");
     } finally {
+      addingRef.current.delete(userId);
       setAdding(null);
     }
   }
 
   async function handleToggleDefault(entry: RosterEntry) {
+    if (togglingRef.current.has(entry.id)) return;
+    togglingRef.current.add(entry.id);
     setToggling(entry.id);
     try {
       const res = await fetch(`/api/sport-configs/${sportCode}/roster`, {
@@ -119,7 +145,7 @@ function RosterPicker({
       });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
-        toast.error("Failed to update");
+        toast.error(await parseErrorMessage(res, "Failed to update default traveler"));
         return;
       }
       setLocalRoster((prev) =>
@@ -127,9 +153,10 @@ function RosterPicker({
           r.id === entry.id ? { ...r, defaultTraveler: !entry.defaultTraveler } : r
         )
       );
-    } catch {
-      toast.error("Network error");
+    } catch (err) {
+      toast.error(err instanceof TypeError ? "You’re offline. Check your connection." : "Failed to update default traveler");
     } finally {
+      togglingRef.current.delete(entry.id);
       setToggling(null);
     }
   }
@@ -139,6 +166,21 @@ function RosterPicker({
       <div className="p-2 space-y-2">
         {[0, 1, 2].map((i) => <Skeleton key={i} className="h-8 w-full" />)}
       </div>
+    );
+  }
+
+  if (rosterError) {
+    return (
+      <Alert variant="destructive" className="m-1">
+        <AlertCircle className="size-4" />
+        <AlertTitle>Failed to load roster</AlertTitle>
+        <AlertDescription className="mt-2 flex flex-col gap-2 text-sm">
+          <span>Sport roster members could not load, so travelers cannot be added yet.</span>
+          <Button variant="outline" size="sm" onClick={reloadRoster} className="w-fit">
+            Retry roster
+          </Button>
+        </AlertDescription>
+      </Alert>
     );
   }
 
@@ -173,7 +215,7 @@ function RosterPicker({
                       ? "text-amber-400 hover:text-amber-500"
                       : "text-muted-foreground/30 hover:text-muted-foreground"
                   }`}
-                  aria-label={entry.defaultTraveler ? "Remove default traveler" : "Mark as default traveler"}
+                  aria-label={entry.defaultTraveler ? `Remove ${entry.user.name} as default traveler` : `Mark ${entry.user.name} as default traveler`}
                 >
                   <Star className="size-3.5" fill={entry.defaultTraveler ? "currentColor" : "none"} />
                 </Button>
@@ -184,7 +226,7 @@ function RosterPicker({
             </Tooltip>
             <span className="text-sm truncate">{entry.user.name}</span>
             <Badge variant="gray" className="text-[10px] h-4 px-1 shrink-0">
-              {entry.user.role}
+              {userRoleLabel(entry.user.role)}
             </Badge>
           </div>
           <Button
@@ -193,6 +235,7 @@ function RosterPicker({
             className="ml-2 h-10 shrink-0 px-3 text-xs"
             onClick={() => handleAdd(entry.userId)}
             disabled={adding !== null}
+            aria-label={`Add ${entry.user.name} to travel roster`}
           >
             {adding === entry.userId ? "..." : "Add"}
           </Button>
@@ -216,6 +259,7 @@ export function EventTravelCard({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [localMembers, setLocalMembers] = useState<TravelMember[] | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
+  const removingRef = useRef(new Set<string>());
 
   const {
     data: fetchedMembers,
@@ -241,6 +285,8 @@ export function EventTravelCard({
   }
 
   async function handleRemove(memberId: string) {
+    if (removingRef.current.has(memberId)) return;
+    removingRef.current.add(memberId);
     setRemoving(memberId);
     try {
       const res = await fetch(`/api/calendar-events/${eventId}/travel/${memberId}`, {
@@ -253,9 +299,10 @@ export function EventTravelCard({
         return;
       }
       setLocalMembers((prev) => (prev ?? fetchedMembers ?? []).filter((m) => m.id !== memberId));
-    } catch {
-      toast.error("Network error");
+    } catch (err) {
+      toast.error(err instanceof TypeError ? "You’re offline. Check your connection." : "Failed to remove traveler");
     } finally {
+      removingRef.current.delete(memberId);
       setRemoving(null);
     }
   }
@@ -326,7 +373,7 @@ export function EventTravelCard({
                   />
                   <span className="text-sm truncate">{m.user.name}</span>
                   <Badge variant="gray" className="text-[10px] h-4 px-1 shrink-0">
-                    {m.user.role}
+                    {userRoleLabel(m.user.role)}
                   </Badge>
                 </div>
                 {isStaff && (
@@ -337,7 +384,7 @@ export function EventTravelCard({
                     onClick={() => handleRemove(m.id)}
                     disabled={removing === m.id}
                     className="size-10 shrink-0 text-muted-foreground hover:text-destructive"
-                    aria-label="Remove from travel roster"
+                    aria-label={`Remove ${m.user.name} from travel roster`}
                   >
                     <Trash2 className="size-3.5" />
                   </Button>

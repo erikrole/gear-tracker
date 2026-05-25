@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useEffect, useRef, useState, type ComponentType } from "react";
 import type { UserDetail, Location, Role } from "../types";
 import { deriveStudentYear, STUDENT_YEAR_OPTIONS } from "../types";
@@ -62,7 +62,8 @@ import { badgeRarityVariant, customBadgeIconOptions, getBadgeRarity, manualAward
 import { cn } from "@/lib/utils";
 import { formatDateFull } from "@/lib/format";
 import { FadeUp } from "@/components/ui/motion";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
+import { useUrlState } from "@/hooks/use-url-state";
 
 /* ── Tab Definitions ───────────────────────────────────── */
 
@@ -78,6 +79,23 @@ type BadgeDefinitionOption = {
   kind: string;
   trigger: string;
   threshold: number | null;
+};
+
+type ApiEnvelope<T> = {
+  data?: T;
+  error?: string;
+};
+
+type AvatarResponse = {
+  avatarUrl?: string | null;
+};
+
+type PasswordResetResponse = {
+  temporaryPassword?: string | null;
+};
+
+type AwardResponse = {
+  definition?: BadgeDefinitionOption;
 };
 
 const customIconMap: Record<string, ComponentType<{ className?: string }>> = {
@@ -190,6 +208,14 @@ const tabDefs: Array<{ key: TabKey; label: string }> = [
   { key: "badges", label: "Badges" },
 ];
 
+function parseUserDetailTab(raw: string | null): TabKey {
+  return tabDefs.some((tab) => tab.key === raw) ? (raw as TabKey) : "info";
+}
+
+function serializeDetailTab(tab: TabKey): string | null {
+  return tab === "info" ? null : tab;
+}
+
 async function resizeAvatarFile(file: File): Promise<File> {
   if (file.type === "image/gif" || !file.type.startsWith("image/")) return file;
 
@@ -233,13 +259,9 @@ async function resizeAvatarFile(file: File): Promise<File> {
 
 export default function UserDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const searchParams = useSearchParams();
   const { setBreadcrumbLabel } = useBreadcrumbLabel();
 
-  const initialTab = (searchParams.get("tab") as TabKey) || "info";
-  const [activeTab, setActiveTab] = useState<TabKey>(
-    tabDefs.some((tab) => tab.key === initialTab) ? initialTab : "info",
-  );
+  const [activeTab, setActiveTab] = useUrlState<TabKey>("tab", parseUserDetailTab, serializeDetailTab);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [togglingActive, setTogglingActive] = useState(false);
   const [resetPwDialog, setResetPwDialog] = useState(false);
@@ -257,6 +279,10 @@ export default function UserDetailPage() {
   const [awardBusy, setAwardBusy] = useState(false);
   const [badgesTabRevision, setBadgesTabRevision] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const avatarBusyRef = useRef(false);
+  const activeBusyRef = useRef(false);
+  const resetBusyRef = useRef(false);
+  const awardBusyRef = useRef(false);
   const confirm = useConfirm();
 
   // ── Data fetching via useFetch ──
@@ -282,7 +308,12 @@ export default function UserDetailPage() {
   const currentUserId = meData?.id ?? null;
   const currentUserRole = meData?.role ?? null;
 
-  const { data: formOptions } = useFetch<{ locations: Location[] }>({
+  const {
+    data: formOptions,
+    loading: formOptionsLoading,
+    error: formOptionsError,
+    reload: reloadFormOptions,
+  } = useFetch<{ locations: Location[] }>({
     url: "/api/form-options",
     transform: (json) => (json as Record<string, unknown>).data as { locations: Location[] },
     refetchOnFocus: false,
@@ -300,19 +331,17 @@ export default function UserDetailPage() {
 
   function switchTab(tab: TabKey) {
     setActiveTab(tab);
-    const url = new URL(window.location.href);
-    if (tab === "info") url.searchParams.delete("tab");
-    else url.searchParams.set("tab", tab);
-    window.history.replaceState({}, "", url.toString());
   }
 
   useEffect(() => {
     if (user && user.role !== "STUDENT" && activeTab === "availability") {
-      switchTab("info");
+      setActiveTab("info");
     }
-  }, [activeTab, user]);
+  }, [activeTab, setActiveTab, user]);
 
   async function uploadAvatar(file: File) {
+    if (avatarBusyRef.current) return;
+    avatarBusyRef.current = true;
     setUploadingAvatar(true);
     try {
       const uploadFile = await resizeAvatarFile(file);
@@ -324,18 +353,20 @@ export default function UserDetailPage() {
         const msg = await parseErrorMessage(res, "Failed to upload avatar");
         toast.error(msg);
       } else {
-        const json = await res.json();
-        setUserOverrides((prev) => ({ ...prev, avatarUrl: json.data?.avatarUrl ?? null }));
+        const json = await parseJsonSafely<ApiEnvelope<AvatarResponse>>(res);
+        setUserOverrides((prev) => ({ ...prev, avatarUrl: json?.data?.avatarUrl ?? null }));
         toast.success("Profile photo updated");
       }
     } catch {
       toast.error("Network error");
     } finally {
+      avatarBusyRef.current = false;
       setUploadingAvatar(false);
     }
   }
 
   async function removeAvatar() {
+    if (avatarBusyRef.current) return;
     const ok = await confirm({
       title: `Remove ${effectiveUser?.name ? effectiveUser.name + "'s " : ""}photo?`,
       message: "The current profile photo will be deleted permanently. A new one can be uploaded anytime.",
@@ -346,14 +377,15 @@ export default function UserDetailPage() {
     // Optimistic: remove avatar immediately, rollback on failure
     const previousUrl = effectiveUser?.avatarUrl ?? null;
     setUserOverrides((prev) => ({ ...prev, avatarUrl: null }));
+    avatarBusyRef.current = true;
     setUploadingAvatar(true);
     try {
       const res = await fetch(`/api/users/${id}/avatar`, { method: "DELETE" });
       if (handleAuthRedirect(res)) return;
-      const json = await res.json();
       if (!res.ok) {
         setUserOverrides((prev) => ({ ...prev, avatarUrl: previousUrl }));
-        toast.error(json.error || "Failed to remove avatar");
+        const msg = await parseErrorMessage(res, "Failed to remove avatar");
+        toast.error(msg);
       } else {
         toast.success("Profile photo removed");
       }
@@ -361,12 +393,14 @@ export default function UserDetailPage() {
       setUserOverrides((prev) => ({ ...prev, avatarUrl: previousUrl }));
       toast.error("Network error");
     } finally {
+      avatarBusyRef.current = false;
       setUploadingAvatar(false);
     }
   }
 
   async function toggleActive() {
-    if (!effectiveUser || togglingActive) return;
+    if (!effectiveUser || activeBusyRef.current) return;
+    activeBusyRef.current = true;
     setTogglingActive(true);
     const newActive = !effectiveUser.active;
     setUserOverrides((prev) => ({ ...prev, active: newActive }));
@@ -388,26 +422,32 @@ export default function UserDetailPage() {
       setUserOverrides((prev) => ({ ...prev, active: !newActive }));
       toast.error("Network error");
     } finally {
+      activeBusyRef.current = false;
       setTogglingActive(false);
     }
   }
 
   async function handlePasswordReset() {
+    if (resetBusyRef.current) return;
+    resetBusyRef.current = true;
     setResetBusy(true);
     try {
       const res = await fetch(`/api/users/${id}/reset-password`, { method: "POST" });
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) {
         const msg = await parseErrorMessage(res, "Password reset failed");
         toast.error(msg);
       } else {
-        const json = await res.json();
-        setTempPassword(json.data?.temporaryPassword ?? null);
+        const json = await parseJsonSafely<ApiEnvelope<PasswordResetResponse>>(res);
+        setTempPassword(json?.data?.temporaryPassword ?? null);
         toast.success("Password reset successfully");
       }
     } catch {
       toast.error("Network error");
+    } finally {
+      resetBusyRef.current = false;
+      setResetBusy(false);
     }
-    setResetBusy(false);
   }
 
   async function openManualAwardDialog() {
@@ -423,13 +463,14 @@ export default function UserDetailPage() {
     try {
       const res = await fetch("/api/badges?manualOnly=true");
       if (handleAuthRedirect(res)) return;
-      const json = await res.json();
       if (!res.ok) {
-        toast.error(json.error || "Failed to load badges");
+        const msg = await parseErrorMessage(res, "Failed to load badges");
+        toast.error(msg);
         setAwardDefinitions([]);
         return;
       }
-      const definitions = (json.data ?? []) as BadgeDefinitionOption[];
+      const json = await parseJsonSafely<ApiEnvelope<BadgeDefinitionOption[]>>(res);
+      const definitions = json?.data ?? [];
       setAwardDefinitions(definitions);
       setSelectedAwardDefinitionId((prev) => prev || definitions[0]?.id || "");
       if (definitions.length === 0) {
@@ -447,13 +488,14 @@ export default function UserDetailPage() {
   async function handleManualAward() {
     const customName = customAwardName.trim();
     const customDescription = customAwardDescription.trim();
-    if (awardBusy) return;
+    if (awardBusyRef.current) return;
     if (awardMode === "existing" && !selectedAwardDefinitionId) return;
     if (awardMode === "custom" && (!customName || !customDescription)) {
       toast.error("Name and description are required for custom badges");
       return;
     }
 
+    awardBusyRef.current = true;
     setAwardBusy(true);
     try {
       const res = await fetch("/api/badges/award", {
@@ -481,8 +523,8 @@ export default function UserDetailPage() {
         toast.error(msg);
         return;
       }
-      const json = await res.json();
-      const awardedDefinition = json.data?.definition as BadgeDefinitionOption | undefined;
+      const json = await parseJsonSafely<ApiEnvelope<AwardResponse>>(res);
+      const awardedDefinition = json?.data?.definition;
       if (awardedDefinition) {
         setAwardDefinitions((prev) => {
           if (!prev) return prev;
@@ -505,6 +547,7 @@ export default function UserDetailPage() {
     } catch {
       toast.error("Network error");
     } finally {
+      awardBusyRef.current = false;
       setAwardBusy(false);
     }
   }
@@ -990,6 +1033,9 @@ export default function UserDetailPage() {
         <UserInfoTab
           user={user}
           locations={locations}
+          locationsLoading={formOptionsLoading}
+          locationsError={Boolean(formOptionsError)}
+          onRetryLocations={reloadFormOptions}
           currentUserRole={currentUserRole}
           isSelf={isSelf}
           onUpdated={loadUser}

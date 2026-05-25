@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { PlusIcon } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
@@ -25,6 +25,8 @@ export default function BulkSkuUnitsTab({
   const [addingUnits, setAddingUnits] = useState(false);
   const [addCount, setAddCount] = useState(10);
   const [busy, setBusy] = useState(false);
+  const addBusyRef = useRef(false);
+  const statusBusyRef = useRef(new Set<string>());
 
   const units = sku.units ?? [];
   const available = units.filter((u) => u.status === "AVAILABLE").length;
@@ -33,6 +35,9 @@ export default function BulkSkuUnitsTab({
   const retired = units.filter((u) => u.status === "RETIRED").length;
 
   async function handleStatusChange(unitNumber: number, newStatus: "AVAILABLE" | "LOST" | "RETIRED") {
+    const key = `${unitNumber}:${newStatus}`;
+    if (statusBusyRef.current.has(key)) return;
+    statusBusyRef.current.add(key);
     try {
       const res = await fetch(`/api/bulk-skus/${sku.id}/units/${unitNumber}`, {
         method: "PATCH",
@@ -42,13 +47,17 @@ export default function BulkSkuUnitsTab({
       if (handleAuthRedirect(res)) return;
       if (!res.ok) { toast.error(await parseErrorMessage(res, "Failed to update unit")); return; }
       onRefresh();
-    } catch {
-      toast.error("Network error. Try again.");
+    } catch (err) {
+      toast.error(err instanceof TypeError ? "You’re offline. Check your connection." : "Failed to update unit. Try again.");
+    } finally {
+      statusBusyRef.current.delete(key);
     }
   }
 
   async function handleAddUnits() {
     if (addCount <= 0) return;
+    if (addBusyRef.current) return;
+    addBusyRef.current = true;
     setBusy(true);
     try {
       const res = await fetch(`/api/bulk-skus/${sku.id}/units`, {
@@ -62,9 +71,10 @@ export default function BulkSkuUnitsTab({
       setAddingUnits(false);
       onUnitsAdded?.(addCount);
       onRefresh();
-    } catch {
-      toast.error("Network error. Try again.");
+    } catch (err) {
+      toast.error(err instanceof TypeError ? "You’re offline. Check your connection." : "Failed to add units. Try again.");
     } finally {
+      addBusyRef.current = false;
       setBusy(false);
     }
   }
@@ -88,12 +98,15 @@ export default function BulkSkuUnitsTab({
             addingUnits ? (
               <div className="flex items-center gap-2">
                 <Input
+                  id="bulk-sku-add-units-count"
+                  name="addUnitsCount"
                   type="number" min={1} max={500} value={addCount}
                   onChange={(e) => setAddCount(Number(e.target.value))}
                   className="w-20"
+                  disabled={busy}
                 />
                 <Button size="sm" onClick={handleAddUnits} disabled={busy}>{busy ? "Adding…" : "Add"}</Button>
-                <Button size="sm" variant="outline" onClick={() => setAddingUnits(false)}>Cancel</Button>
+                <Button size="sm" variant="outline" onClick={() => setAddingUnits(false)} disabled={busy}>Cancel</Button>
               </div>
             ) : (
               <Button size="sm" variant="outline" onClick={() => setAddingUnits(true)}>

@@ -46,7 +46,7 @@ import { FadeUp } from "@/components/ui/motion";
 import { PageHeader } from "@/components/PageHeader";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
 import { OperationalRowActions } from "@/components/OperationalRowActions";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { useFetch } from "@/hooks/use-fetch";
 import { classifyAssetType, EQUIPMENT_SECTIONS } from "@/lib/equipment-sections";
 import type { EquipmentSectionKey } from "@/lib/equipment-sections";
@@ -138,17 +138,23 @@ export default function KitDetailPage() {
   const [addSearch, setAddSearch] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
   const [addingIds, setAddingIds] = useState<Set<string>>(new Set());
+  const addingIdsRef = useRef<Set<string>>(new Set());
+  const togglingActiveRef = useRef(false);
+  const deletingRef = useRef(false);
   const searchAbort = useRef<AbortController | null>(null);
 
   // Remove member
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const removingRef = useRef(false);
   const [removeTarget, setRemoveTarget] = useState<KitMember | null>(null);
   const [bulkRemoveTarget, setBulkRemoveTarget] = useState<KitBulkMember | null>(null);
 
   // Delete kit
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [togglingActive, setTogglingActive] = useState(false);
 
   // ── Inline save handlers ────────────────────────────────
 
@@ -160,13 +166,11 @@ export default function KitDetailPage() {
         body: JSON.stringify({ name: value }),
       });
       if (handleAuthRedirect(res)) return;
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(body?.error ?? "Failed to save");
-      }
-      const { data } = await res.json();
-      setKit(data);
-    }, [id])
+      if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to save kit name"));
+      const json = await parseJsonSafely<{ data?: KitDetail }>(res);
+      if (!json?.data) throw new Error("Kit was saved, but the response was incomplete");
+      setKit(json.data);
+    }, [id, setKit])
   );
 
   const saveDescription = useSaveField(
@@ -177,10 +181,11 @@ export default function KitDetailPage() {
         body: JSON.stringify({ description: value || null }),
       });
       if (handleAuthRedirect(res)) return;
-      if (!res.ok) throw new Error("Failed to save");
-      const { data } = await res.json();
-      setKit(data);
-    }, [id])
+      if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to save kit description"));
+      const json = await parseJsonSafely<{ data?: KitDetail }>(res);
+      if (!json?.data) throw new Error("Kit was saved, but the response was incomplete");
+      setKit(json.data);
+    }, [id, setKit])
   );
 
   // ── Search for assets to add ────────────────────────────
@@ -188,6 +193,7 @@ export default function KitDetailPage() {
   useEffect(() => {
     if (!addSearch.trim() || addSearch.trim().length < 2) {
       setSearchResults([]);
+      setSearchError("");
       return;
     }
     const timer = setTimeout(async () => {
@@ -195,21 +201,26 @@ export default function KitDetailPage() {
       const controller = new AbortController();
       searchAbort.current = controller;
       setSearching(true);
+      setSearchError("");
       try {
         const res = await fetch(
           `/api/assets?q=${encodeURIComponent(addSearch.trim())}&limit=10`,
           { signal: controller.signal }
         );
-        if (!res.ok) throw new Error();
-        const json = await res.json();
+        if (handleAuthRedirect(res)) return;
+        if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to search items"));
+        const json = await parseJsonSafely<{ data?: SearchResult[] }>(res);
         if (controller.signal.aborted) return;
         // Filter out assets already in kit
         const existingIds = new Set(kit?.members.map((m) => m.asset.id) ?? []);
         setSearchResults(
-          (json.data ?? []).filter((a: SearchResult) => !existingIds.has(a.id))
+          (json?.data ?? []).filter((a) => !existingIds.has(a.id))
         );
       } catch (err) {
-        if ((err as Error).name !== "AbortError") setSearchResults([]);
+        if ((err as Error).name !== "AbortError") {
+          setSearchResults([]);
+          setSearchError((err as Error).message || "Failed to search items");
+        }
       } finally {
         if (!controller.signal.aborted) setSearching(false);
       }
@@ -220,6 +231,8 @@ export default function KitDetailPage() {
   // ── Add member ──────────────────────────────────────────
 
   async function handleAddMember(assetId: string) {
+    if (addingIdsRef.current.has(assetId)) return;
+    addingIdsRef.current.add(assetId);
     setAddingIds((s) => new Set(s).add(assetId));
     try {
       const res = await fetch(`/api/kits/${id}/members`, {
@@ -229,16 +242,17 @@ export default function KitDetailPage() {
       });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(body?.error ?? "Failed to add item");
+        throw new Error(await parseErrorMessage(res, "Failed to add item"));
       }
-      const { data } = await res.json();
-      setKit(data);
+      const json = await parseJsonSafely<{ data?: KitDetail }>(res);
+      if (!json?.data) throw new Error("Kit was updated, but the response was incomplete");
+      setKit(json.data);
       setSearchResults((r) => r.filter((a) => a.id !== assetId));
       toast.success("Item added to kit");
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
+      addingIdsRef.current.delete(assetId);
       setAddingIds((s) => { const n = new Set(s); n.delete(assetId); return n; });
     }
   }
@@ -246,24 +260,29 @@ export default function KitDetailPage() {
   // ── Remove member ───────────────────────────────────────
 
   async function handleRemoveMember(member: KitMember) {
+    if (removingRef.current) return;
+    removingRef.current = true;
     setRemovingId(member.id);
     try {
       const res = await fetch(`/api/kits/${id}/members/${member.id}`, { method: "DELETE" });
       if (handleAuthRedirect(res)) return;
-      if (!res.ok) throw new Error("Failed to remove item");
+      if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to remove item"));
       setKit((prev) =>
         prev ? { ...prev, members: prev.members.filter((m) => m.id !== member.id) } : prev
       );
       toast.success(`Removed ${member.asset.assetTag}`);
-    } catch {
-      toast.error("Failed to remove item");
+    } catch (err) {
+      toast.error((err as Error).message || "Failed to remove item");
     } finally {
+      removingRef.current = false;
       setRemovingId(null);
       setRemoveTarget(null);
     }
   }
 
   async function handleRemoveBulkMember(member: KitBulkMember) {
+    if (removingRef.current) return;
+    removingRef.current = true;
     setRemovingId(member.id);
     try {
       const res = await fetch(`/api/kits/${id}/bulk-members?membershipId=${member.id}`, { method: "DELETE" });
@@ -276,6 +295,7 @@ export default function KitDetailPage() {
     } catch (err) {
       toast.error((err as Error).message || "Failed to remove item family");
     } finally {
+      removingRef.current = false;
       setRemovingId(null);
       setBulkRemoveTarget(null);
     }
@@ -285,6 +305,9 @@ export default function KitDetailPage() {
 
   async function handleToggleActive() {
     if (!kit) return;
+    if (togglingActiveRef.current) return;
+    togglingActiveRef.current = true;
+    setTogglingActive(true);
     try {
       const res = await fetch(`/api/kits/${id}`, {
         method: "PATCH",
@@ -292,28 +315,36 @@ export default function KitDetailPage() {
         body: JSON.stringify({ active: !kit.active }),
       });
       if (handleAuthRedirect(res)) return;
-      if (!res.ok) throw new Error("Failed to update");
-      const { data } = await res.json();
+      if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to update kit"));
+      const json = await parseJsonSafely<{ data?: KitDetail }>(res);
+      if (!json?.data) throw new Error("Kit was updated, but the response was incomplete");
+      const data = json.data;
       setKit(data);
       toast.success(data.active ? "Kit restored" : "Kit archived");
-    } catch {
-      toast.error("Failed to update kit");
+    } catch (err) {
+      toast.error((err as Error).message || "Failed to update kit");
+    } finally {
+      togglingActiveRef.current = false;
+      setTogglingActive(false);
     }
   }
 
   // ── Delete kit ──────────────────────────────────────────
 
   async function handleDelete() {
+    if (deletingRef.current) return;
+    deletingRef.current = true;
     setDeleting(true);
     try {
       const res = await fetch(`/api/kits/${id}`, { method: "DELETE" });
       if (handleAuthRedirect(res)) return;
-      if (!res.ok) throw new Error("Failed to delete");
+      if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to delete kit"));
       toast.success("Kit deleted");
       router.replace("/kits");
-    } catch {
-      toast.error("Failed to delete kit");
+    } catch (err) {
+      toast.error((err as Error).message || "Failed to delete kit");
     } finally {
+      deletingRef.current = false;
       setDeleting(false);
       setDeleteOpen(false);
     }
@@ -376,25 +407,26 @@ export default function KitDetailPage() {
           Back
         </Button>
         {!kit.active && <Badge variant="outline" className="h-10 px-3">Archived</Badge>}
-        <Button variant="outline" className="h-10" onClick={handleToggleActive}>
+        <Button variant="outline" className="h-10" onClick={handleToggleActive} disabled={togglingActive || deleting}>
+            {togglingActive && <Spinner data-icon="inline-start" />}
             {kit.active ? (
               <><ArchiveIcon className="mr-2 size-4" />Archive</>
             ) : (
               <><ArchiveRestoreIcon className="mr-2 size-4" />Restore</>
             )}
         </Button>
-        <Button variant="destructive" className="h-10" onClick={() => setDeleteOpen(true)}>
+        <Button variant="destructive" className="h-10" onClick={() => setDeleteOpen(true)} disabled={togglingActive || deleting}>
           <Trash2Icon className="mr-2 size-4" />Delete
         </Button>
       </PageHeader>
 
       <div className="grid gap-4">
         {/* Info Card */}
-        <Card>
+        <Card className="min-w-0">
           <CardHeader>
             <CardTitle className="text-base">Kit Info</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col gap-1">
+          <CardContent className="flex min-w-0 flex-col gap-1">
             <SaveableField label="Name" status={saveName.status} htmlFor="kit-name">
               <Input
                 id="kit-name"
@@ -426,13 +458,13 @@ export default function KitDetailPage() {
         </Card>
 
         {/* Members Card */}
-        <Card>
+        <Card className="min-w-0">
           <CardHeader className="flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">
               Equipment ({kit.members.length} item{kit.members.length !== 1 ? "s" : ""})
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col gap-4">
+          <CardContent className="flex min-w-0 flex-col gap-4">
             {/* Add member search */}
             <div className="flex flex-col gap-2">
               <div className="relative">
@@ -467,6 +499,9 @@ export default function KitDetailPage() {
                   <Spinner className="size-3.5" /> Searching…
                 </div>
               )}
+              {searchError && (
+                <p className="px-1 text-sm text-destructive">{searchError}</p>
+              )}
               {searchResults.length > 0 && (
                 <ScrollArea className="border rounded-md divide-y max-h-[240px]">
                   {searchResults.map((asset) => (
@@ -496,7 +531,7 @@ export default function KitDetailPage() {
                   ))}
                 </ScrollArea>
               )}
-              {addSearch.trim().length >= 2 && !searching && searchResults.length === 0 && (
+              {addSearch.trim().length >= 2 && !searching && !searchError && searchResults.length === 0 && (
                 <p className="text-sm text-muted-foreground px-1">No matching items found.</p>
               )}
             </div>
@@ -516,47 +551,49 @@ export default function KitDetailPage() {
                     <h3 className="text-sm font-medium text-muted-foreground mb-2">
                       {section.label} ({groupedMembers[section.key].length})
                     </h3>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Tag</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="w-[60px]" />
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {groupedMembers[section.key].map((member) => (
-                          <TableRow key={member.id}>
-                            <TableCell className="font-medium">
-                              {member.asset.assetTag}
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {member.asset.brand} {member.asset.model}
-                            </TableCell>
-                            <TableCell>
-                              <AssetStatusBadge status={member.asset.status} />
-                            </TableCell>
-                            <TableCell>
-                              <OperationalRowActions label={`Actions for ${member.asset.assetTag}`}>
-                                <DropdownMenuItem
-                                  className="text-destructive focus:text-destructive"
-                                  disabled={removingId !== null}
-                                  onSelect={() => setRemoveTarget(member)}
-                                >
-                                  {removingId === member.id ? (
-                                    <Spinner data-icon="inline-start" />
-                                  ) : (
-                                    <Trash2Icon className="mr-2 size-4" aria-hidden="true" />
-                                  )}
-                                  Remove from kit
-                                </DropdownMenuItem>
-                              </OperationalRowActions>
-                            </TableCell>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Tag</TableHead>
+                            <TableHead>Description</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="w-[60px]" />
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {groupedMembers[section.key].map((member) => (
+                            <TableRow key={member.id}>
+                              <TableCell className="font-medium">
+                                {member.asset.assetTag}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {member.asset.brand} {member.asset.model}
+                              </TableCell>
+                              <TableCell>
+                                <AssetStatusBadge status={member.asset.status} />
+                              </TableCell>
+                              <TableCell>
+                                <OperationalRowActions label={`Actions for ${member.asset.assetTag}`}>
+                                  <DropdownMenuItem
+                                    className="text-destructive focus:text-destructive"
+                                    disabled={removingId !== null}
+                                    onSelect={() => setRemoveTarget(member)}
+                                  >
+                                    {removingId === member.id ? (
+                                      <Spinner data-icon="inline-start" />
+                                    ) : (
+                                      <Trash2Icon className="mr-2 size-4" aria-hidden="true" />
+                                    )}
+                                    Remove from kit
+                                  </DropdownMenuItem>
+                                </OperationalRowActions>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </div>
                 )
               )
@@ -568,53 +605,55 @@ export default function KitDetailPage() {
       {/* Bulk members section */}
       {(kit.bulkMembers?.length > 0 || kit.active) && (
         <div className="mt-6">
-          <Card>
+          <Card className="min-w-0">
             <CardHeader className="flex-row items-center justify-between">
               <CardTitle className="text-base">Bulk Items</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="min-w-0">
               {kit.bulkMembers?.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Item</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead className="text-right">Qty</TableHead>
-                      <TableHead className="w-12" />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {kit.bulkMembers.map((bm) => (
-                      <TableRow key={bm.id}>
-                        <TableCell className="font-medium">{bm.bulkSku.name}</TableCell>
-                        <TableCell className="text-muted-foreground">{bm.bulkSku.category}</TableCell>
-                        <TableCell className="text-right">
-                          <Badge variant="secondary" size="sm">{bm.quantity} {bm.bulkSku.unit}</Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {kit.active && (
-                            <OperationalRowActions label={`Actions for ${bm.bulkSku.name}`}>
-                              <DropdownMenuItem
-                                className="text-destructive focus:text-destructive"
-                                disabled={removingId !== null}
-                                onSelect={() => setBulkRemoveTarget(bm)}
-                              >
-                                {removingId === bm.id ? (
-                                  <Spinner data-icon="inline-start" />
-                                ) : (
-                                  <Trash2Icon className="mr-2 size-4" aria-hidden="true" />
-                                )}
-                                Remove from kit
-                              </DropdownMenuItem>
-                            </OperationalRowActions>
-                          )}
-                        </TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Item</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead className="text-right">Qty</TableHead>
+                        <TableHead className="w-12" />
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {kit.bulkMembers.map((bm) => (
+                        <TableRow key={bm.id}>
+                          <TableCell className="font-medium">{bm.bulkSku.name}</TableCell>
+                          <TableCell className="text-muted-foreground">{bm.bulkSku.category}</TableCell>
+                          <TableCell className="text-right">
+                            <Badge variant="secondary" size="sm">{bm.quantity} {bm.bulkSku.unit}</Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {kit.active && (
+                              <OperationalRowActions label={`Actions for ${bm.bulkSku.name}`}>
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  disabled={removingId !== null}
+                                  onSelect={() => setBulkRemoveTarget(bm)}
+                                >
+                                  {removingId === bm.id ? (
+                                    <Spinner data-icon="inline-start" />
+                                  ) : (
+                                    <Trash2Icon className="mr-2 size-4" aria-hidden="true" />
+                                  )}
+                                  Remove from kit
+                                </DropdownMenuItem>
+                              </OperationalRowActions>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               ) : (
-                <p className="text-sm text-muted-foreground py-4 text-center">No item families in this kit. Add batteries or consumables below.</p>
+                <p className="text-sm text-muted-foreground py-4 text-center">No item families in this kit yet.</p>
               )}
             </CardContent>
           </Card>

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
 
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import type { AssetDetail } from "../types";
 
 type UseItemActionsParams = {
@@ -83,7 +83,11 @@ export default function useItemActions({
         const res = await fetch(`/api/assets/${asset.id}/duplicate`, { method: "POST" });
         if (handleAuthRedirect(res)) return;
         if (res.ok) {
-          const json = await res.json();
+          const json = await parseJsonSafely<{ data?: { id?: unknown } }>(res);
+          if (typeof json?.data?.id !== "string") {
+            toast.error("Duplicated item, but could not open the new copy. Refresh items and try again.");
+            return;
+          }
           router.push(`/items/${json.data.id}`);
         } else {
           const msg = await parseErrorMessage(res, "Duplicate failed");

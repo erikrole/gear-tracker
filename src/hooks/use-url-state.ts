@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 /**
@@ -33,11 +33,32 @@ export function useUrlState<T>(
   serialize: (value: T) => string | null | undefined,
 ): [T, (value: T | ((prev: T) => T)) => void] {
   const searchParams = useSearchParams();
+  const searchSignature = searchParams.toString();
+  const lastObservedSearchSignatureRef = useRef(searchSignature);
+  const skipNextWriteRef = useRef(false);
 
   const [value, setValue] = useState<T>(() => parse(searchParams.get(key)));
 
+  // Rehydrate when the URL changes through browser navigation or an external link.
+  useEffect(() => {
+    if (lastObservedSearchSignatureRef.current === searchSignature) return;
+    lastObservedSearchSignatureRef.current = searchSignature;
+
+    const nextValue = parse(searchParams.get(key));
+    setValue((current) => {
+      if (Object.is(current, nextValue)) return current;
+      skipNextWriteRef.current = true;
+      return nextValue;
+    });
+  }, [key, parse, searchParams, searchSignature]);
+
   // Sync value changes to URL
   useEffect(() => {
+    if (skipNextWriteRef.current) {
+      skipNextWriteRef.current = false;
+      return;
+    }
+
     const serialized = serialize(value);
     const url = new URL(window.location.href);
 
@@ -72,13 +93,33 @@ export function useUrlSetState(
   key: string,
 ): [Set<string>, (value: Set<string> | ((prev: Set<string>) => Set<string>)) => void] {
   const searchParams = useSearchParams();
+  const searchSignature = searchParams.toString();
+  const lastObservedSearchSignatureRef = useRef(searchSignature);
+  const skipNextWriteRef = useRef(false);
 
   const [value, setValue] = useState<Set<string>>(
     () => new Set(searchParams.getAll(key).filter(Boolean))
   );
 
+  useEffect(() => {
+    if (lastObservedSearchSignatureRef.current === searchSignature) return;
+    lastObservedSearchSignatureRef.current = searchSignature;
+
+    const nextValue = new Set(searchParams.getAll(key).filter(Boolean));
+    setValue((current) => {
+      if (setsEqual(current, nextValue)) return current;
+      skipNextWriteRef.current = true;
+      return nextValue;
+    });
+  }, [key, searchParams, searchSignature]);
+
   // Sync to URL
   useEffect(() => {
+    if (skipNextWriteRef.current) {
+      skipNextWriteRef.current = false;
+      return;
+    }
+
     const url = new URL(window.location.href);
     url.searchParams.delete(key);
     value.forEach((v) => url.searchParams.append(key, v));
@@ -93,6 +134,14 @@ export function useUrlSetState(
   }, [key, value]);
 
   return [value, setValue];
+}
+
+function setsEqual(a: Set<string>, b: Set<string>) {
+  if (a.size !== b.size) return false;
+  for (const value of a) {
+    if (!b.has(value)) return false;
+  }
+  return true;
 }
 
 /**

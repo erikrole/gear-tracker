@@ -47,9 +47,12 @@ export default function BookingItems({
         {showSearch && (
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input
-              placeholder="Search equipment..."
-              value={equipSearch}
+	            <Input
+	              id="booking-equipment-search"
+	              name="bookingEquipmentSearch"
+	              placeholder="Search equipment..."
+	              aria-label="Search equipment"
+	              value={equipSearch}
               onChange={(e) => onEquipSearchChange(e.target.value)}
               className="h-8 pl-8"
             />

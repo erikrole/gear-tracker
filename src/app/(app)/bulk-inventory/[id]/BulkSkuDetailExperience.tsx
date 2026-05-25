@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,6 +11,7 @@ import { BulkSkuHeader } from "./_components/BulkSkuHeader";
 import { BulkSkuInfoTab } from "./BulkSkuInfoTab";
 import { BulkSkuOverviewCard } from "./BulkSkuOverviewCard";
 import useBulkSkuData from "./_hooks/use-bulk-sku-data";
+import { useUrlState } from "@/hooks/use-url-state";
 import ActivityFeed from "../../items/[id]/ItemHistoryTab";
 
 const BulkSkuUnitsTab = dynamic(() => import("./BulkSkuUnitsTab"), { ssr: false });
@@ -20,6 +20,22 @@ const BulkSkuSettingsTab = dynamic(() => import("./BulkSkuSettingsTab"), { ssr: 
 
 type TabKey = "info" | "units" | "qr" | "history" | "settings";
 
+const allTabDefs: Array<{ key: TabKey; label: string }> = [
+  { key: "info", label: "Info" },
+  { key: "units", label: "Units" },
+  { key: "qr", label: "QR" },
+  { key: "history", label: "History" },
+  { key: "settings", label: "Settings" },
+];
+
+function parseBulkDetailTab(raw: string | null): TabKey {
+  return allTabDefs.some((tab) => tab.key === raw) ? (raw as TabKey) : "info";
+}
+
+function serializeDetailTab(tab: TabKey): string | null {
+  return tab === "info" ? null : tab;
+}
+
 export function BulkSkuDetailExperience({
   id,
   operationsHref,
@@ -27,19 +43,27 @@ export function BulkSkuDetailExperience({
   id: string;
   operationsHref?: string;
 }) {
-  const searchParams = useSearchParams();
-  const initialTab = (searchParams.get("tab") as TabKey) || "info";
-  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
+  const [activeTab, setActiveTab] = useUrlState<TabKey>("tab", parseBulkDetailTab, serializeDetailTab);
 
   const { sku, setSku, fetchError, refreshing, canEdit, currentUserRole, loadSku } = useBulkSkuData(id);
 
   function switchTab(tab: TabKey) {
     setActiveTab(tab);
-    const url = new URL(window.location.href);
-    if (tab === "info") url.searchParams.delete("tab");
-    else url.searchParams.set("tab", tab);
-    window.history.replaceState({}, "", url.toString());
   }
+
+  useEffect(() => {
+    if (!sku) return;
+    const tabIsVisible =
+      activeTab === "info" ||
+      activeTab === "history" ||
+      (activeTab === "units" && sku.trackByNumber) ||
+      (activeTab === "qr" && currentUserRole === "ADMIN") ||
+      (activeTab === "settings" && canEdit);
+
+    if (!tabIsVisible) {
+      setActiveTab("info");
+    }
+  }, [activeTab, canEdit, currentUserRole, setActiveTab, sku]);
 
   if (fetchError && !sku) {
     return (
@@ -75,6 +99,7 @@ export function BulkSkuDetailExperience({
     { key: "history", label: "History" },
     { key: "settings", label: "Settings", hidden: !canEdit },
   ];
+  const visibleTabs = tabDefs.filter((tab) => !tab.hidden);
 
   return (
     <FadeUp>
@@ -89,7 +114,7 @@ export function BulkSkuDetailExperience({
 
       <Tabs value={activeTab} onValueChange={(v) => switchTab(v as TabKey)}>
         <TabsList className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm overflow-x-auto scrollbar-hide">
-          {tabDefs.filter((t) => !t.hidden).map((tab) => (
+          {visibleTabs.map((tab) => (
             <TabsTrigger key={tab.key} value={tab.key} className="shrink-0">
               <span style={{ fontFamily: "var(--font-heading)", fontWeight: 500 }}>{tab.label}</span>
             </TabsTrigger>

@@ -140,7 +140,7 @@ Feature ideas to consider separately:
 - Shared filter controls: `FilterChip` and `OperationalActiveFilterChips` now use 40px removable targets across Bookings, Schedule, Dashboard, Trade Board, Items, Users, and Reports.
 - `/checkouts/new` and `/reservations/new`: shared `EquipmentPicker` search clear, scanner close, select-visible, clear-section, bulk quantity, selected-shelf remove, and clear-all controls now follow the 40px operational target baseline.
 - Shared overlay primitives: `Dialog`, `Sheet`, and `Drawer` built-in close controls now use visible 40px targets so modal dismissal is consistent across create/edit/detail flows.
-- Shared inline field rows: `SaveableField` now renders display-only labels as text instead of untargeted form labels, while preserving real label associations when `htmlFor` is provided.
+- Shared inline field rows: `SaveableField` now renders display-only labels as text instead of untargeted form labels, preserves real label associations when `htmlFor` is provided, and names dirty-row save/cancel controls with the field label.
 - `/schedule` filters: view and venue segmented controls now use shadcn `ToggleGroup` while Schedule remains a documented domain-specific command-bar exception.
 - `/schedule` Trade Board: claim and staff approval stay visible; cancel and decline now use `OperationalRowActions` as secondary/destructive row commands.
 - `/schedule` Trade Board: cancel confirmation now names the event, shift window, posted owner, and assignment consequence instead of asking a generic trade question.

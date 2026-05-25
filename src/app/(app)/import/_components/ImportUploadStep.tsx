@@ -37,7 +37,11 @@ export function ImportUploadStep({
           }`}
         >
           <input
-            ref={fileRef} type="file" accept=".csv,.CSV"
+            ref={fileRef}
+            id="import-csv-file"
+            name="importCsvFile"
+            type="file"
+            accept=".csv,.CSV"
             onChange={onFileSelect} className="hidden"
           />
           {file ? (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useFetch } from "@/hooks/use-fetch";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { AlertCircle } from "lucide-react";
 import ActivityTimeline, { type AuditEntry } from "@/components/ActivityTimeline";
-import { handleAuthRedirect } from "@/lib/errors";
+import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 
 type ActivityResponse = { data: AuditEntry[]; nextCursor: string | null };
 
@@ -61,6 +61,7 @@ export default function UserActivityTab({ userId }: { userId: string }) {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [filter, setFilter] = useState<Filter>("all");
+  const loadingMoreRef = useRef(false);
 
   const {
     data,
@@ -88,7 +89,8 @@ export default function UserActivityTab({ userId }: { userId: string }) {
   );
 
   const loadMore = useCallback(async () => {
-    if (!cursor || loadingMore) return;
+    if (!cursor || loadingMoreRef.current) return;
+    loadingMoreRef.current = true;
     setLoadingMore(true);
     try {
       const res = await fetch(
@@ -99,15 +101,16 @@ export default function UserActivityTab({ userId }: { userId: string }) {
         toast.error("Failed to load more activity");
         return;
       }
-      const json = (await res.json()) as ActivityResponse;
-      if (json.data) setExtras((prev) => [...prev, ...json.data]);
-      setNextCursor(json.nextCursor ?? null);
+      const json = await parseJsonSafely<ActivityResponse>(res);
+      if (json?.data) setExtras((prev) => [...prev, ...json.data]);
+      setNextCursor(json?.nextCursor ?? null);
     } catch {
       toast.error("Network error");
     } finally {
+      loadingMoreRef.current = false;
       setLoadingMore(false);
     }
-  }, [userId, cursor, loadingMore]);
+  }, [userId, cursor]);
 
   if (error && !data) {
     return (

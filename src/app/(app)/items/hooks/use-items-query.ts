@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { SortingState } from "@tanstack/react-table";
 import type { Asset } from "../columns";
+import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 
 type QueryDeps = {
   debouncedSearch: string;
@@ -64,6 +65,16 @@ type AssetsResponse = {
   statusBreakdown?: StatusBreakdown;
 };
 
+function parsePageParam(raw: string | null): number {
+  const page = parseInt(raw ?? "", 10);
+  return Number.isFinite(page) && page > 0 ? page : 0;
+}
+
+function parseLimitParam(raw: string | null): number {
+  const limit = parseInt(raw ?? "", 10);
+  return Number.isFinite(limit) && [10, 25, 50, 100].includes(limit) ? limit : 25;
+}
+
 function buildUrl(page: number, limit: number, deps: QueryDeps): string {
   const params = new URLSearchParams();
   params.set("limit", String(limit));
@@ -85,22 +96,38 @@ function buildUrl(page: number, limit: number, deps: QueryDeps): string {
 
 async function fetchAssets(url: string, signal?: AbortSignal): Promise<AssetsResponse> {
   const res = await fetch(url, { signal });
+  if (handleAuthRedirect(res, "/items")) {
+    throw new DOMException("Session expired", "AbortError");
+  }
   if (!res.ok) throw new Error("server");
-  return res.json();
+  const json = await parseJsonSafely<AssetsResponse>(res);
+  if (!json || !Array.isArray(json.data) || typeof json.total !== "number") {
+    throw new Error("server");
+  }
+  return {
+    ...json,
+    bulkItems: Array.isArray(json.bulkItems) ? json.bulkItems : [],
+  };
 }
 
 export function useItemsQuery(deps: QueryDeps) {
   const searchParams = useSearchParams();
+  const searchSignature = searchParams.toString();
+  const lastObservedSearchSignatureRef = useRef(searchSignature);
   const queryClient = useQueryClient();
 
-  const [page, setPageState] = useState(() => {
-    const p = parseInt(searchParams.get("page") ?? "", 10);
-    return Number.isFinite(p) && p > 0 ? p : 0;
-  });
-  const [limit, setLimitState] = useState(() => {
-    const l = parseInt(searchParams.get("limit") ?? "", 10);
-    return Number.isFinite(l) && [10, 25, 50, 100].includes(l) ? l : 25;
-  });
+  const [page, setPageState] = useState(() => parsePageParam(searchParams.get("page")));
+  const [limit, setLimitState] = useState(() => parseLimitParam(searchParams.get("limit")));
+
+  useEffect(() => {
+    if (lastObservedSearchSignatureRef.current === searchSignature) return;
+    lastObservedSearchSignatureRef.current = searchSignature;
+
+    const nextPage = parsePageParam(searchParams.get("page"));
+    const nextLimit = parseLimitParam(searchParams.get("limit"));
+    setPageState((current) => (current === nextPage ? current : nextPage));
+    setLimitState((current) => (current === nextLimit ? current : nextLimit));
+  }, [searchParams, searchSignature]);
 
   // Sync page + limit into the URL alongside the filter params owned by use-url-filters.
   const setPage = useCallback((next: number) => {

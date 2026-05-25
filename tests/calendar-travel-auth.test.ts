@@ -62,6 +62,18 @@ function makePostRequest() {
   });
 }
 
+function makeMalformedPostRequest() {
+  return new Request("https://app.example.com/api/calendar-events/event-1/travel", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      host: "app.example.com",
+      origin: "https://app.example.com",
+    },
+    body: "{not-json",
+  });
+}
+
 function makeDeleteRequest() {
   return new Request("https://app.example.com/api/calendar-events/event-1/travel/member-1", {
     method: "DELETE",
@@ -143,6 +155,18 @@ describe("calendar event travel authorization", () => {
     const res = await POST(makePostRequest(), { params: Promise.resolve({ id: "event-1" }) });
 
     expect(res.status).toBe(403);
+    expect(db.eventTravelMember.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects malformed add-member JSON before creating travel members", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(staffUser);
+    vi.mocked(db.calendarEvent.findUnique).mockResolvedValue({ id: "event-1" } as any);
+
+    const res = await POST(makeMalformedPostRequest(), { params: Promise.resolve({ id: "event-1" }) });
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("Request body must be valid JSON");
     expect(db.eventTravelMember.create).not.toHaveBeenCalled();
   });
 

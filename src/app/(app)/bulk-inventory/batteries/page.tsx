@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 
 type UnitStatus = "AVAILABLE" | "CHECKED_OUT" | "LOST" | "RETIRED";
@@ -155,12 +155,18 @@ export default function BatteryCockpitPage() {
         else toast.error(message);
         return;
       }
-      const json = await res.json();
+      const json = await parseJsonSafely<{ data?: BatteryCockpitData }>(res);
+      if (!json?.data) {
+        const message = "Battery data response was incomplete. Refresh and try again.";
+        if (!refresh) setError(message);
+        else toast.error(message);
+        return;
+      }
       setData(json.data);
       setError(null);
-    } catch {
+    } catch (err) {
       if (refresh) toast.error("Network error — battery data may be stale.");
-      else setError("Network error. Try again..");
+      else setError(err instanceof TypeError ? "Network error. Try again." : "Failed to load batteries.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -356,13 +362,13 @@ export default function BatteryCockpitPage() {
 
           <div className="grid gap-4 xl:grid-cols-2">
             {data?.skus.map((sku) => (
-              <Card key={sku.id} className="border-border/40 shadow-none">
+              <Card key={sku.id} className="min-w-0 border-border/40 shadow-none">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <CardTitle className="flex items-center gap-2 text-base">
+                      <CardTitle className="flex min-w-0 items-center gap-2 text-base">
                         <BatteryCharging className="size-4 text-muted-foreground" />
-                        <Link href={`/bulk-inventory/${sku.id}`} className="truncate hover:underline">
+                        <Link href={`/bulk-inventory/${sku.id}`} className="min-w-0 truncate hover:underline">
                           {sku.name}
                         </Link>
                       </CardTitle>

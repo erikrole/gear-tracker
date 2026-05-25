@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
 import { FadeUp } from "@/components/ui/motion";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 import { getVisiblePageSearchResults, type PageSearchResult } from "@/lib/search-pages";
 
 type EntitySearchResult = {
@@ -27,6 +28,35 @@ type EntitySearchResult = {
 };
 
 type SearchResult = EntitySearchResult | PageSearchResult;
+
+type ApiSearchList<T> = {
+  data?: T[];
+};
+
+type AssetSearchItem = {
+  id: string;
+  assetTag?: string | null;
+  brand?: string | null;
+  model?: string | null;
+  type?: string | null;
+  location?: { name?: string | null } | null;
+  computedStatus?: string | null;
+  status?: string | null;
+};
+
+type BookingSearchItem = {
+  id: string;
+  title?: string | null;
+  requester?: { name?: string | null } | null;
+  status?: string | null;
+};
+
+type UserSearchItem = {
+  id: string;
+  name?: string | null;
+  role?: string | null;
+  email?: string | null;
+};
 
 function formatStatusLabel(status: string): string {
   switch (status) {
@@ -61,6 +91,21 @@ export default function SearchPage() {
     inputRef.current?.focus();
   }, []);
 
+  const resetSearchState = useCallback(() => {
+    abortRef.current?.abort();
+    setResults([]);
+    setLoading(false);
+    setSearched(false);
+    setSearchError(false);
+    setPartialFailures(0);
+  }, []);
+
+  useEffect(() => {
+    setQuery((current) => (current === urlQuery ? current : urlQuery));
+    setDebouncedQuery((current) => (current === urlQuery ? current : urlQuery));
+    if (!urlQuery.trim()) resetSearchState();
+  }, [resetSearchState, urlQuery]);
+
   // Debounce query input by 300ms
   useEffect(() => {
     const t = setTimeout(() => {
@@ -79,9 +124,7 @@ export default function SearchPage() {
   const runSearch = useCallback(async (q: string) => {
     const trimmed = q.trim();
     if (!trimmed) {
-      setResults([]);
-      setSearched(false);
-      setPartialFailures(0);
+      resetSearchState();
       return;
     }
 
@@ -107,16 +150,23 @@ export default function SearchPage() {
       const merged: SearchResult[] = getVisiblePageSearchResults(user?.role, trimmed, 12);
       let failures = 0;
 
+      if (itemsRes.status === "fulfilled" && handleAuthRedirect(itemsRes.value, "/search")) return;
+      if (checkoutsRes.status === "fulfilled" && handleAuthRedirect(checkoutsRes.value, "/search")) return;
+      if (reservationsRes.status === "fulfilled" && handleAuthRedirect(reservationsRes.value, "/search")) return;
+      if (usersRes.status === "fulfilled" && handleAuthRedirect(usersRes.value, "/search")) return;
+
       if (itemsRes.status === "fulfilled" && itemsRes.value.ok) {
-        const json = await itemsRes.value.json();
-        for (const item of (json.data || []).slice(0, 10)) {
+        const json = await parseJsonSafely<ApiSearchList<AssetSearchItem>>(itemsRes.value);
+        const data = json?.data;
+        if (!data) failures += 1;
+        for (const item of (data ?? []).slice(0, 10)) {
           merged.push({
             type: "item",
             id: item.id,
             title: [item.assetTag, item.brand, item.model].filter(Boolean).join(" · "),
             subtitle: [item.type, item.location?.name].filter(Boolean).join(" · "),
             href: `/items/${item.id}`,
-            status: item.computedStatus || item.status,
+            status: item.computedStatus || item.status || undefined,
           });
         }
       } else {
@@ -124,15 +174,17 @@ export default function SearchPage() {
       }
 
       if (checkoutsRes.status === "fulfilled" && checkoutsRes.value.ok) {
-        const json = await checkoutsRes.value.json();
-        for (const b of (json.data || []).slice(0, 10)) {
+        const json = await parseJsonSafely<ApiSearchList<BookingSearchItem>>(checkoutsRes.value);
+        const data = json?.data;
+        if (!data) failures += 1;
+        for (const b of (data ?? []).slice(0, 10)) {
           merged.push({
             type: "checkout",
             id: b.id,
-            title: b.title,
+            title: b.title ?? "Untitled checkout",
             subtitle: b.requester?.name || "",
             href: `/checkouts/${b.id}`,
-            status: b.status,
+            status: b.status ?? undefined,
           });
         }
       } else {
@@ -140,15 +192,17 @@ export default function SearchPage() {
       }
 
       if (reservationsRes.status === "fulfilled" && reservationsRes.value.ok) {
-        const json = await reservationsRes.value.json();
-        for (const b of (json.data || []).slice(0, 10)) {
+        const json = await parseJsonSafely<ApiSearchList<BookingSearchItem>>(reservationsRes.value);
+        const data = json?.data;
+        if (!data) failures += 1;
+        for (const b of (data ?? []).slice(0, 10)) {
           merged.push({
             type: "reservation",
             id: b.id,
-            title: b.title,
+            title: b.title ?? "Untitled reservation",
             subtitle: b.requester?.name || "",
             href: `/reservations/${b.id}`,
-            status: b.status,
+            status: b.status ?? undefined,
           });
         }
       } else {
@@ -156,12 +210,14 @@ export default function SearchPage() {
       }
 
       if (usersRes.status === "fulfilled" && usersRes.value.ok) {
-        const json = await usersRes.value.json();
-        for (const u of (json.data || []).slice(0, 10)) {
+        const json = await parseJsonSafely<ApiSearchList<UserSearchItem>>(usersRes.value);
+        const data = json?.data;
+        if (!data) failures += 1;
+        for (const u of (data ?? []).slice(0, 10)) {
           merged.push({
             type: "user",
             id: u.id,
-            title: u.name,
+            title: u.name ?? "Unnamed user",
             subtitle: [u.role, u.email].filter(Boolean).join(" · "),
             href: `/users/${u.id}`,
           });
@@ -175,7 +231,7 @@ export default function SearchPage() {
           setSearchError("server");
         } else {
           setResults(merged);
-          setPartialFailures(failures < 4 ? failures : 0);
+          setPartialFailures(failures);
         }
       }
     } catch (err) {
@@ -190,7 +246,16 @@ export default function SearchPage() {
         setLoading(false);
       }
     }
-  }, [user?.role]);
+  }, [resetSearchState, user?.role]);
+
+  const handleQueryChange = useCallback((value: string) => {
+    setQuery(value);
+    if (!value.trim()) {
+      setDebouncedQuery("");
+      setUrlQuery("");
+      resetSearchState();
+    }
+  }, [resetSearchState, setUrlQuery]);
 
   // Auto-search on debounced query change
   useEffect(() => {
@@ -234,7 +299,7 @@ export default function SearchPage() {
           className="peer h-10 pl-9 pr-11"
           placeholder="Search items, checkouts, reservations, users..."
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => handleQueryChange(e.target.value)}
           aria-label="Search items, checkouts, reservations, users"
         />
         <div className="text-muted-foreground/80 pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 peer-disabled:opacity-50">
@@ -246,7 +311,7 @@ export default function SearchPage() {
             variant="ghost"
             size="icon"
             className="absolute inset-y-0 right-0.5 my-auto size-10 text-muted-foreground/80 hover:text-foreground"
-            onClick={() => setQuery("")}
+            onClick={() => handleQueryChange("")}
             aria-label="Clear search"
           >
             <XIcon size={14} />

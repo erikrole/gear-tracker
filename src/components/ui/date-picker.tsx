@@ -29,6 +29,8 @@ function isValidDate(date: Date | undefined) {
 type DatePickerProps = {
   value: Date | undefined
   onChange: (date: Date | undefined) => void
+  id?: string
+  name?: string
   placeholder?: string
   disabled?: boolean
   className?: string
@@ -37,6 +39,8 @@ type DatePickerProps = {
 function DatePicker({
   value,
   onChange,
+  id,
+  name,
   placeholder = "Add date",
   disabled = false,
   className,
@@ -58,6 +62,8 @@ function DatePicker({
     <div className={className}>
       <div className="relative flex gap-2">
         <Input
+          id={id}
+          name={name}
           value={inputValue}
           placeholder={placeholder}
           className="border-transparent bg-transparent shadow-none pr-10 hover:bg-muted/60 hover:border-border/50 focus-visible:bg-background focus-visible:border-ring focus-visible:shadow-xs"

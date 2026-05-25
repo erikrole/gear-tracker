@@ -5,7 +5,13 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/PageHeader";
 import { FadeUp } from "@/components/ui/motion";
-import { handleAuthRedirect, classifyError, isAbortError } from "@/lib/errors";
+import {
+  handleAuthRedirect,
+  classifyError,
+  isAbortError,
+  parseErrorMessage,
+  parseJsonSafely,
+} from "@/lib/errors";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircleIcon } from "lucide-react";
 import type { ColumnMapping, PreviewData, ImportResult, Step } from "./_types";
@@ -29,6 +35,8 @@ export default function ImportPage() {
   const [loading, setLoading] = useState(false);
   const [importMode, setImportMode] = useState<"upsert" | "create_only">("upsert");
   const fileRef = useRef<HTMLInputElement>(null);
+  const previewingRef = useRef(false);
+  const importingRef = useRef(false);
 
   // Load saved mapping from localStorage
   useEffect(() => {
@@ -60,6 +68,7 @@ export default function ImportPage() {
   /** Parse CSV headers client-side to show mapping step */
   async function handleParseHeaders() {
     if (!file) return;
+    if (loading) return;
     setLoading(true);
     setError("");
 
@@ -68,7 +77,6 @@ export default function ImportPage() {
       const lines = text.split(/\r?\n/).filter((l) => l.trim());
       if (lines.length < 2) {
         setError("CSV must include a header and at least one data row");
-        setLoading(false);
         return;
       }
 
@@ -109,8 +117,9 @@ export default function ImportPage() {
       setStep("mapping");
     } catch {
       setError("Failed to parse CSV headers");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   /** Simple CSV line parser (client-side, for headers + sample only) */
@@ -143,6 +152,8 @@ export default function ImportPage() {
 
   async function handlePreview() {
     if (!file) return;
+    if (previewingRef.current || loading) return;
+    previewingRef.current = true;
     setLoading(true);
     setError("");
 
@@ -161,27 +172,39 @@ export default function ImportPage() {
 
       if (handleAuthRedirect(res, "/import")) return;
 
-      const json = await res.json();
-
       if (!res.ok) {
-        setError(json.error || "Failed to parse CSV");
-        toast.error(json.error || "Failed to parse CSV");
-        setLoading(false);
+        const message = await parseErrorMessage(res, "Failed to parse CSV");
+        setError(message);
+        toast.error(message);
         return;
       }
 
+      const json = await parseJsonSafely<PreviewData>(res);
+      if (!json?.summary || !Array.isArray(json.rows)) {
+        throw new Error("Import preview returned an incomplete response");
+      }
       setPreview(json);
       setStep("preview");
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      setError(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to upload file");
+      const message = kind === "network"
+        ? "You\u2019re offline. Check your connection."
+        : err instanceof Error && err.message
+          ? err.message
+          : "Failed to upload file";
+      setError(message);
+      toast.error(message);
+    } finally {
+      previewingRef.current = false;
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   async function handleImport() {
     if (!file) return;
+    if (importingRef.current) return;
+    importingRef.current = true;
     setStep("importing");
     setError("");
 
@@ -197,25 +220,39 @@ export default function ImportPage() {
 
       if (handleAuthRedirect(res, "/import")) return;
 
-      const json = await res.json();
-
       if (!res.ok) {
-        setError(json.error || "Import failed");
-        toast.error(json.error || "Import failed");
+        const message = await parseErrorMessage(res, "Import failed");
+        setError(message);
+        toast.error(message);
         setStep("preview");
         return;
       }
 
+      const json = await parseJsonSafely<ImportResult>(res);
+      if (!json || typeof json.created !== "number" || typeof json.updated !== "number") {
+        throw new Error("Import finished, but the response was incomplete");
+      }
       setResult(json);
       setStep("summary");
-      toast.success(`Imported ${json.created} items successfully`);
+      const changedCount = json.created + json.updated + (json.bulkCreated ?? 0);
+      toast.success(
+        changedCount > 0
+          ? `Import complete: ${json.created} created, ${json.updated} updated, ${json.bulkCreated ?? 0} item families.`
+          : "Import complete: no items changed.",
+      );
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
-      const msg = kind === "network" ? "You\u2019re offline. Check your connection." : "Import failed unexpectedly";
+      const msg = kind === "network"
+        ? "You\u2019re offline. Check your connection."
+        : err instanceof Error && err.message
+          ? err.message
+          : "Import failed unexpectedly";
       setError(msg);
       toast.error(msg);
       setStep("preview");
+    } finally {
+      importingRef.current = false;
     }
   }
 
@@ -258,22 +295,24 @@ export default function ImportPage() {
       </PageHeader>
 
       {/* Step indicator */}
-      <div className="flex items-center gap-2 mb-6">
-        {STEP_LABELS.map((s, i) => (
-          <div key={s.key} className="flex items-center gap-2">
-            {i > 0 && <div className="w-6 h-px bg-border" />}
-            <div
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-sm ${
-                step === s.key
-                  ? "bg-primary text-primary-foreground font-semibold"
-                  : "bg-muted text-muted-foreground"
-              }`}
-            >
-              <span>{i + 1}</span>
-              <span>{s.label}</span>
+      <div className="mb-6 max-w-full overflow-x-auto pb-1">
+        <div className="flex w-max items-center gap-2">
+          {STEP_LABELS.map((s, i) => (
+            <div key={s.key} className="flex items-center gap-2">
+              {i > 0 && <div className="h-px w-6 bg-border" />}
+              <div
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-sm ${
+                  step === s.key
+                    ? "bg-primary font-semibold text-primary-foreground"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                <span>{i + 1}</span>
+                <span>{s.label}</span>
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {error && (

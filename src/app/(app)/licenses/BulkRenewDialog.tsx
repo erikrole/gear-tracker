@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import type { LicenseCode } from "./types";
 
 type Props = {
@@ -24,6 +25,12 @@ type Props = {
 };
 
 type RenewScope = "expiring" | "visible";
+
+type BulkRenewResponse = {
+  data?: {
+    updated?: number;
+  };
+};
 
 function isExpiringOrExpired(code: LicenseCode) {
   if (!code.expiresAt || code.status === "RETIRED") return false;
@@ -61,9 +68,10 @@ export function BulkRenewDialog({ open, onOpenChange, codes, onRenewed }: Props)
           expiresAt: new Date(expiresAt).toISOString(),
         }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed to renew licenses");
-      const updated = Number(json.data?.updated ?? 0);
+      if (handleAuthRedirect(res)) return;
+      if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to renew licenses"));
+      const json = await parseJsonSafely<BulkRenewResponse>(res);
+      const updated = Number(json?.data?.updated ?? 0);
       toast.success(`Renewed ${updated} license${updated === 1 ? "" : "s"}`);
       setExpiresAt("");
       onRenewed();

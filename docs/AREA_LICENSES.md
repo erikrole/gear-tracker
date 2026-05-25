@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Photo Mechanic license pool
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-21
+- Last Updated: 2026-05-25
 - Status: Active — 2-slot model, expiry tracking, unknown occupants, CSV export shipped
 - Version: V2
 
@@ -120,6 +120,9 @@ Implementation: `processLicenseNags` and `processExpiryWarnings` in `src/lib/ser
 - No full admin per-user license usage report beyond the user's own recent history and per-code admin history
 
 ## Change Log
+- **2026-05-25 (Web bug sweep Batch 31)**: Admin table row clicks now prioritize inspection over self-claiming, so staff/admin users can manage open or partially used license codes from the table instead of being dropped into the student claim dialog.
+- **2026-05-25 (Web bug sweep Batch 30)**: Admin license sheets now show a retryable error when claim history fails instead of looking empty, abort stale history loads when switching sheets, expose stable form metadata on occupant/account/expiry inputs, and guard retire/delete actions while the request is in flight.
+- **2026-05-24 (Client reliability sweep)**: License dialogs and sheets now use the shared safe error helpers for add, bulk add, bulk renew, claim, return, user history, and admin claim-management actions. These flows now handle expired sessions through the shared login redirect and no longer assume failed API responses are JSON.
 - **2026-05-21 (Design-language cleanup)**: License pool summary metrics now use the shared `OperationalMetricCard` primitive, and compact header/admin controls use the 40px operational target baseline while preserving the 2-slot claim, masking, and admin-sheet behavior.
 - **2026-05-08 (API hardening Wave 13)**: Code and personal claim history endpoints now apply bounded pagination instead of returning unbounded claim sets.
 - **2026-05-08 (API hardening Wave 8)**: CSV export now uses shared formula-safe escaping so holder names and unknown occupant labels that begin with spreadsheet formula characters are exported as inert text.

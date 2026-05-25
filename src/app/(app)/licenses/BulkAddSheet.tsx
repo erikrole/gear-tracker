@@ -14,11 +14,19 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated: () => void;
+};
+
+type BulkAddResponse = {
+  data?: {
+    created?: number;
+    skipped?: number;
+  };
 };
 
 export function BulkAddSheet({ open, onOpenChange, onCreated }: Props) {
@@ -41,9 +49,11 @@ export function BulkAddSheet({ open, onOpenChange, onCreated }: Props) {
           expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
         }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed to bulk add licenses");
-      const { created, skipped } = json.data as { created: number; skipped: number };
+      if (handleAuthRedirect(res)) return;
+      if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to bulk add licenses"));
+      const json = await parseJsonSafely<BulkAddResponse>(res);
+      const created = Number(json?.data?.created ?? 0);
+      const skipped = Number(json?.data?.skipped ?? 0);
       toast.success(`Added ${created} license${created !== 1 ? "s" : ""}`, {
         description: skipped > 0 ? `${skipped} duplicate${skipped !== 1 ? "s" : ""} skipped` : undefined,
       });

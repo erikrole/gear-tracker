@@ -47,8 +47,10 @@ export type PreviewData = {
 export type ImportResult = {
   created: number;
   updated: number;
+  bulkCreated: number;
   skipped: number;
   kitsCreated: number;
+  imagesQueued: number;
   errors: Array<{ line: number; assetTag: string; error: string }>;
 };
 

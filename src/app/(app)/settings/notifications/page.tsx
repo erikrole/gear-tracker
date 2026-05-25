@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { AlertTriangle, BellOff, Mail, ShoppingBag, Smartphone, Tag, WifiOff } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -70,8 +70,11 @@ export default function NotificationsSettingsPage() {
   }
   const prefs = local ?? fetched;
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
 
   async function save(next: Prefs, { silent = false } = {}) {
+    if (savingRef.current) return;
+    savingRef.current = true;
     setLocal(next);
     setSaving(true);
     try {
@@ -93,8 +96,10 @@ export default function NotificationsSettingsPage() {
       const kind = classifyError(err);
       toast.error(kind === "network" ? "You’re offline. Check your connection." : "Failed to save");
       reload();
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
     }
-    setSaving(false);
   }
 
   function setChannel(channel: "email" | "push", value: boolean) {
@@ -301,6 +306,7 @@ function ChannelRow({
   disabled?: boolean;
 }) {
   const id = `notif-${label.toLowerCase()}`;
+  const name = id.replace(/[^a-z0-9]+/g, "-");
   return (
     <div className="flex items-start justify-between gap-4 py-2">
       <div className="flex gap-3 min-w-0">
@@ -310,7 +316,7 @@ function ChannelRow({
           <p className="text-xs text-muted-foreground m-0 mt-0.5">{description}</p>
         </div>
       </div>
-      <Switch id={id} checked={checked} onCheckedChange={onChange} disabled={disabled} />
+      <Switch id={id} name={name} checked={checked} onCheckedChange={onChange} disabled={disabled} />
     </div>
   );
 }

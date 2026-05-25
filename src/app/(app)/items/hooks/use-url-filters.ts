@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { SortingState } from "@tanstack/react-table";
 
@@ -33,8 +33,38 @@ function readSet(params: URLSearchParams, key: string): Set<string> {
   return new Set(params.getAll(key).filter(Boolean));
 }
 
+function readItemType(params: URLSearchParams): ItemTypeFilter {
+  const raw = params.get("type");
+  if (raw === "bulk") return "unit-tracked";
+  if (raw === "serialized" || raw === "unit-tracked" || raw === "quantity-tracked") return raw;
+  return "all";
+}
+
+function readSorting(params: URLSearchParams): SortingState {
+  const sort = params.get("sort");
+  const order = params.get("order");
+  if (sort) return [{ id: sort, desc: order === "desc" }];
+  return [];
+}
+
+function setsEqual(a: Set<string>, b: Set<string>) {
+  if (a.size !== b.size) return false;
+  for (const value of a) {
+    if (!b.has(value)) return false;
+  }
+  return true;
+}
+
+function sortingEqual(a: SortingState, b: SortingState) {
+  if (a.length !== b.length) return false;
+  return a.every((sort, index) => sort.id === b[index]?.id && sort.desc === b[index]?.desc);
+}
+
 export function useUrlFilters() {
   const searchParams = useSearchParams();
+  const searchSignature = searchParams.toString();
+  const lastObservedSearchSignatureRef = useRef(searchSignature);
+  const skipNextWriteRef = useRef(false);
 
   const [search, setSearch] = useState(() => searchParams.get("q") ?? "");
   const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get("q") ?? "");
@@ -43,21 +73,40 @@ export function useUrlFilters() {
   const [categoryFilter, setCategoryFilter] = useState<Set<string>>(() => readSet(searchParams, "category"));
   const [brandFilter, setBrandFilter] = useState<Set<string>>(() => readSet(searchParams, "brand"));
   const [departmentFilter, setDepartmentFilter] = useState<Set<string>>(() => readSet(searchParams, "department"));
-  const [itemType, setItemType] = useState<ItemTypeFilter>(() => {
-    const raw = searchParams.get("type");
-    if (raw === "bulk") return "unit-tracked";
-    if (raw === "serialized" || raw === "unit-tracked" || raw === "quantity-tracked") return raw;
-    return "all";
-  }
-  );
+  const [itemType, setItemType] = useState<ItemTypeFilter>(() => readItemType(searchParams));
   const [showAccessories, setShowAccessories] = useState(() => searchParams.get("accessories") === "1");
   const [favoritesOnly, setFavoritesOnly] = useState(() => searchParams.get("favorites") === "1");
-  const [sorting, setSorting] = useState<SortingState>(() => {
-    const s = searchParams.get("sort");
-    const o = searchParams.get("order");
-    if (s) return [{ id: s, desc: o === "desc" }];
-    return [];
-  });
+  const [sorting, setSorting] = useState<SortingState>(() => readSorting(searchParams));
+
+  useEffect(() => {
+    if (lastObservedSearchSignatureRef.current === searchSignature) return;
+    lastObservedSearchSignatureRef.current = searchSignature;
+    skipNextWriteRef.current = true;
+
+    const nextSearch = searchParams.get("q") ?? "";
+    setSearch((current) => (current === nextSearch ? current : nextSearch));
+    setDebouncedSearch((current) => (current === nextSearch ? current : nextSearch));
+
+    const nextStatus = readSet(searchParams, "status");
+    const nextLocation = readSet(searchParams, "location");
+    const nextCategory = readSet(searchParams, "category");
+    const nextBrand = readSet(searchParams, "brand");
+    const nextDepartment = readSet(searchParams, "department");
+    setStatusFilter((current) => (setsEqual(current, nextStatus) ? current : nextStatus));
+    setLocationFilter((current) => (setsEqual(current, nextLocation) ? current : nextLocation));
+    setCategoryFilter((current) => (setsEqual(current, nextCategory) ? current : nextCategory));
+    setBrandFilter((current) => (setsEqual(current, nextBrand) ? current : nextBrand));
+    setDepartmentFilter((current) => (setsEqual(current, nextDepartment) ? current : nextDepartment));
+
+    const nextItemType = readItemType(searchParams);
+    setItemType((current) => (current === nextItemType ? current : nextItemType));
+    const nextShowAccessories = searchParams.get("accessories") === "1";
+    setShowAccessories((current) => (current === nextShowAccessories ? current : nextShowAccessories));
+    const nextFavoritesOnly = searchParams.get("favorites") === "1";
+    setFavoritesOnly((current) => (current === nextFavoritesOnly ? current : nextFavoritesOnly));
+    const nextSorting = readSorting(searchParams);
+    setSorting((current) => (sortingEqual(current, nextSorting) ? current : nextSorting));
+  }, [searchParams, searchSignature]);
 
   // Debounce search input by 300ms
   useEffect(() => {
@@ -77,7 +126,26 @@ export function useUrlFilters() {
 
   // Sync filters to URL search params
   useEffect(() => {
-    const params = new URLSearchParams();
+    if (skipNextWriteRef.current) {
+      skipNextWriteRef.current = false;
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    [
+      "q",
+      "status",
+      "location",
+      "category",
+      "brand",
+      "department",
+      "type",
+      "accessories",
+      "favorites",
+      "sort",
+      "order",
+    ].forEach((key) => params.delete(key));
+
     if (debouncedSearch) params.set("q", debouncedSearch);
     statusFilter.forEach((v) => params.append("status", v));
     locationFilter.forEach((v) => params.append("location", v));

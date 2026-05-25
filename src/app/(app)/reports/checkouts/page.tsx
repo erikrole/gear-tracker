@@ -73,6 +73,13 @@ type CheckoutData = {
   topRequesters: { name: string; count: number }[];
 };
 
+const VALID_CHECKOUT_PERIODS = [7, 30, 90] as const;
+
+function parseCheckoutDaysParam(value: string | null) {
+  const parsed = Number.parseInt(value ?? "", 10);
+  return VALID_CHECKOUT_PERIODS.includes(parsed as (typeof VALID_CHECKOUT_PERIODS)[number]) ? parsed : 30;
+}
+
 function StatusBadge({ status, isOverdue }: { status: string; isOverdue: boolean }) {
   const variant = (isOverdue ? "red" : statusBadgeVariant(status, "CHECKOUT")) as BadgeProps["variant"];
   return <Badge variant={variant}>{isOverdue ? "Overdue" : statusLabel(status, "CHECKOUT")}</Badge>;
@@ -106,16 +113,21 @@ function downloadCsv(rows: CheckoutRow[]) {
 
 export default function CheckoutsReportPage() {
   const searchParams = useSearchParams();
-  const [days, setDays] = useState(() => {
-    const p = searchParams.get("days");
-    return p && [7, 30, 90].includes(Number(p)) ? Number(p) : 30;
-  });
+  const [days, setDays] = useState(() => parseCheckoutDaysParam(searchParams.get("days")));
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    const nextDays = parseCheckoutDaysParam(searchParams.get("days"));
+    setDays((current) => (current === nextDays ? current : nextDays));
+    if (searchParams.get("days") && nextDays === 30) {
+      syncUrl({ days: "" });
+    }
+  }, [searchParams]);
 
   const { data, loading, error, lastRefreshed, reload } = useFetch<CheckoutData>({
     url: `/api/reports/checkouts?days=${days}`,
@@ -184,7 +196,7 @@ export default function CheckoutsReportPage() {
           label="Currently overdue"
           color={data.overdueCheckouts > 0 ? "var(--red)" : undefined}
           tooltip="Checkouts currently past their return date"
-          href="/checkouts?status=overdue"
+          href="/checkouts?filter=overdue"
         />
       </ReportMetricGrid>
 

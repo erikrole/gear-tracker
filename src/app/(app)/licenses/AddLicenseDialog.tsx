@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 
 type Props = {
   open: boolean;
@@ -42,8 +43,8 @@ export function AddLicenseDialog({ open, onOpenChange, onCreated }: Props) {
           expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
         }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed to add license");
+      if (handleAuthRedirect(res)) return;
+      if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to add license"));
       toast.success("License added");
       setCode("");
       setLabel("");

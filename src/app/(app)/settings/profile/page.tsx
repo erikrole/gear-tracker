@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Camera, Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,11 +17,13 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserAvatar } from "@/components/UserAvatar";
+import EmptyState from "@/components/EmptyState";
 import { useFetch } from "@/hooks/use-fetch";
 import {
   handleAuthRedirect,
   isAbortError,
   parseErrorMessage,
+  parseJsonSafely,
 } from "@/lib/errors";
 import { AREA_OPTIONS } from "@/app/(app)/users/types";
 import { SettingsPageShell } from "../SettingsPageShell";
@@ -56,6 +59,7 @@ function isDirty(local: FormState, base: FormState): boolean {
 }
 
 export default function ProfileSettingsPage() {
+  const queryClient = useQueryClient();
   const { data: fetched, loading, error, reload } = useFetch<Profile>({
     url: "/api/me/profile",
     returnTo: "/settings/profile",
@@ -75,13 +79,19 @@ export default function ProfileSettingsPage() {
 
   const [saving, setSaving] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
+  const savingRef = useRef(false);
 
   // Avatar state managed separately (different endpoint)
   const [avatarUrl, setAvatarUrl] = useState<string | null | undefined>(undefined);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const uploadingAvatarRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const effectiveAvatarUrl = avatarUrl === undefined ? (fetched?.avatarUrl ?? null) : avatarUrl;
+
+  function syncProfileCache(profile: Profile) {
+    queryClient.setQueryData(["fetch", "/api/me/profile"], { data: profile });
+  }
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setLocal((prev) => ({ ...(prev ?? base!), [key]: value }));
@@ -90,10 +100,12 @@ export default function ProfileSettingsPage() {
 
   async function handleSave() {
     if (!form || !fetched) return;
+    if (savingRef.current) return;
     if (!form.name.trim()) {
       setNameError("Name is required.");
       return;
     }
+    savingRef.current = true;
     setSaving(true);
     try {
       const res = await fetch("/api/me/profile", {
@@ -117,18 +129,30 @@ export default function ProfileSettingsPage() {
         return;
       }
 
+      const json = await parseJsonSafely<{ data?: Profile }>(res);
+      if (!json?.data) {
+        toast.error("Profile was saved, but the response could not be read. Refresh before continuing.");
+        reload();
+        return;
+      }
+
+      syncProfileCache(json.data);
+      setLocal(null);
+      setAvatarUrl(undefined);
       toast.success("Profile saved.");
-      reload();
     } catch (err) {
       if (isAbortError(err)) return;
       toast.error("Could not reach the server. Check your connection.");
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
 
   async function handleAvatarUpload(file: File) {
     if (!fetched) return;
+    if (uploadingAvatarRef.current) return;
+    uploadingAvatarRef.current = true;
     setUploadingAvatar(true);
     try {
       const fd = new FormData();
@@ -136,23 +160,33 @@ export default function ProfileSettingsPage() {
       const res = await fetch(`/api/users/${fetched.id}/avatar`, { method: "POST", body: fd });
       if (res.status === 401) { handleAuthRedirect(res, "/settings/profile"); return; }
       if (!res.ok) {
-        const msg = await res.text().catch(() => "");
-        toast.error(msg || "Avatar upload failed.");
+        const msg = await parseErrorMessage(res, "Avatar upload failed.");
+        toast.error(msg);
         return;
       }
-      const json = await res.json();
-      setAvatarUrl(json.data?.avatarUrl ?? null);
+      const json = await parseJsonSafely<{ data?: { avatarUrl?: string | null } }>(res);
+      if (!json?.data) {
+        toast.error("Photo was uploaded, but the response could not be read. Refresh profile before continuing.");
+        reload();
+        return;
+      }
+      const nextAvatarUrl = json.data.avatarUrl ?? null;
+      setAvatarUrl(nextAvatarUrl);
+      if (fetched) syncProfileCache({ ...fetched, avatarUrl: nextAvatarUrl });
       toast.success("Profile photo updated.");
     } catch (err) {
       if (isAbortError(err)) return;
       toast.error("Upload failed. Check your connection.");
     } finally {
+      uploadingAvatarRef.current = false;
       setUploadingAvatar(false);
     }
   }
 
   async function handleAvatarRemove() {
     if (!fetched || !effectiveAvatarUrl) return;
+    if (uploadingAvatarRef.current) return;
+    uploadingAvatarRef.current = true;
     setUploadingAvatar(true);
     try {
       const res = await fetch(`/api/users/${fetched.id}/avatar`, { method: "DELETE" });
@@ -162,11 +196,13 @@ export default function ProfileSettingsPage() {
         return;
       }
       setAvatarUrl(null);
+      syncProfileCache({ ...fetched, avatarUrl: null });
       toast.success("Profile photo removed.");
     } catch (err) {
       if (isAbortError(err)) return;
       toast.error("Remove failed. Check your connection.");
     } finally {
+      uploadingAvatarRef.current = false;
       setUploadingAvatar(false);
     }
   }
@@ -188,7 +224,14 @@ export default function ProfileSettingsPage() {
       : "Could not load profile.";
     return (
       <SettingsPageShell title="Profile" description="Your name, contact info, area, and profile photo.">
-        <p className="text-sm text-destructive">{msg}</p>
+        <EmptyState
+          inline
+          icon={error === "network" ? "wifi-off" : "users"}
+          title={error === "network" ? "You are offline" : "Could not load profile"}
+          description={msg}
+          actionLabel="Retry"
+          onAction={reload}
+        />
       </SettingsPageShell>
     );
   }
@@ -218,7 +261,7 @@ export default function ProfileSettingsPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={uploadingAvatar}
+                  disabled={uploadingAvatar || saving}
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <Camera className="size-4" />
@@ -228,7 +271,7 @@ export default function ProfileSettingsPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    disabled={uploadingAvatar}
+                    disabled={uploadingAvatar || saving}
                     onClick={handleAvatarRemove}
                   >
                     <Trash2 className="size-4" />
@@ -241,6 +284,8 @@ export default function ProfileSettingsPage() {
 
             <input
               ref={fileInputRef}
+              id="profile-avatar-file"
+              name="profileAvatarFile"
               type="file"
               accept="image/jpeg,image/png,image/webp"
               className="sr-only"
@@ -261,10 +306,13 @@ export default function ProfileSettingsPage() {
               <Label htmlFor="profile-name">Name</Label>
               <Input
                 id="profile-name"
+                name="name"
+                autoComplete="name"
                 value={form.name}
                 onChange={(e) => setField("name", e.target.value)}
                 placeholder="Full name"
                 aria-invalid={!!nameError}
+                disabled={saving}
               />
               {nameError && <p className="text-xs text-destructive">{nameError}</p>}
             </div>
@@ -275,26 +323,31 @@ export default function ProfileSettingsPage() {
                 <Label htmlFor="profile-phone">Phone</Label>
                 <Input
                   id="profile-phone"
+                  name="phone"
                   type="tel"
+                  autoComplete="tel"
                   value={form.phone ?? ""}
                   onChange={(e) => setField("phone", e.target.value)}
                   placeholder="(555) 000-0000"
+                  disabled={saving}
                 />
               </div>
 
               <div className="space-y-1.5">
                 <Label htmlFor="profile-area">Primary Area</Label>
                 <Select
-                  value={form.primaryArea ?? ""}
+                  name="primaryArea"
+                  value={form.primaryArea ?? "__none__"}
                   onValueChange={(v) =>
-                    setField("primaryArea", v as FormState["primaryArea"] || null)
+                    setField("primaryArea", v === "__none__" ? null : v as FormState["primaryArea"])
                   }
+                  disabled={saving}
                 >
                   <SelectTrigger id="profile-area">
                     <SelectValue placeholder="Select area" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="__none__">None</SelectItem>
                     {AREA_OPTIONS.map((a) => (
                       <SelectItem key={a.value} value={a.value}>
                         {a.label}
@@ -310,9 +363,12 @@ export default function ProfileSettingsPage() {
               <Label htmlFor="profile-title">Title</Label>
               <Input
                 id="profile-title"
+                name="title"
+                autoComplete="organization-title"
                 value={form.title ?? ""}
                 onChange={(e) => setField("title", e.target.value)}
                 placeholder="e.g. Video Producer"
+                disabled={saving}
               />
             </div>
 
@@ -321,10 +377,13 @@ export default function ProfileSettingsPage() {
               <Label htmlFor="profile-athletics-email">Athletics email</Label>
               <Input
                 id="profile-athletics-email"
+                name="athleticsEmail"
                 type="email"
+                autoComplete="email"
                 value={form.athleticsEmail ?? ""}
                 onChange={(e) => setField("athleticsEmail", e.target.value)}
                 placeholder="you@athletics.wisc.edu"
+                disabled={saving}
               />
               <p className="text-xs text-muted-foreground">
                 Your UW Athletics email -- separate from your login email.
@@ -336,9 +395,12 @@ export default function ProfileSettingsPage() {
               <Label htmlFor="profile-slack">Slack handle</Label>
               <Input
                 id="profile-slack"
+                name="slackHandle"
+                autoComplete="off"
                 value={form.slackHandle ?? ""}
                 onChange={(e) => setField("slackHandle", e.target.value)}
                 placeholder="yourhandle"
+                disabled={saving}
               />
               <p className="text-xs text-muted-foreground">Without the @ prefix.</p>
             </div>

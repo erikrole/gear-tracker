@@ -13,7 +13,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { useConfirm } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
 import { formatRelativeTime } from "@/lib/format";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { useDashboardData, DASHBOARD_STATS_KEY } from "@/hooks/use-dashboard-data";
 import { useQuery } from "@tanstack/react-query";
 import type { DashboardStats } from "./dashboard-types";
@@ -41,7 +41,7 @@ export default function DashboardPage() {
       const res = await fetch("/api/dashboard/stats", { signal });
       if (handleAuthRedirect(res, "/")) throw new DOMException("Auth redirect", "AbortError");
       if (!res.ok) throw new Error("server");
-      const json = await res.json();
+      const json = await parseJsonSafely<{ data?: DashboardStats }>(res);
       if (!json?.data) throw new Error("server");
       return json.data as DashboardStats;
     },
@@ -222,6 +222,7 @@ export default function DashboardPage() {
                   onClick={() => loadData()}
                   disabled={refreshing}
                   className="text-muted-foreground"
+                  aria-label="Refresh dashboard"
                 >
                   <RefreshCwIcon className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
                 </Button>

@@ -26,6 +26,10 @@ function formatMinutes(mins: number): string {
   return `${h}h ${m}m`;
 }
 
+function coverageInputName(sportCode: string, area: string, field: string): string {
+  return `sportCoverage.${sportCode}.${area}.${field}`;
+}
+
 export default function ShiftConfigTable({
   configs,
   saving,
@@ -141,10 +145,12 @@ export default function ShiftConfigTable({
                         </td>
                         {AREAS.flatMap((area) => [
                           <td key={`${area}-home-staff`} className="text-center">
-                            <Input
-                              type="number"
-                              min={0}
-                              max={20}
+	                            <Input
+	                              id={coverageInputName(primaryCode, area, "homeStaffCount")}
+	                              name={coverageInputName(primaryCode, area, "homeStaffCount")}
+	                              type="number"
+	                              min={0}
+	                              max={20}
                               value={getShiftCount(primaryCode, area, "homeStaffCount")}
                               onChange={(e) =>
                                 onUpdateShift(primaryCode, area, "homeStaffCount", Math.max(0, parseInt(e.target.value) || 0))
@@ -155,10 +161,12 @@ export default function ShiftConfigTable({
                             />
                           </td>,
                           <td key={`${area}-home-student`} className="text-center">
-                            <Input
-                              type="number"
-                              min={0}
-                              max={20}
+	                            <Input
+	                              id={coverageInputName(primaryCode, area, "homeStudentCount")}
+	                              name={coverageInputName(primaryCode, area, "homeStudentCount")}
+	                              type="number"
+	                              min={0}
+	                              max={20}
                               value={getShiftCount(primaryCode, area, "homeStudentCount")}
                               onChange={(e) =>
                                 onUpdateShift(primaryCode, area, "homeStudentCount", Math.max(0, parseInt(e.target.value) || 0))
@@ -176,10 +184,12 @@ export default function ShiftConfigTable({
                         </td>
                         {AREAS.flatMap((area) => [
                           <td key={`${area}-away-staff`} className="text-center">
-                            <Input
-                              type="number"
-                              min={0}
-                              max={20}
+	                            <Input
+	                              id={coverageInputName(primaryCode, area, "awayStaffCount")}
+	                              name={coverageInputName(primaryCode, area, "awayStaffCount")}
+	                              type="number"
+	                              min={0}
+	                              max={20}
                               value={getShiftCount(primaryCode, area, "awayStaffCount")}
                               onChange={(e) =>
                                 onUpdateShift(primaryCode, area, "awayStaffCount", Math.max(0, parseInt(e.target.value) || 0))
@@ -190,9 +200,11 @@ export default function ShiftConfigTable({
                             />
                           </td>,
                           <td key={`${area}-away-student`} className="text-center">
-                            <Input
-                              type="number"
-                              min={0}
+	                            <Input
+	                              id={coverageInputName(primaryCode, area, "awayStudentCount")}
+	                              name={coverageInputName(primaryCode, area, "awayStudentCount")}
+	                              type="number"
+	                              min={0}
                               max={20}
                               value={getShiftCount(primaryCode, area, "awayStudentCount")}
                               onChange={(e) =>

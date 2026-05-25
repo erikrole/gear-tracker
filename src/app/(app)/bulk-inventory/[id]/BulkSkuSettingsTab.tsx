@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -20,8 +20,11 @@ export default function BulkSkuSettingsTab({
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const busyRef = useRef(false);
 
   async function toggleActive() {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     try {
       const res = await fetch(`/api/bulk-skus/${sku.id}`, {
@@ -33,14 +36,17 @@ export default function BulkSkuSettingsTab({
       if (!res.ok) { toast.error(await parseErrorMessage(res, "Failed to update")); return; }
       toast.success(sku.active ? "Item archived" : "Item unarchived");
       onRefresh();
-    } catch {
-      toast.error("Network error");
+    } catch (err) {
+      toast.error(err instanceof TypeError ? "You’re offline. Check your connection." : "Failed to update status");
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }
 
   async function handleDelete() {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     try {
       const res = await fetch(`/api/bulk-skus/${sku.id}`, { method: "DELETE" });
@@ -52,9 +58,10 @@ export default function BulkSkuSettingsTab({
       }
       toast.success(`${sku.name} deleted`);
       router.push("/items");
-    } catch {
-      toast.error("Network error");
+    } catch (err) {
+      toast.error(err instanceof TypeError ? "You’re offline. Check your connection." : "Failed to delete item");
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }
@@ -69,12 +76,12 @@ export default function BulkSkuSettingsTab({
         <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <Label className="text-sm font-medium">Active</Label>
+              <Label htmlFor="bulk-sku-active" className="text-sm font-medium">Active</Label>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Archived items are hidden from booking flows but retain history.
               </p>
             </div>
-            <Switch checked={sku.active} onCheckedChange={toggleActive} disabled={busy} />
+            <Switch id="bulk-sku-active" checked={sku.active} onCheckedChange={toggleActive} disabled={busy} />
           </div>
         </CardContent>
       </Card>

@@ -6,7 +6,7 @@
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Status: Shipped
 - Created: 2026-04-14
-- Last Updated: 2026-05-21
+- Last Updated: 2026-05-25
 - Brief: `tasks/guides-plan.md` (archived)
 
 ## Description
@@ -82,6 +82,8 @@ All mutations use `createAuditEntry` per D-007.
 ## Change Log
 | Date | Change |
 |------|--------|
+| 2026-05-25 | Web bug sweep Batch 26 hardened Resources URL parsing and sort control display. `/resources` now preserves compatibility with legacy guide links using `view=` and `area=`, invalid `sort=` params fall back to Personalized, and the closed sort trigger shows the selected label instead of an empty combobox. |
+| 2026-05-24 | Web bug sweep Batch 9 hardened Resources create/edit/delete/image-upload/mark-verified actions with shared auth redirect handling, safe JSON parsing, clearer server-error toasts, incomplete-response guards, and ref-backed duplicate-action prevention. |
 | 2026-05-21 | Design-language cleanup moved Resources active filter removals to shared `OperationalActiveFilterChips`, replaced the native sort select with shadcn `Select`, and raised search/filter/sort/contact controls to the 40px operational target baseline while preserving the Resources rail exception. |
 | 2026-05-19 | Slice 2 closeout: Prisma model renamed from `Guide` to `Resource`, the database table was renamed from `guides` to `resources`, resource routes now use `resource` RBAC/audit identities, and Vercel Blob uploads now write under `resources/`. Migration `0068_rename_guides_to_resources` was applied to Neon and verified with `/resources` route smoke. |
 | 2026-05-19 | Renamed Guides to Resources: routes moved to `/resources*` (old `/guides*` 301-redirect via `next.config.ts`), sidebar entry relabeled, and the landing page rebuilt as a directory with a sticky left filter rail, top search + sort toolbar, active-filter chips, and Featured badges. Removed the "Featured for you" strip and the three stacked quick-card grids; Contacts directory now shows only under the Contacts filter. |

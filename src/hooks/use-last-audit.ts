@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+import { parseJsonSafely } from "@/lib/errors";
+
 export type LastAuditInfo = {
   action: string;
   createdAt: string;
@@ -7,6 +9,33 @@ export type LastAuditInfo = {
 };
 
 export type LastAuditMap = Record<string, LastAuditInfo>;
+
+type LastAuditResponse = {
+  data?: unknown;
+};
+
+function isLastAuditInfo(value: unknown): value is LastAuditInfo {
+  if (!value || typeof value !== "object") return false;
+  const entry = value as Record<string, unknown>;
+  const actor = entry.actor;
+
+  return (
+    typeof entry.action === "string" &&
+    typeof entry.createdAt === "string" &&
+    (actor === null ||
+      (typeof actor === "object" &&
+        typeof (actor as Record<string, unknown>).id === "string" &&
+        typeof (actor as Record<string, unknown>).name === "string"))
+  );
+}
+
+function isLastAuditMap(value: unknown): value is LastAuditMap {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    Object.values(value as Record<string, unknown>).every(isLastAuditInfo)
+  );
+}
 
 /**
  * Fetch the most-recent audit entry for each entityId in one round trip.
@@ -29,9 +58,9 @@ export function useLastAudit(entityType: string, entityIds: string[]): LastAudit
       body: JSON.stringify({ entityType, entityIds }),
       signal: controller.signal,
     })
-      .then((res) => (res.ok ? res.json() : null))
+      .then(async (res) => (res.ok ? parseJsonSafely<LastAuditResponse>(res) : null))
       .then((json) => {
-        if (json?.data) setMap(json.data as LastAuditMap);
+        if (isLastAuditMap(json?.data)) setMap(json.data);
       })
       .catch(() => {
         // Silent — last-edited is decoration, not load-bearing.

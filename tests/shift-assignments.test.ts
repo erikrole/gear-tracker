@@ -10,6 +10,11 @@ vi.mock("@/lib/db", () => {
   const mockTx = {
     shift: {
       findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
+    shiftGroup: {
       update: vi.fn(),
     },
     shiftAssignment: {
@@ -19,6 +24,9 @@ vi.mock("@/lib/db", () => {
       create: vi.fn(),
       update: vi.fn(),
       updateMany: vi.fn(),
+    },
+    user: {
+      findUnique: vi.fn(),
     },
   };
 
@@ -52,7 +60,10 @@ const mockTx = (db as any)._mockTx;
 beforeEach(() => {
   transactionCalls.length = 0;
   mockTx.shift.findUnique.mockReset();
+  mockTx.shift.findFirst.mockReset();
+  mockTx.shift.create.mockReset();
   mockTx.shift.update.mockReset();
+  mockTx.shiftGroup.update.mockReset();
   mockTx.shiftAssignment.findFirst.mockReset();
   mockTx.shiftAssignment.findMany.mockReset();
   mockTx.shiftAssignment.findUnique.mockReset();
@@ -60,6 +71,8 @@ beforeEach(() => {
   mockTx.shiftAssignment.update.mockReset();
   mockTx.shiftAssignment.updateMany.mockReset();
   mockTx.shiftAssignment.findMany.mockResolvedValue([]);
+  mockTx.user.findUnique.mockReset();
+  mockTx.user.findUnique.mockResolvedValue({ id: "user-1", role: "STUDENT", active: true });
 });
 
 // ════════════��═══════════════════════════════════���════════════════════════════
@@ -147,9 +160,14 @@ describe("directAssignShift", () => {
     );
   });
 
-  it("preserves the planned shift worker type when assigning a different role", async () => {
-    const staffSlot = makeShift({ workerType: "FT" });
-    mockTx.shift.findUnique.mockResolvedValue(staffSlot);
+  it("assigns a mismatched role into a new matching slot and leaves the original slot open", async () => {
+    const studentSlot = makeShift({ workerType: "ST" });
+    const staffSlot = makeShift({ id: "staff-slot-1", shiftGroupId: studentSlot.shiftGroupId, area: studentSlot.area, workerType: "FT" });
+    mockTx.shift.findUnique.mockResolvedValue(studentSlot);
+    mockTx.user.findUnique.mockResolvedValue({ id: "staff-1", role: "STAFF", active: true });
+    mockTx.shift.findFirst.mockResolvedValue(null);
+    mockTx.shift.create.mockResolvedValue(staffSlot);
+    mockTx.shiftGroup.update.mockResolvedValue({});
     mockTx.shiftAssignment.findFirst
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(null);
@@ -158,14 +176,63 @@ describe("directAssignShift", () => {
     mockTx.shiftAssignment.create.mockResolvedValue({
       id: "sa-1",
       shiftId: staffSlot.id,
-      userId: "student-1",
+      userId: "staff-1",
       status: "DIRECT_ASSIGNED",
-      user: { id: "student-1", name: "Student One", role: "STUDENT", primaryArea: null, avatarUrl: null },
+      user: { id: "staff-1", name: "Staff One", role: "STAFF", primaryArea: null, avatarUrl: null },
     });
 
-    await directAssignShift(staffSlot.id, "student-1", "admin-1");
+    await directAssignShift(studentSlot.id, "staff-1", "admin-1");
 
-    expect(mockTx.shift.update).not.toHaveBeenCalled();
+    expect(mockTx.shift.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        shiftGroupId: studentSlot.shiftGroupId,
+        area: studentSlot.area,
+        workerType: "FT",
+        startsAt: studentSlot.startsAt,
+        endsAt: studentSlot.endsAt,
+      }),
+    });
+    expect(mockTx.shiftGroup.update).toHaveBeenCalledWith({
+      where: { id: studentSlot.shiftGroupId },
+      data: { manuallyEdited: true },
+    });
+    expect(mockTx.shiftAssignment.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          shiftId: staffSlot.id,
+          userId: "staff-1",
+        }),
+      })
+    );
+    expect(mockTx.shiftAssignment.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          shiftId: staffSlot.id,
+          status: "REQUESTED",
+        }),
+      })
+    );
+  });
+
+  it("reuses an existing open matching slot for a mismatched role", async () => {
+    const studentSlot = makeShift({ workerType: "ST" });
+    const openStaffSlot = makeShift({ id: "open-staff-slot", shiftGroupId: studentSlot.shiftGroupId, area: studentSlot.area, workerType: "FT" });
+    mockTx.shift.findUnique.mockResolvedValue(studentSlot);
+    mockTx.user.findUnique.mockResolvedValue({ id: "staff-1", role: "STAFF", active: true });
+    mockTx.shift.findFirst.mockResolvedValue(openStaffSlot);
+    mockTx.shiftAssignment.findFirst.mockResolvedValue(null);
+    mockTx.shiftAssignment.updateMany.mockResolvedValue({ count: 0 });
+    mockTx.shiftAssignment.create.mockResolvedValue({ id: "sa-1", shiftId: openStaffSlot.id });
+
+    await directAssignShift(studentSlot.id, "staff-1", "admin-1");
+
+    expect(mockTx.shift.create).not.toHaveBeenCalled();
+    expect(mockTx.shiftGroup.update).not.toHaveBeenCalled();
+    expect(mockTx.shiftAssignment.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ shiftId: openStaffSlot.id }),
+      })
+    );
   });
 
   it("uses personal call-time overrides when checking conflicts", async () => {

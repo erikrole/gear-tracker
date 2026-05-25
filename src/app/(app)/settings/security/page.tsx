@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Monitor, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,8 +10,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import EmptyState from "@/components/EmptyState";
 import { useFetch } from "@/hooks/use-fetch";
-import { handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { SettingsPageShell } from "../SettingsPageShell";
 
 type Session = {
@@ -31,8 +32,11 @@ export default function SecuritySettingsPage() {
 
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [revokingAll, setRevokingAll] = useState(false);
+  const revokingRef = useRef(false);
 
   async function handleRevokeOne(id: string) {
+    if (revokingRef.current) return;
+    revokingRef.current = true;
     setRevokingId(id);
     try {
       const res = await fetch(`/api/me/sessions/${id}`, { method: "DELETE" });
@@ -48,11 +52,14 @@ export default function SecuritySettingsPage() {
       if (isAbortError(err)) return;
       toast.error("Could not reach the server. Check your connection.");
     } finally {
+      revokingRef.current = false;
       setRevokingId(null);
     }
   }
 
   async function handleRevokeAll() {
+    if (revokingRef.current) return;
+    revokingRef.current = true;
     setRevokingAll(true);
     try {
       const res = await fetch("/api/me/sessions", { method: "DELETE" });
@@ -62,14 +69,15 @@ export default function SecuritySettingsPage() {
         toast.error(msg);
         return;
       }
-      const json = await res.json();
-      const count: number = json.revokedCount ?? 0;
+      const json = await parseJsonSafely<{ revokedCount?: number }>(res);
+      const count = json?.revokedCount ?? 0;
       toast.success(count === 0 ? "No other sessions to sign out." : `Signed out ${count} other session${count === 1 ? "" : "s"}.`);
       reload();
     } catch (err) {
       if (isAbortError(err)) return;
       toast.error("Could not reach the server. Check your connection.");
     } finally {
+      revokingRef.current = false;
       setRevokingAll(false);
     }
   }
@@ -81,6 +89,7 @@ export default function SecuritySettingsPage() {
   const [revokeOthers, setRevokeOthers] = useState(false);
   const [saving, setSaving] = useState(false);
   const [pwError, setPwError] = useState<string | null>(null);
+  const savingRef = useRef(false);
 
   function resetForm() {
     setCurrentPassword("");
@@ -92,6 +101,7 @@ export default function SecuritySettingsPage() {
 
   async function handleChangePassword(e: React.FormEvent) {
     e.preventDefault();
+    if (savingRef.current) return;
     setPwError(null);
 
     if (newPassword !== confirmPassword) {
@@ -103,6 +113,7 @@ export default function SecuritySettingsPage() {
       return;
     }
 
+    savingRef.current = true;
     setSaving(true);
     try {
       const res = await fetch("/api/me/change-password", {
@@ -123,11 +134,13 @@ export default function SecuritySettingsPage() {
       if (isAbortError(err)) return;
       toast.error("Could not reach the server. Check your connection.");
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
 
   const otherSessions = sessions.filter((s) => !s.isCurrent);
+  const revoking = revokingId !== null || revokingAll;
 
   return (
     <SettingsPageShell title="Security" description="Change your password and manage active sessions.">
@@ -143,43 +156,52 @@ export default function SecuritySettingsPage() {
                 <Label htmlFor="security-current-pw">Current password</Label>
                 <Input
                   id="security-current-pw"
+                  name="currentPassword"
                   type="password"
                   autoComplete="current-password"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   required
+                  disabled={saving}
                 />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="security-new-pw">New password</Label>
                 <Input
                   id="security-new-pw"
+                  name="newPassword"
                   type="password"
                   autoComplete="new-password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   required
                   minLength={8}
+                  disabled={saving}
                 />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="security-confirm-pw">Confirm new password</Label>
                 <Input
                   id="security-confirm-pw"
+                  name="confirmPassword"
                   type="password"
                   autoComplete="new-password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
                   aria-invalid={!!pwError}
+                  disabled={saving}
                 />
                 {pwError && <p className="text-xs text-destructive">{pwError}</p>}
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox
                   id="security-revoke-others"
+                  name="revokeOtherSessions"
+                  aria-label="Sign out of all other devices"
                   checked={revokeOthers}
                   onCheckedChange={(v) => setRevokeOthers(!!v)}
+                  disabled={saving}
                 />
                 <Label htmlFor="security-revoke-others" className="font-normal text-sm">
                   Sign out of all other devices
@@ -204,7 +226,7 @@ export default function SecuritySettingsPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={revokingAll}
+                  disabled={revoking}
                   onClick={handleRevokeAll}
                 >
                   {revokingAll && <Loader2 className="size-4 animate-spin" />}
@@ -220,9 +242,25 @@ export default function SecuritySettingsPage() {
                 <Skeleton className="h-12 w-full rounded-lg" />
               </div>
             ) : error ? (
-              <p className="px-6 pb-4 text-sm text-destructive">Could not load sessions.</p>
+              <div className="px-2 pb-2">
+                <EmptyState
+                  inline
+                  icon={error === "network" ? "wifi-off" : "box"}
+                  title={error === "network" ? "You are offline" : "Could not load sessions"}
+                  description={error === "network" ? "Check your connection and retry." : "Retry before managing active sessions."}
+                  actionLabel="Retry"
+                  onAction={reload}
+                />
+              </div>
             ) : sessions.length === 0 ? (
-              <p className="px-6 pb-4 text-sm text-muted-foreground">No active sessions found.</p>
+              <div className="px-2 pb-2">
+                <EmptyState
+                  inline
+                  icon="check"
+                  title="No active sessions found"
+                  description="Only current, unexpired sessions appear here."
+                />
+              </div>
             ) : (
               <ul className="divide-y">
                 {sessions.map((s) => (
@@ -254,7 +292,7 @@ export default function SecuritySettingsPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        disabled={revokingId === s.id || revokingAll}
+                        disabled={revoking}
                         onClick={() => handleRevokeOne(s.id)}
                       >
                         {revokingId === s.id ? (

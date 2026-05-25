@@ -351,6 +351,9 @@ export default function LocationsSettingsPage() {
                     <TableCell className="align-top">
                       {renamingId === loc.id ? (
                         <Input
+                          id={`location-name-${loc.id}`}
+                          name="locationName"
+                          aria-label={`Rename ${loc.name}`}
                           value={renameValue}
                           onChange={(e) => setRenameValue(e.target.value)}
                           onBlur={() => commitRename(loc)}
@@ -386,7 +389,7 @@ export default function LocationsSettingsPage() {
                           checked={loc.isHomeVenue}
                           onCheckedChange={() => toggleHome(loc)}
                           disabled={busy === `home-${loc.id}`}
-                          aria-label="Toggle home venue"
+                          aria-label={`Toggle ${loc.name} home venue`}
                         />
                       </div>
                     </TableCell>

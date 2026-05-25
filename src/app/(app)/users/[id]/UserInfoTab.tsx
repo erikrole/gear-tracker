@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useId, useState } from "react";
+import { FormEvent, useCallback, useEffect, useId, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { sportLabel } from "@/lib/sports";
@@ -12,8 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Check, ChevronsUpDown, ClockIcon, Copy, RefreshCw, X } from "lucide-react";
+import { AlertCircle, Check, ChevronsUpDown, ClockIcon, Copy, RefreshCw, X } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Select,
   SelectContent,
@@ -39,7 +40,12 @@ import { Separator } from "@/components/ui/separator";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
 import { OperationalRowActions } from "@/components/OperationalRowActions";
 import { cn } from "@/lib/utils";
-import { handleAuthRedirect } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
+
+type ApiEnvelope<T = unknown> = {
+  data?: T;
+  error?: string;
+};
 
 /* ── Text Input Field ─────────────────────────────────── */
 
@@ -283,9 +289,10 @@ function DirectReportField({
     const handle = setTimeout(async () => {
       try {
         const res = await fetch(`/api/users?q=${encodeURIComponent(trimmed)}&limit=8&active=all`);
+        if (handleAuthRedirect(res)) return;
         if (!res.ok) return;
-        const json = await res.json();
-        const data: DirectReportSearchResult[] = (json.data ?? [])
+        const json = await parseJsonSafely<ApiEnvelope<Array<{ id: string; name: string; email: string }>>>(res);
+        const data: DirectReportSearchResult[] = (json?.data ?? [])
           .filter((u: { id: string }) => u.id !== user.id)
           .map((u: { id: string; name: string; email: string }) => ({
             id: u.id, name: u.name, email: u.email,
@@ -521,12 +528,18 @@ const SPORT_OPTIONS = SPORT_CODES.map((s) => ({
 export default function UserInfoTab({
   user,
   locations,
+  locationsLoading = false,
+  locationsError = false,
+  onRetryLocations,
   currentUserRole,
   isSelf = false,
   onUpdated,
 }: {
   user: UserDetail;
   locations: Location[];
+  locationsLoading?: boolean;
+  locationsError?: boolean;
+  onRetryLocations?: () => void;
   currentUserRole: Role | null;
   isSelf?: boolean;
   onUpdated: () => void;
@@ -534,6 +547,9 @@ export default function UserInfoTab({
   const [savingPassword, setSavingPassword] = useState(false);
   const [addingSport, setAddingSport] = useState(false);
   const [addingArea, setAddingArea] = useState(false);
+  const passwordBusyRef = useRef(false);
+  const sportBusyRef = useRef(false);
+  const areaBusyRef = useRef(false);
 
   const isAdmin = currentUserRole === "ADMIN";
   const isStaffOrAdmin = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
@@ -571,9 +587,9 @@ export default function UserInfoTab({
       body: JSON.stringify(payload),
     });
     if (handleAuthRedirect(res)) return;
-    const json = await res.json();
     if (!res.ok) {
-      throw new Error(json.error || "Failed to update user");
+      const msg = await parseErrorMessage(res, "Failed to update user");
+      throw new Error(msg);
     }
     onUpdated();
   }
@@ -585,16 +601,18 @@ export default function UserInfoTab({
       body: JSON.stringify({ role: newRole }),
     });
     if (handleAuthRedirect(res)) return;
-    const json = await res.json();
     if (!res.ok) {
-      toast.error(json.error || "Failed to change role");
-      throw new Error(json.error);
+      const msg = await parseErrorMessage(res, "Failed to change role");
+      toast.error(msg);
+      throw new Error(msg);
     }
     onUpdated();
   }
 
   async function changePassword(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (passwordBusyRef.current) return;
+    passwordBusyRef.current = true;
     setSavingPassword(true);
     try {
       const form = new FormData(e.currentTarget);
@@ -606,20 +624,24 @@ export default function UserInfoTab({
         body: JSON.stringify({ action: "change_password", currentPassword, newPassword }),
       });
       if (handleAuthRedirect(res)) return;
-      const json = await res.json();
       if (!res.ok) {
-        toast.error(json.error || "Failed to update password");
+        const msg = await parseErrorMessage(res, "Failed to update password");
+        toast.error(msg);
       } else {
         e.currentTarget.reset();
         toast.success("Password updated");
       }
     } catch {
       toast.error("Network error");
+    } finally {
+      passwordBusyRef.current = false;
+      setSavingPassword(false);
     }
-    setSavingPassword(false);
   }
 
   async function addSport(sportCode: string) {
+    if (sportBusyRef.current) return;
+    sportBusyRef.current = true;
     setAddingSport(true);
     try {
       const res = await fetch(`/api/sport-configs/${sportCode}/roster`, {
@@ -628,36 +650,44 @@ export default function UserInfoTab({
         body: JSON.stringify({ userId: user.id }),
       });
       if (handleAuthRedirect(res)) return;
-      const json = await res.json();
       if (!res.ok) {
-        toast.error(json.error || "Failed to add sport");
+        const msg = await parseErrorMessage(res, "Failed to add sport");
+        toast.error(msg);
       } else {
         onUpdated();
       }
     } catch {
       toast.error("Network error");
+    } finally {
+      sportBusyRef.current = false;
+      setAddingSport(false);
     }
-    setAddingSport(false);
   }
 
   async function removeSport(assignmentId: string, sportCode: string) {
+    if (sportBusyRef.current) return;
+    sportBusyRef.current = true;
     try {
       const res = await fetch(`/api/sport-configs/${sportCode}/roster?assignmentId=${assignmentId}`, {
         method: "DELETE",
       });
       if (handleAuthRedirect(res)) return;
-      const json = await res.json();
       if (!res.ok) {
-        toast.error(json.error || "Failed to remove sport");
+        const msg = await parseErrorMessage(res, "Failed to remove sport");
+        toast.error(msg);
       } else {
         onUpdated();
       }
     } catch {
       toast.error("Network error");
+    } finally {
+      sportBusyRef.current = false;
     }
   }
 
   async function addArea(area: string) {
+    if (areaBusyRef.current) return;
+    areaBusyRef.current = true;
     setAddingArea(true);
     try {
       const res = await fetch("/api/student-areas", {
@@ -666,36 +696,44 @@ export default function UserInfoTab({
         body: JSON.stringify({ userId: user.id, area, isPrimary: false }),
       });
       if (handleAuthRedirect(res)) return;
-      const json = await res.json();
       if (!res.ok) {
-        toast.error(json.error || "Failed to add area");
+        const msg = await parseErrorMessage(res, "Failed to add area");
+        toast.error(msg);
       } else {
         onUpdated();
       }
     } catch {
       toast.error("Network error");
+    } finally {
+      areaBusyRef.current = false;
+      setAddingArea(false);
     }
-    setAddingArea(false);
   }
 
   async function removeArea(assignmentId: string) {
+    if (areaBusyRef.current) return;
+    areaBusyRef.current = true;
     try {
       const res = await fetch(`/api/student-areas?id=${assignmentId}`, {
         method: "DELETE",
       });
       if (handleAuthRedirect(res)) return;
-      const json = await res.json();
       if (!res.ok) {
-        toast.error(json.error || "Failed to remove area");
+        const msg = await parseErrorMessage(res, "Failed to remove area");
+        toast.error(msg);
       } else {
         onUpdated();
       }
     } catch {
       toast.error("Network error");
+    } finally {
+      areaBusyRef.current = false;
     }
   }
 
   async function toggleAreaPrimary(area: string, isPrimary: boolean) {
+    if (areaBusyRef.current) return;
+    areaBusyRef.current = true;
     try {
       const res = await fetch("/api/student-areas", {
         method: "POST",
@@ -703,14 +741,16 @@ export default function UserInfoTab({
         body: JSON.stringify({ userId: user.id, area, isPrimary }),
       });
       if (handleAuthRedirect(res)) return;
-      const json = await res.json();
       if (!res.ok) {
-        toast.error(json.error || "Failed to update area");
+        const msg = await parseErrorMessage(res, "Failed to update area");
+        toast.error(msg);
       } else {
         onUpdated();
       }
     } catch {
       toast.error("Network error");
+    } finally {
+      areaBusyRef.current = false;
     }
   }
 
@@ -718,6 +758,7 @@ export default function UserInfoTab({
     value: l.id,
     label: l.name,
   }));
+  const locationOptionsUnavailable = locationsLoading || locationsError;
 
   const assignedSportCodes = new Set((user.sportAssignments ?? []).map((sa) => sa.sportCode));
   const availableSports = SPORT_OPTIONS.filter((s) => !assignedSportCodes.has(s.value));
@@ -785,15 +826,43 @@ export default function UserInfoTab({
             canEdit={canEditRole}
             onSave={changeRole}
           />
-          <SelectInputField
-            label="Location"
-            value={user.locationId || ""}
-            options={locationOptions}
-            canEdit={canEditProfile || canEditSelf}
-            onSave={(v) => patchUser({ locationId: v || null })}
-            allowEmpty
-            emptyLabel="No location"
-          />
+          {locationsError && (
+            <Alert variant="destructive" className="mx-3 my-2 w-auto">
+              <AlertCircle className="size-4" />
+              <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <span>Locations could not load, so profile location editing is unavailable. The saved profile location is still shown.</span>
+                {onRetryLocations && (
+                  <Button type="button" variant="outline" size="sm" onClick={onRetryLocations} className="h-8 shrink-0">
+                    Retry locations
+                  </Button>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+          {locationOptionsUnavailable ? (
+            <SaveableField label="Location">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-8 w-full justify-start px-3 text-sm font-normal text-muted-foreground"
+                disabled
+                aria-label="Location unavailable"
+              >
+                {locationsLoading && <Spinner className="mr-2 size-3" />}
+                {user.location || "No location"}
+              </Button>
+            </SaveableField>
+          ) : (
+            <SelectInputField
+              label="Location"
+              value={user.locationId || ""}
+              options={locationOptions}
+              canEdit={canEditProfile || canEditSelf}
+              onSave={(v) => patchUser({ locationId: v || null })}
+              allowEmpty
+              emptyLabel="No location"
+            />
+          )}
           <SelectInputField
             label="Primary Area"
             value={user.primaryArea || ""}
@@ -1096,8 +1165,9 @@ type MyHoursData = {
 
 async function fetchMyHours(): Promise<MyHoursData | null> {
   const r = await fetch("/api/shifts/my-hours");
+  if (handleAuthRedirect(r)) return null;
   if (!r.ok) return null;
-  const j = await r.json();
+  const j = await parseJsonSafely<ApiEnvelope<MyHoursData>>(r);
   return j?.data ?? null;
 }
 
@@ -1156,20 +1226,24 @@ function CalendarSubscriptionCard({
   const webcalUrl = feedUrl ? feedUrl.replace(/^https?/, "webcal") : null;
 
   async function generateToken() {
+    if (generating) return;
     setGenerating(true);
     try {
       const res = await fetch("/api/shifts/ics-token", { method: "POST" });
-      const json = await res.json();
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) {
-        toast.error(json.error || "Failed to generate token");
+        const msg = await parseErrorMessage(res, "Failed to generate token");
+        toast.error(msg);
       } else {
-        setToken(json.data?.token);
+        const json = await parseJsonSafely<ApiEnvelope<{ token?: string }>>(res);
+        setToken(json?.data?.token ?? null);
         onTokenChange();
       }
     } catch {
       toast.error("Network error");
+    } finally {
+      setGenerating(false);
     }
-    setGenerating(false);
   }
 
   function copyUrl() {

@@ -13,7 +13,7 @@ import { Card } from "@/components/ui/card";
 import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useFormOptions } from "@/hooks/use-form-options";
 
@@ -31,13 +31,34 @@ import {
   type Location,
   type ListResponse,
 } from "./booking-list";
+import type { TabKey as BookingSheetSection } from "./booking-details/types";
 
 /* ───── Re-exports for backward compatibility ───── */
 export type { BookingItem, BookingListConfig, StatusOption, ContextMenuExtra };
 
 /* ───── Component ───── */
 
-export default function BookingListPage({ config, viewMode = "table", hideHeader = false, hideNewButton = false, initialHighlight }: { config: BookingListConfig; viewMode?: "table" | "cards"; hideHeader?: boolean; hideNewButton?: boolean; initialHighlight?: string | null }) {
+type BookingListPageProps = {
+  config: BookingListConfig;
+  viewMode?: "table" | "cards";
+  hideHeader?: boolean;
+  hideNewButton?: boolean;
+  initialHighlight?: string | null;
+  initialSheetTab?: BookingSheetSection | null;
+};
+
+function parseBookingSheetSection(value: string | null): BookingSheetSection | null {
+  return value === "details" || value === "equipment" || value === "history" ? value : null;
+}
+
+export default function BookingListPage({
+  config,
+  viewMode = "table",
+  hideHeader = false,
+  hideNewButton = false,
+  initialHighlight,
+  initialSheetTab,
+}: BookingListPageProps) {
   const urlParams = useSearchParams();
   const router = useRouter();
   const urlSignature = urlParams.toString();
@@ -96,7 +117,11 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
       const res = await fetch(listUrl, { signal });
       if (handleAuthRedirect(res)) throw new DOMException("Auth redirect", "AbortError");
       if (!res.ok) throw new Error("server");
-      return res.json();
+      const json = await parseJsonSafely<ListResponse>(res);
+      if (!json || !Array.isArray(json.data) || typeof json.total !== "number") {
+        throw new Error("server");
+      }
+      return json;
     },
     refetchOnWindowFocus: true,
   });
@@ -189,18 +214,31 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
     initialHighlight !== undefined ? (initialHighlight || null) : (urlParams.get("highlight") || urlParams.get("id") || null)
   );
-  const [initialSheetTab, setInitialSheetTab] = useState<string | null>(urlParams.get("sheetTab") || null);
+  const [pendingSheetTab, setPendingSheetTab] = useState<BookingSheetSection | null>(
+    initialHighlight !== undefined ? (initialSheetTab ?? null) : parseBookingSheetSection(urlParams.get("sheetTab"))
+  );
+
+  const openBookingDetails = useCallback((id: string, sheetTab: BookingSheetSection | null = null) => {
+    setPendingSheetTab(sheetTab);
+    setSelectedBookingId(id);
+  }, []);
 
   useEffect(() => {
     if (initialHighlight) {
       setSelectedBookingId(initialHighlight);
+      setPendingSheetTab(initialSheetTab ?? null);
     }
-  }, [initialHighlight]);
+  }, [initialHighlight, initialSheetTab]);
 
   // Clear highlight/sheetTab from URL after consuming them (only when using URL-based highlight for deep links)
   useEffect(() => {
     const next = new URLSearchParams(urlSignature);
     if (initialHighlight === undefined && (next.get("highlight") || next.get("id") || next.get("sheetTab"))) {
+      const highlightId = next.get("highlight") || next.get("id");
+      if (highlightId) {
+        setSelectedBookingId(highlightId);
+        setPendingSheetTab(parseBookingSheetSection(next.get("sheetTab")));
+      }
       next.delete("highlight");
       next.delete("id");
       next.delete("sheetTab");
@@ -252,9 +290,10 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
       await reload();
     } catch {
       toast.error("Network error \u2014 please try again.");
+    } finally {
+      extendingRef.current = false;
+      setExtendingId(null);
     }
-    extendingRef.current = false;
-    setExtendingId(null);
   }
 
   // (Create flow is now a separate page — no sheet callbacks needed)
@@ -365,10 +404,10 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
                     key={item.id}
                     item={item}
                     overdueStatus={config.overdueStatus}
-                    onClick={() => setSelectedBookingId(item.id)}
+                    onClick={() => openBookingDetails(item.id)}
                     menuProps={{
                       currentUserId, currentUserRole, config, extendingId,
-                      onViewDetails: (id) => setSelectedBookingId(id),
+                      onViewDetails: openBookingDetails,
                       onExtend: handleExtendFromMenu,
                       items, reload, setItems,
                     }}
@@ -397,10 +436,10 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
                           key={item.id}
                           item={item}
                           overdueStatus={config.overdueStatus}
-                          onClick={() => setSelectedBookingId(item.id)}
+                          onClick={() => openBookingDetails(item.id)}
                           menuProps={{
                             currentUserId, currentUserRole, config, extendingId,
-                            onViewDetails: (id) => setSelectedBookingId(id),
+                            onViewDetails: openBookingDetails,
                             onExtend: handleExtendFromMenu,
                             items, reload, setItems,
                           }}
@@ -417,10 +456,10 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
                       key={item.id}
                       item={item}
                       overdueStatus={config.overdueStatus}
-                      onClick={() => setSelectedBookingId(item.id)}
+                      onClick={() => openBookingDetails(item.id)}
                       menuProps={{
                         currentUserId, currentUserRole, config, extendingId,
-                        onViewDetails: (id) => setSelectedBookingId(id),
+                        onViewDetails: openBookingDetails,
                         onExtend: handleExtendFromMenu,
                         items, reload, setItems,
                       }}
@@ -454,7 +493,8 @@ export default function BookingListPage({ config, viewMode = "table", hideHeader
         <Suspense>
           <BookingDetailsSheet
             bookingId={selectedBookingId}
-            onClose={() => { setSelectedBookingId(null); setInitialSheetTab(null); }}
+            initialTab={pendingSheetTab}
+            onClose={() => { setSelectedBookingId(null); setPendingSheetTab(null); }}
             onUpdated={reload}
           />
         </Suspense>

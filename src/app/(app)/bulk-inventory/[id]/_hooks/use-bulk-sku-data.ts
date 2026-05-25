@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { handleAuthRedirect, isAbortError, classifyError, type FetchErrorKind } from "@/lib/errors";
+import {
+  handleAuthRedirect,
+  isAbortError,
+  classifyError,
+  parseJsonSafely,
+  type FetchErrorKind,
+} from "@/lib/errors";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import type { BulkSkuDetail } from "../types";
@@ -44,7 +50,7 @@ export default function useBulkSkuData(id: string): UseBulkSkuDataReturn {
           return null;
         }
         if (!res.ok) throw new Error("server");
-        return res.json();
+        return parseJsonSafely<{ data?: BulkSkuDetail }>(res);
       })
       .then((json) => {
         if (!json || controller.signal.aborted) return;
@@ -53,7 +59,9 @@ export default function useBulkSkuData(id: string): UseBulkSkuDataReturn {
           setBreadcrumbLabel(json.data.name);
           setFetchError(false);
           hasLoadedOnce.current = true;
+          return;
         }
+        throw new Error("incomplete");
       })
       .catch((err) => {
         if (isAbortError(err)) return;
@@ -66,7 +74,7 @@ export default function useBulkSkuData(id: string): UseBulkSkuDataReturn {
       .finally(() => {
         if (!controller.signal.aborted) setRefreshing(false);
       });
-  }, [id]);
+  }, [id, setBreadcrumbLabel]);
 
   useEffect(() => {
     loadSku();

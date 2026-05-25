@@ -79,6 +79,7 @@ export function WizardStep1({
           <div className="flex h-9 items-center gap-2 rounded-md border border-border/70 bg-background px-3">
             <Switch
               id="booking-link-to-event"
+              aria-label="Link to event"
               checked={form.tieToEvent}
               onCheckedChange={(value) => dispatch({ type: "SET_TIE_TO_EVENT", value })}
             />

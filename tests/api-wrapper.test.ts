@@ -138,6 +138,65 @@ describe("withAuth", () => {
     expect(res.status).toBe(200);
   });
 
+  it("allows POST when forwarded proxy headers match the browser Origin", async () => {
+    const handler = vi.fn().mockResolvedValue(NextResponse.json({ ok: true }));
+    const wrapped = withAuth(handler);
+
+    const res = await wrapped(
+      new Request("http://internal:3000/api/test", {
+        method: "POST",
+        headers: {
+          host: "internal:3000",
+          origin: "https://app.example.com",
+          "x-forwarded-host": "app.example.com",
+          "x-forwarded-proto": "https",
+        },
+      }),
+      { params: Promise.resolve({}) }
+    );
+
+    expect(res.status).toBe(200);
+    expect(handler).toHaveBeenCalled();
+  });
+
+  it("allows loopback dev POSTs when the internal URL scheme disagrees with the browser Origin", async () => {
+    const handler = vi.fn().mockResolvedValue(NextResponse.json({ ok: true }));
+    const wrapped = withAuth(handler);
+
+    const res = await wrapped(
+      new Request("https://127.0.0.1:3033/api/test", {
+        method: "POST",
+        headers: {
+          host: "127.0.0.1:3033",
+          origin: "http://127.0.0.1:3033",
+        },
+      }),
+      { params: Promise.resolve({}) }
+    );
+
+    expect(res.status).toBe(200);
+    expect(handler).toHaveBeenCalled();
+  });
+
+  it("allows IPv6 loopback dev POSTs when the internal URL scheme disagrees with the browser Origin", async () => {
+    const handler = vi.fn().mockResolvedValue(NextResponse.json({ ok: true }));
+    const wrapped = withAuth(handler);
+
+    const res = await wrapped(
+      new Request("https://[::1]:3033/api/test", {
+        method: "POST",
+        headers: {
+          host: "[::1]:3033",
+          origin: "http://[::1]:3033",
+        },
+      }),
+      { params: Promise.resolve({}) }
+    );
+
+    expect(res.status).toBe(200);
+    expect(handler).toHaveBeenCalled();
+  });
+
   it("blocks POST when Origin header is absent (CSRF protection)", async () => {
     const handler = vi.fn();
     const wrapped = withAuth(handler);

@@ -49,8 +49,10 @@ export function ImportResultStep({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
         <SummaryCard label="Created" value={result.created} variant="green" />
         <SummaryCard label="Updated" value={result.updated} variant="blue" />
-        <SummaryCard label="Skipped" value={result.skipped} variant={result.skipped > 0 ? "red" : undefined} />
+        <SummaryCard label="Item families" value={result.bulkCreated} variant="purple" />
+        <SummaryCard label="Images queued" value={result.imagesQueued} variant={result.imagesQueued > 0 ? "blue" : undefined} />
         <SummaryCard label="Kits created" value={result.kitsCreated} variant="purple" />
+        <SummaryCard label="Skipped" value={result.skipped} variant={result.skipped > 0 ? "red" : undefined} />
       </div>
 
       {result.errors.length > 0 && (
@@ -90,7 +92,7 @@ export function ImportResultStep({
             {result.created + result.updated > 0 ? "Import complete" : "No items imported"}
           </div>
           <div className="text-muted-foreground mb-4">
-            {result.created} created, {result.updated} updated, {result.skipped} skipped
+            {result.created} created, {result.updated} updated, {result.bulkCreated} item families, {result.skipped} skipped
           </div>
           <div className="flex gap-2 justify-center">
             <Button variant="outline" onClick={onReset}>Import another file</Button>

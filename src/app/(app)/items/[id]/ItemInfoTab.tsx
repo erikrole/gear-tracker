@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import type { AssetDetail, CategoryOption } from "./types";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
 import { CategoryCombobox } from "@/components/FormCombobox";
@@ -70,14 +70,16 @@ function TextInputField({
     if (!warnDuplicate || !val || val === value) { setDupWarning(""); return; }
     try {
       const res = await fetch(`/api/assets?q=${encodeURIComponent(val)}&limit=5`);
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) return;
-      const json = await res.json();
-      const matches = (json.data || []).filter(
+      const json = await parseJsonSafely<{ data?: Array<{ id: string; assetTag: string; serialNumber: string }> }>(res);
+      const matches = (json?.data || []).filter(
         (a: { id: string; assetTag: string; serialNumber: string }) =>
           a.id !== warnDuplicate.assetId &&
           (warnDuplicate.field === "assetTag" ? a.assetTag === val : a.serialNumber === val)
       );
-      setDupWarning(matches.length > 0 ? `Duplicate found: ${matches[0].assetTag}` : "");
+      const duplicate = matches[0];
+      setDupWarning(duplicate ? `Duplicate found: ${duplicate.assetTag}` : "");
     } catch { /* ignore */ }
   }
 
@@ -109,6 +111,7 @@ function TextInputField({
       <div className="flex-1 min-w-0">
         <Input
           id={fieldId}
+          name={label.toLowerCase().replace(/\s+/g, "-")}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
@@ -185,6 +188,7 @@ function LinkField({
       <div className="flex h-8 items-center rounded-md border bg-background shadow-xs transition-[border-color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
         <Input
           id={fieldId}
+          name={label.toLowerCase().replace(/\s+/g, "-")}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
@@ -201,11 +205,13 @@ function LinkField({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
+                  type="button"
                   variant="ghost"
                   size="icon"
                   className="size-7 shrink-0 rounded-sm text-muted-foreground hover:text-foreground"
                   onClick={() => window.open(value, "_blank", "noopener")}
                   disabled={saveField.isSaving}
+                  aria-label="Open link"
                 >
                   <ExternalLink className="size-3.5" aria-hidden="true" />
                 </Button>
@@ -215,11 +221,13 @@ function LinkField({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
+                  type="button"
                   variant="ghost"
                   size="icon"
                   className="mr-0.5 size-7 shrink-0 rounded-sm text-muted-foreground hover:text-foreground"
                   onClick={copyUrl}
                   disabled={saveField.isSaving}
+                  aria-label={copied ? "Copied link" : "Copy link"}
                 >
                   {copied ? (
                     <Check className="size-3.5 text-green-600 dark:text-green-400" aria-hidden="true" />
@@ -252,10 +260,13 @@ function SaveableDatePickerField({
 }) {
   const saveField = useSaveField(onSave);
   const dateValue = value ? new Date(value + "T00:00:00") : undefined;
+  const fieldId = useId();
 
   return (
-    <SaveableField label={label} status={saveField.status}>
+    <SaveableField label={label} status={saveField.status} htmlFor={fieldId}>
       <DatePicker
+        id={fieldId}
+        name={label.toLowerCase().replace(/\s+/g, "-")}
         value={dateValue}
         onChange={async (day) => {
           if (saveField.isSaving) return;
@@ -288,6 +299,7 @@ function SaveableNativeSelectField({
   onSave: (v: string) => Promise<void>;
 }) {
   const saveField = useSaveField(onSave);
+  const fieldId = useId();
 
   if (!canEdit) {
     const selected = options.find((o) => o.value === value);
@@ -299,9 +311,11 @@ function SaveableNativeSelectField({
   }
 
   return (
-    <SaveableField label={label} status={saveField.status}>
+    <SaveableField label={label} status={saveField.status} htmlFor={fieldId}>
       <div className="relative">
         <NativeSelect
+          id={fieldId}
+          name={label.toLowerCase().replace(/\s+/g, "-")}
           value={value}
           onChange={async (e) => {
             if (saveField.isSaving) return;
@@ -371,9 +385,13 @@ function SaveableCategoryField({
       });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        const json = await res.json();
+        const json = await parseJsonSafely<{ data?: { id?: string } }>(res);
+        if (!json?.data?.id) {
+          toast.error("Category was saved, but the response could not be read. Refresh before continuing.");
+          return;
+        }
         onCategoriesChanged();
-        if (json.data?.id) await saveField.save(json.data.id);
+        await saveField.save(json.data.id);
       } else {
         const msg = await parseErrorMessage(res, "Failed to create category");
         toast.error(msg);
@@ -1005,6 +1023,7 @@ function NotesField({
 }) {
   const [draft, setDraft] = useState(value);
   const saveField = useSaveField(onSave);
+  const fieldId = useId();
 
   useEffect(() => {
     setDraft(value);
@@ -1033,9 +1052,12 @@ function NotesField({
       onCancel={cancel}
       className="items-start"
       labelClassName="pt-2"
+      htmlFor={fieldId}
     >
       {canEdit ? (
         <Textarea
+          id={fieldId}
+          name="notes"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {

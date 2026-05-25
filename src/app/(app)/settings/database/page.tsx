@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { handleAuthRedirect, classifyError, isAbortError } from "@/lib/errors";
+import { handleAuthRedirect, classifyError, isAbortError, parseJsonSafely } from "@/lib/errors";
 import { SettingsPageShell } from "../SettingsPageShell";
 
 type MigrationRow = { name: string; appliedAt: string | null };
@@ -37,7 +37,6 @@ export default function DatabasePage() {
       if (handleAuthRedirect(res, "/settings/database")) return;
       if (!res.ok) {
         // Don't surface raw server error text — could leak schema internals.
-        await res.json().catch(() => null);
         setError(
           res.status === 403
             ? "Admin access required to run diagnostics."
@@ -46,7 +45,13 @@ export default function DatabasePage() {
         setResult(null);
         return;
       }
-      setResult(await res.json());
+      const json = await parseJsonSafely<DiagnosticsResult>(res);
+      if (!json?.checks) {
+        setError("Diagnostics ran, but the response could not be read. Please try again.");
+        setResult(null);
+        return;
+      }
+      setResult(json);
     } catch (err) {
       if (isAbortError(err)) return;
       const kind = classifyError(err);

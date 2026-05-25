@@ -13,7 +13,7 @@ import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -33,7 +33,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useFetch } from "@/hooks/use-fetch";
 import { useLastAudit } from "@/hooks/use-last-audit";
 import { LastEditedHint } from "@/components/LastEditedHint";
-import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { SettingsPageShell } from "../SettingsPageShell";
 
 type AllowedEmail = {
@@ -47,6 +47,12 @@ type AllowedEmail = {
 };
 
 type AllowedEmailsResponse = { data: AllowedEmail[]; total: number };
+
+const ROLE_BADGE_META: Record<AllowedEmail["role"], { label: string; variant: BadgeProps["variant"] }> = {
+  ADMIN: { label: "Admin", variant: "purple" },
+  STAFF: { label: "Staff", variant: "blue" },
+  STUDENT: { label: "Student", variant: "gray" },
+};
 
 export default function AllowedEmailsPage() {
   const confirm = useConfirm();
@@ -133,11 +139,11 @@ export default function AllowedEmailsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ emails: emails.map((email) => ({ email, role: addRole })) }),
       });
-      if (handleAuthRedirect(res, "/settings/allowed-emails")) { setAdding(false); return; }
+      if (handleAuthRedirect(res, "/settings/allowed-emails")) return;
       if (res.ok) {
-        const json = await res.json();
-        const created = (json.created as number) ?? 0;
-        const skipped = (json.skipped as number) ?? 0;
+        const json = await parseJsonSafely<{ created?: number; skipped?: number }>(res);
+        const created = json?.created ?? 0;
+        const skipped = json?.skipped ?? 0;
         if (created > 0 && skipped === 0) {
           toast.success(`Added ${created} email${created === 1 ? "" : "s"} to allowlist`);
         } else if (created > 0) {
@@ -161,8 +167,9 @@ export default function AllowedEmailsPage() {
       const msg = kind === "network" ? "You’re offline. Check your connection." : "Bulk add failed";
       setAddError(msg);
       toast.error(msg);
+    } finally {
+      setAdding(false);
     }
-    setAdding(false);
   }
 
   async function handleAdd(e: React.FormEvent) {
@@ -181,9 +188,16 @@ export default function AllowedEmailsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: trimmed, role: addRole }),
       });
-      if (handleAuthRedirect(res, "/settings/allowed-emails")) { setAdding(false); return; }
+      if (handleAuthRedirect(res, "/settings/allowed-emails")) return;
       if (res.ok) {
-        const json = await res.json();
+        const json = await parseJsonSafely<AllowedEmail | { skipped?: boolean }>(res);
+        if (!json) {
+          const msg = "Email was saved, but the response could not be read. Refresh before adding another.";
+          setAddError(msg);
+          toast.error(msg);
+          reload();
+          return;
+        }
         if ((json as { skipped?: boolean }).skipped) {
           toast.message("No new allowlist row was created. This address is already allowlisted or registered.");
         } else {
@@ -210,8 +224,9 @@ export default function AllowedEmailsPage() {
       const msg = kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to add email";
       setAddError(msg);
       toast.error(msg);
+    } finally {
+      setAdding(false);
     }
-    setAdding(false);
   }
 
   async function handleDelete(item: AllowedEmail) {
@@ -484,8 +499,8 @@ export default function AllowedEmailsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={item.role === "STAFF" ? "blue" : "gray"} size="sm">
-                        {item.role}
+                      <Badge variant={ROLE_BADGE_META[item.role].variant} size="sm">
+                        {ROLE_BADGE_META[item.role].label}
                       </Badge>
                     </TableCell>
                     <TableCell>

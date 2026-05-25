@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import EmptyState from "@/components/EmptyState";
 import { UserAvatar } from "@/components/UserAvatar";
-import { handleAuthRedirect } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import type { Role } from "../types";
 import { AREA_LABELS } from "../types";
 
@@ -26,6 +26,7 @@ type OrgUser = {
 };
 
 type Tree = { user: OrgUser; children: Tree[] };
+type OrgChartResponse = { data?: OrgUser[] };
 
 /**
  * Build the forest of trees from a flat user list.
@@ -153,17 +154,20 @@ export default function OrgChartPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const ctrl = new AbortController();
+  const loadOrgChart = useCallback((signal?: AbortSignal) => {
     (async () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/users/org-chart", { signal: ctrl.signal });
+        const res = await fetch("/api/users/org-chart", { signal });
         if (handleAuthRedirect(res)) return;
-        const json = await res.json();
         if (!res.ok) {
-          setError(json.error || "Failed to load org chart");
+          setError(await parseErrorMessage(res, "Failed to load org chart"));
+          return;
+        }
+        const json = await parseJsonSafely<OrgChartResponse>(res);
+        if (!json || !Array.isArray(json.data)) {
+          setError("The org chart response was incomplete. Try again.");
           return;
         }
         setUsers(json.data);
@@ -174,8 +178,13 @@ export default function OrgChartPage() {
         setLoading(false);
       }
     })();
-    return () => ctrl.abort();
   }, []);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    loadOrgChart(ctrl.signal);
+    return () => ctrl.abort();
+  }, [loadOrgChart]);
 
   const forest = useMemo(() => (users ? buildForest(users) : []), [users]);
 
@@ -209,6 +218,8 @@ export default function OrgChartPage() {
               icon="users"
               title="Couldn't load org chart"
               description={error}
+              actionLabel="Retry"
+              onAction={() => loadOrgChart()}
             />
           )}
           {!loading && !error && forest.length === 0 && (

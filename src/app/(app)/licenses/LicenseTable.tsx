@@ -173,12 +173,12 @@ export function LicenseTable({
             function handleClick() {
               if (!isClickable) return;
               if (isOwn) return onClickClaimed(code);
-              if (claimable && studentCanClaim) return onClickAvailable(code);
               if (adminCanInspect) return onClickClaimed(code);
+              if (claimable && studentCanClaim) return onClickAvailable(code);
             }
 
             const displayCode = isAdmin || isOwn ? code.code : MASKED_CODE;
-            const rowActionLabel = studentCanClaim ? "Claim" : "Inspect";
+            const rowActionLabel = adminCanInspect ? "Inspect" : "Claim";
 
             return (
               <TableRow

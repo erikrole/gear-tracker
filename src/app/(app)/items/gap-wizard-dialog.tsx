@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AssetImage } from "@/components/AssetImage";
 import { CategoryCombobox, FormCombobox } from "@/components/FormCombobox";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import type { CategoryOption } from "@/types/category";
 
 type GapField = "category" | "department";
@@ -79,7 +79,10 @@ export function GapWizardDialog({ open, onOpenChange, categories, departments, o
         const res = await fetch(`/api/assets?missing=${gap}&limit=1`);
         if (handleAuthRedirect(res)) return 0;
         if (!res.ok) throw new Error(await parseErrorMessage(res, `Failed to count missing ${gap}`));
-        const json = await res.json();
+        const json = await parseJsonSafely<{ total?: unknown }>(res);
+        if (!json || typeof json.total !== "number") {
+          throw new Error(`Could not read missing ${gap} count`);
+        }
         return Number(json.total ?? 0);
       };
       const [category, department] = await Promise.all([
@@ -121,9 +124,12 @@ export function GapWizardDialog({ open, onOpenChange, categories, departments, o
       const res = await fetch(`/api/assets?missing=${gap}&limit=${QUEUE_LIMIT}&offset=${offset}`);
       if (handleAuthRedirect(res)) return;
       if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to load items"));
-      const json = await res.json();
-      const items: GapItem[] = json.data ?? [];
-      const total = Number(json.total ?? 0);
+      const json = await parseJsonSafely<{ data?: unknown; total?: unknown }>(res);
+      if (!json || !Array.isArray(json.data) || typeof json.total !== "number") {
+        throw new Error("Could not read the next item queue");
+      }
+      const items = json.data as GapItem[];
+      const total = json.total;
       setCounts((prev) => ({ ...prev, [gap]: total }));
       if (offset === 0 && !reviewingSkipped) setSessionTotal(total);
       if (items.length === 0) {

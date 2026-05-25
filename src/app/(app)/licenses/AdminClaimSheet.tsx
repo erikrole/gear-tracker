@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Trash2, Archive, AlertCircle } from "lucide-react";
+import { Trash2, Archive, AlertCircle, RefreshCw } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -28,6 +28,7 @@ import { Separator } from "@/components/ui/separator";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { formatRelativeTime } from "@/lib/format";
+import { handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import type { LicenseCode } from "./types";
 
 type ClaimRecord = {
@@ -46,30 +47,61 @@ type Props = {
   onAction: () => void;
 };
 
+type LicenseHistoryResponse = {
+  data?: ClaimRecord[];
+};
+
+async function throwLicenseError(res: Response, fallback: string) {
+  if (handleAuthRedirect(res)) return true;
+  if (!res.ok) throw new Error(await parseErrorMessage(res, fallback));
+  return false;
+}
+
 export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Props) {
   const [history, setHistory] = useState<ClaimRecord[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyError, setHistoryError] = useState(false);
   const [releasing, setReleasing] = useState<string | null>(null);
   const [occupantLabel, setOccupantLabel] = useState("");
   const [addingOccupant, setAddingOccupant] = useState(false);
   const [editExpiry, setEditExpiry] = useState("");
   const [editAccount, setEditAccount] = useState("");
   const [savingDetails, setSavingDetails] = useState(false);
+  const [retiring, setRetiring] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const loadHistory = useCallback(async (signal?: AbortSignal) => {
+    if (!license) return;
+    setLoadingHistory(true);
+    setHistoryError(false);
+    try {
+      const res = await fetch(`/api/licenses/${license.id}/history`, { signal });
+      if (handleAuthRedirect(res)) return;
+      if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to load license history"));
+      const json = await parseJsonSafely<LicenseHistoryResponse>(res);
+      setHistory(json?.data ?? []);
+    } catch (err) {
+      if (isAbortError(err)) return;
+      setHistory([]);
+      setHistoryError(true);
+    } finally {
+      if (!signal?.aborted) setLoadingHistory(false);
+    }
+  }, [license?.id]);
 
   useEffect(() => {
     if (!license) {
       setHistory([]);
+      setHistoryError(false);
       return;
     }
     setEditExpiry(license.expiresAt ? license.expiresAt.slice(0, 10) : "");
     setEditAccount(license.accountEmail ?? "");
-    setLoadingHistory(true);
-    fetch(`/api/licenses/${license.id}/history`)
-      .then((r) => r.json())
-      .then((json) => setHistory(json.data ?? []))
-      .catch(() => {})
-      .finally(() => setLoadingHistory(false));
-  }, [license?.id]);
+    setHistory([]);
+    const controller = new AbortController();
+    void loadHistory(controller.signal);
+    return () => controller.abort();
+  }, [license?.id, license?.expiresAt, license?.accountEmail, loadHistory]);
 
   async function handleReleaseClaim(claimId?: string) {
     if (!license) return;
@@ -81,8 +113,7 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(claimId ? { claimId } : {}),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed to release");
+      if (await throwLicenseError(res, "Failed to release")) return;
       toast.success(claimId ? "Slot released" : "All slots released");
       onAction();
       onOpenChange(false);
@@ -103,8 +134,7 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ label: occupantLabel.trim() }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed to add occupant");
+      if (await throwLicenseError(res, "Failed to add occupant")) return;
       toast.success("Unknown occupant recorded");
       setOccupantLabel("");
       onAction();
@@ -128,8 +158,7 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
           expiresAt: editExpiry ? new Date(editExpiry).toISOString() : null,
         }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed to save");
+      if (await throwLicenseError(res, "Failed to save")) return;
       toast.success("License details updated");
       onAction();
     } catch (err) {
@@ -140,34 +169,38 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
   }
 
   async function handleRetire() {
-    if (!license) return;
+    if (!license || retiring) return;
+    setRetiring(true);
     try {
       const res = await fetch(`/api/licenses/${license.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ retire: true }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed to retire license");
+      if (await throwLicenseError(res, "Failed to retire license")) return;
       toast.success("License retired");
       onAction();
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setRetiring(false);
     }
   }
 
   async function handleDelete() {
-    if (!license) return;
+    if (!license || deleting) return;
+    setDeleting(true);
     try {
       const res = await fetch(`/api/licenses/${license.id}`, { method: "DELETE" });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed to delete license");
+      if (await throwLicenseError(res, "Failed to delete license")) return;
       toast.success("License deleted");
       onAction();
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -296,6 +329,8 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
                   <div className="flex gap-2">
                     <Input
                       id="occupant-name"
+                      name="occupantName"
+                      autoComplete="off"
                       value={occupantLabel}
                       onChange={(e) => setOccupantLabel(e.target.value)}
                       className="flex-1"
@@ -319,7 +354,9 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
                   <Label htmlFor="account" className="text-xs">Account email</Label>
                   <Input
                     id="account"
+                    name="accountEmail"
                     type="email"
+                    autoComplete="email"
                     value={editAccount}
                     onChange={(e) => setEditAccount(e.target.value)}
                   />
@@ -328,7 +365,9 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
                   <Label htmlFor="expiry" className="text-xs">Annual expiry</Label>
                   <Input
                     id="expiry"
+                    name="expiresAt"
                     type="date"
+                    autoComplete="off"
                     value={editExpiry}
                     onChange={(e) => setEditExpiry(e.target.value)}
                   />
@@ -355,9 +394,9 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
                   {license?.status === "AVAILABLE" && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" disabled={retiring}>
                           <Archive className="size-3.5 mr-1.5" />
-                          Retire
+                          {retiring ? "Retiring..." : "Retire"}
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
@@ -370,7 +409,9 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleRetire}>Retire</AlertDialogAction>
+                          <AlertDialogAction onClick={handleRetire} disabled={retiring}>
+                            {retiring ? "Retiring..." : "Retire"}
+                          </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
@@ -382,9 +423,10 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
                           variant="outline"
                           size="sm"
                           className="text-destructive hover:text-destructive"
+                          disabled={deleting}
                         >
                           <Trash2 className="size-3.5 mr-1.5" />
-                          Delete
+                          {deleting ? "Deleting..." : "Delete"}
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
@@ -402,9 +444,10 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
                           <AlertDialogAction
                             onClick={handleDelete}
+                            disabled={deleting}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                           >
-                            Delete
+                            {deleting ? "Deleting..." : "Delete"}
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
@@ -427,6 +470,22 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
             <h3 className="text-sm font-medium">Claim history</h3>
             {loadingHistory ? (
               <p className="text-xs text-muted-foreground">Loading…</p>
+            ) : historyError ? (
+              <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span>Claim history could not load. Retry before auditing this license.</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 gap-1.5 text-xs"
+                    onClick={() => void loadHistory()}
+                  >
+                    <RefreshCw className="size-3" />
+                    Retry
+                  </Button>
+                </div>
+              </div>
             ) : history.length === 0 ? (
               <p className="text-xs text-muted-foreground">No claims yet</p>
             ) : (

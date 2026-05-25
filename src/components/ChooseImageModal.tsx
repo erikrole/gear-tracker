@@ -12,7 +12,7 @@ import {
 import { ExternalLinkIcon, ImageIcon, SearchIcon } from "lucide-react";
 import { useConfirm } from "./ConfirmDialog";
 import { toast } from "sonner";
-import { handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -41,6 +41,10 @@ type ImageSearchResponse = {
     quotaExceeded?: boolean;
     results?: ImageSearchResult[];
   };
+};
+
+type ImageMutationResponse = {
+  imageUrl?: string | null;
 };
 
 type Props = {
@@ -97,8 +101,8 @@ async function fetchSearchData(query: string, controller: AbortController) {
     const msg = await parseErrorMessage(res, "Image search failed");
     throw new Error(msg);
   }
-  const json = (await res.json()) as ImageSearchResponse;
-  return json.data ?? {};
+  const json = await parseJsonSafely<ImageSearchResponse>(res);
+  return json?.data ?? {};
 }
 
 export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetId, currentImageUrl, onImageChanged, searchQuery }: Props) {
@@ -220,8 +224,8 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
         const res = await fetch("/api/image-search?probe=1", { signal: controller.signal });
         if (handleAuthRedirect(res)) return;
         if (!res.ok) return;
-        const json = (await res.json()) as ImageSearchResponse;
-        const configured = !!json.data?.configured;
+        const json = await parseJsonSafely<ImageSearchResponse>(res);
+        const configured = !!json?.data?.configured;
         if (cancelled) return;
         setSearchConfigured(configured);
         if (configured) {
@@ -297,8 +301,11 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
       const msg = await parseErrorMessage(res, "Failed to save image URL");
       throw new Error(msg);
     }
-    const json = await res.json();
-    return json.imageUrl ?? null;
+    const json = await parseJsonSafely<ImageMutationResponse>(res);
+    if (!json?.imageUrl) {
+      throw new Error("Image was saved, but the response could not be read. Refresh before continuing.");
+    }
+    return json.imageUrl;
   }
 
   async function saveUrl() {
@@ -347,7 +354,8 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
   }
 
   async function uploadFile() {
-    if (!file) return;
+    if (!file || savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     try {
       const formData = new FormData();
@@ -356,22 +364,26 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
         method: "POST",
         body: formData,
       });
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) {
         const msg = await parseErrorMessage(res, "Upload failed");
         throw new Error(msg);
       }
-      const json = await res.json();
+      const json = await parseJsonSafely<ImageMutationResponse>(res);
+      if (!json?.imageUrl) throw new Error("Upload finished, but no image URL was returned");
       toast.success("Image uploaded");
       onImageChanged(json.imageUrl);
       handleClose();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upload failed");
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
 
   async function removeImage() {
+    if (savingRef.current) return;
     const ok = await confirm({
       title: "Remove image",
       message: "Remove the image from this item?",
@@ -379,9 +391,11 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
       variant: "danger",
     });
     if (!ok) return;
+    savingRef.current = true;
     setSaving(true);
     try {
       const res = await fetch(endpoint, { method: "DELETE" });
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) {
         const msg = await parseErrorMessage(res, "Failed to remove image");
         throw new Error(msg);
@@ -392,6 +406,7 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to remove image");
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -487,6 +502,7 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
                               type="button"
                               className="flex aspect-square w-full items-center justify-center overflow-hidden rounded bg-muted outline-none transition-[box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                               onClick={() => setSelectedSearchResult(result)}
+                              aria-label={`Select image: ${result.title}`}
                               aria-pressed={selected}
                             >
                               <img
@@ -575,6 +591,8 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
             {/* Paste URL tab */}
             <TabsContent value="url">
               <Input
+                id="image-url"
+                name="imageUrl"
                 type="url"
                 placeholder="https://example.com/product-image.jpg"
                 value={url}
@@ -626,6 +644,8 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
               </div>
               <input
                 ref={fileInputRef}
+                id="image-file"
+                name="imageFile"
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/gif"
                 style={{ display: "none" }}

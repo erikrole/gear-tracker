@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Users
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-21
+- Last Updated: 2026-05-25
 - Status: Active
 - Version: V1.2
 
@@ -114,6 +114,13 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 6. Ensure audit logs include actor role, target owner, and exception metadata.
 
 ## Change Log
+- 2026-05-25: Web bug sweep Batch 59 hardened user detail profile location editing. User detail now keeps the saved profile location visible while form-options locations are loading or failed, disables location editing until options are readable, and shows a retryable failure instead of implying "No location."
+- 2026-05-25: Web bug sweep Batch 56 hardened Users location option loading. The roster now shows a retryable form-options failure, disables the location filter while locations are unavailable, and blocks Add User submission until location options have loaded so optional no-location users stay intentional.
+- 2026-05-25: Web bug sweep Batch 40 hardened the Users org chart. The staff/admin reporting hierarchy page now safe-parses its API response, shows server or incomplete-payload failures as retryable states, and keeps the existing hierarchy render path for successful loads.
+- 2026-05-25: Web bug sweep Batch 27 hardened user detail tab URL state. User profile tabs now rehydrate from `?tab=` changes and browser Back/Forward through the shared URL-state hook, while non-student profiles still canonicalize hidden Availability links back to Info.
+- 2026-05-25: Web bug sweep Batch 24 hardened URL-backed roster state. Users list search, filters, sort, inactive visibility, and pagination now rehydrate from browser back/forward and external URL changes through the shared `useUrlState` hook instead of staying on stale local state.
+- 2026-05-24: Web bug sweep Batch 12. Auth/profile entry points now reuse the shared `/api/me` response shape for `/profile` redirects, forced password-change submissions use the standard expired-session redirect path, and the shared form-submit guard resets through all validation, server-error, auth-redirect, success, and unexpected-error exits.
+- 2026-05-24: Web bug sweep Batch 8. User detail/profile flows now safe-parse avatar, password reset, manual badge, activity pagination, assignment, calendar-token, hours, and availability responses, route expired sessions through shared auth handling, add ref-backed guards for repeat user mutations, and expose stable form metadata on the student availability editor.
 - 2026-05-21: User detail assignment controls now keep sport/area selectors at the 40px operational target baseline, editable area assignment rows use `OperationalRowActions` for Set primary/Remove instead of tiny inline chip buttons, and profile-photo/size inputs expose stable id/name metadata for browser accessibility checks.
 - 2026-05-20: **Design language slice 21:** Register, forgot-password, reset-password, and forced-password-change fields now include stable `name` attributes alongside labels, ids, and autocomplete, matching the login form's browser-accessibility pattern.
 - 2026-05-20: **Design language slice 18:** Login form fields now include stable `name` attributes alongside their labels/ids, clearing the browser form-field accessibility warning seen after protected-route redirects.
@@ -194,3 +201,4 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - 2026-05-10: User contact profile slice. Added a synced `slack_handle` profile field, editable from user detail/profile self-edit flows and returned by the Users/Profile APIs so downstream surfaces can reference Slack contact info from the User record instead of duplicating it.
 - 2026-05-10: Slack profile link slice. Added optional `slack_profile_url` to user profiles with Slack URL validation, self/staff-admin editing, audit diffs, and API responses so contact surfaces can open a real Slack profile when one is saved.
 - 2026-05-20: Auth rate-limit retune for a ~35-user shared-network reality (follow-on to durable Redis limiting in GAP-32, which made limits exactly enforced). Login now uses a tight per-account key (`login:email:*`, 10/15 min) as the real brute-force defense plus a generous per-IP backstop (`login:ip:*`, 150/15 min) so a shared office/campus NAT does not lock out legitimate logins at peak. Register (invitation-gated) raised to 40/15 min per IP; forgot/reset-password raised to 20/15 min per IP. Note: the per-account login counter currently counts successful attempts too; tighten to failures-only if legitimate repeat logins ever trip it.
+- 2026-05-25: Web bug sweep Batch 33 hardened shared auth/form identity reads. `useFormSubmit`, `useMutate`, and `useCurrentUser` now use shared safe JSON parsing instead of ad hoc or throwing response reads, so malformed success/error payloads from auth forms, Create User, New Kit, app shell identity, breadcrumbs, and role-aware pages degrade to existing form/query error paths instead of breaking render or callback flow.

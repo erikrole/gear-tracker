@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import {
   classifyError,
   handleAuthRedirect,
+  parseJsonSafely,
   type FetchErrorKind,
 } from "@/lib/errors";
 
@@ -47,7 +48,9 @@ async function fetchJson(url: string, returnTo?: string, signal?: AbortSignal): 
     throw new DOMException("Auth redirect", "AbortError");
   }
   if (!res.ok) throw new Error("server");
-  return res.json();
+  const json = await parseJsonSafely<Record<string, unknown>>(res);
+  if (!json) throw new Error("server");
+  return json;
 }
 
 /**

@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Bulk Inventory Management
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-20
+- Last Updated: 2026-05-25
 - Status: Active
 - Version: V1
 
@@ -137,6 +137,7 @@ See `AREA_ITEMS.md` 2026-04-06 entry for bulk inventory page hardening:
 - All 3 mutations (add units, convert to numbered, unit status change) wrapped with `requireAuth()` + 401 redirect
 - List data already uses `useFetch` hook (AbortController, 401 handling, focus refresh)
 - Item-family image replacement uses the shared image modal. When Brave image search is configured, `BulkSku` detail headers seed the search from the SKU name and save the chosen result through `/api/bulk-skus/[id]/image`, preserving the same re-host and audit path as pasted URLs.
+- Detail/Battery Ops client fetches use shared safe response parsing, ref-backed duplicate-action guards for unit/status/archive/delete actions, and stable form-control metadata for inline item-family editors.
 
 ## Acceptance Criteria
 - [x] AC-1: Staff can add bulk SKU with name, category, unit type, location
@@ -148,6 +149,9 @@ See `AREA_ITEMS.md` 2026-04-06 entry for bulk inventory page hardening:
 - [x] AC-7: Unit-tracked battery audit/reporting exposes missing units, loss rate by family, custody history, and repeated missing-unit patterns
 
 ## Change Log
+- 2026-05-25: Web bug sweep Batch 27 hardened item-family detail tab URL state. Bulk SKU detail now rehydrates `?tab=` links and browser Back/Forward through the shared URL-state hook, and direct links to mode- or role-hidden tabs fall back to Info instead of rendering an empty detail body.
+- 2026-05-24: Web bug sweep hardened item-family detail and Battery Ops client fetches. Bulk detail loading, inline saves, QR edits, department loading, Battery Ops loading, unit status changes, unit additions, archive, and delete now avoid raw JSON assumptions, guard duplicate actions with refs where state alone could race, differentiate network/server failures, and expose stable ids/names for visible inline editor controls.
+- 2026-05-24: Shared item-family image replacement inherited the `ChooseImageModal` reliability sweep: search probe/results and image mutation responses now parse safely, upload/remove handle expired sessions through the shared auth redirect, and every save/remove path shares a ref-backed duplicate-submit guard.
 - 2026-05-21: Battery Ops summary metrics now use the shared `OperationalMetricCard` primitive instead of a route-local metric card helper, keeping available, checked-out, missing, retired, and low-family tones aligned with the design-language metric contract.
 - 2026-05-20: Battery Ops checked-out-units panel now uses shared inline `EmptyState` copy when no battery units are currently checked out, matching item-family detail empty-state behavior.
 - 2026-05-20: Unit-tracked item-family detail now uses shared inline `EmptyState` copy and recovery action when no units exist, replacing the local text-only empty row.

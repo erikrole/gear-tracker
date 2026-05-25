@@ -21,8 +21,7 @@ function assertSameOrigin(req: Request) {
     return;
   }
 
-  const expected = new URL(req.url).origin;
-  if (origin !== expected) {
+  if (!allowedSameOrigins(req).has(origin)) {
     throw new HttpError(403, "Cross-origin request blocked");
   }
 }
@@ -33,10 +32,47 @@ function assertKioskSameOrigin(req: Request) {
     throw new HttpError(403, "Origin header required for mutating requests");
   }
 
-  const expected = new URL(req.url).origin;
-  if (origin !== expected) {
+  if (!allowedSameOrigins(req).has(origin)) {
     throw new HttpError(403, "Cross-origin request blocked");
   }
+}
+
+function allowedSameOrigins(req: Request): Set<string> {
+  const requestUrl = new URL(req.url);
+  const origins = new Set([requestUrl.origin]);
+
+  const forwardedHost = firstHeaderValue(req.headers.get("x-forwarded-host"));
+  const host = forwardedHost ?? firstHeaderValue(req.headers.get("host"));
+  const forwardedProto = firstHeaderValue(req.headers.get("x-forwarded-proto"));
+
+  if (host && forwardedProto) {
+    origins.add(`${forwardedProto}://${host}`);
+  }
+
+  // Local Next dev can report a different scheme internally than the browser
+  // used on localhost/127.0.0.1. Keep the exception loopback-only.
+  const localHost = host && isLoopbackHost(host);
+  if (localHost && process.env.NODE_ENV !== "production") {
+    origins.add(`http://${host}`);
+    origins.add(`https://${host}`);
+  }
+
+  return origins;
+}
+
+function firstHeaderValue(value: string | null): string | null {
+  return value?.split(",")[0]?.trim() || null;
+}
+
+function isLoopbackHost(host: string): boolean {
+  let hostname = "";
+  try {
+    hostname = new URL(`http://${host}`).hostname;
+  } catch {
+    hostname = host.split(":")[0] ?? "";
+  }
+  hostname = hostname.replace(/^\[|\]$/g, "");
+  return hostname === "localhost" || hostname === "::1" || hostname.startsWith("127.");
 }
 
 function isForcePasswordAllowed(req: Request): boolean {

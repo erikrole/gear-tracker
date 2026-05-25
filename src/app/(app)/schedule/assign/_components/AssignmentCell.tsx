@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { UserAvatarPicker } from "@/components/shift-detail/UserAvatarPicker";
 import type { PickerUser } from "@/components/shift-detail/UserAvatarPicker";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import type { GridShift, GridAssignment } from "@/hooks/use-assignment-grid";
 import { cn } from "@/lib/utils";
 import { PlusIcon, UserIcon, XIcon } from "lucide-react";
@@ -46,9 +46,10 @@ export function AssignmentCell({ shifts, shiftGroupId, area, allUsers, usersLoad
     setConflictsLoading(true);
     try {
       const res = await fetch(`/api/shifts/${shiftId}/conflicts`);
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        const j = await res.json();
-        setConflictMap(j.data ?? {});
+        const j = await parseJsonSafely<{ data?: Record<string, string> }>(res);
+        setConflictMap(j?.data ?? {});
       }
     } catch {
       // Non-critical: picker still works without conflict data.
@@ -181,7 +182,7 @@ export function AssignmentCell({ shifts, shiftGroupId, area, allUsers, usersLoad
           aria-label={`Add ${area} staff or student slot`}
         >
           <PlusIcon className={cn("size-3.5", acting?.startsWith(`add-${area}-`) && "animate-pulse")} />
-          Slot
+          Add
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-40">

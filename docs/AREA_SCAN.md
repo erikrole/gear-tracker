@@ -57,6 +57,7 @@ Kiosk execution endpoints are documented in `docs/AREA_KIOSK.md`.
 
 | Date | Change |
 |---|---|
+| 2026-05-25 | Web bug sweep Batch 22: lookup now safe-parses `/api/assets` and item detail responses, handles expired sessions through the shared auth redirect, and surfaces unreadable lookup payloads as retryable errors instead of collapsing malformed server responses into generic network copy. |
 | 2026-05-20 | Design language slice 3: lookup now uses the shared `PageHeader` title/description/action rhythm instead of a custom local heading block. |
 | 2026-05-20 | Design language quick win: scan camera dismiss, manual lookup, and retry controls now use shadcn-sized targets with labels/focus behavior while preserving lookup-only scope. |
 | 2026-05-13 | Scan lookup polish: exact item-family unit QR scans now show the parent family, scanned unit number, unit status, and checked-out custody context while keeping app scan lookup-only. |

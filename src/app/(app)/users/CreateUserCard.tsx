@@ -64,12 +64,18 @@ export default function CreateUserDialog({
   open,
   onOpenChange,
   locations,
+  locationsLoading = false,
+  locationsError = false,
+  onRetryLocations,
   currentUserRole,
   onCreated,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   locations: Location[];
+  locationsLoading?: boolean;
+  locationsError?: boolean;
+  onRetryLocations?: () => void;
   currentUserRole: Role | null;
   onCreated: (user: CreatedUser) => void;
 }) {
@@ -77,6 +83,7 @@ export default function CreateUserDialog({
   const formRef = useRef<HTMLFormElement>(null);
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<CreateUserInput["role"]>("STAFF");
+  const locationOptionsUnavailable = locationsLoading || locationsError;
   const roleOptions = useMemo(() => {
     const options: Array<{ value: CreateUserInput["role"]; label: string }> = [
       { value: "STAFF", label: "Staff" },
@@ -121,6 +128,7 @@ export default function CreateUserDialog({
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (locationsLoading || locationsError) return;
     const form = new FormData(e.currentTarget);
     const locValue = String(form.get("locationId") || "");
     await submit({
@@ -227,7 +235,7 @@ export default function CreateUserDialog({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="create-location">Location</Label>
-              <Select name="locationId" defaultValue="__none__" disabled={submitting}>
+              <Select name="locationId" defaultValue="__none__" disabled={submitting || locationOptionsUnavailable}>
                 <SelectTrigger id="create-location" aria-label="Location" className="h-10">
                   <SelectValue placeholder="No location" />
                 </SelectTrigger>
@@ -243,6 +251,27 @@ export default function CreateUserDialog({
             </div>
           </div>
 
+          {locationsError && (
+            <Alert variant="destructive">
+              <AlertCircle className="size-4" />
+              <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <span>Locations could not load, so location assignment is unavailable. Retry before creating users so roster location stays intentional.</span>
+                {onRetryLocations && (
+                  <Button type="button" variant="outline" size="sm" onClick={onRetryLocations} className="h-8 shrink-0">
+                    Retry locations
+                  </Button>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {locationsLoading && !locationsError && (
+            <Alert>
+              <Spinner />
+              <AlertDescription>Loading locations before user creation is available.</AlertDescription>
+            </Alert>
+          )}
+
           {formError && (
             <Alert variant="destructive">
               <AlertCircle className="size-4" />
@@ -254,7 +283,7 @@ export default function CreateUserDialog({
             <Button type="button" variant="outline" className="h-10" onClick={() => onOpenChange(false)} disabled={submitting}>
               Cancel
             </Button>
-            <Button type="submit" className="h-10" disabled={submitting}>
+            <Button type="submit" className="h-10" disabled={submitting || locationsLoading || locationsError}>
               {submitting && <Spinner data-icon="inline-start" />}
               {submitting ? "Adding..." : "Add and open profile"}
             </Button>

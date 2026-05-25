@@ -30,7 +30,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
 
   const visibleSections = role
     ? SETTINGS_SECTIONS.filter((s) => isSectionVisible(s, role))
-    : SETTINGS_SECTIONS;
+    : [];
   const groupedSections = SETTINGS_GROUP_ORDER.map((group) => ({
     group,
     sections: visibleSections.filter((section) => section.group === group),

@@ -38,7 +38,7 @@ export default function ForcePasswordChangeForm({ email }: { email: string }) {
   const { submit, submitting, formError, clearErrors } = useFormSubmit<PasswordPayload>({
     url: "/api/profile",
     method: "PATCH",
-    skipAuthRedirect: true,
+    returnTo: "/change-password",
     transformBody: (data) => ({
       action: "change_password",
       currentPassword: data.currentPassword,

@@ -28,7 +28,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { scheduleEventTitleParts } from "@/app/(app)/schedule/_components/types";
 import { AREA_LABELS } from "@/types/areas";
 import { formatDateShort, formatTimeShort } from "@/lib/format";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 
 type TradeEvent = {
@@ -189,7 +189,11 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
       if (requestId !== loadSeqRef.current) return;
 
       if (res.ok) {
-        const json = await res.json();
+        const json = await parseJsonSafely<{ data?: Trade[] }>(res);
+        if (!Array.isArray(json?.data)) {
+          setLoadError(true);
+          return;
+        }
         setTrades(json.data ?? []);
         setLoadError(false);
       } else {

@@ -23,7 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 
 type HygieneIssueKey =
@@ -187,7 +187,13 @@ export default function InventoryHygienePage() {
         else setError(message);
         return;
       }
-      const json = await res.json();
+      const json = await parseJsonSafely<{ data?: HygieneData }>(res);
+      if (!json?.data) {
+        const message = "Inventory hygiene returned an unreadable response";
+        if (refresh && data) toast.error(message);
+        else setError(message);
+        return;
+      }
       setData(json.data);
       setError(null);
       if (refresh) toast.success("Inventory hygiene refreshed");

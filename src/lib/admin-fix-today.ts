@@ -65,9 +65,20 @@ function bookingLabel(row: { refNumber: string | null; title: string }) {
   return row.refNumber ? `${row.refNumber} / ${row.title}` : row.title;
 }
 
+function formatQueueDate(date: Date) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "America/Chicago",
+  }).format(date);
+}
+
 function formatDateDetail(label: string, date: Date | null) {
   if (!date) return `${label}: never`;
-  return `${label}: ${date.toISOString()}`;
+  return `${label} ${formatQueueDate(date)}`;
 }
 
 type BatterySkuRow = {
@@ -250,12 +261,12 @@ export async function getAdminFixTodayQueue(now = new Date()): Promise<AdminFixT
       description: "Open checkouts past their return time.",
       count: overdueCheckoutCount,
       severity: "critical",
-      href: "/bookings?tab=checkouts&status=OPEN",
+      href: "/bookings?tab=checkouts&filter=overdue",
       ctaLabel: "Review overdue",
       samples: overdueCheckoutRows.map((row) => ({
         id: row.id,
         label: bookingLabel(row),
-        detail: `${row.requester.name} / due ${row.endsAt.toISOString()}`,
+        detail: `${row.requester.name} / due ${formatQueueDate(row.endsAt)}`,
         href: `/checkouts/${row.id}`,
       })),
     }),
@@ -270,7 +281,7 @@ export async function getAdminFixTodayQueue(now = new Date()): Promise<AdminFixT
       samples: pendingPickupRows.map((row) => ({
         id: row.id,
         label: bookingLabel(row),
-        detail: `${row.requester.name} / pickup ${row.startsAt.toISOString()}`,
+        detail: `${row.requester.name} / pickup ${formatQueueDate(row.startsAt)}`,
         href: `/checkouts/${row.id}`,
       })),
     }),
@@ -348,7 +359,7 @@ export async function getAdminFixTodayQueue(now = new Date()): Promise<AdminFixT
       samples: licenseExpiryRows.map((row) => ({
         id: row.id,
         label: row.label || row.accountEmail || "Unlabeled license",
-        detail: `${row.status.toLowerCase()} / ${row.claimedBy?.name ?? "unassigned"} / expires ${row.expiresAt?.toISOString() ?? "unknown"}`,
+        detail: `${row.status.toLowerCase()} / ${row.claimedBy?.name ?? "unassigned"} / expires ${row.expiresAt ? formatQueueDate(row.expiresAt) : "unknown"}`,
         href: "/licenses",
       })),
     }),

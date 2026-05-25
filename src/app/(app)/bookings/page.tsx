@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import BookingListPage, { type BookingListConfig, type BookingItem, type ContextMenuExtra } from "@/components/BookingListPage";
 import { useConfirm } from "@/components/ConfirmDialog";
@@ -8,15 +8,22 @@ import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { LayoutGridIcon, ListIcon } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
 import { FadeUp } from "@/components/ui/motion";
 import { PageHeader } from "@/components/PageHeader";
+import type { TabKey as BookingSheetSection } from "@/components/booking-details/types";
 
 /** Shared fetch wrapper with 401 redirect */
 async function fetchAction(url: string, method = "POST"): Promise<Response> {
   const res = await fetch(url, { method });
-  handleAuthRedirect(res, "/bookings");
+  if (handleAuthRedirect(res, "/bookings")) {
+    throw new DOMException("Auth redirect", "AbortError");
+  }
   return res;
+}
+
+function parseBookingSheetSection(value: string | null): BookingSheetSection | null {
+  return value === "details" || value === "equipment" || value === "history" ? value : null;
 }
 
 const ACTIVE_STATUS_OPTIONS = [
@@ -44,11 +51,12 @@ export default function BookingsPage() {
   const [scope, setScope] = useState<"active" | "past">(requestedScope);
   const [viewMode, setViewModeRaw] = useState<"cards" | "table">("cards");
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
+  const actionBusyRef = useRef(false);
 
   // Consume highlight once from URL so only the correct tab receives it (avoids all-tabs-mount race)
-  const [pendingHighlight, setPendingHighlight] = useState<{ id: string; tab: "all" | "checkouts" | "reservations" } | null>(() => {
+  const [pendingHighlight, setPendingHighlight] = useState<{ id: string; tab: "all" | "checkouts" | "reservations"; sheetTab: BookingSheetSection | null } | null>(() => {
     const id = searchParams.get("highlight") || searchParams.get("id");
-    return id ? { id, tab: requestedTab } : null;
+    return id ? { id, tab: requestedTab, sheetTab: parseBookingSheetSection(searchParams.get("sheetTab")) } : null;
   });
 
   useEffect(() => {
@@ -71,10 +79,11 @@ export default function BookingsPage() {
   useEffect(() => {
     const id = searchParams.get("highlight") || searchParams.get("id");
     if (!id) return;
-    setPendingHighlight({ id, tab: requestedTab });
+    setPendingHighlight({ id, tab: requestedTab, sheetTab: parseBookingSheetSection(searchParams.get("sheetTab")) });
     const next = new URLSearchParams(urlSignature);
     next.delete("highlight");
     next.delete("id");
+    next.delete("sheetTab");
     const qs = next.toString();
     router.replace(qs ? `/bookings?${qs}` : "/bookings", { scroll: false });
   }, [requestedTab, router, searchParams, urlSignature]);
@@ -90,6 +99,8 @@ export default function BookingsPage() {
     const next = new URLSearchParams(searchParams.toString());
     next.set("tab", nextTab);
     next.delete("highlight");
+    next.delete("id");
+    next.delete("sheetTab");
     const qs = next.toString();
     router.replace(qs ? `/bookings?${qs}` : "/bookings", { scroll: false });
   }, [router, searchParams]);
@@ -103,6 +114,8 @@ export default function BookingsPage() {
     next.delete("status");
     next.delete("filter");
     next.delete("highlight");
+    next.delete("id");
+    next.delete("sheetTab");
     const qs = next.toString();
     router.replace(qs ? `/bookings?${qs}` : "/bookings", { scroll: false });
   }, [router, searchParams]);
@@ -115,6 +128,7 @@ export default function BookingsPage() {
       label: "Check in",
       kind: "CHECKOUT",
       opensSheet: true,
+      sheetTab: "equipment",
     },
     {
       action: "cancel",
@@ -131,6 +145,8 @@ export default function BookingsPage() {
           variant: "danger",
         });
         if (!ok) return;
+        if (actionBusyRef.current) return;
+        actionBusyRef.current = true;
 
         const prevItems = [...items];
         setItems?.((list) =>
@@ -146,9 +162,12 @@ export default function BookingsPage() {
           } else {
             toast.success("Checkout cancelled");
           }
-        } catch {
+        } catch (err) {
+          if (isAbortError(err)) return;
           setItems?.(() => prevItems);
           toast.error("Failed to cancel checkout. Please try again.");
+        } finally {
+          actionBusyRef.current = false;
         }
       },
     },
@@ -168,6 +187,8 @@ export default function BookingsPage() {
           confirmLabel: "Start checkout",
         });
         if (!ok) return;
+        if (actionBusyRef.current) return;
+        actionBusyRef.current = true;
         try {
           const res = await fetchAction(`/api/reservations/${bookingId}/convert`);
           if (res.ok) {
@@ -178,8 +199,11 @@ export default function BookingsPage() {
             toast.error(msg);
             await reload();
           }
-        } catch {
+        } catch (err) {
+          if (isAbortError(err)) return;
           toast.error("Network error \u2014 please try again.");
+        } finally {
+          actionBusyRef.current = false;
         }
       },
     },
@@ -188,6 +212,8 @@ export default function BookingsPage() {
       label: "Duplicate",
       kind: "RESERVATION",
       handler: async (bookingId) => {
+        if (actionBusyRef.current) return;
+        actionBusyRef.current = true;
         try {
           const res = await fetchAction(`/api/reservations/${bookingId}/duplicate`);
           if (res.ok) {
@@ -197,8 +223,11 @@ export default function BookingsPage() {
             const msg = await parseErrorMessage(res, "Duplicate failed");
             toast.error(msg);
           }
-        } catch {
+        } catch (err) {
+          if (isAbortError(err)) return;
           toast.error("Network error \u2014 please try again.");
+        } finally {
+          actionBusyRef.current = false;
         }
       },
     },
@@ -217,6 +246,8 @@ export default function BookingsPage() {
           variant: "danger",
         });
         if (!ok) return;
+        if (actionBusyRef.current) return;
+        actionBusyRef.current = true;
 
         const prevItems = [...items];
         setItems?.((list) =>
@@ -232,9 +263,12 @@ export default function BookingsPage() {
           } else {
             toast.success("Reservation cancelled");
           }
-        } catch {
+        } catch (err) {
+          if (isAbortError(err)) return;
           setItems?.(() => prevItems);
           toast.error("Failed to cancel reservation. Please try again.");
+        } finally {
+          actionBusyRef.current = false;
         }
       },
     },
@@ -376,15 +410,15 @@ export default function BookingsPage() {
         </div>
 
         <TabsContent value="all">
-          <BookingListPage key={`all-${scope}`} config={allConfig} viewMode={viewMode} hideHeader hideNewButton initialHighlight={pendingHighlight?.tab === "all" ? pendingHighlight.id : null} />
+          <BookingListPage key={`all-${scope}`} config={allConfig} viewMode={viewMode} hideHeader hideNewButton initialHighlight={pendingHighlight?.tab === "all" ? pendingHighlight.id : null} initialSheetTab={pendingHighlight?.tab === "all" ? pendingHighlight.sheetTab : null} />
         </TabsContent>
 
         <TabsContent value="checkouts">
-          <BookingListPage key={`checkouts-${scope}`} config={checkoutConfig} viewMode={viewMode} hideHeader initialHighlight={pendingHighlight?.tab === "checkouts" ? pendingHighlight.id : null} />
+          <BookingListPage key={`checkouts-${scope}`} config={checkoutConfig} viewMode={viewMode} hideHeader initialHighlight={pendingHighlight?.tab === "checkouts" ? pendingHighlight.id : null} initialSheetTab={pendingHighlight?.tab === "checkouts" ? pendingHighlight.sheetTab : null} />
         </TabsContent>
 
         <TabsContent value="reservations">
-          <BookingListPage key={`reservations-${scope}`} config={reservationConfig} viewMode={viewMode} hideHeader initialHighlight={pendingHighlight?.tab === "reservations" ? pendingHighlight.id : null} />
+          <BookingListPage key={`reservations-${scope}`} config={reservationConfig} viewMode={viewMode} hideHeader initialHighlight={pendingHighlight?.tab === "reservations" ? pendingHighlight.id : null} initialSheetTab={pendingHighlight?.tab === "reservations" ? pendingHighlight.sheetTab : null} />
         </TabsContent>
       </Tabs>
     </FadeUp>

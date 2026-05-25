@@ -12,6 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatRelativeTime } from "@/lib/format";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 
 type HistoryEntry = {
   id: string;
@@ -29,6 +30,10 @@ type Props = {
   onOpenChange: (open: boolean) => void;
 };
 
+type HistoryResponse = {
+  data?: HistoryEntry[];
+};
+
 export function MyLicenseHistoryDialog({ open, onOpenChange }: Props) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -40,9 +45,10 @@ export function MyLicenseHistoryDialog({ open, onOpenChange }: Props) {
     setLoadError(false);
     fetch("/api/licenses/my/history")
       .then(async (res) => {
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error ?? "Failed to load history");
-        setHistory(json.data ?? []);
+        if (handleAuthRedirect(res)) return;
+        if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to load history"));
+        const json = await parseJsonSafely<HistoryResponse>(res);
+        setHistory(json?.data ?? []);
       })
       .catch(() => setLoadError(true))
       .finally(() => setLoading(false));

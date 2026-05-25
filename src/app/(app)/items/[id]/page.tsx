@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 const BookingDetailsSheet = dynamic(() => import("@/components/BookingDetailsSheet"), { ssr: false });
@@ -20,6 +20,7 @@ import { AccessoriesSection } from "./ItemSettingsTab";
 
 import useItemData from "./_hooks/use-item-data";
 import useItemActions from "./_hooks/use-item-actions";
+import { useUrlState } from "@/hooks/use-url-state";
 import { ItemHeader } from "./_components/ItemHeader";
 import { BulkSkuDetailExperience } from "../../bulk-inventory/[id]/BulkSkuDetailExperience";
 import { BULK_ID_PREFIX } from "../lib/item-href";
@@ -37,6 +38,14 @@ const tabDefs: Array<{ key: TabKey; label: string }> = [
   { key: "accessories", label: "Attachments" },
   { key: "settings", label: "Settings" },
 ];
+
+function parseItemDetailTab(raw: string | null): TabKey {
+  return tabDefs.some((tab) => tab.key === raw) ? (raw as TabKey) : "info";
+}
+
+function serializeDetailTab(tab: TabKey): string | null {
+  return tab === "info" ? null : tab;
+}
 
 function buildImageSearchSeed(asset: AssetDetail) {
   const productName = asset.name?.trim() ?? "";
@@ -68,11 +77,7 @@ export default function ItemDetailsPage() {
 }
 
 function SerializedItemDetailsPage({ id }: { id: string }) {
-  const searchParams = useSearchParams();
-  const initialTab = (searchParams.get("tab") as TabKey) || "info";
-  const [activeTab, setActiveTab] = useState<TabKey>(
-    tabDefs.some((t) => t.key === initialTab) ? initialTab : "info"
-  );
+  const [activeTab, setActiveTab] = useUrlState<TabKey>("tab", parseItemDetailTab, serializeDetailTab);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [imageModalOpen, setImageModalOpen] = useState(false);
 
@@ -104,10 +109,6 @@ function SerializedItemDetailsPage({ id }: { id: string }) {
   // URL-synced tab switching
   function switchTab(tab: TabKey) {
     setActiveTab(tab);
-    const url = new URL(window.location.href);
-    if (tab === "info") url.searchParams.delete("tab");
-    else url.searchParams.set("tab", tab);
-    window.history.replaceState({}, "", url.toString());
   }
 
   // Keyboard shortcuts: 1-6 to switch tabs

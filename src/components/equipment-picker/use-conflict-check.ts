@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { handleAuthRedirect, isAbortError, parseJsonSafely } from "@/lib/errors";
 
 export type ConflictInfo = {
   assetId: string;
@@ -109,14 +110,18 @@ export function useConflictCheck({
         signal: ctrl.signal,
       });
       if (ctrl.signal.aborted) return;
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        const json = await res.json();
-        const data = json.data as {
+        const json = await parseJsonSafely<{
+          data?: {
           conflicts?: Array<{ assetId: string; conflictingBookingTitle?: string; startsAt: string; endsAt: string }>;
           upcomingCommitments?: UpcomingCommitmentInfo[];
           turnaroundRisks?: TurnaroundRiskInfo[];
           bulkTurnaroundRisks?: BulkTurnaroundRiskInfo[];
-        };
+          };
+        }>(res);
+        const data = json?.data;
+        if (!data) return;
         const conflictMap = new Map<string, ConflictInfo>();
         for (const c of data.conflicts ?? []) conflictMap.set(c.assetId, c);
         const upcomingMap = new Map<string, UpcomingCommitmentInfo>();
@@ -136,10 +141,11 @@ export function useConflictCheck({
       }
       // Non-OK responses: keep existing availability context (stale > missing)
     } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
+      if (isAbortError(err)) return;
       // Network errors: keep existing availability context visible
+    } finally {
+      if (!ctrl.signal.aborted) setChecking(false);
     }
-    if (!abortRef.current?.signal.aborted) setChecking(false);
   }, []);
 
   useEffect(() => {

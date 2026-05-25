@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { parseJsonSafely } from "@/lib/errors";
 
 export type CurrentUser = {
   id: string;
@@ -17,7 +18,7 @@ export function useCurrentUser(initialUser?: CurrentUser) {
     queryFn: async ({ signal }) => {
       const res = await fetch("/api/me", { signal });
       if (!res.ok) return null;
-      const json = await res.json();
+      const json = await parseJsonSafely<{ user?: CurrentUser | null }>(res);
       return (json?.user ?? null) as CurrentUser | null;
     },
     initialData: initialUser ?? undefined,

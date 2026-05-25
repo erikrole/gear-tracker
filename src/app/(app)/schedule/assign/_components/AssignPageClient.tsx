@@ -20,12 +20,14 @@ import { SPORT_CODES } from "@/lib/sports";
 import { AREAS, AREA_LABELS } from "@/types/areas";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, FilterIcon } from "lucide-react";
+import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 
 async function fetchUsers(): Promise<PickerUser[]> {
   const res = await fetch("/api/users?limit=200&active=true");
+  if (handleAuthRedirect(res)) return [];
   if (!res.ok) return [];
-  const j = await res.json();
-  return (j.data ?? []).map((u: { id: string; name: string; role: string; primaryArea: string | null; avatarUrl?: string | null }) => ({
+  const j = await parseJsonSafely<{ data?: Array<{ id: string; name: string; role: string; primaryArea: string | null; avatarUrl?: string | null }> }>(res);
+  return (j?.data ?? []).map((u: { id: string; name: string; role: string; primaryArea: string | null; avatarUrl?: string | null }) => ({
     id: u.id,
     name: u.name,
     role: u.role,

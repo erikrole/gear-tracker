@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Plus, Trash2, AlertCircle } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 
 /* ── Types ─────────────────────────────────────────────── */
 
@@ -56,11 +56,16 @@ type AddBlockFormProps = {
 };
 
 function AddBlockForm({ userId, onAdded, onCancel }: AddBlockFormProps) {
+  const dayId = useId();
+  const startId = useId();
+  const endId = useId();
+  const labelId = useId();
   const [dayOfWeek, setDayOfWeek] = useState("1"); // Monday default
   const [startsAt, setStartsAt] = useState("09:00");
   const [endsAt, setEndsAt] = useState("11:00");
   const [label, setLabel] = useState("");
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -68,6 +73,8 @@ function AddBlockForm({ userId, onAdded, onCancel }: AddBlockFormProps) {
       toast.error("Start time must be before end time");
       return;
     }
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     try {
       const res = await fetch(`/api/users/${userId}/availability`, {
@@ -86,12 +93,17 @@ function AddBlockForm({ userId, onAdded, onCancel }: AddBlockFormProps) {
         toast.error(msg);
         return;
       }
-      const json = await res.json();
+      const json = await parseJsonSafely<{ data?: AvailabilityBlock }>(res);
+      if (!json?.data) {
+        toast.error("Availability block was created, but the response was incomplete. Refresh the profile.");
+        return;
+      }
       onAdded(json.data);
       toast.success("Availability block added");
     } catch {
       toast.error("Network error");
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -101,9 +113,9 @@ function AddBlockForm({ userId, onAdded, onCancel }: AddBlockFormProps) {
       <p className="text-sm font-medium">Add class / recurring block</p>
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_1fr] gap-3">
         <div className="space-y-1.5">
-          <Label className="text-xs">Day</Label>
-          <Select value={dayOfWeek} onValueChange={setDayOfWeek}>
-            <SelectTrigger size="sm">
+          <Label htmlFor={dayId} className="text-xs">Day</Label>
+          <Select name="availability-day" value={dayOfWeek} onValueChange={setDayOfWeek}>
+            <SelectTrigger id={dayId} size="sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -114,8 +126,10 @@ function AddBlockForm({ userId, onAdded, onCancel }: AddBlockFormProps) {
           </Select>
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs">Start</Label>
+          <Label htmlFor={startId} className="text-xs">Start</Label>
           <Input
+            id={startId}
+            name="availability-start"
             type="time"
             value={startsAt}
             onChange={(e) => setStartsAt(e.target.value)}
@@ -124,8 +138,10 @@ function AddBlockForm({ userId, onAdded, onCancel }: AddBlockFormProps) {
           />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs">End</Label>
+          <Label htmlFor={endId} className="text-xs">End</Label>
           <Input
+            id={endId}
+            name="availability-end"
             type="time"
             value={endsAt}
             onChange={(e) => setEndsAt(e.target.value)}
@@ -134,8 +150,10 @@ function AddBlockForm({ userId, onAdded, onCancel }: AddBlockFormProps) {
           />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs">Label (optional)</Label>
+          <Label htmlFor={labelId} className="text-xs">Label (optional)</Label>
           <Input
+            id={labelId}
+            name="availability-label"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             placeholder="CHEM 101"
@@ -168,6 +186,7 @@ export default function UserAvailabilityTab({
   const [showForm, setShowForm] = useState(false);
   const [localBlocks, setLocalBlocks] = useState<AvailabilityBlock[] | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const deletingRef = useRef(false);
 
   const {
     data: fetchedBlocks,
@@ -202,6 +221,8 @@ export default function UserAvailabilityTab({
   }
 
   async function handleDelete(blockId: string) {
+    if (deletingRef.current) return;
+    deletingRef.current = true;
     setDeleting(blockId);
     try {
       const res = await fetch(`/api/users/${userId}/availability/${blockId}`, {
@@ -218,6 +239,7 @@ export default function UserAvailabilityTab({
     } catch {
       toast.error("Network error");
     } finally {
+      deletingRef.current = false;
       setDeleting(null);
     }
   }

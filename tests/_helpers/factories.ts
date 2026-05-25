@@ -114,7 +114,8 @@ export function makeShift(overrides: Record<string, unknown> = {}) {
   const id = uid();
   return {
     id,
-    area: "Field",
+    area: "VIDEO",
+    workerType: "ST" as const,
     startsAt: new Date("2026-04-01T08:00:00Z"),
     endsAt: new Date("2026-04-01T16:00:00Z"),
     shiftGroupId: uid(),

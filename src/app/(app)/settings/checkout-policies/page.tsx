@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import EmptyState from "@/components/EmptyState";
 import { useFetch } from "@/hooks/use-fetch";
 import { handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
 import { SettingsPageShell } from "../SettingsPageShell";
@@ -34,7 +35,7 @@ function isDirty(a: FormState, b: FormState): boolean {
 }
 
 export default function CheckoutPoliciesPage() {
-  const { data, loading, error } = useFetch<{ data: CheckoutPolicies }>({
+  const { data, loading, error, reload } = useFetch<CheckoutPolicies>({
     url: "/api/settings/checkout-policies",
     returnTo: "/settings/checkout-policies",
   });
@@ -42,11 +43,12 @@ export default function CheckoutPoliciesPage() {
   const [form, setForm] = useState<FormState | null>(null);
   const [base, setBase] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [errors, setErrors] = useState<Partial<FormState>>({});
 
   useEffect(() => {
-    if (data?.data && !base) {
-      const f = toForm(data.data);
+    if (data && !base) {
+      const f = toForm(data);
       setForm(f);
       setBase(f);
     }
@@ -80,6 +82,8 @@ export default function CheckoutPoliciesPage() {
 
   async function handleSave() {
     if (!form || !validate()) return;
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     try {
       const payload: CheckoutPolicies = {
@@ -104,6 +108,7 @@ export default function CheckoutPoliciesPage() {
       if (isAbortError(err)) return;
       toast.error("Could not reach the server. Check your connection.");
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -121,7 +126,14 @@ export default function CheckoutPoliciesPage() {
   if (error || !form) {
     return (
       <SettingsPageShell title="Checkout Policies" description="Default loan duration, overdue grace period, and per-user item cap.">
-        <p className="text-sm text-destructive">Could not load checkout policies.</p>
+        <EmptyState
+          inline
+          icon={error === "network" ? "wifi-off" : "box"}
+          title={error === "network" ? "You are offline" : "Could not load checkout policies"}
+          description={error === "network" ? "Check your connection and retry." : "Retry before changing checkout rules."}
+          actionLabel="Retry"
+          onAction={reload}
+        />
       </SettingsPageShell>
     );
   }
@@ -139,6 +151,7 @@ export default function CheckoutPoliciesPage() {
             <Label htmlFor="cp-loan-days">Default loan duration (days)</Label>
             <Input
               id="cp-loan-days"
+              name="defaultLoanDays"
               type="number"
               min={1}
               max={365}
@@ -146,6 +159,7 @@ export default function CheckoutPoliciesPage() {
               onChange={(e) => setField("defaultLoanDays", e.target.value)}
               aria-invalid={!!errors.defaultLoanDays}
               className="max-w-48"
+              disabled={saving}
             />
             {errors.defaultLoanDays
               ? <p className="text-xs text-destructive">{errors.defaultLoanDays}</p>
@@ -158,6 +172,7 @@ export default function CheckoutPoliciesPage() {
             <Label htmlFor="cp-grace">Overdue grace period (hours)</Label>
             <Input
               id="cp-grace"
+              name="gracePeriodHours"
               type="number"
               min={0}
               max={168}
@@ -166,6 +181,7 @@ export default function CheckoutPoliciesPage() {
               onChange={(e) => setField("gracePeriodHours", e.target.value)}
               aria-invalid={!!errors.gracePeriodHours}
               className="max-w-48"
+              disabled={saving}
             />
             {errors.gracePeriodHours
               ? <p className="text-xs text-destructive">{errors.gracePeriodHours}</p>
@@ -178,6 +194,7 @@ export default function CheckoutPoliciesPage() {
             <Label htmlFor="cp-max-items">Max active checkouts per user</Label>
             <Input
               id="cp-max-items"
+              name="maxItemsPerUser"
               type="number"
               min={1}
               max={100}
@@ -186,6 +203,7 @@ export default function CheckoutPoliciesPage() {
               placeholder="No limit"
               aria-invalid={!!errors.maxItemsPerUser}
               className="max-w-48"
+              disabled={saving}
             />
             {errors.maxItemsPerUser
               ? <p className="text-xs text-destructive">{errors.maxItemsPerUser}</p>

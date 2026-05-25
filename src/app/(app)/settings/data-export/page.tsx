@@ -105,6 +105,7 @@ export default function DataExportPage() {
       <div className="space-y-3">
         {EXPORTS.map((cfg) => {
           const isLoading = downloading === cfg.key;
+          const actionLabel = `${isLoading ? "Downloading" : "Download"} ${cfg.label} CSV`;
           return (
             <Card key={cfg.key}>
               <CardContent className="flex items-center gap-4 py-4">
@@ -118,12 +119,13 @@ export default function DataExportPage() {
                   className="shrink-0"
                   disabled={!!downloading}
                   onClick={() => handleDownload(cfg)}
+                  aria-label={actionLabel}
                 >
                   {isLoading
                     ? <Loader2 className="size-4 animate-spin" />
                     : <Download className="size-4" />
                   }
-                  {isLoading ? "Downloading…" : "Download CSV"}
+                  {actionLabel}
                 </Button>
               </CardContent>
             </Card>

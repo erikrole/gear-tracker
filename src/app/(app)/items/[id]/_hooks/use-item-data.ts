@@ -8,6 +8,7 @@ import {
   classifyError,
   isAbortError,
   handleAuthRedirect,
+  parseJsonSafely,
   type FetchErrorKind,
 } from "@/lib/errors";
 
@@ -65,7 +66,7 @@ export default function useItemData(id: string): UseItemDataReturn {
           return null;
         }
         if (!res.ok) throw new Error("server");
-        return res.json();
+        return parseJsonSafely<{ data?: AssetDetail }>(res);
       })
       .then((json) => {
         if (!json || controller.signal.aborted) {
@@ -105,22 +106,22 @@ export default function useItemData(id: string): UseItemDataReturn {
 
   const loadCategories = useCallback(() => {
     fetch("/api/categories")
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json) setCategories(json.data || []); })
+      .then((res) => res.ok ? parseJsonSafely<{ data?: CategoryOption[] }>(res) : null)
+      .then((json) => { if (Array.isArray(json?.data)) setCategories(json.data); })
       .catch(() => {});
   }, []);
 
   const loadDepartments = useCallback(() => {
     fetch("/api/departments")
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json) setDepartments(json.data || []); })
+      .then((res) => res.ok ? parseJsonSafely<{ data?: DepartmentOption[] }>(res) : null)
+      .then((json) => { if (Array.isArray(json?.data)) setDepartments(json.data); })
       .catch(() => {});
   }, []);
 
   const loadLocations = useCallback(() => {
     fetch("/api/locations")
-      .then((res) => res.ok ? res.json() : null)
-      .then((json) => { if (json) setLocations(json.data || []); })
+      .then((res) => res.ok ? parseJsonSafely<{ data?: { id: string; name: string }[] }>(res) : null)
+      .then((json) => { if (Array.isArray(json?.data)) setLocations(json.data); })
       .catch(() => {});
   }, []);
 

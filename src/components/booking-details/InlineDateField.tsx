@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -44,9 +44,10 @@ export function InlineDateField({
   });
 
   const [open, setOpen] = useState(false);
-  const [pendingDate, setPendingDate] = useState<Date>(current);
-  const [status, setStatus] = useState<SaveStatus>("idle");
-  const timerRef = useRef<ReturnType<typeof setTimeout>>(null);
+	  const [pendingDate, setPendingDate] = useState<Date>(current);
+	  const [status, setStatus] = useState<SaveStatus>("idle");
+	  const timerRef = useRef<ReturnType<typeof setTimeout>>(null);
+	  const controlId = useId();
 
   // Reset pending when value changes externally (e.g. after successful save)
   useEffect(() => {
@@ -126,9 +127,12 @@ export function InlineDateField({
           <div className="border-t px-3 py-2 space-y-2">
             <div className="flex items-center gap-2">
               <CalendarIcon className="size-4 text-muted-foreground shrink-0" />
-              <NativeSelect
-                value={h}
-                onChange={(e) => handleTimeChange(Number(e.target.value), m)}
+	              <NativeSelect
+	                id={`${controlId}-hour`}
+	                name="inlineDateHour"
+	                aria-label="Hour"
+	                value={h}
+	                onChange={(e) => handleTimeChange(Number(e.target.value), m)}
               >
                 {HOUR_OPTIONS.map((hr) => (
                   <option key={hr} value={hr}>
@@ -138,8 +142,11 @@ export function InlineDateField({
                 ))}
               </NativeSelect>
               <span className="text-muted-foreground">:</span>
-              <NativeSelect
-                value={m}
+	              <NativeSelect
+	                id={`${controlId}-minute`}
+	                name="inlineDateMinute"
+	                aria-label="Minute"
+	                value={m}
                 onChange={(e) => handleTimeChange(h, Number(e.target.value))}
               >
                 {MINUTE_OPTIONS.map((mn) => (

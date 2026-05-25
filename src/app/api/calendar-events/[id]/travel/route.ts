@@ -40,7 +40,14 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   });
   if (!event) throw new HttpError(404, "Event not found");
 
-  const body = addMemberSchema.parse(await req.json());
+  let rawBody: unknown;
+  try {
+    rawBody = await req.json();
+  } catch {
+    throw new HttpError(400, "Request body must be valid JSON");
+  }
+
+  const body = addMemberSchema.parse(rawBody);
 
   const member = await db.eventTravelMember.create({
     data: {

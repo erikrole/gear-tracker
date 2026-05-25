@@ -72,6 +72,19 @@ export function isHiddenUntilEarnedBadge(key: string): boolean {
   return HIDDEN_BADGE_KEYS.has(key);
 }
 
+export function formatBadgeCategoryLabel(category: string): string {
+  return category
+    .toLowerCase()
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+export function formatBadgeSourceLabel(source: string): string {
+  return formatBadgeCategoryLabel(source);
+}
+
 export function getBadgeRarity(badge: BadgeDisplayInput): BadgeRarity {
   if (LEGENDARY_BADGE_KEYS.has(badge.key)) return "Legendary";
   if (RARE_BADGE_KEYS.has(badge.key) || (badge.threshold ?? 0) >= 50) return "Rare";

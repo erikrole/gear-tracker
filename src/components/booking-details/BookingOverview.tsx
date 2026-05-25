@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import Link from "next/link";
 import { formatDateTime } from "@/lib/format";
+import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 import { toLocalDateTimeValue } from "./helpers";
 import { CalendarIcon, ClockIcon, UserIcon, MapPinIcon, CalendarCheckIcon, LinkIcon, StickyNoteIcon, TriangleAlert } from "lucide-react";
 import type { BookingDetail, CheckinProgress, ConflictData } from "./types";
@@ -62,11 +63,13 @@ export default function BookingOverview({
   const { data: presetsData } = useQuery<ExtendPreset[]>({
     queryKey: ["extend-presets"],
     queryFn: async () => {
-      const r = await fetch("/api/settings/extend-presets");
-      if (!r.ok) return [];
-      const json = await r.json();
-      return json?.data?.presets ?? [];
-    },
+	      const r = await fetch("/api/settings/extend-presets");
+	      if (handleAuthRedirect(r)) throw new DOMException("Auth redirect", "AbortError");
+	      if (!r.ok) throw new Error("server");
+	      const json = await parseJsonSafely<{ data?: { presets?: ExtendPreset[] } }>(r);
+	      if (!Array.isArray(json?.data?.presets)) throw new Error("server");
+	      return json.data.presets;
+	    },
     staleTime: 10 * 60_000,
   });
   const presets = presetsData ?? [];

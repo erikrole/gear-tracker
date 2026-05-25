@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { handleAuthRedirect, isAbortError, parseJsonSafely } from "@/lib/errors";
 
 export function useKitFetching({
   locationId,
@@ -18,7 +19,11 @@ export function useKitFetching({
     }
     const controller = new AbortController();
     fetch(`/api/kits?location_id=${locationId}&limit=100`, { signal: controller.signal })
-      .then((res) => (res.ok ? res.json() : null))
+      .then(async (res) => {
+        if (handleAuthRedirect(res)) return null;
+        if (!res.ok) return null;
+        return parseJsonSafely<{ data?: Array<{ id: string; name: string }> }>(res);
+      })
       .then((json) => {
         if (controller.signal.aborted) return;
         setKits(
@@ -29,7 +34,7 @@ export function useKitFetching({
         );
       })
       .catch((err) => {
-        if (err?.name !== "AbortError") setKits([]);
+        if (!isAbortError(err)) setKits([]);
       });
     return () => controller.abort();
   }, [locationId, open]);

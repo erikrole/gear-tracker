@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Notifications
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-21
+- Last Updated: 2026-05-24
 - Status: Active — escalation schedule + iOS tap-through + APNs native push shipped
 - Version: V1.2
 
@@ -121,6 +121,8 @@ Implementation: `src/lib/services/notifications.ts`
 - Route: `/notifications`
 - Content: all in-app notifications for current user, ordered by `createdAt` descending
 - Mark-as-read: inline single-row action plus Mark all read
+- Mutation reliability: mark-read, mark-all-read, and manual overdue processing use ref-backed duplicate-action guards, shared 401 redirects, safe response parsing, and specific server/network error toasts
+- API reliability: malformed mark-read JSON returns 400, stale or wrong notification IDs return 404, and audit rows are only created after a real update
 - Empty state: "All caught up" with `bell.slash` icon
 - Deep links: row actions navigate to the related booking, reservation, schedule surface, or explicit `payload.href`
 - Unread badge: `GET /api/notifications/count` returns `{ unreadCount }` — lightweight, no data fetch
@@ -210,6 +212,8 @@ Current behavior:
 | `EMAIL_FROM` | No | From address for transactional email. Default: `Gear Tracker <noreply@gear-tracker.app>` |
 
 ## Change Log
+- 2026-05-25: Web bug sweep Batch 24 hardened URL-backed notification inbox state. Unread-only and page params now rehydrate from browser back/forward and external URL changes through the shared `useUrlState` hook.
+- 2026-05-24: Web bug sweep hardened `/notifications` mark-read, mark-all-read, and manual overdue processing against duplicate clicks, expired sessions, malformed/non-JSON responses, stale notification IDs, and misleading success copy. `PATCH /api/notifications` now returns explicit 400/404 errors and only audits successful single-notification updates.
 - 2026-05-21: Shift schedule notifications now cover new assignments, approved requests, removed assignments, shift call-time changes, and personal call-time changes. Copy spells out Staff or Student and includes the effective call time.
 - 2026-05-21: Design-language cleanup moved notification summary metrics to the shared `OperationalMetricCard` primitive and raised notification-center header, retry, destination, and mark-read actions to the 40px operational target baseline.
 - 2026-05-12: iOS notification routing now recognizes `badge_awarded` inbox rows and opens the awarded user's native profile from the notification payload's `userId`. Badge award delivery remains persistent in-app only, with no push, email, or toast fanout.

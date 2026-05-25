@@ -11,12 +11,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import type { LicenseCode } from "./types";
 
 type Props = {
   license: LicenseCode | null;
   onOpenChange: (open: boolean) => void;
   onClaimed: () => void;
+};
+
+type ClaimResponse = {
+  data?: {
+    code?: string;
+  };
 };
 
 export function ConfirmClaimDialog({ license, onOpenChange, onClaimed }: Props) {
@@ -27,10 +34,12 @@ export function ConfirmClaimDialog({ license, onOpenChange, onClaimed }: Props) 
     setLoading(true);
     try {
       const res = await fetch(`/api/licenses/${license.id}/claim`, { method: "POST" });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed to claim license");
+      if (handleAuthRedirect(res)) return;
+      if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to claim license"));
 
-      const code: string = json.data.code;
+      const json = await parseJsonSafely<ClaimResponse>(res);
+      const code = json?.data?.code;
+      if (!code) throw new Error("License claimed, but no code was returned");
       await navigator.clipboard.writeText(code);
       toast.success("License claimed and copied to clipboard", {
         description: code,

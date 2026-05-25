@@ -20,7 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { statusBadgeVariant, statusLabel } from "./booking-details/helpers";
 import { toLocalDateTimeValue } from "./booking-details/helpers";
 import {
@@ -39,14 +39,35 @@ import type {
   BookingDetail,
   BulkSkuOption,
   ConflictData,
+  TabKey,
 } from "./booking-details/types";
 
 /* ───── Props ───── */
 
 type Props = {
   bookingId: string | null;
+  initialTab?: TabKey | null;
   onClose: () => void;
   onUpdated?: () => void;
+};
+
+type ApiEnvelope<T> = {
+  data?: T;
+  error?: string;
+  nextCursor?: string | null;
+  hasMore?: boolean;
+};
+
+type FormOptionsResponse = {
+  data?: {
+    bulkSkus?: BulkSkuOption[];
+  };
+};
+
+type ConvertResponse = {
+  data?: {
+    id?: string;
+  };
 };
 
 /* ───── Section heading ───── */
@@ -76,6 +97,7 @@ function SectionHead({
 
 export default function BookingDetailsSheet({
   bookingId,
+  initialTab,
   onClose,
   onUpdated,
 }: Props) {
@@ -120,6 +142,17 @@ export default function BookingDetailsSheet({
   const [cancelling, setCancelling] = useState(false);
   const [converting, setConverting] = useState(false);
   const [checkinLoading, setCheckinLoading] = useState(false);
+  const saveBusyRef = useRef(false);
+  const equipSaveBusyRef = useRef(false);
+  const extendBusyRef = useRef(false);
+  const cancelBusyRef = useRef(false);
+  const convertBusyRef = useRef(false);
+  const checkinBusyRef = useRef(false);
+  const auditBusyRef = useRef(false);
+  const sheetBodyRef = useRef<HTMLDivElement | null>(null);
+  const detailsSectionRef = useRef<HTMLDivElement | null>(null);
+  const equipmentSectionRef = useRef<HTMLDivElement | null>(null);
+  const historySectionRef = useRef<HTMLDivElement | null>(null);
 
   /* ───── Data fetching ───── */
 
@@ -140,7 +173,7 @@ export default function BookingDetailsSheet({
       });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        const json = await res.json();
+        const json = await parseJsonSafely<ApiEnvelope<BookingDetail>>(res);
         if (json?.data) {
           setBooking(json.data);
           setExtraAuditLogs([]);
@@ -167,14 +200,31 @@ export default function BookingDetailsSheet({
     return () => { abortRef.current?.abort(); };
   }, [bookingId, fetchBooking]);
 
+  useEffect(() => {
+    if (!bookingId || loading || !booking || editMode || equipEditMode) return;
+    const section = initialTab === "equipment"
+      ? equipmentSectionRef.current
+      : initialTab === "history"
+        ? historySectionRef.current
+        : detailsSectionRef.current;
+
+    if (!section || initialTab === "details" || !initialTab) return;
+    const frame = window.requestAnimationFrame(() => {
+      const body = sheetBodyRef.current;
+      if (!body) return;
+      body.scrollTo({ top: section.offsetTop - body.offsetTop, behavior: "auto" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [bookingId, booking, loading, editMode, equipEditMode, initialTab]);
+
   const loadFormOptions = useCallback(async () => {
     try {
       setOptionsError(false);
       const res = await fetchWithTimeout("/api/form-options");
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        const json = await res.json();
-        setBulkSkus(json.data.bulkSkus || []);
+        const json = await parseJsonSafely<FormOptionsResponse>(res);
+        setBulkSkus(json?.data?.bulkSkus ?? []);
       } else {
         setOptionsError(true);
       }
@@ -187,23 +237,27 @@ export default function BookingDetailsSheet({
   /* ───── Audit log load-more ───── */
 
   const loadMoreAuditLogs = useCallback(async () => {
-    if (!bookingId || !auditLogCursor || loadingMoreAuditLogs) return;
+    if (!bookingId || !auditLogCursor || auditBusyRef.current) return;
+    auditBusyRef.current = true;
     setLoadingMoreAuditLogs(true);
     try {
       const res = await fetchWithTimeout(
         `/api/bookings/${bookingId}/audit-logs?cursor=${encodeURIComponent(auditLogCursor)}`
       );
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        const json = await res.json();
-        setExtraAuditLogs((prev) => [...prev, ...(json.data ?? [])]);
-        setAuditLogCursor(json.nextCursor ?? null);
-        setHasMoreAuditLogs(json.hasMore ?? false);
+        const json = await parseJsonSafely<ApiEnvelope<BookingDetail["auditLogs"]>>(res);
+        setExtraAuditLogs((prev) => [...prev, ...(json?.data ?? [])]);
+        setAuditLogCursor(json?.nextCursor ?? null);
+        setHasMoreAuditLogs(json?.hasMore ?? false);
       }
     } catch {
       toast.error("Could not load older history. The visible activity is still current.");
+    } finally {
+      auditBusyRef.current = false;
+      setLoadingMoreAuditLogs(false);
     }
-    setLoadingMoreAuditLogs(false);
-  }, [bookingId, auditLogCursor, loadingMoreAuditLogs]);
+  }, [bookingId, auditLogCursor]);
 
   /* ───── Derived state ───── */
 
@@ -295,7 +349,8 @@ export default function BookingDetailsSheet({
   }
 
   async function handleEquipSave() {
-    if (!booking || equipSaving) return;
+    if (!booking || equipSaveBusyRef.current) return;
+    equipSaveBusyRef.current = true;
     setEquipSaving(true);
     setConflictError(null);
 
@@ -318,18 +373,21 @@ export default function BookingDetailsSheet({
         await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
-        const json = await res.json().catch(() => ({}) as Record<string, unknown>);
-        if (res.status === 409 && json.data) setConflictError(json.data as ConflictData);
-        toast.error((json.error as string) || "Could not save equipment changes. Review conflicts and try again.");
+        const json = await parseJsonSafely<ApiEnvelope<ConflictData>>(res);
+        if (res.status === 409 && json?.data) setConflictError(json.data);
+        toast.error(json?.error || "Could not save equipment changes. Review conflicts and try again.");
       }
     } catch {
       toast.error("Could not reach the server. Equipment changes were not saved.");
+    } finally {
+      equipSaveBusyRef.current = false;
+      setEquipSaving(false);
     }
-    setEquipSaving(false);
   }
 
   async function handleSave() {
-    if (!booking || saving) return;
+    if (!booking || saveBusyRef.current) return;
+    saveBusyRef.current = true;
     setSaving(true);
 
     const payload: Record<string, unknown> = {};
@@ -346,6 +404,7 @@ export default function BookingDetailsSheet({
 
     if (Object.keys(payload).length === 0) {
       toast.info("No changes to save");
+      saveBusyRef.current = false;
       setSaving(false);
       return;
     }
@@ -366,14 +425,16 @@ export default function BookingDetailsSheet({
         await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
-        const json = await res.json().catch(() => ({}) as Record<string, unknown>);
-        if (res.status === 409 && json.data) setConflictError(json.data as ConflictData);
-        toast.error((json.error as string) || "Could not save booking changes. Review conflicts and try again.");
+        const json = await parseJsonSafely<ApiEnvelope<ConflictData>>(res);
+        if (res.status === 409 && json?.data) setConflictError(json.data);
+        toast.error(json?.error || "Could not save booking changes. Review conflicts and try again.");
       }
     } catch {
       toast.error("Could not reach the server. Booking changes were not saved.");
+    } finally {
+      saveBusyRef.current = false;
+      setSaving(false);
     }
-    setSaving(false);
   }
 
   async function handleSaveDate(field: "startsAt" | "endsAt", iso: string) {
@@ -387,16 +448,17 @@ export default function BookingDetailsSheet({
     });
     if (handleAuthRedirect(res)) return;
     if (!res.ok) {
-      const json = await res.json().catch(() => ({}) as Record<string, unknown>);
-      if (res.status === 409 && json.data) setConflictError(json.data as ConflictData);
-      throw new Error((json.error as string) || "Failed to save date");
+      const json = await parseJsonSafely<ApiEnvelope<ConflictData>>(res);
+      if (res.status === 409 && json?.data) setConflictError(json.data);
+      throw new Error(json?.error || "Failed to save date");
     }
     await fetchBooking({ silent: true });
     onUpdated?.();
   }
 
   async function handleExtendTo(endsAt: string) {
-    if (!booking || extending) return;
+    if (!booking || extendBusyRef.current) return;
+    extendBusyRef.current = true;
     setExtending(true);
     try {
       const res = await fetchWithTimeout(`/api/bookings/${booking.id}/extend`, {
@@ -418,12 +480,14 @@ export default function BookingDetailsSheet({
       }
     } catch {
       toast.error("Could not reach the server. The booking was not extended.");
+    } finally {
+      extendBusyRef.current = false;
+      setExtending(false);
     }
-    setExtending(false);
   }
 
   async function handleCancel() {
-    if (!booking || cancelling) return;
+    if (!booking || cancelBusyRef.current) return;
     const typeLabel = booking.kind === "RESERVATION" ? "reservation" : "checkout";
     const ok = await confirm({
       title: `Cancel ${typeLabel}?`,
@@ -433,6 +497,7 @@ export default function BookingDetailsSheet({
     });
     if (!ok) return;
 
+    cancelBusyRef.current = true;
     setCancelling(true);
     try {
       const res = await fetchWithTimeout(`/api/bookings/${booking.id}/cancel`, { method: "POST" });
@@ -447,12 +512,14 @@ export default function BookingDetailsSheet({
       }
     } catch {
       toast.error(`Could not reach the server. The ${typeLabel} was not cancelled.`);
+    } finally {
+      cancelBusyRef.current = false;
+      setCancelling(false);
     }
-    setCancelling(false);
   }
 
   async function handleConvert() {
-    if (!booking || converting) return;
+    if (!booking || convertBusyRef.current) return;
     const ok = await confirm({
       title: "Start checkout from reservation?",
       message: `Create a checkout from "${booking.title}" and close the reservation record. Gear custody still begins at kiosk pickup.`,
@@ -460,12 +527,19 @@ export default function BookingDetailsSheet({
     });
     if (!ok) return;
 
+    convertBusyRef.current = true;
     setConverting(true);
     try {
       const res = await fetchWithTimeout(`/api/reservations/${booking.id}/convert`, { method: "POST" });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        const json = await res.json();
+        const json = await parseJsonSafely<ConvertResponse>(res);
+        if (!json?.data?.id) {
+          toast.error("Checkout started, but the response did not include a checkout link. Refresh the page.");
+          await fetchBooking({ silent: true });
+          onUpdated?.();
+          return;
+        }
         toast.success("Converted to checkout");
         onUpdated?.();
         onClose();
@@ -476,12 +550,15 @@ export default function BookingDetailsSheet({
       }
     } catch {
       toast.error("Could not reach the server. The checkout was not started.");
+    } finally {
+      convertBusyRef.current = false;
+      setConverting(false);
     }
-    setConverting(false);
   }
 
   async function handleCheckinItem(assetId: string) {
-    if (!booking || checkinLoading) return;
+    if (!booking || checkinBusyRef.current) return;
+    checkinBusyRef.current = true;
     setCheckinLoading(true);
     const item = (booking.serializedItems ?? []).find((i) => i.asset.id === assetId);
     try {
@@ -501,12 +578,14 @@ export default function BookingDetailsSheet({
       }
     } catch {
       toast.error("Could not reach the server. The item was not checked in.");
+    } finally {
+      checkinBusyRef.current = false;
+      setCheckinLoading(false);
     }
-    setCheckinLoading(false);
   }
 
   async function handleCheckinAll() {
-    if (!booking || checkinLoading) return;
+    if (!booking || checkinBusyRef.current) return;
     const activeItems = (booking.serializedItems ?? []).filter((i) => i.allocationStatus !== "returned");
     if (activeItems.length === 0) return;
     const ok = await confirm({
@@ -516,6 +595,7 @@ export default function BookingDetailsSheet({
     });
     if (!ok) return;
 
+    checkinBusyRef.current = true;
     setCheckinLoading(true);
     try {
       const res = await fetchWithTimeout(`/api/checkouts/${booking.id}/checkin-items`, {
@@ -534,8 +614,10 @@ export default function BookingDetailsSheet({
       }
     } catch {
       toast.error("Could not reach the server. Items were not checked in.");
+    } finally {
+      checkinBusyRef.current = false;
+      setCheckinLoading(false);
     }
-    setCheckinLoading(false);
   }
 
   /* ───── Render ───── */
@@ -596,7 +678,7 @@ export default function BookingDetailsSheet({
         </SheetHeader>
 
         {/* Body — single scrollable column */}
-        <SheetBody className="relative flex flex-col bg-muted/20 px-0 py-0">
+        <SheetBody ref={sheetBodyRef} className="relative flex flex-col bg-muted/20 px-0 py-0">
           {loading ? (
             <div className="space-y-3 px-6 py-5">
               <Skeleton className="h-4 w-3/4" />
@@ -691,7 +773,7 @@ export default function BookingDetailsSheet({
             /* ── Normal single-scroll view ── */
             <>
               {/* ─ Details section ─ */}
-              <div className="border-b border-border/40 bg-background">
+              <div ref={detailsSectionRef} data-booking-sheet-section="details" className="border-b border-border/40 bg-background">
                 <div className="px-6 py-4">
                   <BookingOverview
                     booking={booking}
@@ -708,7 +790,7 @@ export default function BookingDetailsSheet({
               </div>
 
               {/* ─ Equipment section ─ */}
-              <div className="border-b border-border/40 bg-background">
+              <div ref={equipmentSectionRef} data-booking-sheet-section="equipment" className="border-b border-border/40 bg-background">
                 <SectionHead
                   label={`Equipment${totalEquipItems > 0 ? ` \u00b7 ${totalEquipItems}` : ""}`}
                   right={
@@ -743,7 +825,7 @@ export default function BookingDetailsSheet({
               </div>
 
               {/* ─ History section ─ */}
-              <div className="bg-background">
+              <div ref={historySectionRef} data-booking-sheet-section="history" className="bg-background">
                 <SectionHead label="History" />
                 <div className="px-6 py-4">
                   <ActivityTimeline

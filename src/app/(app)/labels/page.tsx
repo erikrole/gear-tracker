@@ -88,6 +88,7 @@ type LabelItem = {
   locationName: string;
   href: string;
   ariaLabel: string;
+  selectAriaLabel: string;
 };
 
 function assetSubtitle(asset: Asset) {
@@ -114,12 +115,14 @@ function mapAssetToLabelItem(asset: Asset): LabelItem {
     primaryScanCode: asset.primaryScanCode,
     locationName: asset.location.name,
     href: `/items/${asset.id}`,
-    ariaLabel: `Open ${asset.assetTag}`,
+    ariaLabel: `Open serialized item ${asset.assetTag}`,
+    selectAriaLabel: `Select serialized item ${asset.assetTag}`,
   };
 }
 
 function mapFamilyToLabelItem(family: BulkItemFamily): LabelItem {
   const tracking = family.trackByNumber ? "Unit-tracked item family" : "Quantity-tracked item family";
+  const trackingLabel = tracking.toLowerCase();
   const availability = `${family.availableQuantity}/${family.onHandQuantity} available`;
   return {
     id: `bulk-${family.id}`,
@@ -129,7 +132,8 @@ function mapFamilyToLabelItem(family: BulkItemFamily): LabelItem {
     primaryScanCode: family.binQrCodeValue,
     locationName: family.locationName,
     href: `/items/bulk-${family.id}`,
-    ariaLabel: `Open ${family.name}`,
+    ariaLabel: `Open ${trackingLabel} ${family.name} at ${family.locationName}`,
+    selectAriaLabel: `Select ${trackingLabel} ${family.name} at ${family.locationName}`,
   };
 }
 
@@ -181,7 +185,7 @@ export default function LabelsPage() {
     return `/api/assets?${params}`;
   })();
 
-  const { data: labelItems, loading } = useFetch<LabelItem[]>({
+  const { data: labelItems, loading, error, reload } = useFetch<LabelItem[]>({
     url: fetchUrl,
     transform: (json) => {
       const assets = ((json.data as Asset[] | undefined) ?? []).map(mapAssetToLabelItem);
@@ -332,6 +336,19 @@ export default function LabelsPage() {
               ))}
             </div>
           </CardContent>
+        ) : error ? (
+          <EmptyState
+            icon={error === "network" ? "wifi-off" : "box"}
+            title={error === "network" ? "Labels are offline" : "Labels could not load"}
+            description={
+              error === "network"
+                ? "Check your connection and retry the print queue."
+                : "The label queue could not read item data. Retry before assuming there are no labels."
+            }
+            actionLabel="Retry"
+            onAction={reload}
+            compact
+          />
         ) : matchingCount === 0 ? (
           <EmptyState
             icon={hasSearch ? "search" : "box"}
@@ -361,7 +378,7 @@ export default function LabelsPage() {
                 <Checkbox
                   checked={selectedIds.has(item.id)}
                   onCheckedChange={() => toggleSelect(item.id)}
-                  aria-label={`Select ${item.title}`}
+                  aria-label={item.selectAriaLabel}
                 />
                 <ItemMedia variant="icon" className="bg-background">
                   {selectedIds.has(item.id) ? (

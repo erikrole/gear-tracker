@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Check, ImageIcon, MoreHorizontal, Search } from "lucide-react";
 import { toast } from "sonner";
 import type { BookingDetail, SerializedItem, BulkItem } from "@/components/booking-details/types";
+import { handleAuthRedirect, isAbortError, parseJsonSafely } from "@/lib/errors";
 
 type ConflictInfo = {
   assetId: string;
@@ -158,14 +159,19 @@ export default function BookingEquipmentTab({
           excludeBookingId: booking.id,
         }),
       });
+      if (controller.signal.aborted) return;
+      if (handleAuthRedirect(res)) return;
       if (!res.ok) return;
-      const json = await res.json();
-      const data = json.data as {
+      const json = await parseJsonSafely<{
+        data?: {
         conflicts?: Array<{ assetId: string; conflictingBookingTitle?: string; startsAt: string; endsAt: string }>;
         upcomingCommitments?: UpcomingCommitmentInfo[];
         turnaroundRisks?: TurnaroundRiskInfo[];
         bulkTurnaroundRisks?: BulkTurnaroundRiskInfo[];
-      };
+        };
+      }>(res);
+      const data = json?.data;
+      if (!data) return;
       const conflictMap = new Map<string, ConflictInfo>();
       if (data.conflicts) {
         for (const c of data.conflicts) {
@@ -194,7 +200,7 @@ export default function BookingEquipmentTab({
       setTurnaroundRisks(riskMap);
       setBulkTurnaroundRisks(bulkRiskMap);
     } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
+      if (isAbortError(err)) return;
       toast.error("Failed to check equipment conflicts — try refreshing.");
     }
   }, [isActive, booking.id, booking.location.id, booking.startsAt, booking.endsAt, booking.serializedItems]);
@@ -256,9 +262,11 @@ export default function BookingEquipmentTab({
         <div className="px-4 pt-3">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input
-              placeholder="Search equipment..."
-              aria-label="Search equipment"
+	            <Input
+	              id="booking-detail-equipment-search"
+	              name="bookingDetailEquipmentSearch"
+	              placeholder="Search equipment..."
+	              aria-label="Search equipment"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="h-8 pl-8"

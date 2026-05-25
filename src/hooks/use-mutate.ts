@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 
 type MutateOptions = {
   /** Called on success with the parsed JSON response. */
@@ -70,7 +70,7 @@ export function useMutate(defaults?: MutateOptions): MutateState & { mutate: Mut
         return { ok: false, error: msg };
       }
 
-      const data = await res.json().catch(() => ({}));
+      const data = await parseJsonSafely<unknown>(res) ?? {};
       defaults?.onSuccess?.(data);
       return { ok: true, data };
     } catch {

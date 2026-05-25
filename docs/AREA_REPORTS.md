@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reports & Analytics
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-21
+- Last Updated: 2026-05-25
 - Status: Active
 - Version: V1
 
@@ -133,11 +133,19 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - [x] AC-8: Missing Units report includes unit-tracked battery missing-unit, missing-rate, custody-history, and repeat-pattern reporting
 
 ## Change Log
+- 2026-05-25: Web bug sweep Batch 49 cleaned up Utilization report status language. Metric cards, status chart labels, and CSV status rows now use shared equipment display labels such as `Awaiting Pickup` instead of raw enum values like `PENDING_PICKUP`, while keeping raw status keys only in drill-down URLs.
+- 2026-05-25: Web bug sweep Batch 43 fixed Reports overdue drill-down links. Checkouts and Overdue metric cards now use `/checkouts?filter=overdue`, matching the booking list's special filter contract instead of sending invalid `status=overdue` links into the unified Bookings route.
+- 2026-05-25: Web bug sweep Batch 39 hardened Audit report URL state. Audit period and pagination controls now rehydrate from browser Back/Forward or shared links, invalid filter params self-correct, and out-of-range pages clamp after report data loads.
+- 2026-05-25: Web bug sweep Batch 38 hardened badge report display copy. Badge Distribution and Underused rows now show only operator-facing badge names, and badge category/source labels render as title-cased product language such as `On Time` and `Manual` instead of raw internal keys or enum strings.
+- 2026-05-25: Web bug sweep Batch 23 hardened report URL-state rehydration. Checkouts and Scans now re-read filter and pagination state from the address bar after browser back/forward or external report links, keeping visible controls, active filters, and API query params aligned.
+- 2026-05-25: Web bug sweep Batch 22 hardened the shared `useFetch` helper used by reports, Labels, and Fix Today. It now safe-parses JSON responses and rejects unreadable success bodies before report consumers treat malformed gateway responses as valid data.
+- 2026-05-24: Web bug sweep Batch 11 moved the Reports layout permission check to the server before the report shell renders, matching the `/api/reports/*` `report.view` guard and redirecting non-staff users instead of showing a skeletonized forbidden reports shell.
 - 2026-05-21: Report metric cards now render through the shared `OperationalMetricCard` primitive while preserving report-specific links, tooltips, badges, and string values.
 - 2026-05-20: Reports period and phase filter state now uses shared `OperationalActiveFilterChips` through the report toolbar on Checkouts, Scans, and Audit so non-default filters can be removed without changing the segmented control directly.
 - 2026-05-13: Missing Units report copy now avoids old lost/numbered wording in the battery audit sections, using Missing and battery families using Units instead.
 - 2026-05-13: Battery audit reporting now lives under Missing Units. Staff/admin can see missing unit-tracked batteries by unit, missing rate by family, recent unit checkout history, repeated missing family/requester patterns, and a direct handoff to Battery Ops.
 - 2026-05-10: Reports ownership pass. Checkout analytics now exclude draft bookings, overdue reports count only outstanding gear, and scan report filters are normalized in the UI with API-side validation for invalid dates and phases. Browser smoke also fixed the shared React Query provider hydration path so report pages no longer log hydration mismatches after reloads.
+- 2026-05-25: Web bug sweep Batch 33 hardened shared current-user reads used by the reports shell and other role-aware navigation surfaces. `/api/me` success bodies now safe-parse through `useCurrentUser`, so an unreadable identity payload falls back through the normal unauthenticated/loading behavior instead of throwing during page render.
 - 2026-05-09: Badge report insight polish added manual award rate, underused active definitions, and a recent manual recognition section so staff can see whether the badge catalog is being used consistently.
 - 2026-05-09: Badge report shipped. `/reports/badges` now gives staff/admin read-only analytics for total awards, 30-day award volume, active definitions, manual awards, user leaderboard, badge distribution, and recent awards while keeping `/users/{id}?tab=badges` as the primary profile badge surface.
 - 2026-05-09: Reports authenticated browser smoke completed. Chrome DevTools verified seeded-admin rendering for Utilization, Checkouts, Overdue, Missing Units, Scans, and Audit; the pass also fixed a Recharts responsive sizing warning centrally in the shared shadcn chart wrapper.

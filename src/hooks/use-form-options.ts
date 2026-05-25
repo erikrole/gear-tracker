@@ -6,6 +6,7 @@ import type {
   FormUser,
   Location,
 } from "@/components/booking-list";
+import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 
 export type FormOptions = {
   locations: Location[];
@@ -19,8 +20,9 @@ export function useFormOptions() {
     queryKey: ["form-options"],
     queryFn: async ({ signal }) => {
       const res = await fetch("/api/form-options", { signal });
+      if (handleAuthRedirect(res)) return null;
       if (!res.ok) throw new Error("Failed to load form options");
-      const json = await res.json();
+      const json = await parseJsonSafely<{ data?: FormOptions }>(res);
       return (json?.data ?? null) as FormOptions | null;
     },
     staleTime: 5 * 60_000,

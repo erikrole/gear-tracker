@@ -6,6 +6,7 @@ import { toLocalDateTimeValue } from "../booking-list/types";
 import type { BulkSelection } from "@/components/EquipmentPicker";
 import type { AvailableAsset, BookingListConfig, CalendarEvent } from "../booking-list/types";
 import type { FormState, FormAction } from "./types";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 
 export function useDraftManagement({
   draftId,
@@ -41,25 +42,32 @@ export function useDraftManagement({
     if (!draftId || draftLoadedRef.current || !open) return;
     draftLoadedRef.current = true;
     fetch(`/api/drafts/${draftId}`)
-      .then((res) => (res.ok ? res.json() : null))
+      .then(async (res) => {
+        if (handleAuthRedirect(res)) return null;
+        if (!res.ok) {
+          toast.error(await parseErrorMessage(res, "Couldn’t load your draft"));
+          return null;
+        }
+        return parseJsonSafely<{ data?: Record<string, unknown> }>(res);
+      })
       .then((json) => {
         if (!json?.data) return;
         const d = json.data;
         const draft: Partial<FormState> = {};
-        if (d.title && d.title !== "Untitled draft") draft.title = d.title;
-        if (d.requesterUserId) draft.requester = d.requesterUserId;
-        if (d.locationId) draft.locationId = d.locationId;
-        if (d.startsAt) draft.startsAt = toLocalDateTimeValue(new Date(d.startsAt));
-        if (d.endsAt) draft.endsAt = toLocalDateTimeValue(new Date(d.endsAt));
-        if (d.sportCode) draft.sport = d.sportCode;
+        if (typeof d.title === "string" && d.title !== "Untitled draft") draft.title = d.title;
+        if (typeof d.requesterUserId === "string") draft.requester = d.requesterUserId;
+        if (typeof d.locationId === "string") draft.locationId = d.locationId;
+        if (typeof d.startsAt === "string") draft.startsAt = toLocalDateTimeValue(new Date(d.startsAt));
+        if (typeof d.endsAt === "string") draft.endsAt = toLocalDateTimeValue(new Date(d.endsAt));
+        if (typeof d.sportCode === "string") draft.sport = d.sportCode;
         if (typeof d.notes === "string") draft.notes = d.notes;
-        if (d.events?.length) {
+        if (Array.isArray(d.events) && d.events.length) {
           draft.tieToEvent = true;
           draft.selectedEvents = d.events as CalendarEvent[];
         }
         dispatch({ type: "LOAD_DRAFT", draft });
-        if (d.serializedAssetIds?.length) setSelectedAssetIds(d.serializedAssetIds);
-        if (d.bulkItems?.length) {
+        if (Array.isArray(d.serializedAssetIds) && d.serializedAssetIds.length) setSelectedAssetIds(d.serializedAssetIds as string[]);
+        if (Array.isArray(d.bulkItems) && d.bulkItems.length) {
           setSelectedBulkItems(
             d.bulkItems.map((bi: { bulkSkuId: string; quantity: number }) => ({
               bulkSkuId: bi.bulkSkuId,
@@ -101,10 +109,17 @@ export function useDraftManagement({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        const json = await res.json();
+        const json = await parseJsonSafely<{ data?: { id?: string } }>(res);
+        if (!json?.data?.id) {
+          toast.error("Draft was saved, but the response was incomplete. Refresh and try again.");
+          return;
+        }
         onDraftIdChange(json.data.id);
         toast.info("Draft saved");
+      } else {
+        toast.error(await parseErrorMessage(res, "Draft couldn’t be saved"));
       }
     } catch {
       toast.error("Draft couldn\u2019t be saved \u2014 your changes may be lost");

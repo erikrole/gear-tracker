@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { parseJsonSafely } from "@/lib/errors";
 import type { CategoryOption } from "@/types/category";
 
 type Location = { id: string; name: string };
@@ -17,16 +18,25 @@ export function useFilterOptions() {
 
   useEffect(() => {
     fetch("/api/items-page-init")
-      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => (res.ok ? parseJsonSafely<{
+        data?: {
+          user?: { role?: string };
+          locations?: Location[];
+          departments?: Department[];
+          categories?: CategoryOption[];
+          brands?: string[];
+          kits?: Kit[];
+        };
+      }>(res) : null))
       .then((json) => {
         if (json?.data) {
           const d = json.data;
           if (d.user?.role) setUserRole(d.user.role);
-          if (d.locations) setLocations(d.locations);
-          if (d.departments) setDepartments(d.departments);
-          if (d.categories) setCategories(d.categories);
-          if (d.brands) setBrands(d.brands);
-          if (d.kits) setKits(d.kits);
+          if (Array.isArray(d.locations)) setLocations(d.locations);
+          if (Array.isArray(d.departments)) setDepartments(d.departments);
+          if (Array.isArray(d.categories)) setCategories(d.categories);
+          if (Array.isArray(d.brands)) setBrands(d.brands);
+          if (Array.isArray(d.kits)) setKits(d.kits);
         }
       })
       .catch(() => {});

@@ -13,8 +13,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useFetch } from "@/hooks/use-fetch";
-import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import StatusIndicator from "@/components/ui/status-indicator";
 import { SettingsPageShell } from "../SettingsPageShell";
 import { RefreshCw, Trash2, Power, PowerOff } from "lucide-react";
@@ -32,7 +33,7 @@ type CalendarSource = {
 
 export default function CalendarSourcesPage() {
   const confirm = useConfirm();
-  const { data: fetchedSources, loading, reload } = useFetch<CalendarSource[]>({
+  const { data: fetchedSources, loading, error: sourcesError, reload } = useFetch<CalendarSource[]>({
     url: "/api/calendar-sources",
     returnTo: "/settings/calendar-sources",
     transform: (json) => (json.data as CalendarSource[]) ?? [],
@@ -40,6 +41,7 @@ export default function CalendarSourcesPage() {
   // Local state for optimistic mutation updates
   const [localSources, setLocalSources] = useState<CalendarSource[] | null>(null);
   const sources = localSources ?? fetchedSources ?? [];
+  const hasInitialLoadError = Boolean(sourcesError && !fetchedSources && !localSources);
   const [prevFetched, setPrevFetched] = useState(fetchedSources);
   if (fetchedSources !== prevFetched) {
     setPrevFetched(fetchedSources);
@@ -85,8 +87,12 @@ export default function CalendarSourcesPage() {
       });
       if (handleAuthRedirect(res, "/settings/calendar-sources")) return;
       if (res.ok) {
-        const json = await res.json();
-        setTestResult(json.data as TestResult);
+        const json = await parseJsonSafely<{ data?: TestResult }>(res);
+        if (!json?.data) {
+          toast.error("Test completed, but the response could not be read.");
+          return;
+        }
+        setTestResult(json.data);
       } else {
         const msg = await parseErrorMessage(res, "Test failed");
         toast.error(msg);
@@ -131,7 +137,7 @@ export default function CalendarSourcesPage() {
       const res = await fetch(`/api/calendar-sources/${source.id}/sync`, { method: "POST" });
       if (handleAuthRedirect(res, "/settings/calendar-sources")) return;
       if (res.ok) {
-        const json = await res.json().catch(() => null);
+        const json = await parseJsonSafely<{ data?: { shiftGenerationError?: boolean } }>(res);
         if (json?.data?.shiftGenerationError) {
           toast.warning(`Synced ${source.name}, but shift generation failed`);
         } else {
@@ -232,8 +238,10 @@ export default function CalendarSourcesPage() {
             <form onSubmit={handleAdd}>
               <div className="flex flex-col gap-3">
                 <div className="flex flex-col gap-1.5">
-                  <Label>Name</Label>
+                  <Label htmlFor="calendar-source-name">Name</Label>
                   <Input
+                    id="calendar-source-name"
+                    name="calendarSourceName"
                     type="text"
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
@@ -242,9 +250,11 @@ export default function CalendarSourcesPage() {
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <Label>ICS URL</Label>
+                  <Label htmlFor="calendar-source-url">ICS URL</Label>
                   <div className="flex gap-2">
                     <Input
+                      id="calendar-source-url"
+                      name="calendarSourceUrl"
                       type="url"
                       value={newUrl}
                       onChange={(e) => { setNewUrl(e.target.value); setTestResult(null); }}
@@ -308,6 +318,15 @@ export default function CalendarSourcesPage() {
               ))}
             </div>
           </Card>
+        ) : hasInitialLoadError ? (
+          <Alert variant="destructive">
+            <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <span>Calendar sources could not load. Existing feeds may still be syncing, but this page cannot show them yet.</span>
+              <Button type="button" size="sm" variant="outline" onClick={reload}>
+                Retry sources
+              </Button>
+            </AlertDescription>
+          </Alert>
         ) : sources.length === 0 ? (
           <Card>
             <EmptyState

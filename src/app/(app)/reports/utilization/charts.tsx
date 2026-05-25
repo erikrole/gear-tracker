@@ -7,19 +7,13 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { statusLabelEquipment } from "@/lib/status-colors";
 import { REPORT_CHART_COLORS, ReportChartCard } from "../report-ui";
-
-const STATUS_META_LABELS: Record<string, string> = {
-  AVAILABLE: "Available",
-  CHECKED_OUT: "Checked out",
-  RESERVED: "Reserved",
-  MAINTENANCE: "Maintenance",
-  RETIRED: "Retired",
-};
 
 const STATUS_COLORS: Record<string, string> = {
   AVAILABLE: "hsl(142 60% 45%)",
   CHECKED_OUT: "hsl(220 70% 55%)",
+  PENDING_PICKUP: "hsl(32 95% 52%)",
   RESERVED: "hsl(270 60% 60%)",
   MAINTENANCE: "hsl(25 90% 55%)",
   RETIRED: "hsl(0 0% 60%)",
@@ -29,7 +23,7 @@ export function StatusDonut({ statusCounts }: { statusCounts: Record<string, num
   const chartData = Object.entries(statusCounts)
     .filter(([, count]) => count > 0)
     .map(([status, count]) => ({
-      status: STATUS_META_LABELS[status] ?? status,
+      status: statusLabelEquipment(status),
       count,
       fill: STATUS_COLORS[status] ?? "hsl(0 0% 50%)",
     }));

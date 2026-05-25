@@ -24,6 +24,8 @@ export default function UserFilters({
   locationFilter,
   onLocationChange,
   locations,
+  locationsLoading = false,
+  locationsError = false,
   yearFilter,
   onYearChange,
   sportFilter,
@@ -42,6 +44,8 @@ export default function UserFilters({
   locationFilter: string;
   onLocationChange: (v: string) => void;
   locations: Location[];
+  locationsLoading?: boolean;
+  locationsError?: boolean;
   yearFilter: string;
   onYearChange: (v: string) => void;
   sportFilter: string;
@@ -66,6 +70,7 @@ export default function UserFilters({
     (sportFilter ? 1 : 0) +
     (showInactive ? 1 : 0);
   const hasFilters = activeFilterCount > 0;
+  const locationFilterUnavailable = locationsLoading || locationsError;
   const activeFilters: OperationalActiveFilter[] = [
     ...(roleFilter
       ? [{
@@ -204,12 +209,18 @@ export default function UserFilters({
               ))}
             </SelectContent>
           </Select>
-          <Select value={locationFilter || "__all__"} onValueChange={(v) => onLocationChange(v === "__all__" ? "" : v)}>
-            <SelectTrigger size="sm" className="h-10 w-[150px]">
+          <Select
+            value={locationFilter || "__all__"}
+            onValueChange={(v) => onLocationChange(v === "__all__" ? "" : v)}
+            disabled={locationFilterUnavailable}
+          >
+            <SelectTrigger size="sm" className="h-10 w-[150px]" aria-label={locationsError ? "Location filter unavailable" : "Location filter"}>
               <SelectValue placeholder="All locations" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">All locations</SelectItem>
+              <SelectItem value="__all__">
+                {locationsError ? "Locations unavailable" : locationsLoading ? "Loading locations" : "All locations"}
+              </SelectItem>
               {locations.map((l) => (
                 <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
               ))}

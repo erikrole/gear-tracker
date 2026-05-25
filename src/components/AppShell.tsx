@@ -24,6 +24,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { STATUS_STYLES } from "@/lib/status-styles";
 import { type CurrentUser, useCurrentUser } from "@/hooks/use-current-user";
+import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 import { getVisiblePageSearchResults, type PageSearchResult } from "@/lib/search-pages";
 import { cn } from "@/lib/utils";
 
@@ -40,6 +41,44 @@ type EntitySearchResult = {
 };
 
 type SearchResult = EntitySearchResult | PageSearchResult;
+
+type ApiSearchList<T> = {
+  data?: T[];
+};
+
+type AssetSearchItem = {
+  id: string;
+  assetTag?: string | null;
+  imageUrl?: string | null;
+  computedStatus?: string | null;
+  activeBooking?: {
+    requesterName?: string | null;
+    isOverdue?: boolean | null;
+    endsAt?: string | null;
+  } | null;
+};
+
+type BookingSearchItem = {
+  id: string;
+  title?: string | null;
+  requester?: { name?: string | null } | null;
+};
+
+type UserSearchItem = {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+};
+
+type NotificationCountResponse = {
+  unreadCount?: unknown;
+};
+
+type DashboardStatsBadgeResponse = {
+  data?: {
+    myOverdueCount?: unknown;
+  };
+};
 
 const bottomNavItems = [
   { label: "Home", href: "/", icon: LayoutGridIcon },
@@ -72,14 +111,41 @@ export default function AppShell({
     if (!user) return;
 
     const controller = new AbortController();
-    Promise.all([
-      fetch("/api/notifications?limit=0&unread=true", { signal: controller.signal }).then((res) => res.ok ? res.json() : null),
-      fetch("/api/dashboard/stats", { signal: controller.signal }).then((res) => res.ok ? res.json() : null),
-    ]).then(([notifJson, dashJson]) => {
-      if (notifJson?.unreadCount != null) setUnreadNotifications(notifJson.unreadCount);
-      // User-scoped overdue count so STUDENT sees only their own overdue
-      if (dashJson?.data?.myOverdueCount != null) setOverdueBadgeCount(dashJson.data.myOverdueCount);
-    }).catch(() => {});
+    async function loadBadgeCounts() {
+      try {
+        const [notificationsResult, dashboardResult] = await Promise.allSettled([
+          fetch("/api/notifications?limit=0&unread=true", { signal: controller.signal }),
+          fetch("/api/dashboard/stats", { signal: controller.signal }),
+        ]);
+        if (controller.signal.aborted) return;
+
+        if (notificationsResult.status === "fulfilled") {
+          if (handleAuthRedirect(notificationsResult.value, pathname)) return;
+          if (notificationsResult.value.ok) {
+            const json = await parseJsonSafely<NotificationCountResponse>(notificationsResult.value);
+            if (typeof json?.unreadCount === "number") {
+              setUnreadNotifications(json.unreadCount);
+            }
+          }
+        }
+
+        if (dashboardResult.status === "fulfilled") {
+          if (handleAuthRedirect(dashboardResult.value, pathname)) return;
+          if (dashboardResult.value.ok) {
+            const json = await parseJsonSafely<DashboardStatsBadgeResponse>(dashboardResult.value);
+            const count = json?.data?.myOverdueCount;
+            // User-scoped overdue count so STUDENT sees only their own overdue
+            if (typeof count === "number") {
+              setOverdueBadgeCount(count);
+            }
+          }
+        }
+      } catch {
+        // Badge counts are ambient chrome; keep the last known values on failure.
+      }
+    }
+
+    loadBadgeCounts();
 
     return () => { controller.abort(); };
   }, [pathname, user]);
@@ -146,49 +212,62 @@ export default function AppShell({
         if (controller.signal.aborted) return;
         const merged: SearchResult[] = getVisiblePageSearchResults(user?.role, q);
         let failures = 0;
+        if (itemsRes.status === "fulfilled" && handleAuthRedirect(itemsRes.value, pathname)) return;
+        if (checkoutsRes.status === "fulfilled" && handleAuthRedirect(checkoutsRes.value, pathname)) return;
+        if (reservationsRes.status === "fulfilled" && handleAuthRedirect(reservationsRes.value, pathname)) return;
+        if (usersRes.status === "fulfilled" && handleAuthRedirect(usersRes.value, pathname)) return;
+
         if (itemsRes.status === "fulfilled" && itemsRes.value.ok) {
-          const json = await itemsRes.value.json();
-          for (const item of (json.data || []).slice(0, 8)) {
+          const json = await parseJsonSafely<ApiSearchList<AssetSearchItem>>(itemsRes.value);
+          const data = json?.data;
+          if (!data) failures += 1;
+          for (const item of (data ?? []).slice(0, 8)) {
             merged.push({
               type: "item", id: item.id,
-              title: item.assetTag,
+              title: item.assetTag ?? "Untitled item",
               subtitle: "",
               href: `/items/${item.id}`,
               imageUrl: item.imageUrl ?? null,
-              computedStatus: item.computedStatus,
-              activeBooking: item.activeBooking ? { requesterName: item.activeBooking.requesterName, isOverdue: item.activeBooking.isOverdue, endsAt: item.activeBooking.endsAt } : null,
+              computedStatus: item.computedStatus ?? undefined,
+              activeBooking: item.activeBooking ? { requesterName: item.activeBooking.requesterName ?? "", isOverdue: !!item.activeBooking.isOverdue, endsAt: item.activeBooking.endsAt ?? undefined } : null,
             });
           }
         } else {
           failures += 1;
         }
         if (checkoutsRes.status === "fulfilled" && checkoutsRes.value.ok) {
-          const json = await checkoutsRes.value.json();
-          for (const b of (json.data || []).slice(0, 8)) {
-            merged.push({ type: "checkout", id: b.id, title: b.title, subtitle: b.requester?.name || "", href: `/checkouts/${b.id}` });
+          const json = await parseJsonSafely<ApiSearchList<BookingSearchItem>>(checkoutsRes.value);
+          const data = json?.data;
+          if (!data) failures += 1;
+          for (const b of (data ?? []).slice(0, 8)) {
+            merged.push({ type: "checkout", id: b.id, title: b.title ?? "Untitled checkout", subtitle: b.requester?.name || "", href: `/checkouts/${b.id}` });
           }
         } else {
           failures += 1;
         }
         if (reservationsRes.status === "fulfilled" && reservationsRes.value.ok) {
-          const json = await reservationsRes.value.json();
-          for (const b of (json.data || []).slice(0, 8)) {
-            merged.push({ type: "reservation", id: b.id, title: b.title, subtitle: b.requester?.name || "", href: `/reservations/${b.id}` });
+          const json = await parseJsonSafely<ApiSearchList<BookingSearchItem>>(reservationsRes.value);
+          const data = json?.data;
+          if (!data) failures += 1;
+          for (const b of (data ?? []).slice(0, 8)) {
+            merged.push({ type: "reservation", id: b.id, title: b.title ?? "Untitled reservation", subtitle: b.requester?.name || "", href: `/reservations/${b.id}` });
           }
         } else {
           failures += 1;
         }
         if (usersRes.status === "fulfilled" && usersRes.value.ok) {
-          const json = await usersRes.value.json();
-          for (const u of (json.data || []).slice(0, 5)) {
-            merged.push({ type: "user", id: u.id, title: u.name, subtitle: u.email || "", href: `/users/${u.id}` });
+          const json = await parseJsonSafely<ApiSearchList<UserSearchItem>>(usersRes.value);
+          const data = json?.data;
+          if (!data) failures += 1;
+          for (const u of (data ?? []).slice(0, 5)) {
+            merged.push({ type: "user", id: u.id, title: u.name ?? "Unnamed user", subtitle: u.email || "", href: `/users/${u.id}` });
           }
         } else {
           failures += 1;
         }
         if (!controller.signal.aborted) {
           setCmdResults(merged);
-          setCmdPartialFailures(failures < 4 ? failures : 0);
+          setCmdPartialFailures(failures);
           setCmdError(failures === 4 && merged.length === 0 ? "server" : null);
           setCmdLoading(false);
         }

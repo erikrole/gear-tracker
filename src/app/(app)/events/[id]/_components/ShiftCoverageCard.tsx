@@ -20,7 +20,7 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { formatTimeShort } from "@/lib/format";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { UserAvatarPicker, type PickerUser } from "@/components/shift-detail/UserAvatarPicker";
 import type { ShiftGroupSummary, CommandCenterData } from "../_utils";
 import { AREA_LABELS } from "../_utils";
@@ -73,6 +73,7 @@ export function ShiftCoverageCard({
   const [autoFilling, setAutoFilling] = useState(false);
   const [actionError, setActionError] = useState("");
   const [createdShiftNotice, setCreatedShiftNotice] = useState("");
+  const actionBusyRef = useRef(false);
 
   // ── Delete confirmation ──
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -91,17 +92,29 @@ export function ShiftCoverageCard({
       if (ctrl.signal.aborted) return;
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        const json = await res.json();
-        setAllUsers((json.data ?? json.users ?? []).map((u: Record<string, unknown>) => ({
-          id: u.id, name: u.name, role: u.role,
-          primaryArea: u.primaryArea ?? null, avatarUrl: u.avatarUrl ?? null,
+        const json = await parseJsonSafely<{ data?: PickerUser[]; users?: PickerUser[] }>(res);
+        const users = json?.data ?? json?.users;
+        if (!users) {
+          toast.error("User response was incomplete. Refresh and try again.");
+          return;
+        }
+        setAllUsers(users.map((u) => ({
+          id: u.id,
+          name: u.name,
+          role: u.role,
+          primaryArea: u.primaryArea ?? null,
+          avatarUrl: u.avatarUrl ?? null,
         })));
         setUsersLoaded(true);
+      } else {
+        toast.error(await parseErrorMessage(res, "Failed to load users"));
       }
     } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
+      if (isAbortError(err)) return;
+      toast.error(err instanceof TypeError ? "You’re offline. Check your connection." : "Failed to load users");
+    } finally {
+      if (!ctrl.signal.aborted) setUsersLoading(false);
     }
-    setUsersLoading(false);
   }, [usersLoaded]);
 
   const filteredUsers = useMemo(() => {
@@ -137,6 +150,8 @@ export function ShiftCoverageCard({
   // ── Mutations ──
 
   async function mutate(key: string, url: string, opts: RequestInit, successMsg: string, onSuccess?: () => void) {
+    if (actionBusyRef.current) return;
+    actionBusyRef.current = true;
     setInlineActing(key);
     setActionError("");
     setCreatedShiftNotice("");
@@ -154,8 +169,9 @@ export function ShiftCoverageCard({
       }
     } catch {
       setActionError("Network error - check your connection");
-      toast.error("Network error");
+      toast.error("You’re offline. Check your connection.");
     } finally {
+      actionBusyRef.current = false;
       setInlineActing(null);
     }
   }
@@ -200,13 +216,21 @@ export function ShiftCoverageCard({
   }
 
   async function handleAutoFill() {
+    if (actionBusyRef.current) return;
+    actionBusyRef.current = true;
     setAutoFilling(true);
     try {
       const res = await fetch(`/api/shift-groups/${groupId}/auto-assign`, { method: "POST" });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        const json = await res.json();
-        const { assigned, conflicts } = json.data as { assigned: number; conflicts: number; skipped: number };
+        const json = await parseJsonSafely<{ data?: { assigned?: number; conflicts?: number; skipped?: number } }>(res);
+        if (!json?.data) {
+          toast.error("Auto-fill completed, but the response was incomplete. Refresh and try again.");
+          onUpdated?.();
+          return;
+        }
+        const assigned = json.data.assigned ?? 0;
+        const conflicts = json.data.conflicts ?? 0;
         if (assigned === 0) toast.info("No eligible workers found");
         else if (conflicts > 0) toast.warning(`${assigned} filled - ${conflicts} have conflicts`);
         else toast.success(`${assigned} shift${assigned !== 1 ? "s" : ""} auto-filled`);
@@ -215,10 +239,12 @@ export function ShiftCoverageCard({
         const msg = await parseErrorMessage(res, "Auto-fill failed");
         toast.error(msg);
       }
-    } catch {
-      toast.error("Network error");
+    } catch (err) {
+      toast.error(err instanceof TypeError ? "You’re offline. Check your connection." : "Auto-fill failed");
+    } finally {
+      actionBusyRef.current = false;
+      setAutoFilling(false);
     }
-    setAutoFilling(false);
   }
 
   // ── Sub-components ──

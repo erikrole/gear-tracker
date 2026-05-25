@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import EmptyState from "@/components/EmptyState";
 import { useFetch } from "@/hooks/use-fetch";
 import { handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
 import { SettingsPageShell } from "../SettingsPageShell";
@@ -34,7 +35,7 @@ function isDirty(a: FormState, b: FormState): boolean {
 }
 
 export default function ReservationRulesPage() {
-  const { data, loading, error } = useFetch<{ data: ReservationRules }>({
+  const { data, loading, error, reload } = useFetch<ReservationRules>({
     url: "/api/settings/reservation-rules",
     returnTo: "/settings/reservation-rules",
   });
@@ -42,11 +43,12 @@ export default function ReservationRulesPage() {
   const [form, setForm] = useState<FormState | null>(null);
   const [base, setBase] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [errors, setErrors] = useState<Partial<FormState>>({});
 
   useEffect(() => {
-    if (data?.data && !base) {
-      const f = toForm(data.data);
+    if (data && !base) {
+      const f = toForm(data);
       setForm(f);
       setBase(f);
     }
@@ -82,6 +84,8 @@ export default function ReservationRulesPage() {
 
   async function handleSave() {
     if (!form || !validate()) return;
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     try {
       const payload: ReservationRules = {
@@ -106,6 +110,7 @@ export default function ReservationRulesPage() {
       if (isAbortError(err)) return;
       toast.error("Could not reach the server. Check your connection.");
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -123,7 +128,14 @@ export default function ReservationRulesPage() {
   if (error || !form) {
     return (
       <SettingsPageShell title="Reservation Rules" description="Advance booking window, no-show expiry, and concurrent reservation cap.">
-        <p className="text-sm text-destructive">Could not load reservation rules.</p>
+        <EmptyState
+          inline
+          icon={error === "network" ? "wifi-off" : "calendar"}
+          title={error === "network" ? "You are offline" : "Could not load reservation rules"}
+          description={error === "network" ? "Check your connection and retry." : "Retry before changing reservation constraints."}
+          actionLabel="Retry"
+          onAction={reload}
+        />
       </SettingsPageShell>
     );
   }
@@ -141,6 +153,7 @@ export default function ReservationRulesPage() {
             <Label htmlFor="rr-advance">Advance booking window (days)</Label>
             <Input
               id="rr-advance"
+              name="advanceWindowDays"
               type="number"
               min={1}
               max={730}
@@ -149,6 +162,7 @@ export default function ReservationRulesPage() {
               placeholder="No limit"
               aria-invalid={!!errors.advanceWindowDays}
               className="max-w-48"
+              disabled={saving}
             />
             {errors.advanceWindowDays
               ? <p className="text-xs text-destructive">{errors.advanceWindowDays}</p>
@@ -161,6 +175,7 @@ export default function ReservationRulesPage() {
             <Label htmlFor="rr-expiry">No-show expiry (hours)</Label>
             <Input
               id="rr-expiry"
+              name="noShowExpiryHours"
               type="number"
               min={1}
               max={336}
@@ -168,6 +183,7 @@ export default function ReservationRulesPage() {
               onChange={(e) => setField("noShowExpiryHours", e.target.value)}
               aria-invalid={!!errors.noShowExpiryHours}
               className="max-w-48"
+              disabled={saving}
             />
             {errors.noShowExpiryHours
               ? <p className="text-xs text-destructive">{errors.noShowExpiryHours}</p>
@@ -180,6 +196,7 @@ export default function ReservationRulesPage() {
             <Label htmlFor="rr-max-concurrent">Max active reservations per user</Label>
             <Input
               id="rr-max-concurrent"
+              name="maxConcurrentReservations"
               type="number"
               min={1}
               max={50}
@@ -188,6 +205,7 @@ export default function ReservationRulesPage() {
               placeholder="No limit"
               aria-invalid={!!errors.maxConcurrentReservations}
               className="max-w-48"
+              disabled={saving}
             />
             {errors.maxConcurrentReservations
               ? <p className="text-xs text-destructive">{errors.maxConcurrentReservations}</p>

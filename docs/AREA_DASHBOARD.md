@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Dashboard
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-21
+- Last Updated: 2026-05-25
 - Status: Active — V3 shipped, reliability + UX polish complete
 - Version: V3
 
@@ -177,6 +177,12 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 7. Add regression tests for permissions, window filtering (7 days), and overdue consistency.
 
 ## Change Log
+- 2026-05-25: Web bug sweep Batch 47. Fix Today's `Review overdue` CTA now routes to the actual overdue checkout special filter (`/bookings?tab=checkouts&filter=overdue`) instead of the broad open-checkouts list, matching the dashboard banner and reports drill-down contract.
+- 2026-05-25: Web bug sweep Batch 44. The dashboard header refresh icon button now exposes an explicit `Refresh dashboard` accessible name instead of relying on tooltip text, fixing the unnamed button surfaced by authenticated browser smoke.
+- 2026-05-25: Web bug sweep Batch 36. Fix Today sample rows now use operator-readable Central-time dates for overdue checkout due times, pending pickup times, offline kiosk last-seen timestamps, and license expiry timestamps instead of leaking raw ISO strings in the admin daily queue.
+- 2026-05-25: Web bug sweep Batch 22. Shared AppShell notification and overdue badge polling now uses shared auth redirects and safe JSON parsing for both ambient `/api/notifications` and `/api/dashboard/stats` reads, preserving last-known chrome counts when one response is malformed or unavailable instead of raw-parsing and dropping the whole badge refresh.
+- 2026-05-25: Web bug sweep Batch 21. Dashboard data loading now uses shared auth redirects and safe JSON parsing for both the full dashboard payload and fast stats endpoint, so expired sessions and malformed gateway responses no longer fall through bespoke parsing paths. Booking-list and booking-detail actions reached from dashboard rows also picked up safer response parsing and guaranteed busy-state cleanup through the shared booking surfaces.
+- 2026-05-24: Web bug sweep Batch 7. Dashboard fast stats now safe-parse cached stat responses instead of throwing on malformed JSON, and overdue nudge actions use a ref-backed guard plus shared error parsing so rapid clicks and non-JSON failures do not leave operators guessing.
 - 2026-05-21: Design language Area 5 state/copy audit. Dashboard draft deletion now names the recovery-point consequence, rollback failures say the draft was restored, and extend/convert failures explain that the booking or reservation was not changed.
 - 2026-05-20: **Design language slice 2:** Fix Today now uses the shared operational metric card and partial-results warning primitives so admin queue status, warning tone, and fallback copy match Inventory Hygiene.
 - 2026-05-20: **Design language quick win:** Awaiting Pickup rows now use orange waiting treatment instead of green success treatment, keeping pending kiosk pickup visually separate from available/clean states.

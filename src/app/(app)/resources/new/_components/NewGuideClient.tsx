@@ -21,7 +21,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useFetch } from "@/hooks/use-fetch";
 import type { GuideListItem } from "@/lib/guides";
-import { handleAuthRedirect } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { KNOWLEDGE_BASE_CATEGORY_SUGGESTIONS } from "@/lib/guide-categories";
 import { GuideTargetingControls } from "@/components/resources/GuideTargetingControls";
 import { MarkdownEditor } from "@/components/resources/MarkdownEditor";
@@ -33,6 +33,16 @@ type GuideTemplate = {
   title: string;
   icon: ComponentType<{ className?: string }>;
   markdown: string;
+};
+
+type ResourceMutationResponse = {
+  data?: {
+    slug?: string;
+  };
+};
+
+type ResourceUploadResponse = {
+  url?: string;
 };
 
 const GUIDE_TEMPLATES: GuideTemplate[] = [
@@ -301,13 +311,16 @@ export function NewGuideClient() {
   const [featured, setFeatured] = useState(false);
   const [featuredRank, setFeaturedRank] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
 
   async function uploadFile(file: File): Promise<string> {
     const fd = new FormData();
     fd.append("file", file);
     const res = await fetch("/api/resources/upload-image", { method: "POST", body: fd });
-    if (!res.ok) throw new Error("Image upload failed");
-    const json = (await res.json()) as { url: string };
+    if (handleAuthRedirect(res)) throw new Error("Session expired");
+    if (!res.ok) throw new Error(await parseErrorMessage(res, "Image upload failed"));
+    const json = await parseJsonSafely<ResourceUploadResponse>(res);
+    if (!json?.url) throw new Error("Upload succeeded but no image URL was returned");
     return json.url;
   }
 
@@ -330,6 +343,7 @@ export function NewGuideClient() {
   }
 
   async function submit(published: boolean) {
+    if (submittingRef.current) return;
     if (!title.trim()) {
       toast.error("Title is required");
       return;
@@ -338,6 +352,7 @@ export function NewGuideClient() {
       toast.error("Category is required");
       return;
     }
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       const res = await fetch("/api/resources", {
@@ -356,16 +371,20 @@ export function NewGuideClient() {
       });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
-        const json = (await res.json().catch(() => ({}))) as { error?: string };
-        toast.error(json.error ?? "Failed to create resource");
+        toast.error(await parseErrorMessage(res, "Failed to create resource"));
         return;
       }
-      const json = (await res.json()) as { data: { slug: string } };
+      const json = await parseJsonSafely<ResourceMutationResponse>(res);
+      if (!json?.data?.slug) {
+        toast.error("Resource was created, but the response was incomplete. Refresh resources and try again.");
+        return;
+      }
       toast.success(published ? "Resource published" : "Draft saved");
       router.push(`/resources/${json.data.slug}`);
     } catch {
       toast.error("Network error. Try again.");
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   }

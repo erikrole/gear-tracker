@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { FadeUp } from "@/components/ui/motion";
 import { useFetch } from "@/hooks/use-fetch";
+import { formatBadgeCategoryLabel, formatBadgeSourceLabel } from "@/lib/badges/display";
 import { formatDateFull } from "@/lib/format";
 import {
   downloadReportCsv,
@@ -101,8 +102,8 @@ function downloadCsv(data: BadgeReportData) {
       award.awardedAt,
       award.user.name,
       award.definition.name,
-      award.definition.category,
-      award.source,
+      formatBadgeCategoryLabel(award.definition.category),
+      formatBadgeSourceLabel(award.source),
       award.awardedBy?.name ?? "",
       award.note ?? "",
     ]),
@@ -118,7 +119,7 @@ function RecentAwardMobileCard({ award }: { award: RecentBadgeAward }) {
     <ReportMobileCardLink href={`/users/${award.user.id}?tab=badges`}>
       <div className="flex items-center justify-between gap-3">
         <span className="font-medium text-foreground">{award.user.name}</span>
-        <Badge variant={sourceVariant(award.source)}>{award.source.toLowerCase()}</Badge>
+        <Badge variant={sourceVariant(award.source)}>{formatBadgeSourceLabel(award.source)}</Badge>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant={categoryVariant(award.definition.category)}>
@@ -270,11 +271,10 @@ export default function BadgeReportPage() {
                     <TableRow key={row.definitionId}>
                       <TableCell>
                         <div className="font-medium">{row.name}</div>
-                        <div className="text-xs text-muted-foreground">{row.key}</div>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant={categoryVariant(row.category)}>{row.category.toLowerCase()}</Badge>
+                          <Badge variant={categoryVariant(row.category)}>{formatBadgeCategoryLabel(row.category)}</Badge>
                           {!row.active && <Badge variant="gray">Retired</Badge>}
                         </div>
                       </TableCell>
@@ -314,10 +314,9 @@ export default function BadgeReportPage() {
                     <TableRow key={row.definitionId}>
                       <TableCell>
                         <div className="font-medium">{row.name}</div>
-                        <div className="text-xs text-muted-foreground">{row.key}</div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={categoryVariant(row.category)}>{row.category.toLowerCase()}</Badge>
+                        <Badge variant={categoryVariant(row.category)}>{formatBadgeCategoryLabel(row.category)}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <Badge variant={row.count === 0 ? "orange" : "secondary"} className="tabular-nums">
@@ -345,7 +344,9 @@ export default function BadgeReportPage() {
                   <ReportMobileCardLink key={award.id} href={`/users/${award.user.id}?tab=badges`} className="rounded-none border-0">
                     <div className="flex items-center justify-between gap-3">
                       <span className="font-medium text-foreground">{award.definition.name}</span>
-                      <Badge variant={categoryVariant(award.definition.category)}>{award.definition.category.toLowerCase()}</Badge>
+                      <Badge variant={categoryVariant(award.definition.category)}>
+                        {formatBadgeCategoryLabel(award.definition.category)}
+                      </Badge>
                     </div>
                     <ReportMetaLine
                       className="text-sm"
@@ -408,7 +409,7 @@ export default function BadgeReportPage() {
                         </TableCell>
                         <TableCell>
                           <Badge variant={sourceVariant(award.source)}>
-                            {award.source.toLowerCase()}
+                            {formatBadgeSourceLabel(award.source)}
                           </Badge>
                         </TableCell>
                         <TableCell>{formatDateFull(award.awardedAt)}</TableCell>

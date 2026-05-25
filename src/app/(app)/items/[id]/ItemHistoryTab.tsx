@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Empty, EmptyDescription } from "@/components/ui/empty";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import ActivityTimeline, { type AuditEntry } from "@/components/ActivityTimeline";
-import { handleAuthRedirect, isAbortError } from "@/lib/errors";
+import { handleAuthRedirect, isAbortError, parseJsonSafely } from "@/lib/errors";
 
 type HistoryScope = "all" | "asset" | "booking";
 
@@ -56,13 +56,16 @@ export default function ActivityFeed({
           setFetchError(true);
           return null;
         }
-        return res.json();
+        return parseJsonSafely<{ data?: AuditEntry[]; nextCursor?: string | null }>(res);
       })
       .then((json) => {
         if (signal?.aborted) return;
-        if (json?.data) {
-          setEntries((prev) => append ? [...prev, ...json.data] : json.data);
+        if (Array.isArray(json?.data)) {
+          const entriesData = json.data;
+          setEntries((prev) => append ? [...prev, ...entriesData] : entriesData);
           setNextCursor(json.nextCursor ?? null);
+        } else {
+          setFetchError(true);
         }
       })
       .catch((err) => {

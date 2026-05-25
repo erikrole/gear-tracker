@@ -51,39 +51,47 @@ export default function BookingEditForm({
   onSave,
   onCancel,
 }: Props) {
-  return (
-    <div className="px-5 py-4">
-      <div className="mb-3 flex flex-col gap-1">
-        <Label>Title</Label>
-        <Input
-          value={editTitle}
-          onChange={(e) => onEditTitle(e.target.value)}
-        />
+	  return (
+	    <div className="px-5 py-4">
+	      <div className="mb-3 flex flex-col gap-1">
+	        <Label htmlFor="booking-edit-title">Title</Label>
+	        <Input
+	          id="booking-edit-title"
+	          name="title"
+	          value={editTitle}
+	          onChange={(e) => onEditTitle(e.target.value)}
+	        />
       </div>
 
-      <div className="flex gap-3">
-        {booking.kind === "RESERVATION" && (
-          <div className="mb-3 flex flex-col gap-1 flex-1">
-            <Label>Start</Label>
-            <DateTimePicker
-              value={parseLocalDateTime(editStartsAt)}
-              onChange={(d) => onEditStartsAt(toLocalDateTimeValue(d))}
-            />
-          </div>
-        )}
-        <div className="mb-3 flex flex-col gap-1 flex-1">
-          <Label>{booking.kind === "RESERVATION" ? "End" : "Due date"}</Label>
-          <DateTimePicker
-            value={parseLocalDateTime(editEndsAt)}
-            onChange={(d) => onEditEndsAt(toLocalDateTimeValue(d))}
-          />
-        </div>
-      </div>
+	      <div className="flex gap-3">
+	        {booking.kind === "RESERVATION" && (
+	          <div className="mb-3 flex flex-col gap-1 flex-1">
+	            <Label htmlFor="booking-edit-start">Start</Label>
+	            <DateTimePicker
+	              id="booking-edit-start"
+	              name="startsAt"
+	              value={parseLocalDateTime(editStartsAt)}
+	              onChange={(d) => onEditStartsAt(toLocalDateTimeValue(d))}
+	            />
+	          </div>
+	        )}
+	        <div className="mb-3 flex flex-col gap-1 flex-1">
+	          <Label htmlFor="booking-edit-end">{booking.kind === "RESERVATION" ? "End" : "Due date"}</Label>
+	          <DateTimePicker
+	            id="booking-edit-end"
+	            name="endsAt"
+	            value={parseLocalDateTime(editEndsAt)}
+	            onChange={(d) => onEditEndsAt(toLocalDateTimeValue(d))}
+	          />
+	        </div>
+	      </div>
 
-      <div className="mb-3 flex flex-col gap-1">
-        <Label>Notes</Label>
-        <Textarea
-          rows={3}
+	      <div className="mb-3 flex flex-col gap-1">
+	        <Label htmlFor="booking-edit-notes">Notes</Label>
+	        <Textarea
+	          id="booking-edit-notes"
+	          name="notes"
+	          rows={3}
           value={editNotes}
           onChange={(e) => onEditNotes(e.target.value)}
         />

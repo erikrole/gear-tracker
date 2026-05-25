@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 import type { ParentSearchResult } from "./types";
 
 export function generateQrCode(): string {
@@ -34,6 +35,23 @@ export function getFiscalYearOptions(): string[] {
 
 export const FISCAL_YEARS = getFiscalYearOptions();
 
+type ParentSearchRow = {
+  id?: unknown;
+  assetTag?: unknown;
+  name?: unknown;
+  brand?: unknown;
+  model?: unknown;
+};
+
+type ParentSearchResponse = {
+  data?: ParentSearchRow[];
+};
+
+type ValidParentSearchRow = ParentSearchRow & {
+  id: string;
+  assetTag: string;
+};
+
 export function useParentSearch() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ParentSearchResult[]>([]);
@@ -50,16 +68,21 @@ export function useParentSearch() {
       setSearching(true);
       try {
         const res = await fetch(`/api/assets?q=${encodeURIComponent(query)}&limit=5`);
-        const json = await res.json();
+        if (handleAuthRedirect(res)) return;
+        const json = await parseJsonSafely<ParentSearchResponse>(res);
         if (res.ok) {
           setResults(
-            (json.data || []).map((a: Record<string, unknown>) => ({
-              id: a.id,
-              assetTag: a.assetTag,
-              name: a.name,
-              brand: a.brand,
-              model: a.model,
-            }))
+            (json?.data || [])
+              .filter((a): a is ValidParentSearchRow => (
+                typeof a.id === "string" && typeof a.assetTag === "string"
+              ))
+              .map((a) => ({
+                id: a.id,
+                assetTag: a.assetTag,
+                name: typeof a.name === "string" ? a.name : null,
+                brand: typeof a.brand === "string" ? a.brand : "",
+                model: typeof a.model === "string" ? a.model : "",
+              }))
           );
         }
       } catch {

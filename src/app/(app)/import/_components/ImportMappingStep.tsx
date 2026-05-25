@@ -66,8 +66,10 @@ export function ImportMappingStep({
                   </TableCell>
                   <TableCell>
                     <Select
+                      name={`importMapping-${colIdx}`}
                       value={mapping[header] || "__skip__"}
                       onValueChange={(v) => onUpdateMapping(header, v)}
+                      disabled={loading}
                     >
                       <SelectTrigger className="min-w-[180px]">
                         <SelectValue />
@@ -89,7 +91,7 @@ export function ImportMappingStep({
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={onBack}>Back</Button>
         <Button
-          disabled={!mapping["Name"] && !Object.values(mapping).includes("assetTag")}
+          disabled={loading || (!mapping["Name"] && !Object.values(mapping).includes("assetTag"))}
           onClick={onPreview}
         >
           {loading ? "Processing..." : "Preview import"}

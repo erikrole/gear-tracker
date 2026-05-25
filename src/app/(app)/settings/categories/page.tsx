@@ -123,10 +123,12 @@ export default function CategoriesPage() {
           <CardHeader>
             <div className="relative w-full max-w-[260px]">
               <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Search"
-                value={search}
+	              <Input
+	                id="category-search"
+	                name="categorySearch"
+	                type="text"
+	                placeholder="Search"
+	                value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-9"
                 aria-label="Search categories"
@@ -192,9 +194,11 @@ export default function CategoriesPage() {
               {adding && (
                 <div className="flex items-center justify-between pl-4 pr-4 py-3 min-h-[48px] border-b border-border">
                   <div className="flex items-center font-semibold">
-                    <Input
-                      ref={addRef}
-                      value={newName}
+	                    <Input
+	                      ref={addRef}
+	                      id="new-category-name"
+	                      name="newCategoryName"
+	                      value={newName}
                       onChange={(e) => { setNewName(e.target.value); setAddError(""); }}
                       placeholder="Category name"
                       className="w-full max-w-[200px] font-semibold"

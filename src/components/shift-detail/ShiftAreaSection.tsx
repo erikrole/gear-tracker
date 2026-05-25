@@ -114,7 +114,7 @@ export function ShiftAreaSection({
                 disabled={acting !== null}
               >
                 <PlusIcon className="size-3.5 mr-0.5" />
-                Slot
+                Add
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40">

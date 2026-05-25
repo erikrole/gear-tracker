@@ -13,6 +13,7 @@ import type { CategoryOption } from "@/types/category";
 import { generateQrCode } from "./helpers";
 import { FormRow, SectionHeading } from "@/components/form-layout";
 import { FormCombobox, CategoryCombobox, BulkSkuCombobox, type BulkSkuOption } from "@/components/FormCombobox";
+import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 
 export interface BulkFormHandle {
   validate(): string | null;
@@ -28,6 +29,10 @@ interface Props {
   trackingMode: "units" | "quantity";
   disabled?: boolean;
 }
+
+type BulkSkuListResponse = {
+  data?: BulkSkuOption[];
+};
 
 export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
   function BulkItemForm({ categories, locations, open, trackingMode, disabled = false }, ref) {
@@ -52,15 +57,19 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
     // Fetch existing bulk SKUs when open
     useEffect(() => {
       if (!open) return;
+      const controller = new AbortController();
       (async () => {
         try {
-          const res = await fetch("/api/bulk-skus");
-          const json = await res.json();
-          if (res.ok) setExistingBulkSkus(json.data || []);
+          const res = await fetch("/api/bulk-skus", { signal: controller.signal });
+          if (handleAuthRedirect(res)) return;
+          if (!res.ok) return;
+          const json = await parseJsonSafely<BulkSkuListResponse>(res);
+          if (!controller.signal.aborted) setExistingBulkSkus(Array.isArray(json?.data) ? json.data : []);
         } catch {
           // ignore
         }
       })();
+      return () => controller.abort();
     }, [open]);
 
     useEffect(() => {
@@ -127,7 +136,7 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
           <>
             <section className="space-y-3">
               <SectionHeading>Quantity option</SectionHeading>
-              <RadioGroup value={bulkMode} onValueChange={(v) => setBulkMode(v as BulkMode)} disabled={disabled}>
+              <RadioGroup name="bulk-mode" value={bulkMode} onValueChange={(v) => setBulkMode(v as BulkMode)} disabled={disabled}>
                 <div className="flex items-start gap-3">
                   <RadioGroupItem value="new" id="bulk-new" className="mt-0.5" />
                   <div>
@@ -155,6 +164,8 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
 
             <FormRow label="Item name" required>
               <Input
+                id="new-bulk-item-name"
+                name="bulkName"
                 ref={bulkNameInputRef}
                 value={bulkName}
                 onChange={(e) => setBulkName(e.target.value)}
@@ -182,6 +193,8 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
             <FormRow label={trackingMode === "units" ? "Family QR code" : "Stock QR code"} required>
               <div className="flex gap-2">
                 <Input
+                  id="new-bulk-item-qr-code"
+                  name="bulkQrCode"
                   value={bulkQrCode}
                   onChange={(e) => setBulkQrCode(e.target.value)}
                   placeholder={trackingMode === "units" ? "Family QR code" : "Stock QR code"}
@@ -202,7 +215,7 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
             </FormRow>
 
             <FormRow label={trackingMode === "units" ? "Initial units" : "Initial quantity"}>
-              <Input value={initialQuantity} onChange={(e) => setInitialQuantity(e.target.value)} type="number" min="0" />
+              <Input id="new-bulk-item-initial-quantity" name="initialQuantity" value={initialQuantity} onChange={(e) => setInitialQuantity(e.target.value)} type="number" min="0" />
             </FormRow>
             {trackingMode === "units" && (
               <p className="text-xs text-muted-foreground">
@@ -252,6 +265,8 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
 
                 <FormRow label="Add quantity" required>
                   <Input
+                    id="existing-bulk-item-add-quantity"
+                    name="addQuantity"
                     type="number"
                     min="1"
                     value={addQty}

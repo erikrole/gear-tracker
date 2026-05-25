@@ -12,6 +12,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useFetch } from "@/hooks/use-fetch";
 import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage } from "@/lib/errors";
 import {
@@ -40,7 +41,12 @@ export default function VenueMappingsPage() {
     returnTo: "/settings/venue-mappings",
     transform: (json) => (json.data as LocationMapping[]) ?? [],
   });
-  const { data: fetchedLocations } = useFetch<Location[]>({
+  const {
+    data: fetchedLocations,
+    loading: locationsLoading,
+    error: locationsError,
+    reload: reloadLocations,
+  } = useFetch<Location[]>({
     url: "/api/locations",
     returnTo: "/settings/venue-mappings",
     transform: (json) => (json.data as Location[]) ?? [],
@@ -48,6 +54,7 @@ export default function VenueMappingsPage() {
 
   const mappings = fetchedMappings ?? [];
   const locations = fetchedLocations ?? [];
+  const locationsUnavailable = locationsLoading || Boolean(locationsError) || locations.length === 0;
 
   const [showAdd, setShowAdd] = useState(false);
   const [addingMapping, setAddingMapping] = useState(false);
@@ -165,7 +172,7 @@ export default function VenueMappingsPage() {
                     onChange={(e) => setTestPattern(e.target.value)}
                   />
                   <Select name="locationId" required defaultValue="">
-                    <SelectTrigger className="flex-1 min-w-[120px]">
+                    <SelectTrigger className="flex-1 min-w-[120px]" disabled={locationsUnavailable}>
                       <SelectValue placeholder="Select location" />
                     </SelectTrigger>
                     <SelectContent>
@@ -185,7 +192,7 @@ export default function VenueMappingsPage() {
                     title="Higher priority mappings are checked first"
                   />
                   <div className="flex gap-2">
-                    <Button type="submit" size="sm" disabled={addingMapping}>
+                    <Button type="submit" size="sm" disabled={addingMapping || locationsUnavailable}>
                       {addingMapping ? "Adding..." : "Add"}
                     </Button>
                     <Button
@@ -198,6 +205,23 @@ export default function VenueMappingsPage() {
                     </Button>
                   </div>
                 </div>
+
+                {locationsError ? (
+                  <Alert variant="destructive" className="mt-3">
+                    <AlertDescription className="flex flex-wrap items-center gap-2">
+                      <span>Locations could not load, so new venue mappings cannot be assigned yet.</span>
+                      <Button type="button" size="sm" variant="outline" onClick={reloadLocations}>
+                        Retry locations
+                      </Button>
+                    </AlertDescription>
+                  </Alert>
+                ) : locations.length === 0 && !locationsLoading ? (
+                  <Alert className="mt-3">
+                    <AlertDescription>
+                      Add an active location before creating venue mappings.
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
 
                 {/* Inline regex tester — appears alongside the Add form */}
                 <div className="mt-3 rounded-md border bg-muted/30 p-3 space-y-2">

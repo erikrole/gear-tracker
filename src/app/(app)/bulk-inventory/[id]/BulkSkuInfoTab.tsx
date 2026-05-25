@@ -6,7 +6,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { NativeSelect } from "@/components/ui/native-select";
-import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { useSaveField } from "@/components/SaveableField";
 import type { BulkSkuDetail } from "./types";
 
@@ -49,7 +49,7 @@ export function BulkSkuInfoTab({
 
   useEffect(() => {
     fetch("/api/departments")
-      .then((r) => r.ok ? r.json() : null)
+      .then((res) => res.ok ? parseJsonSafely<{ data?: DepartmentOption[] }>(res) : null)
       .then((json) => { if (json?.data) setDepartments(json.data); })
       .catch(() => {});
   }, []);
@@ -65,7 +65,10 @@ export function BulkSkuInfoTab({
       const msg = await parseErrorMessage(res, `Failed to update ${field}`);
       throw new Error(msg);
     }
-    const json = await res.json();
+    const json = await parseJsonSafely<{ data?: Partial<BulkSkuDetail> }>(res);
+    if (!json?.data) {
+      throw new Error(`Update saved, but ${field} response was incomplete. Refresh and try again.`);
+    }
     onFieldSaved(json.data);
   }
 
@@ -79,7 +82,12 @@ export function BulkSkuInfoTab({
       {/* ── Identity ─────────────────────────────── */}
       <InfoRow label="Name">
         {canEdit ? (
-          <EditableText value={sku.name} onSave={(v) => patchField("name", v)} />
+          <EditableText
+            value={sku.name}
+            id="bulk-sku-name"
+            name="name"
+            onSave={(v) => patchField("name", v)}
+          />
         ) : (
           <span className="text-sm">{sku.name}</span>
         )}
@@ -98,6 +106,8 @@ export function BulkSkuInfoTab({
           <DepartmentSelect
             value={sku.department?.name ?? ""}
             options={departments}
+            id="bulk-sku-department"
+            name="department"
             onSave={saveDepartment}
           />
         ) : (
@@ -111,6 +121,8 @@ export function BulkSkuInfoTab({
           <EditableText
             value={sku.purchaseLink ?? ""}
             placeholder="https://..."
+            id="bulk-sku-purchase-link"
+            name="purchaseLink"
             onSave={(v) => patchField("purchaseLink", v || null)}
             linkHref={sku.purchaseLink}
           />
@@ -133,6 +145,8 @@ export function BulkSkuInfoTab({
         {canEdit ? (
           <EditableDecimal
             value={sku.purchasePrice ?? ""}
+            id="bulk-sku-purchase-price"
+            name="purchasePrice"
             onSave={(v) => patchField("purchasePrice", v ? parseFloat(v) : null)}
           />
         ) : (
@@ -151,6 +165,8 @@ export function BulkSkuInfoTab({
           <div className="flex flex-col items-end gap-0.5">
             <EditableNumber
               value={sku.minThreshold}
+              id="bulk-sku-min-threshold"
+              name="minThreshold"
               onSave={(v) => patchField("minThreshold", v)}
             />
             <span className="text-xs text-muted-foreground">
@@ -172,6 +188,8 @@ export function BulkSkuInfoTab({
         {canEdit ? (
           <EditableText
             value={sku.binQrCodeValue}
+            id="bulk-sku-bin-qr-code"
+            name="binQrCodeValue"
             onSave={(v) => patchField("binQrCodeValue", v)}
             mono
           />
@@ -192,6 +210,8 @@ export function BulkSkuInfoTab({
           <EditableTextarea
             value={sku.notes ?? ""}
             placeholder="Add notes…"
+            id="bulk-sku-notes"
+            name="notes"
             onSave={(v) => patchField("notes", v || null)}
           />
         ) : (
@@ -210,17 +230,22 @@ function EditableText({
   value,
   onSave,
   placeholder,
+  id,
+  name,
   mono,
   linkHref,
 }: {
   value: string;
   onSave: (v: string) => Promise<void>;
   placeholder?: string;
+  id?: string;
+  name?: string;
   mono?: boolean;
   linkHref?: string | null;
 }) {
   const [draft, setDraft] = useState(value);
   const { status, save } = useSaveField(onSave);
+  const saving = status === "saving";
 
   return (
     <div className="flex items-center justify-end gap-1">
@@ -236,6 +261,10 @@ function EditableText({
         </a>
       )}
       <input
+        id={id}
+        name={name}
+        autoComplete={name === "purchaseLink" ? "url" : "off"}
+        disabled={saving}
         className={`text-right text-sm bg-transparent border-b border-transparent hover:border-border focus:border-border focus:outline-none transition-colors py-0.5 max-w-64 ${mono ? "font-mono" : ""}`}
         value={draft}
         placeholder={placeholder}
@@ -254,18 +283,27 @@ function EditableText({
 function EditableNumber({
   value,
   onSave,
+  id,
+  name,
 }: {
   value: number;
   onSave: (v: number) => Promise<void>;
+  id?: string;
+  name?: string;
 }) {
   const [draft, setDraft] = useState(String(value));
   const { status, save } = useSaveField((v) => onSave(Number(v)));
+  const saving = status === "saving";
 
   return (
     <div className="flex items-center justify-end gap-1">
       <input
+        id={id}
+        name={name}
+        autoComplete="off"
         type="number"
         min={0}
+        disabled={saving}
         className="w-24 text-right text-sm bg-transparent border-b border-transparent hover:border-border focus:border-border focus:outline-none transition-colors py-0.5"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
@@ -283,20 +321,29 @@ function EditableNumber({
 function EditableDecimal({
   value,
   onSave,
+  id,
+  name,
 }: {
   value: string;
   onSave: (v: string) => Promise<void>;
+  id?: string;
+  name?: string;
 }) {
   const [draft, setDraft] = useState(value);
   const { status, save } = useSaveField(onSave);
+  const saving = status === "saving";
 
   return (
     <div className="flex items-center justify-end gap-1">
       <span className="text-sm text-muted-foreground">$</span>
       <input
+        id={id}
+        name={name}
+        autoComplete="off"
         type="number"
         min={0}
         step={0.01}
+        disabled={saving}
         className="w-28 text-right text-sm bg-transparent border-b border-transparent hover:border-border focus:border-border focus:outline-none transition-colors py-0.5"
         value={draft}
         placeholder="0.00"
@@ -316,17 +363,26 @@ function EditableTextarea({
   value,
   onSave,
   placeholder,
+  id,
+  name,
 }: {
   value: string;
   onSave: (v: string) => Promise<void>;
   placeholder?: string;
+  id?: string;
+  name?: string;
 }) {
   const [draft, setDraft] = useState(value);
   const { status, save } = useSaveField(onSave);
+  const saving = status === "saving";
 
   return (
     <div className="flex flex-col items-end gap-1 w-full">
       <textarea
+        id={id}
+        name={name}
+        autoComplete="off"
+        disabled={saving}
         className="w-full text-right text-sm bg-transparent border-b border-transparent hover:border-border focus:border-border focus:outline-none transition-colors py-0.5 resize-none min-h-[60px]"
         value={draft}
         placeholder={placeholder}
@@ -344,17 +400,25 @@ function EditableTextarea({
 function DepartmentSelect({
   value,
   options,
+  id,
+  name,
   onSave,
 }: {
   value: string;
   options: DepartmentOption[];
+  id: string;
+  name: string;
   onSave: (v: string) => Promise<void>;
 }) {
   const { status, save } = useSaveField(onSave);
+  const saving = status === "saving";
 
   return (
     <div className="flex items-center justify-end gap-1">
       <NativeSelect
+        id={id}
+        name={name}
+        disabled={saving}
         className="text-sm text-right h-7 border-0 bg-transparent hover:bg-muted/50 transition-colors cursor-pointer pr-6"
         value={value}
         onChange={(e) => save(e.target.value)}

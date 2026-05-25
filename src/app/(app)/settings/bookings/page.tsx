@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFetch } from "@/hooks/use-fetch";
 import { toast } from "sonner";
 import EmptyState from "@/components/EmptyState";
@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NativeSelect } from "@/components/ui/native-select";
 import { PlusIcon, Trash2Icon, GripVerticalIcon } from "lucide-react";
-import { parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
 import { SettingsPageShell } from "../SettingsPageShell";
 
 type Preset = { label: string; minutes: number };
@@ -34,6 +34,7 @@ const DURATION_OPTIONS = [
 export default function BookingSettingsPage() {
   const [presets, setPresets] = useState<Preset[]>([]);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [dirty, setDirty] = useState(false);
 
   const { data: settingsData, loading } = useFetch<{ presets: Preset[] }>({
@@ -81,12 +82,13 @@ export default function BookingSettingsPage() {
   }
 
   async function save() {
-    if (saving) return;
+    if (savingRef.current) return;
     // Validate all labels are non-empty
     if (presets.some((p) => !p.label.trim())) {
       toast.error("All presets need a label");
       return;
     }
+    savingRef.current = true;
     setSaving(true);
     try {
       const res = await fetch("/api/settings/extend-presets", {
@@ -94,6 +96,7 @@ export default function BookingSettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ presets: presets.map((p) => ({ label: p.label.trim(), minutes: p.minutes })) }),
       });
+      if (handleAuthRedirect(res, "/settings/bookings")) return;
       if (!res.ok) {
         const msg = await parseErrorMessage(res, "Failed to save");
         throw new Error(msg);
@@ -101,9 +104,12 @@ export default function BookingSettingsPage() {
       toast.success("Extend presets saved");
       setDirty(false);
     } catch (err) {
+      if (isAbortError(err)) return;
       toast.error(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
     }
-    setSaving(false);
   }
 
   return (
@@ -136,14 +142,22 @@ export default function BookingSettingsPage() {
                   <div key={index} className="flex items-center gap-2">
                     <GripVerticalIcon className="size-4 text-muted-foreground/40 shrink-0" />
                     <Input
+                      id={`extend-preset-label-${index}`}
+                      name={`extendPresetLabel${index}`}
                       value={preset.label}
                       onChange={(e) => updatePresetLabel(index, e.target.value)}
                       placeholder="Button label"
+                      aria-label={`Preset ${index + 1} label`}
                       className="h-10 flex-1"
+                      disabled={saving}
                     />
                     <NativeSelect
+                      id={`extend-preset-duration-${index}`}
+                      name={`extendPresetDuration${index}`}
                       value={preset.minutes}
                       onChange={(e) => updatePresetMinutes(index, Number(e.target.value))}
+                      aria-label={`Preset ${index + 1} duration`}
+                      disabled={saving}
                     >
                       {DURATION_OPTIONS.map((d) => (
                         <option key={d.minutes} value={d.minutes}>{d.label}</option>
@@ -155,6 +169,7 @@ export default function BookingSettingsPage() {
                       onClick={() => removePreset(index)}
                       className="size-10 text-muted-foreground hover:text-destructive"
                       aria-label={`Remove ${preset.label || "preset"}`}
+                      disabled={saving}
                     >
                       <Trash2Icon className="size-4" />
                     </Button>
@@ -162,7 +177,7 @@ export default function BookingSettingsPage() {
                 ))}
 
                 {presets.length < 10 && (
-                  <Button variant="outline" onClick={addPreset} className="mt-2 min-h-10">
+                  <Button variant="outline" onClick={addPreset} className="mt-2 min-h-10" disabled={saving}>
                     <PlusIcon className="mr-1 size-4" />
                     Add preset
                   </Button>

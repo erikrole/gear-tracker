@@ -24,6 +24,7 @@ function roundTo15(minutes: number) {
 
 type DateTimePickerProps = {
   id?: string
+  name?: string
   value: Date | undefined
   onChange: (date: Date) => void
   minDate?: Date
@@ -33,6 +34,7 @@ type DateTimePickerProps = {
 
 function DateTimePicker({
   id,
+  name,
   value,
   onChange,
   minDate,
@@ -90,9 +92,11 @@ function DateTimePicker({
         />
         <div className="flex items-center gap-2 border-t px-3 py-2">
           <CalendarIcon className="size-4 text-muted-foreground" />
-          <NativeSelect
-            aria-label="Hour"
-            value={hours}
+	          <NativeSelect
+	            id={id ? `${id}-hour` : undefined}
+	            name={name ? `${name}Hour` : undefined}
+	            aria-label="Hour"
+	            value={hours}
             onChange={(e) => handleTimeChange(Number(e.target.value), minutes)}
           >
             {hourOptions.map((h) => (
@@ -103,8 +107,10 @@ function DateTimePicker({
             ))}
           </NativeSelect>
           <span className="text-muted-foreground">:</span>
-          <NativeSelect
-            aria-label="Minute"
+	          <NativeSelect
+	            id={id ? `${id}-minute` : undefined}
+	            name={name ? `${name}Minute` : undefined}
+	            aria-label="Minute"
             value={minutes}
             onChange={(e) => handleTimeChange(hours, Number(e.target.value))}
           >

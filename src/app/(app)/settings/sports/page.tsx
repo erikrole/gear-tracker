@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useFetch } from "@/hooks/use-fetch";
-import { handleAuthRedirect, classifyError, isAbortError } from "@/lib/errors";
+import { handleAuthRedirect, classifyError, isAbortError, parseJsonSafely } from "@/lib/errors";
 import type { SportConfig } from "./types";
 import { AREAS, SPORT_GROUPS, defaultShiftConfigs } from "./types";
 import ShiftConfigTable from "./ShiftConfigTable";
@@ -80,8 +80,13 @@ export default function SportsSettingsPage() {
       });
       if (handleAuthRedirect(res, "/settings/sports")) return;
       if (res.ok) {
-        const json = await res.json();
-        const updated = json.data as SportConfig[];
+        const json = await parseJsonSafely<{ data?: SportConfig[] }>(res);
+        const updated = json?.data;
+        if (!Array.isArray(updated)) {
+          toast.error("Saved, but the response could not be read. Refresh sports settings before continuing.");
+          reload();
+          return;
+        }
         const byCode = new Map(updated.map((c) => [c.sportCode, c]));
         setConfigs((prev) =>
           prev.map((c) => byCode.get(c.sportCode) ?? c)
@@ -102,8 +107,9 @@ export default function SportsSettingsPage() {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
       toast.error(kind === "network" ? "You're offline. Check your connection." : "Something went wrong");
+    } finally {
+      setSaving(null);
     }
-    setSaving(null);
   }
 
   async function updateShiftCount(

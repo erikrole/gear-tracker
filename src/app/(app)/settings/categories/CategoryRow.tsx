@@ -117,8 +117,8 @@ export default function CategoryRow({
       const res = await fetch(`/api/categories/${node.id}`, { method: "DELETE" });
       if (handleAuthRedirect(res, "/settings/categories")) return;
       if (!res.ok) {
-        const json = await res.json();
-        toast.error(json.error || "Delete failed");
+        const msg = await parseErrorMessage(res, "Delete failed");
+        toast.error(msg);
       } else {
         onRefresh();
       }

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { CalendarEvent, ShiftGroup } from "@/app/(app)/schedule/_components/types";
-import { handleAuthRedirect } from "@/lib/errors";
+import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 import { AREAS } from "@/types/areas";
 
 /* ───── Types ───── */
@@ -87,13 +87,15 @@ async function fetchGridData(
   }
   if (!evRes.ok) throw new Error("events fetch failed");
 
-  const evJson = await evRes.json();
+  const evJson = await parseJsonSafely<{ data?: CalendarEvent[] }>(evRes);
+  if (!evJson?.data) throw new Error("events response malformed");
   const events: CalendarEvent[] = evJson.data ?? [];
 
   const groupMap = new Map<string, ShiftGroup>();
   const archivedEventIds = new Set<string>();
   if (sgRes.ok) {
-    const sgJson = await sgRes.json();
+    const sgJson = await parseJsonSafely<{ data?: ShiftGroup[] }>(sgRes);
+    if (!sgJson?.data) throw new Error("shift groups response malformed");
     const groups: ShiftGroup[] = sgJson.data ?? [];
     for (const g of groups) {
       if (g.archivedAt) archivedEventIds.add(g.eventId);

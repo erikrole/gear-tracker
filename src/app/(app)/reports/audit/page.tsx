@@ -55,6 +55,18 @@ type AuditData = {
   offset: number;
 };
 
+const VALID_PERIODS = [0, 7, 30, 90] as const;
+
+function parsePageParam(value: string | null) {
+  const parsed = Number.parseInt(value ?? "", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed - 1 : 0;
+}
+
+function parsePeriodParam(value: string | null) {
+  const parsed = Number.parseInt(value ?? "", 10);
+  return VALID_PERIODS.includes(parsed as (typeof VALID_PERIODS)[number]) ? parsed : 0;
+}
+
 /** Convert the report API shape to the shared AuditEntry shape */
 function toTimelineEntries(entries: AuditEntry[]): TimelineEntry[] {
   return entries.map((e) => ({
@@ -82,14 +94,8 @@ function downloadCsv(entries: AuditEntry[]) {
 
 export default function AuditReportPage() {
   const searchParams = useSearchParams();
-  const [page, setPage] = useState(() => {
-    const p = searchParams.get("page");
-    return p ? Math.max(0, Number(p) - 1) : 0;
-  });
-  const [periodDays, setPeriodDays] = useState(() => {
-    const p = searchParams.get("period");
-    return p && [7, 30, 90].includes(Number(p)) ? Number(p) : 0;
-  });
+  const [page, setPage] = useState(() => parsePageParam(searchParams.get("page")));
+  const [periodDays, setPeriodDays] = useState(() => parsePeriodParam(searchParams.get("period")));
   const [now, setNow] = useState(() => new Date());
   const limit = 25;
 
@@ -97,6 +103,24 @@ export default function AuditReportPage() {
     const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    const nextPage = parsePageParam(searchParams.get("page"));
+    const nextPeriod = parsePeriodParam(searchParams.get("period"));
+    setPage((current) => (current === nextPage ? current : nextPage));
+    setPeriodDays((current) => (current === nextPeriod ? current : nextPeriod));
+
+    const corrections: Record<string, string | number> = {};
+    if (searchParams.get("page") && nextPage === 0) {
+      corrections.page = "";
+    }
+    if (searchParams.get("period") && nextPeriod === 0) {
+      corrections.period = "";
+    }
+    if (Object.keys(corrections).length > 0) {
+      syncUrl(corrections);
+    }
+  }, [searchParams]);
 
   const fetchUrl = useMemo(() => {
     const params = new URLSearchParams({
@@ -118,6 +142,16 @@ export default function AuditReportPage() {
     () => (data?.data ? toTimelineEntries(data.data) : []),
     [data?.data],
   );
+  const totalPages = data ? Math.ceil(data.total / limit) : 0;
+
+  useEffect(() => {
+    if (!data || page === 0) return;
+    const lastPage = Math.max(0, totalPages - 1);
+    if (page > lastPage) {
+      setPage(lastPage);
+      syncUrl({ page: lastPage > 0 ? lastPage + 1 : "" });
+    }
+  }, [data, page, totalPages]);
 
   if (loading && !data) {
     return (
@@ -139,7 +173,6 @@ export default function AuditReportPage() {
 
   if (!data) return null;
 
-  const totalPages = Math.ceil(data.total / limit);
   const entries = data.data ?? [];
   const activeFilters = periodDays > 0
     ? [{

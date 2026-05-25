@@ -14,6 +14,7 @@ import type { CategoryOption } from "@/types/category";
 import { generateQrCode, useIsMobile, useParentSearch, FISCAL_YEARS } from "./helpers";
 import { FormRow, FormRow2Col, SectionHeading } from "@/components/form-layout";
 import { FormCombobox, CategoryCombobox } from "@/components/FormCombobox";
+import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 
 export interface SerializedFormHandle {
   validate(): string | null;
@@ -28,6 +29,12 @@ interface Props {
   locations: Location[];
   disabled?: boolean;
 }
+
+type AssetSearchResponse = {
+  data?: Array<{
+    assetTag?: string | null;
+  }>;
+};
 
 export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
   function SerializedItemForm({ categories, departments, locations, disabled = false }, ref) {
@@ -62,9 +69,10 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
       try {
         const res = await fetch(`/api/assets?q=${encodeURIComponent(trimmed)}&page_size=1`);
         if (id !== assetTagCheckRef.current) return; // stale
+        if (handleAuthRedirect(res)) return;
         if (!res.ok) return;
-        const data = await res.json();
-        const match = data.data?.some((a: { assetTag: string }) => a.assetTag === trimmed);
+        const data = await parseJsonSafely<AssetSearchResponse>(res);
+        const match = data?.data?.some((a) => a.assetTag === trimmed);
         setAssetTagError(match ? "Asset tag already in use" : "");
       } catch { /* network error — skip */ }
     }, []);
@@ -173,6 +181,8 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
 
           <FormRow label="Asset tag" required>
             <Input
+              id="new-item-asset-tag"
+              name="assetTag"
               ref={assetTagInputRef}
               value={assetTag}
               onChange={(e) => { setAssetTag(e.target.value); setAssetTagError(""); }}
@@ -185,16 +195,16 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
           </FormRow>
 
           <FormRow label="Name" required>
-            <Input value={itemName} onChange={(e) => setItemName(e.target.value)} placeholder="e.g. Sony A7III Camera" required />
+            <Input id="new-item-name" name="name" value={itemName} onChange={(e) => setItemName(e.target.value)} placeholder="e.g. Sony A7III Camera" required />
           </FormRow>
 
           <FormRow2Col label="Brand / Model" required>
-            <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g. Sony" required />
-            <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="e.g. A7III" required />
+            <Input id="new-item-brand" name="brand" value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g. Sony" required />
+            <Input id="new-item-model" name="model" value={model} onChange={(e) => setModel(e.target.value)} placeholder="e.g. A7III" required />
           </FormRow2Col>
 
           <FormRow label="Serial number">
-            <Input value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} placeholder="Manufacturer serial (optional)" />
+            <Input id="new-item-serial-number" name="serialNumber" value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} placeholder="Manufacturer serial (optional)" />
           </FormRow>
         </section>
 
@@ -236,6 +246,8 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
           <FormRow label="QR code" required>
             <div className="flex gap-2">
               <Input
+                id="new-item-qr-code"
+                name="qrCodeValue"
                 value={qrCodeValue}
                 onChange={(e) => setQrCodeValue(e.target.value)}
                 placeholder="QR code value"
@@ -287,7 +299,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
           </FormRow>
 
           <FormRow label="UW Asset Tag">
-            <Input value={uwAssetTag} onChange={(e) => setUwAssetTag(e.target.value)} placeholder="Asset tag number" />
+            <Input id="new-item-uw-asset-tag" name="uwAssetTag" value={uwAssetTag} onChange={(e) => setUwAssetTag(e.target.value)} placeholder="Asset tag number" />
           </FormRow>
         </section>
 
@@ -298,22 +310,22 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
           <FormRow2Col label="Purchase">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Date</Label>
-              <Input value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} type="date" />
+              <Input id="new-item-purchase-date" name="purchaseDate" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} type="date" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Price</Label>
-              <Input value={purchasePrice} onChange={(e) => setPurchasePrice(e.target.value)} type="number" min="0" step="0.01" placeholder="0.00" />
+              <Input id="new-item-purchase-price" name="purchasePrice" value={purchasePrice} onChange={(e) => setPurchasePrice(e.target.value)} type="number" min="0" step="0.01" placeholder="0.00" />
             </div>
           </FormRow2Col>
 
           <FormRow2Col label="Warranty">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Date</Label>
-              <Input value={warrantyDate} onChange={(e) => setWarrantyDate(e.target.value)} type="date" />
+              <Input id="new-item-warranty-date" name="warrantyDate" value={warrantyDate} onChange={(e) => setWarrantyDate(e.target.value)} type="date" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Residual value</Label>
-              <Input value={residualValue} onChange={(e) => setResidualValue(e.target.value)} type="number" min="0" step="0.01" placeholder="0" />
+              <Input id="new-item-residual-value" name="residualValue" value={residualValue} onChange={(e) => setResidualValue(e.target.value)} type="number" min="0" step="0.01" placeholder="0" />
             </div>
           </FormRow2Col>
 
@@ -330,7 +342,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
           </FormRow>
 
           <FormRow label="Link">
-            <Input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} type="url" placeholder="https://..." />
+            <Input id="new-item-link-url" name="linkUrl" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} type="url" placeholder="https://..." />
           </FormRow>
         </section>
 
@@ -339,6 +351,8 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
           <SectionHeading>Notes</SectionHeading>
           <FormRow label="Notes">
             <Textarea
+              id="new-item-notes"
+              name="notes"
               value={userNotes}
               onChange={(e) => setUserNotes(e.target.value)}
               placeholder="Add notes about this item (optional)"
@@ -360,6 +374,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
                 <p className="text-xs text-muted-foreground">Tie to a parent item, such as a camera SD card, cage, or fixed part.</p>
               </div>
               <Switch
+                name="isAccessory"
                 checked={isAccessory}
                 onCheckedChange={(v) => {
                   setIsAccessory(v);
@@ -401,6 +416,8 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
                 ) : (
                   <>
                     <Input
+                      id="new-item-parent-search"
+                      name="parentAssetSearch"
                       value={parentSearch.query}
                       onChange={(e) => parentSearch.setQuery(e.target.value)}
                       placeholder="Search parent item by tag, brand, or model..."
@@ -443,21 +460,21 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
                     <Label className="text-sm font-medium">Available for reservation</Label>
                     <p className="text-xs text-muted-foreground">Item is available to be used in reservations</p>
                   </div>
-                  <Switch checked={availableForReservation} onCheckedChange={setAvailableForReservation} />
+                  <Switch name="availableForReservation" checked={availableForReservation} onCheckedChange={setAvailableForReservation} />
                 </div>
                 <div className="flex items-center justify-between gap-1">
                   <div>
                     <Label className="text-sm font-medium">Available for check out</Label>
                     <p className="text-xs text-muted-foreground">Item is available to be used in check-outs</p>
                   </div>
-                  <Switch checked={availableForCheckout} onCheckedChange={setAvailableForCheckout} />
+                  <Switch name="availableForCheckout" checked={availableForCheckout} onCheckedChange={setAvailableForCheckout} />
                 </div>
                 <div className="flex items-center justify-between gap-1">
                   <div>
                     <Label className="text-sm font-medium">Available for custody</Label>
                     <p className="text-xs text-muted-foreground">Item can be taken into custody by a user</p>
                   </div>
-                  <Switch checked={availableForCustody} onCheckedChange={setAvailableForCustody} />
+                  <Switch name="availableForCustody" checked={availableForCustody} onCheckedChange={setAvailableForCustody} />
                 </div>
               </div>
             )}

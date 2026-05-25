@@ -5,7 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { AssetImage } from "@/components/AssetImage";
-import { handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
+import { handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import type { AssetDetail } from "./types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -121,10 +121,15 @@ export function AccessoriesSection({
         });
         if (handleAuthRedirect(res)) return;
         if (res.ok) {
-          const json = await res.json();
+          const json = await parseJsonSafely<{ data?: AttachmentSearchResult[] }>(res);
           if (controller.signal.aborted) return;
+          if (!Array.isArray(json?.data)) {
+            setSearchResults([]);
+            setSearchError("Search returned an unreadable response");
+            return;
+          }
           setSearchResults(
-            (json.data || []).slice(0, 8).map((a: AttachmentSearchResult) => ({
+            json.data.slice(0, 8).map((a) => ({
               id: a.id,
               assetTag: a.assetTag,
               name: a.name,
