@@ -6,6 +6,7 @@ import { HttpError, ok } from "@/lib/http";
 import { forgotPasswordSchema } from "@/lib/validation";
 import { withHandler } from "@/lib/api";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { createAuditEntry } from "@/lib/audit";
 
 const RESET_TOKEN_EXPIRY_MS = 1000 * 60 * 60; // 1 hour
 const FORGOT_LIMIT = { max: 20, windowMs: 15 * 60 * 1000 }; // per IP; sized for shared NAT
@@ -47,6 +48,17 @@ export const POST = withHandler(async (req) => {
       to: user.email,
       subject: "Reset your password — Wisconsin Creative",
       html: buildResetEmail(user.name, resetUrl),
+    });
+
+    // Audit the issuance so reset abuse against a target account is traceable.
+    // Consumption is logged separately in reset-password as password_reset_self.
+    await createAuditEntry({
+      actorId: user.id,
+      actorRole: user.role,
+      entityType: "user",
+      entityId: user.id,
+      action: "password_reset_requested",
+      after: { ip, userAgent: req.headers.get("user-agent") ?? null },
     });
   }
 

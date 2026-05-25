@@ -18,8 +18,10 @@ export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
   const target = await db.user.findUnique({ where: { id }, select: { id: true, name: true } });
   if (!target) throw new HttpError(404, "User not found");
 
-  // Generate a secure temporary password
-  const tempPassword = crypto.randomBytes(6).toString("base64url"); // ~8 chars
+  // Generate a secure temporary password (~16 chars, 96 bits of entropy).
+  // Returned once in the response body, which ok() serves no-store; the user
+  // is forced to change it on next login via forcePasswordChange.
+  const tempPassword = crypto.randomBytes(12).toString("base64url");
   const passwordHash = await hashPassword(tempPassword);
 
   // Atomic: update password + invalidate sessions together

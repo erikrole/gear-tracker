@@ -69,7 +69,7 @@ export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
       include: {
         booking: {
           include: {
-            requester: { select: { id: true, name: true, email: true, avatarUrl: true } },
+            requester: { select: { id: true, name: true, avatarUrl: true } },
             location: { select: { id: true, name: true } },
             event: { select: { id: true, summary: true, sportCode: true, opponent: true, isHome: true, startsAt: true, endsAt: true } }
           }

@@ -42,7 +42,7 @@ async function readReportPayload(req: Request) {
 }
 
 async function uploadReportImage(file: File, bookingId: string, assetId: string) {
-  const validationError = validateImage(file);
+  const validationError = await validateImage(file);
   if (validationError) throw new HttpError(400, validationError);
 
   const ext = IMAGE_CONTENT_TYPES[file.type] ?? "jpg";

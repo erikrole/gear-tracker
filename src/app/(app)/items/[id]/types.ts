@@ -72,7 +72,7 @@ export type AssetDetail = {
       startsAt: string;
       endsAt: string;
       sportCode?: string | null;
-      requester: { name: string; email: string; avatarUrl?: string | null };
+      requester: { name: string; avatarUrl?: string | null };
       location: { name: string };
       event?: {
         id: string;

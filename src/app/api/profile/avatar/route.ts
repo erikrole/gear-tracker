@@ -20,7 +20,7 @@ export const POST = withAuth(async (req, { user }) => {
     throw new HttpError(400, "Expected multipart file field named 'file'");
   }
 
-  const validationError = validateImage(file);
+  const validationError = await validateImage(file);
   if (validationError) {
     throw new HttpError(400, validationError);
   }
