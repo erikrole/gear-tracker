@@ -96,6 +96,16 @@ export function canPerformBookingAction(
   booking: BookingContext,
   action: string
 ): ActionCheckResult {
+  // "view" is a read-access check, not a state-transition action. It must be
+  // allowed for staff+ or the owner regardless of booking state (including
+  // COMPLETED/CANCELLED, which have empty action sets). Gating it through the
+  // state matrix below would 403 every role on every booking.
+  if (action === "view") {
+    return hasAccess(actor, booking)
+      ? { allowed: true }
+      : { allowed: false, reason: "You do not have permission to view this booking" };
+  }
+
   const kindActions = STATE_ACTIONS[booking.kind];
   if (!kindActions) {
     return { allowed: false, reason: `Unknown booking kind: ${booking.kind}` };

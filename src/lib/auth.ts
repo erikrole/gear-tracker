@@ -51,6 +51,17 @@ export async function createSession(userId: string, rememberMe = false) {
   const hashed = await tokenHash(raw);
   const expiresAt = new Date(Date.now() + (rememberMe ? SESSION_30D_MS : SESSION_12H_MS));
 
+  const cookieStore = await cookies();
+
+  // Rotate: if the caller already holds a session cookie (re-login while a
+  // session is live), revoke that row so the prior token isn't left valid
+  // until its natural expiry. No-op when there's no existing cookie.
+  const existing = cookieStore.get(env.sessionCookieName)?.value;
+  if (existing) {
+    const existingHash = await tokenHash(existing);
+    await db.session.deleteMany({ where: { tokenHash: existingHash } });
+  }
+
   await db.session.create({
     data: {
       userId,
@@ -59,7 +70,6 @@ export async function createSession(userId: string, rememberMe = false) {
     }
   });
 
-  const cookieStore = await cookies();
   cookieStore.set(env.sessionCookieName, raw, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

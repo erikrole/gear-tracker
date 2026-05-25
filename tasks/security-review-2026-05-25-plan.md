@@ -57,12 +57,17 @@ Internal tool. Security tight, but not annoying for students/staff.
 - MEDIUM — Audit log now records password-reset **issuance** (forgot-password), not
   just consumption — reset abuse against a target account is now traceable.
 
+### Fixed in follow-up pass
+- Booking `audit-logs` "view" 403-for-everyone bug — `canPerformBookingAction`
+  now handles `"view"` as a state-independent read-access check. Test added.
+- Session rotation on login — `createSession` revokes the caller's prior session
+  row before minting the new one.
+
 ### Deferred (V2 / low / needs a decision — NOT shipped)
 - LOW — `assertPublicHost` is single-DNS-resolution (DNS-rebinding / multi-A TOCTOU).
   Same residual the calendar paths already accept. Fix = resolve-once-and-pin-IP.
-- LOW — Login does not prune/rotate prior session rows; stale sessions live until expiry.
-  Practical fixation risk low (token is always freshly minted). 
-- LOW — Self change-password does not rotate the current session token.
+- LOW — Self change-password does not rotate the current session token. Clean rotation
+  needs to preserve the remember-me duration, else it silently shortens the session.
 - LOW — Password policy is length-only (min 8). Acceptable per no-friction constraint.
 - LOW — `assertSameOrigin` exempts any request with `Authorization: Bearer` (for cron).
   Not browser-CSRF-exploitable (Authorization triggers CORS preflight). Flag only.
