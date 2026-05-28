@@ -119,6 +119,10 @@ struct ScheduleView: View {
     @State private var selectedEvent: ScheduleEvent?
     @State private var myShiftsOnly = false
     @State private var homeAwayFilter: HomeAwayFilter = .all
+    /// nil = all sports. Cuts the all-team firehose down to the sport a student
+    /// or staffer actually works, without hiding open shifts the way a
+    /// my-shifts-only default would.
+    @State private var sportFilter: String?
     @State private var viewMode: ScheduleViewMode = .list
     @State private var calendarSelectedDate: Date = .now
     @State private var showTradeBoard = false
@@ -143,8 +147,16 @@ struct ScheduleView: View {
             case .away: filtered = filtered.filter { $0.isHome == false }
             case .all: break
             }
+            if let sportFilter { filtered = filtered.filter { $0.sportCode == sportFilter } }
             return filtered.isEmpty ? nil : (date: group.date, events: filtered)
         }
+    }
+
+    /// Distinct sport codes present in the loaded events, ordered by display
+    /// name — drives the sport filter chips (only shown when 2+ sports appear).
+    private var availableSportCodes: [String] {
+        let codes = Set(vm.events.compactMap { $0.sportCode })
+        return codes.sorted { scheduleSportLabel($0) < scheduleSportLabel($1) }
     }
 
     var body: some View {
@@ -188,6 +200,7 @@ struct ScheduleView: View {
                             selectedDate: $calendarSelectedDate,
                             eventsByDay: vm.eventsByDay,
                             myShiftsOnly: myShiftsOnly,
+                            sportFilter: sportFilter,
                             shiftsByEventId: vm.shiftsByEventId,
                             onSelectEvent: { selectedEvent = $0 }
                         )
@@ -322,6 +335,7 @@ struct ScheduleView: View {
                 selectedEvent = nil
                 myShiftsOnly = false
                 homeAwayFilter = .all
+                sportFilter = nil
                 viewMode = .list
                 calendarSelectedDate = .now
                 showTradeBoard = false
@@ -398,6 +412,24 @@ struct ScheduleView: View {
         }
     }
 
+    /// Shared pill used by both the Home/Away and sport filter rows so they stay
+    /// visually identical.
+    @ViewBuilder
+    private func filterChip(_ label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(
+                    isSelected ? Color.accentColor : Color(.tertiarySystemFill),
+                    in: Capsule()
+                )
+                .foregroundStyle(isSelected ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
+        }
+        .buttonStyle(.plain)
+    }
+
     @ViewBuilder
     private var eventList: some View {
         if displayedGroups.isEmpty && myShiftsOnly {
@@ -409,32 +441,39 @@ struct ScheduleView: View {
         } else {
             List {
                 Section {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(HomeAwayFilter.allCases, id: \.self) { filter in
-                                Button {
-                                    homeAwayFilter = filter
-                                } label: {
-                                    Text(filter.rawValue)
-                                        .font(.caption.weight(.semibold))
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 5)
-                                        .background(
-                                            homeAwayFilter == filter
-                                                ? Color.accentColor
-                                                : Color(.tertiarySystemFill),
-                                            in: Capsule()
-                                        )
-                                        .foregroundStyle(
-                                            homeAwayFilter == filter ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary)
-                                        )
+                    VStack(spacing: 8) {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(HomeAwayFilter.allCases, id: \.self) { filter in
+                                    filterChip(filter.rawValue, isSelected: homeAwayFilter == filter) {
+                                        homeAwayFilter = filter
+                                    }
                                 }
-                                .buttonStyle(.plain)
-                                .sensoryFeedback(.selection, trigger: homeAwayFilter)
                             }
+                            .padding(.horizontal, 2)
+                            .padding(.vertical, 2)
                         }
-                        .padding(.horizontal, 2)
-                        .padding(.vertical, 2)
+                        .sensoryFeedback(.selection, trigger: homeAwayFilter)
+
+                        // Sport filter — only worth showing when the schedule spans
+                        // more than one sport. Cuts the firehose to one team's events.
+                        if availableSportCodes.count > 1 {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    filterChip("All Sports", isSelected: sportFilter == nil) {
+                                        sportFilter = nil
+                                    }
+                                    ForEach(availableSportCodes, id: \.self) { code in
+                                        filterChip(scheduleSportLabel(code), isSelected: sportFilter == code) {
+                                            sportFilter = sportFilter == code ? nil : code
+                                        }
+                                    }
+                                }
+                                .padding(.horizontal, 2)
+                                .padding(.vertical, 2)
+                            }
+                            .sensoryFeedback(.selection, trigger: sportFilter)
+                        }
                     }
                 }
                 .listRowSeparator(.hidden)
@@ -475,6 +514,7 @@ struct ScheduleCalendarView: View {
     @Binding var selectedDate: Date
     let eventsByDay: [Date: [ScheduleEvent]]
     let myShiftsOnly: Bool
+    var sportFilter: String?
     let shiftsByEventId: [String: MyShift]
     let onSelectEvent: (ScheduleEvent) -> Void
 
@@ -489,8 +529,9 @@ struct ScheduleCalendarView: View {
 
     private var selectedDayEvents: [ScheduleEvent] {
         let day = calendar.startOfDay(for: selectedDate)
-        let all = eventsByDay[day] ?? []
-        if myShiftsOnly { return all.filter { shiftsByEventId[$0.id] != nil } }
+        var all = eventsByDay[day] ?? []
+        if myShiftsOnly { all = all.filter { shiftsByEventId[$0.id] != nil } }
+        if let sportFilter { all = all.filter { $0.sportCode == sportFilter } }
         return all
     }
 
@@ -688,8 +729,9 @@ struct ScheduleCalendarView: View {
     // Dot color encodes home (green) / away (orange) / neutral (secondary).
     // My-shift events get an accent-colored dot regardless of home/away.
     private func dotInfo(for date: Date) -> [DotInfo] {
-        let events = eventsByDay[date] ?? []
-        let visible = myShiftsOnly ? events.filter { shiftsByEventId[$0.id] != nil } : events
+        var visible = eventsByDay[date] ?? []
+        if myShiftsOnly { visible = visible.filter { shiftsByEventId[$0.id] != nil } }
+        if let sportFilter { visible = visible.filter { $0.sportCode == sportFilter } }
         return visible.prefix(3).map { event in
             let isShift = shiftsByEventId[event.id] != nil
             let color: Color

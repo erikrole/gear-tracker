@@ -67,8 +67,10 @@ on triage. Slices (independently shippable):
   real gap was the **availability-conflict warning**, which `AssignStudentSheet` now shows (orange
   "Conflict" pill + note, "Checking availability…" indicator, non-blocking) via the new
   `APIClient.shiftConflicts(shiftId:)` → `/api/shifts/[id]/conflicts`.
-- **S4 — Student findability.** Mine/All segmentation (default students to Mine), sport filter,
-  unify open-slot request with the trade board.
+- **S4 — Student findability (shipped 2026-05-28, partial).** Added a sport filter (list + calendar,
+  shown when 2+ sports present). Dropped "default students to Mine" — it would hide open shifts they
+  can pick up. Deferred: filter persistence, "my sports" default (no sport data on iOS CurrentUser),
+  and unifying open-slot request with the trade board (own slice).
 - **S5 — Availability editor on iOS.** Students manage class-conflict blocks (web-only today).
 
 ## Status log
