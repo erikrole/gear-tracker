@@ -13,6 +13,13 @@ struct ScheduleEvent: Codable, Identifiable {
     let opponent: String?
     let isHome: Bool?
     let location: EventLocation?
+    /// Crew coverage from `/api/calendar-events`. nil when the event has no
+    /// (non-archived) shift group; lets the list show fill without drilling in.
+    /// `var` (not `let = nil`) so it actually decodes — an immutable property with
+    /// an initial value is skipped by synthesized Decodable. Optional `var` still
+    /// defaults to nil in the memberwise init, so dashboard event seeds that don't
+    /// supply coverage keep compiling.
+    var coverage: ShiftCoverage?
 }
 
 struct EventLocation: Codable, Identifiable {

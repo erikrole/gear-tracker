@@ -51,7 +51,37 @@ export const GET = withAuth(async (req) => {
     db.calendarEvent.count({ where })
   ]);
 
-  return ok({ data, total, limit, offset });
+  // Attach crew coverage so list surfaces (e.g. iOS Schedule) can show
+  // filled/total without drilling into each event. One batched query keyed by
+  // the unique eventId index — no N+1. `coverage` is null for events with no
+  // (non-archived) shift group. `filled` = shifts with at least one assignment,
+  // matching the shift-groups route's coverage semantics.
+  const eventIds = data.map((e) => e.id);
+  const groups = eventIds.length
+    ? await db.shiftGroup.findMany({
+        where: { eventId: { in: eventIds }, archivedAt: null },
+        select: {
+          eventId: true,
+          shifts: { select: { _count: { select: { assignments: true } } } },
+        },
+      })
+    : [];
+  const coverageByEvent = new Map<string, { total: number; filled: number; percentage: number }>();
+  for (const g of groups) {
+    const totalShifts = g.shifts.length;
+    const filledShifts = g.shifts.filter((s) => s._count.assignments > 0).length;
+    coverageByEvent.set(g.eventId, {
+      total: totalShifts,
+      filled: filledShifts,
+      percentage: totalShifts > 0 ? Math.round((filledShifts / totalShifts) * 100) : 0,
+    });
+  }
+  const dataWithCoverage = data.map((e) => ({
+    ...e,
+    coverage: coverageByEvent.get(e.id) ?? null,
+  }));
+
+  return ok({ data: dataWithCoverage, total, limit, offset });
 });
 
 export const POST = withAuth(async (req, { user }) => {

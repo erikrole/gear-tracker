@@ -487,7 +487,8 @@ struct ScheduleView: View {
                             } label: {
                                 EventRow(
                                     event: event,
-                                    myShift: vm.shiftsByEventId[event.id]
+                                    myShift: vm.shiftsByEventId[event.id],
+                                    showCoverage: canSeePastEvents
                                 )
                             }
                             .buttonStyle(.plain)
@@ -913,6 +914,9 @@ private struct ScheduleDateHeader: View {
 struct EventRow: View {
     let event: ScheduleEvent
     let myShift: MyShift?
+    /// Staff/admin see a crew fill chip ("2/3") so they can spot understaffed
+    /// events from the list. Off for students — coverage triage is a staff job.
+    var showCoverage: Bool = false
     @State private var weatherData: EventWeatherData?
 
     private var eventDisplayTitle: String {
@@ -960,6 +964,9 @@ struct EventRow: View {
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 0)
+                    if showCoverage, let cov = event.coverage, cov.total > 0 {
+                        coverageChip(cov)
+                    }
                     if myShift != nil {
                         Text("My Shift")
                             .font(.system(size: 9, weight: .bold))
@@ -1030,6 +1037,9 @@ struct EventRow: View {
         var parts: [String] = []
         if myShift != nil { parts.append("My shift") }
         parts.append(eventDisplayTitle)
+        if showCoverage, let cov = event.coverage, cov.total > 0 {
+            parts.append("Crew \(cov.filled) of \(cov.total)")
+        }
         if let isHome = event.isHome {
             parts.append(isHome ? "Home" : "Away")
         }
@@ -1054,6 +1064,27 @@ struct EventRow: View {
             parts.append("Weather \(weather.temperature)")
         }
         return parts.joined(separator: ", ")
+    }
+
+    @ViewBuilder
+    private func coverageChip(_ cov: ShiftCoverage) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: "person.2.fill")
+                .font(.system(size: 9))
+            Text("\(cov.filled)/\(cov.total)")
+                .font(.caption2.weight(.semibold).monospacedDigit())
+        }
+        .foregroundStyle(Color.statusText(coverageTone(cov)))
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(Color.statusBackground(coverageTone(cov)), in: Capsule())
+        .accessibilityHidden(true) // surfaced via the combined row label
+    }
+
+    private func coverageTone(_ cov: ShiftCoverage) -> StatusTone {
+        if cov.percentage >= 100 { return .green }
+        if cov.percentage > 0 { return .orange }
+        return .red
     }
 
     private var barColor: Color {

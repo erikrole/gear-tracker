@@ -58,9 +58,10 @@ on triage. Slices (independently shippable):
 - **S1 — Visible row-action affordance (shipped 2026-05-28).** Assign/Request/Approve/Decline
   in `EventDetailSheet` were already visible buttons (initial "buried in context menu" read was
   wrong on full inspection) but under-styled; restyled as proper tinted/sized buttons.
-- **S2 — Staff coverage/triage at the Schedule list level.** Show crew fill + open-slot/pending
-  signal without drilling into each event. **Needs a calendar-payload change** (`ScheduleEvent`
-  carries no coverage today — coverage lives only on the per-event `ShiftGroup`). Not thin.
+- **S2 — Staff coverage at the Schedule list level (shipped 2026-05-28).** `/api/calendar-events`
+  now returns per-event `coverage` (batched, no N+1); iOS `EventRow` shows a "2/3" fill chip to
+  staff/admin. Deferred: coverage on the calendar day-list; an open-slot/pending-request signal
+  (separate slice).
 - **S3 — Smarter assign (shipped 2026-05-28, re-scoped).** Original framing was "scope to roster +
   surface conflicts." On inspection, web's assign cell does NOT roster-scope (it uses all users
   filtered by name/area) — so roster-only filtering was dropped to avoid diverging from web. The
@@ -102,3 +103,12 @@ on triage. Slices (independently shippable):
   availability…" indicator) via `APIClient.shiftConflicts`. Build green, drift clean.
   Remaining Stream C: S2 (list coverage, needs backend payload change), S4 (student findability),
   S5 (availability editor on iOS).
+- 2026-05-28: **Slices S4, S5, S2 all shipped.** S4: sport filter (list+calendar). S5: student
+  availability editor in Profile (closes AC-36 iOS gap, feeds S3 conflict warnings). S2: per-event
+  crew coverage chip for staff on the Schedule list, backed by an additive batched `coverage` field
+  on `/api/calendar-events`. Caught a real bug during S2: an iOS `let` optional with `= nil` is
+  silently skipped by synthesized Decodable — used `var` so coverage actually decodes. All builds
+  green, drift clean; `next build` ✓ (full `npm run build` blocked only at prisma migrate deploy by
+  a Neon TLS timeout — env, no migration in this work). Stream C now substantially complete;
+  remaining deferred bits: calendar-day-list coverage, open-slot/pending signal, filter persistence,
+  audit-inventory row for `AvailabilityView`.
