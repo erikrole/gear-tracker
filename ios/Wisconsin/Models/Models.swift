@@ -138,6 +138,14 @@ struct Booking: Codable, Identifiable, Hashable {
 
 struct BookingStub: Codable { let id: String }
 
+/// A scheduling conflict surfaced by `/api/availability/check`: another booking
+/// holds `assetId` during the requested window. Server enforcement at
+/// create/checkout is authoritative — this is a non-blocking preflight hint.
+struct AssetConflict: Decodable {
+    let assetId: String
+    let conflictingBookingTitle: String?
+}
+
 // MARK: - Users
 
 struct AppUser: Codable, Identifiable {

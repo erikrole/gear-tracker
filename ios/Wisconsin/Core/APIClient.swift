@@ -260,30 +260,56 @@ final class APIClient {
         return resp.data.id
     }
 
-    /// Returns the set of asset IDs that have scheduling conflicts in the given window.
-    /// Silently returns an empty set on network or decode failure — callers treat this as a non-blocking hint.
-    func checkAvailability(assetIds: [String], startsAt: Date, endsAt: Date) async -> Set<String> {
-        guard !assetIds.isEmpty else { return [] }
+    /// Returns scheduling conflicts keyed by asset ID for the given window, or an
+    /// empty map on network/decode failure — callers treat this as a non-blocking
+    /// hint (server enforcement at create/checkout is authoritative).
+    ///
+    /// `locationId` is required by the server schema; omitting it (or sending the
+    /// wrong key) returns a 400 the caller never sees, so the map silently stays
+    /// empty. Pass `excludeBookingId` so an existing booking does not conflict
+    /// with itself.
+    func checkAvailability(
+        locationId: String,
+        serializedAssetIds: [String],
+        startsAt: Date,
+        endsAt: Date,
+        excludeBookingId: String? = nil
+    ) async -> [String: AssetConflict] {
+        guard !serializedAssetIds.isEmpty, !locationId.isEmpty else { return [:] }
         struct Body: Encodable {
-            let assetIds: [String]; let startsAt: String; let endsAt: String
+            let locationId: String
+            let serializedAssetIds: [String]
+            let startsAt: String
+            let endsAt: String
+            let excludeBookingId: String?
         }
-        struct ConflictItem: Decodable { let assetId: String }
-        struct CheckData: Decodable { let conflicts: [ConflictItem]? }
+        struct CheckData: Decodable { let conflicts: [AssetConflict]? }
         struct CheckResponse: Decodable { let data: CheckData }
 
         var req = request(path: "/api/availability/check", method: "POST")
         let iso = ISO8601DateFormatter()
         iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         guard let body = try? JSONEncoder().encode(Body(
-            assetIds: assetIds,
+            locationId: locationId,
+            serializedAssetIds: serializedAssetIds,
             startsAt: iso.string(from: startsAt),
-            endsAt: iso.string(from: endsAt)
-        )) else { return [] }
+            endsAt: iso.string(from: endsAt),
+            excludeBookingId: excludeBookingId
+        )) else { return [:] }
         req.httpBody = body
         guard let (data, response) = try? await session.data(for: req),
-              let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode),
-              let resp = try? decoder.decode(CheckResponse.self, from: data) else { return [] }
-        return Set((resp.data.conflicts ?? []).map(\.assetId))
+              let http = response as? HTTPURLResponse else { return [:] }
+        // Hint-style call, but a swallowed 401 hides an expired session until the
+        // next mutation (IOS_PATTERNS R3 / the kioskHeartbeat P0). Broadcast it.
+        if http.statusCode == 401 {
+            NotificationCenter.default.post(name: .sessionDidExpire, object: nil)
+            return [:]
+        }
+        guard (200...299).contains(http.statusCode),
+              let resp = try? decoder.decode(CheckResponse.self, from: data) else { return [:] }
+        var map: [String: AssetConflict] = [:]
+        for conflict in resp.data.conflicts ?? [] { map[conflict.assetId] = conflict }
+        return map
     }
 
     func formOptions() async throws -> FormOptions {

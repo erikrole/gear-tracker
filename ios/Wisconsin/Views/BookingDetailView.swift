@@ -4,6 +4,7 @@ struct BookingDetailView: View {
     let bookingId: String
 
     @State private var booking: Booking?
+    @State private var conflicts: [String: AssetConflict] = [:]
     @State private var isLoading = true
     @State private var error: String?
     @State private var showCancelConfirm = false
@@ -53,7 +54,7 @@ struct BookingDetailView: View {
                         FormCard { HeaderSection(booking: booking) }
                         FormCard { RequesterSection(booking: booking) }
                         if !booking.serializedItems.isEmpty {
-                            FormCard { ItemsSection(items: booking.serializedItems) }
+                            FormCard { ItemsSection(items: booking.serializedItems, conflicts: conflicts) }
                         }
                         if !booking.bulkItems.isEmpty {
                             FormCard { BulkSection(items: booking.bulkItems) }
@@ -124,11 +125,32 @@ struct BookingDetailView: View {
         isLoading = true
         error = nil
         do {
-            booking = try await APIClient.shared.booking(id: bookingId)
+            let loaded = try await APIClient.shared.booking(id: bookingId)
+            booking = loaded
+            isLoading = false
+            await loadConflicts(for: loaded)
         } catch {
             self.error = error.localizedDescription
+            isLoading = false
         }
-        isLoading = false
+    }
+
+    /// Non-blocking preflight: surface per-item scheduling conflicts on active
+    /// bookings, mirroring the web Equipment tab. Server enforcement at
+    /// create/checkout remains authoritative; this is an at-a-glance hint.
+    private func loadConflicts(for booking: Booking) async {
+        let activeStatuses: Set<BookingStatus> = [.draft, .booked, .pendingPickup, .open]
+        guard activeStatuses.contains(booking.status), !booking.serializedItems.isEmpty else {
+            conflicts = [:]
+            return
+        }
+        conflicts = await APIClient.shared.checkAvailability(
+            locationId: booking.location.id,
+            serializedAssetIds: booking.serializedItems.map(\.assetId),
+            startsAt: booking.startsAt,
+            endsAt: booking.endsAt,
+            excludeBookingId: booking.id
+        )
     }
 
     private func cancelBooking() async {
@@ -373,11 +395,13 @@ private func allocationLabel(_ status: String) -> (label: String, tone: StatusTo
 
 private struct ItemsSection: View {
     let items: [BookingSerializedItem]
+    let conflicts: [String: AssetConflict]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionHeader(title: "Equipment", count: items.count)
             ForEach(items) { item in
+                let conflict = conflicts[item.assetId]
                 HStack(spacing: 10) {
                     AssetThumbnail(imageUrl: item.asset.imageUrl, size: 40)
                     VStack(alignment: .leading, spacing: 2) {
@@ -388,15 +412,39 @@ private struct ItemsSection: View {
                                 .font(.system(.caption, design: .monospaced))
                                 .foregroundStyle(.secondary)
                         }
+                        if let conflict {
+                            Text(conflict.conflictingBookingTitle.map { "Conflicts with \($0)" } ?? "Scheduling conflict")
+                                .font(.caption2)
+                                .foregroundStyle(Color.statusText(.red))
+                                .lineLimit(2)
+                        }
                     }
                     Spacer()
+                    if conflict != nil {
+                        StatusPill(label: "Conflict", tone: .red, emphasized: true)
+                    }
                     if let status = item.allocationStatus {
                         let allocation = allocationLabel(status)
                         StatusPill(label: allocation.label, tone: allocation.tone)
                     }
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(rowAccessibilityLabel(item: item, conflict: conflict))
             }
         }
+    }
+
+    private func rowAccessibilityLabel(item: BookingSerializedItem, conflict: AssetConflict?) -> String {
+        var parts: [String] = []
+        if conflict != nil { parts.append("Conflict") }
+        let name = [item.asset.brand, item.asset.model].compactMap { $0 }.joined(separator: " ")
+        if !name.isEmpty { parts.append(name) }
+        if let tag = item.asset.assetTag { parts.append(tag) }
+        if let status = item.allocationStatus { parts.append(allocationLabel(status).label) }
+        if let conflict {
+            parts.append(conflict.conflictingBookingTitle.map { "conflicts with \($0)" } ?? "scheduling conflict")
+        }
+        return parts.joined(separator: ", ")
     }
 }
 

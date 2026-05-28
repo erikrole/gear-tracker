@@ -46,18 +46,20 @@ final class CreateBookingViewModel {
 
     func scheduleConflictCheck() {
         conflictCheckTask?.cancel()
-        guard !selectedAssetIds.isEmpty, endsAt > startsAt else {
+        guard !selectedAssetIds.isEmpty, !selectedLocationId.isEmpty, endsAt > startsAt else {
             conflictedAssetIds = []
             return
         }
         let ids = Array(selectedAssetIds)
+        let location = selectedLocationId
         let start = startsAt, end = endsAt
         conflictCheckTask = Task {
             try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled else { return }
-            conflictedAssetIds = await APIClient.shared.checkAvailability(
-                assetIds: ids, startsAt: start, endsAt: end
+            let result = await APIClient.shared.checkAvailability(
+                locationId: location, serializedAssetIds: ids, startsAt: start, endsAt: end
             )
+            conflictedAssetIds = Set(result.keys)
         }
     }
 

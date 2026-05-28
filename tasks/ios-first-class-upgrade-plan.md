@@ -58,3 +58,8 @@ direction ambiguity.
   **Fix:** base `Skeleton` now respects Reduce Motion (static placeholder, no `repeatForever` pulse) + `.accessibilityHidden(true)` at primitive level. One change covers every loading state app-wide. Build green, drift clean.
   **Remaining sweep nits (deferred, low value):** transient kiosk feedback `withAnimation` flashes are unguarded but non-looping (acceptable). No other cross-cutting issues found.
   Next: Stream A parity slices (A1 conflict badges recommended) once direction confirmed.
+- 2026-05-28: **Slice A1 (GAP-35 conflict badges) shipped.** Booking detail `ItemsSection` now renders per-item conflict badges (red "Conflict" pill + "Conflicts with {title}" caption + combined VoiceOver label) via `APIClient.checkAvailability` on active bookings with `excludeBookingId`. While wiring this, found and fixed `checkAvailability` had been silently broken since inception (wrong key `assetIds`, missing required `locationId` → server 400 swallowed by `try?`), so the CreateBookingSheet preflight had never worked; threaded `selectedLocationId` through and added 401 `.sessionDidExpire` broadcast (R3). GAP-35 closed; web AC-8 parity. Build green, drift clean.
+  **Deferred follow-ups (non-blocking, noted by advisor):**
+  - `loadConflicts` has no task cancellation on rapid pull-to-refresh (web uses AbortController). Add only if flicker observed.
+  - CreateBookingSheet has no `.onChange(of: selectedLocationId)` re-trigger for `scheduleConflictCheck` on step 2 (pre-existing; the fn never worked before so no regression).
+  - Consider surfacing `upcomingCommitments` / `turnaroundRisks` on iOS too (web shows them) — separate slice if staff want full Equipment-tab parity.
