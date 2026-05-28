@@ -61,9 +61,12 @@ on triage. Slices (independently shippable):
 - **S2 — Staff coverage/triage at the Schedule list level.** Show crew fill + open-slot/pending
   signal without drilling into each event. **Needs a calendar-payload change** (`ScheduleEvent`
   carries no coverage today — coverage lives only on the per-event `ShiftGroup`). Not thin.
-- **S3 — Smarter assign (biggest true gap).** `AssignStudentSheet` loads all ~200 users with
-  name-only search, no sport-roster scoping, no availability-conflict warning (web warns via
-  `StudentAvailabilityBlock`). Scope to roster + surface conflicts. iOS + possibly API.
+- **S3 — Smarter assign (shipped 2026-05-28, re-scoped).** Original framing was "scope to roster +
+  surface conflicts." On inspection, web's assign cell does NOT roster-scope (it uses all users
+  filtered by name/area) — so roster-only filtering was dropped to avoid diverging from web. The
+  real gap was the **availability-conflict warning**, which `AssignStudentSheet` now shows (orange
+  "Conflict" pill + note, "Checking availability…" indicator, non-blocking) via the new
+  `APIClient.shiftConflicts(shiftId:)` → `/api/shifts/[id]/conflicts`.
 - **S4 — Student findability.** Mine/All segmentation (default students to Mine), sport filter,
   unify open-slot request with the trade board.
 - **S5 — Availability editor on iOS.** Students manage class-conflict blocks (web-only today).
@@ -87,3 +90,10 @@ on triage. Slices (independently shippable):
   Decline outlined red, wider spacing). Both roles. Build green, drift clean. Next lever: S3 (smarter
   assign — roster scoping + availability conflicts) is the biggest true gap; S2 needs a backend
   payload change first.
+- 2026-05-28: **Slice S3 (smarter assign) shipped — re-scoped after verification.** Intended to add
+  roster scoping + conflict warnings; found web's assign picker is NOT roster-scoped, so kept the
+  all-users + name search (web parity) and added the genuine gap: student availability-conflict
+  warnings in `AssignStudentSheet` (orange Conflict pill + note, non-blocking, "Checking
+  availability…" indicator) via `APIClient.shiftConflicts`. Build green, drift clean.
+  Remaining Stream C: S2 (list coverage, needs backend payload change), S4 (student findability),
+  S5 (availability editor on iOS).

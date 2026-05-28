@@ -14,6 +14,10 @@ struct AssignStudentSheet: View {
     @State private var search = ""
     @State private var assigningUserId: String?
     @State private var assignError: String?
+    /// userId → availability-conflict note (e.g. a class block overlapping the
+    /// shift). A non-blocking warning — staff can still assign over it.
+    @State private var conflicts: [String: String] = [:]
+    @State private var conflictsLoading = false
 
     private var filteredUsers: [AppUser] {
         guard !search.isEmpty else { return users }
@@ -41,19 +45,31 @@ struct AssignStudentSheet: View {
                         description: Text(search.isEmpty ? "No users available to assign." : "Try a different name.")
                     )
                 } else {
-                    List(filteredUsers) { user in
-                        Button { Task { await assign(userId: user.id) } } label: {
-                            AssignRow(
-                                name: user.name,
-                                email: user.email,
-                                avatarUrl: user.avatarUrl,
-                                primaryArea: user.primaryArea,
-                                isAssigning: assigningUserId == user.id,
-                                highlightArea: shiftArea
-                            )
+                    List {
+                        if conflictsLoading {
+                            HStack(spacing: 6) {
+                                ProgressView().controlSize(.mini)
+                                Text("Checking availability…")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .listRowSeparator(.hidden)
                         }
-                        .buttonStyle(.plain)
-                        .disabled(assigningUserId != nil)
+                        ForEach(filteredUsers) { user in
+                            Button { Task { await assign(userId: user.id) } } label: {
+                                AssignRow(
+                                    name: user.name,
+                                    email: user.email,
+                                    avatarUrl: user.avatarUrl,
+                                    primaryArea: user.primaryArea,
+                                    conflictNote: conflicts[user.id],
+                                    isAssigning: assigningUserId == user.id,
+                                    highlightArea: shiftArea
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(assigningUserId != nil)
+                        }
                     }
                 }
             }
@@ -80,12 +96,19 @@ struct AssignStudentSheet: View {
     private func load() async {
         isLoading = true
         loadError = nil
+        conflictsLoading = true
+        // Users and availability conflicts load in parallel — the conflict map is
+        // a non-blocking hint, so a failure there never blocks the picker.
+        async let usersTask = APIClient.shared.users(search: nil, limit: 200)
+        async let conflictsTask = APIClient.shared.shiftConflicts(shiftId: shiftId)
         do {
-            let resp = try await APIClient.shared.users(search: nil, limit: 200)
+            let resp = try await usersTask
             users = resp.data
         } catch {
             loadError = error.localizedDescription
         }
+        conflicts = await conflictsTask
+        conflictsLoading = false
         isLoading = false
     }
 
@@ -109,6 +132,7 @@ private struct AssignRow: View {
     let email: String
     let avatarUrl: String?
     let primaryArea: String?
+    var conflictNote: String? = nil
     let isAssigning: Bool
     let highlightArea: String
 
@@ -122,12 +146,23 @@ private struct AssignRow: View {
             avatar
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(name)
-                    .font(.subheadline.weight(.medium))
+                HStack(spacing: 6) {
+                    Text(name)
+                        .font(.subheadline.weight(.medium))
+                    if conflictNote != nil {
+                        StatusPill(label: "Conflict", tone: .orange)
+                    }
+                }
                 Text(email)
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                if let conflictNote {
+                    Text(conflictNote)
+                        .font(.caption2)
+                        .foregroundStyle(Color.statusText(.orange))
+                        .lineLimit(2)
+                }
             }
             Spacer()
             if let primaryArea, !primaryArea.isEmpty {
@@ -199,6 +234,7 @@ private struct AssignRow: View {
                 parts.append("\(label) specialist")
             }
         }
+        if let conflictNote { parts.append(conflictNote) }
         if isAssigning { parts.append("Assigning") }
         return parts.joined(separator: ", ")
     }

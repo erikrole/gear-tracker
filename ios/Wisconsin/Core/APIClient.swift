@@ -312,6 +312,24 @@ final class APIClient {
         return map
     }
 
+    /// Availability conflicts for a shift, keyed by userId → human note (e.g.
+    /// "Conflicts with class 14:00–15:00"). Non-blocking hint for the assign
+    /// picker — empty on failure so the picker still works; broadcasts 401 so a
+    /// swallowed expired session can't hide here (IOS_PATTERNS R3).
+    func shiftConflicts(shiftId: String) async -> [String: String] {
+        let req = request(path: "/api/shifts/\(shiftId)/conflicts")
+        guard let (data, response) = try? await session.data(for: req),
+              let http = response as? HTTPURLResponse else { return [:] }
+        if http.statusCode == 401 {
+            NotificationCenter.default.post(name: .sessionDidExpire, object: nil)
+            return [:]
+        }
+        struct ConflictResponse: Decodable { let data: [String: String] }
+        guard (200...299).contains(http.statusCode),
+              let resp = try? decoder.decode(ConflictResponse.self, from: data) else { return [:] }
+        return resp.data
+    }
+
     func formOptions() async throws -> FormOptions {
         let req = request(path: "/api/form-options")
         let resp: DataWrapper<FormOptions> = try await perform(req)
