@@ -71,7 +71,10 @@ on triage. Slices (independently shippable):
   shown when 2+ sports present). Dropped "default students to Mine" — it would hide open shifts they
   can pick up. Deferred: filter persistence, "my sports" default (no sport data on iOS CurrentUser),
   and unifying open-slot request with the trade board (own slice).
-- **S5 — Availability editor on iOS.** Students manage class-conflict blocks (web-only today).
+- **S5 — Availability editor on iOS (shipped 2026-05-28).** "My Availability" in Profile (students)
+  → list/add/delete weekly class-conflict blocks via `/api/users/[id]/availability`. Closes the
+  web-only gap on AC-36; feeds the S3 assign-picker conflict warnings. Note: new surface
+  `AvailabilityView` not yet added to the `ios-audit-inventory` registry (housekeeping).
 
 ## Status log
 

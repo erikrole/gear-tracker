@@ -148,6 +148,24 @@ struct MyShiftsResponse: Decodable {
     let data: [MyShift]
 }
 
+// MARK: - Availability blocks
+
+/// A recurring weekly unavailability window (usually a class) that warns staff
+/// during shift assignment. `startsAt`/`endsAt` are local wall-clock "HH:mm";
+/// `dayOfWeek` is 0 = Sunday … 6 = Saturday.
+struct AvailabilityBlock: Codable, Identifiable {
+    let id: String
+    let dayOfWeek: Int
+    let startsAt: String
+    let endsAt: String
+    let label: String?
+    let semesterLabel: String?
+}
+
+struct AvailabilityBlocksResponse: Decodable {
+    let data: [AvailabilityBlock]
+}
+
 struct ShiftGroupsResponse: Decodable {
     let data: [EventShiftGroup]
     let total: Int

@@ -330,6 +330,43 @@ final class APIClient {
         return resp.data
     }
 
+    // MARK: - Availability blocks
+
+    func availabilityBlocks(userId: String) async throws -> [AvailabilityBlock] {
+        let req = request(path: "/api/users/\(userId)/availability")
+        let resp: AvailabilityBlocksResponse = try await perform(req)
+        return resp.data
+    }
+
+    func createAvailabilityBlock(
+        userId: String,
+        dayOfWeek: Int,
+        startsAt: String,
+        endsAt: String,
+        label: String?
+    ) async throws -> AvailabilityBlock {
+        struct Body: Encodable {
+            let dayOfWeek: Int
+            let startsAt: String
+            let endsAt: String
+            let label: String?
+        }
+        var req = request(path: "/api/users/\(userId)/availability", method: "POST")
+        req.httpBody = try JSONEncoder().encode(Body(dayOfWeek: dayOfWeek, startsAt: startsAt, endsAt: endsAt, label: label))
+        let resp: DataWrapper<AvailabilityBlock> = try await perform(req)
+        return resp.data
+    }
+
+    func deleteAvailabilityBlock(userId: String, blockId: String) async throws {
+        let req = request(path: "/api/users/\(userId)/availability/\(blockId)", method: "DELETE")
+        let (data, response) = try await session.data(for: req)
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
+            let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Couldn't remove block"
+            throw APIError.serverError(msg)
+        }
+    }
+
     func formOptions() async throws -> FormOptions {
         let req = request(path: "/api/form-options")
         let resp: DataWrapper<FormOptions> = try await perform(req)
