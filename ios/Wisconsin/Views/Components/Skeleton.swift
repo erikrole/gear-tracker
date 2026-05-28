@@ -3,6 +3,7 @@ import SwiftUI
 // MARK: - Base shape
 
 struct Skeleton: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var animating = false
     var cornerRadius: CGFloat = 6
 
@@ -10,12 +11,14 @@ struct Skeleton: View {
         RoundedRectangle(cornerRadius: cornerRadius)
             .fill(Color.primary.opacity(animating ? 0.07 : 0.17))
             .onAppear {
+                guard !reduceMotion else { return }
                 withAnimation(
                     .easeInOut(duration: 0.85)
                     .repeatForever(autoreverses: true)
                     .delay(Double.random(in: 0...0.25))
                 ) { animating = true }
             }
+            .accessibilityHidden(true)
     }
 }
 
