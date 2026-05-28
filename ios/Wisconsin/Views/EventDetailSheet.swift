@@ -866,22 +866,27 @@ struct ShiftRow: View {
                             }
                         }
                         if canManageShifts && assignment.status == "REQUESTED" {
-                            HStack(spacing: 6) {
+                            // Approve is the primary call-to-action (filled green);
+                            // Decline is a clearly-separated outlined red. Bumped from
+                            // .mini to .small + wider spacing so two consequential
+                            // actions aren't a mis-tap risk on a dense row.
+                            HStack(spacing: 10) {
                                 if let onApprove {
                                     Button("Approve") { onApprove(assignment) }
-                                        .buttonStyle(.bordered)
-                                        .controlSize(.mini)
+                                        .buttonStyle(.borderedProminent)
+                                        .controlSize(.small)
                                         .tint(Color.statusText(.green))
                                         .accessibilityLabel("Approve \(assignment.user.name)")
                                 }
                                 if let onDecline {
                                     Button("Decline") { onDecline(assignment) }
-                                        .buttonStyle(.borderless)
-                                        .controlSize(.mini)
-                                        .foregroundStyle(Color.statusText(.red))
+                                        .buttonStyle(.bordered)
+                                        .controlSize(.small)
+                                        .tint(Color.statusText(.red))
                                         .accessibilityLabel("Decline \(assignment.user.name)")
                                 }
                             }
+                            .padding(.top, 2)
                         }
                     }
                 }
@@ -891,30 +896,27 @@ struct ShiftRow: View {
 
     @ViewBuilder
     private var openSlotView: some View {
+        // Open slots are where the primary call-to-action lives — surface it as a
+        // real tinted button, not accent-colored text, so it reads as tappable and
+        // gives a comfortable hit area for both staff (Assign) and students (Request).
         if canManageShifts, let onAssign {
-            Button {
-                onAssign(shift)
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "plus.circle.fill")
-                    Text("Assign")
-                }
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(Color.accentColor)
+            Button { onAssign(shift) } label: {
+                Label("Assign", systemImage: "plus.circle.fill")
+                    .font(.subheadline.weight(.medium))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .tint(Color.accentColor)
+            .accessibilityLabel("Assign \(shift.area.shiftAreaLabel) shift")
         } else if isStudent && isStudentSlot, let onRequest {
-            Button {
-                onRequest(shift)
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "hand.raised.fill")
-                    Text("Request")
-                }
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(Color.accentColor)
+            Button { onRequest(shift) } label: {
+                Label("Request", systemImage: "hand.raised.fill")
+                    .font(.subheadline.weight(.medium))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .tint(Color.accentColor)
+            .accessibilityLabel("Request \(shift.area.shiftAreaLabel) shift")
         } else {
             Text("Open")
                 .font(.subheadline)

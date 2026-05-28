@@ -50,6 +50,24 @@ A2/A3/A4 slices each carry an open product question (is staff-mobile parity now 
 so they need a direction call. A1 (conflict badges) is the cleanest parity slice with no
 direction ambiguity.
 
+## Stream C — Schedule cross-role polish (staff + students)
+
+iOS Schedule has the capabilities for both roles but feels event-centric and thin
+on triage. Slices (independently shippable):
+
+- **S1 — Visible row-action affordance (shipped 2026-05-28).** Assign/Request/Approve/Decline
+  in `EventDetailSheet` were already visible buttons (initial "buried in context menu" read was
+  wrong on full inspection) but under-styled; restyled as proper tinted/sized buttons.
+- **S2 — Staff coverage/triage at the Schedule list level.** Show crew fill + open-slot/pending
+  signal without drilling into each event. **Needs a calendar-payload change** (`ScheduleEvent`
+  carries no coverage today — coverage lives only on the per-event `ShiftGroup`). Not thin.
+- **S3 — Smarter assign (biggest true gap).** `AssignStudentSheet` loads all ~200 users with
+  name-only search, no sport-roster scoping, no availability-conflict warning (web warns via
+  `StudentAvailabilityBlock`). Scope to roster + surface conflicts. iOS + possibly API.
+- **S4 — Student findability.** Mine/All segmentation (default students to Mine), sport filter,
+  unify open-slot request with the trade board.
+- **S5 — Availability editor on iOS.** Students manage class-conflict blocks (web-only today).
+
 ## Status log
 
 - 2026-05-28: Plan created. Baseline re-confirmed (drift clean, gaps open).
@@ -63,3 +81,9 @@ direction ambiguity.
   - `loadConflicts` has no task cancellation on rapid pull-to-refresh (web uses AbortController). Add only if flicker observed.
   - CreateBookingSheet has no `.onChange(of: selectedLocationId)` re-trigger for `scheduleConflictCheck` on step 2 (pre-existing; the fn never worked before so no regression).
   - Consider surfacing `upcomingCommitments` / `turnaroundRisks` on iOS too (web shows them) — separate slice if staff want full Equipment-tab parity.
+- 2026-05-28: **Stream C started; slice S1 (shift-row affordance) shipped.** Correction logged: the
+  primary Schedule actions were already visible, not context-menu-only — restyled Assign/Request to
+  tinted `.bordered` buttons and Approve/Decline from `.mini` to `.small` (Approve prominent green,
+  Decline outlined red, wider spacing). Both roles. Build green, drift clean. Next lever: S3 (smarter
+  assign — roster scoping + availability conflicts) is the biggest true gap; S2 needs a backend
+  payload change first.
