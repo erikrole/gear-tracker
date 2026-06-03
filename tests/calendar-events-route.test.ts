@@ -84,4 +84,28 @@ describe("POST /api/calendar-events", () => {
     );
     expect(createAuditEntry).toHaveBeenCalledOnce();
   });
+
+  it("persists a manual multi-day all-day event with the provided exclusive end", async () => {
+    await POST(
+      post({
+        summary: "Football Media Day Shoot",
+        startsAt: "2026-07-07T07:00:00.000Z",
+        endsAt: "2026-07-09T07:00:00.000Z",
+        allDay: true,
+      }),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(db.calendarEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          sourceId: null,
+          summary: "Football Media Day Shoot",
+          startsAt: new Date("2026-07-07T07:00:00.000Z"),
+          endsAt: new Date("2026-07-09T07:00:00.000Z"),
+          allDay: true,
+        }),
+      }),
+    );
+  });
 });

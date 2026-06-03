@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { SkeletonTable } from "@/components/Skeleton";
 import EmptyState from "@/components/EmptyState";
 import { formatDateShort, formatTimeShort } from "@/lib/format";
+import { formatCalendarEventAllDayLabel, formatCalendarEventDateRange } from "@/lib/calendar-event-dates";
 import { sportLabel } from "@/lib/sports";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
@@ -31,17 +32,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { UserAvatarGroup } from "@/components/UserAvatarGroup";
+import { CallWindowEditor } from "@/components/shift-detail/CallWindowEditor";
 import { UserAvatarPicker, type PickerUser } from "@/components/shift-detail/UserAvatarPicker";
 import { handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 import { VENUE_TONES, venueToneFromEvent } from "@/lib/venue-tone";
 import { shiftWorkerLabel, shiftWorkerSlotLabel, type ShiftWorkerKind } from "@/lib/shift-display";
+import { effectiveCallWindow, summarizeEffectiveCallWindows } from "@/lib/shift-call-windows";
 import type { CalendarEntry, Shift } from "./types";
 import {
   ACTIVE_STATUSES,
   AREA_LABELS,
   coverageVariant,
-  formatTime,
   scheduleEventTitleParts,
   userHasShift,
   userShiftStatus,
@@ -130,13 +132,7 @@ function RoleNeedSummary({ entry, compact = false }: { entry: CalendarEntry; com
 }
 
 function eventStartLabel(entry: CalendarEntry) {
-  return entry.allDay ? "All day" : formatTimeShort(entry.startsAt);
-}
-
-function callWindowLabel(startIso: string, endIso: string) {
-  const start = formatTime(startIso);
-  const end = formatTime(endIso);
-  return start === end ? `Call ${start}` : `Call ${start} - ${end}`;
+  return entry.allDay ? formatCalendarEventAllDayLabel(entry) : formatTimeShort(entry.startsAt);
 }
 
 /* ── Coverage fraction badge ── */
@@ -157,9 +153,10 @@ function CoveragePill({ percentage, filled, total }: { percentage: number; fille
   );
 }
 
-function formatShiftWindow(entry: CalendarEntry, shift: Shift) {
-  if (entry.isHome !== true) return null;
-  return `${formatTime(shift.startsAt)} - ${formatTime(shift.endsAt)}`;
+function shiftCallSummary(entry: CalendarEntry) {
+  return summarizeEffectiveCallWindows(
+    entry.shifts.map((shift) => effectiveCallWindow(shift, activeShiftAssignment(shift))),
+  );
 }
 
 function AssignmentAvatarGroup({
@@ -207,6 +204,7 @@ function ShiftRowList({
   removingAssignmentId,
   onRemoveAssignment,
   onSelectGroup,
+  onCallWindowSaved,
   compact = false,
 }: {
   entry: CalendarEntry;
@@ -227,6 +225,7 @@ function ShiftRowList({
   removingAssignmentId: string | null;
   onRemoveAssignment?: (assignmentId: string) => void;
   onSelectGroup: () => void;
+  onCallWindowSaved: () => void;
   compact?: boolean;
 }) {
   return (
@@ -237,7 +236,6 @@ function ShiftRowList({
         const myAssignment = shift.assignments.find(
           (a) => a.user.id === currentUserId && ACTIVE_STATUSES.includes(a.status),
         );
-        const shiftTime = formatShiftWindow(entry, shift);
         const areaLabel = AREA_LABELS[shift.area] ?? shift.area;
         const assignedLabel = user ? user.name : "Unassigned";
         const workerType = workerKindForShift(shift, user);
@@ -253,7 +251,7 @@ function ShiftRowList({
             key={shift.id}
             className={cn(
               "min-h-12 rounded-md border border-border/40 bg-background/65 px-3 py-2 shadow-[0_1px_0_rgba(255,255,255,0.04)] transition-[background-color,border-color]",
-              compact ? "flex flex-col gap-2" : "grid grid-cols-[132px_minmax(0,1fr)_80px_144px_96px] items-center gap-3",
+              compact ? "flex flex-col gap-2" : "grid grid-cols-[132px_minmax(0,1fr)_80px_220px_96px] items-center gap-3",
             )}
           >
             <div className="flex min-w-0 items-center gap-1.5">
@@ -411,26 +409,64 @@ function ShiftRowList({
               </div>
             )}
 
-            {compact ? shiftTime && (
-              <div className="min-w-0">
-                <span
-                  className="truncate text-[11px] text-muted-foreground tabular-nums"
-                  style={{ fontFamily: "var(--font-mono)" }}
-                  title={`${assignedLabel} · ${shiftTime}`}
-                >
-                  {shiftTime}
-                </span>
+            {compact ? (
+              <div className="flex min-w-0 flex-col items-start gap-1">
+                {isStaff ? (
+                  <>
+                    <CallWindowEditor
+                      target={{ type: "slot", id: shift.id }}
+                      effectiveWindow={effectiveCallWindow(shift)}
+                      overrideWindow={{ startsAt: shift.callStartsAt ?? null, endsAt: shift.callEndsAt ?? null }}
+                      onSaved={onCallWindowSaved}
+                      disabled={Boolean(addingShiftId || removingAssignmentId)}
+                      compact
+                    />
+                    {activeAssignment && (
+                      <CallWindowEditor
+                        target={{ type: "assignment", id: activeAssignment.id }}
+                        effectiveWindow={effectiveCallWindow(shift, activeAssignment)}
+                        overrideWindow={{ startsAt: activeAssignment.callStartsAt ?? null, endsAt: activeAssignment.callEndsAt ?? null }}
+                        onSaved={onCallWindowSaved}
+                        disabled={Boolean(addingShiftId || removingAssignmentId)}
+                        compact
+                      />
+                    )}
+                  </>
+                ) : (
+                  <CallWindowEditor
+                    effectiveWindow={effectiveCallWindow(shift, activeAssignment)}
+                    compact
+                  />
+                )}
               </div>
             ) : (
-              <div className="flex min-h-10 min-w-0 items-center justify-end">
-                {shiftTime && (
-                  <span
-                    className="truncate text-[11px] text-muted-foreground tabular-nums"
-                    style={{ fontFamily: "var(--font-mono)" }}
-                    title={`${assignedLabel} · ${shiftTime}`}
-                  >
-                    {shiftTime}
-                  </span>
+              <div className="flex min-h-10 min-w-0 flex-col items-end justify-center gap-1">
+                {isStaff ? (
+                  <>
+                    <CallWindowEditor
+                      target={{ type: "slot", id: shift.id }}
+                      effectiveWindow={effectiveCallWindow(shift)}
+                      overrideWindow={{ startsAt: shift.callStartsAt ?? null, endsAt: shift.callEndsAt ?? null }}
+                      onSaved={onCallWindowSaved}
+                      disabled={Boolean(addingShiftId || removingAssignmentId)}
+                      compact
+                    />
+                    {activeAssignment && (
+                      <CallWindowEditor
+                        target={{ type: "assignment", id: activeAssignment.id }}
+                        effectiveWindow={effectiveCallWindow(shift, activeAssignment)}
+                        overrideWindow={{ startsAt: activeAssignment.callStartsAt ?? null, endsAt: activeAssignment.callEndsAt ?? null }}
+                        onSaved={onCallWindowSaved}
+                        disabled={Boolean(addingShiftId || removingAssignmentId)}
+                        compact
+                      />
+                    )}
+                  </>
+                ) : (
+                  <CallWindowEditor
+                    effectiveWindow={effectiveCallWindow(shift, activeAssignment)}
+                    compact
+                  />
                 )}
               </div>
             )}
@@ -756,7 +792,7 @@ export function ListView({
                   groupDate.toDateString() === new Date().toDateString();
 
               return (
-                <div key={dateKey} ref={isGroupToday ? todayGroupRef : undefined}>
+                <div key={`${dateKey}-${groupIdx}`} ref={isGroupToday ? todayGroupRef : undefined}>
                   {/* Date group header - timeline style */}
                   <div
                     className={cn(
@@ -875,6 +911,7 @@ export function ListView({
                             onAddShift={(shift, workerType) => handleAddMatchingShift(entry, shift, workerType)}
                             removingAssignmentId={removingAssignmentId}
                             onRemoveAssignment={handleRemoveAssignment}
+                            onCallWindowSaved={loadData}
                             onPostTrade={isStaff ? undefined : openTradeDialog}
                           />
                         );
@@ -938,15 +975,17 @@ export function ListView({
                       </span>
                       <div className="flex items-center gap-1 flex-shrink-0">
                         {(() => {
-                          const mobileCallTime = entry.isHome === true && entry.shifts.length > 0
-                            ? formatTime(entry.shifts.reduce((min, s) => s.startsAt < min ? s.startsAt : min, entry.shifts[0]!.startsAt))
-                            : null;
-                          return mobileCallTime ? (
+                          const mobileCallSummary = shiftCallSummary(entry);
+                          return mobileCallSummary.label ? (
                             <span
-                              className="text-[10px] text-muted-foreground/50 tabular-nums"
+                              className={cn(
+                                "text-[10px] tabular-nums",
+                                mobileCallSummary.mixed ? "font-medium text-foreground" : "text-muted-foreground/50",
+                              )}
                               style={{ fontFamily: "var(--font-mono)" }}
+                              title={mobileCallSummary.title ?? undefined}
                             >
-                              Call {mobileCallTime}
+                              {mobileCallSummary.label}
                             </span>
                           ) : null;
                         })()}
@@ -973,7 +1012,9 @@ export function ListView({
                     </div>
                     <div className="text-xs text-muted-foreground flex gap-2 flex-wrap pl-5">
                       <span>
-                        {formatDateShort(entry.startsAt, entry.allDay)}
+                        {entry.allDay
+                          ? formatCalendarEventDateRange(entry)
+                          : formatDateShort(entry.startsAt, entry.allDay)}
                       </span>
                       {entry.sportCode && (
                         <span>{sportLabel(entry.sportCode)}</span>
@@ -1018,6 +1059,7 @@ export function ListView({
                         onAddShift={(shift, workerType) => handleAddMatchingShift(entry, shift, workerType)}
                         removingAssignmentId={removingAssignmentId}
                         onRemoveAssignment={handleRemoveAssignment}
+                        onCallWindowSaved={loadData}
                         onPostTrade={isStaff ? undefined : openTradeDialog}
                         onSelectGroup={() => onSelectGroup(entry.shiftGroupId)}
                         compact
@@ -1117,6 +1159,7 @@ function EventRows({
   onAddShift,
   removingAssignmentId,
   onRemoveAssignment,
+  onCallWindowSaved,
   onPostTrade,
 }: {
   entry: CalendarEntry;
@@ -1144,13 +1187,12 @@ function EventRows({
   onAddShift?: (shift: Shift, workerType: ShiftWorkerKind) => void;
   removingAssignmentId: string | null;
   onRemoveAssignment?: (assignmentId: string) => void;
+  onCallWindowSaved: () => void;
   onPostTrade?: (assignmentId: string) => void;
 }) {
   const titleParts = scheduleEventTitleParts(entry);
 
-  const callTime = entry.isHome === true && entry.shifts.length > 0
-    ? formatTime(entry.shifts.reduce((min, s) => s.startsAt < min ? s.startsAt : min, entry.shifts[0]!.startsAt))
-    : null;
+  const callSummary = shiftCallSummary(entry);
   const missingSlots = missingSlotCount(entry);
   const needsCoverage = missingSlots > 0;
 
@@ -1280,9 +1322,16 @@ function EventRows({
           </div>
         </td>
         <td className="px-4 py-3 border-b border-border/20 whitespace-nowrap">
-          {entry.isHome === true && callTime ? (
-            <span className="text-sm text-muted-foreground tabular-nums" style={{ fontFamily: "var(--font-mono)" }}>
-              {callWindowLabel(entry.shifts.reduce((min, s) => s.startsAt < min ? s.startsAt : min, entry.shifts[0]!.startsAt), entry.endsAt)}
+          {callSummary.label ? (
+            <span
+              className={cn(
+                "text-sm tabular-nums",
+                callSummary.mixed ? "font-medium text-foreground" : "text-muted-foreground",
+              )}
+              style={{ fontFamily: "var(--font-mono)" }}
+              title={callSummary.title ?? undefined}
+            >
+              {callSummary.label}
             </span>
           ) : null}
         </td>
@@ -1326,6 +1375,7 @@ function EventRows({
                 onRemoveAssignment={onRemoveAssignment}
                 onPostTrade={onPostTrade}
                 onSelectGroup={onSelectGroup}
+                onCallWindowSaved={onCallWindowSaved}
               />
             </div>
           </td>

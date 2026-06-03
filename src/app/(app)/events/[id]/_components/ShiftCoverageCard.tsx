@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { PlusIcon, XIcon } from "lucide-react";
+import { AlertTriangleIcon, PlusIcon, XIcon } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
@@ -19,12 +19,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { formatTimeShort } from "@/lib/format";
 import { handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { UserAvatarPicker, type PickerUser } from "@/components/shift-detail/UserAvatarPicker";
+import { CallWindowEditor } from "@/components/shift-detail/CallWindowEditor";
 import type { ShiftGroupSummary, CommandCenterData } from "../_utils";
 import { AREA_LABELS } from "../_utils";
 import { shiftWorkerLabel, shiftWorkerSlotLabel } from "@/lib/shift-display";
+import { effectiveCallWindow } from "@/lib/shift-call-windows";
 
 const AREAS = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS"] as const;
 
@@ -254,32 +255,40 @@ export function ShiftCoverageCard({
 
     if (activeAssignment) {
       return (
-        <span className="flex items-center gap-2 group">
-          <UserAvatar
-            name={activeAssignment.user.name}
-            avatarUrl={activeAssignment.user.avatarUrl}
-            size="sm"
-          />
-          <span className="text-sm">{activeAssignment.user.name}</span>
-          {isStaffOrAdmin && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleRemove(activeAssignment.id)}
-                  disabled={isActing || inlineActing !== null}
-                  className="size-10 text-muted-foreground transition-[background-color,color,box-shadow] hover:text-destructive focus-visible:text-destructive sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
-                  aria-label="Remove assignment"
-                >
-                  <XIcon className="size-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Remove assignment</TooltipContent>
-            </Tooltip>
+        <div className="group flex min-w-0 flex-col gap-1">
+          <span className="flex items-center gap-2">
+            <UserAvatar
+              name={activeAssignment.user.name}
+              avatarUrl={activeAssignment.user.avatarUrl}
+              size="sm"
+            />
+            <span className="min-w-0 truncate text-sm">{activeAssignment.user.name}</span>
+            {isStaffOrAdmin && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleRemove(activeAssignment.id)}
+                    disabled={isActing || inlineActing !== null}
+                    className="size-10 text-muted-foreground transition-[background-color,color,box-shadow] hover:text-destructive focus-visible:text-destructive sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                    aria-label="Remove assignment"
+                  >
+                    <XIcon className="size-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Remove assignment</TooltipContent>
+              </Tooltip>
+            )}
+          </span>
+          {activeAssignment.hasConflict && (
+            <Badge variant="orange" size="sm" className="w-fit gap-1">
+              <AlertTriangleIcon className="size-3" />
+              {activeAssignment.conflictNote ?? "Schedule conflict"}
+            </Badge>
           )}
-        </span>
+        </div>
       );
     }
 
@@ -421,7 +430,7 @@ export function ShiftCoverageCard({
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="w-28">Time</TableHead>
+          <TableHead className="w-56">Call</TableHead>
           <TableHead>Assigned</TableHead>
           <TableHead className="w-28">Status</TableHead>
           {commandCenter && <TableHead className="w-24">Gear</TableHead>}
@@ -468,10 +477,39 @@ export function ShiftCoverageCard({
               return (
                 <TableRow key={shift.id}>
                   <TableCell>
-                    <span className="tabular-nums text-sm text-muted-foreground">
-                      {formatTimeShort(shift.startsAt)}
-                      <Badge variant="gray" size="sm" className="ml-1.5">{shiftWorkerSlotLabel(shift.workerType)}</Badge>
-                    </span>
+                    <div className="flex flex-col items-start gap-1">
+                      <div className="flex items-center gap-1.5">
+                        <CallWindowEditor
+                          target={{ type: "slot", id: shift.id }}
+                          effectiveWindow={effectiveCallWindow(shift)}
+                          overrideWindow={{ startsAt: shift.callStartsAt ?? null, endsAt: shift.callEndsAt ?? null }}
+                          onSaved={onUpdated}
+                          disabled={inlineActing !== null}
+                          compact
+                        />
+                        <Badge variant="gray" size="sm">{shiftWorkerSlotLabel(shift.workerType)}</Badge>
+                      </div>
+                      {activeAssignment && (
+                        <div className="flex flex-col items-start gap-1">
+                          <CallWindowEditor
+                            target={{ type: "assignment", id: activeAssignment.id }}
+                            effectiveWindow={effectiveCallWindow(shift, activeAssignment)}
+                            overrideWindow={{ startsAt: activeAssignment.callStartsAt ?? null, endsAt: activeAssignment.callEndsAt ?? null }}
+                            onSaved={onUpdated}
+                            disabled={inlineActing !== null}
+                            compact
+                          />
+                          {activeAssignment.hasConflict && (
+                            <Badge variant="orange" size="sm" className="max-w-56 gap-1">
+                              <AlertTriangleIcon className="size-3 shrink-0" />
+                              <span className="truncate">
+                                {activeAssignment.conflictNote ?? "Schedule conflict"}
+                              </span>
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <AssignCell shift={shift} activeAssignment={activeAssignment} />
@@ -515,7 +553,7 @@ export function ShiftCoverageCard({
       <TableHeader>
         <TableRow>
           <TableHead>Area</TableHead>
-          <TableHead className="w-28">Time</TableHead>
+          <TableHead className="w-36">Call</TableHead>
           <TableHead>Assigned</TableHead>
           <TableHead className="w-28">Status</TableHead>
         </TableRow>
@@ -535,7 +573,10 @@ export function ShiftCoverageCard({
                 </span>
               </TableCell>
               <TableCell>
-                <span className="tabular-nums text-muted-foreground text-sm">{formatTimeShort(shift.startsAt)}</span>
+                <CallWindowEditor
+                  effectiveWindow={effectiveCallWindow(shift, activeAssignment)}
+                  compact
+                />
               </TableCell>
               <TableCell>
                 {activeAssignment ? (

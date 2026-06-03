@@ -3,6 +3,48 @@ import { db } from "@/lib/db";
 import { HttpError, ok, parsePagination } from "@/lib/http";
 import { createAuditEntry } from "@/lib/audit";
 import { assertDateOrder, parseOptionalDate } from "@/lib/api-dates";
+import type { Prisma } from "@prisma/client";
+
+function buildCalendarEventsWhere({
+  parsedStartDate,
+  parsedEndDate,
+  includePast,
+  includeHidden,
+  includeArchived,
+  unmappedOnly,
+  sportCode,
+  now = new Date(),
+}: {
+  parsedStartDate?: Date | null;
+  parsedEndDate?: Date | null;
+  includePast: boolean;
+  includeHidden: boolean;
+  includeArchived: boolean;
+  unmappedOnly: boolean;
+  sportCode: string | null;
+  now?: Date;
+}): Prisma.CalendarEventWhereInput {
+  const where: Prisma.CalendarEventWhereInput = {
+    status: { not: "CANCELLED" },
+    ...(!includeHidden ? { isHidden: false } : {}),
+    ...(!includeArchived ? { archivedAt: null } : {}),
+    ...(unmappedOnly ? { locationId: null } : {}),
+    ...(sportCode ? { sportCode } : {}),
+  };
+
+  if (parsedStartDate && parsedEndDate) {
+    where.startsAt = { lte: parsedEndDate };
+    where.endsAt = { gt: parsedStartDate };
+  } else if (parsedStartDate) {
+    where.endsAt = { gt: parsedStartDate };
+  } else if (parsedEndDate) {
+    where.startsAt = { lte: parsedEndDate };
+  } else if (!includePast) {
+    where.endsAt = { gt: now };
+  }
+
+  return where;
+}
 
 export const GET = withAuth(async (req) => {
   const { searchParams } = new URL(req.url);
@@ -20,22 +62,15 @@ export const GET = withAuth(async (req) => {
   const parsedEndDate = parseOptionalDate(endDate, "endDate");
   assertDateOrder(parsedStartDate, parsedEndDate);
 
-  // Default to upcoming events from now unless includePast or explicit startDate
-  const startsAtFilter = includePast
-    ? { ...(parsedStartDate ? { gte: parsedStartDate } : {}), ...(parsedEndDate ? { lte: parsedEndDate } : {}) }
-    : { gte: parsedStartDate ?? new Date(), ...(parsedEndDate ? { lte: parsedEndDate } : {}) };
-
-  const where = {
-    ...(Object.keys(startsAtFilter).length > 0 ? { startsAt: startsAtFilter } : {}),
-    ...(unmappedOnly ? { locationId: null } : {}),
-    ...(sportCode ? { sportCode } : {}),
-    status: { not: "CANCELLED" as const },
-    ...(!includeHidden ? { isHidden: false } : {}),
-    // Exclude archived events unless caller explicitly requests them.
-    // includePast=true still only shows non-archived recent history;
-    // includeArchived=true is the separate deep-history toggle.
-    ...(!includeArchived ? { archivedAt: null } : {}),
-  };
+  const where = buildCalendarEventsWhere({
+    parsedStartDate,
+    parsedEndDate,
+    includePast,
+    includeHidden,
+    includeArchived,
+    unmappedOnly,
+    sportCode,
+  });
 
   const [data, total] = await Promise.all([
     db.calendarEvent.findMany({

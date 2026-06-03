@@ -14,15 +14,22 @@ const MAX_SELECTED_EVENTS = 3;
 const BOOKING_EVENT_LOOKAHEAD_DAYS = 30;
 
 /** Derive auto-fill fields from the chronologically-first event in the list. */
-function deriveFromPrimary(events: CalendarEvent[], sport: string) {
+export function deriveFromPrimary(events: CalendarEvent[], sport: string) {
   if (events.length === 0) return {};
   const primary = events[0]!; // guarded by events.length === 0 early return above
-  const title = generateEventTitle(primary.sportCode || sport, primary.opponent, primary.isHome);
-  const start = new Date(new Date(primary.startsAt).getTime() - 2 * 60 * 60 * 1000);
+  const title = primary.sportCode || sport
+    ? generateEventTitle(primary.sportCode || sport, primary.opponent, primary.isHome)
+    : primary.summary;
   // endsAt derives from the LAST event — multi-event span covers the whole window.
   const last = events[events.length - 1]!; // same guard: length > 0
+  const allDaySpan = primary.allDay && last.allDay;
+  const start = allDaySpan
+    ? new Date(primary.startsAt)
+    : new Date(new Date(primary.startsAt).getTime() - 2 * 60 * 60 * 1000);
   const returnBuffer = last.isHome === false ? 24 * 60 * 60 * 1000 : 2 * 60 * 60 * 1000;
-  const end = new Date(new Date(last.endsAt).getTime() + returnBuffer);
+  const end = allDaySpan
+    ? new Date(last.endsAt)
+    : new Date(new Date(last.endsAt).getTime() + returnBuffer);
   return {
     title,
     startsAt: toLocalDateTimeValue(start),

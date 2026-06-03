@@ -343,6 +343,7 @@ export const GET = withAuth(async (_req, { user }) => {
                     summary: true,
                     startsAt: true,
                     endsAt: true,
+                    allDay: true,
                     sportCode: true,
                     opponent: true,
                     isHome: true,
@@ -460,6 +461,7 @@ export const GET = withAuth(async (_req, { user }) => {
           summary: string;
           startsAt: Date;
           endsAt: Date;
+          allDay: boolean;
           sportCode: string | null;
           opponent: string | null;
           isHome: boolean | null;
@@ -718,15 +720,15 @@ export const GET = withAuth(async (_req, { user }) => {
     const primaryGear = gearBookings[0] ?? null;
     return {
       id: ev.id,
-      event: {
-        id: ev.id,
-        summary: ev.summary,
-        startsAt: ev.startsAt.toISOString(),
-        endsAt: ev.endsAt.toISOString(),
-        allDay: false,
-        sportCode: ev.sportCode,
-        opponent: ev.opponent,
-        isHome: ev.isHome,
+          event: {
+            id: ev.id,
+            summary: ev.summary,
+            startsAt: ev.startsAt.toISOString(),
+            endsAt: ev.endsAt.toISOString(),
+            allDay: ev.allDay,
+            sportCode: ev.sportCode,
+            opponent: ev.opponent,
+            isHome: ev.isHome,
         locationId: ev.locationId,
         locationName: ev.location?.name ?? null,
       },

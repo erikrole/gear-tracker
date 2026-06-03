@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/EmptyState";
 import { cn } from "@/lib/utils";
 import { VENUE_TONES, venueToneFromEvent } from "@/lib/venue-tone";
+import { eventOccursOnCalendarDay, formatCalendarEventAllDayLabel } from "@/lib/calendar-event-dates";
 import {
   type CalendarEntry,
   coverageVariant,
@@ -147,7 +148,7 @@ function EventCard({
       {/* Content */}
       <div className="flex-1 px-1.5 py-1 min-w-0">
         <span className="block text-[10px] text-muted-foreground leading-none mb-0.5">
-          {entry.allDay ? "All day" : formatTime(entry.startsAt)}
+          {entry.allDay ? formatCalendarEventAllDayLabel(entry) : formatTime(entry.startsAt)}
         </span>
         <span className="block text-[11px] font-semibold leading-tight truncate">
           {titleParts.title}
@@ -373,12 +374,11 @@ export function WeekView({
       map.set(day.toDateString(), []);
     }
     for (const entry of entries) {
-      const entryDate = entry.allDay
-        ? (() => { const d = new Date(entry.startsAt); return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()); })()
-        : new Date(entry.startsAt);
-      const key = entryDate.toDateString();
-      const dayEntries = map.get(key);
-      if (dayEntries) dayEntries.push(entry);
+      for (const day of weekDays) {
+        if (!eventOccursOnCalendarDay(entry, day)) continue;
+        const dayEntries = map.get(day.toDateString());
+        if (dayEntries) dayEntries.push(entry);
+      }
     }
     for (const dayEntries of map.values()) {
       dayEntries.sort(
@@ -477,7 +477,7 @@ export function WeekView({
                   <div className="flex flex-col">
                     {dayEntries.map((entry) => (
                       <EventCard
-                        key={entry.id}
+                        key={`${entry.id}-${dayKey}`}
                         entry={entry}
                         currentUserId={currentUserId}
                         currentUserRole={currentUserRole}

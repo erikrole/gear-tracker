@@ -9,6 +9,7 @@ import { useFetch } from "@/hooks/use-fetch";
 import { toast } from "sonner";
 import { sportLabel } from "@/lib/sports";
 import { formatTimeShort } from "@/lib/format";
+import { formatCalendarEventDateRange } from "@/lib/calendar-event-dates";
 import { VENUE_TONES, venueBadgeVariant, venueToneFromIsHome } from "@/lib/venue-tone";
 import type { VenueTone } from "@/lib/venue-tone";
 import { Button } from "@/components/ui/button";
@@ -24,11 +25,11 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { PageHeader } from "@/components/PageHeader";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 import type { CalendarEvent, ShiftGroupSummary, CommandCenterData } from "./_utils";
-import { formatDate } from "./_utils";
 import { formatRelativeTime } from "@/lib/format";
 import { EventSkeleton } from "./_components/EventSkeleton";
 import { ShiftCoverageCard } from "./_components/ShiftCoverageCard";
 import { EventTravelCard } from "./_components/EventTravelCard";
+import { effectiveCallWindow, summarizeEffectiveCallWindows } from "@/lib/shift-call-windows";
 
 type LocationOption = { id: string; name: string };
 
@@ -286,13 +287,19 @@ export default function EventDetailPage() {
   const locationParam = event.location?.id ? `&locationId=${event.location.id}` : "";
   const eventParam = `&eventId=${id}`;
 
-  const callTime = shiftGroup?.shifts.length
-    ? shiftGroup.shifts.reduce((min, s) => s.startsAt < min ? s.startsAt : min, shiftGroup.shifts[0]!.startsAt)
+  const callSummary = shiftGroup?.shifts.length
+    ? summarizeEffectiveCallWindows(
+        shiftGroup.shifts.map((shift) => {
+          const activeAssignment = shift.assignments.find(
+            (assignment) => assignment.status === "DIRECT_ASSIGNED" || assignment.status === "APPROVED",
+          );
+          return effectiveCallWindow(shift, activeAssignment);
+        }),
+      )
     : null;
-  const showCallTime = callTime && callTime !== event.startsAt;
 
   const eventDate = event.allDay
-    ? formatDate(event.startsAt, true)
+    ? formatCalendarEventDateRange(event, { includeYear: true })
     : new Date(event.startsAt).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
   const opponentText = opponentLabel(event);
   const anyFieldLocked = event.summaryLocked || event.isHomeLocked || event.locationLocked;
@@ -496,9 +503,9 @@ export default function EventDetailPage() {
             {formatTimeShort(event.startsAt)} - {formatTimeShort(event.endsAt)}
           </span>
         )}
-        {showCallTime && (
+        {callSummary?.label && (
           <span className="flex items-center gap-1.5 font-medium text-foreground">
-            Call {formatTimeShort(callTime!)}
+            {callSummary.label}
           </span>
         )}
         {opponentText && <span>{opponentText}</span>}

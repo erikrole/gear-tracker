@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/sheet";
 import { SPORT_CODES } from "@/lib/sports";
 import { handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
+import { formatCalendarEventDateRange } from "@/lib/calendar-event-dates";
 
 type Location = { id: string; name: string };
 type CreatedEvent = { id: string; summary: string };
@@ -188,6 +189,14 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
     }
   }
 
+  const allDayPreview = (() => {
+    if (!allDay || !startDate || !endDate) return null;
+    const startsAt = buildDateTime(startDate, startTime, true);
+    const endsAt = buildAllDayEndDate(endDate);
+    if (!startsAt || !endsAt || new Date(endsAt) <= new Date(startsAt)) return null;
+    return formatCalendarEventDateRange({ startsAt, endsAt, allDay: true });
+  })();
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (submittingRef.current) return;
@@ -298,7 +307,7 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
 
             {/* Start / End */}
             <DateTimeField
-              label="Start"
+              label={allDay ? "Start date" : "Start"}
               fieldId="event-start"
               date={startDate}
               time={startTime}
@@ -312,7 +321,7 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
               disabled={submitting}
             />
             <DateTimeField
-              label="End"
+              label={allDay ? "End date" : "End"}
               fieldId="event-end"
               date={endDate}
               time={endTime}
@@ -321,6 +330,16 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
               onTimeChange={setEndTime}
               disabled={submitting}
             />
+
+            {allDay && (
+              <Alert>
+                <AlertDescription>
+                  {allDayPreview
+                    ? `Creates one all-day event covering ${allDayPreview}. Crew, coverage, and bookings stay attached to this event.`
+                    : "Choose inclusive start and end dates for one all-day event."}
+                </AlertDescription>
+              </Alert>
+            )}
 
             {/* Location */}
             <div className="flex flex-col gap-1.5">

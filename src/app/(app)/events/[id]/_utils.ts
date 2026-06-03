@@ -39,6 +39,8 @@ export type ShiftGroupSummary = {
       callStartsAt?: string | null;
       callEndsAt?: string | null;
       callNote?: string | null;
+      hasConflict?: boolean;
+      conflictNote?: string | null;
       user: { id: string; name: string; avatarUrl: string | null };
     }>;
   }>;

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 
 /**
  * Tests for the calendar-events API query logic.
@@ -13,45 +13,62 @@ function buildCalendarEventsWhere(params: {
   endDate?: string | null;
   unmapped?: boolean;
   sportCode?: string | null;
+  includePast?: boolean;
   now?: Date;
 }) {
-  const effectiveStartDate = params.startDate
-    ? new Date(params.startDate)
-    : (params.now ?? new Date());
-
-  return {
-    startsAt: { gte: effectiveStartDate },
-    ...(params.endDate ? { endsAt: { lte: new Date(params.endDate) } } : {}),
+  const start = params.startDate ? new Date(params.startDate) : null;
+  const end = params.endDate ? new Date(params.endDate) : null;
+  const where: Record<string, unknown> = {
     ...(params.unmapped ? { locationId: null } : {}),
     ...(params.sportCode ? { sportCode: params.sportCode } : {}),
     status: { not: "CANCELLED" as const },
   };
+
+  if (start && end) {
+    where.startsAt = { lte: end };
+    where.endsAt = { gt: start };
+  } else if (start) {
+    where.endsAt = { gt: start };
+  } else if (end) {
+    where.startsAt = { lte: end };
+  } else if (!params.includePast) {
+    where.endsAt = { gt: params.now ?? new Date() };
+  }
+
+  return where;
 }
 
 describe("buildCalendarEventsWhere", () => {
   const fixedNow = new Date("2026-03-07T12:00:00Z");
 
-  it("defaults to upcoming events from now when no startDate is given", () => {
+  it("defaults to events still active or upcoming from now when no startDate is given", () => {
     const where = buildCalendarEventsWhere({ now: fixedNow });
-    expect(where.startsAt).toEqual({ gte: fixedNow });
+    expect(where.endsAt).toEqual({ gt: fixedNow });
   });
 
-  it("uses explicit startDate when provided", () => {
+  it("uses explicit startDate as an overlap lower boundary", () => {
     const explicit = "2026-01-01T00:00:00Z";
     const where = buildCalendarEventsWhere({ startDate: explicit, now: fixedNow });
-    expect(where.startsAt).toEqual({ gte: new Date(explicit) });
+    expect(where.endsAt).toEqual({ gt: new Date(explicit) });
   });
 
-  it("includes endDate filter when provided", () => {
+  it("uses startDate and endDate as an overlap window", () => {
     const where = buildCalendarEventsWhere({
+      startDate: "2026-05-31T00:00:00Z",
       endDate: "2026-06-01T00:00:00Z",
       now: fixedNow,
     });
-    expect(where.endsAt).toEqual({ lte: new Date("2026-06-01T00:00:00Z") });
+    expect(where.startsAt).toEqual({ lte: new Date("2026-06-01T00:00:00Z") });
+    expect(where.endsAt).toEqual({ gt: new Date("2026-05-31T00:00:00Z") });
   });
 
-  it("does not include endDate when not provided", () => {
-    const where = buildCalendarEventsWhere({ now: fixedNow });
+  it("uses endDate alone as an upper overlap boundary", () => {
+    const where = buildCalendarEventsWhere({
+      endDate: "2026-06-01T00:00:00Z",
+      includePast: true,
+      now: fixedNow,
+    });
+    expect(where.startsAt).toEqual({ lte: new Date("2026-06-01T00:00:00Z") });
     expect(where).not.toHaveProperty("endsAt");
   });
 
@@ -77,7 +94,7 @@ describe("buildCalendarEventsWhere", () => {
 
   it("preserves unmapped filter alongside startDate default", () => {
     const where = buildCalendarEventsWhere({ unmapped: true, now: fixedNow });
-    expect(where.startsAt).toEqual({ gte: fixedNow });
+    expect(where.endsAt).toEqual({ gt: fixedNow });
     expect(where.locationId).toBeNull();
   });
 });

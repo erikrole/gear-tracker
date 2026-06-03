@@ -119,7 +119,11 @@ export default function SchedulePage() {
       </PageHeader>
 
       {/* View toggle + filters */}
-      <ScheduleFilters filters={data.filters} entries={data.entries} />
+      <ScheduleFilters
+        filters={data.filters}
+        entries={data.entries}
+        sourceSignal={data.sourceSignal}
+      />
 
       <ScheduleReadiness
         entries={data.entries}

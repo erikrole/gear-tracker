@@ -103,6 +103,22 @@ describe("schedule date validation", () => {
     expect(db.calendarEvent.findMany).not.toHaveBeenCalled();
   });
 
+  it("queries calendar events by overlap so multi-day events stay visible inside the window", async () => {
+    await getCalendarEvents(
+      get("/api/calendar-events?startDate=2026-07-08T00:00:00.000Z&endDate=2026-07-08T23:59:59.999Z"),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(db.calendarEvent.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          startsAt: { lte: new Date("2026-07-08T23:59:59.999Z") },
+          endsAt: { gt: new Date("2026-07-08T00:00:00.000Z") },
+        }),
+      }),
+    );
+  });
+
   it("rejects invalid shift-groups startDate query params", async () => {
     const res = await getShiftGroups(get("/api/shift-groups?startDate=bad-date"), {
       params: Promise.resolve({}),
@@ -110,6 +126,24 @@ describe("schedule date validation", () => {
 
     expect(res.status).toBe(400);
     expect(db.shiftGroup.findMany).not.toHaveBeenCalled();
+  });
+
+  it("queries shift groups by parent event overlap so crew coverage stays visible inside the window", async () => {
+    await getShiftGroups(
+      get("/api/shift-groups?startDate=2026-07-08T00:00:00.000Z&endDate=2026-07-08T23:59:59.999Z"),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(db.shiftGroup.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          event: expect.objectContaining({
+            startsAt: { lte: new Date("2026-07-08T23:59:59.999Z") },
+            endsAt: { gt: new Date("2026-07-08T00:00:00.000Z") },
+          }),
+        }),
+      }),
+    );
   });
 
   it("rejects invalid add-shift override dates", async () => {

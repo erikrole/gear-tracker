@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import EmptyState from "@/components/EmptyState";
 import { formatTimeShort } from "@/lib/format";
+import { eventOccursOnCalendarDay, formatCalendarEventAllDayLabel } from "@/lib/calendar-event-dates";
 import { cn } from "@/lib/utils";
 import { VENUE_TONES, venueToneFromEvent } from "@/lib/venue-tone";
 import type { CalendarEntry } from "./types";
@@ -31,7 +32,7 @@ function isToday(calMonth: Date, day: number) {
 
 function buildTooltipContent(entry: CalendarEntry): React.ReactNode {
   const timeStr = entry.allDay
-    ? "All day"
+    ? formatCalendarEventAllDayLabel(entry)
     : `${formatTimeShort(entry.startsAt)} - ${formatTimeShort(entry.endsAt)}`;
 
   const assignedUsers = entry.shifts.flatMap((s) =>
@@ -158,13 +159,24 @@ export function CalendarView({
 
   const calEntriesByDay = useMemo(() => {
     const map = new Map<number, CalendarEntry[]>();
+    const year = calMonth.getFullYear();
+    const month = calMonth.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
     for (const entry of entries) {
-      const d = entry.allDay ? new Date(entry.startsAt).getUTCDate() : new Date(entry.startsAt).getDate();
-      if (!map.has(d)) map.set(d, []);
-      map.get(d)!.push(entry);
+      for (let day = 1; day <= daysInMonth; day++) {
+        const cellDate = new Date(year, month, day);
+        if (!eventOccursOnCalendarDay(entry, cellDate)) continue;
+        if (!map.has(day)) map.set(day, []);
+        map.get(day)!.push(entry);
+      }
+    }
+    for (const dayEntries of map.values()) {
+      dayEntries.sort(
+        (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
+      );
     }
     return map;
-  }, [entries]);
+  }, [calMonth, entries]);
 
   function prevMonth() {
     setCalMonth(
@@ -294,7 +306,7 @@ export function CalendarView({
                     {/* Events */}
                     {visibleEntries?.map((entry) => (
                       <EventChip
-                        key={entry.id}
+                        key={`${entry.id}-${cell.day}`}
                         entry={entry}
                         onSelectGroup={onSelectGroup}
                       />

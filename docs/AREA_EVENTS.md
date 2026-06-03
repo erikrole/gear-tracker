@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Events
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-25
+- Last Updated: 2026-06-03
 - Status: Active
 
 ## Direction
@@ -30,10 +30,14 @@ Make athletics schedule data the operational backbone for booking and checkout w
 11. **Venue Mappings moved to Settings** — `/settings/venue-mappings` page with add/delete/list. Removed from events page.
 12. Calendar Sources management remains at `/settings/calendar-sources` (unchanged).
 13. Manual Calendar Source sync uses a short database-backed per-source lease, so concurrent sync clicks return 409 instead of running duplicate external fetch and shift-generation work.
+14. Daily calendar sync runs through `morning-refresh` at 08:00 UTC, before the 09:00 UTC notifications cron. Manual sync remains the on-demand path for urgent schedule changes.
+15. Repeated hard daily sync failures are tracked per source. Starting at 3 consecutive hard failures, active admins receive in-app `calendar_sync_failure` notifications, and Admin Fix Today includes the repeated-failure count for the source.
 
 ## Now (Implemented — cont.)
-14. **Manual event edits (sync-safe)** — Staff/admin can edit event title (inline pencil → dialog) and toggle home/away/neutral on the event detail page. Both survive ICS re-sync via lock flags (`summaryLocked`, `isHomeLocked`) on `CalendarEvent`. Revert-to-synced re-derives from `rawSummary` + `rawLocationText`. Edits are audited. Migration 0070.
-15. **Soft archive** — `morning-refresh` cron stamps `archivedAt` on events older than 4 months. List API excludes archived events by default; `includeArchived=true` surfaces them. No data deleted — full event + booking + travel history preserved for future Wrapped-style stats.
+16. **Manual event edits (sync-safe)** — Staff/admin can edit event title (inline pencil → dialog) and toggle home/away/neutral on the event detail page. Both survive ICS re-sync via lock flags (`summaryLocked`, `isHomeLocked`) on `CalendarEvent`. Revert-to-synced re-derives from `rawSummary` + `rawLocationText`. Edits are audited. Migration 0070.
+17. **Soft archive** — `morning-refresh` cron stamps `archivedAt` on events older than 4 months. List API excludes archived events by default; `includeArchived=true` surfaces them. No data deleted — full event + booking + travel history preserved for future Wrapped-style stats.
+18. **Manual multi-day all-day events** — Staff/admin can create one manual all-day event that spans multiple dates. The Schedule New Event sheet uses inclusive start/end date copy while preserving the stored exclusive end boundary. `/api/calendar-events` and `/api/shift-groups` use overlap windows so schedule list/month/week views and crew coverage stay visible on every covered date without duplicating the underlying event record.
+19. **Schedule source freshness signal** — Staff/admin Schedule views show a compact source signal in the filter toolbar. It distinguishes manual visible events, imported visible events, healthy calendar sources, stale/never-synced sources, disabled sources, source errors, and source-status load failures without changing ICS sync semantics.
 
 ## Next
 1. Better normalization for opponent and venue fields.
@@ -43,13 +47,14 @@ Make athletics schedule data the operational backbone for booking and checkout w
 ## Later
 1. Multi-source event ingestion, if required.
 2. Event quality scoring for operator confidence.
-3. "Wrapped"-style stats feature — per-staff/student season analytics. Depends on the soft-archive pipeline in item 15 above (no data deleted, all history preserved).
+3. "Wrapped"-style stats feature — per-staff/student season analytics. Depends on the soft-archive pipeline in item 17 above (no data deleted, all history preserved).
 
 ## Acceptance Criteria
 - [x] AC-1: Event picker shows relevant upcoming events by sport.
 - [x] AC-2: Event-linked booking stores and displays event context reliably.
 - [x] AC-3: Sync pipeline is idempotent and observable.
 - [x] AC-4: Missing fields degrade gracefully without blocking checkout creation.
+- [x] AC-5: Schedule surfaces stale or unavailable calendar-source context without blocking manual events or event-linked booking work.
 
 ## Edge Cases
 - Event cancellations or updates in source feed.
@@ -74,6 +79,13 @@ Make athletics schedule data the operational backbone for booking and checkout w
 4. Fallback behavior for incomplete events is implemented — treat event context as non-blocking metadata on all booking flows.
 
 ## Change Log
+- 2026-06-03: Event detail Crew conflict actionability improved. Assigned-person conflict notes now appear in the call-window column beside the personal call-window editor, so staff/admin can see the availability conflict and adjust that person's override from the same row without changing slot/default call-time rules.
+- 2026-06-03: Event detail Crew now surfaces assigned-person availability conflicts next to the assignee, using the same effective call-window conflict helper as Schedule Assign. Staff/admin can use the visible conflict context with the personal call-window editor without the system automatically changing assignment times.
+- 2026-06-03: Event detail Crew now displays effective slot and personal call windows using assignment > slot > default precedence. Staff/admin can edit and clear call-window overrides from the Crew table; students see read-only effective call windows.
+- 2026-06-03: Schedule source freshness signal shipped for staff/admin web workflows. `/schedule` now distinguishes manual visible events, imported visible events, fresh calendar feeds, stale/never-synced feeds, disabled feeds, source errors, and source-status load failures while leaving calendar sync semantics unchanged.
+- 2026-06-02: Manual multi-day all-day event support shipped for web. Schedule New Event now previews inclusive all-day ranges such as `Jul 7-8`, calendar-event and shift-group reads use overlap windows, month/week schedule views render the same event on each covered date, list/detail labels show the full all-day span, and ICS/calendar-source sync semantics remain unchanged.
+- 2026-06-02: Calendar sync health escalation shipped. Daily morning-refresh now records per-source consecutive hard sync failures, reports hard sync errors in the cron response, notifies active admins in-app starting at 3 consecutive daily hard failures, and exposes the repeated-failure count through Admin Fix Today.
+- 2026-06-02: Calendar Sources manual-sync trust pass. The deployed sync baseline is documented as daily `morning-refresh` plus on-demand manual sync, and the Settings surface now reports feed errors and event/shift outcomes instead of showing a generic success toast for failed external syncs.
 - 2026-05-25: Web bug sweep Batch 60 hardened the event travel roster picker. Sport-roster load failures now render a retryable error inside the Add traveler popover instead of falling through to the "all roster members already added" empty state.
 - 2026-05-25: Web bug sweep Batch 58 cleaned up event travel roster display. Traveler role badges now use product labels and repeated default/add/remove controls include the user name in their accessible action labels.
 - 2026-05-25: Web bug sweep hardened the Schedule New Event sheet. Location loading and event-create reads now use shared safe response parsing, malformed create responses surface an explicit refresh-before-continuing error, and start/end time fields expose stable form metadata.

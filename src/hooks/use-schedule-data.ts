@@ -11,6 +11,11 @@ import type {
 import { getMonday, userHasShift, LS_VIEW_MODE, LS_MY_SHIFTS } from "@/app/(app)/schedule/_components/types";
 import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 import { calendarDate } from "@/lib/format";
+import {
+  buildScheduleSourceSignal,
+  type CalendarSourceFreshnessInput,
+  type ScheduleSourceSignal,
+} from "@/lib/calendar-source-freshness";
 import type { VenueFilter } from "@/lib/venue-tone";
 
 export type ViewMode = "list" | "calendar" | "week";
@@ -56,6 +61,7 @@ export type UseScheduleDataResult = {
   tradeSheetOpen: boolean;
   setTradeSheetOpen: (v: boolean) => void;
   loadTradeCount: () => void;
+  sourceSignal: ScheduleSourceSignal | null;
   selectedGroupId: string | null;
   setSelectedGroupId: (id: string | null) => void;
   expandedRowId: string | null;
@@ -170,6 +176,18 @@ async function fetchTradeCount(): Promise<number> {
   return typeof j?.total === "number" ? j.total : j?.data?.length ?? 0;
 }
 
+async function fetchCalendarSources(signal?: AbortSignal): Promise<CalendarSourceFreshnessInput[]> {
+  const res = await fetch("/api/calendar-sources", { signal });
+  if (handleAuthRedirect(res, "/schedule")) {
+    throw new DOMException("Auth redirect", "AbortError");
+  }
+  if (!res.ok) throw new Error("calendar sources fetch failed");
+
+  const json = await parseJsonSafely<{ data?: CalendarSourceFreshnessInput[] }>(res);
+  if (!json?.data) throw new Error("calendar sources response malformed");
+  return json.data;
+}
+
 export function useScheduleData(): UseScheduleDataResult {
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
@@ -222,6 +240,7 @@ export function useScheduleData(): UseScheduleDataResult {
   const { data: meData } = useCurrentUser();
   const currentUserId = meData?.id ?? "";
   const currentUserRole = meData?.role ?? "STUDENT";
+  const canViewSourceStatus = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
 
   // Set default myShiftsOnly for students
   useEffect(() => {
@@ -235,6 +254,18 @@ export function useScheduleData(): UseScheduleDataResult {
   const { data: tradeCount = 0, refetch: refetchTrades } = useQuery({
     queryKey: ["shift-trades", "OPEN", "count"],
     queryFn: fetchTradeCount,
+  });
+
+  const {
+    data: calendarSources = [],
+    isLoading: sourceStatusLoading,
+    error: sourceStatusError,
+    refetch: refetchSources,
+  } = useQuery({
+    queryKey: ["calendar-sources", "schedule-source-signal"],
+    queryFn: ({ signal }) => fetchCalendarSources(signal),
+    enabled: canViewSourceStatus,
+    staleTime: 60_000,
   });
 
   // --- React Query: schedule entries ---
@@ -295,9 +326,21 @@ export function useScheduleData(): UseScheduleDataResult {
 
   const hasFilters = !!(sportFilter || areaFilter || coverageFilter || homeAwayFilter !== "all" || includePast || includeArchived || myShiftsOnly);
 
+  const sourceSignal = useMemo(() => {
+    if (!canViewSourceStatus) return null;
+    const status = sourceStatusLoading && calendarSources.length === 0
+      ? "loading"
+      : sourceStatusError && calendarSources.length === 0
+        ? "unavailable"
+        : "ready";
+    return buildScheduleSourceSignal(filteredEntries, calendarSources, { status });
+  }, [calendarSources, canViewSourceStatus, filteredEntries, sourceStatusError, sourceStatusLoading]);
+
   const loadData = useCallback(async () => {
-    await refetchSchedule();
-  }, [refetchSchedule]);
+    const tasks: Promise<unknown>[] = [refetchSchedule()];
+    if (canViewSourceStatus) tasks.push(refetchSources());
+    await Promise.allSettled(tasks);
+  }, [canViewSourceStatus, refetchSchedule, refetchSources]);
 
   return {
     entries: visibleEntries,
@@ -344,6 +387,7 @@ export function useScheduleData(): UseScheduleDataResult {
     tradeSheetOpen,
     setTradeSheetOpen,
     loadTradeCount: refetchTrades,
+    sourceSignal,
     selectedGroupId,
     setSelectedGroupId,
     expandedRowId,

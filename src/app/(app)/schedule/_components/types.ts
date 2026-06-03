@@ -16,7 +16,7 @@ export type CalendarEvent = {
   isHome: boolean | null;
   subtitle: string | null;
   location: { id: string; name: string } | null;
-  source: { name: string } | null;
+  source: { id: string; name: string } | null;
 };
 
 export type ShiftUser = {
