@@ -21,6 +21,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
+import { getBookingCancelCopy, getReservationConvertCopy } from "@/hooks/booking-action-copy";
 import { statusBadgeVariant, statusLabel } from "./booking-details/helpers";
 import { toLocalDateTimeValue } from "./booking-details/helpers";
 import {
@@ -28,6 +29,12 @@ import {
   BookingEditForm,
   BookingItems,
 } from "./booking-details";
+import {
+  auditHistoryFailureMessage,
+  auditHistoryRecoveryAction,
+  type AuditHistoryRecoveryAction,
+  normalizeAuditHistoryPage,
+} from "./booking-details/audit-history";
 import dynamic from "next/dynamic";
 import type { PickerBulkSku } from "@/components/EquipmentPicker";
 const EquipmentPicker = dynamic(() => import("@/components/EquipmentPicker"), { ssr: false });
@@ -135,6 +142,8 @@ export default function BookingDetailsSheet({
   const [auditLogCursor, setAuditLogCursor] = useState<string | null>(null);
   const [hasMoreAuditLogs, setHasMoreAuditLogs] = useState(false);
   const [loadingMoreAuditLogs, setLoadingMoreAuditLogs] = useState(false);
+  const [auditLoadError, setAuditLoadError] = useState<string | null>(null);
+  const [auditLoadRecovery, setAuditLoadRecovery] = useState<AuditHistoryRecoveryAction>("retry");
 
   const [fetchError, setFetchError] = useState(false);
 
@@ -179,6 +188,8 @@ export default function BookingDetailsSheet({
           setExtraAuditLogs([]);
           setAuditLogCursor(json.data.auditLogNextCursor ?? null);
           setHasMoreAuditLogs(json.data.hasMoreAuditLogs ?? false);
+          setAuditLoadError(null);
+          setAuditLoadRecovery("retry");
         }
       } else {
         if (!opts?.silent) setFetchError(true);
@@ -236,10 +247,18 @@ export default function BookingDetailsSheet({
 
   /* ───── Audit log load-more ───── */
 
+  const showAuditHistoryFailure = useCallback((status?: number) => {
+    const message = auditHistoryFailureMessage(status);
+    setAuditLoadRecovery(auditHistoryRecoveryAction(status));
+    setAuditLoadError(message);
+    toast.error(message);
+  }, []);
+
   const loadMoreAuditLogs = useCallback(async () => {
     if (!bookingId || !auditLogCursor || auditBusyRef.current) return;
     auditBusyRef.current = true;
     setLoadingMoreAuditLogs(true);
+    setAuditLoadError(null);
     try {
       const res = await fetchWithTimeout(
         `/api/bookings/${bookingId}/audit-logs?cursor=${encodeURIComponent(auditLogCursor)}`
@@ -247,17 +266,24 @@ export default function BookingDetailsSheet({
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
         const json = await parseJsonSafely<ApiEnvelope<BookingDetail["auditLogs"]>>(res);
-        setExtraAuditLogs((prev) => [...prev, ...(json?.data ?? [])]);
-        setAuditLogCursor(json?.nextCursor ?? null);
-        setHasMoreAuditLogs(json?.hasMore ?? false);
+        const page = normalizeAuditHistoryPage(json);
+        if (!page) {
+          showAuditHistoryFailure(res.status);
+          return;
+        }
+        setExtraAuditLogs((prev) => [...prev, ...page.entries]);
+        setAuditLogCursor(page.nextCursor);
+        setHasMoreAuditLogs(page.hasMore);
+      } else {
+        showAuditHistoryFailure(res.status);
       }
     } catch {
-      toast.error("Could not load older history. The visible activity is still current.");
+      showAuditHistoryFailure();
     } finally {
       auditBusyRef.current = false;
       setLoadingMoreAuditLogs(false);
     }
-  }, [bookingId, auditLogCursor]);
+  }, [bookingId, auditLogCursor, showAuditHistoryFailure]);
 
   /* ───── Derived state ───── */
 
@@ -489,10 +515,11 @@ export default function BookingDetailsSheet({
   async function handleCancel() {
     if (!booking || cancelBusyRef.current) return;
     const typeLabel = booking.kind === "RESERVATION" ? "reservation" : "checkout";
+    const copy = getBookingCancelCopy(booking.kind, booking.title);
     const ok = await confirm({
-      title: `Cancel ${typeLabel}?`,
-      message: `Cancel "${booking.title}" and release its reserved equipment. The record stays in history, but the ${typeLabel} cannot be reopened.`,
-      confirmLabel: `Cancel ${typeLabel}`,
+      title: copy.title,
+      message: copy.message,
+      confirmLabel: copy.confirmLabel,
       variant: "danger",
     });
     if (!ok) return;
@@ -503,7 +530,7 @@ export default function BookingDetailsSheet({
       const res = await fetchWithTimeout(`/api/bookings/${booking.id}/cancel`, { method: "POST" });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        toast.success(`${typeLabel.charAt(0).toUpperCase() + typeLabel.slice(1)} cancelled`);
+        toast.success(copy.success);
         await fetchBooking({ silent: true });
         onUpdated?.();
       } else {
@@ -520,10 +547,11 @@ export default function BookingDetailsSheet({
 
   async function handleConvert() {
     if (!booking || convertBusyRef.current) return;
+    const copy = getReservationConvertCopy(booking.title);
     const ok = await confirm({
-      title: "Start checkout from reservation?",
-      message: `Create a checkout from "${booking.title}" and close the reservation record. Gear custody still begins at kiosk pickup.`,
-      confirmLabel: "Start checkout",
+      title: copy.title,
+      message: copy.message,
+      confirmLabel: copy.confirmLabel,
     });
     if (!ok) return;
 
@@ -535,12 +563,12 @@ export default function BookingDetailsSheet({
       if (res.ok) {
         const json = await parseJsonSafely<ConvertResponse>(res);
         if (!json?.data?.id) {
-          toast.error("Checkout started, but the response did not include a checkout link. Refresh the page.");
+          toast.error(copy.missingLinkError);
           await fetchBooking({ silent: true });
           onUpdated?.();
           return;
         }
-        toast.success("Converted to checkout");
+        toast.success(copy.success, { description: copy.successDescription });
         onUpdated?.();
         onClose();
         router.push(`/checkouts/${json.data.id}`);
@@ -828,6 +856,31 @@ export default function BookingDetailsSheet({
               <div ref={historySectionRef} data-booking-sheet-section="history" className="bg-background">
                 <SectionHead label="History" />
                 <div className="px-6 py-4">
+                  {auditLoadError && (
+                    <Alert variant="destructive" className="mb-3">
+                      <AlertDescription className="flex items-start justify-between gap-3">
+                        <span>{auditLoadError}</span>
+                        {(auditLoadRecovery === "refresh" || (hasMoreAuditLogs && auditLogCursor)) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={loadingMoreAuditLogs}
+                            onClick={
+                              auditLoadRecovery === "refresh"
+                                ? () => fetchBooking({ silent: true })
+                                : loadMoreAuditLogs
+                            }
+                          >
+                            {loadingMoreAuditLogs
+                              ? "Retrying..."
+                              : auditLoadRecovery === "refresh"
+                                ? "Refresh"
+                                : "Retry"}
+                          </Button>
+                        )}
+                      </AlertDescription>
+                    </Alert>
+                  )}
                   <ActivityTimeline
                     entries={allAuditLogs}
                     context="booking"

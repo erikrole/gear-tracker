@@ -16,6 +16,7 @@ import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useFormOptions } from "@/hooks/use-form-options";
+import { applyBookingItemsUpdate } from "@/components/booking-list/list-recovery";
 
 import {
   SortHeader,
@@ -149,9 +150,7 @@ export default function BookingListPage({
   /** Optimistic update helper — mutates the cached list data */
   const setItems = (updater: BookingItem[] | ((prev: BookingItem[]) => BookingItem[])) => {
     queryClient.setQueryData<ListResponse>(["bookingList", config.kind, listUrl], (prev) => {
-      if (!prev) return prev;
-      const newItems = typeof updater === "function" ? updater(prev.data ?? []) : updater;
-      return { ...prev, data: newItems };
+      return applyBookingItemsUpdate(prev, updater);
     });
   };
 

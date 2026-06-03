@@ -87,7 +87,7 @@ export const POST = withAuth(async (req, { user }) => {
   let effectiveLocationId = body.locationId;
   let sportCode = body.sportCode;
 
-  if (body.sportCode && !body.eventId) {
+  if (body.sportCode && !body.eventId && (!body.eventIds || body.eventIds.length === 0)) {
     const defaults = await resolveEventDefaults(body.sportCode);
     if (defaults.eventId) {
       eventId = defaults.eventId;

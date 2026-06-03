@@ -426,8 +426,6 @@ export default function BookingDetailPage({
         <div>
           <BookingEquipmentTab
             booking={booking}
-            onCheckinBulk={actions.checkinBulk}
-            actionLoading={actions.actionLoading}
           />
         </div>
       </div>

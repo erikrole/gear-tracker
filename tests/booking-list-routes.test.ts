@@ -11,6 +11,20 @@ vi.mock("@/lib/services/bookings", () => ({
   listBookings: vi.fn(),
 }));
 
+vi.mock("@/lib/db", () => ({
+  db: {
+    booking: {
+      count: vi.fn(),
+    },
+    bulkStockBalance: {
+      findMany: vi.fn(),
+    },
+    bulkSku: {
+      findMany: vi.fn(),
+    },
+  },
+}));
+
 vi.mock("@/lib/audit", () => ({
   createAuditEntry: vi.fn(),
 }));
@@ -20,8 +34,19 @@ vi.mock("@/lib/services/notifications", () => ({
   notifyLowStock: vi.fn(),
 }));
 
+vi.mock("@/lib/services/checkout-policies", () => ({
+  loadCheckoutPolicies: vi.fn(),
+}));
+
+vi.mock("@/lib/services/event-defaults", () => ({
+  resolveEventDefaults: vi.fn(),
+}));
+
 import { requireAuth } from "@/lib/auth";
+import { db } from "@/lib/db";
 import { createBooking, listBookings } from "@/lib/services/bookings";
+import { loadCheckoutPolicies } from "@/lib/services/checkout-policies";
+import { resolveEventDefaults } from "@/lib/services/event-defaults";
 import { POST as postCheckouts } from "@/app/api/checkouts/route";
 import { GET as getReservations, POST as postReservations } from "@/app/api/reservations/route";
 
@@ -60,10 +85,29 @@ function malformedPost(path: string) {
   });
 }
 
+function post(path: string, body: Record<string, unknown>) {
+  return new Request(`https://app.example.com${path}`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      host: "app.example.com",
+      origin: "https://app.example.com",
+    },
+    body: JSON.stringify(body),
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(requireAuth).mockResolvedValue(adminUser);
   vi.mocked(listBookings).mockResolvedValue({ data: [], total: 0, limit: 20, offset: 0 } as never);
+  vi.mocked(loadCheckoutPolicies).mockResolvedValue({
+    defaultLoanDays: 2,
+    gracePeriodHours: 1,
+    maxItemsPerUser: null,
+  });
+  vi.mocked(db.booking.count).mockResolvedValue(0);
+  vi.mocked(createBooking).mockResolvedValue({ id: "booking-1", title: "Event kit", bulkItems: [] } as never);
 });
 
 describe("booking list routes", () => {
@@ -158,5 +202,37 @@ describe("booking list routes", () => {
     expect(res.status).toBe(400);
     expect(body.error).toBe("Request body must be valid JSON");
     expect(createBooking).not.toHaveBeenCalled();
+  });
+
+  it("preserves explicit checkout eventIds instead of synthesizing a legacy eventId", async () => {
+    const res = await postCheckouts(
+      post("/api/checkouts", {
+        title: "Event kit",
+        requesterUserId: "cm000000000000000000000001",
+        locationId: "cm000000000000000000000002",
+        startsAt: "2026-07-01T12:00:00.000Z",
+        endsAt: "2026-07-01T18:00:00.000Z",
+        serializedAssetIds: ["cm000000000000000000000003"],
+        eventIds: [
+          "cm000000000000000000000004",
+          "cm000000000000000000000005",
+        ],
+        sportCode: "MBB",
+      }),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(res.status).toBe(201);
+    expect(resolveEventDefaults).not.toHaveBeenCalled();
+    expect(createBooking).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventId: undefined,
+        eventIds: [
+          "cm000000000000000000000004",
+          "cm000000000000000000000005",
+        ],
+        sportCode: "MBB",
+      }),
+    );
   });
 });

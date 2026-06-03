@@ -76,6 +76,21 @@ export const POST = withKiosk<{ id: string }>(async (req, { params }) => {
     return ok({ success: false, error });
   }
 
+  const existingScan = await db.scanEvent.findFirst({
+    where: {
+      bookingId: activeBooking.id,
+      phase: "CHECKOUT",
+      success: true,
+      assetId: asset.id,
+    },
+    select: { id: true },
+  });
+  if (existingScan) {
+    const label = asset.name || asset.assetTag;
+    await emitScanResult({ ok: false, errorCode: "duplicate" });
+    return ok({ success: false, error: `${label} already scanned`, errorCode: "duplicate" });
+  }
+
   const event = await db.scanEvent.create({
     data: {
       bookingId: activeBooking.id,

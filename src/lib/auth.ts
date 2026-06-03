@@ -19,9 +19,7 @@ export type AuthUser = {
 
 const SESSION_12H_MS = 1000 * 60 * 60 * 12;
 const SESSION_30D_MS = 1000 * 60 * 60 * 24 * 30;
-// Kiosk sessions never expire server-side; the cookie is rolled forward on every
-// authenticated kiosk request to stay under browser cookie-lifetime caps (~400d).
-const KIOSK_COOKIE_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 395;
+const KIOSK_SESSION_MS = 1000 * 60 * 60 * 24 * 7;
 export const LAST_ACTIVE_REFRESH_MS = 1000 * 60 * 5;
 
 export async function tokenHash(token: string): Promise<string> {
@@ -162,18 +160,19 @@ export type KioskContext = {
 
 /**
  * Create a kiosk session. Called after activation code is validated.
- * The session has no server-side expiry — it stays valid until an admin
- * deactivates the device. The HTTP-only cookie is rolled forward on each request.
+ * The session expires server-side after seven days and is also bounded by the
+ * HTTP-only cookie expiry. Admin deactivation can revoke it earlier.
  */
 export async function createKioskSession(kioskId: string): Promise<string> {
   const raw = randomHex(64);
   const hashed = await tokenHash(raw);
+  const expiresAt = new Date(Date.now() + KIOSK_SESSION_MS);
 
   await db.kioskDevice.update({
     where: { id: kioskId },
     data: {
       sessionToken: hashed,
-      sessionExpiresAt: null,
+      sessionExpiresAt: expiresAt,
       activatedAt: new Date(),
       lastSeenAt: new Date(),
     },
@@ -185,7 +184,7 @@ export async function createKioskSession(kioskId: string): Promise<string> {
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
     path: "/",
-    expires: new Date(Date.now() + KIOSK_COOKIE_MAX_AGE_MS),
+    expires: expiresAt,
   });
 
   return raw;
@@ -217,21 +216,30 @@ export async function requireKiosk(): Promise<KioskContext> {
     throw new HttpError(401, "Kiosk device deactivated");
   }
 
-  // Roll the cookie forward so a bound kiosk never expires on its own. The
-  // session ends only when an admin deactivates the device (clearing sessionToken).
-  // Re-issuing on every request keeps the cookie under browser lifetime caps.
+  const now = new Date();
+  if (!device.sessionExpiresAt || device.sessionExpiresAt <= now) {
+    await db.kioskDevice.update({
+      where: { id: device.id },
+      data: { sessionToken: null, sessionExpiresAt: null },
+    });
+    cookieStore.delete(KIOSK_COOKIE);
+    throw new HttpError(401, "Kiosk session expired");
+  }
+
+  // Keep the browser cookie aligned to the server-side session expiry instead
+  // of silently extending custody authority past the DB trust window.
   cookieStore.set(KIOSK_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
     path: "/",
-    expires: new Date(Date.now() + KIOSK_COOKIE_MAX_AGE_MS),
+    expires: device.sessionExpiresAt,
   });
 
   // Update last seen (fire and forget — don't block the request)
-  db.kioskDevice
-    .update({ where: { id: device.id }, data: { lastSeenAt: new Date() } })
-    .catch(() => {});
+  Promise.resolve(
+    db.kioskDevice.update({ where: { id: device.id }, data: { lastSeenAt: now } }),
+  ).catch(() => {});
 
   return {
     kioskId: device.id,

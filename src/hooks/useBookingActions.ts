@@ -6,6 +6,7 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
+import { getBookingCancelCopy, getReservationConvertCopy } from "@/hooks/booking-action-copy";
 
 type ActionResult = { ok: boolean; error?: string };
 
@@ -65,11 +66,11 @@ export function useBookingActions(
   }
 
   const cancel = useCallback(async () => {
-    const label = kind === "CHECKOUT" ? "checkout" : "reservation";
+    const copy = getBookingCancelCopy(kind);
     const ok = await confirm({
-      title: `Cancel ${label}`,
-      message: `This will return all equipment to available inventory and unblock other bookings.`,
-      confirmLabel: `Cancel ${label}`,
+      title: copy.title,
+      message: copy.message,
+      confirmLabel: copy.confirmLabel,
       variant: "danger",
     });
     if (!ok) return;
@@ -77,7 +78,7 @@ export function useBookingActions(
     try {
       const result = await callAction(`/api/bookings/${bookingId}/cancel`);
       if (result.ok) {
-        toast.success(`${label.charAt(0).toUpperCase() + label.slice(1)} cancelled`);
+        toast.success(copy.success);
         onSuccess();
       } else {
         toast.error(result.error!);
@@ -111,18 +112,18 @@ export function useBookingActions(
   );
 
   const convert = useCallback(async () => {
+    const copy = getReservationConvertCopy();
     const ok = await confirm({
-      title: "Convert to checkout",
-      message:
-        "Convert this reservation to a checkout? The reservation will be cancelled and a new checkout created with the same items.",
-      confirmLabel: "Start checkout",
+      title: copy.title,
+      message: copy.message,
+      confirmLabel: copy.confirmLabel,
     });
     if (!ok) return;
     if (!guardStart("convert")) return;
     try {
       const result = await callAction(`/api/reservations/${bookingId}/convert`);
       if (result.ok) {
-        toast.success("Reservation converted to active checkout");
+        toast.success(copy.success, { description: copy.successDescription });
         const checkoutId = (result as { data?: { id?: string } }).data?.id;
         router.push(checkoutId ? `/checkouts/${checkoutId}` : "/checkouts");
       } else {

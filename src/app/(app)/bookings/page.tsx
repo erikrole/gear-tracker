@@ -161,6 +161,8 @@ export default function BookingsPage() {
             toast.error(msg);
           } else {
             toast.success("Checkout cancelled");
+            setItems?.((list) => list.filter((i) => i.id !== bookingId));
+            void reload();
           }
         } catch (err) {
           if (isAbortError(err)) return;
@@ -262,6 +264,8 @@ export default function BookingsPage() {
             toast.error(msg);
           } else {
             toast.success("Reservation cancelled");
+            setItems?.((list) => list.filter((i) => i.id !== bookingId));
+            void reload();
           }
         } catch (err) {
           if (isAbortError(err)) return;

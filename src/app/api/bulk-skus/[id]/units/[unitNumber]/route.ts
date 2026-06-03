@@ -1,4 +1,4 @@
-import { BulkUnitStatus, Prisma } from "@prisma/client";
+import { BulkMovementKind, BulkUnitStatus, Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
@@ -20,10 +20,10 @@ export const PATCH = withAuth<{ id: string; unitNumber: string }>(async (req, { 
     });
     if (!unit) throw new HttpError(404, "Unit not found");
 
-    if (unit.status === BulkUnitStatus.CHECKED_OUT && body.status !== "AVAILABLE") {
+    if (unit.status === BulkUnitStatus.CHECKED_OUT) {
       throw new HttpError(
         409,
-        "Cannot mark a checked-out unit as lost/retired. Check it in first."
+        "Cannot change a checked-out unit. Check it in first."
       );
     }
 
@@ -41,25 +41,40 @@ export const PATCH = withAuth<{ id: string; unitNumber: string }>(async (req, { 
     const wasAvailable = unit.status === BulkUnitStatus.AVAILABLE;
     const isAvailable = body.status === "AVAILABLE";
 
-    if (wasAvailable && !isAvailable) {
+    const availabilityChanged = wasAvailable !== isAvailable;
+    if (availabilityChanged) {
       const sku = await tx.bulkSku.findUniqueOrThrow({ where: { id } });
-      await tx.bulkStockBalance.update({
-        where: {
-          bulkSkuId_locationId: { bulkSkuId: id, locationId: sku.locationId }
-        },
-        data: { onHandQuantity: { decrement: 1 } }
+      const reason = body.reason ?? `Unit #${unitNumber} marked ${body.status.toLowerCase()}`;
+
+      await tx.bulkStockMovement.create({
+        data: {
+          bulkSkuId: id,
+          locationId: sku.locationId,
+          actorUserId: user.id,
+          kind: BulkMovementKind.ADJUSTMENT,
+          quantity: 1,
+          reason,
+        }
       });
-    } else if (!wasAvailable && isAvailable) {
-      const sku = await tx.bulkSku.findUniqueOrThrow({ where: { id } });
-      await tx.bulkStockBalance.update({
-        where: {
-          bulkSkuId_locationId: { bulkSkuId: id, locationId: sku.locationId }
-        },
-        data: { onHandQuantity: { increment: 1 } }
-      });
+
+      if (wasAvailable && !isAvailable) {
+        await tx.bulkStockBalance.update({
+          where: {
+            bulkSkuId_locationId: { bulkSkuId: id, locationId: sku.locationId }
+          },
+          data: { onHandQuantity: { decrement: 1 } }
+        });
+      } else {
+        await tx.bulkStockBalance.update({
+          where: {
+            bulkSkuId_locationId: { bulkSkuId: id, locationId: sku.locationId }
+          },
+          data: { onHandQuantity: { increment: 1 } }
+        });
+      }
     }
 
-    return { before, updated };
+    return { before, updated, reason: body.reason ?? null };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
   await createAuditEntry({
@@ -69,7 +84,7 @@ export const PATCH = withAuth<{ id: string; unitNumber: string }>(async (req, { 
     entityId: `${id}#${unitNumber}`,
     action: "update_status",
     before: result.before,
-    after: { status: result.updated.status, notes: result.updated.notes },
+    after: { status: result.updated.status, notes: result.updated.notes, reason: result.reason },
   });
 
   return ok({ data: result.updated });

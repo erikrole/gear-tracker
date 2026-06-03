@@ -4,7 +4,7 @@
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Status: Shipped — iOS canonical (web kiosk deprecated 2026-04-24)
 - Created: 2026-04-07
-- Last Updated: 2026-05-13
+- Last Updated: 2026-06-02
 - Brief: `BRIEF_KIOSK.md`
 - Decision Refs: D-030
 
@@ -72,7 +72,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 | AC-3 | Idle screen with live stats | ✅ Complete |
 | AC-4 | Checkout in ≤3 taps | ✅ Complete |
 | AC-5 | Hand scanner input | ✅ Complete |
-| AC-6 | Camera + manual fallbacks | ✅ Complete (camera added 2026-04-24, manual entry pending — see GAPS) |
+| AC-6 | Camera + manual fallbacks | ✅ Complete |
 | AC-7 | Return flow | ✅ Complete |
 | AC-8 | Scan lookup | ✅ Complete |
 | AC-9 | 5-min inactivity timeout (with mid-flow protection) | ✅ Complete |
@@ -87,7 +87,6 @@ Files under `ios/Wisconsin/Kiosk/`:
 
 ## Known Gaps
 
-- Manual tag entry path (the third leg of AC-6) is not yet exposed in the iOS UI. Camera fallback covers most "scanner unavailable" cases. Track for a follow-up sprint.
 - No search / first-letter filter on the avatar grid. Acceptable for ≤30-student locations; revisit on larger-roster rollouts.
 - No "wrong person" undo path inside kiosk — admin must fix from web. Acceptable for V1.
 - Activation code rotation lifecycle: once a device is activated and its cookie is intact, the original code is no longer needed; if cookie is wiped admin must regenerate from Settings → Kiosk Devices.
@@ -113,3 +112,5 @@ Files under `ios/Wisconsin/Kiosk/`:
 | 2026-05-13 | Battery follow-through: kiosk checkout detail now marks numbered battery rows with type/SKU/unit metadata and a scan summary. iOS pickup and return screens show a dedicated battery-unit scan progress card so students know to scan each numbered battery label. |
 | 2026-05-13 | Battery-unit scan clarity: native pickup and return screens now show required/scanned battery unit counts, exact scanned/returned unit chips, and clearer disabled pickup-confirm guidance when unit scans are still missing. |
 | 2026-05-15 | Kiosk device cockpit added to Settings → Kiosk Devices. Each device card now shows a live status dot (online/recent/offline), pending pickup count with a clear-pickup repair dialog, active checkout count, and session expiry warning. The `/api/kiosk-devices` GET response is enriched with `pendingPickupCount`, `openCheckoutCount`, `sessionExpiresAt`, and a `pendingPickups` list so admins can cancel stuck PENDING_PICKUP bookings directly from the settings page. |
+| 2026-05-30 | Battery scan recovery hardening: the native kiosk camera fallback now includes typed barcode/unit-QR entry, including camera-denied and camera-unsupported states. Typed values still go through the same pickup/return scan APIs, preserving exact numbered battery custody while giving staff a recovery path when HID scanning, camera scanning, or label readability fails. |
+| 2026-06-02 | Custody confidence slice 3: serialized pickup scans now return explicit duplicate feedback instead of writing another successful scan event for the same asset, pickup confirmation now validates scan evidence and performs the `PENDING_PICKUP` -> `OPEN` transition plus kiosk audit inside one `SERIALIZABLE` transaction with a status-guarded update, and kiosk session activation again persists the same 7-day `sessionExpiresAt` used by the cookie and enforced by `requireKiosk()`. |

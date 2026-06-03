@@ -3,14 +3,17 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 const mocks = vi.hoisted(() => ({
   bookingFindUnique: vi.fn(),
   bookingUpdate: vi.fn(),
+  bookingUpdateMany: vi.fn(),
   bookingSerializedItemFindUnique: vi.fn(),
+  scanEventFindFirst: vi.fn(),
   scanEventCreate: vi.fn(),
   transaction: vi.fn(),
   userFindUnique: vi.fn(),
-  createAuditEntry: vi.fn(),
+  createAuditEntryTx: vi.fn(),
   findAssetByScanValue: vi.fn(),
   scanKioskPickupBulkUnit: vi.fn(),
   badgeOnScanResult: vi.fn(),
+  badgeOnCheckoutOpened: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -18,11 +21,13 @@ vi.mock("@/lib/db", () => ({
     booking: {
       findUnique: mocks.bookingFindUnique,
       update: mocks.bookingUpdate,
+      updateMany: mocks.bookingUpdateMany,
     },
     bookingSerializedItem: {
       findUnique: mocks.bookingSerializedItemFindUnique,
     },
     scanEvent: {
+      findFirst: mocks.scanEventFindFirst,
       create: mocks.scanEventCreate,
     },
     user: {
@@ -45,7 +50,7 @@ vi.mock("@/lib/api", () => ({
 }));
 
 vi.mock("@/lib/audit", () => ({
-  createAuditEntry: mocks.createAuditEntry,
+  createAuditEntryTx: mocks.createAuditEntryTx,
 }));
 
 vi.mock("@/lib/services/kiosk-scan", () => ({
@@ -59,7 +64,7 @@ vi.mock("@/lib/services/bulk-unit-scans", () => ({
 vi.mock("@/lib/badges", () => ({
   badges: {
     onScanResult: mocks.badgeOnScanResult,
-    onCheckoutOpened: vi.fn(),
+    onCheckoutOpened: mocks.badgeOnCheckoutOpened,
   },
 }));
 
@@ -69,7 +74,17 @@ import { POST as confirmKioskPickup } from "@/app/api/kiosk/pickup/[id]/confirm/
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.transaction.mockImplementation((handler) => handler({}));
+  mocks.transaction.mockImplementation((handler) => handler({
+    booking: {
+      findUnique: mocks.bookingFindUnique,
+      updateMany: mocks.bookingUpdateMany,
+    },
+    user: {
+      findUnique: mocks.userFindUnique,
+    },
+  }));
+  mocks.bookingUpdateMany.mockResolvedValue({ count: 1 });
+  mocks.scanEventFindFirst.mockResolvedValue(null);
 });
 
 describe("kiosk checkout detail bulk units", () => {
@@ -256,6 +271,50 @@ describe("kiosk pickup serialized scan guard", () => {
     });
   });
 
+  it("returns duplicate feedback for repeated serialized pickup scans", async () => {
+    mocks.scanKioskPickupBulkUnit.mockResolvedValue({ handled: false });
+    mocks.bookingFindUnique.mockResolvedValue({
+      id: "booking-1",
+      status: "PENDING_PICKUP",
+      kind: "CHECKOUT",
+      requesterUserId: "user-1",
+    });
+    mocks.findAssetByScanValue.mockResolvedValue({
+      id: "asset-1",
+      assetTag: "FX3 1",
+      name: "FX3 1",
+    });
+    mocks.bookingSerializedItemFindUnique.mockResolvedValue({
+      id: "serialized-1",
+      bookingId: "booking-1",
+      assetId: "asset-1",
+    });
+    mocks.scanEventFindFirst.mockResolvedValue({ id: "scan-1" });
+
+    const res = await (scanKioskPickup as any)(new Request("http://test", {
+      method: "POST",
+      headers: { "user-agent": "vitest-kiosk" },
+      body: JSON.stringify({ scanValue: "23723854" }),
+    }), {
+      params: { id: "booking-1" },
+    });
+    const json = await res.json();
+
+    expect(json).toEqual({
+      success: false,
+      error: "FX3 1 already scanned",
+      errorCode: "duplicate",
+    });
+    expect(mocks.scanEventCreate).not.toHaveBeenCalled();
+    expect(mocks.badgeOnScanResult).toHaveBeenCalledWith(expect.objectContaining({
+      userId: "user-1",
+      bookingId: "booking-1",
+      phase: "pickup",
+      ok: false,
+      errorCode: "duplicate",
+    }));
+  });
+
   it("blocks pickup confirmation until all serialized items are scanned", async () => {
     mocks.userFindUnique.mockResolvedValue({ id: "user-1", name: "User", role: "STUDENT" });
     mocks.bookingFindUnique.mockResolvedValue({
@@ -278,7 +337,7 @@ describe("kiosk pickup serialized scan guard", () => {
       params: { id: "booking-1" },
     })).rejects.toThrow("Scan FX3 1 before confirming pickup");
 
-    expect(mocks.bookingUpdate).not.toHaveBeenCalled();
+    expect(mocks.bookingUpdateMany).not.toHaveBeenCalled();
   });
 
   it("allows pickup confirmation after serialized items are scanned", async () => {
@@ -295,8 +354,7 @@ describe("kiosk pickup serialized scan guard", () => {
       scanEvents: [{ assetId: "asset-1", phase: "CHECKOUT" }],
       bulkItems: [],
     });
-    mocks.bookingUpdate.mockResolvedValue({ id: "booking-1" });
-    mocks.createAuditEntry.mockResolvedValue({});
+    mocks.createAuditEntryTx.mockResolvedValue({});
 
     const res = await (confirmKioskPickup as any)(new Request("http://test", {
       method: "POST",
@@ -307,10 +365,52 @@ describe("kiosk pickup serialized scan guard", () => {
     const json = await res.json();
 
     expect(json.success).toBe(true);
-    expect(mocks.bookingUpdate).toHaveBeenCalledWith({
-      where: { id: "booking-1" },
+    expect(mocks.bookingUpdateMany).toHaveBeenCalledWith({
+      where: { id: "booking-1", status: "PENDING_PICKUP" },
       data: { status: "OPEN" },
     });
+    expect(mocks.createAuditEntryTx).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      actorId: "user-1",
+      action: "kiosk_pickup",
+      after: expect.objectContaining({
+        status: "OPEN",
+        source: "KIOSK",
+        kioskDeviceId: "kiosk-1",
+      }),
+    }));
+    expect(mocks.badgeOnCheckoutOpened).toHaveBeenCalledWith({
+      userId: "user-1",
+      bookingId: "booking-1",
+      source: "kiosk_pickup",
+      sourceKey: "booking-1",
+    });
+  });
+
+  it("blocks stale repeated pickup confirmation after another request opens it", async () => {
+    mocks.userFindUnique.mockResolvedValue({ id: "user-1", name: "User", role: "STUDENT" });
+    mocks.bookingFindUnique.mockResolvedValue({
+      id: "booking-1",
+      status: "PENDING_PICKUP",
+      kind: "CHECKOUT",
+      title: "Pickup",
+      serializedItems: [{
+        assetId: "asset-1",
+        asset: { assetTag: "FX3 1", name: "FX3 1" },
+      }],
+      scanEvents: [{ assetId: "asset-1", phase: "CHECKOUT" }],
+      bulkItems: [],
+    });
+    mocks.bookingUpdateMany.mockResolvedValue({ count: 0 });
+
+    await expect((confirmKioskPickup as any)(new Request("http://test", {
+      method: "POST",
+      body: JSON.stringify({ actorId: "user-1" }),
+    }), {
+      params: { id: "booking-1" },
+    })).rejects.toThrow("Pickup was already confirmed. Refresh this checkout.");
+
+    expect(mocks.createAuditEntryTx).not.toHaveBeenCalled();
+    expect(mocks.badgeOnCheckoutOpened).not.toHaveBeenCalled();
   });
 });
 
@@ -338,6 +438,6 @@ describe("kiosk pickup confirm bulk guard", () => {
       params: { id: "booking-1" },
     })).rejects.toThrow("Scan all Sony Battery units before confirming pickup");
 
-    expect(mocks.bookingUpdate).not.toHaveBeenCalled();
+    expect(mocks.bookingUpdateMany).not.toHaveBeenCalled();
   });
 });

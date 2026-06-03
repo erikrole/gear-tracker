@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Checkouts
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-25
+- Last Updated: 2026-06-03
 - Status: Active — V1 Shipped
 - Version: V1
 
@@ -18,6 +18,7 @@ Optimize handoff and return execution so daily operators can move fast without d
 5. Role and ownership controls follow `AREA_USERS.md`.
 6. `PENDING_PICKUP` checkout allocations block overlapping serialized-item reservations and checkouts because custody has not transferred yet but the gear is already committed.
 7. Booking windows are half-open for availability: a booking ending exactly when the next pickup/reservation starts is allowed; any overrun past that start time conflicts.
+8. Checkout creation is guarded at the shared service boundary: non-source creates require at least one equipment item, duplicate multi-event links and duplicate bulk lines are rejected, invalid windows fail before availability work, and DB overlap races return booking conflict responses.
 
 ## V1 Workflow
 
@@ -29,16 +30,19 @@ Multi-step wizard page (replaced the old side-sheet flow as of 2026-04-09):
 2. If no event: manual title + optional sport.
 3. Select requester (borrower), location, optional kit, start/end dates.
 4. Client-side validation: title, requester, location required; dates must be valid range.
+5. Context summary names whether the checkout is calendar-linked or ad hoc, shows selected event count, and previews the derived window and location before equipment selection.
 
 **Step 2 — Equipment:**
 1. Full `EquipmentPicker` with section tabs, search, availability conflict markers, QR scan-to-add.
 2. Equipment guidance warns about compatible battery availability and support gear. Battery units are selected by quantity here; kiosk pickup scans bind the actual numbered units.
 3. On mobile checkout: scan-first UI (camera open by default).
+4. Selection summary separates valid items, unavailable stale selections, hard conflicts, next-use notices, and turnaround warnings.
 
 **Step 3 — Confirmation:**
 1. Full summary with thumbnails, equipment list, kiosk pickup notice.
 2. Submit → POST `/api/checkouts`. 409 conflicts shown inline (returns to Step 2).
 3. Checkout is created with status `PENDING_PICKUP`. Gear must be picked up at a kiosk — no desktop/phone scanning allowed.
+4. Confirmation repeats selected availability warnings and submit copy explains that hard conflicts are rechecked before creation.
 
 **Deep-link parameters:** `?title`, `?startsAt`, `?endsAt`, `?locationId`, `?newFor` (pre-select asset), `?eventId`, `?sportCode`, `?requesterUserId`, `?draftId`.
 
@@ -58,7 +62,7 @@ Multi-step wizard page (replaced the old side-sheet flow as of 2026-04-09):
 1. Partial check-in allowed for multi-item allocations.
 2. Checkout remains `OPEN` until all allocated items are returned.
 3. Auto-transition to `COMPLETED` when full return is confirmed.
-4. **Scan-to-return** available in BookingDetailsSheet Equipment tab — inline camera with audio/haptic feedback, local QR lookup (zero API round-trip), celebration on all items returned.
+4. Standard return execution is kiosk-owned. Web detail surfaces return progress and admin override controls only where explicitly gated; it must not present desktop return buttons as the normal custody path.
 
 ### Cancel Checkout
 1. Allowed only by policy and role.
@@ -197,11 +201,11 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 - "Due back" countdown rendered as urgency-colored Badge (red/orange/yellow/neutral)
 - Action buttons: `[Actions ▼] [Edit] [Extend]` for app-owned actions. Custody pickup/return scans happen at the kiosk.
 - Actions dropdown contains: Nudge borrower, Force complete, Duplicate, and Cancel when each action is allowed. It must not link to `/scan?checkout=...`.
-- Equipment tab auto-selects all returnable items with Select all / Clear selection toggle
-- Equipment rows show hover-reveal "..." menu (View item, Select for return)
+- Equipment tab shows returned progress and item context, but standard return execution remains at the kiosk.
+- Equipment rows show hover-reveal "..." menu (View item)
 - Checkin progress bar in equipment header: `████░░░░ 12/30 returned`
 - Optimistic UI: returned items show immediately before API confirms
-- Success toasts on all actions (extend, return, cancel, complete)
+- Success toasts on all web-owned actions (extend, cancel, complete/admin override)
 - Returned items show green checkmark and muted row background
 - Breadcrumb handled by global `PageBreadcrumb` in AppShell (no duplicate)
 
@@ -285,6 +289,16 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 5. Add regression coverage for race conditions, partial returns, and permission bypass attempts.
 
 ## Change Log
+- 2026-06-03: iOS active Checkouts list contract aligned with web and this area spec. `APIClient.checkouts(activeOnly: true)` now requests `status_in=OPEN,PENDING_PICKUP` so awaiting-pickup checkouts stay visible in the native Checkouts work queue instead of only appearing on Home or kiosk surfaces. No server contract change required.
+- 2026-06-02: Manual multi-day all-day event linkage support shipped for checkout creation. Linked all-day events now keep their manual summary, derive the booking window from the full event span without timed-game buffers, and show all-day range copy in the event picker and confirmation review while preserving existing `eventIds[]`, `Booking.eventId`, and `BookingEvent` semantics.
+- 2026-06-02: Custody confidence slice 5. Shared checkout detail sheet history pagination now surfaces stale-cursor, access-change, server, network, and malformed-response failures inline, with retry or refresh recovery instead of silently hiding older audit entries.
+- 2026-06-02: Custody confidence slice 4. Successful checkout cancellation from the `/bookings` active list now removes the row from the visible work queue and refreshes the list, so operators do not keep seeing a cancelled checkout inside Active Checkouts after the server accepts the mutation.
+- 2026-06-02: Custody confidence slice 2. Full checkout detail no longer passes the bulk check-in mutation into the desktop equipment table, so open checkouts show kiosk return handoff instead of a contradictory `Return All` web button. Shared detail/sheet action copy now describes reservation conversion as a pending pickup whose custody still begins at kiosk pickup.
+- 2026-06-02: Custody confidence slice 1. Checkout creation now preserves explicit multi-event `eventIds[]` payloads when `sportCode` is present instead of synthesizing a legacy `eventId`, preventing valid event-linked pickup creation from failing before the pending-pickup record is created.
+- 2026-05-30: Battery adjustment follow-through. Battery Ops now shows both unit-tracked and quantity-tracked battery families so staff can correct counts with audited reasons before those live counts feed checkout creation.
+- 2026-05-30: Battery bulk-item hardening started. Checkout picker bulk counts now come from no-store form options, selected battery quantities show requested versus currently available counts, and refreshed lower availability automatically clamps or removes selected bulk quantities with visible recovery copy.
+- 2026-05-30: Booking create UX ownership pass. Checkout creation now shows event-linked versus ad hoc context before Step 1 completion, carries selected hard-conflict, next-use, and turnaround warning counts through Step 2 and confirmation, and improves success feedback before opening `/bookings` with the new pickup highlighted.
+- 2026-05-30: Booking create hardening. Shared checkout creation now rejects empty non-source payloads, duplicate `eventIds`, duplicate bulk lines, and invalid create windows before booking writes. Exclusion-constraint and serializable overlap races now return 409 conflict responses instead of leaking server errors.
 - 2026-05-25: Web bug sweep Batch 29. Checkout row overflow and context-menu "Check in" now opens the booking detail sheet directly at the Equipment section instead of dropping operators at the top of the sheet.
 - 2026-05-25: Web bug sweep Batch 28. Booking detail sheet deep links now preserve `sheetTab=equipment|history` through `/bookings` mounted-route handoff, clear the consumed URL parameter, and focus the requested detail section after the sheet data loads.
 - 2026-05-25: Web bug sweep Batch 21. Shared checkout/booking lists now safe-parse list responses, context-menu mutations use a ref-backed duplicate-submit guard, and menu extend actions always release their busy state through `finally`. Full checkout detail actions now also clear action locks through `finally`, expired-session inline saves throw instead of locally patching false success, extend presets safe-parse their settings response, and shared edit/search/date controls expose stable form metadata.

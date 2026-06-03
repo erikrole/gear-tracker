@@ -31,6 +31,7 @@ export type CalendarEvent = {
   summary: string;
   startsAt: string;
   endsAt: string;
+  allDay: boolean;
   sportCode: string | null;
   isHome: boolean | null;
   opponent: string | null;

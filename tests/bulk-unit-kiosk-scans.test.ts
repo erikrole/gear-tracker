@@ -162,6 +162,67 @@ describe("scanKioskPickupBulkUnit", () => {
       errorCode: "already_checked_out",
     });
   });
+
+  it("blocks pickup when the requested battery quantity is already fully scanned", async () => {
+    const tx = makeTx();
+    tx.booking.findUnique.mockResolvedValue({
+      ...pickupBooking,
+      bulkItems: [{
+        ...pickupBooking.bulkItems[0],
+        plannedQuantity: 2,
+        checkedOutQuantity: 2,
+      }],
+    });
+    tx.bulkSkuUnit.findUnique.mockResolvedValue({
+      id: "unit-7",
+      bulkSkuId: "sku-1",
+      unitNumber: 7,
+      status: "AVAILABLE",
+      allocations: [],
+    });
+    tx.bookingBulkUnitAllocation.findUnique.mockResolvedValue(null);
+
+    const result = await scanKioskPickupBulkUnit(tx, {
+      bookingId: "booking-1",
+      scanValue: "94e068d1-7",
+    });
+
+    expect(result).toEqual({
+      handled: true,
+      success: false,
+      error: "Sony Battery already has 2 of 2 units scanned",
+      errorCode: "quantity_exceeded",
+    });
+    expect(tx.bookingBulkUnitAllocation.create).not.toHaveBeenCalled();
+    expect(tx.bulkSkuUnit.update).not.toHaveBeenCalled();
+  });
+
+  it("blocks pickup of missing or retired battery units with status-specific copy", async () => {
+    const tx = makeTx();
+    tx.booking.findUnique.mockResolvedValue(pickupBooking);
+    tx.bulkSkuUnit.findUnique.mockResolvedValue({
+      id: "unit-7",
+      bulkSkuId: "sku-1",
+      unitNumber: 7,
+      status: "LOST",
+      allocations: [],
+    });
+    tx.bookingBulkUnitAllocation.findUnique.mockResolvedValue(null);
+
+    const result = await scanKioskPickupBulkUnit(tx, {
+      bookingId: "booking-1",
+      scanValue: "94e068d1-7",
+    });
+
+    expect(result).toEqual({
+      handled: true,
+      success: false,
+      error: "Sony Battery #7 is marked lost and cannot be picked up",
+      errorCode: "wrong_status",
+    });
+    expect(tx.bookingBulkUnitAllocation.create).not.toHaveBeenCalled();
+    expect(tx.bulkSkuUnit.update).not.toHaveBeenCalled();
+  });
 });
 
 describe("scanKioskCheckinBulkUnit", () => {
@@ -285,5 +346,79 @@ describe("scanKioskCheckinBulkUnit", () => {
       error: "Sony Battery #7 is checked out on another booking to Bucky Badger",
       errorCode: "wrong_status",
     });
+  });
+
+  it("blocks return when the scanned unit was never checked out on this booking", async () => {
+    const tx = makeTx();
+    tx.booking.findUnique.mockResolvedValue({
+      ...pickupBooking,
+      status: "OPEN",
+      bulkItems: [{
+        ...pickupBooking.bulkItems[0],
+        checkedOutQuantity: 5,
+        checkedInQuantity: 0,
+      }],
+    });
+    tx.bulkSkuUnit.findUnique.mockResolvedValue({
+      id: "unit-7",
+      bulkSkuId: "sku-1",
+      unitNumber: 7,
+      status: "AVAILABLE",
+      allocations: [],
+    });
+    tx.bookingBulkUnitAllocation.findUnique.mockResolvedValue(null);
+
+    const result = await scanKioskCheckinBulkUnit(tx, {
+      bookingId: "booking-1",
+      scanValue: "94e068d1-7",
+    });
+
+    expect(result).toEqual({
+      handled: true,
+      success: false,
+      error: "Sony Battery #7 is not checked out on this booking",
+      errorCode: "not_checked_out",
+    });
+    expect(tx.bookingBulkUnitAllocation.update).not.toHaveBeenCalled();
+    expect(tx.bulkSkuUnit.update).not.toHaveBeenCalled();
+  });
+
+  it("blocks return when a scanned unit was already returned", async () => {
+    const tx = makeTx();
+    tx.booking.findUnique.mockResolvedValue({
+      ...pickupBooking,
+      status: "OPEN",
+      bulkItems: [{
+        ...pickupBooking.bulkItems[0],
+        checkedOutQuantity: 5,
+        checkedInQuantity: 1,
+      }],
+    });
+    tx.bulkSkuUnit.findUnique.mockResolvedValue({
+      id: "unit-7",
+      bulkSkuId: "sku-1",
+      unitNumber: 7,
+      status: "AVAILABLE",
+      allocations: [],
+    });
+    tx.bookingBulkUnitAllocation.findUnique.mockResolvedValue({
+      id: "allocation-1",
+      checkedOutAt: new Date(),
+      checkedInAt: new Date(),
+    });
+
+    const result = await scanKioskCheckinBulkUnit(tx, {
+      bookingId: "booking-1",
+      scanValue: "94e068d1-7",
+    });
+
+    expect(result).toEqual({
+      handled: true,
+      success: false,
+      error: "Sony Battery #7 already returned",
+      errorCode: "already_returned",
+    });
+    expect(tx.bookingBulkUnitAllocation.update).not.toHaveBeenCalled();
+    expect(tx.bulkSkuUnit.update).not.toHaveBeenCalled();
   });
 });

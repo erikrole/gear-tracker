@@ -45,15 +45,23 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
       }))
     });
 
-    await tx.bulkStockBalance.update({
+    await tx.bulkStockBalance.upsert({
       where: {
         bulkSkuId_locationId: {
           bulkSkuId: id,
           locationId: sku.locationId
         }
       },
-      data: { onHandQuantity: { increment: body.count } }
+      create: {
+        bulkSkuId: id,
+        locationId: sku.locationId,
+        onHandQuantity: body.count
+      },
+      update: { onHandQuantity: { increment: body.count } }
     });
+
+    const defaultReason = `Added units #${startNumber}-#${startNumber + body.count - 1}`;
+    const reason = body.reason ? `${defaultReason}: ${body.reason}` : defaultReason;
 
     await tx.bulkStockMovement.create({
       data: {
@@ -62,11 +70,11 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
         actorUserId: user.id,
         kind: "ADJUSTMENT",
         quantity: body.count,
-        reason: `Added units #${startNumber}–#${startNumber + body.count - 1}`
+        reason
       }
     });
 
-    return { startNumber, endNumber: startNumber + body.count - 1 };
+    return { startNumber, endNumber: startNumber + body.count - 1, count: body.count, reason };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
   await createAuditEntry({

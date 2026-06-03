@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-25
+- Last Updated: 2026-06-02
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
@@ -18,15 +18,16 @@ Keep reservation planning and checkout execution unified, predictable, and safe 
 5. Role and ownership controls follow `AREA_USERS.md`.
 6. Availability checks treat overlapping `PENDING_PICKUP` checkout allocations as committed gear and subtract overlapping `BOOKED` bulk reservation quantities from available bulk stock.
 7. Booking windows are half-open for availability: `endsAt === next.startsAt` is allowed, while any positive overlap is blocked.
+8. Reservation creation is guarded at the shared service boundary: creates require at least one equipment item, duplicate multi-event links and duplicate bulk lines are rejected, invalid windows fail before availability work, and DB overlap races return booking conflict responses.
 
 ## V1 Workflow
 
 ### Create Reservation (Wizard — `/reservations/new`)
 Multi-step wizard page (replaced the old side-sheet flow as of 2026-04-09):
 
-**Step 1 — Context & Details:** Event tie-in (optional), title, requester, location, kit, start/end dates. Event picker uses the next 30 days and supports up to 3 linked events.
-**Step 2 — Equipment:** Full `EquipmentPicker` — browse-first on mobile (no default camera). Equipment requirements enforced.
-**Step 3 — Confirmation:** Summary with thumbnails. Submit → POST `/api/reservations`. Save as `BOOKED`.
+**Step 1 — Context & Details:** Event tie-in (optional), title, requester, location, kit, start/end dates. Event picker uses the next 30 days and supports up to 3 linked events. Context summary names whether the reservation is calendar-linked or ad hoc and previews the derived window and location.
+**Step 2 — Equipment:** Full `EquipmentPicker` — browse-first on mobile (no default camera). Equipment requirements enforced. Selection summary separates valid items, unavailable stale selections, hard conflicts, next-use notices, and turnaround warnings.
+**Step 3 — Confirmation:** Summary with thumbnails. Submit → POST `/api/reservations`. Save as `BOOKED`. Confirmation repeats selected availability warnings and keeps reservation handoff copy explicit.
 
 **Deep-link parameters:** `?title`, `?startsAt`, `?endsAt`, `?locationId`, `?newFor`, `?eventId`, `?sportCode`, `?requesterUserId`, `?draftId`.
 
@@ -37,10 +38,11 @@ Multi-step wizard page (replaced the old side-sheet flow as of 2026-04-09):
 2. Edit must re-run conflict checks for changed windows/items.
 3. Edit path remains fully auditable.
 
-### Convert Reservation to Active Checkout
+### Start Checkout From Reservation
 1. Action: `Start checkout` from reservation detail.
-2. Transition: `BOOKED` -> `OPEN`.
-3. Preserve allocation linkage and audit trail.
+2. The route creates a new checkout through the shared checkout create path, so the new checkout starts as `PENDING_PICKUP`.
+3. The source reservation is closed as converted/cancelled, and gear custody still begins at kiosk pickup.
+4. Preserve allocation linkage and audit trail.
 
 ### Cancel Reservation
 1. Allowed by role and policy.
@@ -124,7 +126,7 @@ The reservation detail page (`/reservations/[id]`) uses the shared `BookingDetai
 3. Persist user rows-per-page preference per user/session when feasible.
 
 ## State Transition Rules
-1. `BOOKED` -> `OPEN` allowed.
+1. `BOOKED` reservation -> new `PENDING_PICKUP` checkout allowed through `Start checkout`.
 2. `BOOKED` -> `CANCELLED` allowed.
 3. `OPEN` -> `COMPLETED` allowed when all items returned.
 4. `OPEN` -> `CANCELLED` not allowed in normal flow; use return/check-in workflow.
@@ -148,11 +150,11 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 ### `CANCELLED`
 - Allowed actions: View only
 
-**Note**: Reservations do not use the `OPEN` state — they convert directly to a checkout (new `OPEN` booking linked via `sourceReservationId`).
+**Note**: Reservations do not use the `OPEN` state; `Start checkout` creates a new `PENDING_PICKUP` checkout linked via `sourceReservationId`.
 
 ## Actions Menu (V1 Shipped)
 1. Edit — respects state + role gating
-2. Proceed to check-out — converts `BOOKED` reservation to `OPEN` checkout
+2. Proceed to check-out — creates a new `PENDING_PICKUP` checkout from the `BOOKED` reservation
 3. Extend — extends booking window (conflict-checked)
 4. Cancel reservation — soft cancel, record preserved for audit
 5. Duplicate — clones a BOOKED reservation with same items, dates, and settings
@@ -243,6 +245,12 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 8. Implement list page controls and row behavior from V1 list surface spec.
 
 ## Change Log
+- 2026-06-02: Manual multi-day all-day event linkage support shipped for reservation creation. Linked all-day events now keep their manual summary, derive the reservation window from the full event span without timed-game buffers, and show all-day range copy in the event picker and confirmation review while preserving existing `eventIds[]`, `Booking.eventId`, and `BookingEvent` semantics.
+- 2026-06-02: Custody confidence slice 5. Shared reservation detail sheet history pagination now surfaces stale-cursor, access-change, server, network, and malformed-response failures inline, with retry or refresh recovery instead of silently hiding older audit entries.
+- 2026-06-02: Custody confidence slice 4. Successful reservation cancellation from the `/bookings` active list now removes the row from the visible work queue and refreshes the list, preserving AC-12 list/detail consistency after cancel actions.
+- 2026-06-02: Custody confidence slice 2. Reservation conversion docs and shared detail/sheet copy now match the shipped service behavior: `Start checkout` creates a pending pickup and closes the reservation, with gear custody beginning only at kiosk pickup.
+- 2026-05-30: Booking create UX ownership pass. Reservation creation now shows event-linked versus ad hoc context before Step 1 completion, carries selected hard-conflict, next-use, and turnaround warning counts through Step 2 and confirmation, and improves success feedback before opening `/bookings` with the new reservation highlighted.
+- 2026-05-30: Booking create hardening. Shared reservation creation now rejects empty payloads, duplicate `eventIds`, duplicate bulk lines, and invalid create windows before booking writes. Exclusion-constraint and serializable overlap races now return 409 conflict responses instead of leaking server errors.
 - 2026-05-25: Web bug sweep Batch 28. Booking detail sheet deep links now preserve `sheetTab=equipment|history` through `/bookings` mounted-route handoff, clear the consumed URL parameter, and focus the requested detail section after the sheet data loads.
 - 2026-05-25: Web bug sweep Batch 21. Shared reservation/booking lists now safe-parse list responses, context-menu mutations use a ref-backed duplicate-submit guard, and menu extend actions always release their busy state through `finally`. Full reservation detail actions now also clear action locks through `finally`, expired-session inline saves throw instead of locally patching false success, extend presets safe-parse their settings response, and shared edit/search/date controls expose stable form metadata.
 - 2026-05-24: Web bug sweep Batch 18. Reservation creation, shared EquipmentPicker search/scan/hydration, event context loading, kit loading, draft resume/save, form-options, booking detail reads, and equipment conflict previews now use shared auth redirects and safe response parsing where applicable. Malformed JSON on reservation create, draft save, and availability check routes now returns 400 before booking, draft, or availability service work.
