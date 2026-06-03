@@ -103,6 +103,14 @@ type SearchResult = {
   imageUrl: string | null;
 };
 
+type BulkSkuOption = {
+  id: string;
+  name: string;
+  category: string | null;
+  unit: string;
+  availableQuantity?: number;
+};
+
 // ── Component ─────────────────────────────────────────────
 
 export default function KitDetailPage() {
@@ -144,6 +152,15 @@ export default function KitDetailPage() {
   const togglingActiveRef = useRef(false);
   const deletingRef = useRef(false);
   const searchAbort = useRef<AbortController | null>(null);
+
+  // Add item family (bulk SKU) — lazy-loaded location options, client-filtered
+  const [bulkAddSearch, setBulkAddSearch] = useState("");
+  const [bulkOptions, setBulkOptions] = useState<BulkSkuOption[] | null>(null);
+  const [bulkOptionsLoading, setBulkOptionsLoading] = useState(false);
+  const [bulkOptionsError, setBulkOptionsError] = useState("");
+  const [bulkQty, setBulkQty] = useState<Record<string, string>>({});
+  const [bulkAddingIds, setBulkAddingIds] = useState<Set<string>>(new Set());
+  const bulkAddingIdsRef = useRef<Set<string>>(new Set());
 
   // Remove member
   const [removingId, setRemovingId] = useState<string | null>(null);
@@ -228,6 +245,37 @@ export default function KitDetailPage() {
     return () => clearTimeout(timer);
   }, [addSearch, kit?.members]);
 
+  // ── Lazy-load location item families when the bulk add-search is first used ──
+
+  useEffect(() => {
+    if (!kit) return;
+    if (!bulkAddSearch.trim()) return;
+    if (bulkOptions !== null || bulkOptionsLoading) return;
+    let cancelled = false;
+    (async () => {
+      setBulkOptionsLoading(true);
+      setBulkOptionsError("");
+      try {
+        const res = await fetch(
+          `/api/bulk-skus?location_id=${encodeURIComponent(kit.location.id)}&limit=200`,
+        );
+        if (handleAuthRedirect(res)) return;
+        if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to load item families"));
+        const json = await parseJsonSafely<{ data?: BulkSkuOption[] }>(res);
+        if (cancelled) return;
+        setBulkOptions(json?.data ?? []);
+      } catch (err) {
+        if (!cancelled) {
+          setBulkOptions([]);
+          setBulkOptionsError((err as Error).message || "Failed to load item families");
+        }
+      } finally {
+        if (!cancelled) setBulkOptionsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [bulkAddSearch, bulkOptions, bulkOptionsLoading, kit]);
+
   // ── Add member ──────────────────────────────────────────
 
   async function handleAddMember(assetId: string) {
@@ -254,6 +302,38 @@ export default function KitDetailPage() {
     } finally {
       addingIdsRef.current.delete(assetId);
       setAddingIds((s) => { const n = new Set(s); n.delete(assetId); return n; });
+    }
+  }
+
+  // ── Add item family (bulk SKU) ──────────────────────────
+
+  async function handleAddBulkMember(opt: BulkSkuOption) {
+    if (bulkAddingIdsRef.current.has(opt.id)) return;
+    const parsed = Math.floor(Number(bulkQty[opt.id] ?? "1"));
+    const quantity = Number.isFinite(parsed) ? Math.min(999, Math.max(1, parsed)) : 1;
+    bulkAddingIdsRef.current.add(opt.id);
+    setBulkAddingIds((s) => new Set(s).add(opt.id));
+    try {
+      const res = await fetch(`/api/kits/${id}/bulk-members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bulkSkuId: opt.id, quantity }),
+      });
+      if (handleAuthRedirect(res)) return;
+      if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to add item family"));
+      const json = await parseJsonSafely<{ data?: KitBulkMember }>(res);
+      if (!json?.data) throw new Error("Kit was updated, but the response was incomplete");
+      const membership = json.data;
+      setKit((prev) =>
+        prev ? { ...prev, bulkMembers: [...(prev.bulkMembers ?? []), membership] } : prev,
+      );
+      setBulkQty((m) => { const n = { ...m }; delete n[opt.id]; return n; });
+      toast.success(`Added ${membership.bulkSku.name}`);
+    } catch (err) {
+      toast.error((err as Error).message || "Failed to add item family");
+    } finally {
+      bulkAddingIdsRef.current.delete(opt.id);
+      setBulkAddingIds((s) => { const n = new Set(s); n.delete(opt.id); return n; });
     }
   }
 
@@ -395,6 +475,18 @@ export default function KitDetailPage() {
       </Card>
     );
   }
+
+  const existingBulkIds = new Set(kit.bulkMembers?.map((m) => m.bulkSku.id) ?? []);
+  const bulkQuery = bulkAddSearch.trim().toLowerCase();
+  const bulkSearchResults = (bulkOptions ?? [])
+    .filter((o) => !existingBulkIds.has(o.id))
+    .filter(
+      (o) =>
+        !bulkQuery ||
+        o.name.toLowerCase().includes(bulkQuery) ||
+        (o.category ?? "").toLowerCase().includes(bulkQuery),
+    )
+    .slice(0, 10);
 
   return (
     <FadeUp>
@@ -609,7 +701,108 @@ export default function KitDetailPage() {
             <CardHeader className="flex-row items-center justify-between">
               <CardTitle className="text-base">Bulk Items</CardTitle>
             </CardHeader>
-            <CardContent className="min-w-0">
+            <CardContent className="flex min-w-0 flex-col gap-4">
+              {/* Add item family search */}
+              {kit.active && (
+                <div className="flex flex-col gap-2">
+                  <div className="relative">
+                    <Label htmlFor="kit-add-bulk-search" className="sr-only">
+                      Search item families to add
+                    </Label>
+                    <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                    <Input
+                      id="kit-add-bulk-search"
+                      name="kitAddBulkSearch"
+                      aria-label="Search item families to add"
+                      placeholder="Search item families to add…"
+                      value={bulkAddSearch}
+                      onChange={(e) => setBulkAddSearch(e.target.value)}
+                      className="pl-9 pr-9"
+                    />
+                    {bulkAddSearch && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-1/2 size-10 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        aria-label="Clear item family search"
+                        onClick={() => setBulkAddSearch("")}
+                      >
+                        <XIcon className="size-4" />
+                      </Button>
+                    )}
+                  </div>
+                  {bulkOptionsLoading && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground px-1">
+                      <Spinner className="size-3.5" /> Loading…
+                    </div>
+                  )}
+                  {bulkOptionsError && (
+                    <p className="px-1 text-sm text-destructive">{bulkOptionsError}</p>
+                  )}
+                  {bulkSearchResults.length > 0 && (
+                    <ScrollArea className="border rounded-md divide-y max-h-[240px]">
+                      {bulkSearchResults.map((opt) => (
+                        <div
+                          key={opt.id}
+                          className="flex items-center justify-between gap-3 px-3 py-2 hover:bg-muted/50"
+                        >
+                          <div className="min-w-0">
+                            <span className="font-medium text-sm">{opt.name}</span>
+                            {opt.category && (
+                              <span className="text-muted-foreground text-sm ml-2">{opt.category}</span>
+                            )}
+                            {typeof opt.availableQuantity === "number" && (
+                              <span className="block text-xs text-muted-foreground">
+                                {opt.availableQuantity} {opt.unit} available
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Label htmlFor={`kit-bulk-qty-${opt.id}`} className="sr-only">
+                              Quantity for {opt.name}
+                            </Label>
+                            <Input
+                              id={`kit-bulk-qty-${opt.id}`}
+                              type="number"
+                              min={1}
+                              max={999}
+                              value={bulkQty[opt.id] ?? "1"}
+                              onChange={(e) =>
+                                setBulkQty((m) => ({ ...m, [opt.id]: e.target.value }))
+                              }
+                              className="h-10 w-20"
+                              aria-label={`Quantity for ${opt.name}`}
+                            />
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={bulkAddingIds.has(opt.id)}
+                              onClick={() => handleAddBulkMember(opt)}
+                            >
+                              {bulkAddingIds.has(opt.id) ? (
+                                <Spinner className="size-3.5" />
+                              ) : (
+                                <><PlusIcon className="size-3.5 mr-1" />Add</>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </ScrollArea>
+                  )}
+                  {bulkQuery.length >= 1 &&
+                    !bulkOptionsLoading &&
+                    !bulkOptionsError &&
+                    bulkSearchResults.length === 0 && (
+                      <p className="text-sm text-muted-foreground px-1">
+                        {bulkOptions && bulkOptions.length > 0
+                          ? "No matching item families."
+                          : "No item families available at this location."}
+                      </p>
+                    )}
+                </div>
+              )}
               {kit.bulkMembers?.length > 0 ? (
                 <div className="overflow-x-auto">
                   <Table>
