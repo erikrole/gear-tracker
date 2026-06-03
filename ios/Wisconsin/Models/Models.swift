@@ -134,6 +134,7 @@ struct Booking: Codable, Identifiable, Hashable {
     let serializedItems: [BookingSerializedItem]
     let bulkItems: [BookingBulkItem]
     let event: BookingEvent?
+    let updatedAt: Date?
 }
 
 struct BookingStub: Codable { let id: String }

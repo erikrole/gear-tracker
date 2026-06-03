@@ -99,14 +99,23 @@ final class APIClient {
     // MARK: - Bookings
 
     func reservations(activeOnly: Bool = true, search: String? = nil, requesterId: String? = nil, limit: Int = 30, offset: Int = 0) async throws -> PaginatedResponse<Booking> {
-        try await perform(bookingListRequest(path: "/api/reservations", active: activeOnly, status: nil, search: search, requesterId: requesterId, limit: limit, offset: offset))
+        try await perform(bookingListRequest(path: "/api/reservations", active: activeOnly, status: nil, statusList: nil, search: search, requesterId: requesterId, limit: limit, offset: offset))
     }
 
     func checkouts(activeOnly: Bool = true, search: String? = nil, requesterId: String? = nil, limit: Int = 30, offset: Int = 0) async throws -> PaginatedResponse<Booking> {
-        try await perform(bookingListRequest(path: "/api/checkouts", active: false, status: activeOnly ? .open : nil, search: search, requesterId: requesterId, limit: limit, offset: offset))
+        try await perform(bookingListRequest(
+            path: "/api/checkouts",
+            active: false,
+            status: nil,
+            statusList: activeOnly ? [.open, .pendingPickup] : nil,
+            search: search,
+            requesterId: requesterId,
+            limit: limit,
+            offset: offset
+        ))
     }
 
-    private func bookingListRequest(path: String, active: Bool, status: BookingStatus?, search: String?, requesterId: String?, limit: Int, offset: Int) -> URLRequest {
+    private func bookingListRequest(path: String, active: Bool, status: BookingStatus?, statusList: [BookingStatus]?, search: String?, requesterId: String?, limit: Int, offset: Int) -> URLRequest {
         var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
         var items: [URLQueryItem] = [
             .init(name: "limit", value: "\(limit)"),
@@ -114,6 +123,9 @@ final class APIClient {
         ]
         if active { items.append(.init(name: "active", value: "true")) }
         if let status { items.append(.init(name: "status", value: status.rawValue)) }
+        if let statusList, !statusList.isEmpty {
+            items.append(.init(name: "status_in", value: statusList.map(\.rawValue).joined(separator: ",")))
+        }
         if let search, !search.isEmpty { items.append(.init(name: "q", value: search)) }
         if let requesterId, !requesterId.isEmpty { items.append(.init(name: "requester_id", value: requesterId)) }
         components.queryItems = items

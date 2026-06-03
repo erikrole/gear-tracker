@@ -59,6 +59,7 @@ struct ShiftGear: Codable {
     var gearLabel: String {
         switch status {
         case "checked_out": return "Gear out"
+        case "pickup_ready": return "Gear ready"
         case "reserved":    return "Gear reserved"
         case "draft":       return "Gear draft"
         default:            return "No gear"

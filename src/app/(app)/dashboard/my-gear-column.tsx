@@ -7,8 +7,9 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { Card, CardContent } from "@/components/ui/card";
 import { ClipboardCheckIcon, CalendarCheckIcon, ClockIcon, ArrowRightCircleIcon } from "lucide-react";
 import { ScaleIn } from "@/components/ui/motion";
-import { formatDayLabel, formatRelativeTime, formatTimeShort, isDueToday } from "@/lib/format";
+import { formatDayLabel, formatRelativeTime, isDueToday } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
+import { formatCallWindow } from "@/lib/shift-call-windows";
 import { GearAvatarStack } from "./dashboard-avatars";
 import { DashboardBookingRow, dashboardBookingAccent } from "./booking-row";
 import { DashboardSectionHeader } from "./section-header";
@@ -205,7 +206,7 @@ export function MyGearColumn({
                       <span className="text-muted-foreground font-normal">{eventTitle}</span>
                     </span>
                     <span className="flex items-center gap-1 text-xs text-muted-foreground leading-snug">
-                      {formatDayLabel(s.startsAt, now)}, {formatTimeShort(s.startsAt)} – {formatTimeShort(s.event.endsAt)}
+                      {formatDayLabel(s.callStartsAt, now)}, Call {formatCallWindow({ startsAt: s.callStartsAt, endsAt: s.callEndsAt })}
                       {s.event.locationName && ` \u00B7 ${s.event.locationName}`}
                     </span>
                   </div>

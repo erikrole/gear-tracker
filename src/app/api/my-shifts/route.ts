@@ -3,6 +3,28 @@ import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
 import { shiftWorkerLabel } from "@/lib/shift-display";
 
+function gearStatusForBooking(status: string) {
+  if (status === "OPEN") return "checked_out";
+  if (status === "PENDING_PICKUP") return "pickup_ready";
+  if (status === "BOOKED") return "reserved";
+  return "draft";
+}
+
+function gearStatusPriority(status: string) {
+  switch (status) {
+    case "pickup_ready":
+      return 4;
+    case "checked_out":
+      return 3;
+    case "reserved":
+      return 2;
+    case "draft":
+      return 1;
+    default:
+      return 0;
+  }
+}
+
 /**
  * GET /api/my-shifts
  *
@@ -63,19 +85,35 @@ export const GET = withAuth(async (req, { user }) => {
 
   // For each assignment, check if user has a gear checkout linked to the same event
   const eventIds = [...new Set(assignments.map((a) => a.shift.shiftGroup.event.id))];
+  const assignmentIds = assignments.map((a) => a.id);
 
   const gearBookings = eventIds.length > 0
     ? await db.booking.findMany({
         where: {
           requesterUserId: user.id,
-          eventId: { in: eventIds },
-          status: { in: ["DRAFT", "BOOKED", "OPEN"] },
+          status: { in: ["DRAFT", "BOOKED", "PENDING_PICKUP", "OPEN"] },
+          OR: [
+            { eventId: { in: eventIds } },
+            { events: { some: { eventId: { in: eventIds } } } },
+            { shiftAssignmentId: { in: assignmentIds } },
+            { shiftAssignment: { shift: { shiftGroup: { eventId: { in: eventIds } } } } },
+          ],
         },
         select: {
           id: true,
           eventId: true,
           status: true,
           kind: true,
+          events: { select: { eventId: true } },
+          shiftAssignment: {
+            select: {
+              shift: {
+                select: {
+                  shiftGroup: { select: { eventId: true } },
+                },
+              },
+            },
+          },
           _count: { select: { serializedItems: true, bulkItems: true } },
         },
       })
@@ -84,23 +122,28 @@ export const GET = withAuth(async (req, { user }) => {
   // Index bookings by eventId for fast lookup
   const bookingsByEvent = new Map<string, typeof gearBookings>();
   for (const b of gearBookings) {
-    if (!b.eventId) continue;
-    const existing = bookingsByEvent.get(b.eventId) || [];
-    existing.push(b);
-    bookingsByEvent.set(b.eventId, existing);
+    const bookingEventIds = new Set<string>();
+    if (b.eventId) bookingEventIds.add(b.eventId);
+    for (const event of b.events) bookingEventIds.add(event.eventId);
+    const shiftEventId = b.shiftAssignment?.shift.shiftGroup.eventId;
+    if (shiftEventId) bookingEventIds.add(shiftEventId);
+
+    for (const eventId of bookingEventIds) {
+      const existing = bookingsByEvent.get(eventId) || [];
+      existing.push(b);
+      existing.sort((a, b) => {
+        const statusDelta = gearStatusPriority(gearStatusForBooking(b.status)) - gearStatusPriority(gearStatusForBooking(a.status));
+        if (statusDelta !== 0) return statusDelta;
+        return a.id.localeCompare(b.id);
+      });
+      bookingsByEvent.set(eventId, existing);
+    }
   }
 
   const data = assignments.map((a) => {
     const event = a.shift.shiftGroup.event;
     const eventBookings = bookingsByEvent.get(event.id) || [];
-    const hasGear = eventBookings.length > 0;
-    const gearStatus = hasGear
-      ? eventBookings.some((b) => b.status === "OPEN")
-        ? "checked_out"
-        : eventBookings.some((b) => b.status === "BOOKED")
-          ? "reserved"
-          : "draft"
-      : "none";
+    const gearStatus = eventBookings[0] ? gearStatusForBooking(eventBookings[0].status) : "none";
 
     return {
       id: a.id,

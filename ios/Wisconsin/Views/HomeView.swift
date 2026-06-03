@@ -115,10 +115,11 @@ struct HomeView: View {
                         dash: dash,
                         openBookingSummary: { navigationPath.append($0) },
                         openEventWork: { selectedEventWork = $0 },
-                        currentUserId: session.currentUser?.id
+                        currentUserId: session.currentUser?.id,
+                        openScan: { appState.selectedTab = 3 }
                     )
                 } else if isAllEmpty(dash) || !hasStaffFollowUp(dash) {
-                    AllClearEmptyState()
+                    AllClearEmptyState(openScan: { appState.selectedTab = 3 })
                 }
                 if dash.isStaff {
                     staffExceptionSection(dash)
@@ -383,6 +384,7 @@ private struct HomeActionQueue: View {
     let openBookingSummary: (BookingSummary) -> Void
     let openEventWork: (DashboardEventWork) -> Void
     let currentUserId: String?
+    let openScan: () -> Void
 
     private var myOverdueBookings: [BookingSummary] {
         dash.myCheckouts.items.filter(\.isOverdue)
@@ -435,6 +437,17 @@ private struct HomeActionQueue: View {
         return "Pickup gear at \(time)"
     }
 
+    private func itemCountLabel(for summary: BookingSummary) -> String {
+        "\(summary.itemCount) item\(summary.itemCount == 1 ? "" : "s")"
+    }
+
+    private func personalContext(for summary: BookingSummary) -> String {
+        let parts = [summary.locationName, itemCountLabel(for: summary)]
+            .compactMap { $0 }
+            .filter { !$0.isEmpty }
+        return parts.isEmpty ? summary.title : parts.joined(separator: " · ")
+    }
+
     private func eventDetailLines(for summary: BookingSummary) -> [QueueDetailLine] {
         var lines = [QueueDetailLine(text: gearInstruction(for: summary), tone: summary.startsAt < Date() ? .orange : .green)]
         if let shift = shiftLinked(to: summary) {
@@ -466,9 +479,9 @@ private struct HomeActionQueue: View {
                     ActionQueueRow(
                         tone: .red,
                         title: summary.title,
-                        subtitle: summary.requesterName,
+                        subtitle: personalContext(for: summary),
                         meta: summary.endsAt.overdueLabel,
-                        primaryLabel: "Open",
+                        primaryLabel: "Review overdue",
                         action: { openBookingSummary(summary) }
                     )
                 }
@@ -478,42 +491,44 @@ private struct HomeActionQueue: View {
                 ActionQueueRow(
                     tone: .orange,
                     title: summary.title,
-                    subtitle: summary.requesterName,
+                    subtitle: personalContext(for: summary),
                     meta: "Due \(summary.endsAt.formatted(date: .omitted, time: .shortened))",
-                    primaryLabel: "Open",
+                    primaryLabel: "Return today",
                     action: { openBookingSummary(summary) }
                 )
             }
 
             ForEach(standalonePendingPickups.prefix(3)) { summary in
-                    ActionQueueRow(
-                        tone: summary.startsAt < Date() ? .orange : .green,
-                        title: summary.title,
-                        subtitle: summary.linkedEventId == nil ? summary.requesterName : nil,
-                        meta: summary.startsAt < Date()
-                            ? "Pickup \(summary.startsAt.lateLabel)"
-                            : "Pickup \(summary.startsAt.formatted(date: .omitted, time: .shortened))",
-                        primaryLabel: "Open",
-                        detailLines: summary.linkedEventId == nil ? [] : eventDetailLines(for: summary),
-                        action: { openBookingSummary(summary) }
-                    )
-                }
+                ActionQueueRow(
+                    tone: summary.startsAt < Date() ? .orange : .green,
+                    title: summary.title,
+                    subtitle: summary.linkedEventId == nil ? personalContext(for: summary) : nil,
+                    meta: summary.startsAt < Date()
+                        ? "Pickup \(summary.startsAt.lateLabel)"
+                        : "Pickup \(summary.startsAt.formatted(date: .omitted, time: .shortened))",
+                    primaryLabel: "Pick up",
+                    detailLines: summary.linkedEventId == nil ? [] : eventDetailLines(for: summary),
+                    action: { openBookingSummary(summary) }
+                )
+            }
 
             ForEach(standaloneReservations.prefix(3)) { summary in
-                    ActionQueueRow(
-                        tone: .purple,
-                        title: summary.title,
-                        subtitle: summary.linkedEventId == nil ? summary.requesterName : nil,
-                        meta: summary.startsAt.formatted(.dateTime.weekday(.abbreviated).hour().minute()),
-                        primaryLabel: "Open",
-                        detailLines: summary.linkedEventId == nil ? [] : eventDetailLines(for: summary),
-                        action: { openBookingSummary(summary) }
-                    )
-                }
+                ActionQueueRow(
+                    tone: .purple,
+                    title: summary.title,
+                    subtitle: summary.linkedEventId == nil ? personalContext(for: summary) : nil,
+                    meta: summary.startsAt.formatted(.dateTime.weekday(.abbreviated).hour().minute()),
+                    primaryLabel: "Open reservation",
+                    detailLines: summary.linkedEventId == nil ? [] : eventDetailLines(for: summary),
+                    action: { openBookingSummary(summary) }
+                )
+            }
 
             ForEach(dash.myEventWork.prefix(3)) { work in
                 EventActionQueueRow(work: work, openEventWork: openEventWork)
             }
+
+            ScanRecoveryButton(openScan: openScan)
         }
         .padding(16)
         .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 16))
@@ -549,6 +564,7 @@ private struct EventActionQueueRow: View {
 
     private var tone: StatusTone { work.needsGear ? .blue : .green }
     private var firstTime: Date { min(work.primaryGear?.startsAt ?? work.shift.startsAt, work.shift.startsAt) }
+    private var primaryLabel: String { work.needsGear ? "Reserve gear" : "Prep shift" }
 
     var body: some View {
         Button {
@@ -581,11 +597,18 @@ private struct EventActionQueueRow: View {
 
                 Spacer(minLength: 8)
 
-                Text(firstTime.formatted(.dateTime.weekday(.abbreviated).hour().minute()))
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(Color.statusText(tone))
-                    .multilineTextAlignment(.trailing)
-                    .lineLimit(2)
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(firstTime.formatted(.dateTime.weekday(.abbreviated).hour().minute()))
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(Color.statusText(tone))
+                        .multilineTextAlignment(.trailing)
+                        .lineLimit(2)
+                    Text(primaryLabel)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(Color.statusText(tone))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                }
             }
             .contentShape(Rectangle())
         }
@@ -604,6 +627,7 @@ private struct EventActionQueueRow: View {
             parts.append("Reserve gear now")
         }
         parts.append("Call time at \(work.shift.startsAt.formatted(date: .omitted, time: .shortened))")
+        parts.append(primaryLabel)
         return parts.joined(separator: ", ")
     }
 
@@ -689,11 +713,18 @@ private struct ActionQueueRow: View {
 
                     Spacer(minLength: 8)
 
-                    Text(meta)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(Color.statusText(tone))
-                        .multilineTextAlignment(.trailing)
-                        .lineLimit(2)
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text(meta)
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(Color.statusText(tone))
+                            .multilineTextAlignment(.trailing)
+                            .lineLimit(2)
+                        Text(primaryLabel)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(Color.statusText(tone))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                    }
                 }
                 .contentShape(Rectangle())
             }
@@ -726,6 +757,44 @@ private struct ActionQueueRow: View {
     }
 }
 
+private struct ScanRecoveryButton: View {
+    let openScan: () -> Void
+
+    var body: some View {
+        Button {
+            Haptics.tap()
+            openScan()
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "barcode.viewfinder")
+                    .font(.subheadline.weight(.semibold))
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Look up gear")
+                        .font(.subheadline.weight(.semibold))
+                    Text("Scan or type a tag without changing checkout custody.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
+            .padding(12)
+            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(Color(.separator).opacity(0.45), lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Look up gear. Scan or type a tag without changing checkout custody.")
+    }
+}
+
 // MARK: - Refresh Failure Pill
 
 private struct RefreshFailurePill: View {
@@ -755,6 +824,8 @@ private struct RefreshFailurePill: View {
 // MARK: - All Clear Empty State
 
 private struct AllClearEmptyState: View {
+    let openScan: () -> Void
+
     var body: some View {
         VStack(spacing: 10) {
             Image(systemName: "checkmark.seal.fill")
@@ -767,11 +838,21 @@ private struct AllClearEmptyState: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
+            Button {
+                Haptics.tap()
+                openScan()
+            } label: {
+                Label("Look up gear", systemImage: "barcode.viewfinder")
+                    .font(.subheadline.weight(.semibold))
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.regular)
+            .padding(.top, 4)
         }
         .frame(maxWidth: .infinity)
         .padding(28)
         .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
     }
 }
 

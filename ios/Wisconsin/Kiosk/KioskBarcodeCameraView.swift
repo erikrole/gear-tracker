@@ -36,6 +36,7 @@ struct KioskBarcodeCameraView: View {
     let onCancel: () -> Void
 
     @State private var permissionState: PermissionState = .checking
+    @State private var manualCode = ""
 
     init(
         feedbackMessage: String? = nil,
@@ -71,7 +72,13 @@ struct KioskBarcodeCameraView: View {
                     })
                     .ignoresSafeArea()
                     .overlay(alignment: .top) { header }
-                    .overlay(alignment: .bottom) { feedbackOverlay }
+                    .overlay(alignment: .bottom) {
+                        VStack(spacing: 12) {
+                            feedbackOverlay
+                            manualEntry
+                        }
+                        .padding(.bottom, 32)
+                    }
                 } else {
                     unsupportedView
                 }
@@ -101,7 +108,6 @@ struct KioskBarcodeCameraView: View {
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(tone.color.opacity(0.4), lineWidth: 1)
             )
-            .padding(.bottom, 32)
             .transition(.move(edge: .bottom).combined(with: .opacity))
             .animation(.spring(response: 0.3), value: feedbackMessage)
             .accessibilityElement(children: .combine)
@@ -146,6 +152,8 @@ struct KioskBarcodeCameraView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
+            manualEntry
+                .padding(.horizontal, 40)
             Button("Close") { onCancel() }
                 .foregroundStyle(.white)
                 .padding(.horizontal, 28)
@@ -165,6 +173,8 @@ struct KioskBarcodeCameraView: View {
             Text("Use the hand scanner to continue.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+            manualEntry
+                .padding(.horizontal, 40)
             Button("Close") { onCancel() }
                 .foregroundStyle(.white)
                 .padding(.horizontal, 28)
@@ -190,6 +200,39 @@ struct KioskBarcodeCameraView: View {
         @unknown default:
             permissionState = .denied
         }
+    }
+
+    private var manualEntry: some View {
+        HStack(spacing: 10) {
+            TextField("Type barcode or unit QR", text: $manualCode)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .submitLabel(.go)
+                .textFieldStyle(.roundedBorder)
+                .onSubmit(submitManualCode)
+                .accessibilityLabel("Type barcode or unit QR")
+            Button(action: submitManualCode) {
+                Label("Submit", systemImage: "keyboard")
+                    .font(.subheadline.weight(.semibold))
+            }
+            .disabled(manualCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .foregroundStyle(.white)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(Color.kioskRed, in: Capsule())
+        }
+        .padding(12)
+        .background(.black.opacity(0.58), in: RoundedRectangle(cornerRadius: 14))
+        .padding(.horizontal, 24)
+        .accessibilityElement(children: .contain)
+    }
+
+    private func submitManualCode() {
+        let value = manualCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return }
+        manualCode = ""
+        Haptics.warning()
+        onScan(value)
     }
 }
 
