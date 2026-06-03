@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { withCron } from "@/lib/cron";
 import { db } from "@/lib/db";
 import { syncCalendarSource } from "@/lib/services/calendar-sync";
+import { updateCalendarSyncHealth } from "@/lib/services/calendar-sync-health";
 import { generateShiftsForNewEvents } from "@/lib/services/shift-generation";
 import { expireOpenTrades } from "@/lib/services/shift-trades";
 import { expirePendingPickupCheckouts } from "@/lib/services/pending-pickup-expiry";
@@ -43,6 +44,8 @@ export const GET = withCron(async () => {
     groupsCreated?: number;
     shiftsCreated?: number;
     error?: string;
+    consecutiveFailures?: number;
+    adminNotificationsCreated?: number;
   }> = [];
 
   // ── 1. Sync all enabled calendar sources ──────────────────────────────
@@ -56,6 +59,12 @@ export const GET = withCron(async () => {
     try {
       const syncResult = await syncCalendarSource(source.id);
       const shiftResult = await generateShiftsForNewEvents(source.id);
+      const healthResult = await recordCalendarSyncHealth({
+        sourceId: source.id,
+        sourceName: source.name,
+        result: syncResult,
+        now,
+      });
 
       syncResults.push({
         sourceId: source.id,
@@ -64,13 +73,25 @@ export const GET = withCron(async () => {
         eventsUpdated: syncResult.updated ?? 0,
         groupsCreated: shiftResult.groupsCreated,
         shiftsCreated: shiftResult.shiftsCreated,
+        error: syncResult.error,
+        consecutiveFailures: healthResult.consecutiveFailures,
+        adminNotificationsCreated: healthResult.notificationsCreated,
       });
     } catch (err) {
       console.error(`morning-refresh: sync failed for source ${source.name}:`, err);
+      const error = err instanceof Error ? err.message : "Unknown error";
+      const healthResult = await recordCalendarSyncHealth({
+        sourceId: source.id,
+        sourceName: source.name,
+        result: { added: 0, updated: 0, cancelled: 0, skipped: 0, errors: [], error },
+        now,
+      });
       syncResults.push({
         sourceId: source.id,
         sourceName: source.name,
-        error: err instanceof Error ? err.message : "Unknown error",
+        error,
+        consecutiveFailures: healthResult.consecutiveFailures,
+        adminNotificationsCreated: healthResult.notificationsCreated,
       });
     }
   }
@@ -147,3 +168,23 @@ export const GET = withCron(async () => {
     maintenanceFailures,
   });
 });
+
+async function recordCalendarSyncHealth(args: {
+  sourceId: string;
+  sourceName: string;
+  result: Awaited<ReturnType<typeof syncCalendarSource>>;
+  now: Date;
+}) {
+  try {
+    return await updateCalendarSyncHealth(args);
+  } catch (err) {
+    console.error(`morning-refresh: sync health update failed for source ${args.sourceName}:`, err);
+    return {
+      sourceId: args.sourceId,
+      sourceName: args.sourceName,
+      consecutiveFailures: 0,
+      failed: Boolean(args.result.error),
+      notificationsCreated: 0,
+    };
+  }
+}

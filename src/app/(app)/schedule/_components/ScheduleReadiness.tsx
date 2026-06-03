@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import { AlertTriangleIcon, CalendarDaysIcon, CheckCircle2Icon, ClockIcon, Repeat2Icon, UserCheckIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { effectiveCallWindow } from "@/lib/shift-call-windows";
 import type { CalendarEntry } from "./types";
 import { ACTIVE_STATUSES } from "./types";
 
@@ -61,12 +62,14 @@ function formatNextCall(entries: CalendarEntry[]) {
   if (!next) return "No upcoming calls";
 
   const callSource = next.shifts.length > 0
-    ? next.shifts.reduce((earliest, shift) =>
-        new Date(shift.startsAt).getTime() < new Date(earliest.startsAt).getTime()
-          ? shift
-          : earliest,
-      next.shifts[0]!)
-    : next;
+    ? next.shifts
+        .map((shift) => effectiveCallWindow(shift, shift.assignments.find((assignment) => ACTIVE_STATUSES.includes(assignment.status))))
+        .reduce((earliest, window) =>
+          new Date(window.startsAt).getTime() < new Date(earliest.startsAt).getTime()
+            ? window
+            : earliest,
+        )
+    : { startsAt: next.startsAt };
 
   return new Date(callSource.startsAt).toLocaleString("en-US", {
     weekday: "short",

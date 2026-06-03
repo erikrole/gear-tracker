@@ -14,11 +14,14 @@ import {
   AREA_LABELS,
   type CalendarEntry,
 } from "./types";
+import { ScheduleSourceSignal } from "./ScheduleSourceSignal";
 import type { ScheduleFilters as ScheduleFiltersType, ViewMode, HomeAwayFilter } from "@/hooks/use-schedule-data";
+import type { ScheduleSourceSignal as ScheduleSourceSignalData } from "@/lib/calendar-source-freshness";
 
 type ScheduleFiltersProps = {
   filters: ScheduleFiltersType;
   entries: CalendarEntry[];
+  sourceSignal: ScheduleSourceSignalData | null;
 };
 
 const VIEW_MODES: { value: ViewMode; label: string; icon: ReactNode }[] = [
@@ -46,7 +49,7 @@ function ToolbarGroup({
   );
 }
 
-export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
+export function ScheduleFilters({ filters, entries, sourceSignal }: ScheduleFiltersProps) {
   const sportOptions = useMemo(() => {
     const codes = new Set(
       entries.map((e) => e.sportCode).filter(Boolean) as string[],
@@ -278,6 +281,7 @@ export function ScheduleFilters({ filters, entries }: ScheduleFiltersProps) {
           </div>
         </PopoverContent>
       </Popover>
+      <ScheduleSourceSignal signal={sourceSignal} />
       </div>
     </div>
   );

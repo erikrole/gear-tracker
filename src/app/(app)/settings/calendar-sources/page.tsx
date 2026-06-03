@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/ConfirmDialog";
 import EmptyState from "@/components/EmptyState";
@@ -19,6 +19,15 @@ import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage, par
 import StatusIndicator from "@/components/ui/status-indicator";
 import { SettingsPageShell } from "../SettingsPageShell";
 import { RefreshCw, Trash2, Power, PowerOff } from "lucide-react";
+import {
+  calendarSourceHealthErrorFromSync,
+  calendarSourceSyncToast,
+  type CalendarSourceSyncResult,
+} from "./calendar-source-sync-copy";
+import {
+  calendarSourceFreshnessLabel,
+  getCalendarSourceFreshness,
+} from "@/lib/calendar-source-freshness";
 
 type CalendarSource = {
   id: string;
@@ -52,12 +61,14 @@ export default function CalendarSourcesPage() {
   };
   const [syncing, setSyncing] = useState<string | null>(null);
   const [toggling, setToggling] = useState<string | null>(null);
+  const sourceActionRef = useRef<string | null>(null);
 
   // Add form
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState("");
   const [newUrl, setNewUrl] = useState("");
   const [addBusy, setAddBusy] = useState(false);
+  const addBusyRef = useRef(false);
 
   // Test URL probe
   type TestResult = {
@@ -71,12 +82,15 @@ export default function CalendarSourcesPage() {
   };
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<TestResult | null>(null);
+  const testingRef = useRef(false);
 
   async function handleTest() {
+    if (testingRef.current) return;
     if (!newUrl.trim()) {
       toast.error("Paste an ICS URL first");
       return;
     }
+    testingRef.current = true;
     setTesting(true);
     setTestResult(null);
     try {
@@ -101,11 +115,15 @@ export default function CalendarSourcesPage() {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
       toast.error(kind === "network" ? "You’re offline. Check your connection." : "Test failed");
+    } finally {
+      testingRef.current = false;
+      setTesting(false);
     }
-    setTesting(false);
   }
 
   async function handleToggle(source: CalendarSource) {
+    if (sourceActionRef.current) return;
+    sourceActionRef.current = source.id;
     setToggling(source.id);
     try {
       const res = await fetch(`/api/calendar-sources/${source.id}`, {
@@ -127,21 +145,41 @@ export default function CalendarSourcesPage() {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
       toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Toggle failed");
+    } finally {
+      sourceActionRef.current = null;
+      setToggling(null);
     }
-    setToggling(null);
   }
 
   async function handleSync(source: CalendarSource) {
+    if (sourceActionRef.current) return;
+    sourceActionRef.current = source.id;
     setSyncing(source.id);
     try {
       const res = await fetch(`/api/calendar-sources/${source.id}/sync`, { method: "POST" });
       if (handleAuthRedirect(res, "/settings/calendar-sources")) return;
       if (res.ok) {
-        const json = await parseJsonSafely<{ data?: { shiftGenerationError?: boolean } }>(res);
-        if (json?.data?.shiftGenerationError) {
-          toast.warning(`Synced ${source.name}, but shift generation failed`);
+        const json = await parseJsonSafely<{ data?: CalendarSourceSyncResult }>(res);
+        if (!json?.data) {
+          toast.error(`${source.name} sync completed, but the response could not be read.`);
+          return;
+        }
+        const toastCopy = calendarSourceSyncToast(source.name, json.data);
+        const lastError = calendarSourceHealthErrorFromSync(json.data);
+        const syncedAt = new Date().toISOString();
+        setSources((prev) =>
+          prev.map((s) =>
+            s.id === source.id
+              ? { ...s, lastFetchedAt: syncedAt, lastError }
+              : s
+          )
+        );
+        if (toastCopy.variant === "error") {
+          toast.error(toastCopy.message);
+        } else if (toastCopy.variant === "warning") {
+          toast.warning(toastCopy.message);
         } else {
-          toast.success(`Synced ${source.name}`);
+          toast.success(toastCopy.message);
         }
         reload();
       } else {
@@ -152,11 +190,14 @@ export default function CalendarSourcesPage() {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
       toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Sync failed");
+    } finally {
+      sourceActionRef.current = null;
+      setSyncing(null);
     }
-    setSyncing(null);
   }
 
   async function handleDelete(source: CalendarSource) {
+    if (sourceActionRef.current) return;
     const ok = await confirm({
       title: "Delete calendar source",
       message: `Delete "${source.name}" and its ${source._count?.events ?? 0} synced event${source._count?.events === 1 ? "" : "s"}? Shift coverage that depends on those events will no longer have this feed as a source.`,
@@ -164,6 +205,7 @@ export default function CalendarSourcesPage() {
       variant: "danger",
     });
     if (!ok) return;
+    sourceActionRef.current = source.id;
     try {
       const res = await fetch(`/api/calendar-sources/${source.id}`, { method: "DELETE" });
       if (handleAuthRedirect(res, "/settings/calendar-sources")) return;
@@ -177,12 +219,16 @@ export default function CalendarSourcesPage() {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
       toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Delete failed");
+    } finally {
+      sourceActionRef.current = null;
     }
   }
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
+    if (addBusyRef.current) return;
     if (!newName.trim() || !newUrl.trim()) return;
+    addBusyRef.current = true;
     setAddBusy(true);
     try {
       const res = await fetch("/api/calendar-sources", {
@@ -205,19 +251,20 @@ export default function CalendarSourcesPage() {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
       toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Add failed");
+    } finally {
+      addBusyRef.current = false;
+      setAddBusy(false);
     }
-    setAddBusy(false);
   }
 
   function healthBadge(source: CalendarSource) {
-    if (!source.enabled) return <StatusIndicator state="idle" label="Disabled" size="sm" />;
-    if (source.lastError) return <span title={source.lastError}><StatusIndicator state="down" label="Error" size="sm" /></span>;
-    if (!source.lastFetchedAt) return <StatusIndicator state="idle" label="Never synced" size="sm" />;
-    const lastSync = new Date(source.lastFetchedAt);
-    const hoursSince = (Date.now() - lastSync.getTime()) / (1000 * 60 * 60);
-    // Cron runs daily at 6 AM UTC (D-026); allow ~6h grace before marking stale.
-    if (hoursSince > 30) return <StatusIndicator state="fixing" label="Stale" size="sm" />;
-    return <StatusIndicator state="active" label="Healthy" size="sm" />;
+    const freshness = getCalendarSourceFreshness(source);
+    const label = calendarSourceFreshnessLabel(freshness);
+    if (freshness === "disabled") return <StatusIndicator state="idle" label={label} size="sm" />;
+    if (freshness === "error") return <span title={source.lastError ?? undefined}><StatusIndicator state="down" label={label} size="sm" /></span>;
+    if (freshness === "never-synced") return <StatusIndicator state="idle" label={label} size="sm" />;
+    if (freshness === "stale") return <StatusIndicator state="fixing" label={label} size="sm" />;
+    return <StatusIndicator state="active" label={label} size="sm" />;
   }
 
   return (
@@ -232,6 +279,13 @@ export default function CalendarSourcesPage() {
             </Button>
           )}
         </div>
+
+        <Alert>
+          <RefreshCw className="size-4" />
+          <AlertDescription>
+            Automatic sync runs daily in morning refresh. Use Sync now for schedule changes that cannot wait for the next run.
+          </AlertDescription>
+        </Alert>
 
         {showAdd && (
           <Card className="p-4 mb-4">
@@ -370,14 +424,14 @@ export default function CalendarSourcesPage() {
                         >
                           <DropdownMenuItem
                             onSelect={() => handleToggle(source)}
-                            disabled={toggling === source.id}
+                            disabled={Boolean(syncing || toggling)}
                           >
                             {source.enabled ? <PowerOff className="size-4" /> : <Power className="size-4" />}
                             {source.enabled ? "Disable source" : "Enable source"}
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onSelect={() => handleSync(source)}
-                            disabled={syncing === source.id || !source.enabled}
+                            disabled={Boolean(syncing || toggling) || !source.enabled}
                           >
                             <RefreshCw className="size-4" />
                             {syncing === source.id ? "Syncing" : "Sync now"}
