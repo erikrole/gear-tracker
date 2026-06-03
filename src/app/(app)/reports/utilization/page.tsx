@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import { toast } from "sonner";
 import MetricCard from "../MetricCard";
 import {
   Table,
@@ -16,7 +17,6 @@ import { useFetch } from "@/hooks/use-fetch";
 import { statusBadgeVariantEquipment, statusLabelEquipment } from "@/lib/status-colors";
 import {
   ReportChartLoading,
-  downloadReportCsv,
   ReportErrorState,
   ReportExportButton,
   ReportListRow,
@@ -25,6 +25,12 @@ import {
   ReportSectionCard,
   ReportToolbar,
 } from "../report-ui";
+import { handleAuthRedirect, isAbortError } from "@/lib/errors";
+import {
+  getReportExportCompletionToast,
+  getReportExportFilename,
+  readReportExportFailureMessage,
+} from "../report-export";
 
 const LazyStatusDonut = dynamic(
   () => import("./charts").then((m) => ({ default: m.StatusDonut })),
@@ -90,14 +96,48 @@ function BreakdownCard({
   );
 }
 
-function downloadCsv(data: UtilizationData) {
-  downloadReportCsv("utilization-report", [
-    ["Section", "Label", "Count"],
-    ...Object.entries(data.statusCounts).map(([status, count]) => ["Status", statusLabelEquipment(status), count]),
-    ...data.byLocation.map((r) => ["Location", r.location, r.count]),
-    ...data.byType.map((r) => ["Type", r.type, r.count]),
-    ...data.byDepartment.map((r) => ["Department", r.department, r.count]),
-  ]);
+async function downloadUtilizationCsv() {
+  try {
+    const res = await fetch("/api/reports/utilization?format=csv");
+    if (handleAuthRedirect(res, "/reports/utilization")) return;
+
+    if (!res.ok) {
+      toast.error(await readReportExportFailureMessage(res, "Utilization report"));
+      return;
+    }
+
+    const blob = await res.blob();
+    const filename = getReportExportFilename(
+      res.headers.get("Content-Disposition"),
+      "utilization-report.csv",
+    );
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    const exportedCount = Number.parseInt(res.headers.get("X-Exported-Count") ?? "", 10);
+    const completionToast = getReportExportCompletionToast({
+      reportLabel: "Utilization report",
+      rowCount: Number.isFinite(exportedCount) ? exportedCount : 0,
+      scopeLabel: "inventory rows",
+      total: res.headers.get("X-Total-Count"),
+      truncated: res.headers.get("X-Truncated") === "true",
+    });
+
+    if (completionToast.variant === "warning") {
+      toast.warning(completionToast.message);
+    } else {
+      toast.success(completionToast.message);
+    }
+  } catch (err) {
+    if (isAbortError(err)) return;
+    toast.error("Utilization report CSV export failed. Check your connection and try again.");
+  }
 }
 
 export default function UtilizationPage() {
@@ -137,7 +177,11 @@ export default function UtilizationPage() {
         now={now}
         onRefresh={reload}
         exportAction={(
-          <ReportExportButton onClick={() => downloadCsv(data)} />
+          <ReportExportButton
+            ariaLabel="Export utilization inventory rows CSV"
+            label="Export inventory rows"
+            onClick={downloadUtilizationCsv}
+          />
         )}
       />
       <ReportMetricGrid>

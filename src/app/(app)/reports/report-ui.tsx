@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import type { ComponentProps, MouseEvent, ReactNode } from "react";
+import { useRef, useState, type ComponentProps, type MouseEvent, type ReactNode } from "react";
+import { toast } from "sonner";
 import { AlertCircle, Download, RefreshCw } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -23,6 +24,13 @@ import {
 import { OperationalActiveFilterChips, type OperationalActiveFilter } from "@/components/OperationalToolbar";
 import { cn } from "@/lib/utils";
 import { formatRelativeTime } from "@/lib/format";
+import {
+  buildReportCsv,
+  formatReportExportSuccess,
+  reportExportFilename,
+  reportLabelFromFilenameBase,
+  type CsvValue,
+} from "./report-export";
 
 export const REPORT_CHART_COLORS = [
   "hsl(220 70% 55%)",
@@ -42,36 +50,63 @@ export const REPORT_CHART_COLORS = [
   "hsl(240 50% 55%)",
 ] as const;
 
-type CsvValue = boolean | Date | null | number | string | undefined;
-
-function escapeCsvValue(value: CsvValue) {
-  const raw = value instanceof Date ? value.toISOString() : value == null ? "" : String(value);
-  const formulaSafe = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
-  return `"${formulaSafe.replace(/"/g, '""')}"`;
-}
-
-export function downloadReportCsv(filenameBase: string, rows: CsvValue[][]) {
-  const csv = rows.map((row) => row.map(escapeCsvValue).join(",")).join("\n");
-  const blob = new Blob([`${csv}\n`], { type: "text/csv" });
+export function downloadReportCsv(
+  filenameBase: string,
+  rows: CsvValue[][],
+  options?: { reportLabel?: string; rowCount?: number; scopeLabel?: string },
+) {
+  const blob = new Blob([buildReportCsv(rows)], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${filenameBase}-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.download = reportExportFilename(filenameBase);
   link.click();
   URL.revokeObjectURL(url);
+  toast.success(formatReportExportSuccess({
+    reportLabel: options?.reportLabel ?? reportLabelFromFilenameBase(filenameBase),
+    rowCount: options?.rowCount ?? Math.max(0, rows.length - 1),
+    scopeLabel: options?.scopeLabel,
+  }));
 }
 
 export function ReportExportButton({
+  ariaLabel,
   disabled,
+  label = "Export visible rows",
   onClick,
 }: {
+  ariaLabel?: string;
   disabled?: boolean;
-  onClick: () => void;
+  label?: string;
+  onClick: () => Promise<void> | void;
 }) {
+  const busyRef = useRef(false);
+  const [exporting, setExporting] = useState(false);
+
+  async function handleClick() {
+    if (disabled || busyRef.current) return;
+    busyRef.current = true;
+    setExporting(true);
+    try {
+      await onClick();
+    } finally {
+      window.setTimeout(() => {
+        busyRef.current = false;
+        setExporting(false);
+      }, 750);
+    }
+  }
+
   return (
-    <Button variant="outline" size="sm" disabled={disabled} onClick={onClick}>
+    <Button
+      variant="outline"
+      size="sm"
+      disabled={disabled || exporting}
+      onClick={handleClick}
+      aria-label={ariaLabel ?? label}
+    >
       <Download data-icon="inline-start" />
-      Export CSV
+      {exporting ? "Exporting..." : label}
     </Button>
   );
 }

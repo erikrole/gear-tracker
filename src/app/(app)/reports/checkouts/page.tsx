@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 import { formatDateFull } from "@/lib/format";
 import MetricCard from "../MetricCard";
 import { Badge } from "@/components/ui/badge";
@@ -16,12 +17,12 @@ import {
 } from "@/components/ui/table";
 import { FadeUp } from "@/components/ui/motion";
 import { useFetch } from "@/hooks/use-fetch";
+import { handleAuthRedirect, isAbortError } from "@/lib/errors";
 import { statusBadgeVariant, statusLabel } from "@/components/booking-details/helpers";
 import type { BadgeProps } from "@/components/ui/badge";
 import { syncUrl } from "@/lib/url-sync";
 import {
   ReportChartLoading,
-  downloadReportCsv,
   ReportEmptyState,
   ReportErrorState,
   ReportExportButton,
@@ -36,6 +37,11 @@ import {
   ReportToolbar,
   ReportToolbarGroup,
 } from "../report-ui";
+import {
+  getReportExportCompletionToast,
+  getReportExportFilename,
+  readReportExportFailureMessage,
+} from "../report-export";
 
 const LazyCheckoutTrendChart = dynamic(
   () => import("./charts").then((m) => ({ default: m.CheckoutTrendChart })),
@@ -104,11 +110,57 @@ function CheckoutMobileCard({ c }: { c: CheckoutRow }) {
   );
 }
 
-function downloadCsv(rows: CheckoutRow[]) {
-  downloadReportCsv("checkouts-report", [
-    ["Title", "Requester", "Status", "Due", "Items", "Overdue"],
-    ...rows.map((c) => [c.title, c.requester, c.status, c.endsAt, c.itemCount, c.isOverdue]),
-  ]);
+function buildCheckoutReportParams(days: number) {
+  const params = new URLSearchParams();
+  params.set("days", String(days));
+  return params;
+}
+
+async function downloadCheckoutCsv(days: number) {
+  const params = buildCheckoutReportParams(days);
+  params.set("format", "csv");
+
+  try {
+    const res = await fetch(`/api/reports/checkouts?${params.toString()}`);
+    if (handleAuthRedirect(res, "/reports/checkouts")) return;
+
+    if (!res.ok) {
+      toast.error(await readReportExportFailureMessage(res, "Checkouts report"));
+      return;
+    }
+
+    const blob = await res.blob();
+    const filename = getReportExportFilename(
+      res.headers.get("Content-Disposition"),
+      "checkouts-report.csv",
+    );
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    const exportedCount = Number.parseInt(res.headers.get("X-Exported-Count") ?? "", 10);
+    const completionToast = getReportExportCompletionToast({
+      reportLabel: "Checkouts report",
+      rowCount: Number.isFinite(exportedCount) ? exportedCount : 0,
+      scopeLabel: "matching checkout rows",
+      total: res.headers.get("X-Total-Count"),
+      truncated: res.headers.get("X-Truncated") === "true",
+    });
+
+    if (completionToast.variant === "warning") {
+      toast.warning(completionToast.message);
+    } else {
+      toast.success(completionToast.message);
+    }
+  } catch (err) {
+    if (isAbortError(err)) return;
+    toast.error("Checkouts report CSV export failed. Check your connection and try again.");
+  }
 }
 
 export default function CheckoutsReportPage() {
@@ -168,7 +220,11 @@ export default function CheckoutsReportPage() {
         now={now}
         onRefresh={reload}
         exportAction={(data.recentCheckouts ?? []).length > 0 ? (
-          <ReportExportButton onClick={() => downloadCsv(data.recentCheckouts)} />
+          <ReportExportButton
+            ariaLabel="Export matching checkout rows CSV"
+            label="Export matching rows"
+            onClick={() => downloadCheckoutCsv(days)}
+          />
         ) : null}
       >
         <ReportToolbarGroup label="Period">

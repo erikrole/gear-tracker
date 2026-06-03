@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reports & Analytics
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-25
+- Last Updated: 2026-06-02
 - Status: Active
 - Version: V1
 
@@ -16,6 +16,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 3. Each report has filters (date range, status, location) and metrics cards.
 4. Data is cached via React Query with focus refresh.
 5. Empty states and error states handled with EmptyState + retry.
+6. Report-local CSV exports download only the currently visible report rows and must say that in the action/copy, except Utilization, Checkouts, Overdue, Audit, Scans, and Missing Units where the CSV action exports the full filtered, report-evidence, or row-level inventory result from a bounded server-backed endpoint.
 
 ## Routes
 
@@ -41,6 +42,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - **Charts:** Utilization trends (equipment category breakdown, location breakdown, time-series checkout rate)
 - **Filters:** Date range, location, category
 - **Data:** `GET /api/reports/utilization?from=...&to=...&location=...&category=...`
+- **Export:** `GET /api/reports/utilization?format=csv` returns up to 5,000 inventory rows with derived status, stored status, physical identity fields, location, department, category, availability flags, `X-Exported-Count`, `X-Total-Count`, and `X-Truncated` headers when capped.
 
 ### `/reports/checkouts`
 - **Page:** `src/app/(app)/reports/checkouts/page.tsx`
@@ -50,6 +52,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - **Charts:** Daily checkout trend, top requesters, 365-day heatmap
 - **Filters:** Period (7d, 30d, 90d)
 - **Data:** `GET /api/reports/checkouts?days=...`
+- **Export:** `GET /api/reports/checkouts?format=csv&days=...` returns up to 5,000 matching non-draft checkout activity rows with `X-Exported-Count`, `X-Total-Count`, and `X-Truncated` headers when capped.
 - **Semantics:** Draft bookings are excluded from operational checkout activity metrics and charts.
 
 ### `/reports/overdue`
@@ -60,6 +63,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - **Filters:** Date range, location, escalation count
 - **Behaviors:** Expand requester row to inspect overdue bookings and deep-link to booking detail.
 - **Data:** `GET /api/reports/overdue`
+- **Export:** `GET /api/reports/overdue?format=csv` returns up to 5,000 overdue checkout rows with requester, booking, due time, overdue hours, location, outstanding item count, outstanding item summary, `X-Exported-Count`, `X-Total-Count`, and `X-Truncated` headers when capped.
 - **Semantics:** Only open checkouts past `endsAt` are overdue. Item summaries count active serialized allocations and outstanding bulk quantities, not already-returned gear.
 
 ### `/reports/scans`
@@ -70,6 +74,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - **Charts:** Daily scan volume by success/fail
 - **Filters:** Period (all, 7d, 30d, 90d), phase (all, checkout, check-in)
 - **Data:** `GET /api/reports/scans?limit=...&offset=...&startDate=...&endDate=...&phase=...`
+- **Export:** `GET /api/reports/scans?format=csv&startDate=...&endDate=...&phase=...` returns up to 5,000 matching rows with `X-Exported-Count`, `X-Total-Count`, and `X-Truncated` headers when capped.
 - **Semantics:** API rejects invalid dates, inverted date ranges, and phases outside `CHECKOUT` or `CHECKIN`.
 
 ### `/reports/bulk-losses`
@@ -81,6 +86,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - **Signals:** Repeated missing battery patterns by item family and by last known requester
 - **Filters:** Date range, category, location
 - **Data:** `GET /api/reports/bulk-losses`
+- **Export:** `GET /api/reports/bulk-losses?format=csv` returns up to 5,000 report-evidence rows across missing-unit family counts, requester attribution, recent missing-unit events, battery family summaries, missing battery units, battery checkout history, and repeat patterns with `X-Exported-Count`, `X-Total-Count`, and `X-Truncated` headers when capped.
 
 ### `/reports/audit`
 - **Page:** `src/app/(app)/reports/audit/page.tsx`
@@ -90,6 +96,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - **Charts:** Event frequency over time, action breakdown, actor breakdown
 - **Filters:** Date range, action type, actor, resource type
 - **Data:** `GET /api/reports/audit?from=...&to=...&action=...&actor=...&resourceType=...`
+- **Export:** `GET /api/reports/audit?format=csv&startDate=...&endDate=...&action=...` returns up to 5,000 matching rows with `X-Exported-Count`, `X-Total-Count`, and `X-Truncated` headers when capped.
 
 ### `/reports/badges`
 - **Page:** `src/app/(app)/reports/badges/page.tsx`
@@ -102,6 +109,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 
 **Shared across reports:**
 - `MetricCard` — report-local adapter around `OperationalMetricCard`, preserving report drill-down links, tooltips, badges, and string values while using the shared operational metric primitive
+- `ReportExportButton` / report export helpers — shared CSV export actions with duplicate-click guards, formula-safe CSV escaping, dated filenames, server-backed filename/error parsing, and completion copy that names the exported scope
 - Charts from `recharts` (line, bar, pie charts as needed per report)
 - `Card` + `CardHeader` + `CardContent` for sections
 - Filter bar with date range picker, select dropdowns
@@ -133,6 +141,13 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - [x] AC-8: Missing Units report includes unit-tracked battery missing-unit, missing-rate, custody-history, and repeat-pattern reporting
 
 ## Change Log
+- 2026-06-02: Web operator trust sweep added Utilization row-level CSV export. `/reports/utilization` now exports bounded server-backed inventory rows with derived status evidence, stored status, location, department, category, and availability flags while keeping JSON metric/card/chart behavior unchanged.
+- 2026-06-02: Web operator trust sweep added Missing Units evidence CSV export. `/reports/bulk-losses` now exports bounded server-backed report-evidence rows across missing-unit groupings, requester attribution, recent loss events, battery family summaries, missing battery units, checkout history, and repeat patterns while keeping the JSON report sections and drill-down links unchanged.
+- 2026-06-02: Web operator trust sweep tightened Overdue report CSV export semantics. `/reports/overdue` now exports overdue checkout rows through a bounded server-backed CSV path, includes outstanding item summaries that exclude already-returned bulk quantities, reports capped exports with row-count headers/copy, and keeps the JSON leaderboard grouping and expansion behavior unchanged.
+- 2026-06-02: Web operator trust sweep tightened Checkouts report CSV export semantics. `/reports/checkouts` now exports all matching non-draft checkout activity rows for the selected period through a bounded server-backed CSV path, reports capped exports with row-count headers/copy, and keeps JSON report metrics/charts/heatmap unchanged.
+- 2026-06-02: Web operator trust sweep tightened Scans report CSV export semantics. `/reports/scans` now exports all matching filtered scan events through a bounded server-backed CSV path, reports capped exports with row-count headers/copy, and keeps JSON report pagination/charts unchanged.
+- 2026-06-02: Web operator trust sweep tightened Audit report CSV export semantics. `/reports/audit` now exports all matching filtered audit rows through a bounded server-backed CSV path, reports capped exports with row-count headers/copy, and keeps the JSON report browse pagination/charts unchanged.
+- 2026-06-02: Web operator trust sweep tightened report CSV exports. Utilization, Checkouts, Overdue, Scans, Audit, and Badges now label exports as visible-row downloads, ignore rapid duplicate export clicks, and show completion copy that names the exact visible row scope without changing report APIs or analytics semantics.
 - 2026-05-25: Web bug sweep Batch 49 cleaned up Utilization report status language. Metric cards, status chart labels, and CSV status rows now use shared equipment display labels such as `Awaiting Pickup` instead of raw enum values like `PENDING_PICKUP`, while keeping raw status keys only in drill-down URLs.
 - 2026-05-25: Web bug sweep Batch 43 fixed Reports overdue drill-down links. Checkouts and Overdue metric cards now use `/checkouts?filter=overdue`, matching the booking list's special filter contract instead of sending invalid `status=overdue` links into the unified Bookings route.
 - 2026-05-25: Web bug sweep Batch 39 hardened Audit report URL state. Audit period and pagination controls now rehydrate from browser Back/Forward or shared links, invalid filter params self-correct, and out-of-range pages clamp after report data loads.

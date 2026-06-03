@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import MetricCard from "../MetricCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,12 +19,19 @@ import { useFetch } from "@/hooks/use-fetch";
 import {
   ReportEmptyState,
   ReportErrorState,
+  ReportExportButton,
   ReportListRow,
   ReportLoadingState,
   ReportMetricGrid,
   ReportSectionCard,
   ReportToolbar,
 } from "../report-ui";
+import { handleAuthRedirect, isAbortError } from "@/lib/errors";
+import {
+  getReportExportCompletionToast,
+  getReportExportFilename,
+  readReportExportFailureMessage,
+} from "../report-export";
 
 type SkuLoss = {
   skuName: string;
@@ -119,6 +127,50 @@ function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`;
 }
 
+async function downloadMissingUnitsCsv() {
+  try {
+    const res = await fetch("/api/reports/bulk-losses?format=csv");
+    if (handleAuthRedirect(res, "/reports/bulk-losses")) return;
+
+    if (!res.ok) {
+      toast.error(await readReportExportFailureMessage(res, "Missing Units report"));
+      return;
+    }
+
+    const blob = await res.blob();
+    const filename = getReportExportFilename(
+      res.headers.get("Content-Disposition"),
+      "missing-units-report.csv",
+    );
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    const exportedCount = Number.parseInt(res.headers.get("X-Exported-Count") ?? "", 10);
+    const completionToast = getReportExportCompletionToast({
+      reportLabel: "Missing Units report",
+      rowCount: Number.isFinite(exportedCount) ? exportedCount : 0,
+      scopeLabel: "matching missing-unit evidence rows",
+      total: res.headers.get("X-Total-Count"),
+      truncated: res.headers.get("X-Truncated") === "true",
+    });
+
+    if (completionToast.variant === "warning") {
+      toast.warning(completionToast.message);
+    } else {
+      toast.success(completionToast.message);
+    }
+  } catch (err) {
+    if (isAbortError(err)) return;
+    toast.error("Missing Units report CSV export failed. Check your connection and try again.");
+  }
+}
+
 export default function BulkLossesReportPage() {
   const [now, setNow] = useState(() => new Date());
 
@@ -145,6 +197,14 @@ export default function BulkLossesReportPage() {
 
   if (!data) return null;
 
+  const hasExportableEvidence = data.bySku.length > 0
+    || data.byUser.length > 0
+    || data.recentLosses.length > 0
+    || data.batteryAudit.bySku.length > 0
+    || data.batteryAudit.missingUnits.length > 0
+    || data.batteryAudit.checkoutHistory.length > 0
+    || data.batteryAudit.repeatPatterns.length > 0;
+
   return (
     <FadeUp>
     <div className="flex flex-col gap-4">
@@ -153,6 +213,13 @@ export default function BulkLossesReportPage() {
         loading={loading}
         now={now}
         onRefresh={reload}
+        exportAction={hasExportableEvidence ? (
+          <ReportExportButton
+            ariaLabel="Export matching missing-unit evidence CSV"
+            label="Export matching rows"
+            onClick={downloadMissingUnitsCsv}
+          />
+        ) : null}
       />
 
       {/* Metrics row */}

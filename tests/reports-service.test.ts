@@ -3,6 +3,14 @@ import { BookingStatus } from "@prisma/client";
 
 vi.mock("@/lib/db", () => ({
   db: {
+    asset: {
+      count: vi.fn(),
+      findMany: vi.fn(),
+      groupBy: vi.fn(),
+    },
+    assetAllocation: {
+      findMany: vi.fn(),
+    },
     booking: {
       count: vi.fn(),
       findMany: vi.fn(),
@@ -29,7 +37,14 @@ vi.mock("@/lib/db", () => ({
 }));
 
 import { db } from "@/lib/db";
-import { getBulkLossReport, getCheckoutReport, getOverdueReport } from "@/lib/services/reports";
+import {
+  getBulkLossReport,
+  getBulkLossReportExport,
+  getCheckoutReport,
+  getOverdueReport,
+  getOverdueReportExport,
+  getUtilizationReportExport,
+} from "@/lib/services/reports";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -42,6 +57,92 @@ afterEach(() => {
 });
 
 describe("reports service", () => {
+  it("exports utilization inventory rows with derived status evidence", async () => {
+    vi.mocked(db.asset.findMany).mockResolvedValue([
+      {
+        id: "asset-1",
+        assetTag: "CAM-001",
+        name: "Camera Kit",
+        type: "Camera",
+        brand: "Sony",
+        model: "FX6",
+        status: "AVAILABLE",
+        availableForReservation: true,
+        availableForCheckout: true,
+        availableForCustody: false,
+        updatedAt: new Date("2026-05-10T10:00:00.000Z"),
+        location: { name: "Main Cage" },
+        department: { name: "Creative" },
+        category: { name: "Cinema Cameras" },
+      },
+      {
+        id: "asset-2",
+        assetTag: "MIC-001",
+        name: null,
+        type: "Audio",
+        brand: "Sennheiser",
+        model: "MKH 416",
+        status: "MAINTENANCE",
+        availableForReservation: false,
+        availableForCheckout: false,
+        availableForCustody: true,
+        updatedAt: new Date("2026-05-10T11:00:00.000Z"),
+        location: { name: "Main Cage" },
+        department: null,
+        category: null,
+      },
+    ] as any);
+    vi.mocked(db.asset.count).mockResolvedValue(2);
+    vi.mocked(db.assetAllocation.findMany).mockResolvedValue([
+      {
+        assetId: "asset-1",
+        startsAt: new Date("2026-05-10T09:00:00.000Z"),
+        endsAt: new Date("2026-05-10T12:00:00.000Z"),
+        booking: {
+          kind: "CHECKOUT",
+          status: "OPEN",
+        },
+      },
+    ] as any);
+
+    const report = await getUtilizationReportExport();
+
+    expect(db.asset.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      orderBy: { assetTag: "asc" },
+      take: 5000,
+    }));
+    expect(db.assetAllocation.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        assetId: { in: ["asset-1"] },
+        active: true,
+      }),
+    }));
+    expect(report).toMatchObject({
+      total: 2,
+      truncated: false,
+      limit: 5000,
+    });
+    expect(report.data).toEqual([
+      expect.objectContaining({
+        assetTag: "CAM-001",
+        computedStatus: "CHECKED_OUT",
+        storedStatus: "AVAILABLE",
+        location: "Main Cage",
+        department: "Creative",
+        category: "Cinema Cameras",
+        updatedAt: "2026-05-10T10:00:00.000Z",
+      }),
+      expect.objectContaining({
+        assetTag: "MIC-001",
+        name: "",
+        computedStatus: "MAINTENANCE",
+        storedStatus: "MAINTENANCE",
+        department: "",
+        category: "",
+      }),
+    ]);
+  });
+
   it("excludes draft bookings from checkout activity analytics", async () => {
     vi.mocked(db.booking.count)
       .mockResolvedValueOnce(7)
@@ -121,6 +222,64 @@ describe("reports service", () => {
     );
     expect(booking!.itemCount).toBe(4);
     expect(booking!.items).toEqual(["CAM-1", "AA Batteries x3"]);
+  });
+
+  it("exports overdue rows with complete outstanding item summaries", async () => {
+    vi.mocked(db.booking.findMany).mockResolvedValue([
+      {
+        id: "booking-1",
+        title: "Camera checkout",
+        endsAt: new Date("2026-05-10T09:00:00.000Z"),
+        requester: { id: "user-1", name: "Alex Student" },
+        location: { id: "loc-1", name: "Main" },
+        serializedItems: [
+          { asset: { id: "asset-1", assetTag: "CAM-1", name: "Camera" } },
+        ],
+        bulkItems: [
+          {
+            checkedOutQuantity: 5,
+            checkedInQuantity: 2,
+            plannedQuantity: 5,
+            bulkSku: { id: "sku-1", name: "AA Batteries" },
+          },
+          {
+            checkedOutQuantity: 2,
+            checkedInQuantity: 2,
+            plannedQuantity: 2,
+            bulkSku: { id: "sku-2", name: "SD Cards" },
+          },
+        ],
+      },
+    ] as any);
+    vi.mocked(db.booking.count).mockResolvedValue(1);
+
+    const report = await getOverdueReportExport();
+
+    expect(db.booking.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: { endsAt: "asc" },
+        take: 5000,
+        where: expect.objectContaining({
+          kind: "CHECKOUT",
+          status: "OPEN",
+          endsAt: { lt: expect.any(Date) },
+        }),
+      }),
+    );
+    expect(report).toMatchObject({
+      total: 1,
+      truncated: false,
+      limit: 5000,
+    });
+    expect(report.data[0]).toMatchObject({
+      bookingId: "booking-1",
+      requester: "Alex Student",
+      title: "Camera checkout",
+      overdueHours: 3,
+      location: "Main",
+      itemCount: 4,
+      itemSummary: "CAM-1; AA Batteries x3",
+    });
   });
 
   it("adds numbered battery audit details to the bulk loss report", async () => {
@@ -338,5 +497,136 @@ describe("reports service", () => {
       skuName: "Sony NP-FZ100 Battery",
       durationDays: 2,
     });
+  });
+
+  it("exports missing-unit report evidence across grouped and battery sections", async () => {
+    vi.mocked(db.bulkSkuUnit.groupBy).mockResolvedValue([
+      { bulkSkuId: "battery-sku-1", _count: { id: 1 } },
+    ] as any);
+    vi.mocked(db.bulkSkuUnit.findMany).mockResolvedValue([
+      {
+        id: "unit-1",
+        unitNumber: 7,
+        notes: "Missing after event",
+        updatedAt: new Date("2026-05-09T12:00:00.000Z"),
+        bulkSku: { id: "battery-sku-1", name: "Sony NP-FZ100 Battery" },
+        allocations: [
+          {
+            bookingBulkItem: {
+              booking: {
+                id: "booking-1",
+                refNumber: "CO-1001",
+                title: "Softball",
+                requester: { id: "user-1", name: "=Formula User" },
+              },
+            },
+          },
+        ],
+      },
+    ] as any);
+    vi.mocked(db.auditLog.findMany).mockResolvedValue([
+      {
+        id: "audit-1",
+        entityId: "booking-1",
+        afterJson: { lostUnits: [{ skuName: "Sony NP-FZ100 Battery", unitNumber: 7 }] },
+        createdAt: new Date("2026-05-09T13:00:00.000Z"),
+        actor: { id: "staff-1", name: "Creative Staff", avatarUrl: null },
+      },
+    ] as any);
+    vi.mocked(db.bulkSku.findMany)
+      .mockResolvedValueOnce([
+        {
+          id: "battery-sku-1",
+          name: "Sony NP-FZ100 Battery",
+          category: "Batteries",
+          categoryRel: { name: "Camera Batteries" },
+          location: { id: "loc-1", name: "Main Cage" },
+          units: [
+            {
+              id: "unit-1",
+              unitNumber: 7,
+              status: "LOST",
+              notes: "Missing after event",
+              updatedAt: new Date("2026-05-09T12:00:00.000Z"),
+              allocations: [
+                {
+                  checkedOutAt: new Date("2026-05-01T12:00:00.000Z"),
+                  checkedInAt: null,
+                  createdAt: new Date("2026-05-01T12:00:00.000Z"),
+                  bookingBulkItem: {
+                    booking: {
+                      id: "booking-1",
+                      refNumber: "CO-1001",
+                      title: "Softball",
+                      requester: { id: "user-1", name: "=Formula User" },
+                    },
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ] as any)
+      .mockResolvedValueOnce([
+        { id: "battery-sku-1", name: "Sony NP-FZ100 Battery" },
+      ] as any);
+    vi.mocked(db.bookingBulkUnitAllocation.findMany).mockResolvedValue([
+      {
+        id: "alloc-1",
+        checkedOutAt: new Date("2026-05-01T12:00:00.000Z"),
+        checkedInAt: null,
+        createdAt: new Date("2026-05-01T12:00:00.000Z"),
+        bulkSkuUnit: {
+          id: "unit-1",
+          unitNumber: 7,
+          status: "LOST",
+          bulkSku: {
+            id: "battery-sku-1",
+            name: "Sony NP-FZ100 Battery",
+            category: "Batteries",
+            categoryRel: { name: "Camera Batteries" },
+          },
+        },
+        bookingBulkItem: {
+          booking: {
+            id: "booking-1",
+            refNumber: "CO-1001",
+            title: "Softball",
+            requester: { id: "user-1", name: "=Formula User" },
+          },
+        },
+      },
+    ] as any);
+
+    const report = await getBulkLossReportExport();
+
+    expect(report).toMatchObject({
+      total: 6,
+      truncated: false,
+      limit: 5000,
+    });
+    expect(report.data.map((row) => row.section)).toEqual([
+      "Missing units by family",
+      "Missing units by requester",
+      "Recent missing-unit events",
+      "Battery family summary",
+      "Battery missing units",
+      "Battery checkout history",
+    ]);
+    expect(report.data).toContainEqual(expect.objectContaining({
+      section: "Battery missing units",
+      itemFamily: "Sony NP-FZ100 Battery",
+      unitNumber: 7,
+      person: "=Formula User",
+      booking: "CO-1001",
+      status: "LOST",
+      notes: "Missing after event",
+    }));
+    expect(report.data).toContainEqual(expect.objectContaining({
+      section: "Battery family summary",
+      category: "Camera Batteries",
+      location: "Main Cage",
+      detail: "Missing units: 7",
+    }));
   });
 });

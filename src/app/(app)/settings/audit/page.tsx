@@ -9,8 +9,18 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { handleAuthRedirect, classifyError, isAbortError, parseJsonSafely } from "@/lib/errors";
 import { SettingsPageShell } from "../SettingsPageShell";
+import {
+  auditPaginationErrorCopy,
+  auditRefreshErrorCopy,
+  isAuditResponsePayload,
+  validateAuditFilters,
+  type AuditFilters,
+  type AuditPaginationErrorKind,
+  type AuditRefreshErrorKind,
+} from "./audit-pagination";
 
 type AuditActor = { id: string; name: string; email: string } | null;
 type AuditRow = {
@@ -27,14 +37,7 @@ type AuditResponse = {
   hasMore: boolean;
   retentionDays: number;
 };
-type Filters = {
-  entityType: string;
-  action: string;
-  from: string;
-  to: string;
-};
-
-const EMPTY_FILTERS: Filters = { entityType: "", action: "", from: "", to: "" };
+const EMPTY_FILTERS: AuditFilters = { entityType: "", action: "", from: "", to: "" };
 const POLL_INTERVAL_MS = 30_000;
 
 function buildCursor(row: AuditRow): string {
@@ -42,7 +45,7 @@ function buildCursor(row: AuditRow): string {
   return btoa(json).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
 }
 
-function buildUrl(base: string, filters: Filters, extra?: Record<string, string>): string {
+function buildUrl(base: string, filters: AuditFilters, extra?: Record<string, string>): string {
   const params = new URLSearchParams();
   if (filters.entityType) params.set("entityType", filters.entityType);
   if (filters.action) params.set("action", filters.action);
@@ -74,18 +77,23 @@ export default function AuditLogPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<"network" | "server" | null>(null);
-  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
-  const [draftFilters, setDraftFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [paginationError, setPaginationError] = useState<AuditPaginationErrorKind | null>(null);
+  const [refreshError, setRefreshError] = useState<AuditRefreshErrorKind | null>(null);
+  const [filterError, setFilterError] = useState<string | null>(null);
+  const [filters, setFilters] = useState<AuditFilters>(EMPTY_FILTERS);
+  const [draftFilters, setDraftFilters] = useState<AuditFilters>(EMPTY_FILTERS);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [newCount, setNewCount] = useState(0);
   const newestCursorRef = useRef<string | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const fetchPage = useCallback(async (appliedFilters: Filters) => {
+  const fetchPage = useCallback(async (appliedFilters: AuditFilters) => {
     setLoading(true);
     setError(null);
     setRows([]);
     setNextCursor(null);
+    setPaginationError(null);
+    setRefreshError(null);
     newestCursorRef.current = null;
     setNewCount(0);
     try {
@@ -93,14 +101,15 @@ export default function AuditLogPage() {
       if (handleAuthRedirect(res, "/settings/audit")) return;
       if (!res.ok) { setError("server"); return; }
       const json = await parseJsonSafely<AuditResponse>(res);
-      if (!Array.isArray(json?.data)) {
+      if (!isAuditResponsePayload(json)) {
         setError("server");
         return;
       }
-      setRows(json.data);
-      setNextCursor(json.nextCursor);
-      setRetentionDays(json.retentionDays);
-      const first = json.data[0];
+      const data = json.data as AuditRow[];
+      setRows(data);
+      setNextCursor(json.nextCursor ?? null);
+      setRetentionDays(json.retentionDays ?? null);
+      const first = data[0];
       if (first) newestCursorRef.current = buildCursor(first);
     } catch (err) {
       if (isAbortError(err)) return;
@@ -117,21 +126,33 @@ export default function AuditLogPage() {
     if (!after) return;
     try {
       const res = await fetch(buildUrl("/api/audit", filters, { after, limit: "100" }));
-      if (!res.ok) return;
+      if (handleAuthRedirect(res, "/settings/audit")) return;
+      if (!res.ok) {
+        setRefreshError("server");
+        return;
+      }
       const json = await parseJsonSafely<AuditResponse>(res);
-      if (!Array.isArray(json?.data)) return;
-      if (json.data.length === 0) return;
-      setRows((prev) => [...json.data, ...prev]);
-      const newest = json.data[0];
-      if (newest) newestCursorRef.current = buildCursor(newest);
-      setNewCount((n) => n + json.data.length);
-    } catch {
-      // silently ignore poll errors
+      if (!isAuditResponsePayload(json)) {
+        setRefreshError("server");
+        return;
+      }
+      const data = json.data as AuditRow[];
+      setRefreshError(null);
+      if (data.length > 0) {
+        setRows((prev) => [...data, ...prev]);
+        const newest = data[0];
+        if (newest) newestCursorRef.current = buildCursor(newest);
+        setNewCount((n) => n + data.length);
+      }
+    } catch (err) {
+      if (isAbortError(err)) return;
+      setRefreshError(classifyError(err) === "network" ? "network" : "server");
     }
   }, [filters]);
 
   useEffect(() => {
     if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+    if (!autoRefresh) setRefreshError(null);
     if (autoRefresh) {
       pollTimerRef.current = setInterval(pollForNew, POLL_INTERVAL_MS);
     }
@@ -141,31 +162,60 @@ export default function AuditLogPage() {
   async function loadMore() {
     if (!nextCursor || loadingMore) return;
     setLoadingMore(true);
+    setPaginationError(null);
     try {
       const res = await fetch(buildUrl("/api/audit", filters, { cursor: nextCursor }));
       if (handleAuthRedirect(res, "/settings/audit")) return;
-      if (!res.ok) { toast.error("Failed to load more entries."); return; }
-      const json = await parseJsonSafely<AuditResponse>(res);
-      if (!Array.isArray(json?.data)) {
-        toast.error("Failed to load more entries.");
+      if (!res.ok) {
+        const copy = auditPaginationErrorCopy("server");
+        setPaginationError("server");
+        toast.error(copy.title);
         return;
       }
-      setRows((prev) => [...prev, ...json.data]);
-      setNextCursor(json.nextCursor);
+      const json = await parseJsonSafely<AuditResponse>(res);
+      if (!isAuditResponsePayload(json)) {
+        const copy = auditPaginationErrorCopy("server");
+        setPaginationError("server");
+        toast.error(copy.title);
+        return;
+      }
+      const data = json.data as AuditRow[];
+      setRows((prev) => [...prev, ...data]);
+      setNextCursor(json.nextCursor ?? null);
+      setPaginationError(null);
     } catch (err) {
       if (isAbortError(err)) return;
-      toast.error("Failed to load more entries.");
+      const kind = classifyError(err) === "network" ? "network" : "server";
+      const copy = auditPaginationErrorCopy(kind);
+      setPaginationError(kind);
+      toast.error(copy.title);
     } finally {
       setLoadingMore(false);
     }
   }
 
+  function updateDraftFilter(key: keyof AuditFilters, value: string) {
+    setFilterError(null);
+    setDraftFilters((draft) => ({ ...draft, [key]: value }));
+  }
+
   function applyFilters() {
-    setFilters(draftFilters);
+    const result = validateAuditFilters(draftFilters);
+    setDraftFilters(result.filters);
+
+    if (result.error) {
+      setFilterError(result.error);
+      toast.error("Check audit filters");
+      return;
+    }
+
+    setFilterError(null);
+    setFilters(result.filters);
     setNewCount(0);
   }
 
   function clearFilters() {
+    setFilterError(null);
     setDraftFilters(EMPTY_FILTERS);
     setFilters(EMPTY_FILTERS);
     setNewCount(0);
@@ -173,6 +223,8 @@ export default function AuditLogPage() {
 
   const hasActiveFilters = Object.values(filters).some(Boolean);
   const hasDraftChanges = JSON.stringify(draftFilters) !== JSON.stringify(filters);
+  const paginationCopy = paginationError ? auditPaginationErrorCopy(paginationError) : null;
+  const refreshCopy = refreshError ? auditRefreshErrorCopy(refreshError) : null;
 
   const description = "A real-time feed of every create, update, and delete action across the system. Visible to admins only.";
 
@@ -195,7 +247,7 @@ export default function AuditLogPage() {
               name="entityType"
               placeholder="e.g. Item, User"
               value={draftFilters.entityType}
-              onChange={(e) => setDraftFilters((d) => ({ ...d, entityType: e.target.value }))}
+              onChange={(e) => updateDraftFilter("entityType", e.target.value)}
               className="h-8 text-sm"
             />
           </div>
@@ -206,7 +258,7 @@ export default function AuditLogPage() {
               name="action"
               placeholder="e.g. create, update"
               value={draftFilters.action}
-              onChange={(e) => setDraftFilters((d) => ({ ...d, action: e.target.value }))}
+              onChange={(e) => updateDraftFilter("action", e.target.value)}
               className="h-8 text-sm"
             />
           </div>
@@ -217,7 +269,7 @@ export default function AuditLogPage() {
               name="from"
               type="date"
               value={draftFilters.from}
-              onChange={(e) => setDraftFilters((d) => ({ ...d, from: e.target.value }))}
+              onChange={(e) => updateDraftFilter("from", e.target.value)}
               className="h-8 text-sm"
             />
           </div>
@@ -228,11 +280,18 @@ export default function AuditLogPage() {
               name="to"
               type="date"
               value={draftFilters.to}
-              onChange={(e) => setDraftFilters((d) => ({ ...d, to: e.target.value }))}
+              onChange={(e) => updateDraftFilter("to", e.target.value)}
               className="h-8 text-sm"
             />
           </div>
         </div>
+        {filterError && (
+          <Alert variant="destructive">
+            <AlertTriangle className="size-4" />
+            <AlertTitle>Check audit filters</AlertTitle>
+            <AlertDescription>{filterError}</AlertDescription>
+          </Alert>
+        )}
         <div className="flex items-center gap-2">
           <Button size="sm" onClick={applyFilters} disabled={!hasDraftChanges && !hasActiveFilters}>
             Apply
@@ -266,6 +325,19 @@ export default function AuditLogPage() {
             Dismiss
           </Button>
         </div>
+      )}
+
+      {autoRefresh && refreshCopy && (
+        <Alert variant="destructive">
+          <AlertTriangle className="size-4" />
+          <AlertTitle>{refreshCopy.title}</AlertTitle>
+          <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span>{refreshCopy.description}</span>
+            <Button size="sm" variant="outline" onClick={pollForNew} className="shrink-0">
+              Retry now
+            </Button>
+          </AlertDescription>
+        </Alert>
       )}
 
       {/* Content */}
@@ -316,10 +388,19 @@ export default function AuditLogPage() {
 
       {/* Load more */}
       {nextCursor && !loading && (
-        <div className="flex justify-center pt-1">
-          <Button variant="outline" size="sm" onClick={loadMore} disabled={loadingMore}>
-            {loadingMore ? "Loading…" : "Load older entries"}
-          </Button>
+        <div className="space-y-2 pt-1">
+          {paginationCopy && (
+            <Alert variant="destructive" className="mx-auto max-w-2xl">
+              <AlertTriangle className="size-4" />
+              <AlertTitle>{paginationCopy.title}</AlertTitle>
+              <AlertDescription>{paginationCopy.description}</AlertDescription>
+            </Alert>
+          )}
+          <div className="flex justify-center">
+            <Button variant="outline" size="sm" onClick={loadMore} disabled={loadingMore}>
+              {loadingMore ? "Loading…" : paginationError ? "Retry older entries" : "Load older entries"}
+            </Button>
+          </div>
         </div>
       )}
     </SettingsPageShell>

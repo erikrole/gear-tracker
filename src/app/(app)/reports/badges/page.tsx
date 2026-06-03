@@ -107,7 +107,11 @@ function downloadCsv(data: BadgeReportData) {
       award.awardedBy?.name ?? "",
       award.note ?? "",
     ]),
-  ]);
+  ], {
+    reportLabel: "Badges report",
+    rowCount: data.recentAwards.length,
+    scopeLabel: "visible recent award rows",
+  });
 }
 
 function formatPercent(value: number) {
@@ -175,7 +179,10 @@ export default function BadgeReportPage() {
           onRefresh={reload}
           exportAction={
             data.recentAwards.length > 0 ? (
-              <ReportExportButton onClick={() => downloadCsv(data)} />
+              <ReportExportButton
+                ariaLabel="Export visible recent badge award rows CSV"
+                onClick={() => downloadCsv(data)}
+              />
             ) : null
           }
         />

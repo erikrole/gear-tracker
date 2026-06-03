@@ -1,7 +1,14 @@
 import { BookingStatus, Prisma } from "@prisma/client";
 import { isBatterySku } from "@/lib/bulk-batteries";
 import { db } from "@/lib/db";
-import { countAssetsByEffectiveStatus } from "@/lib/services/status";
+import { countAssetsByEffectiveStatus, deriveAssetStatusesFromLoaded } from "@/lib/services/status";
+
+const AUDIT_REPORT_EXPORT_LIMIT = 5000;
+const CHECKOUT_REPORT_EXPORT_LIMIT = 5000;
+const OVERDUE_REPORT_EXPORT_LIMIT = 5000;
+const SCAN_REPORT_EXPORT_LIMIT = 5000;
+const BULK_LOSS_REPORT_EXPORT_LIMIT = 5000;
+const UTILIZATION_REPORT_EXPORT_LIMIT = 5000;
 
 export async function getUtilizationReport() {
   const results = await Promise.allSettled([
@@ -57,15 +64,78 @@ export async function getUtilizationReport() {
   };
 }
 
+const utilizationReportExportAssetSelect = {
+  id: true,
+  assetTag: true,
+  name: true,
+  type: true,
+  brand: true,
+  model: true,
+  status: true,
+  availableForReservation: true,
+  availableForCheckout: true,
+  availableForCustody: true,
+  updatedAt: true,
+  location: { select: { name: true } },
+  department: { select: { name: true } },
+  category: { select: { name: true } },
+} satisfies Prisma.AssetSelect;
+
+type UtilizationReportExportAsset = Prisma.AssetGetPayload<{
+  select: typeof utilizationReportExportAssetSelect;
+}>;
+
+function mapUtilizationReportExportAsset(
+  asset: UtilizationReportExportAsset,
+  computedStatus: string,
+) {
+  return {
+    assetTag: asset.assetTag,
+    name: asset.name ?? "",
+    type: asset.type,
+    brand: asset.brand,
+    model: asset.model,
+    computedStatus,
+    storedStatus: asset.status,
+    location: asset.location.name,
+    department: asset.department?.name ?? "",
+    category: asset.category?.name ?? "",
+    availableForReservation: asset.availableForReservation,
+    availableForCheckout: asset.availableForCheckout,
+    availableForCustody: asset.availableForCustody,
+    updatedAt: asset.updatedAt.toISOString(),
+  };
+}
+
+export async function getUtilizationReportExport() {
+  const [assets, total] = await Promise.all([
+    db.asset.findMany({
+      orderBy: { assetTag: "asc" },
+      take: UTILIZATION_REPORT_EXPORT_LIMIT,
+      select: utilizationReportExportAssetSelect,
+    }),
+    db.asset.count(),
+  ]);
+  const statusMap = await deriveAssetStatusesFromLoaded(assets);
+
+  return {
+    data: assets.map((asset) =>
+      mapUtilizationReportExportAsset(
+        asset,
+        statusMap.get(asset.id) ?? "AVAILABLE",
+      ),
+    ),
+    total,
+    truncated: total > UTILIZATION_REPORT_EXPORT_LIMIT,
+    limit: UTILIZATION_REPORT_EXPORT_LIMIT,
+  };
+}
+
 export async function getCheckoutReport(days: number) {
-  const since = new Date(Date.now() - days * 86_400_000);
+  const since = checkoutReportSince(days);
   const now = new Date();
   const heatmapSince = new Date(Date.now() - 365 * 86_400_000);
-  const checkoutActivityWhere: Prisma.BookingWhereInput = {
-    kind: "CHECKOUT",
-    status: { not: BookingStatus.DRAFT },
-    createdAt: { gte: since },
-  };
+  const checkoutActivityWhere = buildCheckoutReportWhere(days);
 
   const checkoutResults = await Promise.allSettled([
     db.booking.count({
@@ -82,11 +152,7 @@ export async function getCheckoutReport(days: number) {
       where: checkoutActivityWhere,
       orderBy: { createdAt: "desc" },
       take: 20,
-      include: {
-        requester: { select: { id: true, name: true } },
-        location: { select: { id: true, name: true } },
-        _count: { select: { serializedItems: true, bulkItems: true } }
-      }
+      include: checkoutReportInclude,
     }),
     db.booking.groupBy({
       by: ["requesterUserId"],
@@ -148,18 +214,7 @@ export async function getCheckoutReport(days: number) {
     overdueCheckouts,
     dailyTrend,
     heatmap,
-    recentCheckouts: recentCheckouts.map((c) => ({
-      id: c.id,
-      title: c.title,
-      status: c.status,
-      startsAt: c.startsAt,
-      endsAt: c.endsAt,
-      createdAt: c.createdAt,
-      requester: c.requester.name,
-      location: c.location.name,
-      itemCount: c._count.serializedItems + c._count.bulkItems,
-      isOverdue: c.status === "OPEN" && c.endsAt < now
-    })),
+    recentCheckouts: recentCheckouts.map((checkout) => mapCheckoutReportEntry(checkout, now)),
     topRequesters: topRequesters.map((r) => ({
       name: userMap[r.requesterUserId] || "Unknown",
       count: r._count
@@ -167,26 +222,68 @@ export async function getCheckoutReport(days: number) {
   };
 }
 
+function checkoutReportSince(days: number) {
+  return new Date(Date.now() - days * 86_400_000);
+}
+
+function buildCheckoutReportWhere(days: number): Prisma.BookingWhereInput {
+  return {
+    kind: "CHECKOUT",
+    status: { not: BookingStatus.DRAFT },
+    createdAt: { gte: checkoutReportSince(days) },
+  };
+}
+
+const checkoutReportInclude = {
+  requester: { select: { id: true, name: true } },
+  location: { select: { id: true, name: true } },
+  _count: { select: { serializedItems: true, bulkItems: true } },
+} satisfies Prisma.BookingInclude;
+
+function mapCheckoutReportEntry(checkout: Prisma.BookingGetPayload<{
+  include: typeof checkoutReportInclude;
+}>, now: Date) {
+  return {
+    id: checkout.id,
+    title: checkout.title,
+    status: checkout.status,
+    startsAt: checkout.startsAt,
+    endsAt: checkout.endsAt,
+    createdAt: checkout.createdAt,
+    requester: checkout.requester.name,
+    location: checkout.location.name,
+    itemCount: checkout._count.serializedItems + checkout._count.bulkItems,
+    isOverdue: checkout.status === "OPEN" && checkout.endsAt < now,
+  };
+}
+
+export async function getCheckoutReportExport(days: number) {
+  const where = buildCheckoutReportWhere(days);
+  const now = new Date();
+  const [data, total] = await Promise.all([
+    db.booking.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: CHECKOUT_REPORT_EXPORT_LIMIT,
+      include: checkoutReportInclude,
+    }),
+    db.booking.count({ where }),
+  ]);
+
+  return {
+    data: data.map((checkout) => mapCheckoutReportEntry(checkout, now)),
+    total,
+    truncated: total > CHECKOUT_REPORT_EXPORT_LIMIT,
+    limit: CHECKOUT_REPORT_EXPORT_LIMIT,
+  };
+}
+
 export async function getOverdueReport() {
   const now = new Date();
 
   const overdueBookings = await db.booking.findMany({
-    where: {
-      kind: "CHECKOUT",
-      status: "OPEN",
-      endsAt: { lt: now },
-    },
-    include: {
-      requester: { select: { id: true, name: true } },
-      location: { select: { id: true, name: true } },
-      serializedItems: {
-        where: { allocationStatus: "active" },
-        include: { asset: { select: { id: true, assetTag: true, name: true } } },
-      },
-      bulkItems: {
-        include: { bulkSku: { select: { id: true, name: true } } },
-      },
-    },
+    where: buildOverdueReportWhere(now),
+    include: overdueReportInclude,
     orderBy: { endsAt: "asc" },
   });
 
@@ -210,42 +307,19 @@ export async function getOverdueReport() {
   >();
 
   for (const b of overdueBookings) {
-    const hours = Math.round((now.getTime() - new Date(b.endsAt).getTime()) / 3_600_000);
-    const items: string[] = [];
-    for (const si of b.serializedItems) {
-      items.push(si.asset.assetTag ?? si.asset.name);
-    }
-    let itemCount = b.serializedItems.length;
-    for (const bi of b.bulkItems) {
-      const checkedOutQuantity = bi.checkedOutQuantity > 0 ? bi.checkedOutQuantity : bi.plannedQuantity;
-      const outstandingQuantity = Math.max(0, checkedOutQuantity - bi.checkedInQuantity);
-      if (outstandingQuantity > 0) {
-        itemCount += outstandingQuantity;
-        items.push(`${bi.bulkSku.name} x${outstandingQuantity}`);
-      }
-    }
-
     const existing = byRequester.get(b.requester.id);
-    const booking = {
-      id: b.id,
-      title: b.title,
-      endsAt: b.endsAt.toISOString(),
-      overdueHours: hours,
-      location: b.location.name,
-      itemCount,
-      items: items.slice(0, 5),
-    };
+    const booking = mapOverdueReportBooking(b, now, 5);
 
     if (existing) {
       existing.overdueCount++;
-      existing.totalOverdueHours += hours;
+      existing.totalOverdueHours += booking.overdueHours;
       existing.bookings.push(booking);
     } else {
       byRequester.set(b.requester.id, {
         userId: b.requester.id,
         name: b.requester.name,
         overdueCount: 1,
-        totalOverdueHours: hours,
+        totalOverdueHours: booking.overdueHours,
         bookings: [booking],
       });
     }
@@ -261,6 +335,103 @@ export async function getOverdueReport() {
   };
 }
 
+function buildOverdueReportWhere(now: Date): Prisma.BookingWhereInput {
+  return {
+    kind: "CHECKOUT",
+    status: "OPEN",
+    endsAt: { lt: now },
+  };
+}
+
+const overdueReportInclude = {
+  requester: { select: { id: true, name: true } },
+  location: { select: { id: true, name: true } },
+  serializedItems: {
+    where: { allocationStatus: "active" },
+    include: { asset: { select: { id: true, assetTag: true, name: true } } },
+  },
+  bulkItems: {
+    include: { bulkSku: { select: { id: true, name: true } } },
+  },
+} satisfies Prisma.BookingInclude;
+
+type OverdueReportBooking = Prisma.BookingGetPayload<{
+  include: typeof overdueReportInclude;
+}>;
+
+function getOverdueOutstandingItems(booking: OverdueReportBooking) {
+  const items: string[] = [];
+  for (const si of booking.serializedItems) {
+    items.push(si.asset.assetTag || si.asset.name || "Unknown item");
+  }
+
+  let itemCount = booking.serializedItems.length;
+  for (const bi of booking.bulkItems) {
+    const checkedOutQuantity = bi.checkedOutQuantity > 0
+      ? bi.checkedOutQuantity
+      : bi.plannedQuantity;
+    const outstandingQuantity = Math.max(0, checkedOutQuantity - bi.checkedInQuantity);
+    if (outstandingQuantity > 0) {
+      itemCount += outstandingQuantity;
+      items.push(`${bi.bulkSku.name} x${outstandingQuantity}`);
+    }
+  }
+
+  return { itemCount, items };
+}
+
+function mapOverdueReportBooking(
+  booking: OverdueReportBooking,
+  now: Date,
+  itemLimit?: number,
+) {
+  const hours = Math.round((now.getTime() - booking.endsAt.getTime()) / 3_600_000);
+  const outstanding = getOverdueOutstandingItems(booking);
+
+  return {
+    id: booking.id,
+    title: booking.title,
+    endsAt: booking.endsAt.toISOString(),
+    overdueHours: hours,
+    location: booking.location.name,
+    itemCount: outstanding.itemCount,
+    items: typeof itemLimit === "number" ? outstanding.items.slice(0, itemLimit) : outstanding.items,
+  };
+}
+
+export async function getOverdueReportExport() {
+  const now = new Date();
+  const where = buildOverdueReportWhere(now);
+  const [bookings, total] = await Promise.all([
+    db.booking.findMany({
+      where,
+      include: overdueReportInclude,
+      orderBy: { endsAt: "asc" },
+      take: OVERDUE_REPORT_EXPORT_LIMIT,
+    }),
+    db.booking.count({ where }),
+  ]);
+
+  return {
+    data: bookings.map((booking) => {
+      const row = mapOverdueReportBooking(booking, now);
+      return {
+        bookingId: booking.id,
+        requester: booking.requester.name,
+        title: row.title,
+        endsAt: row.endsAt,
+        overdueHours: row.overdueHours,
+        location: row.location,
+        itemCount: row.itemCount,
+        itemSummary: row.items.join("; "),
+      };
+    }),
+    total,
+    truncated: total > OVERDUE_REPORT_EXPORT_LIMIT,
+    limit: OVERDUE_REPORT_EXPORT_LIMIT,
+  };
+}
+
 export async function getScanHistoryReport(
   limit: number,
   offset: number,
@@ -268,23 +439,8 @@ export async function getScanHistoryReport(
   endDate?: string | null,
   phase?: string | null,
 ) {
-  const where: Prisma.ScanEventWhereInput = {};
-  const dateFilter: Prisma.DateTimeFilter = {};
-  if (startDate) dateFilter.gte = new Date(startDate);
-  if (endDate) dateFilter.lte = new Date(endDate);
-  if (Object.keys(dateFilter).length > 0) where.createdAt = dateFilter;
-  if (phase === "CHECKOUT" || phase === "CHECKIN") where.phase = phase;
-
-  // Build SQL fragments mirroring the Prisma where for the raw aggregation.
-  const conditions: Prisma.Sql[] = [];
-  if (startDate) conditions.push(Prisma.sql`"created_at" >= ${new Date(startDate)}`);
-  if (endDate) conditions.push(Prisma.sql`"created_at" <= ${new Date(endDate)}`);
-  if (phase === "CHECKOUT" || phase === "CHECKIN") {
-    conditions.push(Prisma.sql`phase::text = ${phase}`);
-  }
-  const whereSql = conditions.length > 0
-    ? Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}`
-    : Prisma.empty;
+  const where = buildScanHistoryWhere({ startDate, endDate, phase });
+  const whereSql = buildScanHistoryWhereSql({ startDate, endDate, phase });
 
   const scanResults = await Promise.allSettled([
     db.scanEvent.findMany({
@@ -292,12 +448,7 @@ export async function getScanHistoryReport(
       orderBy: { createdAt: "desc" },
       take: limit,
       skip: offset,
-      include: {
-        actor: { select: { id: true, name: true, avatarUrl: true } },
-        asset: { select: { id: true, assetTag: true, name: true } },
-        bulkSku: { select: { id: true, name: true } },
-        booking: { select: { id: true, title: true } },
-      },
+      include: scanReportInclude,
     }),
     db.scanEvent.count({ where }),
     db.scanEvent.count({ where: { ...where, success: true } }),
@@ -324,28 +475,143 @@ export async function getScanHistoryReport(
   }));
 
   return {
-    data: data.map((s) => ({
-      id: s.id,
-      actor: s.actor.name,
-      scanType: s.scanType,
-      scanValue: s.scanValue,
-      success: s.success,
-      phase: s.phase,
-      item: s.asset
-        ? s.asset.assetTag || s.asset.name
-        : s.bulkSku
-          ? s.bulkSku.name
-          : s.scanValue,
-      bookingId: s.booking.id,
-      bookingTitle: s.booking.title,
-      createdAt: s.createdAt,
-    })),
+    data: data.map(mapScanReportEntry),
     total,
     successCount,
     successRate: total > 0 ? Math.round((successCount / total) * 100) : 100,
     dailyScans,
     limit,
     offset,
+  };
+}
+
+type ScanHistoryFilters = {
+  startDate?: string | null;
+  endDate?: string | null;
+  phase?: string | null;
+};
+
+const scanReportInclude = {
+  actor: { select: { id: true, name: true, avatarUrl: true } },
+  asset: { select: { id: true, assetTag: true, name: true } },
+  bulkSku: { select: { id: true, name: true } },
+  booking: { select: { id: true, title: true } },
+} satisfies Prisma.ScanEventInclude;
+
+function buildScanHistoryWhere({
+  endDate,
+  phase,
+  startDate,
+}: ScanHistoryFilters) {
+  const where: Prisma.ScanEventWhereInput = {};
+  const dateFilter: Prisma.DateTimeFilter = {};
+  if (startDate) dateFilter.gte = new Date(startDate);
+  if (endDate) dateFilter.lte = new Date(endDate);
+  if (Object.keys(dateFilter).length > 0) where.createdAt = dateFilter;
+  if (phase === "CHECKOUT" || phase === "CHECKIN") where.phase = phase;
+
+  return where;
+}
+
+function buildScanHistoryWhereSql({
+  endDate,
+  phase,
+  startDate,
+}: ScanHistoryFilters) {
+  // Build SQL fragments mirroring the Prisma where for the raw aggregation.
+  const conditions: Prisma.Sql[] = [];
+  if (startDate) conditions.push(Prisma.sql`"created_at" >= ${new Date(startDate)}`);
+  if (endDate) conditions.push(Prisma.sql`"created_at" <= ${new Date(endDate)}`);
+  if (phase === "CHECKOUT" || phase === "CHECKIN") {
+    conditions.push(Prisma.sql`phase::text = ${phase}`);
+  }
+  const whereSql = conditions.length > 0
+    ? Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}`
+    : Prisma.empty;
+
+  return whereSql;
+}
+
+function mapScanReportEntry(scan: Prisma.ScanEventGetPayload<{
+  include: typeof scanReportInclude;
+}>) {
+  return {
+    id: scan.id,
+    actor: scan.actor.name,
+    scanType: scan.scanType,
+    scanValue: scan.scanValue,
+    success: scan.success,
+    phase: scan.phase,
+    item: scan.asset
+      ? scan.asset.assetTag || scan.asset.name
+      : scan.bulkSku
+        ? scan.bulkSku.name
+        : scan.scanValue,
+    bookingId: scan.booking.id,
+    bookingTitle: scan.booking.title,
+    createdAt: scan.createdAt,
+  };
+}
+
+export async function getScanHistoryReportExport(
+  startDate?: string | null,
+  endDate?: string | null,
+  phase?: string | null,
+) {
+  const where = buildScanHistoryWhere({ startDate, endDate, phase });
+  const [data, total] = await Promise.all([
+    db.scanEvent.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: SCAN_REPORT_EXPORT_LIMIT,
+      include: scanReportInclude,
+    }),
+    db.scanEvent.count({ where }),
+  ]);
+
+  return {
+    data: data.map(mapScanReportEntry),
+    total,
+    truncated: total > SCAN_REPORT_EXPORT_LIMIT,
+    limit: SCAN_REPORT_EXPORT_LIMIT,
+  };
+}
+
+type AuditReportFilters = {
+  startDate?: string | null,
+  endDate?: string | null,
+  action?: string | null,
+};
+
+function buildAuditReportWhere({
+  action,
+  endDate,
+  startDate,
+}: AuditReportFilters) {
+  const where: Prisma.AuditLogWhereInput = {};
+  const dateFilter: Prisma.DateTimeFilter = {};
+  if (startDate) dateFilter.gte = new Date(startDate);
+  if (endDate) dateFilter.lte = new Date(endDate);
+  if (Object.keys(dateFilter).length > 0) where.createdAt = dateFilter;
+  if (action) where.action = action;
+
+  return where;
+}
+
+function mapAuditReportEntry(entry: Prisma.AuditLogGetPayload<{
+  include: { actor: { select: { id: true; name: true; avatarUrl: true } } };
+}>) {
+  return {
+    id: entry.id,
+    actor: entry.actor?.name || "System",
+    actorId: entry.actor?.id ?? null,
+    actorAvatarUrl: entry.actor?.avatarUrl ?? null,
+    entityType: entry.entityType,
+    entityId: entry.entityId,
+    action: entry.action,
+    createdAt: entry.createdAt,
+    beforeJson: entry.beforeJson,
+    afterJson: entry.afterJson,
   };
 }
 
@@ -356,12 +622,7 @@ export async function getAuditReport(
   endDate?: string | null,
   action?: string | null,
 ) {
-  const where: Prisma.AuditLogWhereInput = {};
-  const dateFilter: Prisma.DateTimeFilter = {};
-  if (startDate) dateFilter.gte = new Date(startDate);
-  if (endDate) dateFilter.lte = new Date(endDate);
-  if (Object.keys(dateFilter).length > 0) where.createdAt = dateFilter;
-  if (action) where.action = action;
+  const where = buildAuditReportWhere({ startDate, endDate, action });
 
   const auditResults = await Promise.allSettled([
     db.auditLog.findMany({
@@ -400,23 +661,38 @@ export async function getAuditReport(
     : [];
 
   return {
-    data: data.map((entry) => ({
-      id: entry.id,
-      actor: entry.actor?.name || "System",
-      actorId: entry.actor?.id ?? null,
-      actorAvatarUrl: entry.actor?.avatarUrl ?? null,
-      entityType: entry.entityType,
-      entityId: entry.entityId,
-      action: entry.action,
-      createdAt: entry.createdAt,
-      beforeJson: entry.beforeJson,
-      afterJson: entry.afterJson,
-    })),
+    data: data.map(mapAuditReportEntry),
     total,
     byAction,
     byEntityType,
     limit,
     offset
+  };
+}
+
+export async function getAuditReportExport(
+  startDate?: string | null,
+  endDate?: string | null,
+  action?: string | null,
+) {
+  const where = buildAuditReportWhere({ startDate, endDate, action });
+  const [data, total] = await Promise.all([
+    db.auditLog.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: AUDIT_REPORT_EXPORT_LIMIT,
+      include: {
+        actor: { select: { id: true, name: true, avatarUrl: true } },
+      },
+    }),
+    db.auditLog.count({ where }),
+  ]);
+
+  return {
+    data: data.map(mapAuditReportEntry),
+    total,
+    truncated: total > AUDIT_REPORT_EXPORT_LIMIT,
+    limit: AUDIT_REPORT_EXPORT_LIMIT,
   };
 }
 
@@ -778,6 +1054,191 @@ export async function getBulkLossReport() {
           checkoutHistory: [],
           repeatPatterns: [],
         },
+  };
+}
+
+type BulkLossReportData = Awaited<ReturnType<typeof getBulkLossReport>>;
+
+type BulkLossReportExportRow = {
+  section: string;
+  itemFamily: string;
+  category: string;
+  location: string;
+  unitNumber: number | string;
+  person: string;
+  booking: string;
+  timestamp: string;
+  count: number | string;
+  status: string;
+  detail: string;
+  notes: string;
+};
+
+function bookingExportLabel({
+  id,
+  ref,
+  title,
+}: {
+  id?: string | null;
+  ref?: string | null;
+  title?: string | null;
+}) {
+  return ref ?? title ?? id ?? "";
+}
+
+function jsonExportDetail(value: unknown) {
+  if (value == null) return "";
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function buildBulkLossReportExportRows(report: BulkLossReportData): BulkLossReportExportRow[] {
+  const rows: BulkLossReportExportRow[] = [];
+
+  for (const sku of report.bySku) {
+    rows.push({
+      section: "Missing units by family",
+      itemFamily: sku.skuName,
+      category: "",
+      location: "",
+      unitNumber: "",
+      person: "",
+      booking: "",
+      timestamp: "",
+      count: sku.count,
+      status: "LOST",
+      detail: "Current missing numbered units by family",
+      notes: "",
+    });
+  }
+
+  for (const user of report.byUser) {
+    rows.push({
+      section: "Missing units by requester",
+      itemFamily: "",
+      category: "",
+      location: "",
+      unitNumber: "",
+      person: user.name,
+      booking: "",
+      timestamp: "",
+      count: user.count,
+      status: "LOST",
+      detail: "Last requester attributed from unit allocation history",
+      notes: "",
+    });
+  }
+
+  for (const event of report.recentLosses) {
+    rows.push({
+      section: "Recent missing-unit events",
+      itemFamily: "",
+      category: "",
+      location: "",
+      unitNumber: "",
+      person: event.actor?.name ?? "System",
+      booking: event.bookingId,
+      timestamp: event.createdAt,
+      count: "",
+      status: "",
+      detail: "Check-in completed with missing units",
+      notes: jsonExportDetail(event.lostUnits),
+    });
+  }
+
+  for (const sku of report.batteryAudit.bySku) {
+    rows.push({
+      section: "Battery family summary",
+      itemFamily: sku.skuName,
+      category: sku.category,
+      location: sku.location,
+      unitNumber: "",
+      person: "",
+      booking: "",
+      timestamp: sku.lastMissingAt ?? "",
+      count: sku.lost,
+      status: `${sku.available} available; ${sku.checkedOut} checked out; ${sku.retired} retired; ${sku.total} total`,
+      detail: sku.missingUnitNumbers.length > 0
+        ? `Missing units: ${sku.missingUnitNumbers.join(", ")}`
+        : "No missing units",
+      notes: "",
+    });
+  }
+
+  for (const unit of report.batteryAudit.missingUnits) {
+    rows.push({
+      section: "Battery missing units",
+      itemFamily: unit.skuName,
+      category: "",
+      location: "",
+      unitNumber: unit.unitNumber,
+      person: unit.lastRequesterName ?? "Unknown",
+      booking: bookingExportLabel({
+        id: unit.lastBookingId,
+        ref: unit.lastBookingRef,
+        title: unit.lastBookingTitle,
+      }),
+      timestamp: unit.markedMissingAt,
+      count: 1,
+      status: "LOST",
+      detail: unit.lastCheckoutAt ? `Last checkout ${unit.lastCheckoutAt}` : "",
+      notes: unit.notes ?? "",
+    });
+  }
+
+  for (const entry of report.batteryAudit.checkoutHistory) {
+    rows.push({
+      section: "Battery checkout history",
+      itemFamily: entry.skuName,
+      category: "",
+      location: "",
+      unitNumber: entry.unitNumber,
+      person: entry.requesterName,
+      booking: bookingExportLabel({
+        id: entry.bookingId,
+        ref: entry.bookingRef,
+        title: entry.bookingTitle,
+      }),
+      timestamp: entry.checkedOutAt,
+      count: entry.durationDays ?? "",
+      status: entry.checkedInAt ? `Returned ${entry.checkedInAt}` : "Still out",
+      detail: `Unit status: ${entry.status}`,
+      notes: "",
+    });
+  }
+
+  for (const pattern of report.batteryAudit.repeatPatterns) {
+    rows.push({
+      section: "Battery repeat missing patterns",
+      itemFamily: pattern.type === "sku" ? pattern.label : "",
+      category: "",
+      location: "",
+      unitNumber: "",
+      person: pattern.type === "requester" ? pattern.label : "",
+      booking: "",
+      timestamp: "",
+      count: pattern.count,
+      status: pattern.type,
+      detail: pattern.detail,
+      notes: "",
+    });
+  }
+
+  return rows;
+}
+
+export async function getBulkLossReportExport() {
+  const report = await getBulkLossReport();
+  const rows = buildBulkLossReportExportRows(report);
+
+  return {
+    data: rows.slice(0, BULK_LOSS_REPORT_EXPORT_LIMIT),
+    total: rows.length,
+    truncated: rows.length > BULK_LOSS_REPORT_EXPORT_LIMIT,
+    limit: BULK_LOSS_REPORT_EXPORT_LIMIT,
   };
 }
 

@@ -21,6 +21,9 @@ vi.mock("@/lib/db", () => ({
       count: vi.fn(),
       findMany: vi.fn(),
     },
+    systemConfig: {
+      findUnique: vi.fn(),
+    },
     licenseCode: {
       count: vi.fn(),
       findMany: vi.fn(),
@@ -37,6 +40,7 @@ const mockedDb = db as unknown as {
   asset: { count: ReturnType<typeof vi.fn>; findMany: ReturnType<typeof vi.fn> };
   bulkSku: { findMany: ReturnType<typeof vi.fn> };
   calendarSource: { count: ReturnType<typeof vi.fn>; findMany: ReturnType<typeof vi.fn> };
+  systemConfig: { findUnique: ReturnType<typeof vi.fn> };
   licenseCode: { count: ReturnType<typeof vi.fn>; findMany: ReturnType<typeof vi.fn> };
 };
 
@@ -82,6 +86,7 @@ describe("getAdminFixTodayQueue", () => {
     mockedDb.bulkSku.findMany.mockResolvedValueOnce([]);
     mockedDb.calendarSource.count.mockResolvedValueOnce(0);
     mockedDb.calendarSource.findMany.mockResolvedValueOnce([]);
+    mockedDb.systemConfig.findUnique.mockResolvedValueOnce(null);
     mockedDb.licenseCode.count.mockResolvedValueOnce(1);
     mockedDb.licenseCode.findMany.mockResolvedValueOnce([
       {
@@ -104,5 +109,40 @@ describe("getAdminFixTodayQueue", () => {
     expect(details).toContain("Camp Randall / last seen May 11, 2026, 2:19 PM");
     expect(details).toContain("available / unassigned / expires Jun 1, 2026, 1:00 PM");
     expect(overdueSection?.href).toBe("/bookings?tab=checkouts&filter=overdue");
+  });
+
+  it("adds repeated calendar sync failure counts to Admin Fix Today samples", async () => {
+    mockedDb.booking.count
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(0);
+    mockedDb.booking.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    mockedDb.kioskDevice.count.mockResolvedValueOnce(0);
+    mockedDb.kioskDevice.findMany.mockResolvedValueOnce([]);
+    mockedDb.asset.count.mockResolvedValueOnce(0);
+    mockedDb.asset.findMany.mockResolvedValueOnce([]);
+    mockedDb.bulkSku.findMany.mockResolvedValueOnce([]);
+    mockedDb.calendarSource.count.mockResolvedValueOnce(1);
+    mockedDb.calendarSource.findMany.mockResolvedValueOnce([
+      {
+        id: "source-1",
+        name: "UW Badgers",
+        lastFetchedAt: new Date("2026-06-02T08:00:00.000Z"),
+        lastError: "HTTP 500",
+      },
+    ]);
+    mockedDb.systemConfig.findUnique.mockResolvedValueOnce({
+      key: "calendar_sync_health",
+      value: { sources: { "source-1": { consecutiveFailures: 3 } } },
+    });
+    mockedDb.licenseCode.count.mockResolvedValueOnce(0);
+    mockedDb.licenseCode.findMany.mockResolvedValueOnce([]);
+
+    const queue = await getAdminFixTodayQueue(new Date("2026-06-02T16:00:00.000Z"));
+    const calendarSection = queue.sections.find((section) => section.key === "calendar-sync-failures");
+
+    expect(calendarSection?.count).toBe(1);
+    expect(calendarSection?.samples[0]?.detail).toBe("3 consecutive failures / HTTP 500");
   });
 });

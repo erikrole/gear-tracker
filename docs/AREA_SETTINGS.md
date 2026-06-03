@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Settings
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-25
+- Last Updated: 2026-06-03
 - Status: Active
 - Version: V1
 
@@ -101,8 +101,10 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 ### Audit Log (`/settings/audit`) — System, ADMIN
 - Admin-only live feed of every create, update, and delete action across the system.
 - First page loads on mount; "Load older entries" button fetches the next keyset-paginated page via `?cursor=<nextCursor>`.
+- Older-page failures preserve the loaded entries and show persistent inline recovery copy plus a retry-labeled pagination action so partial history is not mistaken for complete history.
 - **Auto-refresh** toggle: when on, polls `GET /api/audit?after=<newestCursor>` every 30 seconds and prepends new rows with a dismissible new-count banner.
-- Filters: entity type (exact), action (substring), from date, to date. Apply button triggers a fresh first-page load; "Clear filters" resets to unfiltered.
+- Auto-refresh failures preserve the loaded entries, show an inline stale-data warning, and expose `Retry now` so admins do not mistake a failed live-tail check for a current audit feed.
+- Filters: entity type (exact), action (substring), from date, to date. Apply button validates invalid or inverted dates inline before a fresh first-page load; "Clear filters" resets to unfiltered.
 - Retention banner shows the configured retention window (90 days) from the API response.
 - Each row: timestamp, entity type + entity ID (8-char prefix), action badge, actor name (or "System" for server-generated events).
 - `GET /api/audit` (ADMIN, 60/min): keyset pagination on `(createdAt DESC, id DESC)`; supports `?cursor`, `?after`, `?entityType`, `?actor`, `?action`, `?from`, `?to`, `?limit` (default 50, max 100). Returns `{ data, nextCursor, hasMore, retentionDays }`.
@@ -131,7 +133,10 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - Enable/disable ICS calendar sources for event sync.
 - Sync status badges (green/yellow/red based on `lastFetchedAt` staleness).
 - Manual "Sync Now" button. Add/delete sources.
-- Per D-026: daily cron sync at 6 AM UTC + manual refresh.
+- Manual sync reports returned feed errors, event add/refresh/cancel/skip counts, and shift-generation outcome instead of treating every 200 response as success.
+- Manual sync, test, add, enable/disable, and delete actions use immediate duplicate-action guards before React disabled state renders.
+- Per D-026 and D-035: daily calendar sync runs through `/api/cron/morning-refresh` at 08:00 UTC, with manual refresh for changes that cannot wait for the next run.
+- Morning refresh records per-source consecutive hard sync failures in `SystemConfig`, resets the count after a hard-error-free cron sync, creates in-app notifications for active admins starting at 3 consecutive hard failures, and Admin Fix Today shows the repeated-failure count next to the latest source error.
 
 ### Venue Mappings (`/settings/venue-mappings`)
 - Admin-only regex-to-location mapping table.
@@ -182,6 +187,14 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages.
 
 ## Change Log
+- 2026-06-03: **Calendar Sources freshness consistency.** Settings > Calendar Sources and `/schedule` now share the same calendar-source freshness classifier and 30-hour stale threshold, so source health labels cannot drift between the configuration page and the operator Schedule signal.
+- 2026-06-02: **Calendar sync health escalation.** Morning refresh now records consecutive hard Calendar Source failures, surfaces returned sync errors in the cron response, notifies active admins in-app after 3+ consecutive daily hard failures, and shows repeated-failure severity in Admin Fix Today.
+- 2026-06-02: **Calendar Sources sync trust cleanup.** Settings > Calendar Sources now makes daily morning-refresh sync visible, guards rapid Test/Add/Sync/Toggle actions immediately, and reports manual sync results from returned event/shift data so external feed failures no longer look like successful syncs.
+- 2026-06-02: **Audit Log auto-refresh stale-data warning.** Settings > Audit Log now surfaces failed background live-tail checks inline, keeps the loaded audit rows visible, and offers `Retry now` so admins do not mistake stale audit evidence for a current feed.
+- 2026-06-02: **Audit Log filter validation.** Settings > Audit Log now trims filter drafts and blocks invalid or inverted date ranges inline before fetching, preserving the current audit table instead of turning bad operator input into a confusing server error or false empty result.
+- 2026-06-02: **Audit Log pagination recovery.** Settings > Audit Log now keeps loaded audit rows visible when an older-page fetch fails, shows persistent inline recovery copy beside the pagination action, and changes the control to `Retry older entries` so admins do not mistake partial history for the end of the audit trail.
+- 2026-06-02: **Data Export download trust cleanup.** Settings > Data Export now uses a ref-backed in-flight guard so admins cannot start duplicate CSV downloads before the disabled state renders, and export failure/success copy is normalized per dataset for JSON, text, capped, and normal responses.
+- 2026-06-02: **Escalation save trust cleanup.** Settings > Escalation now serializes trigger and notification-cap saves in the UI, disables all related controls during an in-flight write, confirms the exact trigger or cap changed, and accepts the stable seeded escalation rule IDs used by the page so admins can persist overdue-notification policy updates.
 - 2026-05-25: **Web bug sweep Kiosk Devices location-state cleanup.** Settings > Kiosk Devices now surfaces a retryable locations-load failure for kiosk assignment instead of leaving the required New Kiosk location picker empty; the create fields also expose stable form metadata.
 - 2026-05-25: **Web bug sweep Calendar Sources load-state cleanup.** Settings > Calendar Sources now shows a retryable load failure when `/api/calendar-sources` cannot be read instead of falsely reporting that no feeds are configured; the Add source fields also have explicit label and form metadata.
 - 2026-05-25: **Web bug sweep Venue Mappings location-state cleanup.** Settings > Venue Mappings now surfaces a retryable inline error when the required locations list fails to load and disables Add mapping until location options are available, avoiding a false empty required picker.

@@ -1,12 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { handleAuthRedirect, isAbortError } from "@/lib/errors";
 import { SettingsPageShell } from "../SettingsPageShell";
+import {
+  getExportCompletionToast,
+  getExportFilename,
+  readExportFailureMessage,
+} from "./export-download";
 
 type ExportConfig = {
   key: string;
@@ -50,9 +55,14 @@ const EXPORTS: ExportConfig[] = [
 
 export default function DataExportPage() {
   const [downloading, setDownloading] = useState<string | null>(null);
+  const activeDownloadRef = useRef<string | null>(null);
 
   async function handleDownload(cfg: ExportConfig) {
-    if (downloading) return;
+    if (activeDownloadRef.current) {
+      toast.info("Finish the current export before starting another download.");
+      return;
+    }
+    activeDownloadRef.current = cfg.key;
     setDownloading(cfg.key);
     try {
       const res = await fetch(cfg.url);
@@ -62,8 +72,7 @@ export default function DataExportPage() {
         return;
       }
       if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        toast.error(`Export failed: ${text || res.statusText}`);
+        toast.error(await readExportFailureMessage(res, cfg.label));
         return;
       }
 
@@ -71,9 +80,10 @@ export default function DataExportPage() {
       const total = res.headers.get("X-Total-Count");
 
       const blob = await res.blob();
-      const disposition = res.headers.get("Content-Disposition") ?? "";
-      const filenameMatch = disposition.match(/filename="([^"]+)"/);
-      const filename = filenameMatch?.[1] ?? `${cfg.key}-export.csv`;
+      const filename = getExportFilename(
+        res.headers.get("Content-Disposition"),
+        `${cfg.key}-export.csv`,
+      );
 
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -84,15 +94,17 @@ export default function DataExportPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      if (truncated && total) {
-        toast.warning(`Export capped at 5,000 rows — ${total} total. Use filters to narrow the range.`);
+      const completionToast = getExportCompletionToast(cfg.label, truncated, total);
+      if (completionToast.variant === "warning") {
+        toast.warning(completionToast.message);
       } else {
-        toast.success(`${cfg.label} export downloaded.`);
+        toast.success(completionToast.message);
       }
     } catch (err) {
       if (isAbortError(err)) return;
       toast.error("Download failed. Check your connection and try again.");
     } finally {
+      activeDownloadRef.current = null;
       setDownloading(null);
     }
   }
@@ -120,6 +132,7 @@ export default function DataExportPage() {
                   disabled={!!downloading}
                   onClick={() => handleDownload(cfg)}
                   aria-label={actionLabel}
+                  aria-busy={isLoading}
                 >
                   {isLoading
                     ? <Loader2 className="size-4 animate-spin" />

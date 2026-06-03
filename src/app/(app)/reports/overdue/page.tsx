@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { toast } from "sonner";
 import MetricCard from "../MetricCard";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -21,7 +22,6 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import {
-  downloadReportCsv,
   ReportEmptyState,
   ReportErrorState,
   ReportExportButton,
@@ -33,6 +33,12 @@ import {
   ReportTableLink,
   ReportToolbar,
 } from "../report-ui";
+import { handleAuthRedirect, isAbortError } from "@/lib/errors";
+import {
+  getReportExportCompletionToast,
+  getReportExportFilename,
+  readReportExportFailureMessage,
+} from "../report-export";
 
 type OverdueBooking = {
   id: string;
@@ -136,16 +142,48 @@ function LeaderboardMobileCard({
   );
 }
 
-function downloadCsv(leaderboard: LeaderboardEntry[]) {
-  downloadReportCsv("overdue-report", [
-    ["Person", "Overdue Checkouts", "Total Overdue Hours", "Bookings"],
-    ...leaderboard.map((e) => [
-      e.name,
-      e.overdueCount,
-      e.totalOverdueHours,
-      (e.bookings ?? []).map((b) => b.title).join("; "),
-    ]),
-  ]);
+async function downloadOverdueCsv() {
+  try {
+    const res = await fetch("/api/reports/overdue?format=csv");
+    if (handleAuthRedirect(res, "/reports/overdue")) return;
+
+    if (!res.ok) {
+      toast.error(await readReportExportFailureMessage(res, "Overdue report"));
+      return;
+    }
+
+    const blob = await res.blob();
+    const filename = getReportExportFilename(
+      res.headers.get("Content-Disposition"),
+      "overdue-report.csv",
+    );
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    const exportedCount = Number.parseInt(res.headers.get("X-Exported-Count") ?? "", 10);
+    const completionToast = getReportExportCompletionToast({
+      reportLabel: "Overdue report",
+      rowCount: Number.isFinite(exportedCount) ? exportedCount : 0,
+      scopeLabel: "matching overdue booking rows",
+      total: res.headers.get("X-Total-Count"),
+      truncated: res.headers.get("X-Truncated") === "true",
+    });
+
+    if (completionToast.variant === "warning") {
+      toast.warning(completionToast.message);
+    } else {
+      toast.success(completionToast.message);
+    }
+  } catch (err) {
+    if (isAbortError(err)) return;
+    toast.error("Overdue report CSV export failed. Check your connection and try again.");
+  }
 }
 
 export default function OverdueLeaderboardPage() {
@@ -195,7 +233,11 @@ export default function OverdueLeaderboardPage() {
         now={now}
         onRefresh={reload}
         exportAction={leaderboard.length > 0 ? (
-          <ReportExportButton onClick={() => downloadCsv(leaderboard)} />
+          <ReportExportButton
+            ariaLabel="Export matching overdue booking rows CSV"
+            label="Export matching rows"
+            onClick={downloadOverdueCsv}
+          />
         ) : null}
       />
       <ReportMetricGrid>

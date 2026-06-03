@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,23 @@ type EscalationData = {
   config: EscalationConfig;
 };
 
+type EscalationRuleField = "enabled" | "notifyAdmins" | "notifyRequester";
+
+function ruleSavingKey(ruleId: string, field: EscalationRuleField) {
+  return `${ruleId}:${field}`;
+}
+
+function describeRuleChange(rule: EscalationRule | undefined, field: EscalationRuleField, next: boolean) {
+  const title = rule?.title ?? "Escalation trigger";
+  if (field === "enabled") {
+    return `${title} trigger ${next ? "enabled" : "disabled"}.`;
+  }
+  if (field === "notifyAdmins") {
+    return `${title} ${next ? "now notifies admins" : "no longer notifies admins"}.`;
+  }
+  return `${title} ${next ? "now notifies the requester" : "no longer notifies the requester"}.`;
+}
+
 export default function EscalationSettingsPage() {
   const { data: escalationData, loading, error, reload } = useFetch<EscalationData>({
     url: "/api/settings/escalation",
@@ -65,19 +82,28 @@ export default function EscalationSettingsPage() {
     setLocalConfig(null);
   }
   const [saving, setSaving] = useState<string | null>(null);
+  const savingRef = useRef(false);
+  const anySaving = saving !== null;
 
-  async function toggleRule(ruleId: string, field: "enabled" | "notifyAdmins" | "notifyRequester", current: boolean) {
-    setSaving(ruleId + field);
+  async function toggleRule(ruleId: string, field: EscalationRuleField, current: boolean) {
+    if (savingRef.current) {
+      toast.info("Finish the current escalation save before changing another trigger.");
+      return;
+    }
+    const next = !current;
+    const targetRule = rules.find((rule) => rule.id === ruleId);
+    savingRef.current = true;
+    setSaving(ruleSavingKey(ruleId, field));
     try {
       const res = await fetch("/api/settings/escalation", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ruleId, [field]: !current }),
+        body: JSON.stringify({ ruleId, [field]: next }),
       });
       if (handleAuthRedirect(res, "/settings/escalation")) return;
       if (res.ok) {
-        setLocalRules((prev) => (prev ?? rules).map((r) => r.id === ruleId ? { ...r, [field]: !current } : r));
-        toast.success("Saved");
+        setLocalRules((prev) => (prev ?? rules).map((r) => r.id === ruleId ? { ...r, [field]: next } : r));
+        toast.success(describeRuleChange(targetRule, field, next));
       } else {
         const msg = await parseErrorMessage(res, "Update failed");
         toast.error(msg);
@@ -86,11 +112,18 @@ export default function EscalationSettingsPage() {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
       toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Update failed");
+    } finally {
+      savingRef.current = false;
+      setSaving(null);
     }
-    setSaving(null);
   }
 
   async function updateCap(newCap: number) {
+    if (savingRef.current) {
+      toast.info("Finish the current escalation save before changing the notification cap.");
+      return;
+    }
+    savingRef.current = true;
     setSaving("cap");
     try {
       const res = await fetch("/api/settings/escalation", {
@@ -101,7 +134,7 @@ export default function EscalationSettingsPage() {
       if (handleAuthRedirect(res, "/settings/escalation")) return;
       if (res.ok) {
         setLocalConfig({ maxNotificationsPerBooking: newCap });
-        toast.success("Cap updated");
+        toast.success(`Notification cap set to ${newCap} per booking.`);
       } else {
         const msg = await parseErrorMessage(res, "Update failed");
         toast.error(msg);
@@ -110,8 +143,10 @@ export default function EscalationSettingsPage() {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
       toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Update failed");
+    } finally {
+      savingRef.current = false;
+      setSaving(null);
     }
-    setSaving(null);
   }
 
   function formatHours(h: number): string {
@@ -222,21 +257,24 @@ export default function EscalationSettingsPage() {
                     <Switch
                       checked={rule.notifyRequester}
                       onCheckedChange={() => toggleRule(rule.id, "notifyRequester", rule.notifyRequester)}
-                      disabled={saving === rule.id + "notifyRequester"}
+                      disabled={anySaving}
+                      aria-label={`Toggle requester notifications for ${rule.title}`}
                     />
                   </TableCell>
                   <TableCell>
                     <Switch
                       checked={rule.notifyAdmins}
                       onCheckedChange={() => toggleRule(rule.id, "notifyAdmins", rule.notifyAdmins)}
-                      disabled={saving === rule.id + "notifyAdmins"}
+                      disabled={anySaving}
+                      aria-label={`Toggle admin notifications for ${rule.title}`}
                     />
                   </TableCell>
                   <TableCell>
                     <Switch
                       checked={rule.enabled}
                       onCheckedChange={() => toggleRule(rule.id, "enabled", rule.enabled)}
-                      disabled={saving === rule.id + "enabled"}
+                      disabled={anySaving}
+                      aria-label={`Toggle ${rule.title} escalation trigger`}
                     />
                   </TableCell>
                 </TableRow>
@@ -256,9 +294,9 @@ export default function EscalationSettingsPage() {
               <Select
                 value={String(config.maxNotificationsPerBooking)}
                 onValueChange={(v) => updateCap(Number(v))}
-                disabled={saving === "cap"}
+                disabled={anySaving}
               >
-                <SelectTrigger id="cap" className="w-20">
+                <SelectTrigger id="cap" className="w-20" aria-label="Max notifications per booking">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

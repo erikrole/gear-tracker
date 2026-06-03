@@ -10,7 +10,7 @@ const patchEscalationSchema = z.union([
     maxNotificationsPerBooking: z.number().int().min(1).max(100),
   }),
   z.object({
-    ruleId: z.string().cuid(),
+    ruleId: z.string().trim().min(1).max(128),
     enabled: z.boolean().optional(),
     notifyAdmins: z.boolean().optional(),
     notifyRequester: z.boolean().optional(),

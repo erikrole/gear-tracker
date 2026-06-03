@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { calendarSourceFailureDetail, getCalendarSyncFailureCounts } from "@/lib/services/calendar-sync-health";
 
 const SAMPLE_LIMIT = 5;
 const KIOSK_OFFLINE_AFTER_MINUTES = 15;
@@ -118,6 +119,7 @@ export async function getAdminFixTodayQueue(now = new Date()): Promise<AdminFixT
     batteryRowsResult,
     calendarFailureCountResult,
     calendarFailureRowsResult,
+    calendarFailureCountsResult,
     licenseExpiryCountResult,
     licenseExpiryRowsResult,
   ] = await Promise.allSettled([
@@ -210,6 +212,7 @@ export async function getAdminFixTodayQueue(now = new Date()): Promise<AdminFixT
         lastError: true,
       },
     }),
+    getCalendarSyncFailureCounts(),
     db.licenseCode.count({
       where: {
         status: { not: "RETIRED" },
@@ -246,6 +249,7 @@ export async function getAdminFixTodayQueue(now = new Date()): Promise<AdminFixT
   const batteryRows = settledValue(batteryRowsResult, [] as BatterySkuRow[], "batteryRows", partialFailures);
   const calendarFailureCount = settledValue(calendarFailureCountResult, 0, "calendarFailureCount", partialFailures);
   const calendarFailureRows = settledValue(calendarFailureRowsResult, [], "calendarFailureRows", partialFailures);
+  const calendarFailureCounts = settledValue(calendarFailureCountsResult, new Map<string, number>(), "calendarFailureCounts", partialFailures);
   const licenseExpiryCount = settledValue(licenseExpiryCountResult, 0, "licenseExpiryCount", partialFailures);
   const licenseExpiryRows = settledValue(licenseExpiryRowsResult, [], "licenseExpiryRows", partialFailures);
 
@@ -344,7 +348,9 @@ export async function getAdminFixTodayQueue(now = new Date()): Promise<AdminFixT
       samples: calendarFailureRows.map((row) => ({
         id: row.id,
         label: row.name,
-        detail: row.lastError || formatDateDetail("last fetched", row.lastFetchedAt),
+        detail: row.lastError
+          ? calendarSourceFailureDetail(row.lastError, calendarFailureCounts.get(row.id) ?? 0)
+          : formatDateDetail("last fetched", row.lastFetchedAt),
         href: "/settings/calendar-sources",
       })),
     }),

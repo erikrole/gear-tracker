@@ -1,11 +1,26 @@
+import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api";
-import { ok } from "@/lib/http";
-import { HttpError } from "@/lib/http";
+import { csvField } from "@/lib/csv";
+import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
-import { getCheckoutReport } from "@/lib/services/reports";
+import { getCheckoutReport, getCheckoutReportExport } from "@/lib/services/reports";
 
 const DEFAULT_DAYS = 30;
 const MAX_DAYS = 366;
+
+function buildCheckoutReportCsv(rows: Awaited<ReturnType<typeof getCheckoutReportExport>>["data"]) {
+  const headers = ["Title", "Requester", "Status", "Due", "Items", "Overdue"];
+  const csvRows = rows.map((checkout) => [
+    csvField(checkout.title),
+    csvField(checkout.requester),
+    csvField(checkout.status),
+    csvField(checkout.endsAt),
+    csvField(checkout.itemCount),
+    csvField(checkout.isOverdue),
+  ]);
+
+  return [headers.join(","), ...csvRows.map((row) => row.join(","))].join("\n");
+}
 
 export const GET = withAuth(async (req, { user }) => {
   requirePermission(user.role, "report", "view");
@@ -14,5 +29,23 @@ export const GET = withAuth(async (req, { user }) => {
   if (!Number.isFinite(days) || days < 1 || days > MAX_DAYS) {
     throw new HttpError(400, `days must be between 1 and ${MAX_DAYS}`);
   }
+
+  if (searchParams.get("format") === "csv") {
+    const exportData = await getCheckoutReportExport(days);
+    const date = new Date().toISOString().slice(0, 10);
+    return new NextResponse(`${buildCheckoutReportCsv(exportData.data)}\n`, {
+      headers: {
+        "Cache-Control": "private, no-store",
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="checkouts-report-${date}.csv"`,
+        "X-Exported-Count": String(exportData.data.length),
+        "X-Total-Count": String(exportData.total),
+        ...(exportData.truncated ? {
+          "X-Truncated": "true",
+        } : {}),
+      },
+    });
+  }
+
   return ok(await getCheckoutReport(days));
 });

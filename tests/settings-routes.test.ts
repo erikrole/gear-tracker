@@ -198,7 +198,7 @@ describe("PATCH /api/settings/escalation", () => {
   it("updates an escalation rule", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
     const beforeRule = {
-      id: "cm123456789012345678901234",
+      id: "esc_due_1h",
       enabled: true,
       notifyAdmins: false,
       notifyRequester: false,
@@ -210,14 +210,14 @@ describe("PATCH /api/settings/escalation", () => {
     } as any);
 
     const res = await patchEscalation(
-      makePatchRequest({ ruleId: "cm123456789012345678901234", notifyAdmins: true }),
+      makePatchRequest({ ruleId: "esc_due_1h", notifyAdmins: true }),
       noParams
     );
 
     expect(res.status).toBe(200);
     expect(db.escalationRule.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: "cm123456789012345678901234" },
+        where: { id: "esc_due_1h" },
         data: { notifyAdmins: true },
       })
     );

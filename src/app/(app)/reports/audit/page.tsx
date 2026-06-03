@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 import { useFetch } from "@/hooks/use-fetch";
+import { handleAuthRedirect, isAbortError } from "@/lib/errors";
 import { syncUrl } from "@/lib/url-sync";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -21,7 +23,6 @@ const LazyEntityTypeBreakdownChart = dynamic(
   { ssr: false }
 );
 import {
-  downloadReportCsv,
   ReportEmptyState,
   ReportErrorState,
   ReportExportButton,
@@ -32,6 +33,11 @@ import {
   ReportToolbar,
   ReportToolbarGroup,
 } from "../report-ui";
+import {
+  getReportExportCompletionToast,
+  getReportExportFilename,
+  readReportExportFailureMessage,
+} from "../report-export";
 
 type AuditEntry = {
   id: string;
@@ -85,11 +91,68 @@ function toTimelineEntries(entries: AuditEntry[]): TimelineEntry[] {
   }));
 }
 
-function downloadCsv(entries: AuditEntry[]) {
-  downloadReportCsv("audit-report", [
-    ["Timestamp", "Actor", "Action", "Entity Type", "Entity ID"],
-    ...entries.map((e) => [e.createdAt, e.actor, e.action, e.entityType, e.entityId]),
-  ]);
+function periodStartDate(periodDays: number) {
+  return periodDays > 0
+    ? new Date(Date.now() - periodDays * 86_400_000).toISOString()
+    : null;
+}
+
+function buildAuditReportParams(periodDays: number, paging?: { limit: number; offset: number }) {
+  const params = new URLSearchParams();
+  if (paging) {
+    params.set("limit", String(paging.limit));
+    params.set("offset", String(paging.offset));
+  }
+  const startDate = periodStartDate(periodDays);
+  if (startDate) params.set("startDate", startDate);
+  return params;
+}
+
+async function downloadAuditCsv(periodDays: number) {
+  const params = buildAuditReportParams(periodDays);
+  params.set("format", "csv");
+
+  try {
+    const res = await fetch(`/api/reports/audit?${params.toString()}`);
+    if (handleAuthRedirect(res, "/reports/audit")) return;
+
+    if (!res.ok) {
+      toast.error(await readReportExportFailureMessage(res, "Audit"));
+      return;
+    }
+
+    const blob = await res.blob();
+    const filename = getReportExportFilename(
+      res.headers.get("Content-Disposition"),
+      "audit-report.csv",
+    );
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    const exportedCount = Number.parseInt(res.headers.get("X-Exported-Count") ?? "", 10);
+    const completionToast = getReportExportCompletionToast({
+      reportLabel: "Audit",
+      rowCount: Number.isFinite(exportedCount) ? exportedCount : 0,
+      scopeLabel: "matching audit entries",
+      total: res.headers.get("X-Total-Count"),
+      truncated: res.headers.get("X-Truncated") === "true",
+    });
+
+    if (completionToast.variant === "warning") {
+      toast.warning(completionToast.message);
+    } else {
+      toast.success(completionToast.message);
+    }
+  } catch (err) {
+    if (isAbortError(err)) return;
+    toast.error("Audit CSV export failed. Check your connection and try again.");
+  }
 }
 
 export default function AuditReportPage() {
@@ -123,13 +186,10 @@ export default function AuditReportPage() {
   }, [searchParams]);
 
   const fetchUrl = useMemo(() => {
-    const params = new URLSearchParams({
-      limit: String(limit),
-      offset: String(page * limit),
+    const params = buildAuditReportParams(periodDays, {
+      limit,
+      offset: page * limit,
     });
-    if (periodDays > 0) {
-      params.set("startDate", new Date(Date.now() - periodDays * 86_400_000).toISOString());
-    }
     return `/api/reports/audit?${params}`;
   }, [page, periodDays]);
 
@@ -201,7 +261,11 @@ export default function AuditReportPage() {
         now={now}
         onRefresh={loadData}
         exportAction={entries.length > 0 ? (
-          <ReportExportButton onClick={() => downloadCsv(entries)} />
+          <ReportExportButton
+            ariaLabel="Export matching audit entries CSV"
+            label="Export matching rows"
+            onClick={() => downloadAuditCsv(periodDays)}
+          />
         ) : null}
       >
         <ReportToolbarGroup label="Period">
