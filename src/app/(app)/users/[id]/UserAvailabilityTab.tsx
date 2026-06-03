@@ -2,14 +2,14 @@
 
 import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, AlertCircle } from "lucide-react";
+import { AlertCircle, CalendarPlusIcon, PencilIcon, PlusIcon, Trash2 } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -17,26 +17,38 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
+import { cn } from "@/lib/utils";
 
-/* ── Types ─────────────────────────────────────────────── */
+type AvailabilityKind = "WEEKLY" | "AD_HOC";
 
 type AvailabilityBlock = {
   id: string;
   userId: string;
-  dayOfWeek: number;
+  kind?: AvailabilityKind;
+  dayOfWeek: number | null;
+  date: string | null;
   startsAt: string;
   endsAt: string;
   label: string | null;
   semesterLabel: string | null;
+  semesterStartsOn: string | null;
+  semesterEndsOn: string | null;
   createdAt: string;
+  updatedAt?: string;
 };
-
-/* ── Constants ──────────────────────────────────────────── */
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function blockKind(block: AvailabilityBlock): AvailabilityKind {
+  return block.kind ?? "WEEKLY";
+}
+
+function dateValue(value: string | null | undefined): string {
+  return value ? value.slice(0, 10) : "";
+}
 
 function formatTime(hhmm: string): string {
   const parts = hhmm.split(":").map(Number);
@@ -47,23 +59,53 @@ function formatTime(hhmm: string): string {
   return m === 0 ? `${hour} ${period}` : `${hour}:${String(m).padStart(2, "0")} ${period}`;
 }
 
-/* ── Add Block Form ─────────────────────────────────────── */
+function formatDate(value: string | null): string {
+  if (!value) return "";
+  const [year, month, day] = value.slice(0, 10).split("-").map(Number);
+  return new Date(year ?? 0, (month ?? 1) - 1, day ?? 1).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
 
-type AddBlockFormProps = {
+function sortBlocks(blocks: AvailabilityBlock[]): AvailabilityBlock[] {
+  return [...blocks].sort((a, b) => {
+    if (blockKind(a) !== blockKind(b)) return blockKind(a) === "WEEKLY" ? -1 : 1;
+    if (blockKind(a) === "AD_HOC") return dateValue(a.date).localeCompare(dateValue(b.date)) || a.startsAt.localeCompare(b.startsAt);
+    const dayA = a.dayOfWeek ?? 7;
+    const dayB = b.dayOfWeek ?? 7;
+    return dayA !== dayB ? dayA - dayB : a.startsAt.localeCompare(b.startsAt);
+  });
+}
+
+type AvailabilityFormProps = {
   userId: string;
-  onAdded: (block: AvailabilityBlock) => void;
+  initial?: AvailabilityBlock | null;
+  onSaved: (block: AvailabilityBlock) => void;
   onCancel: () => void;
 };
 
-function AddBlockForm({ userId, onAdded, onCancel }: AddBlockFormProps) {
+function AvailabilityForm({ userId, initial, onSaved, onCancel }: AvailabilityFormProps) {
+  const kindId = useId();
   const dayId = useId();
+  const dateId = useId();
   const startId = useId();
   const endId = useId();
   const labelId = useId();
-  const [dayOfWeek, setDayOfWeek] = useState("1"); // Monday default
-  const [startsAt, setStartsAt] = useState("09:00");
-  const [endsAt, setEndsAt] = useState("11:00");
-  const [label, setLabel] = useState("");
+  const semesterId = useId();
+  const semesterStartId = useId();
+  const semesterEndId = useId();
+
+  const [kind, setKind] = useState<AvailabilityKind>(blockKind(initial ?? ({ kind: "WEEKLY" } as AvailabilityBlock)));
+  const [dayOfWeek, setDayOfWeek] = useState(String(initial?.dayOfWeek ?? 1));
+  const [date, setDate] = useState(dateValue(initial?.date));
+  const [startsAt, setStartsAt] = useState(initial?.startsAt ?? "09:00");
+  const [endsAt, setEndsAt] = useState(initial?.endsAt ?? "11:00");
+  const [label, setLabel] = useState(initial?.label ?? "");
+  const [semesterLabel, setSemesterLabel] = useState(initial?.semesterLabel ?? "");
+  const [semesterStartsOn, setSemesterStartsOn] = useState(dateValue(initial?.semesterStartsOn));
+  const [semesterEndsOn, setSemesterEndsOn] = useState(dateValue(initial?.semesterEndsOn));
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
 
@@ -73,33 +115,48 @@ function AddBlockForm({ userId, onAdded, onCancel }: AddBlockFormProps) {
       toast.error("Start time must be before end time");
       return;
     }
+    if (kind === "AD_HOC" && !date) {
+      toast.error("Choose a date for the one-time conflict");
+      return;
+    }
+    if (semesterStartsOn && semesterEndsOn && semesterStartsOn > semesterEndsOn) {
+      toast.error("Semester end date must be on or after start date");
+      return;
+    }
     if (savingRef.current) return;
     savingRef.current = true;
     setSaving(true);
     try {
-      const res = await fetch(`/api/users/${userId}/availability`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          dayOfWeek: parseInt(dayOfWeek),
-          startsAt,
-          endsAt,
-          label: label.trim() || undefined,
-        }),
-      });
+      const res = await fetch(
+        initial ? `/api/users/${userId}/availability/${initial.id}` : `/api/users/${userId}/availability`,
+        {
+          method: initial ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            kind,
+            dayOfWeek: kind === "WEEKLY" ? Number(dayOfWeek) : null,
+            date: kind === "AD_HOC" ? date : null,
+            startsAt,
+            endsAt,
+            label: label.trim() || undefined,
+            semesterLabel: semesterLabel.trim() || undefined,
+            semesterStartsOn: semesterStartsOn || null,
+            semesterEndsOn: semesterEndsOn || null,
+          }),
+        },
+      );
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
-        const msg = await parseErrorMessage(res, "Failed to add block");
-        toast.error(msg);
+        toast.error(await parseErrorMessage(res, "Could not save availability"));
         return;
       }
       const json = await parseJsonSafely<{ data?: AvailabilityBlock }>(res);
       if (!json?.data) {
-        toast.error("Availability block was created, but the response was incomplete. Refresh the profile.");
+        toast.error("Availability saved, but the response was incomplete. Refresh the profile.");
         return;
       }
-      onAdded(json.data);
-      toast.success("Availability block added");
+      onSaved(json.data);
+      toast.success(initial ? "Availability updated" : "Availability added");
     } catch {
       toast.error("Network error");
     } finally {
@@ -109,72 +166,122 @@ function AddBlockForm({ userId, onAdded, onCancel }: AddBlockFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="border rounded-lg p-4 bg-muted/30 space-y-4">
-      <p className="text-sm font-medium">Add class / recurring block</p>
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_1fr] gap-3">
-        <div className="space-y-1.5">
-          <Label htmlFor={dayId} className="text-xs">Day</Label>
-          <Select name="availability-day" value={dayOfWeek} onValueChange={setDayOfWeek}>
-            <SelectTrigger id={dayId} size="sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {DAY_NAMES.map((name, i) => (
-                <SelectItem key={i} value={String(i)}>{name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+    <form onSubmit={handleSubmit} className="rounded-lg border bg-muted/30 p-4">
+      <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_1fr]">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={kindId} className="text-xs">Type</Label>
+            <Select name="availability-kind" value={kind} onValueChange={(value) => setKind(value as AvailabilityKind)}>
+              <SelectTrigger id={kindId} size="sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="WEEKLY">Weekly class</SelectItem>
+                <SelectItem value="AD_HOC">One-time conflict</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {kind === "WEEKLY" ? (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={dayId} className="text-xs">Day</Label>
+              <Select name="availability-day" value={dayOfWeek} onValueChange={setDayOfWeek}>
+                <SelectTrigger id={dayId} size="sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DAY_NAMES.map((name, i) => (
+                    <SelectItem key={i} value={String(i)}>{name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={dateId} className="text-xs">Date</Label>
+              <Input id={dateId} name="availability-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-8 text-sm" required />
+            </div>
+          )}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={labelId} className="text-xs">Label</Label>
+            <Input id={labelId} name="availability-label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder={kind === "WEEKLY" ? "COMM 201" : "Exam"} className="h-8 text-sm" maxLength={80} />
+          </div>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor={startId} className="text-xs">Start</Label>
-          <Input
-            id={startId}
-            name="availability-start"
-            type="time"
-            value={startsAt}
-            onChange={(e) => setStartsAt(e.target.value)}
-            className="h-8 text-sm"
-            required
-          />
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_1fr]">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={startId} className="text-xs">Start</Label>
+            <Input id={startId} name="availability-start" type="time" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} className="h-8 text-sm" required />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={endId} className="text-xs">End</Label>
+            <Input id={endId} name="availability-end" type="time" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} className="h-8 text-sm" required />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={semesterId} className="text-xs">Semester label</Label>
+            <Input id={semesterId} name="availability-semester-label" value={semesterLabel} onChange={(e) => setSemesterLabel(e.target.value)} placeholder="Fall 2026" className="h-8 text-sm" maxLength={40} />
+          </div>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor={endId} className="text-xs">End</Label>
-          <Input
-            id={endId}
-            name="availability-end"
-            type="time"
-            value={endsAt}
-            onChange={(e) => setEndsAt(e.target.value)}
-            className="h-8 text-sm"
-            required
-          />
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={semesterStartId} className="text-xs">Semester starts</Label>
+            <Input id={semesterStartId} name="availability-semester-start" type="date" value={semesterStartsOn} onChange={(e) => setSemesterStartsOn(e.target.value)} className="h-8 text-sm" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={semesterEndId} className="text-xs">Semester ends</Label>
+            <Input id={semesterEndId} name="availability-semester-end" type="date" value={semesterEndsOn} onChange={(e) => setSemesterEndsOn(e.target.value)} className="h-8 text-sm" />
+          </div>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor={labelId} className="text-xs">Label (optional)</Label>
-          <Input
-            id={labelId}
-            name="availability-label"
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            placeholder="CHEM 101"
-            className="h-8 text-sm"
-            maxLength={80}
-          />
+
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={saving}>
+            Cancel
+          </Button>
+          <Button type="submit" size="sm" disabled={saving}>
+            {saving ? "Saving..." : initial ? "Save changes" : "Add availability"}
+          </Button>
         </div>
-      </div>
-      <div className="flex items-center gap-2 justify-end">
-        <Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={saving}>
-          Cancel
-        </Button>
-        <Button type="submit" size="sm" disabled={saving}>
-          {saving ? "Saving…" : "Add block"}
-        </Button>
       </div>
     </form>
   );
 }
 
-/* ── Main Tab ───────────────────────────────────────────── */
+function BlockPill({
+  block,
+  canEdit,
+  deleting,
+  onEdit,
+  onDelete,
+}: {
+  block: AvailabilityBlock;
+  canEdit: boolean;
+  deleting: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const kind = blockKind(block);
+  const range = `${formatTime(block.startsAt)}-${formatTime(block.endsAt)}`;
+  const semesterRange = [formatDate(block.semesterStartsOn), formatDate(block.semesterEndsOn)].filter(Boolean).join(" to ");
+
+  return (
+    <div className="group flex min-w-0 items-center gap-1 rounded-md border bg-muted/40 px-2 py-1 text-xs">
+      <span className="font-medium tabular-nums">{range}</span>
+      {block.label && <Badge variant="secondary" className="h-4 px-1 text-[10px]">{block.label}</Badge>}
+      {block.semesterLabel && <Badge variant="gray" className="h-4 px-1 text-[10px]">{block.semesterLabel}</Badge>}
+      {semesterRange && kind === "WEEKLY" && <span className="text-muted-foreground">{semesterRange}</span>}
+      {canEdit && (
+        <span className="ml-auto flex items-center gap-0.5">
+          <Button type="button" variant="ghost" size="icon-xs" className="size-6 text-muted-foreground" onClick={onEdit} aria-label="Edit availability block">
+            <PencilIcon className="size-3" />
+          </Button>
+          <Button type="button" variant="ghost" size="icon-xs" className="size-6 text-muted-foreground hover:text-destructive" onClick={onDelete} disabled={deleting} aria-label="Remove availability block">
+            <Trash2 className={cn("size-3", deleting && "animate-pulse")} />
+          </Button>
+        </span>
+      )}
+    </div>
+  );
+}
 
 export default function UserAvailabilityTab({
   userId,
@@ -184,6 +291,7 @@ export default function UserAvailabilityTab({
   canEdit: boolean;
 }) {
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<AvailabilityBlock | null>(null);
   const [localBlocks, setLocalBlocks] = useState<AvailabilityBlock[] | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const deletingRef = useRef(false);
@@ -196,28 +304,23 @@ export default function UserAvailabilityTab({
   } = useFetch<AvailabilityBlock[]>({
     url: `/api/users/${userId}/availability`,
     returnTo: `/users/${userId}`,
-    transform: (json) => (json as { data: AvailabilityBlock[] }).data,
+    transform: (json) => sortBlocks((json as { data: AvailabilityBlock[] }).data ?? []),
   });
 
-  // Sync local state when fetch refreshes
   const [prevFetched, setPrevFetched] = useState(fetchedBlocks);
   if (fetchedBlocks !== prevFetched) {
     setPrevFetched(fetchedBlocks);
     setLocalBlocks(null);
   }
 
-  const blocks = localBlocks ?? fetchedBlocks ?? [];
+  const blocks = sortBlocks(localBlocks ?? fetchedBlocks ?? []);
+  const weeklyBlocks = blocks.filter((block) => blockKind(block) === "WEEKLY");
+  const adHocBlocks = blocks.filter((block) => blockKind(block) === "AD_HOC");
 
-  function handleAdded(block: AvailabilityBlock) {
-    setLocalBlocks((prev) => {
-      const base = prev ?? fetchedBlocks ?? [];
-      return [...base, block].sort((a, b) =>
-        a.dayOfWeek !== b.dayOfWeek
-          ? a.dayOfWeek - b.dayOfWeek
-          : a.startsAt.localeCompare(b.startsAt)
-      );
-    });
+  function upsertBlock(block: AvailabilityBlock) {
+    setLocalBlocks((prev) => sortBlocks([...(prev ?? fetchedBlocks ?? []).filter((b) => b.id !== block.id), block]));
     setShowForm(false);
+    setEditing(null);
   }
 
   async function handleDelete(blockId: string) {
@@ -225,17 +328,14 @@ export default function UserAvailabilityTab({
     deletingRef.current = true;
     setDeleting(blockId);
     try {
-      const res = await fetch(`/api/users/${userId}/availability/${blockId}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(`/api/users/${userId}/availability/${blockId}`, { method: "DELETE" });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
-        const msg = await parseErrorMessage(res, "Failed to remove block");
-        toast.error(msg);
+        toast.error(await parseErrorMessage(res, "Could not remove availability"));
         return;
       }
       setLocalBlocks((prev) => (prev ?? fetchedBlocks ?? []).filter((b) => b.id !== blockId));
-      toast.success("Block removed");
+      toast.success("Availability removed");
     } catch {
       toast.error("Network error");
     } finally {
@@ -244,31 +344,21 @@ export default function UserAvailabilityTab({
     }
   }
 
-  // Group blocks by day of week
-  const byDay = new Map<number, AvailabilityBlock[]>();
-  for (const block of blocks) {
-    const arr = byDay.get(block.dayOfWeek) ?? [];
-    arr.push(block);
-    byDay.set(block.dayOfWeek, arr);
-  }
-
-  /* ── Loading ── */
   if (loading) {
     return (
-      <div className="mt-4 space-y-3">
+      <div className="mt-4 flex flex-col gap-3">
         {[0, 1, 2].map((i) => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}
       </div>
     );
   }
 
-  /* ── Error ── */
   if (error) {
     return (
       <div className="mt-4">
         <Alert variant="destructive">
           <AlertCircle className="size-4" />
           <AlertTitle>Failed to load availability</AlertTitle>
-          <AlertDescription className="flex items-center gap-3 mt-2">
+          <AlertDescription className="mt-2 flex items-center gap-3">
             <Button variant="outline" size="sm" onClick={reload}>Retry</Button>
           </AlertDescription>
         </Alert>
@@ -277,79 +367,117 @@ export default function UserAvailabilityTab({
   }
 
   return (
-    <div className="mt-4 space-y-4">
+    <div className="mt-4 flex flex-col gap-4">
       <Card>
-        <CardHeader className="pb-3 flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-row items-start justify-between gap-3 pb-3">
           <div>
-            <CardTitle className="text-sm font-semibold">Weekly Class Schedule</CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Recurring blocks when this person is unavailable. Used to flag shift conflicts.
+            <CardTitle className="text-sm font-semibold">Availability</CardTitle>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Class schedules and one-time conflicts warn staff during assignment. Staff still sets the final call window.
             </p>
           </div>
-          {canEdit && !showForm && (
+          {canEdit && !showForm && !editing && (
             <Button variant="outline" size="sm" onClick={() => setShowForm(true)}>
-              <Plus className="size-3.5 mr-1.5" />
-              Add block
+              <PlusIcon className="size-3.5" />
+              Add
             </Button>
           )}
         </CardHeader>
 
-        <CardContent className="space-y-3">
+        <CardContent className="flex flex-col gap-4">
           {showForm && (
-            <AddBlockForm
+            <AvailabilityForm
               userId={userId}
-              onAdded={handleAdded}
+              onSaved={upsertBlock}
               onCancel={() => setShowForm(false)}
             />
           )}
-
-          {blocks.length === 0 && !showForm ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">
-              No availability blocks set.
-            </p>
-          ) : (
-            // Mon–Sun order (1..6, 0 last)
-            [1, 2, 3, 4, 5, 6, 0].map((day) => {
-              const dayBlocks = byDay.get(day);
-              if (!dayBlocks?.length) return null;
-              return (
-                <div key={day} className="flex items-start gap-3">
-                  <span className="text-xs font-semibold text-muted-foreground w-8 pt-1 shrink-0">
-                    {DAY_SHORT[day]}
-                  </span>
-                  <div className="flex flex-wrap gap-1.5 flex-1">
-                    {dayBlocks.map((block) => (
-                      <div
-                        key={block.id}
-                        className="group flex items-center gap-1 rounded-md border bg-muted/40 px-2 py-1 text-xs"
-                      >
-                        <span className="font-medium">
-                          {formatTime(block.startsAt)}–{formatTime(block.endsAt)}
-                        </span>
-                        {block.label && (
-                          <Badge variant="secondary" className="text-[10px] h-4 px-1 ml-0.5">
-                            {block.label}
-                          </Badge>
-                        )}
-                        {canEdit && (
-                          <button
-                            onClick={() => handleDelete(block.id)}
-                            disabled={deleting === block.id}
-                            className="ml-1 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
-                            aria-label="Remove block"
-                          >
-                            <Trash2 className="size-3" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })
+          {editing && (
+            <AvailabilityForm
+              userId={userId}
+              initial={editing}
+              onSaved={upsertBlock}
+              onCancel={() => setEditing(null)}
+            />
           )}
+
+          <section className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <Badge variant="blue" size="sm">Weekly</Badge>
+              <h3 className="text-sm font-medium">Semester class schedule</h3>
+            </div>
+            {weeklyBlocks.length === 0 ? (
+              <p className="rounded-md border border-dashed px-3 py-4 text-center text-sm text-muted-foreground">
+                No weekly class blocks set.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {[1, 2, 3, 4, 5, 6, 0].map((day) => {
+                  const dayBlocks = weeklyBlocks.filter((block) => block.dayOfWeek === day);
+                  if (!dayBlocks.length) return null;
+                  return (
+                    <div key={day} className="flex items-start gap-3">
+                      <span className="w-8 shrink-0 pt-1 text-xs font-semibold text-muted-foreground">
+                        {DAY_SHORT[day]}
+                      </span>
+                      <div className="flex flex-1 flex-wrap gap-1.5">
+                        {dayBlocks.map((block) => (
+                          <BlockPill
+                            key={block.id}
+                            block={block}
+                            canEdit={canEdit}
+                            deleting={deleting === block.id}
+                            onEdit={() => setEditing(block)}
+                            onDelete={() => handleDelete(block.id)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <Badge variant="orange" size="sm">Ad hoc</Badge>
+              <h3 className="text-sm font-medium">One-time conflicts</h3>
+            </div>
+            {adHocBlocks.length === 0 ? (
+              <p className="rounded-md border border-dashed px-3 py-4 text-center text-sm text-muted-foreground">
+                No one-time conflicts set.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {adHocBlocks.map((block) => (
+                  <div key={block.id} className="flex items-start gap-3">
+                    <span className="w-24 shrink-0 pt-1 text-xs font-semibold text-muted-foreground">
+                      {formatDate(block.date)}
+                    </span>
+                    <div className="flex flex-1 flex-wrap gap-1.5">
+                      <BlockPill
+                        block={block}
+                        canEdit={canEdit}
+                        deleting={deleting === block.id}
+                        onEdit={() => setEditing(block)}
+                        onDelete={() => handleDelete(block.id)}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
         </CardContent>
       </Card>
+
+      {canEdit && !showForm && !editing && (
+        <Button variant="outline" className="w-fit" onClick={() => setShowForm(true)}>
+          <CalendarPlusIcon className="size-4" />
+          Add availability
+        </Button>
+      )}
     </div>
   );
 }

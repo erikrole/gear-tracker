@@ -4,6 +4,22 @@ import { ok, fail, HttpError, parsePagination } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 import { assertDateOrder, parseOptionalDate } from "@/lib/api-dates";
+import type { Prisma } from "@prisma/client";
+
+function applyEventWindowFilter(
+  eventWhere: Prisma.CalendarEventWhereInput,
+  parsedStartDate?: Date | null,
+  parsedEndDate?: Date | null,
+) {
+  if (parsedStartDate && parsedEndDate) {
+    eventWhere.startsAt = { lte: parsedEndDate };
+    eventWhere.endsAt = { gt: parsedStartDate };
+  } else if (parsedStartDate) {
+    eventWhere.endsAt = { gt: parsedStartDate };
+  } else if (parsedEndDate) {
+    eventWhere.startsAt = { lte: parsedEndDate };
+  }
+}
 
 export const GET = withAuth(async (req, { user }) => {
   requirePermission(user.role, "shift", "view");
@@ -24,12 +40,9 @@ export const GET = withAuth(async (req, { user }) => {
   if (eventId) where.eventId = eventId;
 
   // Filter by event properties via nested where
-  const eventWhere: Record<string, unknown> = {};
+  const eventWhere: Prisma.CalendarEventWhereInput = {};
   if (sportCode) eventWhere.sportCode = sportCode;
-  if (parsedStartDate) eventWhere.startsAt = { gte: parsedStartDate };
-  if (parsedEndDate) {
-    eventWhere.endsAt = { ...(eventWhere.endsAt as object ?? {}), lte: parsedEndDate };
-  }
+  applyEventWindowFilter(eventWhere, parsedStartDate, parsedEndDate);
   if (Object.keys(eventWhere).length > 0) {
     where.event = eventWhere;
   }

@@ -4,7 +4,7 @@
 - Owner: Wisconsin Athletics Creative Product
 - Area: AREA_SHIFTS / AREA_USERS
 - Status: Shipped
-- Last Updated: 2026-05-05
+- Last Updated: 2026-06-03
 
 ## Problem
 
@@ -28,6 +28,16 @@ This is intentionally an availability-warning system. It does not prevent staff/
 - Assignment pickers call `GET /api/shifts/[id]/conflicts` and show conflict indicators for overlapping blocks.
 - Auto-assign and trade-swap flows carry conflict flags/notes forward instead of silently ignoring class conflicts.
 
+## Shipped Follow-Up (2026-06-03)
+
+- Weekly class blocks can now be bounded by semester start/end dates.
+- Students can add one-time ad hoc conflicts, such as exams.
+- Students can edit and delete their own blocks on the web Availability tab.
+- Staff/admin can view and manage student blocks from student profiles.
+- Shift conflict checks, direct assignment, auto-fill, and trade swaps use the effective call window plus one shared weekly/ad hoc overlap helper.
+- Availability remains advisory and does not automatically change slot or personal call windows.
+- Staff/admin assignment review now filters `/schedule/assign` by conflict/open/clean states, surfaces assigned-person conflict notes in the grid, filters loaded candidates by conflict state, and keeps personal call-window adjustment beside the conflict context.
+
 ## Acceptance Criteria
 
 - [x] AC-1: A student can add a recurring weekly unavailability block for themselves.
@@ -39,14 +49,12 @@ This is intentionally an availability-warning system. It does not prevent staff/
 
 ## Out Of Scope
 
-- Date-specific unavailable days.
-- Semester date ranges.
 - Student-facing calendar overlay.
 - Email or push notifications for availability conflicts.
 - Hard prevention of conflicted assignment.
 
 ## Follow-Up Options
 
-1. Add date-specific one-off unavailability only if weekly class blocks prove insufficient.
-2. Add `semesterLabel` editing and filtering if staff need to distinguish current versus past blocks.
-3. Add a profile-level visual weekly grid if the list of blocks becomes hard to scan.
+1. Add a profile-level visual weekly grid if the list of blocks becomes hard to scan.
+2. Add student-facing calendar overlay only if students need a read-only schedule preview.
+3. Add cross-event conflict digesting only if staff need a separate summary outside the assignment workflow.

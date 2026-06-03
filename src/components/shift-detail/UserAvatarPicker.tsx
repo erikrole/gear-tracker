@@ -1,8 +1,16 @@
+"use client";
+
+import { useMemo, useState } from "react";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+  filterCandidatesByConflict,
+  type CandidateConflictFilter,
+} from "@/lib/assignment-conflict-review";
 
 const AREA_LABELS: Record<string, string> = {
   VIDEO: "Video",
@@ -41,6 +49,15 @@ export function UserAvatarPicker({
   conflictMap,
   conflictsLoading,
 }: Props) {
+  const [conflictFilter, setConflictFilter] = useState<CandidateConflictFilter>("all");
+  const canFilterConflicts = Boolean(conflictMap);
+  const filteredUsers = useMemo(
+    () => filterCandidatesByConflict(users, conflictMap, conflictFilter),
+    [conflictFilter, conflictMap, users],
+  );
+  const conflictCount = users.reduce((count, user) => count + (conflictMap?.[user.id] ? 1 : 0), 0);
+  const cleanCount = users.length - conflictCount;
+
   return (
     <>
       <Input
@@ -53,15 +70,47 @@ export function UserAvatarPicker({
         onChange={(e) => onSearchChange(e.target.value)}
         autoFocus
       />
+      {canFilterConflicts && (
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <ToggleGroup
+            type="single"
+            value={conflictFilter}
+            onValueChange={(value) => {
+              if (value) setConflictFilter(value as CandidateConflictFilter);
+            }}
+            className="gap-1"
+            aria-label="Filter assignment candidates by conflict state"
+          >
+            <ToggleGroupItem value="all" className="h-8 px-2 text-[11px]">
+              All
+            </ToggleGroupItem>
+            <ToggleGroupItem value="conflicts" className="h-8 px-2 text-[11px]">
+              Conflicts
+            </ToggleGroupItem>
+            <ToggleGroupItem value="clean" className="h-8 px-2 text-[11px]">
+              Clean
+            </ToggleGroupItem>
+          </ToggleGroup>
+          <span className="shrink-0 text-[10px] text-muted-foreground tabular-nums">
+            {conflictCount} conflict{conflictCount === 1 ? "" : "s"} · {cleanCount} clean
+          </span>
+        </div>
+      )}
       {loading ? (
         <p className="text-xs text-muted-foreground p-2">Loading users...</p>
-      ) : users.length === 0 ? (
+      ) : filteredUsers.length === 0 ? (
         <p className="text-xs text-muted-foreground p-2">
-          {search ? "No matching users." : "No active users found."}
+          {search
+            ? "No matching users."
+            : conflictFilter === "conflicts"
+              ? "No conflicted candidates for this slot."
+              : conflictFilter === "clean"
+                ? "No clean candidates for this slot."
+                : "No active users found."}
         </p>
       ) : (
         <ScrollArea className="max-h-52">
-          {users.map((u) => {
+          {filteredUsers.map((u) => {
             const conflict = conflictMap?.[u.id];
             return (
               <Button

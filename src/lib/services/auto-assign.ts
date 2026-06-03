@@ -19,47 +19,9 @@
 
 import { Prisma, ShiftArea } from "@prisma/client";
 import { db } from "@/lib/db";
+import { availabilityConflictNote } from "@/lib/student-availability";
 
 /* ── Helpers ─────────────────────────────────────────── */
-
-/**
- * Resolve local day-of-week + HH:mm time for a UTC Date using the
- * institution's timezone (America/New_York by default, or env override).
- */
-const TZ = process.env.INSTITUTION_TZ ?? "America/Chicago";
-
-function toLocalComponents(dt: Date): { day: number; hhmm: string } {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: TZ,
-    hourCycle: "h23",
-    weekday: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).formatToParts(dt);
-
-  const weekdayMap: Record<string, number> = {
-    Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
-  };
-
-  const weekday = parts.find((p) => p.type === "weekday")?.value ?? "Mon";
-  const hour = parts.find((p) => p.type === "hour")?.value ?? "00";
-  const minute = parts.find((p) => p.type === "minute")?.value ?? "00";
-
-  return {
-    day: weekdayMap[weekday] ?? 1,
-    hhmm: `${hour.padStart(2, "0")}:${minute.padStart(2, "0")}`,
-  };
-}
-
-/** Returns true when [shiftStart, shiftEnd) overlaps [blockStart, blockEnd) */
-function overlaps(
-  shiftStartHhmm: string,
-  shiftEndHhmm: string,
-  blockStart: string,
-  blockEnd: string,
-): boolean {
-  return shiftStartHhmm < blockEnd && shiftEndHhmm > blockStart;
-}
 
 /* ── Main export ─────────────────────────────────────── */
 
@@ -101,7 +63,7 @@ export async function autoAssignShiftGroup(
     return { assigned: 0, conflicts: 0, skipped: 0 };
   }
 
-  const { sportCode, startsAt: eventStart, endsAt: eventEnd } = group.event;
+  const { sportCode } = group.event;
 
   // ── 2. Find unassigned shifts ──
   const unassigned = group.shifts.filter((s) => s.assignments.length === 0);
@@ -124,9 +86,14 @@ export async function autoAssignShiftGroup(
           availabilityBlocks: {
             select: {
               dayOfWeek: true,
+              kind: true,
+              date: true,
               startsAt: true,
               endsAt: true,
               label: true,
+              semesterLabel: true,
+              semesterStartsOn: true,
+              semesterEndsOn: true,
             },
           },
         },
@@ -145,15 +112,12 @@ export async function autoAssignShiftGroup(
   // but we read each shift individually for correctness.
   const shiftTimeCache = new Map<
     string,
-    { day: number; startHhmm: string; endHhmm: string }
+    { startsAt: Date; endsAt: Date }
   >();
   for (const shift of unassigned) {
-    const start = toLocalComponents(shift.startsAt);
-    const end = toLocalComponents(shift.endsAt);
     shiftTimeCache.set(shift.id, {
-      day: start.day,
-      startHhmm: start.hhmm,
-      endHhmm: end.hhmm,
+      startsAt: shift.callStartsAt ?? shift.startsAt,
+      endsAt: shift.callEndsAt ?? shift.endsAt,
     });
   }
 
@@ -216,24 +180,12 @@ export async function autoAssignShiftGroup(
     assignedInThisRun.add(chosen.userId);
 
     // ── Check availability conflict ──
-    let hasConflict = false;
-    let conflictNote: string | null = null;
-
-    for (const block of chosenUser.availabilityBlocks) {
-      if (block.dayOfWeek !== shiftTimes.day) continue;
-      if (overlaps(shiftTimes.startHhmm, shiftTimes.endHhmm, block.startsAt, block.endsAt)) {
-        hasConflict = true;
-        conflictNote = block.label
-          ? `Conflicts with ${block.label} (${block.startsAt}–${block.endsAt})`
-          : `Conflicts with class ${block.startsAt}–${block.endsAt}`;
-        break;
-      }
-    }
+    const conflictNote = availabilityConflictNote(chosenUser.availabilityBlocks, shiftTimes);
 
     pending.push({
       shiftId: shift.id,
       userId: chosen.userId,
-      hasConflict,
+      hasConflict: Boolean(conflictNote),
       conflictNote,
     });
   }

@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 import { shiftWorkerTypeForRole } from "@/lib/shift-display";
+import { availabilityConflictNote } from "@/lib/student-availability";
 
 function effectiveShiftWindow(shift: {
   startsAt: Date;
@@ -123,7 +124,24 @@ export async function directAssignShift(
     if (!shift) throw new HttpError(404, "Shift not found");
     const assignee = await tx.user.findUnique({
       where: { id: userId },
-      select: { id: true, role: true, active: true },
+      select: {
+        id: true,
+        role: true,
+        active: true,
+        availabilityBlocks: {
+          select: {
+            kind: true,
+            dayOfWeek: true,
+            date: true,
+            startsAt: true,
+            endsAt: true,
+            label: true,
+            semesterLabel: true,
+            semesterStartsOn: true,
+            semesterEndsOn: true,
+          },
+        },
+      },
     });
     if (!assignee) throw new HttpError(404, "User not found");
     if (!assignee.active) throw new HttpError(400, "Cannot assign an inactive user");
@@ -144,6 +162,9 @@ export async function directAssignShift(
       endsAt: opts.callEndsAt ?? effectiveShiftWindow(targetShift).endsAt,
     };
     await checkTimeConflict(tx, userId, conflictWindow.startsAt, conflictWindow.endsAt);
+    const conflictNote = assignee.role === "STUDENT"
+      ? availabilityConflictNote(assignee.availabilityBlocks ?? [], conflictWindow)
+      : null;
 
     // Decline any pending requests — slot is being filled by direct assignment
     await tx.shiftAssignment.updateMany({
@@ -164,6 +185,8 @@ export async function directAssignShift(
         callEndsAt: opts.callEndsAt,
         callNote: opts.callNote,
         notes: opts.notes,
+        hasConflict: Boolean(conflictNote),
+        conflictNote,
       },
       include: {
         user: { select: { id: true, name: true, role: true, primaryArea: true, avatarUrl: true } },

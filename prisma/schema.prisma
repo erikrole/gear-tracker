@@ -942,6 +942,11 @@ enum ShiftWorkerType {
   ST
 }
 
+enum StudentAvailabilityKind {
+  WEEKLY
+  AD_HOC
+}
+
 enum ShiftAssignmentStatus {
   DIRECT_ASSIGNED
   REQUESTED
@@ -1105,17 +1110,24 @@ model ShiftTrade {
 }
 
 model StudentAvailabilityBlock {
-  id            String   @id @default(cuid())
-  userId        String   @map("user_id")
-  dayOfWeek     Int      @map("day_of_week") // 0=Sun, 1=Mon … 6=Sat
-  startsAt      String   @map("starts_at") // "09:00" HH:mm local time
-  endsAt        String   @map("ends_at") // "11:00" HH:mm local time
-  label         String? // e.g. "CHEM 101"
-  semesterLabel String?  @map("semester_label") // e.g. "Spring 2026"
-  createdAt     DateTime @default(now()) @map("created_at")
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               String                  @id @default(cuid())
+  userId           String                  @map("user_id")
+  kind             StudentAvailabilityKind @default(WEEKLY)
+  dayOfWeek        Int?                    @map("day_of_week") // 0=Sun, 1=Mon … 6=Sat; weekly blocks only
+  date             DateTime?               @db.Date // ad hoc local date
+  startsAt         String                  @map("starts_at") // "09:00" HH:mm local time
+  endsAt           String                  @map("ends_at") // "11:00" HH:mm local time
+  label            String? // e.g. "CHEM 101"
+  semesterLabel    String?                 @map("semester_label") // e.g. "Spring 2026"
+  semesterStartsOn DateTime?               @map("semester_starts_on") @db.Date
+  semesterEndsOn   DateTime?               @map("semester_ends_on") @db.Date
+  createdAt        DateTime                @default(now()) @map("created_at")
+  updatedAt        DateTime                @updatedAt @map("updated_at")
+  user             User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([kind, date])
+  @@index([userId, kind])
   @@map("student_availability_blocks")
 }
 

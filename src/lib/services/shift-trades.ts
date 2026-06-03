@@ -5,34 +5,7 @@ import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 import { checkTimeConflict } from "@/lib/services/shift-assignments";
 import { sendShiftTradeEmail, type ShiftTradeEmail } from "@/lib/services/shift-trade-emails";
 import { badges } from "@/lib/badges";
-
-/* ── Timezone / class-conflict helpers ──────────────────────────────── */
-
-const TZ = process.env.INSTITUTION_TZ ?? "America/Chicago";
-
-function toLocalComponents(dt: Date): { day: number; hhmm: string } {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: TZ,
-    hourCycle: "h23",
-    weekday: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).formatToParts(dt);
-  const weekdayMap: Record<string, number> = {
-    Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
-  };
-  const weekday = parts.find((p) => p.type === "weekday")?.value ?? "Mon";
-  const hour = parts.find((p) => p.type === "hour")?.value ?? "00";
-  const minute = parts.find((p) => p.type === "minute")?.value ?? "00";
-  return {
-    day: weekdayMap[weekday] ?? 1,
-    hhmm: `${hour.padStart(2, "0")}:${minute.padStart(2, "0")}`,
-  };
-}
-
-function timeOverlaps(s1: string, e1: string, s2: string, e2: string) {
-  return s1 < e2 && e1 > s2;
-}
+import { availabilityConflictNote } from "@/lib/student-availability";
 
 function assertShiftNotStarted(startsAt: Date) {
   if (startsAt <= new Date()) {
@@ -571,31 +544,36 @@ async function executeSwap(tx: Prisma.TransactionClient, assignmentId: string, t
     include: { shift: true },
   });
   if (!assignment) throw new HttpError(404, "Assignment not found during swap");
+  const effectiveWindow = {
+    startsAt: assignment.callStartsAt ?? assignment.shift.callStartsAt ?? assignment.shift.startsAt,
+    endsAt: assignment.callEndsAt ?? assignment.shift.callEndsAt ?? assignment.shift.endsAt,
+  };
 
   // Validate target user has no conflicting shifts (exclude the assignment being swapped)
-  await checkTimeConflict(tx, targetUserId, assignment.shift.startsAt, assignment.shift.endsAt, assignmentId);
+  await checkTimeConflict(tx, targetUserId, effectiveWindow.startsAt, effectiveWindow.endsAt, assignmentId);
 
   // Check class schedule conflict for the incoming worker
-  let hasConflict = false;
   let conflictNote: string | null = null;
   try {
     const claimer = await tx.user.findUnique({
       where: { id: targetUserId },
-      select: { availabilityBlocks: { select: { dayOfWeek: true, startsAt: true, endsAt: true, label: true } } },
+      select: {
+        availabilityBlocks: {
+          select: {
+            kind: true,
+            dayOfWeek: true,
+            date: true,
+            startsAt: true,
+            endsAt: true,
+            label: true,
+            semesterLabel: true,
+            semesterStartsOn: true,
+            semesterEndsOn: true,
+          },
+        },
+      },
     });
-    if (claimer?.availabilityBlocks.length) {
-      const { day, hhmm: shiftStart } = toLocalComponents(assignment.shift.startsAt);
-      const { hhmm: shiftEnd } = toLocalComponents(assignment.shift.endsAt);
-      for (const block of claimer.availabilityBlocks) {
-        if (block.dayOfWeek === day && timeOverlaps(shiftStart, shiftEnd, block.startsAt, block.endsAt)) {
-          hasConflict = true;
-          conflictNote = block.label
-            ? `Conflicts with ${block.label} (${block.startsAt}–${block.endsAt})`
-            : `Conflicts with class ${block.startsAt}–${block.endsAt}`;
-          break;
-        }
-      }
-    }
+    conflictNote = claimer ? availabilityConflictNote(claimer.availabilityBlocks, effectiveWindow) : null;
   } catch {
     // Non-fatal — proceed without conflict flag if lookup fails
   }
@@ -614,7 +592,7 @@ async function executeSwap(tx: Prisma.TransactionClient, assignmentId: string, t
       status: "DIRECT_ASSIGNED",
       assignedBy: actorId,
       swapFromId: assignmentId,
-      hasConflict,
+      hasConflict: Boolean(conflictNote),
       conflictNote,
     },
   });

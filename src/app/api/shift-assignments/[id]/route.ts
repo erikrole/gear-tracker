@@ -7,13 +7,37 @@ import { createAuditEntry } from "@/lib/audit";
 import { updateShiftAssignmentSchema } from "@/lib/validation";
 import { assertCallTimePair, assertDateOrder, parseOptionalDate } from "@/lib/api-dates";
 import { createShiftScheduleNotification } from "@/lib/services/notifications";
+import { availabilityConflictNote } from "@/lib/student-availability";
 
 export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "shift_assignment", "assign");
   const { id } = await params;
 
   const body = updateShiftAssignmentSchema.parse(await req.json());
-  const existing = await db.shiftAssignment.findUnique({ where: { id } });
+  const existing = await db.shiftAssignment.findUnique({
+    where: { id },
+    include: {
+      shift: true,
+      user: {
+        select: {
+          role: true,
+          availabilityBlocks: {
+            select: {
+              kind: true,
+              dayOfWeek: true,
+              date: true,
+              startsAt: true,
+              endsAt: true,
+              label: true,
+              semesterLabel: true,
+              semesterStartsOn: true,
+              semesterEndsOn: true,
+            },
+          },
+        },
+      },
+    },
+  });
   if (!existing) throw new HttpError(404, "Assignment not found");
 
   const callStartsAt = parseOptionalDate(body.callStartsAt ?? undefined, "callStartsAt");
@@ -30,6 +54,22 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   if (body.callEndsAt !== undefined) data.callEndsAt = callEndsAt;
   if (body.callNote !== undefined) data.callNote = body.callNote;
   if (body.notes !== undefined) data.notes = body.notes;
+  if (existing.shift && existing.user) {
+    const effectiveStartsAt = (body.callStartsAt !== undefined ? callStartsAt : existing.callStartsAt)
+      ?? existing.shift.callStartsAt
+      ?? existing.shift.startsAt;
+    const effectiveEndsAt = (body.callEndsAt !== undefined ? callEndsAt : existing.callEndsAt)
+      ?? existing.shift.callEndsAt
+      ?? existing.shift.endsAt;
+    const conflictNote = existing.user.role === "STUDENT"
+      ? availabilityConflictNote(existing.user.availabilityBlocks, {
+          startsAt: effectiveStartsAt,
+          endsAt: effectiveEndsAt,
+        })
+      : null;
+    data.hasConflict = Boolean(conflictNote);
+    data.conflictNote = conflictNote;
+  }
 
   const assignment = await db.shiftAssignment.update({ where: { id }, data });
 

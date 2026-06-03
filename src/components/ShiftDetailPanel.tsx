@@ -561,6 +561,10 @@ export default function ShiftDetailPanel({
                     : undefined}
                   showAttendance={showAttendance}
                   onSetAttendance={handleSetAttendance}
+                  onCallWindowSaved={() => {
+                    void fetchGroup();
+                    onUpdated?.();
+                  }}
                 />
               );
             })}

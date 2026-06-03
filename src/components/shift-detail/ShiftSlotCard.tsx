@@ -16,7 +16,9 @@ import {
 } from "@/components/ui/popover";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { AlertTriangle, CheckIcon, MinusIcon, PlusIcon, XIcon } from "lucide-react";
+import { CallWindowEditor } from "./CallWindowEditor";
 import { UserAvatarPicker, type PickerUser } from "./UserAvatarPicker";
+import { effectiveCallWindow } from "@/lib/shift-call-windows";
 import { shiftWorkerSlotLabel } from "@/lib/shift-display";
 
 type ShiftUser = {
@@ -49,6 +51,10 @@ const STATUS_BADGES: Record<string, string> = {
 type Props = {
   shiftId: string;
   workerType: string;
+  startsAt: string;
+  endsAt: string;
+  callStartsAt?: string | null;
+  callEndsAt?: string | null;
   activeAssignment: ShiftAssignment | null;
   pendingRequests: ShiftAssignment[];
   isStaff: boolean;
@@ -74,11 +80,16 @@ type Props = {
   // Attendance (post-event, staff only)
   showAttendance?: boolean;
   onSetAttendance?: (assignmentId: string, attended: boolean | null) => void;
+  onCallWindowSaved?: () => void;
 };
 
 export function ShiftSlotCard({
   shiftId,
   workerType,
+  startsAt,
+  endsAt,
+  callStartsAt,
+  callEndsAt,
   activeAssignment,
   pendingRequests,
   isStaff,
@@ -100,10 +111,12 @@ export function ShiftSlotCard({
   onPostTrade,
   showAttendance,
   onSetAttendance,
+  onCallWindowSaved,
 }: Props) {
   const isAssigned = !!activeAssignment;
   const userHasRequested = pendingRequests.some((a) => a.user.id === currentUserId);
   const isMyAssignment = activeAssignment?.user.id === currentUserId;
+  const shiftWindow = { startsAt, endsAt, callStartsAt, callEndsAt };
 
   const contextItems = (
     <ContextMenuContent className="w-48">
@@ -157,6 +170,14 @@ export function ShiftSlotCard({
               )}
               <Badge variant="gray" size="sm">{shiftWorkerSlotLabel(workerType)}</Badge>
             </div>
+            <CallWindowEditor
+              target={isStaff ? { type: "slot", id: shiftId } : undefined}
+              effectiveWindow={effectiveCallWindow(shiftWindow)}
+              overrideWindow={{ startsAt: callStartsAt ?? null, endsAt: callEndsAt ?? null }}
+              onSaved={onCallWindowSaved}
+              disabled={acting !== null}
+              compact
+            />
             {isStaff && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -214,6 +235,16 @@ export function ShiftSlotCard({
                     </Button>
                   )}
                 </div>
+              </div>
+              <div className="mt-1.5 pl-9">
+                <CallWindowEditor
+                  target={isStaff ? { type: "assignment", id: activeAssignment.id } : undefined}
+                  effectiveWindow={effectiveCallWindow(shiftWindow, activeAssignment)}
+                  overrideWindow={{ startsAt: activeAssignment.callStartsAt ?? null, endsAt: activeAssignment.callEndsAt ?? null }}
+                  onSaved={onCallWindowSaved}
+                  disabled={acting !== null}
+                  compact
+                />
               </div>
 
               {/* Post for trade (own shift, student only) */}

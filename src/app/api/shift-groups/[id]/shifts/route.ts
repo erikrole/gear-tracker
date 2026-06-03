@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
-import { assertDateOrder, parseOptionalDate } from "@/lib/api-dates";
+import { assertCallTimePair, assertDateOrder, parseOptionalDate } from "@/lib/api-dates";
 import { z } from "zod";
 import { Prisma, ShiftArea, ShiftWorkerType } from "@prisma/client";
 
@@ -26,6 +26,10 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   const overrideEndsAt = parseOptionalDate(body.endsAt, "endsAt");
   const callStartsAt = parseOptionalDate(body.callStartsAt ?? undefined, "callStartsAt");
   const callEndsAt = parseOptionalDate(body.callEndsAt ?? undefined, "callEndsAt");
+  if ((body.callStartsAt !== undefined) !== (body.callEndsAt !== undefined)) {
+    throw new HttpError(400, "callStartsAt and callEndsAt must both be provided or both omitted");
+  }
+  assertCallTimePair(callStartsAt, callEndsAt);
   assertDateOrder(overrideStartsAt, overrideEndsAt, "endsAt must be after startsAt", { allowEqual: false });
   assertDateOrder(callStartsAt, callEndsAt, "callEndsAt must be after callStartsAt", { allowEqual: false });
 

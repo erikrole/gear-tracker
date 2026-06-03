@@ -10,15 +10,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { UserAvatar } from "@/components/UserAvatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { CallWindowEditor } from "@/components/shift-detail/CallWindowEditor";
 import { UserAvatarPicker } from "@/components/shift-detail/UserAvatarPicker";
 import type { PickerUser } from "@/components/shift-detail/UserAvatarPicker";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import type { GridShift, GridAssignment } from "@/hooks/use-assignment-grid";
 import { cn } from "@/lib/utils";
-import { PlusIcon, UserIcon, XIcon } from "lucide-react";
+import { AlertTriangleIcon, PlusIcon, UserIcon, XIcon } from "lucide-react";
 import { shiftWorkerLabel } from "@/lib/shift-display";
+import { effectiveCallWindow, formatCallWindow } from "@/lib/shift-call-windows";
 
 type Props = {
   shifts: GridShift[]; // all shifts for this event matching this area
@@ -207,61 +210,110 @@ export function AssignmentCell({ shifts, shiftGroupId, area, allUsers, usersLoad
         )}
 
         {assignedShifts.length > 0 && (
-          <div className="flex items-center justify-center -space-x-2">
-            {assignedShifts.map(({ shift, assignment }) => {
-              const shiftActing = acting?.endsWith(shift.id) ?? false;
-              return (
-                <span
-                  key={assignment.id}
-                  className="group/avatar relative flex size-8 items-center justify-center rounded-full transition-[scale,z-index] hover:z-10 hover:scale-105 focus-within:z-10"
-                >
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="flex size-8 items-center justify-center rounded-full">
-                        <UserAvatar
-                          name={assignment.user.name}
-                          avatarUrl={assignment.user.avatarUrl}
-                          size="sm"
-                          className="ring-2 ring-background transition-[box-shadow] group-hover/avatar:ring-destructive/60"
-                          fallbackClassName={
-                            assignment.hasConflict
-                              ? "bg-[var(--orange-bg)] text-[var(--orange-text)]"
-                              : undefined
-                          }
-                        />
-                        {assignment.hasConflict && (
-                          <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border border-background bg-[var(--orange)]" />
-                        )}
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <span className="font-medium">{assignment.user.name}</span>
-                      {assignment.hasConflict && (
-                        <span className="ml-1 text-muted-foreground">
-                          {assignment.conflictNote ?? "Schedule conflict"}
+          <div className="flex min-w-0 flex-col items-center justify-center gap-1.5">
+            <div className="flex items-center justify-center -space-x-2">
+              {assignedShifts.map(({ shift, assignment }) => {
+                const shiftActing = acting?.endsWith(shift.id) ?? false;
+                const callWindow = effectiveCallWindow(shift, assignment);
+                return (
+                  <span
+                    key={assignment.id}
+                    className="group/avatar relative flex size-8 items-center justify-center rounded-full transition-[scale,z-index] hover:z-10 hover:scale-105 focus-within:z-10"
+                  >
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="flex size-8 items-center justify-center rounded-full">
+                          <UserAvatar
+                            name={assignment.user.name}
+                            avatarUrl={assignment.user.avatarUrl}
+                            size="sm"
+                            className="ring-2 ring-background transition-[box-shadow] group-hover/avatar:ring-destructive/60"
+                            fallbackClassName={
+                              assignment.hasConflict
+                                ? "bg-[var(--orange-bg)] text-[var(--orange-text)]"
+                                : undefined
+                            }
+                          />
+                          {assignment.hasConflict && (
+                            <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border border-background bg-[var(--orange)]" />
+                          )}
                         </span>
-                      )}
-                    </TooltipContent>
-                  </Tooltip>
-                  {isStaff && (
-                    <button
-                      type="button"
-                      disabled={Boolean(acting)}
-                      onClick={() => handleRemove(assignment.id)}
-                      aria-label={`Remove ${assignment.user.name} from shift`}
-                      className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-0 shadow-sm transition-[opacity,scale] hover:scale-105 active:scale-[0.96] focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover/avatar:opacity-100 group-focus-within/avatar:opacity-100 disabled:opacity-50"
-                    >
-                      <XIcon className={cn("size-3", shiftActing && "animate-pulse")} />
-                    </button>
-                  )}
-                </span>
-              );
-            })}
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <span className="font-medium">{assignment.user.name}</span>
+                        <span className="ml-1 text-muted-foreground">Call {formatCallWindow(callWindow)}</span>
+                        {assignment.hasConflict && (
+                          <span className="ml-1 text-muted-foreground">
+                            {assignment.conflictNote ?? "Schedule conflict"}
+                          </span>
+                        )}
+                      </TooltipContent>
+                    </Tooltip>
+                    {isStaff && (
+                      <button
+                        type="button"
+                        disabled={Boolean(acting)}
+                        onClick={() => handleRemove(assignment.id)}
+                        aria-label={`Remove ${assignment.user.name} from shift`}
+                        className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-0 shadow-sm transition-[opacity,scale] hover:scale-105 active:scale-[0.96] focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover/avatar:opacity-100 group-focus-within/avatar:opacity-100 disabled:opacity-50"
+                      >
+                        <XIcon className={cn("size-3", shiftActing && "animate-pulse")} />
+                      </button>
+                    )}
+                  </span>
+                );
+              })}
+            </div>
+            {isStaff && assignedShifts.map(({ shift, assignment }) => (
+              <div
+                key={`${assignment.id}-call`}
+                className={cn(
+                  "flex min-w-0 flex-col items-center gap-1 rounded-md px-1 py-1",
+                  assignment.hasConflict && "bg-[var(--orange-bg)]/70",
+                )}
+              >
+                {assignment.hasConflict && (
+                  <Badge variant="orange" size="sm" className="max-w-40 gap-1 text-[10px]">
+                    <AlertTriangleIcon className="size-3 shrink-0" />
+                    <span className="truncate">
+                      {assignment.conflictNote ?? "Schedule conflict"}
+                    </span>
+                  </Badge>
+                )}
+                <CallWindowEditor
+                  target={{ type: "slot", id: shift.id }}
+                  effectiveWindow={effectiveCallWindow(shift)}
+                  overrideWindow={{ startsAt: shift.callStartsAt ?? null, endsAt: shift.callEndsAt ?? null }}
+                  onSaved={onRefetch}
+                  disabled={Boolean(acting)}
+                  compact
+                />
+                <CallWindowEditor
+                  target={{ type: "assignment", id: assignment.id }}
+                  effectiveWindow={effectiveCallWindow(shift, assignment)}
+                  overrideWindow={{ startsAt: assignment.callStartsAt ?? null, endsAt: assignment.callEndsAt ?? null }}
+                  onSaved={onRefetch}
+                  disabled={Boolean(acting)}
+                  compact
+                />
+              </div>
+            ))}
           </div>
         )}
 
         {firstOpenShift && (
-          <div className="group/open flex items-center gap-0.5">
+          <div className="group/open flex min-w-0 flex-col items-center gap-1">
+            {isStaff && (
+              <CallWindowEditor
+                target={{ type: "slot", id: firstOpenShift.id }}
+                effectiveWindow={effectiveCallWindow(firstOpenShift)}
+                overrideWindow={{ startsAt: firstOpenShift.callStartsAt ?? null, endsAt: firstOpenShift.callEndsAt ?? null }}
+                onSaved={onRefetch}
+                disabled={Boolean(acting)}
+                compact
+              />
+            )}
+            <div className="flex items-center gap-0.5">
             <Popover
               onOpenChange={(isOpen) => {
                 if (isOpen) void fetchConflicts(firstOpenShift.id);
@@ -315,6 +367,7 @@ export function AssignmentCell({ shifts, shiftGroupId, area, allUsers, usersLoad
                 <XIcon className={cn("size-3.5", acting?.endsWith(firstOpenShift.id) && "animate-pulse")} />
               </Button>
             )}
+            </div>
           </div>
         )}
 

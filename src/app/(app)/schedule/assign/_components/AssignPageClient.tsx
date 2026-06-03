@@ -1,9 +1,11 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Select,
   SelectContent,
@@ -21,6 +23,11 @@ import { AREAS, AREA_LABELS } from "@/types/areas";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, FilterIcon } from "lucide-react";
 import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
+import {
+  filterEventsByAssignmentReview,
+  summarizeAssignmentReview,
+  type ReviewFilter,
+} from "@/lib/assignment-conflict-review";
 
 async function fetchUsers(): Promise<PickerUser[]> {
   const res = await fetch("/api/users?limit=200&active=true");
@@ -39,6 +46,7 @@ async function fetchUsers(): Promise<PickerUser[]> {
 export function AssignPageClient() {
   const router = useRouter();
   const grid = useAssignmentGrid();
+  const [reviewFilter, setReviewFilter] = useState<ReviewFilter>("all");
 
   const { data: allUsers = [], isLoading: usersLoading } = useQuery({
     queryKey: ["users-picker"],
@@ -46,6 +54,11 @@ export function AssignPageClient() {
     staleTime: 5 * 60_000,
   });
 
+  const reviewSummary = useMemo(() => summarizeAssignmentReview(grid.events), [grid.events]);
+  const reviewEvents = useMemo(
+    () => filterEventsByAssignmentReview(grid.events, reviewFilter),
+    [grid.events, reviewFilter],
+  );
   const monthLabel = grid.month.toLocaleDateString("en-US", { month: "long", year: "numeric" });
   const currentMonthStart = new Date();
   currentMonthStart.setDate(1);
@@ -161,6 +174,45 @@ export function AssignPageClient() {
         )}
       </div>
 
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/60 bg-card/80 p-2 shadow-sm">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="px-1 text-xs font-medium text-muted-foreground">Review</span>
+          <ToggleGroup
+            type="single"
+            value={reviewFilter}
+            onValueChange={(value) => {
+              if (value) setReviewFilter(value as ReviewFilter);
+            }}
+            className="gap-1"
+            aria-label="Filter assignment review state"
+          >
+            <ToggleGroupItem value="all" className="h-9 px-2 text-xs">
+              All
+            </ToggleGroupItem>
+            <ToggleGroupItem value="conflicts" className="h-9 px-2 text-xs">
+              Conflicts
+            </ToggleGroupItem>
+            <ToggleGroupItem value="open" className="h-9 px-2 text-xs">
+              Open
+            </ToggleGroupItem>
+            <ToggleGroupItem value="clean" className="h-9 px-2 text-xs">
+              Clean
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground tabular-nums">
+          <Badge variant={reviewSummary.conflicts > 0 ? "orange" : "outline"} size="sm">
+            {reviewSummary.conflicts} conflict{reviewSummary.conflicts === 1 ? "" : "s"}
+          </Badge>
+          <Badge variant="outline" size="sm">
+            {reviewSummary.open} open
+          </Badge>
+          <Badge variant="outline" size="sm">
+            {reviewSummary.cleanAssignments} clean
+          </Badge>
+        </div>
+      </div>
+
       {grid.error && (
         <div className="text-sm text-destructive mb-4">
           {grid.error === "network"
@@ -170,16 +222,17 @@ export function AssignPageClient() {
       )}
 
       <AssignmentGrid
-        events={grid.events}
+        events={reviewEvents}
         columns={grid.columns}
         allUsers={allUsers}
         usersLoading={usersLoading}
         isStaff
         onRefetch={grid.refetch}
-        hasFilters={Boolean(grid.sportFilter || grid.areaFilter)}
+        hasFilters={Boolean(grid.sportFilter || grid.areaFilter || reviewFilter !== "all")}
         onClearFilters={() => {
           grid.setSportFilter("");
           grid.setAreaFilter("");
+          setReviewFilter("all");
         }}
       />
     </FadeUp>

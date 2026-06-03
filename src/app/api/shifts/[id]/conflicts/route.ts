@@ -2,35 +2,7 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
-
-const TZ = process.env.INSTITUTION_TZ ?? "America/Chicago";
-
-function toLocalComponents(dt: Date): { day: number; hhmm: string } {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: TZ,
-    hourCycle: "h23",
-    weekday: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).formatToParts(dt);
-
-  const weekdayMap: Record<string, number> = {
-    Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
-  };
-
-  const weekday = parts.find((p) => p.type === "weekday")?.value ?? "Mon";
-  const hour = parts.find((p) => p.type === "hour")?.value ?? "00";
-  const minute = parts.find((p) => p.type === "minute")?.value ?? "00";
-
-  return {
-    day: weekdayMap[weekday] ?? 1,
-    hhmm: `${hour.padStart(2, "0")}:${minute.padStart(2, "0")}`,
-  };
-}
-
-function overlaps(sStart: string, sEnd: string, bStart: string, bEnd: string) {
-  return sStart < bEnd && sEnd > bStart;
-}
+import { availabilityConflictNote } from "@/lib/student-availability";
 
 /**
  * GET /api/shifts/[id]/conflicts
@@ -51,23 +23,38 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
 
   const effectiveStartsAt = shift.callStartsAt ?? shift.startsAt;
   const effectiveEndsAt = shift.callEndsAt ?? shift.endsAt;
-  const { day, hhmm: startHhmm } = toLocalComponents(effectiveStartsAt);
-  const { hhmm: endHhmm } = toLocalComponents(effectiveEndsAt);
-
   // Only check student availability; Staff users don't have class blocks.
-  const blocks = await db.studentAvailabilityBlock.findMany({
-    where: { dayOfWeek: day },
-    select: { userId: true, startsAt: true, endsAt: true, label: true },
+  const students = await db.user.findMany({
+    where: {
+      role: "STUDENT",
+      active: true,
+      availabilityBlocks: { some: {} },
+    },
+    select: {
+      id: true,
+      availabilityBlocks: {
+        select: {
+          kind: true,
+          dayOfWeek: true,
+          date: true,
+          startsAt: true,
+          endsAt: true,
+          label: true,
+          semesterLabel: true,
+          semesterStartsOn: true,
+          semesterEndsOn: true,
+        },
+      },
+    },
   });
 
   const conflicts: Record<string, string> = {};
-  for (const block of blocks) {
-    if (overlaps(startHhmm, endHhmm, block.startsAt, block.endsAt)) {
-      const note = block.label
-        ? `Conflicts with ${block.label} (${block.startsAt}–${block.endsAt})`
-        : `Conflicts with class ${block.startsAt}–${block.endsAt}`;
-      conflicts[block.userId] = note;
-    }
+  for (const student of students) {
+    const note = availabilityConflictNote(student.availabilityBlocks, {
+      startsAt: effectiveStartsAt,
+      endsAt: effectiveEndsAt,
+    });
+    if (note) conflicts[student.id] = note;
   }
 
   return ok({ data: conflicts });

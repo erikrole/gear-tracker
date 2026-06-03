@@ -69,6 +69,7 @@ type Props = {
   onPostTrade?: (assignmentId: string) => void;
   showAttendance?: boolean;
   onSetAttendance?: (assignmentId: string, attended: boolean | null) => void;
+  onCallWindowSaved?: () => void;
 };
 
 export function ShiftAreaSection({
@@ -94,6 +95,7 @@ export function ShiftAreaSection({
   onPostTrade,
   showAttendance,
   onSetAttendance,
+  onCallWindowSaved,
 }: Props) {
   return (
     <div className="mt-4">
@@ -145,6 +147,10 @@ export function ShiftAreaSection({
               key={shift.id}
               shiftId={shift.id}
               workerType={shift.workerType}
+              startsAt={shift.startsAt}
+              endsAt={shift.endsAt}
+              callStartsAt={shift.callStartsAt ?? null}
+              callEndsAt={shift.callEndsAt ?? null}
               activeAssignment={activeAssignment ?? null}
               pendingRequests={pendingRequests}
               isStaff={isStaff}
@@ -166,6 +172,7 @@ export function ShiftAreaSection({
               onPostTrade={onPostTrade}
               showAttendance={showAttendance}
               onSetAttendance={onSetAttendance}
+              onCallWindowSaved={onCallWindowSaved}
             />
           );
         })
