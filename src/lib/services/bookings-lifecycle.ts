@@ -58,7 +58,92 @@ type UpdateBookingInput = {
   status?: BookingStatus;
 };
 
+function hasDuplicateIds(ids: string[]) {
+  return new Set(ids).size !== ids.length;
+}
+
+function assertValidCreateWindow(startsAt: Date, endsAt: Date) {
+  if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) {
+    throw new HttpError(400, "Invalid startsAt or endsAt");
+  }
+  if (endsAt <= startsAt) {
+    throw new HttpError(400, "endsAt must be later than startsAt");
+  }
+}
+
+function assertValidCreateEventLinks(input: CreateBookingInput) {
+  if (input.eventId && input.eventIds && input.eventIds.length > 0) {
+    throw new HttpError(400, "Provide either eventId or eventIds, not both");
+  }
+  if (input.eventIds && input.eventIds.length > 3) {
+    throw new HttpError(400, "A booking may link at most 3 events");
+  }
+  if (input.eventIds && hasDuplicateIds(input.eventIds)) {
+    throw new HttpError(400, "eventIds must be unique");
+  }
+}
+
+function assertValidCreateEquipment(serializedAssetIds: string[], bulkItems: BulkRequest[]) {
+  if (serializedAssetIds.length === 0 && bulkItems.length === 0) {
+    throw new HttpError(400, "Add at least one piece of equipment");
+  }
+
+  const seenBulkSkuIds = new Set<string>();
+  for (const item of bulkItems) {
+    if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
+      throw new HttpError(400, "Bulk item quantities must be positive whole numbers");
+    }
+    if (seenBulkSkuIds.has(item.bulkSkuId)) {
+      throw new HttpError(400, "Duplicate bulk item");
+    }
+    seenBulkSkuIds.add(item.bulkSkuId);
+  }
+}
+
+function prismaErrorText(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+  const meta = typeof error === "object" && error && "meta" in error
+    ? JSON.stringify((error as { meta?: unknown }).meta ?? {})
+    : "";
+  return `${message} ${meta}`;
+}
+
+function isSerializableConflict(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const code = (error as { code?: unknown }).code;
+  const metaCode = (error as { meta?: { code?: unknown } }).meta?.code;
+  return code === "P2034" || code === "40001" || metaCode === "40001";
+}
+
+function isBookingAllocationConstraintError(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const code = (error as { code?: unknown }).code;
+  const text = prismaErrorText(error);
+
+  if (code === "23P01" || text.includes("asset_allocations_no_overlap")) {
+    return true;
+  }
+
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
+    return false;
+  }
+
+  if (error.code === "P2002") {
+    const target = (error.meta?.target as string[] | string | undefined) ?? "";
+    const targetStr = Array.isArray(target) ? target.join(",") : String(target);
+    return (
+      targetStr.includes("asset_allocations_asset_id_active_unique") ||
+      targetStr.includes("asset_id")
+    );
+  }
+
+  return error.code === "P2004" && text.includes("asset_allocations");
+}
+
 export async function createBooking(input: CreateBookingInput) {
+  assertValidCreateWindow(input.startsAt, input.endsAt);
+  assertValidCreateEventLinks(input);
+
   try {
     return await db.$transaction(
     async (tx) => {
@@ -96,6 +181,8 @@ export async function createBooking(input: CreateBookingInput) {
         }
       }
 
+      assertValidCreateEquipment(resolvedSerializedAssetIds, resolvedBulkItems);
+
       const availability = await checkAvailability(tx, {
         locationId: input.locationId,
         startsAt: input.startsAt,
@@ -112,16 +199,10 @@ export async function createBooking(input: CreateBookingInput) {
       const status = input.kind === BookingKind.RESERVATION ? BookingStatus.BOOKED : BookingStatus.PENDING_PICKUP;
 
       // Resolve event linking: multi-event (eventIds) or legacy single (eventId).
-      // Reject if both are provided. Sort chronologically so primary = first.
-      if (input.eventId && input.eventIds && input.eventIds.length > 0) {
-        throw new HttpError(400, "Provide either eventId or eventIds, not both");
-      }
+      // Sort chronologically so primary = first.
       const requestedEventIds = input.eventIds && input.eventIds.length > 0
-        ? dedupeIds(input.eventIds)
+        ? input.eventIds
         : input.eventId ? [input.eventId] : [];
-      if (requestedEventIds.length > 3) {
-        throw new HttpError(400, "A booking may link at most 3 events");
-      }
       let sortedEventIds: string[] = [];
       if (requestedEventIds.length > 0) {
         const events = await tx.calendarEvent.findMany({
@@ -266,21 +347,11 @@ export async function createBooking(input: CreateBookingInput) {
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
   );
   } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
-      const target = (error.meta?.target as string[] | string | undefined) ?? "";
-      const targetStr = Array.isArray(target) ? target.join(",") : String(target);
-      // Partial-unique index on asset_allocations(asset_id) WHERE active = TRUE.
-      // Fires when another flow allocated the same asset between availability
-      // check and insert. Maps to a 409 the booking-create UI already handles.
-      if (
-        targetStr.includes("asset_allocations_asset_id_active_unique") ||
-        targetStr.includes("asset_id")
-      ) {
-        throw new HttpError(409, "One or more items are no longer available");
-      }
+    if (isSerializableConflict(error)) {
+      throw new HttpError(409, "Someone else submitted at the same time; please try again.");
+    }
+    if (isBookingAllocationConstraintError(error)) {
+      throw new HttpError(409, "One or more items are no longer available");
     }
     throw error;
   }

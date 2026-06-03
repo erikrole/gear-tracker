@@ -39,6 +39,7 @@ import { useFormOptions } from "@/hooks/use-form-options";
 import { WizardStep1 } from "./WizardStep1";
 import { WizardStep2 } from "./WizardStep2";
 import { WizardStep3 } from "./WizardStep3";
+import { getStep2PrimaryActionLabel } from "./flow-summary";
 import { CheckIcon, AlertCircleIcon, RotateCcwIcon, XIcon } from "lucide-react";
 
 /* ───── Config per kind ───── */
@@ -85,6 +86,9 @@ const EMPTY_PICKER_SELECTION_STATE: EquipmentPickerSelectionState = {
   bulkQuantity: 0,
   unresolvedAssetCount: 0,
   conflictCount: 0,
+  upcomingCommitmentCount: 0,
+  turnaroundRiskCount: 0,
+  bulkTurnaroundRiskCount: 0,
   checkingAvailability: false,
 };
 
@@ -311,7 +315,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
     if (!form.locationId) return "Choose a pickup location";
     const s = new Date(form.startsAt);
     const e = new Date(form.endsAt);
-    if (isNaN(s.getTime()) || isNaN(e.getTime())) return "Invalid date \u2014 check start and end times";
+    if (isNaN(s.getTime()) || isNaN(e.getTime())) return "Invalid date. Check start and end times";
     if (e <= s) return "End date must be after start date";
     return null;
   }
@@ -356,21 +360,11 @@ export function BookingWizard({ kind }: BookingWizardProps) {
   }
 
   function getStep2PrimaryLabel() {
-    if (itemCount > 0) {
-      const itemLabel = `${itemCount} item${itemCount !== 1 ? "s" : ""}`;
-      if (pickerSelectionState.conflictCount > 0) return `Review with warnings (${itemLabel})`;
-      return `Review (${itemLabel})`;
-    }
-    if (pickerSelectionState.unresolvedAssetCount > 0) {
-      return pickerSelectionState.unresolvedAssetCount === 1
-        ? "Remove unavailable item"
-        : "Remove unavailable items";
-    }
-    const idx = EQUIPMENT_SECTIONS.findIndex((s) => s.key === activeSection);
-    if (idx < EQUIPMENT_SECTIONS.length - 1) {
-      return `Browse ${EQUIPMENT_SECTIONS[idx + 1]!.label} →`;
-    }
-    return "Review";
+    return getStep2PrimaryActionLabel({
+      ...pickerSelectionState,
+      itemCount,
+      activeSection,
+    });
   }
 
   function handleBack() {
@@ -447,11 +441,14 @@ export function BookingWizard({ kind }: BookingWizardProps) {
             setSelectedAssetIds((prev) => prev.filter((id) => !conflictingAssetIds.has(id)));
           }
           const removedCount = conflictingAssetIds.size;
-          const removedSuffix = removedCount > 0 ? ` \u2014 ${removedCount} item${removedCount !== 1 ? "s" : ""} removed from your selection` : "";
-          setCreateError((msgs.length > 0 ? msgs.join(". ") : json?.error || "Availability conflict") + removedSuffix);
+          const conflictMessage = msgs.length > 0 ? msgs.join(". ") : json?.error || "Availability conflict";
+          const removalNote = removedCount > 0
+            ? `${removedCount} item${removedCount !== 1 ? "s" : ""} removed from your selection.`
+            : "";
+          setCreateError(removalNote ? `${conflictMessage}. ${removalNote}` : conflictMessage);
           setStep(2);
         } else {
-          setCreateError(json?.error || await parseErrorMessage(res, `Couldn\u2019t create this ${config.label} \u2014 please try again`));
+          setCreateError(json?.error || await parseErrorMessage(res, `Couldn\u2019t create this ${config.label}. Please try again`));
         }
         submittingRef.current = false;
         setSubmitting(false);
@@ -465,7 +462,11 @@ export function BookingWizard({ kind }: BookingWizardProps) {
         return;
       }
       const refNumber = created.refNumber ?? undefined;
-      toast.success(`${config.label.charAt(0).toUpperCase() + config.label.slice(1)} created${refNumber ? ` \u2014 ${refNumber}` : ""}`);
+      toast.success(`${config.label.charAt(0).toUpperCase() + config.label.slice(1)}${refNumber ? ` ${refNumber}` : ""} created`, {
+        description: kind === "CHECKOUT"
+          ? "Opened Bookings with this pickup highlighted."
+          : "Opened Bookings with this reservation highlighted.",
+      });
 
       const bookingId = created.id;
       if (kind === "CHECKOUT") {
@@ -480,7 +481,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
         router.push(`/bookings?${params.toString()}`);
       }
     } catch {
-      setCreateError(`Couldn\u2019t create this ${config.label} \u2014 please try again`);
+      setCreateError(`Couldn\u2019t create this ${config.label}. Please try again`);
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
@@ -667,6 +668,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
           selectedBulkItems={selectedBulkItems}
           bulkSkus={bulkSkus}
           itemCount={itemCount}
+          selectionState={pickerSelectionState}
         />
       )}
 

@@ -6,6 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AssetImage } from "@/components/AssetImage";
 import { UserAvatar } from "@/components/UserAvatar";
 import {
+  AlertCircleIcon,
   CalendarClockIcon,
   CheckCircle2Icon,
   Clock3Icon,
@@ -17,11 +18,12 @@ import { SectionHeading } from "@/components/form-layout";
 import { sportLabel } from "@/lib/sports";
 import { VENUE_TONES, venueBadgeVariant, venueToneFromIsHome } from "@/lib/venue-tone";
 import { formatChipTime, formatDateTime } from "@/lib/format";
-import type { BulkSelection } from "@/components/EquipmentPicker";
-import type { PickerAsset } from "@/components/EquipmentPicker";
+import { formatCalendarEventDateRange } from "@/lib/calendar-event-dates";
+import type { BulkSelection, EquipmentPickerSelectionState, PickerAsset } from "@/components/EquipmentPicker";
 import type { FormUser, Location, BulkSkuOption } from "@/components/booking-list/types";
 import type { FormState } from "@/components/create-booking/types";
 import { MAX_SCROLL_HEIGHT } from "./constants";
+import { buildAvailabilityReview, getTurnaroundWarningTotal } from "./flow-summary";
 
 type WizardConfig = {
   kind: "CHECKOUT" | "RESERVATION";
@@ -40,7 +42,12 @@ type Props = {
   selectedBulkItems: BulkSelection[];
   bulkSkus: BulkSkuOption[];
   itemCount: number;
+  selectionState: EquipmentPickerSelectionState;
 };
+
+function eventDateLabel(ev: FormState["selectedEvents"][number]) {
+  return ev.allDay ? formatCalendarEventDateRange(ev) : formatChipTime(ev.startsAt);
+}
 
 function HandoffFact({
   icon: Icon,
@@ -90,11 +97,22 @@ export function WizardStep3({
   selectedBulkItems,
   bulkSkus,
   itemCount,
+  selectionState,
 }: Props) {
   const locationName = locations.find((l) => l.id === form.locationId)?.name || "";
   const requester = users.find((u) => u.id === form.requester);
   const isCheckout = config.kind === "CHECKOUT";
   const requesterName = requester?.name || "the requester";
+  const availabilityReview = buildAvailabilityReview(selectionState);
+  const turnaroundCount = getTurnaroundWarningTotal(selectionState);
+  const linkedAllDayWindow =
+    form.selectedEvents.length > 0 && form.selectedEvents.every((ev) => ev.allDay);
+  const linkedAllDayWindowLabel = linkedAllDayWindow
+    ? `${formatCalendarEventDateRange(
+        { startsAt: form.startsAt, endsAt: form.endsAt, allDay: true },
+        { includeYear: true },
+      )} · All day`
+    : null;
 
   const bulkDisplay = selectedBulkItems.map((bi) => {
     const sku = bulkSkus.find((s) => s.id === bi.bulkSkuId);
@@ -160,10 +178,37 @@ export function WizardStep3({
           <HandoffFact
             icon={isCheckout ? ClipboardCheckIcon : CalendarClockIcon}
             label={isCheckout ? "Due back" : "Starts"}
-            value={isCheckout ? formatDateTime(form.endsAt) : formatDateTime(form.startsAt)}
+            value={linkedAllDayWindowLabel ?? (isCheckout ? formatDateTime(form.endsAt) : formatDateTime(form.startsAt))}
           />
         </div>
       </div>
+
+      {availabilityReview && (
+        <Alert variant={availabilityReview.tone === "conflict" ? "destructive" : "default"}>
+          <AlertCircleIcon />
+          <AlertTitle>{availabilityReview.title}</AlertTitle>
+          <AlertDescription className="space-y-2">
+            <p>{availabilityReview.description}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {selectionState.conflictCount > 0 && (
+                <Badge variant="orange" size="sm" className="tabular-nums">
+                  {selectionState.conflictCount} conflict{selectionState.conflictCount !== 1 ? "s" : ""}
+                </Badge>
+              )}
+              {selectionState.upcomingCommitmentCount > 0 && (
+                <Badge variant="blue" size="sm" className="tabular-nums">
+                  {selectionState.upcomingCommitmentCount} next use
+                </Badge>
+              )}
+              {turnaroundCount > 0 && (
+                <Badge variant="orange" size="sm" className="tabular-nums">
+                  {turnaroundCount} turnaround
+                </Badge>
+              )}
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* ── Booking details ── */}
       <div className="border border-border rounded-sm overflow-hidden divide-y divide-border">
@@ -183,7 +228,7 @@ export function WizardStep3({
                     </Badge>
                   )}
                   <span className="text-xs text-muted-foreground tabular-nums">
-                    {formatChipTime(ev.startsAt)}
+                    {eventDateLabel(ev)}
                   </span>
                   <span>
                     {ev.sportCode && (
@@ -230,20 +275,26 @@ export function WizardStep3({
         </SummaryRow>
 
         {/* Dates */}
-        <div className="grid grid-cols-2 divide-x divide-border">
-          <div className="px-4 py-3">
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1">
-              {config.startLabel}
-            </p>
-            <p className="text-sm font-medium">{formatDateTime(form.startsAt)}</p>
+        {linkedAllDayWindowLabel ? (
+          <SummaryRow label="All-day window">
+            <span>{linkedAllDayWindowLabel}</span>
+          </SummaryRow>
+        ) : (
+          <div className="grid grid-cols-2 divide-x divide-border">
+            <div className="px-4 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1">
+                {config.startLabel}
+              </p>
+              <p className="text-sm font-medium">{formatDateTime(form.startsAt)}</p>
+            </div>
+            <div className="px-4 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1">
+                {config.endLabel}
+              </p>
+              <p className="text-sm font-medium">{formatDateTime(form.endsAt)}</p>
+            </div>
           </div>
-          <div className="px-4 py-3">
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-1">
-              {config.endLabel}
-            </p>
-            <p className="text-sm font-medium">{formatDateTime(form.endsAt)}</p>
-          </div>
-        </div>
+        )}
 
         {/* Notes (only when present) */}
         {form.notes.trim() && (

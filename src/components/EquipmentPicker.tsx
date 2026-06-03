@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { usePickerSearch } from "@/components/equipment-picker/use-picker-search";
 import {
+  getBulkAvailableQuantity,
+  reconcileSelectedBulkQuantities,
+} from "@/components/equipment-picker/bulk-quantity-recovery";
+import {
   useConflictCheck,
   type BulkTurnaroundRiskInfo,
   type ConflictInfo,
@@ -98,6 +102,9 @@ export type EquipmentPickerSelectionState = {
   bulkQuantity: number;
   unresolvedAssetCount: number;
   conflictCount: number;
+  upcomingCommitmentCount: number;
+  turnaroundRiskCount: number;
+  bulkTurnaroundRiskCount: number;
   checkingAvailability: boolean;
 };
 
@@ -168,7 +175,7 @@ function statusText(status: string) {
 }
 
 function getBulkAvailable(sku: PickerBulkSku) {
-  return Math.max(0, sku.availableQuantity ?? sku.currentQuantity);
+  return getBulkAvailableQuantity(sku);
 }
 
 function bulkQuantityHint(sku: PickerBulkSku) {
@@ -178,9 +185,11 @@ function bulkQuantityHint(sku: PickerBulkSku) {
 }
 
 function selectedBulkQuantityText(sku: PickerBulkSku, quantity: number) {
+  const available = getBulkAvailable(sku);
+  const countText = `${quantity} of ${available} requested`;
   return sku.trackByNumber
-    ? `${quantity} requested · units scan at pickup`
-    : `${quantity} requested`;
+    ? `${countText} · units scan at pickup`
+    : countText;
 }
 
 /* ───── Component ───── */
@@ -226,6 +235,7 @@ export default function EquipmentPicker({
   const [scanFeedback, setScanFeedback] = useState<{ kind: "success" | "error"; message: string } | null>(null);
   const [scanLookupBusy, setScanLookupBusy] = useState(false);
   const [cacheVersion, setCacheVersion] = useState(0);
+  const [bulkCountRecovery, setBulkCountRecovery] = useState<string | null>(null);
 
   // Asset cache so we can display selected items even after switching sections
   const [selectedAssetsCache] = useState<Map<string, PickerAsset>>(() => {
@@ -256,6 +266,13 @@ export default function EquipmentPicker({
 
   const bulkById = useMemo(() => new Map(bulkSkus.map((s) => [s.id, s])), [bulkSkus]);
   const bulkBySection = useMemo(() => groupBulkBySection(bulkSkus), [bulkSkus]);
+
+  useEffect(() => {
+    const recovery = reconcileSelectedBulkQuantities(selectedBulkItems, bulkSkus);
+    if (!recovery.changed) return;
+    setSelectedBulkItems(recovery.items);
+    setBulkCountRecovery(recovery.messages.join(" "));
+  }, [bulkSkus, selectedBulkItems, setSelectedBulkItems]);
 
   // ── Section data ──
   const sectionBulk = useMemo(() => {
@@ -402,6 +419,7 @@ export default function EquipmentPicker({
   }
 
   function setBulkQty(bulkSkuId: string, qty: number) {
+    setBulkCountRecovery(null);
     const sku = bulkById.get(bulkSkuId);
     const maxQty = sku ? getBulkAvailable(sku) : Number.POSITIVE_INFINITY;
     const nextQty = Math.min(Math.max(0, qty), maxQty);
@@ -519,6 +537,15 @@ export default function EquipmentPicker({
 
   const bulkQuantity = selectedBulkItems.reduce((s, i) => s + i.quantity, 0);
   const selectedConflictCount = resolvedSelectedAssets.filter((asset) => conflicts.has(asset.id)).length;
+  const selectedUpcomingCommitmentCount = resolvedSelectedAssets.filter((asset) =>
+    !conflicts.has(asset.id) && upcomingCommitments.has(asset.id)
+  ).length;
+  const selectedTurnaroundRiskCount = resolvedSelectedAssets.filter((asset) =>
+    !conflicts.has(asset.id) && (turnaroundRisks.get(asset.id)?.length ?? 0) > 0
+  ).length;
+  const selectedBulkTurnaroundRiskCount = selectedBulkItems.filter((item) =>
+    (bulkTurnaroundRisks.get(item.bulkSkuId)?.length ?? 0) > 0
+  ).length;
   const totalSelected = selectedAssetIds.length + bulkQuantity;
   const currentSectionSelected = selectedBySection[activeSection] || 0;
   const visibleCount = sectionResults.length + sectionBulk.length;
@@ -540,6 +567,9 @@ export default function EquipmentPicker({
       bulkQuantity,
       unresolvedAssetCount: unresolvedSelectedAssetIds.length,
       conflictCount: selectedConflictCount,
+      upcomingCommitmentCount: selectedUpcomingCommitmentCount,
+      turnaroundRiskCount: selectedTurnaroundRiskCount,
+      bulkTurnaroundRiskCount: selectedBulkTurnaroundRiskCount,
       checkingAvailability: conflictsLoading,
     });
   }, [
@@ -547,7 +577,10 @@ export default function EquipmentPicker({
     conflictsLoading,
     onSelectionStateChange,
     resolvedSelectedAssets.length,
+    selectedBulkTurnaroundRiskCount,
     selectedConflictCount,
+    selectedTurnaroundRiskCount,
+    selectedUpcomingCommitmentCount,
     totalSelected,
     unresolvedSelectedAssetIds.length,
   ]);
@@ -709,6 +742,18 @@ export default function EquipmentPicker({
               </AlertDescription>
             </Alert>
           ))}
+        </div>
+      )}
+
+      {bulkCountRecovery && (
+        <div className="border-b border-border/60 bg-background px-3 py-2">
+          <Alert className="rounded-md py-2.5">
+            <AlertCircleIcon />
+            <AlertTitle className="text-sm">Inventory counts refreshed</AlertTitle>
+            <AlertDescription className="text-xs text-muted-foreground">
+              {bulkCountRecovery} Review the current quantities before continuing.
+            </AlertDescription>
+          </Alert>
         </div>
       )}
 

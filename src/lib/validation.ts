@@ -15,12 +15,42 @@ const bulkItemSchema = z.object({
   quantity: z.number().int().positive()
 });
 
+const bulkItemsSchema = z.array(bulkItemSchema).default([]).superRefine((items, ctx) => {
+  const seen = new Set<string>();
+  items.forEach((item, index) => {
+    if (seen.has(item.bulkSkuId)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Duplicate bulk item",
+        path: [index, "bulkSkuId"],
+      });
+      return;
+    }
+    seen.add(item.bulkSkuId);
+  });
+});
+
+const eventIdsSchema = z.array(z.string().cuid()).max(3).superRefine((ids, ctx) => {
+  const seen = new Set<string>();
+  ids.forEach((id, index) => {
+    if (seen.has(id)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "eventIds must be unique",
+        path: [index],
+      });
+      return;
+    }
+    seen.add(id);
+  });
+}).optional();
+
 export const availabilitySchema = z.object({
   locationId: z.string().cuid(),
   startsAt: z.string(),
   endsAt: z.string(),
   serializedAssetIds: z.array(z.string().cuid()).default([]),
-  bulkItems: z.array(bulkItemSchema).default([]),
+  bulkItems: bulkItemsSchema,
   excludeBookingId: z.string().cuid().optional()
 });
 
@@ -31,9 +61,9 @@ const bookingBaseShape = {
   startsAt: z.string(),
   endsAt: z.string(),
   serializedAssetIds: z.array(z.string().cuid()).default([]),
-  bulkItems: z.array(bulkItemSchema).default([]),
+  bulkItems: bulkItemsSchema,
   eventId: z.string().cuid().optional(),
-  eventIds: z.array(z.string().cuid()).max(3).optional(),
+  eventIds: eventIdsSchema,
   sportCode: z.string().max(10).optional(),
   notes: z.string().max(10000).optional(),
   shiftAssignmentId: z.string().cuid().optional(),
@@ -48,13 +78,32 @@ const eventIdsExclusiveMsg = {
   path: ["eventIds"] as (string | number)[],
 };
 
-export const createReservationSchema = z.object(bookingBaseShape).refine(eventIdsExclusive, eventIdsExclusiveMsg);
+function hasSelectedEquipment(v: { serializedAssetIds?: string[]; bulkItems?: Array<{ quantity: number }> }): boolean {
+  return (v.serializedAssetIds?.length ?? 0) > 0 || (v.bulkItems?.length ?? 0) > 0;
+}
+
+function hasSelectedEquipmentOrSourceReservation(
+  v: { serializedAssetIds?: string[]; bulkItems?: Array<{ quantity: number }>; sourceReservationId?: string },
+): boolean {
+  return Boolean(v.sourceReservationId) || hasSelectedEquipment(v);
+}
+
+const equipmentRequiredMsg = {
+  message: "Add at least one piece of equipment",
+  path: ["serializedAssetIds"] as (string | number)[],
+};
+
+export const createReservationSchema = z.object(bookingBaseShape)
+  .refine(eventIdsExclusive, eventIdsExclusiveMsg)
+  .refine(hasSelectedEquipment, equipmentRequiredMsg);
 
 export const createCheckoutSchema = z.object({
   ...bookingBaseShape,
   endsAt: z.string().optional(),
   sourceReservationId: z.string().cuid().optional(),
-}).refine(eventIdsExclusive, eventIdsExclusiveMsg);
+})
+  .refine(eventIdsExclusive, eventIdsExclusiveMsg)
+  .refine(hasSelectedEquipmentOrSourceReservation, equipmentRequiredMsg);
 
 export const startScanSessionSchema = z.object({
   phase: z.enum(["CHECKOUT", "CHECKIN"]),
@@ -110,12 +159,14 @@ export const updateBulkSkuSchema = z.object({
 }).strict();
 
 export const addBulkUnitsSchema = z.object({
-  count: z.number().int().min(1).max(500)
+  count: z.number().int().min(1).max(500),
+  reason: z.string().trim().min(3).max(500).optional()
 });
 
 export const updateBulkUnitSchema = z.object({
   status: z.enum(["AVAILABLE", "LOST", "RETIRED"]),
-  notes: z.string().max(1000).optional()
+  notes: z.string().max(1000).optional(),
+  reason: z.string().trim().min(3).max(500).optional()
 });
 
 export const adjustBulkSchema = z.object({

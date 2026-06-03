@@ -70,6 +70,7 @@ vi.mock("@/lib/services/booking-rules", () => ({
 
 vi.mock("@/lib/services/reports", () => ({
   getCheckoutReport: vi.fn(),
+  getCheckoutReportExport: vi.fn(),
 }));
 
 vi.mock("@/lib/services/kiosk-scan", () => ({

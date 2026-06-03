@@ -9,6 +9,7 @@ import type { FormState } from "@/components/create-booking/types";
 import { SectionHeading } from "@/components/form-layout";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircleIcon, CheckCircle2Icon, Loader2Icon } from "lucide-react";
+import { buildAvailabilityReview, getTurnaroundWarningTotal } from "./flow-summary";
 
 type Props = {
   kind: "CHECKOUT" | "RESERVATION";
@@ -45,7 +46,9 @@ export function WizardStep2({
     selectionState.totalSelected > 0 ||
     selectionState.checkingAvailability ||
     itemCount > 0;
-  const hasWarnings = selectionState.conflictCount > 0;
+  const availabilityReview = buildAvailabilityReview(selectionState);
+  const turnaroundCount = getTurnaroundWarningTotal(selectionState);
+  const hasWarnings = availabilityReview !== null;
   const hasUnavailable = selectionState.unresolvedAssetCount > 0;
 
   return (
@@ -71,10 +74,26 @@ export function WizardStep2({
               {itemCount > 0 ? <CheckCircle2Icon data-icon="inline-start" /> : null}
               {itemCount} valid item{itemCount !== 1 ? "s" : ""}
             </Badge>
-            {hasWarnings && (
+            {availabilityReview && (
               <Badge variant="orange" size="sm" className="gap-1.5 tabular-nums">
                 <AlertCircleIcon data-icon="inline-start" />
-                {selectionState.conflictCount} warning{selectionState.conflictCount !== 1 ? "s" : ""}
+                {availabilityReview.total} warning{availabilityReview.total !== 1 ? "s" : ""}
+              </Badge>
+            )}
+            {selectionState.conflictCount > 0 && (
+              <Badge variant="orange" size="sm" className="gap-1.5 tabular-nums">
+                <AlertCircleIcon data-icon="inline-start" />
+                {selectionState.conflictCount} conflict{selectionState.conflictCount !== 1 ? "s" : ""}
+              </Badge>
+            )}
+            {selectionState.upcomingCommitmentCount > 0 && (
+              <Badge variant="blue" size="sm" className="gap-1.5 tabular-nums">
+                {selectionState.upcomingCommitmentCount} next use
+              </Badge>
+            )}
+            {turnaroundCount > 0 && (
+              <Badge variant="orange" size="sm" className="gap-1.5 tabular-nums">
+                {turnaroundCount} turnaround
               </Badge>
             )}
             {hasUnavailable && (
@@ -94,7 +113,7 @@ export function WizardStep2({
             <p className="mt-2 text-xs text-muted-foreground">
               {hasUnavailable
                 ? "Remove unavailable items or pick replacements before review."
-                : "Warnings can be reviewed before submit."}
+                : availabilityReview?.description}
             </p>
           )}
         </div>

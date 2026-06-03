@@ -15,15 +15,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ClockIcon, CheckIcon, XIcon } from "lucide-react";
+import { CalendarClockIcon, ClockIcon, CheckIcon, LinkIcon, MapPinIcon, XIcon } from "lucide-react";
 import { SPORT_CODES, sportLabel } from "@/lib/sports";
-import { formatChipTime } from "@/lib/format";
+import { formatChipTime, formatDateTime } from "@/lib/format";
+import { formatCalendarEventDateRange } from "@/lib/calendar-event-dates";
 import { cn } from "@/lib/utils";
 import { VENUE_TONES, venueBadgeVariant, venueToneFromIsHome } from "@/lib/venue-tone";
 import { FormRow, FormRow2Col, SectionHeading } from "@/components/form-layout";
 import {
   toLocalDateTimeValue,
-  formatDate,
   type FormUser,
   type Location,
   type CalendarEvent,
@@ -32,6 +32,8 @@ import { MAX_SCROLL_HEIGHT } from "./constants";
 import type { FormState, FormAction, ShiftInfo } from "@/components/create-booking/types";
 
 type WizardConfig = {
+  kind: "CHECKOUT" | "RESERVATION";
+  label: string;
   requesterLabel: string;
   startLabel: string;
   endLabel: string;
@@ -53,6 +55,14 @@ type Props = {
   toggleEvent: (ev: CalendarEvent) => { ok: boolean; reason?: string };
 };
 
+function eventDateLabel(ev: CalendarEvent, includeYear = false) {
+  return ev.allDay
+    ? formatCalendarEventDateRange(ev, { includeYear })
+    : includeYear
+      ? formatDateTime(ev.startsAt)
+      : formatChipTime(ev.startsAt);
+}
+
 export function WizardStep1({
   form,
   dispatch,
@@ -69,6 +79,34 @@ export function WizardStep1({
 }: Props) {
   const selectedEventIds = new Set(form.selectedEvents.map((e) => e.id));
   const atCap = form.selectedEvents.length >= 3;
+  const selectedLocationName = locations.find((l) => l.id === form.locationId)?.name || "";
+  const primaryEventLocation =
+    form.selectedEvents[0]?.location?.name ||
+    form.selectedEvents[0]?.rawLocationText ||
+    selectedLocationName;
+  const contextBadge = form.tieToEvent
+    ? form.selectedEvents.length > 0
+      ? "Event linked"
+      : "Event optional"
+    : "Ad hoc";
+  const contextDescription = form.tieToEvent
+    ? form.selectedEvents.length > 0
+      ? "Window and title are filled from the selected event span. You can still adjust the booking details below."
+      : "Select up to 3 events to fill the booking details, or use ad hoc details when this booking is not tied to the calendar."
+    : "Manual details will create a booking without calendar-event reporting links.";
+  const contextBadgeVariant: "green" | "blue" | "secondary" = form.tieToEvent
+    ? form.selectedEvents.length > 0
+      ? "green"
+      : "blue"
+    : "secondary";
+  const selectedAllDaySpan =
+    form.selectedEvents.length > 0 && form.selectedEvents.every((ev) => ev.allDay);
+  const bookingWindowLabel = selectedAllDaySpan
+    ? `${formatCalendarEventDateRange(
+        { startsAt: form.startsAt, endsAt: form.endsAt, allDay: true },
+        { includeYear: true },
+      )} · All day`
+    : `${formatDateTime(form.startsAt)} to ${formatDateTime(form.endsAt)}`;
   return (
     <div className="flex flex-col gap-10">
 
@@ -86,6 +124,66 @@ export function WizardStep1({
             <Label htmlFor="booking-link-to-event" className="cursor-pointer whitespace-nowrap text-xs text-muted-foreground">
               Link to event
             </Label>
+          </div>
+        </div>
+
+        <div className="rounded-md border border-border/60 bg-card/70 p-3 shadow-xs">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <LinkIcon className="size-4 text-muted-foreground" />
+                <span className="text-sm font-semibold">
+                  {form.tieToEvent ? "Calendar-linked booking" : "Manual booking"}
+                </span>
+                <Badge variant={contextBadgeVariant} size="sm">
+                  {contextBadge}
+                </Badge>
+                {form.tieToEvent && (
+                  <Badge variant="outline" size="sm">
+                    {form.selectedEvents.length}/3 events
+                  </Badge>
+                )}
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground text-pretty">
+                {contextDescription}
+              </p>
+            </div>
+            {form.tieToEvent && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => dispatch({ type: "SET_TIE_TO_EVENT", value: false })}
+                className="shrink-0"
+              >
+                Use ad hoc details
+              </Button>
+            )}
+          </div>
+
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <div className="flex min-w-0 items-start gap-2 rounded-sm border border-border/60 bg-background px-3 py-2">
+              <CalendarClockIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                  Window
+                </p>
+                <p className="mt-0.5 text-xs font-medium text-foreground">
+                  {bookingWindowLabel}
+                </p>
+              </div>
+            </div>
+            <div className="flex min-w-0 items-start gap-2 rounded-sm border border-border/60 bg-background px-3 py-2">
+              <MapPinIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                  Location
+                </p>
+                <p className="mt-0.5 truncate text-xs font-medium text-foreground">
+                  {primaryEventLocation || "Select a location below"}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -127,7 +225,7 @@ export function WizardStep1({
                     aria-label={`Remove ${ev.opponent ?? ev.summary}`}
                   >
                     <span className="font-medium">
-                      {formatChipTime(ev.startsAt)}
+                      {eventDateLabel(ev)}
                       {" · "}
                       {ev.opponent ?? ev.summary}
                     </span>
@@ -148,9 +246,18 @@ export function WizardStep1({
                   Loading events\u2026
                 </div>
               ) : events.length === 0 ? (
-                <div className="border border-dashed rounded-sm p-4 text-sm text-muted-foreground leading-relaxed">
-                  No upcoming events{form.sport ? ` for ${sportLabel(form.sport)}` : ""}. Toggle off
-                  &ldquo;Link to event&rdquo; to create without an event.
+                <div className="flex flex-col items-start gap-3 rounded-sm border border-dashed p-4 text-sm text-muted-foreground">
+                  <p className="leading-relaxed">
+                    No upcoming events{form.sport ? ` for ${sportLabel(form.sport)}` : ""}. Create this as an ad hoc booking instead.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => dispatch({ type: "SET_TIE_TO_EVENT", value: false })}
+                  >
+                    Use ad hoc details
+                  </Button>
                 </div>
               ) : (
                 <div
@@ -208,7 +315,7 @@ export function WizardStep1({
                               selected ? "text-primary-foreground/70" : "text-muted-foreground",
                             )}
                           >
-                            {formatDate(ev.startsAt)}
+                            {eventDateLabel(ev, true)}
                             {ev.rawLocationText ? ` \u00b7 ${ev.rawLocationText}` : ""}
                             {ev.location ? ` \u00b7 ${ev.location.name}` : ""}
                           </div>

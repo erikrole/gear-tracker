@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { Prisma } from "@prisma/client";
 import { expectSerializableIsolation } from "./_helpers/assert-transaction";
 
 // ─── Transaction tracking ───────────────────────────────────────────────────
@@ -13,6 +14,8 @@ vi.mock("@/lib/db", () => {
       create: vi.fn(),
       update: vi.fn(),
     },
+    calendarEvent: { findMany: vi.fn() },
+    bookingEvent: { createMany: vi.fn() },
     bookingSerializedItem: { createMany: vi.fn() },
     bookingBulkItem: { createMany: vi.fn() },
     assetAllocation: { createMany: vi.fn(), updateMany: vi.fn() },
@@ -60,7 +63,7 @@ function baseInput(overrides: Record<string, unknown> = {}) {
     locationId: "loc-1",
     startsAt: new Date("2026-04-01T08:00:00Z"),
     endsAt: new Date("2026-04-01T17:00:00Z"),
-    serializedAssetIds: [] as string[],
+    serializedAssetIds: ["a-base"] as string[],
     bulkItems: [] as Array<{ bulkSkuId: string; quantity: number }>,
     createdBy: "user-1",
     ...overrides,
@@ -73,6 +76,8 @@ beforeEach(() => {
   mockTx.$queryRaw.mockResolvedValue([{ nextval: 1n }]);
   mockTx.booking.update.mockResolvedValue({});
   mockTx.booking.findUniqueOrThrow.mockResolvedValue({ id: "b-new", refNumber: "CO-0001" });
+  mockTx.calendarEvent.findMany.mockResolvedValue([]);
+  mockTx.bookingEvent.createMany.mockResolvedValue({});
   mockTx.bookingSerializedItem.createMany.mockResolvedValue({});
   mockTx.assetAllocation.createMany.mockResolvedValue({});
   mockTx.bookingBulkItem.createMany.mockResolvedValue({});
@@ -80,6 +85,14 @@ beforeEach(() => {
   mockTx.bulkStockBalance.upsert.mockResolvedValue({});
   mockTx.bulkStockMovement.createMany.mockResolvedValue({});
   mockTx.auditLog.create.mockResolvedValue({});
+  vi.mocked(checkAvailability).mockResolvedValue({
+    conflicts: [],
+    shortages: [],
+    unavailableAssets: [],
+    upcomingCommitments: [],
+    turnaroundRisks: [],
+    bulkTurnaroundRisks: [],
+  });
 });
 
 describe("createBooking", () => {
@@ -148,6 +161,7 @@ describe("createBooking", () => {
     });
 
     await expect(createBooking(baseInput({
+      serializedAssetIds: [],
       bulkItems: [{ bulkSkuId: "sku-1", quantity: 10 }],
     }))).rejects.toThrow("Availability conflict");
   });
@@ -166,6 +180,7 @@ describe("createBooking", () => {
     ]);
 
     await createBooking(baseInput({
+      serializedAssetIds: [],
       bulkItems: [{ bulkSkuId: "sku-1", quantity: 5 }],
     }));
 
@@ -176,6 +191,7 @@ describe("createBooking", () => {
   it("creates bulk items but NO stock movements for RESERVATION", async () => {
     await createBooking(baseInput({
       kind: "RESERVATION",
+      serializedAssetIds: [],
       bulkItems: [{ bulkSkuId: "sku-1", quantity: 5 }],
     }));
 
@@ -193,6 +209,84 @@ describe("createBooking", () => {
         }),
       })
     );
+  });
+
+  it("rejects empty non-draft bookings at the shared service boundary", async () => {
+    await expect(createBooking(baseInput({
+      serializedAssetIds: [],
+      bulkItems: [],
+    }))).rejects.toThrow("Add at least one piece of equipment");
+
+    expect(checkAvailability).not.toHaveBeenCalled();
+    expect(mockTx.booking.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid booking windows before opening a transaction", async () => {
+    await expect(createBooking(baseInput({
+      startsAt: new Date("2026-04-01T17:00:00Z"),
+      endsAt: new Date("2026-04-01T08:00:00Z"),
+    }))).rejects.toThrow("endsAt must be later than startsAt");
+
+    expect(transactionCalls).toHaveLength(0);
+  });
+
+  it("rejects duplicate eventIds instead of silently deduping", async () => {
+    await expect(createBooking(baseInput({
+      eventIds: ["event-1", "event-1"],
+    }))).rejects.toThrow("eventIds must be unique");
+
+    expect(mockTx.calendarEvent.findMany).not.toHaveBeenCalled();
+    expect(mockTx.booking.create).not.toHaveBeenCalled();
+  });
+
+  it("sorts event links chronologically and writes junction rows", async () => {
+    mockTx.calendarEvent.findMany.mockResolvedValue([
+      { id: "event-late", startsAt: new Date("2026-04-03T20:00:00Z") },
+      { id: "event-early", startsAt: new Date("2026-04-01T20:00:00Z") },
+    ]);
+
+    await createBooking(baseInput({ eventIds: ["event-late", "event-early"] }));
+
+    expect(mockTx.booking.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ eventId: "event-early" }),
+      }),
+    );
+    expect(mockTx.bookingEvent.createMany).toHaveBeenCalledWith({
+      data: [
+        { bookingId: "b-new", eventId: "event-early", ordinal: 0 },
+        { bookingId: "b-new", eventId: "event-late", ordinal: 1 },
+      ],
+    });
+  });
+
+  it("maps DB overlap constraint races to availability conflicts", async () => {
+    mockTx.assetAllocation.createMany.mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError("Exclusion constraint failed on asset_allocations_no_overlap", {
+        code: "P2004",
+        clientVersion: "test",
+        meta: { constraint: "asset_allocations_no_overlap" },
+      }),
+    );
+
+    await expect(createBooking(baseInput({ serializedAssetIds: ["a-race"] }))).rejects.toMatchObject({
+      status: 409,
+      message: "One or more items are no longer available",
+    });
+  });
+
+  it("maps serializable transaction races to retryable conflicts", async () => {
+    vi.mocked(db.$transaction).mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError("Serializable conflict", {
+        code: "P2034",
+        clientVersion: "test",
+      }),
+    );
+
+    await expect(createBooking(baseInput())).rejects.toMatchObject({
+      status: 409,
+      message: "Someone else submitted at the same time; please try again.",
+    });
   });
 
   // Source reservation tests
@@ -213,7 +307,7 @@ describe("createBooking", () => {
       { bulkSkuId: "sku-1", onHandQuantity: 100 },
     ]);
 
-    await createBooking(baseInput({ sourceReservationId: "rv-1" }));
+    await createBooking(baseInput({ sourceReservationId: "rv-1", serializedAssetIds: [], bulkItems: [] }));
 
     // Should cancel the source reservation
     expect(mockTx.booking.update).toHaveBeenCalledWith(
