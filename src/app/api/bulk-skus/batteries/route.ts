@@ -2,7 +2,7 @@ import { withAuth } from "@/lib/api";
 import { getBatteryCompatibilitySummaries } from "@/lib/battery-compatibility";
 import { isBatterySku } from "@/lib/bulk-batteries";
 import { db } from "@/lib/db";
-import { cachedOk } from "@/lib/http";
+import { ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 
 function daysSince(value: Date | null | undefined, now: Date) {
@@ -18,11 +18,11 @@ export const GET = withAuth(async (_req, { user }) => {
     db.bulkSku.findMany({
       where: {
         active: true,
-        trackByNumber: true,
       },
       include: {
         location: { select: { id: true, name: true } },
         categoryRel: { select: { id: true, name: true } },
+        balances: true,
         units: {
           orderBy: { unitNumber: "asc" },
           include: {
@@ -90,22 +90,27 @@ export const GET = withAuth(async (_req, { user }) => {
       };
     });
 
-    const available = units.filter((unit) => unit.status === "AVAILABLE").length;
-    const checkedOut = units.filter((unit) => unit.status === "CHECKED_OUT").length;
-    const lost = units.filter((unit) => unit.status === "LOST").length;
-    const retired = units.filter((unit) => unit.status === "RETIRED").length;
+    const onHand = sku.balances.reduce((sum, balance) => sum + balance.onHandQuantity, 0);
+    const available = sku.trackByNumber
+      ? units.filter((unit) => unit.status === "AVAILABLE").length
+      : Math.max(0, onHand);
+    const checkedOut = sku.trackByNumber ? units.filter((unit) => unit.status === "CHECKED_OUT").length : 0;
+    const lost = sku.trackByNumber ? units.filter((unit) => unit.status === "LOST").length : 0;
+    const retired = sku.trackByNumber ? units.filter((unit) => unit.status === "RETIRED").length : 0;
+    const total = sku.trackByNumber ? units.length : available;
     const threshold = Math.max(10, sku.minThreshold);
 
     return {
       id: sku.id,
       name: sku.name,
       category: sku.categoryRel?.name ?? sku.category,
+      trackByNumber: sku.trackByNumber,
       location: sku.location,
       minThreshold: sku.minThreshold,
       threshold,
       binQrCodeValue: sku.binQrCodeValue,
       counts: {
-        total: units.length,
+        total,
         available,
         checkedOut,
         lost,
@@ -150,5 +155,5 @@ export const GET = withAuth(async (_req, { user }) => {
     .filter((summary) => summary.isLow)
     .sort((a, b) => (a.availableQuantity - a.threshold) - (b.availableQuantity - b.threshold));
 
-  return cachedOk({ data: { totals, skus, compatibility } });
+  return ok({ data: { totals, skus, compatibility } });
 });

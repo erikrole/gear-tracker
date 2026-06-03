@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BatteryCharging, CircleAlert, ExternalLink, RefreshCw } from "lucide-react";
+import { BatteryCharging, CircleAlert, ExternalLink, Plus, RefreshCw, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import EmptyState from "@/components/EmptyState";
 import { OperationalMetricCard } from "@/components/OperationalFeedback";
@@ -10,6 +10,8 @@ import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +31,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 
@@ -54,6 +57,7 @@ type BatterySku = {
   id: string;
   name: string;
   category: string;
+  trackByNumber: boolean;
   location: { id: string; name: string };
   minThreshold: number;
   threshold: number;
@@ -99,7 +103,23 @@ type PendingAction = {
   skuId: string;
   skuName: string;
   unitNumber: number;
+  fromStatus: Exclude<UnitStatus, "CHECKED_OUT">;
   status: Exclude<UnitStatus, "CHECKED_OUT">;
+} | null;
+
+type PendingAddUnits = {
+  skuId: string;
+  skuName: string;
+  nextUnitNumber: number;
+  currentAvailable: number;
+  currentTotal: number;
+} | null;
+
+type PendingQuantityAdjustment = {
+  skuId: string;
+  skuName: string;
+  currentAvailable: number;
+  currentTotal: number;
 } | null;
 
 const STATUS_META: Record<UnitStatus, { label: string; className: string; dot: string }> = {
@@ -133,6 +153,28 @@ function formatDue(value: string) {
   return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(new Date(value));
 }
 
+function defaultStatusReason(status: Exclude<UnitStatus, "CHECKED_OUT">) {
+  if (status === "AVAILABLE") return "Recovered during battery count";
+  if (status === "LOST") return "Missing after shelf audit";
+  return "Removed from service";
+}
+
+function statusImpact(action: NonNullable<PendingAction>) {
+  if (action.fromStatus === "AVAILABLE" && action.status !== "AVAILABLE") return "Available count will decrease by 1.";
+  if (action.fromStatus !== "AVAILABLE" && action.status === "AVAILABLE") return "Available count will increase by 1.";
+  return "Available count will not change.";
+}
+
+function clampUnitCount(value: number) {
+  if (!Number.isFinite(value)) return 1;
+  return Math.max(1, Math.min(500, Math.trunc(value)));
+}
+
+function normalizeQuantityDelta(value: number) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(-1_000_000, Math.min(1_000_000, Math.trunc(value)));
+}
+
 export default function BatteryCockpitPage() {
   const [data, setData] = useState<BatteryCockpitData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -141,6 +183,17 @@ export default function BatteryCockpitPage() {
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const busyRef = useRef(false);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
+  const [statusReason, setStatusReason] = useState("");
+  const [pendingAddUnits, setPendingAddUnits] = useState<PendingAddUnits>(null);
+  const [addUnitCount, setAddUnitCount] = useState(1);
+  const [addUnitReason, setAddUnitReason] = useState("Battery stock received");
+  const [addBusy, setAddBusy] = useState(false);
+  const addBusyRef = useRef(false);
+  const [pendingQuantityAdjustment, setPendingQuantityAdjustment] = useState<PendingQuantityAdjustment>(null);
+  const [quantityDelta, setQuantityDelta] = useState(1);
+  const [quantityReason, setQuantityReason] = useState("Battery count correction");
+  const [quantityBusy, setQuantityBusy] = useState(false);
+  const quantityBusyRef = useRef(false);
 
   async function load({ refresh = false } = {}) {
     if (refresh) setRefreshing(true);
@@ -186,9 +239,47 @@ export default function BatteryCockpitPage() {
       )
       .sort((a, b) => (b.checkedOutDays ?? -1) - (a.checkedOutDays ?? -1));
   }, [data]);
+  const unitSkus = useMemo(() => (data?.skus ?? []).filter((sku) => sku.trackByNumber), [data]);
+  const quantitySkus = useMemo(() => (data?.skus ?? []).filter((sku) => !sku.trackByNumber), [data]);
 
-  async function applyStatusChange(action: NonNullable<PendingAction>) {
+  function openStatusAction(action: NonNullable<PendingAction>) {
+    setPendingAction(action);
+    setStatusReason(defaultStatusReason(action.status));
+  }
+
+  function openAddUnits(sku: BatterySku) {
+    const maxUnitNumber = sku.units.reduce((max, unit) => Math.max(max, unit.unitNumber), 0);
+    const suggestedCount = clampUnitCount(Math.max(1, sku.threshold - sku.counts.available));
+    setPendingAddUnits({
+      skuId: sku.id,
+      skuName: sku.name,
+      nextUnitNumber: maxUnitNumber + 1,
+      currentAvailable: sku.counts.available,
+      currentTotal: sku.counts.total,
+    });
+    setAddUnitCount(suggestedCount);
+    setAddUnitReason(sku.isLow ? "Low-stock replenishment" : "Battery stock received");
+  }
+
+  function openQuantityAdjustment(sku: BatterySku) {
+    const suggestedDelta = normalizeQuantityDelta(sku.isLow ? Math.max(1, sku.threshold - sku.counts.available) : 1);
+    setPendingQuantityAdjustment({
+      skuId: sku.id,
+      skuName: sku.name,
+      currentAvailable: sku.counts.available,
+      currentTotal: sku.counts.total,
+    });
+    setQuantityDelta(suggestedDelta);
+    setQuantityReason(sku.isLow ? "Low-stock replenishment" : "Battery count correction");
+  }
+
+  async function applyStatusChange(action: NonNullable<PendingAction>, reason: string) {
     if (busyRef.current) return;
+    const cleanReason = reason.trim();
+    if (cleanReason.length < 3) {
+      toast.error("Add a reason before changing unit status.");
+      return;
+    }
     busyRef.current = true;
     const key = `${action.skuId}-${action.unitNumber}`;
     setBusyKey(key);
@@ -197,7 +288,7 @@ export default function BatteryCockpitPage() {
       const res = await fetch(`/api/bulk-skus/${action.skuId}/units/${action.unitNumber}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: action.status }),
+        body: JSON.stringify({ status: action.status, reason: cleanReason }),
       });
       if (handleAuthRedirect(res, "/bulk-inventory/batteries")) return;
       if (!res.ok) {
@@ -213,6 +304,86 @@ export default function BatteryCockpitPage() {
       busyRef.current = false;
       setBusyKey(null);
       setPendingAction(null);
+      setStatusReason("");
+    }
+  }
+
+  async function submitAddUnits(action: NonNullable<PendingAddUnits>) {
+    if (addBusyRef.current) return;
+    const count = clampUnitCount(addUnitCount);
+    const reason = addUnitReason.trim();
+    if (reason.length < 3) {
+      toast.error("Add a reason before adding units.");
+      return;
+    }
+
+    addBusyRef.current = true;
+    setAddBusy(true);
+
+    try {
+      const res = await fetch(`/api/bulk-skus/${action.skuId}/units`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ count, reason }),
+      });
+      if (handleAuthRedirect(res, "/bulk-inventory/batteries")) return;
+      if (!res.ok) {
+        toast.error(await parseErrorMessage(res, "Failed to add units"));
+        return;
+      }
+      const json = await parseJsonSafely<{ data?: { startNumber: number; endNumber: number } }>(res);
+      const range = json?.data ? `#${json.data.startNumber}-#${json.data.endNumber}` : `${count} units`;
+      toast.success(`Added ${range}`);
+      setPendingAddUnits(null);
+      void load({ refresh: true });
+    } catch {
+      toast.error("Network error. Units were not added.");
+    } finally {
+      addBusyRef.current = false;
+      setAddBusy(false);
+    }
+  }
+
+  async function submitQuantityAdjustment(action: NonNullable<PendingQuantityAdjustment>) {
+    if (quantityBusyRef.current) return;
+    const delta = normalizeQuantityDelta(quantityDelta);
+    const reason = quantityReason.trim();
+    const next = action.currentAvailable + delta;
+    if (delta === 0) {
+      toast.error("Enter a non-zero adjustment.");
+      return;
+    }
+    if (next < 0) {
+      toast.error("Adjustment would drop available stock below zero.");
+      return;
+    }
+    if (reason.length < 3) {
+      toast.error("Add a reason before adjusting quantity.");
+      return;
+    }
+
+    quantityBusyRef.current = true;
+    setQuantityBusy(true);
+
+    try {
+      const res = await fetch(`/api/bulk-skus/${action.skuId}/adjust`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quantityDelta: delta, reason }),
+      });
+      if (handleAuthRedirect(res, "/bulk-inventory/batteries")) return;
+      if (!res.ok) {
+        toast.error(await parseErrorMessage(res, "Failed to adjust stock"));
+        return;
+      }
+      toast.success(`Adjusted ${action.skuName} by ${delta > 0 ? `+${delta}` : delta}`);
+      setPendingQuantityAdjustment(null);
+      void load({ refresh: true });
+    } catch {
+      toast.error("Network error. Stock was not adjusted.");
+    } finally {
+      quantityBusyRef.current = false;
+      setQuantityBusy(false);
     }
   }
 
@@ -285,8 +456,8 @@ export default function BatteryCockpitPage() {
       {data && data.skus.length === 0 ? (
         <EmptyState
           icon="box"
-          title="No batteries using Units found"
-          description="Battery families appear here when they use Units and are active."
+          title="No battery families found"
+          description="Active battery families appear here when they are tracked as units or quantity."
           actionLabel="Back to Items"
           actionHref="/items"
         />
@@ -361,7 +532,7 @@ export default function BatteryCockpitPage() {
           </Card>
 
           <div className="grid gap-4 xl:grid-cols-2">
-            {data?.skus.map((sku) => (
+            {unitSkus.map((sku) => (
               <Card key={sku.id} className="min-w-0 border-border/40 shadow-none">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-3">
@@ -374,9 +545,13 @@ export default function BatteryCockpitPage() {
                       </CardTitle>
                       <p className="mt-1 text-xs text-muted-foreground">{sku.location.name} / {sku.category}</p>
                     </div>
-                    {sku.isLow && (
-                      <Badge variant="orange" className="shrink-0">Low stock</Badge>
-                    )}
+                    <div className="flex shrink-0 items-center gap-2">
+                      {sku.isLow && <Badge variant="orange">Low stock</Badge>}
+                      <Button size="sm" variant="outline" onClick={() => openAddUnits(sku)}>
+                        <Plus className="size-3.5" />
+                        Add
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -393,7 +568,7 @@ export default function BatteryCockpitPage() {
                         sku={sku}
                         unit={unit}
                         busy={busyKey === `${sku.id}-${unit.unitNumber}`}
-                        onPendingAction={setPendingAction}
+                        onPendingAction={openStatusAction}
                       />
                     ))}
                   </div>
@@ -401,10 +576,54 @@ export default function BatteryCockpitPage() {
               </Card>
             ))}
           </div>
+
+          {quantitySkus.length > 0 && (
+            <Card className="border-border/40 shadow-none">
+              <CardHeader className="pb-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <CardTitle className="text-base">Quantity-tracked batteries</CardTitle>
+                  <Badge variant="secondary">{metricLabel(quantitySkus.length, "family", "families")}</Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {quantitySkus.map((sku) => (
+                    <div key={sku.id} className="rounded-md border border-border/60 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <Link href={`/bulk-inventory/${sku.id}`} className="font-medium hover:underline">
+                            {sku.name}
+                          </Link>
+                          <div className="mt-1 text-xs text-muted-foreground">{sku.location.name} / {sku.category}</div>
+                        </div>
+                        {sku.isLow && <Badge variant="orange" className="shrink-0">Low stock</Badge>}
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <Count label="Avail" value={sku.counts.available} dot={STATUS_META.AVAILABLE.dot} />
+                        <Count label="Minimum" value={sku.threshold} dot="bg-[var(--orange)]" />
+                      </div>
+                      <Button size="sm" variant="outline" className="mt-3 w-full" onClick={() => openQuantityAdjustment(sku)}>
+                        <SlidersHorizontal className="size-3.5" />
+                        Adjust
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
 
-      <AlertDialog open={!!pendingAction} onOpenChange={(open) => !open && setPendingAction(null)}>
+      <AlertDialog
+        open={!!pendingAction}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingAction(null);
+            setStatusReason("");
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
@@ -414,10 +633,166 @@ export default function BatteryCockpitPage() {
               This updates stock availability and writes an audit entry for {pendingAction?.skuName}. Checked-out units still need to be returned through check-in before their status can change.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {pendingAction && (
+            <div className="space-y-3">
+              <div className="rounded-md bg-muted/40 px-3 py-2 text-sm">
+                {statusImpact(pendingAction)}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="battery-status-reason">Reason</Label>
+                <Textarea
+                  id="battery-status-reason"
+                  value={statusReason}
+                  onChange={(event) => setStatusReason(event.target.value)}
+                  maxLength={500}
+                  placeholder="Shelf audit, damaged contacts, recovered from bag..."
+                />
+              </div>
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => pendingAction && void applyStatusChange(pendingAction)}>
+            <AlertDialogAction
+              disabled={!pendingAction || statusReason.trim().length < 3}
+              onClick={(event) => {
+                event.preventDefault();
+                if (pendingAction) void applyStatusChange(pendingAction, statusReason);
+              }}
+            >
               Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!pendingAddUnits}
+        onOpenChange={(open) => {
+          if (!open) setPendingAddUnits(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Add battery units</AlertDialogTitle>
+            <AlertDialogDescription>
+              Add numbered units to {pendingAddUnits?.skuName}. New units start available and are scanned by exact unit at pickup and return.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {pendingAddUnits && (
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="battery-add-count">Units to add</Label>
+                  <Input
+                    id="battery-add-count"
+                    type="number"
+                    min={1}
+                    max={500}
+                    value={addUnitCount}
+                    onChange={(event) => setAddUnitCount(clampUnitCount(Number(event.target.value)))}
+                  />
+                </div>
+                <div className="rounded-md bg-muted/40 px-3 py-2 text-sm">
+                  <div className="text-xs text-muted-foreground">Count impact</div>
+                  <div className="font-medium tabular-nums">
+                    {pendingAddUnits.currentAvailable} to {pendingAddUnits.currentAvailable + clampUnitCount(addUnitCount)} available
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {pendingAddUnits.currentTotal} to {pendingAddUnits.currentTotal + clampUnitCount(addUnitCount)} total / units #{pendingAddUnits.nextUnitNumber}-#{pendingAddUnits.nextUnitNumber + clampUnitCount(addUnitCount) - 1}
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="battery-add-reason">Reason</Label>
+                <Textarea
+                  id="battery-add-reason"
+                  value={addUnitReason}
+                  onChange={(event) => setAddUnitReason(event.target.value)}
+                  maxLength={500}
+                  placeholder="Low-stock replenishment, new purchase, count correction..."
+                />
+              </div>
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={addBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!pendingAddUnits || addBusy || addUnitReason.trim().length < 3}
+              onClick={(event) => {
+                event.preventDefault();
+                if (pendingAddUnits) void submitAddUnits(pendingAddUnits);
+              }}
+            >
+              {addBusy ? "Adding..." : "Add units"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!pendingQuantityAdjustment}
+        onOpenChange={(open) => {
+          if (!open) setPendingQuantityAdjustment(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Adjust battery quantity</AlertDialogTitle>
+            <AlertDialogDescription>
+              Adjust available stock for {pendingQuantityAdjustment?.skuName}. This writes a stock movement and audit entry.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {pendingQuantityAdjustment && (
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="battery-quantity-delta">Quantity change</Label>
+                  <Input
+                    id="battery-quantity-delta"
+                    type="number"
+                    step={1}
+                    value={quantityDelta}
+                    onChange={(event) => setQuantityDelta(normalizeQuantityDelta(Number(event.target.value)))}
+                  />
+                </div>
+                <div className="rounded-md bg-muted/40 px-3 py-2 text-sm">
+                  <div className="text-xs text-muted-foreground">Count impact</div>
+                  <div className="font-medium tabular-nums">
+                    {pendingQuantityAdjustment.currentAvailable} to {pendingQuantityAdjustment.currentAvailable + normalizeQuantityDelta(quantityDelta)} available
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {pendingQuantityAdjustment.currentTotal} to {pendingQuantityAdjustment.currentTotal + normalizeQuantityDelta(quantityDelta)} total
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="battery-quantity-reason">Reason</Label>
+                <Textarea
+                  id="battery-quantity-reason"
+                  value={quantityReason}
+                  onChange={(event) => setQuantityReason(event.target.value)}
+                  maxLength={500}
+                  placeholder="Shelf count, replenishment, damaged stock..."
+                />
+              </div>
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={quantityBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={
+                !pendingQuantityAdjustment ||
+                quantityBusy ||
+                quantityReason.trim().length < 3 ||
+                normalizeQuantityDelta(quantityDelta) === 0 ||
+                (pendingQuantityAdjustment.currentAvailable + normalizeQuantityDelta(quantityDelta)) < 0
+              }
+              onClick={(event) => {
+                event.preventDefault();
+                if (pendingQuantityAdjustment) void submitQuantityAdjustment(pendingQuantityAdjustment);
+              }}
+            >
+              {quantityBusy ? "Adjusting..." : "Adjust stock"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -473,7 +848,7 @@ function UnitMenu({
   sku: BatterySku;
   unit: BatteryUnit;
   busy: boolean;
-  onPendingAction: (action: PendingAction) => void;
+  onPendingAction: (action: NonNullable<PendingAction>) => void;
 }) {
   const meta = STATUS_META[unit.status];
   const content = (
@@ -492,6 +867,7 @@ function UnitMenu({
   if (unit.status === "CHECKED_OUT") {
     return content;
   }
+  const editableStatus = unit.status;
 
   return (
     <DropdownMenu>
@@ -503,7 +879,7 @@ function UnitMenu({
       <DropdownMenuContent align="start">
         <DropdownMenuItem
           disabled={unit.status === "AVAILABLE"}
-          onClick={() => onPendingAction({ skuId: sku.id, skuName: sku.name, unitNumber: unit.unitNumber, status: "AVAILABLE" })}
+          onClick={() => onPendingAction({ skuId: sku.id, skuName: sku.name, unitNumber: unit.unitNumber, fromStatus: editableStatus, status: "AVAILABLE" })}
         >
           Release to available
         </DropdownMenuItem>
@@ -511,13 +887,13 @@ function UnitMenu({
         <DropdownMenuItem
           disabled={unit.status === "LOST"}
           className="text-destructive focus:text-destructive"
-          onClick={() => onPendingAction({ skuId: sku.id, skuName: sku.name, unitNumber: unit.unitNumber, status: "LOST" })}
+          onClick={() => onPendingAction({ skuId: sku.id, skuName: sku.name, unitNumber: unit.unitNumber, fromStatus: editableStatus, status: "LOST" })}
         >
           Mark missing
         </DropdownMenuItem>
         <DropdownMenuItem
           disabled={unit.status === "RETIRED"}
-          onClick={() => onPendingAction({ skuId: sku.id, skuName: sku.name, unitNumber: unit.unitNumber, status: "RETIRED" })}
+          onClick={() => onPendingAction({ skuId: sku.id, skuName: sku.name, unitNumber: unit.unitNumber, fromStatus: editableStatus, status: "RETIRED" })}
         >
           Retire unit
         </DropdownMenuItem>

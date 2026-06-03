@@ -1,6 +1,6 @@
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { cachedOk } from "@/lib/http";
+import { ok } from "@/lib/http";
 
 export const GET = withAuth(async (_req, { user }) => {
   const [locations, departments, users, bulkSkus] = await Promise.all([
@@ -40,5 +40,5 @@ export const GET = withAuth(async (_req, { user }) => {
     };
   });
 
-  return cachedOk({ data: { locations, departments, users, bulkSkus: bulkSkusFlat } });
+  return ok({ data: { locations, departments, users, bulkSkus: bulkSkusFlat } });
 });
