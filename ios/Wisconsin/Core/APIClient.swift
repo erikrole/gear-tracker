@@ -180,7 +180,7 @@ final class APIClient {
         }
     }
 
-    func updateBooking(id: String, title: String? = nil, notes: String? = nil, startsAt: Date? = nil, endsAt: Date? = nil) async throws {
+    func updateBooking(id: String, title: String? = nil, notes: String? = nil, startsAt: Date? = nil, endsAt: Date? = nil, updatedAt: Date? = nil) async throws {
         struct Body: Encodable {
             let title: String?
             let notes: String?
@@ -188,6 +188,9 @@ final class APIClient {
             let endsAt: String?
         }
         var req = request(path: "/api/bookings/\(id)", method: "PATCH")
+        if let updatedAt {
+            req.setValue(httpDateString(updatedAt), forHTTPHeaderField: "If-Unmodified-Since")
+        }
         let iso = ISO8601DateFormatter()
         iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         req.httpBody = try JSONEncoder().encode(Body(
@@ -835,6 +838,14 @@ final class APIClient {
         req.setValue("WisconsinApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
         req.setValue(baseURL.absoluteString, forHTTPHeaderField: "Origin")
         return req
+    }
+
+    private func httpDateString(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss 'GMT'"
+        return formatter.string(from: date)
     }
 
     private func perform<T: Decodable>(_ request: URLRequest) async throws -> T {

@@ -7,6 +7,15 @@ struct AppTabView: View {
     @Environment(NetworkMonitor.self) private var network
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    private var isStaffOrAdmin: Bool {
+        let role = session.currentUser?.role ?? ""
+        return role == "STAFF" || role == "ADMIN"
+    }
+
+    private var gearTabLabel: String {
+        isStaffOrAdmin ? "Bookings" : "My Gear"
+    }
+
     var body: some View {
         TabView(selection: Binding(
             get: { appState.selectedTab },
@@ -16,11 +25,11 @@ struct AppTabView: View {
                 HomeView()
             }
 
-            Tab("Bookings", systemImage: "calendar.badge.checkmark", value: 1) {
+            Tab(gearTabLabel, systemImage: "calendar.badge.checkmark", value: 1) {
                 BookingsView()
             }
             .badge(appState.overdueCount)
-            .accessibilityLabel(appState.overdueCount > 0 ? "Bookings, \(appState.overdueCount) overdue" : "Bookings")
+            .accessibilityLabel(appState.overdueCount > 0 ? "\(gearTabLabel), \(appState.overdueCount) overdue" : gearTabLabel)
 
             Tab("Items", systemImage: "archivebox", value: 2) {
                 ItemsView()
@@ -36,8 +45,10 @@ struct AppTabView: View {
             .badge(appState.myShiftCount)
             .accessibilityLabel(appState.myShiftCount > 0 ? "Schedule, \(appState.myShiftCount) upcoming shifts" : "Schedule")
 
-            Tab("Users", systemImage: "person.2", value: 5) {
-                UsersView()
+            if isStaffOrAdmin {
+                Tab("Users", systemImage: "person.2", value: 5) {
+                    UsersView()
+                }
             }
         }
         .tabBarMinimizeBehavior(.onScrollDown)

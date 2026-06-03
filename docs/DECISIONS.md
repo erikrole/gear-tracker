@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-05-20
+- Last Updated: 2026-06-02
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -439,11 +439,11 @@
   - Calendar event sync is currently manual-only (button click in Settings). Staff forget to sync, leading to stale event data that causes shift coverage gaps and missed game-day prep.
   - Vercel Hobby plan supports only one cron invocation per day. Existing notification cron runs at 8 AM UTC.
 - Decision:
-  - Add `GET /api/cron/calendar-sync` endpoint to `vercel.json` cron schedule, running once daily at 6 AM UTC (`0 6 * * *`) — before the 8 AM notification cron so new events generate shifts before overdue checks run.
-  - Endpoint calls `syncAllCalendarSources()` → `generateShiftsForNewEvents()` for each enabled source.
-  - Auth: `CRON_SECRET` header validation (same pattern as notification cron).
+  - Calendar sync is implemented through `GET /api/cron/morning-refresh` in `vercel.json`, running once daily at 08:00 UTC (`0 8 * * *`) before the 09:00 UTC notification cron.
+  - Morning refresh calls enabled-source sync, generates shifts for new events, and owns the related daily maintenance work documented in D-035.
+  - Auth: shared cron bearer validation via `withCron()`.
   - Manual "Sync Now" button remains in Settings for on-demand refresh (existing feature).
-  - Calendar source list in Settings shows staleness indicator: green (< 12h), yellow (12-24h), red (> 24h) based on `lastFetchedAt`.
+  - Calendar source list in Settings shows staleness indicator based on `lastFetchedAt`.
   - On repeated sync failure (3+ consecutive errors), create an in-app notification to all admins.
 - Consequences:
   - Events refresh daily without manual intervention. Staff can still sync on-demand when needed.
@@ -453,6 +453,7 @@
   - Sources with `enabled: false` are skipped by cron (same as manual sync).
   - Sync is idempotent — manual + cron firing close together is harmless.
   - Sequential source processing to avoid parallel DB contention.
+  - Manual source sync keeps the source-scoped database lease so duplicate clicks return 409 instead of running duplicate external fetch and shift-generation work.
 
 ## D-027: Venue Mapping Is Admin-Owned with Pattern Validation
 - Date: 2026-03-24
@@ -689,6 +690,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 4. ~~Student mobile KPI definitions~~ — resolved (PD-5): taps-to-checkout ≤3, scan success ≥95%, task completion <30s. Telemetry deferred to Phase B.
 
 ## Change Log
+- 2026-06-02: Updated D-026 to match shipped cron reality. Calendar sync is now documented as part of `morning-refresh` at 08:00 UTC, aligned with D-035, while manual Settings sync remains the on-demand escape hatch.
 - 2026-05-20: Added D-036 for Brave-backed human-pick product image search. This replaces any revival of the withdrawn B&H scraping path for photos and keeps metadata enrichment out of scope.
 - 2026-05-13: Added D-035 for daily maintenance consolidation: morning-refresh owns shift archiving, stale trade expiry, and pending-pickup auto-expiry; duplicate unscheduled cron routes should be deleted.
 - 2026-05-10: Amended D-028 to match the kiosk custody boundary: app `/scan` is lookup-only, while checkout pickup and return scans run through kiosk routes.

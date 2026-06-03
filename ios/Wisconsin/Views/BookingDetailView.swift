@@ -274,7 +274,8 @@ struct EditBookingSheet: View {
                 title: title != booking.title ? title.trimmingCharacters(in: .whitespaces) : nil,
                 notes: notes != (booking.notes ?? "") ? (notes.isEmpty ? nil : notes) : nil,
                 startsAt: startsAt != booking.startsAt ? startsAt : nil,
-                endsAt: endsAt != booking.endsAt ? endsAt : nil
+                endsAt: endsAt != booking.endsAt ? endsAt : nil,
+                updatedAt: booking.updatedAt
             )
             Haptics.success()
             onSaved()

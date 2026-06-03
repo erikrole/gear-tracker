@@ -3,8 +3,8 @@
 ## Document Control
 - Area: Notifications
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-24
-- Status: Active — escalation schedule + iOS tap-through + APNs native push shipped
+- Last Updated: 2026-06-02
+- Status: Active — escalation schedule + iOS tap-through + APNs native push + calendar sync health alerts shipped
 - Version: V1.2
 
 ## Direction
@@ -133,6 +133,18 @@ Implementation: `src/lib/services/notifications.ts`
 - Badge counts on nav items for Reservations and Check-outs can show overdue + due-today urgency
 - Overdue count in banner must remain consistent with `AREA_DASHBOARD.md` overdue banner spec
 
+## Calendar Sync Health Triggers (Implemented 2026-06-02)
+
+| Event | Type | Recipient | Trigger point |
+|---|---|---|---|
+| Calendar source has repeated hard daily sync failures | `calendar_sync_failure` | Active admins | `morning-refresh` after 3+ consecutive hard source sync failures |
+
+- Channel: IN_APP only.
+- Deduplication: `calendar_sync_failure:{sourceId}:{consecutiveFailures}:{adminId}` so each admin gets at most one row for a specific source/failure-count threshold.
+- Payload includes `sourceId`, `sourceName`, `consecutiveFailures`, latest `error`, and `href: "/settings/calendar-sources"`.
+- Clean hard sync results reset the source counter. Partial malformed-event skips without a hard `SyncResult.error` remain visible in source health but do not trigger repeated-failure notifications.
+- Implementation: `src/lib/services/calendar-sync-health.ts` called from `GET /api/cron/morning-refresh`.
+
 ## D-009 Acceptance (2026-03-15)
 
 D-009 (Overdue Escalation Policy) is status `Accepted`. Decisions:
@@ -212,6 +224,7 @@ Current behavior:
 | `EMAIL_FROM` | No | From address for transactional email. Default: `Gear Tracker <noreply@gear-tracker.app>` |
 
 ## Change Log
+- 2026-06-02: Calendar sync health alerts shipped. Morning refresh now creates persistent in-app `calendar_sync_failure` rows for active admins after 3+ consecutive hard daily failures for a source, deduped by source, failure count, and admin recipient.
 - 2026-05-25: Web bug sweep Batch 24 hardened URL-backed notification inbox state. Unread-only and page params now rehydrate from browser back/forward and external URL changes through the shared `useUrlState` hook.
 - 2026-05-24: Web bug sweep hardened `/notifications` mark-read, mark-all-read, and manual overdue processing against duplicate clicks, expired sessions, malformed/non-JSON responses, stale notification IDs, and misleading success copy. `PATCH /api/notifications` now returns explicit 400/404 errors and only audits successful single-notification updates.
 - 2026-05-21: Shift schedule notifications now cover new assignments, approved requests, removed assignments, shift call-time changes, and personal call-time changes. Copy spells out Staff or Student and includes the effective call time.
