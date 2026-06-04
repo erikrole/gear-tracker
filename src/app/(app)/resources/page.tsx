@@ -135,7 +135,10 @@ function normalizeCategory(category: string) {
 }
 
 function guideSearchText(guide: GuideListItem) {
-  return [guide.title, guide.category, guide.author.name, guide.summary]
+  // Include the full body (markdown) so search matches document content, not
+  // just title/category/author/summary. The body is already in the list
+  // payload, and this mirrors the server-side `listGuides` search.
+  return [guide.title, guide.category, guide.author.name, guide.summary, guide.markdown]
     .join(" ")
     .toLowerCase();
 }
