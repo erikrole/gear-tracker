@@ -64,6 +64,7 @@ EventDetailSheet.swift                 | event-detail                | audit
 NotificationsSheet.swift               | notifications-sheet         | audit
 OverdueReportView.swift                | overdue-report              | audit
 LoginView.swift                        | login                       | audit
+PasswordSetupView.swift                | login                       | audit
 ScanView.swift                         | scan                        | audit
 UsersView.swift                        | users                       | audit
 UserDetailView.swift                   | users                       | audit

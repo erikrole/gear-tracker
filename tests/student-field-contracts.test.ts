@@ -14,6 +14,113 @@ describe("student field mobile contracts", () => {
     expect(apiClient).toContain(".init(name: \"status_in\", value: statusList.map(\\.rawValue).joined(separator: \",\"))");
   });
 
+  it("keeps iOS booking edits on the optimistic-lock contract", () => {
+    const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
+    const models = source("ios/Wisconsin/Models/Models.swift");
+    const detail = source("ios/Wisconsin/Views/BookingDetailView.swift");
+
+    expect(models).toContain("let updatedAt: Date?");
+    expect(apiClient).toContain("updatedAt: Date? = nil");
+    expect(apiClient).toContain("forHTTPHeaderField: \"If-Unmodified-Since\"");
+    expect(apiClient).toContain("httpDateString(updatedAt)");
+    expect(detail).toContain("updatedAt: booking.updatedAt");
+  });
+
+  it("keeps iOS booking tabs and toolbar buttons field-readable", () => {
+    const appTab = source("ios/Wisconsin/Views/AppTabView.swift");
+    const bookingsView = source("ios/Wisconsin/Views/BookingsView.swift");
+
+    expect(appTab).toContain("isStaffOrAdmin ? \"Bookings\" : \"My Gear\"");
+    expect(appTab).toContain("if isStaffOrAdmin");
+    expect(bookingsView).toContain("mineOnly = currentUserRole == \"STUDENT\"");
+    expect(bookingsView).toContain("vm.tab == .reservations ? \"Reservations\" : \"Checkouts\"");
+    expect(bookingsView).toContain("Label(vm.mineOnly ? \"Mine\" : \"All\"");
+    expect(bookingsView).toContain("Label(\"New\", systemImage: \"plus\")");
+    expect(bookingsView).toContain("Picker(\"Booking type\"");
+  });
+
+  it("keeps iOS Schedule controls self-describing", () => {
+    const scheduleView = source("ios/Wisconsin/Views/ScheduleView.swift");
+
+    expect(scheduleView).toContain("scheduleControlStrip");
+    expect(scheduleView).toContain("Picker(\"Schedule view\"");
+    expect(scheduleView).toContain("\"My shifts\"");
+    expect(scheduleView).toContain("Label(title, systemImage: systemImage)");
+    expect(scheduleView).toContain("\"Past events\"");
+    expect(scheduleView).toContain("Label(\"Trades\", systemImage: \"arrow.triangle.2.circlepath\")");
+    expect(scheduleView).toContain("Label(\"Calendar\", systemImage: isSubscribing ? \"calendar\" : \"calendar.badge.plus\")");
+    expect(scheduleView).not.toContain("Switch to calendar view");
+    expect(scheduleView).not.toContain("Switch to list view");
+  });
+
+  it("keeps iOS Schedule detail and trade actions self-describing", () => {
+    const eventDetail = source("ios/Wisconsin/Views/EventDetailSheet.swift");
+    const tradeBoard = source("ios/Wisconsin/Views/Schedule/TradeBoardSheet.swift");
+    const postTrade = source("ios/Wisconsin/Views/Schedule/PostTradeSheet.swift");
+
+    expect(eventDetail).toContain("Label(\"Add shift\", systemImage: \"plus.circle\")");
+    expect(eventDetail).toContain("Label(\"Assign person\", systemImage: \"plus.circle.fill\")");
+    expect(eventDetail).toContain("Label(\"Request shift\", systemImage: \"hand.raised.fill\")");
+    expect(eventDetail).toContain("Button(\"Approve \\(assignment.user.name)\")");
+    expect(eventDetail).toContain("Button(\"Decline \\(assignment.user.name)\")");
+    expect(tradeBoard).toContain("Label(\"Post trade\", systemImage: \"plus\")");
+    expect(tradeBoard).toContain("Text(\"\\(shift.area.shiftAreaLabel) shift\")");
+    expect(tradeBoard).toContain("Text(\"Claim this shift\")");
+    expect(postTrade).toContain("Section(\"Choose Shift to Trade\")");
+    expect(postTrade).toContain("Text(\"Post Trade\").fontWeight(.semibold)");
+  });
+
+  it("keeps iOS Items controls self-describing", () => {
+    const itemsView = source("ios/Wisconsin/Views/ItemsView.swift");
+
+    expect(itemsView).toContain("itemsControlStrip");
+    expect(itemsView).toContain("Label(\"Favorites\"");
+    expect(itemsView).toContain("AssetStatusFilterMenu(selected: $vm.selectedStatuses)");
+    expect(itemsView).toContain("selected.isEmpty ? \"All statuses\" : \"\\(selected.count) statuses\"");
+    expect(itemsView).not.toContain("ToolbarItem(placement: .topBarTrailing)");
+    expect(itemsView).not.toContain("Showing favorites");
+    expect(itemsView).not.toContain("Show favorites");
+  });
+
+  it("keeps iOS Booking Detail edit state self-describing", () => {
+    const detail = source("ios/Wisconsin/Views/BookingDetailView.swift");
+
+    expect(detail).toContain("Label(\"Edit\", systemImage: \"pencil\")");
+    expect(detail).toContain("BookingEditLockedNotice");
+    expect(detail).toContain("Text(\"Editing locked\")");
+    expect(detail).toContain("Use Extend Return Date");
+    expect(detail).toContain("pickup and return stay at a kiosk");
+    expect(detail).toContain("if canActOnBooking && !canEditBooking");
+    expect(detail).not.toContain("Image(systemName: \"pencil\")");
+  });
+
+  it("keeps iOS Profile controls self-describing", () => {
+    const appTab = source("ios/Wisconsin/Views/AppTabView.swift");
+
+    expect(appTab).toContain("Text(\"Pause alerts\")");
+    expect(appTab).toContain("Text(\"Pause \\(label)\")");
+    expect(appTab).toContain("title: \"Email alerts\"");
+    expect(appTab).toContain("title: \"Push alerts\"");
+    expect(appTab).toContain("Label(\"Theme\", systemImage: \"paintpalette\")");
+    expect(appTab).toContain("Label(\"My Availability\", systemImage: \"calendar.badge.clock\")");
+    expect(appTab).toContain("Label(\"Add availability block\", systemImage: \"plus\")");
+    expect(appTab).toContain("Label(\"Add block\", systemImage: \"plus\")");
+  });
+
+  it("keeps iOS Create Booking actions and selected equipment recoverable", () => {
+    const createSheet = source("ios/Wisconsin/Views/CreateBookingSheet.swift");
+
+    expect(createSheet).toContain("selectedAssetSnapshots: [String: Asset]");
+    expect(createSheet).toContain("var selectedAssets: [Asset]");
+    expect(createSheet).toContain("Button(\"Choose Equipment\")");
+    expect(createSheet).toContain("Text(\"Create Reservation\").fontWeight(.semibold)");
+    expect(createSheet).toContain("Text(\"Selected Equipment\")");
+    expect(createSheet).toContain("SelectedEquipmentRow");
+    expect(createSheet).toContain("Label(\"Remove\", systemImage: \"xmark.circle.fill\")");
+    expect(createSheet).toContain("Remove anything you do not want before creating the reservation.");
+    expect(createSheet).toContain("func removeSelectedAsset(_ asset: Asset)");
+  });
+
   it("keeps my-shifts gear context aligned with dashboard event work", () => {
     const route = source("src/app/api/my-shifts/route.ts");
 

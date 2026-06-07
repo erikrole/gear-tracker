@@ -4,7 +4,7 @@
 **Ship bar:** student-friendly, fully functional for core flows, zero hiccups in front of a class
 **Audit type:** static source (no build/run/UI tests)
 
-Scope: `LoginView` + `SessionStore.login` + `APIClient.login` (cookie-based session, `HTTPCookieStorage` shared, no keychain).
+Scope: `LoginView` + `PasswordSetupView` + `SessionStore.login` / `SessionStore.completeForcedPasswordChange` + `APIClient.login` / `APIClient.changePassword` (cookie-based session, `HTTPCookieStorage` shared, no keychain).
 
 ## P0 — blocks MVP
 
@@ -36,10 +36,17 @@ _None._ Auth uses HTTPS, cookies persist via `HTTPCookieStorage.shared`, errors 
 - [ ] [Hardening] **Deferred.** No biometric (Face ID / Touch ID) re-auth. Cookie persists across launches; Face ID would only shave seconds off post-logout. Needs LocalAuthentication framework + Keychain-backed session marker. Logged for later.
 
 - [x] [Parity] iOS now exposes "Need an account?" Link to web `/register`; register itself stays web-only behind the AllowedEmail allowlist (D-2026-04-03).
+      2026-06-05 refresh: source had drifted from this audit and the device walkthrough; `LoginView` now restores the `Need an account?` link to `https://gear.erikrole.com/register`.
 
 - [x] [Flows] `SessionStore.clearError()` added; LoginView calls it from `.onChange(of:)` on both fields so a stale 401 disappears the moment the user starts typing.
 
 - [x] [Hardening] Logout body now carries an explanatory comment for the `try?` swallow ("a stuck server must not strand the user signed in").
+
+- [x] [Flows] Temporary-password first login is native. `CurrentUser` decodes `forcePasswordChange`, `RootView` routes forced users to `PasswordSetupView` before `AppTabView`, the screen submits to `/api/me/change-password`, and `SessionStore` refreshes `/api/me` before the user enters the app shell.
+
+- [x] [UI polish] Forced-password setup now keeps password requirements visible while the user types: temporary password entered, at least 8 characters, passwords match, and different from the temporary password. This keeps first-login validation from relying on one changing warning line.
+
+- [x] [Accessibility] Password visibility controls now have explicit action and state copy. The native Login eye button speaks as "Show password" or "Hide password" and exposes "Password hidden" or "Password visible." The forced-password setup eye button speaks as "Show passwords" or "Hide passwords" and exposes "Passwords hidden" or "Passwords visible."
 
 - [ ] [Hardening] **Deferred.** iPad cosmetic: brand header dark band can look cramped at the top safe area. Wait until iPad becomes a launch target.
 
@@ -53,6 +60,10 @@ There is no `AREA_LOGIN.md` or dedicated auth area doc. AC inferred from `AREA_U
 - [x] AC: no plaintext password storage (`SecureField`, no `@AppStorage`, no UserDefaults writes).
 - [x] AC: HTTPS-only base URL (`APIClient.swift:25`).
 - [x] AC: password recovery reachable from iOS — Link to `gear.erikrole.com/forgot-password` shipped.
+- [x] AC: admin-issued temporary-password users can complete forced password setup on iOS without using a computer.
+- [x] AC: forced-password setup gives persistent in-form password requirement guidance.
+- [x] AC: password visibility toggle is understandable to VoiceOver users.
+- [x] AC: forced-password password visibility toggle exposes its hidden/visible state to VoiceOver users.
 
 ## Lenses checked
 - [x] Gaps
@@ -64,6 +75,7 @@ There is no `AREA_LOGIN.md` or dedicated auth area doc. AC inferred from `AREA_U
 
 ## Files read
 - `ios/Wisconsin/Views/LoginView.swift`
+- `ios/Wisconsin/Views/PasswordSetupView.swift`
 - `ios/Wisconsin/Core/SessionStore.swift`
 - `ios/Wisconsin/Core/APIClient.swift` (auth methods + URLSession config)
 - `ios/Wisconsin/App/WisconsinApp.swift` (RootView + push registration on user change)

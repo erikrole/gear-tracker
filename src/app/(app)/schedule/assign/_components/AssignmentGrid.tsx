@@ -17,6 +17,8 @@ type Props = {
   columns: GridColumn[];
   allUsers: PickerUser[];
   usersLoading: boolean;
+  usersLoadError: false | "network" | "server";
+  onRetryUsers: () => void;
   isStaff: boolean;
   onRefetch: () => void;
   hasFilters: boolean;
@@ -28,6 +30,8 @@ export function AssignmentGrid({
   columns,
   allUsers,
   usersLoading,
+  usersLoadError,
+  onRetryUsers,
   isStaff,
   onRefetch,
   hasFilters,
@@ -163,6 +167,8 @@ export function AssignmentGrid({
                       area={col.area}
                       allUsers={allUsers}
                       usersLoading={usersLoading}
+                      usersLoadError={usersLoadError}
+                      onRetryUsers={onRetryUsers}
                       isStaff={isStaff}
                       onRefetch={onRefetch}
                     />

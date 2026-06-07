@@ -38,6 +38,23 @@ final class SessionStore {
         isLoading = false
     }
 
+    func completeForcedPasswordChange(currentPassword: String, newPassword: String) async {
+        isLoading = true
+        error = nil
+        do {
+            try await APIClient.shared.changePassword(
+                currentPassword: currentPassword,
+                newPassword: newPassword,
+                revokeOtherSessions: true
+            )
+            currentUser = try await APIClient.shared.me()
+            isOffline = false
+        } catch {
+            self.error = error.localizedDescription
+        }
+        isLoading = false
+    }
+
     func logout() async {
         // Best-effort: a stuck server must not strand the user signed in.
         // Local sign-out (clear `currentUser` + cookies) always wins.

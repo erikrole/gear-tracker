@@ -17,6 +17,7 @@ import { FadeUp } from "@/components/ui/motion";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 import { getVisiblePageSearchResults, type PageSearchResult } from "@/lib/search-pages";
+import { assetSearchTitle } from "@/lib/search-result-title";
 
 type EntitySearchResult = {
   type: "item" | "checkout" | "reservation" | "user";
@@ -36,6 +37,7 @@ type ApiSearchList<T> = {
 type AssetSearchItem = {
   id: string;
   assetTag?: string | null;
+  name?: string | null;
   brand?: string | null;
   model?: string | null;
   type?: string | null;
@@ -163,7 +165,7 @@ export default function SearchPage() {
           merged.push({
             type: "item",
             id: item.id,
-            title: [item.assetTag, item.brand, item.model].filter(Boolean).join(" · "),
+            title: assetSearchTitle(item),
             subtitle: [item.type, item.location?.name].filter(Boolean).join(" · "),
             href: `/items/${item.id}`,
             status: item.computedStatus || item.status || undefined,

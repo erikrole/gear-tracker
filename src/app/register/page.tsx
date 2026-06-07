@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -42,6 +42,13 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isNetworkError, setIsNetworkError] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const invitedEmail = new URLSearchParams(window.location.search).get("email")?.trim() ?? "";
+    if (invitedEmail) {
+      setEmail(invitedEmail);
+    }
+  }, []);
 
   const { submit, submitting, formError, clearErrors } = useFormSubmit({
     url: "/api/auth/register",

@@ -224,6 +224,8 @@ Current behavior:
 | `EMAIL_FROM` | No | From address for transactional email. Default: `Gear Tracker <noreply@gear-tracker.app>` |
 
 ## Change Log
+- 2026-06-05: iOS Notifications read-recovery honesty shipped. Native mark-read and mark-all-read now inspect PATCH response status through the shared API handler, restore unread state on failure, and show a recoverable Refresh banner with error haptic instead of silently treating rejected updates as success.
+- 2026-06-03: iOS Profile notification controls now use self-describing labels for field use. Quiet-hours controls read Pause alerts with visible Pause 1 hour, Pause 1 day, and Pause 1 week actions, and channel toggles read Email alerts and Push alerts while preserving the in-app inbox always-on contract.
 - 2026-06-02: Calendar sync health alerts shipped. Morning refresh now creates persistent in-app `calendar_sync_failure` rows for active admins after 3+ consecutive hard daily failures for a source, deduped by source, failure count, and admin recipient.
 - 2026-05-25: Web bug sweep Batch 24 hardened URL-backed notification inbox state. Unread-only and page params now rehydrate from browser back/forward and external URL changes through the shared `useUrlState` hook.
 - 2026-05-24: Web bug sweep hardened `/notifications` mark-read, mark-all-read, and manual overdue processing against duplicate clicks, expired sessions, malformed/non-JSON responses, stale notification IDs, and misleading success copy. `PATCH /api/notifications` now returns explicit 400/404 errors and only audits successful single-notification updates.

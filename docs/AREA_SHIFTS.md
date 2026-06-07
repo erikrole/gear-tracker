@@ -1,6 +1,6 @@
 # AREA: Shift Calendar & Scheduling
 
-> Status: **Implemented** | Owner: TBD | Last Updated: 2026-06-03
+> Status: **Implemented** | Owner: TBD | Last Updated: 2026-06-06
 
 ## Purpose
 
@@ -75,6 +75,15 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - Sports code mappings (existing — `src/lib/sports.ts`)
 
 ## Change Log
+- 2026-06-06: Web Schedule Assign filter metadata cleanup shipped. `/schedule/assign` now gives the Sport and Area filters stable rendered browser/accessibility identities while preserving month navigation, review filters, grid data, and assignment behavior.
+- 2026-06-06: Web Schedule Assign user-picker recovery shipped. `/schedule/assign` now treats failed active-user reads as a retryable picker error instead of an empty candidate list, preserving universal assignment, conflict review, slot editing, and call-window behavior.
+- 2026-06-06: iOS Schedule list Dynamic Type shipped. Native Schedule list date headers, My Shift chips, Home/Away labels, coverage icons, shift labels, and weather microcopy now use semantic SwiftUI fonts instead of fixed point sizes while preserving List/Calendar scope, filters, trade/calendar actions, coverage chips, and row routing.
+- 2026-06-05: iOS Trade Board error recovery shipped. Native claim and cancel failures now render an in-sheet recovery banner with Refresh and Dismiss actions plus error haptics, preserving the Trade Board context instead of using a generic OK-only alert.
+- 2026-06-05: iOS Trade Board cancel honesty shipped. Native cancellation now calls the actual `PATCH /api/shift-trades/[id]/cancel` route, decodes the returned trade through the shared API handler, and lets the returned `CANCELLED` status remove the post from My Active Posts instead of locally deleting after an unchecked request.
+- 2026-06-05: iOS Schedule calendar hit-target polish shipped. Calendar day cells keep their compact visual date circles while expanding the interactive day target to the 44pt mobile baseline, preserving the existing List/Calendar workflow and student-first scope.
+- 2026-06-03: iOS Schedule detail and trade control clarity shipped. Event Detail now uses visible Add shift, Assign person, Request shift, Approve/Decline with names, and Trade Board/Post Trade now use Post trade, Claim this shift, Choose Shift to Trade, and Post Trade labels. Shift assignment, request, approval, and trade APIs are unchanged.
+- 2026-06-03: iOS Profile availability controls now expose adding class-conflict blocks with visible Add availability block and Add block actions instead of relying on a plus-only toolbar affordance. The availability contract remains advisory and student-owned on iOS.
+- 2026-06-03: iOS Schedule control clarity shipped. The native Schedule tab now uses a labeled List/Calendar segmented control and named My shifts/Past events chips above the schedule content, while the top toolbar keeps direct actions labeled as Trades and Calendar. This reduces icon-memory burden without adding desktop-only Week view or extra operator filters to iOS.
 - 2026-06-03: iOS student field readiness follow-up aligned `/api/my-shifts` gear context with dashboard event work. My Shifts now counts `PENDING_PICKUP` gear as `pickup_ready`, links gear through primary event, multi-event `BookingEvent`, and `shiftAssignmentId`, and native Schedule labels that state as "Gear ready" instead of falling through to "No gear". Dashboard event-work payloads now return each event's actual `allDay` value for native event detail routing.
 - 2026-06-03: Assignment conflict review shipped for staff/admin web workflows. `/schedule/assign` now has a Review filter for all, conflicted, open, and clean assignment states, shows conflict counts in the toolbar, displays assigned-person conflict notes directly in the grid, and keeps the personal call-window editor next to each conflicted assignment. Assignment candidate pickers can filter loaded candidates by All, Conflicts, and Clean using the existing per-shift availability check. Availability remains advisory and does not automatically change call windows.
 - 2026-06-03: Web student availability exceptions shipped. Student profile Availability now supports semester-bounded weekly class blocks plus ad hoc one-time conflicts, with create/edit/delete self-service for students and staff/admin management on student profiles. `/api/shifts/[id]/conflicts`, direct assignment, auto-fill, and trade swaps now use one shared overlap helper against the effective call window, so Schedule Assign and event detail Crew can surface conflict context without automatically changing call windows.

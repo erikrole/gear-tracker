@@ -14,6 +14,9 @@ _None._ Pull-to-refresh works. Auth handled. Claim + Cancel both have confirmati
 
 ## P1 — polish before ship
 
+- [x] [Hardening] **Native cancel now uses the real server contract and returned state.** `APIClient.cancelShiftTrade` had drifted to `POST` plus unchecked raw `session.data`, while the shipped route is `PATCH /api/shift-trades/[id]/cancel` and returns `{ data: trade }`. That could make the native board remove a post locally even when the server rejected the mutation. The client now calls `PATCH`, decodes `DataWrapper<ShiftTrade>` through `perform`, and `TradeBoardViewModel.cancel` updates the row from the returned `CANCELLED` status.
+      `ios/Wisconsin/Core/APIClient.swift`; `ios/Wisconsin/Views/Schedule/TradeBoardSheet.swift`; `src/app/api/shift-trades/[id]/cancel/route.ts`
+
 - [x] [Hardening] **Direct `UINotificationFeedbackGenerator()` call bypasses the centralized `Haptics` enum.** Same drift fixed on the link sticker wizard earlier today. The claim-success path fires a raw success haptic; cancel + post don't fire any.
       `ios/Wisconsin/Views/Schedule/TradeBoardSheet.swift:111`.
       Suggested fix: replace the raw `UINotificationFeedbackGenerator()` call with `Haptics.success()`. Also fire `Haptics.success()` on cancel-success and `Haptics.warning()` in the error catches so the trade-management flow has a complete haptic chain.
@@ -22,9 +25,9 @@ _None._ Pull-to-refresh works. Auth handled. Claim + Cancel both have confirmati
       `ios/Wisconsin/Views/Schedule/TradeBoardSheet.swift:283-291`.
       Suggested fix: route through `Color.statusText(_:)` and `Color.statusBackground(_:)` for the foreground + background pair. `.open` → `.green`, `.claimed` → `.orange`, `.completed` → `.gray`, `.cancelled / .expired / .unknown` → `.gray`. Mirror the kiosk + booking pass.
 
-- [x] [Flows] **Action-error alert is OK-only.** Failed claim or cancel surfaces in an alert with just OK; user must dismiss + re-tap. Same shape of fix shipped on create-booking today.
+- [x] [Flows] **Action-error alert is OK-only.** Failed claim or cancel surfaced in an alert with just OK; user had to dismiss + re-tap. Same shape of fix shipped on create-booking today.
       `ios/Wisconsin/Views/Schedule/TradeBoardSheet.swift:143-147`.
-      Decision: **Skip with rationale.** Unlike create-booking which has a single submit retry path, trade board has two distinct mutating actions (claim + cancel) that share the alert state. A "Try again" button can't disambiguate which action to retry without holding extra state. The user's natural recovery path (tap the Claim button or swipe-cancel again) is one tap away in the list. Leaving as-is.
+      Fixed 2026-06-05: Trade Board now shows an in-sheet error banner with Refresh and Dismiss instead of a generic alert. This preserves the list context and avoids ambiguous auto-retry state for claim versus cancel.
 
 - [x] [A11y] **`TradeRow` not combined.** VoiceOver walks each piece (area, event summary, status pill, time row with clock icon, person row with person icon, notes, claim button) — seven announcements per row. Combined into a single "Trade: VIDEO at Football vs Western Illinois, Friday Sep 11, 9:00–13:00, posted by Erik Mason, status Open" announcement matches today's row patterns.
       `ios/Wisconsin/Views/Schedule/TradeBoardSheet.swift:205-269`.
@@ -58,6 +61,8 @@ Per `AREA_SHIFTS.md`:
 - [x] AC: status chip uses cross-app token discipline — **closed by P1 fix.**
 - [x] AC: claim haptic via centralized `Haptics` enum — **closed by P1 fix.**
 - [x] AC: VoiceOver users hear each row as a combined element — **closed by P1 a11y fixes.**
+- [x] AC: cancel mutation uses the current server route and only updates local state after a decoded server response — **closed by HIG/iOS 27 readiness slice 8.**
+- [x] AC: claim/cancel failures stay recoverable in context instead of using a generic OK-only alert — **closed by HIG/iOS 27 readiness slice 9.**
 
 ## Lenses checked
 - [x] Gaps

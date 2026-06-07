@@ -62,6 +62,9 @@ struct BookingDetailView: View {
                         if let notes = booking.notes, !notes.isEmpty {
                             FormCard { NotesSection(notes: notes) }
                         }
+                        if canActOnBooking && !canEditBooking {
+                            FormCard { BookingEditLockedNotice(booking: booking) }
+                        }
                         if canActOnBooking,
                            booking.status == .booked || booking.status == .pendingPickup || booking.status == .open {
                             ActionsSection(
@@ -89,7 +92,8 @@ struct BookingDetailView: View {
             if canEditBooking {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showEdit = true } label: {
-                        Image(systemName: "pencil")
+                        Label("Edit", systemImage: "pencil")
+                            .frame(minHeight: 44)
                     }
                     .accessibilityLabel("Edit Booking")
                 }
@@ -519,6 +523,39 @@ private struct NotesSection: View {
             Text(notes)
                 .font(.subheadline)
         }
+    }
+}
+
+private struct BookingEditLockedNotice: View {
+    let booking: Booking
+
+    private var message: String {
+        switch booking.status {
+        case .pendingPickup:
+            return "Pickup is ready. Details are locked now, but you can still cancel before pickup or ask staff for changes."
+        case .open:
+            return "Checkout is active. Use Extend Return Date if you need more time; pickup and return stay at a kiosk."
+        default:
+            return "This booking is view-only in its current state."
+        }
+    }
+
+    var body: some View {
+        Label {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Editing locked")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                Text(message)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        } icon: {
+            Image(systemName: "lock.fill")
+                .foregroundStyle(Color.statusText(.gray))
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 

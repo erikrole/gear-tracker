@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Items
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-25
+- Last Updated: 2026-06-03
 - Status: Active
 - Version: V1
 
@@ -36,6 +36,12 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 2. User filters by status/category/location/item kind and searches by tagName, productName, brand, model, serial, or tracking code.
 3. Searches return one row per item family/SKU; exact unit QR scans resolve to unit context under the parent family rather than producing separate catalog rows.
 4. User opens row details or row actions.
+
+### Native iOS Items
+1. Search stays in the native search bar.
+2. Favorites and Status scope controls are visible named controls above the list, not icon-only toolbar buttons.
+3. Row actions remain swipe and context-menu based: Favorite, Reserve, and Copy Asset Tag.
+4. The mobile Items list intentionally avoids desktop-only sorting, bulk actions, and advanced filter density.
 
 ### Inventory Hygiene
 1. Staff/admin opens `/items/hygiene` from the Admin nav.
@@ -397,6 +403,12 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-06-06: **iOS Items empty-state recovery.** Native search-empty and Favorites-only empty states now include direct recovery actions, Clear search and Show all items, while preserving the current search, Favorites, Status scope, row actions, and no-inventory copy.
+- 2026-06-06: **iOS Items load error copy.** Native Items initial-load and pagination failures now use recovery-oriented Items copy instead of raw Swift error descriptions, while keeping the existing Retry controls, pull-to-refresh, search, filters, and row actions unchanged.
+- 2026-06-05: **iOS Items retired reserve gating.** Native retired items remain visible with their derived Retired status, but iOS no longer exposes Reserve from list swipe actions, row context menus, or item detail. Favorite, copy-tag, row navigation, search, and status filtering are unchanged.
+- 2026-06-05: **iOS Items favorite failure recovery.** Native item-list favorite actions now preserve optimistic update plus rollback behavior while showing a shared bottom toast when the server rejects the favorite change, so a reverted star is no longer silent. Search, Favorites, Status filters, swipe actions, context menus, and the favorite API contract are unchanged.
+- 2026-06-05: **iOS Items row detail hint.** Native item rows now expose a VoiceOver hint that double-tap opens item details while keeping tag-first identity, derived status labels, search, Favorites, Status filters, swipe actions, and context menus unchanged.
+- 2026-06-03: **iOS Items control clarity slice.** Native Items now exposes Favorites and Status as visible named controls above the list instead of icon-only toolbar buttons. The slice preserves search, pagination, row favorite/reserve actions, reserve prefill, and the intentional V1 mobile deferral for admin lifecycle actions.
 - 2026-05-25: **Web bug sweep Batch 48.** The Labels print queue now distinguishes serialized item rows from item-family rows in checkbox and open-link accessible names, including tracking mode and location for item families, preventing duplicate labels such as `Select Sony Battery` when serialized assets and multiple bulk families share the same visible product name.
 - 2026-05-25: **Web bug sweep Batch 45.** Items list selection/favorites, item detail reads/actions/history/insights/attachments, Inventory Hygiene, and the Fill Gaps dialog now safe-parse success bodies and reject unreadable or incomplete payloads instead of silently trusting raw `res.json()` reads.
 - 2026-05-25: **Web bug sweep Batch 35.** Item detail link-field icon buttons now have explicit accessible names independent of hover tooltips, and the link input exposes stable browser form metadata. Duplicate tag/serial blur checks now use the shared auth and safe-JSON response path, and inline category creation reports unreadable success responses instead of silently failing to attach the new category.

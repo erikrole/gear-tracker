@@ -28,8 +28,8 @@ Make the native app's tabs and high-frequency buttons clearer while fixing the b
 - [x] Default students to their own gear while preserving the ability to switch to all visible bookings.
 - [x] Keep Scan one tap away and do not add custody scan actions to phone booking screens.
 - [x] Hide the Users tab from the student primary tab bar to keep student field execution to five destinations.
-- [ ] Run focused static tests, TypeScript, iOS drift/gap checks, XcodeBuildMCP simulator build, and whitespace checks.
-- [ ] Update docs and record verification.
+- [x] Run focused static tests, TypeScript, iOS drift/gap checks, XcodeBuildMCP simulator build, and whitespace checks.
+- [x] Update docs and record verification.
 
 ## Acceptance Criteria
 
@@ -42,4 +42,26 @@ Make the native app's tabs and high-frequency buttons clearer while fixing the b
 
 ## Review
 
-Pending verification.
+### Implemented
+
+- `ios/Wisconsin/Models/Models.swift`: `Booking.updatedAt` now decodes as optional so native reads tolerate older API payloads.
+- `ios/Wisconsin/Core/APIClient.swift`: booking edit PATCH calls send `If-Unmodified-Since` when a snapshot timestamp is available.
+- `ios/Wisconsin/Views/BookingDetailView.swift`: edit saves pass the loaded booking timestamp into the API client.
+- `ios/Wisconsin/Core/GearStore.swift`: cached booking placeholders use `updatedAt: nil` because cached first-paint rows are not edit snapshots.
+- `ios/Wisconsin/Views/AppTabView.swift`: student tab bar now reads Home, My Gear, Items, Scan, Schedule; Users remains staff/admin-only.
+- `ios/Wisconsin/Views/BookingsView.swift`: the list title and search prompt follow the active Reservations/Checkouts segment, STUDENT defaults to Mine, and toolbar actions show Mine/All plus New labels.
+- `tests/student-field-contracts.test.ts`: static regressions cover optimistic-lock headers and tab/button clarity.
+- `docs/AREA_MOBILE.md`, `docs/AREA_RESERVATIONS.md`, `docs/AREA_CHECKOUTS.md`, and `docs/IOS_DEVICE_WALKTHROUGH.md`: shipped behavior and QA checklist synced.
+
+### Verification Results
+
+- Passed `npm run test -- tests/student-field-contracts.test.ts tests/api-hardening-wave13.test.ts` with 13 tests.
+- Passed `npx tsc --noEmit`.
+- Passed `npm run drift:ios`.
+- Passed `npm run audit:ios:gaps`.
+- Passed XcodeBuildMCP simulator build for `Wisconsin` Debug on iPhone 17 Pro.
+- Passed `git diff --check`.
+
+### Residual QA
+
+- Real-device tab readability, VoiceOver, Dynamic Type, and hardware-only scan/camera checks remain part of the next device walkthrough.

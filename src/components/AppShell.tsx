@@ -26,6 +26,7 @@ import { STATUS_STYLES } from "@/lib/status-styles";
 import { type CurrentUser, useCurrentUser } from "@/hooks/use-current-user";
 import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 import { getVisiblePageSearchResults, type PageSearchResult } from "@/lib/search-pages";
+import { assetSearchTitle } from "@/lib/search-result-title";
 import { cn } from "@/lib/utils";
 
 type EntitySearchResult = {
@@ -49,6 +50,10 @@ type ApiSearchList<T> = {
 type AssetSearchItem = {
   id: string;
   assetTag?: string | null;
+  name?: string | null;
+  brand?: string | null;
+  model?: string | null;
+  type?: string | null;
   imageUrl?: string | null;
   computedStatus?: string | null;
   activeBooking?: {
@@ -224,7 +229,7 @@ export default function AppShell({
           for (const item of (data ?? []).slice(0, 8)) {
             merged.push({
               type: "item", id: item.id,
-              title: item.assetTag ?? "Untitled item",
+              title: assetSearchTitle(item),
               subtitle: "",
               href: `/items/${item.id}`,
               imageUrl: item.imageUrl ?? null,

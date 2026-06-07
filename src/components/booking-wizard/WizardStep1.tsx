@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -47,10 +48,15 @@ type Props = {
   users: FormUser[];
   locations: Location[];
   kits: { id: string; name: string }[];
+  kitsLoading: boolean;
+  kitsLoadError: false | "network" | "server";
   kitId: string;
   setKitId: Dispatch<SetStateAction<string>>;
+  onRetryKits: () => void;
   events: CalendarEvent[];
   eventsLoading: boolean;
+  eventsLoadError: false | "network" | "server";
+  onRetryEvents: () => void;
   myShiftForEvent: ShiftInfo | null;
   toggleEvent: (ev: CalendarEvent) => { ok: boolean; reason?: string };
 };
@@ -70,10 +76,15 @@ export function WizardStep1({
   users,
   locations,
   kits,
+  kitsLoading,
+  kitsLoadError,
   kitId,
   setKitId,
+  onRetryKits,
   events,
   eventsLoading,
+  eventsLoadError,
+  onRetryEvents,
   myShiftForEvent,
   toggleEvent,
 }: Props) {
@@ -245,6 +256,29 @@ export function WizardStep1({
                 <div className="py-6 text-center text-sm text-muted-foreground">
                   Loading events\u2026
                 </div>
+              ) : eventsLoadError ? (
+                <Alert variant="destructive">
+                  <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <span>
+                      {eventsLoadError === "network"
+                        ? "Could not reach the calendar feed. Retry before linking this booking to an event, or continue with ad hoc details."
+                        : "Could not load upcoming events. Retry before linking this booking to an event, or continue with ad hoc details."}
+                    </span>
+                    <span className="flex shrink-0 flex-wrap gap-2">
+                      <Button type="button" variant="outline" size="sm" onClick={onRetryEvents}>
+                        Retry events
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => dispatch({ type: "SET_TIE_TO_EVENT", value: false })}
+                      >
+                        Use ad hoc details
+                      </Button>
+                    </span>
+                  </AlertDescription>
+                </Alert>
               ) : events.length === 0 ? (
                 <div className="flex flex-col items-start gap-3 rounded-sm border border-dashed p-4 text-sm text-muted-foreground">
                   <p className="leading-relaxed">
@@ -474,25 +508,44 @@ export function WizardStep1({
           </FormRow2Col>
 
           {/* Kit (optional) */}
-          {kits.length > 0 && (
+          {(kits.length > 0 || kitsLoading || kitsLoadError) && (
             <FormRow label="Kit" htmlFor="booking-kit-trigger">
-              <Select
-                name="booking-kit"
-                value={kitId || "__none__"}
-                onValueChange={(v) => setKitId(v === "__none__" ? "" : v)}
-              >
-                <SelectTrigger id="booking-kit-trigger">
-                  <SelectValue placeholder="None" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">None</SelectItem>
-                  {kits.map((k) => (
-                    <SelectItem key={k.id} value={k.id}>
-                      {k.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {kitsLoadError ? (
+                <Alert variant="destructive">
+                  <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <span>
+                      {kitsLoadError === "network"
+                        ? "Could not reach kits for this location. You can still continue without selecting a kit."
+                        : "Could not load kits for this location. You can still continue without selecting a kit."}
+                    </span>
+                    <Button type="button" variant="outline" size="sm" onClick={onRetryKits} className="shrink-0">
+                      Retry kits
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              ) : kitsLoading && kits.length === 0 ? (
+                <div className="rounded-sm border border-dashed p-3 text-sm text-muted-foreground">
+                  Loading kits...
+                </div>
+              ) : (
+                <Select
+                  name="booking-kit"
+                  value={kitId || "__none__"}
+                  onValueChange={(v) => setKitId(v === "__none__" ? "" : v)}
+                >
+                  <SelectTrigger id="booking-kit-trigger">
+                    <SelectValue placeholder="None" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">None</SelectItem>
+                    {kits.map((k) => (
+                      <SelectItem key={k.id} value={k.id}>
+                        {k.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </FormRow>
           )}
 

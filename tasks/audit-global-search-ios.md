@@ -4,7 +4,7 @@
 **Ship bar:** student-friendly, fully functional for core flows, zero hiccups in front of a class.
 **Audit type:** static source (no build/run/UI tests).
 
-Scope: `GlobalSearchSheet` + `FloatingSearchButton` in `ios/Wisconsin/Views/Search/`. Excludes `QRScannerSheet` (covered by the prior scan-pass cross-pollination — torch toggle, manual entry, dedupe pattern) and the per-row result views in `SearchResultRow.swift`.
+Scope: `GlobalSearchSheet` + `FloatingSearchButton` in `ios/Wisconsin/Views/Search/`. The 2026-06-05 HIG refresh also covered `QRScannerSheet`; per-row result views in `SearchResultRow.swift` remain outside this record.
 
 **Surrounding context:** the floating search button on `HomeView` is the floor's universal "find anything" affordance — multi-type search across items / reservations / checkouts / people, plus a QR shortcut. Used by every role multiple times per session. Recent searches persist in `UserDefaults`.
 
@@ -53,6 +53,14 @@ _None._ The flow works for the happy path. Search is debounced (300 ms). Tapping
 - [ ] [Polish] **Deferred.** Auto-add tap-results to recents. Today only `commitSearch` (Return key) writes to recents; tap-to-navigate doesn't. Could pollute recents if every typed character writes; needs a thoughtful rule. Skip until requested.
 - [ ] [Polish] **Deferred.** Multi-section result counts displayed as a compact pill. Today each section is its own `Section` header. With many categories, the visual surface gets long; a single-line "12 items, 3 reservations, 1 person" summary at the top could speed scanning.
 - [ ] [Hardening] **Deferred.** Cancel API call (not just debounce) on new query. Today the `URLSession` task isn't cancelled when a new search starts; the response just gets dropped post-fix. A proper `cancel()` would save bandwidth on slow networks. Trade-off: extra plumbing for a bandwidth-only win on a request that's typically <200 ms. Skip.
+
+## 2026-06-05 HIG refresh — QR scanner shortcut
+
+- [x] [HIG/accessibility] **QR scanner shortcut now uses the scan pre-prompt instead of a cold camera permission ask.** `QRScannerSheet` now tracks `AVAuthorizationStatus`, shows `ScanPrePromptView` for `.notDetermined`, and reuses `ScanDeniedView` for denied/restricted recovery.
+- [x] [HIG/touch targets] **Overlay icon buttons now meet the 44pt iOS control target.** Close and torch controls moved from 36pt frames to 44pt frames with explicit accessibility labels.
+- [x] [HIG/forms] **Manual code entry is a sheet instead of an alert text field.** The shortcut now reuses the medium-detent `ScanManualEntrySheet`, which gives keyboard entry normal focus, title, cancellation, and drag behavior.
+- [x] [HIG/recovery] **Lookup errors are persistent and recoverable.** No-match and server errors no longer auto-clear after three seconds. They stay visible with Type code and Dismiss recovery, and server errors fire `Haptics.error()`.
+- [x] [HIG/accessibility] **VoiceOver users get a non-camera shortcut path.** When VoiceOver is enabled, the shortcut presents a keyboard-first fallback instead of the live camera surface.
 
 ## Acceptance criteria status
 

@@ -22,7 +22,7 @@ import { SPORT_CODES } from "@/lib/sports";
 import { AREAS, AREA_LABELS } from "@/types/areas";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, FilterIcon } from "lucide-react";
-import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
+import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import {
   filterEventsByAssignmentReview,
   summarizeAssignmentReview,
@@ -31,10 +31,11 @@ import {
 
 async function fetchUsers(): Promise<PickerUser[]> {
   const res = await fetch("/api/users?limit=200&active=true");
-  if (handleAuthRedirect(res)) return [];
-  if (!res.ok) return [];
+  if (handleAuthRedirect(res)) throw new DOMException("Auth redirect", "AbortError");
+  if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to load users"));
   const j = await parseJsonSafely<{ data?: Array<{ id: string; name: string; role: string; primaryArea: string | null; avatarUrl?: string | null }> }>(res);
-  return (j?.data ?? []).map((u: { id: string; name: string; role: string; primaryArea: string | null; avatarUrl?: string | null }) => ({
+  if (!j?.data) throw new Error("Users response was malformed");
+  return j.data.map((u: { id: string; name: string; role: string; primaryArea: string | null; avatarUrl?: string | null }) => ({
     id: u.id,
     name: u.name,
     role: u.role,
@@ -48,11 +49,22 @@ export function AssignPageClient() {
   const grid = useAssignmentGrid();
   const [reviewFilter, setReviewFilter] = useState<ReviewFilter>("all");
 
-  const { data: allUsers = [], isLoading: usersLoading } = useQuery({
+  const {
+    data: allUsers = [],
+    isLoading: usersLoading,
+    isError: usersLoadFailed,
+    error: usersError,
+    refetch: refetchUsers,
+  } = useQuery({
     queryKey: ["users-picker"],
     queryFn: fetchUsers,
     staleTime: 5 * 60_000,
   });
+  const usersLoadError: false | "network" | "server" = usersLoadFailed
+    ? usersError instanceof TypeError
+      ? "network"
+      : "server"
+    : false;
 
   const reviewSummary = useMemo(() => summarizeAssignmentReview(grid.events), [grid.events]);
   const reviewEvents = useMemo(
@@ -117,7 +129,13 @@ export function AssignPageClient() {
         <div className="mx-0.5 h-6 w-px bg-border/80 max-sm:hidden" />
 
         <Select value={grid.sportFilter || "_all"} onValueChange={(v) => grid.setSportFilter(v === "_all" ? "" : v)}>
-          <SelectTrigger size="sm" className="h-10 w-44 bg-muted/30">
+          <SelectTrigger
+            id="assignment-sport-filter"
+            name="assignmentSportFilter"
+            size="sm"
+            className="h-10 w-44 bg-muted/30"
+            aria-label="Assignment sport filter"
+          >
             <SelectValue placeholder="All sports" />
           </SelectTrigger>
           <SelectContent>
@@ -131,7 +149,13 @@ export function AssignPageClient() {
         </Select>
 
         <Select value={grid.areaFilter || "_all"} onValueChange={(v) => grid.setAreaFilter(v === "_all" ? "" : v)}>
-          <SelectTrigger size="sm" className="h-10 w-36 bg-muted/30">
+          <SelectTrigger
+            id="assignment-area-filter"
+            name="assignmentAreaFilter"
+            size="sm"
+            className="h-10 w-36 bg-muted/30"
+            aria-label="Assignment area filter"
+          >
             <SelectValue placeholder="All areas" />
           </SelectTrigger>
           <SelectContent>
@@ -226,6 +250,8 @@ export function AssignPageClient() {
         columns={grid.columns}
         allUsers={allUsers}
         usersLoading={usersLoading}
+        usersLoadError={usersLoadError}
+        onRetryUsers={() => void refetchUsers()}
         isStaff
         onRefetch={grid.refetch}
         hasFilters={Boolean(grid.sportFilter || grid.areaFilter || reviewFilter !== "all")}

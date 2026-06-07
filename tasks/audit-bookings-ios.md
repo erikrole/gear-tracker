@@ -54,6 +54,8 @@ Scope: `BookingsView` list (Reservations / Checkouts tabs) + `BookingDetailView`
 
 - [x] [UI polish] `nextCleanHour` rewritten to take `addingHours:` with explicit semantics (0 = next `:00`).
 
+- [x] [HIG/recovery] Native booking empty states now include direct recovery actions. Search-empty states offer Clear search, Mine-only empty states offer Show all visible bookings, and empty Reservations can open New Reservation when creation is allowed.
+
 - [ ] [Parity] **Deferred to follow-up slice.** Web Bookings list supports status scope filters (DRAFT / BOOKED / OPEN / OVERDUE / CANCELLED / COMPLETED) and column sorting; iOS list is `activeOnly: true` only. Needs new API params on `reservations`/`checkouts` clients + filter UI. Tracked.
 
 - [ ] [Parity] **Deferred to follow-up slice.** Web detail surfaces an Equipment conflict badge per AREA_RESERVATIONS AC-8; iOS `ItemsSection` shows allocation status only. Needs `/api/availability/check` API client + per-row badge wiring. Tracked.

@@ -167,7 +167,7 @@ Order matches floor frequency. Run as STAFF/ADMIN unless noted; switch to STUDEN
 - [ ] Top-trailing bell tap → Notifications sheet (with badge count when unread > 0).
 - [ ] Bottom-right plus action opens CreateBookingSheet.
 - [ ] No bottom-trailing search button appears on Home; scan lookup remains the dedicated tab-bar action.
-- [ ] Tab bar: Home (active red), Bookings, Items, More overflow, Scan.
+- [ ] Student tab bar: Home (active red), My Gear, Items, Scan, Schedule. Staff/admin also see Users.
 
 ### Profile sheet (today's biggest pass)
 
@@ -175,19 +175,21 @@ Order matches floor frequency. Run as STAFF/ADMIN unless noted; switch to STUDEN
 - [ ] Name + monospaced email shown in header.
 - [ ] **Notifications section**:
   - [ ] Push permission state row visible if denied/notDetermined.
-  - [ ] Three pause chips (1 hour / 1 day / 1 week). Tap "Pause 1 hour" → optimistic flip to "Paused until {time}" with Resume button. Server save succeeds (toast or no error). Resume now restores chips.
-  - [ ] Email + Push toggles. Flip OFF → optimistic switch off → if server fails, toggle reverts (test by toggling airplane mode).
+  - [ ] Pause alerts row shows Pause 1 hour / Pause 1 day / Pause 1 week. Tap "Pause 1 hour" → optimistic flip to "Paused until {time}" with Resume button. Server save succeeds (toast or no error). Resume now restores chips.
+  - [ ] Email alerts + Push alerts toggles. Flip OFF → optimistic switch off → if server fails, toggle reverts (test by toggling airplane mode).
   - [ ] Channel toggles disable when paused (paused state wins).
-- [ ] **Appearance section** — System / Light / Dark menu picker. Each choice persists across cold launch.
+- [ ] **Appearance section** — Theme menu shows System / Light / Dark. Each choice persists across cold launch.
 - [ ] **Stats section** — Upcoming Shifts → tap navigates to Schedule. Overdue Bookings → tap (STAFF/ADMIN only) navigates to OverdueReportView.
+- [ ] My Availability (STUDENT only) — opens My Availability; existing blocks show a visible Add availability block row and a labeled Add block toolbar action.
 - [ ] Tools section (STAFF/ADMIN only) — "Link Sticker Codes" opens the wizard.
 - [ ] App section — Version + Build, Open iOS Settings link.
 - [ ] Sign Out → confirmation dialog → on confirm, tokens revoked + session cleared + LoginView returns.
 
-### Bookings list + Booking detail
+### My Gear / Bookings list + Booking detail
 
-- [ ] Reservations / Checkouts segmented control.
-- [ ] "Mine" toggle in toolbar (today's slice 10) — when ON, list shows only the current user's bookings.
+- [ ] Reservations / Checkouts segmented control; the navigation title changes to match the selected segment.
+- [ ] Mine / All toggle in toolbar. STUDENT defaults to Mine; staff/admin default to All. When Mine is ON, list shows only the current user's bookings.
+- [ ] New reservation toolbar button has visible "New" copy, not only a plus icon.
 - [ ] Schedule filter (status pills) when applicable.
 - [ ] Pull-to-refresh.
 - [ ] Tap a booking → Booking Detail.
@@ -202,12 +204,13 @@ Order matches floor frequency. Run as STAFF/ADMIN unless noted; switch to STUDEN
     - [ ] Save with change → button shows inline ProgressView; haptic.success on dismiss.
     - [ ] Cancel with unsaved change → discard confirm.
   - [ ] Tap Cancel Booking (when status is BOOKED) → confirmationDialog "Cancel Booking?" → confirm → API call, haptic, view reloads with COMPLETED/CANCELLED status.
-  - [ ] Edit pencil (STAFF/ADMIN OR own draft/booked booking) → EditBookingSheet → save updates with inline spinner + haptic.
+  - [ ] Labeled `Edit` action (STAFF/ADMIN OR own draft/booked booking) → EditBookingSheet → save updates with inline spinner + haptic.
+  - [ ] Own booking after edit locks (PENDING_PICKUP/OPEN for STUDENT) shows `Editing locked` with Extend/kiosk handoff copy.
 
 ### Items list + Item detail
 
 - [ ] Search bar filters live (with stale-write race guard — verify by typing fast on cellular).
-- [ ] Star / category filter buttons in toolbar.
+- [ ] Visible `Favorites` and `All statuses` controls sit above the list; status selections change the status control label to `{N} statuses`.
 - [ ] Each row: thumbnail, mono asset tag, brand+model subtitle, location, status pill (Available green / Out blue / Maintenance orange / Retired gray).
 - [ ] Swipe-leading: favorite toggle.
 - [ ] Swipe-trailing: Reserve → opens CreateBookingSheet prefilled with this asset.
@@ -228,11 +231,12 @@ Order matches floor frequency. Run as STAFF/ADMIN unless noted; switch to STUDEN
 Reachable from: Bookings tab `+`, Items list swipe + context menu, Item Detail Reserve CTA.
 
 - [ ] Step 1 (details): title, requester (STAFF picker / STUDENT locked to self), location, dates, notes.
-- [ ] Tap Next → Step 2 (equipment picker).
+- [ ] Tap Choose Equipment → Step 2 (equipment picker).
 - [ ] Equipment search has a stale-write guard (test on slow network).
 - [ ] Asset rows toggle on tap with `Haptics.selection()`. Selected rows show blue checkmark; conflicted rows show orange triangle + "Scheduling conflict."
+- [ ] Selected Equipment section shows every picked item with a visible Remove action. Remove works even when the current search results do not show that item.
 - [ ] Conflict pre-check fires after asset selection changes (debounced).
-- [ ] Tap Create → inline spinner replaces "Create"; haptic on success; new booking pushed onto navigation path.
+- [ ] Tap Create Reservation → inline spinner replaces the label; haptic on success; new booking pushed onto navigation path.
 - [ ] On submit failure → confirmationDialog with "Try again" + "OK" (today's fix).
 - [ ] hasUnsavedInput broadened — STAFF picks a requester + edits dates + leaves title blank → Cancel STILL fires discard confirm. [audit-create-booking-ios.md]
 
@@ -258,17 +262,18 @@ Reachable from: Bookings tab `+`, Items list swipe + context menu, Item Detail R
 ### Schedule + Event detail
 
 - [ ] Schedule tab → list of events with date columns.
-- [ ] Calendar / list view-mode toggle (slice 16).
-- [ ] Past events toggle (STAFF/ADMIN only) — list mode only; STUDENT does not see it.
-- [ ] My Shifts toggle.
+- [ ] Visible `View` segmented control switches between List and Calendar.
+- [ ] `Past events` chip (STAFF/ADMIN only) appears in List mode only; STUDENT does not see it.
+- [ ] `My shifts` chip filters the list and calendar without relying on an icon-only toolbar toggle.
+- [ ] Toolbar actions read `Trades` and `Calendar`, with the open-trade count still shown on Trades.
 - [ ] Tap an event → EventDetailSheet.
   - [ ] Header: sport pill, home/away (with mappin.and.ellipse), title, date, location, weather (when applicable; uses WeatherKit).
   - [ ] **Crew section with CoveragePill** — "0/4 filled" or similar in red token (today's fix). [audit-event-detail-ios.md]
   - [ ] **Per-area shift blocks** — "Video" / "Photo" / "Graphics" / "Comms" headers in title-case (today's title-case sweep), NOT "VIDEO" uppercase.
-  - [ ] Each shift row shows time column + worker pill ("Student" blue token / "Staff" muted) + assigned person OR "Assign" affordance (STAFF) OR "Request" affordance (STUDENT for ST slots).
+  - [ ] Each shift row shows time column + worker pill ("Student" blue token / "Staff" muted) + assigned person OR "Assign person" affordance (STAFF) OR "Request shift" affordance (STUDENT for ST slots).
   - [ ] STAFF actions via context menu: Assign someone, Replace…, Remove {name}, Approve {name}, Decline {name}, Duplicate shift, Change call time, Delete shift.
   - [ ] STUDENT actions: "Request this shift" for student-typed open slots.
-  - [ ] Pending requests show inline mini-buttons (Approve green / Decline red) with explicit VO labels ("Approve Erik Mason").
+  - [ ] Pending requests show inline mini-buttons with visible names ("Approve Erik Mason" / "Decline Erik Mason").
   - [ ] EditShiftTimesSheet (today's hardening) — Save shows inline spinner; Cancel-with-changes fires discard confirm; date pickers disable while saving.
 
 ### Trade board flows (student trade post → claim)
@@ -278,10 +283,10 @@ Reachable from: Bookings tab `+`, Items list swipe + context menu, Item Detail R
 - [ ] Each row: area in title case ("Video shift" not "VIDEO"), event summary, time range, "Posted by {name}", optional notes, status pill (Open green / Claimed orange / etc. via tokens).
 - [ ] Tap an open trade → claim confirmation → API call → haptic; row updates to "Claimed."
 - [ ] Swipe-left on My Active Post → cancel confirmation → API; row removed.
-- [ ] Tap `+` toolbar → PostTradeSheet.
+- [ ] Tap `Post trade` toolbar action → PostTradeSheet.
   - [ ] Eligible shifts (future + active) listed; rows are real Buttons (today's fix replaced onTapGesture).
   - [ ] Pick a shift → notes section appears.
-  - [ ] Post button shows inline spinner (today's fix); success haptic; sheet dismisses.
+  - [ ] Post Trade button shows inline spinner (today's fix); success haptic; sheet dismisses.
   - [ ] Discard confirm if you've selected a shift then tap Cancel.
 
 ### Users + User detail

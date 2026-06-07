@@ -96,6 +96,22 @@ final class APIClient {
         return resp.user
     }
 
+    func changePassword(currentPassword: String, newPassword: String, revokeOtherSessions: Bool = true) async throws {
+        struct Body: Encodable {
+            let currentPassword: String
+            let newPassword: String
+            let revokeOtherSessions: Bool
+        }
+
+        var req = request(path: "/api/me/change-password", method: "POST")
+        req.httpBody = try JSONEncoder().encode(Body(
+            currentPassword: currentPassword,
+            newPassword: newPassword,
+            revokeOtherSessions: revokeOtherSessions
+        ))
+        let _: ChangePasswordResponse = try await perform(req)
+    }
+
     // MARK: - Bookings
 
     func reservations(activeOnly: Bool = true, search: String? = nil, requesterId: String? = nil, limit: Int = 30, offset: Int = 0) async throws -> PaginatedResponse<Booking> {
@@ -639,14 +655,14 @@ final class APIClient {
         struct Body: Encodable { let action: String; let id: String }
         var req = request(path: "/api/notifications", method: "PATCH")
         req.httpBody = try JSONEncoder().encode(Body(action: "mark_read", id: id))
-        let (_, _) = try await session.data(for: req)
+        let _: SuccessResponse = try await perform(req)
     }
 
     func markAllNotificationsRead() async throws {
         struct Body: Encodable { let action: String }
         var req = request(path: "/api/notifications", method: "PATCH")
         req.httpBody = try JSONEncoder().encode(Body(action: "mark_all_read"))
-        let (_, _) = try await session.data(for: req)
+        let _: SuccessResponse = try await perform(req)
     }
 
     func notificationUnreadCount() async throws -> Int {
@@ -703,9 +719,10 @@ final class APIClient {
         return resp.data
     }
 
-    func cancelShiftTrade(id: String) async throws {
-        let req = request(path: "/api/shift-trades/\(id)/cancel", method: "POST")
-        let (_, _) = try await session.data(for: req)
+    func cancelShiftTrade(id: String) async throws -> ShiftTrade {
+        let req = request(path: "/api/shift-trades/\(id)/cancel", method: "PATCH")
+        let resp: DataWrapper<ShiftTrade> = try await perform(req)
+        return resp.data
     }
 
     // MARK: - Shift assignment / authoring
@@ -941,6 +958,14 @@ private struct LoginResponse: Decodable {
 
 private struct MeResponse: Decodable {
     let user: CurrentUser
+}
+
+private struct ChangePasswordResponse: Decodable {
+    let success: Bool
+}
+
+private struct SuccessResponse: Decodable {
+    let success: Bool
 }
 
 private struct ServerErrorBody: Decodable {

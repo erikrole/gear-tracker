@@ -71,9 +71,9 @@ final class ItemsViewModel {
             // Superseded by a newer load.
         } catch {
             if reset {
-                self.error = error.localizedDescription
+                self.error = itemListErrorMessage(error)
             } else {
-                self.pageError = error.localizedDescription
+                self.pageError = itemListErrorMessage(error, loadingMore: true)
                 hasMore = false
             }
         }
@@ -108,7 +108,7 @@ final class ItemsViewModel {
         pageError = nil
     }
 
-    func toggleFavorite(_ asset: Asset) async {
+    func toggleFavorite(_ asset: Asset) async throws {
         let optimistic = !asset.isFavorited
         applyFavorite(assetId: asset.id, value: optimistic)
         do {
@@ -119,11 +119,29 @@ final class ItemsViewModel {
             }
         } catch {
             applyFavorite(assetId: asset.id, value: asset.isFavorited)
+            throw error
         }
     }
 
     private func applyFavorite(assetId: String, value: Bool) {
         assets = assets.map { $0.id == assetId ? $0.withFavorited(value) : $0 }
+    }
+
+    private func itemListErrorMessage(_ error: Error, loadingMore: Bool = false) -> String {
+        let fallback = loadingMore
+            ? "Couldn't load more items. Check your connection and try again."
+            : "Couldn't load items. Check your connection and try again."
+
+        if let apiError = error as? APIError {
+            return apiError.errorDescription ?? fallback
+        }
+        if error is DecodingError {
+            return "Items could not be read. Refresh and try again."
+        }
+        if let urlError = error as? URLError {
+            return APIError.networkError(urlError).errorDescription ?? fallback
+        }
+        return fallback
     }
 }
 
@@ -131,139 +149,135 @@ struct ItemsView: View {
     @State private var vm = ItemsViewModel()
     @State private var reserveAsset: Asset?
     @State private var navigationPath = NavigationPath()
+    @State private var toast: Toast?
     @Environment(AppState.self) private var appState
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
-            Group {
-                if let error = vm.error, vm.assets.isEmpty {
-                    ContentUnavailableView {
-                        Label("Couldn't load items", systemImage: "exclamationmark.triangle")
-                    } description: {
-                        Text(error)
-                    } actions: {
-                        Button("Retry") { Task { await vm.load(reset: true) } }
-                            .buttonStyle(.borderedProminent)
-                    }
-                } else if vm.assets.isEmpty && vm.isLoading {
-                    List {
-                        ForEach(0..<10, id: \.self) { _ in
-                            ItemRowSkeleton().listRowSeparator(.hidden)
+            VStack(spacing: 0) {
+                itemsControlStrip
+                Divider()
+                Group {
+                    if let error = vm.error, vm.assets.isEmpty {
+                        ContentUnavailableView {
+                            Label("Couldn't load items", systemImage: "exclamationmark.triangle")
+                        } description: {
+                            Text(error)
+                        } actions: {
+                            Button("Retry") { Task { await vm.load(reset: true) } }
+                                .buttonStyle(.borderedProminent)
                         }
-                    }
-                    .listStyle(.plain)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)  // Don't pollute VO with placeholder shapes during initial load.
-                } else if vm.assets.isEmpty {
-                    ContentUnavailableView(
-                        vm.favoritesOnly ? "No Favorites" : "No Items",
-                        systemImage: vm.favoritesOnly ? "star" : "archivebox",
-                        description: Text(vm.searchText.isEmpty
-                            ? (vm.favoritesOnly ? "Star items to add them here." : "No gear found.")
-                            : "No results for \"\(vm.searchText)\".")
-                    )
-                } else {
-                    List {
-                        ForEach(vm.assets) { asset in
-                            NavigationLink(value: asset) {
-                                AssetRow(asset: asset)
+                    } else if vm.assets.isEmpty && vm.isLoading {
+                        List {
+                            ForEach(0..<10, id: \.self) { _ in
+                                ItemRowSkeleton().listRowSeparator(.hidden)
                             }
-                            .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                                Button {
-                                    Task { await vm.toggleFavorite(asset) }
-                                } label: {
-                                    Label(
-                                        asset.isFavorited ? "Unfavorite" : "Favorite",
-                                        systemImage: asset.isFavorited ? "star.slash" : "star"
-                                    )
+                        }
+                        .listStyle(.plain)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)  // Don't pollute VO with placeholder shapes during initial load.
+                    } else if vm.assets.isEmpty {
+                        ContentUnavailableView {
+                            Label(
+                                vm.favoritesOnly ? "No Favorites" : "No Items",
+                                systemImage: vm.favoritesOnly ? "star" : "archivebox"
+                            )
+                        } description: {
+                            Text(vm.searchText.isEmpty
+                                ? (vm.favoritesOnly ? "Star items to add them here." : "No gear found.")
+                                : "No results for \"\(vm.searchText)\".")
+                        } actions: {
+                            emptyStateActions
+                        }
+                    } else {
+                        List {
+                            ForEach(vm.assets) { asset in
+                                NavigationLink(value: asset) {
+                                    AssetRow(asset: asset)
                                 }
-                                .tint(.yellow)
-                            }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                Button {
-                                    reserveAsset = asset
-                                } label: {
-                                    Label("Reserve", systemImage: "plus.circle")
-                                }
-                                .tint(.accentColor)
-                            }
-                            .contextMenu {
-                                Button {
-                                    Task { await vm.toggleFavorite(asset) }
-                                } label: {
-                                    Label(
-                                        asset.isFavorited ? "Unfavorite" : "Favorite",
-                                        systemImage: asset.isFavorited ? "star.slash" : "star"
-                                    )
-                                }
-
-                                Button {
-                                    reserveAsset = asset
-                                } label: {
-                                    Label("Reserve", systemImage: "plus.circle")
-                                }
-
-                                if let tag = asset.assetTag {
+                                .swipeActions(edge: .leading, allowsFullSwipe: true) {
                                     Button {
-                                        UIPasteboard.general.string = tag
+                                        Task { await toggleFavorite(asset) }
                                     } label: {
-                                        Label("Copy Asset Tag", systemImage: "doc.on.doc")
+                                        Label(
+                                            asset.isFavorited ? "Unfavorite" : "Favorite",
+                                            systemImage: asset.isFavorited ? "star.slash" : "star"
+                                        )
+                                    }
+                                    .tint(.yellow)
+                                }
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    if asset.computedStatus != .retired {
+                                        Button {
+                                            reserveAsset = asset
+                                        } label: {
+                                            Label("Reserve", systemImage: "plus.circle")
+                                        }
+                                        .tint(.accentColor)
+                                    }
+                                }
+                                .contextMenu {
+                                    Button {
+                                        Task { await toggleFavorite(asset) }
+                                    } label: {
+                                        Label(
+                                            asset.isFavorited ? "Unfavorite" : "Favorite",
+                                            systemImage: asset.isFavorited ? "star.slash" : "star"
+                                        )
+                                    }
+
+                                    if asset.computedStatus != .retired {
+                                        Button {
+                                            reserveAsset = asset
+                                        } label: {
+                                            Label("Reserve", systemImage: "plus.circle")
+                                        }
+                                    }
+
+                                    if let tag = asset.assetTag {
+                                        Button {
+                                            UIPasteboard.general.string = tag
+                                        } label: {
+                                            Label("Copy Asset Tag", systemImage: "doc.on.doc")
+                                        }
                                     }
                                 }
                             }
-                        }
-                        if let pageError = vm.pageError {
-                            VStack(spacing: 8) {
-                                Text(pageError)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                                    .multilineTextAlignment(.center)
-                                Button("Retry") { Task { await vm.retryPage() } }
-                                    .buttonStyle(.bordered)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
-                        } else if vm.hasMore {
-                            ProgressView()
+                            if let pageError = vm.pageError {
+                                VStack(spacing: 8) {
+                                    Text(pageError)
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                        .multilineTextAlignment(.center)
+                                    Button("Retry") { Task { await vm.retryPage() } }
+                                        .buttonStyle(.bordered)
+                                }
                                 .frame(maxWidth: .infinity)
-                                .task(id: vm.assets.count) { await vm.load() }
-                        } else if vm.assets.count > 10 {
-                            Text("End of list")
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                                .padding(.vertical, 12)
-                                .listRowSeparator(.hidden)
+                                .padding(.vertical, 8)
+                            } else if vm.hasMore {
+                                ProgressView()
+                                    .frame(maxWidth: .infinity)
+                                    .task(id: vm.assets.count) { await vm.load() }
+                            } else if vm.assets.count > 10 {
+                                Text("End of list")
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                                    .padding(.vertical, 12)
+                                    .listRowSeparator(.hidden)
+                            }
                         }
+                        .listStyle(.plain)
                     }
-                    .listStyle(.plain)
                 }
             }
+            .background(Color(.systemGroupedBackground))
             .navigationTitle("Items")
             .searchable(text: $vm.searchText, prompt: "Search gear…")
             .onChange(of: vm.searchText) { vm.onSearchChange() }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 12) {
-                        Button {
-                            vm.favoritesOnly.toggle()
-                            Task { await vm.load(reset: true) }
-                        } label: {
-                            Image(systemName: vm.favoritesOnly ? "star.fill" : "star")
-                                .foregroundStyle(vm.favoritesOnly ? .yellow : .primary)
-                                .frame(minWidth: 44, minHeight: 44)
-                        }
-                        .accessibilityLabel(vm.favoritesOnly ? "Showing favorites" : "Show favorites")
-                        .sensoryFeedback(.selection, trigger: vm.favoritesOnly)
-
-                        AssetStatusFilterMenu(selected: $vm.selectedStatuses) {
-                            Task { await vm.load(reset: true) }
-                        }
-                    }
-                }
-            }
             .refreshable { await vm.load(reset: true) }
             .task { await vm.load(reset: true) }
+            .toast($toast)
             .onChange(of: appState.tabResetToken) { _, _ in
                 guard appState.resetTab == 2 else { return }
                 reserveAsset = nil
@@ -288,6 +302,66 @@ struct ItemsView: View {
                 }
             }
         }
+    }
+
+    private func toggleFavorite(_ asset: Asset) async {
+        do {
+            try await vm.toggleFavorite(asset)
+        } catch {
+            toast = Toast(message: "Couldn't update favorite", icon: "exclamationmark.triangle.fill", role: .error)
+        }
+    }
+
+    @ViewBuilder
+    private var emptyStateActions: some View {
+        if !vm.searchText.isEmpty {
+            Button {
+                vm.searchText = ""
+                Task { await vm.load(reset: true) }
+            } label: {
+                Label("Clear search", systemImage: "xmark.circle")
+            }
+            .buttonStyle(.borderedProminent)
+        } else if vm.favoritesOnly {
+            Button {
+                vm.favoritesOnly = false
+                Task { await vm.load(reset: true) }
+            } label: {
+                Label("Show all items", systemImage: "archivebox")
+            }
+            .buttonStyle(.borderedProminent)
+        }
+    }
+
+    private var itemsControlStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                Button {
+                    vm.favoritesOnly.toggle()
+                    Task { await vm.load(reset: true) }
+                } label: {
+                    Label("Favorites", systemImage: vm.favoritesOnly ? "star.fill" : "star")
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 12)
+                        .frame(minHeight: 44)
+                        .background(
+                            vm.favoritesOnly ? Color(.secondarySystemFill) : Color(.tertiarySystemFill),
+                            in: Capsule()
+                        )
+                        .foregroundStyle(vm.favoritesOnly ? AnyShapeStyle(.yellow) : AnyShapeStyle(.primary))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(vm.favoritesOnly ? "Favorites on" : "Favorites off")
+                .sensoryFeedback(.selection, trigger: vm.favoritesOnly)
+
+                AssetStatusFilterMenu(selected: $vm.selectedStatuses) {
+                    Task { await vm.load(reset: true) }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+        }
+        .background(.regularMaterial)
     }
 }
 
@@ -357,6 +431,7 @@ struct AssetRow: View {
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(rowAccessibilityLabel)
+        .accessibilityHint("Double-tap to view item details")
     }
 
     /// Single combined VoiceOver readout. Surfaces overdue state first when
@@ -562,9 +637,16 @@ struct AssetStatusFilterMenu: View {
                 }
             }
         } label: {
-            Image(systemName: "line.3.horizontal.decrease.circle\(selected.isEmpty ? "" : ".fill")")
-                .frame(minWidth: 44, minHeight: 44)
+            Label(statusFilterTitle, systemImage: "line.3.horizontal.decrease.circle\(selected.isEmpty ? "" : ".fill")")
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 12)
+                .frame(minHeight: 44)
+                .background(Color(.tertiarySystemFill), in: Capsule())
         }
         .accessibilityLabel(selected.isEmpty ? "Filter by status" : "Filtering by \(selected.count) statuses")
+    }
+
+    private var statusFilterTitle: String {
+        selected.isEmpty ? "All statuses" : "\(selected.count) statuses"
     }
 }

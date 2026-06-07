@@ -29,11 +29,23 @@ type Props = {
   area: string;
   allUsers: PickerUser[];
   usersLoading: boolean;
+  usersLoadError: false | "network" | "server";
+  onRetryUsers: () => void;
   isStaff: boolean;
   onRefetch: () => void;
 };
 
-export function AssignmentCell({ shifts, shiftGroupId, area, allUsers, usersLoading, isStaff, onRefetch }: Props) {
+export function AssignmentCell({
+  shifts,
+  shiftGroupId,
+  area,
+  allUsers,
+  usersLoading,
+  usersLoadError,
+  onRetryUsers,
+  isStaff,
+  onRefetch,
+}: Props) {
   const [search, setSearch] = useState("");
   const [acting, setActing] = useState<string | null>(null);
   const actingRef = useRef(false);
@@ -345,6 +357,8 @@ export function AssignmentCell({ shifts, shiftGroupId, area, allUsers, usersLoad
                 <UserAvatarPicker
                   users={filteredUsers}
                   loading={usersLoading}
+                  loadError={usersLoadError}
+                  onRetry={onRetryUsers}
                   search={search}
                   onSearchChange={setSearch}
                   onSelect={(userId) => handleAssign(firstOpenShift.id, userId)}

@@ -43,6 +43,7 @@ _None._ Camera permission flow is solid (pre-prompt → system alert → denied 
 - [x] [UI polish] **Result sheet empty state has no recovery affordance.** Shows just an icon + "This code isn't linked to any item yet." — no way to type a code, no way to retry. The user has to swipe-dismiss and start over.
       `ios/Wisconsin/Views/ScanView.swift:234-240`.
       Suggested fix: add a "Type code instead" `Button` in the `ContentUnavailableView`'s `actions:` slot, opening the same manual-entry sheet as the new toolbar button. When the empty state is from an error (after the hardening fix above), swap the icon + copy and offer "Try again" instead.
+      2026-06-06 verification: error-state recovery now offers "Try again" before "Type code instead". Retry calls the last scanned code after clearing same-code dedupe, so a transient server/network failure can be retried without dismissing the result sheet.
 
 ## P2 — post-MVP
 
@@ -63,6 +64,7 @@ There is no `AREA_SCAN.md` covering iOS specifically. AC inferred from `AREA_SCA
 - [x] AC: damaged-sticker recovery for sighted users — **closed by P1 manual-entry fix.**
 - [x] AC: dim-room recovery — **closed by P1 torch fix.**
 - [x] AC: server-error vs. unmatched-code is distinguishable — **closed by P1 hardening fix.**
+- [x] AC: server-error recovery can retry the same scanned code without losing scan context — **closed by 2026-06-06 retry wiring.**
 - [x] AC: rapid-fire scans don't require extra dismissals — **closed by P1 re-enable fix.**
 
 ## Lenses checked

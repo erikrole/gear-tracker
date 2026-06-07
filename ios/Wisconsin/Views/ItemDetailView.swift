@@ -51,8 +51,10 @@ struct ItemDetailView: View {
                             ParentLinkCard(parent: parent)
                         }
                         ItemHeroCard(asset: asset, onCopyQR: copyQR)
-                        ReserveButton {
-                            reserveAsset = asset.asAsset
+                        if asset.computedStatus != .retired {
+                            ReserveButton {
+                                reserveAsset = asset.asAsset
+                            }
                         }
                         ItemDetailsCard(asset: asset, canSeeProcurement: canEditAsset)
                         if let booking = asset.activeBooking {

@@ -19,6 +19,7 @@ The 2026-05-21 follow-up extends the checklist to lower-traffic operational rout
 - `/labels`
 - `/notifications`
 - `/search`
+- `/users/onboarding-status`
 - `/reports/*`
 - `/bulk-inventory/batteries`
 - `/bulk-inventory/[id]`
@@ -54,6 +55,7 @@ This is a working checklist, not a redesign brief. Use it before future page-spe
 | `/labels` | Mostly conforming | Uses `PageHeader` and shared `EmptyState`, and the surface is a focused print tool rather than a data table. Compact print setup and row escape controls now meet the 40px target baseline. | No immediate code fix. Keep future print controls named and at 40px targets. |
 | `/notifications` | Strong | Uses `PageHeader`, shared `EmptyState`, direct notification actions, and `OperationalMetricCard` summary metrics. Mark-read, destination, retry, and header actions now meet the 40px target baseline. It remains intentionally list-first and read/recovery oriented. | No immediate code fix. |
 | `/search` | Mostly conforming | Uses `PageHeader` and shared `EmptyState`, but global search is a specialized command surface rather than an `OperationalToolbar` list page. Clear search, view-all links, and result rows now meet the 40px target baseline. | No immediate code fix. Keep result actions explicit links/buttons. |
+| `/users/onboarding-status` | Mostly conforming | Uses `PageHeader`, `OperationalMetricCard`, shared row actions, shadcn table/filter controls, shared empty states, 40px refresh/retry controls, and terminal claimed-state gray badges instead of availability green. | Browser-smoke after the next onboarding page edit if the local browser path is available. |
 | `/reports/*` | Mostly conforming | Reports use shared layout, toolbar helpers, active-filter chips on key pages, shared empty states, role gating, and an adapter over `OperationalMetricCard` for report metrics. | No immediate code fix. Keep future report metrics behind the report adapter instead of adding page-local cards. |
 | `/bulk-inventory/batteries` | Mostly conforming | Uses `PageHeader`, shared empty states, shared `OperationalMetricCard` summary metrics, and clear battery operations sections. | No immediate code fix. Keep unit status controls named and audited. |
 | `/bulk-inventory/[id]` | Strong | Item-family detail surfaces use shared inline empty states and the shared image modal handoff. | No immediate code fix. Keep item-family detail copy aligned with Units and Quantity user language. |
@@ -209,6 +211,17 @@ Do not force every route into `OperationalToolbar`. Use it when the route has th
 - **Status and color**: not applicable.
 - **Copy**: pass. Empty copy says what query failed and what to try next.
 - **Evidence**: `src/app/(app)/search/page.tsx`.
+
+### `/users/onboarding-status`
+
+- **Header**: pass. `src/app/(app)/users/onboarding-status/page.tsx` uses `PageHeader`.
+- **Toolbar and filters**: route-specific pass. Onboarding status has a compact search plus status filter because it is a follow-up queue, not a full roster table.
+- **Rows and actions**: pass. Unclaimed invitation follow-up actions use `OperationalRowActions`; claimed entries are disabled audit-only rows.
+- **Empty, loading, error**: pass. Uses shared `EmptyState`, skeletons, and retryable load errors.
+- **Targets and focus**: pass for the touched controls. Header refresh and retry controls meet the 40px target baseline; search and status filter have explicit programmatic names.
+- **Status and color**: pass. Pending is blue, stale pending is orange, and claimed is gray because claimed is a terminal state, not available/free.
+- **Copy**: pass. The page names pending, stale pending, claimed, creator, claimer, copy link, and remove-invite consequences.
+- **Evidence**: `docs/AREA_USERS.md`, `docs/BRIEF_ONBOARDING_V1.md`, `src/app/(app)/users/onboarding-status/page.tsx`, `src/app/(app)/settings/allowed-emails/page.tsx`.
 
 ### `/reports/*`
 

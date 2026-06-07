@@ -30,6 +30,7 @@
 		3A34548DD720E71C6B54BB31 /* ItemsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F12684601FE641B454D0219B /* ItemsView.swift */; };
 		41891E6B69644BB1DB025CB9 /* Brand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A9DAB950F60885A23620BEC /* Brand.swift */; };
 		470F79B703DF9EB55FECE070 /* FormModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6148A160C162A021FF9DE4C0 /* FormModels.swift */; };
+		4B5FFF1D1D5E4C8FF671E34F /* PasswordSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DCFCD62823EAF922978F5E0 /* PasswordSetupView.swift */; };
 		4F0A1067946B104FF1220865 /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2536547429CB16E12CB069C0 /* NetworkMonitor.swift */; };
 		5222CCDEB1C3A451B2B7EDED /* PostTradeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C76AD0C31463DD95EE65E1E6 /* PostTradeSheet.swift */; };
 		5BFCE075814954BB59669481 /* Skeleton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 468E248680EC5A61BEC1EE38 /* Skeleton.swift */; };
@@ -91,6 +92,7 @@
 		294553EF02A8AC64D71ED849 /* Wisconsin.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Wisconsin.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2A73B2A1C9B274552CBA7C8B /* Haptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Haptics.swift; sourceTree = "<group>"; };
 		2B0058FB3644F501479BA0D5 /* ExtendBookingSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtendBookingSheet.swift; sourceTree = "<group>"; };
+		2DCFCD62823EAF922978F5E0 /* PasswordSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordSetupView.swift; sourceTree = "<group>"; };
 		3700D2B2FAE801DC2FF0F1ED /* KioskCheckoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskCheckoutView.swift; sourceTree = "<group>"; };
 		37FF31264347D4D6932C4DBB /* ScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanView.swift; sourceTree = "<group>"; };
 		38065600FA5A1C1AC4C8CC2F /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
@@ -322,6 +324,7 @@
 				6D6258D04F2CBF34C14EBB69 /* LoginView.swift */,
 				9E58906A0DD7BCF5024161BE /* NotificationsSheet.swift */,
 				1770023701735D8701DCAA5B /* OverdueReportView.swift */,
+				2DCFCD62823EAF922978F5E0 /* PasswordSetupView.swift */,
 				6A2DFDC7A0C7BD6C018D43D2 /* PushPrePromptView.swift */,
 				93A02FB7D1B8ADC547189F1A /* ScanPrePromptView.swift */,
 				37FF31264347D4D6932C4DBB /* ScanView.swift */,
@@ -461,6 +464,7 @@
 				5D716269ED62B3BCD83B904B /* NotificationModels.swift in Sources */,
 				BAE863712FA11717C1C77B29 /* NotificationsSheet.swift in Sources */,
 				EB431E266D465DDA520852CB /* OverdueReportView.swift in Sources */,
+				4B5FFF1D1D5E4C8FF671E34F /* PasswordSetupView.swift in Sources */,
 				5222CCDEB1C3A451B2B7EDED /* PostTradeSheet.swift in Sources */,
 				B627C81D60CEF199EE69E537 /* Preferences.swift in Sources */,
 				D24677599DC4E06E3E093A81 /* PushPrePromptView.swift in Sources */,

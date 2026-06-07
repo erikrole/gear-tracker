@@ -139,7 +139,8 @@ extension CachedBooking {
             location: BookingLocation(id: "", name: locationName),
             serializedItems: [],
             bulkItems: [],
-            event: nil
+            event: nil,
+            updatedAt: nil
         )
     }
 }

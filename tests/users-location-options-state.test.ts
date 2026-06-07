@@ -14,7 +14,7 @@ describe("users location options state", () => {
   });
 
   it("keeps Add User creation blocked and retryable while location assignment data is unavailable", () => {
-    const source = readFileSync("src/app/(app)/users/CreateUserCard.tsx", "utf8");
+    const source = readFileSync("src/components/onboarding/OnboardingDialog.tsx", "utf8");
 
     expect(source).toContain("locationsLoading");
     expect(source).toContain("locationsError");

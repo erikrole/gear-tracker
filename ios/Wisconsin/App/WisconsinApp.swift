@@ -30,13 +30,13 @@ struct WisconsinApp: App {
                     }
                     // Push permission is now requested via PushPrePromptView,
                     // not as a cold OS alert on login.
-                    if user != nil {
+                    if user?.forcePasswordChange == false {
                         // If the user previously granted permission, keep the token fresh.
                         Task { await registerForPushIfAuthorized() }
                     }
                 }
                 .onChange(of: scenePhase) { _, phase in
-                    if phase == .active && session.currentUser != nil {
+                    if phase == .active && session.currentUser?.forcePasswordChange == false {
                         // Refresh tab badge state regardless of which tab the user is on.
                         Task { await appState.refresh() }
                     }
@@ -79,6 +79,8 @@ struct RootView: View {
                 Color(.systemBackground).ignoresSafeArea()
             } else if kiosk.isActive {
                 KioskShellView()
+            } else if let user = session.currentUser, user.forcePasswordChange {
+                PasswordSetupView(email: user.email)
             } else if session.currentUser != nil {
                 AppTabView()
             } else {
@@ -99,7 +101,7 @@ struct RootView: View {
         .onChange(of: session.currentUser) { old, user in
             // Show the soft push prompt the first time a user lands logged-in,
             // before the OS alert ever fires.
-            if user != nil && old == nil {
+            if let user, !user.forcePasswordChange, old?.forcePasswordChange != false {
                 Task { await maybeShowPushPrompt() }
             }
         }

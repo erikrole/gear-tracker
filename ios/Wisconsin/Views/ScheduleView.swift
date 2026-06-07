@@ -3,7 +3,7 @@ import UIKit
 
 // MARK: - View Mode
 
-enum ScheduleViewMode: String, CaseIterable {
+enum ScheduleViewMode: String, CaseIterable, Hashable {
     case list = "List"
     case calendar = "Calendar"
 }
@@ -192,19 +192,25 @@ struct ScheduleView: View {
                         description: Text("Check back later for new events.")
                     )
                 } else {
-                    switch viewMode {
-                    case .list:
-                        eventList
-                    case .calendar:
-                        ScheduleCalendarView(
-                            selectedDate: $calendarSelectedDate,
-                            eventsByDay: vm.eventsByDay,
-                            myShiftsOnly: myShiftsOnly,
-                            sportFilter: sportFilter,
-                            shiftsByEventId: vm.shiftsByEventId,
-                            onSelectEvent: { selectedEvent = $0 }
-                        )
+                    VStack(spacing: 0) {
+                        scheduleControlStrip
+                        Divider()
+
+                        switch viewMode {
+                        case .list:
+                            eventList
+                        case .calendar:
+                            ScheduleCalendarView(
+                                selectedDate: $calendarSelectedDate,
+                                eventsByDay: vm.eventsByDay,
+                                myShiftsOnly: myShiftsOnly,
+                                sportFilter: sportFilter,
+                                shiftsByEventId: vm.shiftsByEventId,
+                                onSelectEvent: { selectedEvent = $0 }
+                            )
+                        }
                     }
+                    .background(Color(.systemGroupedBackground))
                 }
             }
             .overlay(alignment: .top) {
@@ -249,50 +255,13 @@ struct ScheduleView: View {
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: vm.refreshError)
             .navigationTitle("Schedule")
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        viewMode = viewMode == .list ? .calendar : .list
-                    } label: {
-                        Image(systemName: viewMode == .list ? "calendar" : "list.bullet")
-                            .frame(minWidth: 44, minHeight: 44)
-                    }
-                    .accessibilityLabel(viewMode == .list ? "Switch to calendar view" : "Switch to list view")
-                    .sensoryFeedback(.selection, trigger: viewMode)
-                }
                 ToolbarItemGroup(placement: .topBarTrailing) {
-                    if viewMode == .list && canSeePastEvents {
-                        // Web parity: list view's "Past" toggle includes already-
-                        // ended events. Status-blue tint when on, plain icon when off
-                        // — iOS 26 toolbar applies its own glass material.
-                        Button {
-                            vm.includePast.toggle()
-                            Task { await vm.load(forceRefresh: true) }
-                        } label: {
-                            Image(systemName: vm.includePast ? "clock.arrow.circlepath" : "clock")
-                                .frame(minWidth: 44, minHeight: 44)
-                                .foregroundStyle(vm.includePast ? Color.statusText(.blue) : Color.primary)
-                        }
-                        .accessibilityLabel(vm.includePast ? "Showing past events" : "Show past events")
-                        .sensoryFeedback(.selection, trigger: vm.includePast)
-                    }
-                    Button {
-                        myShiftsOnly.toggle()
-                    } label: {
-                        Image(systemName: myShiftsOnly ? "person.fill" : "person")
-                            .frame(minWidth: 44, minHeight: 44)
-                            .foregroundStyle(myShiftsOnly ? Color.statusText(.blue) : Color.primary)
-                    }
-                    .accessibilityLabel(myShiftsOnly ? "Showing my shifts only" : "Show my shifts only")
-                    .sensoryFeedback(.selection, trigger: myShiftsOnly)
-
                     Button {
                         showTradeBoard = true
                     } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "arrow.triangle.2.circlepath")
+                        HStack(spacing: 5) {
+                            Label("Trades", systemImage: "arrow.triangle.2.circlepath")
                             if appState.openTradeCount > 0 {
-                                // Web parity: schedule toolbar uses Badge variant="orange"
-                                // for the open-trade count; iOS matches the tone.
                                 Text("\(appState.openTradeCount)")
                                     .font(.caption2.weight(.semibold).monospacedDigit())
                                     .padding(.horizontal, 5)
@@ -310,8 +279,8 @@ struct ScheduleView: View {
                     Button {
                         Task { await subscribeToCalendar() }
                     } label: {
-                        Image(systemName: isSubscribing ? "calendar" : "calendar.badge.plus")
-                            .frame(minWidth: 44, minHeight: 44)
+                        Label("Calendar", systemImage: isSubscribing ? "calendar" : "calendar.badge.plus")
+                            .frame(minHeight: 44)
                     }
                     .disabled(isSubscribing)
                     .accessibilityLabel("Subscribe to shifts in Calendar")
@@ -387,6 +356,78 @@ struct ScheduleView: View {
                 )
             }
         }
+    }
+
+    private var scheduleControlStrip: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center, spacing: 10) {
+                Text("View")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 42, alignment: .leading)
+
+                Picker("Schedule view", selection: $viewMode) {
+                    ForEach(ScheduleViewMode.allCases, id: \.self) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .accessibilityLabel("Schedule view")
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    scheduleScopeChip(
+                        "My shifts",
+                        systemImage: myShiftsOnly ? "person.fill" : "person",
+                        isSelected: myShiftsOnly
+                    ) {
+                        myShiftsOnly.toggle()
+                    }
+
+                    if viewMode == .list && canSeePastEvents {
+                        scheduleScopeChip(
+                            "Past events",
+                            systemImage: vm.includePast ? "clock.arrow.circlepath" : "clock",
+                            isSelected: vm.includePast
+                        ) {
+                            vm.includePast.toggle()
+                            Task { await vm.load(forceRefresh: true) }
+                        }
+                    }
+                }
+                .padding(.horizontal, 2)
+                .padding(.vertical, 2)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 10)
+        .padding(.bottom, 10)
+        .background(.regularMaterial)
+        .sensoryFeedback(.selection, trigger: viewMode)
+        .sensoryFeedback(.selection, trigger: myShiftsOnly)
+        .sensoryFeedback(.selection, trigger: vm.includePast)
+    }
+
+    private func scheduleScopeChip(
+        _ title: String,
+        systemImage: String,
+        isSelected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 12)
+                .frame(minHeight: 44)
+                .background(
+                    isSelected ? Color.statusBackground(.blue) : Color(.tertiarySystemFill),
+                    in: Capsule()
+                )
+                .foregroundStyle(isSelected ? Color.statusText(.blue) : Color.primary)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(isSelected ? "\(title) on" : "\(title) off")
     }
 
     private func subscribeToCalendar() async {
@@ -814,7 +855,7 @@ private struct DayCell: View {
             }
             .frame(height: 5)
         }
-        .frame(height: 52)
+        .frame(minWidth: 44, minHeight: 52)
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
@@ -851,16 +892,16 @@ private struct ScheduleDateHeader: View {
         HStack(alignment: .center, spacing: 10) {
             VStack(alignment: .center, spacing: 0) {
                 Text(date.formatted(.dateTime.weekday(.abbreviated)).uppercased())
-                    .font(.system(size: 9, weight: .bold))
+                    .font(.caption2.weight(.bold))
                     .kerning(0.5)
                     .foregroundStyle(isToday ? Color.accentColor : .secondary)
                 Text(date.formatted(.dateTime.day()))
-                    .font(.system(size: 24, weight: .black))
+                    .font(.title2.weight(.heavy))
                     .monospacedDigit()
                     .fixedSize()
                     .foregroundStyle(isToday ? Color.accentColor : .primary)
             }
-            .frame(width: 36)
+            .frame(minWidth: 36)
 
             VStack(alignment: .leading, spacing: 0) {
                 Text(
@@ -969,7 +1010,7 @@ struct EventRow: View {
                     }
                     if myShift != nil {
                         Text("My Shift")
-                            .font(.system(size: 9, weight: .bold))
+                            .font(.caption2.weight(.bold))
                             .tracking(0.4)
                             .padding(.horizontal, 5)
                             .padding(.vertical, 2)
@@ -982,7 +1023,7 @@ struct EventRow: View {
                 HStack(spacing: 8) {
                     if let isHome = event.isHome {
                         Text(isHome ? "Home" : "Away")
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(.caption2.weight(.semibold))
                             .foregroundStyle(isHome ? Color.statusText(.green) : Color.statusText(.orange))
                     }
                     if let weather = weatherData {
@@ -1070,7 +1111,7 @@ struct EventRow: View {
     private func coverageChip(_ cov: ShiftCoverage) -> some View {
         HStack(spacing: 3) {
             Image(systemName: "person.2.fill")
-                .font(.system(size: 9))
+                .font(.caption2.weight(.semibold))
             Text("\(cov.filled)/\(cov.total)")
                 .font(.caption2.weight(.semibold).monospacedDigit())
         }
@@ -1111,7 +1152,7 @@ private struct TimeBlock: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label)
-                .font(.system(size: 8, weight: .semibold))
+                .font(.caption2.weight(.semibold))
                 .foregroundStyle(.tertiary)
                 .kerning(0.4)
             Text(time.formatted(.dateTime.hour().minute()))
@@ -1131,9 +1172,9 @@ private struct WeatherBadge: View {
         HStack(spacing: 3) {
             Image(systemName: data.symbolName)
                 .symbolRenderingMode(.multicolor)
-                .font(.system(size: 11))
+                .font(.caption2.weight(.medium))
             Text(data.temperature)
-                .font(.system(size: 10, weight: .medium).monospacedDigit())
+                .font(.caption2.weight(.medium).monospacedDigit())
                 .foregroundStyle(.secondary)
         }
     }

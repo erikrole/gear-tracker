@@ -10,6 +10,44 @@ Findings tagged P0 (HIG violation), P1 (clear deviation), P2 (polish/feel).
 
 ---
 
+## 2026-06-05 Refresh — iOS 27 Readiness
+
+**Current truth:** The earlier 2026-05-03 P0/P1 HIG sweep is mostly closed in current source. `AppTabView` already uses `Tab(...)`, `TabRole.search`, `.tabBarMinimizeBehavior(.onScrollDown)`, safe-area offline banners, and meaningful badge labels. The primary Scan tab already has permission priming, denied-state recovery, manual-entry fallback, haptics, retryable error state, and sheet-based results.
+
+**Apple timing:** WWDC26 runs June 8-12, 2026. The Keynote is June 8 at 10 a.m. PT and Platforms State of the Union is June 8 at 1 p.m. PT. Treat iOS 27-specific guidance as pending until those sessions publish. Current work should improve against today's HIG without raising deployment target or Swift version.
+
+**Current P1 selected for implementation:** `ios/Wisconsin/Views/Search/QRScannerSheet.swift` lagged behind the primary Scan tab. It still requested camera permission directly, used 36pt overlay controls, presented manual entry in an alert, hard-tinted the progress spinner, auto-cleared errors, and lacked error haptics. The QR shortcut is part of the global search affordance, so fixing it improves daily lookup without adding desktop parity or changing custody rules.
+
+**Slice outcome:** QR scanner shortcut now reuses `ScanPrePromptView` and `ScanDeniedView`, raises close/torch controls to 44pt, presents manual entry as a medium sheet through `ScanManualEntrySheet`, keeps no-match/server errors visible with recovery actions, adds `Haptics.error()`, turns torch off when leaving the scene, and gives VoiceOver users a keyboard-first fallback.
+
+**Second slice outcome:** `BookingsView` empty states now include direct recovery actions. Search-empty states clear the query, Mine-only empty states switch to all visible bookings, and empty Reservations can open creation when allowed. The slice keeps the accepted mobile active-only booking scope and avoids reopening GAP-34's desktop parity filters.
+
+**Third slice outcome:** `LoginView` now restores the native `Need an account?` link to `https://gear.erikrole.com/register`, matching the login audit and device walkthrough while keeping registration web-owned and invite-gated by `AllowedEmail`.
+
+**Fourth slice outcome:** `PasswordSetupView` now gives forced-password users a persistent in-form requirements checklist while they complete first sign-in, matching HIG text-field guidance to keep field purpose and validation visible instead of relying on disappearing placeholders or a single changing warning line.
+
+**Fifth slice outcome:** `ScheduleView` calendar day cells now keep their compact visual date circles while giving each interactive day a 44pt minimum width and rectangular content shape. This aligns Calendar mode with the same tap-target baseline already used by the month chevrons and primary schedule controls.
+
+**Sixth slice outcome:** `NotificationsSheet` read actions now recover honestly when the server rejects a mark-read or mark-all-read mutation. The API client uses the shared response handler, optimistic unread state is restored on failure, and the sheet shows a recoverable Refresh banner with error haptics.
+
+**Seventh slice outcome:** `TradeBoardSheet` cancellation now uses the shipped server route and returned trade state. The native client calls `PATCH /api/shift-trades/[id]/cancel`, decodes `{ data: trade }` through the shared API handler, and lets the returned `CANCELLED` status remove the post from active sections instead of deleting locally after an unchecked request.
+
+**Eighth slice outcome:** `TradeBoardSheet` action failures now stay in context. Failed claim and cancel actions show an inline recovery banner with Refresh and Dismiss actions plus error haptics instead of interrupting the sheet with a generic OK-only alert.
+
+**Ninth slice outcome:** `LoginView` password visibility now has explicit accessibility semantics. The icon-only eye button speaks as Show password or Hide password and exposes Password hidden or Password visible as state.
+
+**Tenth slice outcome:** `PasswordSetupView` now matches the same accessibility pattern. The shared eye button speaks as Show passwords or Hide passwords and exposes Passwords hidden or Passwords visible as state.
+
+**Eleventh slice outcome:** `ItemsView` rows now preserve the combined operational VoiceOver label and add an explicit "Double-tap to view item details" hint so the row's navigation action is discoverable.
+
+**Twelfth slice outcome:** `ScheduleView` list microcopy now uses semantic SwiftUI font styles instead of fixed point sizes. Date headers, My Shift chips, Home/Away labels, crew coverage icons, shift labels, and weather text scale with Dynamic Type while preserving monospaced digits for fast operational scanning.
+
+**Thirteenth slice outcome:** `ScanView` result errors now keep recovery in context. The result sheet exposes Try again before Type code instead, retries the last scanned code, and resets same-code dedupe first so a failed lookup can be retried immediately without dismissing the sheet.
+
+**Sources:** Apple HIG root, Accessibility, Layout, SwiftUI Liquid Glass docs, SwiftUI updates, WWDC26 page, `docs/AREA_MOBILE.md`, `docs/AREA_SEARCH.md`, `docs/AREA_SCAN.md`, `docs/DECISIONS.md`, `docs/GAPS_AND_RISKS.md`, and `prisma/schema.prisma`.
+
+---
+
 ## Reference URLs (Apple, canonical)
 
 **HIG (design language):**
@@ -200,7 +238,7 @@ These are project-wide patterns to adopt in a single sweep before per-screen pol
 
 **Verdict:** excellent — `.searchable`, `ContentUnavailableView` for all states, debounced search, skeleton list, explicit 44pt frames on toolbar buttons, `@Observable`, optimistic-update favorite. Two iOS 26 polish opportunities.
 
-- [ ] **P1 — [Gestures] No swipe actions on List rows.** `ItemsView.swift:144-172`.
+- [x] **P1 — [Gestures] No swipe actions on List rows.** `ItemsView.swift:144-172`.
       HIG List rows should expose primary actions via `.swipeActions`. Currently Favorite, Reserve, and Copy Asset Tag are context-menu-only. Add leading-swipe Favorite (low-risk) and trailing-swipe Reserve (CTA). Keep the context menu for parity.
       Cite: https://developer.apple.com/design/human-interface-guidelines/list-views
 
@@ -308,6 +346,8 @@ In addition to the cross-cutting CC-1..CC-10 work, the following per-screen P1s 
 - CC-3 Liquid Glass on hand-rolled tinted banners (Overdue / Flagged / LostBulkUnits in HomeView). System materials (`.regularMaterial`, `.ultraThinMaterial`) auto-promote to Liquid Glass on iOS 26; the tinted-bg banners use `Color.X.opacity(0.06)` which doesn't promote. Migration is `.glassEffect(.regular.tint(.red).interactive())` but the visual call is best made on device.
 - HomeView `StatStrip` clipping behavior at AX5 — needs Dynamic Type AX5 simulator pass.
 - ScheduleView's existing inline toast could migrate to the new `Toast` component (separate refactor).
+
+**2026-06-05 follow-up:** Items list favorite failures no longer silently revert. `ItemsView` now keeps optimistic favorite updates, rolls back on failure, and shows the shared non-blocking `Toast` with "Couldn't update favorite" when the server rejects the mutation.
 
 ## Aggregate findings (P0 cohort, all 8 screens)
 

@@ -114,9 +114,7 @@ struct ScanView: View {
                     resultError = nil
                     showManualEntry = true
                 },
-                onRetry: { code in
-                    handleScan(code)
-                }
+                onRetry: retryLastScan
             )
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
@@ -246,6 +244,13 @@ struct ScanView: View {
                 isScanning = true
             }
         }
+    }
+
+    private func retryLastScan() {
+        guard let code = lastHandledCode else { return }
+        lastHandledCode = nil
+        lastHandledAt = .distantPast
+        handleScan(code)
     }
 
     /// Returns the asset if the result set is a single asset and nothing else —
@@ -426,7 +431,7 @@ private struct ScanResultSheet: View {
     let error: String?
     @Binding var navigationPath: NavigationPath
     var onTypeCode: () -> Void
-    var onRetry: (String) -> Void
+    var onRetry: () -> Void
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -463,6 +468,13 @@ private struct ScanResultSheet: View {
         } description: {
             Text(message)
         } actions: {
+            Button {
+                onRetry()
+            } label: {
+                Label("Try again", systemImage: "arrow.clockwise")
+            }
+            .buttonStyle(.borderedProminent)
+
             Button {
                 onTypeCode()
             } label: {

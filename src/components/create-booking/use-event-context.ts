@@ -8,7 +8,7 @@ import {
   type CalendarEvent,
 } from "../booking-list/types";
 import type { FormAction } from "./types";
-import { handleAuthRedirect, isAbortError, parseJsonSafely } from "@/lib/errors";
+import { handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 
 const MAX_SELECTED_EVENTS = 3;
 const BOOKING_EVENT_LOOKAHEAD_DAYS = 30;
@@ -56,6 +56,8 @@ export function useEventContext({
 
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsLoadError, setEventsLoadError] = useState<false | "network" | "server">(false);
+  const [eventsReloadKey, setEventsReloadKey] = useState(0);
   const [myShiftForEvent, setMyShiftForEvent] = useState<{
     area: string;
     startsAt: string;
@@ -68,9 +70,11 @@ export function useEventContext({
   useEffect(() => {
     if (!tieToEvent || !open) {
       setEvents([]);
+      setEventsLoadError(false);
       return;
     }
     setEventsLoading(true);
+    setEventsLoadError(false);
     const controller = new AbortController();
     const now = new Date();
     const rangeEnd = new Date(now.getTime() + BOOKING_EVENT_LOOKAHEAD_DAYS * 24 * 60 * 60 * 1000);
@@ -82,23 +86,29 @@ export function useEventContext({
     if (sport) params.set("sportCode", sport);
     fetch(`/api/calendar-events?${params}`, { signal: controller.signal })
       .then(async (res) => {
-        if (handleAuthRedirect(res)) return null;
-        if (!res.ok) return null;
+        if (handleAuthRedirect(res)) throw new DOMException("Auth redirect", "AbortError");
+        if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to load events"));
         return parseJsonSafely<{ data?: CalendarEvent[] }>(res);
       })
       .then((json) => {
         if (controller.signal.aborted) return;
         setEvents(json?.data || []);
+        setEventsLoadError(false);
         setEventsLoading(false);
       })
       .catch((err) => {
         if (!isAbortError(err)) {
           setEventsLoading(false);
+          setEventsLoadError(err instanceof TypeError ? "network" : "server");
           toast.error("Couldn’t load events — try again");
         }
       });
     return () => controller.abort();
-  }, [sport, tieToEvent, open]);
+  }, [sport, tieToEvent, open, eventsReloadKey]);
+
+  const retryEvents = useCallback(() => {
+    setEventsReloadKey((key) => key + 1);
+  }, []);
 
   // ── Toggle an event in/out of the selection, enforcing cap and chronological order ──
   const toggleEvent = useCallback(
@@ -169,5 +179,5 @@ export function useEventContext({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedEvents[0]?.id]);
 
-  return { events, eventsLoading, myShiftForEvent, toggleEvent };
+  return { events, eventsLoading, eventsLoadError, retryEvents, myShiftForEvent, toggleEvent };
 }

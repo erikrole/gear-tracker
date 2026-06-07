@@ -20,11 +20,21 @@ final class BookingsViewModel {
     /// requested. Mirrors the staff floor pattern of "what's mine right now".
     var mineOnly = false
     var currentUserId: String?
+    var currentUserRole = ""
 
     private var offset = 0
     private let limit = 30
     private var searchTask: Task<Void, Never>?
     private var loadTask: Task<Void, Never>?
+    private var didApplyUserDefault = false
+
+    func applyUserContext(id: String?, role: String?) {
+        currentUserId = id
+        currentUserRole = role ?? ""
+        guard !didApplyUserDefault else { return }
+        mineOnly = currentUserRole == "STUDENT"
+        didApplyUserDefault = true
+    }
 
     func load(reset: Bool = false) async {
         if reset {
@@ -105,7 +115,7 @@ final class BookingsViewModel {
         loadTask?.cancel()
         searchText = ""
         tab = .reservations
-        mineOnly = false
+        mineOnly = currentUserRole == "STUDENT"
         bookings = []
         offset = 0
         hasMore = true
@@ -141,8 +151,16 @@ struct BookingsView: View {
 
     private var emptyDescription: String {
         if !vm.searchText.isEmpty { return "No results for \"\(vm.searchText)\"." }
-        if vm.mineOnly { return "Nothing checked out or reserved by you." }
-        return "No active bookings here."
+        if vm.mineOnly { return "Nothing reserved or checked out by you." }
+        return vm.tab == .reservations ? "No active reservations here." : "No active checkouts here."
+    }
+
+    private var screenTitle: String {
+        vm.tab == .reservations ? "Reservations" : "Checkouts"
+    }
+
+    private var searchPrompt: String {
+        vm.tab == .reservations ? "Search reservations..." : "Search checkouts..."
     }
 
     var body: some View {
@@ -169,11 +187,13 @@ struct BookingsView: View {
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)  // Don't pollute VO with placeholder shapes.
                 } else if vm.bookings.isEmpty {
-                    ContentUnavailableView(
-                        emptyTitle,
-                        systemImage: "archivebox",
-                        description: Text(emptyDescription)
-                    )
+                    ContentUnavailableView {
+                        Label(emptyTitle, systemImage: "archivebox")
+                    } description: {
+                        Text(emptyDescription)
+                    } actions: {
+                        emptyStateActions
+                    }
                 } else {
                     List {
                         if let stamp = vm.lastLoadedAt?.freshnessLabel {
@@ -212,8 +232,8 @@ struct BookingsView: View {
                     .listStyle(.plain)
                 }
             }
-            .navigationTitle("Bookings")
-            .searchable(text: $vm.searchText, prompt: "Search bookings…")
+            .navigationTitle(screenTitle)
+            .searchable(text: $vm.searchText, prompt: searchPrompt)
             .onChange(of: vm.searchText) { vm.onSearchChange() }
             .onChange(of: vm.tab) { Task { await vm.load(reset: true) } }
             .toolbar {
@@ -222,23 +242,25 @@ struct BookingsView: View {
                         vm.mineOnly.toggle()
                         Task { await vm.load(reset: true) }
                     } label: {
-                        Image(systemName: vm.mineOnly ? "person.fill" : "person")
-                            .frame(minWidth: 44, minHeight: 44)
+                        Label(vm.mineOnly ? "Mine" : "All", systemImage: vm.mineOnly ? "person.fill" : "person.2")
+                            .labelStyle(.titleAndIcon)
+                            .frame(minHeight: 44)
                             .foregroundStyle(vm.mineOnly ? Color.statusText(.blue) : Color.primary)
                     }
-                    .accessibilityLabel(vm.mineOnly ? "Showing my bookings" : "Show only my bookings")
+                    .accessibilityLabel(vm.mineOnly ? "Showing my bookings" : "Showing all visible bookings")
                     .sensoryFeedback(.selection, trigger: vm.mineOnly)
                 }
                 if vm.tab == .reservations && canCreate {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button { showCreate = true } label: {
-                            Image(systemName: "plus")
+                            Label("New", systemImage: "plus")
+                                .labelStyle(.titleAndIcon)
                         }
                         .accessibilityLabel("New Reservation")
                     }
                 }
                 ToolbarItem(placement: .principal) {
-                    Picker("Tab", selection: $vm.tab) {
+                    Picker("Booking type", selection: $vm.tab) {
                         ForEach(BookingTab.allCases, id: \.self) { tab in
                             Text(tab.rawValue).tag(tab)
                         }
@@ -246,6 +268,7 @@ struct BookingsView: View {
                     .pickerStyle(.segmented)
                     .frame(maxWidth: 260)
                     .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityLabel("Booking type")
                 }
             }
             .sheet(isPresented: $showCreate) {
@@ -258,7 +281,7 @@ struct BookingsView: View {
             }
             .refreshable { await vm.load(reset: true) }
             .task {
-                vm.currentUserId = session.currentUser?.id
+                vm.applyUserContext(id: session.currentUser?.id, role: session.currentUser?.role)
                 await vm.load(reset: true)
             }
             .onChange(of: appState.tabResetToken) { _, _ in
@@ -274,6 +297,34 @@ struct BookingsView: View {
             .navigationDestination(for: String.self) { id in
                 BookingDetailView(bookingId: id)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var emptyStateActions: some View {
+        if !vm.searchText.isEmpty {
+            Button {
+                vm.searchText = ""
+                Task { await vm.load(reset: true) }
+            } label: {
+                Label("Clear search", systemImage: "xmark.circle")
+            }
+            .buttonStyle(.borderedProminent)
+        } else if vm.mineOnly {
+            Button {
+                vm.mineOnly = false
+                Task { await vm.load(reset: true) }
+            } label: {
+                Label("Show all visible bookings", systemImage: "person.2")
+            }
+            .buttonStyle(.borderedProminent)
+        } else if vm.tab == .reservations && canCreate {
+            Button {
+                showCreate = true
+            } label: {
+                Label("New Reservation", systemImage: "plus")
+            }
+            .buttonStyle(.borderedProminent)
         }
     }
 }

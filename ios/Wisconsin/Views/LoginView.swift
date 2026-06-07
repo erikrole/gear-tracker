@@ -24,6 +24,7 @@ struct LoginView: View {
     }
 
     private static let forgotPasswordURL = URL(string: "https://gear.erikrole.com/forgot-password")!
+    private static let registerURL = URL(string: "https://gear.erikrole.com/register")!
 
     var body: some View {
         ZStack {
@@ -147,6 +148,8 @@ struct LoginView: View {
                                 .frame(width: 44, height: 44)
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel(showPassword ? "Hide password" : "Show password")
+                        .accessibilityValue(showPassword ? "Password visible" : "Password hidden")
                     }
                 }
 
@@ -183,12 +186,17 @@ struct LoginView: View {
                 .padding(.vertical, 20)
                 .padding(.horizontal, 24)
 
-            Text("Access is by invitation only.\nContact an administrator to request access.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 24)
-                .padding(.bottom, 28)
+            VStack(spacing: 8) {
+                Text("Access is by invitation only.\nContact an administrator to request access.")
+                    .multilineTextAlignment(.center)
+
+                Link("Need an account?", destination: Self.registerURL)
+                    .font(.footnote.weight(.medium))
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 24)
+            .padding(.bottom, 28)
         }
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 20))

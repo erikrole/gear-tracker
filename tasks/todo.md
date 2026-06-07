@@ -1,6 +1,6 @@
 # Task Queue
 
-Last updated: 2026-06-03
+Last updated: 2026-06-06
 
 **Current release**: Beta — CalVer versioning adopted.
 **Release workflow**: `npm run release` creates CalVer tag + GitHub Release.
@@ -44,31 +44,157 @@ Last updated: 2026-06-03
 
 ## Open Items
 
+### iOS HIG and iOS 27 Readiness (2026-06-05)
+- [x] Create the active goal for HIG/iOS 27 readiness.
+- [x] Open a source-grounded slice plan in `tasks/ios-hig-ios27-readiness-plan.md`.
+- [x] Refresh the existing Apple HIG audit against current SwiftUI source and current Apple guidance.
+- [x] Pick one narrow HIG improvement slice after the refreshed audit.
+- [x] Implement the global-search QR scanner HIG polish slice.
+- [x] Sync docs and run the iOS verification stack.
+
+**Review**
+- Active tracking lives in `tasks/ios-hig-ios27-readiness-plan.md`.
+- Current root issue: `tasks/hig-audit-ios.md` and `tasks/ios-swift62-liquidglass-plan.md` already exist, but the app has shipped several iOS control-clarity and readiness slices since then. The audit needs to be reconciled against current source before any new UI change is safe.
+- Direction: treat WWDC26 on June 8, 2026 as the point where iOS 27 specifics become actionable. Until then, improve against the current HIG and avoid deployment-target or Swift-toolchain changes without fleet confirmation.
+- Selected slice: the global-search QR scanner shortcut still lagged behind the primary Scan tab's HIG posture. It used a cold permission request, 36pt overlay controls, alert-based manual entry, a white-tinted progress indicator, auto-clearing errors, and no error haptic. The implementation keeps lookup behavior unchanged while aligning the QR shortcut with current scanner recovery patterns.
+- Shipped: the QR shortcut now uses the shared scan permission pre-prompt/denied recovery, 44pt overlay controls, safe-area controls, sheet-based manual entry, a VoiceOver keyboard path, persistent recovery actions for lookup errors, and error haptics.
+- Follow-up shipped: Trade Board claim/cancel failures now stay in the sheet with a recoverable banner, Refresh, Dismiss, and error haptics instead of a generic OK-only alert.
+- Verified: `npm run drift:ios`, `npm run audit:ios:gaps`, `git diff --check`, and XcodeBuildMCP simulator build for `Wisconsin` Debug passed. `npx tsc --noEmit` was skipped because this slice did not touch shared TypeScript or API code.
+- Follow-up shipped: native Bookings empty states now recover directly. Search-empty offers Clear search, Mine-empty offers Show all visible bookings, and the empty Reservations tab can open New Reservation. This improves HIG-style recovery without adding deferred desktop status/sort filters.
+- Follow-up shipped: native Login now restores the `Need an account?` link to the web register page, matching the allowlist onboarding contract and device walkthrough without adding native open signup.
+- Follow-up shipped: native forced-password setup now keeps password requirements visible while users complete first sign-in, preserving the existing `/api/me/change-password` flow while making the form feedback clearer.
+- Follow-up shipped: native Schedule Calendar day cells now keep their compact date-circle look while expanding the interactive day target to the 44pt mobile baseline.
+- Follow-up shipped: native Notifications mark-read and mark-all-read now restore unread state and show recovery if the server rejects the mutation, instead of silently presenting a false read state.
+- Follow-up shipped: native Trade Board cancellation now calls the current PATCH route and updates from the returned trade, preventing a false local cancel when the server rejects the mutation.
+- Follow-up shipped: native Login password visibility now has explicit VoiceOver action and state copy, so the eye button reads as Show password or Hide password with Password hidden or Password visible state.
+- Follow-up shipped: native forced-password setup now matches that accessibility pattern, so the shared show/hide-passwords button exposes Passwords hidden or Passwords visible state.
+- Follow-up shipped: native Items rows now preserve the combined operational VoiceOver label and add a Double-tap to view item details hint.
+- Follow-up shipped: native Items favorite actions now keep optimistic update plus rollback behavior and show a shared non-blocking toast when the server rejects the favorite change, closing the prior silent-revert audit item.
+- Follow-up shipped: native retired Items stay visible as Retired but no longer expose Reserve from list swipe actions, row context menus, or item detail, keeping reservation affordances state-appropriate.
+- Follow-up shipped: native Items initial-load and pagination failures now show recovery-oriented copy instead of raw Swift error descriptions while preserving Retry and pull-to-refresh behavior.
+- Follow-up shipped: native Items filtered empty states now recover directly. Search-empty offers Clear search, and Favorites-only empty states offer Show all items without changing search, Favorites, Status scope, row actions, or the no-inventory copy.
+- Follow-up shipped: native Schedule list microcopy now uses semantic SwiftUI fonts instead of fixed point sizes for date headers, My Shift chips, Home/Away labels, coverage icons, shift labels, and weather text, with the date rail widened by minimum width instead of a fixed width.
+- Verified: focused Schedule Dynamic Type tests, iOS drift, iOS audit inventory, whitespace check, and `xcodebuild -project ios/Wisconsin.xcodeproj -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build` passed. XcodeBuildMCP was unavailable because its transport closed twice, so the simulator build used the shell fallback.
+- Follow-up shipped: native Scan result errors now offer Try again before Type code instead, retry the last scanned value after clearing same-code dedupe, and keep lookup-only scope plus kiosk custody boundaries unchanged.
+- Verified: focused Scan retry tests, iOS drift, iOS audit inventory, whitespace check, and `xcodebuild -project ios/Wisconsin.xcodeproj -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build` passed. XcodeBuildMCP was unavailable because its transport closed, so the simulator build used the shell fallback.
+
+### iOS Schedule Detail and Trade Control Clarity (2026-06-03)
+- [x] Audit mobile, shifts, walkthrough, event-detail audit notes, trade-board audit notes, post-trade audit notes, and current Swift files.
+- [x] Write active slice plan in `tasks/ios-schedule-detail-trade-control-clarity-plan.md`.
+- [x] Make Event Detail shift actions visibly self-describing.
+- [x] Make Trade Board and Post Trade controls visibly self-describing.
+- [x] Add focused contract coverage.
+- [x] Sync docs and run focused iOS verification.
+
+**Review**
+- Active tracking lives in `tasks/ios-schedule-detail-trade-control-clarity-plan.md`.
+- Current root issue: Schedule detail and trade flows are functionally hardened, but dense rows still use short visible action copy such as Assign, Request, Approve, Decline, Claim Shift, and Post.
+- Implemented: Event Detail now labels Add shift, Assign person, Request shift, and pending request approvals/declines with names; Trade Board/Post Trade now label Post trade, Claim this shift, Choose Shift to Trade, and Post Trade.
+- Verified with focused contract tests, TypeScript, iOS drift, iOS audit inventory, XcodeBuildMCP simulator build, and whitespace checks.
+
+### iOS Create Booking Control Clarity (2026-06-03)
+- [x] Audit mobile, checkout, reservation, iOS patterns, walkthrough, create-booking audit notes, and current `CreateBookingSheet`.
+- [x] Write active slice plan in `tasks/ios-create-booking-control-clarity-plan.md`.
+- [x] Make Create Booking step actions self-describing.
+- [x] Add selected-equipment visibility and one-tap removal.
+- [x] Add focused contract coverage.
+- [x] Sync docs and run focused iOS verification.
+
+**Review**
+- Active tracking lives in `tasks/ios-create-booking-control-clarity-plan.md`.
+- Current root issue: CreateBookingSheet is functionally hardened, but Step 2 only shows a selected count, so removing already-picked equipment can require finding it again in the search results.
+- Implemented: Step 1 advances with Choose Equipment, final submit reads Create Reservation, and Step 2 shows selected equipment with visible Remove controls backed by selected asset snapshots.
+- Verified with focused contract tests, TypeScript, iOS drift, iOS audit inventory, XcodeBuildMCP simulator build, and whitespace checks.
+
+### iOS Profile Controls Clarity (2026-06-03)
+- [x] Audit mobile, users, shifts, notifications, availability brief, walkthrough, profile audit notes, and current `AppTabView`.
+- [x] Write active slice plan in `tasks/ios-profile-controls-clarity-plan.md`.
+- [x] Make Profile notification and availability controls self-describing.
+- [x] Add focused contract coverage.
+- [x] Sync docs and run focused iOS verification.
+
+**Review**
+- Active tracking lives in `tasks/ios-profile-controls-clarity-plan.md`.
+- Current root issue: Profile has the right mobile settings, but some high-use controls still rely on short labels or icon-only toolbar actions that are easy to forget in field use.
+- Implemented: notification controls now read Pause alerts, Email alerts, and Push alerts; My Availability now exposes Add availability block in the list and Add block in the toolbar.
+- Verified with focused contract tests, TypeScript, iOS drift, iOS audit inventory, XcodeBuildMCP simulator build, and whitespace checks.
+
+### iOS Booking Detail Control Clarity (2026-06-03)
+- [x] Audit mobile, checkout, reservation, walkthrough, booking-detail audit notes, and current `BookingDetailView`.
+- [x] Write active slice plan in `tasks/ios-booking-detail-control-clarity-plan.md`.
+- [x] Make Booking Detail edit state self-describing.
+- [x] Add focused contract coverage.
+- [x] Sync docs and run focused iOS verification.
+
+**Review**
+- Active tracking lives in `tasks/ios-booking-detail-control-clarity-plan.md`.
+- Current root issue: Booking Detail still relies on a top-right pencil that disappears when a student-owned booking moves past the editable state.
+- Implemented: editable bookings now show a labeled Edit action, and owner-access locked bookings show an Editing locked notice with Extend/kiosk handoff copy.
+- Verified with focused contract tests, TypeScript, iOS drift, iOS audit inventory, XcodeBuildMCP simulator build, and whitespace checks.
+
+### iOS Items Control Clarity (2026-06-03)
+- [x] Audit mobile, items, iOS patterns, walkthrough, items audit notes, and current native item/booking detail controls.
+- [x] Write active slice plan in `tasks/ios-items-control-clarity-plan.md`.
+- [x] Replace icon-only Items filters with visible labeled controls.
+- [x] Add focused contract coverage.
+- [x] Sync docs and run focused iOS verification.
+
+**Review**
+- Active tracking lives in `tasks/ios-items-control-clarity-plan.md`.
+- Current root issue: Items list still scopes the whole list through icon-only Favorites and Status controls, which is easy to forget in field use.
+- Implemented: Items now shows Favorites and All statuses controls above the list instead of using the top-right icon-only filter cluster.
+- Verified with focused contract tests, TypeScript, iOS drift, iOS audit inventory, XcodeBuildMCP simulator build, and whitespace checks.
+
+### iOS Schedule Control Clarity (2026-06-03)
+- [x] Audit mobile, shifts, iOS patterns, walkthrough, Schedule audit notes, and current `ScheduleView`.
+- [x] Write active slice plan in `tasks/ios-schedule-control-clarity-plan.md`.
+- [x] Replace icon-only Schedule toggles with visible labeled controls.
+- [x] Add focused contract coverage.
+- [x] Sync docs and run focused iOS verification.
+
+**Review**
+- Active tracking lives in `tasks/ios-schedule-control-clarity-plan.md`.
+- Current root issue: Schedule has too many toolbar icons whose meaning must be memorized, especially List/Calendar, My Shifts, Past, Trade Board, and calendar subscribe.
+- Implemented: Schedule now shows labeled List/Calendar, My shifts, and Past events controls above content, while toolbar actions read Trades and Calendar.
+- Verified with focused contract tests, TypeScript, iOS drift, iOS audit inventory, XcodeBuildMCP simulator build, and whitespace checks.
+
 ### iOS Tabs And Buttons Readiness (2026-06-03)
 - [x] Audit mobile, reservations, checkouts, kiosk, scan, iOS patterns, decisions, gaps, current native shell, booking detail, API client, model, and booking PATCH route.
 - [x] Write active slice plan in `tasks/ios-tabs-buttons-readiness-plan.md`.
-- [ ] Fix native booking edit optimistic-lock headers.
-- [ ] Clarify iOS tabs, booking list titles, and toolbar buttons without adding desktop filters.
-- [ ] Sync docs and run focused native/API verification.
+- [x] Fix native booking edit optimistic-lock headers.
+- [x] Clarify iOS tabs, booking list titles, and toolbar buttons without adding desktop filters.
+- [x] Sync docs and run focused native/API verification.
 
 **Review**
 - Active tracking lives in `tasks/ios-tabs-buttons-readiness-plan.md`.
 - Root issue: iOS booking edits still PATCH without the required booking snapshot header, while the native Bookings shell uses generic and icon-only controls that make field actions harder to parse.
+- Shipped: native booking edits now pass `If-Unmodified-Since` from optional `Booking.updatedAt`; student tabs now read Home, My Gear, Items, Scan, Schedule; Users is staff/admin-only; the booking list titles itself as Reservations or Checkouts; and toolbar actions visibly say Mine/All and New.
+- Verified with focused contract tests, TypeScript, iOS drift, iOS audit inventory, XcodeBuildMCP simulator build, and whitespace checks.
 
 ### Onboarding Flow Plan (2026-06-03)
 - [x] Audit Users, Settings, Mobile, decisions, gaps, briefs, schema, auth routes, allowed-email routes, web forced-password flow, and iOS login/session source.
 - [x] Write active slice plan in `tasks/onboarding-flow-plan.md`.
-- [ ] Slice 1: Onboarding brief and decision sync.
-- [ ] Slice 2: Server invitation service for shared allowlist/user lifecycle behavior.
-- [ ] Slice 3: Web operator onboarding surface across Users and Allowed Emails.
-- [ ] Slice 4: Native iOS forced-password setup.
-- [ ] Slice 5: iOS registration/recovery polish.
-- [ ] Slice 6: Tests, hardening, docs sync, and plan archive.
+- [x] Slice 1: Onboarding brief and decision sync.
+- [x] Slice 2: Server invitation service for shared allowlist/user lifecycle behavior.
+- [ ] Slice 3: Bulk-first web operator onboarding surface across Users and Allowed Emails.
+- [ ] Slice 4: Bulk security and operational hardening.
+- [x] Slice 5: Native iOS forced-password setup.
+- [ ] Slice 6: iOS registration/recovery polish.
+- [ ] Slice 7: Tests, hardening, docs sync, and plan archive.
 
 **Review**
 - Current root issue: account access exists as separate partial flows. Operators can create users, allowlist emails, or reset passwords, but the product does not present a single invitation lifecycle.
+- Updated direction: onboarding should handle roster-sized batches through paste/CSV preview, role-safe validation, aggregate commit, and auditable status tracking while preserving the allowlist gate.
 - Source-confirmed iOS blocker: admin-created accounts require `forcePasswordChange`, protected API/web routes enforce that state, and iOS currently does not decode or handle the forced-password path.
 - Active tracking lives in `tasks/onboarding-flow-plan.md`.
+- Slice 1 shipped with `docs/BRIEF_ONBOARDING_V1.md` and D-037 in `docs/DECISIONS.md`.
+- Slice 2 shipped `src/lib/services/onboarding-lifecycle.ts`, wired `/api/users` and `/api/allowed-emails` through it, and verified the shared lifecycle with focused service and route tests plus TypeScript.
+- Slice 3A shipped shared web onboarding entry points: `/users` and `/settings/allowed-emails` now open the same bulk-invite/direct-create dialog. CSV preview and row grouping are still pending in Slice 3.
+- Slice 3B shipped local preview for bulk invites: pasted email lists and CSV-like `email, role` rows now group ready, duplicate, invalid, and role-blocked rows before submit. Server-backed existing-user/pending-invite preview remains pending.
+- Slice 3C shipped server-backed bulk invite preview: authenticated operators now see ready, duplicate, existing-user, pending-invite, and claimed-invite groups before commit, and the dialog blocks saving until account-status issues are resolved.
+- Slice 5 shipped native first-login password setup: iOS decodes `forcePasswordChange`, keeps forced users out of the app tabs, lets them set a new password through `/api/me/change-password`, refreshes `/api/me`, and then lands them in the app without needing a computer.
+- Slice 3D/4 handoff shipped: the onboarding dialog now shows post-commit requested/added/skipped counts, keeps direct-created temporary passwords visible only in the result handoff, and supports CSV download for one-time temporary-password distribution.
+- Slice 3E shipped onboarding status: `/users/onboarding-status` now gives staff/admin a searchable status page for total, pending, stale pending, and claimed onboarding access, linked from Users, Settings > Allowed Emails, and onboarding completion.
 
 ### Booking Create UX Ownership Pass (2026-05-30)
 - [x] Audit checkout and reservation create docs, schema, routes, services, wizard components, picker, and peer surfaces.

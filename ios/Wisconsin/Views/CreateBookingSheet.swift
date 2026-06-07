@@ -33,6 +33,7 @@ final class CreateBookingViewModel {
     // Equipment selection
     var selectedAssetIds: Set<String> = []
     var availableAssets: [Asset] = []
+    var selectedAssetSnapshots: [String: Asset] = [:]
     var isLoadingAssets = false
     var assetSearch = ""
     var assetTotal = 0
@@ -65,6 +66,11 @@ final class CreateBookingViewModel {
 
     var selectedUser: FormUser? { options?.users.first(where: { $0.id == selectedUserId }) }
     var selectedLocation: FormOption? { options?.locations.first(where: { $0.id == selectedLocationId }) }
+    var selectedAssets: [Asset] {
+        selectedAssetIds
+            .compactMap { id in selectedAssetSnapshots[id] ?? availableAssets.first(where: { $0.id == id }) }
+            .sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+    }
 
     var isValid: Bool {
         !title.trimmingCharacters(in: .whitespaces).isEmpty
@@ -90,6 +96,7 @@ final class CreateBookingViewModel {
             title = "Reservation: \(asset.displayName)"
         }
         selectedAssetIds.insert(asset.id)
+        selectedAssetSnapshots[asset.id] = asset
         if !availableAssets.contains(where: { $0.id == asset.id }) {
             availableAssets.insert(asset, at: 0)
             if assetTotal == 0 { assetTotal = 1 }
@@ -137,12 +144,32 @@ final class CreateBookingViewModel {
             // since this request was started. Mirrors the global-search fix.
             guard capturedSearch == assetSearch else { return }
             availableAssets += resp.data
+            for asset in resp.data where selectedAssetIds.contains(asset.id) {
+                selectedAssetSnapshots[asset.id] = asset
+            }
             assetTotal = resp.total
             assetOffset += resp.data.count
         } catch {
             guard capturedSearch == assetSearch else { return }
             self.error = error.localizedDescription
         }
+    }
+
+    func toggleAsset(_ asset: Asset) {
+        if selectedAssetIds.contains(asset.id) {
+            selectedAssetIds.remove(asset.id)
+            selectedAssetSnapshots.removeValue(forKey: asset.id)
+        } else {
+            selectedAssetIds.insert(asset.id)
+            selectedAssetSnapshots[asset.id] = asset
+        }
+        scheduleConflictCheck()
+    }
+
+    func removeSelectedAsset(_ asset: Asset) {
+        selectedAssetIds.remove(asset.id)
+        selectedAssetSnapshots.removeValue(forKey: asset.id)
+        scheduleConflictCheck()
     }
 
     func onSearchChange() {
@@ -237,7 +264,7 @@ struct CreateBookingSheet: View {
                     equipmentPicker
                 }
             }
-            .navigationTitle(step == 1 ? "New Reservation" : "Add Equipment")
+            .navigationTitle(step == 1 ? "Reservation Details" : "Choose Equipment")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbar }
             .confirmationDialog(
@@ -310,7 +337,7 @@ struct CreateBookingSheet: View {
         }
         ToolbarItem(placement: .confirmationAction) {
             if step == 1 {
-                Button("Next") {
+                Button("Choose Equipment") {
                     step = 2
                     Task { await vm.loadAvailableAssets(reset: true) }
                     vm.scheduleConflictCheck()
@@ -324,7 +351,7 @@ struct CreateBookingSheet: View {
                     if vm.isSubmitting {
                         ProgressView().controlSize(.small)
                     } else {
-                        Text("Create").fontWeight(.semibold)
+                        Text("Create Reservation").fontWeight(.semibold)
                     }
                 }
                 .disabled(vm.isSubmitting)
@@ -437,6 +464,20 @@ struct CreateBookingSheet: View {
                         .font(.subheadline)
                         .foregroundStyle(Color.statusText(.blue))
                         .accessibilityLabel("\(count) item\(count == 1 ? "" : "s") selected")
+
+                    ForEach(vm.selectedAssets) { asset in
+                        SelectedEquipmentRow(
+                            asset: asset,
+                            isConflicted: vm.conflictedAssetIds.contains(asset.id)
+                        ) {
+                            vm.removeSelectedAsset(asset)
+                            Haptics.selection()
+                        }
+                    }
+                } header: {
+                    Text("Selected Equipment")
+                } footer: {
+                    Text("Remove anything you do not want before creating the reservation.")
                 }
             }
 
@@ -475,13 +516,8 @@ struct CreateBookingSheet: View {
                             isSelected: vm.selectedAssetIds.contains(asset.id),
                             isConflicted: vm.conflictedAssetIds.contains(asset.id)
                         ) {
-                            if vm.selectedAssetIds.contains(asset.id) {
-                                vm.selectedAssetIds.remove(asset.id)
-                            } else {
-                                vm.selectedAssetIds.insert(asset.id)
-                            }
+                            vm.toggleAsset(asset)
                             Haptics.selection()
-                            vm.scheduleConflictCheck()
                         }
                         .onAppear {
                             if asset.id == vm.availableAssets.last?.id && vm.hasMoreAssets {
@@ -515,6 +551,61 @@ struct CreateBookingSheet: View {
             submitError = error.localizedDescription
             Haptics.warning()
         }
+    }
+}
+
+private struct SelectedEquipmentRow: View {
+    let asset: Asset
+    let isConflicted: Bool
+    let onRemove: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(asset.displayName)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    if let tag = asset.assetTag {
+                        Text(tag)
+                            .font(.caption)
+                            .fontDesign(.monospaced)
+                            .foregroundStyle(.secondary)
+                    }
+                    Text(asset.location.name)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                if isConflicted {
+                    Label("Scheduling conflict", systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption2)
+                        .foregroundStyle(Color.statusText(.orange))
+                        .accessibilityLabel("Scheduling conflict")
+                }
+            }
+            Spacer()
+            Button {
+                onRemove()
+            } label: {
+                Label("Remove", systemImage: "xmark.circle.fill")
+                    .labelStyle(.titleAndIcon)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var accessibilityLabel: String {
+        var parts: [String] = ["Selected", asset.displayName]
+        if let tag = asset.assetTag { parts.append(tag) }
+        parts.append(asset.location.name)
+        if isConflicted { parts.append("Scheduling conflict") }
+        parts.append("Remove button")
+        return parts.joined(separator: ", ")
     }
 }
 

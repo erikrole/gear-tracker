@@ -44,7 +44,8 @@ _None._ Loads correctly; auth failures route via the global 401 broadcaster (`AP
 - [ ] [Polish] **Deferred.** `shift_gear_up` navigation target — no iOS shift detail exists yet; routing to ScheduleView in general would leave the user hunting. Defer until a per-shift detail surface lands.
 - [ ] [Polish] **Deferred.** Unread-only filter / segmented control. Web doesn't have it either; the visual distinction (semibold + dot) covers the scanning need.
 - [ ] [Polish] **Deferred.** Mark-as-unread inverse swipe. Rarely needed.
-- [ ] [Hardening] **Deferred.** `markRead` / `markAllRead` error surfacing. Today both use `try?`; if the server fails, optimistic UI lies until the next refresh corrects it. Acceptable because the next pull-to-refresh syncs and a user who sees a stale read state will re-tap. Surface only if it becomes a documented issue.
+- [x] [Hardening] **Notification read actions now recover honestly.** `markRead` / `markAllRead` no longer swallow API failures. The iOS API client routes both PATCH actions through the shared response handler, and the sheet restores optimistic unread state plus shows a recoverable Refresh banner with error haptic when a read mutation fails.
+      `ios/Wisconsin/Core/APIClient.swift`; `ios/Wisconsin/Views/NotificationsSheet.swift`
 - [ ] [Polish] **Deferred.** Pull-to-refresh after `markAllRead` to catch unloaded unread notifications past page 1. Today they're marked read server-side but not in the local list; the next manual refresh corrects it.
 
 ## Acceptance criteria status

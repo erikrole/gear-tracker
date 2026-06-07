@@ -32,7 +32,7 @@ struct PostTradeSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Select a Shift to Post") {
+                Section("Choose Shift to Trade") {
                     if eligibleShifts.isEmpty {
                         Text("No upcoming active shifts available to post.")
                             .foregroundStyle(.secondary)
@@ -78,7 +78,7 @@ struct PostTradeSheet: View {
                         if isPosting {
                             ProgressView().controlSize(.small)
                         } else {
-                            Text("Post").fontWeight(.semibold)
+                            Text("Post Trade").fontWeight(.semibold)
                         }
                     }
                     .disabled(selectedShift == nil || isPosting)

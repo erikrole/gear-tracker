@@ -9,6 +9,7 @@ final class NotificationsViewModel {
     var isLoading = false
     var error: String?
     var pageError: String?
+    var actionError: String?
     private let pageSize = 20
 
     func load() async {
@@ -16,6 +17,7 @@ final class NotificationsViewModel {
         isLoading = true
         error = nil
         pageError = nil
+        actionError = nil
         defer { isLoading = false }
         do {
             let resp = try await APIClient.shared.notifications(limit: pageSize, offset: 0)
@@ -46,15 +48,35 @@ final class NotificationsViewModel {
     func markRead(id: String) async {
         guard let idx = notifications.firstIndex(where: { $0.id == id }),
               notifications[idx].isUnread else { return }
+        let previous = notifications[idx]
+        let previousUnreadCount = unreadCount
         notifications[idx] = notifications[idx].asRead
+        actionError = nil
         if unreadCount > 0 { unreadCount -= 1 }
-        try? await APIClient.shared.markNotificationRead(id: id)
+        do {
+            try await APIClient.shared.markNotificationRead(id: id)
+        } catch {
+            if let restoreIdx = notifications.firstIndex(where: { $0.id == id }) {
+                notifications[restoreIdx] = previous
+            }
+            unreadCount = previousUnreadCount
+            actionError = "Couldn't mark that notification read. Your inbox was restored."
+        }
     }
 
     func markAllRead() async {
+        let previousNotifications = notifications
+        let previousUnreadCount = unreadCount
         notifications = notifications.map { $0.asRead }
         unreadCount = 0
-        try? await APIClient.shared.markAllNotificationsRead()
+        actionError = nil
+        do {
+            try await APIClient.shared.markAllNotificationsRead()
+        } catch {
+            notifications = previousNotifications
+            unreadCount = previousUnreadCount
+            actionError = "Couldn't mark all notifications read. Your inbox was restored."
+        }
     }
 }
 
@@ -75,6 +97,7 @@ struct NotificationsSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var markAllHaptic = false
     @State private var swipeMarkHaptic = false
+    @State private var actionErrorHaptic = false
 
     var body: some View {
         NavigationStack {
@@ -103,6 +126,19 @@ struct NotificationsSheet: View {
             }
             .navigationTitle("Notifications")
             .navigationBarTitleDisplayMode(.inline)
+            .overlay(alignment: .top) {
+                if let actionError = vm.actionError {
+                    BannerView(
+                        severity: .error,
+                        message: actionError,
+                        systemImage: "wifi.exclamationmark",
+                        actionLabel: "Refresh"
+                    ) {
+                        Task { await vm.load() }
+                    }
+                    .padding(.top, 8)
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
@@ -119,6 +155,12 @@ struct NotificationsSheet: View {
                 }
             }
         }
+        .onChange(of: vm.actionError) { _, actionError in
+            if actionError != nil {
+                actionErrorHaptic.toggle()
+            }
+        }
+        .sensoryFeedback(.error, trigger: actionErrorHaptic)
         .task { await vm.load() }
     }
 

@@ -35,8 +35,10 @@ final class TradeBoardViewModel {
     }
 
     func cancel(id: String) async throws {
-        try await APIClient.shared.cancelShiftTrade(id: id)
-        trades.removeAll { $0.id == id }
+        let updated = try await APIClient.shared.cancelShiftTrade(id: id)
+        if let idx = trades.firstIndex(where: { $0.id == id }) {
+            trades[idx] = updated
+        }
     }
 }
 
@@ -51,6 +53,7 @@ struct TradeBoardSheet: View {
     @State private var tradeToConfirm: ShiftTrade?
     @State private var tradeToCancel: ShiftTrade?
     @State private var actionError: String?
+    @State private var actionErrorHaptic = 0
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -72,6 +75,18 @@ struct TradeBoardSheet: View {
             }
             .navigationTitle("Trade Board")
             .navigationBarTitleDisplayMode(.inline)
+            .safeAreaInset(edge: .top) {
+                if let actionError {
+                    TradeBoardActionErrorBanner(
+                        message: actionError,
+                        onRefresh: {
+                            self.actionError = nil
+                            Task { await vm.load() }
+                        },
+                        onDismiss: { self.actionError = nil }
+                    )
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
@@ -80,14 +95,14 @@ struct TradeBoardSheet: View {
                     Button {
                         showPostSheet = true
                     } label: {
-                        Label("Post Shift", systemImage: "plus")
+                        Label("Post trade", systemImage: "plus")
                     }
                 }
             }
             .task {
-            vm.currentUserId = currentUserId
-            await vm.load()
-        }
+                vm.currentUserId = currentUserId
+                await vm.load()
+            }
             .refreshable { await vm.load() }
             .sheet(isPresented: $showPostSheet) {
                 PostTradeSheet(myShifts: myShifts) { posted in
@@ -114,6 +129,7 @@ struct TradeBoardSheet: View {
                             onTradeClaimed?(trade.shiftAssignment.shift.area, when)
                         } catch {
                             actionError = error.localizedDescription
+                            actionErrorHaptic &+= 1
                             Haptics.warning()
                         }
                         tradeToConfirm = nil
@@ -137,6 +153,7 @@ struct TradeBoardSheet: View {
                             Haptics.success()
                         } catch {
                             actionError = error.localizedDescription
+                            actionErrorHaptic &+= 1
                             Haptics.warning()
                         }
                         tradeToCancel = nil
@@ -146,11 +163,7 @@ struct TradeBoardSheet: View {
             } message: {
                 Text("Your shift will be removed from the trade board.")
             }
-            .alert("Error", isPresented: Binding(get: { actionError != nil }, set: { if !$0 { actionError = nil } })) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(actionError ?? "")
-            }
+            .sensoryFeedback(.error, trigger: actionErrorHaptic)
         }
     }
 
@@ -209,6 +222,43 @@ struct TradeBoardSheet: View {
 
 // MARK: - Trade Row
 
+private struct TradeBoardActionErrorBanner: View {
+    let message: String
+    let onRefresh: () -> Void
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.footnote.weight(.semibold))
+                .accessibilityHidden(true)
+
+            Text(message)
+                .font(.footnote.weight(.medium))
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+
+            Spacer(minLength: 8)
+
+            Button("Refresh", action: onRefresh)
+                .font(.footnote.weight(.semibold))
+
+            Button(action: onDismiss) {
+                Image(systemName: "xmark")
+                    .font(.caption.weight(.semibold))
+                    .frame(minWidth: 32, minHeight: 32)
+            }
+            .accessibilityLabel("Dismiss trade board error")
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(Color.statusBackground(.red), in: RoundedRectangle(cornerRadius: 12))
+        .foregroundStyle(Color.statusText(.red))
+        .padding(.horizontal, 12)
+        .padding(.bottom, 4)
+    }
+}
+
 private struct TradeRow: View {
     let trade: ShiftTrade
     let claimAction: (() -> Void)?
@@ -219,7 +269,7 @@ private struct TradeRow: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(shift.area.shiftAreaLabel)
+                    Text("\(shift.area.shiftAreaLabel) shift")
                         .font(.subheadline.weight(.semibold))
                     if let summary = shift.shiftGroup?.event?.summary {
                         Text(summary)
@@ -264,7 +314,7 @@ private struct TradeRow: View {
 
             if let claimAction {
                 Button(action: claimAction) {
-                    Text("Claim Shift")
+                    Text("Claim this shift")
                         .font(.subheadline.weight(.medium))
                         .frame(maxWidth: .infinity)
                 }

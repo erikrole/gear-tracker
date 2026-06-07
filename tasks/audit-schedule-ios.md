@@ -27,6 +27,9 @@ Scope (Pass 2 additions): `EventDetailSheet` crew section + `AssignStudentSheet`
       Why it blocks ship: push for shift updates is explicitly required; tapping the notification does nothing.
       Suggested fix: add an `eventId` or `shiftAssignmentId` branch that sets `appState.pendingPushEventId`; observe it in `ScheduleView` to open `EventDetailSheet` for that event, mirroring the `bookingId` → booking detail pattern.
 
+- [x] [HIG/touch targets] Calendar day cells now keep a 44pt minimum interactive width. The visible date circle remains compact, but the Button label frame and content shape now meet the mobile tap-target baseline.
+      `ios/Wisconsin/Views/ScheduleView.swift`
+
 ## P2 — post-MVP (Pass 2)
 
 - [x] [Gaps] Staff can't create a shift group for events with no group yet — `showAddShift` is only surfaced when `vm.shiftGroup != nil`; "No crew scheduled" has no create-group affordance for staff. Web uses ShiftDetailPanel for this.

@@ -19,7 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import Link from "next/link";
-import { ArrowUpDown, Download, Loader2, Network, RefreshCw, WifiOff } from "lucide-react";
+import { ArrowUpDown, ClipboardList, Download, Loader2, Network, RefreshCw, UserPlus, WifiOff } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFetch } from "@/hooks/use-fetch";
 import { PageHeader } from "@/components/PageHeader";
@@ -355,8 +355,16 @@ export default function UsersPage() {
           </Button>
         )}
         {canEdit && (
+          <Button asChild variant="outline" size="sm">
+            <Link href="/users/onboarding-status">
+              <ClipboardList className="mr-1 size-4" /> Onboarding
+            </Link>
+          </Button>
+        )}
+        {canEdit && (
           <Button onClick={() => setShowCreate(true)}>
-            Add user
+            <UserPlus data-icon="inline-start" />
+            Onboard users
           </Button>
         )}
       </PageHeader>
@@ -370,7 +378,9 @@ export default function UsersPage() {
         locationsError={Boolean(formOptionsError)}
         onRetryLocations={reloadFormOptions}
         currentUserRole={currentUserRole}
+        initialMode="invite"
         onCreated={() => reload()}
+        onInvitesChanged={() => reload()}
       />
 
       {/* Users List */}

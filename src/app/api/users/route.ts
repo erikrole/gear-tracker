@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { HttpError, ok, parsePagination } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
 import { roleSchema } from "@/lib/validation";
-import { createAuditEntry } from "@/lib/audit";
+import { createDirectUserAccount } from "@/lib/services/onboarding-lifecycle";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
@@ -15,16 +15,6 @@ const createUserSchema = z.object({
   role: roleSchema.default("STAFF"),
   locationId: z.string().cuid().nullable().optional()
 });
-
-type CreatedUser = Prisma.UserGetPayload<{
-  include: { location: { select: { name: true } } };
-}>;
-
-type AllowedEmailAudit = {
-  id: string;
-  action: "created" | "claimed";
-  after: Record<string, unknown>;
-};
 
 export const GET = withAuth(async (req, { user }) => {
   requireRole(user.role, ["ADMIN", "STAFF", "STUDENT"]);
@@ -209,80 +199,17 @@ export const POST = withAuth(async (req, { user }) => {
     throw new HttpError(403, "Only admins can create admin users");
   }
 
-  const email = body.email.toLowerCase();
-
   const passwordHash = await hashPassword(body.password);
 
-  let result: { created: CreatedUser; allowedEmailAudit: AllowedEmailAudit | null } | null = null;
+  let result: Awaited<ReturnType<typeof createDirectUserAccount>> | null = null;
   try {
-    result = await db.$transaction(async (tx) => {
-      const created = await tx.user.create({
-        data: {
-          name: body.name,
-          email,
-          passwordHash,
-          forcePasswordChange: true,
-          role: body.role,
-          locationId: body.locationId ?? null
-        },
-        include: {
-          location: { select: { name: true } }
-        }
-      });
-
-      let allowedEmailAudit: AllowedEmailAudit | null = null;
-      if (body.role !== "ADMIN") {
-        const now = new Date();
-        const existingAllowed = await tx.allowedEmail.findUnique({
-          where: { email },
-          select: { id: true, email: true, role: true, claimedAt: true, claimedById: true },
-        });
-
-        if (existingAllowed) {
-          if (!existingAllowed.claimedAt || !existingAllowed.claimedById) {
-            const claimed = await tx.allowedEmail.update({
-              where: { id: existingAllowed.id },
-              data: { role: body.role, claimedAt: now, claimedById: created.id },
-              select: { id: true, email: true, role: true, claimedAt: true, claimedById: true },
-            });
-            allowedEmailAudit = {
-              id: claimed.id,
-              action: "claimed",
-              after: {
-                email: claimed.email,
-                role: claimed.role,
-                claimedById: claimed.claimedById,
-                claimedAt: claimed.claimedAt?.toISOString() ?? null,
-                source: "direct_user_create",
-              },
-            };
-          }
-        } else {
-          const entry = await tx.allowedEmail.create({
-            data: {
-              email,
-              role: body.role,
-              createdById: user.id,
-              claimedAt: now,
-              claimedById: created.id,
-            },
-            select: { id: true, email: true, role: true, claimedAt: true, claimedById: true },
-          });
-          allowedEmailAudit = {
-            id: entry.id,
-            action: "created",
-            after: {
-              email: entry.email,
-              role: entry.role,
-              claimedById: entry.claimedById,
-              claimedAt: entry.claimedAt?.toISOString() ?? null,
-              source: "direct_user_create",
-            },
-          };
-        }
-      }
-
-      return { created, allowedEmailAudit };
+    result = await createDirectUserAccount({
+      actor: user,
+      name: body.name,
+      email: body.email,
+      passwordHash,
+      role: body.role,
+      locationId: body.locationId ?? null,
     });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
@@ -295,33 +222,7 @@ export const POST = withAuth(async (req, { user }) => {
     throw new HttpError(500, "Failed to create user");
   }
 
-  const { created, allowedEmailAudit } = result;
-
-  await createAuditEntry({
-    actorId: user.id,
-    actorRole: user.role,
-    entityType: "user",
-    entityId: created.id,
-    action: "created",
-    after: {
-      name: created.name,
-      email: created.email,
-      role: created.role,
-      locationId: created.locationId,
-      forcePasswordChange: true,
-    },
-  });
-
-  if (allowedEmailAudit) {
-    await createAuditEntry({
-      actorId: user.id,
-      actorRole: user.role,
-      entityType: "allowed_email",
-      entityId: allowedEmailAudit.id,
-      action: allowedEmailAudit.action,
-      after: allowedEmailAudit.after,
-    });
-  }
+  const { created } = result;
 
   return ok(
     {

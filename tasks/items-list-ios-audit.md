@@ -24,8 +24,8 @@
 - **No location / category / department / brand filters** — web has all four. iOS only filters by status + favorites. For "I'm at Camp Randall, what's available here", the user has to scroll the full list.
 - **No multi-select bulk actions** — admin/staff can't retire/move/delete in bulk on iOS. Per AREA_ITEMS the V1 plan defers admin actions to web; that's intentional, but explicitly documenting it on the iOS audit prevents drift.
 - **`if reset && offset == result.data.count && searchText.isEmpty && selectedStatus == nil && !favoritesOnly`** (`ItemsView.swift:59`) — fragile heuristic for "first unfiltered load". Should be a simple `private var hasSeeded = false` flag flipped after the first successful unfiltered fetch.
-- **`error.localizedDescription` straight to UI** (lines 66, 68) — Swift errors often surface raw JSON-decoder garbage ("The data couldn't be read because it isn't in the correct format"). Web has `parseErrorMessage`; iOS has nothing equivalent.
-- **Reservation context-menu always present** — the "Reserve" menu item (`ItemsView.swift:187–191`) shows for retired items too. Should be gated on `computedStatus != .retired`.
+- **`error.localizedDescription` straight to UI** (lines 66, 68) — Swift errors can surface raw implementation copy. **Now closed** — Items initial-load and pagination failures use `itemListErrorMessage(...)` for recovery-oriented copy while preserving API/server messages.
+- **Reservation context-menu always present** — the "Reserve" menu item (`ItemsView.swift:187–191`) showed for retired items too. **Now closed** — retired items keep their status row/detail visibility, but native iOS no longer exposes Reserve from list swipe actions, context menus, or item detail.
 - **`AssetListBadge` badge text picks `requesterName` only** when the booking exists; it says "Anna Smith" but doesn't say *what's about to happen* (return today? overdue?). **Now closed** — due-date sub-label added.
 
 ---
@@ -74,17 +74,17 @@
 
 | Check | Status | Notes |
 |---|---|---|
-| Empty states | ✅ | Three branches: error / favorites-only / no-search-match. Distinct copy and icon. |
+| Empty states | ✅ | Three branches: error / favorites-only / no-search-match. Distinct copy and icon. Search-empty and Favorites-only states now include direct recovery actions. |
 | Skeleton fidelity | ✅ | `ItemRowSkeleton` × 10 with `allowsHitTesting(false)`. |
-| Silent mutations | ⚠️ | Favorite toggle has haptic only; on failure it just reverts without telling the user. A toast/banner for failure ("Couldn't update favorite") would be more honest. |
+| Silent mutations | ✅ | Favorite toggle still rolls back on failure and now shows a shared toast so the reverted star is understandable. |
 | Confirmation quality | n/a | No destructive iOS actions today. |
 | Touch targets | ✅ | 44×44 enforced on toolbar buttons. |
-| Error message quality | ⚠️ | `error.localizedDescription` raw to UI. |
+| Error message quality | ✅ | Initial-load and pagination failures now use friendly Items-specific copy instead of raw `localizedDescription`. |
 | Loading states | ✅ | `ProgressView` page-loader; pull-to-refresh; in-flight load cancels on filter change. |
 | Role gating | n/a | Reservation context-menu visible to all. iOS is student-first; admin actions deferred. |
 | Performance | ✅ | 30-row pages, infinite scroll, search-cancel — fine on Neon serverless. |
 | Debug cleanup | ✅ | No `print`/`fputs`/`TODO` in items code. |
-| Accessibility | ⚠️ | Toolbar has labels; rows do not have `accessibilityHint("Double-tap to view details")`. VoiceOver users only hear the asset tag. |
+| Accessibility | ✅ | Toolbar has labels; rows have a combined status-rich VoiceOver label and now include `accessibilityHint("Double-tap to view item details")`. |
 
 ---
 
@@ -107,9 +107,11 @@ iOS does several things web could borrow:
 
 ## Quick Wins (Still on the list)
 
-- **Toast/banner on favorite-toggle failure** (currently silent revert).
-- **`accessibilityHint("Double-tap to view details")`** on rows.
-- **`computedStatus != .retired`** gate on the Reserve context-menu button.
+- **Toast/banner on favorite-toggle failure** — **Shipped 2026-06-05** in the HIG/iOS 27 readiness pass. The list keeps optimistic favorite updates, rolls back on failure, and now shows a shared toast that says the favorite could not be updated.
+- **`accessibilityHint("Double-tap to view item details")`** on rows. **Shipped 2026-06-05** in the HIG/iOS 27 readiness pass; the earlier "only hear the asset tag" subfinding was already closed by the combined `rowAccessibilityLabel`, and this pass closes the missing navigation hint.
+- **`computedStatus != .retired`** gate on Reserve actions. **Shipped 2026-06-05** in the HIG/iOS 27 readiness pass; retired items no longer expose Reserve from list swipe actions, context menus, or item detail.
+- **Friendly error mapping helper** replacing `error.localizedDescription`. **Shipped 2026-06-06** in the HIG/iOS 27 readiness pass; initial-load and pagination failures now use recovery-oriented Items copy.
+- **Direct empty-state recovery actions** for search and Favorites. **Shipped 2026-06-06** in the HIG/iOS 27 readiness pass; filtered no-result states now offer Clear search or Show all items without changing the list model.
 - **Replace `if reset && offset == ...`** seed-detection heuristic with an explicit `hasSeeded` flag.
 - **`AssetStatusBadge` dedup** — single `Color.forStatus` source of truth shared with `AssetListBadge`.
 
@@ -118,4 +120,4 @@ iOS does several things web could borrow:
 - **Filter sheet** with location / category / department + multi-status + favorites, presented via `.sheet(detents:)`. Adds parity with web filters.
 - **Status breakdown chip strip** above the list (Available / Out / Reserved / Maintenance), tap to filter.
 - **Sort menu** mirroring web's sort options.
-- **Friendly error mapping helper** (URLError vs DecodingError vs HTTP status) replacing `error.localizedDescription`.
+- **Broader friendly error mapping helper** shared across more iOS list/detail screens.

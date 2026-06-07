@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-02
+- Last Updated: 2026-06-06
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
@@ -245,6 +245,12 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 8. Implement list page controls and row behavior from V1 list surface spec.
 
 ## Change Log
+- 2026-06-06: Web reservation creation kit-list recovery shipped. `/reservations/new` now treats failed location-scoped kit reads as a retryable inline optional-kit error instead of silently removing the Kit control, while preserving true no-kit behavior, ad hoc/event-linked creation, drafts, equipment selection, and reservation payload contracts.
+- 2026-06-06: Web reservation creation event-list recovery shipped. `/reservations/new` now treats failed upcoming-event reads as a retryable inline calendar error instead of the same state as no upcoming events, while preserving the ad hoc reservation path, multi-event selection, draft behavior, and reservation payload contract.
+- 2026-06-05: iOS Bookings empty-state recovery shipped for native reservations. Search-empty states now offer Clear search, the Mine-only empty state offers Show all visible bookings, and an empty Reservations tab gives users a direct New Reservation action when creation is allowed.
+- 2026-06-03: iOS Create Booking control clarity shipped for native reservations. CreateBookingSheet now uses visible Choose Equipment and Create Reservation actions, and the equipment step shows selected items with per-row Remove controls so users can correct selections without searching the list again.
+- 2026-06-03: iOS Booking Detail control clarity shipped. Native reservation detail now shows a labeled `Edit` toolbar action when editing is allowed, and owner-access bookings that are no longer editable show an `Editing locked` notice instead of leaving a disappearing pencil unexplained.
+- 2026-06-03: iOS reservation edit contract aligned with shared booking hardening. Native `BookingDetailView` now decodes the booking snapshot `updatedAt` defensively and sends it as `If-Unmodified-Since` on `/api/bookings/[id]` PATCH calls, so reservation edits use the same stale-write rejection path as web without breaking older payloads that do not include the timestamp.
 - 2026-06-02: Manual multi-day all-day event linkage support shipped for reservation creation. Linked all-day events now keep their manual summary, derive the reservation window from the full event span without timed-game buffers, and show all-day range copy in the event picker and confirmation review while preserving existing `eventIds[]`, `Booking.eventId`, and `BookingEvent` semantics.
 - 2026-06-02: Custody confidence slice 5. Shared reservation detail sheet history pagination now surfaces stale-cursor, access-change, server, network, and malformed-response failures inline, with retry or refresh recovery instead of silently hiding older audit entries.
 - 2026-06-02: Custody confidence slice 4. Successful reservation cancellation from the `/bookings` active list now removes the row from the visible work queue and refreshes the list, preserving AC-12 list/detail consistency after cancel actions.

@@ -114,9 +114,8 @@ struct EventDetailSheet: View {
                 if canManageShifts && vm.shiftGroup != nil {
                     ToolbarItem(placement: .topBarLeading) {
                         Button { showAddShift = true } label: {
-                            Image(systemName: "plus.circle")
+                            Label("Add shift", systemImage: "plus.circle")
                         }
-                        .accessibilityLabel("Add shift")
                     }
                 }
                 if canPrepGear {
@@ -872,14 +871,14 @@ struct ShiftRow: View {
                             // actions aren't a mis-tap risk on a dense row.
                             HStack(spacing: 10) {
                                 if let onApprove {
-                                    Button("Approve") { onApprove(assignment) }
+                                    Button("Approve \(assignment.user.name)") { onApprove(assignment) }
                                         .buttonStyle(.borderedProminent)
                                         .controlSize(.small)
                                         .tint(Color.statusText(.green))
                                         .accessibilityLabel("Approve \(assignment.user.name)")
                                 }
                                 if let onDecline {
-                                    Button("Decline") { onDecline(assignment) }
+                                    Button("Decline \(assignment.user.name)") { onDecline(assignment) }
                                         .buttonStyle(.bordered)
                                         .controlSize(.small)
                                         .tint(Color.statusText(.red))
@@ -901,7 +900,7 @@ struct ShiftRow: View {
         // gives a comfortable hit area for both staff (Assign) and students (Request).
         if canManageShifts, let onAssign {
             Button { onAssign(shift) } label: {
-                Label("Assign", systemImage: "plus.circle.fill")
+                Label("Assign person", systemImage: "plus.circle.fill")
                     .font(.subheadline.weight(.medium))
             }
             .buttonStyle(.bordered)
@@ -910,7 +909,7 @@ struct ShiftRow: View {
             .accessibilityLabel("Assign \(shift.area.shiftAreaLabel) shift")
         } else if isStudent && isStudentSlot, let onRequest {
             Button { onRequest(shift) } label: {
-                Label("Request", systemImage: "hand.raised.fill")
+                Label("Request shift", systemImage: "hand.raised.fill")
                     .font(.subheadline.weight(.medium))
             }
             .buttonStyle(.bordered)

@@ -204,7 +204,7 @@ struct ProfileView: View {
                 }
 
                 channelToggle(
-                    title: "Email",
+                    title: "Email alerts",
                     icon: "envelope",
                     description: "Send notifications to \(session.currentUser?.email ?? "your email").",
                     isOn: prefs.channels.email,
@@ -212,7 +212,7 @@ struct ProfileView: View {
                 )
 
                 channelToggle(
-                    title: "Push",
+                    title: "Push alerts",
                     icon: "iphone.radiowaves.left.and.right",
                     description: "Send push notifications to this device.",
                     isOn: prefs.channels.push,
@@ -285,7 +285,7 @@ struct ProfileView: View {
             HStack(spacing: 6) {
                 Image(systemName: "bell.slash")
                     .foregroundStyle(.secondary)
-                Text("Quiet hours")
+                Text("Pause alerts")
                     .font(.subheadline.weight(.medium))
             }
             HStack(spacing: 8) {
@@ -602,6 +602,11 @@ struct AvailabilityView: View {
                 }
             } else {
                 List {
+                    Section {
+                        Button { showAdd = true } label: {
+                            Label("Add availability block", systemImage: "plus")
+                        }
+                    }
                     ForEach(grouped, id: \.day) { group in
                         Section(availabilityDayNames[group.day]) {
                             ForEach(group.blocks) { block in
@@ -637,9 +642,9 @@ struct AvailabilityView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showAdd = true } label: {
-                    Image(systemName: "plus")
+                    Label("Add block", systemImage: "plus")
                 }
-                .accessibilityLabel("Add availability block")
+                .labelStyle(.titleAndIcon)
             }
         }
         .task { await load() }

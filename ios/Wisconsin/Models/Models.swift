@@ -8,6 +8,42 @@ struct CurrentUser: Codable, Identifiable, Equatable {
     let email: String
     let role: String
     let avatarUrl: String?
+    let forcePasswordChange: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case email
+        case role
+        case avatarUrl
+        case forcePasswordChange
+    }
+
+    init(
+        id: String,
+        name: String,
+        email: String,
+        role: String,
+        avatarUrl: String?,
+        forcePasswordChange: Bool = false
+    ) {
+        self.id = id
+        self.name = name
+        self.email = email
+        self.role = role
+        self.avatarUrl = avatarUrl
+        self.forcePasswordChange = forcePasswordChange
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        email = try container.decode(String.self, forKey: .email)
+        role = try container.decode(String.self, forKey: .role)
+        avatarUrl = try container.decodeIfPresent(String.self, forKey: .avatarUrl)
+        forcePasswordChange = try container.decodeIfPresent(Bool.self, forKey: .forcePasswordChange) ?? false
+    }
 }
 
 // MARK: - Notification preferences

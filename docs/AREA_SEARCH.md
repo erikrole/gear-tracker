@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Search
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-21
+- Last Updated: 2026-06-06
 - Status: Active
 - Version: V1
 
@@ -40,6 +40,10 @@ Make search a fast operational jump layer. It should find records when the user 
 5. The full search page and quick palette should not disagree on destination search.
 
 ## Change Log
+- 2026-06-06: Web quick-search item identity parity shipped. The command palette and full `/search` page now share the same item-title fallback through asset tag, item name, brand/model, type, then `Untitled item`, so sparse item data no longer makes the two search surfaces disagree.
+- 2026-06-06: Web full-search item identity fallback shipped. `/search` item results now fall back through asset tag, item name, brand/model, type, then `Untitled item`, preventing blank result titles while preserving role-aware destinations, partial-failure behavior, active booking search scope, and URL query state.
+- 2026-06-06: Native iOS Scan result retry recovery. `ScanView` lookup failures now expose Try again before Type code instead, retry the last scanned query after clearing same-code dedupe, and preserve the same `SearchService` fan-out plus item/booking handoff behavior.
+- 2026-06-05: Native iOS global-search QR shortcut HIG polish. `QRScannerSheet` now uses the same camera pre-prompt and denied-state recovery as the primary Scan tab, raises overlay controls to 44pt targets, moves manual code entry out of an alert into a medium sheet, keeps lookup errors visible with recovery actions, adds error haptics, and preserves the same `assetsLookup` route and asset-detail handoff.
 - 2026-05-25: Web bug sweep Batch 42 fixed full-page Search clear-state drift. Clearing the query now aborts in-flight entity fan-out, removes `q` from the URL, clears stale results immediately, and prevents stale `View all ...?q=` links from lingering while the debounce catches up.
 - 2026-05-25: Web bug sweep Batch 24 hardened full-page Search URL rehydration. `/search?q=...` now updates the input, debounced query, and results when the address bar changes through browser back/forward or external links instead of keeping the previous local query.
 - 2026-05-24: Web bug sweep search reliability. Full-page Search and the command palette now use safe JSON parsing and shared auth redirects across their four endpoint fan-outs, so a malformed/non-JSON response from one record source degrades to partial results instead of throwing away successful matches.

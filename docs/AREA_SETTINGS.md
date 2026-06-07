@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Settings
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-03
+- Last Updated: 2026-06-04
 - Status: Active
 - Version: V1
 
@@ -162,7 +162,10 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 
 ### Allowed Emails (`/settings/allowed-emails`)
 - Admin-managed email allowlist for registration gating (D-029).
-- Add email with pre-assigned role (STAFF can add STUDENT only, ADMIN can add both).
+- Add invitations through the shared onboarding dialog with bulk paste, CSV-like `email, role` intake, or one-email intake. STAFF can invite STUDENT only; ADMIN can invite STAFF or STUDENT.
+- Bulk invite preview groups ready, duplicate, invalid, role-blocked, existing-user, pending-invite, and claimed-invite rows before write. Existing registered or already-invited addresses are visible only to authenticated operators through the preview endpoint; final write responses keep generic skip behavior.
+- Direct temporary-password account creation is also available from the dialog for one-off onboarding or bulk `name,email,role,location` roster creation. Bulk account creation applies role/location defaults, generates temporary passwords server-side, and returns a one-time CSV handoff.
+- Onboarding Status links to `/users/onboarding-status`, where staff/admin can review pending, stale pending, and claimed onboarding access across the allowlist, copy prefilled registration links, and remove unclaimed invites before reissuing access.
 - Delete unclaimed entries. Claimed entries preserved (audit trail).
 - Filter by status (all/unclaimed/claimed).
 
@@ -187,6 +190,18 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages.
 
 ## Change Log
+- 2026-06-05: **Allowed Emails toolbar cleanup.** Settings > Allowed Emails now gives the status filter a stable browser/accessibility identity and groups `Status` with `Onboard users` as workflow actions, while preserving allowlist filtering, onboarding dialog behavior, and delete semantics.
+- 2026-06-05: **Shared onboarding dialog completion banner cleanup.** The Settings > Allowed Emails onboarding result banner now uses the shadcn alert primitive with semantic success tokens instead of hardcoded green utility classes, while preserving temporary-password handoff copy and result actions.
+- 2026-06-05: **Shared onboarding dialog direct-create guidance tone cleanup.** The Settings > Allowed Emails onboarding dialog now presents the pre-submit direct-create handoff note as neutral guidance instead of green success styling, while preserving temporary-password behavior and profile handoff.
+- 2026-06-05: **Shared onboarding dialog bulk-create limit feedback.** The Settings > Allowed Emails onboarding dialog now shows an inline error when bulk direct-create has more than 50 ready accounts, so the disabled create action has visible recovery copy while preserving the existing row limit.
+- 2026-06-05: **Shared onboarding dialog form metadata cleanup.** The Settings > Allowed Emails onboarding dialog now exposes stable browser form names across bulk invite, single invite, and bulk direct-create controls, with email autocomplete on the single invite field, while preserving existing onboarding API payloads.
+- 2026-06-05: **Shared onboarding dialog role-label cleanup.** The Settings > Allowed Emails onboarding dialog now shows and exports Admin, Staff, and Student labels in direct-create handoffs instead of raw role enum values, preserving stored API role values while making operator handoff output readable.
+- 2026-06-05: **Allowed Emails claimed-state color cleanup.** Settings > Allowed Emails now renders claimed allowlist rows with terminal gray status badges instead of availability green, matching the onboarding status page and the shared color rule that green means available/free.
+- 2026-06-04: **Bulk temporary-password onboarding.** The shared onboarding dialog now supports bulk direct account creation with role/location defaults and a one-time temporary-password CSV, giving operators an immediate-access path for cohorts that should not wait on invite registration.
+- 2026-06-04: **Onboarding status handoff controls.** Settings > Allowed Emails now points operators to a status page that can copy mobile-friendly prefilled registration links and safely remove unclaimed pending/stale invites before reissue, while keeping claimed entries immutable for audit.
+- 2026-06-03: **Onboarding status link.** Settings > Allowed Emails now links to `/users/onboarding-status`, giving operators a People-owned status page for pending, stale pending, and claimed onboarding access while keeping allowlist mutation controls in Settings.
+- 2026-06-03: **Shared onboarding surface.** Settings > Allowed Emails now launches the same `Onboard users` dialog as `/users`, replacing the page-local add form with bulk invite paste, CSV-like `email, role` intake, local preview grouping for ready/duplicate/invalid/role-blocked rows, authenticated server preview for existing-user/pending-invite/claimed-invite rows, single invite, role-safe invite options, direct temporary-password account creation, and shared duplicate/registered skip copy.
+- 2026-06-03: **Allowed Emails onboarding lifecycle service.** Settings > Allowed Emails now routes single and bulk invite creation through the shared onboarding lifecycle service, preserving STAFF/ADMIN role boundaries, claimed registered-user backfill, generic duplicate skip responses, batched bulk audit writes, and the current 50-row bulk limit.
 - 2026-06-03: **Calendar Sources freshness consistency.** Settings > Calendar Sources and `/schedule` now share the same calendar-source freshness classifier and 30-hour stale threshold, so source health labels cannot drift between the configuration page and the operator Schedule signal.
 - 2026-06-02: **Calendar sync health escalation.** Morning refresh now records consecutive hard Calendar Source failures, surfaces returned sync errors in the cron response, notifies active admins in-app after 3+ consecutive daily hard failures, and shows repeated-failure severity in Admin Fix Today.
 - 2026-06-02: **Calendar Sources sync trust cleanup.** Settings > Calendar Sources now makes daily morning-refresh sync visible, guards rapid Test/Add/Sync/Toggle actions immediately, and reports manual sync results from returned event/shift data so external feed failures no longer look like successful syncs.

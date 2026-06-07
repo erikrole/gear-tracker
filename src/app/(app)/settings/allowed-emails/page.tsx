@@ -1,18 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/ConfirmDialog";
 import EmptyState from "@/components/EmptyState";
+import OnboardingDialog from "@/components/onboarding/OnboardingDialog";
 import { OperationalRowActions } from "@/components/OperationalRowActions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -24,16 +23,17 @@ import {
 } from "@/components/ui/select";
 import {
   AlertTriangle,
-  Plus,
+  ClipboardList,
   RefreshCw,
   Trash2,
+  UserPlus,
   WifiOff,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useFetch } from "@/hooks/use-fetch";
 import { useLastAudit } from "@/hooks/use-last-audit";
 import { LastEditedHint } from "@/components/LastEditedHint";
-import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
+import { handleAuthRedirect, classifyError, isAbortError, parseErrorMessage } from "@/lib/errors";
 import { SettingsPageShell } from "../SettingsPageShell";
 
 type AllowedEmail = {
@@ -47,6 +47,7 @@ type AllowedEmail = {
 };
 
 type AllowedEmailsResponse = { data: AllowedEmail[]; total: number };
+type Location = { id: string; name: string };
 
 const ROLE_BADGE_META: Record<AllowedEmail["role"], { label: string; variant: BadgeProps["variant"] }> = {
   ADMIN: { label: "Admin", variant: "purple" },
@@ -65,6 +66,25 @@ export default function AllowedEmailsPage() {
     returnTo: "/settings/allowed-emails",
     transform: (json) => ({ data: (json.data as AllowedEmail[]) ?? [], total: (json.total as number) ?? 0 }),
   });
+
+  const {
+    data: formOptions,
+    loading: formOptionsLoading,
+    error: formOptionsError,
+    reload: reloadFormOptions,
+  } = useFetch<{ locations: Location[] }>({
+    url: "/api/form-options",
+    transform: (json) => (json as Record<string, unknown>).data as { locations: Location[] },
+    refetchOnFocus: false,
+  });
+  const locations = formOptions?.locations ?? [];
+
+  const { data: meData } = useFetch<{ id: string; role: AllowedEmail["role"] }>({
+    url: "/api/me",
+    transform: (json) => (json as Record<string, unknown>).user as { id: string; role: AllowedEmail["role"] },
+    refetchOnFocus: false,
+  });
+  const currentUserRole = meData?.role ?? null;
 
   // Local state for optimistic mutation updates
   const [localItems, setLocalItems] = useState<AllowedEmail[] | null>(null);
@@ -87,147 +107,7 @@ export default function AllowedEmailsPage() {
       : allItems;
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  // Add form
-  const [showAdd, setShowAdd] = useState(false);
-  const [addMode, setAddMode] = useState<"single" | "bulk">("single");
-  const [addEmail, setAddEmail] = useState("");
-  const [addBulk, setAddBulk] = useState("");
-  const [addRole, setAddRole] = useState<"STUDENT" | "STAFF">("STUDENT");
-  const [adding, setAdding] = useState(false);
-  const [addError, setAddError] = useState("");
-
-  function parseBulkEmails(raw: string): string[] {
-    return Array.from(
-      new Set(
-        raw
-          .split(/[\s,;\n]+/)
-          .map((s) => s.trim().toLowerCase())
-          .filter(Boolean)
-      )
-    );
-  }
-
-  async function handleBulkAdd(e: React.FormEvent) {
-    e.preventDefault();
-    setAddError("");
-    const emails = parseBulkEmails(addBulk);
-    if (emails.length === 0) {
-      setAddError("Paste at least one email.");
-      toast.error("Paste at least one email");
-      return;
-    }
-    if (emails.length > 50) {
-      const msg = `Too many - max 50 per batch (got ${emails.length}).`;
-      setAddError(msg);
-      toast.error(msg);
-      return;
-    }
-    // Basic shape filter to bail before the round-trip
-    const malformed = emails.filter((e) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
-    if (malformed.length > 0) {
-      const msg = `Looks invalid: ${malformed.slice(0, 3).join(", ")}${malformed.length > 3 ? "..." : ""}`;
-      setAddError(msg);
-      toast.error(msg);
-      return;
-    }
-
-    setAdding(true);
-    try {
-      const res = await fetch("/api/allowed-emails", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ emails: emails.map((email) => ({ email, role: addRole })) }),
-      });
-      if (handleAuthRedirect(res, "/settings/allowed-emails")) return;
-      if (res.ok) {
-        const json = await parseJsonSafely<{ created?: number; skipped?: number }>(res);
-        const created = json?.created ?? 0;
-        const skipped = json?.skipped ?? 0;
-        if (created > 0 && skipped === 0) {
-          toast.success(`Added ${created} email${created === 1 ? "" : "s"} to allowlist`);
-        } else if (created > 0) {
-          toast.success(`Added ${created}; skipped ${skipped} already on allowlist or registered`);
-        } else {
-          toast.message("All emails were already on the allowlist or registered.");
-        }
-        setAddBulk("");
-        setAddError("");
-        setShowAdd(false);
-        setAddMode("single");
-        reload();
-      } else {
-        const msg = await parseErrorMessage(res, "Bulk add failed");
-        setAddError(msg);
-        toast.error(msg);
-      }
-    } catch (err) {
-      if (isAbortError(err)) return;
-      const kind = classifyError(err);
-      const msg = kind === "network" ? "You’re offline. Check your connection." : "Bulk add failed";
-      setAddError(msg);
-      toast.error(msg);
-    } finally {
-      setAdding(false);
-    }
-  }
-
-  async function handleAdd(e: React.FormEvent) {
-    e.preventDefault();
-    setAddError("");
-    const trimmed = addEmail.trim().toLowerCase();
-    if (!trimmed) {
-      setAddError("Email address is required.");
-      return;
-    }
-
-    setAdding(true);
-    try {
-      const res = await fetch("/api/allowed-emails", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmed, role: addRole }),
-      });
-      if (handleAuthRedirect(res, "/settings/allowed-emails")) return;
-      if (res.ok) {
-        const json = await parseJsonSafely<AllowedEmail | { skipped?: boolean }>(res);
-        if (!json) {
-          const msg = "Email was saved, but the response could not be read. Refresh before adding another.";
-          setAddError(msg);
-          toast.error(msg);
-          reload();
-          return;
-        }
-        if ((json as { skipped?: boolean }).skipped) {
-          toast.message("No new allowlist row was created. This address is already allowlisted or registered.");
-        } else {
-          const created = json as AllowedEmail;
-          setLocalItems((prev) => [
-            created,
-            ...(prev ?? allItems).filter((item) => item.id !== created.id),
-          ]);
-          toast.success("Email added to allowlist");
-        }
-        setAddEmail("");
-        setAddError("");
-        setAddRole("STUDENT");
-        setShowAdd(false);
-        reload();
-      } else {
-        const msg = await parseErrorMessage(res, "Failed to add email");
-        setAddError(msg);
-        toast.error(msg);
-      }
-    } catch (err) {
-      if (isAbortError(err)) return;
-      const kind = classifyError(err);
-      const msg = kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to add email";
-      setAddError(msg);
-      toast.error(msg);
-    } finally {
-      setAdding(false);
-    }
-  }
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   async function handleDelete(item: AllowedEmail) {
     const ok = await confirm({
@@ -304,155 +184,49 @@ export default function AllowedEmailsPage() {
   return (
     <SettingsPageShell title="Allowed Emails" description={description} mainClassName="space-y-4">
         {/* Controls row */}
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All ({totalAll})</SelectItem>
-                <SelectItem value="unclaimed">Pending ({totalPending})</SelectItem>
-                <SelectItem value="claimed">Claimed ({totalClaimed})</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger
+              id="allowed-email-status-filter"
+              name="allowedEmailStatusFilter"
+              className="h-10 w-[160px]"
+              aria-label="Allowed email status filter"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All ({totalAll})</SelectItem>
+              <SelectItem value="unclaimed">Pending ({totalPending})</SelectItem>
+              <SelectItem value="claimed">Claimed ({totalClaimed})</SelectItem>
+            </SelectContent>
+          </Select>
 
-          {!showAdd && (
-            <Button className="min-h-10" onClick={() => { setShowAdd(true); setAddError(""); }}>
-              <Plus className="size-4" />
-              Add email
+          <div className="flex flex-wrap items-center gap-2">
+            <Button className="min-h-10" onClick={() => setShowOnboarding(true)}>
+              <UserPlus data-icon="inline-start" />
+              Onboard users
             </Button>
-          )}
+            <Button asChild variant="outline" className="min-h-10">
+              <Link href="/users/onboarding-status">
+                <ClipboardList data-icon="inline-start" />
+                Status
+              </Link>
+            </Button>
+          </div>
         </div>
 
-        {/* Add form */}
-        {showAdd && (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="mb-3 flex items-center gap-2 text-xs">
-                <button
-                  type="button"
-                  className={`min-h-10 rounded-md px-3 py-2 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${addMode === "single" ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}
-                  onClick={() => { setAddMode("single"); setAddError(""); }}
-                  disabled={adding}
-                  aria-pressed={addMode === "single"}
-                >
-                  One email
-                </button>
-                <button
-                  type="button"
-                  className={`min-h-10 rounded-md px-3 py-2 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${addMode === "bulk" ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}
-                  onClick={() => { setAddMode("bulk"); setAddError(""); }}
-                  disabled={adding}
-                  aria-pressed={addMode === "bulk"}
-                >
-                  Bulk paste (up to 50)
-                </button>
-              </div>
-
-              {addError && (
-                <Alert variant="destructive" className="mb-4">
-                  <AlertDescription>{addError}</AlertDescription>
-                </Alert>
-              )}
-
-              {addMode === "single" ? (
-                <form onSubmit={handleAdd} className="space-y-4">
-                  <div className="grid grid-cols-[1fr_140px] gap-3 max-sm:grid-cols-1">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="add-email">Email address</Label>
-                      <Input
-                        id="add-email"
-                        type="email"
-                        value={addEmail}
-                        onChange={(e) => { setAddEmail(e.target.value); setAddError(""); }}
-                        placeholder="user@example.com"
-                        required
-                        autoFocus
-                        disabled={adding}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="add-role">Role</Label>
-                      <Select value={addRole} onValueChange={(v) => setAddRole(v as "STUDENT" | "STAFF")} disabled={adding}>
-                        <SelectTrigger id="add-role">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="STUDENT">Student</SelectItem>
-                          <SelectItem value="STAFF">Staff</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button type="submit" className="min-h-10" disabled={adding}>
-                      {adding ? (<><Spinner data-icon="inline-start" />Adding...</>) : "Add to allowlist"}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="min-h-10"
-                      onClick={() => { setShowAdd(false); setAddEmail(""); setAddRole("STUDENT"); setAddError(""); }}
-                      disabled={adding}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </form>
-              ) : (
-                <form onSubmit={handleBulkAdd} className="space-y-4">
-                  <div className="grid grid-cols-[1fr_140px] gap-3 max-sm:grid-cols-1">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="add-bulk">Paste emails — separated by spaces, commas, or new lines</Label>
-                      <Textarea
-                        id="add-bulk"
-                        value={addBulk}
-                        onChange={(e) => { setAddBulk(e.target.value); setAddError(""); }}
-                        placeholder={"alice@school.edu\nbob@school.edu\ncharlie@school.edu"}
-                        rows={6}
-                        autoFocus
-                        disabled={adding}
-                        className="font-mono text-sm"
-                      />
-                      <p className="text-xs text-muted-foreground m-0">
-                        {parseBulkEmails(addBulk).length} unique address{parseBulkEmails(addBulk).length === 1 ? "" : "es"} detected.
-                        Already-allowlisted or registered emails are skipped automatically.
-                      </p>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="add-bulk-role">Role for all</Label>
-                      <Select value={addRole} onValueChange={(v) => setAddRole(v as "STUDENT" | "STAFF")} disabled={adding}>
-                        <SelectTrigger id="add-bulk-role">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="STUDENT">Student</SelectItem>
-                          <SelectItem value="STAFF">Staff</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button type="submit" className="min-h-10" disabled={adding || addBulk.trim().length === 0}>
-                      {adding ? (<><Spinner data-icon="inline-start" />Adding...</>) : "Add all to allowlist"}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="min-h-10"
-                      onClick={() => { setShowAdd(false); setAddBulk(""); setAddMode("single"); setAddError(""); }}
-                      disabled={adding}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </form>
-              )}
-            </CardContent>
-          </Card>
-        )}
+        <OnboardingDialog
+          open={showOnboarding}
+          onOpenChange={setShowOnboarding}
+          locations={locations}
+          locationsLoading={formOptionsLoading}
+          locationsError={Boolean(formOptionsError)}
+          onRetryLocations={reloadFormOptions}
+          currentUserRole={currentUserRole}
+          initialMode="invite"
+          onCreated={() => reload()}
+          onInvitesChanged={() => reload()}
+        />
 
         {/* Table */}
         <Card>
@@ -505,7 +279,7 @@ export default function AllowedEmailsPage() {
                     </TableCell>
                     <TableCell>
                       {item.claimedAt ? (
-                        <Badge variant="green" size="sm">Claimed</Badge>
+                        <Badge variant="gray" size="sm">Claimed</Badge>
                       ) : (
                         <Badge variant="orange" size="sm">Pending</Badge>
                       )}

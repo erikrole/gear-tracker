@@ -66,6 +66,7 @@
 
 ## UX Patterns
 
+- **iOS field controls must be visible before they are clever**: If a mobile workflow has multiple state-changing controls in one toolbar, especially Schedule, do not rely on icon-only toggles. Put view mode and scope choices in labeled controls near the content, and reserve toolbar space for direct actions with readable labels.
 - **Dense repeated rows need fixed column ownership**: When rows mix badges, inline actions, assignees, remove controls, role labels, times, and row actions, use explicit grid columns on desktop. Nested flex pushes labels around as names and controls appear or disappear.
 - **Icon-plus text buttons should name the action, not the object**: For add-slot controls, use "Add" on the trigger and keep Staff slot / Student slot as the menu choices. A trigger labeled only "Slot" reads like metadata, not an action.
 - **When feedback points at empty states, do not tune populated rows**: If the user references "cards" while showing empty section bodies, inspect the screenshot target before changing shared row components. Adjust the specific empty-state body height, icon treatment, and alignment instead.

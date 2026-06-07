@@ -245,10 +245,10 @@ export function BookingWizard({ kind }: BookingWizardProps) {
 
   // ── Kit state ──
   const [kitId, setKitId] = useState<string>("");
-  const { kits } = useKitFetching({ locationId: form.locationId, open: true });
+  const { kits, kitsLoading, kitsLoadError, retryKits } = useKitFetching({ locationId: form.locationId, open: true });
 
   // ── Events + shift ──
-  const { events, eventsLoading, myShiftForEvent, toggleEvent } = useEventContext({
+  const { events, eventsLoading, eventsLoadError, retryEvents, myShiftForEvent, toggleEvent } = useEventContext({
     sport: form.sport,
     tieToEvent: form.tieToEvent,
     open: true,
@@ -631,10 +631,15 @@ export function BookingWizard({ kind }: BookingWizardProps) {
           users={users}
           locations={locations}
           kits={kits}
+          kitsLoading={kitsLoading}
+          kitsLoadError={kitsLoadError}
           kitId={kitId}
           setKitId={setKitId}
+          onRetryKits={retryKits}
           events={events}
           eventsLoading={eventsLoading}
+          eventsLoadError={eventsLoadError}
+          onRetryEvents={retryEvents}
           myShiftForEvent={myShiftForEvent}
           toggleEvent={toggleEvent}
         />

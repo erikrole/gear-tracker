@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { UserAvatar } from "@/components/UserAvatar";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,8 @@ export type PickerUser = {
 type Props = {
   users: PickerUser[];
   loading: boolean;
+  loadError?: false | "network" | "server";
+  onRetry?: () => void;
   search: string;
   onSearchChange: (value: string) => void;
   onSelect: (userId: string) => void;
@@ -42,6 +45,8 @@ type Props = {
 export function UserAvatarPicker({
   users,
   loading,
+  loadError = false,
+  onRetry,
   search,
   onSearchChange,
   onSelect,
@@ -98,6 +103,21 @@ export function UserAvatarPicker({
       )}
       {loading ? (
         <p className="text-xs text-muted-foreground p-2">Loading users...</p>
+      ) : loadError ? (
+        <Alert variant="destructive" className="p-3">
+          <AlertDescription className="space-y-2 text-xs">
+            <span className="block">
+              {loadError === "network"
+                ? "Could not reach the server. Retry before assigning this slot."
+                : "Could not load assignable users. Retry before assigning this slot."}
+            </span>
+            {onRetry && (
+              <Button type="button" variant="outline" size="sm" className="min-h-10" onClick={onRetry}>
+                Retry users
+              </Button>
+            )}
+          </AlertDescription>
+        </Alert>
       ) : filteredUsers.length === 0 ? (
         <p className="text-xs text-muted-foreground p-2">
           {search

@@ -6,41 +6,86 @@ struct QRScannerSheet: View {
     let onMatch: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var cameraAuthorized: Bool? = nil
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var cameraAuth: AVAuthorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
     @State private var scanError: String?
     @State private var isLookingUp = false
     @State private var showManualEntry = false
-    @State private var manualCode = ""
     @State private var lastScanTime: Date = .distantPast
     @State private var torchOn = false
 
     var body: some View {
-        ZStack(alignment: .top) {
-            Color.black.ignoresSafeArea()
-
-            if let authorized = cameraAuthorized {
-                if authorized && DataScannerViewController.isSupported && DataScannerViewController.isAvailable {
-                    scannerView
-                } else if !authorized {
-                    permissionDeniedView
-                } else {
-                    unavailableView
-                }
-            }
-
-            overlayControls
+        ZStack {
+            scannerContent
         }
-        .task { await checkCameraPermission() }
-        .alert("Enter Code Manually", isPresented: $showManualEntry) {
-            TextField("Asset tag or QR code", text: $manualCode)
-                .autocorrectionDisabled()
-                .textInputAutocapitalization(.never)
-            Button("Look Up") { Task { await lookUp(rawScan: manualCode) } }
-            Button("Cancel", role: .cancel) {}
+        .safeAreaInset(edge: .top, spacing: 0) {
+            topControls
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if cameraAuth == .authorized && DataScannerViewController.isSupported && DataScannerViewController.isAvailable && !voiceOverEnabled {
+                bottomControls
+            }
+        }
+        .sheet(isPresented: $showManualEntry) {
+            ScanManualEntrySheet { code in
+                showManualEntry = false
+                Task { await lookUp(rawScan: code) }
+            }
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                cameraAuth = AVCaptureDevice.authorizationStatus(for: .video)
+            } else {
+                torchOn = false
+                setTorch(false)
+            }
+        }
+        .onDisappear {
+            torchOn = false
+            setTorch(false)
         }
     }
 
     // MARK: - Scanner
+
+    @ViewBuilder
+    private var scannerContent: some View {
+        switch cameraAuth {
+        case .notDetermined:
+            ScanPrePromptView { granted in
+                cameraAuth = granted ? .authorized : .denied
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(.systemBackground))
+        case .denied, .restricted:
+            ScanDeniedView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(.systemBackground))
+        case .authorized:
+            if voiceOverEnabled {
+                voiceOverManualFallback
+            } else if DataScannerViewController.isSupported && DataScannerViewController.isAvailable {
+                ZStack(alignment: .bottom) {
+                    Color.black.ignoresSafeArea()
+                    scannerView
+                    if let scanError {
+                        errorBanner(scanError)
+                            .padding(.horizontal, 24)
+                            .padding(.bottom, 108)
+                    }
+                }
+            } else {
+                unavailableView
+                    .background(Color.black.ignoresSafeArea())
+            }
+        @unknown default:
+            unavailableView
+                .background(Color.black.ignoresSafeArea())
+        }
+    }
 
     private var scannerView: some View {
         DataScannerRepresentable(
@@ -54,39 +99,45 @@ struct QRScannerSheet: View {
 
     // MARK: - Overlay
 
-    private var overlayControls: some View {
-        VStack {
-            HStack {
-                Button { dismiss() } label: {
-                    Image(systemName: "xmark")
+    private var topControls: some View {
+        HStack {
+            Button { dismiss() } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(cameraAuth == .authorized ? .white : .primary)
+                    .frame(width: 44, height: 44)
+                    .background(.ultraThinMaterial, in: Circle())
+            }
+            .accessibilityLabel("Close scanner")
+            Spacer()
+            if cameraAuth == .authorized && !voiceOverEnabled && DataScannerViewController.isSupported && DataScannerViewController.isAvailable {
+                Button {
+                    let next = !torchOn
+                    torchOn = next
+                    setTorch(next)
+                    Haptics.tap()
+                } label: {
+                    Image(systemName: torchOn ? "bolt.fill" : "bolt.slash")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 36, height: 36)
+                        .foregroundStyle(torchOn ? .yellow : .white)
+                        .frame(width: 44, height: 44)
                         .background(.ultraThinMaterial, in: Circle())
                 }
-                Spacer()
-                if cameraAuthorized == true {
-                    Button {
-                        torchOn.toggle()
-                    } label: {
-                        Image(systemName: torchOn ? "bolt.fill" : "bolt.slash")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(torchOn ? .yellow : .white)
-                            .frame(width: 36, height: 36)
-                            .background(.ultraThinMaterial, in: Circle())
-                    }
-                }
+                .accessibilityLabel(torchOn ? "Turn flashlight off" : "Turn flashlight on")
+                .disabled(!hasTorch)
+                .opacity(hasTorch ? 1 : 0.4)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+    }
 
-            Spacer()
-
+    private var bottomControls: some View {
+        VStack {
             VStack(spacing: 16) {
                 if isLookingUp {
                     HStack(spacing: 8) {
                         ProgressView()
-                            .tint(.white)
                         Text("Looking up…")
                             .foregroundStyle(.white)
                             .font(.subheadline)
@@ -95,53 +146,82 @@ struct QRScannerSheet: View {
                     .padding(.vertical, 10)
                     .background(.ultraThinMaterial, in: Capsule())
                 }
-                if let error = scanError {
-                    Text(error)
-                        .font(.subheadline)
-                        .foregroundStyle(.white)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 10)
-                        .background(.red.opacity(0.7), in: RoundedRectangle(cornerRadius: 12))
-                        .padding(.horizontal, 32)
-                }
-                Button("Type Code Instead") {
+
+                Button {
                     showManualEntry = true
+                } label: {
+                    Label("Type code", systemImage: "keyboard")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 18)
+                        .frame(height: 44)
+                        .background(.ultraThinMaterial, in: Capsule())
                 }
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
-                .background(.ultraThinMaterial, in: Capsule())
+                .accessibilityLabel("Type code instead")
             }
-            .padding(.bottom, 48)
+            .padding(.bottom, 32)
         }
+    }
+
+    private func errorBanner(_ message: String) -> some View {
+        VStack(spacing: 10) {
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+
+            HStack(spacing: 12) {
+                Button {
+                    showManualEntry = true
+                } label: {
+                    Label("Type code", systemImage: "keyboard")
+                }
+                .buttonStyle(.bordered)
+                .tint(.white)
+
+                Button("Dismiss") {
+                    scanError = nil
+                }
+                .buttonStyle(.bordered)
+                .tint(.white)
+            }
+            .controlSize(.small)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.statusText(.red).opacity(0.88), in: RoundedRectangle(cornerRadius: 14))
+        .accessibilityElement(children: .combine)
+    }
+
+    private var voiceOverManualFallback: some View {
+        VStack(spacing: 18) {
+            Image(systemName: "keyboard")
+                .font(.system(size: 44))
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+
+            Text("Type code instead")
+                .font(.title3.weight(.semibold))
+
+            Text("VoiceOver is on, so use keyboard entry instead of the camera scanner.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+
+            Button {
+                showManualEntry = true
+            } label: {
+                Label("Type code", systemImage: "keyboard")
+            }
+            .buttonStyle(.glassProminent)
+            .controlSize(.large)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(.systemBackground))
     }
 
     // MARK: - Permission views
-
-    private var permissionDeniedView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "camera.slash.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(.white.opacity(0.6))
-            Text("Camera Access Required")
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(.white)
-            Text("Allow camera access in Settings to scan gear QR codes.")
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.7))
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
-            Button("Open Settings") {
-                if let url = URL(string: UIApplication.openSettingsURLString) {
-                    UIApplication.shared.open(url)
-                }
-            }
-            .buttonStyle(.borderedProminent)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
 
     private var unavailableView: some View {
         VStack(spacing: 16) {
@@ -152,21 +232,26 @@ struct QRScannerSheet: View {
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(.white)
             Button("Type Code Instead") { showManualEntry = true }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
+                .controlSize(.large)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Logic
 
-    private func checkCameraPermission() async {
-        switch AVCaptureDevice.authorizationStatus(for: .video) {
-        case .authorized:
-            cameraAuthorized = true
-        case .notDetermined:
-            cameraAuthorized = await AVCaptureDevice.requestAccess(for: .video)
-        default:
-            cameraAuthorized = false
+    private var hasTorch: Bool {
+        AVCaptureDevice.default(for: .video)?.hasTorch ?? false
+    }
+
+    private func setTorch(_ on: Bool) {
+        guard let device = AVCaptureDevice.default(for: .video), device.hasTorch else { return }
+        do {
+            try device.lockForConfiguration()
+            device.torchMode = on ? .on : .off
+            device.unlockForConfiguration()
+        } catch {
+            // Torch is best-effort. A lock failure should not block lookup.
         }
     }
 
@@ -189,10 +274,9 @@ struct QRScannerSheet: View {
             } else {
                 Haptics.warning()
                 scanError = "No item matches this code."
-                try? await Task.sleep(nanoseconds: 3_000_000_000)
-                scanError = nil
             }
         } catch {
+            Haptics.error()
             scanError = error.localizedDescription
         }
     }

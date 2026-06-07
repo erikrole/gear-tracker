@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Checkouts
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-03
+- Last Updated: 2026-06-06
 - Status: Active — V1 Shipped
 - Version: V1
 
@@ -289,6 +289,12 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 5. Add regression coverage for race conditions, partial returns, and permission bypass attempts.
 
 ## Change Log
+- 2026-06-06: Web checkout creation kit-list recovery shipped. `/checkouts/new` now treats failed location-scoped kit reads as a retryable inline optional-kit error instead of silently removing the Kit control, while preserving true no-kit behavior, ad hoc/event-linked creation, drafts, equipment selection, and checkout payload contracts.
+- 2026-06-06: Web checkout creation event-list recovery shipped. `/checkouts/new` now treats failed upcoming-event reads as a retryable inline calendar error instead of the same state as no upcoming events, while preserving the ad hoc booking path, multi-event selection, draft behavior, and checkout payload contract.
+- 2026-06-05: iOS Bookings empty-state recovery shipped for native checkouts. Search-empty states now offer Clear search and Mine-only empty states offer Show all visible bookings, so checkout users can recover from filters without leaving the list.
+- 2026-06-03: iOS Create Booking control clarity shipped for the native reservation create sheet used by mobile field flows. The sheet now names the next step as Choose Equipment, names submit as Create Reservation, and keeps selected equipment visible with Remove controls while preserving checkout custody and scan recovery contracts.
+- 2026-06-03: iOS Booking Detail control clarity shipped. Native checkout detail now shows a labeled `Edit` toolbar action when editing is allowed, and owner-access checkouts that are no longer editable show an `Editing locked` notice pointing to Extend Return Date or kiosk pickup/return instead of silently removing the edit affordance.
+- 2026-06-03: iOS checkout edit contract aligned with shared booking hardening. Native `BookingDetailView` now decodes the booking snapshot `updatedAt` defensively and sends it as `If-Unmodified-Since` on `/api/bookings/[id]` PATCH calls, so checkout edits use the same stale-write rejection path as web while older payloads can still decode.
 - 2026-06-03: iOS active Checkouts list contract aligned with web and this area spec. `APIClient.checkouts(activeOnly: true)` now requests `status_in=OPEN,PENDING_PICKUP` so awaiting-pickup checkouts stay visible in the native Checkouts work queue instead of only appearing on Home or kiosk surfaces. No server contract change required.
 - 2026-06-02: Manual multi-day all-day event linkage support shipped for checkout creation. Linked all-day events now keep their manual summary, derive the booking window from the full event span without timed-game buffers, and show all-day range copy in the event picker and confirmation review while preserving existing `eventIds[]`, `Booking.eventId`, and `BookingEvent` semantics.
 - 2026-06-02: Custody confidence slice 5. Shared checkout detail sheet history pagination now surfaces stale-cursor, access-change, server, network, and malformed-response failures inline, with retry or refresh recovery instead of silently hiding older audit entries.
