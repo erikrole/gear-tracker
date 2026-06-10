@@ -152,6 +152,12 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 10. Fiscal year purchased
 11. Notes/description
 
+### Firmware Watch
+1. Firmware watch is model-level metadata, not per-asset installed firmware state in V1.
+2. Watched products use explicit official manufacturer support URLs and parser types.
+3. The daily watcher records latest version, release date, baseline status, last check time, and last parse/fetch error.
+4. New version notifications are admin-facing operational alerts; they do not automatically mark individual camera bodies as updated or out of date.
+
 ### Image Options
 1. Upload image
 2. Use image from web URL
@@ -406,6 +412,7 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-06-10: **Daily firmware watch foundation shipped.** Gear Tracker now has a model-level firmware watch target table for official support URLs, latest version/release date, baseline state, and parse errors. The first implementation polls enabled Sony and Canon support targets from the daily maintenance job and notifies active admins when a newer version appears after baseline; per-asset installed firmware tracking and target-management UI remain out of scope.
 - 2026-06-10: **Add item quick fixes shipped.** Standard item creation now shows repeat-tag context for asset families such as `FX3`, `FX3 2`, and the next likely tag, marks purchase price as USD with currency-aware parsing, saves fiscal year to the same `fiscalYearPurchased` metadata key used by item detail, and includes an inline photo upload field that saves through the existing asset image endpoint after create.
 - 2026-06-10: **Add item repeat-tag suggestions are live.** The Standard asset-tag helper now updates while typing, not only on blur, and treats partial text as a prefix. Typing `F`, `FX`, `FX3`, or `70-200` can surface the strongest existing tag family and suggested next tag before the operator enters a number.
 - 2026-06-10: **B&H product images work in the image picker again.** Brave returns B&H image URLs behind Cloudflare bot protection (`www.bhphotovideo.com/cdn-cgi/...`), which 403'd hotlinked previews, server-side rehosting, and even Brave's own thumbnail proxy, so B&H tiles were blank and saving failed. B&H URLs are now rewritten to the openly served `static.bhphoto.com` host: search tiles render the 500px static image, and saving rehosts the 1000x1000 hero white-background product photo to Vercel Blob. Result tiles across all sources now prefer the hotlink-safe thumbnail with full-image fallback, and the rehost fetch sends browser-like headers so other strict CDNs accept it. Follow-up in the same day: `multiple_images/` gallery URLs (B&H product galleries) also rewrite to the static host, and B&H Explora blog images, which are blocked on every host including Brave's thumbnail proxy, are dropped from search results instead of rendering as permanently blank tiles.

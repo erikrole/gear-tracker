@@ -39,12 +39,17 @@ vi.mock("@/lib/services/pending-pickup-expiry", async (importOriginal) => {
   };
 });
 
+vi.mock("@/lib/services/firmware-watch", () => ({
+  pollFirmwareWatchTargets: vi.fn(),
+}));
+
 import { db } from "@/lib/db";
 import { syncCalendarSource } from "@/lib/services/calendar-sync";
 import { updateCalendarSyncHealth } from "@/lib/services/calendar-sync-health";
 import { generateShiftsForNewEvents } from "@/lib/services/shift-generation";
 import { expireOpenTrades } from "@/lib/services/shift-trades";
 import { expirePendingPickupCheckouts } from "@/lib/services/pending-pickup-expiry";
+import { pollFirmwareWatchTargets } from "@/lib/services/firmware-watch";
 import { GET } from "@/app/api/cron/morning-refresh/route";
 
 const mockDb = db as unknown as {
@@ -82,6 +87,14 @@ describe("morning refresh cron route", () => {
       cutoff: new Date("2026-05-11T12:00:00.000Z"),
       errors: {},
     });
+    vi.mocked(pollFirmwareWatchTargets).mockResolvedValue({
+      checked: 1,
+      changed: 1,
+      baselined: 0,
+      failed: 0,
+      notificationsCreated: 2,
+      errors: [],
+    });
   });
 
   afterEach(() => {
@@ -96,6 +109,7 @@ describe("morning refresh cron route", () => {
     expect(body.ok).toBe(true);
     expect(body.tradesExpired).toBe(1);
     expect(body.pendingPickups).toMatchObject({ scanned: 2, expired: 1, failed: 0 });
+    expect(body.firmwareWatch).toMatchObject({ checked: 1, changed: 1, notificationsCreated: 2 });
     expect(body.maintenanceFailures).toEqual([]);
   });
 
@@ -110,6 +124,20 @@ describe("morning refresh cron route", () => {
     expect(body.tradesExpired).toBe(1);
     expect(body.pendingPickups).toMatchObject({ scanned: 0, expired: 0, failed: 1 });
     expect(body.maintenanceFailures).toEqual(["pendingPickups"]);
+  });
+
+  it("reports firmware watch failures without blocking other daily maintenance", async () => {
+    vi.mocked(pollFirmwareWatchTargets).mockRejectedValue(new Error("firmware source failed"));
+
+    const res = await GET(request(), { params: Promise.resolve({}) });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.ok).toBe(false);
+    expect(body.tradesExpired).toBe(1);
+    expect(body.pendingPickups).toMatchObject({ scanned: 2, expired: 1, failed: 0 });
+    expect(body.firmwareWatch).toMatchObject({ checked: 0, failed: 1, notificationsCreated: 0 });
+    expect(body.maintenanceFailures).toEqual(["firmwareWatch"]);
   });
 
   it("reports returned calendar sync errors and records source health", async () => {

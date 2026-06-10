@@ -1,0 +1,313 @@
+import type { FirmwareSourceType } from "@prisma/client";
+import { db } from "@/lib/db";
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
+import { sendPushToUser } from "@/lib/services/notifications";
+
+export type FirmwareRelease = {
+  version: string;
+  releaseDate: Date | null;
+};
+
+type FirmwareWatchTargetRow = {
+  id: string;
+  brand: string;
+  model: string;
+  productName: string | null;
+  sourceUrl: string;
+  sourceType: FirmwareSourceType;
+  latestVersion: string | null;
+  latestReleaseDate: Date | null;
+  lastChangedAt: Date | null;
+  baselineEstablishedAt: Date | null;
+};
+
+type FirmwareFetch = (
+  input: RequestInfo | URL,
+  init?: RequestInit & { timeoutMs?: number },
+) => Promise<Response>;
+
+export type FirmwareWatchResult = {
+  checked: number;
+  changed: number;
+  baselined: number;
+  failed: number;
+  notificationsCreated: number;
+  errors: Array<{ targetId: string; product: string; error: string }>;
+};
+
+const ALLOWED_HOSTS: Record<FirmwareSourceType, Set<string>> = {
+  SONY_SUPPORT: new Set(["www.sony.com", "sony.com"]),
+  CANON_SUPPORT: new Set(["www.usa.canon.com", "usa.canon.com"]),
+};
+
+export function parseFirmwareRelease(
+  sourceType: FirmwareSourceType,
+  html: string,
+): FirmwareRelease {
+  switch (sourceType) {
+    case "SONY_SUPPORT":
+      return parseSonySupportFirmware(html);
+    case "CANON_SUPPORT":
+      return parseCanonSupportFirmware(html);
+    default:
+      throw new Error(`Unsupported firmware source type: ${sourceType}`);
+  }
+}
+
+export function parseSonySupportFirmware(html: string): FirmwareRelease {
+  const text = htmlToSearchableText(html);
+  const version =
+    matchFirst(text, /\bVersion:\s*([0-9][A-Za-z0-9._-]*)\b/i) ??
+    matchFirst(text, /\bVer\.\s*([0-9][A-Za-z0-9._-]*)\b/i);
+  const releaseDateText = matchFirst(text, /\bRelease Date:\s*([0-9]{2}[-/.][0-9]{2}[-/.][0-9]{2,4})\b/i);
+
+  if (!version) {
+    throw new Error("Sony firmware version not found");
+  }
+
+  return {
+    version,
+    releaseDate: releaseDateText ? parseUsDate(releaseDateText) : null,
+  };
+}
+
+export function parseCanonSupportFirmware(html: string): FirmwareRelease {
+  const text = htmlToSearchableText(html);
+  const firmwareNotice = text.match(
+    /\bTitle\s+Firmware Notice:[\s\S]*?\bFirmware Version\s+([0-9][A-Za-z0-9._-]*)\b[\s\S]*?\bDate\s+([0-9]{2}[./-][0-9]{2}[./-][0-9]{2,4})\b/i,
+  );
+  const version = firmwareNotice?.[1] ?? matchFirst(text, /\bFirmware Version\s+([0-9][A-Za-z0-9._-]*)\b/i);
+  const releaseDateText = firmwareNotice?.[2] ?? null;
+
+  if (!version) {
+    throw new Error("Canon firmware version not found");
+  }
+
+  return {
+    version,
+    releaseDate: releaseDateText ? parseUsDate(releaseDateText) : null,
+  };
+}
+
+export async function pollFirmwareWatchTargets(args: {
+  now?: Date;
+  fetcher?: FirmwareFetch;
+} = {}): Promise<FirmwareWatchResult> {
+  const now = args.now ?? new Date();
+  const fetcher = args.fetcher ?? fetchWithTimeout;
+  const targets = await db.firmwareWatchTarget.findMany({
+    where: { enabled: true },
+    select: {
+      id: true,
+      brand: true,
+      model: true,
+      productName: true,
+      sourceUrl: true,
+      sourceType: true,
+      latestVersion: true,
+      latestReleaseDate: true,
+      lastChangedAt: true,
+      baselineEstablishedAt: true,
+    },
+    orderBy: [{ brand: "asc" }, { model: "asc" }],
+    take: 100,
+  });
+
+  const result: FirmwareWatchResult = {
+    checked: targets.length,
+    changed: 0,
+    baselined: 0,
+    failed: 0,
+    notificationsCreated: 0,
+    errors: [],
+  };
+
+  for (const target of targets) {
+    try {
+      validateFirmwareSourceUrl(target.sourceType, target.sourceUrl);
+      const release = await fetchFirmwareRelease(target, fetcher);
+      const wasBaselined = Boolean(target.baselineEstablishedAt && target.latestVersion);
+      const changed = wasBaselined && release.version !== target.latestVersion;
+
+      await db.firmwareWatchTarget.update({
+        where: { id: target.id },
+        data: {
+          latestVersion: release.version,
+          latestReleaseDate: release.releaseDate,
+          lastCheckedAt: now,
+          lastChangedAt: changed ? now : target.lastChangedAt,
+          baselineEstablishedAt: target.baselineEstablishedAt ?? now,
+          lastError: null,
+        },
+      });
+
+      if (!wasBaselined) {
+        result.baselined += 1;
+        continue;
+      }
+
+      if (changed) {
+        result.changed += 1;
+        result.notificationsCreated += await notifyAdminsOfFirmwareRelease(target, release, now);
+      }
+    } catch (err) {
+      const error = err instanceof Error ? err.message : "Unknown firmware watch error";
+      result.failed += 1;
+      result.errors.push({
+        targetId: target.id,
+        product: firmwareProductLabel(target),
+        error,
+      });
+      await db.firmwareWatchTarget.update({
+        where: { id: target.id },
+        data: {
+          lastCheckedAt: now,
+          lastError: error,
+        },
+      });
+    }
+  }
+
+  return result;
+}
+
+async function fetchFirmwareRelease(
+  target: Pick<FirmwareWatchTargetRow, "sourceType" | "sourceUrl">,
+  fetcher: FirmwareFetch,
+): Promise<FirmwareRelease> {
+  const response = await fetcher(target.sourceUrl, {
+    timeoutMs: 8_000,
+    headers: {
+      accept: "text/html,application/xhtml+xml",
+      "user-agent": "GearTrackerFirmwareWatch/1.0",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Firmware source returned HTTP ${response.status}`);
+  }
+
+  return parseFirmwareRelease(target.sourceType, await response.text());
+}
+
+async function notifyAdminsOfFirmwareRelease(
+  target: FirmwareWatchTargetRow,
+  release: FirmwareRelease,
+  now: Date,
+): Promise<number> {
+  const admins = await db.user.findMany({
+    where: { role: "ADMIN", active: true },
+    select: { id: true },
+  });
+  if (admins.length === 0) return 0;
+
+  const product = firmwareProductLabel(target);
+  const releaseDate = release.releaseDate ? formatReleaseDate(release.releaseDate) : "an unknown release date";
+  const title = `Firmware update: ${product} ${release.version}`;
+  const body = `${product} firmware ${release.version} was released ${releaseDate}. Review the official source before updating field gear.`;
+  const payload = {
+    firmwareWatchTargetId: target.id,
+    brand: target.brand,
+    model: target.model,
+    productName: target.productName,
+    version: release.version,
+    releaseDate: release.releaseDate?.toISOString() ?? null,
+    sourceUrl: target.sourceUrl,
+    href: `/items?search=${encodeURIComponent(`${target.brand} ${target.model}`)}`,
+  };
+
+  const created = await db.notification.createMany({
+    skipDuplicates: true,
+    data: admins.map((admin) => ({
+      userId: admin.id,
+      type: "firmware_update_released",
+      title,
+      body,
+      payload,
+      channel: "IN_APP" as const,
+      sentAt: now,
+      dedupeKey: `firmware_release:${target.id}:${release.version}:${admin.id}`,
+    })),
+  });
+
+  if (created.count > 0) {
+    for (const admin of admins) {
+      void sendPushToUser(admin.id, {
+        title,
+        body,
+        payload,
+      });
+    }
+  }
+
+  return created.count;
+}
+
+function validateFirmwareSourceUrl(sourceType: FirmwareSourceType, sourceUrl: string): void {
+  let url: URL;
+  try {
+    url = new URL(sourceUrl);
+  } catch {
+    throw new Error("Firmware source URL is invalid");
+  }
+
+  if (url.protocol !== "https:") {
+    throw new Error("Firmware source URL must use HTTPS");
+  }
+
+  const hosts = ALLOWED_HOSTS[sourceType];
+  if (!hosts?.has(url.hostname.toLowerCase())) {
+    throw new Error(`Firmware source host is not allowed for ${sourceType}`);
+  }
+}
+
+function htmlToSearchableText(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/gi, '"')
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function matchFirst(text: string, pattern: RegExp): string | null {
+  return text.match(pattern)?.[1] ?? null;
+}
+
+function parseUsDate(value: string): Date {
+  const match = value.match(/^([0-9]{2})[-/.]([0-9]{2})[-/.]([0-9]{2}|[0-9]{4})$/);
+  if (!match) {
+    throw new Error(`Unsupported firmware release date: ${value}`);
+  }
+
+  const month = Number(match[1]);
+  const day = Number(match[2]);
+  const rawYear = Number(match[3]);
+  const year = rawYear < 100 ? 2000 + rawYear : rawYear;
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  if (
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() !== month - 1 ||
+    parsed.getUTCDate() !== day
+  ) {
+    throw new Error(`Invalid firmware release date: ${value}`);
+  }
+  return parsed;
+}
+
+function firmwareProductLabel(target: Pick<FirmwareWatchTargetRow, "brand" | "model" | "productName">): string {
+  return target.productName?.trim() || `${target.brand} ${target.model}`.trim();
+}
+
+function formatReleaseDate(date: Date): string {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}

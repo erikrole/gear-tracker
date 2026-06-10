@@ -145,6 +145,19 @@ Implementation: `src/lib/services/notifications.ts`
 - Clean hard sync results reset the source counter. Partial malformed-event skips without a hard `SyncResult.error` remain visible in source health but do not trigger repeated-failure notifications.
 - Implementation: `src/lib/services/calendar-sync-health.ts` called from `GET /api/cron/morning-refresh`.
 
+## Firmware Watch Triggers (Implemented 2026-06-10)
+
+| Event | Type | Recipient | Trigger point |
+|---|---|---|---|
+| Watched product has a newer official firmware version | `firmware_update_released` | Active admins | `morning-refresh` daily firmware watch step |
+
+- Channel: IN_APP plus best-effort native push when the admin has active device tokens and push enabled.
+- Deduplication: `firmware_release:{targetId}:{version}:{adminId}` so each admin receives at most one notification per watched product version.
+- First successful check for a target establishes a baseline silently. Historical releases do not notify on the day a target is first added.
+- Payload includes `firmwareWatchTargetId`, `brand`, `model`, `productName`, `version`, `releaseDate`, `sourceUrl`, and an `/items?search=` link for the model.
+- Source URLs are constrained by parser type. Sony targets must use Sony support hosts, and Canon targets must use Canon USA support hosts.
+- Implementation: `FirmwareWatchTarget` model, `src/lib/services/firmware-watch.ts`, and `GET /api/cron/morning-refresh`.
+
 ## D-009 Acceptance (2026-03-15)
 
 D-009 (Overdue Escalation Policy) is status `Accepted`. Decisions:
@@ -224,6 +237,7 @@ Current behavior:
 | `EMAIL_FROM` | No | From address for transactional email. Default: `Gear Tracker <noreply@gear-tracker.app>` |
 
 ## Change Log
+- 2026-06-10: Daily firmware watch notifications shipped. `morning-refresh` now polls enabled official-source firmware watch targets, baselines the first successful result silently, records latest version/release date/check errors, and creates deduped `firmware_update_released` admin inbox rows plus best-effort push when a newer version appears.
 - 2026-06-10: iOS notification settings detail menu shipped. Native Settings now keeps notification delivery status at the root and moves OS push permission recovery, pause controls, email/push channel toggles, and category toggles into a dedicated Notifications drill-down while preserving the in-app inbox always-on contract.
 - 2026-06-10: iOS notification category parity shipped. Native Profile now exposes the existing web-backed toggles for checkout due reminders, checkout overdue alerts, reservation updates, and license expiry reminders while preserving the in-app inbox always-on contract.
 - 2026-06-10: iOS push token delivery honesty shipped. Native APNs token registration and logout revocation now decode `/api/devices` success responses through the shared API handler instead of raw `URLSession.data`, so rejected responses and 401s are handled like the rest of the app.

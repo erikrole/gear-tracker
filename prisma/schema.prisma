@@ -109,6 +109,11 @@ enum BadgeStreakType {
   SHIFT_ATTENDANCE
 }
 
+enum FirmwareSourceType {
+  SONY_SUPPORT
+  CANON_SUPPORT
+}
+
 model User {
   id                   String                     @id @default(cuid())
   name                 String
@@ -303,6 +308,28 @@ model Asset {
   @@index([status])
   @@index([parentAssetId])
   @@map("assets")
+}
+
+model FirmwareWatchTarget {
+  id                    String             @id @default(cuid())
+  brand                 String
+  model                 String
+  productName           String?            @map("product_name")
+  sourceUrl             String             @unique @map("source_url")
+  sourceType            FirmwareSourceType @map("source_type")
+  enabled               Boolean            @default(true)
+  latestVersion         String?            @map("latest_version")
+  latestReleaseDate     DateTime?          @map("latest_release_date")
+  lastCheckedAt         DateTime?          @map("last_checked_at")
+  lastChangedAt         DateTime?          @map("last_changed_at")
+  baselineEstablishedAt DateTime?          @map("baseline_established_at")
+  lastError             String?            @map("last_error")
+  createdAt             DateTime           @default(now()) @map("created_at")
+  updatedAt             DateTime           @updatedAt @map("updated_at")
+
+  @@index([enabled, sourceType])
+  @@index([brand, model])
+  @@map("firmware_watch_targets")
 }
 
 model Booking {

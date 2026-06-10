@@ -6,6 +6,7 @@ import { updateCalendarSyncHealth } from "@/lib/services/calendar-sync-health";
 import { generateShiftsForNewEvents } from "@/lib/services/shift-generation";
 import { expireOpenTrades } from "@/lib/services/shift-trades";
 import { expirePendingPickupCheckouts } from "@/lib/services/pending-pickup-expiry";
+import { pollFirmwareWatchTargets } from "@/lib/services/firmware-watch";
 import { DEFAULT_RESERVATION_RULES } from "@/lib/services/reservation-rules";
 
 function maintenanceValue<T>(
@@ -30,6 +31,7 @@ const EVENT_ARCHIVE_MONTHS = 4;
  *   3. Archive shift groups for events that have ended
  *   4. Archive calendar events older than EVENT_ARCHIVE_MONTHS
  *   5. Expire stale open trades and pending kiosk pickups
+ *   6. Poll official firmware watch targets
  *
  * Nothing is deleted — archiving only sets archivedAt so all records remain
  * available for historical stats (future Wrapped feature).
@@ -132,9 +134,10 @@ export const GET = withCron(async () => {
     });
 
   // ── 4. Expire stale open/claimed trades and pending pickups ─────────
-  const [tradeResult, pendingPickupResult] = await Promise.allSettled([
+  const [tradeResult, pendingPickupResult, firmwareWatchResult] = await Promise.allSettled([
     expireOpenTrades(),
     expirePendingPickupCheckouts(now),
+    pollFirmwareWatchTargets({ now }),
   ]);
   const maintenanceFailures: string[] = [];
   const { expired: tradesExpired } = maintenanceValue(
@@ -155,6 +158,19 @@ export const GET = withCron(async () => {
     "pendingPickups",
     maintenanceFailures,
   );
+  const firmwareWatch = maintenanceValue(
+    firmwareWatchResult,
+    {
+      checked: 0,
+      changed: 0,
+      baselined: 0,
+      failed: 1,
+      notificationsCreated: 0,
+      errors: [{ targetId: "unknown", product: "Firmware watch", error: "Firmware watch failed" }],
+    },
+    "firmwareWatch",
+    maintenanceFailures,
+  );
 
   return NextResponse.json({
     ok: maintenanceFailures.length === 0,
@@ -165,6 +181,7 @@ export const GET = withCron(async () => {
     eventsArchived,
     tradesExpired,
     pendingPickups,
+    firmwareWatch,
     maintenanceFailures,
   });
 });

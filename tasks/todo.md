@@ -63,6 +63,18 @@ Follow-up (same day, from live screenshot): two more real-world B&H URL shapes s
 
 ## Open Items
 
+### Firmware Watch Daily Notifications (2026-06-10)
+- [x] **Open slice plan** - Started and archived `tasks/archive/firmware-watch-plan.md` for daily official-source firmware polling.
+- [x] **Durable watcher state** - Add a firmware watch model for official source URL, latest version/date, baseline state, and parse status.
+- [x] **Official-source adapters** - Add tested Sony and Canon page parsers for latest firmware version and release date.
+- [x] **Daily notification job** - Run enabled targets from `morning-refresh`, baseline silently on first successful check, and notify active admins once per new version.
+- [x] **Docs and verification** - Sync area docs/decisions and run focused tests plus deploy-shaped checks.
+
+**Review**
+- 2026-06-10: Daily firmware watch foundation shipped. Enabled Sony/Canon official support targets are polled by `morning-refresh`; first successful checks baseline silently, later version changes create deduped admin `firmware_update_released` inbox rows and best-effort push fanout.
+- 2026-06-10: Added migration `0075_add_firmware_watch_targets` and deployed it to Neon. Live health confirmed 76/76 local migrations applied with newest local migration `0075_add_firmware_watch_targets`.
+- 2026-06-10: Verification passed: `npx vitest run tests/firmware-watch.test.ts tests/morning-refresh-route.test.ts`, `npx prisma validate`, `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, approved-network `npm run db:migrate:deploy`, approved-network `npm run db:migrate:health`, and approved-network `npm run build`. The first sandboxed deploy/health/build attempts failed only on blocked Neon DNS.
+
 ### Add Item Flow Quick Fixes (2026-06-10)
 - [x] **Open slice plan** - Started and archived `tasks/archive/add-item-flow-quick-fixes-plan.md` for Standard add-item flow fixes.
 - [x] **Repeat tag count** - Show matching serialized item count and next likely tag for repeated tags such as `FX3 2`.

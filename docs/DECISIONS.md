@@ -671,8 +671,10 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - Vercel cron capacity is intentionally small, and duplicated cron routes drift from the scheduled path.
   - Shift-group archiving already runs inside `morning-refresh`; the standalone `archive-shifts` route was unscheduled dead code.
   - Stale `PENDING_PICKUP` checkouts need a daily cleanup path, but adding another cron route would increase scheduling and monitoring surface.
+  - Firmware release checks are also daily operational maintenance and should not add a separate scheduled cron while Hobby cron capacity is intentionally small.
 - Decision:
   - `GET /api/cron/morning-refresh` is the single daily scheduling maintenance route for calendar sync, shift generation, shift-group archiving, stale trade expiry, and pending-pickup auto-expiry.
+  - Firmware watch polling also runs inside `morning-refresh` and reports its own summary/failures without blocking unrelated daily maintenance.
   - Delete duplicate standalone cron routes when their work is already owned by morning-refresh.
   - Pending-pickup checkouts auto-expire after 48 hours past `startsAt`.
 - Consequences:
@@ -682,6 +684,31 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - Guardrails:
   - Expiry must release serialized allocations, restore held bulk stock, release scanned numbered units, cancel open scan sessions, and write a system audit entry.
   - Cleanup failures should be visible in the morning-refresh response without preventing unrelated per-source calendar sync results from being recorded.
+
+---
+
+## D-038: Firmware Watch Uses Official Source Adapters and Silent Baselines
+- Date: 2026-06-10
+- Status: Accepted
+- Context:
+  - Camera firmware versions and release dates are current operational data, not stable product metadata.
+  - Manufacturers expose firmware data in different formats. Sony and Canon support pages can be parsed from official HTML, while DJI release notes often require PDF-specific parsing that is deferred.
+  - The app already has daily maintenance, notification records, APNs push, and notification dedupe keys.
+- Decision:
+  - Add `FirmwareWatchTarget` as a model-level watch record with brand, model, product name, official source URL, parser type, latest version, release date, baseline timestamp, last check timestamp, and last error.
+  - Poll enabled watch targets once daily from `morning-refresh`.
+  - First successful poll establishes a baseline without notifying admins.
+  - A later version-string change creates `firmware_update_released` notifications for active admins with dedupe key `firmware_release:{targetId}:{version}:{adminId}`.
+  - Source URLs must be constrained by adapter type so the server-side fetch path cannot be used as a general URL fetcher.
+  - Per-asset installed firmware version entry, admin target-management UI, DJI PDF parsing, and sub-daily polling are deferred.
+- Consequences:
+  - Daily firmware awareness ships without adding another scheduled cron surface.
+  - Notifications represent "new official release observed," not proof that any physical camera is out of date.
+  - Adding a new manufacturer requires an explicit adapter and tests instead of a generic scraper.
+- Guardrails:
+  - Use official manufacturer support URLs only.
+  - Keep fetches bounded by timeout and host allowlist.
+  - Preserve in-app notification creation as the durable source of delivery truth; push is best-effort.
 
 ---
 
