@@ -692,18 +692,20 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - Status: Accepted
 - Context:
   - Camera firmware versions and release dates are current operational data, not stable product metadata.
-  - Manufacturers expose firmware data in different formats. Sony and Canon support pages can be parsed from official HTML, while DJI release notes often require PDF-specific parsing that is deferred.
+  - Manufacturers expose firmware data in different formats. The active implementation polls verified Sony support pages for camera bodies that exist in the live inventory; DJI, GoPro, Insta360, JVC, and unresolved Sony pages remain deferred until official source parsing is proven.
   - The app already has daily maintenance, notification records, APNs push, and notification dedupe keys.
 - Decision:
-  - Add `FirmwareWatchTarget` as a model-level watch record with brand, model, product name, official source URL, parser type, latest version, release date, baseline timestamp, last check timestamp, and last error.
+  - Add `FirmwareWatchTarget` as a model-level watch record with brand, model, product name, official source URL, parser type, support mode/note, latest version, release date, baseline timestamp, last check timestamp, and last error.
   - Poll enabled watch targets once daily from `morning-refresh`.
   - First successful poll establishes a baseline without notifying admins.
   - A later version-string change creates `firmware_update_released` notifications for active admins with dedupe key `firmware_release:{targetId}:{version}:{adminId}`.
   - Source URLs must be constrained by adapter type so the server-side fetch path cannot be used as a general URL fetcher.
-  - Per-asset installed firmware version entry, admin target-management UI, DJI PDF parsing, and sub-daily polling are deferred.
+  - Canon runtime parsing is not active because there are no Canon camera bodies in the live inventory.
+  - Item detail may store a per-asset installed firmware version in existing item metadata as `installedFirmwareVersion`, then compare that value to the matched model-level latest version.
+  - Admin target-management UI, non-Sony vendor parsing, unresolved Sony model URLs, and sub-daily polling are deferred.
 - Consequences:
   - Daily firmware awareness ships without adding another scheduled cron surface.
-  - Notifications represent "new official release observed," not proof that any physical camera is out of date.
+  - Notifications represent "new official release observed"; the item-detail badge is the per-camera place to record and compare installed firmware.
   - Adding a new manufacturer requires an explicit adapter and tests instead of a generic scraper.
 - Guardrails:
   - Use official manufacturer support URLs only.

@@ -60,6 +60,32 @@ const sonyTargets = new Map([
     },
   ],
   [
+    "ILME-FX3",
+    {
+      brand: "Sony",
+      model: "ILME-FX3",
+      productName: "Sony FX3",
+      sourceUrl: "https://www.sony.com/electronics/support/interchangeable-lens-camcorders-ilme-series/ilme-fx3/software/00287451",
+      sourceType: "SONY_SUPPORT",
+      supportMode: "ACTIVE",
+      supportNote: "Cinema Line body with active firmware support.",
+      expectedModels: ["ILME-FX3"],
+    },
+  ],
+  [
+    "ILME-FX3A",
+    {
+      brand: "Sony",
+      model: "ILME-FX3A",
+      productName: "Sony FX3A",
+      sourceUrl: "https://www.sony.com/electronics/support/interchangeable-lens-camcorders-ilme-series/ilme-fx3a/software/00364947",
+      sourceType: "SONY_SUPPORT",
+      supportMode: "ACTIVE",
+      supportNote: "Cinema Line FX3 revision with active firmware support.",
+      expectedModels: ["ILME-FX3A"],
+    },
+  ],
+  [
     "ILME-FX6V",
     {
       brand: "Sony",
@@ -78,7 +104,6 @@ const unresolvedSonyModels = new Map([
   ["ILCE-1M2", "Official US support page was not resolved during this seed pass."],
   ["ILCE-7M5", "Official US support page was not resolved during this seed pass."],
   ["ILCE-9M3", "Official US support page was not resolved during this seed pass."],
-  ["ILME-FX3", "Official US support page was not resolved during this seed pass."],
 ]);
 
 if (!process.env.DIRECT_URL) {
@@ -186,10 +211,7 @@ function canonicalCameraBody(brand, model) {
   if (normalizedBrand === "Sony") {
     const withoutColor = rawModel.replace(/\/B$/, "");
     const fixedPrefix = withoutColor.replace(/^LCE-/, "ILCE-");
-    const modelAliases = new Map([
-      ["ILME-FX3A", "ILME-FX3"],
-      ["ILME-FX6", "ILME-FX6V"],
-    ]);
+    const modelAliases = new Map([["ILME-FX6", "ILME-FX6V"]]);
     return {
       brand: normalizedBrand,
       model: modelAliases.get(fixedPrefix) ?? fixedPrefix,

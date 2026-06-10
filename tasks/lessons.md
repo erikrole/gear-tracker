@@ -38,6 +38,7 @@
 
 ## API Patterns
 
+- **Inventory-driven integrations should not keep unused vendors**: If the user asks for firmware support based on actual inventory, seed from live item groups and omit vendor adapters with no operational target. Do not keep generic Canon-style branches unless there are Canon bodies or the user explicitly wants that vendor watched.
 - **Do not keep legacy providers without a real operational path**: If the chosen integration is Brave, do not preserve Google/legacy setup just because it was in an earlier plan. Extra provider branches add env churn, tests, docs, and support cost unless the user explicitly wants fallback optionality.
 - **`withAuth` for authenticated routes, `withHandler` for public**: Both wrap try/catch and resolve dynamic params.
 - **`requirePermission(role, resource, action)`** for RBAC on every mutation endpoint.
@@ -67,6 +68,7 @@
 
 ## UX Patterns
 
+- **Remove collision-prone ambient shortcuts instead of over-guarding them**: If a global type-to-search shortcut keeps intruding on page search or data-entry fields, remove the printable-key shortcut and keep explicit triggers such as `Cmd/Ctrl+K` plus visible Search buttons.
 - **Autocomplete suggestions should update while the user types**: If the request is to help name the next item or make a field feel smart, do not wait for blur or require the user to type the whole final pattern. Use a short debounce, prefix-match the existing data, and show the best actionable suggestion as soon as the text narrows enough.
 - **Text reduction before visual polish**: When the user says a surface feels too heavy, inventory visible copy first. Keep labels, selected values, real warnings, and recovery actions. Remove helper text that repeats controls, decorative status panels without new decisions, and generalized guidance that can wait until an error or review step.
 - **Event-linked creation should promote the event title**: In booking creation flows, do not keep a generic "New checkout" or "New reservation" hero once the booking has a meaningful title. Let the badge carry the booking kind and use the selected event or booking title as the page title.

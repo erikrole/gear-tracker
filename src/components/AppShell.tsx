@@ -93,27 +93,6 @@ const bottomNavItems = [
   { label: "Lookup", href: "/scan", icon: ScanIcon, primary: true },
 ];
 
-const keyboardOwnedTargetSelector = [
-  "input",
-  "textarea",
-  "select",
-  '[contenteditable="true"]',
-  '[contenteditable=""]',
-  '[role="textbox"]',
-  '[role="searchbox"]',
-  '[role="combobox"]',
-  '[role="listbox"]',
-  '[role="menu"]',
-  '[role="dialog"]',
-  '[role="option"]',
-].join(", ");
-
-function isKeyboardOwnedTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) return false;
-  if (target.isContentEditable) return true;
-  return target.closest(keyboardOwnedTargetSelector) !== null;
-}
-
 export default function AppShell({
   children,
   initialUser,
@@ -190,25 +169,11 @@ export default function AppShell({
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         setCmdOpen(true);
-        return;
-      }
-
-      // Type-to-search: open palette when user starts typing anywhere
-      // Skip if another surface already handled the key, focus is in text entry,
-      // or modifier keys are held (except shift).
-      if (cmdOpen) return;
-      if (e.defaultPrevented) return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (isKeyboardOwnedTarget(e.target) || isKeyboardOwnedTarget(document.activeElement)) return;
-      // Only trigger on printable single characters
-      if (e.key.length === 1 && !e.repeat) {
-        setCmdOpen(true);
-        setCmdQuery(e.key);
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [cmdOpen]);
+  }, []);
 
   // Live search when query changes
   useEffect(() => {

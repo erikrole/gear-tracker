@@ -14,16 +14,14 @@ describe("app shell quick search source", () => {
     expect(source).not.toContain('title: item.assetTag ?? "Untitled item"');
   });
 
-  it("does not steal keyboard input from page-owned search fields", () => {
+  it("only opens quick search from explicit shortcuts and triggers", () => {
     const source = readFileSync("src/components/AppShell.tsx", "utf8");
 
-    expect(source).toContain("function isKeyboardOwnedTarget");
-    expect(source).toContain('"input"');
-    expect(source).toContain('"textarea"');
-    expect(source).toContain('"select"');
-    expect(source).toContain("'[role=\"textbox\"]'");
-    expect(source).toContain("'[role=\"searchbox\"]'");
-    expect(source).toContain("if (e.defaultPrevented) return;");
-    expect(source).toContain("isKeyboardOwnedTarget(e.target) || isKeyboardOwnedTarget(document.activeElement)");
+    expect(source).toContain('e.key === "k"');
+    expect(source).toContain("setCmdOpen(true)");
+    expect(source).not.toContain("keyboardOwnedTargetSelector");
+    expect(source).not.toContain("function isKeyboardOwnedTarget");
+    expect(source).not.toContain("e.key.length === 1");
+    expect(source).not.toContain("setCmdQuery(e.key)");
   });
 });

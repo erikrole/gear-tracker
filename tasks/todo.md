@@ -4,15 +4,18 @@ Last updated: 2026-06-10
 
 ---
 
-## Active: Global quick search input guard (2026-06-10)
+## Active: Remove ambient quick search type-to-search (2026-06-10)
 
-Root cause: the AppShell type-to-search listener only checked the key event target before opening the global command palette. If a page-level search shortcut had already claimed the key, or if focus was in a text field while the bubbled event target was not the input, the global palette could still steal typing from local search fields.
+Root cause: even after tightening the input guard, ambient type-to-search remains too collision-prone for a data-entry-heavy app. The explicit top-bar/mobile Search trigger and `Cmd/Ctrl+K` shortcut cover the command-palette workflow without stealing printable typing from page surfaces.
 
-- [x] Patch AppShell so global type-to-search ignores handled events and active text-entry controls.
-- [x] Add focused regression coverage for the quick-search keyboard guard.
+- [x] Remove printable-key type-to-search from AppShell.
+- [x] Keep `Cmd/Ctrl+K` and top-bar/mobile Search triggers.
+- [x] Add focused regression coverage that printable keys do not seed/open quick search.
 - [x] Sync Search docs and record verification.
 
 ### Review
+- 2026-06-10: Removed ambient type-to-search from the global command palette. Quick Search now opens only through the visible Search trigger or `Cmd/Ctrl+K`.
+- 2026-06-10: Corrected removal verification passed: focused AppShell regression test, TypeScript, migration-prefix check, whitespace check, and authenticated in-app browser smoke on `http://127.0.0.1:3015/items`. With page focus, typing `x` did not open a command dialog or command input; the visible top Search trigger still opened the command palette. Browser shortcut injection could not reliably deliver `Cmd/Ctrl+K`, so the shortcut path is pinned by source regression coverage.
 - 2026-06-10: AppShell type-to-search now exits when another handler already called `preventDefault()` and checks both the key event target and `document.activeElement` for text-entry/search/combobox/dialog ownership before opening the global palette.
 - 2026-06-10: Authenticated in-app browser smoke on `http://127.0.0.1:3014/items?q=sony` passed. Typing in the Items search field kept the local `sony` query, filtered rows rendered, no command dialog or command input appeared, and browser console warnings/errors were empty.
 - 2026-06-10: Verification passed: `npx vitest run tests/app-shell-search-source.test.ts`, `npx tsc --noEmit`, `npm run db:migrate:check`, and `git diff --check`.
@@ -79,27 +82,55 @@ Follow-up (same day, from live screenshot): two more real-world B&H URL shapes s
 
 ## Open Items
 
+### Item Detail Firmware Badge (2026-06-10)
+- [x] **Open slice plan** - Started and archived `tasks/archive/item-detail-firmware-badge-plan.md` to make item firmware status a compact editable badge.
+- [x] **Installed firmware metadata** - Store the per-asset installed firmware version in item metadata without adding schema.
+- [x] **Badge and dialog** - Show green updated / orange outdated / gray unset firmware badge with an edit dialog and Sony source link.
+- [x] **Docs and verification** - Sync docs/tasks and rerun focused plus deploy-shaped checks.
+
+**Review**
+- 2026-06-10: Item detail firmware now renders as a compact badge backed by `metadata.installedFirmwareVersion`. The badge is green when installed matches latest, orange/yellow when installed differs from latest, and gray when no installed version is recorded or latest is unknown.
+- 2026-06-10: Clicking the firmware badge opens an edit dialog with installed/latest/release/check context, a saveable installed-version input, a Mark updated to latest action, and the official Sony update page link.
+- 2026-06-10: Authenticated in-app browser smoke passed on real FX3 item `cmmvmbdhe001hjx04hb39a7mk`; unset state showed `Set firmware`, latest `7.02`, released `Mar 17, 2026`, and the dialog exposed the installed-version input, Mark updated to latest, and Sony update-page link with no console warnings/errors. The smoke did not mutate the live item firmware value.
+- 2026-06-10: Verification passed: `npx vitest run tests/item-detail-firmware-display.test.ts tests/firmware-watch.test.ts tests/morning-refresh-route.test.ts`, `npx tsc --noEmit`, `npm run db:migrate:check`, authenticated browser smoke, and approved-network `npm run build`.
+
+### Item Detail Firmware Display (2026-06-10)
+- [x] **Open slice plan** - Started and archived `tasks/archive/item-detail-firmware-display-plan.md` to surface model-level firmware watch data on item detail.
+- [x] **Detail API data** - Return matching firmware watch target metadata from `/api/assets/[id]`.
+- [x] **Info tab display** - Show latest available firmware, release date, support mode, and source link in the item information card.
+- [x] **Docs and verification** - Sync docs/tasks and rerun focused plus deploy-shaped checks.
+
+**Review**
+- 2026-06-10: `/api/assets/[id]` now matches serialized item brand/model to enabled `FirmwareWatchTarget` rows and returns read-only firmware watch metadata.
+- 2026-06-10: The Info tab item information card now renders a firmware panel when a watch target exists, showing latest available version, release date, support mode, last check status, and official source link.
+- 2026-06-10: Authenticated in-app browser smoke passed on real FX3 item `cmmvmbdhe001hjx04hb39a7mk`; the Info card showed Firmware, Active, latest `7.02`, `Released Mar 17, 2026`, last checked date, and the Sony official-source link with no console warnings/errors. Release/check dates render with a UTC formatter so vendor date-only releases do not shift by local timezone.
+- 2026-06-10: Verification passed: `npx vitest run tests/item-detail-firmware-display.test.ts tests/firmware-watch.test.ts tests/morning-refresh-route.test.ts`, `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, and approved-network `npm run build`. The first build attempt failed during page-data collection for stale route module paths, then the immediate rerun succeeded.
+
 ### Firmware Watch Daily Notifications (2026-06-10)
 - [x] **Open slice plan** - Started and archived `tasks/archive/firmware-watch-plan.md` for daily official-source firmware polling.
 - [x] **Durable watcher state** - Add a firmware watch model for official source URL, latest version/date, baseline state, and parse status.
-- [x] **Official-source adapters** - Add tested Sony and Canon page parsers for latest firmware version and release date.
+- [x] **Official-source adapters** - Add tested Sony page parsing for latest firmware version and release date.
 - [x] **Daily notification job** - Run enabled targets from `morning-refresh`, baseline silently on first successful check, and notify active admins once per new version.
 - [x] **Docs and verification** - Sync area docs/decisions and run focused tests plus deploy-shaped checks.
 
 **Review**
-- 2026-06-10: Daily firmware watch foundation shipped. Enabled Sony/Canon official support targets are polled by `morning-refresh`; first successful checks baseline silently, later version changes create deduped admin `firmware_update_released` inbox rows and best-effort push fanout.
+- 2026-06-10: Daily firmware watch foundation shipped. Enabled official support targets are polled by `morning-refresh`; first successful checks baseline silently, later version changes create deduped admin `firmware_update_released` inbox rows and best-effort push fanout. Follow-up narrowed active targets to verified Sony support pages from live inventory.
 - 2026-06-10: Added migration `0075_add_firmware_watch_targets` and deployed it to Neon. Live health confirmed 76/76 local migrations applied with newest local migration `0075_add_firmware_watch_targets`.
 - 2026-06-10: Verification passed: `npx vitest run tests/firmware-watch.test.ts tests/morning-refresh-route.test.ts`, `npx prisma validate`, `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, approved-network `npm run db:migrate:deploy`, approved-network `npm run db:migrate:health`, and approved-network `npm run build`. The first sandboxed deploy/health/build attempts failed only on blocked Neon DNS.
 
 ### Firmware Watch Inventory Seed Follow-up (2026-06-10)
-- [ ] **Open follow-up plan** - Started `tasks/firmware-watch-inventory-seed-plan.md` to make the watcher inventory-driven and Sony-only.
-- [ ] **Live inventory read** - Identify existing camera body model groups and maintenance-status counts from Neon.
-- [ ] **Support mode note** - Store active versus maintenance firmware support mode on watch targets.
-- [ ] **Seed live targets** - Add official Sony support targets for existing camera bodies and baseline them without notifying.
-- [ ] **Docs and verification** - Sync docs/tasks and rerun focused plus deploy-shaped checks.
+- [x] **Open follow-up plan** - Started and archived `tasks/archive/firmware-watch-inventory-seed-plan.md` to make the watcher inventory-driven and Sony-only.
+- [x] **Live inventory read** - Identify existing camera body model groups and maintenance-status counts from Neon.
+- [x] **Support mode note** - Store active versus maintenance firmware support mode on watch targets.
+- [x] **Seed live targets** - Add official Sony support targets for existing camera bodies and baseline them without notifying.
+- [x] **Docs and verification** - Sync docs/tasks and rerun focused plus deploy-shaped checks.
 
 **Review**
-- Pending implementation.
+- 2026-06-10: Dry-run seed found five verified official Sony support targets from the live camera-body inventory: a1, a7 III, a7 IV, a7S III, and FX6. A7 III is marked maintenance firmware; the rest are active firmware support.
+- 2026-06-10: Non-Sony bodies and unresolved Sony models are skipped with reasons in `tasks/firmware-watch-inventory-report.md` rather than seeded with guessed URLs.
+- 2026-06-10: Applied migration `0076_add_firmware_watch_support_mode` and seeded five baselined live `FirmwareWatchTarget` rows. Live readback confirmed a1 `4.00` (active), a7 III `4.04` (maintenance), a7 IV `6.02` (active), a7S III `5.01` (active), and FX6 `6.00` (active).
+- 2026-06-10: Verification passed: `node --check scripts/seed-firmware-watch-targets.mjs`, `npx vitest run tests/firmware-watch.test.ts tests/morning-refresh-route.test.ts`, `npx prisma validate`, `npm run db:migrate:check`, `npx tsc --noEmit`, `git diff --check`, approved-network `npm run db:migrate:deploy`, approved-network `npm run db:migrate:health`, live target readback, and approved-network `npm run build`.
+- 2026-06-10: Added the official Sony FX3 and FX3A downloads paths from user-provided Sony URLs. The seed now tracks FX3 `7.02` and FX3A `2.02` as separate active firmware branches, both released 2026-03-17.
 
 ### Add Item Flow Quick Fixes (2026-06-10)
 - [x] **Open slice plan** - Started and archived `tasks/archive/add-item-flow-quick-fixes-plan.md` for Standard add-item flow fixes.

@@ -49,6 +49,19 @@ export type AssetDetail = {
   activeBooking: ActiveBookingDetail | null;
   hasBookingHistory: boolean;
   parentAsset: { id: string; assetTag: string; name: string | null; brand: string; model: string } | null;
+  firmwareWatch: {
+    id: string;
+    productName: string | null;
+    brand: string;
+    model: string;
+    sourceUrl: string;
+    supportMode: "ACTIVE" | "MAINTENANCE" | "UNKNOWN";
+    supportNote: string | null;
+    latestVersion: string | null;
+    latestReleaseDate: string | null;
+    lastCheckedAt: string | null;
+    lastError: string | null;
+  } | null;
   accessories: Array<{
     id: string;
     assetTag: string;

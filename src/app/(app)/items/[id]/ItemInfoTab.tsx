@@ -16,6 +16,7 @@ import {
   DialogTitle,
   DialogBody,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Tooltip,
@@ -444,6 +445,249 @@ function SaveableCategoryField({
         />
       )}
     </SaveableField>
+  );
+}
+
+function formatFirmwareDate(value: string | null) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
+
+type FirmwareSupportMode = NonNullable<AssetDetail["firmwareWatch"]>["supportMode"];
+type FirmwareBadgeVariant = "green" | "orange" | "gray";
+
+function firmwareSupportVariant(mode: FirmwareSupportMode) {
+  if (mode === "ACTIVE") return "green";
+  if (mode === "MAINTENANCE") return "orange";
+  return "gray";
+}
+
+function firmwareSupportLabel(mode: FirmwareSupportMode) {
+  if (mode === "ACTIVE") return "Active";
+  if (mode === "MAINTENANCE") return "Maintenance";
+  return "Unknown";
+}
+
+function normalizeFirmwareVersion(value: string | null | undefined) {
+  return (value ?? "")
+    .trim()
+    .replace(/^v(?:er\.?)?\s*/i, "")
+    .toLowerCase();
+}
+
+function firmwareBadgeVariant(installedVersion: string, latestVersion: string | null): FirmwareBadgeVariant {
+  if (!installedVersion || !latestVersion) return "gray";
+  return normalizeFirmwareVersion(installedVersion) === normalizeFirmwareVersion(latestVersion)
+    ? "green"
+    : "orange";
+}
+
+function firmwareBadgeStatus(installedVersion: string, latestVersion: string | null) {
+  if (!installedVersion) return "Not recorded";
+  if (!latestVersion) return "Unknown";
+  return normalizeFirmwareVersion(installedVersion) === normalizeFirmwareVersion(latestVersion)
+    ? "Updated"
+    : "Outdated";
+}
+
+function FirmwareWatchPanel({
+  asset,
+  canEdit,
+  firmwareWatch,
+  onSaveInstalledVersion,
+}: {
+  asset: AssetDetail;
+  canEdit: boolean;
+  firmwareWatch: NonNullable<AssetDetail["firmwareWatch"]>;
+  onSaveInstalledVersion: (value: string) => Promise<void>;
+}) {
+  const installedVersion = asset.metadata?.installedFirmwareVersion?.trim() ?? "";
+  const releaseDate = formatFirmwareDate(firmwareWatch.latestReleaseDate);
+  const lastChecked = formatFirmwareDate(firmwareWatch.lastCheckedAt);
+  const [open, setOpen] = useState(false);
+  const [draftVersion, setDraftVersion] = useState(installedVersion);
+  const saveInstalledVersion = useSaveField(onSaveInstalledVersion);
+  const badgeVariant = firmwareBadgeVariant(installedVersion, firmwareWatch.latestVersion);
+  const badgeStatus = firmwareBadgeStatus(installedVersion, firmwareWatch.latestVersion);
+  const latestLabel = firmwareWatch.latestVersion ?? "Unknown";
+
+  useEffect(() => {
+    if (open) setDraftVersion(installedVersion);
+  }, [installedVersion, open]);
+
+  async function saveVersion(value: string) {
+    if (!canEdit || saveInstalledVersion.isSaving) return;
+    const trimmed = value.trim();
+    if (trimmed === installedVersion) {
+      setOpen(false);
+      return;
+    }
+    await saveInstalledVersion.save(trimmed);
+    setOpen(false);
+  }
+
+  return (
+    <div className="border-b border-border/30 p-3 pt-0">
+      <div className="flex items-center justify-between gap-3 rounded-md border border-border/40 bg-background p-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="text-sm font-semibold">Firmware</div>
+            <Dialog open={open} onOpenChange={setOpen}>
+              <Badge
+                asChild
+                variant={badgeVariant}
+                size="sm"
+                className="rounded-sm font-mono"
+              >
+                <button
+                  type="button"
+                  onClick={() => setOpen(true)}
+                  aria-label={`Edit installed firmware version, currently ${installedVersion || "not recorded"}`}
+                >
+                  {installedVersion || "Set firmware"}
+                </button>
+              </Badge>
+              <DialogContent className="max-w-[440px]">
+                <DialogHeader>
+                  <div>
+                    <DialogTitle>Firmware</DialogTitle>
+                    <DialogDescription>
+                      Installed firmware for {asset.assetTag}
+                    </DialogDescription>
+                  </div>
+                </DialogHeader>
+                <DialogBody className="space-y-4 py-4">
+                  <div className="rounded-md border bg-muted/30 p-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant={badgeVariant} size="sm" className="rounded-sm">
+                        {badgeStatus}
+                      </Badge>
+                      <Badge
+                        variant={firmwareSupportVariant(firmwareWatch.supportMode)}
+                        size="sm"
+                        className="rounded-sm"
+                      >
+                        {firmwareSupportLabel(firmwareWatch.supportMode)}
+                      </Badge>
+                    </div>
+                    <dl className="mt-3 grid grid-cols-[88px_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-sm">
+                      <dt className="text-muted-foreground">Installed</dt>
+                      <dd className="font-mono">{installedVersion || "Not recorded"}</dd>
+                      <dt className="text-muted-foreground">Latest</dt>
+                      <dd className="font-mono">{latestLabel}</dd>
+                      {releaseDate && (
+                        <>
+                          <dt className="text-muted-foreground">Released</dt>
+                          <dd>{releaseDate}</dd>
+                        </>
+                      )}
+                      {lastChecked && (
+                        <>
+                          <dt className="text-muted-foreground">Checked</dt>
+                          <dd>{lastChecked}</dd>
+                        </>
+                      )}
+                    </dl>
+                  </div>
+                  {canEdit && (
+                    <div className="space-y-2">
+                      <label htmlFor="installed-firmware-version" className="text-sm font-medium">
+                        Installed firmware version
+                      </label>
+                      <Input
+                        id="installed-firmware-version"
+                        value={draftVersion}
+                        onChange={(event) => setDraftVersion(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") saveVersion(draftVersion);
+                        }}
+                        placeholder={latestLabel === "Unknown" ? "Enter version" : latestLabel}
+                        disabled={saveInstalledVersion.isSaving}
+                        aria-busy={saveInstalledVersion.isSaving}
+                        className="font-mono"
+                      />
+                    </div>
+                  )}
+                  {firmwareWatch.supportNote && (
+                    <p className="text-sm text-muted-foreground">{firmwareWatch.supportNote}</p>
+                  )}
+                  {firmwareWatch.lastError && (
+                    <p className="text-sm text-orange-600 dark:text-orange-400">
+                      Last check issue: {firmwareWatch.lastError}
+                    </p>
+                  )}
+                </DialogBody>
+                <DialogFooter>
+                  <Button variant="outline" asChild>
+                    <a href={firmwareWatch.sourceUrl} target="_blank" rel="noreferrer">
+                      <ExternalLink className="size-4" aria-hidden="true" />
+                      Sony update page
+                    </a>
+                  </Button>
+                  {canEdit && firmwareWatch.latestVersion && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => saveVersion(firmwareWatch.latestVersion ?? "")}
+                      disabled={saveInstalledVersion.isSaving}
+                    >
+                      Mark updated to latest
+                    </Button>
+                  )}
+                  {canEdit && (
+                    <Button
+                      type="button"
+                      onClick={() => saveVersion(draftVersion)}
+                      disabled={saveInstalledVersion.isSaving}
+                    >
+                      {saveInstalledVersion.isSaving ? "Saving..." : "Save"}
+                    </Button>
+                  )}
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            <span className="text-xs text-muted-foreground">{badgeStatus}</span>
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+            <span>Latest {latestLabel}</span>
+            {releaseDate && (
+              <span>Released {releaseDate}</span>
+            )}
+            {lastChecked && (
+              <span>Checked {lastChecked}</span>
+            )}
+          </div>
+        </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-8 shrink-0 text-muted-foreground hover:text-foreground"
+              asChild
+            >
+              <a
+                href={firmwareWatch.sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Open official firmware source"
+              >
+                <ExternalLink className="size-4" aria-hidden="true" />
+              </a>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Official firmware source</TooltipContent>
+        </Tooltip>
+      </div>
+    </div>
   );
 }
 
@@ -878,6 +1122,14 @@ export default function ItemInfoCard({
           </div>
         </div>
       </div>
+      {asset.firmwareWatch && (
+        <FirmwareWatchPanel
+          asset={asset}
+          canEdit={canEdit}
+          firmwareWatch={asset.firmwareWatch}
+          onSaveInstalledVersion={(v) => saveField("metadata.installedFirmwareVersion", v)}
+        />
+      )}
       <div className="py-1">
         <div className="grid grid-cols-1 gap-y-0 divide-y divide-border/30">
           <TextInputField

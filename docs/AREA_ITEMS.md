@@ -153,10 +153,12 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 11. Notes/description
 
 ### Firmware Watch
-1. Firmware watch is model-level metadata, not per-asset installed firmware state in V1.
+1. Firmware watch targets are model-level metadata; installed firmware is stored per asset as item metadata key `installedFirmwareVersion`.
 2. Watched products use explicit official manufacturer support URLs and parser types.
 3. The daily watcher records latest version, release date, baseline status, last check time, and last parse/fetch error.
-4. New version notifications are admin-facing operational alerts; they do not automatically mark individual camera bodies as updated or out of date.
+4. New version notifications are admin-facing operational alerts; item detail compares any recorded installed version against latest available firmware for the matched model.
+5. Item detail displays a compact firmware badge in the `Info` card when the item brand/model matches a watched target. Green means the recorded installed version matches latest available firmware, orange/yellow means it is behind, and gray means no installed version or no latest version is known.
+6. Clicking the firmware badge opens the installed-version editor, a mark-updated-to-latest action, and the official manufacturer update page link.
 
 ### Image Options
 1. Upload image
@@ -412,7 +414,9 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
-- 2026-06-10: **Daily firmware watch foundation shipped.** Gear Tracker now has a model-level firmware watch target table for official support URLs, latest version/release date, baseline state, and parse errors. The first implementation polls enabled Sony and Canon support targets from the daily maintenance job and notifies active admins when a newer version appears after baseline; per-asset installed firmware tracking and target-management UI remain out of scope.
+- 2026-06-10: **Inventory-driven Sony firmware watch shipped.** Gear Tracker now has model-level firmware watch targets for verified official Sony support URLs, latest version/release date, active versus maintenance support mode, baseline state, and parse errors. The daily maintenance job polls enabled targets and notifies active admins when a newer version appears after baseline. Canon is not seeded; non-Sony adapters and unresolved Sony support URLs remain explicit follow-up work.
+- 2026-06-10: **Item detail firmware badge shipped.** The Info card now shows firmware as a compact badge backed by per-asset `installedFirmwareVersion` metadata: green when recorded installed firmware matches latest, orange/yellow when it is behind, and gray when unset or unknown. Clicking the badge opens an editor with a Mark updated to latest action and the official Sony update page link.
+- 2026-06-10: **Item detail firmware display shipped.** Serialized item details now show matched model-level firmware watch data in the Info card: latest available version, release date, support mode, check status, and an official-source link. Firmware release/check dates render in UTC to preserve vendor date-only releases across local timezones.
 - 2026-06-10: **Add item quick fixes shipped.** Standard item creation now shows repeat-tag context for asset families such as `FX3`, `FX3 2`, and the next likely tag, marks purchase price as USD with currency-aware parsing, saves fiscal year to the same `fiscalYearPurchased` metadata key used by item detail, and includes an inline photo upload field that saves through the existing asset image endpoint after create.
 - 2026-06-10: **Add item repeat-tag suggestions are live.** The Standard asset-tag helper now updates while typing, not only on blur, and treats partial text as a prefix. Typing `F`, `FX`, `FX3`, or `70-200` can surface the strongest existing tag family and suggested next tag before the operator enters a number.
 - 2026-06-10: **B&H product images work in the image picker again.** Brave returns B&H image URLs behind Cloudflare bot protection (`www.bhphotovideo.com/cdn-cgi/...`), which 403'd hotlinked previews, server-side rehosting, and even Brave's own thumbnail proxy, so B&H tiles were blank and saving failed. B&H URLs are now rewritten to the openly served `static.bhphoto.com` host: search tiles render the 500px static image, and saving rehosts the 1000x1000 hero white-background product photo to Vercel Blob. Result tiles across all sources now prefer the hotlink-safe thumbnail with full-image fallback, and the rehost fetch sends browser-like headers so other strict CDNs accept it. Follow-up in the same day: `multiple_images/` gallery URLs (B&H product galleries) also rewrite to the static host, and B&H Explora blog images, which are blocked on every host including Brave's thumbnail proxy, are dropped from search results instead of rendering as permanently blank tiles.

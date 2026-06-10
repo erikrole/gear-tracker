@@ -154,8 +154,8 @@ Implementation: `src/lib/services/notifications.ts`
 - Channel: IN_APP plus best-effort native push when the admin has active device tokens and push enabled.
 - Deduplication: `firmware_release:{targetId}:{version}:{adminId}` so each admin receives at most one notification per watched product version.
 - First successful check for a target establishes a baseline silently. Historical releases do not notify on the day a target is first added.
-- Payload includes `firmwareWatchTargetId`, `brand`, `model`, `productName`, `version`, `releaseDate`, `sourceUrl`, and an `/items?search=` link for the model.
-- Source URLs are constrained by parser type. Sony targets must use Sony support hosts, and Canon targets must use Canon USA support hosts.
+- Payload includes `firmwareWatchTargetId`, `brand`, `model`, `productName`, `supportMode`, `supportNote`, `version`, `releaseDate`, `sourceUrl`, and an `/items?search=` link for the model.
+- Source URLs are constrained by parser type. The active runtime currently seeds and polls verified Sony support hosts only.
 - Implementation: `FirmwareWatchTarget` model, `src/lib/services/firmware-watch.ts`, and `GET /api/cron/morning-refresh`.
 
 ## D-009 Acceptance (2026-03-15)

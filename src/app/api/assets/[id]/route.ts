@@ -64,6 +64,57 @@ function parseNotes(notes: string | null) {
   }
 }
 
+function normalizeFirmwareBrand(value: string) {
+  const brand = value.trim();
+  if (/^sony$/i.test(brand)) return "Sony";
+  return brand;
+}
+
+function canonicalFirmwareModel(brand: string, value: string) {
+  const model = value.trim().toUpperCase().replace(/\/B$/, "");
+  if (brand === "Sony") {
+    return model
+      .replace(/^LCE-/, "ILCE-")
+      .replace(/^ILME-FX6$/, "ILME-FX6V");
+  }
+  return model;
+}
+
+async function findFirmwareWatchTargetForAsset(brandValue: string, modelValue: string) {
+  const brand = normalizeFirmwareBrand(brandValue);
+  const model = canonicalFirmwareModel(brand, modelValue);
+  if (!brand || !model) return null;
+
+  const target = await db.firmwareWatchTarget.findFirst({
+    where: {
+      enabled: true,
+      brand,
+      model,
+    },
+    select: {
+      id: true,
+      productName: true,
+      brand: true,
+      model: true,
+      sourceUrl: true,
+      supportMode: true,
+      supportNote: true,
+      latestVersion: true,
+      latestReleaseDate: true,
+      lastCheckedAt: true,
+      lastError: true,
+    },
+  });
+
+  if (!target) return null;
+
+  return {
+    ...target,
+    latestReleaseDate: target.latestReleaseDate?.toISOString() ?? null,
+    lastCheckedAt: target.lastCheckedAt?.toISOString() ?? null,
+  };
+}
+
 export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
   const [asset, derivedStatus, bookingHistory, activeAllocs, upcomingReservations, accessories, favoriteRow] = await Promise.all([
     db.asset.findUnique({
@@ -187,6 +238,7 @@ export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
   const hasBookingHistory = bookingHistory.length > 0;
 
   const parsedMeta = parseNotes(asset.notes);
+  const firmwareWatch = await findFirmwareWatchTargetForAsset(asset.brand, asset.model);
 
   return ok({
     data: {
@@ -201,6 +253,7 @@ export const GET = withAuth<{ id: string }>(async (req, { user, params }) => {
       hasBookingHistory,
       parentAsset: asset.parent ?? null,
       accessories,
+      firmwareWatch,
       upcomingReservations: (() => {
         const seen = new Set<string>();
         if (activeBooking) seen.add(activeBooking.id);
