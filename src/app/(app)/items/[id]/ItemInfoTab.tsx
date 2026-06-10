@@ -517,6 +517,10 @@ function FirmwareWatchPanel({
   const badgeVariant = firmwareBadgeVariant(installedVersion, firmwareWatch.latestVersion);
   const badgeStatus = firmwareBadgeStatus(installedVersion, firmwareWatch.latestVersion);
   const latestLabel = firmwareWatch.latestVersion ?? "Unknown";
+  const needsUpdate =
+    Boolean(firmwareWatch.latestVersion) &&
+    normalizeFirmwareVersion(installedVersion) !==
+      normalizeFirmwareVersion(firmwareWatch.latestVersion);
 
   useEffect(() => {
     if (open) setDraftVersion(installedVersion);
@@ -544,7 +548,7 @@ function FirmwareWatchPanel({
             asChild
             variant={badgeVariant}
             size="sm"
-            className="relative rounded-sm font-mono after:absolute after:left-1/2 after:top-1/2 after:size-10 after:-translate-x-1/2 after:-translate-y-1/2"
+            className="relative cursor-pointer rounded-sm font-mono tabular-nums hover:brightness-125 active:scale-[0.96] after:absolute after:left-1/2 after:top-1/2 after:size-10 after:-translate-x-1/2 after:-translate-y-1/2"
           >
             <button
               type="button"
@@ -554,6 +558,11 @@ function FirmwareWatchPanel({
               {installedVersion || "Set firmware"}
             </button>
           </Badge>
+          {installedVersion && needsUpdate && (
+            <span className="min-w-0 truncate text-muted-foreground">
+              {latestLabel} available
+            </span>
+          )}
           <DialogContent className="max-w-[460px]">
             <DialogHeader>
               <div>
@@ -564,13 +573,20 @@ function FirmwareWatchPanel({
               </div>
             </DialogHeader>
             <DialogBody className="space-y-4 py-4">
-              <div className="rounded-lg bg-muted/25 p-3.5 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]">
+              <div className="rounded-md bg-muted/25 p-4 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                      Current
+                    <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground/70">
+                      Installed
                     </div>
-                    <div className="mt-1 truncate font-mono text-xl font-semibold leading-none">
+                    <div
+                      className={cn(
+                        "mt-1.5 truncate text-2xl font-semibold leading-none tracking-tight",
+                        installedVersion
+                          ? "font-mono tabular-nums"
+                          : "text-muted-foreground/60",
+                      )}
+                    >
                       {installedVersion || "Not recorded"}
                     </div>
                   </div>
@@ -587,18 +603,31 @@ function FirmwareWatchPanel({
                     </Badge>
                   </div>
                 </div>
-                <dl className="mt-4 grid grid-cols-3 gap-2 text-sm">
-                  <div className="min-w-0">
-                    <dt className="text-xs text-muted-foreground">Newest</dt>
-                    <dd className="mt-1 truncate font-mono">{latestLabel}</dd>
+                <dl className="mt-4 grid grid-cols-3 border-t border-border/40 pt-3 text-sm">
+                  <div className="min-w-0 pr-3">
+                    <dt className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground/70">
+                      Newest
+                    </dt>
+                    <dd
+                      className={cn(
+                        "mt-1 truncate font-mono tabular-nums",
+                        badgeVariant === "orange" && "text-[var(--orange-text)]",
+                      )}
+                    >
+                      {latestLabel}
+                    </dd>
                   </div>
-                  <div className="min-w-0">
-                    <dt className="text-xs text-muted-foreground">Checked</dt>
-                    <dd className="mt-1 truncate">{lastChecked || "Not checked"}</dd>
+                  <div className="min-w-0 border-l border-border/40 px-3">
+                    <dt className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground/70">
+                      Checked
+                    </dt>
+                    <dd className="mt-1 truncate tabular-nums">{lastChecked || "Not checked"}</dd>
                   </div>
-                  <div className="min-w-0">
-                    <dt className="text-xs text-muted-foreground">Released</dt>
-                    <dd className="mt-1 truncate">{releaseDate || "Not recorded"}</dd>
+                  <div className="min-w-0 border-l border-border/40 pl-3">
+                    <dt className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground/70">
+                      Released
+                    </dt>
+                    <dd className="mt-1 truncate tabular-nums">{releaseDate || "Not recorded"}</dd>
                   </div>
                 </dl>
               </div>
@@ -617,8 +646,20 @@ function FirmwareWatchPanel({
                     placeholder={latestLabel === "Unknown" ? "Enter version" : latestLabel}
                     disabled={saveInstalledVersion.isSaving}
                     aria-busy={saveInstalledVersion.isSaving}
-                    className="font-mono"
+                    className="font-mono tabular-nums"
                   />
+                  {needsUpdate && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="w-full"
+                      onClick={() => saveVersion(firmwareWatch.latestVersion ?? "")}
+                      disabled={saveInstalledVersion.isSaving}
+                    >
+                      <Check className="size-4" aria-hidden="true" />
+                      Mark updated to {latestLabel}
+                    </Button>
+                  )}
                 </div>
               )}
               {firmwareWatch.supportNote && (
@@ -642,27 +683,15 @@ function FirmwareWatchPanel({
                   Sony update page
                 </a>
               </Button>
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                {canEdit && firmwareWatch.latestVersion && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => saveVersion(firmwareWatch.latestVersion ?? "")}
-                    disabled={saveInstalledVersion.isSaving}
-                  >
-                    Mark updated to latest
-                  </Button>
-                )}
-                {canEdit && (
-                  <Button
-                    type="button"
-                    onClick={() => saveVersion(draftVersion)}
-                    disabled={saveInstalledVersion.isSaving}
-                  >
-                    {saveInstalledVersion.isSaving ? "Saving..." : "Save"}
-                  </Button>
-                )}
-              </div>
+              {canEdit && (
+                <Button
+                  type="button"
+                  onClick={() => saveVersion(draftVersion)}
+                  disabled={saveInstalledVersion.isSaving}
+                >
+                  {saveInstalledVersion.isSaving ? "Saving..." : "Save"}
+                </Button>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>
