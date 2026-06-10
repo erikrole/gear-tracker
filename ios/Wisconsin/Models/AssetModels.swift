@@ -152,6 +152,14 @@ struct AssetAccessory: Codable, Identifiable, Hashable {
 /// rest so future server additions don't break the build.
 struct AssetMetadata: Codable, Hashable {
     let uwAssetTag: String?
+
+    init(from decoder: Decoder) throws {
+        // Legacy notes JSON is arbitrary user data: `metadata` may not be an
+        // object and `uwAssetTag` may not be a string. A type mismatch here
+        // must degrade to nil, not fail the whole asset-detail decode.
+        let container = try? decoder.container(keyedBy: CodingKeys.self)
+        uwAssetTag = (try? container?.decodeIfPresent(String.self, forKey: .uwAssetTag)) ?? nil
+    }
 }
 
 struct AssetDetail: Codable, Identifiable, Hashable {

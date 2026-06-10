@@ -51,7 +51,14 @@ const patchAssetSchema = z
 function parseNotes(notes: string | null) {
   if (!notes) return null;
   try {
-    return JSON.parse(notes) as Record<string, unknown>;
+    const parsed: unknown = JSON.parse(notes);
+    // JSON.parse also accepts scalars and arrays ("1234", "true", "[…]").
+    // Only a plain object is import metadata — anything else is a real
+    // user-typed note and must stay visible (and `metadata` must stay an
+    // object shape for the iOS decoder).
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null;
   } catch {
     return null;
   }

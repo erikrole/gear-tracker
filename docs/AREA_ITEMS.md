@@ -403,6 +403,7 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-06-10: **Scalar notes no longer hidden as metadata.** `parseNotes` on `/api/assets/[id]` treated any successful `JSON.parse` as import metadata, so a note that happened to parse ("1234", "true") was suppressed from the notes field and returned a non-object `metadata` value that could break the iOS asset-detail decode. Only plain JSON objects are treated as metadata now; everything else stays a visible user note.
 - 2026-06-06: **iOS Items empty-state recovery.** Native search-empty and Favorites-only empty states now include direct recovery actions, Clear search and Show all items, while preserving the current search, Favorites, Status scope, row actions, and no-inventory copy.
 - 2026-06-06: **iOS Items load error copy.** Native Items initial-load and pagination failures now use recovery-oriented Items copy instead of raw Swift error descriptions, while keeping the existing Retry controls, pull-to-refresh, search, filters, and row actions unchanged.
 - 2026-06-05: **iOS Items retired reserve gating.** Native retired items remain visible with their derived Retired status, but iOS no longer exposes Reserve from list swipe actions, row context menus, or item detail. Favorite, copy-tag, row navigation, search, and status filtering are unchanged.

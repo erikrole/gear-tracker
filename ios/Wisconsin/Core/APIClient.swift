@@ -132,7 +132,6 @@ final class APIClient {
     }
 
     private func bookingListRequest(path: String, active: Bool, status: BookingStatus?, statusList: [BookingStatus]?, search: String?, requesterId: String?, limit: Int, offset: Int) -> URLRequest {
-        var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
         var items: [URLQueryItem] = [
             .init(name: "limit", value: "\(limit)"),
             .init(name: "offset", value: "\(offset)"),
@@ -144,12 +143,7 @@ final class APIClient {
         }
         if let search, !search.isEmpty { items.append(.init(name: "q", value: search)) }
         if let requesterId, !requesterId.isEmpty { items.append(.init(name: "requester_id", value: requesterId)) }
-        components.queryItems = items
-        var req = URLRequest(url: components.url!)
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.setValue("WisconsinApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
-        req.setValue(baseURL.absoluteString, forHTTPHeaderField: "Origin")
-        return req
+        return request(path: path, queryItems: items)
     }
 
     func booking(id: String) async throws -> Booking {
@@ -442,7 +436,6 @@ final class APIClient {
         limit: Int = 30,
         offset: Int = 0
     ) async throws -> AssetsResponse {
-        var components = URLComponents(url: baseURL.appendingPathComponent("/api/assets"), resolvingAgainstBaseURL: false)!
         var items: [URLQueryItem] = [
             .init(name: "limit", value: "\(limit)"),
             .init(name: "offset", value: "\(offset)"),
@@ -454,11 +447,7 @@ final class APIClient {
         }
         if let categoryId { items.append(.init(name: "category_id", value: categoryId)) }
         if favoritesOnly { items.append(.init(name: "favorites_only", value: "true")) }
-        components.queryItems = items
-        var req = URLRequest(url: components.url!)
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.setValue("WisconsinApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
-        return try await perform(req)
+        return try await perform(request(path: "/api/assets", queryItems: items))
     }
 
     func asset(id: String) async throws -> AssetDetail {
@@ -488,25 +477,20 @@ final class APIClient {
         let stripped = rawScan
             .replacingOccurrences(of: "bg://item/", with: "")
             .replacingOccurrences(of: "bg://case/", with: "")
-        var components = URLComponents(url: baseURL.appendingPathComponent("/api/assets"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [
+        let req = request(path: "/api/assets", queryItems: [
             .init(name: "q", value: stripped),
             .init(name: "qr", value: rawScan),
             .init(name: "limit", value: "5"),
-        ]
-        var req = URLRequest(url: components.url!)
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.setValue("WisconsinApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
+        ])
         let resp: AssetsResponse = try await perform(req)
         return resp.data.first?.id
     }
 
     func assetByQR(qrValue: String) async throws -> Asset? {
-        var components = URLComponents(url: baseURL.appendingPathComponent("/api/assets"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [.init(name: "qr", value: qrValue), .init(name: "limit", value: "1")]
-        var req = URLRequest(url: components.url!)
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.setValue("WisconsinApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
+        let req = request(path: "/api/assets", queryItems: [
+            .init(name: "qr", value: qrValue),
+            .init(name: "limit", value: "1"),
+        ])
         let resp: AssetsResponse = try await perform(req)
         return resp.data.first
     }
@@ -520,7 +504,6 @@ final class APIClient {
         limit: Int = 50,
         offset: Int = 0
     ) async throws -> PaginatedResponse<AppUser> {
-        var components = URLComponents(url: baseURL.appendingPathComponent("/api/users"), resolvingAgainstBaseURL: false)!
         var items: [URLQueryItem] = [
             .init(name: "limit", value: "\(limit)"),
             .init(name: "offset", value: "\(offset)"),
@@ -528,11 +511,7 @@ final class APIClient {
         if let search, !search.isEmpty { items.append(.init(name: "q", value: search)) }
         if let role, !role.isEmpty { items.append(.init(name: "role", value: role)) }
         if includeInactive { items.append(.init(name: "active", value: "all")) }
-        components.queryItems = items
-        var req = URLRequest(url: components.url!)
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.setValue("WisconsinApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
-        return try await perform(req)
+        return try await perform(request(path: "/api/users", queryItems: items))
     }
 
     func user(id: String) async throws -> AppUserDetail {
@@ -548,31 +527,19 @@ final class APIClient {
     }
 
     func reservationsByUser(userId: String, limit: Int = 10) async throws -> PaginatedResponse<Booking> {
-        var components = URLComponents(url: baseURL.appendingPathComponent("/api/reservations"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [
+        try await perform(request(path: "/api/reservations", queryItems: [
             .init(name: "requester_id", value: userId),
             .init(name: "limit", value: "\(limit)"),
             .init(name: "offset", value: "0"),
-        ]
-        var req = URLRequest(url: components.url!)
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.setValue("WisconsinApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
-        req.setValue(baseURL.absoluteString, forHTTPHeaderField: "Origin")
-        return try await perform(req)
+        ]))
     }
 
     func checkoutsByUser(userId: String, limit: Int = 10) async throws -> PaginatedResponse<Booking> {
-        var components = URLComponents(url: baseURL.appendingPathComponent("/api/checkouts"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [
+        try await perform(request(path: "/api/checkouts", queryItems: [
             .init(name: "requester_id", value: userId),
             .init(name: "limit", value: "\(limit)"),
             .init(name: "offset", value: "0"),
-        ]
-        var req = URLRequest(url: components.url!)
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.setValue("WisconsinApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
-        req.setValue(baseURL.absoluteString, forHTTPHeaderField: "Origin")
-        return try await perform(req)
+        ]))
     }
 
     // MARK: - Schedule
@@ -581,29 +548,20 @@ final class APIClient {
         includePast: Bool = false,
         limit: Int = 60
     ) async throws -> [ScheduleEvent] {
-        var components = URLComponents(url: baseURL.appendingPathComponent("/api/calendar-events"), resolvingAgainstBaseURL: false)!
         var items: [URLQueryItem] = [
             .init(name: "limit", value: "\(limit)"),
             .init(name: "offset", value: "0"),
         ]
         if includePast { items.append(.init(name: "includePast", value: "true")) }
-        components.queryItems = items
-        var req = URLRequest(url: components.url!)
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.setValue("WisconsinApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
-        let resp: ScheduleEventsResponse = try await perform(req)
+        let resp: ScheduleEventsResponse = try await perform(request(path: "/api/calendar-events", queryItems: items))
         return resp.data
     }
 
     func shiftGroup(eventId: String) async throws -> EventShiftGroup? {
-        var components = URLComponents(url: baseURL.appendingPathComponent("/api/shift-groups"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [
+        let req = request(path: "/api/shift-groups", queryItems: [
             .init(name: "eventId", value: eventId),
             .init(name: "limit", value: "1"),
-        ]
-        var req = URLRequest(url: components.url!)
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.setValue("WisconsinApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
+        ])
         let resp: ShiftGroupsResponse = try await perform(req)
         return resp.data.first
     }
@@ -619,11 +577,7 @@ final class APIClient {
     }
 
     func myShifts(limit: Int = 20) async throws -> [MyShift] {
-        var components = URLComponents(url: baseURL.appendingPathComponent("/api/my-shifts"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [.init(name: "limit", value: "\(limit)")]
-        var req = URLRequest(url: components.url!)
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.setValue("WisconsinApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
+        let req = request(path: "/api/my-shifts", queryItems: [.init(name: "limit", value: "\(limit)")])
         let resp: MyShiftsResponse = try await perform(req)
         return resp.data
     }
@@ -641,17 +595,12 @@ final class APIClient {
     // MARK: - Notifications
 
     func notifications(unreadOnly: Bool = false, limit: Int = 20, offset: Int = 0) async throws -> NotificationsResponse {
-        var components = URLComponents(url: baseURL.appendingPathComponent("/api/notifications"), resolvingAgainstBaseURL: false)!
         var items: [URLQueryItem] = [
             .init(name: "limit", value: "\(limit)"),
             .init(name: "offset", value: "\(offset)"),
         ]
         if unreadOnly { items.append(.init(name: "unread", value: "true")) }
-        components.queryItems = items
-        var req = URLRequest(url: components.url!)
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.setValue("WisconsinApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
-        return try await perform(req)
+        return try await perform(request(path: "/api/notifications", queryItems: items))
     }
 
     func markNotificationRead(id: String) async throws {
@@ -695,17 +644,12 @@ final class APIClient {
     // MARK: - Shift Trades
 
     func shiftTrades(status: String? = nil, limit: Int = 30, offset: Int = 0) async throws -> ShiftTradesResponse {
-        var components = URLComponents(url: baseURL.appendingPathComponent("/api/shift-trades"), resolvingAgainstBaseURL: false)!
         var items: [URLQueryItem] = [
             .init(name: "limit", value: "\(limit)"),
             .init(name: "offset", value: "\(offset)"),
         ]
         if let status { items.append(.init(name: "status", value: status)) }
-        components.queryItems = items
-        var req = URLRequest(url: components.url!)
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.setValue("WisconsinApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
-        return try await perform(req)
+        return try await perform(request(path: "/api/shift-trades", queryItems: items))
     }
 
     func postShiftTrade(assignmentId: String, notes: String?) async throws -> ShiftTrade {

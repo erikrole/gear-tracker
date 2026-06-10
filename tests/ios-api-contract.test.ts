@@ -34,8 +34,8 @@ describe("iOS API contracts — form options", () => {
       models.indexOf("struct FormOptions"),
     );
     const requiredFields = [...structBody.matchAll(/let (\w+): (\S+)/g)]
-      .filter(([, , type]) => !type.endsWith("?"))
-      .map(([, name]) => name);
+      .filter((match) => !(match[2] ?? "").endsWith("?"))
+      .map((match) => match[1]);
     expect(requiredFields.sort()).toEqual(["id", "name"]);
   });
 });
@@ -117,6 +117,28 @@ describe("iOS API contracts — mutation responses match list shapes", () => {
       service.indexOf("export async function listTrades"),
     );
     expect(cancelSection).toMatch(/shiftTrade\.update\(\{[\s\S]*?include: \{[\s\S]*?shiftAssignment: \{[\s\S]*?postedBy: \{/);
+  });
+});
+
+describe("iOS API contracts — asset metadata leniency", () => {
+  it("parseNotes only treats plain JSON objects as metadata", () => {
+    const route = source("src/app/api/assets/[id]/route.ts");
+
+    // JSON.parse accepts scalars ("1234") — without this guard a numeric
+    // note is hidden on web and `metadata` becomes a non-object that breaks
+    // the iOS asset-detail decode.
+    expect(route).toMatch(/typeof parsed === "object" && !Array\.isArray\(parsed\)/);
+  });
+
+  it("AssetMetadata degrades to nil on malformed legacy JSON", () => {
+    const models = source("ios/Wisconsin/Models/AssetModels.swift");
+
+    const structBody = models.slice(
+      models.indexOf("struct AssetMetadata"),
+      models.indexOf("struct AssetDetail"),
+    );
+    expect(structBody).toContain("let container = try? decoder.container(keyedBy: CodingKeys.self)");
+    expect(structBody).toContain("(try? container?.decodeIfPresent(String.self, forKey: .uwAssetTag)) ?? nil");
   });
 });
 
