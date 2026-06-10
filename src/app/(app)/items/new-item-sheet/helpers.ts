@@ -2,16 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
+import { generateAssetQrCode } from "@/lib/asset-qr-code";
 import type { ParentSearchResult } from "./types";
 
 export function generateQrCode(): string {
-  const array = new Uint8Array(8);
-  crypto.getRandomValues(array);
-  const hex = Array.from(array)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("")
-    .toUpperCase();
-  return `QR-${hex}`;
+  return generateAssetQrCode();
 }
 
 export function useIsMobile() {

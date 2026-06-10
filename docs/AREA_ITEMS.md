@@ -406,6 +406,7 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-06-10: **Generated QR codes are shorter.** New asset QR generation now creates 8-character uppercase codes without the old `QR-` prefix, so physical labels are easier to read while existing prefixed labels and scan fallbacks keep working.
 - 2026-06-10: **Scalar notes no longer hidden as metadata.** `parseNotes` on `/api/assets/[id]` treated any successful `JSON.parse` as import metadata, so a note that happened to parse ("1234", "true") was suppressed from the notes field and returned a non-object `metadata` value that could break the iOS asset-detail decode. Only plain JSON objects are treated as metadata now; everything else stays a visible user note.
 - 2026-06-10: **Add item form field accessibility cleanup.** Standard, Units, and Quantity creation fields now associate visible labels with text, number, date, URL, textarea, combobox, and switch controls. Manual inventory-entry fields also declare conservative autofill behavior so Chrome no longer flags the Add item sheet for missing labels or autocomplete metadata. Validation, payloads, and mutation routes are unchanged.
 - 2026-06-10: **Add item section-card polish.** Standard, Units, and Quantity creation sections now use shared booking-style card surfaces with compact badges and section-level guidance. Field ids, names, validation, and submit behavior are unchanged.

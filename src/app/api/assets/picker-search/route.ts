@@ -69,8 +69,8 @@ export const GET = withAuth(async (req, { user }) => {
     conditions.push(sectionWhere(section));
   }
 
-  // Exact QR/scan code lookup (for scan-to-add)
-  // Also try QR-{value} prefix since generated codes use "QR-XXXX" format
+  // Exact QR/scan code lookup (for scan-to-add).
+  // Keep QR-{value} fallback so older generated labels continue to scan.
   if (qr) {
     const qrPrefixed = `QR-${qr}`;
     conditions.push({

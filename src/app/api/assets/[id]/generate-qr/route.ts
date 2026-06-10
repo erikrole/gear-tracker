@@ -1,5 +1,5 @@
 import { withAuth } from "@/lib/api";
-import { randomHex } from "@/lib/crypto";
+import { generateAssetQrCode } from "@/lib/asset-qr-code";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
@@ -18,7 +18,7 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   let attempts = 0;
   let qrCode = "";
   while (attempts < 5) {
-    qrCode = `QR-${randomHex(8).toUpperCase()}`;
+    qrCode = generateAssetQrCode();
     try {
       asset = await db.asset.update({
         where: { id },

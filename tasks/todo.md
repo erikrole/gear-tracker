@@ -44,6 +44,16 @@ Last updated: 2026-06-10
 
 ## Open Items
 
+### QR Code Generation Simplification (2026-06-10)
+- [x] **Open slice plan** - Started and archived `tasks/archive/qr-code-generation-plan.md` for shorter generated item tracking codes.
+- [x] **Generation format** - New generated asset QR codes now use 8 uppercase hex characters without the `QR-` prefix.
+- [x] **Compatibility** - Existing stored `QR-...` codes remain valid because scan lookup still accepts prefixed fallbacks.
+- [x] **Docs and verification** - Sync Items docs and run focused format, type, migration, whitespace, and build checks.
+
+**Review**
+- 2026-06-10: Existing item QR generation, duplicated asset generation, and the Add item sheet generator now share one prefixless asset QR helper. No migration rewrites existing labels.
+- 2026-06-10: Verification passed with `npx vitest run tests/asset-qr-code-format.test.ts`, `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, and approved-network `npm run build`. The first sandboxed build failed only on blocked Neon DNS.
+
 ### iOS Settings Detail Menus Slice (2026-06-10)
 - [x] **Open slice plan** - Started and archived `tasks/archive/ios-settings-detail-menus-plan.md` for native Settings drill-downs.
 - [x] **Notifications detail menu** - Move notification delivery, pause, channel, and category controls out of the root Settings list into a dedicated native Notifications destination.

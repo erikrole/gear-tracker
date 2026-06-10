@@ -1,5 +1,6 @@
 import { withAuth } from "@/lib/api";
 import { randomHex } from "@/lib/crypto";
+import { generateAssetQrCode } from "@/lib/asset-qr-code";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
@@ -21,7 +22,7 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
     const suffix = randomHex(4).toUpperCase();
     newTag = `${source.assetTag}-COPY-${suffix}`;
     const newSerial = source.serialNumber ? `${source.serialNumber}-COPY-${suffix}` : null;
-    const newQr = `QR-${randomHex(8).toUpperCase()}`;
+    const newQr = generateAssetQrCode();
 
     try {
       duplicate = await db.asset.create({
