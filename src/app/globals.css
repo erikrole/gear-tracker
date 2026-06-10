@@ -1210,6 +1210,17 @@ a[data-slot="button"]:hover {
   }
 }
 
+/* Hide scrollbars on scrollable tab strips (referenced by TabsList across pages) */
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 /* Custom color utilities (no Tailwind equivalent) */
 @layer utilities {
   .text-orange { color: var(--orange); }

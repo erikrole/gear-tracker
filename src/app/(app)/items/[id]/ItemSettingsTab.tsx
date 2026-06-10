@@ -21,18 +21,16 @@ import {
 } from "@/components/ui/dialog";
 import EmptyState from "@/components/EmptyState";
 import { Badge } from "@/components/ui/badge";
-import { Boxes, CheckCircle2, Link2, Loader2, MemoryStick, MoveRight, Paperclip, Search, Unlink } from "lucide-react";
+import { CheckCircle2, Link2, Loader2, MoveRight, Search, Unlink } from "lucide-react";
 import {
   getAttachmentCandidateBlockedReason,
   getAttachmentCandidateState,
   getAttachmentDisplayName,
-  getAttachmentKind,
   getAttachmentStatusWarning,
   getSdCardSlotLabel,
   groupAttachments,
 } from "@/lib/asset-attachments";
 import { statusBadgeVariantEquipment, statusLabelEquipment } from "@/lib/status-colors";
-import { cn } from "@/lib/utils";
 
 type AttachmentDialogMode = "attach" | "move";
 
@@ -300,54 +298,19 @@ export function AccessoriesSection({
 
   return (
     <div className="mt-3.5 max-w-4xl space-y-3">
-      <div className={attachments.length > 0 ? "grid gap-2 sm:grid-cols-3" : "grid gap-2 sm:grid-cols-2"}>
-        <div className="rounded-md border border-border/40 bg-card px-3 py-2 shadow-none">
-          <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            <Paperclip className="size-3.5" aria-hidden="true" />
-            Attached
-          </div>
-          <div
-            className={cn("mt-1 text-xl font-bold tabular-nums", attachments.length === 0 && "text-muted-foreground/50")}
-            style={{ fontFamily: "var(--font-heading)" }}
-          >
-            {attachments.length}
-          </div>
-        </div>
-        <div className="rounded-md border border-border/40 bg-card px-3 py-2 shadow-none">
-          <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            <MemoryStick className="size-3.5" aria-hidden="true" />
-            SD Cards
-          </div>
-          <div
-            className={cn(
-              "mt-1 text-xl font-bold tabular-nums",
-              (attachmentGroups.find((group) => group.key === "sd-card")?.items.length ?? 0) === 0 &&
-                "text-muted-foreground/50",
-            )}
-            style={{ fontFamily: "var(--font-heading)" }}
-          >
-            {attachmentGroups.find((group) => group.key === "sd-card")?.items.length ?? 0}
-          </div>
-        </div>
-        {attachments.length > 0 && (
-          <div className="rounded-md border border-border/40 bg-card px-3 py-2 shadow-none">
-            <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-              <Boxes className="size-3.5" aria-hidden="true" />
-              Attached Items
-            </div>
-            <div className="mt-1 text-sm font-medium">Travel with this item</div>
-          </div>
-        )}
-      </div>
-
       <Card className="border-border/40 shadow-none">
-        <CardHeader>
-          <div>
-            <CardTitle>Attachments{attachments.length > 0 ? ` (${attachments.length})` : ""}</CardTitle>
+        <CardHeader className="flex-row items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <CardTitle>Attachments</CardTitle>
+              {attachments.length > 0 && (
+                <Badge variant="gray" size="sm">{attachments.length}</Badge>
+              )}
+            </div>
             <CardDescription>Items physically tied to this asset, such as SD cards, cages, and fixed rigging.</CardDescription>
           </div>
           {canEdit && attachments.length > 0 && (
-            <Button variant="outline" size="sm" className="h-10 active:scale-[0.96] transition-transform" onClick={() => openAttachmentDialog("attach")}>
+            <Button variant="outline" size="sm" className="h-10 shrink-0 active:scale-[0.96] transition-transform" onClick={() => openAttachmentDialog("attach")}>
               <Link2 className="size-3.5" aria-hidden="true" />
               Add attachment
             </Button>
@@ -375,11 +338,9 @@ export function AccessoriesSection({
                       {group.items.length}
                     </Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground">{group.description}</p>
                   <div className="overflow-hidden rounded-md border border-border/40 divide-y divide-border/30">
                     {group.items.map((acc) => {
                       const slotLabel = getSdCardSlotLabel(acc, asset.assetTag);
-                      const kind = getAttachmentKind(acc);
                       return (
                         <div key={acc.id} className="flex min-h-16 items-center justify-between gap-3 px-3 py-2.5 transition-colors hover:bg-muted/35">
                           <div className="flex min-w-0 items-center gap-3">
@@ -403,9 +364,6 @@ export function AccessoriesSection({
                             </div>
                             <div className="text-sm text-muted-foreground truncate">
                               {getAttachmentDisplayName(acc)}
-                            </div>
-                            <div className="mt-0.5 text-xs text-muted-foreground">
-                              {kind === "sd-card" ? "Media travels with parent" : "Travels with parent"}
                             </div>
                             </div>
                           </div>

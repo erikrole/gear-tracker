@@ -1131,6 +1131,46 @@ export function QRModal({
   );
 }
 
+/* ── Scan Value Row (click-to-copy identity value) ──────── */
+
+function ScanValueRow({
+  label,
+  value,
+  copied,
+  onCopy,
+}: {
+  label: string;
+  value: string;
+  copied: boolean;
+  onCopy: () => void;
+}) {
+  return (
+    <>
+      <dt className="flex h-8 items-center text-[10px] uppercase tracking-[0.12em] text-muted-foreground/55">
+        {label}
+      </dt>
+      <dd className="flex h-8 min-w-0 items-center">
+        <button
+          type="button"
+          onClick={onCopy}
+          className="group/copy flex h-8 min-w-0 max-w-full items-center gap-1.5 rounded-sm pr-1 font-mono text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          aria-label={copied ? `Copied ${label}` : `Copy ${label} ${value}`}
+        >
+          <span className="min-w-0 truncate">{value}</span>
+          {copied ? (
+            <Check className="size-3 shrink-0 text-green-600 dark:text-green-400" aria-hidden="true" />
+          ) : (
+            <Copy
+              className="size-3 shrink-0 opacity-50 transition-opacity group-hover/copy:opacity-100"
+              aria-hidden="true"
+            />
+          )}
+        </button>
+      </dd>
+    </>
+  );
+}
+
 /* ── Field Group (labeled section of saveable rows) ─────── */
 
 function FieldGroup({ label, children }: { label?: string; children: React.ReactNode }) {
@@ -1302,55 +1342,28 @@ export default function ItemInfoCard({
                 </Badge>
               </div>
               <dl className="mt-2 grid grid-cols-[64px_minmax(0,1fr)] gap-x-2 text-xs">
-                <dt className="flex h-8 items-center text-[10px] uppercase tracking-[0.12em] text-muted-foreground/55">QR</dt>
-                <dd className="flex h-8 min-w-0 items-center gap-1">
-                  {asset.qrCodeValue ? (
-                    <>
-                      <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground">
-                        {asset.qrCodeValue}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 shrink-0 text-muted-foreground hover:text-foreground"
-                        onClick={() => copyScanValue("qr", asset.qrCodeValue)}
-                        aria-label={`Copy QR code ${asset.qrCodeValue}`}
-                      >
-                        {copiedScanValue === "qr" ? (
-                          <Check className="size-3 shrink-0 text-green-600 dark:text-green-400" />
-                        ) : (
-                          <Copy className="size-3 shrink-0" />
-                        )}
-                      </Button>
-                    </>
-                  ) : (
-                    <span className="font-mono text-muted-foreground">No QR code</span>
-                  )}
-                </dd>
-                {asset.serialNumber && (
+                {asset.qrCodeValue ? (
+                  <ScanValueRow
+                    label="QR"
+                    value={asset.qrCodeValue}
+                    copied={copiedScanValue === "qr"}
+                    onCopy={() => copyScanValue("qr", asset.qrCodeValue)}
+                  />
+                ) : (
                   <>
-                    <dt className="flex h-8 items-center text-[10px] uppercase tracking-[0.12em] text-muted-foreground/55">Serial</dt>
-                    <dd className="flex h-8 min-w-0 items-center gap-1">
-                      <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground">
-                        {asset.serialNumber}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 shrink-0 text-muted-foreground hover:text-foreground"
-                        onClick={() => copyScanValue("serial", asset.serialNumber)}
-                        aria-label={`Copy serial number ${asset.serialNumber}`}
-                      >
-                        {copiedScanValue === "serial" ? (
-                          <Check className="size-3 shrink-0 text-green-600 dark:text-green-400" />
-                        ) : (
-                          <Copy className="size-3 shrink-0" />
-                        )}
-                      </Button>
+                    <dt className="flex h-8 items-center text-[10px] uppercase tracking-[0.12em] text-muted-foreground/55">QR</dt>
+                    <dd className="flex h-8 min-w-0 items-center">
+                      <span className="font-mono text-muted-foreground">No QR code</span>
                     </dd>
                   </>
+                )}
+                {asset.serialNumber && (
+                  <ScanValueRow
+                    label="Serial"
+                    value={asset.serialNumber}
+                    copied={copiedScanValue === "serial"}
+                    onCopy={() => copyScanValue("serial", asset.serialNumber)}
+                  />
                 )}
                 {asset.firmwareWatch && (
                   <FirmwareWatchPanel

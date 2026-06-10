@@ -160,7 +160,7 @@ function SerializedItemDetailsPage({ id }: { id: string }) {
 
   if (!asset) {
     return (
-      <div>
+      <div className="mx-auto w-full max-w-7xl">
         {/* Header skeleton */}
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-8">
           <div className="flex gap-4 items-center">
@@ -230,6 +230,7 @@ function SerializedItemDetailsPage({ id }: { id: string }) {
 
   return (
     <FadeUp>
+      <div className="mx-auto w-full max-w-7xl">
       <ItemHeader
         asset={asset}
         canEdit={canEdit}
@@ -274,7 +275,7 @@ function SerializedItemDetailsPage({ id }: { id: string }) {
       {/* Info tab — dashboard layout */}
       {activeTab === "info" && (
         <>
-          <div className="mt-3.5 grid max-w-6xl grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
+          <div className="mt-3.5 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
             <OperationalOverview
               asset={asset}
               now={now}
@@ -345,6 +346,7 @@ function SerializedItemDetailsPage({ id }: { id: string }) {
         searchQuery={buildImageSearchSeed(asset)}
         onImageChanged={(newUrl) => setAsset((prev) => prev ? { ...prev, imageUrl: newUrl } : prev)}
       />
+      </div>
     </FadeUp>
   );
 }
