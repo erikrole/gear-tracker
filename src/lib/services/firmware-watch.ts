@@ -1,4 +1,4 @@
-import type { FirmwareSourceType } from "@prisma/client";
+import type { FirmwareSourceType, FirmwareSupportMode } from "@prisma/client";
 import { db } from "@/lib/db";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { sendPushToUser } from "@/lib/services/notifications";
@@ -15,6 +15,8 @@ type FirmwareWatchTargetRow = {
   productName: string | null;
   sourceUrl: string;
   sourceType: FirmwareSourceType;
+  supportMode: FirmwareSupportMode;
+  supportNote: string | null;
   latestVersion: string | null;
   latestReleaseDate: Date | null;
   lastChangedAt: Date | null;
@@ -35,9 +37,8 @@ export type FirmwareWatchResult = {
   errors: Array<{ targetId: string; product: string; error: string }>;
 };
 
-const ALLOWED_HOSTS: Record<FirmwareSourceType, Set<string>> = {
-  SONY_SUPPORT: new Set(["www.sony.com", "sony.com"]),
-  CANON_SUPPORT: new Set(["www.usa.canon.com", "usa.canon.com"]),
+const ALLOWED_HOSTS: Partial<Record<FirmwareSourceType, Set<string>>> = {
+  SONY_SUPPORT: new Set(["www.sony.com", "sony.com", "www.sony.co.uk", "sony.co.uk"]),
 };
 
 export function parseFirmwareRelease(
@@ -47,8 +48,6 @@ export function parseFirmwareRelease(
   switch (sourceType) {
     case "SONY_SUPPORT":
       return parseSonySupportFirmware(html);
-    case "CANON_SUPPORT":
-      return parseCanonSupportFirmware(html);
     default:
       throw new Error(`Unsupported firmware source type: ${sourceType}`);
   }
@@ -57,9 +56,15 @@ export function parseFirmwareRelease(
 export function parseSonySupportFirmware(html: string): FirmwareRelease {
   const text = htmlToSearchableText(html);
   const version =
-    matchFirst(text, /\bVersion:\s*([0-9][A-Za-z0-9._-]*)\b/i) ??
-    matchFirst(text, /\bVer\.\s*([0-9][A-Za-z0-9._-]*)\b/i);
-  const releaseDateText = matchFirst(text, /\bRelease Date:\s*([0-9]{2}[-/.][0-9]{2}[-/.][0-9]{2,4})\b/i);
+    matchFirst(html, /<title[^>]*>[^<]*\bVer\.\s*([0-9][A-Za-z0-9._-]*)\b/i) ??
+    matchFirst(html, /"software"\s*:\s*\[[\s\S]*?"name"\s*:\s*"[^"]*?\bVer\.\s*([0-9][A-Za-z0-9._-]*)\b/i) ??
+    matchFirst(html, /\\"software\\"\s*:\s*\[[\s\S]*?\\"name\\"\s*:\s*\\"[^"]*?\bVer\.\s*([0-9][A-Za-z0-9._-]*)\b/i) ??
+    matchFirst(text, /\bVer\.\s*([0-9][A-Za-z0-9._-]*)\b/i) ??
+    matchFirst(text, /\bVersion:\s*([0-9][A-Za-z0-9._-]*)\b/i);
+  const releaseDateText =
+    matchFirst(html, /"software"\s*:\s*\[[\s\S]*?"releaseDate"\s*:\s*"([^"]+)"/i) ??
+    matchFirst(html, /\\"software\\"\s*:\s*\[[\s\S]*?\\"releaseDate\\"\s*:\s*\\"([^"]+)/i) ??
+    matchFirst(text, /\bRelease Date:\s*([0-9]{2}[-/.][0-9]{2}[-/.][0-9]{2,4})\b/i);
 
   if (!version) {
     throw new Error("Sony firmware version not found");
@@ -67,25 +72,7 @@ export function parseSonySupportFirmware(html: string): FirmwareRelease {
 
   return {
     version,
-    releaseDate: releaseDateText ? parseUsDate(releaseDateText) : null,
-  };
-}
-
-export function parseCanonSupportFirmware(html: string): FirmwareRelease {
-  const text = htmlToSearchableText(html);
-  const firmwareNotice = text.match(
-    /\bTitle\s+Firmware Notice:[\s\S]*?\bFirmware Version\s+([0-9][A-Za-z0-9._-]*)\b[\s\S]*?\bDate\s+([0-9]{2}[./-][0-9]{2}[./-][0-9]{2,4})\b/i,
-  );
-  const version = firmwareNotice?.[1] ?? matchFirst(text, /\bFirmware Version\s+([0-9][A-Za-z0-9._-]*)\b/i);
-  const releaseDateText = firmwareNotice?.[2] ?? null;
-
-  if (!version) {
-    throw new Error("Canon firmware version not found");
-  }
-
-  return {
-    version,
-    releaseDate: releaseDateText ? parseUsDate(releaseDateText) : null,
+    releaseDate: releaseDateText ? parseSonyDate(releaseDateText) : null,
   };
 }
 
@@ -104,6 +91,8 @@ export async function pollFirmwareWatchTargets(args: {
       productName: true,
       sourceUrl: true,
       sourceType: true,
+      supportMode: true,
+      supportNote: true,
       latestVersion: true,
       latestReleaseDate: true,
       lastChangedAt: true,
@@ -210,6 +199,8 @@ async function notifyAdminsOfFirmwareRelease(
     brand: target.brand,
     model: target.model,
     productName: target.productName,
+    supportMode: target.supportMode,
+    supportNote: target.supportNote,
     version: release.version,
     releaseDate: release.releaseDate?.toISOString() ?? null,
     sourceUrl: target.sourceUrl,
@@ -297,6 +288,20 @@ function parseUsDate(value: string): Date {
     throw new Error(`Invalid firmware release date: ${value}`);
   }
   return parsed;
+}
+
+function parseSonyDate(value: string): Date {
+  if (/^[0-9]{2}[-/.][0-9]{2}[-/.][0-9]{2,4}$/.test(value)) {
+    return parseUsDate(value);
+  }
+
+  const normalized = value.replace(/\\\//g, "/").replace(/\\"/g, '"');
+  const timestamp = Date.parse(normalized);
+  if (Number.isNaN(timestamp)) {
+    throw new Error(`Unsupported firmware release date: ${value}`);
+  }
+  const parsed = new Date(timestamp);
+  return new Date(Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate()));
 }
 
 function firmwareProductLabel(target: Pick<FirmwareWatchTargetRow, "brand" | "model" | "productName">): string {

@@ -40,6 +40,7 @@ Make search a fast operational jump layer. It should find records when the user 
 5. The full search page and quick palette should not disagree on destination search.
 
 ## Change Log
+- 2026-06-10: Web quick-search input guard tightened. The global type-to-search shortcut now respects page-owned keyboard events and the currently focused text-entry control, so local search fields such as Items search keep typing focus instead of being interrupted by the command palette.
 - 2026-06-09: Native iOS runtime warning cleanup. `APIClient`, kiosk API, and thumbnail image sessions now use explicit 15s/30s mobile timeouts with multipath disabled, reducing avoidable CFNetwork fallback churn for Scan/Search lookups and image fetches.
 - 2026-06-06: Web quick-search item identity parity shipped. The command palette and full `/search` page now share the same item-title fallback through asset tag, item name, brand/model, type, then `Untitled item`, so sparse item data no longer makes the two search surfaces disagree.
 - 2026-06-06: Web full-search item identity fallback shipped. `/search` item results now fall back through asset tag, item name, brand/model, type, then `Untitled item`, preventing blank result titles while preserving role-aware destinations, partial-failure behavior, active booking search scope, and URL query state.

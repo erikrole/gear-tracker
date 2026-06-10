@@ -4,6 +4,22 @@ Last updated: 2026-06-10
 
 ---
 
+## Active: Global quick search input guard (2026-06-10)
+
+Root cause: the AppShell type-to-search listener only checked the key event target before opening the global command palette. If a page-level search shortcut had already claimed the key, or if focus was in a text field while the bubbled event target was not the input, the global palette could still steal typing from local search fields.
+
+- [x] Patch AppShell so global type-to-search ignores handled events and active text-entry controls.
+- [x] Add focused regression coverage for the quick-search keyboard guard.
+- [x] Sync Search docs and record verification.
+
+### Review
+- 2026-06-10: AppShell type-to-search now exits when another handler already called `preventDefault()` and checks both the key event target and `document.activeElement` for text-entry/search/combobox/dialog ownership before opening the global palette.
+- 2026-06-10: Authenticated in-app browser smoke on `http://127.0.0.1:3014/items?q=sony` passed. Typing in the Items search field kept the local `sony` query, filtered rows rendered, no command dialog or command input appeared, and browser console warnings/errors were empty.
+- 2026-06-10: Verification passed: `npx vitest run tests/app-shell-search-source.test.ts`, `npx tsc --noEmit`, `npm run db:migrate:check`, and `git diff --check`.
+- 2026-06-10: `npm run build` was attempted but the sandboxed run failed on blocked Neon DNS, and the escalated run was rejected because this repo's build script can apply pending migrations to Neon. Safer `npx next build` compiled the app, then failed on unrelated in-progress firmware-watch Prisma client drift: `FirmwareSupportMode` is present in the dirty schema/source but not generated in `@prisma/client`.
+
+---
+
 ## Active: Fix B&H images in the asset image picker (2026-06-10)
 
 Root cause (verified with curl): Brave returns B&H image URLs on `www.bhphotovideo.com/cdn-cgi/...`, which sits behind Cloudflare bot protection that 403s hotlinked `<img>` loads, server-side rehost fetches, AND Brave's own thumbnail proxy ("Source image is unreachable"). The identical file paths on `static.bhphoto.com` serve openly (200, no special headers) in 500/1000/1500/2500px square variants.
@@ -74,6 +90,16 @@ Follow-up (same day, from live screenshot): two more real-world B&H URL shapes s
 - 2026-06-10: Daily firmware watch foundation shipped. Enabled Sony/Canon official support targets are polled by `morning-refresh`; first successful checks baseline silently, later version changes create deduped admin `firmware_update_released` inbox rows and best-effort push fanout.
 - 2026-06-10: Added migration `0075_add_firmware_watch_targets` and deployed it to Neon. Live health confirmed 76/76 local migrations applied with newest local migration `0075_add_firmware_watch_targets`.
 - 2026-06-10: Verification passed: `npx vitest run tests/firmware-watch.test.ts tests/morning-refresh-route.test.ts`, `npx prisma validate`, `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, approved-network `npm run db:migrate:deploy`, approved-network `npm run db:migrate:health`, and approved-network `npm run build`. The first sandboxed deploy/health/build attempts failed only on blocked Neon DNS.
+
+### Firmware Watch Inventory Seed Follow-up (2026-06-10)
+- [ ] **Open follow-up plan** - Started `tasks/firmware-watch-inventory-seed-plan.md` to make the watcher inventory-driven and Sony-only.
+- [ ] **Live inventory read** - Identify existing camera body model groups and maintenance-status counts from Neon.
+- [ ] **Support mode note** - Store active versus maintenance firmware support mode on watch targets.
+- [ ] **Seed live targets** - Add official Sony support targets for existing camera bodies and baseline them without notifying.
+- [ ] **Docs and verification** - Sync docs/tasks and rerun focused plus deploy-shaped checks.
+
+**Review**
+- Pending implementation.
 
 ### Add Item Flow Quick Fixes (2026-06-10)
 - [x] **Open slice plan** - Started and archived `tasks/archive/add-item-flow-quick-fixes-plan.md` for Standard add-item flow fixes.

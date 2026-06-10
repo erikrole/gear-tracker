@@ -22,7 +22,6 @@ vi.mock("@/lib/services/notifications", () => ({
 import { db } from "@/lib/db";
 import { sendPushToUser } from "@/lib/services/notifications";
 import {
-  parseCanonSupportFirmware,
   parseSonySupportFirmware,
   pollFirmwareWatchTargets,
 } from "@/lib/services/firmware-watch";
@@ -49,13 +48,16 @@ const sonyHtml = `
   </html>
 `;
 
-const canonHtml = `
+const sonyMetadataHtml = `
   <html>
-    <section>
-      <p>Title Firmware Notice: EOS R5: Firmware Version 2.2.1</p>
-      <p>Advisory Type Firmware Notice</p>
-      <p>Date 11.20.25</p>
-    </section>
+    <script>
+      window.__CTX__ = {
+        "software": [{
+          "name": "ILCE-7M4 System Software (Firmware) Update Ver. 6.02",
+          "releaseDate": "Thu, 28 May 2026 00:00:00 +00:00"
+        }]
+      };
+    </script>
   </html>
 `;
 
@@ -72,6 +74,8 @@ function target(overrides: Partial<{
     productName: "Sony A7 III",
     sourceUrl: overrides.sourceUrl ?? "https://www.sony.com/electronics/support/e-mount-body-ilce-7-series/ilce-7m3/software/00257843",
     sourceType: "SONY_SUPPORT",
+    supportMode: "MAINTENANCE",
+    supportNote: "Older body receiving stability firmware.",
     latestVersion: overrides.latestVersion ?? null,
     latestReleaseDate: null,
     lastChangedAt: null,
@@ -98,10 +102,10 @@ describe("firmware source parsers", () => {
     });
   });
 
-  it("parses Canon support firmware notices", () => {
-    expect(parseCanonSupportFirmware(canonHtml)).toEqual({
-      version: "2.2.1",
-      releaseDate: new Date("2025-11-20T00:00:00.000Z"),
+  it("parses Sony embedded software metadata", () => {
+    expect(parseSonySupportFirmware(sonyMetadataHtml)).toEqual({
+      version: "6.02",
+      releaseDate: new Date("2026-05-28T00:00:00.000Z"),
     });
   });
 });

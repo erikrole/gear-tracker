@@ -93,6 +93,27 @@ const bottomNavItems = [
   { label: "Lookup", href: "/scan", icon: ScanIcon, primary: true },
 ];
 
+const keyboardOwnedTargetSelector = [
+  "input",
+  "textarea",
+  "select",
+  '[contenteditable="true"]',
+  '[contenteditable=""]',
+  '[role="textbox"]',
+  '[role="searchbox"]',
+  '[role="combobox"]',
+  '[role="listbox"]',
+  '[role="menu"]',
+  '[role="dialog"]',
+  '[role="option"]',
+].join(", ");
+
+function isKeyboardOwnedTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  return target.closest(keyboardOwnedTargetSelector) !== null;
+}
+
 export default function AppShell({
   children,
   initialUser,
@@ -173,16 +194,12 @@ export default function AppShell({
       }
 
       // Type-to-search: open palette when user starts typing anywhere
-      // Skip if already in an input, or if modifier keys are held (except shift)
+      // Skip if another surface already handled the key, focus is in text entry,
+      // or modifier keys are held (except shift).
       if (cmdOpen) return;
+      if (e.defaultPrevented) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      const target = e.target as HTMLElement | null;
-      const tag = target?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-      if (target?.isContentEditable) return;
-      // Don't steal keystrokes from interactive widgets (combobox triggers,
-      // listboxes, open dialogs/menus, etc.) that consume printable keys.
-      if (target?.closest('[role="combobox"], [role="listbox"], [role="menu"], [role="dialog"], [role="option"], [contenteditable="true"]')) return;
+      if (isKeyboardOwnedTarget(e.target) || isKeyboardOwnedTarget(document.activeElement)) return;
       // Only trigger on printable single characters
       if (e.key.length === 1 && !e.repeat) {
         setCmdOpen(true);
