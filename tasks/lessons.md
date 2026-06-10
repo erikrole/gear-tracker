@@ -68,6 +68,7 @@
 
 ## UX Patterns
 
+- **When feedback asks to integrate a status into an identity cluster, match the existing row grammar first**: Do not turn a compact identity value like firmware into a standalone card just because it has supporting metadata. Keep the row light, put detailed metadata and source links in the click-through dialog, and verify the screenshot target before shipping the visual hierarchy.
 - **Remove collision-prone ambient shortcuts instead of over-guarding them**: If a global type-to-search shortcut keeps intruding on page search or data-entry fields, remove the printable-key shortcut and keep explicit triggers such as `Cmd/Ctrl+K` plus visible Search buttons.
 - **Autocomplete suggestions should update while the user types**: If the request is to help name the next item or make a field feel smart, do not wait for blur or require the user to type the whole final pattern. Use a short debounce, prefix-match the existing data, and show the best actionable suggestion as soon as the text narrows enough.
 - **Text reduction before visual polish**: When the user says a surface feels too heavy, inventory visible copy first. Keep labels, selected values, real warnings, and recovery actions. Remove helper text that repeats controls, decorative status panels without new decisions, and generalized guidance that can wait until an error or review step.

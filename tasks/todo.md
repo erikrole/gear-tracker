@@ -82,6 +82,17 @@ Follow-up (same day, from live screenshot): two more real-world B&H URL shapes s
 
 ## Open Items
 
+### Item Detail Identity Firmware Refresh (2026-06-10)
+- [x] **Open slice plan** - Started and archived `tasks/archive/item-detail-identity-firmware-refresh-plan.md` to integrate firmware into the admin identity block.
+- [x] **Identity surface** - Renamed Scan identity to Identity and kept QR/serial in the same admin-labeled cluster.
+- [x] **Firmware placement** - Moved firmware into the QR/serial row grammar with badge/status inline and newest/check/release/source metadata in the badge modal.
+- [x] **Docs and verification** - Synced docs/tasks and reran focused plus deploy-shaped checks.
+
+**Review**
+- 2026-06-10: Identity now renders QR, Serial, and Firmware as compact rows with QR preview on the right. Firmware no longer renders as a full nested card.
+- 2026-06-10: Clicking the firmware badge opens a modal with current firmware, newest firmware, checked date, release date, installed-version input, Mark updated to latest, and the official Sony update-page link.
+- 2026-06-10: Authenticated in-app browser smoke passed on real FX3 item `cmmvmbdhe001hjx04hb39a7mk`; no current-page console warnings/errors were reported and the smoke did not mutate live item firmware.
+
 ### Item Detail Firmware Badge (2026-06-10)
 - [x] **Open slice plan** - Started and archived `tasks/archive/item-detail-firmware-badge-plan.md` to make item firmware status a compact editable badge.
 - [x] **Installed firmware metadata** - Store the per-asset installed firmware version in item metadata without adding schema.

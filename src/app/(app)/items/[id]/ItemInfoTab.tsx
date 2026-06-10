@@ -534,160 +534,125 @@ function FirmwareWatchPanel({
   }
 
   return (
-    <div className="border-b border-border/30 p-3 pt-0">
-      <div className="flex items-center justify-between gap-3 rounded-md border border-border/40 bg-background p-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="text-sm font-semibold">Firmware</div>
-            <Dialog open={open} onOpenChange={setOpen}>
-              <Badge
-                asChild
-                variant={badgeVariant}
-                size="sm"
-                className="rounded-sm font-mono"
-              >
-                <button
-                  type="button"
-                  onClick={() => setOpen(true)}
-                  aria-label={`Edit installed firmware version, currently ${installedVersion || "not recorded"}`}
-                >
-                  {installedVersion || "Set firmware"}
-                </button>
-              </Badge>
-              <DialogContent className="max-w-[440px]">
-                <DialogHeader>
-                  <div>
-                    <DialogTitle>Firmware</DialogTitle>
-                    <DialogDescription>
-                      Installed firmware for {asset.assetTag}
-                    </DialogDescription>
-                  </div>
-                </DialogHeader>
-                <DialogBody className="space-y-4 py-4">
-                  <div className="rounded-md border bg-muted/30 p-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant={badgeVariant} size="sm" className="rounded-sm">
-                        {badgeStatus}
-                      </Badge>
-                      <Badge
-                        variant={firmwareSupportVariant(firmwareWatch.supportMode)}
-                        size="sm"
-                        className="rounded-sm"
-                      >
-                        {firmwareSupportLabel(firmwareWatch.supportMode)}
-                      </Badge>
-                    </div>
-                    <dl className="mt-3 grid grid-cols-[88px_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-sm">
-                      <dt className="text-muted-foreground">Installed</dt>
-                      <dd className="font-mono">{installedVersion || "Not recorded"}</dd>
-                      <dt className="text-muted-foreground">Latest</dt>
-                      <dd className="font-mono">{latestLabel}</dd>
-                      {releaseDate && (
-                        <>
-                          <dt className="text-muted-foreground">Released</dt>
-                          <dd>{releaseDate}</dd>
-                        </>
-                      )}
-                      {lastChecked && (
-                        <>
-                          <dt className="text-muted-foreground">Checked</dt>
-                          <dd>{lastChecked}</dd>
-                        </>
-                      )}
-                    </dl>
-                  </div>
-                  {canEdit && (
-                    <div className="space-y-2">
-                      <label htmlFor="installed-firmware-version" className="text-sm font-medium">
-                        Installed firmware version
-                      </label>
-                      <Input
-                        id="installed-firmware-version"
-                        value={draftVersion}
-                        onChange={(event) => setDraftVersion(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") saveVersion(draftVersion);
-                        }}
-                        placeholder={latestLabel === "Unknown" ? "Enter version" : latestLabel}
-                        disabled={saveInstalledVersion.isSaving}
-                        aria-busy={saveInstalledVersion.isSaving}
-                        className="font-mono"
-                      />
-                    </div>
-                  )}
-                  {firmwareWatch.supportNote && (
-                    <p className="text-sm text-muted-foreground">{firmwareWatch.supportNote}</p>
-                  )}
-                  {firmwareWatch.lastError && (
-                    <p className="text-sm text-orange-600 dark:text-orange-400">
-                      Last check issue: {firmwareWatch.lastError}
-                    </p>
-                  )}
-                </DialogBody>
-                <DialogFooter>
-                  <Button variant="outline" asChild>
-                    <a href={firmwareWatch.sourceUrl} target="_blank" rel="noreferrer">
-                      <ExternalLink className="size-4" aria-hidden="true" />
-                      Sony update page
-                    </a>
-                  </Button>
-                  {canEdit && firmwareWatch.latestVersion && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => saveVersion(firmwareWatch.latestVersion ?? "")}
-                      disabled={saveInstalledVersion.isSaving}
-                    >
-                      Mark updated to latest
-                    </Button>
-                  )}
-                  {canEdit && (
-                    <Button
-                      type="button"
-                      onClick={() => saveVersion(draftVersion)}
-                      disabled={saveInstalledVersion.isSaving}
-                    >
-                      {saveInstalledVersion.isSaving ? "Saving..." : "Save"}
-                    </Button>
-                  )}
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-            <span className="text-xs text-muted-foreground">{badgeStatus}</span>
-          </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-            <span>Latest {latestLabel}</span>
-            {releaseDate && (
-              <span>Released {releaseDate}</span>
-            )}
-            {lastChecked && (
-              <span>Checked {lastChecked}</span>
-            )}
-          </div>
-        </div>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
+    <>
+      <dt className="flex h-8 items-center text-[10px] uppercase tracking-[0.12em] text-muted-foreground/55">
+        Firmware
+      </dt>
+      <dd className="flex h-8 min-w-0 items-center gap-2">
+        <Dialog open={open} onOpenChange={setOpen}>
+          <Badge
+            asChild
+            variant={badgeVariant}
+            size="sm"
+            className="relative rounded-sm font-mono after:absolute after:left-1/2 after:top-1/2 after:size-10 after:-translate-x-1/2 after:-translate-y-1/2"
+          >
+            <button
               type="button"
-              variant="ghost"
-              size="icon"
-              className="size-8 shrink-0 text-muted-foreground hover:text-foreground"
-              asChild
+              onClick={() => setOpen(true)}
+              aria-label={`Edit installed firmware version, currently ${installedVersion || "not recorded"}`}
             >
-              <a
-                href={firmwareWatch.sourceUrl}
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Open official firmware source"
-              >
-                <ExternalLink className="size-4" aria-hidden="true" />
-              </a>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Official firmware source</TooltipContent>
-        </Tooltip>
-      </div>
-    </div>
+              {installedVersion || "Set firmware"}
+            </button>
+          </Badge>
+          <DialogContent className="max-w-[440px]">
+            <DialogHeader>
+              <div>
+                <DialogTitle>Firmware</DialogTitle>
+                <DialogDescription>
+                  Installed firmware for {asset.assetTag}
+                </DialogDescription>
+              </div>
+            </DialogHeader>
+            <DialogBody className="space-y-4 py-4">
+              <div className="rounded-md bg-muted/30 p-3 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={badgeVariant} size="sm" className="rounded-sm">
+                    {badgeStatus}
+                  </Badge>
+                  <Badge
+                    variant={firmwareSupportVariant(firmwareWatch.supportMode)}
+                    size="sm"
+                    className="rounded-sm"
+                  >
+                    {firmwareSupportLabel(firmwareWatch.supportMode)}
+                  </Badge>
+                </div>
+                <dl className="mt-3 grid grid-cols-[80px_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-sm">
+                  <dt className="text-muted-foreground">Current</dt>
+                  <dd className="font-mono">{installedVersion || "Not recorded"}</dd>
+                  <dt className="text-muted-foreground">Newest</dt>
+                  <dd className="font-mono">{latestLabel}</dd>
+                  <dt className="text-muted-foreground">Checked</dt>
+                  <dd>{lastChecked || "Not checked"}</dd>
+                  <dt className="text-muted-foreground">Released</dt>
+                  <dd>{releaseDate || "Not recorded"}</dd>
+                </dl>
+              </div>
+              {canEdit && (
+                <div className="space-y-2">
+                  <label htmlFor="installed-firmware-version" className="text-sm font-medium">
+                    Installed firmware version
+                  </label>
+                  <Input
+                    id="installed-firmware-version"
+                    value={draftVersion}
+                    onChange={(event) => setDraftVersion(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") saveVersion(draftVersion);
+                    }}
+                    placeholder={latestLabel === "Unknown" ? "Enter version" : latestLabel}
+                    disabled={saveInstalledVersion.isSaving}
+                    aria-busy={saveInstalledVersion.isSaving}
+                    className="font-mono"
+                  />
+                </div>
+              )}
+              {firmwareWatch.supportNote && (
+                <p className="text-sm text-muted-foreground">{firmwareWatch.supportNote}</p>
+              )}
+              {firmwareWatch.lastError && (
+                <p className="text-sm text-orange-600 dark:text-orange-400">
+                  Last check issue: {firmwareWatch.lastError}
+                </p>
+              )}
+            </DialogBody>
+            <DialogFooter>
+              <Button variant="outline" asChild>
+                <a
+                  href={firmwareWatch.sourceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Open Official firmware source"
+                >
+                  <ExternalLink className="size-4" aria-hidden="true" />
+                  Sony update page
+                </a>
+              </Button>
+              {canEdit && firmwareWatch.latestVersion && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => saveVersion(firmwareWatch.latestVersion ?? "")}
+                  disabled={saveInstalledVersion.isSaving}
+                >
+                  Mark updated to latest
+                </Button>
+              )}
+              {canEdit && (
+                <Button
+                  type="button"
+                  onClick={() => saveVersion(draftVersion)}
+                  disabled={saveInstalledVersion.isSaving}
+                >
+                  {saveInstalledVersion.isSaving ? "Saving..." : "Save"}
+                </Button>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        <span className="min-w-0 truncate text-xs text-muted-foreground">{badgeStatus}</span>
+      </dd>
+    </>
   );
 }
 
@@ -1044,92 +1009,94 @@ export default function ItemInfoCard({
 
   return (
     <Card className="details-card border-border/40">
-      <div className="border-b border-border/30 p-3">
-        <div className="flex items-stretch justify-between gap-3 rounded-md bg-muted/30 p-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <div className="text-sm font-semibold">Scan identity</div>
-              <Badge variant="outline" size="sm" className="rounded-sm bg-background font-mono text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
-                Admin
-              </Badge>
-            </div>
-            <dl className="mt-3 grid grid-cols-[48px_minmax(0,1fr)] gap-x-2 gap-y-1.5 text-xs">
-              <dt className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground/50">QR</dt>
-              <dd className="flex min-w-0 items-center gap-1">
-                {asset.qrCodeValue ? (
+      <div className="border-b border-border/30 p-2.5">
+        <div className="rounded-md bg-muted/25 px-3 py-2.5 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.06)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]">
+          <div className="grid grid-cols-[minmax(0,1fr)_88px] items-start gap-2.5">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <div className="text-sm font-semibold">Identity</div>
+                <Badge variant="outline" size="sm" className="rounded-sm bg-background font-mono text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+                  Admin
+                </Badge>
+              </div>
+              <dl className="mt-2 grid grid-cols-[64px_minmax(0,1fr)] gap-x-2 text-xs">
+                <dt className="flex h-8 items-center text-[10px] uppercase tracking-[0.12em] text-muted-foreground/55">QR</dt>
+                <dd className="flex h-8 min-w-0 items-center gap-1">
+                  {asset.qrCodeValue ? (
+                    <>
+                      <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground">
+                        {asset.qrCodeValue}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 shrink-0 text-muted-foreground hover:text-foreground"
+                        onClick={() => copyScanValue("qr", asset.qrCodeValue)}
+                        aria-label={`Copy QR code ${asset.qrCodeValue}`}
+                      >
+                        {copiedScanValue === "qr" ? (
+                          <Check className="size-3 shrink-0 text-green-600 dark:text-green-400" />
+                        ) : (
+                          <Copy className="size-3 shrink-0" />
+                        )}
+                      </Button>
+                    </>
+                  ) : (
+                    <span className="font-mono text-muted-foreground">No QR code</span>
+                  )}
+                </dd>
+                {asset.serialNumber && (
                   <>
-                    <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground">
-                      {asset.qrCodeValue}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="size-10 shrink-0 text-muted-foreground hover:text-foreground"
-                      onClick={() => copyScanValue("qr", asset.qrCodeValue)}
-                      aria-label={`Copy QR code ${asset.qrCodeValue}`}
-                    >
-                      {copiedScanValue === "qr" ? (
-                        <Check className="size-3 shrink-0 text-green-600 dark:text-green-400" />
-                      ) : (
-                        <Copy className="size-3 shrink-0" />
-                      )}
-                    </Button>
+                    <dt className="flex h-8 items-center text-[10px] uppercase tracking-[0.12em] text-muted-foreground/55">Serial</dt>
+                    <dd className="flex h-8 min-w-0 items-center gap-1">
+                      <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground">
+                        {asset.serialNumber}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 shrink-0 text-muted-foreground hover:text-foreground"
+                        onClick={() => copyScanValue("serial", asset.serialNumber)}
+                        aria-label={`Copy serial number ${asset.serialNumber}`}
+                      >
+                        {copiedScanValue === "serial" ? (
+                          <Check className="size-3 shrink-0 text-green-600 dark:text-green-400" />
+                        ) : (
+                          <Copy className="size-3 shrink-0" />
+                        )}
+                      </Button>
+                    </dd>
                   </>
-                ) : (
-                  <span className="font-mono text-muted-foreground">No QR code</span>
                 )}
-              </dd>
-              {asset.serialNumber && (
-                <>
-                  <dt className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground/50">Serial</dt>
-                  <dd className="flex min-w-0 items-center gap-1">
-                    <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground">
-                      {asset.serialNumber}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="size-10 shrink-0 text-muted-foreground hover:text-foreground"
-                      onClick={() => copyScanValue("serial", asset.serialNumber)}
-                      aria-label={`Copy serial number ${asset.serialNumber}`}
-                    >
-                      {copiedScanValue === "serial" ? (
-                        <Check className="size-3 shrink-0 text-green-600 dark:text-green-400" />
-                      ) : (
-                        <Copy className="size-3 shrink-0" />
-                      )}
-                    </Button>
-                  </dd>
-                </>
-              )}
-            </dl>
-          </div>
-          <div className="flex w-[92px] shrink-0 flex-col items-stretch">
-            <button
-              type="button"
-              className="group flex aspect-square w-full items-center justify-center rounded-md border bg-background p-1 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)] outline-none transition-[background-color,box-shadow,transform] hover:bg-muted/50 active:scale-[0.96] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]"
-              onClick={() => setShowQrModal(true)}
-              aria-label={canEdit ? "Open QR code details" : "View QR code"}
-            >
-              {asset.qrCodeValue ? (
-                <QRCodeCanvas value={asset.qrCodeValue} size={76} margin={1} />
-              ) : (
-                <span className="text-xs text-muted-foreground">QR</span>
-              )}
-            </button>
+                {asset.firmwareWatch && (
+                  <FirmwareWatchPanel
+                    asset={asset}
+                    canEdit={canEdit}
+                    firmwareWatch={asset.firmwareWatch}
+                    onSaveInstalledVersion={(v) => saveField("metadata.installedFirmwareVersion", v)}
+                  />
+                )}
+              </dl>
+            </div>
+            <div className="flex w-[88px] shrink-0 flex-col items-stretch">
+              <button
+                type="button"
+                className="group flex aspect-square w-full items-center justify-center rounded-md bg-background p-1 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)] outline-none transition-[background-color,box-shadow,transform] hover:bg-muted/50 active:scale-[0.96] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]"
+                onClick={() => setShowQrModal(true)}
+                aria-label={canEdit ? "Open QR code details" : "View QR code"}
+              >
+                {asset.qrCodeValue ? (
+                  <QRCodeCanvas value={asset.qrCodeValue} size={72} margin={1} />
+                ) : (
+                  <span className="text-xs text-muted-foreground">QR</span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
-      {asset.firmwareWatch && (
-        <FirmwareWatchPanel
-          asset={asset}
-          canEdit={canEdit}
-          firmwareWatch={asset.firmwareWatch}
-          onSaveInstalledVersion={(v) => saveField("metadata.installedFirmwareVersion", v)}
-        />
-      )}
       <div className="py-1">
         <div className="grid grid-cols-1 gap-y-0 divide-y divide-border/30">
           <TextInputField
