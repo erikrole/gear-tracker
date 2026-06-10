@@ -19,6 +19,8 @@ Root cause (verified with curl): Brave returns B&H image URLs on `www.bhphotovid
 ### Review
 B&H picker tiles now render from `static.bhphoto.com` and saving a B&H result rehosts the 1000x1000 hero image to Vercel Blob. Non-B&H tiles got more reliable too (Brave thumbnail preferred over hotlinked originals). If a 1000px variant ever 404s, the existing client fallback saves the 500px thumbnail instead.
 
+Follow-up (same day, from live screenshot): two more real-world B&H URL shapes surfaced. `multiple_images/imagesNxN/` gallery paths now rewrite (and size-upgrade) like regular product images, and `static.bhphotovideo.com/explora/...` blog images, verified 403 on every host AND via Brave's thumbnail proxy, are dropped from results entirely rather than shown as blank tiles.
+
 **Current release**: Beta — CalVer versioning adopted.
 **Release workflow**: `npm run release` creates CalVer tag + GitHub Release.
 

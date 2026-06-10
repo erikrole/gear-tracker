@@ -241,6 +241,29 @@ describe("image search provider", () => {
     });
   });
 
+  it("drops B&H Explora images that are blocked on every host", async () => {
+    process.env.BRAVE_SEARCH_API_KEY = "brave-key";
+    mockFetch(200, bravePayload([
+      braveResult({
+        title: "",
+        url: "https://www.bhphotovideo.com/explora/photography/hands-on-review",
+        thumbnail: { src: "https://imgs.search.brave.com/abc/rs:fit:500:0:1:0/g:ce/encoded" },
+        properties: {
+          url: "https://static.bhphotovideo.com/explora/sites/default/files/video/_sony-lens-a1.jpg",
+          width: 960,
+          height: 540,
+        },
+      }),
+      braveResult(),
+    ]));
+
+    const outcome = await searchProductImages("Sony FE 70-200mm");
+
+    expect(outcome.status).toBe("ok");
+    expect(outcome.results).toHaveLength(1);
+    expect(outcome.results[0]).toMatchObject({ url: "https://images.example/fx3.jpg" });
+  });
+
   it("classifies Brave quota responses", async () => {
     process.env.BRAVE_SEARCH_API_KEY = "brave-key";
     mockFetch(429);

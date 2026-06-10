@@ -1,5 +1,5 @@
 import { Redis } from "@upstash/redis";
-import { BH_HERO_IMAGE_SIZE, toBhStaticImageUrl } from "@/lib/bhphoto-image";
+import { BH_HERO_IMAGE_SIZE, isBlockedBhImageUrl, toBhStaticImageUrl } from "@/lib/bhphoto-image";
 import { env } from "@/lib/env";
 
 export type ImageSearchProvider = "brave" | "none";
@@ -160,8 +160,13 @@ function mapBraveResults(payload: unknown): ImageSearchResult[] {
     const sourceUrl = readString(row.url) || source;
     const rawUrl = readString(properties.url) || readString(row.image) || readString(thumbnail.src);
     // B&H image URLs are Cloudflare-blocked for hotlinking, rehosting, and
-    // Brave's thumbnail proxy alike, so serve both sizes from static.bhphoto.com.
-    const url = toBhStaticImageUrl(rawUrl, BH_HERO_IMAGE_SIZE) ?? rawUrl;
+    // Brave's thumbnail proxy alike. Product photos get served from the open
+    // static.bhphoto.com host instead; B&H images with no open equivalent
+    // (Explora blog stills) can never render, so blank the URL and let
+    // finishResults' https filter drop the candidate.
+    const url = isBlockedBhImageUrl(rawUrl)
+      ? ""
+      : toBhStaticImageUrl(rawUrl, BH_HERO_IMAGE_SIZE) ?? rawUrl;
     const thumbnailUrl = toBhStaticImageUrl(rawUrl) ?? (readString(thumbnail.src) || url);
     const width = readNumber(properties.width) ?? readNumber(row.width);
     const height = readNumber(properties.height) ?? readNumber(row.height);
