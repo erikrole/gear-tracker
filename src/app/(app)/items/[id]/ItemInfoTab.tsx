@@ -905,6 +905,21 @@ export function QRModal({
   );
 }
 
+/* ── Field Group (labeled section of saveable rows) ─────── */
+
+function FieldGroup({ label, children }: { label?: string; children: React.ReactNode }) {
+  return (
+    <section className="border-t border-border/30 pb-1 first:border-t-0">
+      {label && (
+        <div className="px-3 pb-1 pt-3 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground/55">
+          {label}
+        </div>
+      )}
+      <div className="grid grid-cols-1 divide-y divide-border/30">{children}</div>
+    </section>
+  );
+}
+
 /* ── Item Info Card (tab entry point) ───────────────────── */
 
 export type LocationOption = { id: string; name: string };
@@ -1142,7 +1157,7 @@ export default function ItemInfoCard({
         </div>
       </div>
       <div className="py-1">
-        <div className="grid grid-cols-1 gap-y-0 divide-y divide-border/30">
+        <FieldGroup label="Product">
           <TextInputField
             label="Asset tag"
             value={asset.assetTag}
@@ -1185,6 +1200,8 @@ export default function ItemInfoCard({
             canEdit={canEdit}
             onSave={(v) => saveField("metadata.uwAssetTag", v)}
           />
+        </FieldGroup>
+        <FieldGroup label="Organization">
           <SaveableNativeSelectField
             label="Department"
             value={asset.department?.id || ""}
@@ -1209,58 +1226,60 @@ export default function ItemInfoCard({
             canEdit={canEdit}
             onSave={saveLocation}
           />
-          {/* ── Procurement fields (hidden from students) ── */}
-          {currentUserRole !== "STUDENT" && (
-            <>
-              <SaveableDatePickerField
-                label="Purchase date"
-                value={
-                  asset.purchaseDate
-                    ? asset.purchaseDate.slice(0, 10)
-                    : ""
+        </FieldGroup>
+        {/* ── Procurement fields (hidden from students) ── */}
+        {currentUserRole !== "STUDENT" && (
+          <FieldGroup label="Procurement">
+            <SaveableDatePickerField
+              label="Purchase date"
+              value={
+                asset.purchaseDate
+                  ? asset.purchaseDate.slice(0, 10)
+                  : ""
+              }
+              canEdit={canEdit}
+              onSave={async (v) => {
+                await saveField("purchaseDate", v);
+                if (v) {
+                  const fy = computeFiscalYear(v);
+                  if (fy) await saveField("metadata.fiscalYearPurchased", fy);
                 }
-                canEdit={canEdit}
-                onSave={async (v) => {
-                  await saveField("purchaseDate", v);
-                  if (v) {
-                    const fy = computeFiscalYear(v);
-                    if (fy) await saveField("metadata.fiscalYearPurchased", fy);
-                  }
-                }}
-              />
-              <SaveableNativeSelectField
-                label="Fiscal Year"
-                value={asset.metadata?.fiscalYearPurchased || ""}
-                options={getFiscalYearOptions()}
-                placeholder="Select fiscal year"
-                canEdit={canEdit}
-                onSave={(v) => saveField("metadata.fiscalYearPurchased", v)}
-              />
-              <TextInputField
-                label="Purchase price"
-                value={
-                  asset.purchasePrice ? String(asset.purchasePrice) : ""
-                }
-                placeholder="Add purchase price"
-                canEdit={canEdit}
-                onSave={(v) => saveField("purchasePrice", v)}
-              />
-              <LinkField
-                label="Link"
-                value={asset.linkUrl || ""}
-                placeholder="Add product link"
-                canEdit={canEdit}
-                onSave={(v) => saveField("linkUrl", v)}
-              />
-            </>
-          )}
-          {/* ── Notes section ── */}
+              }}
+            />
+            <SaveableNativeSelectField
+              label="Fiscal Year"
+              value={asset.metadata?.fiscalYearPurchased || ""}
+              options={getFiscalYearOptions()}
+              placeholder="Select fiscal year"
+              canEdit={canEdit}
+              onSave={(v) => saveField("metadata.fiscalYearPurchased", v)}
+            />
+            <TextInputField
+              label="Purchase price"
+              value={
+                asset.purchasePrice ? String(asset.purchasePrice) : ""
+              }
+              placeholder="Add purchase price"
+              canEdit={canEdit}
+              onSave={(v) => saveField("purchasePrice", v)}
+            />
+            <LinkField
+              label="Link"
+              value={asset.linkUrl || ""}
+              placeholder="Add product link"
+              canEdit={canEdit}
+              onSave={(v) => saveField("linkUrl", v)}
+            />
+          </FieldGroup>
+        )}
+        {/* ── Notes section ── */}
+        <FieldGroup>
           <NotesField
             value={asset.metadata?.userNotes || ""}
             canEdit={canEdit}
             onSave={(v) => saveField("metadata.userNotes", v)}
           />
-        </div>
+        </FieldGroup>
       </div>
       <QRModal
         asset={asset}
