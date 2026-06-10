@@ -1,6 +1,14 @@
 "use client";
 
-import { type ColumnDef } from "@tanstack/react-table";
+import { type ColumnDef, type RowData } from "@tanstack/react-table";
+
+declare module "@tanstack/react-table" {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface ColumnMeta<TData extends RowData, TValue> {
+    /** Width class applied to the column header so fixed-purpose columns stop drifting apart on wide screens. */
+    thClassName?: string;
+  }
+}
 import {
   ExternalLink,
   Copy,
@@ -277,6 +285,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
     },
     enableSorting: false,
     enableHiding: false,
+    meta: { thClassName: "w-9" },
   });
 
   // Favorite star column
@@ -285,6 +294,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
     header: () => <><Star className="size-3.5 text-muted-foreground" aria-hidden="true" /><span className="sr-only">Favorite</span></>,
     enableSorting: false,
     enableHiding: true,
+    meta: { thClassName: "w-11" },
     cell: ({ row }) => {
       const asset = row.original;
       if (isBulkRowId(asset.id)) {
@@ -380,6 +390,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
         </div>
       ),
       enableSorting: false,
+      meta: { thClassName: "w-[200px]" },
     },
     {
       header: "Category",
@@ -389,6 +400,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
         <span className="block truncate text-sm text-foreground/85">{row.original.category?.name || row.original.type}</span>
       ),
       enableSorting: true,
+      meta: { thClassName: "w-[150px]" },
     },
     {
       header: "Department",
@@ -398,6 +410,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
         <span className="block truncate text-sm text-muted-foreground">{row.original.department?.name ?? "—"}</span>
       ),
       enableSorting: true,
+      meta: { thClassName: "w-[140px]" },
     },
     {
       header: "Location",
@@ -407,6 +420,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
         <span className="block truncate text-sm font-medium text-foreground/85">{row.original.location.name}</span>
       ),
       enableSorting: true,
+      meta: { thClassName: "w-[150px]" },
     },
   );
 
@@ -414,6 +428,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
   if (meta.canEdit) {
     columns.push({
       id: "actions",
+      meta: { thClassName: "w-12" },
       cell: ({ row }) => {
         const asset = row.original;
         const isBulk = isBulkRowId(asset.id);

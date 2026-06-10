@@ -329,7 +329,8 @@ export function DataTable({
                       key={header.id}
                       className={cn(
                         "h-10 select-none text-[11px] uppercase tracking-wide text-muted-foreground group/th",
-                        canSort && "cursor-pointer hover:bg-muted/80"
+                        canSort && "cursor-pointer hover:bg-muted/80",
+                        header.column.columnDef.meta?.thClassName
                       )}
                       onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
                     >

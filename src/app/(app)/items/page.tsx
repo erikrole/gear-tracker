@@ -411,6 +411,7 @@ export default function ItemsPage() {
 
   return (
     <FadeUp>
+      <div className="mx-auto w-full max-w-screen-2xl">
       {/* Single-item retire confirmation */}
       <AlertDialog open={!!retireTarget} onOpenChange={(open) => { if (!open) setRetireTarget(null); }}>
         <AlertDialogContent>
@@ -710,6 +711,7 @@ export default function ItemsPage() {
             rowsPerPageDisabled={itemFamilyOnly}
           />
         )}
+      </div>
       </div>
     </FadeUp>
   );
