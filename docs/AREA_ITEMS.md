@@ -241,6 +241,9 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 7. `Fiscal Year Purchased` uses predetermined dropdown options based on July 1 fiscal-year rollover:
    - On March 9, 2026, the current fiscal year option is `2026`
    - Option generation should align future values to the same July 1 rule
+8. The item information card groups fields into Product, Organization, Procurement, and Notes sections for faster scanning without hiding editable values.
+9. `Purchase price` is a USD field: it shows a dollar affordance, accepts common USD formatting, saves as a two-decimal numeric value, and rejects malformed currency instead of loosely parsing partial numbers.
+10. `Link` normalizes missing schemes to `https://`, only opens/copies valid `http` or `https` URLs, and shows the source host inline when available.
 
 ### Tracking Code and QR Behavior
 1. Show QR code / tracking code inside the admin-only `Identity` section of the item information card instead of a detached side panel.
@@ -415,6 +418,7 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-06-10: **Item Info sidebar hardening shipped.** Purchase price now behaves as a strict USD field with decimal input semantics, display formatting, and strict save normalization. Product links now normalize missing schemes to `https://`, reject non-http(s) URLs, copy/open the normalized target, and show the source host inline. The grouped Identity/Product/Organization/Procurement/Notes layout remains compact for fast scanning.
 - 2026-06-10: **Info card field grouping shipped.** The Info card's flat field stack is now grouped into labeled sections (Product, Organization, Procurement, plus an unlabeled Notes section) using the same tracked-uppercase label grammar as the Identity card. Procurement remains hidden from students; section dividers separate groups while rows keep their hairline dividers within each group.
 - 2026-06-10: **Firmware editor and Identity row polish shipped.** The firmware dialog hero now reads "Installed" with a larger tabular version, a divided Newest/Checked/Released stat row, and an orange Newest value when behind. Mark updated to latest moved from the footer (where it wrapped awkwardly) to a contextual full-width action under the version input, shown only when an update is actually available. The Identity firmware row gained hover/press feedback on the badge and a muted "x.xx available" hint when outdated.
 - 2026-06-10: **Inventory-driven Sony firmware watch shipped.** Gear Tracker now has model-level firmware watch targets for verified official Sony support URLs, latest version/release date, active versus maintenance support mode, baseline state, and parse errors. The daily maintenance job polls enabled targets and notifies active admins when a newer version appears after baseline. Canon is not seeded; non-Sony adapters and unresolved Sony support URLs remain explicit follow-up work.

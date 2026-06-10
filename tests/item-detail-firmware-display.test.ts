@@ -32,7 +32,7 @@ describe("item detail firmware display", () => {
     expect(infoTab).toContain("Outdated");
     expect(infoTab).toContain("Newest");
     expect(infoTab).toContain("Checked");
-    expect(infoTab).toContain("Mark updated to latest");
+    expect(infoTab).toContain("Mark updated to {latestLabel}");
     expect(infoTab).toContain("Sony update page");
     expect(infoTab).toContain("Official firmware source");
     expect(infoTab).toContain("asset.firmwareWatch &&");

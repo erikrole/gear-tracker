@@ -132,7 +132,154 @@ function TextInputField({
   );
 }
 
+/* ── USD Currency Field ─────────────────────────────────── */
+
+function parseUsdDraft(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const cleaned = trimmed.replace(/^\$/, "").replace(/,/g, "");
+  if (!/^\d+(?:\.\d{1,2})?$/.test(cleaned)) {
+    throw new Error("Enter a valid USD amount");
+  }
+  const numeric = Number(cleaned);
+  if (!Number.isFinite(numeric)) {
+    throw new Error("Enter a valid USD amount");
+  }
+  return numeric.toFixed(2);
+}
+
+function formatUsdDraft(value: string | number | null | undefined): string {
+  if (value === null || value === undefined || value === "") return "";
+  try {
+    const normalized = parseUsdDraft(String(value));
+    return new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(Number(normalized));
+  } catch {
+    return String(value);
+  }
+}
+
+function normalizeUsdForDirty(value: string): string {
+  try {
+    return parseUsdDraft(value);
+  } catch {
+    return value.trim();
+  }
+}
+
+function CurrencyInputField({
+  label,
+  value,
+  placeholder,
+  canEdit,
+  onSave,
+}: {
+  label: string;
+  value: string | number | null | undefined;
+  placeholder?: string;
+  canEdit: boolean;
+  onSave: (v: string) => Promise<void>;
+}) {
+  const [draft, setDraft] = useState(formatUsdDraft(value));
+  const saveField = useSaveField(onSave);
+  const fieldId = useId();
+  const formattedValue = formatUsdDraft(value);
+  const isDirty = normalizeUsdForDirty(draft) !== normalizeUsdForDirty(formattedValue);
+
+  useEffect(() => {
+    setDraft(formatUsdDraft(value));
+  }, [value]);
+
+  async function commit() {
+    if (saveField.isSaving) return;
+    let normalized: string;
+    try {
+      normalized = parseUsdDraft(draft);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Enter a valid USD amount");
+      return;
+    }
+    if (normalized === normalizeUsdForDirty(formattedValue)) {
+      setDraft(formattedValue);
+      return;
+    }
+    await saveField.save(normalized);
+  }
+
+  function cancel() {
+    setDraft(formattedValue);
+    saveField.reset();
+  }
+
+  return (
+    <SaveableField
+      label={label}
+      status={saveField.status}
+      isDirty={canEdit && isDirty}
+      onCommit={commit}
+      onCancel={cancel}
+      htmlFor={fieldId}
+    >
+      <div className="relative flex-1">
+        <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+          $
+        </span>
+        <Input
+          id={fieldId}
+          name={label.toLowerCase().replace(/\s+/g, "-")}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit();
+            if (e.key === "Escape") cancel();
+          }}
+          placeholder={placeholder || "0.00"}
+          disabled={!canEdit || saveField.isSaving}
+          aria-busy={saveField.isSaving}
+          inputMode="decimal"
+          autoComplete="off"
+          className="h-8 pl-6 text-sm tabular-nums"
+        />
+      </div>
+    </SaveableField>
+  );
+}
+
 /* ── Link Field (with open/copy buttons) ───────────────── */
+
+function normalizeExternalUrl(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  let parsed: URL;
+  try {
+    parsed = new URL(withScheme);
+  } catch {
+    throw new Error("Enter a valid http or https URL");
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error("Enter a valid http or https URL");
+  }
+  return parsed.toString();
+}
+
+function getExternalUrlHost(value: string): string {
+  try {
+    return normalizeExternalUrl(value).replace(/^https?:\/\//, "").split("/")[0]?.replace(/^www\./, "") ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function getNormalizedExternalUrl(value: string): string {
+  try {
+    return normalizeExternalUrl(value);
+  } catch {
+    return "";
+  }
+}
 
 function LinkField({
   label,
@@ -157,12 +304,21 @@ function LinkField({
   }, [value]);
 
   const isDirty = draft.trim() !== value;
+  const sourceHost = getExternalUrlHost(value);
+  const openUrl = value ? getNormalizedExternalUrl(value) : "";
 
   async function commit() {
     if (saveField.isSaving) return;
-    const trimmed = draft.trim();
-    if (trimmed === value) return;
-    await saveField.save(trimmed);
+    let normalized: string;
+    try {
+      normalized = normalizeExternalUrl(draft);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Enter a valid http or https URL");
+      return;
+    }
+    const currentComparable = value ? getNormalizedExternalUrl(value) || value.trim() : "";
+    if (normalized === currentComparable) return;
+    await saveField.save(normalized);
   }
 
   function cancel() {
@@ -172,7 +328,7 @@ function LinkField({
 
   async function copyUrl() {
     if (!value) return;
-    await navigator.clipboard.writeText(value);
+    await navigator.clipboard.writeText(openUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
@@ -201,6 +357,11 @@ function LinkField({
           aria-busy={saveField.isSaving}
           className="h-7 flex-1 border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
         />
+        {sourceHost && (
+          <span className="hidden max-w-[124px] shrink-0 truncate rounded-sm bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground sm:inline">
+            {sourceHost}
+          </span>
+        )}
         {value && (
           <>
             <Tooltip>
@@ -210,8 +371,8 @@ function LinkField({
                   variant="ghost"
                   size="icon"
                   className="size-7 shrink-0 rounded-sm text-muted-foreground hover:text-foreground"
-                  onClick={() => window.open(value, "_blank", "noopener")}
-                  disabled={saveField.isSaving}
+                  onClick={() => window.open(openUrl, "_blank", "noopener")}
+                  disabled={saveField.isSaving || !openUrl}
                   aria-label="Open link"
                 >
                   <ExternalLink className="size-3.5" aria-hidden="true" />
@@ -954,11 +1115,8 @@ export default function ItemInfoCard({
     async (patchKey: string, value: string) => {
       const body: Record<string, unknown> = {};
       if (patchKey === "purchasePrice" || patchKey === "residualValue") {
-        const num = parseFloat(value);
-        if (value && isNaN(num)) {
-          throw new Error("Invalid number");
-        }
-        body[patchKey] = value ? num : null;
+        const normalized = parseUsdDraft(value);
+        body[patchKey] = normalized ? Number(normalized) : null;
       } else if (patchKey.startsWith("metadata.")) {
         const metaKey = patchKey.split(".")[1]!; // guaranteed by startsWith("metadata.") check
         const currentMeta = asset.metadata || {};
@@ -989,7 +1147,7 @@ export default function ItemInfoCard({
         const numericKeys = new Set(["purchasePrice", "residualValue"]);
         const nextValue = numericKeys.has(patchKey)
           ? value
-            ? parseFloat(value)
+            ? Number(parseUsdDraft(value))
             : null
           : nullableKeys.has(patchKey)
             ? value || null
@@ -1254,12 +1412,10 @@ export default function ItemInfoCard({
               canEdit={canEdit}
               onSave={(v) => saveField("metadata.fiscalYearPurchased", v)}
             />
-            <TextInputField
+            <CurrencyInputField
               label="Purchase price"
-              value={
-                asset.purchasePrice ? String(asset.purchasePrice) : ""
-              }
-              placeholder="Add purchase price"
+              value={asset.purchasePrice}
+              placeholder="0.00"
               canEdit={canEdit}
               onSave={(v) => saveField("purchasePrice", v)}
             />
