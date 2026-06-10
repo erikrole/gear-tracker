@@ -30,6 +30,7 @@ Started: 2026-06-10
 
 ## Review
 - Standard Add item now shows repeat-family context after asset-tag blur. In the local authenticated smoke, `FX3 3` showed `2 existing FX3 items. Next tag should be FX3 3.`
+- Follow-up correction: repeat-family context now updates while typing with a 160ms debounce and prefix-matches existing tag families, so operators do not need to type the numeric suffix before seeing a suggestion.
 - Purchase price is labeled as USD and parses values such as `1299.99`, `$1,299.99`, and `0` before submit.
 - Fiscal year now submits as `metadata.fiscalYearPurchased`, matching item detail.
 - Standard Add item now exposes a photo upload field and uploads the selected file through `/api/assets/{id}/image` after asset creation.

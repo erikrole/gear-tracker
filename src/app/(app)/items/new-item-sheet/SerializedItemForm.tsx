@@ -70,26 +70,31 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
     const [assetTagSummary, setAssetTagSummary] = useState<RepeatTagSummary | null>(null);
     const assetTagCheckRef = useRef(0);
     const assetTagInputRef = useRef<HTMLInputElement>(null);
-    const checkAssetTagUnique = useCallback(async (tag: string) => {
-      const trimmed = tag.trim();
+    useEffect(() => {
+      const trimmed = assetTag.trim();
       if (!trimmed) {
         setAssetTagError("");
         setAssetTagSummary(null);
         return;
       }
+
       const id = ++assetTagCheckRef.current;
-      const repeatBase = getRepeatTagBase(trimmed);
-      try {
-        const res = await fetch(`/api/assets?q=${encodeURIComponent(repeatBase)}&limit=100&include_accessories=true`);
-        if (id !== assetTagCheckRef.current) return; // stale
-        if (handleAuthRedirect(res)) return;
-        if (!res.ok) return;
-        const data = await parseJsonSafely<AssetSearchResponse>(res);
-        const match = data?.data?.some((a) => a.assetTag === trimmed);
-        setAssetTagError(match ? "Asset tag already in use" : "");
-        setAssetTagSummary(summarizeRepeatTags(trimmed, data?.data ?? []));
-      } catch { /* network error — skip */ }
-    }, []);
+      const debounce = setTimeout(async () => {
+        const repeatBase = getRepeatTagBase(trimmed);
+        try {
+          const res = await fetch(`/api/assets?q=${encodeURIComponent(repeatBase)}&limit=200&include_accessories=true`);
+          if (id !== assetTagCheckRef.current) return; // stale
+          if (handleAuthRedirect(res)) return;
+          if (!res.ok) return;
+          const data = await parseJsonSafely<AssetSearchResponse>(res);
+          const match = data?.data?.some((a) => a.assetTag === trimmed);
+          setAssetTagError(match ? "Asset tag already in use" : "");
+          setAssetTagSummary(summarizeRepeatTags(trimmed, data?.data ?? []));
+        } catch { /* network error — skip */ }
+      }, 160);
+
+      return () => clearTimeout(debounce);
+    }, [assetTag]);
 
     // QR code
     const [qrCodeValue, setQrCodeValue] = useState("");
@@ -247,7 +252,6 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
               ref={assetTagInputRef}
               value={assetTag}
               onChange={(e) => { setAssetTag(e.target.value); setAssetTagError(""); setAssetTagSummary(null); }}
-              onBlur={() => checkAssetTagUnique(assetTag)}
               placeholder="Unique tag name"
               autoComplete="off"
               required
@@ -256,9 +260,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
             {assetTagError && <p className="text-sm text-destructive mt-1">{assetTagError}</p>}
             {!assetTagError && assetTagSummary && assetTag.trim() && (
               <p className="mt-1 text-sm text-muted-foreground">
-                {assetTagSummary.existingCount > 0
-                  ? `${assetTagSummary.existingCount} existing ${assetTagSummary.base} ${assetTagSummary.existingCount === 1 ? "item" : "items"}. Next tag should be ${assetTagSummary.nextTag}.`
-                  : `No existing ${assetTagSummary.base} items found.`}
+                {`${assetTagSummary.existingCount} existing ${assetTagSummary.base} ${assetTagSummary.existingCount === 1 ? "item" : "items"}. Suggested next tag: ${assetTagSummary.nextTag}.`}
               </p>
             )}
           </FormRow>

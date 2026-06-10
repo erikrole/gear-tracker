@@ -17,15 +17,46 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+const tagSorter = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+
 export function getRepeatTagBase(value: string) {
   const normalized = normalizeTag(value);
   return normalized.replace(/\s+\d+$/, "");
 }
 
 export function summarizeRepeatTags(value: string, assets: RepeatTagAsset[]): RepeatTagSummary | null {
-  const base = getRepeatTagBase(value);
-  if (!base) return null;
+  const typedBase = getRepeatTagBase(value);
+  if (!typedBase) return null;
 
+  const typedBaseLower = typedBase.toLowerCase();
+  const candidateBases = new Map<string, string>();
+
+  for (const asset of assets) {
+    const tag = typeof asset.assetTag === "string" ? normalizeTag(asset.assetTag) : "";
+    if (!tag) continue;
+
+    const candidateBase = getRepeatTagBase(tag);
+    if (candidateBase.toLowerCase().startsWith(typedBaseLower)) {
+      candidateBases.set(candidateBase.toLowerCase(), candidateBase);
+    }
+  }
+
+  const summaries = [...candidateBases.values()]
+    .map((base) => buildRepeatTagSummary(base, assets))
+    .filter((summary): summary is RepeatTagSummary => summary !== null && summary.existingCount > 0)
+    .sort((a, b) => {
+      const aExact = a.base.toLowerCase() === typedBaseLower;
+      const bExact = b.base.toLowerCase() === typedBaseLower;
+      if (aExact !== bExact) return aExact ? -1 : 1;
+      if (a.existingCount !== b.existingCount) return b.existingCount - a.existingCount;
+      if (a.base.length !== b.base.length) return a.base.length - b.base.length;
+      return tagSorter.compare(a.base, b.base);
+    });
+
+  return summaries[0] ?? null;
+}
+
+function buildRepeatTagSummary(base: string, assets: RepeatTagAsset[]): RepeatTagSummary | null {
   const matcher = new RegExp(`^${escapeRegExp(base)}(?:\\s+(\\d+))?$`, "i");
   let highestNumber = 0;
   const matchedTags: string[] = [];

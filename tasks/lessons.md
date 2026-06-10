@@ -67,6 +67,7 @@
 
 ## UX Patterns
 
+- **Autocomplete suggestions should update while the user types**: If the request is to help name the next item or make a field feel smart, do not wait for blur or require the user to type the whole final pattern. Use a short debounce, prefix-match the existing data, and show the best actionable suggestion as soon as the text narrows enough.
 - **Text reduction before visual polish**: When the user says a surface feels too heavy, inventory visible copy first. Keep labels, selected values, real warnings, and recovery actions. Remove helper text that repeats controls, decorative status panels without new decisions, and generalized guidance that can wait until an error or review step.
 - **Event-linked creation should promote the event title**: In booking creation flows, do not keep a generic "New checkout" or "New reservation" hero once the booking has a meaningful title. Let the badge carry the booking kind and use the selected event or booking title as the page title.
 - **Category tabs should stay categorical**: Avoid putting inventory totals or selected-count badges inside category tab labels when the surrounding view already has count/status surfaces. Counts in tabs make navigation read like a dashboard instead of a calm picker.

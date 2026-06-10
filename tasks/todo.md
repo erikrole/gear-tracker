@@ -72,6 +72,7 @@ Follow-up (same day, from live screenshot): two more real-world B&H URL shapes s
 
 **Review**
 - 2026-06-10: Standard Add item now checks repeat-family tags on blur and shows current count plus next likely tag. Local browser smoke verified `FX3 3` showed `2 existing FX3 items. Next tag should be FX3 3.`
+- 2026-06-10 follow-up: Repeat-family suggestions now update while typing and prefix-match existing tag families, so typing `F`, `FX`, `FX3`, or `70-200` can suggest the next tag without entering a number first.
 - 2026-06-10: Purchase price now reads as USD, accepts common USD formatting, and asset create accepts nonnegative values to match item detail. Fiscal year now writes `metadata.fiscalYearPurchased`, the key read by item detail.
 - 2026-06-10: Standard Add item now includes an inline photo upload field. Selected files are validated client-side and uploaded through the existing asset image endpoint after the asset create returns an id.
 - 2026-06-10: Verification passed: focused Add item tests, TypeScript, migration-prefix check, whitespace check, approved-network production build, and authenticated Chrome DevTools smoke on `/items`. The first sandboxed build failed only on blocked Neon DNS.
