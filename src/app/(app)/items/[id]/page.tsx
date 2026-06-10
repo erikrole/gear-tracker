@@ -274,7 +274,7 @@ function SerializedItemDetailsPage({ id }: { id: string }) {
       {/* Info tab — dashboard layout */}
       {activeTab === "info" && (
         <>
-          <div className="mt-3.5 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
+          <div className="mt-3.5 grid max-w-6xl grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
             <OperationalOverview
               asset={asset}
               now={now}

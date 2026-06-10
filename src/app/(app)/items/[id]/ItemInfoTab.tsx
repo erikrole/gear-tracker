@@ -28,6 +28,9 @@ import {
   ExternalLink,
   Copy,
   ChevronDown,
+  Download,
+  PencilLine,
+  RefreshCcw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -35,6 +38,7 @@ import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/er
 import type { AssetDetail, CategoryOption } from "./types";
 import { SaveableField, useSaveField } from "@/components/SaveableField";
 import { CategoryCombobox } from "@/components/FormCombobox";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 /* ── Text Input Field ──────────────────────────────────── */
 
@@ -911,10 +915,12 @@ export function QRModal({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const confirmDialog = useConfirm();
   const [manualEntry, setManualEntry] = useState(false);
   const [qrDraft, setQrDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
   const savingRef = useRef(false);
 
   function beginSave() {
@@ -935,10 +941,37 @@ export function QRModal({
       setManualEntry(false);
       setQrDraft("");
       setError("");
+      setCopied(false);
     }
   }, [open]);
 
+  async function copyCode() {
+    if (!asset.qrCodeValue) return;
+    await navigator.clipboard.writeText(asset.qrCodeValue);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1600);
+  }
+
+  async function downloadPng() {
+    if (!asset.qrCodeValue) return;
+    const QRCode = await import("qrcode");
+    const dataUrl = await QRCode.toDataURL(asset.qrCodeValue, { width: 1024, margin: 2 });
+    const link = document.createElement("a");
+    link.href = dataUrl;
+    link.download = `${asset.assetTag.replace(/[^\w-]+/g, "_")}-qr.png`;
+    link.click();
+  }
+
   async function generateQR() {
+    if (asset.qrCodeValue) {
+      const ok = await confirmDialog({
+        title: "Generate new QR code",
+        message: `Replace ${asset.qrCodeValue} with a new code? Printed labels with the current code will stop resolving to this item.`,
+        confirmLabel: "Generate",
+        variant: "danger",
+      });
+      if (!ok) return;
+    }
     if (!beginSave()) return;
     try {
       const res = await fetch(`/api/assets/${asset.id}/generate-qr`, {
@@ -989,78 +1022,110 @@ export function QRModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[420px]">
+      <DialogContent className="max-w-[400px]">
         <DialogHeader>
-          <DialogTitle>QR Code</DialogTitle>
-          <DialogDescription className="sr-only">View or generate a QR code for this item</DialogDescription>
+          <div>
+            <DialogTitle>QR Code</DialogTitle>
+            <DialogDescription>Scan identity for {asset.assetTag}</DialogDescription>
+          </div>
         </DialogHeader>
-        <DialogBody className="py-6">
-          <div className="flex justify-center mb-1">
-            <QRCodeCanvas value={asset.qrCodeValue} size={240} />
-          </div>
-          <div className="font-semibold font-mono text-center text-sm mb-1">
-            {asset.qrCodeValue}
-          </div>
-          {canEdit && (
-            <>
-              <div className="flex gap-2 justify-center mb-2">
+        <DialogBody className="py-5">
+          <div className="flex flex-col items-center">
+            {asset.qrCodeValue ? (
+              <div className="rounded-lg bg-white p-2.5 ring-1 ring-black/10 dark:ring-white/10">
+                <QRCodeCanvas value={asset.qrCodeValue} size={204} />
+              </div>
+            ) : (
+              <div className="flex size-[224px] items-center justify-center rounded-lg bg-muted/25 text-sm text-muted-foreground shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]">
+                No QR code yet
+              </div>
+            )}
+            {asset.qrCodeValue && (
+              <div className="mt-3 flex items-center gap-0.5">
+                <span className="font-mono text-base font-semibold tracking-wide">
+                  {asset.qrCodeValue}
+                </span>
                 <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={generateQR}
-                  disabled={saving}
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 text-muted-foreground hover:text-foreground"
+                  onClick={copyCode}
+                  aria-label={copied ? "Copied QR code" : `Copy QR code ${asset.qrCodeValue}`}
                 >
-                  {saving ? "..." : "Generate new QR"}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setManualEntry(true)}
-                  disabled={saving}
-                >
-                  Enter QR manually
+                  {copied ? (
+                    <Check className="size-3.5 text-green-600 dark:text-green-400" aria-hidden="true" />
+                  ) : (
+                    <Copy className="size-3.5" aria-hidden="true" />
+                  )}
                 </Button>
               </div>
-              {manualEntry && (
-                <div className="flex gap-2 mt-3">
-                  <Input
-                    value={qrDraft}
-                    onChange={(e) => setQrDraft(e.target.value)}
-                    placeholder="Paste or type QR code..."
-                    className="flex-1"
-                    disabled={saving}
-                    aria-busy={saving}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") saveManualQR();
-                      if (e.key === "Escape") setManualEntry(false);
-                    }}
-                    autoFocus
-                  />
-                  <Button size="sm" onClick={saveManualQR} disabled={saving}>
-                    Save
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setManualEntry(false);
-                      setQrDraft("");
-                      setError("");
-                    }}
-                    disabled={saving}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              )}
-              {error && (
-                <div className="text-destructive text-sm mt-2 text-center">
-                  {error}
-                </div>
-              )}
-            </>
+            )}
+          </div>
+          {canEdit && !manualEntry && (
+            <div className="mt-4 flex justify-center gap-2">
+              <Button variant="outline" size="sm" onClick={generateQR} disabled={saving}>
+                <RefreshCcw className={cn("size-3.5", saving && "animate-spin")} aria-hidden="true" />
+                {saving ? "Generating..." : "Generate new QR"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setManualEntry(true)}
+                disabled={saving}
+              >
+                <PencilLine className="size-3.5" aria-hidden="true" />
+                Enter manually
+              </Button>
+            </div>
+          )}
+          {canEdit && manualEntry && (
+            <div className="mt-4 flex gap-2">
+              <Input
+                value={qrDraft}
+                onChange={(e) => setQrDraft(e.target.value)}
+                placeholder="Paste or type QR code..."
+                className="h-9 flex-1 font-mono"
+                disabled={saving}
+                aria-busy={saving}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveManualQR();
+                  if (e.key === "Escape") setManualEntry(false);
+                }}
+                autoFocus
+              />
+              <Button size="sm" className="h-9" onClick={saveManualQR} disabled={saving}>
+                {saving ? "Saving..." : "Save"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9"
+                onClick={() => {
+                  setManualEntry(false);
+                  setQrDraft("");
+                  setError("");
+                }}
+                disabled={saving}
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
+          {error && (
+            <div className="text-destructive text-sm mt-3 text-center">
+              {error}
+            </div>
           )}
         </DialogBody>
+        {asset.qrCodeValue && (
+          <DialogFooter>
+            <Button variant="outline" onClick={downloadPng}>
+              <Download className="size-4" aria-hidden="true" />
+              Download PNG
+            </Button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );
