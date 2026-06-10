@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Mobile Operations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-06
+- Last Updated: 2026-06-09
 - Status: Active
 - Version: V1
 
@@ -124,7 +124,10 @@ Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md` (revised 2026-03-
 - **V3 (later)**: Bottom nav badge counts via live `/api/nav-counts` polling, game-day/shift context cards
 
 ## Change Log
+- 2026-06-09: **iOS reservation form avatars + smart pickers** - the requester picker now shows user avatars (initials fallback) via a new shared `UserAvatarView` (also adopted by the Users list, replacing its private copy), pins the signed-in user to the top with a "You" subtitle, and both pickers gained selection haptics plus a no-results state for empty searches. The selected requester's avatar appears inline on the form's For row. Step 1 is now titled "New Reservation" with a "Next" action so the title no longer truncates, and moving the From time shifts the To time to preserve the booking duration like a calendar app. `FormUser` regained the server's `avatarUrl` field.
 - 2026-06-09: **iOS audit round 2 (kiosk + URL building)** - `kioskMe()` now decodes the actual top-level `/api/kiosk/me` shape and kiosk session validation only drops to the activation screen on a definitive 401, so app re-entry and transient network failures no longer wipe the stored activation. Fixed `deleteShift` building its URL with `?force=true` inside `appendingPathComponent`, which percent-encoded the `?` into the path so the server saw shiftId `"…?force=true"` and every iOS shift delete 404'd; `APIClient.request` now takes explicit query items.
+- 2026-06-09: **iOS foreground refresh energy budget** - native badge refreshes now throttle opportunistic foreground updates to one attempt per minute while keeping notification and trade-board dismissals forced. This reduces repeated lightweight API fan-out during app activation without changing the action-first Home, Schedule, or badge contracts.
+- 2026-06-09: **iOS runtime warning cleanup** - native API, kiosk API, and thumbnail URLSessions now use explicit mobile request/resource timeouts with multipath disabled, reducing avoidable CFNetwork fallback churn. Native Scan now keeps VisionKit stopped while result/error sheets are visible and restarts when the sheet dismisses, reducing iOS 26 system material frame-update noise without changing lookup-only scope.
 - 2026-06-09: **iOS↔API Codable drift audit** - systematic audit of every iOS Codable response model against actual API route shapes after two decode-breaking drifts. Fixed: `AssetAccessory.serialNumber` and `AvailabilityBlock.dayOfWeek` now optional (nullable on server; AD_HOC blocks have no weekday), `checkAvailability` now decodes the server's top-level `{conflicts}` shape so booking conflict hints actually appear, notification-preferences saves now send the `pausedUntil` key explicitly (server requires it) and round-trip `badges`/`categories` instead of resetting them, and the shift-group create + shift-trade cancel API responses now return the same relation shape as their list endpoints so iOS "Set up crew" and trade cancel decode correctly.
 - 2026-06-06: **iOS Scan result retry recovery** - native Scan lookup failures now offer Try again before Type code instead, retry the last scanned code in place, and clear same-code dedupe before retrying so failed scans recover without losing workflow state.
 - 2026-06-06: **iOS Schedule list Dynamic Type** - native Schedule list date headers, My Shift chips, Home/Away labels, crew coverage icons, shift labels, and weather microcopy now use semantic SwiftUI fonts instead of fixed point sizes. The date rail uses a minimum width so larger text has room to scale while preserving the current mobile Schedule workflow.

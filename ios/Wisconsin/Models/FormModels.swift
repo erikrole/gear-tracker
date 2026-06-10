@@ -11,6 +11,7 @@ struct FormOption: Codable, Identifiable, Hashable, Equatable {
 struct FormUser: Codable, Identifiable, Hashable, Equatable {
     let id: String
     let name: String
+    let avatarUrl: String?
 }
 
 struct FormOptions: Codable, Equatable {

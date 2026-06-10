@@ -244,7 +244,7 @@ private struct UserListRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            UserAvatarSmall(name: user.name, avatarUrl: user.avatarUrl)
+            UserAvatarView(name: user.name, avatarUrl: user.avatarUrl)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(user.name)
@@ -324,46 +324,6 @@ private struct UserListRow: View {
         case "GRAD": return "Grad"
         default: return nil
         }
-    }
-}
-
-private struct UserAvatarSmall: View {
-    let name: String
-    let avatarUrl: String?
-    var size: CGFloat = 36
-
-    var body: some View {
-        let initials = Self.initials(from: name)
-        if let urlString = avatarUrl, let url = URL(string: urlString) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                default:
-                    initialsCircle(initials)
-                }
-            }
-            .frame(width: size, height: size)
-            .clipShape(Circle())
-        } else {
-            initialsCircle(initials)
-        }
-    }
-
-    @ViewBuilder
-    private func initialsCircle(_ initials: String) -> some View {
-        ZStack {
-            Circle()
-                .fill(Color.accentColor.opacity(0.12))
-                .frame(width: size, height: size)
-            Text(initials.isEmpty ? "?" : initials)
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.tint)
-        }
-    }
-
-    private static func initials(from name: String) -> String {
-        name.split(separator: " ").prefix(2).compactMap { $0.first.map(String.init) }.joined().uppercased()
     }
 }
 
