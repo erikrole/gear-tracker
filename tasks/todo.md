@@ -2,6 +2,23 @@
 
 Last updated: 2026-06-10
 
+---
+
+## Active: Fix B&H images in the asset image picker (2026-06-10)
+
+Root cause (verified with curl): Brave returns B&H image URLs on `www.bhphotovideo.com/cdn-cgi/...`, which sits behind Cloudflare bot protection that 403s hotlinked `<img>` loads, server-side rehost fetches, AND Brave's own thumbnail proxy ("Source image is unreachable"). The identical file paths on `static.bhphoto.com` serve openly (200, no special headers) in 500/1000/1500/2500px square variants.
+
+- [x] `src/lib/bhphoto-image.ts` -- pure `toBhStaticImageUrl(url, size?)` rewriter (handles cdn-cgi-wrapped + direct URLs)
+- [x] `src/lib/image-search.ts` -- map B&H results to static host: hero-size `url` (1000px), original-size `thumbnailUrl`
+- [x] `src/lib/blob.ts` -- rewrite B&H URLs before rehost fetch; browser-like UA/Accept headers
+- [x] `src/components/ChooseImageModal.tsx` -- grid renders `thumbnailUrl` first (hotlink-safe), falls back to `url`
+- [x] Tests: new `tests/bhphoto-image.test.ts` + extend `tests/image-search.test.ts`
+- [x] Doc sync: AREA_ITEMS.md changelog
+- [x] `npm run build` + test suite green
+
+### Review
+B&H picker tiles now render from `static.bhphoto.com` and saving a B&H result rehosts the 1000x1000 hero image to Vercel Blob. Non-B&H tiles got more reliable too (Brave thumbnail preferred over hotlinked originals). If a 1000px variant ever 404s, the existing client fallback saves the 500px thumbnail instead.
+
 **Current release**: Beta — CalVer versioning adopted.
 **Release workflow**: `npm run release` creates CalVer tag + GitHub Release.
 

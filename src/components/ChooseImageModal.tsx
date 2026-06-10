@@ -506,7 +506,7 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
                               aria-pressed={selected}
                             >
                               <img
-                                src={result.url || result.thumbnailUrl}
+                                src={result.thumbnailUrl || result.url}
                                 alt={result.title}
                                 className="h-full w-full object-contain"
                                 loading="lazy"
@@ -514,8 +514,8 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
                                 referrerPolicy="no-referrer"
                                 onError={(event) => {
                                   const img = event.currentTarget;
-                                  if (result.thumbnailUrl && img.src !== result.thumbnailUrl) {
-                                    img.src = result.thumbnailUrl;
+                                  if (result.url && img.src !== result.url) {
+                                    img.src = result.url;
                                     return;
                                   }
                                   img.style.display = "none";

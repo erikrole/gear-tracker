@@ -1,4 +1,5 @@
 import { put, del } from "@vercel/blob";
+import { toBhStaticImageUrl } from "@/lib/bhphoto-image";
 import { assertPublicHost } from "@/lib/security/ssrf";
 
 const ALLOWED_TYPES = new Set([
@@ -86,6 +87,10 @@ export async function downloadImageToBlob(
   // Already hosted — nothing to do
   if (isBlobUrl(url)) return url;
 
+  // B&H image hosts 403 server-side fetches; the same files are open on
+  // static.bhphoto.com.
+  url = toBhStaticImageUrl(url) ?? url;
+
   try {
     // SSRF guard: only http(s), and reject hosts that resolve to private,
     // loopback, or link-local (incl. cloud metadata) addresses before fetching.
@@ -101,9 +106,14 @@ export async function downloadImageToBlob(
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
+    // Some image CDNs reject the default undici user agent outright.
     const res = await fetch(url, {
       signal: controller.signal,
-      headers: { Accept: "image/*" },
+      headers: {
+        Accept: "image/jpeg,image/png,image/webp,image/gif,image/*;q=0.8",
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+      },
     });
     clearTimeout(timer);
 

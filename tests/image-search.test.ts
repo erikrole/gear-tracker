@@ -216,6 +216,31 @@ describe("image search provider", () => {
     );
   });
 
+  it("rewrites Cloudflare-blocked B&H image URLs to the open static host", async () => {
+    process.env.BRAVE_SEARCH_API_KEY = "brave-key";
+    mockFetch(200, bravePayload([
+      braveResult({
+        title: "Sony a7 IV at B&H",
+        url: "https://www.bhphotovideo.com/c/product/1234-REG/camera.html",
+        thumbnail: { src: "https://imgs.search.brave.com/abc/rs:fit:500:0:1:0/g:ce/encoded" },
+        properties: {
+          url: "https://www.bhphotovideo.com/cdn-cgi/image/fit=scale-down,width=500,quality=95/https://www.bhphotovideo.com/images/images500x500/sony_a7_iv_1722271225_1681602.jpg",
+          width: 500,
+          height: 500,
+        },
+      }),
+    ]));
+
+    const outcome = await searchProductImages("Sony a7 IV");
+
+    expect(outcome.status).toBe("ok");
+    expect(outcome.results[0]).toMatchObject({
+      url: "https://static.bhphoto.com/images/images1000x1000/sony_a7_iv_1722271225_1681602.jpg",
+      thumbnailUrl: "https://static.bhphoto.com/images/images500x500/sony_a7_iv_1722271225_1681602.jpg",
+      sourceDomain: "bhphotovideo.com",
+    });
+  });
+
   it("classifies Brave quota responses", async () => {
     process.env.BRAVE_SEARCH_API_KEY = "brave-key";
     mockFetch(429);
