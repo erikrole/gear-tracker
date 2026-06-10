@@ -25,8 +25,13 @@ struct KioskAPI {
     // MARK: - Session
 
     func kioskMe() async throws {
+        // `/api/kiosk/me` returns `{kioskId, locationId, locationName}` at the
+        // TOP level — no `data` envelope. Decoding a wrapper here failed every
+        // call, and KioskStore.validateSession treated that as a dead session,
+        // so the kiosk forced re-activation on every app re-entry.
+        struct Response: Decodable { let kioskId: String }
         let req = request(path: "/api/kiosk/me")
-        _ = try await perform(req) as DataWrapper<[String: String]>
+        let _: Response = try await perform(req)
     }
 
     func kioskActivate(code: String) async throws -> KioskActivationResponse {

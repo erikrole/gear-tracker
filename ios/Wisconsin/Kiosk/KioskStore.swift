@@ -60,9 +60,17 @@ final class KioskStore {
             screen = .idle
             startHeartbeat()
             resetInactivity()
-        } catch {
+        } catch APIError.unauthorized {
+            // Definitive: session expired or device deactivated by an admin.
             clearStoredInfo()
             screen = .activation
+        } catch {
+            // Transient (offline at launch, 5xx, decode hiccup) — don't throw
+            // away a valid activation; go idle and let the heartbeat catch a
+            // real deactivation via its own 401 path.
+            screen = .idle
+            startHeartbeat()
+            resetInactivity()
         }
     }
 

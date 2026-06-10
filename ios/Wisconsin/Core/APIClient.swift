@@ -809,7 +809,11 @@ final class APIClient {
 
     /// Delete a shift from a shift group (STAFF/ADMIN). Pass force=true to remove even if assigned.
     func deleteShift(shiftGroupId: String, shiftId: String) async throws {
-        let req = request(path: "/api/shift-groups/\(shiftGroupId)/shifts/\(shiftId)?force=true", method: "DELETE")
+        let req = request(
+            path: "/api/shift-groups/\(shiftGroupId)/shifts/\(shiftId)",
+            method: "DELETE",
+            queryItems: [.init(name: "force", value: "true")]
+        )
         let (data, response) = try await session.data(for: req)
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
             if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
@@ -851,8 +855,18 @@ final class APIClient {
 
     // MARK: - Internals
 
-    private func request(path: String, method: String = "GET") -> URLRequest {
-        var req = URLRequest(url: baseURL.appendingPathComponent(path))
+    /// `path` must be a pure path — `appendingPathComponent` percent-encodes
+    /// `?`, so a query string embedded in `path` becomes part of the last
+    /// route param (`shifts/abc%3Fforce=true` → shiftId "abc?force=true").
+    /// Pass query parameters via `queryItems` instead.
+    private func request(path: String, method: String = "GET", queryItems: [URLQueryItem]? = nil) -> URLRequest {
+        var url = baseURL.appendingPathComponent(path)
+        if let queryItems, !queryItems.isEmpty {
+            var components = URLComponents(url: url, resolvingAgainstBaseURL: false)!
+            components.queryItems = queryItems
+            url = components.url!
+        }
+        var req = URLRequest(url: url)
         req.httpMethod = method
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("WisconsinApp/1.0 iOS", forHTTPHeaderField: "User-Agent")
