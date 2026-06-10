@@ -26,6 +26,9 @@ type CacheEntry = {
   outcome: ImageSearchOutcome;
 };
 
+// Bump when result mapping changes: cached outcomes store mapped URLs, so old
+// entries would otherwise keep serving pre-fix results until their TTL expires.
+const CACHE_VERSION = 2;
 const SEARCH_CACHE_TTL_MS = 60 * 60 * 1000;
 const QUOTA_CACHE_TTL_MS = 5 * 60 * 1000;
 const MAX_QUERY_LENGTH = 200;
@@ -61,7 +64,7 @@ function getProviderOrNone(): "brave" | null {
 }
 
 function cacheKey(provider: "brave", query: string) {
-  return `image-search:${provider}:${query.toLowerCase()}`;
+  return `image-search:v${CACHE_VERSION}:${provider}:${query.toLowerCase()}`;
 }
 
 async function readCache(key: string): Promise<ImageSearchOutcome | null> {
