@@ -12,10 +12,12 @@ describe("booking wizard kit fetching recovery", () => {
     expect(hook).toContain('setKitsLoadError(err instanceof TypeError ? "network" : "server")');
     expect(hook).toContain("retryKits");
 
-    expect(step).toContain("Could not load kits for this location.");
-    expect(step).toContain("Could not reach kits for this location.");
-    expect(step).toContain("You can still continue without selecting a kit.");
-    expect(step).toContain("Retry kits");
+    // Copy was compressed in the Apple-style refresh; the contract is that a
+    // failed kit read renders a visible error with a Retry action (instead of
+    // silently looking like "no kits") and the Kit field stays visible while
+    // loading or errored.
+    expect(step).toContain("Kits failed to load.");
+    expect(step).toContain("onClick={onRetryKits}");
     expect(step).toContain("kits.length > 0 || kitsLoading || kitsLoadError");
 
     expect(wizard).toContain("kitsLoadError={kitsLoadError}");

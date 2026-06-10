@@ -112,8 +112,12 @@ describe("student field mobile contracts", () => {
 
     expect(createSheet).toContain("selectedAssetSnapshots: [String: Asset]");
     expect(createSheet).toContain("var selectedAssets: [Asset]");
-    expect(createSheet).toContain("Button(\"Choose Equipment\")");
-    expect(createSheet).toContain("Text(\"Create Reservation\").fontWeight(.semibold)");
+    // Three-step flow mirroring web: Equipment requires a selection before
+    // Review, and the Confirm step owns the single primary action.
+    expect(createSheet).toContain("Button(\"Review\") { step = 3 }");
+    expect(createSheet).toContain(".disabled(vm.selectedAssetIds.isEmpty || vm.isSubmitting)");
+    expect(createSheet).toContain("Text(\"Reserve for later\")");
+    expect(createSheet).toContain("Text(\"Review your reservation\")");
     expect(createSheet).toContain("Text(\"Selected Equipment\")");
     expect(createSheet).toContain("SelectedEquipmentRow");
     expect(createSheet).toContain("Label(\"Remove\", systemImage: \"xmark.circle.fill\")");

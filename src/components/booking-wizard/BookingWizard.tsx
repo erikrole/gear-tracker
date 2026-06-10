@@ -14,7 +14,6 @@ import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { PageHeader } from "@/components/PageHeader";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { cn } from "@/lib/utils";
@@ -339,19 +338,6 @@ export function BookingWizard({ kind }: BookingWizardProps) {
         setCreateError("Remove unavailable selected items or pick replacement equipment before review");
         return;
       }
-      if (itemCount > 0) {
-        const error = validateStep2();
-        if (error) { setCreateError(error); return; }
-        setCreateError("");
-        setStep(3);
-        return;
-      }
-      const sectionIdx = EQUIPMENT_SECTIONS.findIndex((s) => s.key === activeSection);
-      if (sectionIdx < EQUIPMENT_SECTIONS.length - 1) {
-        setCreateError("");
-        setActiveSection(EQUIPMENT_SECTIONS[sectionIdx + 1]!.key);
-        return;
-      }
       const error = validateStep2();
       if (error) { setCreateError(error); return; }
       setCreateError("");
@@ -363,9 +349,12 @@ export function BookingWizard({ kind }: BookingWizardProps) {
     return getStep2PrimaryActionLabel({
       ...pickerSelectionState,
       itemCount,
-      activeSection,
     });
   }
+  const step2NeedsEquipment =
+    step === 2 &&
+    itemCount === 0 &&
+    pickerSelectionState.unresolvedAssetCount === 0;
 
   function handleBack() {
     setCreateError("");
@@ -493,71 +482,64 @@ export function BookingWizard({ kind }: BookingWizardProps) {
     { label: "Equipment", step: 2 as const },
     { label: "Confirm", step: 3 as const },
   ];
+  const headerTitle = form.title.trim() || (kind === "CHECKOUT" ? "Checkout details" : "Reservation details");
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-6 md:py-10">
+    <div className="mx-auto max-w-4xl px-4 py-8 md:py-12">
 
       {/* ── Header ── */}
-      <PageHeader
-        title={`New ${config.label}`}
-        description={
-          kind === "CHECKOUT"
-            ? "Check out equipment for immediate pickup. Items will be scanned at pickup."
-            : "Reserve equipment for later. Browse and pick the gear you need."
-        }
-      >
-        <Badge variant={kind === "CHECKOUT" ? "red" : "blue"} size="sm">
+      <header className="mb-7 flex flex-col items-center gap-2 text-center">
+        {/* Canonical kind colors per docs/COLOR_SYSTEM.md: checkout = blue, reservation = purple */}
+        <Badge variant={kind === "CHECKOUT" ? "blue" : "purple"} size="sm">
           {kind === "CHECKOUT" ? "Checkout" : "Reservation"}
         </Badge>
-      </PageHeader>
+        <h1 className="max-w-3xl text-2xl font-semibold tracking-tight text-balance md:text-3xl">
+          {headerTitle}
+        </h1>
+      </header>
 
       {/* ── Existing drafts banner ── */}
       {!draftBannerDismissed && existingDrafts.length > 0 && (
-        <div className="mb-6 rounded-sm border border-border bg-muted/40 overflow-hidden">
-          <div className="flex items-center justify-between gap-3 px-3 py-2.5 border-b border-border">
+        <div className="mb-6 rounded-md border border-border/60 bg-background/80 shadow-xs">
+          <div className="flex items-center justify-between gap-3 px-3 py-2.5">
             <div className="flex items-center gap-2">
-              <RotateCcwIcon className="size-3.5 shrink-0 text-muted-foreground" />
+              <RotateCcwIcon data-icon="inline-start" className="shrink-0 text-muted-foreground" />
               <span className="text-xs font-semibold text-foreground">
                 {existingDrafts.length === 1
-                  ? "You have an unfinished draft"
-                  : `You have ${existingDrafts.length} unfinished drafts`}
+                  ? "Draft available"
+                  : `${existingDrafts.length} drafts available`}
               </span>
             </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-xs"
-              onClick={dismissDraftBanner}
-              aria-label="Dismiss"
-            >
-              <XIcon />
-            </Button>
-          </div>
-          <div className="divide-y divide-border">
-            {existingDrafts.slice(0, 3).map((d) => (
-              <div key={d.id} className="flex items-center justify-between gap-3 px-3 py-2">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate">{d.title || "Untitled draft"}</p>
-                  {d.itemCount > 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      {d.itemCount} item{d.itemCount !== 1 ? "s" : ""}
-                    </p>
-                  )}
-                </div>
-                <Button variant="outline" size="sm" asChild className="shrink-0">
+            <div className="flex items-center gap-1">
+              {existingDrafts.slice(0, 2).map((d) => (
+                <Button key={d.id} variant="ghost" size="sm" asChild className="shrink-0">
                   <a href={`/${kind === "CHECKOUT" ? "checkouts" : "reservations"}/new?draftId=${d.id}`}>
-                    Resume
+                    {d.title || "Resume"}
                   </a>
                 </Button>
-              </div>
-            ))}
+              ))}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={dismissDraftBanner}
+                aria-label="Dismiss draft banner"
+              >
+                <XIcon />
+              </Button>
+            </div>
           </div>
+          {existingDrafts.length > 2 && (
+            <div className="px-3 pb-2 text-xs text-muted-foreground">
+              Resume another draft from the dashboard.
+            </div>
+          )}
         </div>
       )}
 
       {/* ── Step progress ── */}
       <div
-        className="mb-8 grid grid-cols-3 gap-1 rounded-md border border-border/60 bg-card/70 p-1 shadow-xs"
+        className="mb-8 flex items-center justify-center gap-2"
         role="navigation"
         aria-label="Wizard steps"
       >
@@ -569,29 +551,28 @@ export function BookingWizard({ kind }: BookingWizardProps) {
             <Button
               key={s.step}
               type="button"
-              variant={isActive ? "default" : "ghost"}
+              variant="ghost"
               disabled={isLocked}
               onClick={() => { if (isDone) { setCreateError(""); setStep(s.step); } }}
               className={cn(
-                "h-auto justify-start rounded-sm px-3 py-2.5 text-left",
-                isDone && "hover:bg-muted/60",
+                "h-10 rounded-full px-3 text-xs text-muted-foreground",
+                isActive && "bg-foreground text-background hover:bg-foreground/90 hover:text-background",
+                isDone && "text-foreground hover:bg-muted/60",
                 isLocked && "cursor-default",
               )}
             >
-              {/* Step number / check */}
               <span
                 className={cn(
-                  "flex size-5 shrink-0 items-center justify-center text-[11px] font-black",
+                  "flex size-4 shrink-0 items-center justify-center text-[10px] font-semibold",
                   isLocked && "opacity-30",
                 )}
               >
                 {isDone ? <CheckIcon /> : s.step}
               </span>
 
-              {/* Label */}
               <span
                 className={cn(
-                  "text-[11px] font-bold uppercase tracking-wider",
+                  "font-medium",
                   isLocked && "opacity-30",
                 )}
               >
@@ -647,7 +628,6 @@ export function BookingWizard({ kind }: BookingWizardProps) {
 
       {step === 2 && (
         <WizardStep2
-          kind={kind}
           form={form}
           bulkSkus={bulkSkus}
           selectedAssetIds={selectedAssetIds}
@@ -678,16 +658,15 @@ export function BookingWizard({ kind }: BookingWizardProps) {
       )}
 
       {/* ── Footer navigation ── */}
-      <div className="flex items-center justify-between mt-10 pt-5 border-t border-border">
+      <div className="mt-10 flex items-center justify-between border-t border-border/60 pt-5">
         <div>
           {step > 1 && (
             <Button
               variant="outline"
               onClick={handleBack}
               size="sm"
-              className="text-xs font-bold uppercase tracking-wider"
             >
-              ← Back
+              Back
             </Button>
           )}
           {step === 1 && (
@@ -702,7 +681,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
                 setSavingDraft(false);
                 router.back();
               }}
-              className="text-xs text-muted-foreground"
+              className="text-muted-foreground"
             >
               {savingDraft ? "Saving..." : "Save draft & exit"}
             </Button>
@@ -713,11 +692,10 @@ export function BookingWizard({ kind }: BookingWizardProps) {
           {step < 3 && (
             <Button
               onClick={handleNext}
-              size="sm"
-              className="text-xs font-bold uppercase tracking-wider"
+              disabled={step2NeedsEquipment}
             >
               {step === 2 && getStep2PrimaryLabel()}
-              {step === 1 && "Next \u2192"}
+              {step === 1 && "Next"}
             </Button>
           )}
           {step === 3 && (
@@ -726,11 +704,9 @@ export function BookingWizard({ kind }: BookingWizardProps) {
               disabled={submitting}
               loading={submitting}
               variant="brand"
-              size="sm"
-              className="text-xs font-bold uppercase tracking-wider"
+              size="lg"
             >
               {submitting ? config.actionLabelProgress : config.actionLabel}
-              {itemCount > 0 && ` (${itemCount})`}
             </Button>
           )}
         </div>

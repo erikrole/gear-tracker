@@ -12,10 +12,14 @@ describe("booking wizard event context recovery", () => {
     expect(hook).toContain('setEventsLoadError(err instanceof TypeError ? "network" : "server")');
     expect(hook).toContain("retryEvents");
 
-    expect(step).toContain("Could not load upcoming events.");
-    expect(step).toContain("Could not reach the calendar feed.");
-    expect(step).toContain("Retry events");
-    expect(step).toContain("Use ad hoc details");
+    // The Apple-style refresh compressed the recovery copy; what matters is
+    // that the error state stays distinct from the true no-event empty state
+    // and both keep their recovery actions.
+    expect(step).toContain("Events failed to load.");
+    expect(step).toContain("Calendar unavailable.");
+    expect(step).toContain("Retry");
+    expect(step).toContain("Ad hoc");
+    expect(step).toContain("No upcoming events");
 
     expect(wizard).toContain("eventsLoadError={eventsLoadError}");
     expect(wizard).toContain("onRetryEvents={retryEvents}");

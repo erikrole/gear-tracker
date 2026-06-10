@@ -6,15 +6,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 function WizardSkeleton() {
   return (
-    <div className="mx-auto max-w-2xl px-4 py-6 md:py-10 space-y-6">
-      <Skeleton className="h-8 w-48" />
-      <Skeleton className="h-4 w-80" />
-      <div className="flex gap-2">
+    <div className="mx-auto max-w-4xl space-y-6 px-4 py-8 md:py-12">
+      <div className="flex flex-col items-center gap-3">
+        <Skeleton className="h-5 w-24 rounded-full" />
+        <Skeleton className="h-9 w-72" />
+      </div>
+      <div className="flex justify-center gap-2">
         <Skeleton className="h-8 w-24 rounded-full" />
         <Skeleton className="h-8 w-24 rounded-full" />
         <Skeleton className="h-8 w-24 rounded-full" />
       </div>
-      <div className="space-y-4 mt-8">
+      <div className="mt-8 space-y-4">
         <Skeleton className="h-10 w-full" />
         <Skeleton className="h-10 w-full" />
         <Skeleton className="h-10 w-full" />

@@ -269,11 +269,13 @@ struct CreateBookingSheet: View {
             Group {
                 if step == 1 {
                     detailsForm
-                } else {
+                } else if step == 2 {
                     equipmentPicker
+                } else {
+                    reviewStep
                 }
             }
-            .navigationTitle(step == 1 ? "New Reservation" : "Choose Equipment")
+            .navigationTitle(step == 1 ? "New Reservation" : step == 2 ? "Equipment" : "Confirm")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbar }
             .confirmationDialog(
@@ -340,7 +342,7 @@ struct CreateBookingSheet: View {
                 Button("Cancel") { attemptCancel() }
                     .disabled(vm.isSubmitting)
             } else {
-                Button("Back") { step = 1 }
+                Button("Back") { step -= 1 }
                     .disabled(vm.isSubmitting)
             }
         }
@@ -353,18 +355,15 @@ struct CreateBookingSheet: View {
                 }
                 .disabled(!vm.isValid || vm.isSubmitting)
                 .fontWeight(.semibold)
-            } else {
-                Button {
-                    Task { await create() }
-                } label: {
-                    if vm.isSubmitting {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        Text("Create Reservation").fontWeight(.semibold)
-                    }
-                }
-                .disabled(vm.isSubmitting)
+            } else if step == 2 {
+                // Mirrors web: equipment is required before review, and the
+                // primary action reads "Review", not a submit.
+                Button("Review") { step = 3 }
+                    .disabled(vm.selectedAssetIds.isEmpty || vm.isSubmitting)
+                    .fontWeight(.semibold)
             }
+            // Step 3's primary action is the prominent inline button in
+            // reviewStep (Apple review-screen pattern, same as web Step 3).
         }
     }
 
@@ -563,6 +562,167 @@ struct CreateBookingSheet: View {
 
         }
         .scrollDismissesKeyboard(.immediately)
+    }
+
+    /// Apple-style review confirmation — the little brother of web Step 3:
+    /// kind icon, the window as the hero claim, requester/location, a narrow
+    /// facts table, the equipment list, and one primary action.
+    @ViewBuilder
+    private var reviewStep: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                VStack(spacing: 0) {
+                    // Canonical reservation identity: calendar on purple.
+                    Image(systemName: "calendar")
+                        .font(.title2)
+                        .foregroundStyle(Color.statusText(.purple))
+                        .frame(width: 48, height: 48)
+                        .background(Color.statusBackground(.purple), in: RoundedRectangle(cornerRadius: 12))
+
+                    Text("Review your reservation")
+                        .font(.title3.weight(.semibold))
+                        .padding(.top, 16)
+
+                    Text(vm.startsAt.formatted(date: .abbreviated, time: .shortened))
+                        .font(.title2.weight(.semibold))
+                        .monospacedDigit()
+                        .padding(.top, 20)
+                    Text("Ends \(vm.endsAt.formatted(date: .abbreviated, time: .shortened))")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 2)
+
+                    VStack(spacing: 2) {
+                        Text(vm.selectedUser?.name ?? session.currentUser?.name ?? "")
+                        Text(vm.selectedLocation?.name ?? "")
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 14)
+
+                    VStack(spacing: 0) {
+                        reviewFactRow(label: "Status") {
+                            Text("Reserved")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Color.statusText(.purple))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(Color.statusBackground(.purple), in: Capsule())
+                        }
+                        Divider()
+                        reviewFactRow(label: "Equipment") {
+                            Text("\(vm.selectedAssetIds.count) item\(vm.selectedAssetIds.count == 1 ? "" : "s")")
+                                .font(.subheadline.weight(.medium))
+                                .monospacedDigit()
+                        }
+                        if !vm.notes.isEmpty {
+                            Divider()
+                            reviewFactRow(label: "Notes") {
+                                Text(vm.notes)
+                                    .font(.subheadline)
+                                    .multilineTextAlignment(.trailing)
+                            }
+                        }
+                    }
+                    .padding(.top, 22)
+                    .overlay(Rectangle().frame(height: 0.5).foregroundStyle(Color(.separator)), alignment: .top)
+                    .overlay(Rectangle().frame(height: 0.5).foregroundStyle(Color(.separator)), alignment: .bottom)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 28)
+                .padding(.horizontal, 20)
+
+                // Advisory only — server enforcement at submit is authoritative,
+                // same semantics as the web availability review.
+                if !vm.conflictedAssetIds.isEmpty {
+                    let count = vm.conflictedAssetIds.count
+                    HStack(spacing: 10) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(Color.statusText(.orange))
+                        Text("\(count) scheduling conflict\(count == 1 ? "" : "s") — availability is rechecked when you reserve.")
+                            .font(.footnote)
+                            .foregroundStyle(.primary)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(12)
+                    .background(Color.statusBackground(.orange), in: RoundedRectangle(cornerRadius: 12))
+                    .padding(.horizontal, 20)
+                }
+
+                // Equipment list — concise, not the visual center.
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Equipment")
+                        .font(.subheadline.weight(.semibold))
+                    VStack(spacing: 0) {
+                        ForEach(Array(vm.selectedAssets.enumerated()), id: \.element.id) { index, asset in
+                            if index > 0 { Divider().padding(.leading, 12) }
+                            HStack(spacing: 10) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(asset.displayName)
+                                        .font(.subheadline.weight(.medium))
+                                        .lineLimit(1)
+                                    if let tag = asset.assetTag {
+                                        Text(tag)
+                                            .font(.caption)
+                                            .fontDesign(.monospaced)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                Spacer()
+                                if vm.conflictedAssetIds.contains(asset.id) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .font(.caption)
+                                        .foregroundStyle(Color.statusText(.orange))
+                                        .accessibilityLabel("Scheduling conflict")
+                                }
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                        }
+                    }
+                    .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(Color(.separator).opacity(0.6), lineWidth: 0.5)
+                    )
+                }
+                .padding(.horizontal, 20)
+
+                // One primary action, prominent and inline — like web Step 3.
+                Button {
+                    Task { await create() }
+                } label: {
+                    Group {
+                        if vm.isSubmitting {
+                            ProgressView().tint(.white)
+                        } else {
+                            Text("Reserve for later")
+                                .fontWeight(.semibold)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(vm.isSubmitting)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 24)
+            }
+        }
+        .background(Color(.systemGroupedBackground))
+    }
+
+    @ViewBuilder
+    private func reviewFactRow(label: String, @ViewBuilder value: () -> some View) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(label.uppercased())
+                .font(.caption2.weight(.bold))
+                .kerning(0.8)
+                .foregroundStyle(.secondary)
+            Spacer()
+            value()
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 12)
     }
 
     private func create() async {

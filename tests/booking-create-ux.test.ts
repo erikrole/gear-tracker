@@ -4,7 +4,6 @@ import {
   getAvailabilityWarningTotal,
   getStep2PrimaryActionLabel,
 } from "@/components/booking-wizard/flow-summary";
-import { EQUIPMENT_SECTIONS } from "@/lib/equipment-sections";
 
 const baseCounts = {
   conflictCount: 0,
@@ -28,7 +27,6 @@ describe("booking create UX helpers", () => {
       ...baseCounts,
       itemCount: 3,
       unresolvedAssetCount: 0,
-      activeSection: EQUIPMENT_SECTIONS[0]!.key,
       upcomingCommitmentCount: 1,
       bulkTurnaroundRiskCount: 1,
     })).toBe("Review with warnings (3 items)");
@@ -39,17 +37,15 @@ describe("booking create UX helpers", () => {
       ...baseCounts,
       itemCount: 0,
       unresolvedAssetCount: 2,
-      activeSection: EQUIPMENT_SECTIONS[0]!.key,
     })).toBe("Remove unavailable items");
   });
 
-  it("points empty selections to the next equipment section", () => {
+  it("keeps empty selections tied to selection instead of category browsing", () => {
     expect(getStep2PrimaryActionLabel({
       ...baseCounts,
       itemCount: 0,
       unresolvedAssetCount: 0,
-      activeSection: EQUIPMENT_SECTIONS[0]!.key,
-    })).toBe(`Browse ${EQUIPMENT_SECTIONS[1]!.label}`);
+    })).toBe("Select equipment");
   });
 
   it("does not show an availability review when no warnings are present", () => {

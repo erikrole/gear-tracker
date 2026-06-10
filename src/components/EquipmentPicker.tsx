@@ -41,6 +41,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Item,
   ItemActions,
@@ -184,12 +185,24 @@ function bulkQuantityHint(sku: PickerBulkSku) {
     : "count only";
 }
 
-function selectedBulkQuantityText(sku: PickerBulkSku, quantity: number) {
-  const available = getBulkAvailable(sku);
-  const countText = `${quantity} of ${available} requested`;
-  return sku.trackByNumber
-    ? `${countText} · units scan at pickup`
-    : countText;
+function PickerLoadingRows() {
+  return (
+    <div aria-label="Loading equipment" aria-busy="true">
+      {Array.from({ length: 6 }).map((_, index) => (
+        <div key={index}>
+          {index > 0 && <ItemSeparator />}
+          <div className="flex min-h-[56px] items-center gap-3 px-3">
+            <Skeleton className="size-5 rounded-sm" />
+            <Skeleton className="size-10 rounded-md" />
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+              <Skeleton className="h-3.5 w-32" />
+              <Skeleton className="h-3 w-44 max-w-[70%]" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 /* ───── Component ───── */
@@ -258,7 +271,7 @@ export default function EquipmentPicker({
   }, [selectedAssetsCache]);
 
   // ── Data hooks ──
-  const { sectionResults, total, sectionCounts, searchLoading, searchError, retry: retrySearch } = usePickerSearch({
+  const { sectionResults, total, searchLoading, searchError, retry: retrySearch } = usePickerSearch({
     activeSection,
     equipSearch: sectionSearch,
     onlyAvailable,
@@ -358,13 +371,7 @@ export default function EquipmentPicker({
 
   const selectedIdSet = useMemo(() => new Set(selectedAssetIds), [selectedAssetIds]);
 
-  const visibleAvailableAssetIds = useMemo(() => {
-    return sectionResults
-      .filter((asset) => asset.computedStatus === "AVAILABLE" && !conflicts.has(asset.id))
-      .map((asset) => asset.id);
-  }, [conflicts, sectionResults]);
-
-  // ── Selected count per section (for tab badges) ──
+  // ── Selected count per section (for section-level actions) ──
   const selectedBySection = useMemo(() => {
     const c: Record<EquipmentSectionKey, number> = { cameras: 0, lenses: 0, batteries: 0, audio: 0, tripods: 0, lighting: 0, other: 0 };
     for (const id of selectedAssetIds) {
@@ -433,11 +440,6 @@ export default function EquipmentPicker({
         return [...prev, { bulkSkuId, quantity: nextQty }];
       });
     }
-  }
-
-  function selectVisibleAvailable() {
-    for (const asset of sectionResults) rememberAsset(asset);
-    setSelectedAssetIds((prev) => Array.from(new Set([...prev, ...visibleAvailableAssetIds])));
   }
 
   function clearCurrentSection() {
@@ -550,9 +552,11 @@ export default function EquipmentPicker({
   const currentSectionSelected = selectedBySection[activeSection] || 0;
   const visibleCount = sectionResults.length + sectionBulk.length;
   const matchingCount = total + sectionBulk.length;
-  const visibleLabel = sectionSearch
-    ? `${matchingCount} matching ${activeSectionMeta.label.toLowerCase()}`
-    : `${visibleCount} visible`;
+  const visibleLabel = searchLoading
+    ? `Loading ${activeSectionMeta.label.toLowerCase()}`
+    : sectionSearch
+      ? `${matchingCount} matching ${activeSectionMeta.label.toLowerCase()}`
+      : `${visibleCount} visible`;
   const emptyDescription = sectionSearch
     ? "Clear search or switch sections."
     : onlyAvailable
@@ -588,37 +592,24 @@ export default function EquipmentPicker({
   // ── Render ──
 
   return (
-    <div className="overflow-hidden rounded-md border border-border/60 bg-card/70 shadow-xs">
+    <div className="overflow-hidden rounded-2xl border border-border/50 bg-background/90 shadow-xs">
       {/* ── Section tabs ── */}
       <Tabs value={activeSection} onValueChange={(value) => { setActiveSection(value as EquipmentSectionKey); }}>
-        <TabsList className="overflow-x-auto bg-background px-1">
-          {EQUIPMENT_SECTIONS.map((sec) => {
-            const selectedCount = selectedBySection[sec.key] || 0;
-            const sectionTotal = sectionCounts?.[sec.key];
-            return (
-              <TabsTrigger
-                key={sec.key}
-                value={sec.key}
-                className="min-h-11 shrink-0 gap-1.5 px-3"
-              >
-                {sec.label}
-                {selectedCount > 0 ? (
-                  <Badge variant="secondary" size="sm" className="h-4 min-w-4 px-1 text-[10px]">
-                    {selectedCount}
-                  </Badge>
-                ) : sectionTotal !== undefined ? (
-                  <span className="text-[10px] font-medium text-muted-foreground tabular-nums">
-                    {sectionTotal}
-                  </span>
-                ) : null}
-              </TabsTrigger>
-            );
-          })}
+        <TabsList className="gap-2 overflow-x-auto border-b-0 bg-transparent px-3 py-3">
+          {EQUIPMENT_SECTIONS.map((sec) => (
+            <TabsTrigger
+              key={sec.key}
+              value={sec.key}
+              className="mb-0 min-h-10 shrink-0 rounded-full border-b-0 px-3 py-1.5 text-sm hover:bg-muted/50 data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:shadow-sm data-[state=active]:hover:bg-foreground/90"
+            >
+              {sec.label}
+            </TabsTrigger>
+          ))}
         </TabsList>
       </Tabs>
 
       {/* ── Search + action bar ── */}
-      <div className="flex flex-col gap-2 border-b border-border/60 bg-background p-3">
+      <div className="flex flex-col gap-2 border-b border-border/40 bg-muted/10 p-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="relative flex-1">
             <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -660,28 +651,17 @@ export default function EquipmentPicker({
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
           <span>{visibleLabel}</span>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={selectVisibleAvailable}
-              disabled={visibleAvailableAssetIds.length === 0}
-              className="h-10 text-xs"
-            >
-              Select visible available
-            </Button>
+          {currentSectionSelected > 0 && (
             <Button
               type="button"
               variant="ghost"
               size="sm"
               onClick={clearCurrentSection}
-              disabled={currentSectionSelected === 0}
               className="h-10 text-xs"
             >
               Clear section
             </Button>
-          </div>
+          )}
         </div>
       </div>
 
@@ -760,12 +740,7 @@ export default function EquipmentPicker({
       {/* ── Item list ── */}
       <div className="max-h-[28rem] overflow-y-auto bg-background">
         {searchLoading ? (
-          <Empty className="min-h-64 border-0">
-            <EmptyHeader>
-              <EmptyTitle>Loading equipment</EmptyTitle>
-              <EmptyDescription>Fetching {activeSectionMeta.label.toLowerCase()}...</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+          <PickerLoadingRows />
         ) : searchError ? (
           <Empty className="min-h-64 border-0">
             <EmptyHeader>
@@ -822,7 +797,7 @@ export default function EquipmentPicker({
                     size="sm"
                     className={cn(
                       "min-h-[56px] rounded-none px-3",
-                      isSelected && "bg-green-500/[0.06]",
+                      isSelected && "bg-foreground/[0.04]",
                       isUnavailable && "opacity-60",
                     )}
                   >
@@ -905,7 +880,7 @@ export default function EquipmentPicker({
                         </Badge>
                       )}
                       {isSelected && !conflict ? (
-                        <CheckCircle2Icon className="size-5 shrink-0 text-green-500" />
+                        <CheckCircle2Icon className="size-5 shrink-0 text-foreground/70" />
                       ) : null}
                     </ItemActions>
                   </Item>
@@ -926,9 +901,11 @@ export default function EquipmentPicker({
                   {hasSeparator && <ItemSeparator />}
                   <Item
                     size="sm"
+                    role="group"
+                    aria-label={`${sku.name}, ${current} requested`}
                     className={cn(
                       "min-h-[56px] rounded-none px-3",
-                      current > 0 && "bg-green-500/[0.06]",
+                      current > 0 && "bg-foreground/[0.04]",
                       noneAvailable && current === 0 && "opacity-60",
                     )}
                   >
@@ -954,29 +931,31 @@ export default function EquipmentPicker({
                           Turnaround
                         </Badge>
                       )}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="size-10"
-                        onClick={() => setBulkQty(sku.id, current - 1)}
-                        disabled={current === 0}
-                        aria-label={`Remove one ${sku.name}`}
-                      >
-                        <MinusIcon />
-                      </Button>
-                      <span className="min-w-7 text-center text-sm font-medium tabular-nums">{current}</span>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="size-10"
-                        onClick={() => setBulkQty(sku.id, current + 1)}
-                        disabled={current >= available}
-                        aria-label={`Add one ${sku.name}`}
-                      >
-                        <PlusIcon />
-                      </Button>
+                      <div className="flex h-10 items-center rounded-full border border-border/60 bg-background/70">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="rounded-full"
+                          onClick={() => setBulkQty(sku.id, current - 1)}
+                          disabled={current === 0}
+                          aria-label={`Remove one ${sku.name}`}
+                        >
+                          <MinusIcon />
+                        </Button>
+                        <span className="min-w-8 text-center text-sm font-medium tabular-nums">{current}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="rounded-full"
+                          onClick={() => setBulkQty(sku.id, current + 1)}
+                          disabled={current >= available}
+                          aria-label={`Add one ${sku.name}`}
+                        >
+                          <PlusIcon />
+                        </Button>
+                      </div>
                     </ItemActions>
                   </Item>
                 </div>
@@ -988,12 +967,9 @@ export default function EquipmentPicker({
 
       {/* ── Selected items shelf ── */}
       {totalSelected > 0 && (
-        <div className="border-t border-border/60 bg-muted/20">
+        <div className="border-t border-border/40 bg-background">
           <div className="flex items-center gap-2 px-3 py-2">
             <span className="text-xs font-semibold text-muted-foreground">Selected</span>
-            <Badge variant="secondary" size="sm" className="tabular-nums">
-              {totalSelected}
-            </Badge>
             <div className="ml-auto flex items-center gap-2">
               {deferredConflictsLoading && (
                 <span className="text-[10px] text-muted-foreground">
@@ -1005,148 +981,100 @@ export default function EquipmentPicker({
               </Button>
             </div>
           </div>
-          <ItemGroup>
-            {resolvedSelectedAssets.map((asset, index) => (
-              <div key={asset.id}>
-                {index > 0 && <ItemSeparator />}
-                <Item size="sm" className="rounded-none px-3 py-2">
-                  <ItemMedia variant="default">
-                    <AssetImage src={asset.imageUrl} alt={asset.assetTag} size={32} />
-                  </ItemMedia>
-                  <ItemContent>
-                    <ItemTitle className="truncate">{asset.assetTag}</ItemTitle>
-                    <ItemDescription className="truncate text-xs">{asset.brand} {asset.model}</ItemDescription>
-                    {upcomingCommitments.has(asset.id) && !conflicts.has(asset.id) && (
-                      <p className="truncate text-[10px] text-blue-600 dark:text-blue-400">
-                        {upcomingCommitmentLabel(upcomingCommitments.get(asset.id)!)}
-                        {upcomingCommitments.get(asset.id)!.bookingTitle ? ` · ${upcomingCommitments.get(asset.id)!.bookingTitle}` : ""}
-                      </p>
-                    )}
-                    {turnaroundRisks.has(asset.id) && !conflicts.has(asset.id) && (
-                      <p className={cn(
-                        "truncate text-[10px]",
-                        primaryRisk(turnaroundRisks.get(asset.id))?.severity === "critical"
-                          ? "text-red-600 dark:text-red-400"
-                          : "text-orange-600 dark:text-orange-400",
-                      )}>
-                        {riskLabel(turnaroundRisks.get(asset.id))}
-                      </p>
-                    )}
-                  </ItemContent>
-                  <ItemActions>
-                    {conflicts.has(asset.id) && (
-                      <Badge variant="orange" size="sm" className="shrink-0">Conflict</Badge>
-                    )}
-                    {upcomingCommitments.has(asset.id) && !conflicts.has(asset.id) && (
-                      <Badge
-                        variant="blue"
-                        size="sm"
-                        className="shrink-0"
-                        title={upcomingCommitmentTitle(upcomingCommitments.get(asset.id)!)}
-                      >
-                        Next use
-                      </Badge>
-                    )}
-                    {turnaroundRisks.has(asset.id) && !conflicts.has(asset.id) && (
-                      <Badge
-                        variant={primaryRisk(turnaroundRisks.get(asset.id))?.severity === "critical" ? "red" : "orange"}
-                        size="sm"
-                        className="shrink-0"
-                        title={riskTitle(turnaroundRisks.get(asset.id))}
-                      >
-                        Turnaround
-                      </Badge>
-                    )}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="size-10"
-                      onClick={() => toggleAsset(asset.id)}
-                      aria-label={`Remove ${asset.assetTag}`}
+          <div className="flex flex-wrap gap-2 px-3 pb-3">
+            {resolvedSelectedAssets.map((asset) => {
+              const hasConflict = conflicts.has(asset.id);
+              const hasUpcoming = upcomingCommitments.has(asset.id) && !hasConflict;
+              const hasTurnaround = turnaroundRisks.has(asset.id) && !hasConflict;
+              const stateLabel = hasConflict
+                ? "Conflict"
+                : hasUpcoming
+                  ? "Next use"
+                  : hasTurnaround
+                    ? "Turnaround"
+                    : null;
+              return (
+                <div
+                  key={asset.id}
+                  className="flex min-h-10 max-w-full items-center gap-2 rounded-full border border-border/60 bg-muted/25 py-1 pl-1 pr-1 shadow-xs"
+                >
+                  <AssetImage src={asset.imageUrl} alt={asset.assetTag} size={28} />
+                  <span className="max-w-[11rem] truncate text-sm font-medium">{asset.assetTag}</span>
+                  {stateLabel && (
+                    <Badge
+                      variant={hasUpcoming ? "blue" : "orange"}
+                      size="sm"
+                      className="hidden shrink-0 sm:inline-flex"
                     >
-                      <XIcon />
-                    </Button>
-                  </ItemActions>
-                </Item>
+                      {stateLabel}
+                    </Badge>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="size-9 rounded-full"
+                    onClick={() => toggleAsset(asset.id)}
+                    aria-label={`Remove ${asset.assetTag}`}
+                  >
+                    <XIcon />
+                  </Button>
+                </div>
+              );
+            })}
+            {unresolvedSelectedAssetIds.map((id) => (
+              <div
+                key={id}
+                className="flex min-h-10 max-w-full items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/[0.06] py-1 pl-3 pr-1 shadow-xs"
+              >
+                <AlertCircleIcon className="size-4 shrink-0 text-orange-500" />
+                <span className="max-w-[13rem] truncate text-sm font-medium">Unavailable selected item</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="size-9 rounded-full"
+                  onClick={() => toggleAsset(id)}
+                  aria-label="Remove unavailable selected item"
+                >
+                  <XIcon />
+                </Button>
               </div>
             ))}
-            {unresolvedSelectedAssetIds.map((id, index) => {
-              const previousRows = resolvedSelectedAssets.length + index;
-              return (
-                <div key={id}>
-                  {previousRows > 0 && <ItemSeparator />}
-                  <Item size="sm" className="rounded-none px-3 py-2">
-                    <ItemMedia variant="icon">
-                      <AlertCircleIcon className="size-4 text-orange-500" />
-                    </ItemMedia>
-                    <ItemContent>
-                      <ItemTitle className="truncate">Unavailable selected item</ItemTitle>
-                      <ItemDescription className="truncate text-xs">
-                        This item could not be loaded. Remove it and pick another item.
-                      </ItemDescription>
-                    </ItemContent>
-                    <ItemActions>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="size-10"
-                        onClick={() => toggleAsset(id)}
-                        aria-label="Remove unavailable selected item"
-                      >
-                        <XIcon />
-                      </Button>
-                    </ItemActions>
-                  </Item>
-                </div>
-              );
-            })}
-            {selectedBulkItems.map((item, index) => {
+            {selectedBulkItems.map((item) => {
               const sku = bulkById.get(item.bulkSkuId);
               if (!sku) return null;
-              const previousRows = resolvedSelectedAssets.length + unresolvedSelectedAssetIds.length + index;
               const risks = bulkTurnaroundRisks.get(item.bulkSkuId);
+              const hasTurnaround = (risks?.length ?? 0) > 0;
               return (
-                <div key={item.bulkSkuId}>
-                  {previousRows > 0 && <ItemSeparator />}
-                  <Item size="sm" className="rounded-none px-3 py-2">
-                    <ItemMedia variant="default">
-                      <AssetImage src={sku.imageUrl} alt={sku.name} size={32} />
-                    </ItemMedia>
-                    <ItemContent>
-                      <ItemTitle className="truncate">{sku.name}</ItemTitle>
-                      <ItemDescription className="text-xs">
-                        {selectedBulkQuantityText(sku, item.quantity)}
-                      </ItemDescription>
-                      {risks && risks.length > 0 && (
-                        <p className="truncate text-[10px] text-orange-600 dark:text-orange-400">
-                          {riskLabel(risks)}
-                        </p>
-                      )}
-                    </ItemContent>
-                    <ItemActions>
-                      {risks && risks.length > 0 && (
-                        <Badge variant="orange" size="sm" className="shrink-0" title={riskTitle(risks)}>
-                          Turnaround
-                        </Badge>
-                      )}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="size-10"
-                        onClick={() => setBulkQty(sku.id, 0)}
-                        aria-label={`Remove ${sku.name}`}
-                      >
-                        <XIcon />
-                      </Button>
-                    </ItemActions>
-                  </Item>
+                <div
+                  key={item.bulkSkuId}
+                  className="flex min-h-10 max-w-full items-center gap-2 rounded-full border border-border/60 bg-muted/25 py-1 pl-1 pr-1 shadow-xs"
+                >
+                  <AssetImage src={sku.imageUrl} alt={sku.name} size={28} />
+                  <span className="max-w-[11rem] truncate text-sm font-medium">{sku.name}</span>
+                  <span className="shrink-0 text-xs font-medium text-muted-foreground tabular-nums">
+                    x{item.quantity}
+                  </span>
+                  {hasTurnaround && (
+                    <Badge variant="orange" size="sm" className="hidden shrink-0 sm:inline-flex" title={riskTitle(risks)}>
+                      Turnaround
+                    </Badge>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="size-9 rounded-full"
+                    onClick={() => setBulkQty(sku.id, 0)}
+                    aria-label={`Remove ${sku.name}`}
+                  >
+                    <XIcon />
+                  </Button>
                 </div>
               );
             })}
-          </ItemGroup>
+          </div>
         </div>
       )}
     </div>

@@ -1,5 +1,3 @@
-import { EQUIPMENT_SECTIONS, type EquipmentSectionKey } from "@/lib/equipment-sections";
-
 export type AvailabilityWarningCounts = {
   conflictCount: number;
   upcomingCommitmentCount: number;
@@ -10,7 +8,6 @@ export type AvailabilityWarningCounts = {
 export type Step2PrimaryLabelInput = AvailabilityWarningCounts & {
   itemCount: number;
   unresolvedAssetCount: number;
-  activeSection: EquipmentSectionKey;
 };
 
 export function getAvailabilityWarningTotal(counts: AvailabilityWarningCounts) {
@@ -39,12 +36,7 @@ export function getStep2PrimaryActionLabel(input: Step2PrimaryLabelInput) {
       : "Remove unavailable items";
   }
 
-  const sectionIdx = EQUIPMENT_SECTIONS.findIndex((section) => section.key === input.activeSection);
-  if (sectionIdx >= 0 && sectionIdx < EQUIPMENT_SECTIONS.length - 1) {
-    return `Browse ${EQUIPMENT_SECTIONS[sectionIdx + 1]!.label}`;
-  }
-
-  return "Review";
+  return "Select equipment";
 }
 
 export function buildAvailabilityReview(counts: AvailabilityWarningCounts) {

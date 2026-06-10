@@ -117,6 +117,9 @@ export default function PageBreadcrumb() {
   const firstSegment = segments[0] ?? "";
   const hasDynamicSegment = segments.some(isDynamicSegment);
   const onDetailPage = hasDynamicSegment;
+  const isCreationFlow =
+    pathname === "/checkouts/new" ||
+    pathname === "/reservations/new";
 
   // Re-read recents only when section changes or after we save a new entity.
   // Empty deps would miss cross-section navigation; keying on firstSegment +
@@ -164,8 +167,13 @@ export default function PageBreadcrumb() {
   const showSkeleton = onDetailPage && !entityLabel;
 
   return (
-    <Breadcrumb className="mb-5 flex min-w-0 items-center print:hidden">
-      <BreadcrumbList className="min-w-0 gap-1 rounded-xl border border-border/60 bg-card/70 px-1.5 py-1 shadow-xs backdrop-blur supports-[backdrop-filter]:bg-card/60 sm:gap-1">
+    <Breadcrumb className={cn("flex min-w-0 items-center print:hidden", isCreationFlow ? "mb-0" : "mb-5")}>
+      <BreadcrumbList
+        className={cn(
+          "min-w-0 gap-1 rounded-xl border border-border/60 bg-card/70 px-1.5 py-1 shadow-xs backdrop-blur supports-[backdrop-filter]:bg-card/60 sm:gap-1",
+          isCreationFlow && "border-transparent bg-transparent px-0 py-0 shadow-none backdrop-blur-none supports-[backdrop-filter]:bg-transparent",
+        )}
+      >
         {visibleItems.map((item, i) => {
           const hasSiblings = !item.isPage && SIBLING_MAP[item.href] != null;
           const hasRecent = item.isPage && onDetailPage && recentEntities.length > 1;
@@ -190,7 +198,13 @@ export default function PageBreadcrumb() {
               )}
               <BreadcrumbItem>
                 {item.isPage && !hasRecent ? (
-                  <BreadcrumbPage className={cn(crumbPageClass, CRUMB_MAX_WIDTH)}>
+                  <BreadcrumbPage
+                    className={cn(
+                      crumbPageClass,
+                      CRUMB_MAX_WIDTH,
+                      isCreationFlow && "bg-transparent px-1 shadow-none ring-0",
+                    )}
+                  >
                     <span className="truncate">{item.label}</span>
                   </BreadcrumbPage>
                 ) : hasSiblings ? (
@@ -208,7 +222,14 @@ export default function PageBreadcrumb() {
                   />
                 ) : (
                   <BreadcrumbLink asChild>
-                    <Link href={item.href} className={cn(crumbControlClass, CRUMB_MAX_WIDTH)}>
+                    <Link
+                      href={item.href}
+                      className={cn(
+                        crumbControlClass,
+                        CRUMB_MAX_WIDTH,
+                        isCreationFlow && "px-1 hover:bg-transparent",
+                      )}
+                    >
                       <span className="truncate">{item.label}</span>
                     </Link>
                   </BreadcrumbLink>

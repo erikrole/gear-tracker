@@ -30,19 +30,20 @@ Multi-step wizard page (replaced the old side-sheet flow as of 2026-04-09):
 2. If no event: manual title + optional sport.
 3. Select requester (borrower), location, optional kit, start/end dates.
 4. Client-side validation: title, requester, location required; dates must be valid range.
-5. Context summary names whether the checkout is calendar-linked or ad hoc, shows selected event count, and previews the derived window and location before equipment selection.
+5. The page title uses the selected event/booking title once available; the checkout badge carries the booking kind so the flow does not need a generic creation hero.
+6. Context copy stays compact: it names event-linked versus ad hoc state and reserves longer guidance for real load errors or review.
 
 **Step 2 — Equipment:**
-1. Full `EquipmentPicker` with section tabs, search, availability conflict markers, QR scan-to-add.
+1. Full `EquipmentPicker` with quiet section chips, search, availability conflict markers, QR scan-to-add, and deliberate per-item selection.
 2. Equipment guidance warns about compatible battery availability and support gear. Battery units are selected by quantity here; kiosk pickup scans bind the actual numbered units.
 3. On mobile checkout: scan-first UI (camera open by default).
-4. Selection summary separates valid items, unavailable stale selections, hard conflicts, next-use notices, and turnaround warnings.
+4. The Step 2 header shows selected count. Warning/status chrome appears only for unavailable stale selections, hard conflicts, next-use notices, turnaround warnings, or active availability rechecks.
 
 **Step 3 — Confirmation:**
-1. Full summary with thumbnails, equipment list, kiosk pickup notice.
+1. Apple-like review panel leads with the selected window, requester, location, pending-pickup status, linked event, and equipment count.
 2. Submit → POST `/api/checkouts`. 409 conflicts shown inline (returns to Step 2).
 3. Checkout is created with status `PENDING_PICKUP`. Gear must be picked up at a kiosk — no desktop/phone scanning allowed.
-4. Confirmation repeats selected availability warnings and submit copy explains that hard conflicts are rechecked before creation.
+4. Confirmation repeats selected availability warnings only when warnings exist, and the checkout notice stays concise: kiosk scan starts custody.
 
 **Deep-link parameters:** `?title`, `?startsAt`, `?endsAt`, `?locationId`, `?newFor` (pre-select asset), `?eventId`, `?sportCode`, `?requesterUserId`, `?draftId`.
 
@@ -83,13 +84,13 @@ The equipment picker is a standalone component (`src/components/EquipmentPicker.
 4. **Accessories** — monitors, recorders, rigs, cages, gimbals, transmitters
 5. **Others** — cables, audio, tripods, and catch-all items
 
-All section tabs are freely navigable (no forward-lock). Section tabs show selected item count.
+All section tabs are freely navigable (no forward-lock). Section tabs are labels only; selected counts live in the step header and selected shelf instead of the tab rail.
 
 ### Checkbox Multi-Select
 - Each serialized asset row has a checkbox for toggle selection (replaces one-click-to-add).
-- "Select all available" button selects all items without conflicts or status issues in the visible section.
-- "Deselect section" button clears all selections in the current section.
-- Selected items summary strip shows all selections with remove buttons.
+- Operators select deliberately by row, search, or scan. The picker intentionally does not expose a select-all-visible action.
+- "Clear section" button clears all selections in the current section.
+- Selected items tray shows compact removable chips for selected serialized items and bulk quantities so selection review does not duplicate the full picker rows.
 - Bulk items retain their quantity stepper pattern. Numbered batteries are quantity-only at creation and bind to specific unit numbers at kiosk pickup.
 
 ### Per-Section Search
@@ -289,6 +290,8 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 5. Add regression coverage for race conditions, partial returns, and permission bypass attempts.
 
 ## Change Log
+- 2026-06-10: Web checkout creation audit/polish pass (refresh Slice 6). Fixed Step 1 requester/location placeholders and the Step 3 empty-equipment notice rendering literal `\u2026`/`\u2014` escape text (JSX attributes/text do not process JS escapes), aligned the header kind badge to the canonical blue (was red), aligned the Step 3 notes card and availability alert to the review panel width, removed a dead nested notes conditional, switched Step 1 event loading to geometry-preserving skeleton rows, and raised step chips, picker tabs, tray chip remove buttons, and quantity steppers to the 40px hit-target baseline with a more prominent final submit action.
+- 2026-06-08: Web checkout creation visual refresh shipped. `/checkouts/new` now promotes the selected event/booking title instead of a generic New Checkout hero, uses a quieter creation-page breadcrumb, replaces dense Step 1 admin rows with local stacked field groups, compresses Step 2 helper copy, removes unused picker tab counts and select-visible action, uses row skeletons for picker loading, keeps footer navigation tied to review instead of category browsing, compresses selected equipment into removable tray chips, and presents confirmation as a calmer Apple-like review panel while preserving multi-event, draft, availability, and kiosk-pickup contracts.
 - 2026-06-06: Web checkout creation kit-list recovery shipped. `/checkouts/new` now treats failed location-scoped kit reads as a retryable inline optional-kit error instead of silently removing the Kit control, while preserving true no-kit behavior, ad hoc/event-linked creation, drafts, equipment selection, and checkout payload contracts.
 - 2026-06-06: Web checkout creation event-list recovery shipped. `/checkouts/new` now treats failed upcoming-event reads as a retryable inline calendar error instead of the same state as no upcoming events, while preserving the ad hoc booking path, multi-event selection, draft behavior, and checkout payload contract.
 - 2026-06-05: iOS Bookings empty-state recovery shipped for native checkouts. Search-empty states now offer Clear search and Mine-only empty states offer Show all visible bookings, so checkout users can recover from filters without leaving the list.

@@ -25,9 +25,9 @@ Keep reservation planning and checkout execution unified, predictable, and safe 
 ### Create Reservation (Wizard — `/reservations/new`)
 Multi-step wizard page (replaced the old side-sheet flow as of 2026-04-09):
 
-**Step 1 — Context & Details:** Event tie-in (optional), title, requester, location, kit, start/end dates. Event picker uses the next 30 days and supports up to 3 linked events. Context summary names whether the reservation is calendar-linked or ad hoc and previews the derived window and location.
-**Step 2 — Equipment:** Full `EquipmentPicker` — browse-first on mobile (no default camera). Equipment requirements enforced. Selection summary separates valid items, unavailable stale selections, hard conflicts, next-use notices, and turnaround warnings.
-**Step 3 — Confirmation:** Summary with thumbnails. Submit → POST `/api/reservations`. Save as `BOOKED`. Confirmation repeats selected availability warnings and keeps reservation handoff copy explicit.
+**Step 1 — Context & Details:** Event tie-in (optional), title, requester, location, kit, start/end dates. Event picker uses the next 30 days and supports up to 3 linked events. The page title uses the selected event/booking title once available, while the reservation badge carries the booking kind.
+**Step 2 — Equipment:** Full `EquipmentPicker` with quiet section chips, search, availability conflict markers, QR scan-to-add, and deliberate per-item selection. Equipment requirements enforced. Warning/status chrome appears only for unavailable stale selections, hard conflicts, next-use notices, turnaround warnings, or active availability rechecks.
+**Step 3 — Confirmation:** Apple-like review panel leads with the selected window, requester, location, reserved status, linked event, and equipment count. Submit → POST `/api/reservations`. Save as `BOOKED`. Confirmation repeats selected availability warnings only when warnings exist.
 
 **Deep-link parameters:** `?title`, `?startsAt`, `?endsAt`, `?locationId`, `?newFor`, `?eventId`, `?sportCode`, `?requesterUserId`, `?draftId`.
 
@@ -245,6 +245,8 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 8. Implement list page controls and row behavior from V1 list surface spec.
 
 ## Change Log
+- 2026-06-10: Web reservation creation audit/polish pass (refresh Slice 6). Same fixes as checkouts (escape-literal placeholders, layout alignment, hit targets, skeletons), plus the header kind badge now uses the canonical purple (was blue) and the Step 3 review icon uses the canonical calendar glyph per docs/COLOR_SYSTEM.md.
+- 2026-06-08: Web reservation creation visual refresh shipped. `/reservations/new` now promotes the selected event/booking title instead of a generic New Reservation hero, uses a quieter creation-page breadcrumb, replaces dense Step 1 admin rows with local stacked field groups, compresses Step 2 helper copy, removes unused picker tab counts and select-visible action, uses row skeletons for picker loading, keeps footer navigation tied to review instead of category browsing, compresses selected equipment into removable tray chips, and presents confirmation as a calmer Apple-like review panel while preserving multi-event, draft, availability, and reservation payload contracts.
 - 2026-06-06: Web reservation creation kit-list recovery shipped. `/reservations/new` now treats failed location-scoped kit reads as a retryable inline optional-kit error instead of silently removing the Kit control, while preserving true no-kit behavior, ad hoc/event-linked creation, drafts, equipment selection, and reservation payload contracts.
 - 2026-06-06: Web reservation creation event-list recovery shipped. `/reservations/new` now treats failed upcoming-event reads as a retryable inline calendar error instead of the same state as no upcoming events, while preserving the ad hoc reservation path, multi-event selection, draft behavior, and reservation payload contract.
 - 2026-06-05: iOS Bookings empty-state recovery shipped for native reservations. Search-empty states now offer Clear search, the Mine-only empty state offers Show all visible bookings, and an empty Reservations tab gives users a direct New Reservation action when creation is allowed.
