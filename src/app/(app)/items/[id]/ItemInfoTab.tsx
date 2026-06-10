@@ -554,38 +554,52 @@ function FirmwareWatchPanel({
               {installedVersion || "Set firmware"}
             </button>
           </Badge>
-          <DialogContent className="max-w-[440px]">
+          <DialogContent className="max-w-[460px]">
             <DialogHeader>
               <div>
-                <DialogTitle>Firmware</DialogTitle>
+                <DialogTitle className="text-balance">Firmware</DialogTitle>
                 <DialogDescription>
                   Installed firmware for {asset.assetTag}
                 </DialogDescription>
               </div>
             </DialogHeader>
             <DialogBody className="space-y-4 py-4">
-              <div className="rounded-md bg-muted/30 p-3 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant={badgeVariant} size="sm" className="rounded-sm">
-                    {badgeStatus}
-                  </Badge>
-                  <Badge
-                    variant={firmwareSupportVariant(firmwareWatch.supportMode)}
-                    size="sm"
-                    className="rounded-sm"
-                  >
-                    {firmwareSupportLabel(firmwareWatch.supportMode)}
-                  </Badge>
+              <div className="rounded-lg bg-muted/25 p-3.5 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                      Current
+                    </div>
+                    <div className="mt-1 truncate font-mono text-xl font-semibold leading-none">
+                      {installedVersion || "Not recorded"}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
+                    <Badge variant={badgeVariant} size="sm" className="rounded-sm">
+                      {badgeStatus}
+                    </Badge>
+                    <Badge
+                      variant={firmwareSupportVariant(firmwareWatch.supportMode)}
+                      size="sm"
+                      className="rounded-sm"
+                    >
+                      {firmwareSupportLabel(firmwareWatch.supportMode)}
+                    </Badge>
+                  </div>
                 </div>
-                <dl className="mt-3 grid grid-cols-[80px_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-sm">
-                  <dt className="text-muted-foreground">Current</dt>
-                  <dd className="font-mono">{installedVersion || "Not recorded"}</dd>
-                  <dt className="text-muted-foreground">Newest</dt>
-                  <dd className="font-mono">{latestLabel}</dd>
-                  <dt className="text-muted-foreground">Checked</dt>
-                  <dd>{lastChecked || "Not checked"}</dd>
-                  <dt className="text-muted-foreground">Released</dt>
-                  <dd>{releaseDate || "Not recorded"}</dd>
+                <dl className="mt-4 grid grid-cols-3 gap-2 text-sm">
+                  <div className="min-w-0">
+                    <dt className="text-xs text-muted-foreground">Newest</dt>
+                    <dd className="mt-1 truncate font-mono">{latestLabel}</dd>
+                  </div>
+                  <div className="min-w-0">
+                    <dt className="text-xs text-muted-foreground">Checked</dt>
+                    <dd className="mt-1 truncate">{lastChecked || "Not checked"}</dd>
+                  </div>
+                  <div className="min-w-0">
+                    <dt className="text-xs text-muted-foreground">Released</dt>
+                    <dd className="mt-1 truncate">{releaseDate || "Not recorded"}</dd>
+                  </div>
                 </dl>
               </div>
               {canEdit && (
@@ -608,15 +622,15 @@ function FirmwareWatchPanel({
                 </div>
               )}
               {firmwareWatch.supportNote && (
-                <p className="text-sm text-muted-foreground">{firmwareWatch.supportNote}</p>
+                <p className="text-pretty text-sm text-muted-foreground">{firmwareWatch.supportNote}</p>
               )}
               {firmwareWatch.lastError && (
-                <p className="text-sm text-orange-600 dark:text-orange-400">
+                <p className="text-pretty text-sm text-orange-600 dark:text-orange-400">
                   Last check issue: {firmwareWatch.lastError}
                 </p>
               )}
             </DialogBody>
-            <DialogFooter>
+            <DialogFooter className="items-center gap-2 sm:justify-between">
               <Button variant="outline" asChild>
                 <a
                   href={firmwareWatch.sourceUrl}
@@ -628,29 +642,30 @@ function FirmwareWatchPanel({
                   Sony update page
                 </a>
               </Button>
-              {canEdit && firmwareWatch.latestVersion && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => saveVersion(firmwareWatch.latestVersion ?? "")}
-                  disabled={saveInstalledVersion.isSaving}
-                >
-                  Mark updated to latest
-                </Button>
-              )}
-              {canEdit && (
-                <Button
-                  type="button"
-                  onClick={() => saveVersion(draftVersion)}
-                  disabled={saveInstalledVersion.isSaving}
-                >
-                  {saveInstalledVersion.isSaving ? "Saving..." : "Save"}
-                </Button>
-              )}
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {canEdit && firmwareWatch.latestVersion && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => saveVersion(firmwareWatch.latestVersion ?? "")}
+                    disabled={saveInstalledVersion.isSaving}
+                  >
+                    Mark updated to latest
+                  </Button>
+                )}
+                {canEdit && (
+                  <Button
+                    type="button"
+                    onClick={() => saveVersion(draftVersion)}
+                    disabled={saveInstalledVersion.isSaving}
+                  >
+                    {saveInstalledVersion.isSaving ? "Saving..." : "Save"}
+                  </Button>
+                )}
+              </div>
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        <span className="min-w-0 truncate text-xs text-muted-foreground">{badgeStatus}</span>
       </dd>
     </>
   );
