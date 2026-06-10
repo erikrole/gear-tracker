@@ -75,6 +75,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - Sports code mappings (existing — `src/lib/sports.ts`)
 
 ## Change Log
+- 2026-06-09: Shift mutation response shapes aligned with list endpoints. `POST /api/shift-groups` now includes the `event` relation (same select as GET) and `PATCH /api/shift-trades/[id]/cancel` now returns the trade with `postedBy`/`claimedBy`/`shiftAssignment` relations (same shape as post/claim). Both previously returned bare rows that iOS — which decodes every trade/group mutation into the same model as the list — could not decode, so "Set up crew" and trade cancel failed on iOS despite succeeding server-side.
 - 2026-06-06: Web Schedule Assign filter metadata cleanup shipped. `/schedule/assign` now gives the Sport and Area filters stable rendered browser/accessibility identities while preserving month navigation, review filters, grid data, and assignment behavior.
 - 2026-06-06: Web Schedule Assign user-picker recovery shipped. `/schedule/assign` now treats failed active-user reads as a retryable picker error instead of an empty candidate list, preserving universal assignment, conflict review, slot editing, and call-window behavior.
 - 2026-06-06: iOS Schedule list Dynamic Type shipped. Native Schedule list date headers, My Shift chips, Home/Away labels, coverage icons, shift labels, and weather microcopy now use semantic SwiftUI fonts instead of fixed point sizes while preserving List/Calendar scope, filters, trade/calendar actions, coverage chips, and row routing.

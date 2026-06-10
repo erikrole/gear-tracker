@@ -314,8 +314,11 @@ final class APIClient {
             let endsAt: String
             let excludeBookingId: String?
         }
-        struct CheckData: Decodable { let conflicts: [AssetConflict]? }
-        struct CheckResponse: Decodable { let data: CheckData }
+        // The server returns the availability result at the TOP level
+        // (`{ conflicts, shortages, ... }`), not wrapped in `{ data: ... }`.
+        // Decoding a `data` envelope here silently empties the conflict map
+        // (this call swallows decode failures by design).
+        struct CheckResponse: Decodable { let conflicts: [AssetConflict]? }
 
         var req = request(path: "/api/availability/check", method: "POST")
         let iso = ISO8601DateFormatter()
@@ -339,7 +342,7 @@ final class APIClient {
         guard (200...299).contains(http.statusCode),
               let resp = try? decoder.decode(CheckResponse.self, from: data) else { return [:] }
         var map: [String: AssetConflict] = [:]
-        for conflict in resp.data.conflicts ?? [] { map[conflict.assetId] = conflict }
+        for conflict in resp.conflicts ?? [] { map[conflict.assetId] = conflict }
         return map
     }
 

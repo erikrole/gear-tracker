@@ -571,7 +571,10 @@ struct AvailabilityView: View {
     @State private var showAdd = false
 
     private var grouped: [(day: Int, blocks: [AvailabilityBlock])] {
-        Dictionary(grouping: blocks, by: \.dayOfWeek)
+        // AD_HOC blocks (web-only, dayOfWeek == nil) don't fit the weekly
+        // grid this editor renders; skip them rather than failing the list.
+        let weekly = blocks.filter { $0.dayOfWeek != nil }
+        return Dictionary(grouping: weekly, by: { $0.dayOfWeek ?? 0 })
             .sorted { $0.key < $1.key }
             .map { (day: $0.key, blocks: $0.value.sorted { $0.startsAt < $1.startsAt }) }
     }

@@ -399,6 +399,20 @@ export async function cancelTrade(tradeId: string, userId: string) {
         resolvedAt: new Date(),
         status: "CANCELLED",
       },
+      // Same relation shape as postTrade/claimTrade — clients decode all
+      // trade mutations into one model, so a bare row breaks them.
+      include: {
+        shiftAssignment: {
+          include: {
+            shift: {
+              include: { shiftGroup: { include: { event: true } } },
+            },
+            user: { select: { id: true, name: true } },
+          },
+        },
+        postedBy: { select: { id: true, name: true } },
+        claimedBy: { select: { id: true, name: true } },
+      },
     });
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }

@@ -51,13 +51,41 @@ struct CurrentUser: Codable, Identifiable, Equatable {
 /// Mirrors `/api/me/notification-preferences`. `pausedUntil` is an ISO-8601
 /// string (server validates `z.string().datetime({ offset: true })`); `nil`
 /// means not paused.
+///
+/// The PUT schema requires the `pausedUntil` KEY to be present (nullable, not
+/// optional), so `encode(to:)` writes an explicit `null` instead of the
+/// synthesized encodeIfPresent omission — omitting the key 400s every save.
+/// `badges`/`categories` are round-tripped untouched so a save from iOS
+/// doesn't reset preferences the user customized on web (the server defaults
+/// any missing field to true).
 struct NotificationPreferences: Codable, Equatable {
     var pausedUntil: String?
     var channels: Channels
+    var badges: Bool? = nil
+    var categories: Categories? = nil
 
     struct Channels: Codable, Equatable {
         var email: Bool
         var push: Bool
+    }
+
+    struct Categories: Codable, Equatable {
+        var checkoutDue: Bool
+        var checkoutOverdue: Bool
+        var reservation: Bool
+        var licenseExpiry: Bool
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case pausedUntil, channels, badges, categories
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(pausedUntil, forKey: .pausedUntil) // explicit null when nil
+        try container.encode(channels, forKey: .channels)
+        try container.encodeIfPresent(badges, forKey: .badges)
+        try container.encodeIfPresent(categories, forKey: .categories)
     }
 }
 

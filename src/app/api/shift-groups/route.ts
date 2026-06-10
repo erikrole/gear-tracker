@@ -123,7 +123,21 @@ export const POST = withAuth(async (req, { user }) => {
 
   const group = await db.shiftGroup.create({
     data: { eventId, manuallyEdited: true },
+    // Same shape as GET — clients (iOS decodes this into the same model as
+    // the list response) rely on `event` being present.
     include: {
+      event: {
+        select: {
+          id: true,
+          summary: true,
+          startsAt: true,
+          endsAt: true,
+          sportCode: true,
+          isHome: true,
+          opponent: true,
+          locationId: true,
+        },
+      },
       shifts: {
         include: {
           assignments: {

@@ -136,7 +136,10 @@ struct AssetAccessory: Codable, Identifiable, Hashable {
     let name: String?
     let brand: String
     let model: String
-    let serialNumber: String
+    // Nullable on the server (Asset.serialNumber String?) — a required field
+    // here would fail the whole /api/assets/[id] decode for any asset whose
+    // accessory has no serial.
+    let serialNumber: String?
     let status: String
     let type: String
     let imageUrl: String?

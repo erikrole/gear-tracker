@@ -158,12 +158,15 @@ struct MyShiftsResponse: Decodable {
 
 // MARK: - Availability blocks
 
-/// A recurring weekly unavailability window (usually a class) that warns staff
-/// during shift assignment. `startsAt`/`endsAt` are local wall-clock "HH:mm";
-/// `dayOfWeek` is 0 = Sunday … 6 = Saturday.
+/// An unavailability window (usually a class) that warns staff during shift
+/// assignment. `startsAt`/`endsAt` are local wall-clock "HH:mm"; `dayOfWeek`
+/// is 0 = Sunday … 6 = Saturday and is nil for AD_HOC (single-date) blocks,
+/// which the web profile can create — a required Int here would fail the
+/// whole availability decode the moment one exists.
 struct AvailabilityBlock: Codable, Identifiable {
     let id: String
-    let dayOfWeek: Int
+    let kind: String?
+    let dayOfWeek: Int?
     let startsAt: String
     let endsAt: String
     let label: String?
