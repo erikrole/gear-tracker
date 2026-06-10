@@ -279,6 +279,29 @@ describe("withAuth", () => {
     expect(res.status).toBe(200);
     expect(handler).toHaveBeenCalled();
   });
+
+  it("allows forced-password users to call the self-service password setup route", async () => {
+    vi.mocked(requireAuth).mockResolvedValue({
+      ...mockUser,
+      forcePasswordChange: true,
+    });
+    const handler = vi.fn().mockResolvedValue(NextResponse.json({ ok: true }));
+    const wrapped = withAuth(handler);
+
+    const res = await wrapped(
+      new Request("https://app.example.com/api/me/change-password", {
+        method: "POST",
+        headers: {
+          host: "app.example.com",
+          origin: "https://app.example.com",
+        },
+      }),
+      { params: Promise.resolve({}) }
+    );
+
+    expect(res.status).toBe(200);
+    expect(handler).toHaveBeenCalled();
+  });
 });
 
 describe("withHandler", () => {

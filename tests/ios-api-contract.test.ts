@@ -31,12 +31,38 @@ describe("iOS API contracts — form options", () => {
     // (Optional fields are fine — missing keys decode to nil.)
     const structBody = models.slice(
       models.indexOf("struct FormUser"),
-      models.indexOf("struct FormOptions"),
+      models.indexOf("struct FormBulkSku"),
     );
     const requiredFields = [...structBody.matchAll(/let (\w+): (\S+)/g)]
       .filter((match) => !(match[2] ?? "").endsWith("?"))
       .map((match) => match[1]);
     expect(requiredFields.sort()).toEqual(["id", "name"]);
+  });
+
+  it("FormOptions keeps bulk SKU picker data without requiring it from legacy responses", () => {
+    const route = source("src/app/api/form-options/route.ts");
+    const models = source("ios/Wisconsin/Models/FormModels.swift");
+
+    expect(route).toMatch(/db\.bulkSku\.findMany\(\{[\s\S]*?select: \{[\s\S]*?availableQuantity/);
+    expect(models).toContain("struct FormBulkSku");
+    expect(models).toContain("let bulkSkus: [FormBulkSku]");
+    expect(models).toContain("bulkSkus = try container.decodeIfPresent([FormBulkSku].self, forKey: .bulkSkus) ?? []");
+  });
+});
+
+describe("iOS API contracts — reservation create payload", () => {
+  it("iOS sends typed bulk items to the existing reservation schema", () => {
+    const validation = source("src/lib/validation.ts");
+    const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
+
+    expect(validation).toContain("bulkSkuId: z.string().cuid()");
+    expect(validation).toContain("quantity: z.number().int().positive()");
+    expect(apiClient).toContain("struct BulkReservationRequest: Encodable, Equatable");
+    expect(apiClient).toContain("bulkItems: [BulkReservationRequest] = []");
+    expect(apiClient).toContain("let bulkItems: [BulkReservationRequest]");
+    expect(apiClient).toContain("bulkItems: bulkItems");
+    expect(apiClient).not.toContain("let bulkItems: [String]");
+    expect(apiClient).not.toContain("bulkItems: [],");
   });
 });
 

@@ -342,7 +342,7 @@ struct ScheduleView: View {
                 .presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showTradeBoard, onDismiss: {
-                Task { await appState.refresh() }
+                Task { await appState.refresh(forceRefresh: true) }
             }) {
                 TradeBoardSheet(
                     myShifts: vm.myShifts,

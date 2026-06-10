@@ -7,23 +7,22 @@ describe("users location options state", () => {
 
     expect(source).toContain("error: formOptionsError");
     expect(source).toContain("reload: reloadFormOptions");
-    expect(source).toContain("Locations could not load. User location filters and Add User location assignment are unavailable until locations are readable.");
+    expect(source).toContain("Locations could not load. User location filters are unavailable until locations are readable.");
     expect(source).toContain("locationsLoading={formOptionsLoading}");
     expect(source).toContain("locationsError={Boolean(formOptionsError)}");
-    expect(source).toContain("onRetryLocations={reloadFormOptions}");
+    expect(source).toContain("onClick={reloadFormOptions}");
   });
 
-  it("keeps Add User creation blocked and retryable while location assignment data is unavailable", () => {
+  it("keeps invite-first onboarding independent from location assignment data", () => {
     const source = readFileSync("src/components/onboarding/OnboardingDialog.tsx", "utf8");
 
-    expect(source).toContain("locationsLoading");
-    expect(source).toContain("locationsError");
-    expect(source).toContain("onRetryLocations");
-    expect(source).toContain("locationOptionsUnavailable");
-    expect(source).toContain("Locations could not load, so location assignment is unavailable.");
-    expect(source).toContain("Retry locations");
-    expect(source).toContain("if (locationsLoading || locationsError) return;");
-    expect(source).toContain("disabled={submitting || locationsLoading || locationsError}");
+    expect(source).toContain("Users set their own password the first time they register.");
+    expect(source).toContain("name=\"bulkInvitationRows\"");
+    expect(source).toContain("name=\"singleInvitationEmail\"");
+    expect(source).not.toContain("locationsLoading");
+    expect(source).not.toContain("locationsError");
+    expect(source).not.toContain("onRetryLocations");
+    expect(source).not.toContain("locationOptionsUnavailable");
   });
 
   it("marks the roster location filter unavailable when location options are loading or failed", () => {

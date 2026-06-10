@@ -1,9 +1,10 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { FormEvent, type ComponentType, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircleIcon, ImageIcon } from "lucide-react";
+import { AlertCircleIcon, CheckCircle2Icon, ImageIcon, LayersIcon, PackageIcon, ScanLineIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
@@ -20,6 +21,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import ChooseImageModal from "@/components/ChooseImageModal";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
+import { cn } from "@/lib/utils";
 
 import type { NewItemSheetProps, ItemKind } from "./new-item-sheet/types";
 import { SectionHeading, SuccessFlash } from "@/components/form-layout";
@@ -41,11 +43,80 @@ type ItemCreateResponse = {
   };
 };
 
+type KindOption = {
+  kind: ItemKind;
+  id: string;
+  title: string;
+  badge: string;
+  badgeVariant: BadgeProps["variant"];
+  description: string;
+  outcome: string;
+  requirements: string[];
+  icon: ComponentType<{ className?: string }>;
+};
+
+const KIND_OPTIONS: KindOption[] = [
+  {
+    kind: "standard",
+    id: "kind-standard",
+    title: "Standard",
+    badge: "Serialized",
+    badgeVariant: "blue",
+    description: "One specific physical item with its own tag and scan code.",
+    outcome: "Creates one item record that can be reserved, checked out, and found by QR.",
+    requirements: ["Asset tag", "Category", "Location", "QR code"],
+    icon: ScanLineIcon,
+  },
+  {
+    kind: "units",
+    id: "kind-units",
+    title: "Units",
+    badge: "Numbered family",
+    badgeVariant: "purple",
+    description: "One item family with numbered or scannable units under it.",
+    outcome: "Creates a family record plus numbered units for kiosk pickup and return.",
+    requirements: ["Name", "Category", "Location", "Family QR"],
+    icon: LayersIcon,
+  },
+  {
+    kind: "quantity",
+    id: "kind-quantity",
+    title: "Quantity",
+    badge: "Count stock",
+    badgeVariant: "green",
+    description: "Count-only stock where individual units are not scanned.",
+    outcome: "Creates or updates one stock record and tracks the count on hand.",
+    requirements: ["Name or existing item", "Category", "Location", "Stock QR"],
+    icon: PackageIcon,
+  },
+];
+
+function optionForKind(kind: ItemKind) {
+  return KIND_OPTIONS.find((option) => option.kind === kind) ?? KIND_OPTIONS[0]!;
+}
+
 function payloadSuccessMessage(label: string, openLabel: string) {
   if (openLabel === "Open stock record") {
     return `"${label}" stock updated successfully.`;
   }
   return `"${label}" created successfully.`;
+}
+
+function SummaryRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4 px-2 py-3">
+      <span className="mt-0.5 shrink-0 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+        {label}
+      </span>
+      <div className="min-w-0 text-right text-sm font-medium">{children}</div>
+    </div>
+  );
 }
 
 function buildImageSearchSeed(name?: unknown, brand?: unknown, model?: unknown, fallback?: unknown) {
@@ -85,6 +156,7 @@ export function NewItemSheet({
 
   const serializedRef = useRef<SerializedFormHandle>(null);
   const bulkRef = useRef<BulkFormHandle>(null);
+  const selectedKind = optionForKind(kind);
 
   const resetAll = useCallback(() => {
     setError("");
@@ -250,22 +322,48 @@ export function NewItemSheet({
     <Sheet open={open} onOpenChange={(v) => { if (submitting) return; onOpenChange(v); if (!v) resetAll(); }}>
       <SheetContent className="sm:max-w-xl">
         <SheetHeader>
-          <SheetTitle>Add item</SheetTitle>
-          <SheetDescription>Choose how this item is tracked, then choose the next step.</SheetDescription>
+          <div className="flex items-center gap-2">
+            <Badge variant={selectedKind.badgeVariant} size="sm">
+              {selectedKind.badge}
+            </Badge>
+            <SheetTitle>Add item</SheetTitle>
+          </div>
+          <SheetDescription>{selectedKind.outcome}</SheetDescription>
         </SheetHeader>
 
         <SheetBody className="px-6 py-6">
           {showPostCreate ? (
             <div className="flex flex-col gap-6">
-              <SuccessFlash message={createdHandoff?.successMessage ?? "Saved successfully."} />
-              <div className="rounded-md border border-border/70 bg-muted/20 p-4">
-                <p className="text-sm font-medium">Next step</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {createdHandoff?.description}
+              <div className="rounded-2xl border border-border/50 bg-background/80 px-5 py-7 text-center shadow-[0_12px_50px_rgba(0,0,0,0.05)] dark:shadow-none">
+                <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-[var(--green-bg)] text-[var(--green-text)]">
+                  <CheckCircle2Icon className="size-6" />
+                </div>
+                <Badge variant={optionForKind(createdHandoff?.kind ?? kind).badgeVariant} size="sm" className="mt-4">
+                  {optionForKind(createdHandoff?.kind ?? kind).badge}
+                </Badge>
+                <h3 className="mt-3 text-xl font-semibold tracking-tight text-balance">
+                  {createdHandoff?.label ?? "Item"} is ready.
+                </h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {createdHandoff?.successMessage ?? "Saved successfully."}
                 </p>
+
+                <div className="mt-6 divide-y divide-border/70 border-y border-border/70">
+                  <SummaryRow label="Status">
+                    <Badge variant="green" size="sm">
+                      {createdHandoff?.openLabel === "Open stock record" ? "Stock updated" : "Created"}
+                    </Badge>
+                  </SummaryRow>
+                  <SummaryRow label="Tracking">
+                    {optionForKind(createdHandoff?.kind ?? kind).title}
+                  </SummaryRow>
+                  <SummaryRow label="Next">
+                    <span className="text-muted-foreground">{createdHandoff?.description}</span>
+                  </SummaryRow>
+                </div>
               </div>
               {createdHandoff?.kind === "standard" && (
-                <div className="flex flex-col items-center gap-1 py-2">
+                <div className="flex flex-col items-center gap-1 rounded-xl border border-border/50 bg-muted/20 px-4 py-4">
                   <Button
                     type="button"
                     variant="outline"
@@ -283,10 +381,29 @@ export function NewItemSheet({
             </div>
           ) : (
             <form id="new-item-form" onSubmit={handleSubmit} className="flex flex-col gap-6">
+              <div className="rounded-md border border-border/60 bg-background px-3 py-2.5 shadow-xs">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={selectedKind.badgeVariant} size="sm">
+                    {selectedKind.title}
+                  </Badge>
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {selectedKind.outcome}
+                  </span>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {selectedKind.requirements.map((requirement) => (
+                    <Badge key={requirement} variant="outline" size="sm">
+                      {requirement}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
               {/* ── Tracking style ── */}
               <section className="flex flex-col gap-3">
                 <SectionHeading>Tracking style</SectionHeading>
                 <RadioGroup
+                  className="grid gap-2"
                   name="item-kind"
                   value={kind}
                   onValueChange={(v) => {
@@ -295,33 +412,45 @@ export function NewItemSheet({
                   }}
                   disabled={submitting}
                 >
-                  <div className="flex items-start gap-3">
-                    <RadioGroupItem value="standard" id="kind-standard" className="mt-0.5" />
-                    <div>
-                      <Label htmlFor="kind-standard" className="font-medium cursor-pointer">Standard</Label>
-                      <p className="text-xs text-muted-foreground">
-                        One physical item with its own identity. Examples: camera body, lens, laptop.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <RadioGroupItem value="units" id="kind-units" className="mt-0.5" />
-                    <div>
-                      <Label htmlFor="kind-units" className="font-medium cursor-pointer">Units</Label>
-                      <p className="text-xs text-muted-foreground">
-                        One item with many scannable units. Examples: batteries, radios, card readers.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <RadioGroupItem value="quantity" id="kind-quantity" className="mt-0.5" />
-                    <div>
-                      <Label htmlFor="kind-quantity" className="font-medium cursor-pointer">Quantity</Label>
-                      <p className="text-xs text-muted-foreground">
-                        One item tracked by count only. Examples: tape, zip ties, cleaning supplies.
-                      </p>
-                    </div>
-                  </div>
+                  {KIND_OPTIONS.map((option) => {
+                    const Icon = option.icon;
+                    const selected = kind === option.kind;
+                    return (
+                      <label
+                        key={option.kind}
+                        htmlFor={option.id}
+                        className={cn(
+                          "flex cursor-pointer gap-3 rounded-xl border px-3 py-3 shadow-xs transition-[background-color,border-color,box-shadow]",
+                          selected
+                            ? "border-primary/55 bg-primary/5 shadow-[0_8px_24px_rgba(0,0,0,0.05)]"
+                            : "border-border/55 bg-background hover:bg-muted/40",
+                        )}
+                      >
+                        <RadioGroupItem value={option.kind} id={option.id} className="mt-1" />
+                        <div className="flex min-w-0 flex-1 gap-3">
+                          <div
+                            className={cn(
+                              "flex size-9 shrink-0 items-center justify-center rounded-lg",
+                              selected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+                            )}
+                          >
+                            <Icon className="size-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-sm font-semibold">{option.title}</span>
+                              <Badge variant={option.badgeVariant} size="sm">
+                                {option.badge}
+                              </Badge>
+                            </div>
+                            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                              {option.description}
+                            </p>
+                          </div>
+                        </div>
+                      </label>
+                    );
+                  })}
                 </RadioGroup>
               </section>
 

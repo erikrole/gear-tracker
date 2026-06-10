@@ -378,4 +378,23 @@ describe("onboarding lifecycle service", () => {
       ]),
     );
   });
+
+  it("blocks admin rows from bulk onboarding even for admins", async () => {
+    const { createDirectUserAccountsBulk } = await import("@/lib/services/onboarding-lifecycle");
+
+    await expect(
+      createDirectUserAccountsBulk({
+        actor: admin,
+        users: [
+          { name: "Admin Two", email: "admin2@uw.edu", role: "ADMIN", passwordHash: "hash-1" },
+        ],
+      }),
+    ).rejects.toMatchObject({
+      status: 403,
+      message: "Bulk onboarding can only create staff or student users",
+    });
+
+    expect(db.user.findMany).not.toHaveBeenCalled();
+    expect(tx.user.create).not.toHaveBeenCalled();
+  });
 });

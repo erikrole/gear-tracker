@@ -237,7 +237,7 @@ struct HomeView: View {
                 UserDetailView(userId: route.id)
             }
             .sheet(isPresented: $showNotifications, onDismiss: {
-                Task { await appState.refresh() }
+                Task { await appState.refresh(forceRefresh: true) }
                 if let id = pendingBookingId {
                     navigationPath.append(id)
                     pendingBookingId = nil

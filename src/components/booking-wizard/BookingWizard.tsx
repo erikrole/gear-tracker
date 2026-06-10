@@ -30,6 +30,7 @@ import {
   type BulkSkuOption,
 } from "@/components/booking-list/types";
 import type { FormState, FormAction } from "@/components/create-booking/types";
+import { applyDurationPreservingStartChange } from "@/components/create-booking/date-duration";
 import { useEventContext } from "@/components/create-booking/use-event-context";
 import { useDraftManagement } from "@/components/create-booking/use-draft-management";
 import { useKitFetching } from "@/components/create-booking/use-kit-fetching";
@@ -115,7 +116,7 @@ function formReducer(state: FormState, action: FormAction): FormState {
     case "SET_LOCATION_ID":
       return { ...state, locationId: action.value };
     case "SET_STARTS_AT":
-      return { ...state, startsAt: action.value };
+      return applyDurationPreservingStartChange(state, action.value);
     case "SET_ENDS_AT":
       return { ...state, endsAt: action.value };
     case "SET_NOTES":

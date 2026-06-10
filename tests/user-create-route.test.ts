@@ -33,7 +33,6 @@ vi.mock("@sentry/nextjs", () => ({
 }));
 
 import { requireAuth, hashPassword } from "@/lib/auth";
-import { createAuditEntry } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { POST } from "@/app/api/users/route";
 
@@ -80,7 +79,7 @@ beforeEach(() => {
 });
 
 describe("POST /api/users", () => {
-  it("creates temporary-password users with a forced password change and claimed allowlist record", async () => {
+  it("retires first-time temporary-password user creation", async () => {
     const res = await POST(
       postUser({
         name: "New Staff",
@@ -93,90 +92,30 @@ describe("POST /api/users", () => {
     );
     const body = await res.json();
 
-    expect(res.status).toBe(201);
-    expect(mockTx.user.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          email: "new.staff@example.com",
-          passwordHash: "hashed-temp-password",
-          forcePasswordChange: true,
-          role: "STAFF",
-        }),
-      }),
-    );
-    expect(mockTx.allowedEmail.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          email: "new.staff@example.com",
-          role: "STAFF",
-          createdById: "admin-1",
-          claimedById: "user-1",
-          claimedAt: expect.any(Date),
-        }),
-      }),
-    );
-    expect(body.data.forcePasswordChange).toBe(true);
-    expect(createAuditEntry).toHaveBeenCalledWith(
-      expect.objectContaining({
-        entityType: "user",
-        action: "created",
-        after: expect.objectContaining({ forcePasswordChange: true }),
-      }),
-    );
-    expect(createAuditEntry).toHaveBeenCalledWith(
-      expect.objectContaining({
-        entityType: "allowed_email",
-        action: "created",
-        after: expect.objectContaining({ source: "direct_user_create" }),
-      }),
-    );
-    expect(db.$transaction).toHaveBeenCalledWith(expect.any(Function));
+    expect(res.status).toBe(410);
+    expect(body.error).toBe("Temporary-password onboarding has been retired. Add the email to the allowlist so the user can register and set their own password.");
+    expect(hashPassword).not.toHaveBeenCalled();
+    expect(mockTx.user.create).not.toHaveBeenCalled();
+    expect(mockTx.allowedEmail.create).not.toHaveBeenCalled();
+    expect(db.$transaction).not.toHaveBeenCalled();
   });
 
-  it("claims an existing pending allowlist row when the user is created directly", async () => {
-    mockTx.allowedEmail.findUnique.mockResolvedValue({
-      id: "allow-1",
-      email: "new.staff@example.com",
-      role: "STUDENT",
-      claimedAt: null,
-      claimedById: null,
-    });
-    mockTx.allowedEmail.update.mockResolvedValue({
-      id: "allow-1",
-      email: "new.staff@example.com",
-      role: "STAFF",
-      claimedAt: new Date("2026-05-12T12:00:00.000Z"),
-      claimedById: "user-1",
-    });
-
+  it("does not allow admin direct-create requests either", async () => {
     const res = await POST(
       postUser({
-        name: "New Staff",
-        email: "new.staff@example.com",
+        name: "Admin Two",
+        email: "admin.two@example.com",
         password: "temporary-pass",
-        role: "STAFF",
+        role: "ADMIN",
         locationId: null,
       }),
       { params: Promise.resolve({}) },
     );
+    const body = await res.json();
 
-    expect(res.status).toBe(201);
-    expect(mockTx.allowedEmail.create).not.toHaveBeenCalled();
-    expect(mockTx.allowedEmail.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: "allow-1" },
-        data: expect.objectContaining({
-          role: "STAFF",
-          claimedById: "user-1",
-          claimedAt: expect.any(Date),
-        }),
-      }),
-    );
-    expect(createAuditEntry).toHaveBeenCalledWith(
-      expect.objectContaining({
-        entityType: "allowed_email",
-        action: "claimed",
-      }),
-    );
+    expect(res.status).toBe(410);
+    expect(body.error).toBe("Temporary-password onboarding has been retired. Add the email to the allowlist so the user can register and set their own password.");
+    expect(hashPassword).not.toHaveBeenCalled();
+    expect(db.$transaction).not.toHaveBeenCalled();
   });
 });

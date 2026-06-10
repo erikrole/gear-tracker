@@ -79,6 +79,7 @@ function isForcePasswordAllowed(req: Request): boolean {
   const pathname = new URL(req.url).pathname;
   return (
     (req.method === "PATCH" && pathname === "/api/profile") ||
+    (req.method === "POST" && pathname === "/api/me/change-password") ||
     (req.method === "POST" && pathname === "/api/auth/logout")
   );
 }

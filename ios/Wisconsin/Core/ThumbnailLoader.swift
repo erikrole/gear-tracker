@@ -46,6 +46,10 @@ final class ThumbnailCache {
 private let thumbnailSession: URLSession = {
     let config = URLSessionConfiguration.default
     config.urlCache = nil
+    config.waitsForConnectivity = false
+    config.timeoutIntervalForRequest = 15
+    config.timeoutIntervalForResource = 30
+    config.multipathServiceType = .none
     return URLSession(configuration: config)
 }()
 

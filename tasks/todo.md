@@ -1,6 +1,6 @@
 # Task Queue
 
-Last updated: 2026-06-06
+Last updated: 2026-06-10
 
 **Current release**: Beta — CalVer versioning adopted.
 **Release workflow**: `npm run release` creates CalVer tag + GitHub Release.
@@ -43,6 +43,153 @@ Last updated: 2026-06-06
 ---
 
 ## Open Items
+
+### iOS Settings Detail Menus Slice (2026-06-10)
+- [x] **Open slice plan** - Started and archived `tasks/archive/ios-settings-detail-menus-plan.md` for native Settings drill-downs.
+- [x] **Notifications detail menu** - Move notification delivery, pause, channel, and category controls out of the root Settings list into a dedicated native Notifications destination.
+- [x] **Account & Security detail menu** - Add a native Account & Security destination with account identity, role, password change, optional other-session revocation, and web handoff for full profile/session management.
+- [x] **Focused coverage** - Add source-contract tests for the new navigation destinations, notification detail ownership, and password-change UI/API wiring.
+- [x] **Docs and verification** - Sync mobile/settings/notification/user docs and run the iOS verification stack.
+
+**Review**
+- 2026-06-10: Native Settings now keeps root Account and Notifications as scannable menu rows. Notifications opens a dedicated detail screen with delivery status, OS push recovery, pause controls, email/push channel toggles, and the four category toggles. Account & Security opens a native password-change workflow with account identity, role, show/hide password control, confirm-password validation, and optional sign-out-other-devices behavior through the existing `/api/me/change-password` client.
+- 2026-06-10: Full profile editing and active-session review remain linked to web Settings for this slice. No schema, backend contract, or tab-shell architecture changed.
+- 2026-06-10: Verification passed: `npx vitest run tests/ios-settings-detail-menus.test.ts tests/ios-settings-first-class.test.ts tests/ios-notification-categories-profile.test.ts tests/student-field-contracts.test.ts tests/ios-forced-password.test.ts`, `npm run drift:ios`, `npm run audit:ios:gaps`, `git diff --check`, and escalated `xcodebuild -project ios/Wisconsin.xcodeproj -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build`. The first sandboxed Xcode build failed before compilation on CoreSimulator/DerivedData permissions; the rerun outside the sandbox succeeded. `npm run audit:ios:gaps` still reports the unrelated unregistered `Components/UserAvatarView.swift` warning with 35/35 audit-worthy surfaces covered.
+
+### iOS Settings First-Class Slice (2026-06-10)
+- [x] **Open slice plan** - Started and archived `tasks/archive/ios-settings-first-class-plan.md` for the native Settings/Profile hub upgrade.
+- [x] **Native settings IA** - Refactor Profile into a first-class iOS Settings surface with stronger account, notification, schedule, appearance, tools, and app grouping.
+- [x] **Focused coverage** - Add source-contract tests for settings row labels, role-gated entries, and preserved notification controls.
+- [x] **Docs and verification** - Sync mobile/settings docs and run the iOS verification stack.
+
+**Review**
+- 2026-06-10: Native Profile now presents as Settings, with an account summary, shift/overdue/alert metrics, first-class settings rows, grouped schedule/account/notifications/appearance/tools/app sections, student-only Availability, staff/admin-only Link Sticker Codes, and a named sign-out row.
+- 2026-06-10: No API, schema, or notification delivery contract changed. The stable `.tabItem`/`.tag` tab shell remains in place after the previously reproduced `Tab(...)` Schedule crash.
+- 2026-06-10: Verification passed: `npx vitest run tests/ios-settings-first-class.test.ts tests/ios-notification-categories-profile.test.ts tests/student-field-contracts.test.ts`, `npm run drift:ios`, `npm run audit:ios:gaps`, `git diff --check`, and escalated `xcodebuild -project ios/Wisconsin.xcodeproj -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build`. The first sandboxed Xcode build failed before compilation on CoreSimulator/DerivedData permissions; the rerun outside the sandbox succeeded. `npm run audit:ios:gaps` still reports the unrelated unregistered `Components/UserAvatarView.swift` warning with 35/35 audit-worthy surfaces covered.
+
+### Booking Flow Follow-up (2026-06-10)
+- [x] **Open slice plan** - Started `tasks/booking-flow-followup-plan.md` for the handoff from the visual booking-flow refresh.
+- [x] **Web duration parity** - Preserve the booking duration when the web Step 1 start date changes.
+- [x] **Native picker parity** - Add scan-to-add and bulk/countable item selection to iOS booking creation, including typed `bulkItems` submission.
+- [x] **Focused coverage** - Add regression coverage for duration-preserving web date edits.
+- [x] **Verification and review** - Run focused tests, typecheck, whitespace checks, iOS drift/audit checks, and record the authenticated browser-smoke status.
+
+**Review**
+- 2026-06-10: Web checkout/reservation creation now preserves the booking duration when the Step 1 start date changes, matching iOS `adjustStart(to:)`. Invalid existing windows stay invalid so validation still blocks them.
+- 2026-06-10: Authenticated local browser smoke passed on `/checkouts/new` using the seeded admin account. Moving Pickup from 7:00 AM to 9:30 AM shifted Return by from the next day at 7:00 AM to 9:30 AM; no visible `\u2026` escape literals and no console warnings/errors were found. Screenshot proof saved at `tasks/booking-flow-followup-checkout-new.png`.
+- 2026-06-10: Native picker parity remains the next first-class booking-flow slice: scan-to-add, bulk battery selection, and advisory availability context are real gaps, but they touch the iOS picker model/API contract rather than this web reducer fix.
+- 2026-06-10: Native picker parity shipped for iOS reservation creation. The Equipment step can scan serialized gear into the selection, add countable/bulk supplies such as batteries by quantity, carry those selections into the selected tray and Review step, and submit typed `bulkItems` through the existing reservation create API. Richer bulk/next-use advisory context remains follow-up polish.
+
+### iOS Notifications Category Parity Slice (2026-06-10)
+- [x] **Open slice plan** - Started `tasks/ios-notifications-category-parity-plan.md` for native Profile notification type toggles.
+- [x] **Native category controls** - Add iOS Profile toggles for checkout due, checkout overdue, reservation, and license expiry notification categories.
+- [x] **Preference save helpers** - Route single-category changes through `NotificationPrefsViewModel` while preserving legacy missing-category defaults.
+- [x] **Focused contract coverage** - Add source tests proving API defaults, native model fields, web labels, Profile labels, and native save path stay aligned.
+- [x] **Docs and verification** - Sync mobile/notification docs and run the iOS verification stack.
+
+**Review**
+- 2026-06-10: Native Profile now exposes the existing web-backed `Notification types` controls for checkout due reminders, checkout overdue alerts, reservation updates, and license expiry reminders. This changes the iOS control surface only; server delivery rules, category names, and in-app inbox behavior are unchanged.
+- 2026-06-10: `NotificationPrefsViewModel` defaults missing legacy category JSON to all enabled before applying a single toggle, then saves the full category object through the existing optimistic preference save path.
+- 2026-06-10: Focused contract coverage pins the API defaults, native model fields, web labels, native Profile labels, and native category save path so future category drift fails in tests.
+- 2026-06-10: Verification passed: `npx vitest run tests/ios-notification-categories-profile.test.ts tests/ios-api-contract.test.ts tests/ios-notifications-token-honesty.test.ts tests/ios-notifications-tapthrough.test.ts tests/ios-notifications-read-recovery.test.ts`, `npx tsc --noEmit`, `npm run drift:ios`, `npm run audit:ios:gaps`, `git diff --check`, and escalated `xcodebuild -project ios/Wisconsin.xcodeproj -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build`. The first sandboxed Xcode build failed before compilation on CoreSimulator/DerivedData permissions; the rerun outside the sandbox succeeded. `npm run audit:ios:gaps` still reports the unrelated unregistered `Components/UserAvatarView.swift` warning with 35/35 audit-worthy surfaces covered.
+
+### iOS Notifications Token Honesty Slice (2026-06-10)
+- [x] **Open slice plan** - Started `tasks/ios-notifications-token-honesty-plan.md` for APNs token registration/revocation error handling.
+- [x] **Shared API handling** - Route native device-token register/revoke calls through `perform` and `SuccessResponse`.
+- [x] **Focused contract coverage** - Add source tests proving `/api/devices` returns success and iOS no longer uses raw `session.data(for:)` for those calls.
+- [x] **Docs and verification** - Sync mobile/notification docs and run the iOS verification stack.
+
+**Review**
+- 2026-06-10: `APIClient.registerDeviceToken(_:)` and `revokeAllDeviceTokens()` now decode the `/api/devices` `{ success: true }` response through the shared `perform` handler instead of raw `URLSession.data`, so non-2xx responses are real errors and 401s broadcast `sessionDidExpire`.
+- 2026-06-10: Focused contract coverage pins both sides of the device-token contract: the route returns success envelopes for register/revoke, and native register/revoke do not drift back to raw `session.data(for:)`.
+- 2026-06-10: Verification passed: `npx vitest run tests/ios-notifications-token-honesty.test.ts tests/ios-notifications-tapthrough.test.ts tests/ios-notifications-read-recovery.test.ts`, `npx tsc --noEmit`, `npm run drift:ios`, `npm run audit:ios:gaps`, `git diff --check`, and escalated `xcodebuild -project ios/Wisconsin.xcodeproj -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build`. The first sandboxed Xcode build failed before compilation on CoreSimulator/DerivedData permissions; the rerun outside the sandbox succeeded. `npm run audit:ios:gaps` still reports the unrelated unregistered `Components/UserAvatarView.swift` warning with 35/35 audit-worthy surfaces covered.
+
+### iOS Notifications Tap-Through Slice (2026-06-10)
+- [x] **Open slice plan** - Started `tasks/ios-notifications-tapthrough-plan.md` for the narrow shift push routing fix.
+- [x] **Shift APNs payloads** - Include event routing context on shift gear-up and shift schedule push payloads.
+- [x] **Native Schedule routing** - Switch to the Schedule tab when a tapped push sets `pendingPushEventId`, leaving `ScheduleView` to open the event.
+- [x] **Focused contract coverage** - Add source tests for server push payloads and native pending-event tab routing.
+- [x] **Docs and verification** - Sync mobile/notification docs and run the iOS verification stack.
+
+**Review**
+- 2026-06-10: Shift gear-up and shift schedule pushes now include `eventId`, `assignmentId`, and `shiftId` in the APNs payload. The inbox payloads already carried those fields; the fix closes the native push gap without changing email or in-app notification creation.
+- 2026-06-10: `AppDelegate` already stores tapped `eventId` as `AppState.pendingPushEventId`, and `ScheduleView` already consumes that value. `AppTabView` now watches for the pending event, switches to the Schedule tab, and leaves `ScheduleView` to clear/open the event so the tab shell does not consume the navigation intent too early.
+- 2026-06-10: Verification passed: `npx vitest run tests/ios-notifications-tapthrough.test.ts tests/ios-notifications-read-recovery.test.ts`, `npx tsc --noEmit`, `npm run drift:ios`, `npm run audit:ios:gaps`, `git diff --check`, and escalated `xcodebuild -project ios/Wisconsin.xcodeproj -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build`. The first sandboxed Xcode build failed before compilation on CoreSimulator/DerivedData permissions; the rerun outside the sandbox succeeded. `npm run audit:ios:gaps` still reports the unrelated unregistered `Components/UserAvatarView.swift` warning with 35/35 audit-worthy surfaces covered.
+
+### iOS Notifications Audit (2026-06-10)
+- [x] **Plan audit scope** - Audit native notification permission, registration, inbox, tap-through, badge refresh, and server push contracts without changing code first.
+- [x] **Source grounding** - Read mobile/notification docs, current iOS notification source, API push paths, schema, and Apple notification guidance.
+- [x] **Findings** - Rank concrete improvement opportunities by user impact, implementation risk, and verification path.
+- [x] **Review** - Document recommendations and whether a narrow implementation slice should follow.
+
+**Review**
+- 2026-06-10: Current notification foundation is credible: native push uses APNs token registration, a soft pre-prompt, foreground banner/sound/badge presentation, unread badge refresh, in-app inbox pagination, optimistic mark-read rollback, quiet-hours and channel preferences, and APNs revocation cleanup.
+- 2026-06-10: Best next slice is tap-through correctness for non-booking push targets. The server creates shift notifications with `eventId` in the inbox payload, but `sendPushToUser` calls for `shift_gear_up` and shift schedule updates omit that payload. `AppDelegate` can store `pendingPushEventId`, and `ScheduleView` can consume it, but `AppTabView` does not switch to Schedule when an event push arrives. Result: booking pushes are reliable, while shift pushes can land without opening the relevant schedule context.
+- 2026-06-10: Second slice is push delivery honesty. `APIClient.registerDeviceToken` and `revokeAllDeviceTokens` use raw `session.data(for:)` instead of the shared `perform` path, so token registration failures do not surface shared API error handling or 401 routing. Add a small success response decode, route 401 through `sessionDidExpire`, and consider last registration status in Profile so a user who enabled OS push is not left thinking server delivery is active when token upsert failed.
+- 2026-06-10: Third slice is preference granularity parity. Web settings document category toggles for checkout due, checkout overdue, reservation, and license expiry; native Profile only exposes pause, email, and push master switches while preserving category JSON. That is safe, but it hides controls students and staff may expect once alerts increase.
+- 2026-06-10: Lower-priority follow-ups: align `AREA_NOTIFICATIONS.md` with current push reality because overdue and license pushes now exist despite the older V1.2 text saying overdue batch push was deferred; decide whether badge-award push should remain deferred; add source-contract tests for push payload routing and token-registration handling.
+- 2026-06-10: Verification for this audit-only pass: `npm run audit:ios:gaps` passed with 35/35 covered audit-worthy surfaces and the known unrelated unregistered `Components/UserAvatarView.swift` warning; `git diff --check` passed.
+
+### iOS Runtime Warning Cleanup (2026-06-09)
+- [x] **Open warning-cleanup plan** - Started `tasks/ios-runtime-warning-cleanup-plan.md` for the narrow native warning slice.
+- [x] **Patch foreground badge refresh energy** - Throttle opportunistic AppState badge refreshes while preserving forced refresh after notification and trade-board dismissals.
+- [x] **Patch URLSession fallback churn** - Main API, kiosk API, and thumbnail image sessions now use explicit mobile timeouts and no multipath service.
+- [x] **Patch Scan material/frame churn** - VisionKit now stays stopped while the Scan result/error sheet is visible and restarts only when the sheet dismisses.
+- [x] **Patch tab-bar crash** - AppTabView now uses stable `.tabItem`/`.tag` tabs instead of the iOS 26 `Tab(...)` builder plus tab minimization that desynced UIKit's tab item/controller map.
+- [x] **Reject crashing newest SwiftUI tabs** - User retest proved the typed value-based `Tab(...)` shell still crashes on Schedule; AppTabView is back on stable `.tabItem`/`.tag` tabs with the Users role-change guard.
+- [x] **Focused warning tests** - Added source-contract coverage for AppState throttling, the session changes, ScanView changes, and tab-bar stability.
+- [x] **Verification** - Focused warning and scan retry tests, iOS drift, iOS gap audit, touched-file whitespace, and the Wisconsin simulator build passed.
+
+**Review**
+- 2026-06-09: The Xcode Energy trace showed sparse Network/Overhead spikes rather than sustained thermal pressure. AppState badge refresh was the clearest repo-owned fan-out because each foreground activation could launch dashboard stats, notification count, and open-trade requests. Non-forced refreshes are now limited to one attempt per minute; notification and trade-board dismissals still force refresh because the user may have changed visible badge state.
+- 2026-06-09: Classified the pasted logs. `nw_endpoint_fallback_get_timeout_nanos` is CFNetwork path fallback noise, `PointerUI` and `_dictationButton` are Apple framework diagnostics, and the app-actionable warning is the repeated material/frame update around Scan result presentation. The patch should reduce app-triggered churn while preserving lookup-only Scan scope.
+- 2026-06-09: Verification passed: `npx vitest run tests/ios-appstate-refresh.test.ts tests/ios-runtime-warning-cleanup.test.ts tests/ios-scan-result-retry.test.ts`, `npm run drift:ios`, `npm run audit:ios:gaps`, touched-file `git diff --check`, and `xcodebuild -project ios/Wisconsin.xcodeproj -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build`. The sandboxed build could not access CoreSimulator/DerivedData, so the successful build used the approved unsandboxed fallback.
+- 2026-06-09: Attached crash trace showed `UITabBarController._viewControllerForTabBarItem` failing on Schedule selection. Rolled the app shell back to stable `.tabItem`/`.tag` tabs and added `tests/ios-tabbar-stability.test.ts`. A broader `student-field-contracts` run still has unrelated dirty-worktree drift around CreateBooking copy, so this crash slice verifies with focused tab/runtime tests plus the simulator build.
+- 2026-06-09: Crash fix verification passed with focused tab/runtime tests, `npm run drift:ios`, touched-file whitespace check, and XcodeBuildMCP `build_sim` for Wisconsin Debug. `npm run audit:ios:gaps` exited cleanly but noted unrelated unregistered `Components/UserAvatarView.swift` from the surrounding in-progress iOS work.
+- 2026-06-10: User asked to use the newest and best SwiftUI tab surface. The implementation should prefer the SDK-native `Tab` API with typed selection rather than reverting to legacy `.tabItem` once the focused tests and simulator build pass.
+- 2026-06-10: Restored the modern SwiftUI tab shell. Focused tab/runtime tests, `npm run drift:ios`, touched-file whitespace, and XcodeBuildMCP simulator build passed. `npm run audit:ios:gaps` still exits cleanly with the unrelated unregistered `Components/UserAvatarView.swift` warning.
+- 2026-06-10: User retest crashed again on Schedule with the modern `Tab(...)` shell. Root issue is the SwiftUI `Tab` builder path desynchronizing UIKit's tab item/controller mapping in this app, likely amplified by the conditional Users tab and/or tab-bar minimization/search role. Reverted to stable `.tabItem`/`.tag` and updated the guard test to keep that path out.
+
+### Internal Public Beta Launch Readiness (2026-06-08)
+- [x] **Flag launch work in this todo** - Added the Wednesday, June 10, 2026 readiness checklist and moved onboarding closeout to the top of the active queue.
+- [x] **Onboarding bulk-admin guard** - Bulk temporary-password onboarding now rejects Admin rows even for admin operators, keeping roster onboarding scoped to Staff and Student accounts.
+- [x] **Onboarding bulk-create rate limit** - `/api/users/bulk-create` now uses the shared settings mutation budget before generating temporary passwords or creating users.
+- [x] **Focused onboarding guard verification** - `npx vitest run tests/onboarding-lifecycle.test.ts tests/allowed-emails-preview.test.ts tests/users-bulk-create-route.test.ts` passed 13 tests.
+- [x] **Onboarding launch smoke** - Ran the real production access path: invite-to-register, stale invite removal, `/register?email=...` prefill, and forced-password recovery setup.
+- [x] **Production verification gate** - `npm run build`, `npm run db:migrate:health`, `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, focused launch tests, and full Vitest passed.
+- [x] **Authenticated core browser smoke** - Smoked `/`, `/items`, `/bookings`, `/checkouts/new`, `/reservations/new`, `/users`, `/users/onboarding-status`, `/settings/allowed-emails`, `/settings/calendar-sources`, `/admin/fix-today`, and `/notifications`.
+- [x] **iOS beta gate** - `npm run drift:ios`, `npm run audit:ios:gaps`, and the Wisconsin simulator build passed.
+- [x] **Vercel environment check** - Neon URLs, Blob, Redis/KV, Brave image search, APNS, session envs, cron schedules, and production `CRON_SECRET` are present. `RESEND_API_KEY` is not configured, so email delivery remains disabled by optional config.
+- [x] **Launch data prep** - Confirmed beta users, locations, calendar source, common gear, kits, and created representative active reservation `RV-0039` through the production API.
+- [x] **One-page beta runbook** - Documented onboarding, checkout creation, returns, stale invitation recovery, audit-log lookup, and escalation contacts for beta operators in `tasks/internal-public-beta-runbook.md`.
+- [x] **No-temp-password onboarding pivot** - First-time temporary-password account creation is retired; operators add allowlist invitations and users set their own password during registration.
+- [ ] **Release cut** - Run `npm run release` only after the production verification gate and launch smoke pass.
+
+**Review**
+- 2026-06-08: Started launch work with onboarding hardening. Focused onboarding tests, TypeScript, migration-prefix check, whitespace check, and `npx next build` passed.
+- 2026-06-08: After explicit approval, `npm run build` passed. The migration deploy step reached Neon, found no pending migrations, and the Next production build completed.
+- 2026-06-08: Added the one-page internal public beta runbook for Wednesday operator readiness.
+- 2026-06-08: `npm run db:migrate:health` passed against Neon: 75 local migrations, 75 applied, newest local migration `0074_student_availability_ad_hoc` applied, no pending local migrations, no unresolved failed rows, no DB-only migrations.
+- 2026-06-08: Initial Vercel connector project fetch returned 403, but the escalated read-only Vercel CLI env inventory succeeded.
+- 2026-06-08: Launch data read-only counts: 9 active users (4 admin, 4 staff, 1 student), 0 pending invites, 3 active locations, 1 enabled calendar source, 183 available assets, 3 active kits, 1 recent booking, and 0 active bookings. Launch data prep stays open until at least one representative active reservation or checkout exists in the launch environment.
+- 2026-06-08: iOS beta gate passed. `npm run drift:ios` found no anti-patterns across 46 Swift files, `npm run audit:ios:gaps` reported 35/35 audit-worthy surfaces covered, and the Wisconsin Debug simulator build exited successfully with only the AppIntents metadata extraction warning.
+- 2026-06-08: Full Vitest gate now passes: `npm test` passed 174 files and 1055 tests after correcting stale shift-trade test fixtures that expected Field while constructing default VIDEO shifts. Follow-up `npx tsc --noEmit`, `npm run db:migrate:check`, and `git diff --check` passed.
+- 2026-06-08: Live Vercel production env inventory verified by `vercel env list production --format json`. Present before the fix: `DATABASE_URL`, `DIRECT_URL`, `DATABASE_URL_UNPOOLED`, `BLOB_READ_WRITE_TOKEN`, `BRAVE_SEARCH_API_KEY`, Redis/KV envs accepted by the rate limiter, session envs, APNS envs, and `BADGES_ENABLED`. Missing before the fix: `CRON_SECRET` and `RESEND_API_KEY`. `CRON_SECRET` was required before beta because all `/api/cron/*` routes use `withCron()`.
+- 2026-06-08: Added production `CRON_SECRET`, deployed production `dpl_CfUk2zg8gsd2cvyAukv7wJTkiyjH`, and verified `/api/cron/notifications` through `vercel curl` on `https://gear-tracker-ma6hqcpxk-erikroles-projects.vercel.app`. Cron response: `ok: true`, `scanned: 0`, `notificationsCreated: 0`, license nag and expiry counts zero. Production is aliased to `https://gear.erikrole.com`.
+- 2026-06-08: Launch data prep next step is a representative future reservation. A direct production SQL insert was intentionally blocked because it would bypass the app booking API/service validation and side effects; create this through the authenticated app/API instead.
+- 2026-06-08: Created representative production reservation `RV-0039` (`Internal Public Beta Smoke Reservation`) through authenticated `/api/reservations`. `/api/bookings?active=true` now returns 1 active booking and includes `RV-0039` in `BOOKED` status.
+- 2026-06-08: Authenticated production browser smoke passed for `/`, `/items`, `/bookings`, `/checkouts/new`, `/reservations/new`, `/users`, `/users/onboarding-status`, `/settings/allowed-emails`, `/settings/calendar-sources`, `/admin/fix-today`, and `/notifications`. Each route loaded without login bounce or obvious app error state; selected-page console errors were empty.
+- 2026-06-08: Opened `tasks/no-temp-password-onboarding-plan.md` after deciding first-time onboarding should not use temporary passwords. The narrow beta slice retires direct temp-password onboarding and keeps invite-to-register as the first access path.
+- 2026-06-08: Updated the beta runbook and launch smoke target for invite-first onboarding plus admin password-reset recovery instead of direct-created temporary-password first login.
+- 2026-06-08: No-temp-password onboarding pivot passed focused onboarding tests, TypeScript, migration-prefix check, whitespace check, and `npx next build`.
+- 2026-06-08: Production onboarding launch smoke passed. Created a disposable allowlist invite, registered it through the public registration endpoint, verified `/register?email=...` prefill for an unclaimed invite, verified forced-password setup through `/api/me/change-password` after fixing the API wrapper allowlist, deleted the stale unclaimed invite, and deactivated disposable smoke users.
+- 2026-06-08: No-temp-password onboarding pivot shipped for beta. `/api/users` POST and `/api/users/bulk-create` now return retired-flow responses after auth and role checks; the shared onboarding dialog no longer exposes direct-create, bulk-create, temporary password generation, or CSV password handoff.
+- 2026-06-08: Latest release gate passed after the invite-first pivot: focused onboarding/API tests passed 37 tests, `npx tsc --noEmit` passed, `npm run db:migrate:check` passed, `git diff --check` passed, full `npm test` passed 174 files and 1056 tests, and escalated `npm run build` reached Neon, found no pending migrations, and completed the Next production build.
+- 2026-06-08: Deployed the invite-first pivot to production as `dpl_AwBTqZsUvTGKbi3eTC5ar8LXNwHu` (`https://gear-tracker-p4axgdyb5-erikroles-projects.vercel.app`) and aliased it to `https://gear.erikrole.com`. Final authenticated browser smoke on the latest deployment is pending a fresh login.
+- 2026-06-08: Active development loop selected Onboarding Flow Plan Slice 7: final tests, hardening, docs sync, and plan lifecycle for the no-temp-password beta pivot. Release cut remains separate.
+- 2026-06-08: Slice 7 exact build gate passed after explicit approval. `npm run build` reached Neon, found no pending migrations through the HTTP fallback, and completed the Next production build.
+- 2026-06-08: Local unauthenticated browser smoke passed for login/register and redirects from change-password, Users, Allowed Emails, and Onboarding Status with no console errors.
+- 2026-06-08: Authenticated local browser smoke passed after signing in with the documented local admin account. `/users` and `/settings/allowed-emails` loaded without login bounce, both Onboard users entry points opened the invite-only dialog, bulk paste and one-email tabs rendered without temporary-password/direct-create controls, and selected-page console warnings/errors were empty.
 
 ### iOS HIG and iOS 27 Readiness (2026-06-05)
 - [x] Create the active goal for HIG/iOS 27 readiness.
@@ -176,10 +323,10 @@ Last updated: 2026-06-06
 - [x] Write active slice plan in `tasks/onboarding-flow-plan.md`.
 - [x] Slice 1: Onboarding brief and decision sync.
 - [x] Slice 2: Server invitation service for shared allowlist/user lifecycle behavior.
-- [ ] Slice 3: Bulk-first web operator onboarding surface across Users and Allowed Emails.
-- [ ] Slice 4: Bulk security and operational hardening.
+- [x] Slice 3: Bulk-first web operator onboarding surface across Users and Allowed Emails.
+- [x] Slice 4: Bulk security and operational hardening.
 - [x] Slice 5: Native iOS forced-password setup.
-- [ ] Slice 6: iOS registration/recovery polish.
+- [x] Slice 6: iOS registration/recovery polish.
 - [ ] Slice 7: Tests, hardening, docs sync, and plan archive.
 
 **Review**
@@ -195,6 +342,9 @@ Last updated: 2026-06-06
 - Slice 5 shipped native first-login password setup: iOS decodes `forcePasswordChange`, keeps forced users out of the app tabs, lets them set a new password through `/api/me/change-password`, refreshes `/api/me`, and then lands them in the app without needing a computer.
 - Slice 3D/4 handoff shipped: the onboarding dialog now shows post-commit requested/added/skipped counts, keeps direct-created temporary passwords visible only in the result handoff, and supports CSV download for one-time temporary-password distribution.
 - Slice 3E shipped onboarding status: `/users/onboarding-status` now gives staff/admin a searchable status page for total, pending, stale pending, and claimed onboarding access, linked from Users, Settings > Allowed Emails, and onboarding completion.
+- Slice 3F/4 shipped bulk direct-create hardening: bulk `name,email,role,location` account creation supports role/location defaults, server-generated one-time temporary passwords, claimed allowlist rows, a 50-row cap, route-level rate limiting, and an explicit Admin-row rejection so onboarding remains scoped to Staff and Student accounts.
+- Slice 6 shipped with web-owned registration recovery: native Login links invited users to the web `/register` page, `/register?email=...` prepopulates the email field for phone-first onboarding, and forced-password users complete setup natively through `/api/me/change-password`.
+- Remaining launch work: run real end-to-end onboarding smoke in the launch environment, then complete Slice 7 verification/docs/archive.
 
 ### Booking Create UX Ownership Pass (2026-05-30)
 - [x] Audit checkout and reservation create docs, schema, routes, services, wizard components, picker, and peer surfaces.

@@ -28,6 +28,7 @@ interface ComboboxOption {
 }
 
 interface FormComboboxProps {
+  id?: string;
   value: string;
   onValueChange: (value: string) => void;
   options: ComboboxOption[];
@@ -41,6 +42,7 @@ interface FormComboboxProps {
 }
 
 export function FormCombobox({
+  id,
   value,
   onValueChange,
   options,
@@ -61,6 +63,7 @@ export function FormCombobox({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          id={id}
           variant="outline"
           role="combobox"
           aria-expanded={open}
@@ -116,6 +119,7 @@ export function FormCombobox({
 // ── Grouped category combobox ──
 
 interface CategoryComboboxProps {
+  id?: string;
   value: string;
   onValueChange: (value: string) => void;
   categories: CategoryOption[];
@@ -135,6 +139,7 @@ interface CategoryComboboxProps {
 }
 
 export function CategoryCombobox({
+  id,
   value,
   onValueChange,
   categories,
@@ -179,6 +184,7 @@ export function CategoryCombobox({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          id={id}
           variant={variant}
           role="combobox"
           aria-expanded={open}
@@ -298,12 +304,14 @@ export type BulkSkuOption = {
 };
 
 interface BulkSkuComboboxProps {
+  id?: string;
   value: string;
   onValueChange: (value: string) => void;
   skus: BulkSkuOption[];
 }
 
 export function BulkSkuCombobox({
+  id,
   value,
   onValueChange,
   skus,
@@ -315,6 +323,7 @@ export function BulkSkuCombobox({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          id={id}
           variant="outline"
           role="combobox"
           aria-expanded={open}

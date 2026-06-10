@@ -245,7 +245,7 @@ export default function OnboardingStatusPage() {
               inline
               icon="search"
               title={rows.length === 0 ? "No onboarding rows yet" : "No onboarding rows match"}
-              description={rows.length === 0 ? "Use Onboard users to create invitations or temporary-password accounts." : "Adjust the search or status filter."}
+              description={rows.length === 0 ? "Use Onboard users to create invitations." : "Adjust the search or status filter."}
             />
           </CardContent>
         ) : (

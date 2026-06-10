@@ -1,20 +1,8 @@
 import { withAuth } from "@/lib/api";
-import { hashPassword } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { HttpError, ok, parsePagination } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
-import { roleSchema } from "@/lib/validation";
-import { createDirectUserAccount } from "@/lib/services/onboarding-lifecycle";
 import { Prisma } from "@prisma/client";
-import { z } from "zod";
-
-const createUserSchema = z.object({
-  name: z.string().trim().min(1).max(100),
-  email: z.string().trim().email(),
-  password: z.string().min(8).max(128),
-  role: roleSchema.default("STAFF"),
-  locationId: z.string().cuid().nullable().optional()
-});
 
 export const GET = withAuth(async (req, { user }) => {
   requireRole(user.role, ["ADMIN", "STAFF", "STUDENT"]);
@@ -191,51 +179,8 @@ export const GET = withAuth(async (req, { user }) => {
 
 export const POST = withAuth(async (req, { user }) => {
   requireRole(user.role, ["ADMIN", "STAFF"]);
-
-  const body = createUserSchema.parse(await req.json());
-
-  // Only ADMIN can create users with the ADMIN role
-  if (user.role !== "ADMIN" && body.role === "ADMIN") {
-    throw new HttpError(403, "Only admins can create admin users");
-  }
-
-  const passwordHash = await hashPassword(body.password);
-
-  let result: Awaited<ReturnType<typeof createDirectUserAccount>> | null = null;
-  try {
-    result = await createDirectUserAccount({
-      actor: user,
-      name: body.name,
-      email: body.email,
-      passwordHash,
-      role: body.role,
-      locationId: body.locationId ?? null,
-    });
-  } catch (err) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-      throw new HttpError(409, "A user with this email already exists");
-    }
-    throw err;
-  }
-
-  if (!result) {
-    throw new HttpError(500, "Failed to create user");
-  }
-
-  const { created } = result;
-
-  return ok(
-    {
-      data: {
-        id: created.id,
-        name: created.name,
-        email: created.email,
-        role: created.role,
-        locationId: created.locationId,
-        location: created.location?.name ?? null,
-        forcePasswordChange: true
-      }
-    },
-    201
+  throw new HttpError(
+    410,
+    "Temporary-password onboarding has been retired. Add the email to the allowlist so the user can register and set their own password."
   );
 });

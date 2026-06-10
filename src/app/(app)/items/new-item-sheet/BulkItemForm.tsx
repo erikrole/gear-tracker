@@ -11,9 +11,10 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { BulkMode, Location } from "./types";
 import type { CategoryOption } from "@/types/category";
 import { generateQrCode } from "./helpers";
-import { FormRow, SectionHeading } from "@/components/form-layout";
+import { FormRow } from "@/components/form-layout";
 import { FormCombobox, CategoryCombobox, BulkSkuCombobox, type BulkSkuOption } from "@/components/FormCombobox";
 import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
+import { FormSection } from "./FormSection";
 
 export interface BulkFormHandle {
   validate(): string | null;
@@ -134,8 +135,12 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
       <fieldset disabled={disabled} className="contents">
         {trackingMode === "quantity" && (
           <>
-            <section className="space-y-3">
-              <SectionHeading>Quantity option</SectionHeading>
+            <FormSection
+              title="Quantity option"
+              badge="Stock mode"
+              badgeVariant="green"
+              description="Create a new stock record, or add this shipment to an existing count-tracked item."
+            >
               <RadioGroup name="bulk-mode" value={bulkMode} onValueChange={(v) => setBulkMode(v as BulkMode)} disabled={disabled}>
                 <div className="flex items-start gap-3">
                   <RadioGroupItem value="new" id="bulk-new" className="mt-0.5" />
@@ -152,17 +157,22 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
                   </div>
                 </div>
               </RadioGroup>
-            </section>
+            </FormSection>
 
             <Separator />
           </>
         )}
 
         {bulkMode === "new" ? (
-          <section className="space-y-4">
-            <SectionHeading>{trackingMode === "units" ? "New unit item" : "New quantity item"}</SectionHeading>
-
-            <FormRow label="Item name" required>
+          <FormSection
+            title={trackingMode === "units" ? "New unit item" : "New quantity item"}
+            badge={trackingMode === "units" ? "Numbered family" : "Count stock"}
+            badgeVariant={trackingMode === "units" ? "purple" : "green"}
+            description={trackingMode === "units"
+              ? "Use this for batteries, radios, card readers, or other families where pickup and return bind exact units later."
+              : "Use this for supplies and accessories where the count matters more than each individual unit."}
+          >
+            <FormRow label="Item name" htmlFor="new-bulk-item-name" required>
               <Input
                 id="new-bulk-item-name"
                 name="bulkName"
@@ -170,16 +180,18 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
                 value={bulkName}
                 onChange={(e) => setBulkName(e.target.value)}
                 placeholder={trackingMode === "units" ? "e.g. Sony BP-U70 Battery" : "e.g. Gaff Tape"}
+                autoComplete="off"
                 required
               />
             </FormRow>
 
-            <FormRow label="Category" required>
-              <CategoryCombobox value={categoryId} onValueChange={setCategoryId} categories={categories} disabled={disabled} />
+            <FormRow label="Category" htmlFor="new-bulk-item-category" required>
+              <CategoryCombobox id="new-bulk-item-category" value={categoryId} onValueChange={setCategoryId} categories={categories} disabled={disabled} />
             </FormRow>
 
-            <FormRow label="Location" required>
+            <FormRow label="Location" htmlFor="new-bulk-item-location" required>
               <FormCombobox
+                id="new-bulk-item-location"
                 value={locationId}
                 onValueChange={setLocationId}
                 options={locationOptions}
@@ -190,7 +202,7 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
               />
             </FormRow>
 
-            <FormRow label={trackingMode === "units" ? "Family QR code" : "Stock QR code"} required>
+            <FormRow label={trackingMode === "units" ? "Family QR code" : "Stock QR code"} htmlFor="new-bulk-item-qr-code" required>
               <div className="flex gap-2">
                 <Input
                   id="new-bulk-item-qr-code"
@@ -198,6 +210,7 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
                   value={bulkQrCode}
                   onChange={(e) => setBulkQrCode(e.target.value)}
                   placeholder={trackingMode === "units" ? "Family QR code" : "Stock QR code"}
+                  autoComplete="off"
                   required
                   className="flex-1"
                 />
@@ -206,6 +219,7 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
                   variant="outline"
                   size="icon"
                   title="Generate QR code"
+                  aria-label="Generate QR code"
                   onClick={() => setBulkQrCode(generateQrCode())}
                   disabled={disabled}
                 >
@@ -214,25 +228,29 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
               </div>
             </FormRow>
 
-            <FormRow label={trackingMode === "units" ? "Initial units" : "Initial quantity"}>
-              <Input id="new-bulk-item-initial-quantity" name="initialQuantity" value={initialQuantity} onChange={(e) => setInitialQuantity(e.target.value)} type="number" min="0" />
+            <FormRow label={trackingMode === "units" ? "Initial units" : "Initial quantity"} htmlFor="new-bulk-item-initial-quantity">
+              <Input id="new-bulk-item-initial-quantity" name="initialQuantity" value={initialQuantity} onChange={(e) => setInitialQuantity(e.target.value)} type="number" min="0" autoComplete="off" />
             </FormRow>
             {trackingMode === "units" && (
               <p className="text-xs text-muted-foreground">
                 The initial count creates numbered units under this item. Exact units are scanned during pickup and return.
               </p>
             )}
-          </section>
+          </FormSection>
         ) : (
-          <section className="space-y-4">
-            <SectionHeading>Add to existing</SectionHeading>
-
+          <FormSection
+            title="Add to existing"
+            badge="Shipment"
+            badgeVariant="orange"
+            description="This increases stock for an item family that already exists."
+          >
             {existingBulkSkus.length === 0 ? (
               <p className="text-sm text-muted-foreground">No quantity items found. Create one first.</p>
             ) : (
               <>
-                <FormRow label="Item" required>
+                <FormRow label="Item" htmlFor="existing-bulk-item" required>
                   <BulkSkuCombobox
+                    id="existing-bulk-item"
                     value={selectedBulkSkuId}
                     onValueChange={setSelectedBulkSkuId}
                     skus={existingBulkSkus}
@@ -263,7 +281,7 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
                   );
                 })()}
 
-                <FormRow label="Add quantity" required>
+                <FormRow label="Add quantity" htmlFor="existing-bulk-item-add-quantity" required>
                   <Input
                     id="existing-bulk-item-add-quantity"
                     name="addQuantity"
@@ -271,12 +289,13 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
                     min="1"
                     value={addQty}
                     onChange={(e) => setAddQty(parseInt(e.target.value) || 1)}
+                    autoComplete="off"
                     required
                   />
                 </FormRow>
               </>
             )}
-          </section>
+          </FormSection>
         )}
       </fieldset>
     );

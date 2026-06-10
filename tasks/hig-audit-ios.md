@@ -12,7 +12,7 @@ Findings tagged P0 (HIG violation), P1 (clear deviation), P2 (polish/feel).
 
 ## 2026-06-05 Refresh — iOS 27 Readiness
 
-**Current truth:** The earlier 2026-05-03 P0/P1 HIG sweep is mostly closed in current source. `AppTabView` already uses `Tab(...)`, `TabRole.search`, `.tabBarMinimizeBehavior(.onScrollDown)`, safe-area offline banners, and meaningful badge labels. The primary Scan tab already has permission priming, denied-state recovery, manual-entry fallback, haptics, retryable error state, and sheet-based results.
+**Current truth:** The earlier 2026-05-03 P0/P1 HIG sweep is mostly closed in current source. `AppTabView` tested the modern value-based `Tab(...)` API on 2026-06-10, but user retest confirmed it still triggers UIKit's tab item/controller assertion when Schedule is selected. Keep the stable `.tabItem`/`.tag` shell until Apple fixes the runtime path or the app shell is restructured and device-proven. The primary Scan tab already has permission priming, denied-state recovery, manual-entry fallback, haptics, retryable error state, and sheet-based results.
 
 **Apple timing:** WWDC26 runs June 8-12, 2026. The Keynote is June 8 at 10 a.m. PT and Platforms State of the Union is June 8 at 1 p.m. PT. Treat iOS 27-specific guidance as pending until those sessions publish. Current work should improve against today's HIG without raising deployment target or Swift version.
 
@@ -102,11 +102,11 @@ Findings tagged P0 (HIG violation), P1 (clear deviation), P2 (polish/feel).
 
 These are project-wide patterns to adopt in a single sweep before per-screen polish.
 
-- [x] **CC-1 — Migrate `TabView` to the new `Tab` struct API.** ✅ Shipped 2026-05-03.
-      The current `AppTabView.swift:10-32` uses the legacy `.tabItem { Label(...) }` pattern. iOS 26 introduces `Tab("Home", systemImage: "house") { HomeView() }` which is the canonical declaration. The old pattern still compiles but the new one is required to access `TabRole`, `tabPlacement`, and the floating-tab-bar adaptations on iPad/Mac. Cite: https://developer.apple.com/documentation/swiftui/tab
+- [ ] **CC-1 — Migrate `TabView` to the new `Tab` struct API.** Blocked 2026-06-10 by repeated UIKit tab item/controller assertion on Schedule selection.
+      The stable current shell uses `.tabItem { Label(...) }` plus `.tag(...)`. Do not reattempt `Tab("Home", systemImage: "house", value: ...)` until device verification proves UIKit's tab item/controller mapping remains stable. Cite: https://developer.apple.com/documentation/swiftui/tab
 
-- [x] **CC-2 — Adopt `TabRole.search` (where applicable) and `.tabBarMinimizeBehavior(.onScrollDown)`.** ✅ Shipped 2026-05-03.
-      The Scan tab is a search-flow entry; using `role: .search` puts it in the conventional search slot and unlocks system search styling. Adding `.tabBarMinimizeBehavior(.onScrollDown)` on the `TabView` gives the modern iOS 26 disappearing tab bar behavior on scroll. Cites: https://developer.apple.com/documentation/swiftui/tabrole, https://developer.apple.com/documentation/swiftui/view/tabbarminimizebehavior(_:)
+- [ ] **CC-2 — Adopt `TabRole.search` (where applicable) and `.tabBarMinimizeBehavior(.onScrollDown)`.** Blocked with CC-1.
+      Scan is a search-flow entry, but app-shell stability is higher priority than system search-slot styling. Do not restore `role: .search` or tab-bar minimization while they ride the crashing modern tab shell. Cites: https://developer.apple.com/documentation/swiftui/tabrole, https://developer.apple.com/documentation/swiftui/view/tabbarminimizebehavior(_:)
 
 - [ ] **CC-3 — Replace hand-rolled `.regularMaterial`/`.ultraThinMaterial` overlays with `.glassEffect(_:in:)` Liquid Glass.**
       Sites: `ScanView.swift:146` (`ScanResultCard` uses `.regularMaterial`), `ScanView.swift:28` (`ProgressView` in `.ultraThinMaterial` circle), `BannerView.swift` (probably). Liquid Glass is the iOS 26 system material — Apple's guidance is "Standard components in SwiftUI use Liquid Glass. Adopt Liquid Glass on custom components." Replace with `.glassEffect(in: .rect(cornerRadius: 20))` or `.glassEffect()` (default capsule). Wrap clusters in `GlassEffectContainer` for perf. Cite: https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views
@@ -141,9 +141,9 @@ These are project-wide patterns to adopt in a single sweep before per-screen pol
 
 **Verdict:** functional and uses correct semantic SF Symbols, but uses iOS 17-era APIs. Modernize to iOS 26.
 
-- [ ] **P1 — [Navigation/iOS-26] Migrate to `Tab` struct API + `TabRole.search` for Scan tab.** `AppTabView.swift:10-32`.
-      Replace `.tabItem { Label("Home", systemImage: "house") }` with `Tab("Home", systemImage: "house", value: 0) { HomeView() }`. Set `Tab("Scan", systemImage: "barcode.viewfinder", value: 3, role: .search) { ScanView() }`. Add `.tabBarMinimizeBehavior(.onScrollDown)` on the `TabView`.
-      Why: this is the canonical iOS 26 declaration; unlocks proper iPad sidebar adaptation and floating-tab-bar behavior on iOS 27 without code change.
+- [ ] **P1 — [Navigation/iOS-26] Re-evaluate `Tab` struct API + `TabRole.search` for Scan tab.** `AppTabView.swift:10-32`.
+      2026-06-10 status: user retest confirmed the modern tab shell still crashes on Schedule selection. Keep `.tabItem`/`.tag` until the runtime path is device-proven stable.
+      Why: this is the canonical iOS 26 declaration, but it is not the best API for this app while it reproduces a hard UIKit assertion.
       Cites: https://developer.apple.com/documentation/swiftui/tab • https://developer.apple.com/documentation/swiftui/tabrole • https://developer.apple.com/documentation/swiftui/view/tabbarminimizebehavior(_:)
 
 - [ ] **P1 — [Materials] Offline banner is a hand-rolled overlay.** `AppTabView.swift:34-42`.
@@ -320,7 +320,7 @@ These are project-wide patterns to adopt in a single sweep before per-screen pol
 
 **18 PRs landed on main.** Cross-cutting CC-1, 2, 4, 5, 6, 7, 8, 9, 10 ✅. CC-3 deferred for visual call. 21 per-screen findings closed (see list below). New components added: `ScanPrePromptView`, `ScanDeniedView`, `ScanManualEntryView`, `ScanResultSheet`, `BookingSummaryNavRow`, `Toast` + `.toast(_:)` modifier. Memory captured: `xcodegen` wipes manual entitlements (always restore `Wisconsin.entitlements` after running).
 
-The Wisconsin app's iOS 26 surface is now: `Tab` struct API with `TabRole.search` and `tabBarMinimizeBehavior(.onScrollDown)`; Liquid Glass on every prominent button (sign-in, scan-again, booking actions, floating search FAB); dynamic-provider brand color (light maroon + dark system-red, ≥4.5:1); semantic stroke borders replacing dark-mode-invisible black-opacity shadows; native `.sheet` with detents + `.presentationBackgroundInteraction` for scan results; camera permission priming gated on `AVCaptureDevice.authorizationStatus`; VoiceOver manual-entry fallback for the Scan tab; Reduce Motion honored on every non-kiosk animation; reusable Toast over `.alert` for non-blocking errors; Dynamic Type semantic fonts replacing hardcoded `.system(size:)`; Universal accessibility announcements on form errors.
+The Wisconsin app's iOS 26 surface is now: stable SwiftUI `TabView` with `.tabItem`/`.tag` tabs after the modern value-based `Tab(...)` shell repeatedly reproduced a UIKit tab item/controller assertion on Schedule selection; Liquid Glass on every prominent button (sign-in, scan-again, booking actions, floating search FAB); dynamic-provider brand color (light maroon + dark system-red, ≥4.5:1); semantic stroke borders replacing dark-mode-invisible black-opacity shadows; native `.sheet` with detents + `.presentationBackgroundInteraction` for scan results; camera permission priming gated on `AVCaptureDevice.authorizationStatus`; VoiceOver manual-entry fallback for the Scan tab; Reduce Motion honored on every non-kiosk animation; reusable Toast over `.alert` for non-blocking errors; Dynamic Type semantic fonts replacing hardcoded `.system(size:)`; Universal accessibility announcements on form errors.
 
 ## Per-screen P1s shipped 2026-05-03
 

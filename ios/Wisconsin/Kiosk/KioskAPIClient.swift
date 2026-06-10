@@ -12,6 +12,10 @@ struct KioskAPI {
         config.httpCookieStorage = HTTPCookieStorage.shared
         config.httpShouldSetCookies = true
         config.httpCookieAcceptPolicy = .always
+        config.waitsForConnectivity = false
+        config.timeoutIntervalForRequest = 15
+        config.timeoutIntervalForResource = 30
+        config.multipathServiceType = .none
         return URLSession(configuration: config)
     }()
 

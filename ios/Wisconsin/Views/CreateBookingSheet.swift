@@ -32,12 +32,15 @@ final class CreateBookingViewModel {
 
     // Equipment selection
     var selectedAssetIds: Set<String> = []
+    var selectedBulkQuantities: [String: Int] = [:]
     var availableAssets: [Asset] = []
     var selectedAssetSnapshots: [String: Asset] = [:]
     var isLoadingAssets = false
+    var isAddingScannedAsset = false
     var assetSearch = ""
     var assetTotal = 0
     var assetOffset = 0
+    var scanError: String?
     var hasMoreAssets: Bool { availableAssets.count < assetTotal }
     private var searchTask: Task<Void, Never>?
 
@@ -70,6 +73,37 @@ final class CreateBookingViewModel {
         selectedAssetIds
             .compactMap { id in selectedAssetSnapshots[id] ?? availableAssets.first(where: { $0.id == id }) }
             .sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
+    }
+    var availableBulkSkus: [FormBulkSku] {
+        let all = options?.bulkSkus ?? []
+        let query = assetSearch.trimmingCharacters(in: .whitespacesAndNewlines)
+        return all
+            .filter { sku in
+                guard selectedLocationId.isEmpty || sku.locationId == nil || sku.locationId == selectedLocationId else { return false }
+                if query.isEmpty { return true }
+                return sku.name.localizedCaseInsensitiveContains(query)
+                    || (sku.categoryName?.localizedCaseInsensitiveContains(query) ?? false)
+                    || (sku.category?.localizedCaseInsensitiveContains(query) ?? false)
+            }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+    var selectedBulkSkus: [FormBulkSku] {
+        let all = options?.bulkSkus ?? []
+        return all
+            .filter { (selectedBulkQuantities[$0.id] ?? 0) > 0 }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+    var selectedBulkTotal: Int {
+        selectedBulkQuantities.values.reduce(0, +)
+    }
+    var selectedEquipmentCount: Int {
+        selectedAssetIds.count + selectedBulkTotal
+    }
+    var selectedBulkRequests: [BulkReservationRequest] {
+        selectedBulkQuantities
+            .filter { $0.value > 0 }
+            .sorted { $0.key < $1.key }
+            .map { BulkReservationRequest(bulkSkuId: $0.key, quantity: $0.value) }
     }
 
     var isValid: Bool {
@@ -181,6 +215,57 @@ final class CreateBookingViewModel {
         scheduleConflictCheck()
     }
 
+    func quantity(for sku: FormBulkSku) -> Int {
+        selectedBulkQuantities[sku.id] ?? 0
+    }
+
+    func setBulkQuantity(_ sku: FormBulkSku, quantity: Int) {
+        let clamped = min(max(quantity, 0), max(sku.availableQuantity, 0))
+        if clamped == 0 {
+            selectedBulkQuantities.removeValue(forKey: sku.id)
+        } else {
+            selectedBulkQuantities[sku.id] = clamped
+        }
+    }
+
+    func incrementBulk(_ sku: FormBulkSku) {
+        setBulkQuantity(sku, quantity: quantity(for: sku) + 1)
+    }
+
+    func decrementBulk(_ sku: FormBulkSku) {
+        setBulkQuantity(sku, quantity: quantity(for: sku) - 1)
+    }
+
+    func removeSelectedBulk(_ sku: FormBulkSku) {
+        selectedBulkQuantities.removeValue(forKey: sku.id)
+    }
+
+    func addScannedAsset(id: String) async {
+        scanError = nil
+        isAddingScannedAsset = true
+        defer { isAddingScannedAsset = false }
+        do {
+            let detail = try await APIClient.shared.asset(id: id)
+            let asset = detail.asAsset
+            guard asset.computedStatus == .available else {
+                scanError = "\(asset.displayName) is \(asset.computedStatus.label.lowercased())."
+                Haptics.warning()
+                return
+            }
+            selectedAssetIds.insert(asset.id)
+            selectedAssetSnapshots[asset.id] = asset
+            if !availableAssets.contains(where: { $0.id == asset.id }) {
+                availableAssets.insert(asset, at: 0)
+                assetTotal = max(assetTotal, availableAssets.count)
+            }
+            scheduleConflictCheck()
+            Haptics.success()
+        } catch {
+            scanError = error.localizedDescription
+            Haptics.error()
+        }
+    }
+
     func onSearchChange() {
         searchTask?.cancel()
         searchTask = Task {
@@ -205,7 +290,8 @@ final class CreateBookingViewModel {
             notes: notes.isEmpty ? nil : notes,
             eventId: prefillEventId,
             shiftAssignmentId: prefillShiftAssignmentId,
-            serializedAssetIds: Array(selectedAssetIds)
+            serializedAssetIds: Array(selectedAssetIds),
+            bulkItems: selectedBulkRequests
         )
     }
 }
@@ -223,6 +309,7 @@ struct CreateBookingSheet: View {
     @State private var initialStartsAt: Date = .now
     @State private var initialEndsAt: Date = .now
     @State private var capturedInitial = false
+    @State private var showScanner = false
     @Environment(SessionStore.self) private var session
 
     init(onCreated: @escaping (String) -> Void) {
@@ -244,6 +331,7 @@ struct CreateBookingSheet: View {
         if !vm.title.trimmingCharacters(in: .whitespaces).isEmpty { return true }
         if !vm.notes.isEmpty { return true }
         if !vm.selectedAssetIds.isEmpty { return true }
+        if vm.selectedBulkTotal > 0 { return true }
         // Track requester / location / date deltas so a STAFF user who picks
         // a requester + adjusts dates and then taps Cancel gets a discard
         // prompt before losing the setup.
@@ -306,6 +394,12 @@ struct CreateBookingSheet: View {
             }
             .interactiveDismissDisabled(hasUnsavedInput || vm.isSubmitting)
             .task { await vm.loadOptions() }
+            .fullScreenCover(isPresented: $showScanner) {
+                QRScannerSheet { assetId in
+                    showScanner = false
+                    Task { await vm.addScannedAsset(id: assetId) }
+                }
+            }
             .onChange(of: vm.options) {
                 if vm.selectedUserId.isEmpty, let current = session.currentUser {
                     if vm.options?.users.contains(where: { $0.id == current.id }) == true {
@@ -359,7 +453,7 @@ struct CreateBookingSheet: View {
                 // Mirrors web: equipment is required before review, and the
                 // primary action reads "Review", not a submit.
                 Button("Review") { step = 3 }
-                    .disabled(vm.selectedAssetIds.isEmpty || vm.isSubmitting)
+                    .disabled(vm.selectedEquipmentCount == 0 || vm.isSubmitting)
                     .fontWeight(.semibold)
             }
             // Step 3's primary action is the prominent inline button in
@@ -480,9 +574,33 @@ struct CreateBookingSheet: View {
                     .onChange(of: vm.assetSearch) { vm.onSearchChange() }
             }
 
-            if !vm.selectedAssetIds.isEmpty {
+            Section {
+                Button {
+                    showScanner = true
+                } label: {
+                    Label("Scan equipment", systemImage: "barcode.viewfinder")
+                }
+                .disabled(vm.isAddingScannedAsset)
+
+                if vm.isAddingScannedAsset {
+                    HStack(spacing: 10) {
+                        ProgressView()
+                        Text("Adding scanned item…")
+                            .foregroundStyle(.secondary)
+                    }
+                    .font(.subheadline)
+                }
+
+                if let scanError = vm.scanError {
+                    Label(scanError, systemImage: "exclamationmark.triangle.fill")
+                        .font(.footnote)
+                        .foregroundStyle(Color.statusText(.orange))
+                }
+            }
+
+            if vm.selectedEquipmentCount > 0 {
                 Section {
-                    let count = vm.selectedAssetIds.count
+                    let count = vm.selectedEquipmentCount
                     Label("\(count) item\(count == 1 ? "" : "s") selected", systemImage: "checkmark.circle.fill")
                         .font(.subheadline)
                         .foregroundStyle(Color.statusText(.blue))
@@ -497,10 +615,40 @@ struct CreateBookingSheet: View {
                             Haptics.selection()
                         }
                     }
+                    ForEach(vm.selectedBulkSkus) { sku in
+                        SelectedBulkRow(
+                            sku: sku,
+                            quantity: vm.quantity(for: sku)
+                        ) {
+                            vm.removeSelectedBulk(sku)
+                            Haptics.selection()
+                        }
+                    }
                 } header: {
                     Text("Selected Equipment")
                 } footer: {
                     Text("Remove anything you do not want before creating the reservation.")
+                }
+            }
+
+            if !vm.availableBulkSkus.isEmpty {
+                Section {
+                    ForEach(vm.availableBulkSkus) { sku in
+                        BulkQuantityRow(
+                            sku: sku,
+                            quantity: vm.quantity(for: sku),
+                            onDecrement: {
+                                vm.decrementBulk(sku)
+                                Haptics.selection()
+                            },
+                            onIncrement: {
+                                vm.incrementBulk(sku)
+                                Haptics.selection()
+                            }
+                        )
+                    }
+                } header: {
+                    Text("Batteries & Counted Items")
                 }
             }
 
@@ -611,7 +759,7 @@ struct CreateBookingSheet: View {
                         }
                         Divider()
                         reviewFactRow(label: "Equipment") {
-                            Text("\(vm.selectedAssetIds.count) item\(vm.selectedAssetIds.count == 1 ? "" : "s")")
+                            Text("\(vm.selectedEquipmentCount) item\(vm.selectedEquipmentCount == 1 ? "" : "s")")
                                 .font(.subheadline.weight(.medium))
                                 .monospacedDigit()
                         }
@@ -679,6 +827,29 @@ struct CreateBookingSheet: View {
                             .padding(.horizontal, 12)
                             .padding(.vertical, 10)
                         }
+                        if !vm.selectedAssets.isEmpty && !vm.selectedBulkSkus.isEmpty {
+                            Divider().padding(.leading, 12)
+                        }
+                        ForEach(Array(vm.selectedBulkSkus.enumerated()), id: \.element.id) { index, sku in
+                            if index > 0 { Divider().padding(.leading, 12) }
+                            HStack(spacing: 10) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(sku.name)
+                                        .font(.subheadline.weight(.medium))
+                                        .lineLimit(1)
+                                    Text(bulkSubtitle(sku))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Text("×\(vm.quantity(for: sku))")
+                                    .font(.subheadline.weight(.semibold))
+                                    .monospacedDigit()
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                        }
                     }
                     .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
                     .overlay(
@@ -736,6 +907,12 @@ struct CreateBookingSheet: View {
             Haptics.warning()
         }
     }
+
+    private func bulkSubtitle(_ sku: FormBulkSku) -> String {
+        let unit = sku.unit?.isEmpty == false ? " \(sku.unit!)" : ""
+        let pickup = sku.trackByNumber ? " · units scan at pickup" : ""
+        return "\(sku.availableQuantity) available\(unit)\(pickup)"
+    }
 }
 
 private struct SelectedEquipmentRow: View {
@@ -790,6 +967,109 @@ private struct SelectedEquipmentRow: View {
         if isConflicted { parts.append("Scheduling conflict") }
         parts.append("Remove button")
         return parts.joined(separator: ", ")
+    }
+}
+
+private struct SelectedBulkRow: View {
+    let sku: FormBulkSku
+    let quantity: Int
+    let onRemove: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "shippingbox")
+                .foregroundStyle(.secondary)
+                .frame(width: 32, height: 32)
+                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 8))
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(sku.name)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Text("\(quantity) selected")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+            Spacer()
+            Button {
+                onRemove()
+            } label: {
+                Label("Remove", systemImage: "xmark.circle.fill")
+                    .labelStyle(.titleAndIcon)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Selected \(sku.name), \(quantity) selected, Remove button")
+    }
+}
+
+private struct BulkQuantityRow: View {
+    let sku: FormBulkSku
+    let quantity: Int
+    let onDecrement: () -> Void
+    let onIncrement: () -> Void
+
+    private var canIncrement: Bool { quantity < sku.availableQuantity }
+    private var unitLabel: String {
+        sku.unit?.isEmpty == false ? " \(sku.unit!)" : ""
+    }
+    private var subtitle: String {
+        let pickup = sku.trackByNumber ? " · units scan at pickup" : ""
+        return "\(sku.availableQuantity) available\(unitLabel)\(pickup)"
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "shippingbox")
+                .foregroundStyle(.secondary)
+                .frame(width: 44, height: 44)
+                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10))
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(sku.name)
+                    .font(.subheadline.weight(.medium))
+                    .lineLimit(1)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            HStack(spacing: 8) {
+                Button(action: onDecrement) {
+                    Image(systemName: "minus")
+                        .font(.system(size: 14, weight: .semibold))
+                        .frame(width: 40, height: 40)
+                }
+                .buttonStyle(.bordered)
+                .disabled(quantity == 0)
+                .accessibilityLabel("Remove one \(sku.name)")
+
+                Text("\(quantity)")
+                    .font(.body.monospacedDigit())
+                    .frame(minWidth: 24)
+                    .accessibilityLabel("\(quantity) selected")
+
+                Button(action: onIncrement) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 14, weight: .semibold))
+                        .frame(width: 40, height: 40)
+                }
+                .buttonStyle(.bordered)
+                .disabled(!canIncrement)
+                .accessibilityLabel("Add one \(sku.name)")
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(sku.name), \(subtitle), \(quantity) selected")
     }
 }
 

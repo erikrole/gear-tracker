@@ -57,6 +57,7 @@ Kiosk execution endpoints are documented in `docs/AREA_KIOSK.md`.
 
 | Date | Change |
 |---|---|
+| 2026-06-09 | iOS runtime warning cleanup: native Scan now leaves VisionKit stopped while result/error sheets are visible and re-arms scanning when the sheet dismisses, reducing system material frame-update churn while preserving lookup-only scan behavior. |
 | 2026-06-06 | iOS Scan result retry recovery: native lookup failures now expose Try again before Type code instead, retry the last scanned value after clearing same-code dedupe, and preserve lookup-only scope plus kiosk custody boundaries. |
 | 2026-05-25 | Web bug sweep Batch 22: lookup now safe-parses `/api/assets` and item detail responses, handles expired sessions through the shared auth redirect, and surfaces unreadable lookup payloads as retryable errors instead of collapsing malformed server responses into generic network copy. |
 | 2026-05-20 | Design language slice 3: lookup now uses the shared `PageHeader` title/description/action rhythm instead of a custom local heading block. |

@@ -84,6 +84,32 @@ final class NotificationPrefsViewModel {
         await save(current, fallbackTo: prev)
     }
 
+    func categoryValue(_ category: Category) -> Bool {
+        let categories = prefs?.categories ?? Self.defaultCategories
+        switch category {
+        case .checkoutDue:      return categories.checkoutDue
+        case .checkoutOverdue:  return categories.checkoutOverdue
+        case .reservation:      return categories.reservation
+        case .licenseExpiry:    return categories.licenseExpiry
+        }
+    }
+
+    /// Toggle a single notification type; reverts on save failure.
+    func setCategory(_ category: Category, value: Bool) async {
+        guard var current = prefs else { return }
+        let prev = current
+        var categories = current.categories ?? Self.defaultCategories
+        switch category {
+        case .checkoutDue:      categories.checkoutDue = value
+        case .checkoutOverdue:  categories.checkoutOverdue = value
+        case .reservation:      categories.reservation = value
+        case .licenseExpiry:    categories.licenseExpiry = value
+        }
+        current.categories = categories
+        prefs = current
+        await save(current, fallbackTo: prev)
+    }
+
     func pause(for seconds: TimeInterval) async {
         guard var current = prefs else { return }
         let prev = current
@@ -113,6 +139,15 @@ final class NotificationPrefsViewModel {
     var isPaused: Bool { pausedUntilDate != nil }
 
     enum Channel { case email, push }
+
+    enum Category { case checkoutDue, checkoutOverdue, reservation, licenseExpiry }
+
+    private static let defaultCategories = NotificationPreferences.Categories(
+        checkoutDue: true,
+        checkoutOverdue: true,
+        reservation: true,
+        licenseExpiry: true
+    )
 
     private func save(
         _ next: NotificationPreferences,

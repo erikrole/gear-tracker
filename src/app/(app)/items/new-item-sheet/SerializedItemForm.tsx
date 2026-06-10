@@ -12,9 +12,11 @@ import QrScanner from "@/components/QrScanner";
 import type { Department, Location, ParentSearchResult } from "./types";
 import type { CategoryOption } from "@/types/category";
 import { generateQrCode, useIsMobile, useParentSearch, FISCAL_YEARS } from "./helpers";
-import { FormRow, FormRow2Col, SectionHeading } from "@/components/form-layout";
+import { FormRow, FormRow2Col } from "@/components/form-layout";
 import { FormCombobox, CategoryCombobox } from "@/components/FormCombobox";
 import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
+import { buildSerializedItemSubmitBody } from "./serialized-submit";
+import { FormSection } from "./FormSection";
 
 export interface SerializedFormHandle {
   validate(): string | null;
@@ -100,44 +102,37 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
       validate() {
         if (!assetTag.trim()) return "Asset tag is required.";
         if (assetTagError) return assetTagError;
-        if (!itemName.trim()) return "Item name is required.";
-        if (!brand.trim()) return "Brand is required.";
-        if (!model.trim()) return "Model is required.";
         if (!qrCodeValue.trim()) return "QR code is required.";
         if (!categoryId) return "Please select a category.";
-        if (!departmentId) return "Please select a department.";
         if (!locationId) return "Please select a location.";
         if (isAccessory && !parentAsset) return "Please select a parent item for this attachment.";
         return null;
       },
       getSubmitBody() {
-        const metadata: Record<string, string> = {};
-        if (fiscalYear) metadata.fiscalYear = fiscalYear;
-        if (userNotes.trim()) metadata.userNotes = userNotes.trim();
-
-        return {
-          assetTag: assetTag.trim(),
-          type: "equipment",
-          brand: brand.trim(),
-          model: model.trim(),
-          qrCodeValue: qrCodeValue.trim(),
+        return buildSerializedItemSubmitBody({
+          assetTag,
+          itemName,
+          brand,
+          model,
+          serialNumber,
+          qrCodeValue,
           locationId,
-          availableForReservation: isAccessory ? false : availableForReservation,
-          availableForCheckout: isAccessory ? false : availableForCheckout,
-          availableForCustody: isAccessory ? false : availableForCustody,
-          ...(isAccessory && parentAsset ? { parentAssetId: parentAsset.id } : {}),
-          ...(serialNumber.trim() ? { serialNumber: serialNumber.trim() } : {}),
-          ...(categoryId ? { categoryId } : {}),
-          ...(departmentId ? { departmentId } : {}),
-          ...(itemName.trim() ? { name: itemName.trim() } : {}),
-          ...(purchaseDate ? { purchaseDate } : {}),
-          ...(purchasePrice ? { purchasePrice: parseFloat(purchasePrice) } : {}),
-          ...(warrantyDate ? { warrantyDate } : {}),
-          ...(residualValue ? { residualValue: parseFloat(residualValue) } : {}),
-          ...(linkUrl.trim() ? { linkUrl: linkUrl.trim() } : {}),
-          ...(uwAssetTag.trim() ? { uwAssetTag: uwAssetTag.trim() } : {}),
-          ...(Object.keys(metadata).length ? { notes: JSON.stringify(metadata) } : {}),
-        };
+          categoryId,
+          departmentId,
+          purchaseDate,
+          purchasePrice,
+          warrantyDate,
+          residualValue,
+          linkUrl,
+          uwAssetTag,
+          fiscalYear,
+          userNotes,
+          availableForReservation,
+          availableForCheckout,
+          availableForCustody,
+          isAccessory,
+          parentAssetId: parentAsset?.id,
+        });
       },
       reset(keepShared = false) {
         if (!keepShared) {
@@ -175,11 +170,13 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
 
     return (
       <fieldset disabled={disabled} className="contents">
-        {/* ── Identity ── */}
-        <section className="space-y-4">
-          <SectionHeading>Identity</SectionHeading>
-
-          <FormRow label="Asset tag" required>
+        <FormSection
+          title="Identity"
+          badge="Fast intake"
+          badgeVariant="blue"
+          description="Fast intake needs the asset tag, category, location, and QR code. Product details can be filled in later."
+        >
+          <FormRow label="Asset tag" htmlFor="new-item-asset-tag" required>
             <Input
               id="new-item-asset-tag"
               name="assetTag"
@@ -188,36 +185,40 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
               onChange={(e) => { setAssetTag(e.target.value); setAssetTagError(""); }}
               onBlur={() => checkAssetTagUnique(assetTag)}
               placeholder="Unique tag name"
+              autoComplete="off"
               required
               className={assetTagError ? "border-destructive" : undefined}
             />
             {assetTagError && <p className="text-sm text-destructive mt-1">{assetTagError}</p>}
           </FormRow>
 
-          <FormRow label="Name" required>
-            <Input id="new-item-name" name="name" value={itemName} onChange={(e) => setItemName(e.target.value)} placeholder="e.g. Sony A7III Camera" required />
+          <FormRow label="Name" htmlFor="new-item-name">
+            <Input id="new-item-name" name="name" value={itemName} onChange={(e) => setItemName(e.target.value)} placeholder="e.g. Sony A7III Camera" autoComplete="off" />
           </FormRow>
 
-          <FormRow2Col label="Brand / Model" required>
-            <Input id="new-item-brand" name="brand" value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g. Sony" required />
-            <Input id="new-item-model" name="model" value={model} onChange={(e) => setModel(e.target.value)} placeholder="e.g. A7III" required />
+          <FormRow2Col label="Brand / Model">
+            <Input id="new-item-brand" name="brand" value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g. Sony" aria-label="Brand" autoComplete="off" />
+            <Input id="new-item-model" name="model" value={model} onChange={(e) => setModel(e.target.value)} placeholder="e.g. A7III" aria-label="Model" autoComplete="off" />
           </FormRow2Col>
 
-          <FormRow label="Serial number">
-            <Input id="new-item-serial-number" name="serialNumber" value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} placeholder="Manufacturer serial (optional)" />
+          <FormRow label="Serial number" htmlFor="new-item-serial-number">
+            <Input id="new-item-serial-number" name="serialNumber" value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} placeholder="Manufacturer serial (optional)" autoComplete="off" />
           </FormRow>
-        </section>
+        </FormSection>
 
-        {/* ── Organization ── */}
-        <section className="space-y-4">
-          <SectionHeading>Organization</SectionHeading>
-
-          <FormRow label="Category" required>
-            <CategoryCombobox value={categoryId} onValueChange={setCategoryId} categories={categories} />
+        <FormSection
+          title="Organization"
+          badge="Required"
+          badgeVariant="orange"
+          description="Category and location keep the new item discoverable and available in the right place."
+        >
+          <FormRow label="Category" htmlFor="new-item-category" required>
+            <CategoryCombobox id="new-item-category" value={categoryId} onValueChange={setCategoryId} categories={categories} />
           </FormRow>
 
-          <FormRow label="Department" required>
+          <FormRow label="Department" htmlFor="new-item-department">
             <FormCombobox
+              id="new-item-department"
               value={departmentId}
               onValueChange={setDepartmentId}
               options={departmentOptions}
@@ -227,8 +228,9 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
             />
           </FormRow>
 
-          <FormRow label="Location" required>
+          <FormRow label="Location" htmlFor="new-item-location" required>
             <FormCombobox
+              id="new-item-location"
               value={locationId}
               onValueChange={setLocationId}
               options={locationOptions}
@@ -237,13 +239,15 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
               emptyLabel="No location found."
             />
           </FormRow>
-        </section>
+        </FormSection>
 
-        {/* ── Tracking ── */}
-        <section className="space-y-4">
-          <SectionHeading>Tracking</SectionHeading>
-
-          <FormRow label="QR code" required>
+        <FormSection
+          title="Tracking"
+          badge="Scan identity"
+          badgeVariant="purple"
+          description="QR code is the scan value operators will use to find this item later."
+        >
+          <FormRow label="QR code" htmlFor="new-item-qr-code" required>
             <div className="flex gap-2">
               <Input
                 id="new-item-qr-code"
@@ -251,6 +255,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
                 value={qrCodeValue}
                 onChange={(e) => setQrCodeValue(e.target.value)}
                 placeholder="QR code value"
+                autoComplete="off"
                 required
                 className="flex-1"
               />
@@ -259,6 +264,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
                 variant="outline"
                 size="icon"
                 title="Generate QR code"
+                aria-label="Generate QR code"
                 onClick={() => setQrCodeValue(generateQrCode())}
               >
                 <Dices className="size-4" />
@@ -269,6 +275,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
                   variant="outline"
                   size="icon"
                   title="Scan QR code"
+                  aria-label="Scan QR code"
                   onClick={() => setShowScanner((v) => !v)}
                 >
                   <ScanLine className="size-4" />
@@ -298,39 +305,42 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
             )}
           </FormRow>
 
-          <FormRow label="UW Asset Tag">
-            <Input id="new-item-uw-asset-tag" name="uwAssetTag" value={uwAssetTag} onChange={(e) => setUwAssetTag(e.target.value)} placeholder="Asset tag number" />
+          <FormRow label="UW Asset Tag" htmlFor="new-item-uw-asset-tag">
+            <Input id="new-item-uw-asset-tag" name="uwAssetTag" value={uwAssetTag} onChange={(e) => setUwAssetTag(e.target.value)} placeholder="Asset tag number" autoComplete="off" />
           </FormRow>
-        </section>
+        </FormSection>
 
-        {/* ── Procurement ── */}
-        <section className="space-y-4">
-          <SectionHeading>Procurement</SectionHeading>
-
+        <FormSection
+          title="Procurement"
+          badge="Optional"
+          badgeVariant="secondary"
+          description="Use these fields when purchase or warranty details are already known."
+        >
           <FormRow2Col label="Purchase">
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Date</Label>
-              <Input id="new-item-purchase-date" name="purchaseDate" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} type="date" />
+              <Label htmlFor="new-item-purchase-date" className="text-xs text-muted-foreground">Date</Label>
+              <Input id="new-item-purchase-date" name="purchaseDate" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} type="date" autoComplete="off" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Price</Label>
-              <Input id="new-item-purchase-price" name="purchasePrice" value={purchasePrice} onChange={(e) => setPurchasePrice(e.target.value)} type="number" min="0" step="0.01" placeholder="0.00" />
+              <Label htmlFor="new-item-purchase-price" className="text-xs text-muted-foreground">Price</Label>
+              <Input id="new-item-purchase-price" name="purchasePrice" value={purchasePrice} onChange={(e) => setPurchasePrice(e.target.value)} type="number" min="0" step="0.01" placeholder="0.00" autoComplete="off" />
             </div>
           </FormRow2Col>
 
           <FormRow2Col label="Warranty">
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Date</Label>
-              <Input id="new-item-warranty-date" name="warrantyDate" value={warrantyDate} onChange={(e) => setWarrantyDate(e.target.value)} type="date" />
+              <Label htmlFor="new-item-warranty-date" className="text-xs text-muted-foreground">Date</Label>
+              <Input id="new-item-warranty-date" name="warrantyDate" value={warrantyDate} onChange={(e) => setWarrantyDate(e.target.value)} type="date" autoComplete="off" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Residual value</Label>
-              <Input id="new-item-residual-value" name="residualValue" value={residualValue} onChange={(e) => setResidualValue(e.target.value)} type="number" min="0" step="0.01" placeholder="0" />
+              <Label htmlFor="new-item-residual-value" className="text-xs text-muted-foreground">Residual value</Label>
+              <Input id="new-item-residual-value" name="residualValue" value={residualValue} onChange={(e) => setResidualValue(e.target.value)} type="number" min="0" step="0.01" placeholder="0" autoComplete="off" />
             </div>
           </FormRow2Col>
 
-          <FormRow label="Fiscal year">
+          <FormRow label="Fiscal year" htmlFor="new-item-fiscal-year">
             <FormCombobox
+              id="new-item-fiscal-year"
               value={fiscalYear}
               onValueChange={setFiscalYear}
               options={fiscalYearOptions}
@@ -341,39 +351,41 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
             />
           </FormRow>
 
-          <FormRow label="Link">
-            <Input id="new-item-link-url" name="linkUrl" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} type="url" placeholder="https://..." />
+          <FormRow label="Link" htmlFor="new-item-link-url">
+            <Input id="new-item-link-url" name="linkUrl" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} type="url" placeholder="https://..." autoComplete="off" />
           </FormRow>
-        </section>
+        </FormSection>
 
-        {/* ── Notes ── */}
-        <section className="space-y-4">
-          <SectionHeading>Notes</SectionHeading>
-          <FormRow label="Notes">
+        <FormSection title="Notes" badge="Optional" badgeVariant="secondary">
+          <FormRow label="Notes" htmlFor="new-item-notes">
             <Textarea
               id="new-item-notes"
               name="notes"
               value={userNotes}
               onChange={(e) => setUserNotes(e.target.value)}
               placeholder="Add notes about this item (optional)"
+              autoComplete="off"
               rows={3}
               className="resize-none"
             />
           </FormRow>
-        </section>
+        </FormSection>
 
-        {/* ── Settings ── */}
-        <section className="space-y-4">
-          <SectionHeading>Settings</SectionHeading>
-
+        <FormSection
+          title="Settings"
+          badge="Policy"
+          badgeVariant="gray"
+          description="These toggles control future workflow eligibility, not current status."
+        >
           <div className="space-y-3">
             {/* Attachment toggle */}
             <div className="flex items-center justify-between gap-1">
               <div>
-                <Label className="text-sm font-medium">Item is an attachment</Label>
+                <Label htmlFor="new-item-is-accessory" className="text-sm font-medium">Item is an attachment</Label>
                 <p className="text-xs text-muted-foreground">Tie to a parent item, such as a camera SD card, cage, or fixed part.</p>
               </div>
               <Switch
+                id="new-item-is-accessory"
                 name="isAccessory"
                 checked={isAccessory}
                 onCheckedChange={(v) => {
@@ -408,6 +420,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
                       variant="ghost"
                       size="icon"
                       className="size-6"
+                      aria-label="Clear parent item"
                       onClick={() => { setParentAsset(null); parentSearch.clear(); }}
                     >
                       <X className="size-3.5" />
@@ -415,12 +428,14 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
                   </div>
                 ) : (
                   <>
+                    <Label htmlFor="new-item-parent-search" className="sr-only">Parent item search</Label>
                     <Input
                       id="new-item-parent-search"
                       name="parentAssetSearch"
                       value={parentSearch.query}
                       onChange={(e) => parentSearch.setQuery(e.target.value)}
                       placeholder="Search parent item by tag, brand, or model..."
+                      autoComplete="off"
                     />
                     {parentSearch.searching && (
                       <p className="text-xs text-muted-foreground px-1">Searching...</p>
@@ -457,29 +472,29 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-1">
                   <div>
-                    <Label className="text-sm font-medium">Available for reservation</Label>
+                    <Label htmlFor="new-item-available-for-reservation" className="text-sm font-medium">Available for reservation</Label>
                     <p className="text-xs text-muted-foreground">Item is available to be used in reservations</p>
                   </div>
-                  <Switch name="availableForReservation" checked={availableForReservation} onCheckedChange={setAvailableForReservation} />
+                  <Switch id="new-item-available-for-reservation" name="availableForReservation" checked={availableForReservation} onCheckedChange={setAvailableForReservation} />
                 </div>
                 <div className="flex items-center justify-between gap-1">
                   <div>
-                    <Label className="text-sm font-medium">Available for check out</Label>
+                    <Label htmlFor="new-item-available-for-checkout" className="text-sm font-medium">Available for check out</Label>
                     <p className="text-xs text-muted-foreground">Item is available to be used in check-outs</p>
                   </div>
-                  <Switch name="availableForCheckout" checked={availableForCheckout} onCheckedChange={setAvailableForCheckout} />
+                  <Switch id="new-item-available-for-checkout" name="availableForCheckout" checked={availableForCheckout} onCheckedChange={setAvailableForCheckout} />
                 </div>
                 <div className="flex items-center justify-between gap-1">
                   <div>
-                    <Label className="text-sm font-medium">Available for custody</Label>
+                    <Label htmlFor="new-item-available-for-custody" className="text-sm font-medium">Available for custody</Label>
                     <p className="text-xs text-muted-foreground">Item can be taken into custody by a user</p>
                   </div>
-                  <Switch name="availableForCustody" checked={availableForCustody} onCheckedChange={setAvailableForCustody} />
+                  <Switch id="new-item-available-for-custody" name="availableForCustody" checked={availableForCustody} onCheckedChange={setAvailableForCustody} />
                 </div>
               </div>
             )}
           </div>
-        </section>
+        </FormSection>
       </fieldset>
     );
   }

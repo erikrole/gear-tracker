@@ -101,8 +101,9 @@ describe("student field mobile contracts", () => {
     expect(appTab).toContain("Text(\"Pause \\(label)\")");
     expect(appTab).toContain("title: \"Email alerts\"");
     expect(appTab).toContain("title: \"Push alerts\"");
-    expect(appTab).toContain("Label(\"Theme\", systemImage: \"paintpalette\")");
-    expect(appTab).toContain("Label(\"My Availability\", systemImage: \"calendar.badge.clock\")");
+    expect(appTab).toContain("title: \"Delivery status\"");
+    expect(appTab).toContain("title: \"Theme\"");
+    expect(appTab).toContain("title: \"My Availability\"");
     expect(appTab).toContain("Label(\"Add availability block\", systemImage: \"plus\")");
     expect(appTab).toContain("Label(\"Add block\", systemImage: \"plus\")");
   });
@@ -111,18 +112,26 @@ describe("student field mobile contracts", () => {
     const createSheet = source("ios/Wisconsin/Views/CreateBookingSheet.swift");
 
     expect(createSheet).toContain("selectedAssetSnapshots: [String: Asset]");
+    expect(createSheet).toContain("selectedBulkQuantities: [String: Int]");
     expect(createSheet).toContain("var selectedAssets: [Asset]");
+    expect(createSheet).toContain("var selectedEquipmentCount: Int");
+    expect(createSheet).toContain("var selectedBulkRequests: [BulkReservationRequest]");
     // Three-step flow mirroring web: Equipment requires a selection before
     // Review, and the Confirm step owns the single primary action.
     expect(createSheet).toContain("Button(\"Review\") { step = 3 }");
-    expect(createSheet).toContain(".disabled(vm.selectedAssetIds.isEmpty || vm.isSubmitting)");
+    expect(createSheet).toContain(".disabled(vm.selectedEquipmentCount == 0 || vm.isSubmitting)");
     expect(createSheet).toContain("Text(\"Reserve for later\")");
     expect(createSheet).toContain("Text(\"Review your reservation\")");
     expect(createSheet).toContain("Text(\"Selected Equipment\")");
+    expect(createSheet).toContain("Text(\"Batteries & Counted Items\")");
+    expect(createSheet).toContain("Label(\"Scan equipment\", systemImage: \"barcode.viewfinder\")");
     expect(createSheet).toContain("SelectedEquipmentRow");
+    expect(createSheet).toContain("SelectedBulkRow");
+    expect(createSheet).toContain("BulkQuantityRow");
     expect(createSheet).toContain("Label(\"Remove\", systemImage: \"xmark.circle.fill\")");
     expect(createSheet).toContain("Remove anything you do not want before creating the reservation.");
     expect(createSheet).toContain("func removeSelectedAsset(_ asset: Asset)");
+    expect(createSheet).toContain("func removeSelectedBulk(_ sku: FormBulkSku)");
   });
 
   it("keeps my-shifts gear context aligned with dashboard event work", () => {

@@ -335,19 +335,20 @@ describe("claimTrade", () => {
 // ═════════════════════════════════════════════════════════════════════════════
 describe("approveTrade", () => {
   it("executes swap on approved trade", async () => {
+    const shift = makeShift({ area: "Field" });
     const trade = {
       ...makeShiftTrade({ status: "CLAIMED", claimedByUserId: "claimer-1", postedByUserId: "poster-1" }),
       shiftAssignment: {
         ...makeShiftAssignment(),
         shift: {
-          ...makeShift(),
+          ...shift,
           shiftGroup: { event: { summary: "Wisconsin vs Iowa" } },
         },
       },
     };
     const assignmentWithShift = {
       ...trade.shiftAssignment,
-      shift: makeShift(),
+      shift,
     };
     mockTx.shiftTrade.findUnique.mockResolvedValue(trade);
     mockTx.shiftAssignment.findUnique.mockResolvedValue(assignmentWithShift);
@@ -425,12 +426,13 @@ describe("approveTrade", () => {
 // ═════════════════════════════════════════════════════════════════════════════
 describe("declineTrade", () => {
   it("resets claimed trade back to OPEN", async () => {
+    const shift = makeShift({ area: "Field" });
     const trade = {
       ...makeShiftTrade({ status: "CLAIMED", claimedByUserId: "claimer-1" }),
       shiftAssignment: {
         ...makeShiftAssignment(),
         shift: {
-          ...makeShift(),
+          ...shift,
           shiftGroup: { event: { summary: "Wisconsin vs Iowa" } },
         },
       },

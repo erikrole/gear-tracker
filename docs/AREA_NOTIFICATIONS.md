@@ -3,8 +3,8 @@
 ## Document Control
 - Area: Notifications
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-02
-- Status: Active — escalation schedule + iOS tap-through + APNs native push + calendar sync health alerts shipped
+- Last Updated: 2026-06-10
+- Status: Active — escalation schedule + iOS booking/event tap-through + APNs native push + calendar sync health alerts shipped
 - Version: V1.2
 
 ## Direction
@@ -61,10 +61,10 @@ Implementation: `src/lib/services/notifications.ts`
 
 | Event | Type | Recipient | Channels |
 |---|---|---|---|
-| New direct assignment | `shift_assignment_new` | Assignee | In-app + email + push |
-| Approved request | `shift_assignment_approved` | Assignee | In-app + email + push |
+| New direct assignment | `shift_assigned` | Assignee | In-app + email + push |
+| Approved request | `shift_request_approved` | Assignee | In-app + email + push |
 | Removed assignment | `shift_assignment_removed` | Assignee | In-app + email + push |
-| Shift call-time changed | `shift_call_time_changed` | Active assignee | In-app + email + push |
+| Shift call-time changed | `shift_time_changed` | Active assignee | In-app + email + push |
 | Personal call-time changed | `shift_personal_call_time_changed` | Assignee | In-app + email + push |
 
 - Copy uses Staff and Student labels plus the effective call time.
@@ -93,11 +93,11 @@ Implementation: `src/lib/services/notifications.ts`
 - Transport: APNs via Node.js built-in `http2` + `crypto` (zero new deps)
 - Auth: JWT token (ES256) from .p8 key — re-generated per request, valid 1h
 - Schema: `DeviceToken` model (`prisma/migrations/0040_add_device_tokens`) — `token` unique, indexed on `(userId, revokedAt)`
-- Registration: `POST /api/devices` upserts token on every app foreground after login; `DELETE /api/devices` bulk-revokes on logout
+- Registration: `POST /api/devices` upserts token on every app foreground after login; `DELETE /api/devices` bulk-revokes on logout. Native registration/revocation decodes the `{ success: true }` response through the shared API handler so 401s trigger the global session-expired path.
 - iOS: `AppDelegate.didRegisterForRemoteNotificationsWithDeviceToken` → POST hex token. Permission requested once after login (`.notDetermined` guard; existing `.authorized` silently re-registers).
-- Push fires for: `shift_gear_up`, `reservation_booked`, `reservation_pickup_ready`, `reservation_cancelled`
-- Batch escalation (overdue cron) does NOT send push — in-app only, deferred to future slice
-- Tap handling: `UNUserNotificationCenterDelegate.didReceive` sets `AppState.pendingPushBookingId`; `HomeView` navigates via `navigationPath.append(bookingId)` on change or appear
+- Push fires for: checkout due/overdue escalation, `shift_gear_up`, shift schedule changes, reservation lifecycle events, and license nag/expiry warnings when the recipient has push enabled for that category.
+- Tap handling: `UNUserNotificationCenterDelegate.didReceive` sets `AppState.pendingPushBookingId` or `AppState.pendingPushEventId`. Booking pushes open through `HomeView`; event pushes switch to Schedule and let `ScheduleView` open the matching event sheet.
+- Native Settings > Notifications exposes the same notification category toggles as web: checkout due reminders, checkout overdue alerts, reservation updates, and license expiry reminders. In-app inbox rows remain always visible regardless of category settings.
 - Revoked/BadDeviceToken responses auto-revoke the token in DB on next push attempt
 - Required env vars: `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_BUNDLE_ID`, `APNS_P8_KEY` (base64-encoded full PEM including headers). Missing = push silently skipped.
 - Source: `src/lib/push/apns.ts` (sendPush), `src/lib/services/notifications.ts` (sendPushToUser), `src/app/api/devices/route.ts`
@@ -224,6 +224,10 @@ Current behavior:
 | `EMAIL_FROM` | No | From address for transactional email. Default: `Gear Tracker <noreply@gear-tracker.app>` |
 
 ## Change Log
+- 2026-06-10: iOS notification settings detail menu shipped. Native Settings now keeps notification delivery status at the root and moves OS push permission recovery, pause controls, email/push channel toggles, and category toggles into a dedicated Notifications drill-down while preserving the in-app inbox always-on contract.
+- 2026-06-10: iOS notification category parity shipped. Native Profile now exposes the existing web-backed toggles for checkout due reminders, checkout overdue alerts, reservation updates, and license expiry reminders while preserving the in-app inbox always-on contract.
+- 2026-06-10: iOS push token delivery honesty shipped. Native APNs token registration and logout revocation now decode `/api/devices` success responses through the shared API handler instead of raw `URLSession.data`, so rejected responses and 401s are handled like the rest of the app.
+- 2026-06-10: iOS shift push tap-through shipped. Shift gear-up and shift schedule APNs payloads now include `eventId`, `assignmentId`, and `shiftId`; tapped event pushes switch the native app to Schedule and let the existing event opener present the relevant event sheet. Native push documentation was also reconciled with current checkout escalation, reservation, shift, and license push behavior.
 - 2026-06-05: iOS Notifications read-recovery honesty shipped. Native mark-read and mark-all-read now inspect PATCH response status through the shared API handler, restore unread state on failure, and show a recoverable Refresh banner with error haptic instead of silently treating rejected updates as success.
 - 2026-06-03: iOS Profile notification controls now use self-describing labels for field use. Quiet-hours controls read Pause alerts with visible Pause 1 hour, Pause 1 day, and Pause 1 week actions, and channel toggles read Email alerts and Push alerts while preserving the in-app inbox always-on contract.
 - 2026-06-02: Calendar sync health alerts shipped. Morning refresh now creates persistent in-app `calendar_sync_failure` rows for active admins after 3+ consecutive hard daily failures for a source, deduped by source, failure count, and admin recipient.

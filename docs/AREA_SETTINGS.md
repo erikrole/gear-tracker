@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Settings
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-04
+- Last Updated: 2026-06-08
 - Status: Active
 - Version: V1
 
@@ -164,7 +164,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - Admin-managed email allowlist for registration gating (D-029).
 - Add invitations through the shared onboarding dialog with bulk paste, CSV-like `email, role` intake, or one-email intake. STAFF can invite STUDENT only; ADMIN can invite STAFF or STUDENT.
 - Bulk invite preview groups ready, duplicate, invalid, role-blocked, existing-user, pending-invite, and claimed-invite rows before write. Existing registered or already-invited addresses are visible only to authenticated operators through the preview endpoint; final write responses keep generic skip behavior.
-- Direct temporary-password account creation is also available from the dialog for one-off onboarding or bulk `name,email,role,location` roster creation. Bulk account creation applies role/location defaults, generates temporary passwords server-side, and returns a one-time CSV handoff.
+- First-time temporary-password account creation is retired. Operators add allowlist invitations, and users set their own password during registration.
 - Onboarding Status links to `/users/onboarding-status`, where staff/admin can review pending, stale pending, and claimed onboarding access across the allowlist, copy prefilled registration links, and remove unclaimed invites before reissuing access.
 - Delete unclaimed entries. Claimed entries preserved (audit trail).
 - Filter by status (all/unclaimed/claimed).
@@ -190,6 +190,10 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages.
 
 ## Change Log
+- 2026-06-10: **iOS Settings detail menus.** Native Settings now has dedicated Notifications and Account & Security drill-downs. Notifications keeps the existing server-backed pause, email/push, category, and iOS permission controls; Account & Security changes passwords through the existing personal Security endpoint and keeps profile editing plus active-session review linked to web.
+- 2026-06-10: **iOS Settings first-class hub.** Native Profile now presents as Settings with grouped account, schedule, notification, appearance, tools, and app sections. The iOS surface keeps the web-owned backend settings model, existing notification preference API, student Availability entry, staff/admin sticker-code tool, and stable tab shell unchanged.
+- 2026-06-08: **No-temp-password onboarding pivot.** Settings > Allowed Emails now keeps the shared onboarding dialog invite-first only. First-time direct-create and bulk-create password handoffs are retired; operators add allowlist invitations so users register with their own password.
+- 2026-06-08: **Bulk onboarding launch hardening.** Settings > Allowed Emails bulk temporary-password account creation now hits a rate-limited route that rejects Admin rows before password generation, preserving the onboarding contract that roster operations create only Staff and Student accounts.
 - 2026-06-05: **Allowed Emails toolbar cleanup.** Settings > Allowed Emails now gives the status filter a stable browser/accessibility identity and groups `Status` with `Onboard users` as workflow actions, while preserving allowlist filtering, onboarding dialog behavior, and delete semantics.
 - 2026-06-05: **Shared onboarding dialog completion banner cleanup.** The Settings > Allowed Emails onboarding result banner now uses the shadcn alert primitive with semantic success tokens instead of hardcoded green utility classes, while preserving temporary-password handoff copy and result actions.
 - 2026-06-05: **Shared onboarding dialog direct-create guidance tone cleanup.** The Settings > Allowed Emails onboarding dialog now presents the pre-submit direct-create handoff note as neutral guidance instead of green success styling, while preserving temporary-password behavior and profile handoff.

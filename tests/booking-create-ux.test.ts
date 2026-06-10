@@ -4,6 +4,7 @@ import {
   getAvailabilityWarningTotal,
   getStep2PrimaryActionLabel,
 } from "@/components/booking-wizard/flow-summary";
+import { applyDurationPreservingStartChange } from "@/components/create-booking/date-duration";
 
 const baseCounts = {
   conflictCount: 0,
@@ -84,5 +85,29 @@ describe("booking create UX helpers", () => {
       turnaroundCount: 2,
     });
     expect(review?.description).toContain("do not block creation");
+  });
+
+  it("preserves the booking duration when the start time changes", () => {
+    const next = applyDurationPreservingStartChange(
+      { startsAt: "2026-07-07T10:00", endsAt: "2026-07-08T10:00" },
+      "2026-07-07T12:30",
+    );
+
+    expect(next).toEqual({
+      startsAt: "2026-07-07T12:30",
+      endsAt: "2026-07-08T12:30",
+    });
+  });
+
+  it("does not hide an already-invalid date window when the start time changes", () => {
+    const next = applyDurationPreservingStartChange(
+      { startsAt: "2026-07-08T10:00", endsAt: "2026-07-07T10:00" },
+      "2026-07-08T12:30",
+    );
+
+    expect(next).toEqual({
+      startsAt: "2026-07-08T12:30",
+      endsAt: "2026-07-07T10:00",
+    });
   });
 });

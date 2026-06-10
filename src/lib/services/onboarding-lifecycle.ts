@@ -193,8 +193,8 @@ export async function createDirectUserAccountsBulk(input: {
     locationId?: string | null;
   }>;
 }) {
-  if (input.users.some((entry) => entry.role === "ADMIN" && input.actor.role !== "ADMIN")) {
-    throw new HttpError(403, "Only admins can create admin users");
+  if (input.users.some((entry) => entry.role === "ADMIN")) {
+    throw new HttpError(403, "Bulk onboarding can only create staff or student users");
   }
 
   const normalized = input.users.map((entry) => ({

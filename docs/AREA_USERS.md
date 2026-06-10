@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Users
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-04
+- Last Updated: 2026-06-08
 - Status: Active
 - Version: V1.2
 
@@ -34,8 +34,8 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 ## Permission Matrix (V1)
 
 ### Users
-- `ADMIN`: create, view, edit all users; manage role changes.
-- `STAFF`: create, view, edit all users; manage role changes.
+- `ADMIN`: view and edit all users; manage role changes; invite new staff and students through the allowlist.
+- `STAFF`: view and edit all users; manage role changes; invite new students through the allowlist.
 - `STUDENT`: view all users; no edit rights.
 
 ### Items
@@ -114,6 +114,9 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 6. Ensure audit logs include actor role, target owner, and exception metadata.
 
 ## Change Log
+- 2026-06-10: iOS Account & Security detail menu shipped. Native Settings now shows signed-in account context and lets every authenticated user change their password through the existing `/api/me/change-password` flow, including the optional sign-out-other-devices flag. Full profile editing and active-session list management remain on web Settings for this slice.
+- 2026-06-08: No-temp-password onboarding pivot shipped. `/api/users` first-time direct creation and `/api/users/bulk-create` now return a retired-flow response after auth checks, and the shared onboarding dialog only creates allowlist invitations so users set their own password at registration.
+- 2026-06-08: Bulk onboarding launch hardening shipped. `/api/users/bulk-create` now rate-limits through the shared settings mutation budget and rejects Admin rows before temporary password generation, keeping roster-style onboarding scoped to Staff and Student accounts while one-off admin creation remains separate.
 - 2026-06-05: Shared onboarding dialog completion banner cleanup shipped. The post-commit onboarding result banner now uses the shadcn alert primitive with semantic success tokens instead of hardcoded green utility classes, while preserving temporary-password handoff copy and result actions.
 - 2026-06-05: Shared onboarding dialog direct-create guidance tone cleanup shipped. The pre-submit direct-create handoff note now uses neutral shadcn alert styling instead of green success styling, while preserving temporary-password behavior and the post-create profile handoff.
 - 2026-06-05: iOS forced-password visibility accessibility shipped. The native first-login password setup password visibility button now speaks as Show passwords or Hide passwords and exposes Passwords hidden or Passwords visible as state, without changing temporary-password validation, sign-out, or forced-password submission.

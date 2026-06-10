@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-06
+- Last Updated: 2026-06-10
 - Status: Living registry — update when shipping features or resolving decisions
 - Purpose: Single file listing every open gap, pending decision, and known risk across all docs
 
@@ -19,6 +19,14 @@ _2026-06-06 update: Web full-search item identity fallback shipped. No new gap o
 _2026-06-06 update: Web quick-search item identity parity shipped. No new gap or pending decision opened._
 
 _2026-06-06 update: iOS Schedule list Dynamic Type shipped as HIG polish. No new gap or pending decision opened._
+
+_2026-06-08 update: Bulk onboarding launch hardening shipped for the internal public beta. `/api/users/bulk-create` is rate-limited and rejects Admin rows before temporary password generation. No new gap or pending decision opened._
+
+_2026-06-08 update: No-temp-password onboarding pivot shipped for the internal public beta. First-time direct-create and bulk-create password handoffs are retired; operators use allowlist invitations and users set their own password during registration. True pre-created profiles without passwords remain deferred because `User.passwordHash` is required today._
+
+_2026-06-10 update: iOS native booking picker parity shipped for scan-to-add and bulk/countable item selection. No new gap or pending decision opened; richer bulk/next-use advisory context remains polish, while submit-time availability enforcement is already server-authoritative._
+
+_2026-06-10 update: iOS Settings detail menus shipped for Notifications and Account & Security. No new gap or pending decision opened; the slice uses existing notification preferences and change-password contracts, while full native session-list management remains intentionally deferred behind the web handoff._
 
 | ID | Description | Owner Area | Priority | Blocker? |
 |---|---|---|---|---|

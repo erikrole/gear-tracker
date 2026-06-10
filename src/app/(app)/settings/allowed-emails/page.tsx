@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useConfirm } from "@/components/ConfirmDialog";
 import EmptyState from "@/components/EmptyState";
 import OnboardingDialog from "@/components/onboarding/OnboardingDialog";
+import { OperationalMetricCard } from "@/components/OperationalFeedback";
 import { OperationalRowActions } from "@/components/OperationalRowActions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -47,7 +48,6 @@ type AllowedEmail = {
 };
 
 type AllowedEmailsResponse = { data: AllowedEmail[]; total: number };
-type Location = { id: string; name: string };
 
 const ROLE_BADGE_META: Record<AllowedEmail["role"], { label: string; variant: BadgeProps["variant"] }> = {
   ADMIN: { label: "Admin", variant: "purple" },
@@ -66,18 +66,6 @@ export default function AllowedEmailsPage() {
     returnTo: "/settings/allowed-emails",
     transform: (json) => ({ data: (json.data as AllowedEmail[]) ?? [], total: (json.total as number) ?? 0 }),
   });
-
-  const {
-    data: formOptions,
-    loading: formOptionsLoading,
-    error: formOptionsError,
-    reload: reloadFormOptions,
-  } = useFetch<{ locations: Location[] }>({
-    url: "/api/form-options",
-    transform: (json) => (json as Record<string, unknown>).data as { locations: Location[] },
-    refetchOnFocus: false,
-  });
-  const locations = formOptions?.locations ?? [];
 
   const { data: meData } = useFetch<{ id: string; role: AllowedEmail["role"] }>({
     url: "/api/me",
@@ -183,6 +171,13 @@ export default function AllowedEmailsPage() {
 
   return (
     <SettingsPageShell title="Allowed Emails" description={description} mainClassName="space-y-4">
+        {/* Onboarding overview */}
+        <div className="grid gap-2 sm:grid-cols-3">
+          <OperationalMetricCard label="Total" value={totalAll} helper="on the allowlist" />
+          <OperationalMetricCard label="Pending" value={totalPending} tone={totalPending ? "blue" : "muted"} helper="awaiting sign-up" />
+          <OperationalMetricCard label="Claimed" value={totalClaimed} helper="registered" />
+        </div>
+
         {/* Controls row */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -195,9 +190,9 @@ export default function AllowedEmailsPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All ({totalAll})</SelectItem>
-              <SelectItem value="unclaimed">Pending ({totalPending})</SelectItem>
-              <SelectItem value="claimed">Claimed ({totalClaimed})</SelectItem>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="unclaimed">Pending</SelectItem>
+              <SelectItem value="claimed">Claimed</SelectItem>
             </SelectContent>
           </Select>
 
@@ -218,13 +213,7 @@ export default function AllowedEmailsPage() {
         <OnboardingDialog
           open={showOnboarding}
           onOpenChange={setShowOnboarding}
-          locations={locations}
-          locationsLoading={formOptionsLoading}
-          locationsError={Boolean(formOptionsError)}
-          onRetryLocations={reloadFormOptions}
           currentUserRole={currentUserRole}
-          initialMode="invite"
-          onCreated={() => reload()}
           onInvitesChanged={() => reload()}
         />
 
@@ -281,7 +270,7 @@ export default function AllowedEmailsPage() {
                       {item.claimedAt ? (
                         <Badge variant="gray" size="sm">Claimed</Badge>
                       ) : (
-                        <Badge variant="orange" size="sm">Pending</Badge>
+                        <Badge variant="blue" size="sm">Pending</Badge>
                       )}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-xs">

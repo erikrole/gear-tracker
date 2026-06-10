@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Items
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-03
+- Last Updated: 2026-06-10
 - Status: Active
 - Version: V1
 
@@ -123,6 +123,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 2. `tagName` (required)
 3. Category (required)
 4. Location (required)
+5. QR code / tracking code (required)
 
 #### Units
 1. Tracking style = Units
@@ -161,9 +162,11 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 ### Validation and Save Behavior
 1. Save is blocked on missing required fields.
 2. Save is blocked on duplicate serialized identity collisions (for example duplicate `tagName` policy if required).
-3. Submit disables form controls, guards rapid duplicate submits, handles expired sessions through the shared auth redirect, and shows form-level errors for validation, permission, server, or network failures.
-4. Save returns user to list, opens the created/updated record, offers the image step for serialized assets, or allows `Add another` continuation.
-5. The sheet does not persist drafts in V1. Long-lived draft recovery remains reserved for full-page wizard flows such as booking creation.
+3. Standard manual intake keeps asset tag, category, location, and QR code required while allowing product name, brand, model, and department to be filled later.
+4. Blank Standard brand/model values submit explicit `Unknown` placeholders until operators replace them, preserving the current non-null asset schema without blocking high-volume intake.
+5. Submit disables form controls, guards rapid duplicate submits, handles expired sessions through the shared auth redirect, and shows form-level errors for validation, permission, server, or network failures.
+6. Save returns user to list, opens the created/updated record, offers the image step for serialized assets, or allows `Add another` continuation.
+7. The sheet does not persist drafts in V1. Long-lived draft recovery remains reserved for full-page wizard flows such as booking creation.
 
 ## Item Detail Surface (V1)
 
@@ -404,6 +407,10 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 
 ## Change Log
 - 2026-06-10: **Scalar notes no longer hidden as metadata.** `parseNotes` on `/api/assets/[id]` treated any successful `JSON.parse` as import metadata, so a note that happened to parse ("1234", "true") was suppressed from the notes field and returned a non-object `metadata` value that could break the iOS asset-detail decode. Only plain JSON objects are treated as metadata now; everything else stays a visible user note.
+- 2026-06-10: **Add item form field accessibility cleanup.** Standard, Units, and Quantity creation fields now associate visible labels with text, number, date, URL, textarea, combobox, and switch controls. Manual inventory-entry fields also declare conservative autofill behavior so Chrome no longer flags the Add item sheet for missing labels or autocomplete metadata. Validation, payloads, and mutation routes are unchanged.
+- 2026-06-10: **Add item section-card polish.** Standard, Units, and Quantity creation sections now use shared booking-style card surfaces with compact badges and section-level guidance. Field ids, names, validation, and submit behavior are unchanged.
+- 2026-06-10: **Booking-inspired Add item polish.** Add item now borrows the checkout/reservation wizard's compact badge summary, card-style choice rhythm, and review-style post-create handoff while staying a sheet instead of becoming a multi-step wizard. Standard, Units, and Quantity creation behavior is unchanged.
+- 2026-06-10: **Manual one-by-one intake readiness.** Standard item creation now keeps asset tag, category, location, and QR code required for safe manual intake while allowing product name, brand, model, and department to be filled later. Blank brand/model values submit explicit `Unknown` placeholders to satisfy the current non-null asset schema without forcing metadata research during high-volume entry. Tracking-style copy now distinguishes Standard, Units, and Quantity choices for manual intake.
 - 2026-06-06: **iOS Items empty-state recovery.** Native search-empty and Favorites-only empty states now include direct recovery actions, Clear search and Show all items, while preserving the current search, Favorites, Status scope, row actions, and no-inventory copy.
 - 2026-06-06: **iOS Items load error copy.** Native Items initial-load and pagination failures now use recovery-oriented Items copy instead of raw Swift error descriptions, while keeping the existing Retry controls, pull-to-refresh, search, filters, and row actions unchanged.
 - 2026-06-05: **iOS Items retired reserve gating.** Native retired items remain visible with their derived Retired status, but iOS no longer exposes Reserve from list swipe actions, row context menus, or item detail. Favorite, copy-tag, row navigation, search, and status filtering are unchanged.

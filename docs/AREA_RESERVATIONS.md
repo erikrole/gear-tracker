@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-06
+- Last Updated: 2026-06-10
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
@@ -25,13 +25,20 @@ Keep reservation planning and checkout execution unified, predictable, and safe 
 ### Create Reservation (Wizard — `/reservations/new`)
 Multi-step wizard page (replaced the old side-sheet flow as of 2026-04-09):
 
-**Step 1 — Context & Details:** Event tie-in (optional), title, requester, location, kit, start/end dates. Event picker uses the next 30 days and supports up to 3 linked events. The page title uses the selected event/booking title once available, while the reservation badge carries the booking kind.
+**Step 1 — Context & Details:** Event tie-in (optional), title, requester, location, kit, start/end dates. Event picker uses the next 30 days and supports up to 3 linked events. The page title uses the selected event/booking title once available, while the reservation badge carries the booking kind. Manual date edits preserve duration when the Start value changes, matching the native calendar-app behavior; invalid existing windows still remain invalid so validation can block them.
 **Step 2 — Equipment:** Full `EquipmentPicker` with quiet section chips, search, availability conflict markers, QR scan-to-add, and deliberate per-item selection. Equipment requirements enforced. Warning/status chrome appears only for unavailable stale selections, hard conflicts, next-use notices, turnaround warnings, or active availability rechecks.
 **Step 3 — Confirmation:** Apple-like review panel leads with the selected window, requester, location, reserved status, linked event, and equipment count. Submit → POST `/api/reservations`. Save as `BOOKED`. Confirmation repeats selected availability warnings only when warnings exist.
 
 **Deep-link parameters:** `?title`, `?startsAt`, `?endsAt`, `?locationId`, `?newFor`, `?eventId`, `?sportCode`, `?requesterUserId`, `?draftId`.
 
 **Draft persistence:** "Save draft & exit" persists via `/api/drafts`. Resumable via `?draftId=`. Multi-event drafts persist ordered `BookingEvent` links, return ordered `events[]` on resume, and keep `Booking.eventId` as the chronologically first linked event for legacy readers.
+
+### Native iOS Create Reservation
+Native iOS creation mirrors the three-step reservation rhythm while staying mobile-first:
+1. Details preserves duration when the start date moves.
+2. Equipment supports searchable serialized assets, scan-to-add through the shared QR scanner, and countable bulk/battery quantities from `/api/form-options`.
+3. Review counts serialized assets plus selected bulk quantities, shows selected bulk rows, and submits typed `bulkItems` alongside `serializedAssetIds`.
+4. Serialized conflict hints stay advisory before submit; server-side availability and bulk shortage checks remain authoritative.
 
 ### Edit Reservation
 1. Allowed fields depend on role, ownership, and lifecycle state.
@@ -245,6 +252,7 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 8. Implement list page controls and row behavior from V1 list surface spec.
 
 ## Change Log
+- 2026-06-10: Web reservation creation inherits the shared Step 1 duration-preserving start-date behavior from the booking wizard. Moving Start now shifts End by the previous duration instead of making a valid window invalid.
 - 2026-06-10: Web reservation creation audit/polish pass (refresh Slice 6). Same fixes as checkouts (escape-literal placeholders, layout alignment, hit targets, skeletons), plus the header kind badge now uses the canonical purple (was blue) and the Step 3 review icon uses the canonical calendar glyph per docs/COLOR_SYSTEM.md.
 - 2026-06-08: Web reservation creation visual refresh shipped. `/reservations/new` now promotes the selected event/booking title instead of a generic New Reservation hero, uses a quieter creation-page breadcrumb, replaces dense Step 1 admin rows with local stacked field groups, compresses Step 2 helper copy, removes unused picker tab counts and select-visible action, uses row skeletons for picker loading, keeps footer navigation tied to review instead of category browsing, compresses selected equipment into removable tray chips, and presents confirmation as a calmer Apple-like review panel while preserving multi-event, draft, availability, and reservation payload contracts.
 - 2026-06-06: Web reservation creation kit-list recovery shipped. `/reservations/new` now treats failed location-scoped kit reads as a retryable inline optional-kit error instead of silently removing the Kit control, while preserving true no-kit behavior, ad hoc/event-linked creation, drafts, equipment selection, and reservation payload contracts.

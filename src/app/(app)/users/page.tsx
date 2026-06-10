@@ -6,7 +6,7 @@ import type { UserRow, Location, Role, SortKey, ListResponse } from "./types";
 import { AREA_LABELS, STUDENT_YEAR_OPTIONS } from "./types";
 import { UserTableRow, UserMobileCard } from "./UserRow";
 import UserFilters from "./UserFilters";
-import CreateUserDialog from "./CreateUserCard";
+import OnboardingDialog from "@/components/onboarding/OnboardingDialog";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -369,17 +369,11 @@ export default function UsersPage() {
         )}
       </PageHeader>
 
-      {/* Create User Dialog */}
-      <CreateUserDialog
+      {/* Onboarding Dialog */}
+      <OnboardingDialog
         open={showCreate}
         onOpenChange={setShowCreate}
-        locations={locations}
-        locationsLoading={formOptionsLoading}
-        locationsError={Boolean(formOptionsError)}
-        onRetryLocations={reloadFormOptions}
         currentUserRole={currentUserRole}
-        initialMode="invite"
-        onCreated={() => reload()}
         onInvitesChanged={() => reload()}
       />
 
@@ -418,7 +412,7 @@ export default function UsersPage() {
           <Alert variant="destructive">
             <WifiOff className="size-4" />
             <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <span>Locations could not load. User location filters and Add User location assignment are unavailable until locations are readable.</span>
+              <span>Locations could not load. User location filters are unavailable until locations are readable.</span>
               <Button type="button" variant="outline" size="sm" onClick={reloadFormOptions} className="h-8 shrink-0">
                 Retry locations
               </Button>

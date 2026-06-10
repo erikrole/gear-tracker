@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-06-03
+- Last Updated: 2026-06-08
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -554,11 +554,11 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - STAFF can only add STUDENT-role entries; ADMIN can add both STAFF and STUDENT
 - Claimed entries cannot be deleted (audit trail preserved)
 - Admin UI under Settings > Allowed Emails with add/delete/filter
-- Direct ADMIN/STAFF user creation still bypasses pre-registration, but staff/student accounts created this way create or claim a visible allowlist row as already claimed so Settings reflects account access state.
+- First-time user access now flows through the allowlist and registration. Direct temporary-password onboarding through `/api/users` is retired for beta; administrator password reset remains the forced-password recovery path.
 
 **Downstream Effects:**
 - Public `/register` still works but only for pre-approved emails
-- Admin user creation via `/api/users` (POST) does not require a pending allowlist entry
+- First-time user creation via `/api/users` (POST) no longer bypasses the allowlist for beta onboarding
 - Existing users unaffected (allowlist only gates new registrations)
 
 ## D-037: Bulk Onboarding Uses an Invitation-Scoped Account Lifecycle
@@ -568,24 +568,23 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - Context:
   - Gear Tracker needs to onboard large student and staff cohorts without forcing an operator to manually create users, add allowed emails, and separately manage first sign-in handoff.
   - Existing registration security depends on D-029's `AllowedEmail` gate.
-  - Direct-created accounts already use `forcePasswordChange`.
-  - Native iOS must not strand first-time users who need to set a password before normal app access.
+  - Direct-created accounts previously used `forcePasswordChange`.
+  - The beta launch should avoid shared first-time password handoffs.
 - Decision:
-  - Treat invite-to-register and direct-created accounts as two modes of the same invitation-scoped lifecycle.
+  - Treat invite-to-register as the first-time invitation-scoped lifecycle.
   - Keep `AllowedEmail` as the self-registration gate. Do not introduce open signup or domain-wide automatic access.
   - Add a bulk-capable onboarding workflow where an authorized operator can paste or upload roster rows, preview validation results, and commit selected rows.
   - Support `Invite to register` by creating or reusing unclaimed allowed-email entries.
-  - Support `Create account with temporary password` by creating the user, creating or claiming the visible allowlist audit row, setting `forcePasswordChange`, and returning one-time temporary credentials.
+  - Retire first-time `Create account with temporary password` onboarding. `/api/users` POST and `/api/users/bulk-create` should no longer mint temporary onboarding credentials.
   - Enforce role boundaries server-side on every preview and commit. STAFF may onboard STUDENT accounts only; ADMIN may onboard STAFF and STUDENT accounts.
   - Keep public registration and authentication responses safe from membership enumeration. Authenticated staff/admin preview may show operational status for records within their management scope.
-  - Add native iOS forced-password handling so a first-time direct-created user can complete password setup before entering the app shell.
+  - Keep native iOS forced-password handling for administrator reset and recovery users before entering the app shell.
   - Audit every create, claim, skip, retry, and follow-up onboarding action.
 - Consequences:
-  - `/api/allowed-emails`, `/api/users`, registration, and future bulk endpoints should share onboarding lifecycle logic rather than each re-implementing account/invite reconciliation.
-  - Temporary passwords must be one-time visible, never logged, and never retrievable.
-  - Bulk endpoints need row-count bounds and rate limits sized for shared-network onboarding days.
-  - The web operator experience should make the allowlist and direct user creation feel like one workflow, while preserving the underlying security gate.
-  - iOS cannot treat login success as enough if `forcePasswordChange` is true.
+  - `/api/allowed-emails` and registration remain the first-time onboarding path.
+  - First-time onboarding must not generate, export, or require shared temporary passwords.
+  - The web operator experience should make allowlist invitations feel like the single account-access workflow.
+  - iOS cannot treat login success as enough if `forcePasswordChange` is true for reset/recovery.
 - Implementation Reference:
   - `docs/BRIEF_ONBOARDING_V1.md`
   - `tasks/onboarding-flow-plan.md`
@@ -720,6 +719,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 4. ~~Student mobile KPI definitions~~ — resolved (PD-5): taps-to-checkout ≤3, scan success ≥95%, task completion <30s. Telemetry deferred to Phase B.
 
 ## Change Log
+- 2026-06-08: Updated D-029/D-037 for the no-temp-password beta pivot. First-time onboarding now stays invite-first through AllowedEmail registration, while forced-password handling remains recovery-only.
 - 2026-06-03: Added D-037 to make onboarding a bulk-capable, invitation-scoped account lifecycle while preserving the allowlist gate and forced-password safety.
 - 2026-06-02: Updated D-026 to match shipped cron reality. Calendar sync is now documented as part of `morning-refresh` at 08:00 UTC, aligned with D-035, while manual Settings sync remains the on-demand escape hatch.
 - 2026-05-20: Added D-036 for Brave-backed human-pick product image search. This replaces any revival of the withdrawn B&H scraping path for photos and keeps metadata enrichment out of scope.

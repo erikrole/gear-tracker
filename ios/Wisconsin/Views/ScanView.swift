@@ -233,15 +233,14 @@ struct ScanView: View {
                 } else {
                     Haptics.success()
                 }
-                // Re-enable scanning so a NEW code can fire while the sheet sits at .medium.
-                // The Coordinator's `lastScanned` already prevents same-code re-fires.
-                isScanning = true
+                // Keep VisionKit stopped while the result sheet presents. Running
+                // the scanner behind system material can trigger repeated
+                // Liquid Glass frame updates on iOS 26.
             } catch {
                 let message = (error as? APIError)?.errorDescription
                     ?? "Couldn't reach the server. Try again in a moment."
                 resultError = message
                 Haptics.error()
-                isScanning = true
             }
         }
     }

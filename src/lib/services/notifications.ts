@@ -325,6 +325,11 @@ export async function createShiftGearUpNotification(assignmentId: string): Promi
 
   const title = "Gear up for your shift";
   const body = `You're assigned to ${assignment.shift.area} for ${eventTitle} at ${shiftTime}. Reserve your gear now.`;
+  const pushPayload = {
+    assignmentId: assignment.id,
+    shiftId: assignment.shiftId,
+    eventId: event.id,
+  };
 
   try {
     await db.notification.create({
@@ -349,7 +354,7 @@ export async function createShiftGearUpNotification(assignmentId: string): Promi
       },
     });
 
-    void sendPushToUser(assignment.userId, { title, body });
+    void sendPushToUser(assignment.userId, { title, body, payload: pushPayload });
 
     // Also send email notification
     if (assignment.user.email) {
@@ -482,6 +487,11 @@ export async function createShiftScheduleNotification(
     callNote: assignment.callNote,
   });
   const dedupeKey = `shift:${assignmentId}:${copy.type}:${callStartsAt.toISOString()}:${callEndsAt.toISOString()}:${assignment.callNote ?? ""}`;
+  const pushPayload = {
+    assignmentId: assignment.id,
+    shiftId: assignment.shiftId,
+    eventId: calendarEvent.id,
+  };
 
   const existing = await db.notification.findUnique({ where: { dedupeKey } });
   if (existing) return;
@@ -512,7 +522,7 @@ export async function createShiftScheduleNotification(
       },
     });
 
-    void sendPushToUser(assignment.userId, { title: copy.title, body: copy.body });
+    void sendPushToUser(assignment.userId, { title: copy.title, body: copy.body, payload: pushPayload });
 
     if (assignment.user.email) {
       await sendEmailToUser(assignment.userId, {

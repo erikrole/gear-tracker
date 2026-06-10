@@ -29,6 +29,11 @@ enum APIError: LocalizedError {
     }
 }
 
+struct BulkReservationRequest: Encodable, Equatable {
+    let bulkSkuId: String
+    let quantity: Int
+}
+
 extension Notification.Name {
     /// Fired when any API call returns 401. SessionStore listens and clears
     /// `currentUser`, which lets RootView swap to LoginView automatically —
@@ -47,6 +52,10 @@ final class APIClient {
         config.httpCookieStorage = HTTPCookieStorage.shared
         config.httpShouldSetCookies = true
         config.httpCookieAcceptPolicy = .always
+        config.waitsForConnectivity = false
+        config.timeoutIntervalForRequest = 15
+        config.timeoutIntervalForResource = 30
+        config.multipathServiceType = .none
         return URLSession(configuration: config)
     }()
 
@@ -82,12 +91,12 @@ final class APIClient {
         var req = request(path: "/api/devices", method: "POST")
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
         req.httpBody = try JSONEncoder().encode(Body(token: hexToken, platform: "IOS", appVersion: version))
-        _ = try await session.data(for: req)
+        let _: SuccessResponse = try await perform(req)
     }
 
     func revokeAllDeviceTokens() async throws {
         let req = request(path: "/api/devices", method: "DELETE")
-        _ = try await session.data(for: req)
+        let _: SuccessResponse = try await perform(req)
     }
 
     func me() async throws -> CurrentUser {
@@ -252,7 +261,8 @@ final class APIClient {
         notes: String?,
         eventId: String? = nil,
         shiftAssignmentId: String? = nil,
-        serializedAssetIds: [String] = []
+        serializedAssetIds: [String] = [],
+        bulkItems: [BulkReservationRequest] = []
     ) async throws -> String {
         struct Body: Encodable {
             let title: String
@@ -262,7 +272,7 @@ final class APIClient {
             let endsAt: String
             let notes: String?
             let serializedAssetIds: [String]
-            let bulkItems: [String]
+            let bulkItems: [BulkReservationRequest]
             let eventId: String?
             let shiftAssignmentId: String?
         }
@@ -277,7 +287,7 @@ final class APIClient {
             endsAt: iso.string(from: endsAt),
             notes: notes?.isEmpty == true ? nil : notes,
             serializedAssetIds: serializedAssetIds,
-            bulkItems: [],
+            bulkItems: bulkItems,
             eventId: eventId,
             shiftAssignmentId: shiftAssignmentId
         ))

@@ -49,6 +49,7 @@
 
 ## UI Reliability
 
+- **Do not reintroduce a crashing native API just because it is newer**: In the iOS tab shell, value-based SwiftUI `Tab(...)` with `TabRole.search` and tab-bar minimization repeatedly triggered UIKit's `UITabBarController._viewControllerForTabBarItem` assertion when selecting Schedule. Once a newest-API path has a reproduced framework assertion, prefer the stable native path (`TabView` + `.tabItem`/`.tag`) and lock it with a focused source-contract test until device-level proof says otherwise.
 - **Put non-trivial client search policy in testable helpers**: If a UI owns provider-query orchestration such as B&H-first plus broad fallback merging, extract the query builders and merge logic into a pure helper module and test it directly. Server tests alone will miss client-side quota/cost and ordering behavior.
 - **Recognition systems may apply beyond the original persona**: Before adding badge definitions or badge UI, confirm whether the scope is students-only or all users. Do not keep student-only guards just because the first plan used student language.
 - **Dev CSRF origin must use the actual request origin**: Do not hardcode `https://${host}` as the expected origin in shared API wrappers. Local dev pages run on `http://localhost:*`, so mutating requests can be blocked before auth/permission checks. Compare `Origin` to `new URL(req.url).origin` and keep bad-origin requests returning 403.

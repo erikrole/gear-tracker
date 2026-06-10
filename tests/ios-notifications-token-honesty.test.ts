@@ -1,0 +1,48 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+
+function source(relativeFile: string) {
+  return readFileSync(path.join(process.cwd(), relativeFile), "utf8");
+}
+
+function methodBody(text: string, name: string, nextName: string) {
+  const start = text.indexOf(`func ${name}`);
+  const end = text.indexOf(`func ${nextName}`, start);
+  expect(start).toBeGreaterThanOrEqual(0);
+  expect(end).toBeGreaterThan(start);
+  return text.slice(start, end);
+}
+
+describe("iOS APNs device token honesty", () => {
+  it("/api/devices returns a success envelope for register and revoke", () => {
+    const route = source("src/app/api/devices/route.ts");
+
+    expect(route).toContain("export const POST = withAuth");
+    expect(route).toContain("export const DELETE = withAuth");
+    expect(route.match(/return ok\(\{ success: true \}\);/g)).toHaveLength(2);
+  });
+
+  it("native token register/revoke use the shared API handler", () => {
+    const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
+    const register = methodBody(apiClient, "registerDeviceToken", "revokeAllDeviceTokens");
+    const revoke = methodBody(apiClient, "revokeAllDeviceTokens", "me");
+
+    expect(register).toContain("request(path: \"/api/devices\", method: \"POST\")");
+    expect(register).toContain("let _: SuccessResponse = try await perform(req)");
+    expect(register).not.toContain("session.data(for: req)");
+
+    expect(revoke).toContain("request(path: \"/api/devices\", method: \"DELETE\")");
+    expect(revoke).toContain("let _: SuccessResponse = try await perform(req)");
+    expect(revoke).not.toContain("session.data(for: req)");
+  });
+
+  it("shared perform remains the central 401 session-expiry path", () => {
+    const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
+    const perform = apiClient.slice(apiClient.indexOf("private func perform"));
+
+    expect(perform).toContain("case 401:");
+    expect(perform).toContain("NotificationCenter.default.post(name: .sessionDidExpire, object: nil)");
+    expect(apiClient).toContain("private struct SuccessResponse: Decodable");
+  });
+});

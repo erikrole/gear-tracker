@@ -1,6 +1,6 @@
 # iOS HIG and iOS 27 Readiness Plan
 
-**Status:** Active, slices 1-18 shipped
+**Status:** Active, slices 1-19 shipped
 **Created:** 2026-06-05
 **Scope:** `ios/Wisconsin`
 **Goal:** Refresh the native iOS app against current Apple Human Interface Guidelines, improve the highest-impact UI/UX gaps now, and keep the code ready for WWDC26/iOS 27 changes starting June 8, 2026.
@@ -175,6 +175,23 @@
 - [x] Keep manual code entry as the secondary recovery path when retry is not enough.
 - [x] Add focused static coverage for native Scan retry recovery.
 - [x] Sync mobile, scan, search, scan audit, HIG audit, and readiness plan docs.
+
+## Slice 19 — App Tab Bar Crash Guard
+
+- [x] Classify the attached main-thread crash trace.
+- [x] Preserve the current Home, My Gear/Bookings, Items, Scan, Schedule, and staff-only Users tab contract.
+- [x] Temporarily roll back the app shell from the iOS 26 `Tab(...)` builder and tab minimization to stable `.tabItem`/`.tag` tabs.
+- [x] Guard selection away from the staff-only Users tab if role visibility changes.
+- [x] Add focused static coverage for the stable tab shell.
+- [x] Sync mobile and HIG audit docs.
+
+## Slice 20 — Newest SwiftUI Tab Shell
+
+- [x] Restore the app shell to value-based `Tab(...)` entries with typed `AppTab` selection.
+- [x] Restore `TabRole.search` for Scan and `.tabBarMinimizeBehavior(.onScrollDown)`.
+- [x] Add stable tab `customizationID` values while preserving the Users role-change guard.
+- [x] Update focused tab-shell coverage and mobile/HIG docs.
+- [x] Roll back again after user retest confirmed Schedule selection still crashes with the modern `Tab(...)` shell.
 
 ## iOS 27 Watch Items
 

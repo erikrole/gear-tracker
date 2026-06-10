@@ -16,6 +16,8 @@ final class AppState {
     var resetTab: Int?
     var tabResetToken = 0
     private var isRefreshing = false
+    private var lastRefreshAttemptAt: Date?
+    private let minimumRefreshInterval: TimeInterval = 60
 
     func selectTab(_ tab: Int) {
         if selectedTab == tab {
@@ -26,9 +28,15 @@ final class AppState {
         }
     }
 
-    func refresh() async {
+    func refresh(forceRefresh: Bool = false) async {
         guard !isRefreshing else { return }
+        if !forceRefresh,
+           let lastRefreshAttemptAt,
+           Date().timeIntervalSince(lastRefreshAttemptAt) < minimumRefreshInterval {
+            return
+        }
         isRefreshing = true
+        lastRefreshAttemptAt = Date()
         defer { isRefreshing = false }
         do {
             // Use the lightweight stats endpoint instead of the full dashboard payload —

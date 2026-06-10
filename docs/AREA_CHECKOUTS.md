@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Checkouts
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-06
+- Last Updated: 2026-06-10
 - Status: Active — V1 Shipped
 - Version: V1
 
@@ -32,6 +32,7 @@ Multi-step wizard page (replaced the old side-sheet flow as of 2026-04-09):
 4. Client-side validation: title, requester, location required; dates must be valid range.
 5. The page title uses the selected event/booking title once available; the checkout badge carries the booking kind so the flow does not need a generic creation hero.
 6. Context copy stays compact: it names event-linked versus ad hoc state and reserves longer guidance for real load errors or review.
+7. Manual date edits preserve duration when the Pickup/Start value changes, matching the native calendar-app behavior; invalid existing windows still remain invalid so validation can block them.
 
 **Step 2 — Equipment:**
 1. Full `EquipmentPicker` with quiet section chips, search, availability conflict markers, QR scan-to-add, and deliberate per-item selection.
@@ -290,6 +291,7 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 5. Add regression coverage for race conditions, partial returns, and permission bypass attempts.
 
 ## Change Log
+- 2026-06-10: Web checkout Step 1 now preserves the booking duration when the Pickup/Start time changes, matching the iOS reservation sheet behavior. Verified with focused Vitest coverage, TypeScript, whitespace check, and authenticated local browser smoke on `/checkouts/new`; the smoke also found no visible `\u2026` escape literals or console warnings/errors.
 - 2026-06-10: Web checkout creation audit/polish pass (refresh Slice 6). Fixed Step 1 requester/location placeholders and the Step 3 empty-equipment notice rendering literal `\u2026`/`\u2014` escape text (JSX attributes/text do not process JS escapes), aligned the header kind badge to the canonical blue (was red), aligned the Step 3 notes card and availability alert to the review panel width, removed a dead nested notes conditional, switched Step 1 event loading to geometry-preserving skeleton rows, and raised step chips, picker tabs, tray chip remove buttons, and quantity steppers to the 40px hit-target baseline with a more prominent final submit action.
 - 2026-06-08: Web checkout creation visual refresh shipped. `/checkouts/new` now promotes the selected event/booking title instead of a generic New Checkout hero, uses a quieter creation-page breadcrumb, replaces dense Step 1 admin rows with local stacked field groups, compresses Step 2 helper copy, removes unused picker tab counts and select-visible action, uses row skeletons for picker loading, keeps footer navigation tied to review instead of category browsing, compresses selected equipment into removable tray chips, and presents confirmation as a calmer Apple-like review panel while preserving multi-event, draft, availability, and kiosk-pickup contracts.
 - 2026-06-06: Web checkout creation kit-list recovery shipped. `/checkouts/new` now treats failed location-scoped kit reads as a retryable inline optional-kit error instead of silently removing the Kit control, while preserving true no-kit behavior, ad hoc/event-linked creation, drafts, equipment selection, and checkout payload contracts.
