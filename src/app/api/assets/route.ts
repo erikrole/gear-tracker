@@ -20,7 +20,7 @@ const createAssetSchema = z.object({
   serialNumber: z.string().optional(),
   qrCodeValue: z.string().min(1),
   purchaseDate: z.string().optional(),
-  purchasePrice: z.number().positive().optional(),
+  purchasePrice: z.number().nonnegative().optional(),
   warrantyDate: z.string().optional(),
   residualValue: z.number().nonnegative().optional(),
   locationId: z.string().cuid(),

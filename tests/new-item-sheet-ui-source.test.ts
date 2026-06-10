@@ -41,6 +41,10 @@ describe("Add item sheet booking-inspired UI", () => {
     expect(standardSource).toContain('label="Category" htmlFor="new-item-category"');
     expect(standardSource).toContain('htmlFor="new-item-is-accessory"');
     expect(standardSource).toContain('htmlFor="new-item-available-for-reservation"');
+    expect(standardSource).toContain('label="Photo upload" htmlFor="new-item-photo"');
+    expect(standardSource).toContain('name="imageFile"');
+    expect(standardSource).toContain('Price (USD)');
+    expect(standardSource).toContain("existingCount > 0");
     expect(standardSource).toContain('autoComplete="off"');
     expect(bulkSource).toContain('label="Item name" htmlFor="new-bulk-item-name"');
     expect(bulkSource).toContain('label="Item" htmlFor="existing-bulk-item"');

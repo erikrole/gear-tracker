@@ -22,10 +22,10 @@ export function getFiscalYearOptions(): string[] {
   const calYear = now.getFullYear();
   const currentFY = now.getMonth() >= 6 ? calYear + 1 : calYear;
   const options: string[] = [];
-  for (let y = currentFY - 5; y <= currentFY + 2; y++) {
-    options.push(`FY${String(y).slice(-2)}`);
+  for (let y = currentFY + 2; y >= currentFY - 5; y -= 1) {
+    options.push(String(y));
   }
-  return options.reverse();
+  return options;
 }
 
 export const FISCAL_YEARS = getFiscalYearOptions();

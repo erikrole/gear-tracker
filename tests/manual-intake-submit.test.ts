@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   buildSerializedItemSubmitBody,
+  isValidUsdPriceInput,
+  parseUsdPriceInput,
   UNKNOWN_ITEM_METADATA,
 } from "@/app/(app)/items/new-item-sheet/serialized-submit";
 
@@ -57,7 +59,7 @@ describe("manual Standard item intake payload", () => {
       serialNumber: " SN-123 ",
       departmentId: "cmdepartment000000000001",
       linkUrl: " https://example.com/fx6 ",
-      fiscalYear: "FY26",
+      fiscalYear: "2026",
       userNotes: " Includes cage ",
     });
 
@@ -68,8 +70,22 @@ describe("manual Standard item intake payload", () => {
       serialNumber: "SN-123",
       departmentId: "cmdepartment000000000001",
       linkUrl: "https://example.com/fx6",
-      notes: JSON.stringify({ fiscalYear: "FY26", userNotes: "Includes cage" }),
+      notes: JSON.stringify({ fiscalYearPurchased: "2026", userNotes: "Includes cage" }),
     });
+  });
+
+  it("parses purchase price as USD while allowing common currency formatting", () => {
+    expect(parseUsdPriceInput("1299.99")).toBe(1299.99);
+    expect(parseUsdPriceInput("$1,299.99")).toBe(1299.99);
+    expect(parseUsdPriceInput("0")).toBe(0);
+    expect(isValidUsdPriceInput("12.345")).toBe(false);
+
+    const body = buildSerializedItemSubmitBody({
+      ...baseInput,
+      purchasePrice: "$1,299.99",
+    });
+
+    expect(body).toMatchObject({ purchasePrice: 1299.99 });
   });
 
   it("keeps attachment policy restrictions when a standard item is a parented accessory", () => {

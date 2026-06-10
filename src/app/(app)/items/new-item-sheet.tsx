@@ -43,6 +43,10 @@ type ItemCreateResponse = {
   };
 };
 
+type ImageMutationResponse = {
+  imageUrl?: string | null;
+};
+
 type KindOption = {
   kind: ItemKind;
   id: string;
@@ -129,6 +133,25 @@ function buildImageSearchSeed(name?: unknown, brand?: unknown, model?: unknown, 
   return [productName, ...metadata].filter(Boolean).join(" ")
     || [brandText, modelText].filter(Boolean).join(" ")
     || fallbackText;
+}
+
+async function uploadCreatedAssetImage(assetId: string, file: File) {
+  const formData = new FormData();
+  formData.append("image", file);
+  const res = await fetch(`/api/assets/${assetId}/image`, {
+    method: "POST",
+    body: formData,
+  });
+  if (handleAuthRedirect(res)) {
+    throw new Error("Session expired while uploading the image.");
+  }
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, "Image upload failed."));
+  }
+  const json = await parseJsonSafely<ImageMutationResponse>(res);
+  if (!json?.imageUrl) {
+    throw new Error("Upload finished, but no image URL was returned.");
+  }
 }
 
 export function NewItemSheet({
@@ -269,6 +292,17 @@ export function NewItemSheet({
       // For serialized items, show image upload prompt before proceeding
       if (kind === "standard" && json?.data?.id) {
         const createdId = json.data.id;
+        const pendingImageFile = serializedRef.current?.getPendingImageFile() ?? null;
+        let handoffDescription = "Open the item record to finish photos, QR details, policy settings, and booking context.";
+        if (pendingImageFile) {
+          try {
+            await uploadCreatedAssetImage(createdId, pendingImageFile);
+            handoffDescription = "Photo uploaded. Open the item record to finish QR details, policy settings, and booking context.";
+          } catch (uploadError) {
+            const message = uploadError instanceof Error ? uploadError.message : "Image upload failed.";
+            handoffDescription = `${message} Use Add image below or open the item record to try again.`;
+          }
+        }
         setCreatedAssetId(createdId);
         setImageSearchSeed(searchSeed);
         setCreatedHandoff({
@@ -277,7 +311,7 @@ export function NewItemSheet({
           href: `/items/${createdId}`,
           openLabel: "Open item",
           successMessage: `"${label}" created successfully.`,
-          description: "Open the item record to finish photos, QR details, policy settings, and booking context.",
+          description: handoffDescription,
         });
         return; // Don't close yet — show image upload prompt
       }

@@ -29,10 +29,27 @@ function trimmed(value: string) {
   return value.trim();
 }
 
+const USD_PRICE_PATTERN = /^\$?\s*(?:(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d{0,2})?|\.\d{1,2})\s*$/;
+
+export function parseUsdPriceInput(value: string): number | undefined {
+  const input = trimmed(value);
+  if (!input) return undefined;
+  if (!USD_PRICE_PATTERN.test(input)) return undefined;
+
+  const parsed = Number(input.replace(/^\$\s*/, "").replace(/,/g, ""));
+  if (!Number.isFinite(parsed) || parsed < 0) return undefined;
+  return parsed;
+}
+
+export function isValidUsdPriceInput(value: string): boolean {
+  return !trimmed(value) || parseUsdPriceInput(value) !== undefined;
+}
+
 export function buildSerializedItemSubmitBody(input: SerializedSubmitInput): Record<string, unknown> {
   const metadata: Record<string, string> = {};
-  if (input.fiscalYear) metadata.fiscalYear = input.fiscalYear;
+  if (input.fiscalYear) metadata.fiscalYearPurchased = input.fiscalYear;
   if (trimmed(input.userNotes)) metadata.userNotes = trimmed(input.userNotes);
+  const purchasePrice = parseUsdPriceInput(input.purchasePrice);
 
   return {
     assetTag: trimmed(input.assetTag),
@@ -50,7 +67,7 @@ export function buildSerializedItemSubmitBody(input: SerializedSubmitInput): Rec
     ...(input.departmentId ? { departmentId: input.departmentId } : {}),
     ...(trimmed(input.itemName) ? { name: trimmed(input.itemName) } : {}),
     ...(input.purchaseDate ? { purchaseDate: input.purchaseDate } : {}),
-    ...(input.purchasePrice ? { purchasePrice: parseFloat(input.purchasePrice) } : {}),
+    ...(purchasePrice !== undefined ? { purchasePrice } : {}),
     ...(input.warrantyDate ? { warrantyDate: input.warrantyDate } : {}),
     ...(input.residualValue ? { residualValue: parseFloat(input.residualValue) } : {}),
     ...(trimmed(input.linkUrl) ? { linkUrl: trimmed(input.linkUrl) } : {}),

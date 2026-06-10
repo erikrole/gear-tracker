@@ -1,7 +1,7 @@
 "use client";
 
-import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from "react";
-import { Dices, ScanLine, X } from "lucide-react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { Dices, ImageIcon, ScanLine, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,12 +15,14 @@ import { generateQrCode, useIsMobile, useParentSearch, FISCAL_YEARS } from "./he
 import { FormRow, FormRow2Col } from "@/components/form-layout";
 import { FormCombobox, CategoryCombobox } from "@/components/FormCombobox";
 import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
-import { buildSerializedItemSubmitBody } from "./serialized-submit";
+import { buildSerializedItemSubmitBody, isValidUsdPriceInput } from "./serialized-submit";
 import { FormSection } from "./FormSection";
+import { getRepeatTagBase, summarizeRepeatTags, type RepeatTagSummary } from "./repeat-tags";
 
 export interface SerializedFormHandle {
   validate(): string | null;
   getSubmitBody(): Record<string, unknown>;
+  getPendingImageFile(): File | null;
   reset(keepShared?: boolean): void;
   focus(): void;
 }
@@ -37,6 +39,9 @@ type AssetSearchResponse = {
     assetTag?: string | null;
   }>;
 };
+
+const ALLOWED_PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const MAX_PHOTO_SIZE = 4.5 * 1024 * 1024;
 
 export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
   function SerializedItemForm({ categories, departments, locations, disabled = false }, ref) {
@@ -62,20 +67,27 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
 
     // Asset tag uniqueness check
     const [assetTagError, setAssetTagError] = useState("");
+    const [assetTagSummary, setAssetTagSummary] = useState<RepeatTagSummary | null>(null);
     const assetTagCheckRef = useRef(0);
     const assetTagInputRef = useRef<HTMLInputElement>(null);
     const checkAssetTagUnique = useCallback(async (tag: string) => {
       const trimmed = tag.trim();
-      if (!trimmed) { setAssetTagError(""); return; }
+      if (!trimmed) {
+        setAssetTagError("");
+        setAssetTagSummary(null);
+        return;
+      }
       const id = ++assetTagCheckRef.current;
+      const repeatBase = getRepeatTagBase(trimmed);
       try {
-        const res = await fetch(`/api/assets?q=${encodeURIComponent(trimmed)}&page_size=1`);
+        const res = await fetch(`/api/assets?q=${encodeURIComponent(repeatBase)}&limit=100&include_accessories=true`);
         if (id !== assetTagCheckRef.current) return; // stale
         if (handleAuthRedirect(res)) return;
         if (!res.ok) return;
         const data = await parseJsonSafely<AssetSearchResponse>(res);
         const match = data?.data?.some((a) => a.assetTag === trimmed);
         setAssetTagError(match ? "Asset tag already in use" : "");
+        setAssetTagSummary(summarizeRepeatTags(trimmed, data?.data ?? []));
       } catch { /* network error — skip */ }
     }, []);
 
@@ -93,6 +105,51 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
 
     const isMobile = useIsMobile();
 
+    // Optional photo selected before create. The server upload still happens after
+    // asset creation because the image endpoint is asset-id based.
+    const [photoFile, setPhotoFile] = useState<File | null>(null);
+    const [photoPreviewUrl, setPhotoPreviewUrl] = useState("");
+    const [photoError, setPhotoError] = useState("");
+    const photoInputRef = useRef<HTMLInputElement>(null);
+
+    const clearPhoto = useCallback(() => {
+      setPhotoFile(null);
+      setPhotoError("");
+      setPhotoPreviewUrl((current) => {
+        if (current) URL.revokeObjectURL(current);
+        return "";
+      });
+      if (photoInputRef.current) photoInputRef.current.value = "";
+    }, []);
+
+    useEffect(() => () => {
+      if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+    }, [photoPreviewUrl]);
+
+    function handlePhotoChange(file: File | null) {
+      setPhotoError("");
+      setPhotoFile(null);
+      setPhotoPreviewUrl((current) => {
+        if (current) URL.revokeObjectURL(current);
+        return "";
+      });
+      if (!file) return;
+
+      if (!ALLOWED_PHOTO_TYPES.has(file.type)) {
+        setPhotoError("Upload a JPG, PNG, WebP, or GIF image.");
+        if (photoInputRef.current) photoInputRef.current.value = "";
+        return;
+      }
+      if (file.size > MAX_PHOTO_SIZE) {
+        setPhotoError("Upload an image smaller than 4.5 MB.");
+        if (photoInputRef.current) photoInputRef.current.value = "";
+        return;
+      }
+
+      setPhotoFile(file);
+      setPhotoPreviewUrl(URL.createObjectURL(file));
+    }
+
     // Build combobox options
     const departmentOptions = departments.map((d) => ({ value: d.id, label: d.name }));
     const locationOptions = locations.map((l) => ({ value: l.id, label: l.name }));
@@ -105,6 +162,8 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
         if (!qrCodeValue.trim()) return "QR code is required.";
         if (!categoryId) return "Please select a category.";
         if (!locationId) return "Please select a location.";
+        if (!isValidUsdPriceInput(purchasePrice)) return "Enter purchase price as a USD amount, for example 1299.99.";
+        if (photoError) return photoError;
         if (isAccessory && !parentAsset) return "Please select a parent item for this attachment.";
         return null;
       },
@@ -134,6 +193,9 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
           parentAssetId: parentAsset?.id,
         });
       },
+      getPendingImageFile() {
+        return photoFile;
+      },
       reset(keepShared = false) {
         if (!keepShared) {
           setCategoryId("");
@@ -143,6 +205,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
         setFiscalYear("");
         setAssetTag("");
         setAssetTagError("");
+        setAssetTagSummary(null);
         setItemName("");
         setBrand("");
         setModel("");
@@ -162,6 +225,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
         setIsAccessory(false);
         setParentAsset(null);
         parentSearch.clear();
+        clearPhoto();
       },
       focus() {
         assetTagInputRef.current?.focus();
@@ -182,7 +246,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
               name="assetTag"
               ref={assetTagInputRef}
               value={assetTag}
-              onChange={(e) => { setAssetTag(e.target.value); setAssetTagError(""); }}
+              onChange={(e) => { setAssetTag(e.target.value); setAssetTagError(""); setAssetTagSummary(null); }}
               onBlur={() => checkAssetTagUnique(assetTag)}
               placeholder="Unique tag name"
               autoComplete="off"
@@ -190,6 +254,13 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
               className={assetTagError ? "border-destructive" : undefined}
             />
             {assetTagError && <p className="text-sm text-destructive mt-1">{assetTagError}</p>}
+            {!assetTagError && assetTagSummary && assetTag.trim() && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                {assetTagSummary.existingCount > 0
+                  ? `${assetTagSummary.existingCount} existing ${assetTagSummary.base} ${assetTagSummary.existingCount === 1 ? "item" : "items"}. Next tag should be ${assetTagSummary.nextTag}.`
+                  : `No existing ${assetTagSummary.base} items found.`}
+              </p>
+            )}
           </FormRow>
 
           <FormRow label="Name" htmlFor="new-item-name">
@@ -322,8 +393,22 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
               <Input id="new-item-purchase-date" name="purchaseDate" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} type="date" autoComplete="off" />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="new-item-purchase-price" className="text-xs text-muted-foreground">Price</Label>
-              <Input id="new-item-purchase-price" name="purchasePrice" value={purchasePrice} onChange={(e) => setPurchasePrice(e.target.value)} type="number" min="0" step="0.01" placeholder="0.00" autoComplete="off" />
+              <Label htmlFor="new-item-purchase-price" className="text-xs text-muted-foreground">Price (USD)</Label>
+              <div className="flex rounded-md border border-input bg-background shadow-xs transition-[color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
+                <span className="flex items-center border-r px-3 text-sm text-muted-foreground">$</span>
+                <Input
+                  id="new-item-purchase-price"
+                  name="purchasePrice"
+                  value={purchasePrice}
+                  onChange={(e) => setPurchasePrice(e.target.value)}
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  autoComplete="off"
+                  aria-label="Purchase price in US dollars"
+                  className="border-0 shadow-none focus-visible:ring-0"
+                />
+              </div>
             </div>
           </FormRow2Col>
 
@@ -353,6 +438,55 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
 
           <FormRow label="Link" htmlFor="new-item-link-url">
             <Input id="new-item-link-url" name="linkUrl" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} type="url" placeholder="https://..." autoComplete="off" />
+          </FormRow>
+        </FormSection>
+
+        <FormSection
+          title="Photo"
+          badge="Optional"
+          badgeVariant="secondary"
+          description="Upload a product photo now, or add search and URL images after the item is created."
+        >
+          <FormRow label="Photo upload" htmlFor="new-item-photo">
+            <div className="space-y-3">
+              <Input
+                id="new-item-photo"
+                ref={photoInputRef}
+                name="imageFile"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                onChange={(e) => handlePhotoChange(e.target.files?.[0] ?? null)}
+                autoComplete="off"
+              />
+              {photoError && <p className="text-sm text-destructive">{photoError}</p>}
+              {photoFile && (
+                <div className="flex items-center gap-3 rounded-md border bg-muted/30 p-2">
+                  <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded bg-background">
+                    {photoPreviewUrl ? (
+                      <img src={photoPreviewUrl} alt="" className="h-full w-full object-contain" />
+                    ) : (
+                      <ImageIcon className="size-5 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{photoFile.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {(photoFile.size / (1024 * 1024)).toFixed(1)} MB
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-9 shrink-0"
+                    onClick={clearPhoto}
+                    aria-label="Remove selected photo"
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
           </FormRow>
         </FormSection>
 
