@@ -8,7 +8,6 @@ import { notifyLowStock } from "@/lib/services/notifications";
 import { resolveEventDefaults } from "@/lib/services/event-defaults";
 import { parseDateRange } from "@/lib/time";
 import { createCheckoutSchema, sanitizeBookingFields } from "@/lib/validation";
-import { createAuditEntry } from "@/lib/audit";
 import { loadCheckoutPolicies } from "@/lib/services/checkout-policies";
 
 export const GET = withAuth(async (req, { user }) => {
@@ -119,14 +118,7 @@ export const POST = withAuth(async (req, { user }) => {
     kitId: body.kitId
   });
 
-  await createAuditEntry({
-    actorId: user.id,
-    actorRole: user.role,
-    entityType: "booking",
-    entityId: checkout.id,
-    action: "create",
-    after: { title: checkout.title ?? body.title, kind: "CHECKOUT" },
-  });
+  // Audit entry is written inside createBooking()'s transaction — do not log again here.
 
   // Fire-and-forget: check bulk stock levels and notify admins if below threshold
   if (body.bulkItems.length > 0) {

@@ -5,7 +5,6 @@ import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createBooking, listBookings } from "@/lib/services/bookings";
 import { parseDateRange } from "@/lib/time";
-import { createAuditEntry } from "@/lib/audit";
 import { createReservationSchema, sanitizeBookingFields } from "@/lib/validation";
 import { createReservationLifecycleNotification } from "@/lib/services/notifications";
 import { loadReservationRules } from "@/lib/services/reservation-rules";
@@ -92,14 +91,7 @@ export const POST = withAuth(async (req, { user }) => {
     kitId: body.kitId,
   });
 
-  await createAuditEntry({
-    actorId: user.id,
-    actorRole: user.role,
-    entityType: "booking",
-    entityId: reservation.id,
-    action: "create",
-    after: { title: reservation.title ?? body.title, kind: "RESERVATION" },
-  });
+  // Audit entry is written inside createBooking()'s transaction — do not log again here.
 
   void createReservationLifecycleNotification({
     bookingId: reservation.id,
