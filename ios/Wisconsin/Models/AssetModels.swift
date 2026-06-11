@@ -95,6 +95,11 @@ struct Asset: Codable, Identifiable, Hashable {
     }
 }
 
+struct FamilyUnitSummary: Codable, Hashable {
+    let unitNumber: Int
+    let status: String
+}
+
 struct AssetFamilySearchResult: Codable, Identifiable, Hashable {
     let id: String
     let kind: String
@@ -113,6 +118,8 @@ struct AssetFamilySearchResult: Codable, Identifiable, Hashable {
     let matchedUnitDueAt: Date?
     let matchedUnitBookingTitle: String?
     let matchedUnitBookingId: String?
+    /// Per-unit roster — present only on exact-unit scan results.
+    let units: [FamilyUnitSummary]?
     let imageUrl: String?
     let locationName: String
     let locationId: String

@@ -46,13 +46,16 @@ struct ScanAssetHeroCard: View {
             }
 
             HStack(spacing: 10) {
-                Button(action: onReserve) {
-                    Label("Reserve", systemImage: "calendar.badge.plus")
-                        .frame(maxWidth: .infinity)
+                // Retired or in-shop gear isn't reservable — don't offer it.
+                if isReservable {
+                    Button(action: onReserve) {
+                        Label("Reserve", systemImage: "calendar.badge.plus")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                    .tint(.primary)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
-                .tint(.primary)
 
                 Button(action: onViewItem) {
                     Label("View item", systemImage: "arrow.right.circle.fill")
@@ -67,6 +70,12 @@ struct ScanAssetHeroCard: View {
         .padding(.horizontal, 20)
         .padding(.top, 20)
         .padding(.bottom, 28)
+        .frame(maxWidth: 560)
+        .frame(maxWidth: .infinity)
+    }
+
+    private var isReservable: Bool {
+        asset.computedStatus != .retired && asset.computedStatus != .maintenance
     }
 
     private var metaLine: String {
@@ -110,6 +119,10 @@ struct ScanFamilyHeroCard: View {
 
             ScanHeroStatsRow(family: family)
 
+            if family.trackByNumber, let units = family.units, !units.isEmpty {
+                ScanHeroUnitRoster(units: units, scannedUnitNumber: family.matchedUnitNumber)
+            }
+
             if let holder = family.matchedUnitHolder {
                 ScanHeroCustodyRow(
                     holder: holder,
@@ -136,6 +149,8 @@ struct ScanFamilyHeroCard: View {
         .padding(.horizontal, 20)
         .padding(.top, 20)
         .padding(.bottom, 28)
+        .frame(maxWidth: 560)
+        .frame(maxWidth: .infinity)
     }
 
     /// Unit statuses come over the wire as the same raw strings as asset
@@ -146,11 +161,68 @@ struct ScanFamilyHeroCard: View {
     }
 }
 
+// MARK: - Unit roster
+
+/// Per-unit status grid for numbered bulk families — fills the large detent
+/// with the answer to "which units are out". The scanned unit gets a ring.
+private struct ScanHeroUnitRoster: View {
+    let units: [FamilyUnitSummary]
+    let scannedUnitNumber: Int?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("ALL UNITS")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 52), spacing: 8)], spacing: 8) {
+                ForEach(units, id: \.unitNumber) { unit in
+                    chip(for: unit)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    private func chip(for unit: FamilyUnitSummary) -> some View {
+        let status = AssetComputedStatus(rawValue: unit.status) ?? .unknown
+        let tone = Self.tone(for: status)
+        let isScanned = unit.unitNumber == scannedUnitNumber
+        return Text("#\(unit.unitNumber)")
+            .font(.caption.weight(isScanned ? .bold : .medium))
+            .monospacedDigit()
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .background(Color.statusBackground(tone), in: Capsule())
+            .foregroundStyle(Color.statusText(tone))
+            .overlay(
+                Capsule().strokeBorder(
+                    isScanned ? Color.statusText(tone) : .clear,
+                    lineWidth: 1.5
+                )
+            )
+            .accessibilityLabel("Unit \(unit.unitNumber), \(status.label)\(isScanned ? ", scanned unit" : "")")
+    }
+
+    private static func tone(for status: AssetComputedStatus) -> StatusTone {
+        switch status {
+        case .available:   return .green
+        case .checkedOut:  return .blue
+        case .pendingPickup, .maintenance: return .orange
+        case .reserved:    return .purple
+        case .retired, .unknown: return .gray
+        }
+    }
+}
+
 // MARK: - Hero image
 
 private struct ScanHeroImage: View {
     let imageUrl: String?
     let placeholderIcon: String
+    @State private var showZoom = false
 
     var body: some View {
         ZStack {
@@ -190,12 +262,79 @@ private struct ScanHeroImage: View {
                 .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 1)
         )
         .accessibilityHidden(true)
+        .onTapGesture {
+            if imageUrl != nil { showZoom = true }
+        }
+        .fullScreenCover(isPresented: $showZoom) {
+            if let imageUrl, let url = URL(string: imageUrl) {
+                ScanHeroImageViewer(url: url)
+            }
+        }
     }
 
     private var placeholder: some View {
         Image(systemName: placeholderIcon)
             .font(.system(size: 44))
             .foregroundStyle(Color(.systemGray3))
+    }
+}
+
+/// Full-screen pinch-to-zoom photo viewer for the hero image — for checking
+/// cosmetic condition without squinting at a 180pt tile.
+private struct ScanHeroImageViewer: View {
+    let url: URL
+    @Environment(\.dismiss) private var dismiss
+    @State private var scale: CGFloat = 1
+    @GestureState private var pinch: CGFloat = 1
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black
+                .ignoresSafeArea()
+                .onTapGesture { dismiss() }
+
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFit()
+                        .scaleEffect(min(max(scale * pinch, 1), 5))
+                        .gesture(
+                            MagnificationGesture()
+                                .updating($pinch) { value, state, _ in state = value }
+                                .onEnded { value in
+                                    scale = min(max(scale * value, 1), 5)
+                                }
+                        )
+                        .onTapGesture(count: 2) {
+                            withAnimation(.spring(duration: 0.3)) {
+                                scale = scale > 1 ? 1 : 2.5
+                            }
+                        }
+                case .failure:
+                    Image(systemName: "photo.badge.exclamationmark")
+                        .font(.system(size: 44))
+                        .foregroundStyle(.secondary)
+                default:
+                    ProgressView().tint(.white)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 38, height: 38)
+                    .background(.ultraThinMaterial, in: Circle())
+            }
+            .accessibilityLabel("Close photo")
+            .padding(.trailing, 20)
+            .padding(.top, 8)
+        }
     }
 }
 

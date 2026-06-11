@@ -378,6 +378,7 @@ export const GET = withAuth(async (req, { user }) => {
     matchedUnitDueAt?: string | null;
     matchedUnitBookingTitle?: string | null;
     matchedUnitBookingId?: string | null;
+    units?: Array<{ unitNumber: number; status: string }>;
     imageUrl: string | null;
     locationName: string;
     locationId: string;
@@ -499,6 +500,12 @@ export const GET = withAuth(async (req, { user }) => {
               matchedUnitNumber: matchedUnit.unitNumber,
               matchedUnitStatus: matchedUnit.status,
               ...matchedUnitCustody,
+              // Per-unit roster, only on the exact-unit scan path so list
+              // searches don't ship every unit of every SKU.
+              units: sku.units
+                .slice()
+                .sort((a, b) => a.unitNumber - b.unitNumber)
+                .map((u) => ({ unitNumber: u.unitNumber, status: u.status })),
             }
           : {}),
         imageUrl: sku.imageUrl,

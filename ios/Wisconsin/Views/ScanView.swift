@@ -117,7 +117,8 @@ struct ScanView: View {
                     resultError = nil
                     showManualEntry = true
                 },
-                onRetry: retryLastScan
+                onRetry: retryLastScan,
+                onRefresh: refreshLookup
             )
             .presentationDetents(resultSheetDetents)
             .presentationDragIndicator(.visible)
@@ -254,6 +255,17 @@ struct ScanView: View {
         lastHandledCode = nil
         lastHandledAt = .distantPast
         handleScan(code)
+    }
+
+    /// Pull-to-refresh on the result sheet: re-runs the last lookup in place
+    /// so availability/custody stay honest while the sheet sits open. A failed
+    /// refresh keeps the stale card rather than blanking it.
+    private func refreshLookup() async {
+        guard let code = lastHandledCode else { return }
+        if let fresh = try? await SearchService.shared.search(query: code, rawScan: code),
+           !fresh.isEmpty {
+            results = fresh
+        }
     }
 }
 
@@ -424,6 +436,7 @@ private struct ScanResultSheet: View {
     @Binding var navigationPath: NavigationPath
     var onTypeCode: () -> Void
     var onRetry: () -> Void
+    var onRefresh: () async -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var reserveAsset: Asset?
     @State private var reserveFamily: AssetFamilySearchResult?
@@ -448,6 +461,7 @@ private struct ScanResultSheet: View {
                         onOpenBooking: openBooking
                     )
                 }
+                .refreshable { await onRefresh() }
             } else if let family = results.singleFamilyMatch {
                 // One bulk-unit match → rich hero card. No detail screen
                 // exists for bulk SKUs on iOS; the card is the destination.
@@ -458,8 +472,10 @@ private struct ScanResultSheet: View {
                         onOpenBooking: openBooking
                     )
                 }
+                .refreshable { await onRefresh() }
             } else {
                 ScrollView { resultRows }
+                    .refreshable { await onRefresh() }
             }
         }
         .presentationCornerRadius(24)
