@@ -111,13 +111,21 @@ Manual reviewer check:
 
 ## Done Criteria
 
-- [ ] Shared avatar code handles user list, requester picker, profile, user detail, and assign picker cases.
-- [ ] Duplicate AsyncImage plus initials fallback implementations are removed or documented as intentional.
-- [ ] Existing avatar-facing source tests pass.
-- [ ] `npm run drift:ios` exits 0.
-- [ ] `npm run audit:ios:gaps` exits 0.
-- [ ] iOS simulator build succeeds.
-- [ ] `plans/README.md` status row updated.
+- [x] Shared avatar code handles user list, requester picker, profile, user detail, and assign picker cases.
+- [x] Duplicate AsyncImage plus initials fallback implementations are removed or documented as intentional.
+- [x] Existing avatar-facing source tests pass.
+- [x] `npm run drift:ios` exits 0.
+- [x] `npm run audit:ios:gaps` exits 0.
+- [x] iOS simulator build succeeds.
+- [x] `plans/README.md` status row updated.
+
+## Review
+
+- Extended `UserAvatarView` with narrow fallback background, foreground, and border inputs while preserving existing defaults for user lists and booking pickers.
+- Replaced duplicate user-avatar image/initials renderers in `AccountAvatar`, `UserDetailView`, and `AssignStudentSheet` with `UserAvatarView`.
+- Added a source-contract assertion in `tests/ios-settings-first-class.test.ts` so the profile and assignment surfaces continue routing through the shared avatar component.
+- Updated `docs/AREA_MOBILE.md` to record the consolidation.
+- Verification: avatar source search, `npx vitest run tests/ios-settings-first-class.test.ts tests/ios-create-booking-picker-parity.test.ts tests/student-field-contracts.test.ts`, `npm run drift:ios`, `npm run audit:ios:gaps`, `npx tsc --noEmit`, `git diff --check`, and XcodeBuildMCP `build_sim` for `Wisconsin` all passed.
 
 ## STOP Conditions
 
@@ -128,4 +136,3 @@ Manual reviewer check:
 ## Maintenance Notes
 
 Keep this as a consolidation pass. If a surface wants a different visual language, express that as parameters on the shared component rather than another full renderer.
-

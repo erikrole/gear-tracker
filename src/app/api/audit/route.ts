@@ -1,6 +1,6 @@
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { HttpError, ok } from "@/lib/http";
+import { HttpError, ok, parsePositiveLimit } from "@/lib/http";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { AUDIT_RETENTION_DAYS } from "@/lib/audit";
 import type { Prisma } from "@prisma/client";
@@ -50,7 +50,7 @@ export const GET = withAuth(async (req, { user }) => {
   const action = searchParams.get("action") || null;
   const from = searchParams.get("from") || null;
   const to = searchParams.get("to") || null;
-  const limitParam = Math.min(parseInt(searchParams.get("limit") ?? String(PAGE_SIZE), 10) || PAGE_SIZE, MAX_PAGE_SIZE);
+  const limitParam = parsePositiveLimit(searchParams.get("limit"), PAGE_SIZE, MAX_PAGE_SIZE);
 
   const where: Prisma.AuditLogWhereInput = {};
 

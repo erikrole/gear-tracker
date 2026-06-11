@@ -73,4 +73,19 @@ describe("iOS Settings hub", () => {
     expect(profile).toContain("title: \"Open iOS Settings\"");
     expect(profile).toContain("title: \"Sign Out\"");
   });
+
+  it("routes profile and assignment avatars through the shared component", () => {
+    const profile = source("ios/Wisconsin/Views/ProfileView.swift");
+    const userDetail = source("ios/Wisconsin/Views/UserDetailView.swift");
+    const assignSheet = source("ios/Wisconsin/Views/Schedule/AssignStudentSheet.swift");
+
+    const accountAvatar = bodyBetween(profile, "struct AccountAvatar: View", "\n}");
+
+    expect(accountAvatar).toContain("UserAvatarView(");
+    expect(accountAvatar).not.toContain("AsyncImage");
+    expect(userDetail).toContain("UserAvatarView(");
+    expect(userDetail).not.toContain("private func profileAvatar");
+    expect(assignSheet).toContain("UserAvatarView(");
+    expect(assignSheet).not.toContain("private var avatar");
+  });
 });

@@ -89,14 +89,13 @@ struct KioskAPI {
     func kioskCheckoutComplete(actorId: String, locationId: String, assetIds: [String]) async throws {
         struct AssetRef: Encodable { let assetId: String }
         struct Body: Encodable { let actorId: String; let locationId: String; let items: [AssetRef] }
+        struct Response: Decodable { let bookingId: String }
         var req = request(path: "/api/kiosk/checkout/complete", method: "POST")
         let items = assetIds.map { AssetRef(assetId: $0) }
         req.httpBody = try JSONEncoder().encode(Body(actorId: actorId, locationId: locationId, items: items))
-        let (data, response) = try await session.data(for: req)
-        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            let msg = (try? decoder.decode(ErrorBody.self, from: data))?.error ?? "Checkout failed"
-            throw APIError.serverError(msg)
-        }
+        // Route through `perform` so 401 propagates as APIError.unauthorized,
+        // matching every other kiosk mutation path.
+        let _: Response = try await perform(req)
     }
 
     func kioskCheckoutDetail(id: String) async throws -> KioskCheckoutDetail {

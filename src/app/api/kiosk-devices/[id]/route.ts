@@ -26,6 +26,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     if (!body.active) {
       updates.sessionToken = null;
       updates.sessionExpiresAt = null;
+      updates.activatedAt = null;
     }
   }
 

@@ -78,11 +78,18 @@ Add a short `docs/AREA_MOBILE.md` changelog entry only if this is being committe
 
 ## Done Criteria
 
-- [ ] `Components/UserAvatarView.swift` is in the audit registry.
-- [ ] `npm run audit:ios:gaps` reports no unregistered iOS surfaces.
-- [ ] `npm run drift:ios` exits 0.
-- [ ] Documentation baseline counts are either unchanged or updated.
-- [ ] `plans/README.md` status row updated.
+- [x] `Components/UserAvatarView.swift` is in the audit registry.
+- [x] `npm run audit:ios:gaps` reports no unregistered iOS surfaces.
+- [x] `npm run drift:ios` exits 0.
+- [x] Documentation baseline counts are either unchanged or updated.
+- [x] `plans/README.md` status row updated.
+
+## Review
+
+- Completed 2026-06-11 on branch `codex/009-register-ios-user-avatar-audit-surface`.
+- Registered `Components/UserAvatarView.swift` as `exempt-shared` because it is a shared primitive consumed by audited screens and sheets.
+- Updated the current iOS audit and drift baselines in `docs/IOS_PATTERNS.md` and recorded the cleanup in `docs/AREA_MOBILE.md`.
+- Verification: `npm run audit:ios:gaps` reports 39/39 audit-worthy surfaces covered, 12 exempt shared/infra/tiny surfaces, and `✓ no audit gaps`; `npm run drift:ios` reports 0 anti-patterns across 51 Swift files; `git diff --check` passed.
 
 ## STOP Conditions
 
@@ -92,4 +99,3 @@ Add a short `docs/AREA_MOBILE.md` changelog entry only if this is being committe
 ## Maintenance Notes
 
 This plan restores the usefulness of `audit:ios:gaps` as a release gate. It should stay narrow and avoid UI behavior changes.
-

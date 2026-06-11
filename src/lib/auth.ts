@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
+import { after } from "next/server";
 import { Role } from "@prisma/client";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
@@ -236,10 +237,11 @@ export async function requireKiosk(): Promise<KioskContext> {
     expires: device.sessionExpiresAt,
   });
 
-  // Update last seen (fire and forget — don't block the request)
-  Promise.resolve(
-    db.kioskDevice.update({ where: { id: device.id }, data: { lastSeenAt: now } }),
-  ).catch(() => {});
+  // Update last seen after the response is sent. after() keeps the serverless
+  // function alive until this completes, unlike fire-and-forget promises.
+  after(() =>
+    db.kioskDevice.update({ where: { id: device.id }, data: { lastSeenAt: now } }).catch(() => {}),
+  );
 
   return {
     kioskId: device.id,

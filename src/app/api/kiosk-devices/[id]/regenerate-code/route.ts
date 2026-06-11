@@ -14,9 +14,9 @@ function generateActivationCode(): string {
 }
 
 /**
- * Regenerate the one-shot activation code for a kiosk device.
- * Only allowed while the device is still pending activation — once a kiosk
- * has activated and is running, regenerating would silently lock it out.
+ * Regenerate the activation code for a kiosk device.
+ * Active kiosks must be deactivated first so regeneration cannot silently
+ * sign out a running iPad.
  */
 export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
   requirePermission(user.role, "kiosk_device", "edit");
@@ -25,10 +25,10 @@ export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
   const device = await db.kioskDevice.findUnique({ where: { id: params.id } });
   if (!device) throw new HttpError(404, "Kiosk device not found");
 
-  if (device.activatedAt) {
+  if (device.active && device.activatedAt) {
     throw new HttpError(
       409,
-      "Cannot regenerate code for an already-activated kiosk. Deactivate it first."
+      "Deactivate this kiosk before regenerating its code."
     );
   }
 
@@ -37,7 +37,12 @@ export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
 
   await db.kioskDevice.update({
     where: { id: params.id },
-    data: { activationCode: hashedCode },
+    data: {
+      activationCode: hashedCode,
+      activatedAt: null,
+      sessionToken: null,
+      sessionExpiresAt: null,
+    },
   });
 
   await createAuditEntry({

@@ -82,6 +82,8 @@ final class APIClient {
 
     func logout() async throws {
         let req = request(path: "/api/auth/logout", method: "POST")
+        // Best-effort server logout: local cookie clearing below must still run
+        // if the network is down or the server session is already gone.
         _ = try? await session.data(for: req)
         HTTPCookieStorage.shared.removeCookies(since: .distantPast)
     }
@@ -335,6 +337,8 @@ final class APIClient {
             excludeBookingId: excludeBookingId
         )) else { return [:] }
         req.httpBody = body
+        // non-blocking advisory: server enforcement at create/checkout is authoritative,
+        // so non-401 failures return an empty hint map.
         guard let (data, response) = try? await session.data(for: req),
               let http = response as? HTTPURLResponse else { return [:] }
         // Hint-style call, but a swallowed 401 hides an expired session until the
@@ -356,6 +360,7 @@ final class APIClient {
     /// swallowed expired session can't hide here (IOS_PATTERNS R3).
     func shiftConflicts(shiftId: String) async -> [String: String] {
         let req = request(path: "/api/shifts/\(shiftId)/conflicts")
+        // Non-blocking hint: a swallowed expired session can't hide here.
         guard let (data, response) = try? await session.data(for: req),
               let http = response as? HTTPURLResponse else { return [:] }
         if http.statusCode == 401 {

@@ -6,6 +6,14 @@ function source(relativeFile: string) {
   return readFileSync(path.join(process.cwd(), relativeFile), "utf8");
 }
 
+function methodBody(text: string, name: string, nextName: string) {
+  const start = text.indexOf(`func ${name}`);
+  const end = text.indexOf(`func ${nextName}`, start);
+  expect(start).toBeGreaterThanOrEqual(0);
+  expect(end).toBeGreaterThan(start);
+  return text.slice(start, end);
+}
+
 /**
  * iOS ↔ API response-contract pins.
  *
@@ -76,6 +84,34 @@ describe("iOS API contracts — availability check", () => {
     // iOS must decode conflicts at the top level, not under `data`.
     expect(apiClient).toContain("struct CheckResponse: Decodable { let conflicts: [AssetConflict]? }");
     expect(apiClient).toContain("for conflict in resp.conflicts ?? []");
+  });
+});
+
+describe("iOS API contracts — Core API error guardrails", () => {
+  it("allows only explicitly advisory Core try? session.data calls", () => {
+    const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
+    const matches = [...apiClient.matchAll(/try\?\s+await\s+session\.data\(for: req\)/g)];
+
+    expect(matches).toHaveLength(3);
+    expect(methodBody(apiClient, "logout", "registerDeviceToken"))
+      .toContain("_ = try? await session.data(for: req)");
+    expect(methodBody(apiClient, "checkAvailability", "shiftConflicts"))
+      .toContain("guard let (data, response) = try? await session.data(for: req)");
+    expect(methodBody(apiClient, "shiftConflicts", "availabilityBlocks"))
+      .toContain("guard let (data, response) = try? await session.data(for: req)");
+  });
+
+  it("documents why advisory Core hints swallow non-401 failures", () => {
+    const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
+    const availability = methodBody(apiClient, "checkAvailability", "shiftConflicts");
+    const conflicts = methodBody(apiClient, "shiftConflicts", "availabilityBlocks");
+
+    expect(availability).toContain("non-blocking");
+    expect(availability).toContain("server enforcement at create/checkout is authoritative");
+    expect(availability).toContain("NotificationCenter.default.post(name: .sessionDidExpire, object: nil)");
+    expect(conflicts).toContain("Non-blocking hint");
+    expect(conflicts).toContain("swallowed expired session can't hide here");
+    expect(conflicts).toContain("NotificationCenter.default.post(name: .sessionDidExpire, object: nil)");
   });
 });
 

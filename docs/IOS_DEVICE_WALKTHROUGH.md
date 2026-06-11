@@ -23,6 +23,7 @@ This plan maps directly to the 24+ focused audit docs at `tasks/audit-*-ios.md` 
 - [ ] Pull latest `main`. `git status` clean.
 - [ ] `npm run drift:ios` → `0 violations`.
 - [ ] `npm run audit:ios:gaps` → `✓ no audit gaps`.
+- [ ] `npm run ios:release-check` → confirms `MARKETING_VERSION` and a bumped `CURRENT_PROJECT_VERSION` before TestFlight archive.
 - [ ] `cd ios && xcodegen generate` (if any new files were added).
 - [ ] Restore `Wisconsin/Wisconsin.entitlements` if xcodegen ran (APNs + WeatherKit must be present — see [feedback memory](https://github.com/erikrole/.claude/projects/-Users-erole-GitHub-gear-tracker/memory/feedback_xcodegen_entitlements.md)).
 - [ ] Build for device target in Xcode. **BUILD SUCCEEDED** with zero warnings (other than "AppIntents.framework dependency" notice).
@@ -454,5 +455,5 @@ After running this plan end-to-end:
 
 - [ ] All checkboxes ticked OR explicitly noted as "skip — feature not shipped on this branch."
 - [ ] Open issues filed for any failed checkboxes with the surface + step + observed behavior.
-- [ ] If running before a TestFlight build, confirm the build number was bumped.
+- [ ] If running before a TestFlight build, `npm run ios:release-check` passed after the build number was bumped.
 - [ ] Tester name + date + device model recorded at the bottom of this section in the PR description.

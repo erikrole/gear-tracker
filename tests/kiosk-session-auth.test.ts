@@ -11,6 +11,13 @@ vi.mock("next/headers", () => ({
   cookies: vi.fn(),
 }));
 
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  after: (fn: () => unknown) => {
+    void fn();
+  },
+}));
+
 vi.mock("@/lib/db", () => ({
   db: {
     kioskDevice: {
@@ -40,6 +47,9 @@ describe("kiosk session auth", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-12T12:00:00.000Z"));
     vi.mocked(cookies).mockResolvedValue(cookieStore as never);
+    vi.mocked(db.kioskDevice.update).mockReset();
+    vi.mocked(db.kioskDevice.update).mockResolvedValue({} as never);
+    vi.mocked(db.kioskDevice.findUnique).mockReset();
     cookieStore.get.mockReset();
     cookieStore.set.mockReset();
     cookieStore.delete.mockReset();
@@ -86,6 +96,27 @@ describe("kiosk session auth", () => {
     expect(db.kioskDevice.update).toHaveBeenCalledWith({
       where: { id: "kiosk-1" },
       data: { sessionToken: null, sessionExpiresAt: null },
+    });
+  });
+
+  it("schedules a last-seen update for valid kiosk sessions", async () => {
+    cookieStore.get.mockReturnValue({ value: "raw-kiosk-token" });
+    vi.mocked(db.kioskDevice.findUnique).mockResolvedValue({
+      id: "kiosk-1",
+      active: true,
+      sessionExpiresAt: new Date("2026-05-19T12:00:00.000Z"),
+      location: { id: "loc-1", name: "Main" },
+    } as never);
+
+    await expect(requireKiosk()).resolves.toEqual({
+      kioskId: "kiosk-1",
+      locationId: "loc-1",
+      locationName: "Main",
+    });
+
+    expect(db.kioskDevice.update).toHaveBeenCalledWith({
+      where: { id: "kiosk-1" },
+      data: { lastSeenAt: new Date("2026-05-12T12:00:00.000Z") },
     });
   });
 });

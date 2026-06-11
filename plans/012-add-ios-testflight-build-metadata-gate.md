@@ -100,11 +100,18 @@ Update `docs/AREA_MOBILE.md` with a small changelog note if this ships.
 
 ## Done Criteria
 
-- [ ] There is a local command that checks iOS release metadata before TestFlight.
-- [ ] TestFlight docs call the command before Archive.
-- [ ] The command fails with actionable output when build metadata is stale in strict mode.
-- [ ] Normal development checks are not blocked by release-only requirements.
-- [ ] `plans/README.md` status row updated.
+- [x] There is a local command that checks iOS release metadata before TestFlight.
+- [x] TestFlight docs call the command before Archive.
+- [x] The command fails with actionable output when build metadata is stale in strict mode.
+- [x] Normal development checks are not blocked by release-only requirements.
+- [x] `plans/README.md` status row updated.
+
+## Review
+
+- Added `scripts/check-ios-release-metadata.mjs` to read `ios/project.yml` locally and validate `MARKETING_VERSION` plus `CURRENT_PROJECT_VERSION`.
+- Added `npm run ios:release-check` as the strict TestFlight preflight; it fails when `CURRENT_PROJECT_VERSION` is still the baseline `1`.
+- Updated `ios/README.md`, `docs/IOS_DEVICE_WALKTHROUGH.md`, and `docs/AREA_MOBILE.md` so TestFlight archive work runs the check before Archive.
+- Verification: `node scripts/check-ios-release-metadata.mjs` passed for development mode, `npm run ios:release-check` failed as expected with the build-number bump instruction, `rg -n "ios:release-check|CURRENT_PROJECT_VERSION|TestFlight|build number|release-check" ios/README.md docs/IOS_DEVICE_WALKTHROUGH.md package.json scripts docs/AREA_MOBILE.md` showed the release path, and `npm run drift:ios`, `npm run audit:ios:gaps`, `npx tsc --noEmit`, and `git diff --check` passed.
 
 ## STOP Conditions
 
@@ -115,4 +122,3 @@ Update `docs/AREA_MOBILE.md` with a small changelog note if this ships.
 ## Maintenance Notes
 
 This is a process guard, not a release. Keep it boring and local.
-

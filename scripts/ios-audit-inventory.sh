@@ -56,6 +56,8 @@ HomeView.swift                         | dashboard                   | audit
 BookingsView.swift                     | bookings                    | audit
 BookingDetailView.swift                | booking-detail              | audit
 CreateBookingSheet.swift               | create-booking              | audit
+CreateBooking/CreateBookingComponents.swift |                           | exempt-shared
+CreateBooking/CreateBookingPickers.swift |                              | exempt-shared
 ExtendBookingSheet.swift               | extend-booking              | audit
 ItemsView.swift                        | items                       | audit
 ItemDetailView.swift                   | item-detail                 | audit
@@ -95,6 +97,7 @@ Components/BannerView.swift            |                             | exempt-sh
 Components/Skeleton.swift              |                             | exempt-shared
 Components/StatusPill.swift            |                             | exempt-shared
 Components/Toast.swift                 |                             | exempt-shared
+Components/UserAvatarView.swift        |                             | exempt-shared
 Search/FloatingSearchButton.swift      |                             | exempt-tiny
 Search/SearchResultRow.swift           |                             | exempt-shared
 Kiosk/KioskScannerField.swift          |                             | exempt-shared

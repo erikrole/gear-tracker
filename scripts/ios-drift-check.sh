@@ -39,10 +39,12 @@ done
 
 VIEWS_DIR="$IOS_DIR/Views"
 KIOSK_DIR="$IOS_DIR/Kiosk"
-TOTAL_FILES=$(find "$VIEWS_DIR" "$KIOSK_DIR" -type f -name '*.swift' | wc -l | tr -d ' ')
+CORE_DIR="$IOS_DIR/Core"
+SCAN_DIRS=("$VIEWS_DIR" "$KIOSK_DIR" "$CORE_DIR")
+TOTAL_FILES=$(find "${SCAN_DIRS[@]}" -type f -name '*.swift' | wc -l | tr -d ' ')
 
 if [ "$TOTAL_FILES" = "0" ]; then
-  echo "error: no .swift files found under Views/ or Kiosk/" >&2
+  echo "error: no .swift files found under Views/, Kiosk/, or Core/" >&2
   exit 2
 fi
 
@@ -68,7 +70,7 @@ rule() {
   fi
 
   # eval is needed to expand the dynamically built path-exclusion args.
-  hits=$(eval "find '$VIEWS_DIR' '$KIOSK_DIR' -type f -name '*.swift'$excludes_args -print0" \
+  hits=$(eval "find '$VIEWS_DIR' '$KIOSK_DIR' '$CORE_DIR' -type f -name '*.swift'$excludes_args -print0" \
     | xargs -0 grep -E -n -H "$pat" 2>/dev/null || true)
 
   if [ -n "$hits" ]; then
@@ -98,13 +100,15 @@ rule R1-status-color-literal \
 # ─── R2. UIKit notification haptic bypassing centralized Haptics enum ───
 rule R2-direct-uikit-haptic \
   "Direct UINotificationFeedbackGenerator() call (use Haptics.success/.error/.warning/.tap)" \
-  'UINotificationFeedbackGenerator[[:space:]]*\([[:space:]]*\)'
+  'UINotificationFeedbackGenerator[[:space:]]*\([[:space:]]*\)' \
+  Core/Haptics.swift
 
 # ─── R3. Silent server-error swallow in API helpers ───
 # Both kiosk pickup-confirm and checkin-complete had this P0 phantom-success bug.
 rule R3-tryq-session-data \
-  "try? await session.data(...) silently drops API failures (route through perform)" \
-  'try\?[[:space:]]+await[[:space:]]+session\.data'
+  "try? await session.data(...) silently drops API failures (route through perform; Core/APIClient.swift has a method-level source-contract allowlist)" \
+  'try\?[[:space:]]+await[[:space:]]+session\.data' \
+  Core/APIClient.swift
 
 # ─── R4. .onTapGesture on a row that triggers state mutation ───
 # Heuristic: an onTapGesture closure containing an `=` (assignment).

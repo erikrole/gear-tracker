@@ -129,14 +129,23 @@ Manual reviewer check:
 
 ## Done Criteria
 
-- [ ] `CreateBookingSheet.swift` is reduced to orchestration and view model wiring.
-- [ ] Picker and passive row components live in focused files.
-- [ ] No booking creation behavior changes.
-- [ ] Source-contract tests still pin scan-to-add and bulk submission behavior.
-- [ ] `npm run drift:ios` exits 0.
-- [ ] `npm run audit:ios:gaps` exits 0.
-- [ ] iOS simulator build succeeds.
-- [ ] `plans/README.md` status row updated.
+- [x] `CreateBookingSheet.swift` is reduced to orchestration and view model wiring.
+- [x] Picker and passive row components live in focused files.
+- [x] No booking creation behavior changes.
+- [x] Source-contract tests still pin scan-to-add and bulk submission behavior.
+- [x] `npm run drift:ios` exits 0.
+- [x] `npm run audit:ios:gaps` exits 0.
+- [x] iOS simulator build succeeds.
+- [x] `plans/README.md` status row updated.
+
+## Review
+
+- Moved selected-equipment rows, bulk quantity rows, asset picker row, `FormCard`, and `FormPickerRow` into `ios/Wisconsin/Views/CreateBooking/CreateBookingComponents.swift`.
+- Moved `OptionPickerView` and `RequesterPickerView` into `ios/Wisconsin/Views/CreateBooking/CreateBookingPickers.swift`, preserving the shared avatar usage from Plan 011.
+- Left `CreateBookingSheet.swift` responsible for the view model, sheet state, step navigation, scanner presentation, submit wiring, and step layout. No booking API payload or user-facing flow changed.
+- Updated `tests/student-field-contracts.test.ts` to keep the selected-equipment remove action pinned in the new component file, and registered the new files as create-booking-owned shared components in `scripts/ios-audit-inventory.sh`.
+- Updated `docs/AREA_MOBILE.md` and regenerated `ios/Wisconsin.xcodeproj` with XcodeGen. XcodeGen temporarily stripped entitlements, so `Wisconsin.entitlements` was restored before final build.
+- Verification: `npx vitest run tests/ios-create-booking-picker-parity.test.ts tests/ios-api-contract.test.ts tests/student-field-contracts.test.ts`, `npm run drift:ios`, `npm run audit:ios:gaps`, `npx tsc --noEmit`, `git diff --check`, source-path `rg`, and XcodeBuildMCP `build_sim` all passed.
 
 ## STOP Conditions
 
@@ -148,4 +157,3 @@ Manual reviewer check:
 ## Maintenance Notes
 
 This should be a behavior-preserving refactor. If the executor finds a booking bug while moving code, record it and either add a separate fix plan or stop for maintainer approval before mixing fixes into the split.
-

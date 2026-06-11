@@ -1,11 +1,21 @@
-import { Prisma } from "@prisma/client";
+import { BookingKind, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { withKiosk } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
 import { createAuditEntry } from "@/lib/audit";
 import { checkoutCompleteBody } from "@/lib/schemas/kiosk";
 import { nextBookingRef } from "@/lib/services/booking-ref";
+import { checkAvailability } from "@/lib/services/availability";
+import { isBookingAllocationConstraintError } from "@/lib/services/bookings-lifecycle";
 import { badges } from "@/lib/badges";
+
+function itemLabel(asset: { assetTag: string | null; name: string | null }) {
+  return asset.assetTag || asset.name || "That item";
+}
+
+function statusLabel(status: string) {
+  return status.toLowerCase().replaceAll("_", " ");
+}
 
 /**
  * Complete a kiosk checkout: create booking + allocations in one step.
@@ -31,6 +41,57 @@ export const POST = withKiosk(async (req, { kiosk }) => {
   try {
     const { booking, refNumber } = await db.$transaction(
       async (tx) => {
+        const ids = assetIds.map((a) => a.assetId);
+
+        const assets = await tx.asset.findMany({
+          where: { id: { in: ids } },
+          select: { id: true, assetTag: true, name: true, status: true },
+        });
+
+        if (assets.length !== new Set(ids).size) {
+          throw new HttpError(
+            409,
+            "An item in your cart no longer exists. Remove it and rescan.",
+          );
+        }
+
+        const unavailableAsset = assets.find((asset) =>
+          asset.status === "MAINTENANCE" || asset.status === "RETIRED"
+        );
+        if (unavailableAsset) {
+          throw new HttpError(
+            409,
+            `${itemLabel(unavailableAsset)} is unavailable (${statusLabel(unavailableAsset.status)}). Remove it to continue.`,
+          );
+        }
+
+        const assetNameById = new Map(assets.map((asset) => [asset.id, itemLabel(asset)]));
+        const availability = await checkAvailability(tx, {
+          locationId,
+          startsAt: now,
+          endsAt,
+          serializedAssetIds: ids,
+          bulkItems: [],
+          bookingKind: BookingKind.CHECKOUT,
+        });
+
+        if (
+          availability.conflicts.length > 0 ||
+          availability.shortages.length > 0 ||
+          availability.unavailableAssets.length > 0
+        ) {
+          const firstAssetId =
+            availability.conflicts[0]?.assetId ??
+            availability.unavailableAssets[0]?.assetId;
+          const name = firstAssetId ? assetNameById.get(firstAssetId) : undefined;
+          throw new HttpError(
+            409,
+            name
+              ? `${name} was just taken by someone else. Remove it and try again.`
+              : "One or more items are no longer available. Remove them and rescan.",
+          );
+        }
+
         // Generate ref-number inside the transaction so the advisory lock
         // (held by `nextBookingRef`) serializes concurrent kiosk completions.
         const refNumber = await nextBookingRef(tx, "CO");
@@ -50,9 +111,6 @@ export const POST = withKiosk(async (req, { kiosk }) => {
             notes: `Created via kiosk at ${kiosk.locationName}`,
           },
         });
-
-        // Create serialized items + allocations
-        const ids = assetIds.map((a) => a.assetId);
 
         await tx.bookingSerializedItem.createMany({
           data: ids.map((assetId) => ({
@@ -107,6 +165,13 @@ export const POST = withKiosk(async (req, { kiosk }) => {
       endsAt,
     });
   } catch (error) {
+    if (isBookingAllocationConstraintError(error)) {
+      throw new HttpError(
+        409,
+        "One or more items were just taken by someone else. Remove them and rescan.",
+      );
+    }
+
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"

@@ -1,6 +1,6 @@
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { ok } from "@/lib/http";
+import { ok, parsePositiveLimit } from "@/lib/http";
 import { shiftWorkerLabel } from "@/lib/shift-display";
 
 function gearStatusForBooking(status: string) {
@@ -37,7 +37,7 @@ function gearStatusPriority(status: string) {
 export const GET = withAuth(async (req, { user }) => {
   const url = new URL(req.url);
   const eventId = url.searchParams.get("eventId");
-  const limit = Math.min(Number(url.searchParams.get("limit") || "5"), 20);
+  const limit = parsePositiveLimit(url.searchParams.get("limit"), 5, 20);
 
   const now = new Date();
 

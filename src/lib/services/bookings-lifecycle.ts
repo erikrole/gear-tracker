@@ -115,7 +115,7 @@ function isSerializableConflict(error: unknown) {
   return code === "P2034" || code === "40001" || metaCode === "40001";
 }
 
-function isBookingAllocationConstraintError(error: unknown) {
+export function isBookingAllocationConstraintError(error: unknown) {
   if (!error || typeof error !== "object") return false;
   const code = (error as { code?: unknown }).code;
   const text = prismaErrorText(error);

@@ -31,10 +31,11 @@ Then build and run from Xcode (⌘R).
 
 ## TestFlight
 
-1. Select **Any iOS Device (arm64)** as destination
-2. Product → Archive
-3. Distribute App → App Store Connect → Upload
-4. In App Store Connect, add testers under TestFlight
+1. Run `npm run ios:release-check` from the repo root. If it fails, bump `CURRENT_PROJECT_VERSION` in `ios/project.yml`, regenerate the project, and rerun the check.
+2. Select **Any iOS Device (arm64)** as destination
+3. Product → Archive
+4. Distribute App → App Store Connect → Upload
+5. In App Store Connect, add testers under TestFlight
 
 ## Architecture
 

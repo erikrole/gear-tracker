@@ -550,38 +550,14 @@ struct AccountAvatar: View {
     let size: CGFloat
 
     var body: some View {
-        let name = session.currentUser?.name ?? ""
-        let parts = name.split(separator: " ")
-        let initials = parts.prefix(2).compactMap { $0.first }.map { String($0) }.joined()
-        let avatarUrl = session.currentUser?.avatarUrl.flatMap { URL(string: $0) }
-
-        Group {
-            if let url = avatarUrl {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFill()
-                    default:
-                        initialsCircle(initials)
-                    }
-                }
-                .frame(width: size, height: size)
-                .clipShape(Circle())
-            } else {
-                initialsCircle(initials)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func initialsCircle(_ initials: String) -> some View {
-        ZStack {
-            Circle()
-                .fill(.tint.opacity(0.15))
-                .frame(width: size, height: size)
-            Text(initials.isEmpty ? "?" : initials)
-                .font(size > 40 ? .title3.weight(.semibold) : .footnote.weight(.semibold))
-                .foregroundStyle(.tint)
-        }
+        UserAvatarView(
+            name: session.currentUser?.name ?? "",
+            avatarUrl: session.currentUser?.avatarUrl,
+            size: size,
+            fallbackBackground: Color.accentColor.opacity(0.15),
+            fallbackForeground: Color.accentColor,
+            borderColor: .clear,
+            borderWidth: 0
+        )
     }
 }

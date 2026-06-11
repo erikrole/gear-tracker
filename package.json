@@ -29,6 +29,7 @@
     "test:watch": "vitest",
     "import:cheqroom": "node scripts/import-cheqroom-items.mjs",
     "release": "bash scripts/release.sh",
+    "ios:release-check": "node scripts/check-ios-release-metadata.mjs --testflight",
     "drift:ios": "bash scripts/ios-drift-check.sh",
     "drift:ios:warn": "bash scripts/ios-drift-check.sh --warn",
     "audit:ios": "bash scripts/ios-audit-inventory.sh",

@@ -112,6 +112,7 @@ describe("student field mobile contracts", () => {
 
   it("keeps iOS Create Booking actions and selected equipment recoverable", () => {
     const createSheet = source("ios/Wisconsin/Views/CreateBookingSheet.swift");
+    const createComponents = source("ios/Wisconsin/Views/CreateBooking/CreateBookingComponents.swift");
 
     expect(createSheet).toContain("selectedAssetSnapshots: [String: Asset]");
     expect(createSheet).toContain("selectedBulkQuantities: [String: Int]");
@@ -130,7 +131,7 @@ describe("student field mobile contracts", () => {
     expect(createSheet).toContain("SelectedEquipmentRow");
     expect(createSheet).toContain("SelectedBulkRow");
     expect(createSheet).toContain("BulkQuantityRow");
-    expect(createSheet).toContain("Label(\"Remove\", systemImage: \"xmark.circle.fill\")");
+    expect(createComponents).toContain("Label(\"Remove\", systemImage: \"xmark.circle.fill\")");
     expect(createSheet).toContain("Remove anything you do not want before creating the reservation.");
     expect(createSheet).toContain("func removeSelectedAsset(_ asset: Asset)");
     expect(createSheet).toContain("func removeSelectedBulk(_ sku: FormBulkSku)");

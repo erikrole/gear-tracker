@@ -99,13 +99,20 @@ Update `docs/AREA_MOBILE.md` with a short note that Core API silent-swallow guar
 
 ## Done Criteria
 
-- [ ] New unapproved `try? await session.data` in Core fails a cheap check.
-- [ ] Advisory Core calls are explicitly allowlisted or documented.
-- [ ] `checkAvailability` and `shiftConflicts` remain non-blocking hints.
-- [ ] `npx vitest run tests/ios-api-contract.test.ts tests/ios-notifications-token-honesty.test.ts` exits 0.
-- [ ] `npm run drift:ios` exits 0.
-- [ ] iOS simulator build succeeds.
-- [ ] `plans/README.md` status row updated.
+- [x] New unapproved `try? await session.data` in Core fails a cheap check.
+- [x] Advisory Core calls are explicitly allowlisted or documented.
+- [x] `checkAvailability` and `shiftConflicts` remain non-blocking hints.
+- [x] `npx vitest run tests/ios-api-contract.test.ts tests/ios-notifications-token-honesty.test.ts` exits 0.
+- [x] `npm run drift:ios` exits 0.
+- [x] iOS simulator build succeeds.
+- [x] `plans/README.md` status row updated.
+
+## Review
+
+- Extended `scripts/ios-drift-check.sh` to scan `Views/`, `Kiosk/`, and `Core/`, with explicit Core allowlists for the centralized haptics wrapper and the source-tested advisory `APIClient` calls.
+- Added Core API source-contract coverage in `tests/ios-api-contract.test.ts` so only `logout`, `checkAvailability`, and `shiftConflicts` may keep `try? await session.data(for: req)`.
+- Documented the Core exceptions in `docs/IOS_PATTERNS.md` and `docs/AREA_MOBILE.md`, and added method-local Swift comments explaining why the advisory checks remain non-blocking while still broadcasting 401.
+- Verification: `npx vitest run tests/ios-api-contract.test.ts tests/ios-notifications-token-honesty.test.ts`, `npm run drift:ios`, `npm run audit:ios:gaps`, `npx tsc --noEmit`, `git diff --check`, and XcodeBuildMCP `build_sim` for `Wisconsin` all passed.
 
 ## STOP Conditions
 
@@ -116,4 +123,3 @@ Update `docs/AREA_MOBILE.md` with a short note that Core API silent-swallow guar
 ## Maintenance Notes
 
 This plan is about making intent enforceable. The main risk is overcorrecting non-blocking hints into user-blocking errors.
-

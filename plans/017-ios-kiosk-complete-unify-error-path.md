@@ -115,11 +115,17 @@ There is no iOS unit-test target in this repo; the gates are the Xcode build and
 
 ## Done criteria
 
-- [ ] `grep -n "session.data(for:" ios/Wisconsin/Kiosk/KioskAPIClient.swift` matches only inside `perform` (one site)
-- [ ] `xcodebuild` build succeeds
-- [ ] `npm run drift:ios` exits 0
-- [ ] No files outside scope (plus `docs/AREA_KIOSK.md`) modified (`git status`)
-- [ ] `plans/README.md` status row updated
+- [x] `grep -n "session.data(for:" ios/Wisconsin/Kiosk/KioskAPIClient.swift` matches only inside `perform` (one site)
+- [x] `xcodebuild` build succeeds
+- [x] `npm run drift:ios` exits 0
+- [x] No files outside scope (plus `docs/AREA_KIOSK.md`) modified (`git status`)
+- [x] `plans/README.md` status row updated
+
+## Review
+
+- Changed `kioskCheckoutComplete` to decode the top-level success response through `perform`, preserving the existing request body and caller behavior while letting 401 map to `APIError.unauthorized`.
+- Updated `docs/AREA_KIOSK.md` to record the iOS kiosk auth/error-path parity.
+- Verified with the focused grep, iOS simulator build, iOS drift check, gap audit, TypeScript check, and whitespace check on 2026-06-11.
 
 ## STOP conditions
 

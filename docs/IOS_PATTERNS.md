@@ -77,6 +77,10 @@ Callers `do/catch` and surface `(error as? APIError)?.errorDescription ?? fallba
 
 **Anti-pattern.** `_ = try? await session.data(for: req)` — silently drops every failure mode. **Drift detector rule R3.** This was the shape of two P0 phantom-success bugs caught today (`kioskPickupConfirm`, `kioskCheckinComplete`) plus a follow-up bug found by the drift detector itself (`kioskHeartbeat` was swallowing 401, so admin-deactivation was undetectable until the next mutation).
 
+R3 scans `Views/`, `Kiosk/`, and `Core/`. `Core/APIClient.swift` has a source-contract allowlist for the few intentional advisory calls:
+- `logout` is best-effort on the server but must always clear local cookies.
+- `checkAvailability` and `shiftConflicts` are non-blocking hints; they return empty maps on non-401 failures while still broadcasting 401 so expired sessions do not hide.
+
 ```swift
 // ❌ Bad — caller's catch never fires
 func kioskHeartbeat() async throws {
@@ -350,7 +354,7 @@ Shipped on kiosk idle stat tiles, kiosk checkout cart count, kiosk pickup ring, 
 
 - **R1** Raw status color literals (`.foregroundStyle(.red)` etc.)
 - **R2** Direct `UINotificationFeedbackGenerator()` calls
-- **R3** `try? await session.data(...)` swallowing API errors
+- **R3** `try? await session.data(...)` swallowing API errors across Views, Kiosk, and Core. Core advisory exceptions are pinned by `tests/ios-api-contract.test.ts`.
 - **R4** `.onTapGesture { …assignment }` instead of a `Button`
 - **R5** `UIImpactFeedbackGenerator()` outside `Core/Haptics.swift`
 - **R6** `Text(...area...)` without `.shiftAreaLabel`
@@ -364,7 +368,7 @@ npm run drift:ios:warn       # report findings; always exit 0 (CI-soft)
 ./scripts/ios-drift-check.sh -v   # verbose
 ```
 
-Today's baseline: **0 violations across 45 swift files**. The detector caught five real residual drifts during its initial run — including `kioskHeartbeat` swallowing 401, which was the same shape of P0 bug already fixed twice on pickup/return-confirm. R7 was added on 2026-05-08 after the items-list focused audit caught switch-arm drift that R1 didn't see (in `AssetListBadge`, `AssetStatusBadge`, and `Toast`). That's the value: catching a hand-audit miss in seconds.
+Today's baseline: **0 violations across 51 swift files**. The detector caught five real residual drifts during its initial run — including `kioskHeartbeat` swallowing 401, which was the same shape of P0 bug already fixed twice on pickup/return-confirm. R7 was added on 2026-05-08 after the items-list focused audit caught switch-arm drift that R1 didn't see (in `AssetListBadge`, `AssetStatusBadge`, and `Toast`). That's the value: catching a hand-audit miss in seconds.
 
 ## Audit coverage
 
@@ -378,7 +382,7 @@ npm run audit:ios:gaps       # only NO AUDIT rows + summary; exits 0 with a "no 
 ./scripts/ios-audit-inventory.sh --csv   # machine-readable
 ```
 
-Today's baseline: **34 audit-worthy surfaces, 100% covered. 11 exempt (shared components, infrastructure, single-purpose primitives). 0 unregistered.**
+Today's baseline: **39 audit-worthy surfaces, 100% covered. 12 exempt (shared components, infrastructure, single-purpose primitives). 0 unregistered.**
 
 When you add a new view: drop a row into the registry inside the script (see the comment block). The next `npm run audit:ios` will list it as `NO AUDIT DOC`. Ship the audit, the table updates automatically (date pulled from the doc's H1 line).
 

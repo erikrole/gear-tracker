@@ -4,7 +4,7 @@
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Status: Shipped — iOS canonical (web kiosk deprecated 2026-04-24)
 - Created: 2026-04-07
-- Last Updated: 2026-06-02
+- Last Updated: 2026-06-11
 - Brief: `BRIEF_KIOSK.md`
 - Decision Refs: D-030
 
@@ -17,7 +17,7 @@ Self-serve iPad kiosk for gear checkout / pickup / return at the equipment count
 The kiosk is intentionally low-friction: no per-student password, no PIN, no biometric. The trust gates are layered:
 
 1. **Physical trust.** The iPad is at the gear counter or carried by staff. Guided Access pins it to the Wisconsin app.
-2. **Device authentication.** Each `KioskDevice` is created by an admin in Settings → Kiosk Devices. A 6-digit one-time activation code provisions a `kiosk_session` cookie tied to a specific `KioskDevice` row (with `locationId`, `active`, `lastSeenAt`, and `sessionExpiresAt`).
+2. **Device authentication.** Each `KioskDevice` is created by an admin in Settings → Kiosk Devices. A 6-digit activation code provisions a `kiosk_session` cookie tied to a specific `KioskDevice` row (with `locationId`, `active`, `lastSeenAt`, and `sessionExpiresAt`). Codes are hashed at rest, shown once at creation/regeneration, and reusable for re-activation until regenerated; re-activating rotates the session token and signs out any previously activated client.
 3. **Server-side scope.** `withKiosk()` rejects all `/api/kiosk/*` calls without a valid kiosk-session cookie. Routes do not accept a regular user-session cookie. Bookings created through the kiosk are stamped with `source: "KIOSK"` for the audit trail.
 4. **Identity = name picker.** A student taps their tile from the location-scoped roster. There is **no password / PIN / NFC** in V1. This is a deliberate trade-off: the counter is staffed during open hours, and physical+device gates carry the security weight. Misattribution risk (a student tapping the wrong tile or someone else's tile) is mitigated by the audit log and the social context of a staffed counter.
 
@@ -89,11 +89,15 @@ Files under `ios/Wisconsin/Kiosk/`:
 
 - No search / first-letter filter on the avatar grid. Acceptable for ≤30-student locations; revisit on larger-roster rollouts.
 - No "wrong person" undo path inside kiosk — admin must fix from web. Acceptable for V1.
-- Activation code rotation lifecycle: once a device is activated and its cookie is intact, the original code is no longer needed; if cookie is wiped admin must regenerate from Settings → Kiosk Devices.
+- Activation code lifecycle: session expiry or cookie wipe sends the iPad back to activation, where staff can re-enter the same code. If the code is lost, an admin deactivates the device, regenerates a new code, and re-activates the iPad with that new code.
 
 ## Change Log
 | Date | Change |
 |------|--------|
+| 2026-06-11 | iOS kiosk checkout completion now routes through the shared kiosk API error path, so expired or deactivated sessions surface as the same auth failure as scan, pickup, check-in, heartbeat, and dashboard calls instead of a generic retry message. |
+| 2026-06-11 | Kiosk online status is now durable on serverless: `requireKiosk()` schedules the `lastSeenAt` write through Next `after()` instead of a fire-and-forget promise, so heartbeat traffic keeps the Settings → Kiosk Devices status dot current after the response returns. |
+| 2026-06-11 | Kiosk activation-code recovery is coherent again: deactivating a device now clears `activatedAt` along with session state, and admins can regenerate a new code for a deactivated device even if it was previously activated. The docs now describe the actual reusable-code model instead of implying single-use codes. |
+| 2026-06-11 | Kiosk checkout completion now revalidates scanned assets inside the creation transaction before opening custody. Missing, maintenance, retired, newly reserved, or race-lost items return friendly 409 recovery copy so the iPad can tell the student to remove and rescan instead of showing a raw internal error or silently checking out unavailable gear. |
 | 2026-06-09 | iOS kiosk no longer forces re-activation on every app re-entry: `kioskMe()` decoded a `{data:...}` envelope that `/api/kiosk/me` never sends (it returns `{kioskId, locationId, locationName}` at the top level), so session validation always failed and wiped the stored activation. Also, `validateSession` now only clears the activation on a definitive 401 — transient failures (offline at launch, 5xx) go idle and let the heartbeat's own 401 path catch real deactivation. |
 | 2026-04-07 | Area doc created, all ACs pending |
 | 2026-04-09 | AC-1 complete: Admin CRUD for kiosk devices shipped at `/settings/kiosk-devices`. |

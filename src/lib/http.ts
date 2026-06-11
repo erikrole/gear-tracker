@@ -74,14 +74,24 @@ export type PaginationParams = {
   offset: number;
 };
 
-export function parsePagination(searchParams: URLSearchParams): PaginationParams {
-  const rawLimit = parseInt(searchParams.get("limit") ?? "", 10);
-  const rawOffset = parseInt(searchParams.get("offset") ?? "", 10);
+export function parsePositiveLimit(
+  raw: string | null,
+  defaultLimit: number,
+  maxLimit: number,
+): number {
+  const parsed = parseInt(raw ?? "", 10);
+  return Number.isFinite(parsed) && parsed > 0
+    ? Math.min(parsed, maxLimit)
+    : defaultLimit;
+}
 
-  const limit =
-    Number.isFinite(rawLimit) && rawLimit > 0
-      ? Math.min(rawLimit, PAGINATION_MAX_LIMIT)
-      : PAGINATION_DEFAULT_LIMIT;
+export function parsePagination(searchParams: URLSearchParams): PaginationParams {
+  const rawOffset = parseInt(searchParams.get("offset") ?? "", 10);
+  const limit = parsePositiveLimit(
+    searchParams.get("limit"),
+    PAGINATION_DEFAULT_LIMIT,
+    PAGINATION_MAX_LIMIT,
+  );
 
   const offset = Number.isFinite(rawOffset) && rawOffset >= 0 ? rawOffset : 0;
 

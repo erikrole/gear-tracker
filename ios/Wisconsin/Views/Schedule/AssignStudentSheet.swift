@@ -143,7 +143,15 @@ private struct AssignRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            avatar
+            UserAvatarView(
+                name: name,
+                avatarUrl: avatarUrl,
+                size: 32,
+                fallbackBackground: Color(.systemGray5),
+                fallbackForeground: Color.secondary,
+                borderColor: .clear,
+                borderWidth: 0
+            )
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
@@ -193,35 +201,6 @@ private struct AssignRow: View {
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel(rowAccessibilityLabel)
-    }
-
-    @ViewBuilder
-    private var avatar: some View {
-        let placeholder = ZStack {
-            Circle().fill(Color(.systemGray5)).frame(width: 32, height: 32)
-            Text(initials.isEmpty ? "?" : initials)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-        }
-
-        if let urlString = avatarUrl, let url = URL(string: urlString) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                default:
-                    placeholder
-                }
-            }
-            .frame(width: 32, height: 32)
-            .clipShape(Circle())
-        } else {
-            placeholder
-        }
-    }
-
-    private var initials: String {
-        name.split(separator: " ").prefix(2).compactMap { $0.first }.map { String($0) }.joined()
     }
 
     private var rowAccessibilityLabel: String {

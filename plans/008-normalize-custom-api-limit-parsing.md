@@ -112,14 +112,22 @@ Use existing auth and DB mock patterns from nearby route tests.
 
 ## Done Criteria
 
-- [ ] Negative and zero limits cannot reach Prisma `take` in `/api/audit`.
-- [ ] Negative and zero limits cannot reach Prisma `take` in `/api/my-shifts`.
-- [ ] Over-max positive values still cap to the documented max.
-- [ ] Focused route tests cover both endpoints.
-- [ ] `npx tsc --noEmit` exits 0.
-- [ ] `npm test` exits 0.
-- [ ] Build check exits 0.
-- [ ] `plans/README.md` status row updated.
+- [x] Negative and zero limits cannot reach Prisma `take` in `/api/audit`.
+- [x] Negative and zero limits cannot reach Prisma `take` in `/api/my-shifts`.
+- [x] Over-max positive values still cap to the documented max.
+- [x] Focused route tests cover both endpoints.
+- [x] `npx tsc --noEmit` exits 0.
+- [x] `npm test` exits 0.
+- [x] Build check exits 0.
+- [x] `plans/README.md` status row updated.
+
+## Review
+
+- Completed 2026-06-11 on branch `codex/008-normalize-api-limit-parsing`.
+- Added `parsePositiveLimit` to `src/lib/http.ts` and reused it from `parsePagination`, `/api/audit`, and `/api/my-shifts`.
+- `/api/audit` now maps missing, invalid, zero, and negative limits to 50, caps positive over-max values at 100, and still requests `limit + 1` rows for older-page `hasMore` detection.
+- `/api/my-shifts` now maps missing, invalid, zero, and negative limits to 5 and caps positive over-max values at 20.
+- Verification: `npx vitest run tests/api-limit-parsing.test.ts tests/settings-audit-pagination.test.ts tests/student-field-contracts.test.ts`, `npx tsc --noEmit`, `npm test` (198 files, 1165 tests), `npm run build:app`, and `git diff --check` all passed.
 
 ## STOP Conditions
 
@@ -130,4 +138,3 @@ Use existing auth and DB mock patterns from nearby route tests.
 ## Maintenance Notes
 
 Future routes with a single `limit` parameter should use the shared helper instead of repeating local `Math.min(Number(...), max)` expressions.
-
