@@ -159,9 +159,9 @@ export default function BookingDetailPage({
           <Skeleton className="h-5 w-24 rounded-full" />
           <Skeleton className="h-5 w-48 rounded-full" />
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-1.5">
-          <Skeleton className="h-72 rounded-lg" />
-          <Skeleton className="h-72 rounded-lg" />
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-3">
+          <Skeleton className="h-72 rounded-xl" />
+          <Skeleton className="h-72 rounded-xl" />
         </div>
       </div>
     );
@@ -367,7 +367,7 @@ export default function BookingDetailPage({
 
       {/* ── Extend panel ── */}
       {showExtend && (
-        <Card className="p-4 border-border/40 space-y-3">
+        <Card elevation="flat" className="p-4 rounded-xl border-border/50 shadow-xs space-y-3">
           <span className="text-sm font-medium">New end date</span>
           <DateTimePicker
             value={extendDate ? new Date(extendDate) : undefined}
@@ -411,7 +411,7 @@ export default function BookingDetailPage({
       )}
 
       {/* ── Two-column layout: Info + Equipment ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-1.5">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-3">
         {/* Left: Info card */}
         <div>
           <BookingInfoTab
@@ -433,16 +433,14 @@ export default function BookingDetailPage({
       {/* ── History section (inline, collapsible) ── */}
       {booking.auditLogs.length > 0 && (
         <Collapsible open={historyExpanded} onOpenChange={setHistoryExpanded}>
-          <Card className="border-border/40">
+          <Card elevation="flat" className="rounded-xl border-border/50 shadow-xs">
             <CardHeader className="pb-0">
               <CollapsibleTrigger className="flex items-center gap-2 w-full text-left">
                 <ChevronDown className={`size-4 transition-transform ${historyExpanded ? "" : "-rotate-90"}`} />
-                <CardTitle className="text-base">
-                  Activity
-                  <span className="ml-1.5 text-sm font-normal text-muted-foreground">
-                    ({booking.auditLogs.length})
-                  </span>
-                </CardTitle>
+                <CardTitle className="text-base tracking-tight">Activity</CardTitle>
+                <Badge variant="secondary" size="sm" className="tabular-nums">
+                  {booking.auditLogs.length}
+                </Badge>
               </CollapsibleTrigger>
               {/* Collapsed preview: show latest entry */}
               {!historyExpanded && booking.auditLogs[0] && (

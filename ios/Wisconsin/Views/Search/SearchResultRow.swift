@@ -37,6 +37,77 @@ struct AssetResultRow: View {
     }
 }
 
+// MARK: - Item-family row
+
+struct ItemFamilyResultRow: View {
+    let family: AssetFamilySearchResult
+
+    var body: some View {
+        HStack(spacing: 12) {
+            SearchBulkThumbnail(imageUrl: family.imageUrl, size: 44)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(family.name)
+                    .font(.subheadline.weight(.medium))
+                    .lineLimit(1)
+                Text(family.scannedUnitLabel ?? family.availabilityLabel)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Text("\(family.category) · \(family.locationName)")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            Text(family.trackByNumber ? "Units" : "Quantity")
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(.quaternary, in: Capsule())
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+struct SearchBulkThumbnail: View {
+    let imageUrl: String?
+    let size: CGFloat
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(.secondarySystemBackground))
+                .frame(width: size, height: size)
+            if let imageUrl, let url = URL(string: imageUrl) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                    default:
+                        placeholder
+                    }
+                }
+                .frame(width: size, height: size)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            } else {
+                placeholder
+            }
+        }
+    }
+
+    private var placeholder: some View {
+        Image(systemName: "shippingbox")
+            .font(.system(size: 18))
+            .foregroundStyle(.secondary)
+    }
+}
+
 // MARK: - Booking row
 
 struct BookingResultRow: View {

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Check, ImageIcon, MoreHorizontal, Search } from "lucide-react";
+import { StaggerList, StaggerItem } from "@/components/ui/motion";
 import { toast } from "sonner";
 import type { BookingDetail, SerializedItem, BulkItem } from "@/components/booking-details/types";
 import { handleAuthRedirect, isAbortError, parseJsonSafely } from "@/lib/errors";
@@ -233,17 +234,17 @@ export default function BookingEquipmentTab({
   }, [booking.bulkItems, search]);
 
   return (
-    <Card className="border-border/40">
+    <Card elevation="flat" className="rounded-xl border-border/50 shadow-xs">
       {/* Header */}
       <CardHeader className="pb-0">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <div>
-            <CardTitle className="text-base">
-              Equipment
-              <span className="ml-1.5 text-sm font-normal text-muted-foreground">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle className="text-base tracking-tight">Equipment</CardTitle>
+              <Badge variant="secondary" size="sm" className="tabular-nums">
                 {itemCount} item{itemCount !== 1 ? "s" : ""}
-              </span>
-            </CardTitle>
+              </Badge>
+            </div>
             {showProgress && (
               <div className="flex items-center gap-2 mt-1">
                 <Progress
@@ -286,28 +287,30 @@ export default function BookingEquipmentTab({
             </EmptyDescription>
           </Empty>
         ) : (
-          <div className="flex flex-col gap-0.5">
+          <StaggerList className="flex flex-col gap-0.5">
             {filteredSerialized.map((item) => (
-              <SerializedRow
-                key={item.id}
-                item={item}
-                isCheckout={isCheckout}
-                conflict={conflicts.get(item.asset.id)}
-                upcoming={upcomingCommitments.get(item.asset.id)}
-                risks={turnaroundRisks.get(item.asset.id)}
-              />
+              <StaggerItem key={item.id}>
+                <SerializedRow
+                  item={item}
+                  isCheckout={isCheckout}
+                  conflict={conflicts.get(item.asset.id)}
+                  upcoming={upcomingCommitments.get(item.asset.id)}
+                  risks={turnaroundRisks.get(item.asset.id)}
+                />
+              </StaggerItem>
             ))}
             {filteredBulk.map((item) => (
-              <BulkRow
-                key={item.id}
-                item={item}
-                isCheckout={isCheckout}
-                onCheckinBulk={onCheckinBulk}
-                actionLoading={actionLoading}
-                risks={bulkTurnaroundRisks.get(item.bulkSku.id)}
-              />
+              <StaggerItem key={item.id}>
+                <BulkRow
+                  item={item}
+                  isCheckout={isCheckout}
+                  onCheckinBulk={onCheckinBulk}
+                  actionLoading={actionLoading}
+                  risks={bulkTurnaroundRisks.get(item.bulkSku.id)}
+                />
+              </StaggerItem>
             ))}
-          </div>
+          </StaggerList>
         )}
       </div>
     </Card>

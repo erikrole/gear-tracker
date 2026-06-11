@@ -501,7 +501,16 @@ private struct ScanResultSheet: View {
                     .padding(.vertical, 6)
                 }
                 .buttonStyle(.plain)
-                if index < results.items.count - 1 || !results.reservations.isEmpty || !results.checkouts.isEmpty || !results.users.isEmpty {
+                if index < results.items.count - 1 || !results.itemFamilies.isEmpty || !results.reservations.isEmpty || !results.checkouts.isEmpty || !results.users.isEmpty {
+                    Divider().padding(.leading, 72)
+                }
+            }
+
+            ForEach(Array(results.itemFamilies.enumerated()), id: \.element.id) { index, family in
+                ItemFamilyResultRow(family: family)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
+                if index < results.itemFamilies.count - 1 || !results.reservations.isEmpty || !results.checkouts.isEmpty || !results.users.isEmpty {
                     Divider().padding(.leading, 72)
                 }
             }

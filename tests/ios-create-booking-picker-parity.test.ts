@@ -24,8 +24,11 @@ describe("iOS create booking picker parity", () => {
     );
 
     expect(createSheet).toContain("@State private var showScanner = false");
-    expect(createSheet).toContain("QRScannerSheet { assetId in");
+    expect(createSheet).toContain("QRScannerSheet { match in");
+    expect(createSheet).toContain("case .asset(let assetId):");
     expect(createSheet).toContain("Task { await vm.addScannedAsset(id: assetId) }");
+    expect(createSheet).toContain("case .itemFamily(let family):");
+    expect(createSheet).toContain("Add it with the quantity controls.");
     expect(createSheet).toContain("func addScannedAsset(id: String) async");
     expect(createSheet).toContain("let detail = try await APIClient.shared.asset(id: id)");
     expect(createSheet).toContain("let asset = detail.asAsset");

@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Mobile Operations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-10
+- Last Updated: 2026-06-11
 - Status: Active
 - Version: V1
 
@@ -125,6 +125,7 @@ Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md` (revised 2026-03-
 
 ## Change Log
 - 2026-06-11: **iOS booking event linking and polish** - native reservation creation now loads upcoming calendar events in Details, lets users link up to 3 events, auto-fills title/location/window from the selected event span until the user edits those fields, submits `eventIds[]` through the existing reservation API, and keeps event-launched prep-gear reservations on the legacy prefilled event/shift contract. The three-step sheet also gained stronger Apple-style context headers and an event-aware Confirm screen while preserving scan-to-add, bulk/countable selection, advisory conflict hints, and server-authoritative availability enforcement.
+- 2026-06-11: **iOS Scan item-family QR resolution** - native Scan and global search now preserve `/api/assets` item-family `bulkItems`, so printed numbered Sony battery unit QR labels resolve to the battery family and scanned unit context instead of a false no-result state. The regular app scan stays lookup-only; pickup and return scans remain kiosk-owned.
 - 2026-06-10: **iOS Settings detail menus** - native Settings now routes Notifications and Account & Security into dedicated drill-down screens. Notifications owns delivery status, OS push permission recovery, pause controls, channel toggles, and notification type toggles; Account & Security shows account context and changes passwords through the existing `/api/me/change-password` contract with optional other-session revocation. Full profile editing and active session review remain web handoffs.
 - 2026-06-10: **iOS native booking picker parity** - native reservation creation now supports scan-to-add from the Equipment step, countable bulk/battery selection with quantity steppers, selected bulk rows in the review step, and typed `bulkItems` submission through the existing reservation API. Serialized conflict hints remain preflight advisory; bulk shortage enforcement remains server-authoritative at submit.
 - 2026-06-10: **iOS Settings first-class hub** - native Profile now presents as a Settings hub with an account summary, shift/overdue/alert metrics, first-class row treatment, grouped schedule/account/notifications/appearance/app sections, student-only Availability access, and staff/admin-only sticker-code tooling. Backend settings, notification preferences, and the stable tab shell are unchanged.

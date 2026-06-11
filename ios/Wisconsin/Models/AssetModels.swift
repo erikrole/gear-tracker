@@ -95,11 +95,77 @@ struct Asset: Codable, Identifiable, Hashable {
     }
 }
 
+struct AssetFamilySearchResult: Codable, Identifiable, Hashable {
+    let id: String
+    let kind: String
+    let name: String
+    let category: String
+    let unit: String
+    let trackByNumber: Bool
+    let onHandQuantity: Int
+    let availableQuantity: Int
+    let checkedOutQuantity: Int
+    let lostQuantity: Int
+    let retiredQuantity: Int
+    let matchedUnitNumber: Int?
+    let matchedUnitStatus: String?
+    let matchedUnitHolder: String?
+    let matchedUnitDueAt: Date?
+    let matchedUnitBookingTitle: String?
+    let imageUrl: String?
+    let locationName: String
+    let locationId: String
+    let categoryId: String?
+    let departmentId: String?
+    let departmentName: String?
+    let binQrCodeValue: String
+
+    var availabilityLabel: String {
+        trackByNumber
+            ? "\(availableQuantity) of \(onHandQuantity) units available"
+            : "\(availableQuantity) \(unit) available"
+    }
+
+    var scannedUnitLabel: String? {
+        guard let matchedUnitNumber else { return nil }
+        let status = matchedUnitStatus?
+            .lowercased()
+            .replacingOccurrences(of: "_", with: " ")
+            .capitalized
+        if let status {
+            return "Unit #\(matchedUnitNumber) · \(status)"
+        }
+        return "Unit #\(matchedUnitNumber)"
+    }
+}
+
 struct AssetsResponse: Codable {
     let data: [Asset]
+    let bulkItems: [AssetFamilySearchResult]
     let total: Int
     let limit: Int
     let offset: Int
+
+    init(data: [Asset], bulkItems: [AssetFamilySearchResult], total: Int, limit: Int, offset: Int) {
+        self.data = data
+        self.bulkItems = bulkItems
+        self.total = total
+        self.limit = limit
+        self.offset = offset
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case data, bulkItems, total, limit, offset
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        data = try container.decode([Asset].self, forKey: .data)
+        bulkItems = try container.decodeIfPresent([AssetFamilySearchResult].self, forKey: .bulkItems) ?? []
+        total = try container.decode(Int.self, forKey: .total)
+        limit = try container.decode(Int.self, forKey: .limit)
+        offset = try container.decode(Int.self, forKey: .offset)
+    }
 }
 
 // Asset detail — superset of Asset with history

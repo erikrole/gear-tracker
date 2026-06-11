@@ -19,6 +19,21 @@ Plan: `tasks/ios-booking-event-linking-polish-plan.md`
 
 ---
 
+## Active: iOS Scan bulk unit QR resolution (2026-06-11)
+
+Plan: `tasks/ios-scan-bulk-unit-qr-plan.md`
+
+- [x] Decode `/api/assets` item-family `bulkItems` in native iOS.
+- [x] Render resolved numbered battery unit results in Scan instead of "Nothing found."
+- [x] Add focused contract coverage and sync docs.
+- [x] Run focused tests and iOS verification.
+
+### Review
+- 2026-06-11: Native Scan/global search now decode `/api/assets.bulkItems`, render item-family battery results with scanned unit context, and keep reservation scan-to-add explicit by directing item-family matches back to quantity controls.
+- 2026-06-11: Verification passed with focused Vitest tests, iOS drift check, iOS gap audit, whitespace check, and escalated iOS Simulator build. `npx tsc --noEmit` remains blocked by unrelated `tests/bulk-unit-adjustment-routes.test.ts:171`.
+
+---
+
 ## Active: Remove ambient quick search type-to-search (2026-06-10)
 
 Root cause: even after tightening the input guard, ambient type-to-search remains too collision-prone for a data-entry-heavy app. The explicit top-bar/mobile Search trigger and `Cmd/Ctrl+K` shortcut cover the command-palette workflow without stealing printable typing from page surfaces.

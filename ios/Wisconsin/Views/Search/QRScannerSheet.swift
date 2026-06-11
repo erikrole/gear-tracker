@@ -2,8 +2,13 @@ import SwiftUI
 import VisionKit
 import AVFoundation
 
+enum QRScannerMatch {
+    case asset(String)
+    case itemFamily(AssetFamilySearchResult)
+}
+
 struct QRScannerSheet: View {
-    let onMatch: (String) -> Void
+    let onMatch: (QRScannerMatch) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
@@ -268,9 +273,13 @@ struct QRScannerSheet: View {
         isLookingUp = true
         defer { isLookingUp = false }
         do {
-            if let assetId = try await APIClient.shared.assetsLookup(rawScan: rawScan) {
+            let response = try await APIClient.shared.scannedAssets(rawScan: rawScan)
+            if let assetId = response.data.first?.id {
                 Haptics.success()
-                onMatch(assetId)
+                onMatch(.asset(assetId))
+            } else if let family = response.bulkItems.first {
+                Haptics.success()
+                onMatch(.itemFamily(family))
             } else {
                 Haptics.warning()
                 scanError = "No item matches this code."

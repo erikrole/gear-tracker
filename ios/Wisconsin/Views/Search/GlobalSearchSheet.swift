@@ -69,10 +69,16 @@ struct GlobalSearchSheet: View {
             }
         }
         .fullScreenCover(isPresented: $showScanner) {
-            QRScannerSheet { assetId in
+            QRScannerSheet { match in
                 showScanner = false
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                    navigationPath.append(SearchDestination.asset(assetId))
+                switch match {
+                case .asset(let assetId):
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        navigationPath.append(SearchDestination.asset(assetId))
+                    }
+                case .itemFamily(let family):
+                    query = family.name
+                    results = SearchResults(itemFamilies: [family])
                 }
             }
         }
@@ -221,6 +227,14 @@ struct GlobalSearchSheet: View {
                             AssetResultRow(asset: asset)
                         }
                         .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            if !results.itemFamilies.isEmpty {
+                Section(header: sectionHeader("Item Families", count: results.itemFamilies.count)) {
+                    ForEach(results.itemFamilies) { family in
+                        ItemFamilyResultRow(family: family)
                     }
                 }
             }

@@ -68,7 +68,7 @@ export default function BookingItems({
 
       {/* Unified item list */}
       {!allEmpty && (
-        <Card elevation="flat">
+        <Card elevation="flat" className="rounded-lg border-border/50 shadow-xs">
           <CardContent className="p-0 divide-y divide-border/40">
             {filteredSerializedItems.map((item) => {
               const isReturned = item.allocationStatus === "returned";

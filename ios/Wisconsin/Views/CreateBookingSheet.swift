@@ -500,9 +500,15 @@ struct CreateBookingSheet: View {
                 _ = await (optionsTask, eventsTask)
             }
             .fullScreenCover(isPresented: $showScanner) {
-                QRScannerSheet { assetId in
+                QRScannerSheet { match in
                     showScanner = false
-                    Task { await vm.addScannedAsset(id: assetId) }
+                    switch match {
+                    case .asset(let assetId):
+                        Task { await vm.addScannedAsset(id: assetId) }
+                    case .itemFamily(let family):
+                        vm.scanError = "\(family.name) is an item family. Add it with the quantity controls."
+                        Haptics.warning()
+                    }
                 }
             }
             .onChange(of: vm.options) {

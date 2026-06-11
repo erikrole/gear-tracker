@@ -2,12 +2,13 @@ import Foundation
 
 struct SearchResults {
     var items: [Asset] = []
+    var itemFamilies: [AssetFamilySearchResult] = []
     var reservations: [Booking] = []
     var checkouts: [Booking] = []
     var users: [AppUser] = []
 
     var isEmpty: Bool {
-        items.isEmpty && reservations.isEmpty && checkouts.isEmpty && users.isEmpty
+        items.isEmpty && itemFamilies.isEmpty && reservations.isEmpty && checkouts.isEmpty && users.isEmpty
     }
 }
 
@@ -31,6 +32,7 @@ final class SearchService {
         )
         return SearchResults(
             items: itemsResp.data,
+            itemFamilies: itemsResp.bulkItems,
             reservations: reservationsResp.data,
             checkouts: checkoutsResp.data,
             users: usersResp.data

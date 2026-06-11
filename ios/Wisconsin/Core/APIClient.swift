@@ -470,6 +470,11 @@ final class APIClient {
     }
 
     func assetsLookup(rawScan: String) async throws -> String? {
+        let resp = try await scannedAssets(rawScan: rawScan, limit: 5)
+        return resp.data.first?.id
+    }
+
+    func scannedAssets(rawScan: String, limit: Int = 5) async throws -> AssetsResponse {
         // Old kiosk QR codes encoded the asset's CUID as bg://item/{id}.
         // Try direct ID lookup first; if 404, fall through to the qrCodeValue
         // search below (which handles bg://item/{assetTag} stored verbatim).
@@ -477,26 +482,26 @@ final class APIClient {
             let embedded = String(rawScan.dropFirst("bg://item/".count))
             if !embedded.isEmpty {
                 do {
-                    return try await asset(id: embedded).id
+                    let found = try await asset(id: embedded).asAsset
+                    return AssetsResponse(data: [found], bulkItems: Array(), total: 1, limit: limit, offset: 0)
                 } catch APIError.notFound {
-                    // Not a raw CUID — fall through to qrCodeValue search
+                    // Not a raw CUID — fall through to qrCodeValue search.
                 }
             }
         }
 
         // Pass the full raw scan as ?qr= so the server can do exact qrCodeValue
-        // matches (e.g. bg://item/FB FX3 2, QR-CA083A13, ca083a13).
-        // Strip URL-scheme prefixes only for the ?q= general-text search.
+        // and derived item-family unit matches. Strip URL-scheme prefixes only
+        // for the ?q= general-text search.
         let stripped = rawScan
             .replacingOccurrences(of: "bg://item/", with: "")
             .replacingOccurrences(of: "bg://case/", with: "")
         let req = request(path: "/api/assets", queryItems: [
             .init(name: "q", value: stripped),
             .init(name: "qr", value: rawScan),
-            .init(name: "limit", value: "5"),
+            .init(name: "limit", value: "\(limit)"),
         ])
-        let resp: AssetsResponse = try await perform(req)
-        return resp.data.first?.id
+        return try await perform(req)
     }
 
     func assetByQR(qrValue: String) async throws -> Asset? {

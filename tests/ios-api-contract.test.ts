@@ -66,6 +66,28 @@ describe("iOS API contracts — reservation create payload", () => {
   });
 });
 
+describe("iOS API contracts — asset lookup item families", () => {
+  it("iOS decodes /api/assets bulkItems and treats them as scan/search results", () => {
+    const route = source("src/app/api/assets/route.ts");
+    const models = source("ios/Wisconsin/Models/AssetModels.swift");
+    const searchService = source("ios/Wisconsin/Core/SearchService.swift");
+    const scanView = source("ios/Wisconsin/Views/ScanView.swift");
+    const scanner = source("ios/Wisconsin/Views/Search/QRScannerSheet.swift");
+
+    expect(route).toContain("bulkItems,");
+    expect(route).toContain("matchedUnitNumber");
+    expect(models).toContain("struct AssetFamilySearchResult");
+    expect(models).toContain("let bulkItems: [AssetFamilySearchResult]");
+    expect(models).toContain("decodeIfPresent([AssetFamilySearchResult].self, forKey: .bulkItems) ?? []");
+    expect(searchService).toContain("var itemFamilies: [AssetFamilySearchResult] = []");
+    expect(searchService).toContain("itemsResp.bulkItems");
+    expect(searchService).toContain("itemFamilies.isEmpty");
+    expect(scanView).toContain("ItemFamilyResultRow(family: family)");
+    expect(scanner).toContain("case itemFamily(AssetFamilySearchResult)");
+    expect(scanner).toContain("onMatch(.itemFamily(family))");
+  });
+});
+
 describe("iOS API contracts — availability check", () => {
   it("iOS decodes the route's top-level result (no data envelope)", () => {
     const route = source("src/app/api/availability/check/route.ts");

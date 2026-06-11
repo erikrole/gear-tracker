@@ -57,6 +57,7 @@ Kiosk execution endpoints are documented in `docs/AREA_KIOSK.md`.
 
 | Date | Change |
 |---|---|
+| 2026-06-11 | iOS item-family scan lookup fix: native Scan and global search now decode `/api/assets` `bulkItems`, so derived numbered battery unit QR labels resolve to the Sony battery family with unit context instead of showing Nothing found. Regular app scan remains lookup-only; pickup and return custody scans stay kiosk-owned. |
 | 2026-06-09 | iOS runtime warning cleanup: native Scan now leaves VisionKit stopped while result/error sheets are visible and re-arms scanning when the sheet dismisses, reducing system material frame-update churn while preserving lookup-only scan behavior. |
 | 2026-06-06 | iOS Scan result retry recovery: native lookup failures now expose Try again before Type code instead, retry the last scanned value after clearing same-code dedupe, and preserve lookup-only scope plus kiosk custody boundaries. |
 | 2026-05-25 | Web bug sweep Batch 22: lookup now safe-parses `/api/assets` and item detail responses, handles expired sessions through the shared auth redirect, and surfaces unreadable lookup payloads as retryable errors instead of collapsing malformed server responses into generic network copy. |

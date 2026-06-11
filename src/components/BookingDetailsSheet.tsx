@@ -81,19 +81,22 @@ type ConvertResponse = {
 
 function SectionHead({
   label,
+  count,
   right,
 }: {
   label: string;
+  count?: number;
   right?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-2.5 border-y border-border/40 bg-muted/20 px-6 py-3">
-      <span
-        className="h-4 w-0.5 shrink-0 rounded-full"
-        style={{ backgroundColor: "var(--wi-red)" }}
-      />
-      <span className="flex-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-foreground">
-        {label}
+    <div className="flex items-center gap-2.5 px-6 pt-4 pb-1">
+      <span className="flex flex-1 min-w-0 items-center gap-2">
+        <span className="text-base font-semibold tracking-tight">{label}</span>
+        {typeof count === "number" && count > 0 && (
+          <Badge variant="secondary" size="sm" className="tabular-nums">
+            {count}
+          </Badge>
+        )}
       </span>
       {right}
     </div>
@@ -802,7 +805,8 @@ export default function BookingDetailsSheet({
             <>
               {/* ─ Details section ─ */}
               <div ref={detailsSectionRef} data-booking-sheet-section="details" className="border-b border-border/40 bg-background">
-                <div className="px-6 py-4">
+                <SectionHead label="Details" />
+                <div className="px-6 pb-4 pt-2">
                   <BookingOverview
                     booking={booking}
                     conflictError={conflictError}
@@ -820,7 +824,8 @@ export default function BookingDetailsSheet({
               {/* ─ Equipment section ─ */}
               <div ref={equipmentSectionRef} data-booking-sheet-section="equipment" className="border-b border-border/40 bg-background">
                 <SectionHead
-                  label={`Equipment${totalEquipItems > 0 ? ` \u00b7 ${totalEquipItems}` : ""}`}
+                  label="Equipment"
+                  count={totalEquipItems}
                   right={
                     canEditEquipment ? (
                       <Button
@@ -835,8 +840,7 @@ export default function BookingDetailsSheet({
                   }
                 />
 
-
-                <div className="px-6 py-4">
+                <div className="px-6 pb-4 pt-2">
                   <BookingItems
                     booking={booking}
                     equipSearch={equipSearch}
@@ -854,8 +858,8 @@ export default function BookingDetailsSheet({
 
               {/* ─ History section ─ */}
               <div ref={historySectionRef} data-booking-sheet-section="history" className="bg-background">
-                <SectionHead label="History" />
-                <div className="px-6 py-4">
+                <SectionHead label="History" count={allAuditLogs.length} />
+                <div className="px-6 pb-4 pt-2">
                   {auditLoadError && (
                     <Alert variant="destructive" className="mb-3">
                       <AlertDescription className="flex items-start justify-between gap-3">

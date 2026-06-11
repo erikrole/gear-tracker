@@ -51,7 +51,7 @@ export default function BookingHistoryTab({
   return (
     <div>
       {/* Filter chips */}
-      <div className="px-3 py-2.5 border-b border-border/30">
+      <div className="px-3 py-2.5 border-b border-border/40">
         <ToggleGroup
           type="single"
           value={filter}

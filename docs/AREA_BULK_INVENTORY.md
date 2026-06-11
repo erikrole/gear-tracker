@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Bulk Inventory Management
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-25
+- Last Updated: 2026-06-11
 - Status: Active
 - Version: V1
 
@@ -157,6 +157,7 @@ See `AREA_ITEMS.md` 2026-04-06 entry for bulk inventory page hardening:
 
 ## Change Log
 - 2026-06-11: Brother battery label CSV export and printed-label tracking shipped. Added `labelPrintedAt`/`labelPrintedById`/`labelPrintBatchId` to `BulkSkuUnit` (migration 0077), a `buildDerivedBulkUnitQrValue` formatter, the `GET/POST /api/bulk-skus/[id]/units/labels` route (CSV export + audited batch mark-printed), label counts on Battery Ops cards with a Brother CSV download and mark-printed confirmation seeded from the exported unit numbers, per-unit printed-label indicators in Battery Ops and `BulkUnitGrid`, and a secondary export on the numbered-unit detail tab. QR values stay derived and are never stored.
+- 2026-06-11: Native iOS Scan and global search now decode `/api/assets` item-family `bulkItems`, so a printed derived unit QR such as `{binQrCodeValue}-1` resolves to the parent battery family and scanned unit context instead of being discarded as no item found. Scan-to-add in native reservation creation still asks users to add item families with the quantity controls.
 - 2026-05-30: Battery hardening adjustment slice shipped. Battery Ops now includes quantity-tracked battery families, adds audited signed quantity adjustments, adds audited numbered-unit creation with operator reasons, requires reasons for unit status changes, blocks any status mutation while a unit is checked out, and shows before/after count impact before staff confirm.
 - 2026-05-30: Battery hardening started. Battery Ops and checkout picker form-options now return live no-store count responses instead of browser-cached inventory counts, and picker-selected bulk quantities clamp down with explicit recovery copy when refreshed availability drops below the selected quantity.
 - 2026-05-25: Web bug sweep Batch 27 hardened item-family detail tab URL state. Bulk SKU detail now rehydrates `?tab=` links and browser Back/Forward through the shared URL-state hook, and direct links to mode- or role-hidden tabs fall back to Info instead of rendering an empty detail body.

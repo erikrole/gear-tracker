@@ -140,7 +140,7 @@ export default function BookingOverview({
       )}
 
       {/* Main info card */}
-      <Card elevation="flat">
+      <Card elevation="flat" className="rounded-lg border-border/50 shadow-xs">
         <CardContent className="py-1 divide-y divide-border/40">
           {/* Start — editable inline for reservations */}
           <InfoRow icon={CalendarIcon} label="Start">
@@ -251,7 +251,7 @@ export default function BookingOverview({
       {/* Extend due date */}
       {canExtend && (
         <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Extend due date</div>
+          <div className="text-sm font-medium mb-2">Extend due date</div>
           <div className="flex gap-1.5 flex-wrap">
             {presets.map((p) => (
               <Button
