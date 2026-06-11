@@ -112,6 +112,7 @@ struct AssetFamilySearchResult: Codable, Identifiable, Hashable {
     let matchedUnitHolder: String?
     let matchedUnitDueAt: Date?
     let matchedUnitBookingTitle: String?
+    let matchedUnitBookingId: String?
     let imageUrl: String?
     let locationName: String
     let locationId: String

@@ -11,6 +11,7 @@ struct ScanAssetHeroCard: View {
     let asset: Asset
     var onViewItem: () -> Void
     var onReserve: () -> Void
+    var onOpenBooking: ((String) -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -39,7 +40,8 @@ struct ScanAssetHeroCard: View {
                     holder: booking.requesterName,
                     bookingTitle: booking.title,
                     dueAt: booking.endsAt,
-                    isOverdue: booking.isOverdue
+                    isOverdue: booking.isOverdue,
+                    onOpenBooking: onOpenBooking.map { open in { open(booking.id) } }
                 )
             }
 
@@ -50,13 +52,16 @@ struct ScanAssetHeroCard: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
+                .tint(.primary)
 
                 Button(action: onViewItem) {
                     Label("View item", systemImage: "arrow.right.circle.fill")
+                        .foregroundStyle(Color(.systemBackground))
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
+                .tint(Color(.label))
             }
         }
         .padding(.horizontal, 20)
@@ -75,6 +80,7 @@ struct ScanAssetHeroCard: View {
 struct ScanFamilyHeroCard: View {
     let family: AssetFamilySearchResult
     var onReserve: () -> Void
+    var onOpenBooking: ((String) -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -109,7 +115,10 @@ struct ScanFamilyHeroCard: View {
                     holder: holder,
                     bookingTitle: family.matchedUnitBookingTitle,
                     dueAt: family.matchedUnitDueAt,
-                    isOverdue: family.matchedUnitDueAt.map { $0 < .now } ?? false
+                    isOverdue: family.matchedUnitDueAt.map { $0 < .now } ?? false,
+                    onOpenBooking: family.matchedUnitBookingId.flatMap { id in
+                        onOpenBooking.map { open in { open(id) } }
+                    }
                 )
             }
 
@@ -117,10 +126,12 @@ struct ScanFamilyHeroCard: View {
             // item tap-through — Reserve is the one action that makes sense.
             Button(action: onReserve) {
                 Label("Reserve", systemImage: "calendar.badge.plus")
+                    .foregroundStyle(Color(.systemBackground))
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
+            .tint(Color(.label))
         }
         .padding(.horizontal, 20)
         .padding(.top, 20)
@@ -305,15 +316,27 @@ private struct ScanHeroCustodyRow: View {
     let bookingTitle: String?
     let dueAt: Date?
     let isOverdue: Bool
+    /// When set, the row is a tap target that deeplinks to the booking.
+    var onOpenBooking: (() -> Void)? = nil
 
     var body: some View {
+        if let onOpenBooking {
+            Button(action: onOpenBooking) { content }
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens the booking")
+        } else {
+            content
+        }
+    }
+
+    private var content: some View {
         HStack(spacing: 12) {
             ZStack {
                 Circle()
                     .fill(Color.statusBackground(isOverdue ? .red : .blue))
                     .frame(width: 40, height: 40)
-                Image(systemName: "person.fill")
-                    .font(.system(size: 16))
+                Text(holder.searchInitials)
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(Color.statusText(isOverdue ? .red : .blue))
             }
             VStack(alignment: .leading, spacing: 2) {
@@ -337,6 +360,11 @@ private struct ScanHeroCustodyRow: View {
                         .font(.caption.weight(.medium))
                         .foregroundStyle(isOverdue ? Color.statusText(.red) : .primary)
                 }
+            }
+            if onOpenBooking != nil {
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
             }
         }
         .padding(12)

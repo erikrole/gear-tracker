@@ -188,16 +188,12 @@ struct ScanView: View {
         .padding(.bottom, 32)
     }
 
-    /// Fixed-content states (hero card, empty, error) fit at .medium — offering
-    /// .large there just reveals dead space. Only the multi-result row list
-    /// earns the expandable detent.
+    /// Empty and error states are fixed-content and fit at .medium; result
+    /// content (hero card or row list) can be pulled up to full height.
     private var resultSheetDetents: Set<PresentationDetent> {
-        guard resultError == nil,
-              let results,
-              !results.isEmpty,
-              results.singleAssetMatch == nil,
-              results.singleFamilyMatch == nil
-        else { return [.medium] }
+        guard resultError == nil, let results, !results.isEmpty else {
+            return [.medium]
+        }
         return [.medium, .large]
     }
 
@@ -448,7 +444,8 @@ private struct ScanResultSheet: View {
                             navigationPath.append(asset)
                             dismiss()
                         },
-                        onReserve: { reserveAsset = asset }
+                        onReserve: { reserveAsset = asset },
+                        onOpenBooking: openBooking
                     )
                 }
             } else if let family = results.singleFamilyMatch {
@@ -457,7 +454,8 @@ private struct ScanResultSheet: View {
                 ScrollView {
                     ScanFamilyHeroCard(
                         family: family,
-                        onReserve: { reserveFamily = family }
+                        onReserve: { reserveFamily = family },
+                        onOpenBooking: openBooking
                     )
                 }
             } else {
