@@ -120,6 +120,7 @@ Implementation: `processLicenseNags` and `processExpiryWarnings` in `src/lib/ser
 - No full admin per-user license usage report beyond the user's own recent history and per-code admin history
 
 ## Change Log
+- **2026-06-11**: License return (`ReleaseDialog`), admin per-slot release, admin release-all, retire, and delete confirmations now use `AlertDialogAction variant="destructive"` via the shared shadcn prop. Manual `bg-destructive text-destructive-foreground hover:bg-destructive/90` class string removed from the delete action.
 - **2026-05-25 (Web bug sweep Batch 31)**: Admin table row clicks now prioritize inspection over self-claiming, so staff/admin users can manage open or partially used license codes from the table instead of being dropped into the student claim dialog.
 - **2026-05-25 (Web bug sweep Batch 30)**: Admin license sheets now show a retryable error when claim history fails instead of looking empty, abort stale history loads when switching sheets, expose stable form metadata on occupant/account/expiry inputs, and guard retire/delete actions while the request is in flight.
 - **2026-05-24 (Client reliability sweep)**: License dialogs and sheets now use the shared safe error helpers for add, bulk add, bulk renew, claim, return, user history, and admin claim-management actions. These flows now handle expired sessions through the shared login redirect and no longer assume failed API responses are JSON.

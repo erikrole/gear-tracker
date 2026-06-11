@@ -54,7 +54,7 @@ export function ReleaseDialog({ open, onOpenChange, licenseId, onReleased }: Pro
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={handleRelease} disabled={loading}>
+          <AlertDialogAction onClick={handleRelease} disabled={loading} variant="destructive">
             {loading ? "Returning…" : "Return license"}
           </AlertDialogAction>
         </AlertDialogFooter>

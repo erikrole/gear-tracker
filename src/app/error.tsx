@@ -1,6 +1,15 @@
 "use client";
 
 import { useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export default function RootError({
   error,
@@ -15,65 +24,24 @@ export default function RootError({
 
   return (
     <html lang="en">
-      <body
-        style={{
-          margin: 0,
-          fontFamily:
-            '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-          background: "#fafafa",
-          color: "#111",
-        }}
-      >
-        <div
-          style={{
-            padding: 40,
-            textAlign: "center",
-            maxWidth: 480,
-            margin: "120px auto",
-          }}
-        >
-          <h1 style={{ fontSize: 24, marginBottom: 12 }}>
-            Something went wrong
-          </h1>
-          <p style={{ color: "#666", marginBottom: 24, lineHeight: 1.5 }}>
-            An unexpected error occurred. This is usually temporary.
-          </p>
-          <div
-            style={{ display: "flex", gap: 12, justifyContent: "center" }}
-          >
-            <button
-              onClick={reset}
-              style={{
-                padding: "10px 20px",
-                background: "#111",
-                color: "#fff",
-                border: "none",
-                borderRadius: 8,
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
+      <body className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Something went wrong</CardTitle>
+            <CardDescription>
+              An unexpected error occurred. This is usually temporary.
+            </CardDescription>
+          </CardHeader>
+          <CardContent />
+          <CardFooter className="flex gap-3 justify-center">
+            <Button type="button" onClick={reset}>
               Try again
-            </button>
-            <a
-              href="/"
-              style={{
-                padding: "10px 20px",
-                background: "transparent",
-                color: "#111",
-                border: "1px solid #ddd",
-                borderRadius: 8,
-                fontSize: 14,
-                fontWeight: 600,
-                textDecoration: "none",
-                cursor: "pointer",
-              }}
-            >
-              Go home
-            </a>
-          </div>
-        </div>
+            </Button>
+            <Button asChild variant="outline">
+              <a href="/">Go home</a>
+            </Button>
+          </CardFooter>
+        </Card>
       </body>
     </html>
   );

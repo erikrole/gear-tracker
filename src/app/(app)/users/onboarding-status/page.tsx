@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -216,10 +217,12 @@ export default function OnboardingStatusPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="stale">Stale pending</SelectItem>
-                <SelectItem value="claimed">Claimed</SelectItem>
+                <SelectGroup>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="stale">Stale pending</SelectItem>
+                  <SelectItem value="claimed">Claimed</SelectItem>
+                </SelectGroup>
               </SelectContent>
             </Select>
           </div>

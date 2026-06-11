@@ -10,6 +10,14 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { handleAuthRedirect, classifyError, isAbortError, parseJsonSafely } from "@/lib/errors";
 import { SettingsPageShell } from "../SettingsPageShell";
 import {
@@ -368,21 +376,21 @@ export default function AuditLogPage() {
         </div>
       ) : (
         <div className="rounded-md border border-border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 border-b border-border">
-              <tr>
-                <th className="text-left font-medium text-muted-foreground px-3 py-2 w-44">Time</th>
-                <th className="text-left font-medium text-muted-foreground px-3 py-2">Entity</th>
-                <th className="text-left font-medium text-muted-foreground px-3 py-2">Action</th>
-                <th className="text-left font-medium text-muted-foreground px-3 py-2">Actor</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
+          <Table>
+            <TableHeader sticky={false}>
+              <TableRow>
+                <TableHead className="w-44">Time</TableHead>
+                <TableHead>Entity</TableHead>
+                <TableHead>Action</TableHead>
+                <TableHead>Actor</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {rows.map((row) => (
                 <AuditTableRow key={row.id} row={row} />
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
 
@@ -409,22 +417,22 @@ export default function AuditLogPage() {
 
 function AuditTableRow({ row }: { row: AuditRow }) {
   return (
-    <tr className="hover:bg-muted/30 transition-colors">
-      <td className="px-3 py-2.5 tabular-nums text-muted-foreground text-xs whitespace-nowrap">
+    <TableRow>
+      <TableCell className="tabular-nums text-muted-foreground text-xs whitespace-nowrap py-2.5">
         {formatTs(row.createdAt)}
-      </td>
-      <td className="px-3 py-2.5">
+      </TableCell>
+      <TableCell className="py-2.5">
         <span className="font-medium">{row.entityType}</span>
         <span className="text-muted-foreground ml-1 font-mono text-xs">{row.entityId.slice(0, 8)}</span>
-      </td>
-      <td className="px-3 py-2.5">
+      </TableCell>
+      <TableCell className="py-2.5">
         <Badge variant="secondary" className="font-mono text-xs font-normal">
           {row.action}
         </Badge>
-      </td>
-      <td className="px-3 py-2.5 text-muted-foreground">
+      </TableCell>
+      <TableCell className="py-2.5 text-muted-foreground">
         {row.actor ? row.actor.name : <span className="text-xs italic">System</span>}
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 }

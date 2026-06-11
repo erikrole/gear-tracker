@@ -276,7 +276,7 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleReleaseClaim(claim.id)}>
+                              <AlertDialogAction onClick={() => handleReleaseClaim(claim.id)} variant="destructive">
                                 Release
                               </AlertDialogAction>
                             </AlertDialogFooter>
@@ -309,7 +309,7 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => handleReleaseClaim()}>
+                    <AlertDialogAction onClick={() => handleReleaseClaim()} variant="destructive">
                       Release all
                     </AlertDialogAction>
                   </AlertDialogFooter>
@@ -409,7 +409,7 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleRetire} disabled={retiring}>
+                          <AlertDialogAction onClick={handleRetire} disabled={retiring} variant="destructive">
                             {retiring ? "Retiring..." : "Retire"}
                           </AlertDialogAction>
                         </AlertDialogFooter>
@@ -445,7 +445,7 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
                           <AlertDialogAction
                             onClick={handleDelete}
                             disabled={deleting}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            variant="destructive"
                           >
                             {deleting ? "Deleting..." : "Delete"}
                           </AlertDialogAction>

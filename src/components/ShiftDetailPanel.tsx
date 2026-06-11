@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetBody,
@@ -486,6 +487,9 @@ export default function ShiftDetailPanel({
       <SheetContent className="sm:max-w-lg">
         <SheetHeader>
           <SheetTitle>{group?.event.summary ?? "Loading..."}</SheetTitle>
+          <SheetDescription className="sr-only">
+            Manage event staffing, shift assignments, call windows, trade posting, archive state, and attendance.
+          </SheetDescription>
         </SheetHeader>
 
         {loading ? (

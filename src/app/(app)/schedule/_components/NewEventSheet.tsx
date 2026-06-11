@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -353,10 +353,12 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
                   <SelectValue placeholder="None" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NONE_LOCATION_VALUE}>None</SelectItem>
-                  {locations.map((l) => (
-                    <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
-                  ))}
+                  <SelectGroup>
+                    <SelectItem value={NONE_LOCATION_VALUE}>None</SelectItem>
+                    {locations.map((l) => (
+                      <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
               {locationsError && (
@@ -376,10 +378,12 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
                   <SelectValue placeholder="None" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none">None</SelectItem>
-                  {SPORT_CODES.map((s) => (
-                    <SelectItem key={s.code} value={s.code}>{s.label}</SelectItem>
-                  ))}
+                  <SelectGroup>
+                    <SelectItem value="__none">None</SelectItem>
+                    {SPORT_CODES.map((s) => (
+                      <SelectItem key={s.code} value={s.code}>{s.label}</SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>
@@ -398,9 +402,11 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="home">Home</SelectItem>
-                      <SelectItem value="away">Away</SelectItem>
-                      <SelectItem value="neutral">Neutral site</SelectItem>
+                      <SelectGroup>
+                        <SelectItem value="home">Home</SelectItem>
+                        <SelectItem value="away">Away</SelectItem>
+                        <SelectItem value="neutral">Neutral site</SelectItem>
+                      </SelectGroup>
                     </SelectContent>
                   </Select>
                 </div>

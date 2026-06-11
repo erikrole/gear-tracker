@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -170,12 +171,14 @@ export function WizardStep1({
                   <SelectValue placeholder="All sports" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__all__">All sports</SelectItem>
-                  {SPORT_CODES.map((s) => (
-                    <SelectItem key={s.code} value={s.code}>
-                      {s.label}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    <SelectItem value="__all__">All sports</SelectItem>
+                    {SPORT_CODES.map((s) => (
+                      <SelectItem key={s.code} value={s.code}>
+                        {s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>
@@ -413,12 +416,14 @@ export function WizardStep1({
                   <SelectValue placeholder="None" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">None</SelectItem>
-                  {SPORT_CODES.map((s) => (
-                    <SelectItem key={s.code} value={s.code}>
-                      {s.label}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    <SelectItem value="__none__">None</SelectItem>
+                    {SPORT_CODES.map((s) => (
+                      <SelectItem key={s.code} value={s.code}>
+                        {s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </Field>
@@ -438,11 +443,13 @@ export function WizardStep1({
                   <SelectValue placeholder="Select…" />
                 </SelectTrigger>
                 <SelectContent>
-                  {users.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>
-                      {u.name}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    {users.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </Field>
@@ -458,11 +465,13 @@ export function WizardStep1({
                   <SelectValue placeholder="Select…" />
                 </SelectTrigger>
                 <SelectContent>
-                  {locations.map((l) => (
-                    <SelectItem key={l.id} value={l.id}>
-                      {l.name}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    {locations.map((l) => (
+                      <SelectItem key={l.id} value={l.id}>
+                        {l.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </Field>
@@ -494,12 +503,14 @@ export function WizardStep1({
                     <SelectValue placeholder="None" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">None</SelectItem>
-                    {kits.map((k) => (
-                      <SelectItem key={k.id} value={k.id}>
-                        {k.name}
-                      </SelectItem>
-                    ))}
+                    <SelectGroup>
+                      <SelectItem value="__none__">None</SelectItem>
+                      {kits.map((k) => (
+                        <SelectItem key={k.id} value={k.id}>
+                          {k.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
               )}

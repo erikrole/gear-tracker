@@ -31,8 +31,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/EmptyState";
 import { OperationalActiveFilterChips, type OperationalActiveFilter } from "@/components/OperationalToolbar";
@@ -694,6 +694,9 @@ export default function ResourcesPage() {
               <SheetContent side="left" className="w-72 overflow-y-auto p-4">
                 <SheetHeader className="mb-3 p-0">
                   <SheetTitle>Filters</SheetTitle>
+                  <SheetDescription className="sr-only">
+                    Filter resource guides by category, Creative area, role, publication state, and sort order.
+                  </SheetDescription>
                 </SheetHeader>
                 <FilterRail {...railProps} />
               </SheetContent>
@@ -706,11 +709,13 @@ export default function ResourcesPage() {
                 <span className="truncate">{sortLabel}</span>
               </SelectTrigger>
               <SelectContent>
-                {SORT_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
+                <SelectGroup>
+                  {SORT_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               </SelectContent>
             </Select>
           </div>

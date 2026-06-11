@@ -4,7 +4,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { getInitials } from "@/lib/avatar";
 import {
   applyThemeChoice,
   readStoredThemeChoice,
@@ -14,7 +13,7 @@ import {
   THEME_CHOICES,
   type ThemeChoice,
 } from "@/lib/theme";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/UserAvatar";
 import {
   SunIcon,
   MoonIcon,
@@ -135,8 +134,6 @@ export default function AppSidebar({
   const { theme, setTheme } = useTheme();
   const canUseAdminNav = user?.role === "ADMIN" || user?.role === "STAFF";
 
-  const userInitials = user ? getInitials(user.name) : "?";
-
   const visibleGroups = navGroups
     .filter((g) => !g.adminOnly || canUseAdminNav)
     .map((group) => ({
@@ -191,15 +188,14 @@ export default function AppSidebar({
                   href={`/users/${user.id}`}
                   className="flex items-center gap-2.5 group-data-[collapsible=icon]:gap-0"
                 >
-                  <Avatar className="size-7 shrink-0 ring-1 ring-white/[0.15] bg-white/[0.08] group-data-[collapsible=icon]:mx-auto">
-                    {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
-                    <AvatarFallback
-                      className="bg-transparent text-white/80 text-[length:var(--text-2xs)] font-bold"
-                      style={{ fontFamily: "var(--font-heading)" }}
-                    >
-                      {userInitials}
-                    </AvatarFallback>
-                  </Avatar>
+                  <UserAvatar
+                    name={user.name}
+                    avatarUrl={user.avatarUrl}
+                    size="default"
+                    noColor
+                    className="size-7 shrink-0 ring-1 ring-white/[0.15] bg-white/[0.08] group-data-[collapsible=icon]:mx-auto"
+                    fallbackClassName="bg-transparent text-white/80 text-[length:var(--text-2xs)] font-bold [font-family:var(--font-heading)]"
+                  />
                   <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
                     <p
                       className="text-[12px] text-white/90 truncate leading-tight"

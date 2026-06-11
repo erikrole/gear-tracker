@@ -8,6 +8,7 @@ import { Loader2, SearchIcon, SlidersHorizontal, X } from "lucide-react";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -203,10 +204,12 @@ export default function UserFilters({
               <SelectValue placeholder="All roles" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">All roles</SelectItem>
-              {ROLE_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-              ))}
+              <SelectGroup>
+                <SelectItem value="__all__">All roles</SelectItem>
+                {ROLE_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectGroup>
             </SelectContent>
           </Select>
           <Select
@@ -218,12 +221,14 @@ export default function UserFilters({
               <SelectValue placeholder="All locations" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">
-                {locationsError ? "Locations unavailable" : locationsLoading ? "Loading locations" : "All locations"}
-              </SelectItem>
-              {locations.map((l) => (
-                <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
-              ))}
+              <SelectGroup>
+                <SelectItem value="__all__">
+                  {locationsError ? "Locations unavailable" : locationsLoading ? "Loading locations" : "All locations"}
+                </SelectItem>
+                {locations.map((l) => (
+                  <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                ))}
+              </SelectGroup>
             </SelectContent>
           </Select>
           <Select value={areaFilter || "__all__"} onValueChange={(v) => onAreaChange(v === "__all__" ? "" : v)}>
@@ -231,10 +236,12 @@ export default function UserFilters({
               <SelectValue placeholder="All areas" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">All areas</SelectItem>
-              {Object.entries(AREA_LABELS).map(([value, label]) => (
-                <SelectItem key={value} value={value}>{label}</SelectItem>
-              ))}
+              <SelectGroup>
+                <SelectItem value="__all__">All areas</SelectItem>
+                {Object.entries(AREA_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>{label}</SelectItem>
+                ))}
+              </SelectGroup>
             </SelectContent>
           </Select>
           <Select value={yearFilter || "__all__"} onValueChange={(v) => onYearChange(v === "__all__" ? "" : v)}>
@@ -242,10 +249,12 @@ export default function UserFilters({
               <SelectValue placeholder="All years" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">All years</SelectItem>
-              {STUDENT_YEAR_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-              ))}
+              <SelectGroup>
+                <SelectItem value="__all__">All years</SelectItem>
+                {STUDENT_YEAR_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectGroup>
             </SelectContent>
           </Select>
           <Select value={sportFilter || "__all__"} onValueChange={(v) => onSportChange(v === "__all__" ? "" : v)}>
@@ -253,10 +262,12 @@ export default function UserFilters({
               <SelectValue placeholder="All sports" />
             </SelectTrigger>
             <SelectContent className="max-h-[300px]">
-              <SelectItem value="__all__">All sports</SelectItem>
-              {SPORT_CODES.map((s) => (
-                <SelectItem key={s.code} value={s.code}>{s.label}</SelectItem>
-              ))}
+              <SelectGroup>
+                <SelectItem value="__all__">All sports</SelectItem>
+                {SPORT_CODES.map((s) => (
+                  <SelectItem key={s.code} value={s.code}>{s.label}</SelectItem>
+                ))}
+              </SelectGroup>
             </SelectContent>
           </Select>
           <div className="flex h-10 items-center gap-2 rounded-md border border-border/70 bg-background px-3">

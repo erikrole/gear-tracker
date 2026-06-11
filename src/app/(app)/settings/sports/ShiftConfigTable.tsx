@@ -9,10 +9,19 @@ import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from "@/components/ui/table";
 
 /** Generate call-time options: 0, 15, 30, 45, 60 ... 240 minutes */
 const CALL_TIME_OPTIONS = [0, 15, 30, 45, 60, 90, 120, 150, 180, 210, 240];
@@ -115,42 +124,42 @@ export default function ShiftConfigTable({
             {active && (
               <CardContent className="pt-0 space-y-4">
                 {/* Shift counts table */}
-                <div className="overflow-x-auto">
+                <div>
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                     <p className="text-sm font-medium">Minimum crew</p>
                     <p className="text-xs text-muted-foreground">
                       Generated shifts create both Staff slots and Student slots from these counts.
                     </p>
                   </div>
-                  <table className="w-full border-collapse text-sm [&_th]:text-left [&_th]:px-4 [&_th]:py-2 [&_th]:text-xs [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-wider [&_th]:text-muted-foreground [&_th]:border-b [&_th]:border-border [&_th]:bg-muted/40 [&_td]:px-4 [&_td]:py-2.5 [&_td]:border-b [&_td]:border-border/40 [&_tr:last-child_td]:border-b-0">
-                    <thead>
-                      <tr>
-                        <th className="w-24"></th>
+                  <Table>
+                    <TableHeader sticky={false}>
+                      <TableRow>
+                        <TableHead className="w-24"></TableHead>
                         {AREAS.map((a) => (
-                          <th key={a} className="text-center" colSpan={2}>{AREA_LABELS[a]}</th>
+                          <TableHead key={a} className="text-center" colSpan={2}>{AREA_LABELS[a]}</TableHead>
                         ))}
-                      </tr>
-                      <tr>
-                        <th></th>
+                      </TableRow>
+                      <TableRow>
+                        <TableHead></TableHead>
                         {AREAS.flatMap((a) => [
-                          <th key={`${a}-staff`} className="text-center normal-case">Staff slots</th>,
-                          <th key={`${a}-student`} className="text-center normal-case">Student slots</th>,
+                          <TableHead key={`${a}-staff`} className="text-center normal-case">Staff slots</TableHead>,
+                          <TableHead key={`${a}-student`} className="text-center normal-case">Student slots</TableHead>,
                         ])}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell>
                           <Badge variant="green" size="sm">Home</Badge>
-                        </td>
+                        </TableCell>
                         {AREAS.flatMap((area) => [
-                          <td key={`${area}-home-staff`} className="text-center">
-	                            <Input
-	                              id={coverageInputName(primaryCode, area, "homeStaffCount")}
-	                              name={coverageInputName(primaryCode, area, "homeStaffCount")}
-	                              type="number"
-	                              min={0}
-	                              max={20}
+                          <TableCell key={`${area}-home-staff`} className="text-center">
+                            <Input
+                              id={coverageInputName(primaryCode, area, "homeStaffCount")}
+                              name={coverageInputName(primaryCode, area, "homeStaffCount")}
+                              type="number"
+                              min={0}
+                              max={20}
                               value={getShiftCount(primaryCode, area, "homeStaffCount")}
                               onChange={(e) =>
                                 onUpdateShift(primaryCode, area, "homeStaffCount", Math.max(0, parseInt(e.target.value) || 0))
@@ -159,14 +168,14 @@ export default function ShiftConfigTable({
                               disabled={saving?.startsWith(primaryCode) ?? false}
                               aria-label={`${group.label} ${AREA_LABELS[area]} home Staff count`}
                             />
-                          </td>,
-                          <td key={`${area}-home-student`} className="text-center">
-	                            <Input
-	                              id={coverageInputName(primaryCode, area, "homeStudentCount")}
-	                              name={coverageInputName(primaryCode, area, "homeStudentCount")}
-	                              type="number"
-	                              min={0}
-	                              max={20}
+                          </TableCell>,
+                          <TableCell key={`${area}-home-student`} className="text-center">
+                            <Input
+                              id={coverageInputName(primaryCode, area, "homeStudentCount")}
+                              name={coverageInputName(primaryCode, area, "homeStudentCount")}
+                              type="number"
+                              min={0}
+                              max={20}
                               value={getShiftCount(primaryCode, area, "homeStudentCount")}
                               onChange={(e) =>
                                 onUpdateShift(primaryCode, area, "homeStudentCount", Math.max(0, parseInt(e.target.value) || 0))
@@ -175,21 +184,21 @@ export default function ShiftConfigTable({
                               disabled={saving?.startsWith(primaryCode) ?? false}
                               aria-label={`${group.label} ${AREA_LABELS[area]} home Student count`}
                             />
-                          </td>,
+                          </TableCell>,
                         ])}
-                      </tr>
-                      <tr>
-                        <td>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>
                           <Badge variant="orange" size="sm">Away</Badge>
-                        </td>
+                        </TableCell>
                         {AREAS.flatMap((area) => [
-                          <td key={`${area}-away-staff`} className="text-center">
-	                            <Input
-	                              id={coverageInputName(primaryCode, area, "awayStaffCount")}
-	                              name={coverageInputName(primaryCode, area, "awayStaffCount")}
-	                              type="number"
-	                              min={0}
-	                              max={20}
+                          <TableCell key={`${area}-away-staff`} className="text-center">
+                            <Input
+                              id={coverageInputName(primaryCode, area, "awayStaffCount")}
+                              name={coverageInputName(primaryCode, area, "awayStaffCount")}
+                              type="number"
+                              min={0}
+                              max={20}
                               value={getShiftCount(primaryCode, area, "awayStaffCount")}
                               onChange={(e) =>
                                 onUpdateShift(primaryCode, area, "awayStaffCount", Math.max(0, parseInt(e.target.value) || 0))
@@ -198,13 +207,13 @@ export default function ShiftConfigTable({
                               disabled={saving?.startsWith(primaryCode) ?? false}
                               aria-label={`${group.label} ${AREA_LABELS[area]} away Staff count`}
                             />
-                          </td>,
-                          <td key={`${area}-away-student`} className="text-center">
-	                            <Input
-	                              id={coverageInputName(primaryCode, area, "awayStudentCount")}
-	                              name={coverageInputName(primaryCode, area, "awayStudentCount")}
-	                              type="number"
-	                              min={0}
+                          </TableCell>,
+                          <TableCell key={`${area}-away-student`} className="text-center">
+                            <Input
+                              id={coverageInputName(primaryCode, area, "awayStudentCount")}
+                              name={coverageInputName(primaryCode, area, "awayStudentCount")}
+                              type="number"
+                              min={0}
                               max={20}
                               value={getShiftCount(primaryCode, area, "awayStudentCount")}
                               onChange={(e) =>
@@ -214,11 +223,11 @@ export default function ShiftConfigTable({
                               disabled={saving?.startsWith(primaryCode) ?? false}
                               aria-label={`${group.label} ${AREA_LABELS[area]} away Student count`}
                             />
-                          </td>,
+                          </TableCell>,
                         ])}
-                      </tr>
-                    </tbody>
-                  </table>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
                 </div>
 
                 {/* Call time config */}
@@ -234,9 +243,11 @@ export default function ShiftConfigTable({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {CALL_TIME_OPTIONS.map((m) => (
-                          <SelectItem key={m} value={String(m)}>{formatMinutes(m)}</SelectItem>
-                        ))}
+                        <SelectGroup>
+                          {CALL_TIME_OPTIONS.map((m) => (
+                            <SelectItem key={m} value={String(m)}>{formatMinutes(m)}</SelectItem>
+                          ))}
+                        </SelectGroup>
                       </SelectContent>
                     </Select>
                     <span className="text-sm text-muted-foreground">before</span>
@@ -251,9 +262,11 @@ export default function ShiftConfigTable({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {CALL_TIME_OPTIONS.map((m) => (
-                          <SelectItem key={m} value={String(m)}>{formatMinutes(m)}</SelectItem>
-                        ))}
+                        <SelectGroup>
+                          {CALL_TIME_OPTIONS.map((m) => (
+                            <SelectItem key={m} value={String(m)}>{formatMinutes(m)}</SelectItem>
+                          ))}
+                        </SelectGroup>
                       </SelectContent>
                     </Select>
                     <span className="text-sm text-muted-foreground">after</span>

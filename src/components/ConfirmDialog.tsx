@@ -11,8 +11,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 type ConfirmOptions = {
   title: string;
@@ -71,11 +69,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
                 {state.cancelLabel || "Cancel"}
               </AlertDialogCancel>
               <AlertDialogAction
-                className={cn(
-                  state.variant === "danger"
-                    ? buttonVariants({ variant: "destructive" })
-                    : buttonVariants({ variant: "default" }),
-                )}
+                variant={state.variant === "danger" ? "destructive" : "default"}
                 onClick={() => handleResult(true)}
               >
                 {state.confirmLabel || "Confirm"}

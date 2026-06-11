@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -190,9 +191,11 @@ export default function AllowedEmailsPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="unclaimed">Pending</SelectItem>
-              <SelectItem value="claimed">Claimed</SelectItem>
+              <SelectGroup>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="unclaimed">Pending</SelectItem>
+                <SelectItem value="claimed">Claimed</SelectItem>
+              </SelectGroup>
             </SelectContent>
           </Select>
 

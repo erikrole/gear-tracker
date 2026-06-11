@@ -9,6 +9,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -139,12 +140,14 @@ export function AssignPageClient() {
             <SelectValue placeholder="All sports" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="_all">All sports</SelectItem>
-            {SPORT_CODES.map((s) => (
-              <SelectItem key={s.code} value={s.code}>
-                {s.label}
-              </SelectItem>
-            ))}
+            <SelectGroup>
+              <SelectItem value="_all">All sports</SelectItem>
+              {SPORT_CODES.map((s) => (
+                <SelectItem key={s.code} value={s.code}>
+                  {s.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
           </SelectContent>
         </Select>
 
@@ -159,12 +162,14 @@ export function AssignPageClient() {
             <SelectValue placeholder="All areas" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="_all">All areas</SelectItem>
-            {AREAS.map((a) => (
-              <SelectItem key={a} value={a}>
-                {AREA_LABELS[a]}
-              </SelectItem>
-            ))}
+            <SelectGroup>
+              <SelectItem value="_all">All areas</SelectItem>
+              {AREAS.map((a) => (
+                <SelectItem key={a} value={a}>
+                  {AREA_LABELS[a]}
+                </SelectItem>
+              ))}
+            </SelectGroup>
           </SelectContent>
         </Select>
 

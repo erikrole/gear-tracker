@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { normalizeAssetImageSrc } from "@/lib/asset-image";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 type AssetImageProps = {
   src: string | null | undefined;
@@ -12,6 +12,7 @@ type AssetImageProps = {
   size?: number;
   className?: string;
   fallbackClassName?: string;
+  fallback?: React.ReactNode;
 };
 
 export function AssetImage({
@@ -20,6 +21,7 @@ export function AssetImage({
   size = 36,
   className,
   fallbackClassName,
+  fallback,
 }: AssetImageProps) {
   const [failed, setFailed] = useState(false);
   const normalizedSrc = normalizeAssetImageSrc(src);
@@ -28,40 +30,28 @@ export function AssetImage({
     setFailed(false);
   }, [normalizedSrc]);
 
-  if (!normalizedSrc || failed) {
-    return (
-      <div
-        className={cn(
-          "rounded-md bg-muted flex items-center justify-center shrink-0",
-          fallbackClassName,
-          className
-        )}
-        style={{ width: size, height: size }}
-        role="img"
-        aria-label={alt || "Item image placeholder"}
-      >
-        <Package className="size-4 text-muted-foreground" aria-hidden="true" />
-      </div>
-    );
-  }
-
   return (
-    <div
+    <Avatar
       className={cn(
-        "rounded-md shrink-0 overflow-hidden outline outline-1 outline-black/10 dark:outline-white/10",
+        "shrink-0 rounded-md bg-muted outline outline-1 outline-black/10 dark:outline-white/10",
         className
       )}
       style={{ width: size, height: size }}
     >
-      <Image
-        src={normalizedSrc}
-        alt={alt}
-        width={size * 2}
-        height={size * 2}
-        className="size-full object-cover"
-        unoptimized
-        onError={() => setFailed(true)}
-      />
-    </div>
+      {normalizedSrc && !failed ? (
+        <AvatarImage
+          src={normalizedSrc}
+          alt={alt}
+          className="rounded-md object-cover"
+          onError={() => setFailed(true)}
+        />
+      ) : null}
+      <AvatarFallback
+        className={cn("rounded-md bg-muted text-muted-foreground", fallbackClassName)}
+        aria-label={alt}
+      >
+        {fallback ?? <Package className="size-4" aria-hidden="true" />}
+      </AvatarFallback>
+    </Avatar>
   );
 }

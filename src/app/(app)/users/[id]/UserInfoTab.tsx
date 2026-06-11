@@ -18,6 +18,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -135,14 +136,16 @@ function SelectInputField({
           <SelectValue placeholder={emptyLabel || "None"} />
         </SelectTrigger>
         <SelectContent>
-          {allowEmpty && (
-            <SelectItem value="__none__">{emptyLabel || "None"}</SelectItem>
-          )}
-          {options.map((o) => (
-            <SelectItem key={o.value} value={o.value}>
-              {o.label}
-            </SelectItem>
-          ))}
+          <SelectGroup>
+            {allowEmpty && (
+              <SelectItem value="__none__">{emptyLabel || "None"}</SelectItem>
+            )}
+            {options.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectGroup>
         </SelectContent>
       </Select>
     </SaveableField>

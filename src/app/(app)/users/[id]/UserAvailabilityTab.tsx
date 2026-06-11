@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -176,8 +177,10 @@ function AvailabilityForm({ userId, initial, onSaved, onCancel }: AvailabilityFo
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="WEEKLY">Weekly class</SelectItem>
-                <SelectItem value="AD_HOC">One-time conflict</SelectItem>
+                <SelectGroup>
+                  <SelectItem value="WEEKLY">Weekly class</SelectItem>
+                  <SelectItem value="AD_HOC">One-time conflict</SelectItem>
+                </SelectGroup>
               </SelectContent>
             </Select>
           </div>
@@ -189,9 +192,11 @@ function AvailabilityForm({ userId, initial, onSaved, onCancel }: AvailabilityFo
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {DAY_NAMES.map((name, i) => (
-                    <SelectItem key={i} value={String(i)}>{name}</SelectItem>
-                  ))}
+                  <SelectGroup>
+                    {DAY_NAMES.map((name, i) => (
+                      <SelectItem key={i} value={String(i)}>{name}</SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>

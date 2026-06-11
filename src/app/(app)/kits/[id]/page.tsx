@@ -914,7 +914,7 @@ export default function KitDetailPage() {
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              variant="destructive"
             >
               {deleting && <Spinner data-icon="inline-start" />}
               Delete Kit

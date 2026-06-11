@@ -14,6 +14,7 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -203,8 +204,10 @@ export function ImportPreviewStep({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="upsert">Create &amp; update</SelectItem>
-              <SelectItem value="create_only">Create only (skip existing)</SelectItem>
+              <SelectGroup>
+                <SelectItem value="upsert">Create &amp; update</SelectItem>
+                <SelectItem value="create_only">Create only (skip existing)</SelectItem>
+              </SelectGroup>
             </SelectContent>
           </Select>
         </div>

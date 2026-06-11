@@ -2,6 +2,15 @@
 
 import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export default function GlobalError({
   error,
@@ -16,27 +25,24 @@ export default function GlobalError({
 
   return (
     <html lang="en">
-      <body>
-        <div style={{ padding: 40, textAlign: "center", maxWidth: 480, margin: "80px auto", fontFamily: "system-ui, sans-serif" }}>
-          <h1 style={{ fontSize: "var(--text-2xl)", marginBottom: 12 }}>Something went wrong</h1>
-          <p style={{ color: "var(--text-secondary, #6b7280)", marginBottom: 24 }}>
-            Try refreshing the page, or sign in again if the issue persists.
-          </p>
-          <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-            <button
-              onClick={reset}
-              style={{ padding: "8px 20px", borderRadius: 8, border: "none", background: "var(--primary, #7c3aed)", color: "#fff", cursor: "pointer", fontWeight: 600 }}
-            >
+      <body className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Something went wrong</CardTitle>
+            <CardDescription>
+              Try refreshing the page, or sign in again if the issue persists.
+            </CardDescription>
+          </CardHeader>
+          <CardContent />
+          <CardFooter className="flex gap-3 justify-center">
+            <Button type="button" onClick={reset}>
               Try again
-            </button>
-            <a
-              href="/login"
-              style={{ padding: "8px 20px", borderRadius: 8, border: "1px solid var(--border, #e5e7eb)", textDecoration: "none", color: "var(--text-primary, #111827)", cursor: "pointer" }}
-            >
-              Sign in
-            </a>
-          </div>
-        </div>
+            </Button>
+            <Button asChild variant="outline">
+              <a href="/login">Sign in</a>
+            </Button>
+          </CardFooter>
+        </Card>
       </body>
     </html>
   );
