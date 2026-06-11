@@ -7,6 +7,24 @@ function source(relativeFile: string) {
 }
 
 describe("dashboard pending pickup links", () => {
+  it("guards dashboard overflow footers with any active filter, not sport alone", () => {
+    const page = source("src/app/(app)/page.tsx");
+    const myGear = source("src/app/(app)/dashboard/my-gear-column.tsx");
+    const teamActivity = source("src/app/(app)/dashboard/team-activity-column.tsx");
+
+    expect(page).toContain("hasActiveFilter={filters.hasActiveFilter}");
+    expect(myGear).toContain("hasActiveFilter: boolean");
+    expect(teamActivity).toContain("hasActiveFilter: boolean");
+    expect(myGear.match(/!hasActiveFilter/g)).toHaveLength(2);
+    expect(teamActivity.match(/!hasActiveFilter/g)).toHaveLength(4);
+    expect(myGear).not.toContain("!activeSport && data.myCheckouts");
+    expect(myGear).not.toContain("!activeSport && data.myReservations");
+    expect(teamActivity).not.toContain("!activeSport && data.teamCheckouts");
+    expect(teamActivity).not.toContain("!activeSport && data.pendingPickups");
+    expect(teamActivity).not.toContain("!activeSport && data.staleReservations");
+    expect(teamActivity).not.toContain("!activeSport && data.teamReservations");
+  });
+
   it("routes awaiting-pickup rows to checkout pending-pickup list, not reservations", () => {
     const component = source("src/app/(app)/dashboard/team-activity-column.tsx");
     expect(component).toContain('const PENDING_PICKUPS_HREF = "/bookings?tab=checkouts&status=PENDING_PICKUP"');

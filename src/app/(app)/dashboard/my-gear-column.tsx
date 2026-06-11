@@ -28,6 +28,7 @@ type Props = {
   data: DashboardData;
   filtered: FilteredDashboardData | null;
   activeSport: string | null;
+  hasActiveFilter: boolean;
   now: Date;
   acting: boolean;
   ownedAccent?: boolean;
@@ -42,6 +43,7 @@ export function MyGearColumn({
   data,
   filtered,
   activeSport,
+  hasActiveFilter,
   now,
   acting,
   ownedAccent,
@@ -143,7 +145,7 @@ export function MyGearColumn({
                     />
                   );
                 })}
-                {!activeSport && data.myCheckouts.total > data.myCheckouts.items.length && (
+                {!hasActiveFilter && data.myCheckouts.total > data.myCheckouts.items.length && (
                   <Link href="/checkouts?mine=true" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all {data.myCheckouts.total} &rarr;</Link>
                 )}
               </CardContent>
@@ -185,7 +187,7 @@ export function MyGearColumn({
                     }
                   />
                 ))}
-                {!activeSport && data.myReservations.length >= 5 && (
+                {!hasActiveFilter && data.myReservations.length >= 5 && (
                   <Link href="/reservations?mine=true" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all &rarr;</Link>
                 )}
               </CardContent>

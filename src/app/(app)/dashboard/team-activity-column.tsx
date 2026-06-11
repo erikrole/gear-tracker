@@ -43,6 +43,7 @@ type Props = {
   data: DashboardData;
   filtered: FilteredDashboardData | null;
   activeSport: string | null;
+  hasActiveFilter: boolean;
   now: Date;
   isStaff: boolean;
   acting: boolean;
@@ -50,7 +51,7 @@ type Props = {
   onExtend: (booking: BookingSummary, e: React.MouseEvent) => void;
 };
 
-export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, acting, onSelectBooking, onExtend }: Props) {
+export function TeamActivityColumn({ data, filtered, activeSport, hasActiveFilter, now, isStaff, acting, onSelectBooking, onExtend }: Props) {
   const [homeAwayFilter, setHomeAwayFilter] = useState<HomeAwayFilter>("all");
   const visibleTeamCheckouts = filtered?.teamCheckouts ?? data.teamCheckouts.items;
   const visiblePendingPickups = filtered?.pendingPickups ?? data.pendingPickups.items;
@@ -138,7 +139,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
                 />
               );
             })}
-            {!activeSport && data.teamCheckouts.total > data.teamCheckouts.items.length && (
+            {!hasActiveFilter && data.teamCheckouts.total > data.teamCheckouts.items.length && (
               <Link href="/bookings?tab=checkouts" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all {data.teamCheckouts.total} &rarr;</Link>
             )}
           </CardContent>
@@ -165,7 +166,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
                 />
               );
             })}
-            {!activeSport && data.pendingPickups.total > data.pendingPickups.items.length && (
+            {!hasActiveFilter && data.pendingPickups.total > data.pendingPickups.items.length && (
               <Link href={PENDING_PICKUPS_HREF} className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all {data.pendingPickups.total} &rarr;</Link>
             )}
           </CardContent>
@@ -189,7 +190,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
                 onSelectBooking={onSelectBooking}
               />
             ))}
-            {!activeSport && data.staleReservations.total > data.staleReservations.items.length && (
+            {!hasActiveFilter && data.staleReservations.total > data.staleReservations.items.length && (
               <Link href={STALE_RESERVATIONS_HREF} className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all {data.staleReservations.total} &rarr;</Link>
             )}
           </CardContent>
@@ -214,7 +215,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
                 onSelectBooking={onSelectBooking}
               />
             ))}
-            {!activeSport && data.teamReservations.total > data.teamReservations.items.length && (
+            {!hasActiveFilter && data.teamReservations.total > data.teamReservations.items.length && (
               <Link href="/bookings?tab=reservations" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">View all {data.teamReservations.total} &rarr;</Link>
             )}
           </CardContent>
