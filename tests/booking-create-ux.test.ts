@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  applyBulkShortageRecovery,
   buildAvailabilityReview,
   getAvailabilityWarningTotal,
   getStep2PrimaryActionLabel,
@@ -143,6 +144,26 @@ describe("WizardStep1 event selection contract", () => {
     expect(wizardStep1Source).toMatch(/aria-label=\{`Remove \$\{ev\.opponent/);
   });
 });
+
+describe("applyBulkShortageRecovery", () => {
+  it("clamps a selected bulk quantity down to the available stock", () => {
+    const result = applyBulkShortageRecovery(
+      [{ bulkSkuId: "sku-aa", quantity: 5 }],
+      [{ bulkSkuId: "sku-aa", requested: 5, available: 2 }],
+    );
+
+    expect(result.nextBulkItems).toEqual([{ bulkSkuId: "sku-aa", quantity: 2 }]);
+    expect(result.adjustedCount).toBe(1);
+    expect(result.messages).toHaveLength(1);
+  });
+
+  it("removes a selected bulk row when nothing is available", () => {
+    const result = applyBulkShortageRecovery(
+      [{ bulkSkuId: "sku-aa", quantity: 3 }],
+      [{ bulkSkuId: "sku-aa", requested: 3, available: 0 }],
+    );
+
+    expect(result.nextBulkItems).toEqual([]);
     expect(result.adjustedCount).toBe(1);
   });
 
