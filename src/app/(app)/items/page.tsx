@@ -223,8 +223,9 @@ export default function ItemsPage() {
     // For other sort fields, bulks append at bottom since server sort doesn't apply to them.
     const sortingById = filters.sorting[0]?.id ?? "assetTag";
     if (sortingById === "assetTag" || filters.sorting.length === 0) {
+      const direction = filters.sorting[0]?.desc ? -1 : 1;
       return [...serializedItems, ...bulkAssets].sort((a, b) =>
-        a.assetTag.localeCompare(b.assetTag, undefined, { numeric: true, sensitivity: "base" })
+        direction * a.assetTag.localeCompare(b.assetTag, undefined, { numeric: true, sensitivity: "base" })
       );
     }
 
@@ -236,6 +237,21 @@ export default function ItemsPage() {
 
   const visibleRowCount = mergedData.length;
   const pageLoading = !preferencesLoaded || query.loading;
+
+  // Snap back into range when a deep link or a narrowed filter strands the
+  // current page past the end of the result set; otherwise the list shows a
+  // misleading "no items match" empty state while matches exist on earlier pages.
+  useEffect(() => {
+    if (pageLoading || query.loadError || query.page === 0) return;
+    if (itemFamilyOnly) {
+      query.setPage(0);
+      return;
+    }
+    if (query.items.length === 0 && query.total > 0) {
+      query.setPage(Math.max(0, query.totalPages - 1));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageLoading, query.loadError, query.page, query.items.length, query.total, query.totalPages, itemFamilyOnly]);
 
   // Optimistic favorite toggle
   const handleToggleFavorite = useCallback(async (asset: Asset) => {

@@ -386,7 +386,20 @@ export const GET = withAuth(async (req, { user }) => {
     binQrCodeValue: string;
   }> = [];
 
-  if (offset === 0 && !showAccessories && !includeAccessories) {
+  // Item families only belong on the first page of the default views. They
+  // carry no brand and cannot be favorited, so those filters exclude them;
+  // the only status a family row can express is available stock, so a status
+  // filter includes families only when AVAILABLE is selected (filtered to
+  // families with stock after quantities are derived below).
+  const includeBulkRows =
+    offset === 0 &&
+    !showAccessories &&
+    !includeAccessories &&
+    brandParams.length === 0 &&
+    !favoritesOnly &&
+    (statusParams.length === 0 || statusParams.includes("AVAILABLE"));
+
+  if (includeBulkRows) {
     const bulkWhere: Prisma.BulkSkuWhereInput = {
       active: true,
       ...(locationIds.length === 1 ? { locationId: locationIds[0] } : {}),
@@ -507,6 +520,12 @@ export const GET = withAuth(async (req, { user }) => {
         binQrCodeValue: sku.binQrCodeValue,
       };
     });
+
+    // An active status filter means the user picked the Available bucket
+    // (anything else is excluded above); only families with stock match it.
+    if (statusParams.length > 0) {
+      bulkItems = bulkItems.filter((item) => item.availableQuantity > 0);
+    }
   }
 
   return ok({
