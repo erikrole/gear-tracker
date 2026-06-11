@@ -77,6 +77,7 @@
 		F05BFEDF227A1BB32BBFFD07 /* KioskIdleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 649B6E0F68D9B5DB4D054656 /* KioskIdleView.swift */; };
 		F8198BB80C4CB84C0C12ED6A /* FloatingSearchButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E89852F4DC85939BA9A8AA /* FloatingSearchButton.swift */; };
 		FC55F8C00EAB32F578B178F0 /* ItemDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80CA4880F08046F8E23F079B /* ItemDetailView.swift */; };
+		FEB0D17D856222BBA8478CC0 /* ScanResultHeroCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC5B889D242E8A0835B68845 /* ScanResultHeroCard.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -153,6 +154,7 @@
 		F52833BE41AB34A8FFA43FE2 /* TradeBoardSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TradeBoardSheet.swift; sourceTree = "<group>"; };
 		FA38BB094C95612DBF9F1C24 /* KioskStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KioskStore.swift; sourceTree = "<group>"; };
 		FAD4EC3F211EACBB157F7DDE /* GearStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GearStore.swift; sourceTree = "<group>"; };
+		FC5B889D242E8A0835B68845 /* ScanResultHeroCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanResultHeroCard.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -256,6 +258,7 @@
 				F2E89852F4DC85939BA9A8AA /* FloatingSearchButton.swift */,
 				D5EC344925B5666C2CA8F773 /* GlobalSearchSheet.swift */,
 				44E5D1DB0C8CBAD5E452E807 /* QRScannerSheet.swift */,
+				FC5B889D242E8A0835B68845 /* ScanResultHeroCard.swift */,
 				AD7494E64F4395E73A7AA6C1 /* SearchResultRow.swift */,
 			);
 			path = Search;
@@ -473,6 +476,7 @@
 				D24677599DC4E06E3E093A81 /* PushPrePromptView.swift in Sources */,
 				085E8467FC2D0385A67DD157 /* QRScannerSheet.swift in Sources */,
 				0B3D380ACF389083C083FC5A /* ScanPrePromptView.swift in Sources */,
+				FEB0D17D856222BBA8478CC0 /* ScanResultHeroCard.swift in Sources */,
 				23D18DF0CCE1DFC0E4CAD69E /* ScanView.swift in Sources */,
 				2CED1D2B5A4282EB13E29796 /* ScheduleModels.swift in Sources */,
 				2516A89A0CD4284023B38A28 /* ScheduleView.swift in Sources */,

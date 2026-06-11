@@ -219,14 +219,6 @@ struct ScanView: View {
             defer { isSearching = false }
             do {
                 let outcome = try await SearchService.shared.search(query: code, rawScan: code)
-                if let single = singleAssetMatch(in: outcome) {
-                    // Fast path: one unambiguous asset → jump straight to detail.
-                    Haptics.success()
-                    navigationPath.append(single)
-                    // Re-arm the scanner for the next item.
-                    isScanning = true
-                    return
-                }
                 results = outcome
                 if outcome.isEmpty {
                     Haptics.warning()
@@ -250,17 +242,6 @@ struct ScanView: View {
         lastHandledCode = nil
         lastHandledAt = .distantPast
         handleScan(code)
-    }
-
-    /// Returns the asset if the result set is a single asset and nothing else —
-    /// the canonical "scanned a sticker, got one item" case.
-    private func singleAssetMatch(in results: SearchResults) -> Asset? {
-        guard results.items.count == 1,
-              results.reservations.isEmpty,
-              results.checkouts.isEmpty,
-              results.users.isEmpty
-        else { return nil }
-        return results.items.first
     }
 }
 
@@ -439,11 +420,50 @@ private struct ScanResultSheet: View {
                 errorState(message: error)
             } else if results.isEmpty {
                 emptyState
+            } else if let asset = singleAsset {
+                // One unambiguous serialized asset → rich hero card with
+                // tap-through to Item Detail.
+                ScrollView {
+                    ScanAssetHeroCard(asset: asset) {
+                        navigationPath.append(asset)
+                        dismiss()
+                    }
+                }
+            } else if let family = singleFamily {
+                // One bulk-unit match → rich hero card. No detail screen
+                // exists for bulk SKUs on iOS; the card is the destination.
+                ScrollView {
+                    ScanFamilyHeroCard(family: family)
+                }
             } else {
                 ScrollView { resultRows }
             }
         }
         .presentationCornerRadius(24)
+    }
+
+    /// The asset when the result set is a single serialized asset and nothing
+    /// else — the canonical "scanned a sticker, got one item" case.
+    private var singleAsset: Asset? {
+        guard results.items.count == 1,
+              results.itemFamilies.isEmpty,
+              results.reservations.isEmpty,
+              results.checkouts.isEmpty,
+              results.users.isEmpty
+        else { return nil }
+        return results.items.first
+    }
+
+    /// The family when the result set is a single bulk-item family and nothing
+    /// else — e.g. a scanned bulk-unit QR like "Sony Battery, Unit #1".
+    private var singleFamily: AssetFamilySearchResult? {
+        guard results.itemFamilies.count == 1,
+              results.items.isEmpty,
+              results.reservations.isEmpty,
+              results.checkouts.isEmpty,
+              results.users.isEmpty
+        else { return nil }
+        return results.itemFamilies.first
     }
 
     private var emptyState: some View {
