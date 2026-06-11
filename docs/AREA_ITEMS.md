@@ -552,6 +552,8 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 - 2026-05-08: **API hardening Wave 12** — Asset import now reports duplicate asset tags/tracking codes instead of silently skipping create conflicts, item CSV export is actor-rate-limited and formula-safe, picker search caps at 100 rows, and external image mirroring uses an explicit 5s timeout.
 - 2026-05-08: **API hardening Wave 13** — Asset brand reference reads now use short private caching, item activity uses the explicit `asset.audit` permission, and the permission map includes `asset.audit` for ADMIN/STAFF.
 
+- 2026-06-10: **Item thumbnail stack consolidated (plan 023)** -- `ItemThumbnailStack` now renders via `AssetImage` (shadcn `Avatar`/`AvatarImage`/`AvatarFallback`) and `AvatarGroup`/`AvatarGroupCount` from `@/components/ui/avatar`. The local `StackImage` helper and its duplicate `normalizeAssetImageSrc`/failure state are removed. Booking equipment rows (serialized and bulk) now use `AssetImage` directly instead of a local `ItemThumbnail` wrapper, unifying the item thumbnail failure path across dashboard stacks and booking detail views.
+
 ## Roadmaps
-- **Items list page**: `tasks/items-roadmap.md` — V1 polish, V2 enhanced UX, V3 advanced features
-- **Item details page**: `tasks/item-details-roadmap.md` — V1 hardening, V2 reduced friction, V3 predictive/proactive
+- **Items list page**: `tasks/items-roadmap.md` -- V1 polish, V2 enhanced UX, V3 advanced features
+- **Item details page**: `tasks/item-details-roadmap.md` -- V1 hardening, V2 reduced friction, V3 predictive/proactive

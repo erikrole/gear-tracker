@@ -18,6 +18,7 @@ import { UserAvatarPicker } from "@/components/shift-detail/UserAvatarPicker";
 import type { PickerUser } from "@/components/shift-detail/UserAvatarPicker";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import type { GridShift, GridAssignment } from "@/hooks/use-assignment-grid";
+import { TableCell } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { AlertTriangleIcon, PlusIcon, UserIcon, XIcon } from "lucide-react";
 import { shiftWorkerLabel } from "@/lib/shift-display";
@@ -212,7 +213,7 @@ export function AssignmentCell({
   ) : null;
 
   return (
-    <td className="group/cell border-l border-border/40 px-2 py-2 align-middle transition-colors hover:bg-muted/15">
+    <TableCell className="group/cell border-l border-border/40 px-2 py-2 align-middle transition-colors hover:bg-muted/15">
       <div className="flex min-h-10 items-center justify-center gap-1.5">
         {shifts.length === 0 && (
           <div className="flex h-9 items-center justify-center text-xs text-muted-foreground/35">
@@ -387,6 +388,6 @@ export function AssignmentCell({
 
         {shifts.length > 0 && addSlotButton}
       </div>
-    </td>
+    </TableCell>
   );
 }

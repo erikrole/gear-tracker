@@ -82,4 +82,30 @@ describe("shadcn component contracts", () => {
       );
     }
   });
+
+  // --- Plan 020: operational status dots on StatusIndicator ---
+
+  it("keeps operational status dots on StatusIndicator", () => {
+    const primitive = readFileSync("src/components/ui/status-indicator.tsx", "utf8");
+
+    expect(primitive).not.toContain("bg-green-500");
+    expect(primitive).not.toContain("bg-red-500");
+    expect(primitive).not.toContain("bg-yellow-500");
+    expect(primitive).not.toContain("bg-slate-");
+
+    const kioskPage = readFileSync("src/app/(app)/settings/kiosk-devices/page.tsx", "utf8");
+    const unitsTab = readFileSync("src/app/(app)/bulk-inventory/[id]/BulkSkuUnitsTab.tsx", "utf8");
+    const overviewCard = readFileSync("src/app/(app)/bulk-inventory/[id]/BulkSkuOverviewCard.tsx", "utf8");
+
+    expect(kioskPage).toContain("StatusIndicator");
+    expect(unitsTab).toContain("StatusIndicator");
+    expect(overviewCard).toContain("StatusIndicator");
+
+    expect(kioskPage).not.toContain("function StatusDot");
+    expect(kioskPage).not.toContain("bg-emerald-500");
+    expect(kioskPage).not.toContain("bg-amber-400");
+
+    expect(unitsTab).not.toContain("DOT_STYLES");
+    expect(overviewCard).not.toContain("DOT_STYLES");
+  });
 });

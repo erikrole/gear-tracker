@@ -148,4 +148,50 @@ describe("shadcn overlay contracts", () => {
       );
     });
   });
+
+  // --- Plan 030: BookingDetailsSheet responsive overlay ---
+
+  describe("BookingDetailsSheet -- responsive overlay contract", () => {
+    it("imports useIsMobile from @/hooks/use-mobile", () => {
+      const source = src("src/components/BookingDetailsSheet.tsx");
+      expect(source).toContain("useIsMobile");
+      expect(source).toContain("@/hooks/use-mobile");
+    });
+
+    it("imports Drawer primitives from @/components/ui/drawer", () => {
+      const source = src("src/components/BookingDetailsSheet.tsx");
+      expect(source).toContain("DrawerContent");
+      expect(source).toContain("DrawerHeader");
+      expect(source).toContain("DrawerTitle");
+      expect(source).toContain("DrawerDescription");
+      expect(source).toContain("DrawerFooter");
+      expect(source).toContain("@/components/ui/drawer");
+    });
+
+    it("still imports Sheet primitives from @/components/ui/sheet", () => {
+      const source = src("src/components/BookingDetailsSheet.tsx");
+      expect(source).toContain("SheetContent");
+      expect(source).toContain("SheetDescription");
+      expect(source).toContain("@/components/ui/sheet");
+    });
+
+    it("contains isMobile conditional branch", () => {
+      const source = src("src/components/BookingDetailsSheet.tsx");
+      expect(source).toContain("isMobile");
+    });
+
+    it("contains both SheetDescription and DrawerDescription", () => {
+      const source = src("src/components/BookingDetailsSheet.tsx");
+      expect(source).toContain("SheetDescription");
+      expect(source).toContain("DrawerDescription");
+    });
+
+    it("contains all required user-visible footer actions", () => {
+      const source = src("src/components/BookingDetailsSheet.tsx");
+      expect(source).toContain("Edit");
+      expect(source).toContain("Cancel");
+      expect(source).toContain("Start checkout");
+      expect(source).toContain("Open full booking");
+    });
+  });
 });

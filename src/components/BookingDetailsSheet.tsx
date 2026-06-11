@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import {
@@ -16,6 +17,14 @@ import {
   SheetBody,
   SheetFooter,
 } from "@/components/ui/sheet";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+  DrawerFooter,
+} from "@/components/ui/drawer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -110,6 +119,7 @@ export default function BookingDetailsSheet({
 }: Props) {
   const router = useRouter();
   const confirm = useConfirm();
+  const isMobile = useIsMobile();
 
   // Admin role — used to gate the manual override return buttons (kiosk handles all check-in/out for other roles)
   const { data: meData } = useCurrentUser();
@@ -656,305 +666,352 @@ export default function BookingDetailsSheet({
       : `/reservations/${booking.id}`
     : "#";
 
+  /* ── Shared header content ── */
+  const headerContent = (
+    <div className="flex items-start justify-between gap-3">
+      <div className="flex min-w-0 flex-1 items-start gap-3">
+        {booking && (
+          <UserAvatar
+            name={booking.requester?.name ?? "Unknown"}
+            avatarUrl={booking.requester?.avatarUrl}
+            size="md"
+            className="mt-0.5 shrink-0"
+          />
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-base font-semibold leading-none tracking-tight">
+            {booking?.title || "Loading..."}
+          </p>
+          {booking && (
+            <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs leading-relaxed text-muted-foreground">
+              {booking.refNumber && <span className="font-mono">{booking.refNumber}</span>}
+              {booking.refNumber && <span aria-hidden="true">/</span>}
+              <span>{booking.bookingType}</span>
+              {booking.location?.name && (
+                <>
+                  <span aria-hidden="true">/</span>
+                  <span>{booking.location.name}</span>
+                </>
+              )}
+            </p>
+          )}
+        </div>
+      </div>
+      {booking && (
+        <Badge
+          variant={(booking.isOverdue ? "red" : statusBadgeVariant(booking.status, booking.kind)) as BadgeProps["variant"]}
+          className="shrink-0 mt-0.5"
+        >
+          {booking.isOverdue ? "Overdue" : statusLabel(booking.status, booking.kind)}
+        </Badge>
+      )}
+    </div>
+  );
+
+  /* ── Shared body content ── */
+  const bodyContent = loading ? (
+    <div className="space-y-3 px-6 py-5">
+      <Skeleton className="h-4 w-3/4" />
+      <Skeleton className="h-4 w-1/2" />
+      <Skeleton className="h-4 w-2/3" />
+      <Skeleton className="h-4 w-1/3" />
+      <Skeleton className="h-4 w-3/5" />
+    </div>
+  ) : fetchError ? (
+    <div className="py-10 px-6 text-center space-y-3">
+      <p className="text-muted-foreground">Booking details could not load. Retry before taking action on this record.</p>
+      <Button variant="outline" size="sm" onClick={() => fetchBooking()}>Retry</Button>
+    </div>
+  ) : !booking ? (
+    <div className="py-10 px-6 text-center text-muted-foreground">Booking not found</div>
+  ) : editMode ? (
+
+    /* ── Edit mode ── */
+    <div className="px-6 py-5 flex-1">
+      <BookingEditForm
+        booking={booking}
+        editTitle={editTitle}
+        editStartsAt={editStartsAt}
+        editEndsAt={editEndsAt}
+        editNotes={editNotes}
+        saving={saving}
+        onEditTitle={setEditTitle}
+        onEditStartsAt={setEditStartsAt}
+        onEditEndsAt={setEditEndsAt}
+        onEditNotes={setEditNotes}
+        onSave={handleSave}
+        onCancel={() => setEditMode(false)}
+      />
+    </div>
+
+  ) : equipEditMode ? (
+
+    /* ── Equipment edit mode ── */
+    <div className="px-6 py-4 flex flex-col gap-3 flex-1">
+      {optionsError && (
+        <Alert variant="destructive">
+          <AlertDescription className="flex items-center justify-between">
+            <span>Equipment options could not load. Retry before saving equipment changes.</span>
+            <Button variant="outline" size="sm" onClick={loadFormOptions}>Retry</Button>
+          </AlertDescription>
+        </Alert>
+      )}
+      {conflictError?.conflicts && conflictError.conflicts.length > 0 && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            <strong className="block mb-1">Scheduling conflict</strong>
+            {conflictError.conflicts.map((c, i) => (
+              <div key={i} className="text-xs">
+                {c.conflictingBookingTitle ? `"${c.conflictingBookingTitle}"` : "Another booking"}
+              </div>
+            ))}
+          </AlertDescription>
+        </Alert>
+      )}
+      <EquipmentPicker
+        bulkSkus={bulkSkus as unknown as PickerBulkSku[]}
+        selectedAssetIds={editSerializedIds}
+        setSelectedAssetIds={setEditSerializedIds}
+        selectedBulkItems={editBulkItems.map((bi) => ({ bulkSkuId: bi.bulkSkuId, quantity: bi.quantity }))}
+        setSelectedBulkItems={(updater) => {
+          if (typeof updater === "function") {
+            setEditBulkItems((prev) => {
+              const result = updater(prev.map((bi) => ({ bulkSkuId: bi.bulkSkuId, quantity: bi.quantity })));
+              return result;
+            });
+          } else {
+            setEditBulkItems(updater);
+          }
+        }}
+        startsAt={booking.startsAt}
+        endsAt={booking.endsAt}
+        locationId={booking.location.id}
+        excludeBookingId={booking.id}
+      />
+      <div className="flex gap-2">
+        <Button disabled={equipSaving} onClick={handleEquipSave}>
+          {equipSaving ? "Saving..." : "Save equipment"}
+        </Button>
+        <Button variant="outline" onClick={() => { setEquipEditMode(false); setConflictError(null); }}>
+          Cancel
+        </Button>
+      </div>
+    </div>
+
+  ) : (
+
+    /* ── Normal single-scroll view ── */
+    <>
+      {/* ─ Details section ─ */}
+      <div ref={detailsSectionRef} data-booking-sheet-section="details" className="border-b border-border/40 bg-background">
+        <div className="px-6 py-4">
+          <BookingOverview
+            booking={booking}
+            conflictError={conflictError}
+            returnSuggestion={returnSuggestion}
+            checkinProgress={checkinProgress}
+            canExtend={!!canExtend}
+            extending={extending}
+            onExtendTo={handleExtendTo}
+            canEdit={!!canEdit}
+            onSaveDate={handleSaveDate}
+          />
+        </div>
+      </div>
+
+      {/* ─ Equipment section ─ */}
+      <div ref={equipmentSectionRef} data-booking-sheet-section="equipment" className="border-b border-border/40 bg-background">
+        <SectionHead
+          label={`Equipment${totalEquipItems > 0 ? ` · ${totalEquipItems}` : ""}`}
+          right={
+            canEditEquipment ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={enterEquipEditMode}
+              >
+                Edit
+              </Button>
+            ) : undefined
+          }
+        />
+
+        <div className="px-6 py-4">
+          <BookingItems
+            booking={booking}
+            equipSearch={equipSearch}
+            onEquipSearchChange={setEquipSearch}
+            filteredSerializedItems={filteredSerializedItems}
+            filteredBulkItems={filteredBulkItems}
+            canEditEquipment={false}
+            canCheckin={isAdmin && !!canCheckin}
+            checkinLoading={checkinLoading}
+            onEnterEquipEditMode={enterEquipEditMode}
+            onCheckinItem={handleCheckinItem}
+          />
+        </div>
+      </div>
+
+      {/* ─ History section ─ */}
+      <div ref={historySectionRef} data-booking-sheet-section="history" className="bg-background">
+        <SectionHead label="History" />
+        <div className="px-6 py-4">
+          {auditLoadError && (
+            <Alert variant="destructive" className="mb-3">
+              <AlertDescription className="flex items-start justify-between gap-3">
+                <span>{auditLoadError}</span>
+                {(auditLoadRecovery === "refresh" || (hasMoreAuditLogs && auditLogCursor)) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={loadingMoreAuditLogs}
+                    onClick={
+                      auditLoadRecovery === "refresh"
+                        ? () => fetchBooking({ silent: true })
+                        : loadMoreAuditLogs
+                    }
+                  >
+                    {loadingMoreAuditLogs
+                      ? "Retrying..."
+                      : auditLoadRecovery === "refresh"
+                        ? "Refresh"
+                        : "Retry"}
+                  </Button>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+          <ActivityTimeline
+            entries={allAuditLogs}
+            context="booking"
+            entityName={booking?.title}
+            hasMore={hasMoreAuditLogs}
+            loading={loadingMoreAuditLogs}
+            onLoadMore={loadMoreAuditLogs}
+          />
+        </div>
+      </div>
+
+      {/* ─ Sticky check-in bar — admin override only; kiosk handles all standard returns ─ */}
+      {isAdmin && canCheckin && unreturnedCount > 0 && (
+        <div
+          className="sticky bottom-0 left-0 right-0 z-10 flex items-center gap-4 border-t border-border bg-background px-6 py-4 shadow-[0_-10px_30px_rgba(0,0,0,0.08)]"
+        >
+          <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+            <Progress
+              value={checkinProgress?.percent ?? 0}
+              className="h-1.5"
+              style={
+                {
+                  "--progress-bg": "hsl(var(--muted))",
+                  "--progress-fill": "var(--wi-red)",
+                } as React.CSSProperties
+              }
+            />
+            <span className="text-[11px] text-muted-foreground">
+              {checkinProgress?.returned ?? 0} of {checkinProgress?.total ?? unreturnedCount} items returned
+            </span>
+          </div>
+          <Button
+            onClick={handleCheckinAll}
+            disabled={checkinLoading}
+            className="shrink-0"
+          >
+            {checkinLoading ? "Checking in..." : "Check in all"}
+          </Button>
+        </div>
+      )}
+    </>
+  );
+
+  /* ── Shared footer actions ── */
+  const footerActions = booking && !editMode && !equipEditMode ? (
+    <div className="flex flex-wrap items-center gap-2 w-full">
+      {canEdit && (
+        <Button variant="outline" size="sm" onClick={enterEditMode}>
+          Edit
+        </Button>
+      )}
+      {canCancel && (
+        <Button variant="destructive" size="sm" onClick={handleCancel} disabled={cancelling}>
+          {cancelling ? "Cancelling..." : "Cancel"}
+        </Button>
+      )}
+
+      <div className="flex-1" />
+
+      {canConvert && (
+        <Button size="sm" variant="brand" onClick={handleConvert} disabled={converting}>
+          {converting ? "Converting..." : "Start checkout"}
+        </Button>
+      )}
+      <Button variant="outline" size="sm" asChild>
+        <Link href={detailHref}>
+          Open full booking <ExternalLinkIcon className="size-3.5 ml-1" />
+        </Link>
+      </Button>
+    </div>
+  ) : null;
+
+  /* ── Mobile: Drawer ── */
+  if (isMobile) {
+    return (
+      <Drawer open={!!bookingId} onOpenChange={(open) => { if (!open) onClose(); }}>
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle className="sr-only">
+              {booking?.title || "Booking details"}
+            </DrawerTitle>
+            <DrawerDescription className="sr-only">
+              Booking preview with timing, requester, equipment, history, and a link to the full booking page.
+            </DrawerDescription>
+            {headerContent}
+          </DrawerHeader>
+
+          {/* Scrollable body -- overflow-y-auto stays within DrawerContent max-h-[85dvh] */}
+          <div
+            ref={sheetBodyRef}
+            className="relative flex flex-col bg-muted/20 overflow-y-auto flex-1 min-h-0"
+          >
+            {bodyContent}
+          </div>
+
+          {footerActions && (
+            <DrawerFooter>
+              {footerActions}
+            </DrawerFooter>
+          )}
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
+  /* ── Desktop: Sheet ── */
   return (
     <Sheet open={!!bookingId} onOpenChange={(open) => { if (!open) onClose(); }}>
       <SheetContent className="flex flex-col sm:max-w-lg">
 
         {/* Header */}
         <SheetHeader>
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex min-w-0 flex-1 items-start gap-3">
-              {booking && (
-                <UserAvatar
-                  name={booking.requester?.name ?? "Unknown"}
-                  avatarUrl={booking.requester?.avatarUrl}
-                  size="md"
-                  className="mt-0.5 shrink-0"
-                />
-              )}
-              <div className="min-w-0 flex-1">
-              <SheetTitle className="truncate">
-                {booking?.title || "Loading..."}
-              </SheetTitle>
-              <SheetDescription className="sr-only">
-                Booking preview with timing, requester, equipment, history, and a link to the full booking page.
-              </SheetDescription>
-              {booking && (
-                  <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs leading-relaxed text-muted-foreground">
-                    {booking.refNumber && <span className="font-mono">{booking.refNumber}</span>}
-                    {booking.refNumber && <span aria-hidden="true">/</span>}
-                    <span>{booking.bookingType}</span>
-                    {booking.location?.name && (
-                      <>
-                        <span aria-hidden="true">/</span>
-                        <span>{booking.location.name}</span>
-                      </>
-                    )}
-                  </p>
-                )}
-              </div>
-            </div>
-            {booking && (
-              <Badge
-                variant={(booking.isOverdue ? "red" : statusBadgeVariant(booking.status, booking.kind)) as BadgeProps["variant"]}
-                className="shrink-0 mt-0.5"
-              >
-                {booking.isOverdue ? "Overdue" : statusLabel(booking.status, booking.kind)}
-              </Badge>
-            )}
-          </div>
+          <SheetTitle className="sr-only">
+            {booking?.title || "Booking details"}
+          </SheetTitle>
+          <SheetDescription className="sr-only">
+            Booking preview with timing, requester, equipment, history, and a link to the full booking page.
+          </SheetDescription>
+          {headerContent}
         </SheetHeader>
 
         {/* Body — single scrollable column */}
         <SheetBody ref={sheetBodyRef} className="relative flex flex-col bg-muted/20 px-0 py-0">
-          {loading ? (
-            <div className="space-y-3 px-6 py-5">
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-4 w-1/2" />
-              <Skeleton className="h-4 w-2/3" />
-              <Skeleton className="h-4 w-1/3" />
-              <Skeleton className="h-4 w-3/5" />
-            </div>
-          ) : fetchError ? (
-            <div className="py-10 px-6 text-center space-y-3">
-              <p className="text-muted-foreground">Booking details could not load. Retry before taking action on this record.</p>
-              <Button variant="outline" size="sm" onClick={() => fetchBooking()}>Retry</Button>
-            </div>
-          ) : !booking ? (
-            <div className="py-10 px-6 text-center text-muted-foreground">Booking not found</div>
-          ) : editMode ? (
-
-            /* ── Edit mode ── */
-            <div className="px-6 py-5 flex-1">
-              <BookingEditForm
-                booking={booking}
-                editTitle={editTitle}
-                editStartsAt={editStartsAt}
-                editEndsAt={editEndsAt}
-                editNotes={editNotes}
-                saving={saving}
-                onEditTitle={setEditTitle}
-                onEditStartsAt={setEditStartsAt}
-                onEditEndsAt={setEditEndsAt}
-                onEditNotes={setEditNotes}
-                onSave={handleSave}
-                onCancel={() => setEditMode(false)}
-              />
-            </div>
-
-          ) : equipEditMode ? (
-
-            /* ── Equipment edit mode ── */
-            <div className="px-6 py-4 flex flex-col gap-3 flex-1">
-              {optionsError && (
-                <Alert variant="destructive">
-                  <AlertDescription className="flex items-center justify-between">
-                    <span>Equipment options could not load. Retry before saving equipment changes.</span>
-                    <Button variant="outline" size="sm" onClick={loadFormOptions}>Retry</Button>
-                  </AlertDescription>
-                </Alert>
-              )}
-              {conflictError?.conflicts && conflictError.conflicts.length > 0 && (
-                <Alert variant="destructive">
-                  <AlertDescription>
-                    <strong className="block mb-1">Scheduling conflict</strong>
-                    {conflictError.conflicts.map((c, i) => (
-                      <div key={i} className="text-xs">
-                        {c.conflictingBookingTitle ? `"${c.conflictingBookingTitle}"` : "Another booking"}
-                      </div>
-                    ))}
-                  </AlertDescription>
-                </Alert>
-              )}
-              <EquipmentPicker
-                bulkSkus={bulkSkus as unknown as PickerBulkSku[]}
-                selectedAssetIds={editSerializedIds}
-                setSelectedAssetIds={setEditSerializedIds}
-                selectedBulkItems={editBulkItems.map((bi) => ({ bulkSkuId: bi.bulkSkuId, quantity: bi.quantity }))}
-                setSelectedBulkItems={(updater) => {
-                  if (typeof updater === "function") {
-                    setEditBulkItems((prev) => {
-                      const result = updater(prev.map((bi) => ({ bulkSkuId: bi.bulkSkuId, quantity: bi.quantity })));
-                      return result;
-                    });
-                  } else {
-                    setEditBulkItems(updater);
-                  }
-                }}
-                startsAt={booking.startsAt}
-                endsAt={booking.endsAt}
-                locationId={booking.location.id}
-                excludeBookingId={booking.id}
-              />
-              <div className="flex gap-2">
-                <Button disabled={equipSaving} onClick={handleEquipSave}>
-                  {equipSaving ? "Saving..." : "Save equipment"}
-                </Button>
-                <Button variant="outline" onClick={() => { setEquipEditMode(false); setConflictError(null); }}>
-                  Cancel
-                </Button>
-              </div>
-            </div>
-
-          ) : (
-
-            /* ── Normal single-scroll view ── */
-            <>
-              {/* ─ Details section ─ */}
-              <div ref={detailsSectionRef} data-booking-sheet-section="details" className="border-b border-border/40 bg-background">
-                <div className="px-6 py-4">
-                  <BookingOverview
-                    booking={booking}
-                    conflictError={conflictError}
-                    returnSuggestion={returnSuggestion}
-                    checkinProgress={checkinProgress}
-                    canExtend={!!canExtend}
-                    extending={extending}
-                    onExtendTo={handleExtendTo}
-                    canEdit={!!canEdit}
-                    onSaveDate={handleSaveDate}
-                  />
-                </div>
-              </div>
-
-              {/* ─ Equipment section ─ */}
-              <div ref={equipmentSectionRef} data-booking-sheet-section="equipment" className="border-b border-border/40 bg-background">
-                <SectionHead
-                  label={`Equipment${totalEquipItems > 0 ? ` \u00b7 ${totalEquipItems}` : ""}`}
-                  right={
-                    canEditEquipment ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2 text-xs"
-                        onClick={enterEquipEditMode}
-                      >
-                        Edit
-                      </Button>
-                    ) : undefined
-                  }
-                />
-
-
-                <div className="px-6 py-4">
-                  <BookingItems
-                    booking={booking}
-                    equipSearch={equipSearch}
-                    onEquipSearchChange={setEquipSearch}
-                    filteredSerializedItems={filteredSerializedItems}
-                    filteredBulkItems={filteredBulkItems}
-                    canEditEquipment={false}
-                    canCheckin={isAdmin && !!canCheckin}
-                    checkinLoading={checkinLoading}
-                    onEnterEquipEditMode={enterEquipEditMode}
-                    onCheckinItem={handleCheckinItem}
-                  />
-                </div>
-              </div>
-
-              {/* ─ History section ─ */}
-              <div ref={historySectionRef} data-booking-sheet-section="history" className="bg-background">
-                <SectionHead label="History" />
-                <div className="px-6 py-4">
-                  {auditLoadError && (
-                    <Alert variant="destructive" className="mb-3">
-                      <AlertDescription className="flex items-start justify-between gap-3">
-                        <span>{auditLoadError}</span>
-                        {(auditLoadRecovery === "refresh" || (hasMoreAuditLogs && auditLogCursor)) && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={loadingMoreAuditLogs}
-                            onClick={
-                              auditLoadRecovery === "refresh"
-                                ? () => fetchBooking({ silent: true })
-                                : loadMoreAuditLogs
-                            }
-                          >
-                            {loadingMoreAuditLogs
-                              ? "Retrying..."
-                              : auditLoadRecovery === "refresh"
-                                ? "Refresh"
-                                : "Retry"}
-                          </Button>
-                        )}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                  <ActivityTimeline
-                    entries={allAuditLogs}
-                    context="booking"
-                    entityName={booking?.title}
-                    hasMore={hasMoreAuditLogs}
-                    loading={loadingMoreAuditLogs}
-                    onLoadMore={loadMoreAuditLogs}
-                  />
-                </div>
-              </div>
-
-              {/* ─ Sticky check-in bar — admin override only; kiosk handles all standard returns ─ */}
-              {isAdmin && canCheckin && unreturnedCount > 0 && (
-                <div
-                  className="sticky bottom-0 left-0 right-0 z-10 flex items-center gap-4 border-t border-border bg-background px-6 py-4 shadow-[0_-10px_30px_rgba(0,0,0,0.08)]"
-                >
-                  <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                    <Progress
-                      value={checkinProgress?.percent ?? 0}
-                      className="h-1.5"
-                      style={
-                        {
-                          "--progress-bg": "hsl(var(--muted))",
-                          "--progress-fill": "var(--wi-red)",
-                        } as React.CSSProperties
-                      }
-                    />
-                    <span className="text-[11px] text-muted-foreground">
-                      {checkinProgress?.returned ?? 0} of {checkinProgress?.total ?? unreturnedCount} items returned
-                    </span>
-                  </div>
-                  <Button
-                    onClick={handleCheckinAll}
-                    disabled={checkinLoading}
-                    className="shrink-0"
-                  >
-                    {checkinLoading ? "Checking in..." : "Check in all"}
-                  </Button>
-                </div>
-              )}
-            </>
-          )}
+          {bodyContent}
         </SheetBody>
 
         {/* Footer */}
-        {booking && !editMode && !equipEditMode && (
+        {footerActions && (
           <SheetFooter className="bg-background">
-            <div className="flex items-center gap-2 w-full">
-              {/* Left: Edit + Cancel */}
-              {canEdit && (
-                <Button variant="outline" size="sm" onClick={enterEditMode}>
-                  Edit
-                </Button>
-              )}
-              {canCancel && (
-                <Button variant="destructive" size="sm" onClick={handleCancel} disabled={cancelling}>
-                  {cancelling ? "Cancelling..." : "Cancel"}
-                </Button>
-              )}
-
-              <div className="flex-1" />
-
-              {/* Right: Convert (reservations) + Full page */}
-              {canConvert && (
-                <Button size="sm" variant="brand" onClick={handleConvert} disabled={converting}>
-                  {converting ? "Converting..." : "Start checkout"}
-                </Button>
-              )}
-              <Button variant="outline" size="sm" asChild>
-                <Link href={detailHref}>
-                  Open full booking <ExternalLinkIcon className="size-3.5 ml-1" />
-                </Link>
-              </Button>
-            </div>
+            {footerActions}
           </SheetFooter>
         )}
       </SheetContent>

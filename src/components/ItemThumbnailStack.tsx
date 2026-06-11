@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { normalizeAssetImageSrc } from "@/lib/asset-image";
+import { AssetImage } from "@/components/AssetImage";
+import { AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar";
 
 export type ItemThumbnailStackItem = {
   id: string;
@@ -30,61 +30,33 @@ export function ItemThumbnailStack({
   const overflow = totalCount - visibleItems.length;
 
   return (
-    <div
-      className={cn("flex items-center -space-x-2", className)}
+    <AvatarGroup
+      className={cn("items-center", className)}
       aria-label={`${totalCount} gear ${totalCount === 1 ? "item" : "items"}`}
     >
       {visibleItems.map((item) => {
-        const fallback = item.fallback ?? item.name[0] ?? "?";
+        const fallbackChar = (item.fallback ?? item.name[0] ?? "?").toUpperCase();
         return (
-          <span
+          <AssetImage
             key={item.id}
-            className={cn(
-              "flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 text-[9px] font-semibold text-muted-foreground",
-              surfaceClassName,
-            )}
-            title={item.name}
-            aria-label={item.name}
-          >
-            <StackImage src={item.imageUrl} fallback={fallback} />
-          </span>
+            src={item.imageUrl}
+            alt={item.name}
+            size={24}
+            className={cn("rounded-full border-2", surfaceClassName)}
+            fallbackClassName={cn("rounded-full text-[9px] font-semibold", surfaceClassName)}
+            fallback={fallbackChar}
+          />
         );
       })}
       {overflow > 0 && (
-        <span
-          className={cn(
-            "flex size-6 shrink-0 items-center justify-center rounded-full border-2 text-[10px] font-semibold text-muted-foreground",
-            surfaceClassName,
-          )}
+        <AvatarGroupCount
+          size="sm"
+          className={cn("border-2 text-[10px]", surfaceClassName)}
           aria-label={`${overflow} more gear ${overflow === 1 ? "item" : "items"}`}
         >
           +{overflow > 99 ? "99" : overflow}
-        </span>
+        </AvatarGroupCount>
       )}
-    </div>
-  );
-}
-
-function StackImage({ src, fallback }: { src?: string | null; fallback: string }) {
-  const normalizedSrc = normalizeAssetImageSrc(src);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    setFailed(false);
-  }, [normalizedSrc]);
-
-  if (!normalizedSrc || failed) {
-    return fallback.toUpperCase();
-  }
-
-  return (
-    <img
-      src={normalizedSrc}
-      alt=""
-      className="size-full object-cover"
-      loading="lazy"
-      decoding="async"
-      onError={() => setFailed(true)}
-    />
+    </AvatarGroup>
   );
 }

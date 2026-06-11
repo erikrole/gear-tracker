@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BulkUnitGrid } from "@/components/BulkUnitGrid";
 import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
+import StatusIndicator from "@/components/ui/status-indicator";
 import type { BulkSkuDetail } from "./types";
 
 export default function BulkSkuUnitsTab({
@@ -88,10 +89,10 @@ export default function BulkSkuUnitsTab({
               {units.length} units
             </CardTitle>
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              {available > 0 && <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-[var(--green)]" />{available} available</span>}
-              {checkedOut > 0 && <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-[var(--blue)]" />{checkedOut} out</span>}
-              {lost > 0 && <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-destructive" />{lost} missing</span>}
-              {retired > 0 && <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-muted-foreground" />{retired} retired</span>}
+              {available > 0 && <span className="flex items-center gap-1"><StatusIndicator state="available" size="sm" aria-hidden={true} />{available} available</span>}
+              {checkedOut > 0 && <span className="flex items-center gap-1"><StatusIndicator state="checkedOut" size="sm" aria-hidden={true} />{checkedOut} out</span>}
+              {lost > 0 && <span className="flex items-center gap-1"><StatusIndicator state="missing" size="sm" aria-hidden={true} />{lost} missing</span>}
+              {retired > 0 && <span className="flex items-center gap-1"><StatusIndicator state="retired" size="sm" aria-hidden={true} />{retired} retired</span>}
             </div>
           </div>
           {canEdit && (

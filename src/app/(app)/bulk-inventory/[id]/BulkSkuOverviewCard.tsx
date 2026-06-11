@@ -2,13 +2,14 @@
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import StatusIndicator from "@/components/ui/status-indicator";
 import type { BulkSkuDetail } from "./types";
 
-const DOT_STYLES: Record<string, string> = {
-  AVAILABLE: "bg-[var(--green)]",
-  CHECKED_OUT: "bg-[var(--blue)]",
-  LOST: "bg-destructive",
-  RETIRED: "bg-muted-foreground",
+const STATUS_KEY_MAP: Record<string, "available" | "checkedOut" | "missing" | "retired"> = {
+  AVAILABLE: "available",
+  CHECKED_OUT: "checkedOut",
+  LOST: "missing",
+  RETIRED: "retired",
 };
 
 export function BulkSkuOverviewCard({ sku }: { sku: BulkSkuDetail }) {
@@ -52,7 +53,7 @@ export function BulkSkuOverviewCard({ sku }: { sku: BulkSkuDetail }) {
               return (
                 <div key={key} className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-1.5">
-                    <span className={`size-1.5 rounded-full shrink-0 ${DOT_STYLES[statusKey]}`} />
+                    <StatusIndicator state={STATUS_KEY_MAP[statusKey] ?? "inactive"} size="sm" aria-hidden={true} />
                     <span className="text-muted-foreground">{label}</span>
                   </div>
                   <span className="tabular-nums font-semibold" style={{ fontFamily: "var(--font-mono)" }}>

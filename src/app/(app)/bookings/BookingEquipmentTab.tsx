@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Check, ImageIcon, MoreHorizontal, Search } from "lucide-react";
+import { Check, MoreHorizontal, Search } from "lucide-react";
 import { toast } from "sonner";
 import type { BookingDetail, SerializedItem, BulkItem } from "@/components/booking-details/types";
 import { handleAuthRedirect, isAbortError, parseJsonSafely } from "@/lib/errors";
@@ -312,12 +312,6 @@ export default function BookingEquipmentTab({
   );
 }
 
-/* ── Thumbnail helper ── */
-
-function ItemThumbnail({ src, alt }: { src?: string | null; alt: string }) {
-  return <AssetImage src={src} alt={alt} size={40} />;
-}
-
 /* ── Serialized item row ── */
 
 function SerializedRow({
@@ -349,7 +343,7 @@ function SerializedRow({
       )}
 
       {/* Thumbnail */}
-      <ItemThumbnail src={item.asset.imageUrl} alt={item.asset.assetTag} />
+      <AssetImage src={item.asset.imageUrl} alt={item.asset.assetTag} size={40} />
 
       {/* Info */}
       <div className="min-w-0 flex-1">
@@ -469,13 +463,7 @@ function BulkRow({
       )}
 
       {/* Thumbnail */}
-      {item.bulkSku.imageUrl ? (
-        <ItemThumbnail src={item.bulkSku.imageUrl} alt={item.bulkSku.name} />
-      ) : (
-        <div className="size-10 rounded-md bg-muted flex items-center justify-center shrink-0">
-          <ImageIcon className="size-4 text-muted-foreground/50" />
-        </div>
-      )}
+      <AssetImage src={item.bulkSku.imageUrl} alt={item.bulkSku.name} size={40} />
 
       {/* Info */}
       <div className="min-w-0 flex-1">

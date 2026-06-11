@@ -2,6 +2,13 @@
 
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
+import {
+  Item,
+  ItemContent,
+  ItemTitle,
+  ItemDescription,
+  ItemActions,
+} from "@/components/ui/item";
 import { ArrowUpRightIcon } from "lucide-react";
 import {
   Tooltip,
@@ -80,35 +87,38 @@ export function DashboardBookingRow({
   const pickupVariant = pickupIsLate ? "orange" : "gray";
 
   return (
-    <div
+    <Item
+      size="sm"
       className={cn(
-        "group flex min-h-14 items-center gap-2.5 px-4 py-2.5 transition-colors [&+&]:border-t [&+&]:border-border/40 border-l-[3px] pl-[13px]",
+        "group min-h-14 rounded-none py-2.5 border-l-[3px] pl-[13px] [&+[data-slot=item]]:border-t [&+[data-slot=item]]:border-border/40",
         accentClasses[accent],
       )}
     >
-      <button
-        type="button"
-        className="flex min-w-0 flex-1 items-center gap-3 rounded-sm border-0 bg-transparent p-0 text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-        onClick={() => onSelectBooking(booking.id)}
-        aria-label={`Open ${booking.title}`}
-      >
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="truncate text-sm font-bold text-foreground">
-            {booking.title}
-          </span>
-          <span className="flex min-w-0 items-center gap-1 text-xs leading-snug text-muted-foreground">
-            <UserAvatar name={booking.requesterName} avatarUrl={booking.requesterAvatarUrl} />
-            <span className="truncate">{booking.requesterName}</span>
-            <span aria-hidden="true">/</span>
-            <span className="shrink-0">
-              {booking.itemCount} item{booking.itemCount !== 1 ? "s" : ""}
-            </span>
-          </span>
-        </div>
-        <ArrowUpRightIcon className="size-3.5 shrink-0 text-muted-foreground/35 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100" aria-hidden="true" />
-      </button>
+      <ItemContent>
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-sm border-0 bg-transparent p-0 text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          onClick={() => onSelectBooking(booking.id)}
+          aria-label={`Open ${booking.title}`}
+        >
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <ItemTitle className="truncate font-bold text-foreground">
+              {booking.title}
+            </ItemTitle>
+            <ItemDescription className="flex min-w-0 items-center gap-1 text-xs leading-snug line-clamp-none">
+              <UserAvatar name={booking.requesterName} avatarUrl={booking.requesterAvatarUrl} />
+              <span className="truncate">{booking.requesterName}</span>
+              <span aria-hidden="true">/</span>
+              <span className="shrink-0">
+                {booking.itemCount} item{booking.itemCount !== 1 ? "s" : ""}
+              </span>
+            </ItemDescription>
+          </div>
+          <ArrowUpRightIcon className="size-3.5 shrink-0 text-muted-foreground/35 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100" aria-hidden="true" />
+        </button>
+      </ItemContent>
 
-      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
+      <ItemActions className="shrink-0 gap-1.5 sm:gap-2.5">
         {actions}
         {showDueBadge && (
           <Tooltip>
@@ -133,7 +143,7 @@ export function DashboardBookingRow({
         <div className="hidden sm:block">
           <GearAvatarStack items={booking.items} totalCount={booking.itemCount} />
         </div>
-      </div>
-    </div>
+      </ItemActions>
+    </Item>
   );
 }

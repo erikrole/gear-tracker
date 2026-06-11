@@ -48,6 +48,7 @@ import { handleAuthRedirect, parseErrorMessage, classifyError, isAbortError, par
 import { useFetch } from "@/hooks/use-fetch";
 import { formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import StatusIndicator from "@/components/ui/status-indicator";
 import { SettingsPageShell } from "../SettingsPageShell";
 
 type PendingPickup = {
@@ -84,16 +85,6 @@ function connectionStatus(device: KioskDevice): "online" | "recent" | "offline" 
   if (mins <= 5) return "online";
   if (mins <= 60 * 24) return "recent";
   return "offline";
-}
-
-function StatusDot({ status }: { status: ReturnType<typeof connectionStatus> }) {
-  if (status === "online")
-    return <span className="relative flex size-2"><span className="absolute inline-flex size-full rounded-full bg-emerald-500 opacity-75 animate-ping" /><span className="relative inline-flex size-2 rounded-full bg-emerald-500" /></span>;
-  if (status === "recent")
-    return <span className="size-2 rounded-full bg-amber-400" />;
-  if (status === "offline")
-    return <span className="size-2 rounded-full bg-destructive" />;
-  return <span className="size-2 rounded-full bg-muted-foreground/40" />;
 }
 
 export default function KioskDevicesPage() {
@@ -499,7 +490,7 @@ export default function KioskDevicesPage() {
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <StatusDot status={status} />
+                        <StatusIndicator state={status} size="sm" aria-hidden={true} />
                         <span className="font-medium truncate">{device.name}</span>
                         {device.active ? (
                           <Badge variant="outline" size="sm">

@@ -6,6 +6,14 @@ import type { PickerUser } from "@/components/shift-detail/UserAvatarPicker";
 import EmptyState from "@/components/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { AssignmentCell } from "./AssignmentCell";
 import { scheduleEventTitleParts } from "../../_components/types";
 import { VENUE_TONES, venueToneFromEvent } from "@/lib/venue-tone";
@@ -71,23 +79,23 @@ export function AssignmentGrid({
 
   return (
     <div className="overflow-x-auto rounded-lg border border-border/60 bg-card shadow-sm">
-      <table className="w-full min-w-[760px] border-collapse text-sm">
-        <thead>
-          <tr className="border-b border-border/60">
-            <th className="sticky left-0 z-10 w-64 min-w-[16rem] bg-card px-3 py-2 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">
+      <Table className="min-w-[760px] border-collapse text-sm">
+        <TableHeader sticky={false}>
+          <TableRow striped={false} className="border-b border-border/60 hover:bg-transparent">
+            <TableHead className="sticky left-0 z-10 w-64 min-w-[16rem] bg-card px-3 py-2 text-left text-xs font-bold uppercase tracking-wider text-muted-foreground">
               Event
-            </th>
+            </TableHead>
             {columns.map((col) => (
-              <th
+              <TableHead
                 key={col.key}
                 className="border-l border-border/60 px-2 py-2 text-center text-xs font-bold uppercase tracking-wider text-muted-foreground"
               >
                 {AREA_LABELS[col.area] ?? col.area}
-              </th>
+              </TableHead>
             ))}
-          </tr>
-        </thead>
-        <tbody>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {events.map((ev, i) => {
             const date = new Date(ev.startsAt);
             const titleParts = scheduleEventTitleParts(ev);
@@ -104,15 +112,16 @@ export function AssignmentGrid({
             const openSlots = ev.shifts.filter((shift) => shift.assignments.length === 0).length;
 
             return (
-              <tr
+              <TableRow
                 key={ev.id}
+                striped={false}
                 className={cn(
                   "group/assign-row border-b border-border/40 transition-colors hover:bg-muted/20",
                   i % 2 !== 0 && "bg-muted/10",
                 )}
               >
                 {/* Event name cell */}
-                <td
+                <TableCell
                   className={cn(
                     "sticky left-0 z-10 min-w-[16rem] max-w-[18rem] border-l-[3px] bg-card px-3 py-2 transition-colors group-hover/assign-row:bg-muted/20",
                     i % 2 !== 0 && "bg-muted/10",
@@ -152,7 +161,7 @@ export function AssignmentGrid({
                       </span>
                     </Link>
                   </Button>
-                </td>
+                </TableCell>
 
                 {/* Shift assignment cells */}
                 {columns.map((col) => {
@@ -174,11 +183,11 @@ export function AssignmentGrid({
                     />
                   );
                 })}
-              </tr>
+              </TableRow>
             );
           })}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

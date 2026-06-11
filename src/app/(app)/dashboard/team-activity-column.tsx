@@ -5,6 +5,14 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Item,
+  ItemContent,
+  ItemTitle,
+  ItemDescription,
+  ItemActions,
+  ItemGroup,
+} from "@/components/ui/item";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { CalendarIcon, ClockIcon, InboxIcon } from "lucide-react";
@@ -253,36 +261,41 @@ export function TeamActivityColumn({ data, filtered, activeSport, now, isStaff, 
           </div>
         ) : (
           <CardContent className="p-0 py-1">
-            {cappedEvents.map((e) => (
-              <div
-                key={e.id}
-                className={cn(
-                  "group flex items-start justify-between gap-3 w-full border-l-[3px] px-4 py-2.5 transition-colors hover:bg-muted/50 [&+&]:border-t [&+&]:border-border/40 no-underline text-inherit",
-                  eventBorder(e),
-                  e.coverage && e.coverage.filled < e.coverage.total && "bg-[var(--red-bg)]/10",
-                )}
-              >
-                <Link href={`/events/${e.id}`} className="flex min-w-0 flex-1 flex-col gap-1 no-underline">
-                  <span className="text-sm font-bold text-foreground truncate">{eventTitle(e)}</span>
-                  <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground leading-snug">
-                    <span>
-                      {formatDayLabel(e.startsAt, now)}{e.allDay ? " \u2013 All day" : `, ${formatTimeShort(e.startsAt)} \u2013 ${formatTimeShort(e.endsAt)}`}
-                    </span>
-                    {e.location && <span className="truncate">{e.location}</span>}
-                    {e.callTime && <span>Call {formatTimeShort(e.callTime)}</span>}
-                  </span>
-                </Link>
-                <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-                  <ShiftAvatarStack assignedUsers={e.assignedUsers} />
-                  {eventCoverageBadge(e)}
-                  {e.opponent && (
-                    <Badge variant={venueBadgeVariant(e.isHome)} size="sm">
-                      {VENUE_TONES[venueToneFromIsHome(e.isHome)].label}
-                    </Badge>
+            <ItemGroup>
+              {cappedEvents.map((e) => (
+                <Item
+                  key={e.id}
+                  size="sm"
+                  className={cn(
+                    "group rounded-none py-2.5 border-l-[3px] pl-[13px] hover:bg-muted/50 [&+[data-slot=item]]:border-t [&+[data-slot=item]]:border-border/40",
+                    eventBorder(e),
+                    e.coverage && e.coverage.filled < e.coverage.total && "bg-[var(--red-bg)]/10",
                   )}
-                </div>
-              </div>
-            ))}
+                >
+                  <ItemContent>
+                    <Link href={`/events/${e.id}`} className="flex min-w-0 flex-1 flex-col gap-1 no-underline">
+                      <ItemTitle className="font-bold text-foreground truncate">{eventTitle(e)}</ItemTitle>
+                      <ItemDescription className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs leading-snug line-clamp-none">
+                        <span>
+                          {formatDayLabel(e.startsAt, now)}{e.allDay ? " \u2013 All day" : `, ${formatTimeShort(e.startsAt)} \u2013 ${formatTimeShort(e.endsAt)}`}
+                        </span>
+                        {e.location && <span className="truncate">{e.location}</span>}
+                        {e.callTime && <span>Call {formatTimeShort(e.callTime)}</span>}
+                      </ItemDescription>
+                    </Link>
+                  </ItemContent>
+                  <ItemActions className="shrink-0 flex-wrap justify-end gap-1.5">
+                    <ShiftAvatarStack assignedUsers={e.assignedUsers} />
+                    {eventCoverageBadge(e)}
+                    {e.opponent && (
+                      <Badge variant={venueBadgeVariant(e.isHome)} size="sm">
+                        {VENUE_TONES[venueToneFromIsHome(e.isHome)].label}
+                      </Badge>
+                    )}
+                  </ItemActions>
+                </Item>
+              ))}
+            </ItemGroup>
             {filteredEvents.length > 10 && (
               <Link href="/schedule" className="block text-center text-xs text-muted-foreground py-2 px-4 border-t border-border/50 no-underline transition-colors hover:text-foreground">Show all {filteredEvents.length} events &rarr;</Link>
             )}

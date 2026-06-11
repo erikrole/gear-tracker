@@ -5,6 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Item,
+  ItemContent,
+  ItemTitle,
+  ItemDescription,
+  ItemActions,
+  ItemGroup,
+} from "@/components/ui/item";
 import { ClipboardCheckIcon, CalendarCheckIcon, ClockIcon, ArrowRightCircleIcon } from "lucide-react";
 import { ScaleIn } from "@/components/ui/motion";
 import { formatDayLabel, formatRelativeTime, isDueToday } from "@/lib/format";
@@ -193,52 +201,58 @@ export function MyGearColumn({
         <Card>
           <DashboardSectionHeader title="My shifts" href="/schedule" count={myShiftsCount} />
           <CardContent className="p-0 py-1">
-            {visibleMyShifts.map((s) => {
-              const gearLabel = s.gearStatus === "checked_out" ? "Gear out" : s.gearStatus === "reserved" ? "Reserved" : s.gearStatus === "draft" ? "Draft" : null;
-              const eventTitle = s.event.opponent
-                ? `${s.event.isHome === false ? "at" : "vs"} ${s.event.opponent}`
-                : s.event.summary;
-              return (
-                <div key={s.id} className="group flex items-center justify-between gap-3 w-full px-4 py-2 transition-colors hover:bg-muted/50 [&+&]:border-t [&+&]:border-border/40">
-                  <div className="flex flex-col gap-0.5 min-w-0">
-                    <span className="text-sm font-bold text-foreground truncate">
-                      {s.event.sportCode && <span className="text-xs font-bold mr-1">{sportLabel(s.event.sportCode)}</span>}
-                      <span className="text-muted-foreground font-normal">{eventTitle}</span>
-                    </span>
-                    <span className="flex items-center gap-1 text-xs text-muted-foreground leading-snug">
-                      {formatDayLabel(s.callStartsAt, now)}, Call {formatCallWindow({ startsAt: s.callStartsAt, endsAt: s.callEndsAt })}
-                      {s.event.locationName && ` \u00B7 ${s.event.locationName}`}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {gearLabel ? (
-                      <>
-                        <GearAvatarStack items={s.gearItems} totalCount={s.gearItemCount} />
-                        <Badge variant={s.gearStatus === "checked_out" ? "blue" : s.gearStatus === "reserved" ? "purple" : "gray"}>
-                          {gearLabel}
-                        </Badge>
-                      </>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onCreateBooking?.({
-                          kind: "CHECKOUT",
-                          title: eventTitle,
-                          startsAt: s.event.startsAt,
-                          endsAt: s.event.endsAt,
-                          locationId: s.event.locationId || undefined,
-                          eventId: s.event.id,
-                          sportCode: s.event.sportCode || undefined,
-                        })}
-                      >
-                        Prep gear
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+            <ItemGroup>
+              {visibleMyShifts.map((s) => {
+                const gearLabel = s.gearStatus === "checked_out" ? "Gear out" : s.gearStatus === "reserved" ? "Reserved" : s.gearStatus === "draft" ? "Draft" : null;
+                const eventTitle = s.event.opponent
+                  ? `${s.event.isHome === false ? "at" : "vs"} ${s.event.opponent}`
+                  : s.event.summary;
+                return (
+                  <Item
+                    key={s.id}
+                    size="sm"
+                    className="group rounded-none py-2 hover:bg-muted/50 [&+[data-slot=item]]:border-t [&+[data-slot=item]]:border-border/40"
+                  >
+                    <ItemContent>
+                      <ItemTitle className="font-bold text-foreground truncate">
+                        {s.event.sportCode && <span className="text-xs font-bold mr-1">{sportLabel(s.event.sportCode)}</span>}
+                        <span className="font-normal text-muted-foreground">{eventTitle}</span>
+                      </ItemTitle>
+                      <ItemDescription className="text-xs leading-snug line-clamp-none">
+                        {formatDayLabel(s.callStartsAt, now)}, Call {formatCallWindow({ startsAt: s.callStartsAt, endsAt: s.callEndsAt })}
+                        {s.event.locationName && ` \u00B7 ${s.event.locationName}`}
+                      </ItemDescription>
+                    </ItemContent>
+                    <ItemActions>
+                      {gearLabel ? (
+                        <>
+                          <GearAvatarStack items={s.gearItems} totalCount={s.gearItemCount} />
+                          <Badge variant={s.gearStatus === "checked_out" ? "blue" : s.gearStatus === "reserved" ? "purple" : "gray"}>
+                            {gearLabel}
+                          </Badge>
+                        </>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onCreateBooking?.({
+                            kind: "CHECKOUT",
+                            title: eventTitle,
+                            startsAt: s.event.startsAt,
+                            endsAt: s.event.endsAt,
+                            locationId: s.event.locationId || undefined,
+                            eventId: s.event.id,
+                            sportCode: s.event.sportCode || undefined,
+                          })}
+                        >
+                          Prep gear
+                        </Button>
+                      )}
+                    </ItemActions>
+                  </Item>
+                );
+              })}
+            </ItemGroup>
           </CardContent>
         </Card>
         </ScaleIn>
@@ -250,35 +264,41 @@ export function MyGearColumn({
         <Card elevation="elevated">
           <DashboardSectionHeader title="Drafts" count={data.drafts.length} />
           <CardContent className="p-0 py-1">
-            {data.drafts.map((d) => (
-              <div key={d.id} className="group flex items-center justify-between gap-3 w-full px-4 py-2 transition-colors hover:bg-muted/50 [&+&]:border-t [&+&]:border-border/40">
-                <div className="flex flex-col gap-0.5 min-w-0">
-                  <span className="text-sm font-medium text-foreground truncate">
-                    <Badge variant="outline" size="sm" className="mr-1.5">{d.kind === "CHECKOUT" ? "Checkout" : "Reservation"}</Badge>
-                    {d.title || "Untitled"}
-                  </span>
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground leading-snug">
-                    {d.itemCount > 0 && <>{d.itemCount} item{d.itemCount !== 1 ? "s" : ""} &middot; </>}
-                    Edited {formatRelativeTime(d.updatedAt, now)}
-                  </span>
-                </div>
-                <div className="flex gap-1.5 shrink-0">
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/${d.kind === "CHECKOUT" ? "checkouts" : "reservations"}?draftId=${d.id}`}>
-                      Continue
-                    </Link>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={acting}
-                    onClick={() => onDeleteDraft(d.id)}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            ))}
+            <ItemGroup>
+              {data.drafts.map((d) => (
+                <Item
+                  key={d.id}
+                  size="sm"
+                  className="group rounded-none py-2 hover:bg-muted/50 [&+[data-slot=item]]:border-t [&+[data-slot=item]]:border-border/40"
+                >
+                  <ItemContent>
+                    <ItemTitle className="font-medium text-foreground truncate">
+                      <Badge variant="outline" size="sm" className="mr-1.5">{d.kind === "CHECKOUT" ? "Checkout" : "Reservation"}</Badge>
+                      {d.title || "Untitled"}
+                    </ItemTitle>
+                    <ItemDescription className="text-xs leading-snug line-clamp-none">
+                      {d.itemCount > 0 && <>{d.itemCount} item{d.itemCount !== 1 ? "s" : ""} &middot; </>}
+                      Edited {formatRelativeTime(d.updatedAt, now)}
+                    </ItemDescription>
+                  </ItemContent>
+                  <ItemActions>
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href={`/${d.kind === "CHECKOUT" ? "checkouts" : "reservations"}?draftId=${d.id}`}>
+                        Continue
+                      </Link>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={acting}
+                      onClick={() => onDeleteDraft(d.id)}
+                    >
+                      Delete
+                    </Button>
+                  </ItemActions>
+                </Item>
+              ))}
+            </ItemGroup>
           </CardContent>
         </Card>
         </ScaleIn>

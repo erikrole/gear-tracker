@@ -49,4 +49,58 @@ describe("shadcn table contracts", () => {
     expect(shiftConfig).toContain(`coverageInputName(primaryCode, area, "homeStaffCount")`);
     expect(shiftConfig).toContain(`coverageInputName(primaryCode, area, "awayStudentCount")`);
   });
+
+  // --- Plan 026: schedule assignment grid ---
+
+  it("assignment grid uses shadcn Table components and preserves sticky column", () => {
+    const grid = src("src/app/(app)/schedule/assign/_components/AssignmentGrid.tsx");
+    const cell = src("src/app/(app)/schedule/assign/_components/AssignmentCell.tsx");
+
+    expect(grid).toContain(`from "@/components/ui/table"`);
+    expect(grid).toContain("TableHeader");
+    expect(grid).toContain("TableBody");
+    expect(grid).toContain("TableHead");
+    expect(grid).toContain("TableRow");
+    expect(grid).toContain("TableCell");
+
+    expect(cell).toContain("TableCell");
+
+    expect(grid).not.toContain("<table");
+    expect(grid).not.toContain("<thead");
+    expect(grid).not.toContain("<tbody");
+    expect(grid).not.toContain("<tr");
+    expect(grid).not.toContain("<td");
+    expect(grid).not.toContain("<th");
+
+    expect(cell).not.toContain("<td");
+
+    expect(grid).toContain("sticky left-0");
+    expect(grid).toContain("min-w-[760px]");
+    expect(cell).toContain("group/cell");
+  });
+
+  // --- Plan 027: dashboard queue rows ---
+
+  it("dashboard queue rows use shadcn Item primitives and preserve domain hooks", () => {
+    const bookingRow = src("src/app/(app)/dashboard/booking-row.tsx");
+    const myGear = src("src/app/(app)/dashboard/my-gear-column.tsx");
+    const teamActivity = src("src/app/(app)/dashboard/team-activity-column.tsx");
+
+    expect(bookingRow).toContain(`from "@/components/ui/item"`);
+    expect(bookingRow).toContain("ItemContent");
+    expect(bookingRow).toContain("ItemTitle");
+    expect(bookingRow).toContain("ItemDescription");
+    expect(bookingRow).toContain("ItemActions");
+
+    expect(myGear).toContain(`from "@/components/ui/item"`);
+    expect(myGear).toContain("ItemGroup");
+
+    expect(teamActivity).toContain(`from "@/components/ui/item"`);
+    expect(teamActivity).toContain("ItemGroup");
+
+    expect(bookingRow).toContain("GearAvatarStack");
+    expect(bookingRow).toContain("onSelectBooking");
+    expect(myGear).toContain("onCreateBooking");
+    expect(teamActivity).toContain("eventCoverageBadge");
+  });
 });
