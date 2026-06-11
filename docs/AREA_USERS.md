@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Users
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-08
+- Last Updated: 2026-06-11
 - Status: Active
 - Version: V1.2
 
@@ -114,6 +114,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 6. Ensure audit logs include actor role, target owner, and exception metadata.
 
 ## Change Log
+- 2026-06-11: Student availability block PATCH and DELETE now use ownership-scoped write counts after the initial audit read, so a block deleted between read and write returns a clean `404 Block not found` instead of surfacing a generic Prisma failure. Focused route tests cover stale update and stale delete races.
 - 2026-06-11: Sidebar user avatar now routes through the shared `UserAvatar` wrapper. Direct shadcn `Avatar`, `AvatarImage`, and `AvatarFallback` imports were removed from `Sidebar.tsx`; the sidebar dark-mode visual treatment (ring, transparent fallback background, white text) is preserved via `noColor`, `className`, and `fallbackClassName` props. A source contract test (`tests/shadcn-avatar-contracts.test.ts`) guards against future regression.
 - 2026-06-10: iOS Account & Security detail menu shipped. Native Settings now shows signed-in account context and lets every authenticated user change their password through the existing `/api/me/change-password` flow, including the optional sign-out-other-devices flag. Full profile editing and active-session list management remain on web Settings for this slice.
 - 2026-06-08: No-temp-password onboarding pivot shipped. `/api/users` first-time direct creation and `/api/users/bulk-create` now return a retired-flow response after auth checks, and the shared onboarding dialog only creates allowlist invitations so users set their own password at registration.

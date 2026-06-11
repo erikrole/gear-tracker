@@ -15,7 +15,9 @@ vi.mock("@/lib/db", () => ({
       findUnique: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
       delete: vi.fn(),
+      deleteMany: vi.fn(),
     },
     shift: {
       findUnique: vi.fn(),
@@ -46,7 +48,10 @@ import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { createAuditEntry } from "@/lib/audit";
 import { POST as createAvailability } from "@/app/api/users/[id]/availability/route";
-import { PATCH as updateAvailability } from "@/app/api/users/[id]/availability/[blockId]/route";
+import {
+  DELETE as deleteAvailability,
+  PATCH as updateAvailability,
+} from "@/app/api/users/[id]/availability/[blockId]/route";
 import { GET as getShiftConflicts } from "@/app/api/shifts/[id]/conflicts/route";
 
 const studentUser = {
@@ -148,7 +153,7 @@ describe("student availability routes", () => {
 
   it("lets staff update a weekly semester block and audits before and after", async () => {
     vi.mocked(requireAuth).mockResolvedValue(staffUser);
-    vi.mocked(db.studentAvailabilityBlock.findUnique).mockResolvedValue({
+    vi.mocked(db.studentAvailabilityBlock.findUnique).mockResolvedValueOnce({
       id: "block-1",
       userId: "student-1",
       kind: "WEEKLY",
@@ -163,7 +168,8 @@ describe("student availability routes", () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     } as never);
-    vi.mocked(db.studentAvailabilityBlock.update).mockResolvedValue({
+    vi.mocked(db.studentAvailabilityBlock.updateMany).mockResolvedValue({ count: 1 } as never);
+    vi.mocked(db.studentAvailabilityBlock.findUnique).mockResolvedValueOnce({
       id: "block-1",
       userId: "student-1",
       kind: "WEEKLY",
@@ -194,8 +200,8 @@ describe("student availability routes", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(db.studentAvailabilityBlock.update).toHaveBeenCalledWith({
-      where: { id: "block-1" },
+    expect(db.studentAvailabilityBlock.updateMany).toHaveBeenCalledWith({
+      where: { id: "block-1", userId: "student-1" },
       data: expect.objectContaining({
         kind: "WEEKLY",
         dayOfWeek: 2,
@@ -209,6 +215,69 @@ describe("student availability routes", () => {
       before: expect.objectContaining({ label: "Old" }),
       after: expect.objectContaining({ label: "COMM 201" }),
     }));
+  });
+
+  it("returns 404 when a block disappears before update", async () => {
+    vi.mocked(db.studentAvailabilityBlock.findUnique).mockResolvedValue({
+      id: "block-1",
+      userId: "student-1",
+      kind: "WEEKLY",
+      dayOfWeek: 1,
+      date: null,
+      startsAt: "09:00",
+      endsAt: "10:00",
+      label: "Old",
+      semesterLabel: null,
+      semesterStartsOn: null,
+      semesterEndsOn: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as never);
+    vi.mocked(db.studentAvailabilityBlock.updateMany).mockResolvedValue({ count: 0 } as never);
+
+    const res = await updateAvailability(
+      jsonRequest("/api/users/student-1/availability/block-1", "PATCH", {
+        kind: "WEEKLY",
+        dayOfWeek: 2,
+        startsAt: "09:30",
+        endsAt: "10:45",
+      }),
+      params({ id: "student-1", blockId: "block-1" }),
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(404);
+    expect(body.error).toBe("Block not found");
+    expect(createAuditEntry).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when a block disappears before delete", async () => {
+    vi.mocked(db.studentAvailabilityBlock.findUnique).mockResolvedValue({
+      id: "block-1",
+      userId: "student-1",
+      kind: "WEEKLY",
+      dayOfWeek: 1,
+      date: null,
+      startsAt: "09:00",
+      endsAt: "10:00",
+      label: "Old",
+      semesterLabel: null,
+      semesterStartsOn: null,
+      semesterEndsOn: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as never);
+    vi.mocked(db.studentAvailabilityBlock.deleteMany).mockResolvedValue({ count: 0 } as never);
+
+    const res = await deleteAvailability(
+      jsonRequest("/api/users/student-1/availability/block-1", "DELETE"),
+      params({ id: "student-1", blockId: "block-1" }),
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(404);
+    expect(body.error).toBe("Block not found");
+    expect(createAuditEntry).not.toHaveBeenCalled();
   });
 
   it("rejects weekly blocks without a weekday", async () => {

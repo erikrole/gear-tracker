@@ -4,7 +4,22 @@ Last updated: 2026-06-10
 
 ---
 
-## Active: Remove ambient quick search type-to-search (2026-06-10)
+## Active: Harden student availability stale-block writes (2026-06-11)
+
+Root cause: the student availability block route verified ownership with `findUnique` and then wrote by bare block id. A concurrent delete between those statements could surface as a generic Prisma failure instead of a clean not-found response.
+
+- [x] Replace block PATCH with an ownership-scoped `updateMany` count check.
+- [x] Replace block DELETE with an ownership-scoped `deleteMany` count check.
+- [x] Add regression coverage for stale PATCH and stale DELETE returning 404.
+- [x] Sync Users docs and record verification.
+
+### Review
+- 2026-06-11: Student availability block updates and deletes now keep the existing ownership/audit read, then perform the write with `id` plus `userId` in `updateMany` or `deleteMany`. If another request deleted the block between read and write, the route returns `404 Block not found` and skips audit creation.
+- 2026-06-11: Focused route coverage now includes stale PATCH and stale DELETE cases for `/api/users/[id]/availability/[blockId]`.
+
+---
+
+## Recently Active: Remove ambient quick search type-to-search (2026-06-10)
 
 Root cause: even after tightening the input guard, ambient type-to-search remains too collision-prone for a data-entry-heavy app. The explicit top-bar/mobile Search trigger and `Cmd/Ctrl+K` shortcut cover the command-palette workflow without stealing printable typing from page surfaces.
 

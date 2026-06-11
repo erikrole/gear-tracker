@@ -85,8 +85,8 @@ export const PATCH = withAuth<{ id: string; blockId: string }>(async (req, { use
   const body = updateBlockSchema.parse(await req.json());
   assertBlockShape(body);
 
-  const block = await db.studentAvailabilityBlock.update({
-    where: { id: blockId },
+  const updated = await db.studentAvailabilityBlock.updateMany({
+    where: { id: blockId, userId: id },
     data: {
       kind:             body.kind,
       dayOfWeek:        body.kind === "WEEKLY" ? body.dayOfWeek : null,
@@ -99,6 +99,11 @@ export const PATCH = withAuth<{ id: string; blockId: string }>(async (req, { use
       semesterEndsOn:   parseDateOnly(body.semesterEndsOn),
     },
   });
+  if (updated.count !== 1) {
+    throw new HttpError(404, "Block not found");
+  }
+
+  const block = await findOwnedBlock(id, blockId);
 
   await createAuditEntry({
     actorId: user.id,
@@ -124,7 +129,10 @@ export const DELETE = withAuth<{ id: string; blockId: string }>(async (_req, { u
 
   const block = await findOwnedBlock(id, blockId);
 
-  await db.studentAvailabilityBlock.delete({ where: { id: blockId } });
+  const deleted = await db.studentAvailabilityBlock.deleteMany({ where: { id: blockId, userId: id } });
+  if (deleted.count !== 1) {
+    throw new HttpError(404, "Block not found");
+  }
 
   await createAuditEntry({
     actorId: user.id,
