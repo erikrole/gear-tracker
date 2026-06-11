@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-10
+- Last Updated: 2026-06-11
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
@@ -18,7 +18,7 @@ Keep reservation planning and checkout execution unified, predictable, and safe 
 5. Role and ownership controls follow `AREA_USERS.md`.
 6. Availability checks treat overlapping `PENDING_PICKUP` checkout allocations as committed gear and subtract overlapping `BOOKED` bulk reservation quantities from available bulk stock.
 7. Booking windows are half-open for availability: `endsAt === next.startsAt` is allowed, while any positive overlap is blocked.
-8. Reservation creation is guarded at the shared service boundary: creates require at least one equipment item, duplicate multi-event links and duplicate bulk lines are rejected, invalid windows fail before availability work, and DB overlap races return booking conflict responses.
+8. Reservation creation is guarded at the shared service boundary: creates require at least one equipment item, duplicate multi-event links and duplicate bulk lines are rejected, invalid windows fail before availability work, and DB overlap races return booking conflict responses. Reservation edits also reject invalid windows before availability checks or allocation rebuilds.
 
 ## V1 Workflow
 
@@ -252,6 +252,7 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 8. Implement list page controls and row behavior from V1 list surface spec.
 
 ## Change Log
+- 2026-06-11: Shared reservation edit hardening now rejects invalid edit windows before availability checks or allocation rebuilds, keeping edit behavior aligned with create-window guardrails.
 - 2026-06-10: Web reservation creation inherits the shared Step 1 duration-preserving start-date behavior from the booking wizard. Moving Start now shifts End by the previous duration instead of making a valid window invalid.
 - 2026-06-10: Web reservation creation audit/polish pass (refresh Slice 6). Same fixes as checkouts (escape-literal placeholders, layout alignment, hit targets, skeletons), plus the header kind badge now uses the canonical purple (was blue) and the Step 3 review icon uses the canonical calendar glyph per docs/COLOR_SYSTEM.md.
 - 2026-06-08: Web reservation creation visual refresh shipped. `/reservations/new` now promotes the selected event/booking title instead of a generic New Reservation hero, uses a quieter creation-page breadcrumb, replaces dense Step 1 admin rows with local stacked field groups, compresses Step 2 helper copy, removes unused picker tab counts and select-visible action, uses row skeletons for picker loading, keeps footer navigation tied to review instead of category browsing, compresses selected equipment into removable tray chips, and presents confirmation as a calmer Apple-like review panel while preserving multi-event, draft, availability, and reservation payload contracts.

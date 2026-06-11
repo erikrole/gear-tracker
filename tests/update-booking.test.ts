@@ -139,6 +139,24 @@ describe("updateReservation", () => {
     );
   });
 
+  it("rejects invalid edit windows before availability or allocation rebuilds", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(makeExistingReservation({
+      startsAt: new Date("2026-04-10T08:00:00Z"),
+    }));
+
+    await expect(
+      updateReservation("r-1", "actor-1", { endsAt: new Date("2026-04-10T07:00:00Z") })
+    ).rejects.toThrow("endsAt must be later than startsAt");
+
+    expect(checkAvailability).not.toHaveBeenCalled();
+    expect(mockTx.bookingSerializedItem.deleteMany).not.toHaveBeenCalled();
+    expect(mockTx.bookingSerializedItem.createMany).not.toHaveBeenCalled();
+    expect(mockTx.assetAllocation.deleteMany).not.toHaveBeenCalled();
+    expect(mockTx.assetAllocation.createMany).not.toHaveBeenCalled();
+    expect(mockTx.bookingBulkItem.deleteMany).not.toHaveBeenCalled();
+    expect(mockTx.bookingBulkItem.createMany).not.toHaveBeenCalled();
+  });
+
   it("throws 409 on availability conflict", async () => {
     mockTx.booking.findUnique.mockResolvedValue(makeExistingReservation());
     vi.mocked(checkAvailability).mockResolvedValueOnce({
@@ -240,6 +258,24 @@ describe("updateCheckout", () => {
       mockTx,
       expect.objectContaining({ excludeBookingId: "c-1" })
     );
+  });
+
+  it("rejects invalid edit windows before availability or allocation rebuilds", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout({
+      startsAt: new Date("2026-04-10T08:00:00Z"),
+    }));
+
+    await expect(
+      updateCheckout("c-1", "actor-1", { endsAt: new Date("2026-04-10T07:00:00Z") })
+    ).rejects.toThrow("endsAt must be later than startsAt");
+
+    expect(checkAvailability).not.toHaveBeenCalled();
+    expect(mockTx.bookingSerializedItem.deleteMany).not.toHaveBeenCalled();
+    expect(mockTx.bookingSerializedItem.createMany).not.toHaveBeenCalled();
+    expect(mockTx.assetAllocation.deleteMany).not.toHaveBeenCalled();
+    expect(mockTx.assetAllocation.createMany).not.toHaveBeenCalled();
+    expect(mockTx.bookingBulkItem.deleteMany).not.toHaveBeenCalled();
+    expect(mockTx.bookingBulkItem.createMany).not.toHaveBeenCalled();
   });
 
   it("throws 409 on availability conflict", async () => {

@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Checkouts
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-10
+- Last Updated: 2026-06-11
 - Status: Active — V1 Shipped
 - Version: V1
 
@@ -18,7 +18,7 @@ Optimize handoff and return execution so daily operators can move fast without d
 5. Role and ownership controls follow `AREA_USERS.md`.
 6. `PENDING_PICKUP` checkout allocations block overlapping serialized-item reservations and checkouts because custody has not transferred yet but the gear is already committed.
 7. Booking windows are half-open for availability: a booking ending exactly when the next pickup/reservation starts is allowed; any overrun past that start time conflicts.
-8. Checkout creation is guarded at the shared service boundary: non-source creates require at least one equipment item, duplicate multi-event links and duplicate bulk lines are rejected, invalid windows fail before availability work, and DB overlap races return booking conflict responses.
+8. Checkout creation is guarded at the shared service boundary: non-source creates require at least one equipment item, duplicate multi-event links and duplicate bulk lines are rejected, invalid windows fail before availability work, and DB overlap races return booking conflict responses. Checkout edits also reject invalid windows before availability checks or allocation rebuilds.
 
 ## V1 Workflow
 
@@ -291,6 +291,7 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 5. Add regression coverage for race conditions, partial returns, and permission bypass attempts.
 
 ## Change Log
+- 2026-06-11: Shared checkout edit hardening now rejects invalid edit windows before availability checks or allocation rebuilds, keeping edit behavior aligned with create-window guardrails.
 - 2026-06-10: Web checkout Step 1 now preserves the booking duration when the Pickup/Start time changes, matching the iOS reservation sheet behavior. Verified with focused Vitest coverage, TypeScript, whitespace check, and authenticated local browser smoke on `/checkouts/new`; the smoke also found no visible `\u2026` escape literals or console warnings/errors.
 - 2026-06-10: Web checkout creation audit/polish pass (refresh Slice 6). Fixed Step 1 requester/location placeholders and the Step 3 empty-equipment notice rendering literal `\u2026`/`\u2014` escape text (JSX attributes/text do not process JS escapes), aligned the header kind badge to the canonical blue (was red), aligned the Step 3 notes card and availability alert to the review panel width, removed a dead nested notes conditional, switched Step 1 event loading to geometry-preserving skeleton rows, and raised step chips, picker tabs, tray chip remove buttons, and quantity steppers to the 40px hit-target baseline with a more prominent final submit action.
 - 2026-06-08: Web checkout creation visual refresh shipped. `/checkouts/new` now promotes the selected event/booking title instead of a generic New Checkout hero, uses a quieter creation-page breadcrumb, replaces dense Step 1 admin rows with local stacked field groups, compresses Step 2 helper copy, removes unused picker tab counts and select-visible action, uses row skeletons for picker loading, keeps footer navigation tied to review instead of category browsing, compresses selected equipment into removable tray chips, and presents confirmation as a calmer Apple-like review panel while preserving multi-event, draft, availability, and kiosk-pickup contracts.
