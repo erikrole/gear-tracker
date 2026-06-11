@@ -6,6 +6,7 @@ import { requirePermission } from "@/lib/rbac";
 import { BookingStatus, Prisma } from "@prisma/client";
 import { deriveAssetStatus } from "@/lib/services/status";
 import { createAuditEntry } from "@/lib/audit";
+import { canonicalFirmwareIdentity } from "@/lib/firmware-watch-targets";
 
 const nullableTrimmedString = (max = 500) =>
   z.preprocess(
@@ -64,26 +65,10 @@ function parseNotes(notes: string | null) {
   }
 }
 
-function normalizeFirmwareBrand(value: string) {
-  const brand = value.trim();
-  if (/^sony$/i.test(brand)) return "Sony";
-  return brand;
-}
-
-function canonicalFirmwareModel(brand: string, value: string) {
-  const model = value.trim().toUpperCase().replace(/\/B$/, "");
-  if (brand === "Sony") {
-    return model
-      .replace(/^LCE-/, "ILCE-")
-      .replace(/^ILME-FX6$/, "ILME-FX6V");
-  }
-  return model;
-}
-
 async function findFirmwareWatchTargetForAsset(brandValue: string, modelValue: string) {
-  const brand = normalizeFirmwareBrand(brandValue);
-  const model = canonicalFirmwareModel(brand, modelValue);
-  if (!brand || !model) return null;
+  const identity = canonicalFirmwareIdentity(brandValue, modelValue);
+  if (!identity) return null;
+  const { brand, model } = identity;
 
   const target = await db.firmwareWatchTarget.findFirst({
     where: {

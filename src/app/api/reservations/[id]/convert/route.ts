@@ -27,8 +27,19 @@ export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
     include: {
       serializedItems: true,
       bulkItems: true,
+      events: {
+        orderBy: { ordinal: "asc" },
+        select: { eventId: true },
+      },
     },
   });
+
+  // Preserve all multi-event links, not just the primary Booking.eventId.
+  // Fall back to the legacy single eventId only when no junction rows exist.
+  const eventIds = full.events.map((link) => link.eventId);
+  const eventLinking = eventIds.length > 0
+    ? { eventIds }
+    : { eventId: full.eventId ?? undefined };
 
   // Create checkout from reservation (this atomically cancels the reservation)
   const checkout = await createBooking({
@@ -46,7 +57,7 @@ export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
     notes: full.notes ?? undefined,
     createdBy: user.id,
     sourceReservationId: id,
-    eventId: full.eventId ?? undefined,
+    ...eventLinking,
     sportCode: full.sportCode ?? undefined,
     shiftAssignmentId: full.shiftAssignmentId ?? undefined,
   });

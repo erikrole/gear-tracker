@@ -2,6 +2,7 @@
 
 import type { Dispatch, SetStateAction } from "react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ClockIcon, CheckIcon, XIcon } from "lucide-react";
+import { ClockIcon, XIcon } from "lucide-react";
 import { SPORT_CODES, sportLabel } from "@/lib/sports";
 import { formatChipTime, formatDateTime } from "@/lib/format";
 import { formatCalendarEventDateRange } from "@/lib/calendar-event-dates";
@@ -266,24 +267,45 @@ export function WizardStep1({
                 >
                   {events.map((ev) => {
                     const selected = selectedEventIds.has(ev.id);
-                    const disabled = !selected && atCap;
+                    // At cap, unselected rows stay focusable and clickable so
+                    // toggleEvent can surface the cap toast — never hard-disabled.
+                    const capped = !selected && atCap;
+                    const eventLabel = `${eventDateLabel(ev, true)} ${
+                      ev.opponent ?? (ev.sportCode ? sportLabel(ev.sportCode) : ev.summary)
+                    }`;
                     return (
-                      <Button
+                      <div
                         key={ev.id}
-                        type="button"
-                        variant="ghost"
+                        role="button"
+                        tabIndex={0}
                         onClick={() => toggleEvent(ev)}
-                        disabled={disabled}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            toggleEvent(ev);
+                          }
+                        }}
                         aria-pressed={selected}
+                        aria-disabled={capped || undefined}
+                        aria-label={`${selected ? "Unlink" : "Link"} ${eventLabel}`}
                         className={cn(
-                          "group h-auto min-h-11 w-full justify-start gap-3 rounded-sm px-3 py-2.5 text-left",
+                          "group flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-sm px-3 py-2.5 text-left outline-none",
+                          "focus-visible:ring-ring/50 focus-visible:ring-[3px]",
                           selected
                             ? "bg-muted text-foreground hover:bg-muted"
-                            : disabled
-                              ? "opacity-40 cursor-not-allowed"
+                            : capped
+                              ? "opacity-40 hover:bg-transparent"
                               : "hover:bg-muted/60",
                         )}
                       >
+                        {/* Explicit selection affordance */}
+                        <Checkbox
+                          checked={selected}
+                          tabIndex={-1}
+                          aria-hidden="true"
+                          className="pointer-events-none shrink-0"
+                        />
+
                         {/* Match info — sport name inline, no chip */}
                         <div className="min-w-0 flex-1">
                           <div
@@ -330,11 +352,7 @@ export function WizardStep1({
                           )}
                         </div>
 
-                        {/* Selected check */}
-                        {selected && (
-                          <CheckIcon className="ml-0.5 size-4 shrink-0 text-foreground" />
-                        )}
-                      </Button>
+                      </div>
                     );
                   })}
                 </div>

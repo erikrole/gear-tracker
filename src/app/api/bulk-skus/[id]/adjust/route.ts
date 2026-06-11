@@ -17,6 +17,9 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
     if (!sku) {
       throw new HttpError(404, "Bulk SKU not found");
     }
+    if (sku.trackByNumber) {
+      throw new HttpError(400, "Use Add units for unit-tracked item families");
+    }
 
     const balance = await tx.bulkStockBalance.findUnique({
       where: {

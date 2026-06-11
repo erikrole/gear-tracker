@@ -177,6 +177,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 7. Add regression tests for permissions, window filtering (7 days), and overdue consistency.
 
 ## Change Log
+- 2026-06-11: Plan 039. Dashboard `View all` overflow links are now filter-aware. Previously the section header counts scoped to the active sport or location filter while the overflow footers only checked `activeSport`, so a location-only filter could show a scoped count above a `View all N` link pointing at the unfiltered total. Both columns now hide overflow totals whenever any dashboard filter is active across My checkouts, My reservations, Team checkouts, Awaiting pickup, Stale reservations, and Team reservations, while sport-specific empty-state copy is preserved.
 - 2026-05-25: Web bug sweep Batch 47. Fix Today's `Review overdue` CTA now routes to the actual overdue checkout special filter (`/bookings?tab=checkouts&filter=overdue`) instead of the broad open-checkouts list, matching the dashboard banner and reports drill-down contract.
 - 2026-05-25: Web bug sweep Batch 44. The dashboard header refresh icon button now exposes an explicit `Refresh dashboard` accessible name instead of relying on tooltip text, fixing the unnamed button surfaced by authenticated browser smoke.
 - 2026-05-25: Web bug sweep Batch 36. Fix Today sample rows now use operator-readable Central-time dates for overdue checkout due times, pending pickup times, offline kiosk last-seen timestamps, and license expiry timestamps instead of leaking raw ISO strings in the admin daily queue.

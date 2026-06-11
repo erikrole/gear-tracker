@@ -61,6 +61,7 @@ vi.mock("@sentry/nextjs", () => ({
 
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { buildDerivedStatusWhere } from "@/lib/services/status";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { GET as exportAssets } from "@/app/api/assets/export/route";
 import { GET as pickerSearch } from "@/app/api/assets/picker-search/route";
@@ -152,6 +153,59 @@ describe("API hardening wave 12", () => {
         take: 100,
       }),
     );
+  });
+
+  it("filters equipment picker available-only by derived availability, not stored status", async () => {
+    const derivedAvailable = [{ status: "AVAILABLE", __derived: true }];
+    vi.mocked(buildDerivedStatusWhere).mockReturnValue(derivedAvailable as any);
+
+    await pickerSearch(
+      get("/api/assets/picker-search?only_available=true"),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(buildDerivedStatusWhere).toHaveBeenCalledWith(["AVAILABLE"]);
+
+    // Rows query must use the derived OR clause, never a bare stored status filter.
+    const findManyWhere = vi.mocked(db.asset.findMany).mock.calls.at(0)?.[0]?.where as {
+      AND: Array<Record<string, unknown>>;
+    };
+    expect(findManyWhere.AND).toContainEqual({ OR: derivedAvailable });
+    expect(findManyWhere.AND).not.toContainEqual({ status: "AVAILABLE" });
+
+    // Section counts must use the same derived OR clause for honest tab badges.
+    const countWheres = vi
+      .mocked(db.asset.count)
+      .mock.calls.map((call) => call[0]?.where) as Array<{ AND?: Array<Record<string, unknown>> }>;
+    const sectionCountWhere = countWheres.find((w) => Array.isArray(w?.AND));
+    expect(sectionCountWhere?.AND).toContainEqual({ OR: derivedAvailable });
+    expect(sectionCountWhere?.AND).not.toContainEqual({ status: "AVAILABLE" });
+  });
+
+  it("keeps ids hydration and qr lookup exempt from available-only filtering", async () => {
+    const derivedAvailable = [{ status: "AVAILABLE", __derived: true }];
+    vi.mocked(buildDerivedStatusWhere).mockReturnValue(derivedAvailable as any);
+
+    await pickerSearch(
+      get("/api/assets/picker-search?only_available=true&ids=asset-stale"),
+      { params: Promise.resolve({}) },
+    );
+    const idsWhere = vi.mocked(db.asset.findMany).mock.calls.at(0)?.[0]?.where as {
+      AND: Array<Record<string, unknown>>;
+    };
+    expect(idsWhere.AND).not.toContainEqual({ OR: derivedAvailable });
+    expect(idsWhere.AND).toContainEqual({ id: { in: ["asset-stale"] } });
+
+    vi.mocked(db.asset.findMany).mockClear();
+
+    await pickerSearch(
+      get("/api/assets/picker-search?only_available=true&qr=CAM-1"),
+      { params: Promise.resolve({}) },
+    );
+    const qrWhere = vi.mocked(db.asset.findMany).mock.calls.at(0)?.[0]?.where as {
+      AND: Array<Record<string, unknown>>;
+    };
+    expect(qrWhere.AND).not.toContainEqual({ OR: derivedAvailable });
   });
 
   it("runs bulk maintenance toggles inside a Serializable transaction", async () => {

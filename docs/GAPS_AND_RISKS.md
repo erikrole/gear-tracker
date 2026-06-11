@@ -28,6 +28,8 @@ _2026-06-10 update: iOS native booking picker parity shipped for scan-to-add and
 
 _2026-06-10 update: iOS Settings detail menus shipped for Notifications and Account & Security. No new gap or pending decision opened; the slice uses existing notification preferences and change-password contracts, while full native session-list management remains intentionally deferred behind the web handoff._
 
+_2026-06-11 update: iOS native reservation event linking and booking-sheet polish shipped without opening a new gap. Native creation now supports up to 3 linked upcoming events via the accepted `eventIds[]` contract, keeps event-detail prep-gear prefill behavior intact, and preserves server-authoritative availability enforcement._
+
 | ID | Description | Owner Area | Priority | Blocker? |
 |---|---|---|---|---|
 | ~~PD-1~~ | ~~D-009: Escalation recipient model~~ | ~~AREA_NOTIFICATIONS~~ | ~~Resolved~~ | ~~Requester + all admins; admin-configurable fatigue controls~~ |

@@ -1,6 +1,21 @@
 # Task Queue
 
-Last updated: 2026-06-10
+Last updated: 2026-06-11
+
+---
+
+## Active: iOS booking event linking and showtime polish (2026-06-11)
+
+Plan: `tasks/ios-booking-event-linking-polish-plan.md`
+
+- [x] Add native event linking to reservation creation.
+- [x] Refresh the three-step iOS booking UI for showtime.
+- [x] Add focused tests and doc sync.
+- [x] Run the iOS verification stack and record results.
+
+### Review
+- 2026-06-11: Native reservation creation now links up to 3 upcoming events, submits `eventIds[]`, preserves event-detail prefill behavior, and has cleaner Apple-style Details/Equipment/Confirm context.
+- 2026-06-11: Verification passed with focused iOS source tests, whitespace check, iOS drift check, iOS gap audit, and XcodeBuildMCP simulator build. TypeScript remains blocked by the unrelated pre-existing conflicted `tests/booking-create-ux.test.ts`.
 
 ---
 

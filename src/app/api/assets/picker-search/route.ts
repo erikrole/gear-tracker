@@ -9,7 +9,7 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok, parsePagination } from "@/lib/http";
 import { Prisma } from "@prisma/client";
-import { enrichAssetsWithStatusFromLoaded } from "@/lib/services/status";
+import { buildDerivedStatusWhere, enrichAssetsWithStatusFromLoaded } from "@/lib/services/status";
 import { sectionWhere, ALL_SECTION_KEYS } from "@/lib/equipment-section-filters";
 import type { EquipmentSectionKey } from "@/lib/equipment-sections";
 
@@ -61,8 +61,14 @@ export const GET = withAuth(async (req, { user }) => {
     conditions.push({ status: { not: "RETIRED" } });
   }
 
+  // "Available only" must reflect derived availability (D-001), not just the
+  // stored AVAILABLE row: an asset can be stored AVAILABLE while it has an
+  // active OPEN/PENDING_PICKUP checkout or a started BOOKED reservation.
+  // Skip for ids hydration and exact qr lookup so stale/scanned-but-unavailable
+  // assets can still surface for their dedicated UI messaging.
+  const derivedAvailableClauses = buildDerivedStatusWhere(["AVAILABLE"]);
   if (onlyAvailable && !ids && !qr) {
-    conditions.push({ status: "AVAILABLE" });
+    conditions.push({ OR: derivedAvailableClauses });
   }
 
   if (section) {
@@ -106,10 +112,12 @@ export const GET = withAuth(async (req, { user }) => {
 
   const where: Prisma.AssetWhereInput = { AND: conditions };
 
+  // Section counts must use the same derived availability filter as the rows
+  // so tab badges never claim more "available" items than the list shows.
   const baseCountConditions: Prisma.AssetWhereInput[] = [
     { parentAssetId: null },
     { status: { not: "RETIRED" } },
-    ...(onlyAvailable ? [{ status: "AVAILABLE" as const }] : []),
+    ...(onlyAvailable ? [{ OR: derivedAvailableClauses }] : []),
   ];
 
   // Run favorites, assets+count, and section counts all in parallel

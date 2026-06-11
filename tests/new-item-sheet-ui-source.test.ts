@@ -52,4 +52,15 @@ describe("Add item sheet booking-inspired UI", () => {
     expect(bulkSource).toContain('label="Item" htmlFor="existing-bulk-item"');
     expect(bulkSource).toContain('aria-label="Generate QR code"');
   });
+
+  it("excludes unit-tracked families from the Quantity add-to-existing selector", () => {
+    const bulkSource = readFileSync("src/app/(app)/items/new-item-sheet/BulkItemForm.tsx", "utf8");
+
+    // The add-to-existing path must only target quantity-tracked families so it never
+    // routes unit-tracked stock through /adjust (which skips BulkSkuUnit creation).
+    expect(bulkSource).toContain("existingBulkSkus.filter((sku) => !sku.trackByNumber)");
+    expect(bulkSource).toContain("skus={quantityOnlyBulkSkus}");
+    expect(bulkSource).toContain("quantityOnlyBulkSkus.find((s) => s.id === selectedBulkSkuId)");
+    expect(bulkSource).toContain("quantityOnlyBulkSkus.length === 0");
+  });
 });

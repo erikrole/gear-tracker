@@ -2,6 +2,7 @@ import type { FirmwareSourceType, FirmwareSupportMode } from "@prisma/client";
 import { db } from "@/lib/db";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { sendPushToUser } from "@/lib/services/notifications";
+import { validateFirmwareSourceUrl } from "@/lib/firmware-watch-targets";
 
 export type FirmwareRelease = {
   version: string;
@@ -35,10 +36,6 @@ export type FirmwareWatchResult = {
   failed: number;
   notificationsCreated: number;
   errors: Array<{ targetId: string; product: string; error: string }>;
-};
-
-const ALLOWED_HOSTS: Partial<Record<FirmwareSourceType, Set<string>>> = {
-  SONY_SUPPORT: new Set(["www.sony.com", "sony.com", "www.sony.co.uk", "sony.co.uk"]),
 };
 
 export function parseFirmwareRelease(
@@ -232,24 +229,6 @@ async function notifyAdminsOfFirmwareRelease(
   }
 
   return created.count;
-}
-
-function validateFirmwareSourceUrl(sourceType: FirmwareSourceType, sourceUrl: string): void {
-  let url: URL;
-  try {
-    url = new URL(sourceUrl);
-  } catch {
-    throw new Error("Firmware source URL is invalid");
-  }
-
-  if (url.protocol !== "https:") {
-    throw new Error("Firmware source URL must use HTTPS");
-  }
-
-  const hosts = ALLOWED_HOSTS[sourceType];
-  if (!hosts?.has(url.hostname.toLowerCase())) {
-    throw new Error(`Firmware source host is not allowed for ${sourceType}`);
-  }
 }
 
 function htmlToSearchableText(html: string): string {

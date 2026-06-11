@@ -203,6 +203,20 @@ describe("updateReservation", () => {
       })
     );
   });
+
+  it("rejects an invalid edit window before availability or allocation work", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(makeExistingReservation());
+
+    await expect(
+      updateReservation("r-1", "actor-1", { endsAt: new Date("2026-04-10T07:00:00Z") })
+    ).rejects.toThrow("endsAt must be later than startsAt");
+
+    expect(checkAvailability).not.toHaveBeenCalled();
+    expect(mockTx.assetAllocation.deleteMany).not.toHaveBeenCalled();
+    expect(mockTx.assetAllocation.createMany).not.toHaveBeenCalled();
+    expect(mockTx.bookingSerializedItem.deleteMany).not.toHaveBeenCalled();
+    expect(mockTx.bookingSerializedItem.createMany).not.toHaveBeenCalled();
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -300,5 +314,19 @@ describe("updateCheckout", () => {
 
     const createCall = mockTx.bookingSerializedItem.createMany.mock.calls[0][0];
     expect(createCall.data).toHaveLength(2); // deduped from 3 to 2
+  });
+
+  it("rejects an invalid edit window before availability or allocation work", async () => {
+    mockTx.booking.findUnique.mockResolvedValue(makeExistingCheckout());
+
+    await expect(
+      updateCheckout("c-1", "actor-1", { endsAt: new Date("2026-04-10T07:00:00Z") })
+    ).rejects.toThrow("endsAt must be later than startsAt");
+
+    expect(checkAvailability).not.toHaveBeenCalled();
+    expect(mockTx.assetAllocation.deleteMany).not.toHaveBeenCalled();
+    expect(mockTx.assetAllocation.createMany).not.toHaveBeenCalled();
+    expect(mockTx.bookingSerializedItem.deleteMany).not.toHaveBeenCalled();
+    expect(mockTx.bookingSerializedItem.createMany).not.toHaveBeenCalled();
   });
 });

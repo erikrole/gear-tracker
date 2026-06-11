@@ -39,7 +39,7 @@ import { useFormOptions } from "@/hooks/use-form-options";
 import { WizardStep1 } from "./WizardStep1";
 import { WizardStep2 } from "./WizardStep2";
 import { WizardStep3 } from "./WizardStep3";
-import { getStep2PrimaryActionLabel } from "./flow-summary";
+import { applyBulkShortageRecovery, getStep2PrimaryActionLabel } from "./flow-summary";
 import { CheckIcon, AlertCircleIcon, RotateCcwIcon, XIcon } from "lucide-react";
 
 /* ───── Config per kind ───── */
@@ -430,12 +430,29 @@ export function BookingWizard({ kind }: BookingWizardProps) {
           if (conflictingAssetIds.size > 0) {
             setSelectedAssetIds((prev) => prev.filter((id) => !conflictingAssetIds.has(id)));
           }
+          // Auto-clamp bulk quantities to server-reported availability so the user
+          // doesn't have to infer and repair the too-high quantity manually.
+          const bulkRecovery = d.shortages?.length
+            ? applyBulkShortageRecovery(
+                selectedBulkItems,
+                d.shortages,
+                (id) => bulkSkus.find((sk) => sk.id === id)?.name,
+              )
+            : null;
+          if (bulkRecovery && bulkRecovery.adjustedCount > 0) {
+            setSelectedBulkItems(bulkRecovery.nextBulkItems);
+          }
           const removedCount = conflictingAssetIds.size;
+          const bulkAdjustedCount = bulkRecovery?.adjustedCount ?? 0;
           const conflictMessage = msgs.length > 0 ? msgs.join(". ") : json?.error || "Availability conflict";
           const removalNote = removedCount > 0
             ? `${removedCount} item${removedCount !== 1 ? "s" : ""} removed from your selection.`
             : "";
-          setCreateError(removalNote ? `${conflictMessage}. ${removalNote}` : conflictMessage);
+          const bulkNote = bulkAdjustedCount > 0
+            ? "Bulk quantities adjusted to available stock."
+            : "";
+          const notes = [removalNote, bulkNote].filter(Boolean).join(" ");
+          setCreateError(notes ? `${conflictMessage}. ${notes}` : conflictMessage);
           setStep(2);
         } else {
           setCreateError(json?.error || await parseErrorMessage(res, `Couldn\u2019t create this ${config.label}. Please try again`));

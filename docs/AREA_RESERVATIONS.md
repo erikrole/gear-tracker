@@ -36,9 +36,10 @@ Multi-step wizard page (replaced the old side-sheet flow as of 2026-04-09):
 ### Native iOS Create Reservation
 Native iOS creation mirrors the three-step reservation rhythm while staying mobile-first:
 1. Details preserves duration when the start date moves.
-2. Equipment supports searchable serialized assets, scan-to-add through the shared QR scanner, and countable bulk/battery quantities from `/api/form-options`.
-3. Review counts serialized assets plus selected bulk quantities, shows selected bulk rows, and submits typed `bulkItems` alongside `serializedAssetIds`.
-4. Serialized conflict hints stay advisory before submit; server-side availability and bulk shortage checks remain authoritative.
+2. Details can link up to 3 upcoming calendar events. Selected events auto-fill the title, location, and start/end window until the user edits those fields, then submit through the existing `eventIds[]` reservation API. Event-launched prep-gear flows keep the prefilled `eventId`/`shiftAssignmentId` contract unless the user explicitly picks events in the sheet.
+3. Equipment supports searchable serialized assets, scan-to-add through the shared QR scanner, and countable bulk/battery quantities from `/api/form-options`.
+4. Review counts serialized assets plus selected bulk quantities, shows selected bulk rows, summarizes linked events, and submits typed `bulkItems` alongside `serializedAssetIds`.
+5. Serialized conflict hints stay advisory before submit; server-side availability and bulk shortage checks remain authoritative.
 
 ### Edit Reservation
 1. Allowed fields depend on role, ownership, and lifecycle state.
@@ -252,6 +253,7 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 8. Implement list page controls and row behavior from V1 list surface spec.
 
 ## Change Log
+- 2026-06-11: iOS native reservation creation event linking and showtime polish shipped. The Details step now loads upcoming events, supports up to 3 linked event selections, auto-fills context from the selected span while respecting user edits, and submits `eventIds[]` when events are selected. The native sheet keeps event-detail prep-gear legacy prefill behavior, scan-to-add, bulk/countable selection, and server-side availability enforcement unchanged.
 - 2026-06-10: Web reservation creation inherits the shared Step 1 duration-preserving start-date behavior from the booking wizard. Moving Start now shifts End by the previous duration instead of making a valid window invalid.
 - 2026-06-10: Web reservation creation audit/polish pass (refresh Slice 6). Same fixes as checkouts (escape-literal placeholders, layout alignment, hit targets, skeletons), plus the header kind badge now uses the canonical purple (was blue) and the Step 3 review icon uses the canonical calendar glyph per docs/COLOR_SYSTEM.md.
 - 2026-06-08: Web reservation creation visual refresh shipped. `/reservations/new` now promotes the selected event/booking title instead of a generic New Reservation hero, uses a quieter creation-page breadcrumb, replaces dense Step 1 admin rows with local stacked field groups, compresses Step 2 helper copy, removes unused picker tab counts and select-visible action, uses row skeletons for picker loading, keeps footer navigation tied to review instead of category browsing, compresses selected equipment into removable tray chips, and presents confirmation as a calmer Apple-like review panel while preserving multi-event, draft, availability, and reservation payload contracts.

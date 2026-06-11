@@ -298,6 +298,7 @@ export function CategoryCombobox({
 export type BulkSkuOption = {
   id: string;
   name: string;
+  trackByNumber: boolean;
   location: { name: string };
   balances: { onHandQuantity: number }[];
   categoryRel: { name: string } | null;

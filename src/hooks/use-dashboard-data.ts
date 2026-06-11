@@ -106,8 +106,10 @@ export function useDashboardData(): UseDashboardDataResult {
       : false;
 
   // Merge: overlay fresh stats from the fast endpoint onto the full payload.
-  // This keeps stat cards and the overdue count current (60s) without
-  // re-running the expensive events/shifts/flagged queries.
+  // This keeps stat cards, the overdue count, and transient-lane totals
+  // (awaiting pickup, stale reservations) current (60s) without re-running the
+  // expensive events/shifts/flagged queries. Row item arrays stay owned by the
+  // full payload — only lane totals are overlaid.
   const safeFullData = fullData ? normalizeDashboard(fullData) : null;
   const data: DashboardData | null = safeFullData
     ? statsData
@@ -128,6 +130,14 @@ export function useDashboardData(): UseDashboardDataResult {
           teamReservations: {
             ...safeFullData.teamReservations,
             total: statsData.teamReservationsTotal,
+          },
+          pendingPickups: {
+            ...safeFullData.pendingPickups,
+            total: statsData.pendingPickupTotal,
+          },
+          staleReservations: {
+            ...safeFullData.staleReservations,
+            total: statsData.staleReservationTotal,
           },
         }
       : safeFullData

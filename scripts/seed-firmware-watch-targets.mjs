@@ -204,6 +204,13 @@ function canonicalizeInventory(groups) {
     .sort((a, b) => `${a.brand} ${a.canonicalModel}`.localeCompare(`${b.brand} ${b.canonicalModel}`));
 }
 
+// NOTE: The canonicalization and Sony alias rules below mirror the authoritative
+// runtime contract in `src/lib/firmware-watch-targets.ts`
+// (normalizeFirmwareBrand / canonicalFirmwareModel). This script runs as plain
+// ESM without TypeScript tooling, so the rules are duplicated here intentionally.
+// If you change brand/model canonicalization, update the shared helper first,
+// then reconcile this script. `tests/firmware-watch-source-contract.test.ts`
+// guards that the shared Sony alias rules stay in sync with these.
 function canonicalCameraBody(brand, model) {
   const normalizedBrand = normalizeBrand(brand);
   const rawModel = String(model ?? "").trim().toUpperCase();

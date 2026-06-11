@@ -16,9 +16,12 @@ describe("dashboard pending pickup links", () => {
   it("routes stale reservations to the reservation overdue list", () => {
     const component = source("src/app/(app)/dashboard/team-activity-column.tsx");
     const route = source("src/app/api/dashboard/route.ts");
+    const countReader = source("src/lib/services/dashboard-counts.ts");
     expect(component).toContain('const STALE_RESERVATIONS_HREF = "/bookings?tab=reservations&filter=overdue"');
     expect(component).toContain('title="Stale reservations" href={STALE_RESERVATIONS_HREF}');
     expect(route).toContain("staleReservations");
-    expect(route).toContain("kind = 'RESERVATION' AND status = 'BOOKED' AND ends_at <");
+    // The stale-reservation count predicate now lives in the shared count reader
+    // that both dashboard routes consume.
+    expect(countReader).toContain("kind = 'RESERVATION' AND status = 'BOOKED' AND ends_at <");
   });
 });

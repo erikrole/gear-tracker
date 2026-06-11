@@ -121,7 +121,7 @@ describe("student field mobile contracts", () => {
     expect(createSheet).toContain("Button(\"Review\") { step = 3 }");
     expect(createSheet).toContain(".disabled(vm.selectedEquipmentCount == 0 || vm.isSubmitting)");
     expect(createSheet).toContain("Text(\"Reserve for later\")");
-    expect(createSheet).toContain("Text(\"Review your reservation\")");
+    expect(createSheet).toContain("Text(vm.title.isEmpty ? \"Review your reservation\" : vm.title)");
     expect(createSheet).toContain("Text(\"Selected Equipment\")");
     expect(createSheet).toContain("Text(\"Batteries & Counted Items\")");
     expect(createSheet).toContain("Label(\"Scan equipment\", systemImage: \"barcode.viewfinder\")");

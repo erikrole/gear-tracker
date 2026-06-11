@@ -331,6 +331,7 @@ export default function DashboardPage() {
             data={data}
             filtered={filters.filtered}
             activeSport={filters.activeSport}
+            hasActiveFilter={filters.hasActiveFilter}
             now={now}
             acting={acting !== null}
             ownedAccent
@@ -345,6 +346,7 @@ export default function DashboardPage() {
               data={data}
               filtered={filters.filtered}
               activeSport={filters.activeSport}
+              hasActiveFilter={filters.hasActiveFilter}
               now={now}
               isStaff={isStaff}
               acting={acting !== null}

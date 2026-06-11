@@ -4,7 +4,7 @@ import { HttpError, ok } from "@/lib/http";
 import { getInitials } from "@/lib/avatar";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { shiftWorkerLabel } from "@/lib/shift-display";
-import { Prisma } from "@prisma/client";
+import { readDashboardCounts, zeroDashboardCounts } from "@/lib/services/dashboard-counts";
 
 const DASHBOARD_LIMIT = { max: 30, windowMs: 60_000 };
 
@@ -154,39 +154,15 @@ export const GET = withAuth(async (_req, { user }) => {
     },
   } as const;
 
-  // Consolidate 9 count queries into a single raw SQL query with conditional aggregation
-  type CountRow = {
-    team_checkouts: bigint;
-    team_checkouts_overdue: bigint;
-    team_reservations: bigint;
-    my_checkouts: bigint;
-    my_overdue: bigint;
-    total_checked_out: bigint;
-    total_overdue: bigint;
-    total_reserved: bigint;
-    due_today: bigint;
-    pending_pickup: bigint;
-    stale_reservations: bigint;
-  };
-  const countsPromise = db.$queryRaw<CountRow[]>(Prisma.sql`
-    SELECT
-      COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN') AS total_checked_out,
-      COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND ends_at < ${now}) AS total_overdue,
-      COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND ends_at >= ${startOfToday} AND ends_at < ${startOfTomorrow}) AS due_today,
-      COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND requester_user_id != ${user.id}) AS team_checkouts,
-      COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND requester_user_id != ${user.id} AND ends_at < ${now}) AS team_checkouts_overdue,
-      COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND requester_user_id = ${user.id}) AS my_checkouts,
-      COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND requester_user_id = ${user.id} AND ends_at < ${now}) AS my_overdue,
-      COUNT(*) FILTER (WHERE kind = 'RESERVATION' AND status = 'BOOKED' AND starts_at >= ${now} AND starts_at <= ${sevenDaysFromNow}) AS total_reserved,
-      COUNT(*) FILTER (WHERE kind = 'RESERVATION' AND status = 'BOOKED' AND requester_user_id != ${user.id} AND starts_at >= ${now} AND starts_at <= ${sevenDaysFromNow}) AS team_reservations,
-      COUNT(*) FILTER (WHERE status = 'PENDING_PICKUP') AS pending_pickup,
-      COUNT(*) FILTER (WHERE kind = 'RESERVATION' AND status = 'BOOKED' AND ends_at < ${now}) AS stale_reservations
-    FROM bookings
-    WHERE (kind = 'CHECKOUT' AND status = 'OPEN')
-       OR (kind = 'RESERVATION' AND status = 'BOOKED' AND starts_at >= ${now} AND starts_at <= ${sevenDaysFromNow})
-       OR (kind = 'RESERVATION' AND status = 'BOOKED' AND ends_at < ${now})
-       OR status = 'PENDING_PICKUP'
-  `);
+  // Shared bounded count aggregate — same reader the lightweight stats endpoint
+  // uses, so transient-lane totals can never drift between the two routes.
+  const countsPromise = readDashboardCounts({
+    userId: user.id,
+    now,
+    sevenDaysFromNow,
+    startOfToday,
+    startOfTomorrow,
+  });
 
   const [
     countsResult,
@@ -389,21 +365,8 @@ export const GET = withAuth(async (_req, { user }) => {
       : Promise.resolve([]),
   ]);
   const partialFailures: string[] = [];
-  const zeroCounts: CountRow[] = [{
-    team_checkouts: 0n,
-    team_checkouts_overdue: 0n,
-    team_reservations: 0n,
-    my_checkouts: 0n,
-    my_overdue: 0n,
-    total_checked_out: 0n,
-    total_overdue: 0n,
-    total_reserved: 0n,
-    due_today: 0n,
-    pending_pickup: 0n,
-    stale_reservations: 0n,
-  }];
   const bookingRowsFallback: Array<Parameters<typeof toBookingSummary>[0]> = [];
-  const counts = settledValue(countsResult, zeroCounts, "counts", partialFailures);
+  const counts = settledValue(countsResult, zeroDashboardCounts, "counts", partialFailures);
   const teamCheckoutsRaw = settledValue(teamCheckoutsRawResult, bookingRowsFallback, "teamCheckouts", partialFailures);
   const teamReservationsRaw = settledValue(teamReservationsRawResult, bookingRowsFallback, "teamReservations", partialFailures);
   const staleReservationsRaw = settledValue(staleReservationsRawResult, bookingRowsFallback, "staleReservations", partialFailures);
@@ -552,19 +515,17 @@ export const GET = withAuth(async (_req, { user }) => {
     }));
   }
 
-  const c = counts[0];
-  if (!c) throw new HttpError(500, "Dashboard counts query returned no rows");
-  const teamCheckoutsTotalCount = Number(c.team_checkouts);
-  const teamCheckoutsOverdueCount = Number(c.team_checkouts_overdue);
-  const teamReservationsTotalCount = Number(c.team_reservations);
-  const myCheckoutsTotalCount = Number(c.my_checkouts);
-  const myOverdueCount = Number(c.my_overdue);
-  const totalCheckedOut = Number(c.total_checked_out);
-  const totalOverdue = Number(c.total_overdue);
-  const totalReserved = Number(c.total_reserved);
-  const dueTodayCount = Number(c.due_today);
-  const pendingPickupTotalCount = Number(c.pending_pickup);
-  const staleReservationTotalCount = Number(c.stale_reservations);
+  const teamCheckoutsTotalCount = counts.teamCheckoutsTotal;
+  const teamCheckoutsOverdueCount = counts.teamCheckoutsOverdue;
+  const teamReservationsTotalCount = counts.teamReservationsTotal;
+  const myCheckoutsTotalCount = counts.myCheckoutsTotal;
+  const myOverdueCount = counts.myOverdue;
+  const totalCheckedOut = counts.totalCheckedOut;
+  const totalOverdue = counts.totalOverdue;
+  const totalReserved = counts.totalReserved;
+  const dueTodayCount = counts.dueToday;
+  const pendingPickupTotalCount = counts.pendingPickupTotal;
+  const staleReservationTotalCount = counts.staleReservationTotal;
 
   const teamCheckouts = teamCheckoutsRaw.map((c) => toBookingSummary(c, now, true));
   teamCheckouts.sort(sortOverdueFirst);

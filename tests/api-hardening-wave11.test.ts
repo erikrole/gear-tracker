@@ -230,6 +230,21 @@ describe("API hardening wave 11", () => {
     expect(mockTx.bulkStockBalance.upsert).not.toHaveBeenCalled();
   });
 
+  it("rejects quantity adjustments for unit-tracked item families", async () => {
+    mockTx.bulkSku.findUnique.mockResolvedValue({ id: "sku-1", locationId: "loc-1", trackByNumber: true });
+
+    const res = await adjustBulkSku(
+      authedPost("/api/bulk-skus/sku-1/adjust", { quantityDelta: 2, reason: "count correction" }),
+      { params: Promise.resolve({ id: "sku-1" }) },
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toMatch(/Add units|unit-tracked/i);
+    expect(mockTx.bulkStockBalance.upsert).not.toHaveBeenCalled();
+    expect(mockTx.bulkStockMovement.create).not.toHaveBeenCalled();
+  });
+
   it("bounds checkout report lookback before calling the service", async () => {
     vi.mocked(requireAuth).mockResolvedValue(staffUser);
 

@@ -21,14 +21,21 @@ final class CreateBookingViewModel {
     var startsAt = nextCleanHour(addingHours: 0)
     var endsAt = nextCleanHour(addingHours: 1)
     var notes = ""
+    var userEditedTitle = false
+    var userEditedLocation = false
+    var userEditedWindow = false
 
     var prefillEventId: String?
     var prefillShiftAssignmentId: String?
 
     var options: FormOptions?
+    var events: [ScheduleEvent] = []
+    var selectedEventIds: [String] = []
     var isLoadingOptions = false
+    var isLoadingEvents = false
     var isSubmitting = false
     var error: String?
+    var eventError: String?
 
     // Equipment selection
     var selectedAssetIds: Set<String> = []
@@ -69,6 +76,23 @@ final class CreateBookingViewModel {
 
     var selectedUser: FormUser? { options?.users.first(where: { $0.id == selectedUserId }) }
     var selectedLocation: FormOption? { options?.locations.first(where: { $0.id == selectedLocationId }) }
+    var selectedEvents: [ScheduleEvent] {
+        let byId = Dictionary(uniqueKeysWithValues: events.map { ($0.id, $0) })
+        return selectedEventIds
+            .compactMap { byId[$0] }
+            .sorted { $0.startsAt < $1.startsAt }
+    }
+    var linkedEventCount: Int {
+        if !selectedEventIds.isEmpty { return selectedEventIds.count }
+        return prefillEventId == nil ? 0 : 1
+    }
+    var linkedEventLabel: String? {
+        if selectedEvents.isEmpty {
+            return prefillEventId == nil ? nil : "Linked to event"
+        }
+        if selectedEvents.count == 1 { return selectedEvents[0].shortBookingEventTitle }
+        return "\(selectedEvents.count) linked events"
+    }
     var selectedAssets: [Asset] {
         selectedAssetIds
             .compactMap { id in selectedAssetSnapshots[id] ?? availableAssets.first(where: { $0.id == id }) }
@@ -117,9 +141,15 @@ final class CreateBookingViewModel {
     /// calendar-app behavior. Only called from the From picker binding so
     /// programmatic prefills never shift an explicitly set end date.
     func adjustStart(to newStart: Date) {
+        userEditedWindow = true
         let duration = endsAt.timeIntervalSince(startsAt)
         startsAt = newStart
         endsAt = newStart.addingTimeInterval(max(duration, 0))
+    }
+
+    func adjustEnd(to newEnd: Date) {
+        userEditedWindow = true
+        endsAt = newEnd
     }
 
     func prefill(title: String, startsAt: Date, endsAt: Date, userId: String, eventId: String?, shiftAssignmentId: String?) {
@@ -129,6 +159,74 @@ final class CreateBookingViewModel {
         self.selectedUserId = userId
         self.prefillEventId = eventId
         self.prefillShiftAssignmentId = shiftAssignmentId
+    }
+
+    func loadEvents() async {
+        guard events.isEmpty else { return }
+        isLoadingEvents = true
+        eventError = nil
+        do {
+            events = try await APIClient.shared.calendarEvents(includePast: false, limit: 60)
+        } catch {
+            eventError = error.localizedDescription
+        }
+        isLoadingEvents = false
+    }
+
+    func toggleEvent(_ event: ScheduleEvent) {
+        if selectedEventIds.contains(event.id) {
+            selectedEventIds.removeAll { $0 == event.id }
+        } else {
+            guard selectedEventIds.count < 3 else {
+                Haptics.warning()
+                return
+            }
+            selectedEventIds.append(event.id)
+        }
+        sortSelectedEventIds()
+        applySelectedEventsToDetails()
+        Haptics.selection()
+    }
+
+    func removeSelectedEvent(_ event: ScheduleEvent) {
+        selectedEventIds.removeAll { $0 == event.id }
+        applySelectedEventsToDetails()
+    }
+
+    func setTitleFromUser(_ value: String) {
+        userEditedTitle = true
+        title = value
+    }
+
+    func setLocationFromUser(_ value: String) {
+        userEditedLocation = true
+        selectedLocationId = value
+    }
+
+    private func sortSelectedEventIds() {
+        let byId = Dictionary(uniqueKeysWithValues: events.map { ($0.id, $0) })
+        selectedEventIds.sort {
+            (byId[$0]?.startsAt ?? .distantFuture) < (byId[$1]?.startsAt ?? .distantFuture)
+        }
+    }
+
+    private func applySelectedEventsToDetails() {
+        let picked = selectedEvents
+        guard let first = picked.first else { return }
+        if !userEditedTitle || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            title = "Gear - \(first.summary)"
+            userEditedTitle = false
+        }
+        if !userEditedLocation, let locationId = first.location?.id {
+            selectedLocationId = locationId
+        }
+        if !userEditedWindow {
+            startsAt = first.startsAt
+            endsAt = picked.last?.endsAt ?? first.endsAt
+        }
+        prefillEventId = nil
+        prefillShiftAssignmentId = nil
+        scheduleConflictCheck()
     }
 
     /// Prefills a reservation context started from an item row.
@@ -288,7 +386,8 @@ final class CreateBookingViewModel {
             startsAt: startsAt,
             endsAt: endsAt,
             notes: notes.isEmpty ? nil : notes,
-            eventId: prefillEventId,
+            eventId: selectedEventIds.isEmpty ? prefillEventId : nil,
+            eventIds: selectedEventIds,
             shiftAssignmentId: prefillShiftAssignmentId,
             serializedAssetIds: Array(selectedAssetIds),
             bulkItems: selectedBulkRequests
@@ -308,6 +407,7 @@ struct CreateBookingSheet: View {
     @State private var initialLocationId: String = ""
     @State private var initialStartsAt: Date = .now
     @State private var initialEndsAt: Date = .now
+    @State private var initialEventIds: [String] = []
     @State private var capturedInitial = false
     @State private var showScanner = false
     @Environment(SessionStore.self) private var session
@@ -332,6 +432,7 @@ struct CreateBookingSheet: View {
         if !vm.notes.isEmpty { return true }
         if !vm.selectedAssetIds.isEmpty { return true }
         if vm.selectedBulkTotal > 0 { return true }
+        if vm.selectedEventIds != initialEventIds { return true }
         // Track requester / location / date deltas so a STAFF user who picks
         // a requester + adjusts dates and then taps Cancel gets a discard
         // prompt before losing the setup.
@@ -393,7 +494,11 @@ struct CreateBookingSheet: View {
                 Text("Your changes will be lost.")
             }
             .interactiveDismissDisabled(hasUnsavedInput || vm.isSubmitting)
-            .task { await vm.loadOptions() }
+            .task {
+                async let optionsTask: Void = vm.loadOptions()
+                async let eventsTask: Void = vm.loadEvents()
+                _ = await (optionsTask, eventsTask)
+            }
             .fullScreenCover(isPresented: $showScanner) {
                 QRScannerSheet { assetId in
                     showScanner = false
@@ -426,6 +531,7 @@ struct CreateBookingSheet: View {
         initialLocationId = vm.selectedLocationId
         initialStartsAt = vm.startsAt
         initialEndsAt = vm.endsAt
+        initialEventIds = vm.selectedEventIds
         capturedInitial = true
     }
 
@@ -464,14 +570,32 @@ struct CreateBookingSheet: View {
     @ViewBuilder
     private var detailsForm: some View {
         ScrollView {
-            VStack(spacing: 12) {
-                // Title
+            VStack(spacing: 18) {
+                BookingStepHeader(
+                    icon: "calendar.badge.plus",
+                    eyebrow: "Reservation",
+                    title: vm.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Plan the hold" : vm.title,
+                    subtitle: detailHeaderSubtitle
+                )
+
                 FormCard {
-                    TextField("Booking title", text: $vm.title)
-                        .font(.body)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Title")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .textCase(.uppercase)
+                        TextField(
+                            "Booking title",
+                            text: Binding(
+                                get: { vm.title },
+                                set: { vm.setTitleFromUser($0) }
+                            )
+                        )
+                        .font(.title3.weight(.semibold))
+                        .submitLabel(.next)
+                    }
                 }
 
-                // Who & Where
                 FormCard {
                     if vm.isLoadingOptions {
                         HStack {
@@ -518,7 +642,10 @@ struct CreateBookingSheet: View {
                             OptionPickerView(
                                 title: "Location",
                                 options: vm.options?.locations.map { ($0.id, $0.name) } ?? [],
-                                selection: $vm.selectedLocationId
+                                selection: Binding(
+                                    get: { vm.selectedLocationId },
+                                    set: { vm.setLocationFromUser($0) }
+                                )
                             )
                         } label: {
                             FormPickerRow(
@@ -530,7 +657,16 @@ struct CreateBookingSheet: View {
                     }
                 }
 
-                // Dates
+                EventLinkingCard(
+                    events: vm.events,
+                    selectedEvents: vm.selectedEvents,
+                    isLoading: vm.isLoadingEvents,
+                    error: vm.eventError,
+                    onRetry: { Task { await vm.loadEvents() } },
+                    onToggle: { vm.toggleEvent($0) },
+                    onRemove: { vm.removeSelectedEvent($0) }
+                )
+
                 FormCard {
                     DatePicker(
                         "From",
@@ -542,11 +678,18 @@ struct CreateBookingSheet: View {
                     )
                     .tint(.accentColor)
                     Divider().padding(.leading, 4)
-                    DatePicker("To", selection: $vm.endsAt, in: vm.startsAt..., displayedComponents: [.date, .hourAndMinute])
+                    DatePicker(
+                        "To",
+                        selection: Binding(
+                            get: { vm.endsAt },
+                            set: { vm.adjustEnd(to: $0) }
+                        ),
+                        in: vm.startsAt...,
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
                         .tint(.accentColor)
                 }
 
-                // Notes
                 FormCard {
                     TextField("Notes (optional)", text: $vm.notes, axis: .vertical)
                         .lineLimit(3...6)
@@ -566,9 +709,28 @@ struct CreateBookingSheet: View {
         .background(Color(.systemGroupedBackground))
     }
 
+    private var detailHeaderSubtitle: String {
+        let window = "\(vm.startsAt.formatted(date: .abbreviated, time: .shortened)) to \(vm.endsAt.formatted(date: .omitted, time: .shortened))"
+        if let linked = vm.linkedEventLabel {
+            return "\(linked) · \(window)"
+        }
+        return window
+    }
+
     @ViewBuilder
     private var equipmentPicker: some View {
         List {
+            Section {
+                BookingStepHeader(
+                    icon: "shippingbox.and.arrow.backward",
+                    eyebrow: "Equipment",
+                    title: vm.selectedEquipmentCount == 0 ? "Choose the gear" : "\(vm.selectedEquipmentCount) selected",
+                    subtitle: vm.linkedEventLabel ?? "Search, scan, or add counted supplies."
+                )
+                .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 12, trailing: 20))
+                .listRowBackground(Color.clear)
+            }
+
             Section {
                 TextField("Search equipment…", text: $vm.assetSearch)
                     .onChange(of: vm.assetSearch) { vm.onSearchChange() }
@@ -709,6 +871,7 @@ struct CreateBookingSheet: View {
             }
 
         }
+        .listStyle(.insetGrouped)
         .scrollDismissesKeyboard(.immediately)
     }
 
@@ -721,15 +884,17 @@ struct CreateBookingSheet: View {
             VStack(spacing: 24) {
                 VStack(spacing: 0) {
                     // Canonical reservation identity: calendar on purple.
-                    Image(systemName: "calendar")
-                        .font(.title2)
+                    Image(systemName: vm.linkedEventCount > 0 ? "calendar.badge.checkmark" : "calendar")
+                        .font(.title2.weight(.semibold))
                         .foregroundStyle(Color.statusText(.purple))
-                        .frame(width: 48, height: 48)
-                        .background(Color.statusBackground(.purple), in: RoundedRectangle(cornerRadius: 12))
+                        .frame(width: 56, height: 56)
+                        .background(Color.statusBackground(.purple), in: RoundedRectangle(cornerRadius: 16))
 
-                    Text("Review your reservation")
-                        .font(.title3.weight(.semibold))
-                        .padding(.top, 16)
+                    Text(vm.title.isEmpty ? "Review your reservation" : vm.title)
+                        .font(.title2.weight(.bold))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .padding(.top, 18)
 
                     Text(vm.startsAt.formatted(date: .abbreviated, time: .shortened))
                         .font(.title2.weight(.semibold))
@@ -762,6 +927,14 @@ struct CreateBookingSheet: View {
                             Text("\(vm.selectedEquipmentCount) item\(vm.selectedEquipmentCount == 1 ? "" : "s")")
                                 .font(.subheadline.weight(.medium))
                                 .monospacedDigit()
+                        }
+                        if let linked = vm.linkedEventLabel {
+                            Divider()
+                            reviewFactRow(label: vm.linkedEventCount > 1 ? "Events" : "Event") {
+                                Text(linked)
+                                    .font(.subheadline.weight(.medium))
+                                    .multilineTextAlignment(.trailing)
+                            }
                         }
                         if !vm.notes.isEmpty {
                             Divider()
@@ -859,6 +1032,25 @@ struct CreateBookingSheet: View {
                 }
                 .padding(.horizontal, 20)
 
+                if !vm.selectedEvents.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(vm.selectedEvents.count == 1 ? "Linked Event" : "Linked Events")
+                            .font(.subheadline.weight(.semibold))
+                        VStack(spacing: 0) {
+                            ForEach(Array(vm.selectedEvents.enumerated()), id: \.element.id) { index, event in
+                                if index > 0 { Divider().padding(.leading, 12) }
+                                ReviewEventRow(event: event)
+                            }
+                        }
+                        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .strokeBorder(Color(.separator).opacity(0.6), lineWidth: 0.5)
+                        )
+                    }
+                    .padding(.horizontal, 20)
+                }
+
                 // One primary action, prominent and inline — like web Step 3.
                 Button {
                     Task { await create() }
@@ -912,6 +1104,246 @@ struct CreateBookingSheet: View {
         let unit = sku.unit?.isEmpty == false ? " \(sku.unit!)" : ""
         let pickup = sku.trackByNumber ? " · units scan at pickup" : ""
         return "\(sku.availableQuantity) available\(unit)\(pickup)"
+    }
+}
+
+private struct BookingStepHeader: View {
+    let icon: String
+    let eyebrow: String
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(Color.statusText(.purple))
+                    .frame(width: 42, height: 42)
+                    .background(Color.statusBackground(.purple), in: RoundedRectangle(cornerRadius: 12))
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(eyebrow)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+                    Text(title)
+                        .font(.title2.weight(.bold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.85)
+                }
+            }
+
+            Text(subtitle)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct EventLinkingCard: View {
+    let events: [ScheduleEvent]
+    let selectedEvents: [ScheduleEvent]
+    let isLoading: Bool
+    let error: String?
+    let onRetry: () -> Void
+    let onToggle: (ScheduleEvent) -> Void
+    let onRemove: (ScheduleEvent) -> Void
+
+    private var visibleEvents: [ScheduleEvent] {
+        events
+    }
+
+    var body: some View {
+        FormCard {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 10) {
+                    Image(systemName: "calendar")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.statusText(.purple))
+                        .frame(width: 30, height: 30)
+                        .background(Color.statusBackground(.purple), in: RoundedRectangle(cornerRadius: 8))
+                        .accessibilityHidden(true)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Link events")
+                            .font(.headline)
+                        Text("Up to 3 upcoming events")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    if !selectedEvents.isEmpty {
+                        Text("\(selectedEvents.count)/3")
+                            .font(.caption.weight(.semibold).monospacedDigit())
+                            .foregroundStyle(Color.statusText(.purple))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.statusBackground(.purple), in: Capsule())
+                    }
+                }
+
+                if !selectedEvents.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(selectedEvents) { event in
+                                EventChip(event: event) { onRemove(event) }
+                            }
+                        }
+                        .padding(.vertical, 1)
+                    }
+                    .accessibilityLabel("Selected linked events")
+                }
+
+                if isLoading {
+                    HStack(spacing: 10) {
+                        ProgressView()
+                        Text("Loading upcoming events…")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+                } else if let error {
+                    HStack(spacing: 12) {
+                        Image(systemName: "wifi.exclamationmark")
+                            .foregroundStyle(Color.statusText(.orange))
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Couldn't load events")
+                                .font(.subheadline.weight(.medium))
+                            Text(error)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                        }
+                        Spacer()
+                        Button("Retry", action: onRetry)
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                    }
+                } else if visibleEvents.isEmpty {
+                    Text("No upcoming events. You can still create an ad hoc reservation.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    VStack(spacing: 0) {
+                        ForEach(Array(visibleEvents.enumerated()), id: \.element.id) { index, event in
+                            if index > 0 { Divider().padding(.leading, 42) }
+                            EventPickRow(
+                                event: event,
+                                isSelected: selectedEvents.contains(where: { $0.id == event.id }),
+                                isDisabled: selectedEvents.count >= 3 && !selectedEvents.contains(where: { $0.id == event.id })
+                            ) {
+                                onToggle(event)
+                            }
+                        }
+                    }
+                    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+                }
+            }
+        }
+    }
+}
+
+private struct EventPickRow: View {
+    let event: ScheduleEvent
+    let isSelected: Bool
+    let isDisabled: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 12) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(isSelected ? Color.statusText(.purple) : Color(.systemGray3))
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(event.shortBookingEventTitle)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    Text(event.bookingEventSubtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer()
+                if let label = sportLabel(event.sportCode) {
+                    Text(label)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            .frame(minHeight: 52)
+            .contentShape(Rectangle())
+            .opacity(isDisabled ? 0.45 : 1)
+        }
+        .buttonStyle(.plain)
+        .disabled(isDisabled)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private var accessibilityLabel: String {
+        let selected = isSelected ? "Selected" : "Not selected"
+        return "\(event.shortBookingEventTitle), \(event.bookingEventSubtitle), \(selected)"
+    }
+}
+
+private struct EventChip: View {
+    let event: ScheduleEvent
+    let onRemove: () -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(event.shortBookingEventTitle)
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+            Button(action: onRemove) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.caption)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Remove \(event.shortBookingEventTitle)")
+        }
+        .foregroundStyle(Color.statusText(.purple))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(Color.statusBackground(.purple), in: Capsule())
+    }
+}
+
+private struct ReviewEventRow: View {
+    let event: ScheduleEvent
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: event.isHome == false ? "bus" : "sportscourt")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color.statusText(event.isHome == false ? .orange : .green))
+                .frame(width: 30, height: 30)
+                .background(Color.statusBackground(event.isHome == false ? .orange : .green), in: RoundedRectangle(cornerRadius: 8))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(event.shortBookingEventTitle)
+                    .font(.subheadline.weight(.medium))
+                    .lineLimit(1)
+                Text(event.bookingEventSubtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
     }
 }
 
@@ -1210,6 +1642,30 @@ struct FormPickerRow<Leading: View>: View {
 extension FormPickerRow where Leading == EmptyView {
     init(label: String, value: String) {
         self.init(label: label, value: value) { EmptyView() }
+    }
+}
+
+private extension ScheduleEvent {
+    var shortBookingEventTitle: String {
+        if let label = sportLabel(sportCode), let opponent, !opponent.isEmpty {
+            let prefix = isHome == false ? "at" : "vs"
+            return "\(label) \(prefix) \(opponent)"
+        }
+        return summary
+    }
+
+    var bookingEventSubtitle: String {
+        let when = startsAt.formatted(date: .abbreviated, time: allDay ? .omitted : .shortened)
+        let venue = location?.name
+        let venuePrefix: String?
+        if isHome == false {
+            venuePrefix = "Away"
+        } else if isHome == true {
+            venuePrefix = "Home"
+        } else {
+            venuePrefix = nil
+        }
+        return [when, venuePrefix, venue].compactMap { $0 }.joined(separator: " · ")
     }
 }
 

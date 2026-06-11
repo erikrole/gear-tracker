@@ -2,7 +2,11 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { Prisma } from "@prisma/client";
+import {
+  readDashboardCounts,
+  zeroDashboardCounts,
+  type DashboardCounts,
+} from "@/lib/services/dashboard-counts";
 
 const STATS_LIMIT = { max: 180, windowMs: 60_000 };
 
@@ -18,9 +22,10 @@ function settledValue<T>(
   return fallback;
 }
 
-// Lightweight stats-only endpoint — runs the single aggregated SQL query and
-// returns nothing else. Used by the dashboard to keep stat cards and the overdue
-// count fresh (60s TTL) without re-running the expensive full-payload queries.
+// Lightweight stats-only endpoint — runs the single shared count aggregate and
+// returns nothing else. Used by the dashboard to keep stat cards, the overdue
+// count, and the transient-lane totals (awaiting pickup, stale reservations)
+// fresh (60s TTL) without re-running the expensive full-payload row queries.
 export const GET = withAuth(async (_req, { user }) => {
   const { allowed } = await checkRateLimit(`dashboard:stats:${user.id}`, STATS_LIMIT);
   if (!allowed) throw new HttpError(429, "Too many requests. Please wait a moment.");
@@ -33,34 +38,14 @@ export const GET = withAuth(async (_req, { user }) => {
   const startOfTomorrow = new Date(startOfToday);
   startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
 
-  type CountRow = {
-    team_checkouts: bigint;
-    team_checkouts_overdue: bigint;
-    team_reservations: bigint;
-    my_checkouts: bigint;
-    my_overdue: bigint;
-    total_checked_out: bigint;
-    total_overdue: bigint;
-    total_reserved: bigint;
-    due_today: bigint;
-  };
-
   const [countsResult, myShiftsCountResult] = await Promise.allSettled([
-    db.$queryRaw<CountRow[]>(Prisma.sql`
-      SELECT
-        COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN') AS total_checked_out,
-        COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND ends_at < ${now}) AS total_overdue,
-        COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND ends_at >= ${startOfToday} AND ends_at < ${startOfTomorrow}) AS due_today,
-        COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND requester_user_id != ${user.id}) AS team_checkouts,
-        COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND requester_user_id != ${user.id} AND ends_at < ${now}) AS team_checkouts_overdue,
-        COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND requester_user_id = ${user.id}) AS my_checkouts,
-        COUNT(*) FILTER (WHERE kind = 'CHECKOUT' AND status = 'OPEN' AND requester_user_id = ${user.id} AND ends_at < ${now}) AS my_overdue,
-        COUNT(*) FILTER (WHERE kind = 'RESERVATION' AND status = 'BOOKED' AND starts_at >= ${now} AND starts_at <= ${sevenDaysFromNow}) AS total_reserved,
-        COUNT(*) FILTER (WHERE kind = 'RESERVATION' AND status = 'BOOKED' AND requester_user_id != ${user.id} AND starts_at >= ${now} AND starts_at <= ${sevenDaysFromNow}) AS team_reservations
-      FROM bookings
-      WHERE (kind = 'CHECKOUT' AND status = 'OPEN')
-         OR (kind = 'RESERVATION' AND status = 'BOOKED' AND starts_at >= ${now} AND starts_at <= ${sevenDaysFromNow})
-    `),
+    readDashboardCounts({
+      userId: user.id,
+      now,
+      sevenDaysFromNow,
+      startOfToday,
+      startOfTomorrow,
+    }),
     // Kept for iOS: drives the Schedule tab badge via the lightweight stats endpoint
     db.shiftAssignment.count({
       where: {
@@ -71,41 +56,26 @@ export const GET = withAuth(async (_req, { user }) => {
     }),
   ]);
   const partialFailures: string[] = [];
-  const counts = settledValue<CountRow[]>(
-    countsResult,
-    [{
-      team_checkouts: 0n,
-      team_checkouts_overdue: 0n,
-      team_reservations: 0n,
-      my_checkouts: 0n,
-      my_overdue: 0n,
-      total_checked_out: 0n,
-      total_overdue: 0n,
-      total_reserved: 0n,
-      due_today: 0n,
-    }],
-    "counts",
-    partialFailures,
-  );
+  const c: DashboardCounts = settledValue(countsResult, zeroDashboardCounts, "counts", partialFailures);
   const myShiftsCount = settledValue(myShiftsCountResult, 0, "myShiftsCount", partialFailures);
-  const c = counts[0];
-  if (!c) throw new HttpError(500, "Stats counts query returned no rows");
 
   return ok({
     data: {
       role: user.role,
       stats: {
-        checkedOut: Number(c.total_checked_out),
-        overdue: Number(c.total_overdue),
-        reserved: Number(c.total_reserved),
-        dueToday: Number(c.due_today),
+        checkedOut: c.totalCheckedOut,
+        overdue: c.totalOverdue,
+        reserved: c.totalReserved,
+        dueToday: c.dueToday,
       },
-      overdueCount: Number(c.total_overdue),
-      myCheckoutsTotal: Number(c.my_checkouts),
-      myOverdueCount: Number(c.my_overdue),
-      teamCheckoutsTotal: Number(c.team_checkouts),
-      teamCheckoutsOverdue: Number(c.team_checkouts_overdue),
-      teamReservationsTotal: Number(c.team_reservations),
+      overdueCount: c.totalOverdue,
+      myCheckoutsTotal: c.myCheckoutsTotal,
+      myOverdueCount: c.myOverdue,
+      teamCheckoutsTotal: c.teamCheckoutsTotal,
+      teamCheckoutsOverdue: c.teamCheckoutsOverdue,
+      teamReservationsTotal: c.teamReservationsTotal,
+      pendingPickupTotal: c.pendingPickupTotal,
+      staleReservationTotal: c.staleReservationTotal,
       myShiftsCount,
     },
     partialFailures,

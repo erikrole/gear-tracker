@@ -62,4 +62,56 @@ describe("iOS create booking picker parity", () => {
     expect(apiClient).toContain("bulkItems: [BulkReservationRequest] = []");
     expect(apiClient).toContain("bulkItems: bulkItems");
   });
+
+  it("lets native reservation creation link upcoming events", () => {
+    const createSheet = source("ios/Wisconsin/Views/CreateBookingSheet.swift");
+    const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
+    const details = sliceBetween(
+      createSheet,
+      "private var detailsForm: some View",
+      "private var detailHeaderSubtitle",
+    );
+    const eventCard = sliceBetween(
+      createSheet,
+      "private struct EventLinkingCard: View",
+      "private struct EventPickRow: View",
+    );
+
+    expect(createSheet).toContain("var events: [ScheduleEvent] = []");
+    expect(createSheet).toContain("var selectedEventIds: [String] = []");
+    expect(createSheet).toContain("func loadEvents() async");
+    expect(createSheet).toContain("events = try await APIClient.shared.calendarEvents(includePast: false, limit: 60)");
+    expect(createSheet).toContain("guard selectedEventIds.count < 3");
+    expect(createSheet).toContain("sortSelectedEventIds()");
+    expect(createSheet).toContain("applySelectedEventsToDetails()");
+    expect(createSheet).toContain("eventIds: selectedEventIds");
+    expect(createSheet).toContain("eventId: selectedEventIds.isEmpty ? prefillEventId : nil");
+    expect(apiClient).toContain("eventIds: [String] = []");
+    expect(apiClient).toContain("let eventIds: [String]?");
+    expect(apiClient).toContain("eventIds: eventIds.isEmpty ? nil : eventIds");
+    expect(details).toContain("EventLinkingCard(");
+    expect(eventCard).toContain("Text(\"Link events\")");
+    expect(eventCard).toContain("Text(\"Up to 3 upcoming events\")");
+    expect(eventCard).toContain("EventChip(event: event)");
+    expect(eventCard).toContain("EventPickRow(");
+  });
+
+  it("keeps the native review screen event-aware", () => {
+    const createSheet = source("ios/Wisconsin/Views/CreateBookingSheet.swift");
+    const review = sliceBetween(
+      createSheet,
+      "private var reviewStep: some View",
+      "private func reviewFactRow",
+    );
+
+    expect(createSheet).toContain("var linkedEventLabel: String?");
+    expect(createSheet).toContain("private struct ReviewEventRow: View");
+    expect(createSheet).toContain("private extension ScheduleEvent");
+    expect(createSheet).toContain("var shortBookingEventTitle: String");
+    expect(createSheet).toContain("var bookingEventSubtitle: String");
+    expect(review).toContain("calendar.badge.checkmark");
+    expect(review).toContain("reviewFactRow(label: vm.linkedEventCount > 1 ? \"Events\" : \"Event\")");
+    expect(review).toContain("Text(vm.selectedEvents.count == 1 ? \"Linked Event\" : \"Linked Events\")");
+    expect(review).toContain("ReviewEventRow(event: event)");
+  });
 });

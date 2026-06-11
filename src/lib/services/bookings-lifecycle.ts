@@ -62,7 +62,7 @@ function hasDuplicateIds(ids: string[]) {
   return new Set(ids).size !== ids.length;
 }
 
-function assertValidCreateWindow(startsAt: Date, endsAt: Date) {
+function assertValidBookingWindow(startsAt: Date, endsAt: Date) {
   if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) {
     throw new HttpError(400, "Invalid startsAt or endsAt");
   }
@@ -141,7 +141,7 @@ function isBookingAllocationConstraintError(error: unknown) {
 }
 
 export async function createBooking(input: CreateBookingInput) {
-  assertValidCreateWindow(input.startsAt, input.endsAt);
+  assertValidBookingWindow(input.startsAt, input.endsAt);
   assertValidCreateEventLinks(input);
 
   try {
@@ -387,6 +387,7 @@ export async function updateReservation(
       const nextStartsAt = updates.startsAt ?? existing.startsAt;
       const nextEndsAt = updates.endsAt ?? existing.endsAt;
       const nextLocationId = updates.locationId ?? existing.locationId;
+      assertValidBookingWindow(nextStartsAt, nextEndsAt);
       const serializedAssetIds = dedupeIds(
         updates.serializedAssetIds ?? existing.serializedItems.map((item) => item.assetId)
       );
@@ -586,6 +587,7 @@ export async function updateCheckout(
       const nextEndsAt = updates.endsAt ?? existing.endsAt;
       const nextLocationId = updates.locationId ?? existing.locationId;
       const nextStartsAt = existing.startsAt; // start is fixed for OPEN checkouts
+      assertValidBookingWindow(nextStartsAt, nextEndsAt);
 
       const serializedAssetIds = dedupeIds(
         updates.serializedAssetIds ?? existing.serializedItems.map((item) => item.assetId)

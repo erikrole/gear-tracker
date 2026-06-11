@@ -15,6 +15,8 @@ export type DashboardStats = {
   teamCheckoutsTotal: number;
   teamCheckoutsOverdue: number;
   teamReservationsTotal: number;
+  pendingPickupTotal: number;
+  staleReservationTotal: number;
 };
 
 export type ItemThumb = {

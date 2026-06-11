@@ -260,6 +260,7 @@ final class APIClient {
         endsAt: Date,
         notes: String?,
         eventId: String? = nil,
+        eventIds: [String] = [],
         shiftAssignmentId: String? = nil,
         serializedAssetIds: [String] = [],
         bulkItems: [BulkReservationRequest] = []
@@ -274,6 +275,7 @@ final class APIClient {
             let serializedAssetIds: [String]
             let bulkItems: [BulkReservationRequest]
             let eventId: String?
+            let eventIds: [String]?
             let shiftAssignmentId: String?
         }
         var req = request(path: "/api/reservations", method: "POST")
@@ -289,6 +291,7 @@ final class APIClient {
             serializedAssetIds: serializedAssetIds,
             bulkItems: bulkItems,
             eventId: eventId,
+            eventIds: eventIds.isEmpty ? nil : eventIds,
             shiftAssignmentId: shiftAssignmentId
         ))
         let resp: DataWrapper<BookingStub> = try await perform(req)

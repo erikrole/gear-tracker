@@ -55,6 +55,10 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
 
     const locationOptions = locations.map((l) => ({ value: l.id, label: l.name }));
 
+    // Quantity add-to-existing only targets quantity-tracked families. Unit-tracked
+    // families must gain stock through Add units so each count creates BulkSkuUnit rows.
+    const quantityOnlyBulkSkus = existingBulkSkus.filter((sku) => !sku.trackByNumber);
+
     // Fetch existing bulk SKUs when open
     useEffect(() => {
       if (!open) return;
@@ -92,7 +96,7 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
       },
       getSubmitPayload() {
         if (bulkMode === "existing") {
-          const sku = existingBulkSkus.find((s) => s.id === selectedBulkSkuId);
+          const sku = quantityOnlyBulkSkus.find((s) => s.id === selectedBulkSkuId);
           return {
             url: `/api/bulk-skus/${selectedBulkSkuId}/adjust`,
             body: { quantityDelta: addQty, reason: "Added via New Item sheet" },
@@ -244,7 +248,7 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
             badgeVariant="orange"
             description="This increases stock for an item family that already exists."
           >
-            {existingBulkSkus.length === 0 ? (
+            {quantityOnlyBulkSkus.length === 0 ? (
               <p className="text-sm text-muted-foreground">No quantity items found. Create one first.</p>
             ) : (
               <>
@@ -253,12 +257,12 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
                     id="existing-bulk-item"
                     value={selectedBulkSkuId}
                     onValueChange={setSelectedBulkSkuId}
-                    skus={existingBulkSkus}
+                    skus={quantityOnlyBulkSkus}
                   />
                 </FormRow>
 
                 {selectedBulkSkuId && (() => {
-                  const sku = existingBulkSkus.find((s) => s.id === selectedBulkSkuId);
+                  const sku = quantityOnlyBulkSkus.find((s) => s.id === selectedBulkSkuId);
                   if (!sku) return null;
                   const qty = sku.balances.reduce((sum, b) => sum + b.onHandQuantity, 0);
                   return (

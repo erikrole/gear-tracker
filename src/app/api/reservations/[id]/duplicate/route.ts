@@ -24,11 +24,22 @@ export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
     include: {
       serializedItems: true,
       bulkItems: true,
+      events: {
+        orderBy: { ordinal: "asc" },
+        select: { eventId: true },
+      },
     },
   });
   if (source.status !== BookingStatus.BOOKED) {
     throw new HttpError(400, `Cannot duplicate a ${source.status.toLowerCase()} reservation`);
   }
+
+  // Clone all multi-event links so the copy stays discoverable from every
+  // linked event. Fall back to legacy single eventId only when none exist.
+  const eventIds = source.events.map((link) => link.eventId);
+  const eventLinking = eventIds.length > 0
+    ? { eventIds }
+    : { eventId: source.eventId ?? undefined };
 
   const duplicate = await createBooking({
     kind: "RESERVATION",
@@ -44,7 +55,7 @@ export const POST = withAuth<{ id: string }>(async (_req, { user, params }) => {
     })),
     notes: source.notes ?? undefined,
     createdBy: user.id,
-    eventId: source.eventId ?? undefined,
+    ...eventLinking,
     sportCode: source.sportCode ?? undefined,
   });
 

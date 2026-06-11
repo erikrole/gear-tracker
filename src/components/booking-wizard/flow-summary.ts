@@ -39,6 +39,78 @@ export function getStep2PrimaryActionLabel(input: Step2PrimaryLabelInput) {
   return "Select equipment";
 }
 
+export type BulkShortage = {
+  bulkSkuId: string;
+  requested: number;
+  available: number;
+};
+
+export type SelectedBulkItem = {
+  bulkSkuId: string;
+  quantity: number;
+};
+
+export type BulkShortageRecovery = {
+  nextBulkItems: SelectedBulkItem[];
+  adjustedCount: number;
+  messages: string[];
+};
+
+/**
+ * Apply a server-reported 409 bulk shortage result to the user's current bulk
+ * selection. The server is authoritative: this only ever reduces quantities or
+ * removes rows so the user lands back on Step 2 with a buildable selection.
+ *
+ * Rules:
+ * - Never increase a selected quantity.
+ * - Clamp a selected quantity down to `available`.
+ * - Remove the selected row when `available <= 0` (negatives treated as 0).
+ * - Ignore shortage rows for SKUs that are not currently selected.
+ * - Preserve unrelated selected bulk rows untouched.
+ */
+export function applyBulkShortageRecovery(
+  selectedBulkItems: SelectedBulkItem[],
+  shortages: BulkShortage[],
+  skuName?: (bulkSkuId: string) => string | undefined,
+): BulkShortageRecovery {
+  const shortageBySku = new Map<string, BulkShortage>();
+  for (const shortage of shortages) {
+    shortageBySku.set(shortage.bulkSkuId, shortage);
+  }
+
+  const messages: string[] = [];
+  let adjustedCount = 0;
+  const nextBulkItems: SelectedBulkItem[] = [];
+
+  for (const item of selectedBulkItems) {
+    const shortage = shortageBySku.get(item.bulkSkuId);
+    if (!shortage) {
+      nextBulkItems.push(item);
+      continue;
+    }
+
+    const available = Math.max(0, shortage.available);
+    const label = skuName?.(item.bulkSkuId) || item.bulkSkuId;
+
+    if (available <= 0) {
+      adjustedCount += 1;
+      messages.push(`${label} removed (none available)`);
+      continue;
+    }
+
+    if (available < item.quantity) {
+      adjustedCount += 1;
+      messages.push(`${label} reduced to ${available} available`);
+      nextBulkItems.push({ ...item, quantity: available });
+      continue;
+    }
+
+    nextBulkItems.push(item);
+  }
+
+  return { nextBulkItems, adjustedCount, messages };
+}
+
 export function buildAvailabilityReview(counts: AvailabilityWarningCounts) {
   const total = getAvailabilityWarningTotal(counts);
   if (total === 0) return null;

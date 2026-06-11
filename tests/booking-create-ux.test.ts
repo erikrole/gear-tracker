@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   buildAvailabilityReview,
@@ -5,6 +7,11 @@ import {
   getStep2PrimaryActionLabel,
 } from "@/components/booking-wizard/flow-summary";
 import { applyDurationPreservingStartChange } from "@/components/create-booking/date-duration";
+
+const wizardStep1Source = readFileSync(
+  join(process.cwd(), "src/components/booking-wizard/WizardStep1.tsx"),
+  "utf8",
+);
 
 const baseCounts = {
   conflictCount: 0,
@@ -109,5 +116,90 @@ describe("booking create UX helpers", () => {
       startsAt: "2026-07-08T12:30",
       endsAt: "2026-07-07T10:00",
     });
+  });
+});
+
+describe("WizardStep1 event selection contract", () => {
+  it("imports and renders an explicit Checkbox affordance for event rows", () => {
+    expect(wizardStep1Source).toMatch(
+      /import \{ Checkbox \} from "@\/components\/ui\/checkbox"/,
+    );
+    expect(wizardStep1Source).toMatch(/<Checkbox\b/);
+  });
+
+  it("does not hard-disable event rows so the cap toast stays reachable", () => {
+    // The event-row mapping must not render a disabled control that blocks
+    // toggleEvent — cap feedback lives in toggleEvent and must remain reachable.
+    const rowMapping = wizardStep1Source.slice(
+      wizardStep1Source.indexOf("events.map((ev)"),
+    );
+    expect(rowMapping).not.toMatch(/disabled=\{disabled\}/);
+    expect(rowMapping).toMatch(/aria-disabled=/);
+    expect(rowMapping).toMatch(/onKeyDown=/);
+  });
+
+  it("keeps selected-event chips that remove events on click", () => {
+    expect(wizardStep1Source).toMatch(/form\.selectedEvents\.map\(\(ev\) =>/);
+    expect(wizardStep1Source).toMatch(/aria-label=\{`Remove \$\{ev\.opponent/);
+  });
+});
+    expect(result.adjustedCount).toBe(1);
+  });
+
+  it("treats a negative available count as zero and removes the row", () => {
+    const result = applyBulkShortageRecovery(
+      [{ bulkSkuId: "sku-aa", quantity: 3 }],
+      [{ bulkSkuId: "sku-aa", requested: 3, available: -4 }],
+    );
+
+    expect(result.nextBulkItems).toEqual([]);
+    expect(result.adjustedCount).toBe(1);
+  });
+
+  it("ignores shortage rows for SKUs that are not selected", () => {
+    const result = applyBulkShortageRecovery(
+      [{ bulkSkuId: "sku-aa", quantity: 3 }],
+      [{ bulkSkuId: "sku-zz", requested: 9, available: 0 }],
+    );
+
+    expect(result.nextBulkItems).toEqual([{ bulkSkuId: "sku-aa", quantity: 3 }]);
+    expect(result.adjustedCount).toBe(0);
+    expect(result.messages).toHaveLength(0);
+  });
+
+  it("preserves unrelated selected bulk rows while clamping the affected one", () => {
+    const result = applyBulkShortageRecovery(
+      [
+        { bulkSkuId: "sku-aa", quantity: 5 },
+        { bulkSkuId: "sku-bb", quantity: 2 },
+      ],
+      [{ bulkSkuId: "sku-aa", requested: 5, available: 1 }],
+    );
+
+    expect(result.nextBulkItems).toEqual([
+      { bulkSkuId: "sku-aa", quantity: 1 },
+      { bulkSkuId: "sku-bb", quantity: 2 },
+    ]);
+    expect(result.adjustedCount).toBe(1);
+  });
+
+  it("never increases a selected quantity above what was requested", () => {
+    const result = applyBulkShortageRecovery(
+      [{ bulkSkuId: "sku-aa", quantity: 2 }],
+      [{ bulkSkuId: "sku-aa", requested: 2, available: 8 }],
+    );
+
+    expect(result.nextBulkItems).toEqual([{ bulkSkuId: "sku-aa", quantity: 2 }]);
+    expect(result.adjustedCount).toBe(0);
+  });
+
+  it("uses the provided SKU name lookup in recovery messages", () => {
+    const result = applyBulkShortageRecovery(
+      [{ bulkSkuId: "sku-aa", quantity: 5 }],
+      [{ bulkSkuId: "sku-aa", requested: 5, available: 2 }],
+      (id) => (id === "sku-aa" ? "AA Battery" : undefined),
+    );
+
+    expect(result.messages[0]).toContain("AA Battery");
   });
 });
