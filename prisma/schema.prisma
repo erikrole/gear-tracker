@@ -518,18 +518,22 @@ model BulkStockMovement {
 // ── Numbered Bulk Unit Tracking ──────────────────────────
 
 model BulkSkuUnit {
-  id          String                      @id @default(cuid())
-  bulkSkuId   String                      @map("bulk_sku_id")
-  unitNumber  Int                         @map("unit_number")
-  status      BulkUnitStatus              @default(AVAILABLE)
-  notes       String?
-  createdAt   DateTime                    @default(now()) @map("created_at")
-  updatedAt   DateTime                    @updatedAt @map("updated_at")
-  bulkSku     BulkSku                     @relation(fields: [bulkSkuId], references: [id], onDelete: Cascade)
-  allocations BookingBulkUnitAllocation[]
+  id                String                      @id @default(cuid())
+  bulkSkuId         String                      @map("bulk_sku_id")
+  unitNumber        Int                         @map("unit_number")
+  status            BulkUnitStatus              @default(AVAILABLE)
+  notes             String?
+  labelPrintedAt    DateTime?                   @map("label_printed_at")
+  labelPrintedById  String?                     @map("label_printed_by_id")
+  labelPrintBatchId String?                     @map("label_print_batch_id")
+  createdAt         DateTime                    @default(now()) @map("created_at")
+  updatedAt         DateTime                    @updatedAt @map("updated_at")
+  bulkSku           BulkSku                     @relation(fields: [bulkSkuId], references: [id], onDelete: Cascade)
+  allocations       BookingBulkUnitAllocation[]
 
   @@unique([bulkSkuId, unitNumber])
   @@index([bulkSkuId, status])
+  @@index([bulkSkuId, labelPrintedAt])
   @@map("bulk_sku_units")
 }
 

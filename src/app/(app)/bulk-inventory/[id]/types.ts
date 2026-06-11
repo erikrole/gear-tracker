@@ -3,6 +3,9 @@ export type BulkUnit = {
   unitNumber: number;
   status: "AVAILABLE" | "CHECKED_OUT" | "LOST" | "RETIRED";
   notes: string | null;
+  labelPrintedAt?: string | null;
+  labelPrintedById?: string | null;
+  labelPrintBatchId?: string | null;
   allocations?: Array<{
     bookingBulkItem: {
       booking: { refNumber: string | null; title: string; requester: { name: string } };

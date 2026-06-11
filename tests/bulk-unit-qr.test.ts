@@ -1,5 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { parseDerivedBulkUnitQr } from "@/lib/bulk-unit-qr";
+import { buildDerivedBulkUnitQrValue, parseDerivedBulkUnitQr } from "@/lib/bulk-unit-qr";
+
+describe("buildDerivedBulkUnitQrValue", () => {
+  it("formats the derived unit QR value as {binQrCodeValue}-{unitNumber}", () => {
+    expect(buildDerivedBulkUnitQrValue("SONY-BATTERY", 3)).toBe("SONY-BATTERY-3");
+  });
+
+  it("trims surrounding whitespace from the bin QR value", () => {
+    expect(buildDerivedBulkUnitQrValue("  94e068d1 ", 16)).toBe("94e068d1-16");
+  });
+
+  it("round-trips through the parser", () => {
+    const value = buildDerivedBulkUnitQrValue("94e068d1", 7);
+    expect(parseDerivedBulkUnitQr(value, [
+      { id: "sony-battery", binQrCodeValue: "94e068d1", trackByNumber: true },
+    ])).toEqual({ bulkSkuId: "sony-battery", binQrCodeValue: "94e068d1", unitNumber: 7 });
+  });
+
+  it("rejects empty bin QR values and invalid unit numbers", () => {
+    expect(() => buildDerivedBulkUnitQrValue("   ", 1)).toThrow();
+    expect(() => buildDerivedBulkUnitQrValue("BIN", 0)).toThrow();
+    expect(() => buildDerivedBulkUnitQrValue("BIN", -2)).toThrow();
+  });
+});
 
 describe("parseDerivedBulkUnitQr", () => {
   it("resolves numbered unit QR values from the parent bin QR", () => {

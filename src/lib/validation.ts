@@ -169,6 +169,15 @@ export const updateBulkUnitSchema = z.object({
   reason: z.string().trim().min(3).max(500).optional()
 });
 
+export const bulkUnitLabelExportQuerySchema = z.object({
+  scope: z.enum(["unprinted", "all"]).default("unprinted"),
+});
+
+export const markBulkUnitLabelsSchema = z.object({
+  unitNumbers: z.array(z.number().int().positive()).min(1).max(500),
+  printed: z.literal(true),
+});
+
 export const adjustBulkSchema = z.object({
   quantityDelta: z.number().int().min(-1_000_000).max(1_000_000).refine((x) => x !== 0, "quantityDelta cannot be 0"),
   reason: z.string().min(3).max(500)

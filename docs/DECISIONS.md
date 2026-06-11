@@ -376,6 +376,7 @@
   - QR-coded batteries continue to use this model when they behave like the existing Sony battery flow: one item family with unit-level tracking beneath it.
   - Derived unit QR scans keep batteries out of top-level serialized assets while still supporting individual QR labels and custody.
   - Camera-model battery compatibility warnings are advisory at creation; they do not block checkout creation because physical battery accountability happens at kiosk pickup.
+  - Printed-label state (when a physical Brother label was printed and applied) may be stored per `BulkSkuUnit` via `labelPrintedAt`, `labelPrintedById`, and `labelPrintBatchId`. This is a physical-workflow state distinct from `BulkUnitStatus` and never gates availability. QR data itself remains derived and is never stored per unit; the Brother CSV `qr_code` column is computed at export time from `{binQrCodeValue}-{unitNumber}`.
 - Guardrails:
   - Unit status is NOT derived like serialized assets (D-001). It is stored directly because units lack the full allocation time-window model.
   - Checked-out units cannot be marked lost/retired — must be checked in first.
@@ -777,3 +778,4 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - 2026-05-05: Updated D-022 for kiosk-scanned numbered batteries and non-blocking camera-model battery availability warnings.
 - 2026-05-13: Reframed D-022 around first-class item families: `BulkSku` remains the implementation model, but `/items` is the normal discovery/detail surface and `/bulk-inventory` is admin operations.
 - 2026-05-09: Added D-034 for badge achievements: event-sourced service boundary, feature flag off path, no retroactive backfill, 15-minute on-time grace, immutable definition keys, single-emit status helpers, peer visibility default, and profile-first UI.
+- 2026-06-11: Extended D-022 consequences for Brother P-Touch label CSV export and printed-label tracking. Printed-label state stored per `BulkSkuUnit` (`labelPrintedAt`/`labelPrintedById`/`labelPrintBatchId`, migration 0077); QR data stays derived and is never stored.

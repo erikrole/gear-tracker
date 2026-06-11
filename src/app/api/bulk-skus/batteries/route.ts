@@ -76,6 +76,9 @@ export const GET = withAuth(async (_req, { user }) => {
         unitNumber: unit.unitNumber,
         status: unit.status,
         notes: unit.notes,
+        labelPrintedAt: unit.labelPrintedAt?.toISOString() ?? null,
+        labelPrintedById: unit.labelPrintedById,
+        labelPrintBatchId: unit.labelPrintBatchId,
         checkedOutAt: checkedOutAt?.toISOString() ?? null,
         checkedOutDays: daysSince(checkedOutAt, now),
         booking: booking
@@ -99,6 +102,12 @@ export const GET = withAuth(async (_req, { user }) => {
     const retired = sku.trackByNumber ? units.filter((unit) => unit.status === "RETIRED").length : 0;
     const total = sku.trackByNumber ? units.length : available;
     const threshold = Math.max(10, sku.minThreshold);
+    const labelPrintedCount = sku.trackByNumber
+      ? units.filter((unit) => unit.labelPrintedAt !== null).length
+      : 0;
+    const labelNeededCount = sku.trackByNumber
+      ? units.filter((unit) => unit.labelPrintedAt === null && unit.status !== "RETIRED").length
+      : 0;
 
     return {
       id: sku.id,
@@ -116,6 +125,8 @@ export const GET = withAuth(async (_req, { user }) => {
         lost,
         retired,
       },
+      labelPrintedCount,
+      labelNeededCount,
       isLow: available < threshold,
       units,
     };

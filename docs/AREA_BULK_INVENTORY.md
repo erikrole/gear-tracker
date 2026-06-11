@@ -69,6 +69,12 @@ Operate item families backed by `BulkSku` records. Normal discovery happens in `
 - Kiosk pickup and check-in accept derived numbered unit QR values so batteries are physically scanned one by one.
 - Kiosk checkout detail responses mark numbered battery rows with type/SKU/unit metadata and include scan-summary counts so the iOS kiosk can separate battery-unit scan progress from generic item progress.
 
+**Brother label CSV + printed-label tracking:**
+- `GET /api/bulk-skus/[id]/units/labels?scope=unprinted|all` returns a Brother P-Touch-ready CSV with exactly two columns, `item_number` (the unit number) and `qr_code` (the derived `{binQrCodeValue}-{unitNumber}` value). Rows sort by unit number ascending and every value runs through `csvField` for spreadsheet-formula safety. Default `scope=unprinted` excludes printed and retired units; `scope=all` supports reprints. Only `trackByNumber` SKUs export, and a missing `binQrCodeValue` returns a 400 with no partial file. QR values are never stored — they are derived at export time.
+- `POST /api/bulk-skus/[id]/units/labels` with `{ unitNumbers, printed: true }` marks the exact exported units printed. It validates every unit number belongs to the SKU, sets `labelPrintedAt`/`labelPrintedById`/`labelPrintBatchId` only for not-yet-printed non-retired units, returns `updated`/`alreadyPrinted`/`skippedRetired` counts plus the batch id, and writes one batch audit entry (`mark_labels_printed`). Requires the same `bulk_sku` adjust permission as unit status changes.
+- Printed-label state is a physical-workflow flag distinct from `BulkUnitStatus`; it never affects availability and is preserved across status/notes patches.
+- Battery Ops cards show `N of M labels printed`, a `needs labels` count, a `Brother CSV` download, and a follow-up `Mark printed` confirmation seeded with the exact exported unit numbers. The generic numbered-unit tab (`BulkSkuUnitsTab`) shows a printed-label dot per unit in `BulkUnitGrid` plus a secondary `Brother CSV` export for `trackByNumber` SKUs.
+
 ## API
 
 **GET `/api/bulk-skus`**
@@ -147,8 +153,10 @@ See `AREA_ITEMS.md` 2026-04-06 entry for bulk inventory page hardening:
 - [x] AC-5: Add units to quantity-only or numbered-unit SKU
 - [x] AC-6: Change unit status (mark lost, retire, release) with audit trail
 - [x] AC-7: Unit-tracked battery audit/reporting exposes missing units, loss rate by family, custody history, and repeated missing-unit patterns
+- [x] AC-8: Staff can export a Brother P-Touch label CSV (`item_number,qr_code`) for a numbered SKU and mark the exported labels printed, with printed-label state visible per card and per unit and surviving refresh
 
 ## Change Log
+- 2026-06-11: Brother battery label CSV export and printed-label tracking shipped. Added `labelPrintedAt`/`labelPrintedById`/`labelPrintBatchId` to `BulkSkuUnit` (migration 0077), a `buildDerivedBulkUnitQrValue` formatter, the `GET/POST /api/bulk-skus/[id]/units/labels` route (CSV export + audited batch mark-printed), label counts on Battery Ops cards with a Brother CSV download and mark-printed confirmation seeded from the exported unit numbers, per-unit printed-label indicators in Battery Ops and `BulkUnitGrid`, and a secondary export on the numbered-unit detail tab. QR values stay derived and are never stored.
 - 2026-05-30: Battery hardening adjustment slice shipped. Battery Ops now includes quantity-tracked battery families, adds audited signed quantity adjustments, adds audited numbered-unit creation with operator reasons, requires reasons for unit status changes, blocks any status mutation while a unit is checked out, and shows before/after count impact before staff confirm.
 - 2026-05-30: Battery hardening started. Battery Ops and checkout picker form-options now return live no-store count responses instead of browser-cached inventory counts, and picker-selected bulk quantities clamp down with explicit recovery copy when refreshed availability drops below the selected quantity.
 - 2026-05-25: Web bug sweep Batch 27 hardened item-family detail tab URL state. Bulk SKU detail now rehydrates `?tab=` links and browser Back/Forward through the shared URL-state hook, and direct links to mode- or role-hidden tabs fall back to Info instead of rendering an empty detail body.

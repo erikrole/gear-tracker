@@ -30,20 +30,40 @@ export function BulkUnitGrid({ units, onStatusChange, disabled = false }: Props)
         const lastAlloc = u.allocations?.[0]?.bookingBulkItem?.booking;
         const lastUser = lastAlloc?.requester?.name;
         const isCheckedOut = u.status === "CHECKED_OUT";
+        const labelPrinted = !!u.labelPrintedAt;
+        const needsLabel = !labelPrinted && u.status !== "RETIRED";
+        const labelTitle = labelPrinted
+          ? `Label printed ${new Date(u.labelPrintedAt!).toLocaleDateString()}`
+          : needsLabel
+            ? "Needs label"
+            : null;
 
         const cell = (
           <div
             className={[
-              "flex flex-col items-center justify-center gap-0 px-1 py-1.5 rounded-md text-sm font-semibold select-none",
+              "relative flex flex-col items-center justify-center gap-0 px-1 py-1.5 rounded-md text-sm font-semibold select-none",
               style.bg,
               isCheckedOut || disabled ? "cursor-default opacity-70" : "cursor-context-menu",
             ].join(" ")}
             title={[
               `#${u.unitNumber} — ${style.label}`,
               lastUser && `Last: ${lastUser}`,
+              labelTitle,
               isCheckedOut && "Check in first to change status",
             ].filter(Boolean).join(" · ")}
           >
+            {needsLabel && (
+              <span
+                aria-label="Needs label"
+                className="absolute right-0.5 top-0.5 size-1 rounded-full bg-[var(--orange)]"
+              />
+            )}
+            {labelPrinted && (
+              <span
+                aria-label="Label printed"
+                className="absolute right-0.5 top-0.5 size-1 rounded-full bg-muted-foreground/60"
+              />
+            )}
             <div className="flex items-center gap-1">
               <div className={`size-1.5 rounded-full shrink-0 ${style.dot}`} />
               <span style={{ fontFamily: "var(--font-mono)" }}>{u.unitNumber}</span>

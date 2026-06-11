@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BatteryCharging, CircleAlert, ExternalLink, Plus, RefreshCw, SlidersHorizontal } from "lucide-react";
+import { BatteryCharging, CircleAlert, Download, ExternalLink, Plus, RefreshCw, SlidersHorizontal, Tag } from "lucide-react";
 import { toast } from "sonner";
 import EmptyState from "@/components/EmptyState";
 import { OperationalMetricCard } from "@/components/OperationalFeedback";
@@ -42,6 +42,9 @@ type BatteryUnit = {
   unitNumber: number;
   status: UnitStatus;
   notes: string | null;
+  labelPrintedAt: string | null;
+  labelPrintedById: string | null;
+  labelPrintBatchId: string | null;
   checkedOutAt: string | null;
   checkedOutDays: number | null;
   booking: {
@@ -69,6 +72,8 @@ type BatterySku = {
     lost: number;
     retired: number;
   };
+  labelPrintedCount: number;
+  labelNeededCount: number;
   isLow: boolean;
   units: BatteryUnit[];
 };
@@ -122,6 +127,12 @@ type PendingQuantityAdjustment = {
   currentTotal: number;
 } | null;
 
+type PendingLabelMark = {
+  skuId: string;
+  skuName: string;
+  unitNumbers: number[];
+} | null;
+
 const STATUS_META: Record<UnitStatus, { label: string; className: string; dot: string }> = {
   AVAILABLE: {
     label: "Available",
@@ -151,6 +162,16 @@ function metricLabel(value: number, singular: string, plural = `${singular}s`) {
 
 function formatDue(value: string) {
   return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(new Date(value));
+}
+
+function formatLabelDate(value: string) {
+  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" }).format(new Date(value));
+}
+
+function summarizeUnitNumbers(numbers: number[], max = 8) {
+  const sorted = [...numbers].sort((a, b) => a - b);
+  if (sorted.length <= max) return sorted.map((n) => `#${n}`).join(", ");
+  return `${sorted.slice(0, max).map((n) => `#${n}`).join(", ")} +${sorted.length - max} more`;
 }
 
 function defaultStatusReason(status: Exclude<UnitStatus, "CHECKED_OUT">) {
@@ -194,6 +215,10 @@ export default function BatteryCockpitPage() {
   const [quantityReason, setQuantityReason] = useState("Battery count correction");
   const [quantityBusy, setQuantityBusy] = useState(false);
   const quantityBusyRef = useRef(false);
+  const [pendingLabelMark, setPendingLabelMark] = useState<PendingLabelMark>(null);
+  const [labelBusy, setLabelBusy] = useState(false);
+  const labelBusyRef = useRef(false);
+  const [exportingSkuId, setExportingSkuId] = useState<string | null>(null);
 
   async function load({ refresh = false } = {}) {
     if (refresh) setRefreshing(true);
@@ -387,6 +412,73 @@ export default function BatteryCockpitPage() {
     }
   }
 
+  async function exportBrotherLabels(sku: BatterySku) {
+    if (exportingSkuId) return;
+    const unprinted = sku.units
+      .filter((unit) => unit.labelPrintedAt === null && unit.status !== "RETIRED")
+      .map((unit) => unit.unitNumber)
+      .sort((a, b) => a - b);
+
+    if (unprinted.length === 0) {
+      toast.info(`${sku.name} has no unprinted labels. Use the unit menu to reprint.`);
+      return;
+    }
+
+    setExportingSkuId(sku.id);
+    try {
+      const res = await fetch(`/api/bulk-skus/${sku.id}/units/labels?scope=unprinted`);
+      if (handleAuthRedirect(res, "/bulk-inventory/batteries")) return;
+      if (!res.ok) {
+        toast.error(await parseErrorMessage(res, "Failed to build label CSV"));
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `brother-labels-${sku.id}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+
+      toast.success(`Exported ${metricLabel(unprinted.length, "label")} for ${sku.name}`);
+      setPendingLabelMark({ skuId: sku.id, skuName: sku.name, unitNumbers: unprinted });
+    } catch {
+      toast.error("Network error — label CSV was not downloaded.");
+    } finally {
+      setExportingSkuId(null);
+    }
+  }
+
+  async function confirmLabelsPrinted(action: NonNullable<PendingLabelMark>) {
+    if (labelBusyRef.current) return;
+    labelBusyRef.current = true;
+    setLabelBusy(true);
+    try {
+      const res = await fetch(`/api/bulk-skus/${action.skuId}/units/labels`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ unitNumbers: action.unitNumbers, printed: true }),
+      });
+      if (handleAuthRedirect(res, "/bulk-inventory/batteries")) return;
+      if (!res.ok) {
+        toast.error(await parseErrorMessage(res, "Failed to mark labels printed"));
+        return;
+      }
+      const json = await parseJsonSafely<{ data?: { updated: number; alreadyPrinted: number } }>(res);
+      const updated = json?.data?.updated ?? action.unitNumbers.length;
+      toast.success(`Marked ${metricLabel(updated, "label")} printed for ${action.skuName}`);
+      setPendingLabelMark(null);
+      void load({ refresh: true });
+    } catch {
+      toast.error("Network error — labels were not marked printed.");
+    } finally {
+      labelBusyRef.current = false;
+      setLabelBusy(false);
+    }
+  }
+
   if (loading && !data) {
     return (
       <div className="space-y-5">
@@ -547,6 +639,21 @@ export default function BatteryCockpitPage() {
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                       {sku.isLow && <Badge variant="orange">Low stock</Badge>}
+                      {sku.labelNeededCount > 0 && (
+                        <Badge variant="secondary" className="gap-1">
+                          <Tag className="size-3" />
+                          {sku.labelNeededCount} need labels
+                        </Badge>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={exportingSkuId === sku.id}
+                        onClick={() => void exportBrotherLabels(sku)}
+                      >
+                        <Download className="size-3.5" />
+                        {exportingSkuId === sku.id ? "Exporting..." : "Brother CSV"}
+                      </Button>
                       <Button size="sm" variant="outline" onClick={() => openAddUnits(sku)}>
                         <Plus className="size-3.5" />
                         Add
@@ -555,6 +662,12 @@ export default function BatteryCockpitPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Tag className="size-3.5" />
+                    <span className="tabular-nums">
+                      {sku.labelPrintedCount} of {sku.counts.total} labels printed
+                    </span>
+                  </div>
                   <div className="grid grid-cols-4 gap-2 text-sm">
                     <Count label="Avail" value={sku.counts.available} dot={STATUS_META.AVAILABLE.dot} />
                     <Count label="Out" value={sku.counts.checkedOut} dot={STATUS_META.CHECKED_OUT.dot} />
@@ -797,6 +910,38 @@ export default function BatteryCockpitPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog
+        open={!!pendingLabelMark}
+        onOpenChange={(open) => {
+          if (!open && !labelBusy) setPendingLabelMark(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Mark {pendingLabelMark ? metricLabel(pendingLabelMark.unitNumbers.length, "label") : "labels"} printed?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingLabelMark
+                ? `Confirm the Brother labels for ${pendingLabelMark.skuName} were printed and applied. Units ${summarizeUnitNumbers(pendingLabelMark.unitNumbers)}.`
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={labelBusy}>Not yet</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!pendingLabelMark || labelBusy}
+              onClick={(event) => {
+                event.preventDefault();
+                if (pendingLabelMark) void confirmLabelsPrinted(pendingLabelMark);
+              }}
+            >
+              {labelBusy ? "Marking..." : "Mark printed"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -851,14 +996,30 @@ function UnitMenu({
   onPendingAction: (action: NonNullable<PendingAction>) => void;
 }) {
   const meta = STATUS_META[unit.status];
+  const needsLabel = unit.labelPrintedAt === null && unit.status !== "RETIRED";
+  const labelTitle = unit.labelPrintedAt
+    ? `Label printed ${formatLabelDate(unit.labelPrintedAt)}`
+    : needsLabel
+      ? "Needs label"
+      : undefined;
   const content = (
     <div
+      title={labelTitle}
       className={cn(
-        "flex min-h-12 flex-col items-start justify-center rounded-md px-2.5 py-2 text-left transition-[background-color,scale] active:scale-[0.96]",
+        "relative flex min-h-12 flex-col items-start justify-center rounded-md px-2.5 py-2 text-left transition-[background-color,scale] active:scale-[0.96]",
         meta.className,
         unit.status === "CHECKED_OUT" ? "cursor-default opacity-80" : "cursor-pointer",
       )}
     >
+      {needsLabel && (
+        <span
+          aria-label="Needs label"
+          className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-[var(--orange)]"
+        />
+      )}
+      {unit.labelPrintedAt && (
+        <Tag aria-label="Label printed" className="absolute right-1.5 top-1.5 size-2.5 opacity-70" />
+      )}
       <span className="font-mono text-sm font-semibold tabular-nums">#{unit.unitNumber}</span>
       <span className="text-[10px] leading-tight">{busy ? "Updating..." : meta.label}</span>
     </div>

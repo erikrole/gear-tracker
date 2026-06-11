@@ -10,6 +10,26 @@ export type DerivedBulkUnitQrMatch = {
   unitNumber: number;
 };
 
+/**
+ * Format the derived unit QR value for a numbered bulk unit.
+ * Mirror of {@link parseDerivedBulkUnitQr}: `{binQrCodeValue}-{unitNumber}`.
+ * Never stored — derived at read/export time so the QR data stays single-sourced
+ * on `BulkSku.binQrCodeValue` and `BulkSkuUnit.unitNumber` (Decision D-022).
+ */
+export function buildDerivedBulkUnitQrValue(
+  binQrCodeValue: string,
+  unitNumber: number,
+): string {
+  const trimmed = binQrCodeValue.trim();
+  if (!trimmed) {
+    throw new Error("Cannot derive a unit QR value without a bin QR code");
+  }
+  if (!Number.isSafeInteger(unitNumber) || unitNumber <= 0) {
+    throw new Error(`Invalid unit number for derived QR value: ${unitNumber}`);
+  }
+  return `${trimmed}-${unitNumber}`;
+}
+
 export function parseDerivedBulkUnitQr(
   scanValue: string,
   skus: DerivedBulkUnitQrSku[],

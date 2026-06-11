@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { PlusIcon } from "lucide-react";
+import { Download, PlusIcon } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ export default function BulkSkuUnitsTab({
   const [addingUnits, setAddingUnits] = useState(false);
   const [addCount, setAddCount] = useState(10);
   const [busy, setBusy] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const addBusyRef = useRef(false);
   const statusBusyRef = useRef(new Set<string>());
 
@@ -33,6 +34,31 @@ export default function BulkSkuUnitsTab({
   const checkedOut = units.filter((u) => u.status === "CHECKED_OUT").length;
   const lost = units.filter((u) => u.status === "LOST").length;
   const retired = units.filter((u) => u.status === "RETIRED").length;
+  const printedLabels = units.filter((u) => !!u.labelPrintedAt).length;
+
+  async function handleExportLabels() {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const res = await fetch(`/api/bulk-skus/${sku.id}/units/labels?scope=unprinted`);
+      if (handleAuthRedirect(res)) return;
+      if (!res.ok) { toast.error(await parseErrorMessage(res, "Failed to build label CSV")); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `brother-labels-${sku.id}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast.success("Label CSV downloaded. Mark printed from Battery Ops.");
+    } catch (err) {
+      toast.error(err instanceof TypeError ? "You’re offline. Check your connection." : "Failed to export labels. Try again.");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   async function handleStatusChange(unitNumber: number, newStatus: "AVAILABLE" | "LOST" | "RETIRED") {
     const key = `${unitNumber}:${newStatus}`;
@@ -92,8 +118,18 @@ export default function BulkSkuUnitsTab({
               {checkedOut > 0 && <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-[var(--blue)]" />{checkedOut} out</span>}
               {lost > 0 && <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-destructive" />{lost} missing</span>}
               {retired > 0 && <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-muted-foreground" />{retired} retired</span>}
+              {sku.trackByNumber && units.length > 0 && (
+                <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-muted-foreground/60" />{printedLabels} labeled</span>
+              )}
             </div>
           </div>
+          <div className="flex items-center gap-2">
+          {sku.trackByNumber && units.length > 0 && (
+            <Button size="sm" variant="outline" onClick={handleExportLabels} disabled={exporting}>
+              <Download className="size-3.5 mr-1" />
+              {exporting ? "Exporting…" : "Brother CSV"}
+            </Button>
+          )}
           {canEdit && (
             addingUnits ? (
               <div className="flex items-center gap-2">
@@ -115,6 +151,7 @@ export default function BulkSkuUnitsTab({
               </Button>
             )
           )}
+          </div>
         </CardHeader>
         <CardContent className="pt-0">
           {units.length === 0 ? (

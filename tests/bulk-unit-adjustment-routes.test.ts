@@ -151,6 +151,30 @@ describe("bulk unit adjustment routes", () => {
     }));
   });
 
+  it("does not clear printed-label fields when status changes", async () => {
+    tx.bulkSkuUnit.findUnique.mockResolvedValueOnce({
+      id: "unit-7",
+      bulkSkuId: "sku-1",
+      unitNumber: 7,
+      status: "AVAILABLE",
+      notes: null,
+      labelPrintedAt: new Date("2026-06-01T00:00:00.000Z"),
+      labelPrintedById: "staff-1",
+      labelPrintBatchId: "batch-1",
+    });
+
+    await updateBulkUnit(
+      request("/api/bulk-skus/sku-1/units/7", "PATCH", { status: "LOST", reason: "Missing after Saturday audit" }),
+      routeParams,
+    );
+
+    const updateArg = tx.bulkSkuUnit.update.mock.calls[0][0];
+    expect(updateArg.data).not.toHaveProperty("labelPrintedAt");
+    expect(updateArg.data).not.toHaveProperty("labelPrintedById");
+    expect(updateArg.data).not.toHaveProperty("labelPrintBatchId");
+    expect(updateArg.data).toEqual({ status: "LOST", notes: null });
+  });
+
   it("blocks any status change while a unit is checked out", async () => {
     tx.bulkSkuUnit.findUnique.mockResolvedValueOnce({
       id: "unit-7",
