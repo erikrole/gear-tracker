@@ -10,6 +10,30 @@ struct SearchResults {
     var isEmpty: Bool {
         items.isEmpty && itemFamilies.isEmpty && reservations.isEmpty && checkouts.isEmpty && users.isEmpty
     }
+
+    /// The asset when the result set is a single serialized asset and nothing
+    /// else — the canonical "scanned a sticker, got one item" case.
+    var singleAssetMatch: Asset? {
+        guard items.count == 1,
+              itemFamilies.isEmpty,
+              reservations.isEmpty,
+              checkouts.isEmpty,
+              users.isEmpty
+        else { return nil }
+        return items.first
+    }
+
+    /// The family when the result set is a single bulk-item family and nothing
+    /// else — e.g. a scanned bulk-unit QR like "Sony Battery, Unit #1".
+    var singleFamilyMatch: AssetFamilySearchResult? {
+        guard itemFamilies.count == 1,
+              items.isEmpty,
+              reservations.isEmpty,
+              checkouts.isEmpty,
+              users.isEmpty
+        else { return nil }
+        return itemFamilies.first
+    }
 }
 
 @MainActor

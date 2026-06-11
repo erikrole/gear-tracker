@@ -116,7 +116,7 @@ struct ScanView: View {
                 },
                 onRetry: retryLastScan
             )
-            .presentationDetents([.medium, .large])
+            .presentationDetents(resultSheetDetents)
             .presentationDragIndicator(.visible)
             .presentationBackgroundInteraction(.enabled(upThrough: .medium))
         }
@@ -183,6 +183,19 @@ struct ScanView: View {
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 32)
+    }
+
+    /// Fixed-content states (hero card, empty, error) fit at .medium — offering
+    /// .large there just reveals dead space. Only the multi-result row list
+    /// earns the expandable detent.
+    private var resultSheetDetents: Set<PresentationDetent> {
+        guard resultError == nil,
+              let results,
+              !results.isEmpty,
+              results.singleAssetMatch == nil,
+              results.singleFamilyMatch == nil
+        else { return [.medium] }
+        return [.medium, .large]
     }
 
     private var hasTorch: Bool {
@@ -420,7 +433,7 @@ private struct ScanResultSheet: View {
                 errorState(message: error)
             } else if results.isEmpty {
                 emptyState
-            } else if let asset = singleAsset {
+            } else if let asset = results.singleAssetMatch {
                 // One unambiguous serialized asset → rich hero card with
                 // tap-through to Item Detail.
                 ScrollView {
@@ -429,7 +442,7 @@ private struct ScanResultSheet: View {
                         dismiss()
                     }
                 }
-            } else if let family = singleFamily {
+            } else if let family = results.singleFamilyMatch {
                 // One bulk-unit match → rich hero card. No detail screen
                 // exists for bulk SKUs on iOS; the card is the destination.
                 ScrollView {
@@ -440,30 +453,6 @@ private struct ScanResultSheet: View {
             }
         }
         .presentationCornerRadius(24)
-    }
-
-    /// The asset when the result set is a single serialized asset and nothing
-    /// else — the canonical "scanned a sticker, got one item" case.
-    private var singleAsset: Asset? {
-        guard results.items.count == 1,
-              results.itemFamilies.isEmpty,
-              results.reservations.isEmpty,
-              results.checkouts.isEmpty,
-              results.users.isEmpty
-        else { return nil }
-        return results.items.first
-    }
-
-    /// The family when the result set is a single bulk-item family and nothing
-    /// else — e.g. a scanned bulk-unit QR like "Sony Battery, Unit #1".
-    private var singleFamily: AssetFamilySearchResult? {
-        guard results.itemFamilies.count == 1,
-              results.items.isEmpty,
-              results.reservations.isEmpty,
-              results.checkouts.isEmpty,
-              results.users.isEmpty
-        else { return nil }
-        return results.itemFamilies.first
     }
 
     private var emptyState: some View {

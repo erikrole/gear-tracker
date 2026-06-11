@@ -49,7 +49,9 @@ struct ScanAssetHeroCard: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
         }
-        .padding(20)
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+        .padding(.bottom, 28)
     }
 
     private var metaLine: String {
@@ -68,23 +70,24 @@ struct ScanFamilyHeroCard: View {
             ScanHeroImage(imageUrl: family.imageUrl, placeholderIcon: "shippingbox")
 
             VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(family.name)
-                        .font(.title3.weight(.semibold))
-                        .lineLimit(2)
-                    Spacer()
-                    if let status = unitStatus {
-                        AssetStatusBadge(status: status)
-                    }
-                }
+                Text(family.name)
+                    .font(.title3.weight(.semibold))
+                    .lineLimit(2)
                 Text("\(family.category) · \(family.locationName)")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
 
+            // The status badge lives here, not on the title row: with dozens
+            // of units in a family, "Available" is a claim about the scanned
+            // unit, so it belongs next to the unit number.
             if let unitNumber = family.matchedUnitNumber {
-                ScanHeroIdentifier(label: "Scanned unit", value: "#\(unitNumber)")
+                ScanHeroIdentifier(
+                    label: "Scanned unit",
+                    value: "#\(unitNumber)",
+                    status: unitStatus
+                )
             }
 
             ScanHeroStatsRow(family: family)
@@ -98,7 +101,9 @@ struct ScanFamilyHeroCard: View {
                 )
             }
         }
-        .padding(20)
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+        .padding(.bottom, 28)
     }
 
     /// Unit statuses come over the wire as the same raw strings as asset
@@ -122,7 +127,12 @@ private struct ScanHeroImage: View {
                 AsyncImage(url: url) { phase in
                     switch phase {
                     case .success(let image):
-                        image.resizable().scaledToFill()
+                        // Fit, not fill: inventory photos are catalog-style
+                        // product shots — cropping them cuts the object.
+                        image
+                            .resizable()
+                            .scaledToFit()
+                            .padding(12)
                     default:
                         placeholder
                     }
@@ -153,15 +163,23 @@ private struct ScanHeroImage: View {
 private struct ScanHeroIdentifier: View {
     let label: String
     let value: String
+    var status: AssetComputedStatus? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label.uppercased())
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.secondary)
-            Text(value)
-                .font(.system(.title, design: .rounded).weight(.bold))
-                .contentTransition(.numericText())
+            HStack(alignment: .center) {
+                Text(value)
+                    .font(.system(.title, design: .rounded).weight(.bold))
+                    .monospacedDigit()
+                    .contentTransition(.numericText())
+                Spacer()
+                if let status {
+                    AssetStatusBadge(status: status)
+                }
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 16)
@@ -178,22 +196,35 @@ private struct ScanHeroStatsRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
+            // Zero available is the actionable state — flag it instead of
+            // celebrating green.
             ScanHeroStatTile(
                 value: family.availableQuantity,
                 label: "Available",
-                tone: .green
+                tone: family.availableQuantity > 0 ? .green : .orange
             )
             ScanHeroStatTile(
                 value: family.checkedOutQuantity,
                 label: "Checked out",
-                tone: .blue
+                tone: family.checkedOutQuantity > 0 ? .blue : nil
             )
             ScanHeroStatTile(
                 value: family.onHandQuantity,
                 label: family.trackByNumber ? "Units total" : "On hand",
-                tone: nil
+                tone: nil,
+                caption: absorbedCaption
             )
         }
+    }
+
+    /// Lost/retired units are excluded from Available but included in the
+    /// total — without this, a family with 2 lost units shows 50/0/52 with
+    /// no explanation.
+    private var absorbedCaption: String? {
+        var parts: [String] = []
+        if family.lostQuantity > 0 { parts.append("\(family.lostQuantity) lost") }
+        if family.retiredQuantity > 0 { parts.append("\(family.retiredQuantity) retired") }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 }
 
@@ -201,16 +232,24 @@ private struct ScanHeroStatTile: View {
     let value: Int
     let label: String
     let tone: StatusTone?
+    var caption: String? = nil
 
     var body: some View {
         VStack(spacing: 2) {
             Text("\(value)")
                 .font(.system(.title2, design: .rounded).weight(.bold))
+                .monospacedDigit()
                 .foregroundStyle(tone.map { Color.statusText($0) } ?? .primary)
             Text(label)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
+            if let caption {
+                Text(caption)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
@@ -219,7 +258,13 @@ private struct ScanHeroStatTile: View {
             in: RoundedRectangle(cornerRadius: 14)
         )
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(value) \(label.lowercased())")
+        .accessibilityLabel(accessibilitySummary)
+    }
+
+    private var accessibilitySummary: String {
+        var summary = "\(value) \(label.lowercased())"
+        if let caption { summary += ", \(caption)" }
+        return summary
     }
 }
 
