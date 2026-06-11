@@ -37,6 +37,9 @@ targets:
         NSLocationWhenInUseUsageDescription: "Show nearby gear locations"
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: false
+        UIAppFonts:
+          - Gotham-Black.ttf
+          - Gotham-Bold.ttf
     entitlements:
       path: Wisconsin/Wisconsin.entitlements
     dependencies:

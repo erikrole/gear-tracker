@@ -27,6 +27,11 @@
 	<string>Scan gear barcodes and QR codes</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Show nearby gear locations</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Gotham-Black.ttf</string>
+		<string>Gotham-Bold.ttf</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>

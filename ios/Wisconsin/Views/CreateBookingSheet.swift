@@ -248,6 +248,21 @@ final class CreateBookingViewModel {
         }
     }
 
+    /// Prefills a reservation context started from a bulk-item family (e.g.
+    /// a scanned battery unit). Seeds one unit of the SKU; the equipment step
+    /// resolves the SKU details once form options load.
+    func prefillReservation(forFamily family: AssetFamilySearchResult) {
+        if title.isEmpty {
+            title = "Reservation: \(family.name)"
+        }
+        if (selectedBulkQuantities[family.id] ?? 0) == 0 {
+            selectedBulkQuantities[family.id] = 1
+        }
+        if selectedLocationId.isEmpty {
+            selectedLocationId = family.locationId
+        }
+    }
+
     func loadOptions() async {
         guard options == nil else { return }
         isLoadingOptions = true

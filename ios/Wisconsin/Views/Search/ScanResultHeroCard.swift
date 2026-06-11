@@ -10,6 +10,7 @@ import SwiftUI
 struct ScanAssetHeroCard: View {
     let asset: Asset
     var onViewItem: () -> Void
+    var onReserve: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -17,9 +18,13 @@ struct ScanAssetHeroCard: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text(asset.name ?? asset.displayName)
-                        .font(.title3.weight(.semibold))
+                    // The asset tag is what's printed on the sticker the user
+                    // just scanned — it's the headline, in the web's Gotham
+                    // title face. Name only steps in when there's no tag.
+                    Text(asset.assetTag ?? asset.name ?? asset.displayName)
+                        .font(.gothamBlack(size: 30))
                         .lineLimit(2)
+                        .minimumScaleFactor(0.6)
                     Spacer()
                     AssetStatusBadge(status: asset.computedStatus)
                 }
@@ -27,10 +32,6 @@ struct ScanAssetHeroCard: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-            }
-
-            if let tag = asset.assetTag {
-                ScanHeroIdentifier(label: "Asset tag", value: tag)
             }
 
             if let booking = asset.activeBooking {
@@ -42,12 +43,21 @@ struct ScanAssetHeroCard: View {
                 )
             }
 
-            Button(action: onViewItem) {
-                Label("View item", systemImage: "arrow.right.circle.fill")
-                    .frame(maxWidth: .infinity)
+            HStack(spacing: 10) {
+                Button(action: onReserve) {
+                    Label("Reserve", systemImage: "calendar.badge.plus")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+
+                Button(action: onViewItem) {
+                    Label("View item", systemImage: "arrow.right.circle.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
         }
         .padding(.horizontal, 20)
         .padding(.top, 20)
@@ -64,6 +74,7 @@ struct ScanAssetHeroCard: View {
 
 struct ScanFamilyHeroCard: View {
     let family: AssetFamilySearchResult
+    var onReserve: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -71,8 +82,9 @@ struct ScanFamilyHeroCard: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(family.name)
-                    .font(.title3.weight(.semibold))
+                    .font(.gothamBlack(size: 24))
                     .lineLimit(2)
+                    .minimumScaleFactor(0.7)
                 Text("\(family.category) · \(family.locationName)")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -100,6 +112,15 @@ struct ScanFamilyHeroCard: View {
                     isOverdue: family.matchedUnitDueAt.map { $0 < .now } ?? false
                 )
             }
+
+            // No bulk-SKU detail screen exists on iOS, so there's no View
+            // item tap-through — Reserve is the one action that makes sense.
+            Button(action: onReserve) {
+                Label("Reserve", systemImage: "calendar.badge.plus")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
         }
         .padding(.horizontal, 20)
         .padding(.top, 20)
@@ -122,7 +143,16 @@ private struct ScanHeroImage: View {
 
     var body: some View {
         ZStack {
-            Color(.secondarySystemBackground)
+            // Full white in both modes when a photo exists: inventory photos
+            // are catalog shots on white, so the frame disappears into the
+            // image instead of letterboxing it with gray. Placeholders keep
+            // the neutral system fill (a stark white empty tile reads broken
+            // in dark mode).
+            if imageUrl != nil {
+                Color.white
+            } else {
+                Color(.secondarySystemBackground)
+            }
             if let imageUrl, let url = URL(string: imageUrl) {
                 AsyncImage(url: url) { phase in
                     switch phase {

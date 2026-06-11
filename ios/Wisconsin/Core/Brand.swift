@@ -29,6 +29,26 @@ extension Color {
     static let brandSurfaceDim = Color(red: 0.18, green: 0.18, blue: 0.18)
 }
 
+// MARK: - Brand typography (mirrors web Gotham usage in src/app/globals.css)
+
+extension Font {
+    /// Gotham Black — the web `PageHeader` title face. Use for headline
+    /// moments (scan hero card titles). Falls back to the system heavy
+    /// weight if the bundled font fails to register.
+    static func gothamBlack(size: CGFloat) -> Font {
+        UIFont(name: "Gotham-Black", size: size) != nil
+            ? .custom("Gotham-Black", size: size)
+            : .system(size: size, weight: .heavy)
+    }
+
+    /// Gotham Bold — secondary brand emphasis weight.
+    static func gothamBold(size: CGFloat) -> Font {
+        UIFont(name: "Gotham-Bold", size: size) != nil
+            ? .custom("Gotham-Bold", size: size)
+            : .system(size: size, weight: .bold)
+    }
+}
+
 // MARK: - Semantic status palette (mirrors web tokens in src/app/globals.css)
 //
 // Web uses paired bg/text tokens for status badges:

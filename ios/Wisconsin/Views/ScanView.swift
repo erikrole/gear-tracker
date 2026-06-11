@@ -30,6 +30,9 @@ struct ScanView: View {
                 .navigationDestination(for: Booking.self) { booking in
                     BookingDetailView(bookingId: booking.id)
                 }
+                .navigationDestination(for: BookingRouteId.self) { route in
+                    BookingDetailView(bookingId: route.id)
+                }
                 .onChange(of: scenePhase) { _, phase in
                     // Re-read after the user toggles camera in Settings.
                     if phase == .active {
@@ -426,6 +429,8 @@ private struct ScanResultSheet: View {
     var onTypeCode: () -> Void
     var onRetry: () -> Void
     @Environment(\.dismiss) private var dismiss
+    @State private var reserveAsset: Asset?
+    @State private var reserveFamily: AssetFamilySearchResult?
 
     var body: some View {
         Group {
@@ -437,22 +442,56 @@ private struct ScanResultSheet: View {
                 // One unambiguous serialized asset → rich hero card with
                 // tap-through to Item Detail.
                 ScrollView {
-                    ScanAssetHeroCard(asset: asset) {
-                        navigationPath.append(asset)
-                        dismiss()
-                    }
+                    ScanAssetHeroCard(
+                        asset: asset,
+                        onViewItem: {
+                            navigationPath.append(asset)
+                            dismiss()
+                        },
+                        onReserve: { reserveAsset = asset }
+                    )
                 }
             } else if let family = results.singleFamilyMatch {
                 // One bulk-unit match → rich hero card. No detail screen
                 // exists for bulk SKUs on iOS; the card is the destination.
                 ScrollView {
-                    ScanFamilyHeroCard(family: family)
+                    ScanFamilyHeroCard(
+                        family: family,
+                        onReserve: { reserveFamily = family }
+                    )
                 }
             } else {
                 ScrollView { resultRows }
             }
         }
         .presentationCornerRadius(24)
+        .sheet(item: $reserveAsset) { asset in
+            CreateBookingSheet(vm: {
+                let vm = CreateBookingViewModel()
+                vm.prefillReservation(for: asset)
+                return vm
+            }()) { newId in
+                reserveAsset = nil
+                openBooking(newId)
+            }
+        }
+        .sheet(item: $reserveFamily) { family in
+            CreateBookingSheet(vm: {
+                let vm = CreateBookingViewModel()
+                vm.prefillReservation(forFamily: family)
+                return vm
+            }()) { newId in
+                reserveFamily = nil
+                openBooking(newId)
+            }
+        }
+    }
+
+    /// Lands on the freshly created booking: dismisses the result sheet and
+    /// pushes detail on the scan tab's navigation stack.
+    private func openBooking(_ id: String) {
+        navigationPath.append(BookingRouteId(id: id))
+        dismiss()
     }
 
     private var emptyState: some View {
