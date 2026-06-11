@@ -14,6 +14,9 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ["date-fns", "motion"],
     devtoolSegmentExplorer: false,
   },
+  outputFileTracingIncludes: {
+    "/api/db-diagnostics": ["./prisma/migrations/*/migration.sql"],
+  },
   transpilePackages: ["@mdxeditor/editor"],
   images: {
     remotePatterns: [

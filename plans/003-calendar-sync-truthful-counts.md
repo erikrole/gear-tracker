@@ -109,13 +109,20 @@ Add tests that prove:
 
 ## Done Criteria
 
-- [ ] `updated` equals the number of actual changed existing rows, not changed plus unchanged.
-- [ ] UI copy no longer calls unchanged events refreshed.
-- [ ] `npx vitest run tests/calendar-sync.test.ts` exits 0.
-- [ ] `npx tsc --noEmit` exits 0.
-- [ ] `npm test` exits 0.
-- [ ] Build check exits 0.
-- [ ] `plans/README.md` status row updated.
+- [x] `updated` equals the number of actual changed existing rows, not changed plus unchanged.
+- [x] UI copy no longer calls unchanged events refreshed.
+- [x] `npx vitest run tests/calendar-sync.test.ts` exits 0.
+- [x] `npx tsc --noEmit` exits 0.
+- [x] `npm test` exits 0.
+- [x] Build check exits 0.
+- [x] `plans/README.md` status row updated.
+
+## Review
+
+- 2026-06-11: Added `unchanged` to `SyncResult` and changed saved-source sync so `updated` is only `toUpdate.length`.
+- 2026-06-11: Updated Settings calendar-source sync copy from "events refreshed" to "events updated" and kept unchanged-only syncs under "no event changes."
+- 2026-06-11: Added focused coverage for unchanged sync copy and the updated result contract.
+- 2026-06-11 verification: focused calendar tests, TypeScript, full tests, live-free `build:app`, migration-prefix check, and whitespace diff all exited 0.
 
 ## STOP Conditions
 

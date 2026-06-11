@@ -9,6 +9,7 @@
     "dev": "next dev",
     "postinstall": "prisma generate",
     "build": "node scripts/prisma-migrate-deploy.mjs && next build",
+    "build:app": "next build",
     "migrate": "node scripts/prisma-migrate-deploy.mjs",
     "analyze": "ANALYZE=true next build",
     "start": "next start",

@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Items
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-10
+- Last Updated: 2026-06-11
 - Status: Active
 - Version: V1
 
@@ -87,6 +87,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
    - Flag
    - Item kind
    - Kit status
+   The Filters trigger is linked to the advanced filter panel for assistive technology, and list search disables browser autofill so repeated inventory searches stay predictable.
 3. Sort defaults to tagName ascending.
 4. View toggle supports table mode as required baseline.
 5. Mobile keeps search and filter access pinned at top for long lists per `AREA_MOBILE.md`.
@@ -257,15 +258,11 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 ### Settings Tab
 1. Settings is the policy surface, not an item-status editor.
 2. Show a small status-source summary so users understand current availability is derived.
-3. Settings toggles:
-   - Check-out eligible
-   - Reservation eligible
-   - Custody eligible
-4. These toggles represent eligibility policy, not current real-time status.
-5. Toggle help text should make the operational meaning explicit:
-   - Check-out eligible: item can leave inventory through check-out workflows
-   - Reservation eligible: item can be reserved for future use
-   - Custody eligible: item can be assigned into custody outside short-term bookings
+3. Show one `Bookable` policy switch for normal operators:
+   - On: item can appear in checkout and reservation workflows.
+   - Off: item is hidden from checkout and reservation workflows.
+4. `Bookable` represents eligibility policy, not current real-time status.
+5. Direct custody eligibility remains stored for compatibility, but is not exposed as a day-to-day item setting unless a dedicated direct-assignment workflow needs it.
 
 ### Schedule Tab
 1. Month cells show multi-day bookings as continuous week-spanning bars so one booking reads as one schedule block.
@@ -418,6 +415,9 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-06-11: **Item-family import photos now join the Blob rehost drain.** The `rehost-images` cron now processes both serialized `Asset.imageUrl` rows and item-family `BulkSku.imageUrl` rows under the same bounded work budget, with `BulkSku.imageRehostAttempts` capping retries for dead external URLs. The operator backfill script also includes BulkSku candidates by default while preserving dry-run behavior and explicit `--apply`.
+- 2026-06-10: **Item bookable policy simplification shipped.** Item detail Settings and Standard Add item now expose one `Bookable` switch instead of separate checkout, reservation, and custody toggles. The switch writes checkout and reservation eligibility together, attachments remain non-bookable under their parent item, and direct custody eligibility stays stored but out of the normal item settings UI.
+- 2026-06-10: **Items page polish hardening follow-up** — preserved the existing Items page layout while tightening control semantics. The search field now disables browser autofill, the Filters button is linked to the advanced filter panel with an explicit active-count label, the compact status summary and table regions have accessible names, status bucket actions announce apply/remove intent, and row selection checkboxes name the item being selected.
 - 2026-06-10: **Items list wide-screen layout shipped.** The items list page now centers in a max-w-screen-2xl container, and the table's Status/Category/Department/Location columns carry pinned header widths (via a `thClassName` column meta applied in the data table) so the Name column absorbs leftover width instead of all columns drifting apart on large monitors.
 - 2026-06-10: **Item detail layout follow-ups shipped.** The item detail page (header, tabs, tab content) now centers in a max-w-7xl container so wide monitors get balanced margins instead of dead space on the right. A real `scrollbar-hide` utility was added to globals.css (the class was referenced by four tab strips but never defined), removing the stray scrollbar beside the tab bar. Identity QR/serial values are now click-to-copy with the copy icon hugging the text. The Attachments tab dropped the stat tile row, per-group descriptions, and per-row "travels with parent" filler, leaving a single card with a count badge and grouped two-line rows.
 - 2026-06-10: **Item detail layout and modal upgrades shipped.** The Info tab dashboard grid now caps at a readable width on large monitors instead of stretching the operational column across the full viewport. The QR dialog gained a framed white QR tile, a copy button on the code value, a Download PNG action for label printing, a destructive confirm before generating a replacement code (printed labels stop resolving), and a manual-entry mode that swaps in place of the action buttons. The Attachments tab shows one Add attachment CTA when empty (in the empty state) instead of two, and zero-count stat tiles render muted.

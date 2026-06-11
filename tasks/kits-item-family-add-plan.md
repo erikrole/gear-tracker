@@ -33,18 +33,19 @@ already exists — only the add UI is missing.
 - No change to serialized add/remove or any other kit behavior.
 
 ## Checklist
-- [ ] Add `BulkSkuOption` type + add-state (search, lazy options, qty map, adding ids).
-- [ ] Add lazy-fetch effect for location item families.
-- [ ] Add `handleAddBulkMember` (POST + optimistic append + toast).
-- [ ] Add the add-search UI inside the Bulk Items card, above the table/empty state.
-- [ ] Sync `docs/AREA_CHECKOUTS.md` (kits) change log.
-- [ ] Verify: `npx tsc --noEmit`, `git diff --check`, `npx next build`, browser smoke.
+- [x] Add `BulkSkuOption` type + add-state (search, lazy options, qty map, adding ids).
+- [x] Add lazy-fetch effect for location item families.
+- [x] Add `handleAddBulkMember` (POST + optimistic append + toast).
+- [x] Add the add-search UI inside the Bulk Items card, above the table/empty state.
+- [x] Sync `docs/AREA_KITS.md` change log.
+- [x] Verify: `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, `npx next build`.
+- [ ] Authenticated browser smoke remains blocked by local login environment.
 
 ## Verification
-- [ ] `npx tsc --noEmit`
-- [ ] `npm run db:migrate:check`
-- [ ] `git diff --check`
-- [ ] `npx next build`
+- [x] `npx tsc --noEmit`
+- [x] `npm run db:migrate:check`
+- [x] `git diff --check`
+- [x] `npx next build`
 - [ ] Browser smoke: open a kit, search item families, set qty, add, confirm it lands in
   the Bulk Items table and is excluded from subsequent search results; remove still works.
 

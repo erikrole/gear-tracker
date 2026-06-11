@@ -36,8 +36,12 @@
 
 ## Polish Checklist (this PR)
 
-- [ ] Drop Alert `success`/`warning`/`info` variants
-- [ ] Drop EmptyMedia `data-variant` attribute
+- [x] Drop Alert `success`/`warning`/`info` variants
+- [x] Drop EmptyMedia `data-variant` attribute
+
+## Review
+
+- 2026-06-10: Reconciled against current source. `Alert` now exposes only `default` and `destructive` variants, and `EmptyMedia` no longer writes an unread `data-variant` attribute. No runtime code change was needed in this pass.
 
 ## Bigger Bets (follow-up)
 

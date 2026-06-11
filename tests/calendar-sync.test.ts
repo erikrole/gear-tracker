@@ -1,5 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { afterEach, describe, it, expect, vi } from "vitest";
+import { fetchCalendarText } from "@/lib/services/bounded-calendar-fetch";
 import { parseIcsDate, splitEventsForSync, cleanSummary, extractSportInfo, unescapeIcsText, isHomeLocationText, WRITE_CHUNK_SIZE, type SyncResult, type SyncEventError, type SyncDiagnostics, type SyncEventSample, type ParsedIcsEvent, type ExistingEventRow } from "@/lib/services/calendar-sync";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 // ── unescapeIcsText unit tests ──
 
@@ -185,10 +191,12 @@ describe("SyncResult type shape", () => {
     const result: SyncResult = {
       added: 2,
       updated: 1,
+      unchanged: 4,
       cancelled: 0,
       skipped: 1,
       errors: [{ uid: "abc", summary: "Bad event", operation: "create", reason: "Invalid start date" }],
     };
+    expect(result.unchanged).toBe(4);
     expect(result.skipped).toBe(1);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0]!.uid).toBe("abc");
@@ -205,6 +213,81 @@ describe("SyncResult type shape", () => {
       error: "HTTP 503: Service Unavailable",
     };
     expect(result.error).toBeTruthy();
+  });
+});
+
+// ── Bounded calendar feed fetch ──
+
+describe("fetchCalendarText", () => {
+  it("returns status, content type, byte size, and decoded text for successful feeds", async () => {
+    const fetchMock = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+      expect(new Headers(init?.headers).get("User-Agent")).toBe("GearTracker/1.0 (probe)");
+      return new Response("BEGIN:VCALENDAR\nEND:VCALENDAR", {
+        status: 200,
+        headers: { "content-type": "text/calendar; charset=utf-8" },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await fetchCalendarText("https://example.com/feed.ics", {
+      maxBytes: 1024,
+      timeoutMs: 1000,
+      userAgentSuffix: "probe",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.status).toBe(200);
+    expect(result.contentType).toBe("text/calendar; charset=utf-8");
+    expect(result.byteSize).toBe(new TextEncoder().encode(result.text).length);
+    expect(result.text).toContain("BEGIN:VCALENDAR");
+  });
+
+  it("returns non-OK status without reading an error body as a feed", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("nope", {
+      status: 503,
+      statusText: "Service Unavailable",
+      headers: { "content-type": "text/plain" },
+    })));
+
+    const result = await fetchCalendarText("https://example.com/feed.ics");
+
+    expect(result.ok).toBe(false);
+    expect(result.status).toBe(503);
+    expect(result.statusText).toBe("Service Unavailable");
+    expect(result.byteSize).toBe(0);
+    expect(result.text).toBe("");
+  });
+
+  it("rejects oversized feeds with a stable byte-cap error", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("123456789", { status: 200 })));
+
+    await expect(fetchCalendarText("https://example.com/feed.ics", {
+      maxBytes: 8,
+    })).rejects.toThrow("Feed exceeds 8 bytes cap.");
+  });
+
+  it("rejects timed-out feeds with the configured timeout", async () => {
+    vi.stubGlobal("fetch", vi.fn((_url: RequestInfo | URL, init?: RequestInit) => {
+      return new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          reject(new DOMException("Aborted", "AbortError"));
+        }, { once: true });
+      });
+    }));
+
+    await expect(fetchCalendarText("https://example.com/feed.ics", {
+      timeoutMs: 1,
+    })).rejects.toThrow("Fetch timed out after 1ms.");
+  });
+
+  it("keeps preview and saved sync on the shared bounded fetch helper", () => {
+    const previewRoute = readFileSync("src/app/api/calendar-sources/test/route.ts", "utf8");
+    const syncService = readFileSync("src/lib/services/calendar-sync.ts", "utf8");
+
+    expect(previewRoute).toContain("fetchCalendarText");
+    expect(syncService).toContain("fetchCalendarText");
+    expect(previewRoute).not.toContain("getReader()");
+    expect(syncService).not.toContain("await response.text()");
   });
 });
 

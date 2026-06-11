@@ -82,6 +82,29 @@ Follow-up (same day, from live screenshot): two more real-world B&H URL shapes s
 
 ## Open Items
 
+### Item Bookable Policy Simplification (2026-06-10)
+- [x] **Policy audit** - Confirmed checkout and reservation eligibility are the booking-enforced item policy fields; custody is stored but not a high-value visible setting.
+- [x] **Detail settings** - Replaced the three workflow eligibility toggles with one Bookable switch that writes checkout and reservation eligibility together.
+- [x] **Add item settings** - Matched Standard Add item to the same one-switch policy while keeping attachments non-bookable under their parent item.
+- [x] **Docs and verification** - Synced source tests, Items docs, decisions, and focused checks.
+
+**Review**
+- 2026-06-10: Item detail Settings now has one `Bookable` policy switch under `Booking access`; it writes checkout and reservation eligibility together and keeps current availability derived from bookings.
+- 2026-06-10: Standard Add item now uses the same `Bookable` setting. Attachments still submit as non-bookable under their parent item, and custody eligibility stays stored but out of the normal item settings UI.
+- 2026-06-10: No additional item settings were added. Maintenance, retire/delete, firmware, procurement, and attachment relationship controls already have better contextual homes than a larger settings panel.
+- 2026-06-10: Verification passed: `npx vitest run tests/item-bookable-policy-source.test.ts tests/new-item-sheet-ui-source.test.ts tests/manual-intake-submit.test.ts`, `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, `npx next build`, and authenticated in-app browser smoke on `http://localhost:3018/items/cmmvmbdhe001hjx04hb39a7mk?tab=settings`.
+
+### Items Page Polish Hardening (2026-06-10)
+- [x] **Preserve accepted structure** - Kept the existing toolbar, status summary, and table layout intact after the earlier design correction.
+- [x] **Control semantics** - Linked Filters to the advanced filter panel, disabled search autofill, named clear-all behavior, and made status summary bucket actions explicit.
+- [x] **Table semantics** - Named the Items table region, surfaced row selected state, and gave selection checkboxes item-specific labels.
+- [x] **Docs and verification** - Synced Items docs, archived the plan, and reran focused plus deploy-shaped checks.
+
+**Review**
+- 2026-06-10: Items page polish stayed within the accepted layout. Search now disables browser autofill, Filters is linked to the advanced panel with an explicit active-count label, the compact status summary and table region are named, status bucket buttons announce apply/remove intent, and selection checkboxes name the item.
+- 2026-06-10: Authenticated browser smoke passed on `http://127.0.0.1:3017/items`; the existing page shell rendered, the filter panel opened, semantic attributes were present, 46 table rows rendered, and no browser console warnings/errors were reported.
+- 2026-06-10: Verification passed: `npx vitest run tests/items-page-polish-hardening.test.ts`, `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, and `npx next build`.
+
 ### Item Info Sidebar Hardening (2026-06-10)
 - [x] **Open slice plan** - Started and archived `tasks/archive/item-info-sidebar-hardening-plan.md` for smarter item detail field behavior.
 - [x] **Field smarts** - Hardened USD purchase price handling and product link normalization/source context.

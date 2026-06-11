@@ -4,7 +4,7 @@
 
 The test suite uses **Vitest** with Node.js environment. Tests live in `tests/` and follow the naming convention `tests/<feature>.test.ts`.
 
-**Current state:** 327 tests across 22 files covering services, RBAC, API wrappers, and route handlers.
+**Current state:** As of 2026-06-11, `npm test` passes 196 test files and 1153 tests covering services, RBAC, API wrappers, route handlers, source contracts, and iOS guardrails. Treat these counts as a snapshot; run `npm test` for the current count.
 
 ## Running Tests
 
@@ -100,25 +100,31 @@ const tx = createMockTx();
 const result = await checkSerializedConflicts(tx as any, { ... });
 ```
 
-## Bug Documentation Convention
+## Bug And Regression Documentation Convention
 
-Tests that prove known bugs use the `BUG:` prefix in both the test name and comments:
+Use the `BUG:` prefix only for a test that intentionally proves a currently open bug. These tests should be rare, explicit, and tied to a tracked fix plan or risk entry.
 
 ```ts
-it("BUG: uses no transaction isolation level (double-claim possible)", async () => {
-  // ... test that asserts the buggy behavior exists
-  expectNoIsolation(transactionCalls, 0);
+it("BUG: password reset consumes the token inside a Serializable transaction", async () => {
+  // ... test that asserts the intended hardening is still missing
+  expect(db.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+    isolationLevel: "Serializable",
+  });
 });
 ```
 
-### Known Bugs Documented by Tests
+When the bug is fixed, rename the test around the expected behavior and keep it as regression coverage. Do not leave fixed behavior documented as a live `BUG:`.
 
-| Bug | File | Test |
-|-----|------|------|
-| `claimTrade` missing isolation level | `shift-trades.test.ts` | "BUG: uses no transaction isolation level" |
-| Bulk scan TOCTOU gap | `bulk-scan-race.test.ts` | "BUG: quantity guard reads outside the increment transaction" |
-| `markCheckoutCompleted` double-return | `mark-checkout-completed.test.ts` | "BUG: returns checkedOutQuantity without subtracting checkedInQuantity" |
-| CSRF bypass with missing Origin | `api-wrapper.test.ts` | "BUG: allows POST when Origin header is absent" |
+Current regression examples:
+
+| Regression | File | Expected behavior |
+|------------|------|-------------------|
+| `claimTrade` double-claim race | `shift-trades.test.ts` | Uses SERIALIZABLE isolation |
+| Bulk scan TOCTOU gap | `bulk-scan-race.test.ts` | Re-reads guard state and increments in one SERIALIZABLE transaction |
+| `markCheckoutCompleted` double-return | `mark-checkout-completed.test.ts` | Returns only the not-yet-checked-in quantity |
+| CSRF bypass with missing or cross-site Origin | `api-wrapper.test.ts` | Blocks unsafe cross-origin mutating requests before the handler runs |
+
+Current open bug proofs should still use `BUG:`. For example, `auth-hardening.test.ts` currently documents password-change and reset hardening gaps that must remain visible until the implementation catches up.
 
 ## Adding a New Test File
 
@@ -138,15 +144,17 @@ tests/
 │   ├── mock-db.ts               # Reusable mock DB factory
 │   ├── factories.ts             # Data factories
 │   └── assert-transaction.ts    # Transaction isolation assertions
-├── shift-trades.test.ts         # Shift trade lifecycle
-├── bulk-scan-race.test.ts       # Bulk scan TOCTOU bug proof
-├── mark-checkout-completed.test.ts  # Completion + double-return bug
+├── shift-trades.test.ts         # Shift trade lifecycle and isolation regressions
+├── bulk-scan-race.test.ts       # Atomic bulk scan guard regressions
+├── mark-checkout-completed.test.ts  # Checkout completion and stock return regressions
 ├── availability.test.ts         # Availability checking
 ├── create-booking.test.ts       # Booking creation
 ├── extend-booking.test.ts       # Booking extension
 ├── checkin-bulk-item.test.ts    # Bulk item check-in
 ├── rbac.test.ts                 # Role-based access control
 ├── api-wrapper.test.ts          # withAuth/withHandler + CSRF
+├── auth-hardening.test.ts       # Current auth hardening bug proofs
+├── ios-*.test.ts                # iOS source, API, and UX guardrails
 ├── role-escalation.test.ts      # Role change API route
 ├── transaction-safety.test.ts   # Scan transaction safety
 └── ... (other existing tests)

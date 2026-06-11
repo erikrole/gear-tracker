@@ -141,16 +141,25 @@ If the UI response shape changed, update `src/app/(app)/settings/database/page.t
 
 ## Done Criteria
 
-- [ ] `/api/db-diagnostics` no longer has a hard-coded migration list ending at `0030`.
-- [ ] Diagnostics returns `ok: false` when local migrations are pending.
-- [ ] Diagnostics returns `ok: false` when applied DB migrations are missing locally or unresolved failed rows exist.
-- [ ] The settings page remains compatible with the response.
-- [ ] `npx vitest run tests/prisma-migrate-health.test.ts` exits 0.
-- [ ] Focused diagnostics tests exit 0.
-- [ ] `npx tsc --noEmit` exits 0.
-- [ ] `npm test` exits 0.
-- [ ] Build check exits 0.
-- [ ] `plans/README.md` status row updated.
+- [x] `/api/db-diagnostics` no longer has a hard-coded migration list ending at `0030`.
+- [x] Diagnostics returns `ok: false` when local migrations are pending.
+- [x] Diagnostics returns `ok: false` when applied DB migrations are missing locally or unresolved failed rows exist.
+- [x] The settings page remains compatible with the response.
+- [x] `npx vitest run tests/prisma-migrate-health.test.ts` exits 0.
+- [x] Focused diagnostics tests exit 0.
+- [x] `npx tsc --noEmit` exits 0.
+- [x] `npm test` exits 0.
+- [x] Build check exits 0.
+- [x] `plans/README.md` status row updated.
+
+## Review
+
+- Completed 2026-06-11 on branch `codex/007-db-diagnostics-live-migration-truth`.
+- `/api/db-diagnostics` now reads local migration folders from `prisma/migrations`, compares them with live `_prisma_migrations` rows, and marks diagnostics unhealthy for pending local migrations, unresolved failed rows, DB-only applied rows, or a newest local migration that is not applied.
+- Added `src/lib/services/migration-health.ts` for the app route's migration-health comparison and remediation helpers. The CLI script's existing behavior is unchanged and remains covered by `tests/prisma-migrate-health.test.ts`.
+- Added a Database Health summary on `/settings/database` while preserving the existing `checks.migrationTable`, `tables`, `enums`, `extensions`, `columns`, `remediation`, and `ok` response shape.
+- Added `outputFileTracingIncludes` for `/api/db-diagnostics` and verified `.next/server/app/api/db-diagnostics/route.js.nft.json` includes `prisma/migrations/*/migration.sql`.
+- Verification: `npx vitest run tests/db-diagnostics.test.ts tests/prisma-migrate-health.test.ts`, `npx tsc --noEmit`, `npm test` (197 files, 1157 tests), `npm run build:app`, and `git diff --check` all passed.
 
 ## STOP Conditions
 
@@ -161,4 +170,3 @@ If the UI response shape changed, update `src/app/(app)/settings/database/page.t
 ## Maintenance Notes
 
 Reviewers should reject any replacement that just updates the hard-coded list to `0074`. The point is to remove manual drift from the diagnostics surface.
-

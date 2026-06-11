@@ -38,7 +38,11 @@
 
 ## Polish Checklist (this PR)
 
-- [ ] TabsTrigger focus pattern → `focus-visible:ring-[3px] focus-visible:ring-ring/50` (match the rest)
+- [x] TabsTrigger focus pattern → `focus-visible:ring-[3px] focus-visible:ring-ring/50` (match the rest)
+
+## Review
+
+- 2026-06-10: Reconciled against current source. `TabsTrigger` now uses the shared `focus-visible:ring-[3px] focus-visible:ring-ring/50` pattern, so no runtime code change was needed in this pass.
 
 ## Bigger Bets (follow-up)
 

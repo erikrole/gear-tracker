@@ -1026,7 +1026,7 @@ export function QRModal({
         <DialogHeader>
           <div>
             <DialogTitle>QR Code</DialogTitle>
-            <DialogDescription>Scan identity for {asset.assetTag}</DialogDescription>
+            <DialogDescription>QR code for {asset.assetTag}</DialogDescription>
           </div>
         </DialogHeader>
         <DialogBody className="py-5">

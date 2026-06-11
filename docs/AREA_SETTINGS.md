@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Settings
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-08
+- Last Updated: 2026-06-11
 - Status: Active
 - Version: V1
 
@@ -119,7 +119,8 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 
 ### Database (`/settings/database`)
 - On-demand schema health diagnostics.
-- Checks: migration table, tables, enums, extensions, column drift.
+- Checks: migration table, local-vs-applied migration health, tables, enums, extensions, column drift.
+- Migration health uses the same semantics as `npm run db:migrate:health`: pending local migrations, unresolved failed rows, applied DB-only rows, and newest-local-applied status all make the page unhealthy.
 - Shows remediation steps when issues detected.
 
 ### Locations (`/settings/locations`)
@@ -133,7 +134,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - Enable/disable ICS calendar sources for event sync.
 - Sync status badges (green/yellow/red based on `lastFetchedAt` staleness).
 - Manual "Sync Now" button. Add/delete sources.
-- Manual sync reports returned feed errors, event add/refresh/cancel/skip counts, and shift-generation outcome instead of treating every 200 response as success.
+- Manual sync reports returned feed errors, event add/update/cancel/skip counts, and shift-generation outcome instead of treating every 200 response as success. Unchanged feed rows do not create fake update copy.
 - Manual sync, test, add, enable/disable, and delete actions use immediate duplicate-action guards before React disabled state renders.
 - Per D-026 and D-035: daily calendar sync runs through `/api/cron/morning-refresh` at 08:00 UTC, with manual refresh for changes that cannot wait for the next run.
 - Morning refresh records per-source consecutive hard sync failures in `SystemConfig`, resets the count after a hard-error-free cron sync, creates in-app notifications for active admins starting at 3 consecutive hard failures, and Admin Fix Today shows the repeated-failure count next to the latest source error.
@@ -190,6 +191,8 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages.
 
 ## Change Log
+- 2026-06-11: **Database Health migration truth.** `/settings/database` now compares live `_prisma_migrations` rows against the repo's local `prisma/migrations` folders, matching `npm run db:migrate:health` semantics instead of a frozen expected migration list. Pending local migrations, unresolved failed rows, DB-only applied rows, and a missing newest local migration all mark diagnostics unhealthy with remediation copy.
+- 2026-06-11: **Calendar Sources sync count honesty.** Manual sync copy now says events updated only for existing rows that actually changed, keeps unchanged feed rows under "no event changes," and continues to surface feed and shift-generation warnings.
 - 2026-06-10: **iOS Settings detail menus.** Native Settings now has dedicated Notifications and Account & Security drill-downs. Notifications keeps the existing server-backed pause, email/push, category, and iOS permission controls; Account & Security changes passwords through the existing personal Security endpoint and keeps profile editing plus active-session review linked to web.
 - 2026-06-10: **iOS Settings first-class hub.** Native Profile now presents as Settings with grouped account, schedule, notification, appearance, tools, and app sections. The iOS surface keeps the web-owned backend settings model, existing notification preference API, student Availability entry, staff/admin sticker-code tool, and stable tab shell unchanged.
 - 2026-06-08: **No-temp-password onboarding pivot.** Settings > Allowed Emails now keeps the shared onboarding dialog invite-first only. First-time direct-create and bulk-create password handoffs are retired; operators add allowlist invitations so users register with their own password.

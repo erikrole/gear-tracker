@@ -1,6 +1,6 @@
 # Prisma + Neon Runbook
 
-Last updated: 2026-05-13
+Last updated: 2026-06-11
 
 ## Connection Rules
 
@@ -17,12 +17,15 @@ npm run db:migrate:status
 npm run db:migrate:health
 npm run db:migrate:deploy
 npm run build
+npm run build:app
 ```
 
 - `db:migrate:check` verifies local migration prefix uniqueness.
 - `db:migrate:status` and `db:migrate:health` run the repo's Neon-backed health checker. They compare local migration folders with live `_prisma_migrations`, fail on pending local migrations, fail on unresolved failed rows, fail on applied DB rows missing locally, and verify the newest local migration is applied.
 - `db:migrate:deploy` runs `prisma migrate deploy` first. If Prisma exits with the known blank schema-engine error against Neon, the wrapper applies pending migration SQL through Neon HTTP and records `_prisma_migrations`.
-- `build` runs the deploy wrapper before `next build`, so Vercel builds fail early if migration state is not deployable.
+- `build` is the deploy-equivalent build. It runs the deploy wrapper before `next build`, so it requires a real `DIRECT_URL` and fails early if migration state is not deployable.
+- `build:app` runs the migration-free Next production build. CI uses it with placeholder runtime env after `db:migrate:check` proves local migration folder sanity without live database credentials.
+- `/api/db-diagnostics` uses the same local-vs-applied migration health semantics as `db:migrate:health`. The Next config explicitly traces `prisma/migrations` into that serverless route so the admin Database Health page can compare live `_prisma_migrations` rows against the shipped repo migration folders.
 
 Raw `prisma migrate status` is not the source of truth in this repo because the local Prisma schema engine can fail blank against Neon. Use `npm run db:migrate:status` or `npm run db:migrate:health`.
 
@@ -35,7 +38,8 @@ Raw `prisma migrate status` is not the source of truth in this repo because the 
 5. Run `npm run db:migrate:deploy`.
 6. Run `npm run db:migrate:health`.
 7. Run `npm run build`.
-8. Commit schema, migration SQL, docs, and related code together.
+8. For live-free CI/app-build verification, run `npm run build:app` with placeholder runtime env.
+9. Commit schema, migration SQL, docs, and related code together.
 
 ## Recovery Rules
 

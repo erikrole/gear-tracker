@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Events
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-06
+- Last Updated: 2026-06-11
 - Status: Active
 
 ## Direction
@@ -38,6 +38,7 @@ Make athletics schedule data the operational backbone for booking and checkout w
 17. **Soft archive** — `morning-refresh` cron stamps `archivedAt` on events older than 4 months. List API excludes archived events by default; `includeArchived=true` surfaces them. No data deleted — full event + booking + travel history preserved for future Wrapped-style stats.
 18. **Manual multi-day all-day events** — Staff/admin can create one manual all-day event that spans multiple dates. The Schedule New Event sheet uses inclusive start/end date copy while preserving the stored exclusive end boundary. `/api/calendar-events` and `/api/shift-groups` use overlap windows so schedule list/month/week views and crew coverage stay visible on every covered date without duplicating the underlying event record.
 19. **Schedule source freshness signal** — Staff/admin Schedule views show a compact source signal in the filter toolbar. It distinguishes manual visible events, imported visible events, healthy calendar sources, stale/never-synced sources, disabled sources, source errors, and source-status load failures without changing ICS sync semantics.
+20. **Calendar source sync hardening** — Saved-source sync and the pre-save feed probe share an 8-second timeout and 5 MB response cap. Sync results now report unchanged feed rows separately, so `updated` means existing database rows that actually changed.
 
 ## Next
 1. Better normalization for opponent and venue fields.
@@ -79,6 +80,7 @@ Make athletics schedule data the operational backbone for booking and checkout w
 4. Fallback behavior for incomplete events is implemented — treat event context as non-blocking metadata on all booking flows.
 
 ## Change Log
+- 2026-06-11: Calendar source sync hardening shipped. Saved-source sync now shares the pre-save probe's 8-second timeout and 5 MB response cap, records timeout/oversize failures on the source, and reports unchanged feed rows separately from actual database updates.
 - 2026-06-06: Booking wizard calendar-event recovery shipped for web. Checkout and reservation creation now distinguish failed upcoming-event reads from a true no-event list with inline retry and ad hoc fallback, preserving the Event area rule that missing or stale events never block non-event booking work.
 - 2026-06-03: Event detail Crew conflict actionability improved. Assigned-person conflict notes now appear in the call-window column beside the personal call-window editor, so staff/admin can see the availability conflict and adjust that person's override from the same row without changing slot/default call-time rules.
 - 2026-06-03: Event detail Crew now surfaces assigned-person availability conflicts next to the assignee, using the same effective call-window conflict helper as Schedule Assign. Staff/admin can use the visible conflict context with the personal call-window editor without the system automatically changing assignment times.

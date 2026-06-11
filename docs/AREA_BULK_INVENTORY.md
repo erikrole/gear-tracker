@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Bulk Inventory Management
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-25
+- Last Updated: 2026-06-11
 - Status: Active
 - Version: V1
 
@@ -149,6 +149,7 @@ See `AREA_ITEMS.md` 2026-04-06 entry for bulk inventory page hardening:
 - [x] AC-7: Unit-tracked battery audit/reporting exposes missing units, loss rate by family, custody history, and repeated missing-unit patterns
 
 ## Change Log
+- 2026-06-11: Item-family image rehost backlog closed. BulkSku now has `imageRehostAttempts`, `/api/cron/rehost-images` drains non-Blob BulkSku image URLs alongside serialized asset images without increasing the per-run candidate cap, and `scripts/backfill-asset-images.mjs` can dry-run or apply the combined asset plus item-family backlog.
 - 2026-05-30: Battery hardening adjustment slice shipped. Battery Ops now includes quantity-tracked battery families, adds audited signed quantity adjustments, adds audited numbered-unit creation with operator reasons, requires reasons for unit status changes, blocks any status mutation while a unit is checked out, and shows before/after count impact before staff confirm.
 - 2026-05-30: Battery hardening started. Battery Ops and checkout picker form-options now return live no-store count responses instead of browser-cached inventory counts, and picker-selected bulk quantities clamp down with explicit recovery copy when refreshed availability drops below the selected quantity.
 - 2026-05-25: Web bug sweep Batch 27 hardened item-family detail tab URL state. Bulk SKU detail now rehydrates `?tab=` links and browser Back/Forward through the shared URL-state hook, and direct links to mode- or role-hidden tabs fall back to Info instead of rendering an empty detail body.

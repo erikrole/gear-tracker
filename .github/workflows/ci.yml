@@ -23,7 +23,9 @@ jobs:
 
       - run: npm test
 
-      - run: npm run build
+      - run: npm run db:migrate:check
+
+      - run: npm run build:app
         env:
           DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
           SESSION_SECRET: "0000000000000000000000000000000000000000000000000000000000000000"

@@ -69,6 +69,10 @@ ScanView.swift                         | scan                        | audit
 UsersView.swift                        | users                       | audit
 UserDetailView.swift                   | users                       | audit
 AppTabView.swift                       | profile                     | audit
+ProfileView.swift                      | profile                     | audit
+NotificationSettingsView.swift         | profile                     | audit
+AccountSecuritySettingsView.swift      | profile                     | audit
+AvailabilityView.swift                 | schedule                    | audit
 ScanPrePromptView.swift                | scan                        | audit
 PushPrePromptView.swift                | profile                     | audit
 DevTools/LinkStickerWizard.swift       | link-sticker-wizard         | audit

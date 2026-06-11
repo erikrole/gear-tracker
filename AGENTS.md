@@ -71,8 +71,9 @@ This project deploys to Vercel (Node.js runtime):
 - Batch DB operations where possible for performance (avoid N+1 queries)
 - Vercel Blob for file storage (replaces Cloudflare R2)
 - Vercel Cron Jobs for scheduled tasks (configure in `vercel.json` or dashboard)
-- Always run `npm run build` before committing — build failures are the #1 avoidable time waster
-- If build fails, fix it before pushing. Never leave a broken build on any branch.
+- Run the deploy-equivalent `npm run build` before committing when a real `DIRECT_URL` is available.
+- For CI/app-build verification without live migration credentials, run `npm run db:migrate:check` and `npm run build:app` instead.
+- If the relevant build check fails, fix it before pushing. Never leave a broken build on any branch.
 
 ### 9. Commit Message Format
 Follow conventional commits strictly:
@@ -94,7 +95,7 @@ After merging Codex or any parallel branch:
 - Scan for duplicate type definitions (especially in `src/app/(app)/*/page.tsx`)
 - Check for duplicate function names (e.g. `window.prompt` wrappers)
 - Remove dead modal code or stale imports from merge artifacts
-- Run `npm run build` to confirm clean compilation before declaring done
+- Run the relevant build check before declaring done: `npm run build` with a real `DIRECT_URL`, or `npm run db:migrate:check` plus `npm run build:app` for live-free app-build verification.
 
 ### 12. Doc Sync on Ship (NON-NEGOTIABLE)
 Every commit that ships functionality MUST include doc updates in the same commit:

@@ -42,9 +42,13 @@
 
 ## Polish Checklist (this PR)
 
-- [ ] Drop Badge `sport` variant
-- [ ] Drop Card `prominent` elevation
-- [ ] Drop Badge `data-variant` attribute
+- [x] Drop Badge `sport` variant
+- [x] Drop Card `prominent` elevation
+- [x] Drop Badge `data-variant` attribute
+
+## Review
+
+- 2026-06-10: Reconciled against current source. `Badge` now exposes only the active semantic variants and no unread `data-variant` attribute, while `Card` no longer exposes a `prominent` elevation. No runtime code change was needed in this pass.
 
 ## Bigger Bets (follow-up)
 

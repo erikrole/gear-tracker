@@ -278,7 +278,7 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
             checked={canSelect ? row.getIsSelected() : false}
             disabled={!canSelect}
             onCheckedChange={(value) => row.toggleSelected(!!value)}
-            aria-label={canSelect ? "Select row" : "Item-family rows use detail-page actions"}
+            aria-label={canSelect ? `Select ${row.original.assetTag}` : "Item-family rows use detail-page actions"}
           />
         </div>
       );

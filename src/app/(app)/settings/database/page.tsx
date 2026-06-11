@@ -11,11 +11,24 @@ import { SettingsPageShell } from "../SettingsPageShell";
 
 type MigrationRow = { name: string; appliedAt: string | null };
 type DriftItem = { table: string; column: string; status: string };
+type MigrationHealth = {
+  ok: boolean;
+  problems: string[];
+  localCount: number;
+  appliedLocalCount: number;
+  appliedDbOnly: string[];
+  pending: string[];
+  unresolvedFailed: string[];
+  rolledBack: string[];
+  newestLocal: string | null;
+  newestLocalApplied: boolean;
+};
 
 type DiagnosticsResult = {
   ok: boolean;
   checks: {
     migrationTable: { exists: boolean; migrations: MigrationRow[] };
+    migrationHealth?: MigrationHealth;
     tables: { present: string[]; missing: string[]; extra: string[] };
     enums: { present: string[]; missing: string[] };
     extensions: { present: string[]; missing: string[] };
@@ -65,7 +78,7 @@ export default function DatabasePage() {
   return (
     <SettingsPageShell
       title="Database Health"
-      description="Check that your database schema matches the expected Prisma migrations. Surfaces missing tables, enums, columns, and migration drift."
+      description="Check that your database schema matches the repo's Prisma migration history. Surfaces missing tables, enums, columns, and migration drift."
     >
         <div className="flex justify-end mb-3">
           <Button onClick={runCheck} loading={loading}>
@@ -118,8 +131,31 @@ export default function DatabasePage() {
             <Card className="mb-1">
               <CardHeader>
                 <span className="font-semibold text-sm">Migrations</span>
-                <StatusBadge ok={result.checks.migrationTable.exists} label={result.checks.migrationTable.exists ? "Table exists" : "Table missing"} />
+                <StatusBadge
+                  ok={result.checks.migrationTable.exists && result.checks.migrationHealth?.ok !== false}
+                  label={migrationStatusLabel(result.checks.migrationTable.exists, result.checks.migrationHealth)}
+                />
               </CardHeader>
+              {result.checks.migrationHealth && (
+                <CardContent className="border-b">
+                  <div className="grid gap-3 text-sm sm:grid-cols-3">
+                    <Metric label="Local folders" value={String(result.checks.migrationHealth.localCount)} />
+                    <Metric
+                      label="Applied locally"
+                      value={`${result.checks.migrationHealth.appliedLocalCount}/${result.checks.migrationHealth.localCount}`}
+                    />
+                    <Metric
+                      label="Newest local"
+                      value={result.checks.migrationHealth.newestLocal ?? "None"}
+                    />
+                  </div>
+                  {result.checks.migrationHealth.problems.length > 0 && (
+                    <div className="mt-3">
+                      <TagList items={result.checks.migrationHealth.problems} variant="danger" />
+                    </div>
+                  )}
+                </CardContent>
+              )}
               {result.checks.migrationTable.migrations.length > 0 && (
                 <CardContent className="px-0 py-0">
                   <Table>
@@ -256,6 +292,22 @@ function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
       {label}
     </Badge>
   );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="truncate font-mono text-sm">{value}</div>
+    </div>
+  );
+}
+
+function migrationStatusLabel(exists: boolean, health: MigrationHealth | undefined) {
+  if (!exists) return "Table missing";
+  if (!health) return "Table exists";
+  if (health.ok) return `${health.appliedLocalCount}/${health.localCount} applied`;
+  return `${health.problems.length} issue${health.problems.length === 1 ? "" : "s"}`;
 }
 
 function TagList({ items, variant }: { items: string[]; variant: "danger" | "info" }) {

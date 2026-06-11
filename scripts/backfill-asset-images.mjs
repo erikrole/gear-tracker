@@ -1,20 +1,18 @@
-// Backfill external asset images into Vercel Blob.
+// Backfill external asset and item-family images into Vercel Blob.
 //
-// Why: the Cheqroom CSV import re-hosts images inline ("best-effort", batches
-// of 5) inside a single serverless request. With ~180 images that loop exceeds
-// the function timeout, so most assets keep their raw third-party Cheqroom CDN
-// URL (attachments.cheqroomcdn.com). Those render only while that third party
-// keeps serving them to the end user's browser — fragile, and the cause of
-// "asset photos not displaying" in production. This script re-hosts every
-// non-Blob image onto first-party Vercel Blob, with no serverless timeout.
+// Why: large CSV imports defer image mirroring to a bounded cron so serverless
+// imports do not time out. This script re-hosts any remaining non-Blob image
+// URLs for serialized assets and BulkSku item families when an operator wants
+// to drain the backlog outside the cron budget.
 //
 // Usage:
-//   node --env-file=.env scripts/backfill-asset-images.mjs            # dry run
-//   node --env-file=.env scripts/backfill-asset-images.mjs --apply    # execute
+//   node --env-file=.env scripts/backfill-asset-images.mjs                   # dry run
+//   node --env-file=.env scripts/backfill-asset-images.mjs --apply           # execute
+//   node --env-file=.env scripts/backfill-asset-images.mjs --bulk-skus-only  # limit scope
 //
 // Requires DATABASE_URL and BLOB_READ_WRITE_TOKEN in the environment.
-// Every change is logged to tmp/asset-image-backfill-<ts>.json (old -> new)
-// so it is fully reversible.
+// Every applied change is logged to tmp/image-backfill-<ts>.json (old -> new)
+// so it is reversible.
 
 import { writeFileSync, mkdirSync } from "node:fs";
 import { PrismaNeon } from "@prisma/adapter-neon";
@@ -22,6 +20,8 @@ import { PrismaClient } from "@prisma/client";
 import { put } from "@vercel/blob";
 
 const APPLY = process.argv.includes("--apply");
+const ASSETS_ONLY = process.argv.includes("--assets-only");
+const BULK_SKUS_ONLY = process.argv.includes("--bulk-skus-only");
 const CONCURRENCY = 4;
 const TIMEOUT_MS = 20000;
 const MAX_BYTES = 25 * 1024 * 1024; // generous; our own re-host, not a user upload
@@ -42,7 +42,7 @@ function extFromUrl(url) {
   return m ? m[1].toLowerCase().replace("jpeg", "jpg") : null;
 }
 
-async function downloadToBlob(url, assetId) {
+async function downloadToBlob(url, recordId) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
@@ -57,7 +57,7 @@ async function downloadToBlob(url, assetId) {
     const body = await res.arrayBuffer();
     if (body.byteLength === 0) return { error: "empty body" };
     if (body.byteLength > MAX_BYTES) return { error: `too large (${body.byteLength})` };
-    const pathname = `assets/${assetId}/${Date.now()}.${ext}`;
+    const pathname = `assets/${recordId}/${Date.now()}.${ext}`;
     const blob = await put(pathname, Buffer.from(body), {
       access: "public",
       contentType: contentType || `image/${ext === "jpg" ? "jpeg" : ext}`,
@@ -70,9 +70,22 @@ async function downloadToBlob(url, assetId) {
   }
 }
 
+function toTarget(recordType, record) {
+  return {
+    recordType,
+    id: record.id,
+    label: record.assetTag ?? record.name,
+    imageUrl: record.imageUrl,
+  };
+}
+
 async function main() {
   if (APPLY && !process.env.BLOB_READ_WRITE_TOKEN) {
     console.error("BLOB_READ_WRITE_TOKEN is required to --apply. Run `vercel env pull` or add it to .env.");
+    process.exit(1);
+  }
+  if (ASSETS_ONLY && BULK_SKUS_ONLY) {
+    console.error("Choose only one scope flag: --assets-only or --bulk-skus-only.");
     process.exit(1);
   }
 
@@ -80,19 +93,37 @@ async function main() {
     adapter: new PrismaNeon({ connectionString: process.env.DATABASE_URL }),
   });
 
-  const assets = await db.asset.findMany({
-    where: { imageUrl: { not: null } },
-    select: { id: true, assetTag: true, imageUrl: true },
-  });
-  const targets = assets.filter((a) => a.imageUrl && !isBlobUrl(a.imageUrl));
+  const [assets, bulkSkus] = await Promise.all([
+    BULK_SKUS_ONLY
+      ? []
+      : db.asset.findMany({
+          where: { imageUrl: { not: null } },
+          select: { id: true, assetTag: true, imageUrl: true },
+        }),
+    ASSETS_ONLY
+      ? []
+      : db.bulkSku.findMany({
+          where: { imageUrl: { not: null } },
+          select: { id: true, name: true, imageUrl: true },
+        }),
+  ]);
+  const assetTargets = assets.filter((a) => a.imageUrl && !isBlobUrl(a.imageUrl)).map((a) => toTarget("asset", a));
+  const bulkSkuTargets = bulkSkus.filter((s) => s.imageUrl && !isBlobUrl(s.imageUrl)).map((s) => toTarget("bulkSku", s));
+  const targets = [...assetTargets, ...bulkSkuTargets];
 
-  console.log(`Assets with images: ${assets.length}`);
-  console.log(`Already on Blob:    ${assets.length - targets.length}`);
-  console.log(`To re-host:         ${targets.length}`);
-  console.log(APPLY ? "\nMode: APPLY (writing to Blob + DB)\n" : "\nMode: DRY RUN (no changes) — pass --apply to execute\n");
+  console.log(`Assets with images:       ${assets.length}`);
+  console.log(`Assets already on Blob:   ${assets.length - assetTargets.length}`);
+  console.log(`Assets to re-host:        ${assetTargets.length}`);
+  console.log(`Bulk SKUs with images:    ${bulkSkus.length}`);
+  console.log(`Bulk SKUs already on Blob:${bulkSkus.length - bulkSkuTargets.length}`);
+  console.log(`Bulk SKUs to re-host:     ${bulkSkuTargets.length}`);
+  console.log(`Total to re-host:         ${targets.length}`);
+  console.log(APPLY ? "\nMode: APPLY (writing to Blob + DB)\n" : "\nMode: DRY RUN (no changes) - pass --apply to execute\n");
 
   if (!APPLY) {
-    for (const a of targets.slice(0, 10)) console.log(`  would re-host ${a.assetTag}: ${a.imageUrl}`);
+    for (const target of targets.slice(0, 10)) {
+      console.log(`  would re-host ${target.recordType} ${target.label}: ${target.imageUrl}`);
+    }
     if (targets.length > 10) console.log(`  ... and ${targets.length - 10} more`);
     await db.$disconnect();
     return;
@@ -104,23 +135,39 @@ async function main() {
   for (let i = 0; i < targets.length; i += CONCURRENCY) {
     const batch = targets.slice(i, i + CONCURRENCY);
     await Promise.all(
-      batch.map(async (a) => {
-        const r = await downloadToBlob(a.imageUrl, a.id);
+      batch.map(async (target) => {
+        const r = await downloadToBlob(target.imageUrl, target.id);
         if (r.url) {
-          await db.asset.update({ where: { id: a.id }, data: { imageUrl: r.url } });
-          changes.push({ assetId: a.id, assetTag: a.assetTag, oldUrl: a.imageUrl, newUrl: r.url });
+          if (target.recordType === "asset") {
+            await db.asset.update({ where: { id: target.id }, data: { imageUrl: r.url } });
+          } else {
+            await db.bulkSku.update({ where: { id: target.id }, data: { imageUrl: r.url } });
+          }
+          changes.push({
+            recordType: target.recordType,
+            id: target.id,
+            label: target.label,
+            oldUrl: target.imageUrl,
+            newUrl: r.url,
+          });
           ok++;
-          console.log(`  ✓ ${a.assetTag}`);
+          console.log(`  ✓ ${target.recordType} ${target.label}`);
         } else {
-          failures.push({ assetTag: a.assetTag, url: a.imageUrl, error: r.error });
-          console.log(`  ✗ ${a.assetTag} — ${r.error}`);
+          failures.push({
+            recordType: target.recordType,
+            id: target.id,
+            label: target.label,
+            url: target.imageUrl,
+            error: r.error,
+          });
+          console.log(`  ✗ ${target.recordType} ${target.label} - ${r.error}`);
         }
       })
     );
   }
 
   mkdirSync("tmp", { recursive: true });
-  const logPath = `tmp/asset-image-backfill-${Date.now()}.json`;
+  const logPath = `tmp/image-backfill-${Date.now()}.json`;
   writeFileSync(logPath, JSON.stringify({ changes, failures }, null, 2));
   console.log(`\nDone. Re-hosted ${ok}/${targets.length}. Failures: ${failures.length}.`);
   console.log(`Reversible change log: ${logPath}`);

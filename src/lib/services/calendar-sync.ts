@@ -1,6 +1,11 @@
 import { db } from "@/lib/db";
 import type { CalendarEventStatus } from "@prisma/client";
 import { SPORT_CODES } from "@/lib/sports";
+import {
+  CALENDAR_FETCH_TIMEOUT_MS,
+  CALENDAR_MAX_RESPONSE_BYTES,
+  fetchCalendarText,
+} from "@/lib/services/bounded-calendar-fetch";
 
 /** Max events per createMany / update batch */
 export const WRITE_CHUNK_SIZE = 500;
@@ -141,6 +146,7 @@ export type SyncDiagnostics = {
 export type SyncResult = {
   added: number;
   updated: number;
+  unchanged?: number;
   cancelled: number;
   skipped: number;
   errors: SyncEventError[];
@@ -456,7 +462,7 @@ export function splitEventsForSync(
  */
 export async function syncCalendarSource(sourceId: string): Promise<SyncResult> {
   const source = await db.calendarSource.findUnique({ where: { id: sourceId } });
-  const emptyResult: SyncResult = { added: 0, updated: 0, cancelled: 0, skipped: 0, errors: [] };
+  const emptyResult: SyncResult = { added: 0, updated: 0, unchanged: 0, cancelled: 0, skipped: 0, errors: [] };
 
   if (!source || !source.enabled) {
     return { ...emptyResult, error: "Source not found or disabled" };
@@ -486,9 +492,11 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
 
   let icsText: string;
   let httpStatus = 0;
+  let responseSizeBytes = 0;
   try {
-    const response = await fetch(url, {
-      headers: { "User-Agent": "GearTracker/1.0" }
+    const response = await fetchCalendarText(url, {
+      timeoutMs: CALENDAR_FETCH_TIMEOUT_MS,
+      maxBytes: CALENDAR_MAX_RESPONSE_BYTES,
     });
     httpStatus = response.status;
     if (!response.ok) {
@@ -499,7 +507,8 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
       });
       return { ...emptyResult, error, diagnostics: { fetchUrl: url, httpStatus, responseSizeBytes: 0, parsedEventCount: 0, earliestDtstart: null, latestDtstart: null, firstEvents: [], lastEvents: [] } };
     }
-    icsText = await response.text();
+    icsText = response.text;
+    responseSizeBytes = response.byteSize;
   } catch (err) {
     const error = err instanceof Error ? err.message : "Fetch failed";
     await db.calendarSource.update({
@@ -509,7 +518,6 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
     return { ...emptyResult, error, diagnostics: { fetchUrl: url, httpStatus, responseSizeBytes: 0, parsedEventCount: 0, earliestDtstart: null, latestDtstart: null, firstEvents: [], lastEvents: [] } };
   }
 
-  const responseSizeBytes = new TextEncoder().encode(icsText).length;
   const events = parseIcs(icsText);
 
   // Build diagnostics from parsed events (before any DB work)
@@ -558,7 +566,8 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
   const { toCreate, toUpdate, unchanged, skippedErrors } = splitEventsForSync(events, existingRows, mappings);
 
   let added = 0;
-  const updated = toUpdate.length + unchanged.length;
+  const updated = toUpdate.length;
+  const unchangedCount = unchanged.length;
   const cancelled = [...toCreate, ...toUpdate.map((u) => u.data)].filter((e) => e.status === "CANCELLED").length;
   let skipped = skippedErrors.length;
   const errors: SyncEventError[] = [...skippedErrors];
@@ -626,7 +635,7 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
     // If we can't update source metadata, still return results
   }
 
-  return { added, updated, cancelled, skipped, errors, diagnostics };
+  return { added, updated, unchanged: unchangedCount, cancelled, skipped, errors, diagnostics };
 }
 
 /**

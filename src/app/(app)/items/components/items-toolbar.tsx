@@ -85,6 +85,7 @@ export function ItemsToolbar({
 }) {
   const [filtersOpen, setFiltersOpen] = useState(hasActiveFilters);
   const previousActiveFilterCountRef = useRef(0);
+  const filtersPanelId = "items-advanced-filters";
   const activeFilterCount =
     statusFilter.size +
     locationFilter.size +
@@ -183,6 +184,7 @@ export function ItemsToolbar({
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search tag, model, serial, location"
             type="text"
+            autoComplete="off"
             aria-label="Search items"
           />
           <div className="text-muted-foreground/80 pointer-events-none absolute inset-y-0 left-0 flex items-center justify-center pl-3 peer-disabled:opacity-50">
@@ -235,17 +237,25 @@ export function ItemsToolbar({
             className="h-10 gap-1.5 active:scale-[0.96] transition-transform"
             onClick={() => setFiltersOpen((open) => !open)}
             aria-expanded={filtersOpen}
+            aria-controls={filtersPanelId}
+            aria-label={activeFilterCount > 0 ? `Filters, ${activeFilterCount} active` : "Filters"}
           >
             <SlidersHorizontal className="size-3.5" />
             Filters
             {activeFilterCount > 0 && (
-              <span className="rounded-sm bg-background px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-foreground">
+              <span aria-hidden="true" className="rounded-sm bg-background px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-foreground">
                 {activeFilterCount}
               </span>
             )}
           </Button>
           {hasActiveFilters && (
-            <Button variant="ghost" size="sm" className="h-10 gap-1.5 active:scale-[0.96] transition-transform" onClick={onClearAllFilters}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-10 gap-1.5 active:scale-[0.96] transition-transform"
+              onClick={onClearAllFilters}
+              aria-label="Clear all item filters"
+            >
               Clear
               <XIcon className="size-4" />
             </Button>
@@ -254,7 +264,12 @@ export function ItemsToolbar({
       </div>
 
       {filtersOpen && (
-        <div className="flex flex-wrap items-center gap-2 border-t border-border/50 pt-2">
+        <div
+          id={filtersPanelId}
+          role="group"
+          aria-label="Advanced item filters"
+          className="flex flex-wrap items-center gap-2 border-t border-border/50 pt-2"
+        >
           <FacetedFilter
             title="Category"
             options={categoryOptions}

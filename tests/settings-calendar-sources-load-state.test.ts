@@ -36,7 +36,7 @@ describe("settings calendar sources load state", () => {
       shiftGeneration: { groupsCreated: 1, shiftsCreated: 4 },
     })).toEqual({
       variant: "success",
-      message: "Synced UW Badgers: 2 events added, 3 events refreshed, 1 event cancelled. Created 1 shift group and 4 shifts.",
+      message: "Synced UW Badgers: 2 events added, 3 events updated, 1 event cancelled. Created 1 shift group and 4 shifts.",
     });
 
     expect(calendarSourceSyncToast("UW Badgers", {
@@ -54,7 +54,19 @@ describe("settings calendar sources load state", () => {
       shiftGenerationError: "Template failed",
     })).toEqual({
       variant: "warning",
-      message: "Synced UW Badgers with warnings: 4 events refreshed, 1 event skipped. Shift generation failed after sync.",
+      message: "Synced UW Badgers with warnings: 4 events updated, 1 event skipped. Shift generation failed after sync.",
+    });
+
+    expect(calendarSourceSyncToast("UW Badgers", {
+      added: 0,
+      updated: 0,
+      unchanged: 8,
+      cancelled: 0,
+      skipped: 0,
+      shiftGeneration: { groupsCreated: 0, shiftsCreated: 0 },
+    })).toEqual({
+      variant: "success",
+      message: "Synced UW Badgers: no event changes. No new shifts needed.",
     });
   });
 

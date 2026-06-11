@@ -226,12 +226,14 @@ export function PastBookingsPreview({
 /* ── Saveable Toggle Row (flat style matching SaveableField layout) ── */
 
 function SaveableToggle({
+  id,
   label,
   help,
   checked,
   disabled,
   onToggle,
 }: {
+  id: string;
   label: string;
   help: string;
   checked: boolean;
@@ -246,17 +248,19 @@ function SaveableToggle({
     <div className="group/row flex items-center gap-3 rounded-md px-3 py-2.5 min-h-[44px] transition-colors hover:bg-muted/50">
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <Label className="text-sm font-medium">{label}</Label>
+          <Label htmlFor={id} className="text-sm font-medium">{label}</Label>
           {saveField.status === "saving" && <Spinner className="size-3" />}
           {saveField.status === "saved" && <Check className="size-3 text-green-600 dark:text-green-400" />}
           {saveField.status === "error" && <X className="size-3 text-destructive" />}
         </div>
-        <p className="text-xs text-muted-foreground mt-0.5 m-0">{help}</p>
+        <p id={`${id}-help`} className="text-xs text-muted-foreground mt-0.5 m-0">{help}</p>
       </div>
       <Switch
+        id={id}
         checked={checked}
         onCheckedChange={() => saveField.save("")}
         disabled={saveField.status === "saving" || disabled}
+        aria-describedby={`${id}-help`}
         className="shrink-0"
       />
     </div>
@@ -265,50 +269,79 @@ function SaveableToggle({
 
 /* ── Settings Card ───────────────────────────────────────── */
 
-function SettingsCard({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void }) {
-  const toggles = [
-    { field: "availableForCheckout", label: "Check-out eligible", value: asset.availableForCheckout, help: "Can leave inventory through a checkout workflow." },
-    { field: "availableForReservation", label: "Reservation eligible", value: asset.availableForReservation, help: "Can be reserved for future events or requests." },
-    { field: "availableForCustody", label: "Custody eligible", value: asset.availableForCustody, help: "Can be assigned into a user's custody outside short-term bookings." },
-  ];
-  const enabledCount = toggles.filter((toggle) => toggle.value).length;
+function getBookablePolicy(asset: AssetDetail): {
+  bookable: boolean;
+  label: string;
+  help: string;
+  variant: "green" | "orange" | "red";
+} {
+  const bookable = asset.availableForCheckout && asset.availableForReservation;
+  const limited = asset.availableForCheckout !== asset.availableForReservation;
 
+  if (bookable) {
+    return {
+      bookable,
+      label: "Bookable",
+      help: "Can be checked out or reserved.",
+      variant: "green",
+    };
+  }
+
+  if (limited) {
+    return {
+      bookable,
+      label: "Limited",
+      help: "Only one booking workflow is enabled. Turn on to allow both checkouts and reservations.",
+      variant: "orange",
+    };
+  }
+
+  return {
+    bookable,
+    label: "Not bookable",
+    help: "Hidden from checkout and reservation flows.",
+    variant: "red",
+  };
+}
+
+function SettingsCard({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void }) {
+  const policy = getBookablePolicy(asset);
+  const nextBookable = !policy.bookable;
   return (
     <Card className="border-border/40 shadow-none">
       <CardHeader>
         <div>
-          <CardTitle>Workflow Eligibility</CardTitle>
-          <CardDescription>Policy switches for where this item is allowed to appear. Current status stays derived from real bookings.</CardDescription>
+          <CardTitle>Booking access</CardTitle>
+          <CardDescription>Controls whether this item appears in checkout and reservation workflows. Current status stays derived from real bookings.</CardDescription>
         </div>
-        <Badge variant={enabledCount === 0 ? "red" : enabledCount === toggles.length ? "green" : "orange"} size="sm">
-          {enabledCount}/{toggles.length} enabled
-        </Badge>
+        <Badge variant={policy.variant} size="sm">{policy.label}</Badge>
       </CardHeader>
       {!canEdit && (
         <div className="mx-4 mb-2 rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-          Read-only view. Admins and staff can update eligibility.
+          Read-only view. Admins and staff can update booking access.
         </div>
       )}
-      <div className="py-1 divide-y divide-border/30">
-        {toggles.map((t) => (
-          <SaveableToggle
-            key={t.field}
-            label={t.label}
-            help={t.help}
-            checked={t.value}
-            disabled={!canEdit}
-            onToggle={async () => {
-              const res = await fetch(`/api/assets/${asset.id}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ [t.field]: !t.value }),
-              });
-              if (handleAuthRedirect(res)) return;
-              if (!res.ok) throw new Error();
-              onRefresh();
-            }}
-          />
-        ))}
+      <div className="py-1">
+        <SaveableToggle
+          id="item-bookable"
+          label="Bookable"
+          help={policy.help}
+          checked={policy.bookable}
+          disabled={!canEdit}
+          onToggle={async () => {
+            const res = await fetch(`/api/assets/${asset.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                availableForCheckout: nextBookable,
+                availableForReservation: nextBookable,
+              }),
+            });
+            if (handleAuthRedirect(res)) return;
+            if (!res.ok) throw new Error();
+            onRefresh();
+          }}
+        />
       </div>
     </Card>
   );
@@ -933,6 +966,8 @@ export function BookingsTab({
 /* ── Settings Tab ──────────────────────────────────────────── */
 
 export function SettingsTab({ asset, canEdit, onRefresh }: { asset: AssetDetail; canEdit: boolean; onRefresh: () => void }) {
+  const policy = getBookablePolicy(asset);
+
   return (
     <div className="mt-3.5 max-w-2xl">
       <div className="mb-3 grid gap-2 sm:grid-cols-3">
@@ -952,7 +987,7 @@ export function SettingsTab({ asset, canEdit, onRefresh }: { asset: AssetDetail;
         </div>
         <div className="rounded-md border border-border/40 bg-card px-3 py-2 shadow-none">
           <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Policy</div>
-          <div className="mt-1 text-sm font-medium">{canEdit ? "Editable" : "Read only"}</div>
+          <div className="mt-1 text-sm font-medium">{policy.label}</div>
         </div>
       </div>
       <SettingsCard asset={asset} canEdit={canEdit} onRefresh={onRefresh} />

@@ -91,12 +91,18 @@ Docs-only change:
 
 ## Done Criteria
 
-- [ ] `docs/TESTING.md` no longer claims 327 tests across 22 files.
-- [ ] Fixed bugs are documented as regression coverage, not current broken behavior.
-- [ ] `rg -n "BUG:" docs/TESTING.md` returns no stale guidance unless documenting current open-bug convention.
-- [ ] `npm test` exits 0.
-- [ ] `npx tsc --noEmit` exits 0.
-- [ ] `plans/README.md` status row updated.
+- [x] `docs/TESTING.md` no longer claims 327 tests across 22 files.
+- [x] Fixed bugs are documented as regression coverage, not current broken behavior.
+- [x] `rg -n "BUG:" docs/TESTING.md` returns no stale guidance unless documenting current open-bug convention.
+- [x] `npm test` exits 0.
+- [x] `npx tsc --noEmit` exits 0.
+- [x] `plans/README.md` status row updated.
+
+## Review
+
+- Completed 2026-06-11 on branch `codex/006-refresh-testing-guide`.
+- Drift check showed many in-scope test additions since `e8566c54`, but the stale testing guide claims still matched the plan. `tests/auth-hardening.test.ts` still contains intentional current `BUG:` proofs, so the guide now preserves the open-bug convention instead of claiming the suite has none.
+- Verification: `npm test` passed before and after with 196 test files and 1153 tests; `npx tsc --noEmit` passed; `git diff --check` passed; stale guide searches for `327 tests`, `22 files`, and old `BUG:` examples returned no matches.
 
 ## STOP Conditions
 
@@ -107,4 +113,3 @@ Docs-only change:
 ## Maintenance Notes
 
 Future executors should prefer dated suite-size statements or command-derived counts. Exact counts drift quickly in this repo.
-

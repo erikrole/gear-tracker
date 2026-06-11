@@ -68,6 +68,8 @@
 
 ## UX Patterns
 
+- **When a user says simpler after a UI proposal, remove the concept count**: Do not replace three toggles with presets or advanced policy language unless there is real operator demand. Collapse to the one decision users actually make, keep edge fields stored behind the scenes, and avoid filling Settings with rare controls.
+- **Frontend-design on an existing production surface should not imply a redesign**: If the user asks for design polish on a page that already has an accepted structure, preserve the existing information architecture and visual grammar first. Avoid introducing a new signature treatment unless they explicitly ask for a broader visual direction.
 - **When feedback asks to integrate a status into an identity cluster, match the existing row grammar first**: Do not turn a compact identity value like firmware into a standalone card just because it has supporting metadata. Keep the row light, put detailed metadata and source links in the click-through dialog, and verify the screenshot target before shipping the visual hierarchy.
 - **Do not repeat badge state as adjacent text in dense rows**: If a colored badge already communicates "Updated", "Outdated", or similar state, do not render that same status as nearby body text unless it adds a distinct action or explanation. Put richer status context in the modal or detail view.
 - **Remove collision-prone ambient shortcuts instead of over-guarding them**: If a global type-to-search shortcut keeps intruding on page search or data-entry fields, remove the printable-key shortcut and keep explicit triggers such as `Cmd/Ctrl+K` plus visible Search buttons.

@@ -694,10 +694,11 @@ export const POST = withAuth(async (req, { user }) => {
 
   // 7. Defer image re-hosting to the rehost-images cron.
   // Re-hosting external CDN images to Blob inline used to run here in batches,
-  // but with large imports it blew the serverless timeout, leaving most assets
-  // on fragile third-party URLs. Imported assets keep whatever URL the CSV
-  // carried; the cron picks up any non-blob `imageUrl` (attempts default to 0)
-  // and mirrors it to Blob in small batches. See /api/cron/rehost-images.
+  // but with large imports it blew the serverless timeout, leaving imported
+  // assets and item families on fragile third-party URLs. Imported rows keep
+  // whatever URL the CSV carried; the cron picks up any non-blob `imageUrl`
+  // for Asset and BulkSku rows (attempts default to 0) and mirrors it to Blob
+  // in small batches. See /api/cron/rehost-images.
   const imagesQueued = validRows.filter(
     (r) => r.imageUrl && !isBlobUrl(r.imageUrl)
   ).length;

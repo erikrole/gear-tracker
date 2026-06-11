@@ -4,13 +4,15 @@ import { ok, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { assertPublicHost } from "@/lib/security/ssrf";
+import {
+  CALENDAR_FETCH_TIMEOUT_MS,
+  CALENDAR_MAX_RESPONSE_BYTES,
+  fetchCalendarText,
+} from "@/lib/services/bounded-calendar-fetch";
 
 const bodySchema = z.object({
   url: z.string().min(1).max(2048),
 });
-
-const FETCH_TIMEOUT_MS = 8000;
-const MAX_RESPONSE_BYTES = 5 * 1024 * 1024; // 5 MB cap so a malicious URL can't OOM the function
 
 /**
  * POST /api/calendar-sources/test
@@ -47,18 +49,15 @@ export const POST = withAuth(async (req, { user }) => {
   }
   url = parsed.toString();
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-
   try {
-    const response = await fetch(url, {
-      headers: { "User-Agent": "GearTracker/1.0 (probe)" },
-      signal: controller.signal,
+    const response = await fetchCalendarText(url, {
+      timeoutMs: CALENDAR_FETCH_TIMEOUT_MS,
+      maxBytes: CALENDAR_MAX_RESPONSE_BYTES,
+      userAgentSuffix: "probe",
     });
-    clearTimeout(timeout);
 
     const status = response.status;
-    const contentType = response.headers.get("content-type") ?? null;
+    const contentType = response.contentType;
 
     if (!response.ok) {
       return ok({
@@ -74,38 +73,7 @@ export const POST = withAuth(async (req, { user }) => {
       });
     }
 
-    // Read up to MAX_RESPONSE_BYTES so an oversized feed can't blow our budget.
-    const reader = response.body?.getReader();
-    let received = 0;
-    const chunks: Uint8Array[] = [];
-    if (reader) {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        if (value) {
-          received += value.length;
-          if (received > MAX_RESPONSE_BYTES) {
-            try { await reader.cancel(); } catch { /* ignore */ }
-            return ok({
-              data: {
-                ok: false,
-                status,
-                contentType,
-                byteSize: received,
-                eventCount: 0,
-                sampleSummaries: [],
-                error: `Feed exceeds ${MAX_RESPONSE_BYTES / 1024 / 1024} MB cap.`,
-              },
-            });
-          }
-          chunks.push(value);
-        }
-      }
-    }
-    const buffer = new Uint8Array(received);
-    let offset = 0;
-    for (const c of chunks) { buffer.set(c, offset); offset += c.length; }
-    const text = new TextDecoder("utf-8", { fatal: false }).decode(buffer);
+    const text = response.text;
 
     // Lightweight VEVENT scan — avoids reusing the full parser for a probe.
     const eventBlocks = text.split(/BEGIN:VEVENT/i).slice(1);
@@ -123,7 +91,7 @@ export const POST = withAuth(async (req, { user }) => {
           ok: false,
           status,
           contentType,
-          byteSize: received,
+          byteSize: response.byteSize,
           eventCount: 0,
           sampleSummaries: [],
           error: "Reachable, but the response doesn't look like an ICS feed (no BEGIN:VCALENDAR).",
@@ -136,19 +104,15 @@ export const POST = withAuth(async (req, { user }) => {
         ok: true,
         status,
         contentType,
-        byteSize: received,
+        byteSize: response.byteSize,
         eventCount,
         sampleSummaries,
       },
     });
   } catch (err) {
-    clearTimeout(timeout);
-    const isAbort = err instanceof Error && err.name === "AbortError";
-    const message = isAbort
-      ? `Timed out after ${FETCH_TIMEOUT_MS / 1000}s.`
-      : err instanceof Error
-        ? err.message
-        : "Fetch failed.";
+    const message = err instanceof Error
+      ? err.message
+      : "Fetch failed.";
     return ok({
       data: {
         ok: false,

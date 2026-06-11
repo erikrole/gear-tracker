@@ -102,15 +102,20 @@ Update:
 
 ## Done Criteria
 
-- [ ] `AppTabView.swift` contains the tab shell and only minimal shell helpers.
-- [ ] Profile, notification settings, account security, and availability code live in separate Swift files.
-- [ ] No user-facing iOS behavior changes.
-- [ ] `npx vitest run tests/ios-tabbar-stability.test.ts tests/ios-settings-first-class.test.ts tests/student-field-contracts.test.ts` exits 0.
-- [ ] `npm run drift:ios` exits 0.
-- [ ] iOS build succeeds.
-- [ ] `npm test` exits 0.
-- [ ] Docs no longer claim availability lives in `AppTabView.swift` to avoid a new file.
-- [ ] `plans/README.md` status row updated.
+- [x] `AppTabView.swift` contains the tab shell and only minimal shell helpers.
+- [x] Profile, notification settings, account security, and availability code live in separate Swift files.
+- [x] No user-facing iOS behavior changes.
+- [x] `npx vitest run tests/ios-tabbar-stability.test.ts tests/ios-settings-first-class.test.ts tests/student-field-contracts.test.ts` exits 0.
+- [x] `npm run drift:ios` exits 0.
+- [x] iOS build succeeds.
+- [x] `npm test` exits 0.
+- [x] Docs no longer claim availability lives in `AppTabView.swift` to avoid a new file.
+- [x] `plans/README.md` status row updated.
+
+## Review
+
+- 2026-06-11: Split the native tab shell from profile/settings code. `AppTabView.swift` now contains only the stable `.tabItem`/`.tag` shell plus pending-event routing, while `ProfileView.swift`, `NotificationSettingsView.swift`, `AccountSecuritySettingsView.swift`, and `AvailabilityView.swift` own the moved screens. XcodeGen added the new Swift files to the Wisconsin target; APNs and WeatherKit entitlements were restored after generation.
+- 2026-06-11: Verification passed: focused iOS source tests, `npm run drift:ios`, `npm run audit:ios:gaps` (only the pre-existing Plan 009 `UserAvatarView.swift` registry warning remains), XcodeBuildMCP simulator build for `Wisconsin` on iPhone 17 iOS 26.5, `npm test` (196 files, 1153 tests), and `git diff --check`.
 
 ## STOP Conditions
 
@@ -121,4 +126,3 @@ Update:
 ## Maintenance Notes
 
 Reviewers should treat this as a behavior-preserving refactor. The main risk is accidentally touching the stable tab shell that was restored after the Schedule selection crash.
-

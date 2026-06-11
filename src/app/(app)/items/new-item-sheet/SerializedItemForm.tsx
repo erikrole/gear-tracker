@@ -100,10 +100,8 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
     const [qrCodeValue, setQrCodeValue] = useState("");
     const [showScanner, setShowScanner] = useState(false);
 
-    // Settings — three independent booking toggles matching detail page
-    const [availableForReservation, setAvailableForReservation] = useState(true);
-    const [availableForCheckout, setAvailableForCheckout] = useState(true);
-    const [availableForCustody, setAvailableForCustody] = useState(true);
+    // Settings
+    const [bookable, setBookable] = useState(true);
     const [isAccessory, setIsAccessory] = useState(false);
     const [parentAsset, setParentAsset] = useState<ParentSearchResult | null>(null);
     const parentSearch = useParentSearch();
@@ -191,9 +189,9 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
           uwAssetTag,
           fiscalYear,
           userNotes,
-          availableForReservation,
-          availableForCheckout,
-          availableForCustody,
+          availableForReservation: bookable,
+          availableForCheckout: bookable,
+          availableForCustody: !isAccessory,
           isAccessory,
           parentAssetId: parentAsset?.id,
         });
@@ -224,9 +222,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
         setUserNotes("");
         setQrCodeValue("");
         setShowScanner(false);
-        setAvailableForReservation(true);
-        setAvailableForCheckout(true);
-        setAvailableForCustody(true);
+        setBookable(true);
         setIsAccessory(false);
         setParentAsset(null);
         parentSearch.clear();
@@ -511,7 +507,7 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
           title="Settings"
           badge="Policy"
           badgeVariant="gray"
-          description="These toggles control future workflow eligibility, not current status."
+          description="Bookable controls future checkout and reservation access, not current status."
         >
           <div className="space-y-3">
             {/* Attachment toggle */}
@@ -527,15 +523,11 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
                 onCheckedChange={(v) => {
                   setIsAccessory(v);
                   if (v) {
-                    setAvailableForReservation(false);
-                    setAvailableForCheckout(false);
-                    setAvailableForCustody(false);
+                    setBookable(false);
                   } else {
                     setParentAsset(null);
                     parentSearch.clear();
-                    setAvailableForReservation(true);
-                    setAvailableForCheckout(true);
-                    setAvailableForCustody(true);
+                    setBookable(true);
                   }
                 }}
               />
@@ -603,30 +595,14 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
               </div>
             )}
 
-            {/* Booking availability — three independent toggles matching detail page */}
+            {/* Booking access */}
             {!isAccessory && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between gap-1">
-                  <div>
-                    <Label htmlFor="new-item-available-for-reservation" className="text-sm font-medium">Available for reservation</Label>
-                    <p className="text-xs text-muted-foreground">Item is available to be used in reservations</p>
-                  </div>
-                  <Switch id="new-item-available-for-reservation" name="availableForReservation" checked={availableForReservation} onCheckedChange={setAvailableForReservation} />
+              <div className="flex items-center justify-between gap-1">
+                <div>
+                  <Label htmlFor="new-item-bookable" className="text-sm font-medium">Bookable</Label>
+                  <p className="text-xs text-muted-foreground">Can be checked out or reserved.</p>
                 </div>
-                <div className="flex items-center justify-between gap-1">
-                  <div>
-                    <Label htmlFor="new-item-available-for-checkout" className="text-sm font-medium">Available for check out</Label>
-                    <p className="text-xs text-muted-foreground">Item is available to be used in check-outs</p>
-                  </div>
-                  <Switch id="new-item-available-for-checkout" name="availableForCheckout" checked={availableForCheckout} onCheckedChange={setAvailableForCheckout} />
-                </div>
-                <div className="flex items-center justify-between gap-1">
-                  <div>
-                    <Label htmlFor="new-item-available-for-custody" className="text-sm font-medium">Available for custody</Label>
-                    <p className="text-xs text-muted-foreground">Item can be taken into custody by a user</p>
-                  </div>
-                  <Switch id="new-item-available-for-custody" name="availableForCustody" checked={availableForCustody} onCheckedChange={setAvailableForCustody} />
-                </div>
+                <Switch id="new-item-bookable" name="bookable" checked={bookable} onCheckedChange={setBookable} />
               </div>
             )}
           </div>

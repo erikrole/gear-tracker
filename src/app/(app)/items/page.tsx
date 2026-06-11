@@ -476,7 +476,10 @@ export default function ItemsPage() {
 
       {/* Inventory summary bar */}
       {query.statusBreakdown && !pageLoading && (
-        <div className="mb-4 grid gap-2 rounded-md border border-border/60 bg-muted/20 p-2 sm:grid-cols-3 xl:grid-cols-[1.2fr_repeat(6,minmax(0,1fr))]">
+        <section
+          aria-label="Inventory status summary"
+          className="mb-4 grid gap-2 rounded-md border border-border/60 bg-muted/20 p-2 sm:grid-cols-3 xl:grid-cols-[1.2fr_repeat(6,minmax(0,1fr))]"
+        >
           <div className="flex min-h-14 items-center justify-between rounded-sm bg-background px-3 shadow-xs sm:justify-start sm:gap-3">
             <div>
               <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Inventory</div>
@@ -513,6 +516,7 @@ export default function ItemsPage() {
                   query.setPage(0);
                 }}
                 aria-pressed={isActive}
+                aria-label={`${isActive ? "Remove" : "Apply"} ${bucket.label} status filter, ${bucket.count} ${bucket.count === 1 ? "item" : "items"}`}
                 className={`group flex min-h-14 items-center justify-between rounded-sm border px-3 text-left shadow-xs transition-[background-color,border-color,box-shadow,transform] hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring active:scale-[0.96] ${
                   isActive
                     ? "border-primary/40 bg-primary/5 shadow-[inset_3px_0_0_hsl(var(--primary))]"
@@ -531,7 +535,7 @@ export default function ItemsPage() {
               </button>
             );
           })}
-        </div>
+        </section>
       )}
 
       <NewItemSheet

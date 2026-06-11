@@ -218,7 +218,7 @@ export function DataTable({
         </div>
       )}
 
-      <div className={cn("relative rounded-md border", densityClass)} role="region" aria-busy={refreshing}>
+      <div className={cn("relative rounded-md border", densityClass)} role="region" aria-label="Items table" aria-busy={refreshing}>
         {refreshing && (
           <div className="absolute inset-x-0 top-0 z-30 h-0.5 overflow-hidden rounded-t-md">
             <div className="h-full w-1/3 bg-primary/40 animate-[shimmer_1.5s_ease-in-out_infinite]" />
@@ -382,6 +382,7 @@ export function DataTable({
                       tabIndex={0}
                       role="row"
                       aria-label={`View ${item.assetTag}`}
+                      aria-selected={row.getIsSelected()}
                       onClick={(e) => {
                         if (e.metaKey || e.ctrlKey || e.button === 1) openItem(true);
                         else openItem();

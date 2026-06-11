@@ -1,6 +1,7 @@
 export type CalendarSourceSyncResult = {
   added?: number;
   updated?: number;
+  unchanged?: number;
   cancelled?: number;
   skipped?: number;
   errors?: unknown[];
@@ -27,13 +28,13 @@ function plural(value: number, singular: string, pluralForm = `${singular}s`) {
 
 function eventSummary(result: CalendarSourceSyncResult) {
   const added = count(result.added);
-  const refreshed = count(result.updated);
+  const updated = count(result.updated);
   const cancelled = count(result.cancelled);
   const skipped = count(result.skipped);
   const parts: string[] = [];
 
   if (added > 0) parts.push(plural(added, "event") + " added");
-  if (refreshed > 0) parts.push(plural(refreshed, "event") + " refreshed");
+  if (updated > 0) parts.push(plural(updated, "event") + " updated");
   if (cancelled > 0) parts.push(plural(cancelled, "event") + " cancelled");
   if (skipped > 0) parts.push(plural(skipped, "event") + " skipped");
 

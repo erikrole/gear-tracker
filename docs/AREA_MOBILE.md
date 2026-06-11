@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Mobile Operations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-10
+- Last Updated: 2026-06-11
 - Status: Active
 - Version: V1
 
@@ -124,6 +124,7 @@ Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md` (revised 2026-03-
 - **V3 (later)**: Bottom nav badge counts via live `/api/nav-counts` polling, game-day/shift context cards
 
 ## Change Log
+- 2026-06-11: **iOS tab shell isolated from Settings/Profile churn** - native `AppTabView.swift` now contains only the stable `.tabItem`/`.tag` app shell and its pending-event routing helper. Profile, notification settings, account security, and student availability moved into focused Swift files without changing tab labels, tags, badges, role gating, or settings behavior.
 - 2026-06-10: **iOS Settings detail menus** - native Settings now routes Notifications and Account & Security into dedicated drill-down screens. Notifications owns delivery status, OS push permission recovery, pause controls, channel toggles, and notification type toggles; Account & Security shows account context and changes passwords through the existing `/api/me/change-password` contract with optional other-session revocation. Full profile editing and active session review remain web handoffs.
 - 2026-06-10: **iOS native booking picker parity** - native reservation creation now supports scan-to-add from the Equipment step, countable bulk/battery selection with quantity steppers, selected bulk rows in the review step, and typed `bulkItems` submission through the existing reservation API. Serialized conflict hints remain preflight advisory; bulk shortage enforcement remains server-authoritative at submit.
 - 2026-06-10: **iOS Settings first-class hub** - native Profile now presents as a Settings hub with an account summary, shift/overdue/alert metrics, first-class row treatment, grouped schedule/account/notifications/appearance/app sections, student-only Availability access, and staff/admin-only sticker-code tooling. Backend settings, notification preferences, and the stable tab shell are unchanged.

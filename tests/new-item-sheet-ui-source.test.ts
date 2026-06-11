@@ -40,7 +40,7 @@ describe("Add item sheet booking-inspired UI", () => {
     expect(standardSource).toContain('label="Asset tag" htmlFor="new-item-asset-tag"');
     expect(standardSource).toContain('label="Category" htmlFor="new-item-category"');
     expect(standardSource).toContain('htmlFor="new-item-is-accessory"');
-    expect(standardSource).toContain('htmlFor="new-item-available-for-reservation"');
+    expect(standardSource).toContain('htmlFor="new-item-bookable"');
     expect(standardSource).toContain('label="Photo upload" htmlFor="new-item-photo"');
     expect(standardSource).toContain('name="imageFile"');
     expect(standardSource).toContain('Price (USD)');

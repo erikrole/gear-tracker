@@ -228,7 +228,7 @@
   - Bulk items follow quantity-first semantics and separate validation path.
   - UI status shown for items is derived from active allocations; no direct editable authoritative status.
   - Item detail header uses a fixed derived-status set with booking-aware deep links: `Available`, `Check Out by {user}`, `Reserved by {user}`, `Checking Out`, `Needs Maintenance`, and `Retired`.
-  - Eligibility toggles (reserve/check-out/custody) are policy flags, not live status values.
+  - Eligibility fields (reserve/check-out/custody) are policy flags, not live status values; web item settings expose checkout and reservation together as `Bookable`.
   - `Delete` on items is reserved for policy-safe records with no active allocations and no historical booking links; otherwise operators use `Retire`.
   - Item detail defaults to an `Info` dashboard view that combines booking overview and editable item information, with QR thumbnail rendering and controlled fiscal-year/category inputs.
 - Consequences:
@@ -748,6 +748,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 4. ~~Student mobile KPI definitions~~ — resolved (PD-5): taps-to-checkout ≤3, scan success ≥95%, task completion <30s. Telemetry deferred to Phase B.
 
 ## Change Log
+- 2026-06-10: Updated D-013 for the simplified item policy UI. Checkout and reservation remain distinct stored policy fields, but the normal web settings surface edits them together as `Bookable`; custody remains stored outside the day-to-day item settings UI.
 - 2026-06-08: Updated D-029/D-037 for the no-temp-password beta pivot. First-time onboarding now stays invite-first through AllowedEmail registration, while forced-password handling remains recovery-only.
 - 2026-06-03: Added D-037 to make onboarding a bulk-capable, invitation-scoped account lifecycle while preserving the allowlist gate and forced-password safety.
 - 2026-06-02: Updated D-026 to match shipped cron reality. Calendar sync is now documented as part of `morning-refresh` at 08:00 UTC, aligned with D-035, while manual Settings sync remains the on-demand escape hatch.

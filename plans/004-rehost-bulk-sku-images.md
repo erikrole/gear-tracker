@@ -123,16 +123,21 @@ Add tests that prove:
 
 ## Done Criteria
 
-- [ ] `BulkSku` has a retry counter migration.
-- [ ] Cron drains both asset and bulk SKU external images.
-- [ ] Backfill path can handle bulk SKU image backlog.
-- [ ] Import comments no longer claim asset-only behavior covers all images.
-- [ ] `docs/GAPS_AND_RISKS.md` no longer lists this as an open gap.
-- [ ] `npm run db:migrate:check` exits 0.
-- [ ] `npx tsc --noEmit` exits 0.
-- [ ] `npm test` exits 0.
-- [ ] Build check exits 0.
-- [ ] `plans/README.md` status row updated.
+- [x] `BulkSku` has a retry counter migration.
+- [x] Cron drains both asset and bulk SKU external images.
+- [x] Backfill path can handle bulk SKU image backlog.
+- [x] Import comments no longer claim asset-only behavior covers all images.
+- [x] `docs/GAPS_AND_RISKS.md` no longer lists this as an open gap.
+- [x] `npm run db:migrate:check` exits 0.
+- [x] `npx tsc --noEmit` exits 0.
+- [x] `npm test` exits 0.
+- [x] Build check exits 0.
+- [x] `plans/README.md` status row updated.
+
+## Review
+
+- 2026-06-11: Implementation added `BulkSku.imageRehostAttempts`, migration `0077_add_bulk_sku_image_rehost_attempts`, combined Asset/BulkSku cron processing with additive response buckets, and generalized the image backfill script while keeping dry-run default. Prisma `migrate dev --create-only` hit the repo's known blank Neon schema-engine failure; migration SQL was generated with `prisma migrate diff` from the pre-change schema to the current schema and committed as a normal migration folder.
+- 2026-06-11: Verification passed: `npm run db:migrate:check`, `npx prisma validate`, focused rehost/backfill tests, `npx tsc --noEmit`, `npm test` (196 files, 1153 tests), `DIRECT_URL="" npm run build:app`, and `git diff --check`.
 
 ## STOP Conditions
 

@@ -104,13 +104,20 @@ Expected: exit 0, Next production build completes. If Next requires other non-se
 
 ## Done Criteria
 
-- [ ] `npx tsc --noEmit` exits 0.
-- [ ] `npm test` exits 0.
-- [ ] `npm run db:migrate:check` exits 0.
-- [ ] Clean-env `npm run build:app` exits 0 without `DIRECT_URL`.
-- [ ] `.github/workflows/ci.yml` no longer runs `npm run build` in PR CI.
-- [ ] `npm run build` remains available for environments with real `DIRECT_URL`.
-- [ ] `plans/README.md` status row updated.
+- [x] `npx tsc --noEmit` exits 0.
+- [x] `npm test` exits 0.
+- [x] `npm run db:migrate:check` exits 0.
+- [x] Clean-env `npm run build:app` exits 0 without `DIRECT_URL`.
+- [x] `.github/workflows/ci.yml` no longer runs `npm run build` in PR CI.
+- [x] `npm run build` remains available for environments with real `DIRECT_URL`.
+- [x] `plans/README.md` status row updated.
+
+## Review
+
+- 2026-06-11: Added `build:app` as the migration-free Next production build while preserving `build` as the deploy-equivalent migration deploy plus app build.
+- 2026-06-11: Updated CI to run `npm run db:migrate:check` and `npm run build:app` with placeholder runtime env instead of invoking live migration deploy.
+- 2026-06-11: Updated Prisma/Neon and AGENTS guidance to distinguish deploy verification from live-free app-build verification.
+- 2026-06-11 verification: `npx tsc --noEmit`, `npm test`, `npm run db:migrate:check`, CI/doc grep checks, deploy-build script check, and `DIRECT_URL="" npm run build:app` all exited 0.
 
 ## STOP Conditions
 
@@ -121,4 +128,3 @@ Expected: exit 0, Next production build completes. If Next requires other non-se
 ## Maintenance Notes
 
 Reviewers should verify the split does not hide real deploy failures. CI should prove the app bundle, while deployment or a protected migration-health job proves live database migration state.
-

@@ -106,13 +106,20 @@ Model service-level tests after the existing `splitEventsForSync` and `SyncResul
 
 ## Done Criteria
 
-- [ ] Saved-source sync no longer calls `response.text()` directly on the external feed.
-- [ ] Preview and saved sync paths share the same timeout and byte-cap behavior.
-- [ ] `npx vitest run tests/calendar-sync.test.ts` exits 0.
-- [ ] `npx tsc --noEmit` exits 0.
-- [ ] `npm test` exits 0.
-- [ ] Build check exits 0.
-- [ ] `plans/README.md` status row updated.
+- [x] Saved-source sync no longer calls `response.text()` directly on the external feed.
+- [x] Preview and saved sync paths share the same timeout and byte-cap behavior.
+- [x] `npx vitest run tests/calendar-sync.test.ts` exits 0.
+- [x] `npx tsc --noEmit` exits 0.
+- [x] `npm test` exits 0.
+- [x] Build check exits 0.
+- [x] `plans/README.md` status row updated.
+
+## Review
+
+- 2026-06-11: Added `fetchCalendarText` as the shared bounded calendar feed fetcher with an 8-second timeout, 5 MB cap, stable timeout/oversize errors, and byte-size reporting.
+- 2026-06-11: Reused the helper from both `POST /api/calendar-sources/test` and saved-source sync so preview and sync share the same fetch budget.
+- 2026-06-11: Saved-source sync records timeout and oversize failures on `lastError`/`lastFetchedAt` and returns the existing hard-error result shape with diagnostics.
+- 2026-06-11 verification: focused calendar tests, TypeScript, full tests, live-free `build:app`, migration-prefix check, and whitespace diff all exited 0.
 
 ## STOP Conditions
 

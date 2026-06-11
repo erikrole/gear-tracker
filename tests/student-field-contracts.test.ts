@@ -95,17 +95,19 @@ describe("student field mobile contracts", () => {
   });
 
   it("keeps iOS Profile controls self-describing", () => {
-    const appTab = source("ios/Wisconsin/Views/AppTabView.swift");
+    const profile = source("ios/Wisconsin/Views/ProfileView.swift");
+    const notifications = source("ios/Wisconsin/Views/NotificationSettingsView.swift");
+    const availability = source("ios/Wisconsin/Views/AvailabilityView.swift");
 
-    expect(appTab).toContain("Text(\"Pause alerts\")");
-    expect(appTab).toContain("Text(\"Pause \\(label)\")");
-    expect(appTab).toContain("title: \"Email alerts\"");
-    expect(appTab).toContain("title: \"Push alerts\"");
-    expect(appTab).toContain("title: \"Delivery status\"");
-    expect(appTab).toContain("title: \"Theme\"");
-    expect(appTab).toContain("title: \"My Availability\"");
-    expect(appTab).toContain("Label(\"Add availability block\", systemImage: \"plus\")");
-    expect(appTab).toContain("Label(\"Add block\", systemImage: \"plus\")");
+    expect(notifications).toContain("Text(\"Pause alerts\")");
+    expect(notifications).toContain("Text(\"Pause \\(label)\")");
+    expect(notifications).toContain("title: \"Email alerts\"");
+    expect(notifications).toContain("title: \"Push alerts\"");
+    expect(notifications).toContain("title: \"Delivery status\"");
+    expect(profile).toContain("title: \"Theme\"");
+    expect(profile).toContain("title: \"My Availability\"");
+    expect(availability).toContain("Label(\"Add availability block\", systemImage: \"plus\")");
+    expect(availability).toContain("Label(\"Add block\", systemImage: \"plus\")");
   });
 
   it("keeps iOS Create Booking actions and selected equipment recoverable", () => {

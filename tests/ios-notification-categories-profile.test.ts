@@ -42,22 +42,18 @@ describe("iOS notification category preferences", () => {
   });
 
   it("lets native Profile edit each category without hiding pause/channel controls", () => {
-    const appTab = source("ios/Wisconsin/Views/AppTabView.swift");
+    const notifications = source("ios/Wisconsin/Views/NotificationSettingsView.swift");
     const preferences = source("ios/Wisconsin/Core/Preferences.swift");
 
-    expect(appTab).toContain("Text(\"Notification types\")");
-    expect(appTab).toContain("Text(\"In-app notifications always show in your inbox, regardless of these settings.\")");
+    expect(notifications).toContain("Text(\"Notification types\")");
+    expect(notifications).toContain("Text(\"In-app notifications always show in your inbox, regardless of these settings.\")");
 
     for (const { key, label } of categories) {
-      expect(appTab).toContain(`title: "${label}"`);
-      expect(appTab).toContain(`category: .${key}`);
+      expect(notifications).toContain(`title: "${label}"`);
+      expect(notifications).toContain(`category: .${key}`);
     }
 
-    const detail = bodyBetween(appTab, "private struct NotificationSettingsView", "private struct AccountSecuritySettingsView");
-    expect(detail).toContain("Text(\"Notification types\")");
-    expect(detail).toContain("Text(\"In-app notifications always show in your inbox, regardless of these settings.\")");
-
-    const categoryToggle = bodyBetween(detail, "private func categoryToggle", "private var notificationSummaryText");
+    const categoryToggle = bodyBetween(notifications, "private func categoryToggle", "private var notificationSummaryText");
     expect(categoryToggle).toContain("prefsVM.categoryValue(category)");
     expect(categoryToggle).toContain("await prefsVM.setCategory(category, value: value)");
     expect(categoryToggle).toContain(".disabled(prefsVM.saving)");
