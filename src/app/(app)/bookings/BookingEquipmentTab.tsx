@@ -110,8 +110,10 @@ export default function BookingEquipmentTab({
   const returnedSerialized = booking.serializedItems.filter(
     (i) => i.allocationStatus === "returned",
   ).length;
+  // checkedOutQuantity is a non-nullable Int defaulting to 0 — it stays 0 until
+  // pickup, so fall back to plannedQuantity until something is actually checked out.
   const totalBulkOut = booking.bulkItems.reduce(
-    (sum, i) => sum + (i.checkedOutQuantity ?? i.plannedQuantity),
+    (sum, i) => sum + (i.checkedOutQuantity > 0 ? i.checkedOutQuantity : i.plannedQuantity),
     0,
   );
   const totalBulkIn = booking.bulkItems.reduce(
@@ -449,9 +451,11 @@ function BulkRow({
   actionLoading?: string | null;
   risks?: BulkTurnaroundRiskInfo[];
 }) {
-  const outQty = item.checkedOutQuantity ?? item.plannedQuantity;
+  // checkedOutQuantity is 0 (not null) until pickup — show planned quantity until
+  // then, and only mark "Returned" once something was actually checked out.
+  const outQty = item.checkedOutQuantity > 0 ? item.checkedOutQuantity : item.plannedQuantity;
   const inQty = item.checkedInQuantity ?? 0;
-  const allReturned = isCheckout && inQty >= outQty;
+  const allReturned = isCheckout && item.checkedOutQuantity > 0 && inQty >= outQty;
   const remaining = outQty - inQty;
   const canReturn = isCheckout && !allReturned && remaining > 0 && !!onCheckinBulk;
   const isLoading = actionLoading === `bulk-${item.id}`;
