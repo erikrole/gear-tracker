@@ -142,6 +142,7 @@ beforeEach(() => {
   vi.mocked(requireAuth).mockResolvedValue(adminUser);
   vi.mocked(requireKiosk).mockResolvedValue({
     kioskId: "kiosk-1",
+    name: "Test Kiosk",
     locationId: "loc-1",
     locationName: "Main",
   });

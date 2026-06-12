@@ -5,6 +5,10 @@ import Foundation
 struct KioskAPI {
     static let shared = KioskAPI()
 
+    /// Host the kiosk_session cookie is scoped to — KioskStore re-creates the
+    /// cookie from the Keychain against this domain after a reinstall.
+    static let host = "gear.erikrole.com"
+
     private let baseURL = URL(string: "https://gear.erikrole.com")!
 
     private let session: URLSession = {
@@ -28,14 +32,21 @@ struct KioskAPI {
 
     // MARK: - Session
 
-    func kioskMe() async throws {
-        // `/api/kiosk/me` returns `{kioskId, locationId, locationName}` at the
-        // TOP level — no `data` envelope. Decoding a wrapper here failed every
-        // call, and KioskStore.validateSession treated that as a dead session,
-        // so the kiosk forced re-activation on every app re-entry.
-        struct Response: Decodable { let kioskId: String }
+    struct KioskMeResponse: Decodable {
+        let kioskId: String
+        let locationId: String
+        let locationName: String
+        // Optional: older deployed servers don't return the device name yet.
+        let name: String?
+    }
+
+    func kioskMe() async throws -> KioskMeResponse {
+        // `/api/kiosk/me` returns the context at the TOP level — no `data`
+        // envelope. Decoding a wrapper here failed every call, and
+        // KioskStore.validateSession treated that as a dead session, so the
+        // kiosk forced re-activation on every app re-entry.
         let req = request(path: "/api/kiosk/me")
-        let _: Response = try await perform(req)
+        return try await perform(req)
     }
 
     func kioskActivate(code: String) async throws -> KioskActivationResponse {

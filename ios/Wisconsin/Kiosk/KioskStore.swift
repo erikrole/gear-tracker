@@ -1,8 +1,57 @@
 import Foundation
 import Observation
+import Security
 
 // Global reference so AppDelegate can check kiosk mode for orientation locking.
 var sharedKioskStore: KioskStore?
+
+/// Keychain-backed storage for the kiosk_session token. HTTPCookieStorage and
+/// UserDefaults live in the app container, which Xcode reinstalls can wipe —
+/// every rebuild bounced the kiosk back to the activation screen. The Keychain
+/// survives reinstalls, so the session token is mirrored here and the cookie
+/// is re-created on launch when the cookie jar comes up empty.
+private enum KioskSessionVault {
+    private static let service = "com.wisconsin.kiosk"
+    private static let account = "kiosk_session"
+
+    private static var baseQuery: [String: Any] {
+        [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+        ]
+    }
+
+    static func save(_ token: String) {
+        let data = Data(token.utf8)
+        let attrs: [String: Any] = [
+            kSecValueData as String: data,
+            // AfterFirstUnlock: the kiosk iPad reboots unattended; the token
+            // must be readable as soon as the device has been unlocked once.
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
+        ]
+        let status = SecItemUpdate(baseQuery as CFDictionary, attrs as CFDictionary)
+        if status == errSecItemNotFound {
+            var add = baseQuery
+            add.merge(attrs) { _, new in new }
+            SecItemAdd(add as CFDictionary, nil)
+        }
+    }
+
+    static func load() -> String? {
+        var query = baseQuery
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        var result: AnyObject?
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
+              let data = result as? Data else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    static func clear() {
+        SecItemDelete(baseQuery as CFDictionary)
+    }
+}
 
 /// A scanned item held in cross-flow state so a brief inactivity reset doesn't
 /// silently discard a student's scan list.
@@ -46,7 +95,10 @@ final class KioskStore {
     // Called when the kiosk deeplink is opened or debug button tapped.
     func enterKiosk() {
         isActive = true
-        if info != nil {
+        restoreSessionCookieIfNeeded()
+        // Validate when we have local info OR a surviving Keychain token —
+        // the latter rebuilds info from /api/kiosk/me after a reinstall.
+        if info != nil || KioskSessionVault.load() != nil {
             Task { await validateSession() }
         } else {
             screen = .activation
@@ -56,35 +108,49 @@ final class KioskStore {
     // Validates the stored kiosk_session cookie is still live.
     private func validateSession() async {
         do {
-            try await KioskAPI.shared.kioskMe()
+            let me = try await KioskAPI.shared.kioskMe()
+            if info == nil {
+                // Reinstall wiped UserDefaults but the Keychain token held —
+                // rebuild device info from the server.
+                saveInfo(KioskInfo(
+                    kioskId: me.kioskId,
+                    name: me.name ?? "Gear Room",
+                    locationId: me.locationId,
+                    locationName: me.locationName
+                ))
+            }
+            persistSessionCookie()
             screen = .idle
             startHeartbeat()
             resetInactivity()
         } catch APIError.unauthorized {
             // Definitive: session expired or device deactivated by an admin.
+            KioskSessionVault.clear()
             clearStoredInfo()
             screen = .activation
         } catch {
             // Transient (offline at launch, 5xx, decode hiccup) — don't throw
             // away a valid activation; go idle and let the heartbeat catch a
-            // real deactivation via its own 401 path.
-            screen = .idle
-            startHeartbeat()
-            resetInactivity()
+            // real deactivation via its own 401 path. Without local info
+            // there's nothing to render, so fall back to activation.
+            if info != nil {
+                screen = .idle
+                startHeartbeat()
+                resetInactivity()
+            } else {
+                screen = .activation
+            }
         }
     }
 
     func activate(response: KioskActivationResponse) {
-        let newInfo = KioskInfo(
+        saveInfo(KioskInfo(
             kioskId: response.kioskId,
             name: response.name,
             locationId: response.location.id,
             locationName: response.location.name
-        )
-        info = newInfo
-        if let data = try? JSONEncoder().encode(newInfo) {
-            UserDefaults.standard.set(data, forKey: Self.infoKey)
-        }
+        ))
+        persistSessionCookie()
         screen = .idle
         startHeartbeat()
         resetInactivity()
@@ -93,10 +159,48 @@ final class KioskStore {
     func deactivate() {
         isActive = false
         clearStoredInfo()
+        KioskSessionVault.clear()
         checkoutCarts.removeAll()
         screen = .activation
         for cookie in HTTPCookieStorage.shared.cookies ?? [] where cookie.name == "kiosk_session" {
             HTTPCookieStorage.shared.deleteCookie(cookie)
+        }
+    }
+
+    // MARK: - Session persistence across reinstalls
+
+    /// Mirror the kiosk_session cookie value into the Keychain.
+    private func persistSessionCookie() {
+        guard let cookie = HTTPCookieStorage.shared.cookies?
+            .first(where: { $0.name == "kiosk_session" }) else { return }
+        KioskSessionVault.save(cookie.value)
+    }
+
+    /// Re-create the kiosk_session cookie from the Keychain when the cookie
+    /// jar is empty (fresh install). The local expiry is a placeholder — the
+    /// server re-issues the cookie with its authoritative expiry on the first
+    /// authenticated response, and requireKiosk() rejects expired sessions.
+    private func restoreSessionCookieIfNeeded() {
+        let hasCookie = HTTPCookieStorage.shared.cookies?
+            .contains { $0.name == "kiosk_session" } ?? false
+        guard !hasCookie, let token = KioskSessionVault.load() else { return }
+        let properties: [HTTPCookiePropertyKey: Any] = [
+            .name: "kiosk_session",
+            .value: token,
+            .domain: KioskAPI.host,
+            .path: "/",
+            .secure: "TRUE",
+            .expires: Date().addingTimeInterval(7 * 24 * 3600),
+        ]
+        if let cookie = HTTPCookie(properties: properties) {
+            HTTPCookieStorage.shared.setCookie(cookie)
+        }
+    }
+
+    private func saveInfo(_ newInfo: KioskInfo) {
+        info = newInfo
+        if let data = try? JSONEncoder().encode(newInfo) {
+            UserDefaults.standard.set(data, forKey: Self.infoKey)
         }
     }
 

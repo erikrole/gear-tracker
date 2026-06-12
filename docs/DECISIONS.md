@@ -41,6 +41,7 @@
 - D-035: Daily maintenance work is consolidated into morning-refresh
 - D-036: Product image search is Brave-backed and human-picked
 - D-037: Bulk onboarding uses an invitation-scoped account lifecycle
+- D-039: Kiosk sessions slide on activity and survive reinstalls via Keychain
 
 ---
 
@@ -742,6 +743,21 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 
 ---
 
+## D-039: Kiosk Sessions Slide on Activity and Survive Reinstalls via Keychain
+- Date: 2026-06-12
+- Status: Accepted
+- Context:
+  - Kiosk iPads are always-on appliances (plugged in at a gear-room counter). The original design (D-030) gave activations a fixed 7-day `sessionExpiresAt`, so a healthy, continuously-heartbeating kiosk was forced back to the activation screen weekly.
+  - The iOS app stored the `kiosk_session` cookie only in `HTTPCookieStorage` and device info only in `UserDefaults` — both live in the app container, which reinstalls (every Xcode build during development, any future App Store reinstall) can wipe. Each rebuild bounced the device to activation.
+- Decision:
+  - `requireKiosk()` slides `sessionExpiresAt` forward to a full 7-day window on authenticated activity, throttled to roughly one write per day. The cookie is re-issued with the slid expiry on every response, so cookie and DB stay aligned.
+  - The iOS app mirrors the session token into the Keychain (`kSecAttrAccessibleAfterFirstUnlock`) and re-creates the cookie from it when the cookie jar comes up empty. With `UserDefaults` also wiped, device info is rebuilt from `/api/kiosk/me` (which now returns the device `name`).
+- Consequences:
+  - An active kiosk never re-prompts for an activation code; only 7 full days of darkness (or admin deactivation, which still revokes instantly via `active: false`) ends a session.
+  - The Keychain copy outlives app deletion by design — `deactivate()` and any 401 path must keep clearing it (both do).
+
+---
+
 ## Pending Decisions
 1. ~~Event sync refresh cadence and staleness thresholds~~ — Resolved: D-026.
 2. ~~Venue mapping governance owner~~ — Resolved: D-027.
@@ -779,3 +795,4 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - 2026-05-13: Reframed D-022 around first-class item families: `BulkSku` remains the implementation model, but `/items` is the normal discovery/detail surface and `/bulk-inventory` is admin operations.
 - 2026-05-09: Added D-034 for badge achievements: event-sourced service boundary, feature flag off path, no retroactive backfill, 15-minute on-time grace, immutable definition keys, single-emit status helpers, peer visibility default, and profile-first UI.
 - 2026-06-11: Extended D-022 consequences for Brother P-Touch label CSV export and printed-label tracking. Printed-label state stored per `BulkSkuUnit` (`labelPrintedAt`/`labelPrintedById`/`labelPrintBatchId`, migration 0077); QR data stays derived and is never stored.
+- 2026-06-12: Added D-039 (kiosk sessions slide on activity server-side; iOS persists the session token in Keychain and rebuilds device info from /api/kiosk/me after reinstalls).

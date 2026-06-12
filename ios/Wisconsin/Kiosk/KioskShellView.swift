@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct KioskShellView: View {
     @Environment(KioskStore.self) private var store
@@ -36,6 +37,10 @@ struct KioskShellView: View {
         .preferredColorScheme(.dark)
         .persistentSystemOverlays(.hidden)
         .statusBarHidden()
+        // Kiosk iPads live plugged in on a counter — never let the screen
+        // sleep while the kiosk shell is up; restore normal behavior on exit.
+        .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
+        .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
         .simultaneousGesture(TapGesture().onEnded { store.resetInactivity() })
         .simultaneousGesture(DragGesture(minimumDistance: 0).onChanged { _ in store.resetInactivity() })
         .animation(.easeInOut(duration: 0.2), value: store.inactivityWarningVisible)

@@ -111,6 +111,7 @@ const staffUser = {
 
 const kiosk = {
   kioskId: "kiosk-1",
+  name: "Test Kiosk",
   locationId: "loc-1",
   locationName: "Main",
 };

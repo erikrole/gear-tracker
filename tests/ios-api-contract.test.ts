@@ -197,10 +197,15 @@ describe("iOS API contracts — kiosk session", () => {
 
     expect(route).toMatch(/return ok\(\{\s*kioskId: kiosk\.kioskId/);
     const kioskMe = client.slice(
-      client.indexOf("func kioskMe()"),
+      client.indexOf("struct KioskMeResponse"),
       client.indexOf("func kioskActivate"),
     );
-    expect(kioskMe).toContain("struct Response: Decodable { let kioskId: String }");
+    // Top-level fields, no data envelope. `name` stays Optional so the app
+    // tolerates older servers that don't return the device name yet.
+    expect(kioskMe).toContain("let kioskId: String");
+    expect(kioskMe).toContain("let locationId: String");
+    expect(kioskMe).toContain("let locationName: String");
+    expect(kioskMe).toContain("let name: String?");
     expect(kioskMe).not.toContain("DataWrapper");
   });
 

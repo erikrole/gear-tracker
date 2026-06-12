@@ -36,6 +36,27 @@ missing locally (lives on advisor/codex branches; schema field already on main).
   stronger hierarchy. Compile-verified; visual sign-off on the iPad is the user's.
 - Pre-existing test failures (2) on main flagged as a separate background task.
 
+## Active: Always-on kiosk — session persistence + standby display (2026-06-12)
+
+Report: every Xcode rebuild bounced the iPad back to activation. Cause: the
+kiosk_session cookie and KioskInfo live in the app container (HTTPCookieStorage
+/ UserDefaults), which reinstalls wipe; plus the fixed 7-day session would have
+forced weekly re-activation even on a healthy kiosk.
+
+- [x] Server: `requireKiosk()` slides `sessionExpiresAt` on activity (~daily write throttle), cookie re-issued with slid expiry (D-039)
+- [x] Server: `/api/kiosk/me` returns device `name` so the app can rebuild info after a wipe
+- [x] iOS: session token mirrored to Keychain (`AfterFirstUnlock`), cookie re-created on launch, info rebuilt from /me; cleared on deactivate/401
+- [x] iOS: kiosk shell disables system idle timer (screen never sleeps)
+- [x] iOS: idle screen redesigned as standby display — live HH:MM:SS clock (1s TimelineView), Gotham date in brand red, TODAY event rows bolder
+- [x] Tests updated (KioskContext mocks + kioskMe contract), tsc/vitest/xcodebuild/next build all pass
+- [x] Docs: D-039, AREA_KIOSK change log
+
+### Review
+- The 7-day expiry now only ends sessions for kiosks dark a full week; admin
+  deactivation still revokes instantly. Keychain copy outlives app deletion by
+  design — deactivate() and the 401 path both clear it.
+- Visual sign-off on the standby clock needs the user's iPad rebuild.
+
 ---
 
 ## Active: Roadmap ideas intake (2026-06-12)

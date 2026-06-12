@@ -154,6 +154,7 @@ const KIOSK_COOKIE = "kiosk_session";
 
 export type KioskContext = {
   kioskId: string;
+  name: string;
   locationId: string;
   locationName: string;
 };
@@ -226,23 +227,39 @@ export async function requireKiosk(): Promise<KioskContext> {
     throw new HttpError(401, "Kiosk session expired");
   }
 
-  // Keep the browser cookie aligned to the server-side session expiry instead
-  // of silently extending custody authority past the DB trust window.
+  // Sliding session: kiosks are always-on appliances, so authenticated
+  // activity pushes expiry back out to the full window. Throttled to roughly
+  // one UPDATE per day (only once a day of the window has been consumed).
+  // Admin deactivation (`active: false`) still revokes immediately; only an
+  // iPad that goes dark for a full 7 days has to re-enter an activation code.
+  const slideAfterMs = 1000 * 60 * 60 * 24;
+  const shouldSlide =
+    device.sessionExpiresAt.getTime() - now.getTime() < KIOSK_SESSION_MS - slideAfterMs;
+  const sessionExpiresAt = shouldSlide
+    ? new Date(now.getTime() + KIOSK_SESSION_MS)
+    : device.sessionExpiresAt;
+
+  // Keep the cookie aligned to the server-side session expiry — the DB
+  // remains the trust window; the cookie never outlives it.
   cookieStore.set(KIOSK_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
     path: "/",
-    expires: device.sessionExpiresAt,
+    expires: sessionExpiresAt,
   });
 
-  // Update last seen (fire and forget — don't block the request)
+  // Update last seen + slid expiry (fire and forget — don't block the request)
   Promise.resolve(
-    db.kioskDevice.update({ where: { id: device.id }, data: { lastSeenAt: now } }),
+    db.kioskDevice.update({
+      where: { id: device.id },
+      data: { lastSeenAt: now, ...(shouldSlide ? { sessionExpiresAt } : {}) },
+    }),
   ).catch(() => {});
 
   return {
     kioskId: device.id,
+    name: device.name,
     locationId: device.location.id,
     locationName: device.location.name,
   };
