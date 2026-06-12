@@ -84,3 +84,4 @@ Kiosk execution endpoints are documented in `docs/AREA_KIOSK.md`.
 | 2026-04-09 | **Hardening pass (6 fixes):** mode badges → Badge component; bulk row/circle dark-mode color normalization; handleLookupScan finally block; loadScanStatus finally block; Page Visibility refresh on tab return; camera error prefix removed |
 
 Historical entries before 2026-05-10 may reference the retired app booking-mode scan implementation. Current app scan scope is lookup only.
+- 2026-06-11: **Real holder avatars on scan hero card (iOS)** — the hero card custody row drew a hand-rolled initials circle for the gear's current holder. It now renders the shared `UserAvatarView` (real profile photo with initials fallback), matching how the web shows requester avatars. Serialized matches use `Asset.activeBooking.requesterAvatarUrl` (server already returned it); bulk-family unit matches use a new `matchedUnitHolderAvatarUrl` added to `/api/assets`'s matched-unit custody payload.

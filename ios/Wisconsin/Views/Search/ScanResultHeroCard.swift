@@ -38,6 +38,7 @@ struct ScanAssetHeroCard: View {
             if let booking = asset.activeBooking {
                 ScanHeroCustodyRow(
                     holder: booking.requesterName,
+                    holderAvatarUrl: booking.requesterAvatarUrl,
                     bookingTitle: booking.title,
                     dueAt: booking.endsAt,
                     isOverdue: booking.isOverdue,
@@ -126,6 +127,7 @@ struct ScanFamilyHeroCard: View {
             if let holder = family.matchedUnitHolder {
                 ScanHeroCustodyRow(
                     holder: holder,
+                    holderAvatarUrl: family.matchedUnitHolderAvatarUrl,
                     bookingTitle: family.matchedUnitBookingTitle,
                     dueAt: family.matchedUnitDueAt,
                     isOverdue: family.matchedUnitDueAt.map { $0 < .now } ?? false,
@@ -452,6 +454,8 @@ private struct ScanHeroStatTile: View {
 
 private struct ScanHeroCustodyRow: View {
     let holder: String
+    /// Holder's profile photo, when set. Falls back to initials inside UserAvatarView.
+    var holderAvatarUrl: String? = nil
     let bookingTitle: String?
     let dueAt: Date?
     let isOverdue: Bool
@@ -470,14 +474,7 @@ private struct ScanHeroCustodyRow: View {
 
     private var content: some View {
         HStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(Color.statusBackground(isOverdue ? .red : .blue))
-                    .frame(width: 40, height: 40)
-                Text(holder.searchInitials)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Color.statusText(isOverdue ? .red : .blue))
-            }
+            UserAvatarView(name: holder, avatarUrl: holderAvatarUrl, size: 40)
             VStack(alignment: .leading, spacing: 2) {
                 Text(holder)
                     .font(.subheadline.weight(.medium))

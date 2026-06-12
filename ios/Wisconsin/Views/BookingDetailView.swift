@@ -372,16 +372,21 @@ private struct RequesterSection: View {
     let booking: Booking
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 8) {
             Text("Requester")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
-            Text(booking.requester.name)
-                .font(.body)
-            Text(booking.requester.email)
-                .font(.system(.footnote, design: .monospaced))
-                .foregroundStyle(.secondary)
+            HStack(spacing: 10) {
+                UserAvatarView(name: booking.requester.name, avatarUrl: booking.requester.avatarUrl, size: 40)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(booking.requester.name)
+                        .font(.body)
+                    Text(booking.requester.email)
+                        .font(.system(.footnote, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
     }
 }

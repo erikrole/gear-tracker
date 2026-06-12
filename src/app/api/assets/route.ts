@@ -375,6 +375,7 @@ export const GET = withAuth(async (req, { user }) => {
     matchedUnitNumber?: number;
     matchedUnitStatus?: string;
     matchedUnitHolder?: string | null;
+    matchedUnitHolderAvatarUrl?: string | null;
     matchedUnitDueAt?: string | null;
     matchedUnitBookingTitle?: string | null;
     matchedUnitBookingId?: string | null;
@@ -444,7 +445,7 @@ export const GET = withAuth(async (req, { user }) => {
                     id: true,
                     title: true,
                     endsAt: true,
-                    requester: { select: { name: true } },
+                    requester: { select: { name: true, avatarUrl: true } },
                   },
                 },
               },
@@ -478,6 +479,7 @@ export const GET = withAuth(async (req, { user }) => {
       const matchedUnitCustody = matchedUnit && matchedUnit.id === matchedUnitId && matchedUnitBooking
         ? {
             matchedUnitHolder: matchedUnitBooking.requester.name,
+            matchedUnitHolderAvatarUrl: matchedUnitBooking.requester.avatarUrl,
             matchedUnitDueAt: matchedUnitBooking.endsAt.toISOString(),
             matchedUnitBookingTitle: matchedUnitBooking.title,
             matchedUnitBookingId: matchedUnitBooking.id,

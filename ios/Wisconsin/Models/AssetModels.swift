@@ -48,6 +48,7 @@ struct AssetActiveBooking: Codable {
     let status: String?
     let title: String
     let requesterName: String
+    let requesterAvatarUrl: String?
     let startsAt: Date?
     let endsAt: Date
 
@@ -115,6 +116,7 @@ struct AssetFamilySearchResult: Codable, Identifiable, Hashable {
     let matchedUnitNumber: Int?
     let matchedUnitStatus: String?
     let matchedUnitHolder: String?
+    let matchedUnitHolderAvatarUrl: String?
     let matchedUnitDueAt: Date?
     let matchedUnitBookingTitle: String?
     let matchedUnitBookingId: String?
