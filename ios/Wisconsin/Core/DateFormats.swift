@@ -78,6 +78,29 @@ extension Date {
         return diff <= 0 ? "OVERDUE BY \(body)" : "DUE BACK IN \(body)"
     }
 
+    /// Live countdown to a booking's pickup/start window. Mirrors the due-back
+    /// countdown but for the gap before custody begins, so an Awaiting-Pickup
+    /// booking gets the same first-class urgency treatment as an active one.
+    /// Returns the explicit duration body plus whether the window has passed
+    /// (late) and the matching badge tone (blue → orange within 2h → red late).
+    static func startCountdown(for startsAt: Date, now: Date = Date()) -> (body: String, isLate: Bool, tone: StatusTone) {
+        let diff = startsAt.timeIntervalSince(now)
+        if diff <= 0 {
+            return (explicitDuration(seconds: diff), true, .red)
+        }
+        return (explicitDuration(seconds: diff), false, diff <= 7_200 ? .orange : .blue)
+    }
+
+    /// "5h" / "2d" / "12m" / "<1m" — bare magnitude of the distance from `now`,
+    /// for compact list-row labels like "Due in 5h" or "Pickup 12m late".
+    func compactMagnitude(now: Date = Date()) -> String {
+        let absSec = Swift.abs(Int(self.timeIntervalSince(now).rounded()))
+        if absSec >= 86_400 { return "\(absSec / 86_400)d" }
+        if absSec >= 3_600 { return "\(absSec / 3_600)h" }
+        if absSec >= 60 { return "\(absSec / 60)m" }
+        return "<1m"
+    }
+
     /// "2 days 3 hours" / "5 hours 12 minutes" / "8 minutes" / "less than a minute"
     /// — matches `formatExplicitDuration` on the web.
     private static func explicitDuration(seconds: TimeInterval) -> String {

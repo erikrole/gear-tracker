@@ -311,6 +311,26 @@ private struct HeaderSection: View {
         booking.status == .open
     }
 
+    private var sameCalendarDay: Bool {
+        Calendar.current.isDate(booking.startsAt, inSameDayAs: booking.endsAt)
+    }
+
+    /// "(6 hours)" / "(2 days)" / "(45 min)" -- a compact duration chip beside
+    /// the date range, mirroring the web detail page's "(6 hours)" annotation.
+    private var durationText: String {
+        let secs = booking.endsAt.timeIntervalSince(booking.startsAt)
+        if secs >= 86_400 {
+            let days = Int((secs / 86_400).rounded())
+            return "(\(days) day\(days == 1 ? "" : "s"))"
+        }
+        if secs >= 3_600 {
+            let hours = Int((secs / 3_600).rounded())
+            return "(\(hours) hour\(hours == 1 ? "" : "s"))"
+        }
+        let mins = Swift.max(1, Int((secs / 60).rounded()))
+        return "(\(mins) min)"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -337,6 +357,17 @@ private struct HeaderSection: View {
                         emphasized: true
                     )
                 }
+            } else if booking.kind == .checkout,
+                      booking.status == .pendingPickup || booking.status == .booked {
+                // Pre-pickup checkouts get the same live urgency badge, counting
+                // down to the pickup window instead of the return.
+                TimelineView(.periodic(from: .now, by: 30)) { context in
+                    let pickup = Date.startCountdown(for: booking.startsAt, now: context.date)
+                    let label: String = pickup.isLate
+                        ? (pickup.body == "less than a minute" ? "PICKUP DUE NOW" : "PICKUP \(pickup.body.uppercased()) LATE")
+                        : "PICKUP IN \(pickup.body.uppercased())"
+                    StatusPill(label: label, tone: pickup.tone, emphasized: true)
+                }
             }
             if isOverdue {
                 Label("Overdue — return gear at a kiosk", systemImage: "exclamationmark.triangle.fill")
@@ -358,16 +389,20 @@ private struct HeaderSection: View {
                 .foregroundStyle(.secondary)
                 .accessibilityLabel("Location: \(booking.location.name)")
             Label {
-                VStack(alignment: .leading) {
-                    Text(booking.startsAt.formatted(date: .complete, time: .shortened))
-                    Text("to \(booking.endsAt.formatted(date: .abbreviated, time: .shortened))")
-                        .foregroundStyle(isOverdue ? Color.statusText(.red) : Color.secondary)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(booking.startsAt.gearLong)
+                    HStack(spacing: 6) {
+                        Text("to \(sameCalendarDay ? booking.endsAt.gearTime : booking.endsAt.gearShort)")
+                            .foregroundStyle(isOverdue ? Color.statusText(.red) : Color.secondary)
+                        Text(durationText)
+                            .foregroundStyle(.tertiary)
+                    }
                 }
             } icon: {
                 Image(systemName: "calendar")
             }
             .font(.subheadline)
-            .accessibilityLabel("From \(booking.startsAt.formatted(date: .complete, time: .shortened)) to \(booking.endsAt.formatted(date: .abbreviated, time: .shortened))")
+            .accessibilityLabel("From \(booking.startsAt.gearLong) to \(booking.endsAt.gearShort), \(durationText.trimmingCharacters(in: CharacterSet(charactersIn: "()")))")
         }
     }
 }
@@ -392,6 +427,40 @@ private struct RequesterSection: View {
                 }
             }
         }
+    }
+}
+
+/// Informational next-step banner for kiosk custody handoffs. Tinted (not a
+/// button) because pickup and return happen at a physical kiosk, never in-app.
+private struct KioskHandoffCallout: View {
+    let text: String
+    let detail: String
+    let tone: StatusTone
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "barcode.viewfinder")
+                .font(.title3)
+                .foregroundStyle(Color.statusText(tone))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(text)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.statusBackground(tone), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(Color.statusText(tone).opacity(0.18), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(text). \(detail)")
     }
 }
 
@@ -594,35 +663,37 @@ private struct ActionsSection: View {
     let onExtend: () -> Void
     let onCancel: () -> Void
 
+    /// Extend is valid only once a return window exists -- BOOKED and OPEN. The
+    /// canonical action matrix (src/lib/booking-actions.ts) is
+    /// PENDING_PICKUP: [edit, cancel], so an Awaiting-Pickup booking must not
+    /// offer "Extend Return Date" (there is no return date to extend yet).
+    private var canExtend: Bool {
+        booking.status == .booked || booking.status == .open
+    }
+
+    /// Cancel is allowed before custody transfers (BOOKED, PENDING_PICKUP).
+    /// Active (OPEN) checkouts are returned at a kiosk, not cancelled here.
+    private var canCancel: Bool {
+        booking.status == .booked || booking.status == .pendingPickup
+    }
+
     var body: some View {
         VStack(spacing: 10) {
-            Button {
-                onExtend()
-            } label: {
-                Label("Extend Return Date", systemImage: "clock.arrow.circlepath")
-                    .frame(maxWidth: .infinity)
+            if canExtend {
+                Button {
+                    onExtend()
+                } label: {
+                    Label("Extend Return Date", systemImage: "clock.arrow.circlepath")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.glass)
+                .controlSize(.large)
+                .tint(Color.statusText(.blue))
+                .disabled(isActioning)
+                .accessibilityLabel("Extend Return Date")
             }
-            .buttonStyle(.glass)
-            .controlSize(.large)
-            .tint(Color.statusText(.blue))
-            .disabled(isActioning)
-            .accessibilityLabel("Extend Return Date")
 
-            if booking.status == .pendingPickup {
-                Label("Pick up gear at a kiosk", systemImage: "barcode.viewfinder")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 2)
-                    .accessibilityLabel("Pick up gear at a kiosk")
-            } else if booking.status == .open {
-                Label("Return gear at a kiosk", systemImage: "barcode.viewfinder")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 2)
-                    .accessibilityLabel("Return gear at a kiosk")
-            } else {
+            if canCancel {
                 Button(role: .destructive) {
                     onCancel()
                 } label: {
@@ -640,6 +711,20 @@ private struct ActionsSection: View {
                 .tint(Color.statusText(.red))
                 .disabled(isActioning)
                 .accessibilityLabel(isActioning ? "Cancelling booking" : "Cancel Booking")
+            }
+
+            if booking.status == .pendingPickup {
+                KioskHandoffCallout(
+                    text: "Pick up gear at a kiosk",
+                    detail: "Scan each item at a kiosk to start the checkout.",
+                    tone: .orange
+                )
+            } else if booking.status == .open {
+                KioskHandoffCallout(
+                    text: "Return gear at a kiosk",
+                    detail: "Bring the gear to a kiosk and scan it back in.",
+                    tone: .blue
+                )
             }
         }
     }

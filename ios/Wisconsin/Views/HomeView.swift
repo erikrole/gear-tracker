@@ -300,9 +300,9 @@ private struct StatStrip: View {
                          tone: stats.overdue > 0 ? .red : nil, onTap: openBookings)
                 StatCell(value: stats.dueToday, label: "Due Today",
                          tone: stats.dueToday > 0 ? .orange : nil, onTap: openBookings)
-                StatCell(value: pendingPickupCount, label: "Pickups",
+                StatCell(value: pendingPickupCount, label: pendingPickupCount == 1 ? "Pickup" : "Pickups",
                          tone: pendingPickupCount > 0 ? .green : nil, onTap: openBookings)
-                StatCell(value: shiftCount, label: "Shifts",
+                StatCell(value: shiftCount, label: shiftCount == 1 ? "Shift" : "Shifts",
                          tone: shiftCount > 0 ? .blue : nil, onTap: openSchedule)
             }
             if let lastLoadedAt {

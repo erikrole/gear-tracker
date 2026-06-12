@@ -151,8 +151,14 @@ struct BookingsView: View {
 
     private var emptyDescription: String {
         if !vm.searchText.isEmpty { return "No results for \"\(vm.searchText)\"." }
-        if vm.mineOnly { return "Nothing reserved or checked out by you." }
-        return vm.tab == .reservations ? "No active reservations here." : "No active checkouts here."
+        if vm.mineOnly {
+            return vm.tab == .reservations
+                ? "Nothing reserved by you yet. Reserve gear ahead to hold it for an upcoming shoot."
+                : "Nothing checked out by you. Pick up reserved gear at a kiosk to start a checkout."
+        }
+        return vm.tab == .reservations
+            ? "Reserve gear ahead of a shoot to guarantee it's held for the dates you need."
+            : "Active checkouts appear here once gear is picked up at a kiosk."
     }
 
     private var screenTitle: String {
@@ -336,42 +342,75 @@ struct BookingRow: View {
         booking.status == .open && booking.endsAt < .now
     }
 
+    private var itemCount: Int {
+        booking.serializedItems.count + booking.bulkItems.count
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(booking.title)
-                    .font(.subheadline.weight(.medium))
-                    .lineLimit(1)
-                Spacer()
-                StatusBadge(status: booking.status, kind: booking.kind)
-            }
-            HStack(spacing: 4) {
-                Text(booking.requester.name)
-                Text("·")
-                Text(booking.location.name)
-            }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-            if booking.kind == .checkout {
-                Label {
-                    Text(booking.endsAt.formatted(date: .abbreviated, time: .shortened))
-                        .font(.caption2)
-                } icon: {
-                    Image(systemName: isOverdue ? "exclamationmark.circle.fill" : "clock")
-                        .font(.caption2)
-                        .accessibilityHidden(true)
+        HStack(spacing: 12) {
+            UserAvatarView(name: booking.requester.name, avatarUrl: booking.requester.avatarUrl, size: 38)
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(booking.title)
+                        .font(.subheadline.weight(.medium))
+                        .lineLimit(1)
+                    Spacer()
+                    StatusBadge(status: booking.status, kind: booking.kind)
                 }
-                .foregroundStyle(isOverdue ? AnyShapeStyle(Color.statusText(.red)) : AnyShapeStyle(.tertiary))
-            } else {
-                Text("From \(booking.startsAt.formatted(date: .abbreviated, time: .omitted))")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                HStack(spacing: 4) {
+                    Text(booking.requester.name)
+                    Text("·")
+                    Text(booking.location.name)
+                    if itemCount > 0 {
+                        Text("·")
+                        Text("\(itemCount) item\(itemCount == 1 ? "" : "s")")
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                // Live relative timing — 60s tick keeps "Due in 5h" / "Pickup 12m
+                // late" fresh without per-second redraws, matching the dashboard rows.
+                TimelineView(.periodic(from: .now, by: 60)) { context in
+                    let info = relativeTiming(now: context.date)
+                    Label {
+                        Text(info.text).font(.caption2)
+                    } icon: {
+                        Image(systemName: info.icon)
+                            .font(.caption2)
+                            .accessibilityHidden(true)
+                    }
+                    .foregroundStyle(info.urgent ? AnyShapeStyle(Color.statusText(.red)) : AnyShapeStyle(.tertiary))
+                }
             }
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(rowAccessibilityLabel)
+    }
+
+    /// Compact, live relative timing for the row's bottom line. Checkouts count
+    /// to their return (when OPEN) or their pickup window (before pickup);
+    /// reservations count to their start. Urgent (red) once a window is missed.
+    private func relativeTiming(now: Date) -> (text: String, icon: String, urgent: Bool) {
+        if booking.kind == .checkout {
+            switch booking.status {
+            case .open:
+                return booking.endsAt < now
+                    ? ("\(booking.endsAt.compactMagnitude(now: now)) overdue", "exclamationmark.circle.fill", true)
+                    : ("Due in \(booking.endsAt.compactMagnitude(now: now))", "clock", false)
+            case .pendingPickup, .booked:
+                return booking.startsAt < now
+                    ? ("Pickup \(booking.startsAt.compactMagnitude(now: now)) late", "exclamationmark.circle.fill", true)
+                    : ("Pickup in \(booking.startsAt.compactMagnitude(now: now))", "clock", false)
+            default:
+                return (booking.endsAt.gearShort, "clock", false)
+            }
+        }
+        // Reservation: count to start, then read as active.
+        return booking.startsAt > now
+            ? ("Starts in \(booking.startsAt.compactMagnitude(now: now))", "calendar", false)
+            : ("From \(booking.startsAt.formatted(date: .abbreviated, time: .omitted))", "calendar", false)
     }
 
     private var rowAccessibilityLabel: String {
@@ -380,6 +419,7 @@ struct BookingRow: View {
         parts.append(booking.title)
         parts.append(booking.requester.name)
         parts.append(booking.location.name)
+        if itemCount > 0 { parts.append("\(itemCount) item\(itemCount == 1 ? "" : "s")") }
         parts.append(StatusBadge.label(for: booking.status, kind: booking.kind))
         if booking.kind == .checkout {
             parts.append("Due \(booking.endsAt.formatted(date: .abbreviated, time: .shortened))")
