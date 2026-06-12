@@ -94,6 +94,9 @@ struct KioskAPI {
         req.httpBody = try JSONEncoder().encode(Body(actorId: actorId, locationId: locationId, items: items))
         let (data, response) = try await session.data(for: req)
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            if http.statusCode >= 500 {
+                throw APIError.serverError("Something went wrong on our end. Try again in a moment.")
+            }
             let msg = (try? decoder.decode(ErrorBody.self, from: data))?.error ?? "Checkout failed"
             throw APIError.serverError(msg)
         }
@@ -178,6 +181,10 @@ struct KioskAPI {
             throw APIError.unauthorized
         case 404:
             throw APIError.notFound
+        case 500...:
+            // Raw 5xx bodies ("Internal server error") aren't actionable at
+            // the kiosk; staff just needs to know it's our side and retryable.
+            throw APIError.serverError("Something went wrong on our end. Try that scan again.")
         default:
             let msg = (try? decoder.decode(ErrorBody.self, from: data))?.error ?? "Server error (\(http.statusCode))"
             throw APIError.serverError(msg)

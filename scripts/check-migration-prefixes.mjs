@@ -9,7 +9,7 @@ import { join } from 'node:path';
 const MIGRATIONS_DIR = join(process.cwd(), 'prisma', 'migrations');
 
 // Historical collisions already applied in prod -- new collisions still fail.
-const ALLOWED_COLLISIONS = new Set(['0009']);
+const ALLOWED_COLLISIONS = new Set(['0009', '0077']);
 
 const dirs = readdirSync(MIGRATIONS_DIR, { withFileTypes: true })
   .filter((d) => d.isDirectory())

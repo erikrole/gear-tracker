@@ -9,6 +9,9 @@ import "dotenv/config";
 
 const migrationsDir = join(process.cwd(), "prisma", "migrations");
 const blankSchemaEnginePattern = /Error:\s*Schema engine error:\s*$/m;
+// P1001: engine can't reach Postgres on 5432 (some networks block direct
+// connections); the Neon HTTP driver still works, so fall back for that too.
+const unreachableDbPattern = /P1001/;
 
 if (isMainModule()) {
   main().catch((error) => {
@@ -31,7 +34,7 @@ async function main() {
   }
 
   const deployOutput = `${deploy.stdout ?? ""}${deploy.stderr ?? ""}`;
-  if (!blankSchemaEnginePattern.test(deployOutput)) {
+  if (!blankSchemaEnginePattern.test(deployOutput) && !unreachableDbPattern.test(deployOutput)) {
     process.stdout.write(deploy.stdout ?? "");
     process.stderr.write(deploy.stderr ?? "");
     process.exit(deploy.status ?? 1);

@@ -4,6 +4,40 @@ Last updated: 2026-06-12
 
 ---
 
+## Active: Kiosk pickup scan 500 + kiosk UI pass (2026-06-12)
+
+Root cause: `scan_events.phase` is `text` in the live DB while schema declares
+enum `ScanPhase` (table predates the migration baseline). Prisma generates
+`phase = $1::"ScanPhase"`; Postgres rejects `text = "ScanPhase"` (42883).
+Inserts bind as text and succeed, so drift surfaced only when the duplicate-scan
+guard (`scanEvent.findFirst({ phase })`) shipped on the kiosk pickup path.
+Secondary: DB-applied migration `0077_add_bulk_sku_image_rehost_attempts`
+missing locally (lives on advisor/codex branches; schema field already on main).
+
+- [x] Restore `0077_add_bulk_sku_image_rehost_attempts/` (exact name matches `_prisma_migrations` row)
+- [x] Allow 0077 prefix collision in `scripts/check-migration-prefixes.mjs` (both already applied in prod)
+- [x] Migration `0078_fix_scan_events_phase_enum`: `ALTER ... TYPE "ScanPhase" USING phase::"ScanPhase"`
+- [x] `db:migrate:check` passes (80 migrations, no collisions); prod apply rides the Vercel build on push
+- [ ] Post-deploy: verify `scan_events.phase` udt is `ScanPhase` and a kiosk pickup scan succeeds
+- [x] Kiosk UI improvement pass (iOS `Kiosk/` views: idle, pickup, return + API error copy)
+- [x] `npm run build` (passes), `xcodebuild` (BUILD SUCCEEDED), doc sync, commit + push
+
+### Review
+- Root cause was schema drift, not the scan code: `scan_events` predates the migration
+  baseline, so `phase` stayed `text` while the schema declares enum `ScanPhase`. The
+  2026-06-02 duplicate-scan guard added the first typed comparison on that column and
+  every serialized pickup scan started 500ing. Inserts kept working (text binding),
+  which is why the drift was invisible until then.
+- Local `prisma migrate dev/deploy` can't reach Neon on 5432 from this network;
+  `prisma-migrate-deploy.mjs` now also falls back to Neon HTTP on P1001, and the
+  actual prod apply rides the normal Vercel build (`prisma migrate deploy`).
+- iOS kiosk UI pass: friendlier 5xx copy, bigger rings + white guidance text,
+  checklist progress summaries, smarter disabled CTAs, idle-screen empty state and
+  stronger hierarchy. Compile-verified; visual sign-off on the iPad is the user's.
+- Pre-existing test failures (2) on main flagged as a separate background task.
+
+---
+
 ## Active: Roadmap ideas intake (2026-06-12)
 
 Plan: `tasks/roadmap-ideas-2026-06-12.md`
