@@ -98,12 +98,20 @@ struct KioskPickupView: View {
             if isLoading {
                 ProgressView().tint(.white)
             } else {
-                VStack(spacing: 20) {
+                VStack(spacing: 24) {
                     progressRing
-                    Text(allConfirmed ? "All items confirmed" : "Scan each item to confirm pickup")
-                        .font(.subheadline)
-                        .foregroundStyle(allConfirmed ? Color.statusText(.green) : .secondary)
-                        .multilineTextAlignment(.center)
+                    VStack(spacing: 6) {
+                        Text(allConfirmed ? "All items confirmed" : "Scan each item to confirm pickup")
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(allConfirmed ? Color.statusText(.green) : .white)
+                            .multilineTextAlignment(.center)
+                        if !allConfirmed {
+                            Text("Use the hand scanner, or tap Camera to scan with the iPad.")
+                                .font(.subheadline)
+                                .foregroundStyle(Color.white.opacity(0.55))
+                                .multilineTextAlignment(.center)
+                        }
+                    }
 
                     if hasBatteryScanStep {
                         BatteryScanStatus(
@@ -135,25 +143,25 @@ struct KioskPickupView: View {
     private var progressRing: some View {
         ZStack {
             Circle()
-                .stroke(Color.white.opacity(0.1), lineWidth: 8)
+                .stroke(Color.white.opacity(0.1), lineWidth: 10)
             Circle()
                 .trim(from: 0, to: totalItems > 0 ? CGFloat(confirmedCount) / CGFloat(totalItems) : 0)
-                .stroke(allConfirmed ? Color.statusText(.green) : Color.kioskRed, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                .stroke(allConfirmed ? Color.statusText(.green) : Color.kioskRed, style: StrokeStyle(lineWidth: 10, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .animation(reduceMotion ? nil : .spring(response: 0.4), value: confirmedCount)
             VStack(spacing: 2) {
                 Text("\(confirmedCount)")
-                    .font(.system(size: 40, weight: .bold, design: .rounded))
+                    .font(.system(size: 52, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .contentTransition(.numericText())
                     .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: confirmedCount)
                     .monospacedDigit()
                 Text("of \(totalItems)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.subheadline)
+                    .foregroundStyle(Color.white.opacity(0.55))
             }
         }
-        .frame(width: 140, height: 140)
+        .frame(width: 176, height: 176)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(confirmedCount) of \(totalItems) items confirmed")
     }
@@ -162,16 +170,26 @@ struct KioskPickupView: View {
         Button {
             confirmPickup()
         } label: {
-            HStack {
+            HStack(spacing: 10) {
+                if !isConfirming {
+                    Image(systemName: allConfirmed ? "checkmark.circle.fill" : "barcode.viewfinder")
+                        .font(.headline)
+                        .accessibilityHidden(true)
+                }
                 Text(isConfirming ? "Confirming..." : confirmButtonTitle)
                     .font(.headline)
                 if isConfirming { ProgressView().tint(.white).scaleEffect(0.8) }
             }
+            .foregroundStyle(allConfirmed && !isConfirming ? .white : Color.white.opacity(0.55))
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
+            .padding(.vertical, 18)
             .background(
-                (!allConfirmed || isConfirming) ? Color.white.opacity(0.1) : Color.statusText(.green),
+                (!allConfirmed || isConfirming) ? Color.white.opacity(0.08) : Color.statusText(.green),
                 in: RoundedRectangle(cornerRadius: 14)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(Color.white.opacity(allConfirmed ? 0 : 0.1), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
@@ -204,7 +222,7 @@ struct KioskPickupView: View {
 
     private var checklistPanel: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text(detail?.title ?? "Pickup")
                     .font(.headline)
                     .foregroundStyle(.white)
@@ -212,6 +230,14 @@ struct KioskPickupView: View {
                     Text(ref)
                         .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
+                }
+                if totalItems > 0 {
+                    ChecklistProgressSummary(
+                        done: confirmedCount,
+                        total: totalItems,
+                        verb: "confirmed",
+                        complete: allConfirmed
+                    )
                 }
             }
             .padding(20)
@@ -358,6 +384,37 @@ struct KioskPickupView: View {
 
 // MARK: - Sub-views
 
+/// "n of m <verb>" line + thin progress bar for the checklist panel header.
+/// Internal (not private) so KioskReturnView shares the identical treatment.
+struct ChecklistProgressSummary: View {
+    let done: Int
+    let total: Int
+    let verb: String
+    let complete: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("\(done) of \(total) \(verb)")
+                .font(.caption.weight(.semibold).monospacedDigit())
+                .foregroundStyle(complete ? Color.statusText(.green) : Color.white.opacity(0.7))
+                .contentTransition(.numericText())
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.white.opacity(0.1))
+                    Capsule()
+                        .fill(complete ? Color.statusText(.green) : Color.kioskRed)
+                        .frame(width: total > 0 ? geo.size.width * CGFloat(done) / CGFloat(total) : 0)
+                        .animation(.spring(response: 0.4), value: done)
+                }
+            }
+            .frame(height: 4)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(done) of \(total) \(verb)")
+    }
+}
+
 private struct PickupItemRow: View {
     let item: KioskCheckoutDetail.ReturnItem
     let confirmed: Bool
@@ -376,7 +433,7 @@ private struct PickupItemRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(displayName)
-                        .font(.subheadline)
+                        .font(.subheadline.weight(.medium))
                         .foregroundStyle(confirmed ? Color.white.opacity(0.6) : .white)
                     if item.isNumberedBulk {
                         Image(systemName: "battery.100percent")
@@ -385,14 +442,18 @@ private struct PickupItemRow: View {
                             .accessibilityLabel("Battery unit")
                     }
                 }
-                Text(displayTag)
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.secondary)
+                // Tag repeats the display name for assets without a separate
+                // tag — hide the duplicate line so rows stay scannable.
+                if displayTag.caseInsensitiveCompare(displayName) != .orderedSame {
+                    Text(displayTag)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.secondary)
+                }
             }
             Spacer()
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 14)
+        .padding(.vertical, 16)
         .animation(.spring(response: 0.25), value: confirmed)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(displayName), tag \(displayTag), \(confirmed ? "confirmed" : "pending")")

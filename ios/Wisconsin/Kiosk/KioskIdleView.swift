@@ -56,11 +56,11 @@ struct KioskIdleView: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(store.info?.name ?? "Gear Room")
-                        .font(.title2.bold())
+                        .font(.largeTitle.bold())
                         .foregroundStyle(.white)
                     Text(Date(), format: .dateTime.weekday(.wide).month().day())
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .font(.headline)
+                        .foregroundStyle(Color.white.opacity(0.7))
                     locationAndFreshness
                 }
                 Spacer()
@@ -111,6 +111,27 @@ struct KioskIdleView: View {
                 }
             }
 
+            // Quiet-day state — without it the left panel is a black void
+            // below the stat tiles whenever nothing is out and no events run.
+            if let dashboard, dashboard.checkouts.isEmpty, dashboard.events.isEmpty {
+                Spacer()
+                VStack(spacing: 10) {
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.system(size: 44))
+                        .foregroundStyle(Color.statusText(.green))
+                        .accessibilityHidden(true)
+                    Text("All gear is home")
+                        .font(.title3.bold())
+                        .foregroundStyle(.white)
+                    Text("No active checkouts or events today. Tap your name to get started.")
+                        .font(.subheadline)
+                        .foregroundStyle(Color.white.opacity(0.55))
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .accessibilityElement(children: .combine)
+            }
+
             Spacer()
         }
     }
@@ -123,8 +144,8 @@ struct KioskIdleView: View {
         HStack(spacing: 6) {
             if let location = store.info?.locationName {
                 Text(location)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.subheadline)
+                    .foregroundStyle(Color.white.opacity(0.55))
             }
             if let last = lastLoadedAt {
                 Text("·")
@@ -147,9 +168,14 @@ struct KioskIdleView: View {
 
     private var rosterPanel: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Select your name")
-                .font(.headline)
-                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Select your name")
+                    .font(.title3.bold())
+                    .foregroundStyle(.white)
+                Text("Tap your name to check gear out or back in.")
+                    .font(.subheadline)
+                    .foregroundStyle(Color.white.opacity(0.55))
+            }
 
             if users.isEmpty && isLoading {
                 ProgressView().tint(.white).frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -199,20 +225,25 @@ private struct StatTile: View {
     let reduceMotion: Bool
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 6) {
             Text("\(value)")
-                .font(.system(size: 36, weight: .bold, design: .rounded))
+                .font(.system(size: 44, weight: .bold, design: .rounded))
                 .foregroundStyle(accent)
                 .contentTransition(.numericText())
                 .animation(reduceMotion ? nil : .easeInOut(duration: 0.4), value: value)
                 .monospacedDigit()
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            Text(label.uppercased())
+                .font(.caption.weight(.semibold))
+                .tracking(0.8)
+                .foregroundStyle(Color.white.opacity(0.55))
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
+        .padding(.vertical, 20)
+        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(value) \(label.lowercased())")
     }
@@ -354,19 +385,19 @@ private struct UserTile: View {
 
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 8) {
+            VStack(spacing: 10) {
                 avatar
                 Text(displayName)
-                    .font(.subheadline.weight(.medium))
+                    .font(.headline)
                     .foregroundStyle(.white)
                     .lineLimit(1)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
+            .padding(.vertical, 20)
+            .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 16))
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
@@ -386,7 +417,7 @@ private struct UserTile: View {
                     initialsCircle
                 }
             }
-            .frame(width: 52, height: 52)
+            .frame(width: 64, height: 64)
             .clipShape(Circle())
         } else {
             initialsCircle
@@ -396,10 +427,10 @@ private struct UserTile: View {
     private var initialsCircle: some View {
         Circle()
             .fill(Color.white.opacity(0.12))
-            .frame(width: 52, height: 52)
+            .frame(width: 64, height: 64)
             .overlay {
                 Text(user.initials)
-                    .font(.headline.bold())
+                    .font(.title3.bold())
                     .foregroundStyle(.white)
             }
     }

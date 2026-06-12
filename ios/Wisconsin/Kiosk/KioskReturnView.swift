@@ -107,9 +107,18 @@ struct KioskReturnView: View {
                             .accessibilityLabel("This checkout is overdue")
                     }
 
-                    Text(allReturned ? "All items returned" : "Scan items to return them")
-                        .font(.subheadline)
-                        .foregroundStyle(allReturned ? Color.statusText(.green) : .secondary)
+                    VStack(spacing: 6) {
+                        Text(allReturned ? "All items returned" : "Scan items to return them")
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(allReturned ? Color.statusText(.green) : .white)
+                            .multilineTextAlignment(.center)
+                        if !allReturned {
+                            Text("Use the hand scanner, or tap Camera to scan with the iPad.")
+                                .font(.subheadline)
+                                .foregroundStyle(Color.white.opacity(0.55))
+                                .multilineTextAlignment(.center)
+                        }
+                    }
 
                     if hasBatteryScanStep {
                         BatteryScanStatus(
@@ -141,26 +150,26 @@ struct KioskReturnView: View {
     private var progressRing: some View {
         ZStack {
             Circle()
-                .stroke(Color.white.opacity(0.1), lineWidth: 8)
+                .stroke(Color.white.opacity(0.1), lineWidth: 10)
             Circle()
                 .trim(from: 0, to: totalItems > 0 ? CGFloat(returnedCount) / CGFloat(totalItems) : 0)
                 .stroke(allReturned ? Color.statusText(.green) : Color.statusText(.blue),
-                        style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                        style: StrokeStyle(lineWidth: 10, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .animation(reduceMotion ? nil : .spring(response: 0.4), value: returnedCount)
             VStack(spacing: 2) {
                 Text("\(returnedCount)")
-                    .font(.system(size: 40, weight: .bold, design: .rounded))
+                    .font(.system(size: 52, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .contentTransition(.numericText())
                     .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: returnedCount)
                     .monospacedDigit()
                 Text("of \(totalItems)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.subheadline)
+                    .foregroundStyle(Color.white.opacity(0.55))
             }
         }
-        .frame(width: 140, height: 140)
+        .frame(width: 176, height: 176)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(returnedCount) of \(totalItems) items returned")
     }
@@ -169,16 +178,26 @@ struct KioskReturnView: View {
         Button {
             completeReturn()
         } label: {
-            HStack {
+            HStack(spacing: 10) {
+                if !isCompleting {
+                    Image(systemName: hasReturned ? "checkmark.circle.fill" : "barcode.viewfinder")
+                        .font(.headline)
+                        .accessibilityHidden(true)
+                }
                 Text(isCompleting ? "Processing..." : returnLabel)
                     .font(.headline)
                 if isCompleting { ProgressView().tint(.white).scaleEffect(0.8) }
             }
+            .foregroundStyle(hasReturned && !isCompleting ? .white : Color.white.opacity(0.55))
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
+            .padding(.vertical, 18)
             .background(
-                (!hasReturned || isCompleting) ? Color.white.opacity(0.1) : Color.kioskRed,
+                (!hasReturned || isCompleting) ? Color.white.opacity(0.08) : Color.kioskRed,
                 in: RoundedRectangle(cornerRadius: 14)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(Color.white.opacity(hasReturned ? 0 : 0.1), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
@@ -206,7 +225,7 @@ struct KioskReturnView: View {
 
     private var checklistPanel: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text(detail?.title ?? "Return")
                     .font(.headline)
                     .foregroundStyle(.white)
@@ -214,6 +233,14 @@ struct KioskReturnView: View {
                     Text(ref)
                         .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
+                }
+                if totalItems > 0 {
+                    ChecklistProgressSummary(
+                        done: returnedCount,
+                        total: totalItems,
+                        verb: "returned",
+                        complete: allReturned
+                    )
                 }
             }
             .padding(20)
@@ -382,7 +409,7 @@ private struct ReturnItemRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(item.name)
-                        .font(.subheadline)
+                        .font(.subheadline.weight(.medium))
                         .foregroundStyle(returned ? Color.white.opacity(0.5) : .white)
                         .strikethrough(returned, color: Color.white.opacity(0.3))
                     if item.isNumberedBulk {
@@ -392,14 +419,18 @@ private struct ReturnItemRow: View {
                             .accessibilityLabel("Battery unit")
                     }
                 }
-                Text(item.tagName)
-                    .font(.caption.monospaced())
-                    .foregroundStyle(.secondary)
+                // Tag repeats the display name for assets without a separate
+                // tag — hide the duplicate line so rows stay scannable.
+                if item.tagName.caseInsensitiveCompare(item.name) != .orderedSame {
+                    Text(item.tagName)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.secondary)
+                }
             }
             Spacer()
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 14)
+        .padding(.vertical, 16)
         .animation(.spring(response: 0.25), value: returned)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(item.name), tag \(item.tagName), \(returned ? "returned" : "pending")")
