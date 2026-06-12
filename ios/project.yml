@@ -42,8 +42,12 @@ targets:
           - Gotham-Bold.ttf
     entitlements:
       path: Wisconsin/Wisconsin.entitlements
+      properties:
+        aps-environment: development
+        com.apple.developer.weatherkit: true
     dependencies:
       - sdk: WeatherKit.framework
+        embed: false
     settings:
       base:
         PRODUCT_NAME: Wisconsin
