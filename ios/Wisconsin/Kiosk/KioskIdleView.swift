@@ -52,21 +52,34 @@ struct KioskIdleView: View {
 
     private var leftPanel: some View {
         VStack(alignment: .leading, spacing: 24) {
-            // Header
+            // Device overline — small and quiet; the clock owns the screen.
             HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(store.info?.name ?? "Gear Room")
-                        .font(.largeTitle.bold())
-                        .foregroundStyle(.white)
-                    Text(Date(), format: .dateTime.weekday(.wide).month().day())
-                        .font(.headline)
-                        .foregroundStyle(Color.white.opacity(0.7))
-                    locationAndFreshness
-                }
+                Text((store.info?.name ?? "Gear Room").uppercased())
+                    .font(.caption.weight(.semibold))
+                    .tracking(1.5)
+                    .foregroundStyle(Color.white.opacity(0.45))
                 Spacer()
                 Button("Deactivate") { showDeactivateConfirm = true }
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+
+            // Standby clock — the iPad lives plugged in on a counter, so the
+            // idle screen doubles as a wall clock: live seconds, big date.
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(context.date, format: .dateTime.hour().minute().second())
+                        .font(.system(size: 92, weight: .heavy, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                    Text(context.date, format: .dateTime.weekday(.wide).month(.wide).day())
+                        .font(.gothamBold(size: 26))
+                        .foregroundStyle(Color.brandPrimary)
+                    locationAndFreshness
+                }
+                .accessibilityElement(children: .combine)
             }
 
             // Stats row
@@ -89,10 +102,11 @@ struct KioskIdleView: View {
 
             // Today's events
             if let events = dashboard?.events, !events.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Today")
-                        .font(.caption.uppercaseSmallCaps())
-                        .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("TODAY")
+                        .font(.caption.weight(.semibold))
+                        .tracking(1.5)
+                        .foregroundStyle(Color.white.opacity(0.45))
                     ForEach(events) { event in
                         KioskEventRow(event: event)
                     }
@@ -101,10 +115,11 @@ struct KioskIdleView: View {
 
             // Active checkouts
             if let checkouts = dashboard?.checkouts, !checkouts.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Active Checkouts")
-                        .font(.caption.uppercaseSmallCaps())
-                        .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("ACTIVE CHECKOUTS")
+                        .font(.caption.weight(.semibold))
+                        .tracking(1.5)
+                        .foregroundStyle(Color.white.opacity(0.45))
                     ForEach(checkouts.prefix(6)) { checkout in
                         CheckoutRow(checkout: checkout)
                     }
@@ -253,26 +268,30 @@ private struct KioskEventRow: View {
     let event: KioskEvent
 
     var body: some View {
-        HStack {
+        HStack(spacing: 12) {
             Text(event.startsAt, format: .dateTime.hour().minute())
-                .font(.caption.monospaced())
-                .foregroundStyle(.secondary)
-                .frame(minWidth: 50, alignment: .leading)
+                .font(.subheadline.weight(.semibold).monospacedDigit())
+                .foregroundStyle(Color.brandPrimary)
+                .frame(minWidth: 70, alignment: .leading)
                 .fixedSize()
             Text(event.title)
-                .font(.subheadline)
+                .font(.body.weight(.medium))
                 .foregroundStyle(.white)
                 .lineLimit(1)
             Spacer()
             if event.shiftCount > 0 {
                 Text("\(event.shiftCount) shifts")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.white.opacity(0.5))
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.white.opacity(0.07), lineWidth: 1)
+        )
         .accessibilityElement(children: .combine)
     }
 }
