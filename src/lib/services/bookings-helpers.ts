@@ -23,7 +23,8 @@ export const bookingInclude = {
     select: {
       id: true,
       name: true,
-      email: true
+      email: true,
+      avatarUrl: true
     }
   }
 } satisfies Prisma.BookingInclude;
