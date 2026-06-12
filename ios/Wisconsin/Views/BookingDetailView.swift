@@ -53,11 +53,15 @@ struct BookingDetailView: View {
                     VStack(spacing: 16) {
                         FormCard { HeaderSection(booking: booking) }
                         FormCard { RequesterSection(booking: booking) }
-                        if !booking.serializedItems.isEmpty {
-                            FormCard { ItemsSection(items: booking.serializedItems, conflicts: conflicts) }
-                        }
-                        if !booking.bulkItems.isEmpty {
-                            FormCard { BulkSection(items: booking.bulkItems) }
+                        if !booking.serializedItems.isEmpty || !booking.bulkItems.isEmpty {
+                            FormCard {
+                                EquipmentSection(
+                                    serializedItems: booking.serializedItems,
+                                    bulkItems: booking.bulkItems,
+                                    conflicts: conflicts,
+                                    bookingStatus: booking.status
+                                )
+                            }
                         }
                         if let notes = booking.notes, !notes.isEmpty {
                             FormCard { NotesSection(notes: notes) }
@@ -391,57 +395,96 @@ private struct RequesterSection: View {
     }
 }
 
-/// Maps an allocation status to (label, tone) using the same vocabulary the
-/// web uses in `src/lib/status-styles.ts` — checked-out gear = blue,
-/// returned = gray, pending/draft = orange.
-private func allocationLabel(_ status: String) -> (label: String, tone: StatusTone) {
-    switch status.lowercased() {
-    case "active": return ("Out", .blue)
-    case "returned": return ("Returned", .gray)
-    case "draft": return ("Pending", .orange)
-    default: return (status.capitalized, .gray)
+/// Per-item badge that reflects the booking lifecycle, not the raw allocation
+/// flag. `allocationStatus == "active"` only means the item is committed to the
+/// booking (set at creation) -- it is not physically out until the checkout
+/// reaches OPEN. So before pickup the item reads "Reserved", and "Out" only
+/// once the checkout is open. Returned items always read "Returned". Returns
+/// nil when no badge applies (completed/cancelled with nothing to say).
+private func equipmentItemPill(
+    allocationStatus: String?,
+    bookingStatus: BookingStatus
+) -> (label: String, tone: StatusTone)? {
+    if allocationStatus?.lowercased() == "returned" {
+        return ("Returned", .gray)
+    }
+    switch bookingStatus {
+    case .open:
+        return ("Out", .blue)
+    case .booked, .pendingPickup:
+        return ("Reserved", .orange)
+    case .draft:
+        return ("Pending", .orange)
+    case .completed, .cancelled, .unknown:
+        return nil
     }
 }
 
-private struct ItemsSection: View {
-    let items: [BookingSerializedItem]
+/// Single "Equipment" list mirroring the web booking detail: serialized gear
+/// first, then bulk items, under one header whose count is the combined total.
+private struct EquipmentSection: View {
+    let serializedItems: [BookingSerializedItem]
+    let bulkItems: [BookingBulkItem]
     let conflicts: [String: AssetConflict]
+    let bookingStatus: BookingStatus
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            SectionHeader(title: "Equipment", count: items.count)
-            ForEach(items) { item in
-                let conflict = conflicts[item.assetId]
-                HStack(spacing: 10) {
-                    AssetThumbnail(imageUrl: item.asset.imageUrl, size: 40)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text([item.asset.brand, item.asset.model].compactMap { $0 }.joined(separator: " "))
-                            .font(.subheadline)
-                        if let tag = item.asset.assetTag {
-                            Text(tag)
-                                .font(.system(.caption, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                        }
-                        if let conflict {
-                            Text(conflict.conflictingBookingTitle.map { "Conflicts with \($0)" } ?? "Scheduling conflict")
-                                .font(.caption2)
-                                .foregroundStyle(Color.statusText(.red))
-                                .lineLimit(2)
-                        }
-                    }
-                    Spacer()
-                    if conflict != nil {
-                        StatusPill(label: "Conflict", tone: .red, emphasized: true)
-                    }
-                    if let status = item.allocationStatus {
-                        let allocation = allocationLabel(status)
-                        StatusPill(label: allocation.label, tone: allocation.tone)
-                    }
-                }
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel(rowAccessibilityLabel(item: item, conflict: conflict))
+            SectionHeader(title: "Equipment", count: serializedItems.count + bulkItems.count)
+            ForEach(serializedItems) { item in
+                serializedRow(item)
+            }
+            ForEach(bulkItems) { item in
+                bulkRow(item)
             }
         }
+    }
+
+    @ViewBuilder
+    private func serializedRow(_ item: BookingSerializedItem) -> some View {
+        let conflict = conflicts[item.assetId]
+        HStack(spacing: 10) {
+            AssetThumbnail(imageUrl: item.asset.imageUrl, size: 40)
+            VStack(alignment: .leading, spacing: 2) {
+                Text([item.asset.brand, item.asset.model].compactMap { $0 }.joined(separator: " "))
+                    .font(.subheadline)
+                if let tag = item.asset.assetTag {
+                    Text(tag)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                }
+                if let conflict {
+                    Text(conflict.conflictingBookingTitle.map { "Conflicts with \($0)" } ?? "Scheduling conflict")
+                        .font(.caption2)
+                        .foregroundStyle(Color.statusText(.red))
+                        .lineLimit(2)
+                }
+            }
+            Spacer()
+            if conflict != nil {
+                StatusPill(label: "Conflict", tone: .red, emphasized: true)
+            }
+            if let pill = equipmentItemPill(allocationStatus: item.allocationStatus, bookingStatus: bookingStatus) {
+                StatusPill(label: pill.label, tone: pill.tone)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(rowAccessibilityLabel(item: item, conflict: conflict))
+    }
+
+    @ViewBuilder
+    private func bulkRow(_ item: BookingBulkItem) -> some View {
+        HStack(spacing: 10) {
+            BulkThumbnail(imageUrl: item.bulkSku.imageUrl, size: 40)
+            Text(item.bulkSku.name)
+                .font(.subheadline)
+            Spacer()
+            Text("×\(item.plannedQuantity)")
+                .font(.subheadline.monospacedDigit())
+                .foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(item.bulkSku.name), quantity \(item.plannedQuantity)")
     }
 
     private func rowAccessibilityLabel(item: BookingSerializedItem, conflict: AssetConflict?) -> String {
@@ -450,32 +493,13 @@ private struct ItemsSection: View {
         let name = [item.asset.brand, item.asset.model].compactMap { $0 }.joined(separator: " ")
         if !name.isEmpty { parts.append(name) }
         if let tag = item.asset.assetTag { parts.append(tag) }
-        if let status = item.allocationStatus { parts.append(allocationLabel(status).label) }
+        if let pill = equipmentItemPill(allocationStatus: item.allocationStatus, bookingStatus: bookingStatus) {
+            parts.append(pill.label)
+        }
         if let conflict {
             parts.append(conflict.conflictingBookingTitle.map { "conflicts with \($0)" } ?? "scheduling conflict")
         }
         return parts.joined(separator: ", ")
-    }
-}
-
-private struct BulkSection: View {
-    let items: [BookingBulkItem]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            SectionHeader(title: "Consumables", count: items.count)
-            ForEach(items) { item in
-                HStack(spacing: 10) {
-                    BulkThumbnail(imageUrl: item.bulkSku.imageUrl, size: 40)
-                    Text(item.bulkSku.name)
-                        .font(.subheadline)
-                    Spacer()
-                    Text("×\(item.plannedQuantity)")
-                        .font(.subheadline.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
     }
 }
 

@@ -503,7 +503,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - Label mapping:
   - DRAFT → "Draft"
   - BOOKED → "Confirmed" (reservations) / "Booked" (checkouts)
-  - PENDING_PICKUP → "Pending Pickup"
+  - PENDING_PICKUP → "Awaiting Pickup"
   - OPEN → "Checked out"
   - COMPLETED → "Completed"
   - CANCELLED → "Cancelled"

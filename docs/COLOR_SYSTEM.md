@@ -27,7 +27,7 @@ These rules take priority over any component-level decision:
 | DRAFT | — | gray | `gray` | `.gray` | Draft | Draft |
 | BOOKED | CHECKOUT | blue | `blue` | `.blue` | Booked | Booked |
 | BOOKED | RESERVATION | purple | `purple` | `.purple` | Confirmed | Confirmed |
-| PENDING_PICKUP | — | orange | `orange` | `.orange` | Pending Pickup | Pending Pickup |
+| PENDING_PICKUP | — | orange | `orange` | `.orange` | Awaiting Pickup | Awaiting Pickup |
 | OPEN | CHECKOUT only | blue | `blue` | `.blue` | Checked Out | Checked Out |
 | COMPLETED | — | gray | `gray` | `.gray` | Completed | Completed |
 | CANCELLED | — | gray + strikethrough | `gray` | `.gray` | Cancelled | Cancelled |

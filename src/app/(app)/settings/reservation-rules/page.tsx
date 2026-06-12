@@ -187,7 +187,7 @@ export default function ReservationRulesPage() {
             />
             {errors.noShowExpiryHours
               ? <p className="text-xs text-destructive">{errors.noShowExpiryHours}</p>
-              : <p className="text-xs text-muted-foreground">Pending Pickup checkouts that are not collected within this window are automatically cancelled and stock is restored.</p>
+              : <p className="text-xs text-muted-foreground">Awaiting Pickup checkouts that are not collected within this window are automatically cancelled and stock is restored.</p>
             }
           </div>
 

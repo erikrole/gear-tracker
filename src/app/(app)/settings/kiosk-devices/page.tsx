@@ -637,7 +637,7 @@ export default function KioskDevicesPage() {
       <Dialog open={!!pickupDialog} onOpenChange={() => setPickupDialog(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Pending Pickups</DialogTitle>
+            <DialogTitle>Awaiting Pickups</DialogTitle>
             <DialogDescription>
               Pickups at <strong>{pickupDialog?.location.name}</strong> waiting to be collected. Cancel any that are stuck or expired.
             </DialogDescription>

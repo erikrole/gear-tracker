@@ -31,7 +31,7 @@ export function statusLabel(status: string, kind?: "CHECKOUT" | "RESERVATION"): 
     case "BOOKED":
       return kind === "CHECKOUT" ? "Booked" : "Confirmed";
     case "PENDING_PICKUP":
-      return "Pending Pickup";
+      return "Awaiting Pickup";
     case "OPEN":
       return "Checked out";
     case "COMPLETED":

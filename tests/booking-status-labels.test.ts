@@ -4,11 +4,11 @@ import { getStatusVisual } from "@/components/booking-list/types";
 
 describe("booking status labels", () => {
   it("renders pending pickup as a first-class checkout state", () => {
-    expect(statusLabel("PENDING_PICKUP", "CHECKOUT")).toBe("Pending Pickup");
+    expect(statusLabel("PENDING_PICKUP", "CHECKOUT")).toBe("Awaiting Pickup");
     expect(statusBadgeVariant("PENDING_PICKUP", "CHECKOUT")).toBe("orange");
     expect(getStatusVisual("PENDING_PICKUP", false, "CHECKOUT")).toMatchObject({
       dot: "var(--orange)",
-      label: "Pending Pickup",
+      label: "Awaiting Pickup",
     });
   });
 
