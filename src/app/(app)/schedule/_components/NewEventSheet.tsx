@@ -269,7 +269,7 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
             <div className="flex flex-col gap-4">
               <Alert>
                 <AlertDescription>
-                  "{createdEvent.summary}" was added. Open the event to set up staff, or return to the refreshed schedule.
+                  Event {createdEvent.summary} was added. Open the event to set up staff, or return to the refreshed schedule.
                 </AlertDescription>
               </Alert>
               <div className="rounded-md border bg-muted/30 px-4 py-3 text-sm">

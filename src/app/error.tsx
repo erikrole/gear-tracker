@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect } from "react";
 
 export default function RootError({
@@ -56,7 +57,7 @@ export default function RootError({
             >
               Try again
             </button>
-            <a
+            <Link
               href="/"
               style={{
                 padding: "10px 20px",
@@ -71,7 +72,7 @@ export default function RootError({
               }}
             >
               Go home
-            </a>
+            </Link>
           </div>
         </div>
       </body>

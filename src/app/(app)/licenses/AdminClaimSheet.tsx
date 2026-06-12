@@ -269,7 +269,7 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Release {name}'s slot?</AlertDialogTitle>
+                              <AlertDialogTitle>Release slot for {name}?</AlertDialogTitle>
                               <AlertDialogDescription>
                                 The slot returns to the pool immediately. {name} will need to claim it again.
                               </AlertDialogDescription>

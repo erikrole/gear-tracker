@@ -379,7 +379,8 @@ export function splitEventsForSync(
       }
 
       const cleaned = cleanSummary(event.summary);
-      let { sportCode, opponent, isHome } = extractSportInfo(cleaned);
+      const { sportCode, opponent, isHome: extractedIsHome } = extractSportInfo(cleaned);
+      let isHome = extractedIsHome;
 
       // Hardcoded home detection: "Madison, WI" or known Wisconsin facility → home
       const locationText = event.location || "";

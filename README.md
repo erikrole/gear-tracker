@@ -39,6 +39,18 @@ npx prisma migrate dev --name init
 npm run dev
 ```
 
+## Repo Map
+
+Current source maps live in `docs/CODEMAPS/`.
+
+```bash
+npm run codemap        # regenerate route, schema, area, frontend, backend, and dependency maps
+npm run codemap:check  # fail when generated maps drift from source
+npm run verify:docs    # docs verification gate for generated maps
+```
+
+Use `docs/CODEMAPS/routes.md` when orienting in App Router, `docs/CODEMAPS/schema.md` for Prisma model shape, and `docs/CODEMAPS/areas.md` to connect `AREA_*.md` docs to likely routes, services, and tests.
+
 ## Team Workflow
 
 We use a dual-agent (Codex + Claude) workflow for parallel implementation. See `docs/AI_COLLABORATION.md` for branch strategy, handoff contracts, and conflict-avoidance conventions.

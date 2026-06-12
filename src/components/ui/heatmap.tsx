@@ -49,7 +49,7 @@ type HeatmapProps = HTMLAttributes<HTMLDivElement> &
 function getAllDays(start: string, end: string): string[] {
   // Generate all days between start and end dates (inclusive)
   const days: string[] = [];
-  let curr = new Date(start + "T00:00:00");
+  const curr = new Date(start + "T00:00:00");
 
   const endDate = new Date(end + "T00:00:00");
 

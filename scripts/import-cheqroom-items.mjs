@@ -90,7 +90,7 @@ function normalize(content) {
 }
 
 async function main() {
-  const fileArg = process.argv[2] || "Cheqroom Items - Feb 27.csv";
+  const fileArg = process.argv[2] || "docs/archive/imports/cheqroom-items-2026-02-27.csv";
   const filePath = path.resolve(process.cwd(), fileArg);
   const content = await fs.readFile(filePath, "utf-8");
   const rows = normalize(content);

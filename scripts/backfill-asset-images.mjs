@@ -13,7 +13,7 @@
 //   node --env-file=.env scripts/backfill-asset-images.mjs --apply    # execute
 //
 // Requires DATABASE_URL and BLOB_READ_WRITE_TOKEN in the environment.
-// Every change is logged to tmp/asset-image-backfill-<ts>.json (old -> new)
+// Every change is logged to .tmp/asset-image-backfill-<ts>.json (old -> new)
 // so it is fully reversible.
 
 import { writeFileSync, mkdirSync } from "node:fs";
@@ -119,8 +119,8 @@ async function main() {
     );
   }
 
-  mkdirSync("tmp", { recursive: true });
-  const logPath = `tmp/asset-image-backfill-${Date.now()}.json`;
+  mkdirSync(".tmp", { recursive: true });
+  const logPath = `.tmp/asset-image-backfill-${Date.now()}.json`;
   writeFileSync(logPath, JSON.stringify({ changes, failures }, null, 2));
   console.log(`\nDone. Re-hosted ${ok}/${targets.length}. Failures: ${failures.length}.`);
   console.log(`Reversible change log: ${logPath}`);

@@ -39,6 +39,6 @@ This follow-up picks up the booking-flow polish handoff without disturbing the b
 ## Review
 
 - 2026-06-10: Web Step 1 now preserves duration when the start date moves. Example verified in an authenticated browser smoke: Pickup changed from Jun 10, 2026 7:00 AM to 9:30 AM, and Return by shifted from Jun 11, 2026 7:00 AM to 9:30 AM.
-- 2026-06-10: The authenticated smoke used the seeded local admin account and loaded `/checkouts/new` on the local dev server. The page had no visible `\u2026` literals and no console warnings/errors. Screenshot proof: `tasks/booking-flow-followup-checkout-new.png`.
+- 2026-06-10: The authenticated smoke used the seeded local admin account and loaded `/checkouts/new` on the local dev server. The page had no visible `\u2026` literals and no console warnings/errors. Screenshot proof: `tasks/archive/proofs/booking-flow-followup-checkout-new.png`.
 - 2026-06-10: iOS already has duration-preserving `adjustStart(to:)`. iOS scan-to-add, bulk battery selection, and richer advisory availability remain first-class follow-up slices, not small web-followup patches.
 - 2026-06-10: Native booking creation now supports scan-to-add from the Equipment step, countable bulk/battery selection with quantity steppers, selected bulk rows in Review, and typed `bulkItems` in the reservation create payload. Richer bulk advisory availability remains a follow-up because serialized conflict hints and server-side shortage enforcement already cover the blocking path.
