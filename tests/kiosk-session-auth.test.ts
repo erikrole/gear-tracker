@@ -7,6 +7,13 @@ const cookieStore = {
   delete: vi.fn(),
 };
 
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  after: (fn: () => unknown) => {
+    void fn();
+  },
+}));
+
 vi.mock("next/headers", () => ({
   cookies: vi.fn(),
 }));
@@ -67,6 +74,26 @@ describe("kiosk session auth", () => {
       "kiosk_session",
       "raw-kiosk-token",
       expect.objectContaining({ expires: expiresAt }),
+    );
+  });
+
+  it("updates lastSeenAt via after() on a valid kiosk session", async () => {
+    cookieStore.get.mockReturnValue({ value: "raw-kiosk-token" });
+    vi.mocked(db.kioskDevice.findUnique).mockResolvedValue({
+      id: "kiosk-1",
+      active: true,
+      sessionExpiresAt: new Date("2026-05-19T12:00:00.000Z"),
+      location: { id: "loc-1", name: "Main" },
+    } as never);
+    vi.mocked(db.kioskDevice.update).mockResolvedValue({} as never);
+
+    await requireKiosk();
+
+    expect(db.kioskDevice.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "kiosk-1" },
+        data: expect.objectContaining({ lastSeenAt: expect.any(Date) }),
+      }),
     );
   });
 

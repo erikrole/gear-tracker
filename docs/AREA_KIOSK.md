@@ -94,6 +94,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 ## Change Log
 | Date | Change |
 |------|--------|
+| 2026-06-13 | Fixed kiosk online-status staleness: `requireKiosk()` now wraps the `lastSeenAt` + `sessionExpiresAt` DB update in Next.js `after()` so Vercel keeps the serverless function alive until the write completes, preventing the Settings kiosk health cockpit from showing stale/offline while the device is actively heartbeating. |
 | 2026-06-09 | iOS kiosk no longer forces re-activation on every app re-entry: `kioskMe()` decoded a `{data:...}` envelope that `/api/kiosk/me` never sends (it returns `{kioskId, locationId, locationName}` at the top level), so session validation always failed and wiped the stored activation. Also, `validateSession` now only clears the activation on a definitive 401 — transient failures (offline at launch, 5xx) go idle and let the heartbeat's own 401 path catch real deactivation. |
 | 2026-04-07 | Area doc created, all ACs pending |
 | 2026-04-09 | AC-1 complete: Admin CRUD for kiosk devices shipped at `/settings/kiosk-devices`. |
