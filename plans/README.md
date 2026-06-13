@@ -27,6 +27,17 @@ The session hit the monthly spend limit mid-run, then resumed after it was raise
 
 Branch names per plan are in the status rows above. To merge: review + `xcodebuild` the iOS branches, then merge each `improve-exec/*` (003 stacks on codex/002; merge 002 first).
 
+### Reconcile (2026-06-13, at `cdd57134`)
+
+Verified plan status against `main` HEAD (not just branch existence):
+
+- **On main, verified:** 014 *code* (the 409 availability guard), 015 (regenerate-code dead-end guard present), 017 (iOS kiosk routes propagate `APIError` + friendly 5xx copy), plus the shipped change-log work (0078 `scan_events.phase` enum fix, dashboard `partialFailures`, pending-pickup expiry).
+- **NOT on main:** **016** — `requireKiosk` still fire-and-forgets the `lastSeenAt` update (`src/lib/auth.ts:253`); the `after()` durability fix is branch-only. Kiosk online-status-goes-stale bug is still live.
+- **Partially on main:** **014** — behavior shipped, but its 6 regression tests did not land (no test imports `checkout/complete`).
+- **Test holes on main (confirmed):** `checkout/complete` and `checkin/*` routes have zero tests; `users` route untested. Plan 019 covers checkin; 014's tests need re-merging.
+- **TODO, no drift, executable now:** 018, 019, 020, 021, 022 (in-scope `src/`+`ios/` files unchanged since each was planned).
+- **Lingering branches to retire after merge decisions:** `advisor/014-017` and `improve-exec/014-017`.
+
 ## Execution Order And Status
 
 | Plan | Title | Priority | Effort | Depends on | Status |
@@ -44,9 +55,9 @@ Branch names per plan are in the status rows above. To merge: review + `xcodebui
 | 011 | Consolidate iOS avatar rendering | P2 | S/M | 009 | DONE pending Xcode build (branch improve-exec/011-consolidate-ios-avatars; source-verified, 9 tests + drift:ios green; minor visual-only initials delta in UserDetailView noted) |
 | 012 | Add an iOS TestFlight build metadata gate | P2 | S | none | DONE (branch improve-exec/012-ios-testflight-metadata; checker verified both modes) |
 | 013 | Split iOS CreateBookingSheet into focused pieces | P2 | M | 011 | HELD for Xcode (user decision 2026-06-13) — finding live (CreateBookingSheet 1806 lines); large Swift decomposition + xcodegen, not compile-verifiable here. Stack on 011's branch. |
-| 014 | Kiosk checkout completion validates availability, friendly 409s, first tests | P1 | M | none | DONE (branch improve-exec/014-kiosk-complete-availability-exec; 6 tests, custody P1 closed) |
+| 014 | Kiosk checkout completion validates availability, friendly 409s, first tests | P1 | M | none | PARTIALLY ON MAIN (reconcile 2026-06-13): the 409 availability guard IS on main (`checkout/complete/route.ts:124`), but the 6 regression tests are NOT — no test imports `checkout/complete` on main. Re-merge the tests from branch improve-exec/014-kiosk-complete-availability-exec. |
 | 015 | Fix kiosk activation-code lifecycle dead end; make docs truthful | P2 | S | none | DONE (branch improve-exec/015-kiosk-code-lifecycle; 4 tests) |
-| 016 | Make kiosk lastSeenAt update durable on serverless (`after()`) | P2 | S | none | DONE (branch improve-exec/016-kiosk-lastseen-durable; after() preserves sessionExpiresAt slide, 3 tests) |
+| 016 | Make kiosk lastSeenAt update durable on serverless (`after()`) | P2 | S | none | NOT ON MAIN (reconcile 2026-06-13): main still uses `Promise.resolve(...).catch(()=>{})` fire-and-forget at `src/lib/auth.ts:253` — the `after()` fix is only on branch improve-exec/016-kiosk-lastseen-durable. The "kiosk online status goes stale while heartbeating" bug is still live on main. Merge the branch or re-execute. |
 | 017 | Route iOS kiosk checkout completion through shared error path | P3 | S | none | DONE pending Xcode build (branch improve-exec/017-ios-kiosk-error-path; source-verified, drift:ios green; MERGE manually with your KioskAPIClient.swift WIP) |
 | 043 | Make Step 2 available-only use derived status | P1 | S/M | none | DONE (verified in main: picker-search uses buildDerivedStatusWhere) |
 | 049 | Prevent quantity-add on existing unit family adjustments | P1 | M | none | DONE (verified in main: adjust route rejects trackByNumber; BulkItemForm filters) |

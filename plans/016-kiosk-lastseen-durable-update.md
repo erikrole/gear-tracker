@@ -7,7 +7,7 @@
 > in `plans/README.md` -- unless a reviewer dispatched you and told you they
 > maintain the index.
 >
-> **Drift check (run first)**: `git diff --stat e8566c54..HEAD -- src/lib/auth.ts tests/kiosk-session-auth.test.ts`
+> **Drift check (run first)**: `git diff --stat cdd57134..HEAD -- src/lib/auth.ts tests/kiosk-session-auth.test.ts`
 > If either file changed since this plan was written, compare the
 > "Current state" excerpt against the live code before proceeding; on a
 > mismatch, treat it as a STOP condition.
@@ -19,7 +19,7 @@
 - **Risk**: LOW
 - **Depends on**: none
 - **Category**: bug
-- **Planned at**: commit `e8566c54`, 2026-06-10
+- **Planned at**: commit `e8566c54`, 2026-06-10; **reconciled** at `cdd57134`, 2026-06-13 (the fire-and-forget block gained a `sessionExpiresAt` slide on main since the original plan; excerpts and Step 1 refreshed to preserve it; the `after()` fix is still not on main)
 
 ## Why this matters
 
@@ -27,14 +27,19 @@
 
 ## Current state
 
-`src/lib/auth.ts:239-242` (inside `requireKiosk`):
+`src/lib/auth.ts:252-258` (inside `requireKiosk`):
 
 ```ts
-  // Update last seen (fire and forget -- don't block the request)
+  // Update last seen + slid expiry (fire and forget — don't block the request)
   Promise.resolve(
-    db.kioskDevice.update({ where: { id: device.id }, data: { lastSeenAt: now } }),
+    db.kioskDevice.update({
+      where: { id: device.id },
+      data: { lastSeenAt: now, ...(shouldSlide ? { sessionExpiresAt } : {}) },
+    }),
   ).catch(() => {});
 ```
+
+Note: since this plan was first written, a `sessionExpiresAt` session-slide was added to the same write (`shouldSlide` / `sessionExpiresAt` are already in scope in `requireKiosk`). The `after()` replacement MUST preserve that exact `data` payload — do not drop the slide.
 
 Context: `requireKiosk` is only invoked from API route handlers via `withKiosk` (`src/lib/api.ts:128-148`), which is a valid `after()` call site. The repo is Next.js `^15.5.16` (see `package.json`), where `next/server`'s `after` is stable.
 
@@ -72,13 +77,19 @@ Existing test: `tests/kiosk-session-auth.test.ts` (91 lines) exercises `requireK
 
 ### Step 1: Replace fire-and-forget with `after()`
 
-In `src/lib/auth.ts`, import `after` from `next/server` (the file already imports from Next server modules for `cookies`; check the existing import block and extend it consistently). Replace the block at lines 239-242 with:
+In `src/lib/auth.ts`, import `after` from `next/server` (the file already imports from Next server modules for `cookies`; check the existing import block and extend it consistently). Replace the fire-and-forget block (around lines 252-258) with -- **preserving the `sessionExpiresAt` slide in `data`**:
 
 ```ts
-  // Update last seen after the response is sent -- after() keeps the
-  // serverless function alive until this completes, unlike fire-and-forget.
+  // Update last seen + slid expiry after the response is sent -- after()
+  // keeps the serverless function alive until this completes, unlike
+  // fire-and-forget.
   after(() =>
-    db.kioskDevice.update({ where: { id: device.id }, data: { lastSeenAt: now } }).catch(() => {}),
+    db.kioskDevice
+      .update({
+        where: { id: device.id },
+        data: { lastSeenAt: now, ...(shouldSlide ? { sessionExpiresAt } : {}) },
+      })
+      .catch(() => {}),
   );
 ```
 
