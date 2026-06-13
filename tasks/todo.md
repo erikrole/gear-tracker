@@ -36,6 +36,38 @@ missing locally (lives on advisor/codex branches; schema field already on main).
   stronger hierarchy. Compile-verified; visual sign-off on the iPad is the user's.
 - Pre-existing test failures (2) on main flagged as a separate background task.
 
+## Active: Kiosk iPad activation + idle polish (2026-06-12)
+
+- [x] Add hardware keyboard entry for the kiosk activation code.
+- [x] Replace fragile activation paste affordance with a dependable paste action.
+- [x] Improve activation layout, contrast, and Dynamic Type resilience on iPad.
+- [x] Tighten idle screen clock, event, checkout, and roster typography/contrast.
+- [x] Switch the idle clock to Gotham Black.
+- [x] Add burn-in mitigation sleep mode for night hours and truly idle kiosk windows.
+- [x] Add pixel-shift movement to the sleep-mode overlay.
+- [x] Add DEBUG top-right moon toggle to force sleep/night mode on and off.
+- [x] Fix idle regression feedback: bigger single-line clock, higher-contrast date, no iPad deactivate button, kiosk name plus location header, clickable stat detail panels, upcoming event labeling, checkout-title rows, and denser roster cards.
+- [x] Sync kiosk docs and attempt the Swift build path.
+
+### Review
+- 2026-06-12: Activation now supports hardware keyboard entry, delete, Return,
+  Command-V via the focused hidden input, and a visible Paste Code action with
+  clearer invalid/short-code feedback. Idle now uses Gotham Black for the clock,
+  stronger contrast, adaptive roster sizing, and a server-driven burn-in
+  mitigation sleep overlay. Sleep mode triggers during 10 PM-6 AM or truly idle
+  windows, uses a very dim pixel-shifted clock cluster, and tap-to-wake gives
+  staff 10 minutes before sleep can resume.
+- 2026-06-12 follow-up: Idle regression pass restores the large glanceable
+  single-line clock, removes the iPad deactivate affordance, changes the header
+  to kiosk name plus location, makes stat cards select Items Out, Active
+  Checkouts, and Overdue lists, adds asset image/name rows for active items,
+  treats near/tomorrow events as Upcoming instead of Today, and adds a DEBUG
+  moon toggle to force sleep/night mode for testing.
+- Verification: `git diff --check` passed; `npx eslint src/app/api/kiosk/dashboard/route.ts`
+  passed. `npx tsc --noEmit` remains blocked by pre-existing
+  `tests/bulk-unit-adjustment-routes.test.ts:171`. iOS `xcodebuild` is blocked
+  by local CoreSimulator `simdiskimaged` failures before useful Swift diagnostics.
+
 ## Active: Always-on kiosk — session persistence + standby display (2026-06-12)
 
 Report: every Xcode rebuild bounced the iPad back to activation. Cause: the

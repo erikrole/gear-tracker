@@ -6,10 +6,9 @@ import Security
 var sharedKioskStore: KioskStore?
 
 /// Keychain-backed storage for the kiosk_session token. HTTPCookieStorage and
-/// UserDefaults live in the app container, which Xcode reinstalls can wipe —
-/// every rebuild bounced the kiosk back to the activation screen. The Keychain
-/// survives reinstalls, so the session token is mirrored here and the cookie
-/// is re-created on launch when the cookie jar comes up empty.
+/// UserDefaults live in the app container, which Xcode reinstalls can wipe.
+/// The activation endpoint returns the raw session token to the native app so
+/// it can be stored here and re-created as a cookie on launch.
 private enum KioskSessionVault {
     private static let service = "com.wisconsin.kiosk"
     private static let account = "kiosk_session"
@@ -150,7 +149,11 @@ final class KioskStore {
             locationId: response.location.id,
             locationName: response.location.name
         ))
-        persistSessionCookie()
+        if let sessionToken = response.sessionToken {
+            KioskSessionVault.save(sessionToken)
+        } else {
+            persistSessionCookie()
+        }
         screen = .idle
         startHeartbeat()
         resetInactivity()

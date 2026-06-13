@@ -335,26 +335,37 @@ Reachable from: Bookings tab `+`, Items list swipe + context menu, Item Detail R
 
 ## Kiosk surfaces (separate iPad)
 
-Kiosk runs on a dedicated iPad in landscape mode with Guided Access locked. Activate via deeplink `wisconsin://kiosk` or via the DEBUG-only "Kiosk" button on Home.
+Kiosk runs on a dedicated iPad in landscape mode with Guided Access locked. Activate via deeplink `wisconsin://kiosk` or via the DEBUG-only "Kiosk Mode" item in Settings → Tools on iPad.
 
 ### Activation
 
 - [ ] Cold install → kiosk URL → blank activation screen.
-- [ ] **Paste activation code** — generate a code on web `/settings/kiosk-devices`, copy to clipboard, switch to iPad — `PasteButton` appears (today's fix). Tap → 6-digit code fills + auto-submits if exactly 6.
+- [ ] **Keyboard activation** — with a first-party iPad keyboard case attached, type the 6-digit code. Digits fill the boxes, delete removes digits, and Return submits when all 6 digits are present.
+- [ ] **Paste activation code** — generate a code on web `/settings/kiosk-devices`, copy to clipboard, switch to iPad, tap "Paste Code" or press Command-V. A 6-digit code fills + auto-submits; short or invalid clipboard text surfaces a clear error.
 - [ ] Numpad keys disable when not actionable (✓ at <6, ⌫ at empty).
 - [ ] Wrong code → loading scrim with "Activating…" → error in red token + haptic + VO announcement.
 - [ ] Right code → kiosk_session cookie + transition to idle.
 - [ ] Cookie persists across cold launch (per `KioskStore`).
+- [ ] Text sizing and contrast — on iPad, activation guidance, code boxes, idle clock/date, stats, event rows, active checkouts, and roster names remain readable at default and Larger Text settings without clipping critical text.
 
 ### Idle screen
 
+- [ ] Clock typography — idle clock renders in a large monospaced SF face so seconds do not shift the layout.
 - [ ] Live stats (Items Out / Checkouts / Overdue), animated counts.
-- [ ] Today's events with shift-count badges.
-- [ ] Active checkouts with **avatar images** (today's fix), overdue red ring, "+N more" cue on truncated item lists.
+- [ ] Stat cards are tappable: Items Out shows asset name/image rows, Checkouts shows active checkout rows, and Overdue shows overdue checkout rows.
+- [ ] Upcoming events with shift-count badges; tomorrow events show the weekday instead of being grouped under today.
+- [ ] Event rows are tappable and open a read-only detail sheet with event time and assigned workers.
+- [ ] Assigned workers render as avatar groups on event rows when shift assignments exist.
+- [ ] Active checkouts show the checkout title beside the avatar, overdue red ring, "+N more" cue on truncated item lists.
 - [ ] Avatar grid for "Select your name" — **real photos** (today's biggest idle fix), disambiguated names ("Erik R." when collisions).
-- [ ] Header: kiosk name, date, location subtitle, "Updated Xs ago" stamp (orange when >5 min stale).
-- [ ] **Deactivate button** → confirmationDialog (today's fix).
+- [ ] Header: kiosk name plus location, date, and "Updated Xs ago" stamp (orange when >5 min stale).
+- [ ] Roster density fits 30+ users better than the first large-card grid.
 - [ ] 30-second polling refreshes data automatically.
+- [ ] Sleep mode, idle window — with no active checkouts/items out, no current or near events, and no booked/pending-pickup checkout windows, the idle screen dims into a near-black moving-clock sleep overlay.
+- [ ] Sleep mode, night hours — between 10 PM and 6 AM, the idle screen enters the same near-black moving-clock overlay even if the normal idle layout recently loaded.
+- [ ] DEBUG night-mode toggle — tap the moon icon in the top-right corner of the idle screen to force the sleep overlay on; tap it again to return to the normal idle screen.
+- [ ] Pixel shift — leave sleep mode visible for at least 90 seconds; the dim clock cluster changes position every 30 seconds.
+- [ ] Tap to wake — tap the sleep overlay. Full kiosk idle UI returns and remains usable for roughly 10 minutes before sleep mode can resume.
 
 ### Student hub
 

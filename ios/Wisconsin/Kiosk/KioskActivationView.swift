@@ -4,90 +4,28 @@ import UIKit
 struct KioskActivationView: View {
     @Environment(KioskStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var code = ""
     @State private var error: String?
     @State private var isLoading = false
+    @FocusState private var isCodeFieldFocused: Bool
 
     var body: some View {
-        VStack(spacing: 40) {
-            Spacer()
-
-            VStack(spacing: 12) {
-                Image(systemName: "barcode.viewfinder")
-                    .font(.system(size: 64))
-                    .foregroundStyle(Color.kioskRed)
-                    .accessibilityHidden(true)
-                Text("Gear Room Kiosk")
-                    .font(.system(size: 36, weight: .bold))
-                    .foregroundStyle(.white)
-                Text("This iPad isn't activated yet")
-                    .font(.title3)
-                    .foregroundStyle(.white.opacity(0.85))
-                Text("Ask gear room staff to set up this device.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                Text("Staff: enter the 6-digit code from gear.erikrole.com → Settings → Kiosk Devices.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary.opacity(0.6))
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 4)
-                    .padding(.horizontal, 24)
+        GeometryReader { proxy in
+            ZStack {
+                Color(red: 8/255, green: 8/255, blue: 10/255).ignoresSafeArea()
+                activationLayout(isCompact: proxy.size.width < 880 || dynamicTypeSize.isAccessibilitySize)
+                    .padding(.horizontal, 44)
+                    .padding(.vertical, 36)
             }
-
-            // Code display + paste affordance
-            VStack(spacing: 14) {
-                HStack(spacing: 12) {
-                    ForEach(0..<6, id: \.self) { i in
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(i < code.count ? Color.kioskRed : Color.white.opacity(0.2), lineWidth: 2)
-                            .frame(width: 52, height: 68)
-                            .overlay {
-                                if i < code.count {
-                                    Text(String(Array(code)[i]))
-                                        .font(.title.monospaced())
-                                        .foregroundStyle(.white)
-                                        .transition(.opacity)
-                                }
-                            }
-                    }
-                }
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(code.isEmpty
-                    ? "Activation code, 6 digits required"
-                    : "Activation code, \(code.count) of 6 digits entered"
-                )
-                .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: code)
-
-                // Privacy-safe system paste control. The button auto-hides when
-                // the clipboard doesn't contain a String, so it stays out of the
-                // way unless the staffer just copied a code on a sister device.
-                PasteButton(payloadType: String.self) { strings in
-                    Task { @MainActor in handlePaste(strings) }
-                }
-                .buttonBorderShape(.capsule)
-                .labelStyle(.titleAndIcon)
-                .tint(.white.opacity(0.85))
-                .disabled(isLoading)
-                .accessibilityLabel("Paste activation code from clipboard")
-            }
-
-            if let error {
-                Text(error)
-                    .foregroundStyle(Color.statusText(.red))
-                    .font(.callout)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
-                    .accessibilityAddTraits(.updatesFrequently)
-            }
-
-            // Numpad
-            KioskNumPad(code: $code, onComplete: activate)
-                .frame(maxWidth: 320)
-                .disabled(isLoading)
-
-            Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .contentShape(Rectangle())
+        .onTapGesture { focusCodeField() }
+        .onAppear { focusCodeField() }
+        .onChange(of: isLoading) { _, loading in
+            if !loading { focusCodeField() }
+        }
         .overlay(alignment: .center) {
             Group {
                 if isLoading {
@@ -97,6 +35,143 @@ struct KioskActivationView: View {
             }
         }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isLoading)
+    }
+
+    @ViewBuilder
+    private func activationLayout(isCompact: Bool) -> some View {
+        if isCompact {
+            ScrollView {
+                VStack(spacing: 24) {
+                    heroPanel
+                    activationCard
+                }
+                .frame(maxWidth: 760)
+                .frame(maxWidth: .infinity)
+            }
+            .scrollIndicators(.hidden)
+        } else {
+            HStack(spacing: 42) {
+                heroPanel
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                activationCard
+                    .frame(width: 450)
+            }
+        }
+    }
+
+    private var heroPanel: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Image(systemName: "barcode.viewfinder")
+                .font(.system(size: 64, weight: .semibold))
+                .foregroundStyle(Color.kioskRed)
+                .accessibilityHidden(true)
+            Text("Gear Room Kiosk")
+                .font(.system(size: 44, weight: .heavy, design: .rounded))
+                .foregroundStyle(.white)
+                .lineLimit(2)
+                .minimumScaleFactor(0.75)
+            Text("Activate this iPad")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(Color.white.opacity(0.92))
+            Text("Enter the 6-digit kiosk code.")
+                .font(.body)
+                .foregroundStyle(Color.white.opacity(0.72))
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var activationCard: some View {
+        VStack(spacing: 20) {
+            codeEntryField
+            codeSlots
+            pasteAndFocusControls
+
+            if let error {
+                Text(error)
+                    .foregroundStyle(Color.statusText(.red))
+                    .font(.callout.weight(.semibold))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 12)
+                    .accessibilityAddTraits(.updatesFrequently)
+            }
+
+            KioskNumPad(code: $code, onComplete: activate)
+                .disabled(isLoading)
+        }
+        .padding(24)
+        .background(Color.white.opacity(0.075), in: RoundedRectangle(cornerRadius: 24))
+        .overlay(
+            RoundedRectangle(cornerRadius: 24)
+                .stroke(Color.white.opacity(0.16), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.35), radius: 24, y: 16)
+    }
+
+    private var codeEntryField: some View {
+        TextField("Activation code", text: codeBinding)
+            .keyboardType(.numberPad)
+            .textContentType(.oneTimeCode)
+            .submitLabel(.done)
+            .focused($isCodeFieldFocused)
+            .onSubmit { activate() }
+            .frame(width: 1, height: 1)
+            .opacity(0.01)
+            .accessibilityHidden(true)
+            .disabled(isLoading)
+    }
+
+    private var codeSlots: some View {
+        HStack(spacing: 10) {
+            let digits = Array(code)
+            ForEach(0..<6, id: \.self) { i in
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.black.opacity(0.22))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(i < code.count ? Color.kioskRed : Color.white.opacity(0.22), lineWidth: 2)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 70)
+                    .overlay {
+                        if i < digits.count {
+                            Text(String(digits[i]))
+                                .font(.system(size: 30, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.white)
+                                .transition(.opacity)
+                        }
+                    }
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(code.isEmpty
+            ? "Activation code, 6 digits required"
+            : "Activation code, \(code.count) of 6 digits entered"
+        )
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: code)
+    }
+
+    private var pasteAndFocusControls: some View {
+        HStack(spacing: 12) {
+            Button {
+                pasteFromClipboard()
+            } label: {
+                Label("Paste Code", systemImage: "doc.on.clipboard")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(KioskActivationActionButtonStyle(tint: Color.white.opacity(0.14)))
+            .disabled(isLoading)
+
+            Button {
+                focusCodeField()
+            } label: {
+                Label("Keyboard", systemImage: "keyboard")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(KioskActivationActionButtonStyle(tint: Color.kioskRed.opacity(0.82)))
+            .disabled(isLoading)
+        }
     }
 
     private var loadingScrim: some View {
@@ -119,17 +194,43 @@ struct KioskActivationView: View {
         }
     }
 
+    private var codeBinding: Binding<String> {
+        Binding(
+            get: { code },
+            set: { updateCode(from: $0, submitWhenComplete: true) }
+        )
+    }
+
     /// Extract the longest run of digits from any pasted strings, truncate to
     /// 6, and either fill the field or auto-submit (when exactly 6 digits land).
-    /// Tolerates pastes like "Code: 123456" or "123-456" — extracts 123456.
-    private func handlePaste(_ strings: [String]) {
-        guard let raw = strings.first else { return }
+    /// Tolerates pastes like "Code: 123456" or "123-456" and extracts 123456.
+    private func pasteFromClipboard() {
+        guard let raw = UIPasteboard.general.string else {
+            surfacePasteError("Clipboard does not contain an activation code.")
+            return
+        }
         let digits = raw.unicodeScalars.compactMap { $0.value >= 48 && $0.value <= 57 ? Character(String($0)) : nil }
         let trimmed = String(digits.prefix(6))
-        guard !trimmed.isEmpty else { return }
-        code = trimmed
+        guard !trimmed.isEmpty else {
+            surfacePasteError("Clipboard does not contain an activation code.")
+            return
+        }
+        updateCode(from: trimmed, submitWhenComplete: false)
         Haptics.tap()
         if trimmed.count == 6 {
+            activate()
+        } else {
+            surfacePasteError("Clipboard only has \(trimmed.count) digit\(trimmed.count == 1 ? "" : "s").")
+        }
+    }
+
+    private func updateCode(from raw: String, submitWhenComplete: Bool) {
+        let digits = raw.unicodeScalars.compactMap { $0.value >= 48 && $0.value <= 57 ? Character(String($0)) : nil }
+        let next = String(digits.prefix(6))
+        guard next != code else { return }
+        code = next
+        error = nil
+        if submitWhenComplete, next.count == 6 {
             activate()
         }
     }
@@ -154,6 +255,19 @@ struct KioskActivationView: View {
         }
     }
 
+    private func focusCodeField() {
+        DispatchQueue.main.async {
+            isCodeFieldFocused = true
+        }
+    }
+
+    private func surfacePasteError(_ message: String) {
+        error = message
+        Haptics.warning()
+        UIAccessibility.post(notification: .announcement, argument: message)
+        focusCodeField()
+    }
+
     /// Sets the error state, clears the code, and posts a VoiceOver
     /// announcement so blind users hear the failure without manual focus
     /// navigation. SwiftUI has no `accessibilityLiveRegion` equivalent;
@@ -163,6 +277,25 @@ struct KioskActivationView: View {
         code = ""
         Haptics.error()
         UIAccessibility.post(notification: .announcement, argument: message)
+        focusCodeField()
+    }
+}
+
+private struct KioskActivationActionButtonStyle: ButtonStyle {
+    let tint: Color
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.callout.weight(.semibold))
+            .foregroundStyle(.white)
+            .padding(.vertical, 13)
+            .padding(.horizontal, 14)
+            .background(tint, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(Color.white.opacity(0.14), lineWidth: 1)
+            )
+            .opacity(configuration.isPressed ? 0.78 : 1)
     }
 }
 

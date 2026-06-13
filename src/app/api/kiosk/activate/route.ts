@@ -36,8 +36,9 @@ export const POST = withHandler(async (req) => {
     throw new HttpError(401, "This kiosk device has been deactivated");
   }
 
-  // Create session (sets cookie)
-  await createKioskSession(device.id);
+  // Create session (sets cookie) and return the raw token to the native app so
+  // it can survive app-container wipes by mirroring the token into Keychain.
+  const sessionToken = await createKioskSession(device.id);
 
   // Audit kiosk activation (no user actor — use device ID as entity)
   await createSystemAuditEntry({
@@ -51,5 +52,6 @@ export const POST = withHandler(async (req) => {
     kioskId: device.id,
     name: device.name,
     location: device.location,
+    sessionToken,
   });
 });
