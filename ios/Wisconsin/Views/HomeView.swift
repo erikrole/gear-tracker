@@ -52,18 +52,20 @@ struct HomeView: View {
     @ViewBuilder private var mainContent: some View {
         if vm.dashboard == nil && vm.error == nil {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: Brand.Space.lg) {
                     StatStripSkeleton()
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: Brand.Space.sm) {
                         Skeleton().frame(width: 140, height: 14)
                         ForEach(0..<3, id: \.self) { _ in BookingRowSkeleton() }
                     }
-                    VStack(alignment: .leading, spacing: 12) {
+                    .brandCard(padding: Brand.Space.md, radius: Brand.Radius.card)
+                    VStack(alignment: .leading, spacing: Brand.Space.sm) {
                         Skeleton().frame(width: 140, height: 14)
                         ForEach(0..<4, id: \.self) { _ in BookingRowSkeleton() }
                     }
+                    .brandCard(padding: Brand.Space.md, radius: Brand.Radius.card)
                 }
-                .padding()
+                .padding(Brand.Space.md)
             }
             .allowsHitTesting(false)
         } else if let error = vm.error, vm.dashboard == nil {
@@ -98,7 +100,7 @@ struct HomeView: View {
 
     @ViewBuilder private func dashboardScrollView(_ dash: DashboardData) -> some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: Brand.Space.lg) {
                 if vm.error != nil {
                     RefreshFailurePill(message: vm.error ?? "")
                 }
@@ -125,7 +127,7 @@ struct HomeView: View {
                     staffExceptionSection(dash)
                 }
             }
-            .padding()
+            .padding(Brand.Space.md)
         }
         .sheet(item: $selectedEventWork) { work in
             EventDetailSheet(event: work.asScheduleEvent, myShift: nil, eventWork: work)
@@ -139,12 +141,8 @@ struct HomeView: View {
     @ViewBuilder
     private func staffExceptionSection(_ dash: DashboardData) -> some View {
         if !dash.flaggedItems.isEmpty || !dash.lostBulkUnits.isEmpty || !dash.drafts.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Staff Follow-Up")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-                    .tracking(0.3)
+            VStack(alignment: .leading, spacing: Brand.Space.sm) {
+                SectionHeader("Staff Follow-Up", systemImage: "flag.checkered")
                 if !dash.flaggedItems.isEmpty {
                     FlaggedItemsBanner(items: dash.flaggedItems)
                 }
@@ -165,6 +163,7 @@ struct HomeView: View {
     var body: some View {
         NavigationStack(path: $navigationPath) {
             mainContent
+                .background(Color(.systemGroupedBackground).ignoresSafeArea())
                 .navigationTitle("Home")
                 .overlay(alignment: .bottomTrailing) {
                     Button {
@@ -345,12 +344,12 @@ private struct StatCell: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
             }
-            .padding(12)
+            .padding(Brand.Space.sm)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
+            .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
+                    .strokeBorder(Color.hairline, lineWidth: 0.5)
             )
         }
         .buttonStyle(.plain)
@@ -368,9 +367,9 @@ private struct StatStripSkeleton: View {
                     Skeleton().frame(width: 32, height: 24)
                     Skeleton().frame(width: 50, height: 10)
                 }
-                .padding(12)
+                .padding(Brand.Space.sm)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
+                .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
             }
         }
         .accessibilityHidden(true)  // Don't pollute VO with placeholder shapes during initial load.
@@ -530,25 +529,14 @@ private struct HomeActionQueue: View {
 
             ScanRecoveryButton(openScan: openScan)
         }
-        .padding(16)
-        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
-        )
+        .brandCard(padding: Brand.Space.md, radius: Brand.Radius.card)
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Next Up")
-                    .font(.title3.weight(.semibold))
-                Text("Upcoming pickups, reservations, shifts, and due work.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-        }
+        SectionHeader(
+            "Next Up",
+            subtitle: "Upcoming pickups, reservations, shifts, and due work."
+        )
     }
 }
 
@@ -783,11 +771,11 @@ private struct ScanRecoveryButton: View {
                     .foregroundStyle(.tertiary)
                     .accessibilityHidden(true)
             }
-            .padding(12)
-            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+            .padding(Brand.Space.sm)
+            .background(Color.cardSurfaceRaised, in: RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(Color(.separator).opacity(0.45), lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
+                    .strokeBorder(Color.hairline, lineWidth: 0.5)
             )
         }
         .buttonStyle(.plain)
@@ -849,9 +837,7 @@ private struct AllClearEmptyState: View {
             .controlSize(.regular)
             .padding(.top, 4)
         }
-        .frame(maxWidth: .infinity)
-        .padding(28)
-        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
+        .brandCard(padding: Brand.Space.xl, radius: Brand.Radius.card, alignment: .center)
         .accessibilityElement(children: .contain)
     }
 }
@@ -889,13 +875,7 @@ private struct DashboardCard<Content: View>: View {
             }
             content()
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
-        )
+        .brandCard(padding: Brand.Space.md, radius: Brand.Radius.card)
     }
 }
 
@@ -942,9 +922,9 @@ private struct FlaggedItemsBanner: View {
                 if item.id != items.last?.id { Divider() }
             }
         }
-        .padding(14)
-        .background(Color.statusBackground(.orange), in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.statusText(.orange).opacity(0.2), lineWidth: 1))
+        .padding(Brand.Space.md)
+        .background(Color.statusBackground(.orange), in: RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous).strokeBorder(Color.statusText(.orange).opacity(0.2), lineWidth: 1))
     }
 
     private func flaggedRowLabel(for item: DashboardFlaggedItem) -> String {
@@ -984,9 +964,9 @@ private struct LostBulkUnitsBanner: View {
                 .accessibilityLabel("\(item.skuName), \(item.count) missing")
             }
         }
-        .padding(14)
-        .background(Color.statusBackground(.red), in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.statusText(.red).opacity(0.2), lineWidth: 1))
+        .padding(Brand.Space.md)
+        .background(Color.statusBackground(.red), in: RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous).strokeBorder(Color.statusText(.red).opacity(0.2), lineWidth: 1))
     }
 }
 

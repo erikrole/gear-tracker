@@ -193,11 +193,12 @@ private struct BrandCardModifier: ViewModifier {
     var radius: CGFloat
     var fill: Color
     var stroke: Bool
+    var alignment: Alignment
 
     func body(content: Content) -> some View {
         content
             .padding(padding)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: alignment)
             .background(fill, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
             .overlay {
                 if stroke {
@@ -216,9 +217,10 @@ extension View {
         padding: CGFloat = Brand.Space.md,
         radius: CGFloat = Brand.Radius.card,
         fill: Color = .cardSurface,
-        stroke: Bool = true
+        stroke: Bool = true,
+        alignment: Alignment = .leading
     ) -> some View {
-        modifier(BrandCardModifier(padding: padding, radius: radius, fill: fill, stroke: stroke))
+        modifier(BrandCardModifier(padding: padding, radius: radius, fill: fill, stroke: stroke, alignment: alignment))
     }
 }
 
