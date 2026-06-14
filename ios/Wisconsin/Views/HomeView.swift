@@ -143,7 +143,7 @@ struct HomeView: View {
     private func staffExceptionSection(_ dash: DashboardData) -> some View {
         if !dash.flaggedItems.isEmpty || !dash.lostBulkUnits.isEmpty || !dash.drafts.isEmpty {
             VStack(alignment: .leading, spacing: Brand.Space.sm) {
-                SectionHeader("Staff Follow-Up", systemImage: "flag.checkered")
+                BrandSectionHeader("Staff Follow-Up", systemImage: "flag.checkered")
                 if !dash.flaggedItems.isEmpty {
                     FlaggedItemsBanner(items: dash.flaggedItems)
                 }
@@ -606,7 +606,7 @@ private struct HomeActionQueue: View {
     }
 
     private var header: some View {
-        SectionHeader(
+        BrandSectionHeader(
             "Next Up",
             subtitle: "Upcoming pickups, reservations, shifts, and due work."
         )

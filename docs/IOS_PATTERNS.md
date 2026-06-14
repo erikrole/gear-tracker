@@ -50,7 +50,7 @@ Image(systemName: "exclamationmark.triangle.fill")
 | `.brandCard()`     | The one card surface — continuous radius, hairline edge, soft shadow. Replaces per-view `.background(systemBackground, in: RoundedRectangle).overlay(stroke)`. Params: `padding`, `radius`, `fill`, `stroke`, `alignment`. |
 | `Color.cardSurface` / `.cardSurfaceRaised` | Elevated card fill (and a raised fill for nested tiles inside a card). |
 | `Color.hairline`   | Hairline stroke for card/divider edges (replaces `Color(.separator).opacity(0.5)`). |
-| `SectionHeader`    | Section title + optional subtitle / SF Symbol / trailing accessory above a stack of cards. |
+| `BrandSectionHeader`    | Section title + optional subtitle / SF Symbol / trailing accessory above a stack of cards. |
 | `FilterChip`       | Selectable pill for filter/scope strips — Liquid Glass material when off, tinted fill when on. |
 
 **Native Liquid Glass.** Lean on the platform: `.buttonStyle(.glassProminent)` for primary CTAs and FABs, `.buttonStyle(.glass)` for secondary actions, and material-backed (`.regularMaterial` / `.ultraThinMaterial`) floating controls. Use **continuous** corners (`RoundedRectangle(cornerRadius:style: .continuous)`) everywhere for the modern squircle look.
@@ -65,7 +65,7 @@ VStack(spacing: Brand.Space.sm) { … }
     .brandCard()
 
 // ✅ Section header above a card stack
-SectionHeader("Next Up", subtitle: "Upcoming pickups, reservations, shifts.")
+BrandSectionHeader("Next Up", subtitle: "Upcoming pickups, reservations, shifts.")
 ```
 
 > **Tab shell caveat (still in force).** Do not migrate `AppTabView` to the value-based `Tab(...)` API. `TabView` + `.tabItem`/`.tag` is the locked-in path — see `tasks/lessons.md` "UI Reliability".

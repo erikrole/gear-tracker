@@ -228,7 +228,7 @@ extension View {
 
 /// Consistent section header used above grouped card stacks. Optional subtitle,
 /// leading SF Symbol, and a trailing accessory (e.g. a "See all" button).
-struct SectionHeader<Trailing: View>: View {
+struct BrandSectionHeader<Trailing: View>: View {
     let title: String
     var subtitle: String? = nil
     var systemImage: String? = nil
@@ -259,7 +259,7 @@ struct SectionHeader<Trailing: View>: View {
     }
 }
 
-extension SectionHeader where Trailing == EmptyView {
+extension BrandSectionHeader where Trailing == EmptyView {
     init(_ title: String, subtitle: String? = nil, systemImage: String? = nil) {
         self.init(title: title, subtitle: subtitle, systemImage: systemImage, trailing: { EmptyView() })
     }
