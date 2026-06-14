@@ -635,10 +635,7 @@ private struct EventActionQueueRow: View {
             openEventWork(work)
         } label: {
             HStack(spacing: 12) {
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(Color.statusText(tone))
-                    .frame(width: 4, height: 56)
-                    .accessibilityHidden(true)
+                StatusRail(tone: tone)
 
                 VStack(alignment: .leading, spacing: 7) {
                     Text(work.event.summary)
@@ -741,10 +738,7 @@ private struct ActionQueueRow: View {
                 action()
             } label: {
                 HStack(spacing: 12) {
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(Color.statusText(tone))
-                        .frame(width: 4, height: 36)
-                        .accessibilityHidden(true)
+                    StatusRail(tone: tone)
 
                     VStack(alignment: .leading, spacing: 3) {
                         Text(title)

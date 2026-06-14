@@ -328,6 +328,23 @@ struct ZoomableImageViewer: View {
     }
 }
 
+// MARK: - Status rail
+
+/// The leading accent rail shared by list/queue rows (Bookings cards, dashboard
+/// "Next Up" rows). A rounded 4pt bar tinted by status tone; stretches to the
+/// row's height so it sits inset from rounded card corners. One source of truth
+/// for rail width/radius/color across screens.
+struct StatusRail: View {
+    let tone: StatusTone
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 2)
+            .fill(Color.statusText(tone))
+            .frame(width: 4)
+            .accessibilityHidden(true)
+    }
+}
+
 // MARK: - Filter chip
 
 /// A selectable pill used for filter/scope strips. Replaces the ad-hoc

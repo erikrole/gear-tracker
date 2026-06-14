@@ -383,12 +383,8 @@ struct BookingRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // Rounded accent rail, inset top/bottom — matches the Next Up rows
-            // on the dashboard instead of a hard edge clipped by the corners.
-            RoundedRectangle(cornerRadius: 2)
-                .fill(Color.statusText(accentTone))
-                .frame(width: 4)
-                .accessibilityHidden(true)
+            // Shared rail atom — inset top/bottom, matching the Next Up rows.
+            StatusRail(tone: accentTone)
             UserAvatarView(name: booking.requester.name, avatarUrl: booking.requester.avatarUrl, size: 40)
             VStack(alignment: .leading, spacing: 5) {
                 HStack(alignment: .firstTextBaseline) {
