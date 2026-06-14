@@ -16,7 +16,7 @@ targets:
     type: application
     platform: iOS
     deploymentTarget: "26.0"
-    bundleId: com.erikrole.creative
+    bundleId: com.erikrole.Wisconsin
     sources:
       - path: Wisconsin
     info:

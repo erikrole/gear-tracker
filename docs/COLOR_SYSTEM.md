@@ -137,6 +137,30 @@ Badge style: `text.background(color.opacity(0.15), in: Capsule()).foregroundStyl
 
 ---
 
+## Kiosk flow colors (iOS)
+
+The kiosk runs always-dark. Shared tokens live in `ios/Wisconsin/Kiosk/KioskDesign.swift`
+(surfaces, strokes, radii, text) and `KioskColors.swift` (`Color.kioskRed` = `#C5050C`,
+the brand accent -- deliberately deeper than the app's dark-mode `brandPrimary`).
+Status meaning still comes from `Color.statusText(_:)`.
+
+| Usage | Color | Rationale |
+|-------|-------|-----------|
+| Primary CTAs (Complete Checkout / Confirm Pickup / Complete Return), numpad submit, checkout cart count, activation hero | `kioskRed` | Brand action, not semantic red |
+| Scan progress ring + checklist bar -- in progress | blue | Active progress |
+| Scan progress ring + checklist bar -- complete | green | Done / success |
+| Student-hub pickup action | orange | PENDING_PICKUP = awaiting |
+| Student-hub return action | blue (red if overdue) | OPEN = active use; overdue = red |
+| Overdue label / icon | red | OVERDUE = red, never orange |
+| Scan feedback | green / red / orange | success / error / duplicate-or-already |
+| Success screen, completed checkmarks | green | Success |
+
+> `kioskRed` (brand) and `statusText(.red)` (semantic overdue/error) coexist by context:
+> red buttons are brand identity; small red labels/icons are semantic. Green is never a
+> primary action, and orange -- not green -- signals awaiting pickup.
+
+---
+
 ## Web sources of truth
 
 These are the only files that should define status→color mappings. New surfaces must import from these — never define ad-hoc badge colors inline.

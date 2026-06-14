@@ -209,6 +209,18 @@ describe("iOS API contracts — kiosk session", () => {
     expect(kioskMe).not.toContain("DataWrapper");
   });
 
+  it("activation persists a raw kiosk token even during API rollout skew", () => {
+    const route = source("src/app/api/kiosk/activate/route.ts");
+    const client = source("ios/Wisconsin/Kiosk/KioskAPIClient.swift");
+    const store = source("ios/Wisconsin/Kiosk/KioskStore.swift");
+
+    expect(route).toContain("sessionToken,");
+    expect(client).toContain("let result: (KioskActivationResponse, HTTPURLResponse) = try await performWithResponse(req)");
+    expect(client).toContain("kioskSessionToken(from: http)");
+    expect(client).toContain("cookieValue(named: \"kiosk_session\"");
+    expect(store).toContain("KioskSessionVault.save(sessionToken)");
+  });
+
   it("validateSession only clears the activation on a definitive 401", () => {
     const store = source("ios/Wisconsin/Kiosk/KioskStore.swift");
 
@@ -241,5 +253,16 @@ describe("iOS API contracts — URL construction", () => {
   it("deleteShift passes force=true as a query item", () => {
     const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
     expect(apiClient).toMatch(/func deleteShift[\s\S]*?queryItems: \[\.init\(name: "force", value: "true"\)\]/);
+  });
+});
+
+describe("iOS project configuration", () => {
+  it("XcodeGen and the checked-in Xcode project use the same bundle identifier", () => {
+    const projectYml = source("ios/project.yml");
+    const pbxproj = source("ios/Wisconsin.xcodeproj/project.pbxproj");
+
+    expect(projectYml).toContain("bundleId: com.erikrole.Wisconsin");
+    expect(pbxproj).toMatch(/PRODUCT_BUNDLE_IDENTIFIER = com\.erikrole\.Wisconsin;/);
+    expect(projectYml).not.toContain("bundleId: com.erikrole.creative");
   });
 });

@@ -21,7 +21,8 @@ private enum KioskSessionVault {
         ]
     }
 
-    static func save(_ token: String) {
+    @discardableResult
+    static func save(_ token: String) -> Bool {
         let data = Data(token.utf8)
         let attrs: [String: Any] = [
             kSecValueData as String: data,
@@ -33,8 +34,9 @@ private enum KioskSessionVault {
         if status == errSecItemNotFound {
             var add = baseQuery
             add.merge(attrs) { _, new in new }
-            SecItemAdd(add as CFDictionary, nil)
+            return SecItemAdd(add as CFDictionary, nil) == errSecSuccess
         }
+        return status == errSecSuccess
     }
 
     static func load() -> String? {
@@ -150,7 +152,12 @@ final class KioskStore {
             locationName: response.location.name
         ))
         if let sessionToken = response.sessionToken {
+            #if DEBUG
+            let saved = KioskSessionVault.save(sessionToken)
+            print("[KioskStore] kiosk session token saved to Keychain: \(saved)")
+            #else
             KioskSessionVault.save(sessionToken)
+            #endif
         } else {
             persistSessionCookie()
         }

@@ -1,6 +1,90 @@
 # Task Queue
 
-Last updated: 2026-06-12
+Last updated: 2026-06-13
+
+---
+
+## Active: Kiosk iOS UI consolidation + brand polish (2026-06-13)
+
+Goal: `/frontend-design` pass on all 9 iOS kiosk SwiftUI views, **within the
+existing design system** (COLOR_SYSTEM.md + DESIGN_LANGUAGE.md operational/calm
+personality). The code is already mature; this pass removes design-system drift
+and duplication and adds restrained Wisconsin-brand polish. User chose **full
+consolidation** + **Gotham on brand moments**.
+
+### Findings (audit)
+- `FeedbackBanner` reimplemented 4x (checkout/pickup/return + camera overlay).
+- `BatteryScanStatus` + `FlexibleUnitChips` duplicated pickup↔return; `progressRing`,
+  the Back/Title/Camera header, the wifi-error state, avatar→initials all repeated.
+- No shared token scale: base bg differs per screen (#0B0B0D/#08080A/#0A0A0C),
+  12+ ad-hoc white-opacity fills (0.02–0.18), radii 9–24 with no scale.
+- Inconsistencies: pickup ring red vs return ring blue; pickup CTA green vs
+  checkout/return CTA red; pickup green accents vs COLOR_SYSTEM PENDING_PICKUP=orange;
+  overdue rendered orange in places (COLOR_SYSTEM OVERDUE=red); sub-44px buttons.
+
+### Design decisions (documented; tracing to COLOR_SYSTEM)
+- **kioskRed** = brand primary actions (CTAs, numpad ✓, checkout count, hero icon).
+- **Completion CTAs** (Complete Checkout / Confirm Pickup / Complete Return) →
+  kioskRed when ready (pickup changes green→red to match the other two).
+- **Progress ring/bar** in-progress = blue, complete = green (pickup changes red→blue).
+- **Hub action icons**: Checkout=kioskRed, Pickup=orange (awaiting), Return=blue
+  (overdue→red).
+- **Overdue** = red everywhere (was orange in return label + hub return icon).
+- **Green** reserved for success/done states + scan-success. **Mono clock unchanged**
+  (documented anti-jitter decision). Gotham Black/Bold on flow titles, activation
+  hero, success message (matches web PageHeader).
+
+### Slices
+- [x] Slice 1 -- Foundation: new `KioskDesign.swift` (KioskSurface/Stroke/Radius/Text
+      tokens, `kioskCard()` modifier, `KioskBannerTone`, kiosk font helpers) +
+      `KioskComponents.swift` (KioskFlowHeader, KioskFeedbackBanner, KioskProgressRing,
+      KioskAvatar, KioskChecklistRow, KioskBatteryScanStatus, KioskUnitChips,
+      KioskErrorState, KioskCompletionButton). `xcodegen generate` + restore
+      entitlements + build.
+- [x] Slice 2 -- Migrate flow views (checkout/pickup/return) onto shared components;
+      apply ring/CTA/overdue color fixes; 44px targets on header + remove buttons.
+- [x] Slice 3 -- Migrate idle/studentHub/activation/success onto tokens + KioskAvatar;
+      unify surface base; Gotham brand moments; hub pickup icon→orange, return
+      overdue→red. Keep mono clock + sleep mode behavior.
+- [x] Slice 4 -- Verify (`xcodebuild` un-sandboxed, `npm run drift:ios`,
+      `audit:ios:gaps`, `git diff --check`) + docs (AREA_KIOSK change log,
+      COLOR_SYSTEM iOS rules note, lessons). Commit/push pending user review.
+
+### Constraints
+- No behavior/logic/API changes -- UI only. No decorative gradients/grain (design
+  language forbids). Verification is compile + source review (cannot boot the live
+  iPad UI here). New files require `xcodegen generate`; restore `Wisconsin.entitlements`
+  after (xcodegen quirk). xcodebuild must run un-sandboxed (CoreSimulator perms).
+
+### Review
+- 2026-06-13: Shipped the full consolidation. Two new files -- `KioskDesign.swift`
+  (137 lines of tokens) and `KioskComponents.swift` (445 lines of shared views) --
+  now back all nine kiosk screens. The migration removed 863 lines from the views
+  for 296 added (net -567 in the existing files), with the feedback banner alone
+  collapsing from four copies to one.
+- Cross-view inconsistencies resolved against COLOR_SYSTEM: progress rings are
+  blue→green everywhere (pickup was red), completion CTAs are brand red everywhere
+  (pickup was green), the student-hub pickup action is orange (awaiting), and
+  overdue is red (was orange in the return label + hub return icon). Gotham now
+  carries the activation hero, flow titles, and success message; the monospaced
+  idle clock is intentionally unchanged (documented anti-jitter decision).
+- Idle/standby was light-touched on purpose: it was tuned over ~10 iterations and
+  its bespoke dashboard fills differ from the new rungs by <0.02 alpha, so only the
+  clean, risk-free swaps landed there (event-sheet base color, two avatars →
+  `KioskAvatar`). The event-avatar stack and the overdue-ring checkout avatar stay
+  bespoke. Full idle tokenization is an optional follow-up.
+- 44pt touch targets added to the flow header back/camera buttons and the checkout
+  remove-item control. Surface base unified to #0B0B0D across shell/activation/sheet.
+- UI-only: no API, model, or flow-logic changes. New files registered as exempt in
+  `scripts/ios-audit-inventory.sh`. Stale "restore entitlements after xcodegen"
+  belief corrected -- `project.yml` now declares the entitlement properties, so
+  regeneration is byte-identical (sha-verified).
+- Verification: `xcodebuild` BUILD SUCCEEDED (×3, one per slice), `npm run drift:ios`
+  clean (50 files), `npm run audit:ios:gaps` 35/35 covered, `git diff --check` clean.
+  Cannot boot the live iPad UI here, so visual sign-off on device is the user's.
+- Pre-existing uncommitted WIP from the prior session (KioskAPIClient/Store/Idle,
+  project.yml, etc.) was built on but is logically separate; flagged for the user
+  before committing.
 
 ---
 
@@ -35,6 +119,26 @@ missing locally (lives on advisor/codex branches; schema field already on main).
   checklist progress summaries, smarter disabled CTAs, idle-screen empty state and
   stronger hierarchy. Compile-verified; visual sign-off on the iPad is the user's.
 - Pre-existing test failures (2) on main flagged as a separate background task.
+
+## Active: Kiosk dashboard final polish (2026-06-12)
+
+Scope: close the remaining iPad kiosk dashboard polish before moving into the
+user-specific kiosk pages. Data alignment is fixed; this pass is layout density,
+readability, and debug-noise cleanup.
+
+- [x] Compact event sections: remove noisy count badges and quiet empty rows.
+- [x] Make event detail read-only sheet stop truncating real event/call ranges.
+- [x] Make assigned-worker rows denser and clearer.
+- [x] De-emphasize the DEBUG sleep toggle when inactive and hide debug capability logs outside DEBUG.
+- [x] Sync kiosk docs and record verification.
+
+### Review
+- 2026-06-12: Final dashboard polish keeps the data model unchanged and tightens
+  the iPad surface: Today/Tomorrow no longer show tiny count noise, empty event
+  rows are plain muted text, stat selection has a clearer bottom marker, the
+  event detail sheet uses full-width Event/Call rows to avoid truncating 3-5 and
+  2-6 ranges, worker rows are compact enough for real crew lists, and the DEBUG
+  sleep affordance/logging is quieter.
 
 ## Active: Kiosk iPad activation + idle polish (2026-06-12)
 
@@ -78,6 +182,8 @@ forced weekly re-activation even on a healthy kiosk.
 - [x] Server: `requireKiosk()` slides `sessionExpiresAt` on activity (~daily write throttle), cookie re-issued with slid expiry (D-039)
 - [x] Server: `/api/kiosk/me` returns device `name` so the app can rebuild info after a wipe
 - [x] iOS: session token mirrored to Keychain (`AfterFirstUnlock`), cookie re-created on launch, info rebuilt from /me; cleared on deactivate/401
+- [x] iOS: activation also extracts `kiosk_session` from `Set-Cookie` when JSON `sessionToken` is absent during API rollout skew
+- [x] iOS: XcodeGen bundle ID aligned with the checked-in Xcode project so regenerated builds keep the same Keychain access identity
 - [x] iOS: kiosk shell disables system idle timer (screen never sleeps)
 - [x] iOS: idle screen redesigned as standby display — live HH:MM:SS clock (1s TimelineView), Gotham date in brand red, TODAY event rows bolder
 - [x] Tests updated (KioskContext mocks + kioskMe contract), tsc/vitest/xcodebuild/next build all pass
@@ -87,6 +193,15 @@ forced weekly re-activation even on a healthy kiosk.
 - The 7-day expiry now only ends sessions for kiosks dark a full week; admin
   deactivation still revokes instantly. Keychain copy outlives app deletion by
   design — deactivate() and the 401 path both clear it.
+- Follow-up correction: persistence still failed on device because native
+  activation only saved the token when the API JSON already included
+  `sessionToken`. The app now falls back to extracting `kiosk_session` from
+  `Set-Cookie`, so one more activation after this build should seed Keychain
+  even if the deployed API and native build are briefly out of sync.
+- Second persistence hazard fixed: `ios/project.yml` still used
+  `com.erikrole.creative` while the checked-in Xcode project uses
+  `com.erikrole.Wisconsin`. Any `xcodegen generate` would install a different
+  app identity and leave the prior Keychain item unreachable.
 - Visual sign-off on the standby clock needs the user's iPad rebuild.
 
 ---

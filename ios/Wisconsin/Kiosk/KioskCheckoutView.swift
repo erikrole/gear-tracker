@@ -21,6 +21,14 @@ struct KioskCheckoutView: View {
             case .success(let s), .error(let s), .duplicate(let s): return s
             }
         }
+
+        var tone: KioskBannerTone {
+            switch self {
+            case .success:   .success
+            case .error:     .error
+            case .duplicate: .warning
+            }
+        }
     }
 
     /// Cart lives in KioskStore so a brief inactivity reset doesn't discard it.
@@ -29,7 +37,7 @@ struct KioskCheckoutView: View {
     var body: some View {
         HStack(spacing: 0) {
             scanZone
-            Divider().background(Color.white.opacity(0.1))
+            Divider().background(KioskStroke.divider)
             itemsList.frame(width: 380)
         }
         .overlay(alignment: .bottom) {
@@ -57,7 +65,7 @@ struct KioskCheckoutView: View {
         .sheet(isPresented: $showCamera) {
             KioskBarcodeCameraView(
                 feedbackMessage: lastResult?.message,
-                feedbackTone: cameraTone(for: lastResult),
+                feedbackTone: lastResult?.tone,
                 onScan: { value in
                     handleScan(value)
                 },
@@ -70,33 +78,20 @@ struct KioskCheckoutView: View {
 
     private var scanZone: some View {
         VStack(spacing: 24) {
-            HStack {
-                Button {
+            KioskFlowHeader(
+                title: "Checkout",
+                backAccessibilityLabel: scannedItems.isEmpty
+                    ? "Back to roster"
+                    : "Back to roster, will prompt to discard \(scannedItems.count) items",
+                onBack: {
                     if scannedItems.isEmpty {
                         store.screen = .idle
                     } else {
                         showBackConfirm = true
                     }
-                } label: {
-                    Label("Back", systemImage: "chevron.left")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.secondary)
-                }
-                .accessibilityLabel(scannedItems.isEmpty ? "Back to roster" : "Back to roster, will prompt to discard \(scannedItems.count) items")
-                Spacer()
-                Text("Checkout")
-                    .font(.title3.bold())
-                    .foregroundStyle(.white)
-                Spacer()
-                Button {
-                    showCamera = true
-                } label: {
-                    Label("Camera", systemImage: "camera.fill")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.secondary)
-                }
-                .accessibilityLabel("Use camera to scan instead")
-            }
+                },
+                onCamera: { showCamera = true }
+            )
 
             Spacer()
 
@@ -123,47 +118,26 @@ struct KioskCheckoutView: View {
 
             // Feedback banner
             if let result = lastResult {
-                FeedbackBanner(result: result)
+                KioskFeedbackBanner(tone: result.tone, message: result.message)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .animation(reduceMotion ? nil : .spring(response: 0.3), value: lastResult)
             }
 
             Spacer()
 
-            // Complete button
-            Button {
-                completeCheckout()
-            } label: {
-                HStack {
-                    Text(isCompleting ? "Processing..." : "Complete Checkout")
-                        .font(.headline)
-                    if isCompleting {
-                        ProgressView().tint(.white).scaleEffect(0.8)
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(scannedItems.isEmpty ? Color.white.opacity(0.1) : Color.kioskRed,
-                            in: RoundedRectangle(cornerRadius: 14))
-            }
-            .buttonStyle(.plain)
-            .disabled(scannedItems.isEmpty || isCompleting)
+            KioskCompletionButton(
+                title: "Complete Checkout",
+                isEnabled: !scannedItems.isEmpty,
+                isBusy: isCompleting,
+                accessibilityLabel: completeAccessibilityLabel,
+                action: completeCheckout
+            )
             .padding(.horizontal, 32)
             .padding(.bottom, 32)
-            .accessibilityLabel(completeAccessibilityLabel)
         }
         .padding(.horizontal, 32)
         .padding(.top, 20)
         .frame(maxWidth: .infinity)
-    }
-
-    private func cameraTone(for feedback: ScanFeedback?) -> KioskBarcodeCameraView.Tone? {
-        switch feedback {
-        case .success:   .success
-        case .duplicate: .warning
-        case .error:     .error
-        case nil:        nil
-        }
     }
 
     private var completeAccessibilityLabel: String {
@@ -190,7 +164,7 @@ struct KioskCheckoutView: View {
             }
             .padding(20)
 
-            Divider().background(Color.white.opacity(0.1))
+            Divider().background(KioskStroke.divider)
 
             if scannedItems.isEmpty {
                 Spacer()
@@ -206,7 +180,7 @@ struct KioskCheckoutView: View {
                             ForEach(scannedItems) { item in
                                 ItemRow(item: item, onRemove: { removeItem(item) })
                                     .id(item.id)
-                                Divider().background(Color.white.opacity(0.06))
+                                Divider().background(KioskStroke.hairline)
                             }
                         }
                     }
@@ -223,7 +197,7 @@ struct KioskCheckoutView: View {
                 }
             }
         }
-        .background(Color.white.opacity(0.02))
+        .background(KioskSurface.sunken)
     }
 
     // MARK: - Logic
@@ -360,8 +334,8 @@ private struct ItemRow: View {
             Button(action: onRemove) {
                 Image(systemName: "xmark.circle.fill")
                     .font(.title3)
-                    .foregroundStyle(Color.white.opacity(0.4))
-                    .frame(width: 36, height: 36)
+                    .foregroundStyle(KioskText.muted)
+                    .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -372,45 +346,5 @@ private struct ItemRow: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(item.name), tag \(item.tagName)")
         .accessibilityAction(named: "Remove") { onRemove() }
-    }
-}
-
-private struct FeedbackBanner: View {
-    let result: KioskCheckoutView.ScanFeedback
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: icon)
-                .accessibilityHidden(true)
-            Text(message)
-                .font(.subheadline.weight(.medium))
-        }
-        .foregroundStyle(color)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-        .background(color.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(color.opacity(0.4), lineWidth: 1)
-        )
-        .accessibilityElement(children: .combine)
-    }
-
-    private var icon: String {
-        switch result {
-        case .success: return "checkmark.circle.fill"
-        case .error: return "xmark.circle.fill"
-        case .duplicate: return "exclamationmark.triangle.fill"
-        }
-    }
-
-    private var message: String { result.message }
-
-    private var color: Color {
-        switch result {
-        case .success: return Color.statusText(.green)
-        case .error: return Color.statusText(.red)
-        case .duplicate: return Color.statusText(.orange)
-        }
     }
 }

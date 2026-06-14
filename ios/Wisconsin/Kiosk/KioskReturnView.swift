@@ -26,6 +26,14 @@ struct KioskReturnView: View {
             case .success(let s), .error(let s), .alreadyReturned(let s): return s
             }
         }
+
+        var tone: KioskBannerTone {
+            switch self {
+            case .success:         .success
+            case .error:           .error
+            case .alreadyReturned: .warning
+            }
+        }
     }
 
     private var totalItems: Int { detail?.items.count ?? 0 }
@@ -44,7 +52,7 @@ struct KioskReturnView: View {
     var body: some View {
         HStack(spacing: 0) {
             scanZone
-            Divider().background(Color.white.opacity(0.1))
+            Divider().background(KioskStroke.divider)
             checklistPanel
                 .frame(width: 400)
         }
@@ -57,7 +65,7 @@ struct KioskReturnView: View {
         .sheet(isPresented: $showCamera) {
             KioskBarcodeCameraView(
                 feedbackMessage: lastResult?.message,
-                feedbackTone: cameraTone(for: lastResult),
+                feedbackTone: lastResult?.tone,
                 onScan: { value in handleScan(value) },
                 onCancel: { showCamera = false }
             )
@@ -68,29 +76,11 @@ struct KioskReturnView: View {
 
     private var scanZone: some View {
         VStack(spacing: 24) {
-            HStack {
-                Button {
-                    store.screen = .idle
-                } label: {
-                    Label("Back", systemImage: "chevron.left")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.secondary)
-                }
-                .accessibilityLabel("Back to roster")
-                Spacer()
-                Text("Return")
-                    .font(.title3.bold())
-                    .foregroundStyle(.white)
-                Spacer()
-                Button {
-                    showCamera = true
-                } label: {
-                    Label("Camera", systemImage: "camera.fill")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.secondary)
-                }
-                .accessibilityLabel("Use camera to scan instead")
-            }
+            KioskFlowHeader(
+                title: "Return",
+                onBack: { store.screen = .idle },
+                onCamera: { showCamera = true }
+            )
 
             Spacer()
 
@@ -98,40 +88,49 @@ struct KioskReturnView: View {
                 ProgressView().tint(.white)
             } else {
                 VStack(spacing: 20) {
-                    progressRing
+                    KioskProgressRing(
+                        count: returnedCount,
+                        total: totalItems,
+                        isComplete: allReturned,
+                        reduceMotion: reduceMotion,
+                        accessibilityText: "\(returnedCount) of \(totalItems) items returned"
+                    )
 
                     if let detail, detail.isOverdue {
                         Label("Overdue", systemImage: "exclamationmark.triangle.fill")
                             .font(.caption.weight(.medium))
-                            .foregroundStyle(Color.statusText(.orange))
+                            .foregroundStyle(Color.statusText(.red))
                             .accessibilityLabel("This checkout is overdue")
                     }
 
                     VStack(spacing: 6) {
                         Text(allReturned ? "All items returned" : "Scan items to return them")
                             .font(.title3.weight(.semibold))
-                            .foregroundStyle(allReturned ? Color.statusText(.green) : .white)
+                            .foregroundStyle(allReturned ? Color.statusText(.green) : KioskText.primary)
                             .multilineTextAlignment(.center)
                         if !allReturned {
                             Text("Use the hand scanner, or tap Camera to scan with the iPad.")
                                 .font(.subheadline)
-                                .foregroundStyle(Color.white.opacity(0.55))
+                                .foregroundStyle(KioskText.tertiary)
                                 .multilineTextAlignment(.center)
                         }
                     }
 
                     if hasBatteryScanStep {
-                        BatteryScanStatus(
+                        KioskBatteryScanStatus(
                             title: "Battery Units",
                             count: returnedBatteryCount,
                             total: batteryTotal,
                             pendingCopy: "Scan each returned battery unit QR so custody closes on the exact units.",
-                            scannedUnits: returnedBatteryUnits
+                            completeCopy: "All \(batteryTotal) units returned",
+                            progressCopy: "\(returnedBatteryCount) of \(batteryTotal) units returned",
+                            unitsHeader: "Returned units",
+                            scannedUnits: returnedBatteryUnits.map { KioskScannedUnit(id: $0.id, tag: $0.tagName) }
                         )
                     }
 
                     if let result = lastResult {
-                        FeedbackBanner(result: result)
+                        KioskFeedbackBanner(tone: result.tone, message: result.message)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                             .animation(reduceMotion ? nil : .spring(response: 0.3), value: lastResult)
                     }
@@ -147,64 +146,17 @@ struct KioskReturnView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private var progressRing: some View {
-        ZStack {
-            Circle()
-                .stroke(Color.white.opacity(0.1), lineWidth: 10)
-            Circle()
-                .trim(from: 0, to: totalItems > 0 ? CGFloat(returnedCount) / CGFloat(totalItems) : 0)
-                .stroke(allReturned ? Color.statusText(.green) : Color.statusText(.blue),
-                        style: StrokeStyle(lineWidth: 10, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-                .animation(reduceMotion ? nil : .spring(response: 0.4), value: returnedCount)
-            VStack(spacing: 2) {
-                Text("\(returnedCount)")
-                    .font(.system(size: 52, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .contentTransition(.numericText())
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: returnedCount)
-                    .monospacedDigit()
-                Text("of \(totalItems)")
-                    .font(.subheadline)
-                    .foregroundStyle(Color.white.opacity(0.55))
-            }
-        }
-        .frame(width: 176, height: 176)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(returnedCount) of \(totalItems) items returned")
-    }
-
     private var completeButton: some View {
-        Button {
-            completeReturn()
-        } label: {
-            HStack(spacing: 10) {
-                if !isCompleting {
-                    Image(systemName: hasReturned ? "checkmark.circle.fill" : "barcode.viewfinder")
-                        .font(.headline)
-                        .accessibilityHidden(true)
-                }
-                Text(isCompleting ? "Processing..." : returnLabel)
-                    .font(.headline)
-                if isCompleting { ProgressView().tint(.white).scaleEffect(0.8) }
-            }
-            .foregroundStyle(hasReturned && !isCompleting ? .white : Color.white.opacity(0.55))
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 18)
-            .background(
-                (!hasReturned || isCompleting) ? Color.white.opacity(0.08) : Color.kioskRed,
-                in: RoundedRectangle(cornerRadius: 14)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(Color.white.opacity(hasReturned ? 0 : 0.1), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-        .disabled(!hasReturned || isCompleting)
+        KioskCompletionButton(
+            title: returnLabel,
+            icon: hasReturned ? "checkmark.circle.fill" : "barcode.viewfinder",
+            isEnabled: hasReturned,
+            isBusy: isCompleting,
+            accessibilityLabel: completeAccessibilityLabel,
+            action: completeReturn
+        )
         .padding(.horizontal, 32)
         .padding(.bottom, 32)
-        .accessibilityLabel(completeAccessibilityLabel)
     }
 
     private var returnLabel: String {
@@ -245,16 +197,22 @@ struct KioskReturnView: View {
             }
             .padding(20)
 
-            Divider().background(Color.white.opacity(0.1))
+            Divider().background(KioskStroke.divider)
 
             if let items = detail?.items {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 0) {
                             ForEach(items) { item in
-                                ReturnItemRow(item: item, returned: returnedIds.contains(item.id))
+                                KioskChecklistRow(
+                                    name: item.name,
+                                    tag: item.tagName,
+                                    isDone: returnedIds.contains(item.id),
+                                    isBattery: item.isNumberedBulk,
+                                    strikethroughWhenDone: true
+                                )
                                     .id(item.id)
-                                Divider().background(Color.white.opacity(0.06))
+                                Divider().background(KioskStroke.hairline)
                             }
                         }
                     }
@@ -277,35 +235,15 @@ struct KioskReturnView: View {
                 // Detail-load error — distinct recovery surface from
                 // complete-failure (which now flows through showFeedback to
                 // the in-flow banner near the progress ring).
-                VStack(spacing: 10) {
-                    Image(systemName: "wifi.exclamationmark")
-                        .font(.title)
-                        .foregroundStyle(Color.statusText(.red))
-                    Text(loadError)
-                        .foregroundStyle(.white)
-                        .font(.subheadline)
-                        .multilineTextAlignment(.center)
-                    Button("Try again") { Task { await loadDetail() } }
-                        .buttonStyle(.bordered)
-                        .tint(.white)
-                }
-                .padding()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                KioskErrorState(title: loadError) { Task { await loadDetail() } }
+                    .padding()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .background(Color.white.opacity(0.02))
+        .background(KioskSurface.sunken)
     }
 
     // MARK: - Logic
-
-    private func cameraTone(for feedback: ScanFeedback?) -> KioskBarcodeCameraView.Tone? {
-        switch feedback {
-        case .success:        .success
-        case .alreadyReturned: .warning
-        case .error:          .error
-        case nil:             nil
-        }
-    }
 
     private func handleScan(_ value: String) {
         guard !isCompleting else {
@@ -394,153 +332,6 @@ struct KioskReturnView: View {
 }
 
 // MARK: - Sub-views
-
-private struct ReturnItemRow: View {
-    let item: KioskCheckoutDetail.ReturnItem
-    let returned: Bool
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: returned ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(returned ? Color.statusText(.green) : Color.white.opacity(0.3))
-                .font(.title3)
-                .frame(width: 28)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(item.name)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(returned ? Color.white.opacity(0.5) : .white)
-                        .strikethrough(returned, color: Color.white.opacity(0.3))
-                    if item.isNumberedBulk {
-                        Image(systemName: "battery.100percent")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(Color.statusText(.orange))
-                            .accessibilityLabel("Battery unit")
-                    }
-                }
-                // Tag repeats the display name for assets without a separate
-                // tag — hide the duplicate line so rows stay scannable.
-                if item.tagName.caseInsensitiveCompare(item.name) != .orderedSame {
-                    Text(item.tagName)
-                        .font(.caption.monospaced())
-                        .foregroundStyle(.secondary)
-                }
-            }
-            Spacer()
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
-        .animation(.spring(response: 0.25), value: returned)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(item.name), tag \(item.tagName), \(returned ? "returned" : "pending")")
-    }
-}
-
-private struct BatteryScanStatus: View {
-    let title: String
-    let count: Int
-    let total: Int
-    let pendingCopy: String
-    let scannedUnits: [KioskCheckoutDetail.ReturnItem]
-
-    var complete: Bool { count >= total && total > 0 }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
-                Image(systemName: complete ? "battery.100percent" : "battery.25percent")
-                    .font(.title3)
-                    .foregroundStyle(complete ? Color.statusText(.green) : Color.statusText(.orange))
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.white)
-                    Text(complete ? "All \(total) units returned" : "\(count) of \(total) units returned")
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                    if !complete {
-                        Text(pendingCopy)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                Spacer()
-            }
-            if !scannedUnits.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Returned units")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    FlexibleUnitChips(units: scannedUnits)
-                }
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08), lineWidth: 1))
-        .accessibilityElement(children: .combine)
-    }
-}
-
-private struct FlexibleUnitChips: View {
-    let units: [KioskCheckoutDetail.ReturnItem]
-
-    var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 6) { chipContent }
-            VStack(alignment: .leading, spacing: 6) { chipContent }
-        }
-    }
-
-    @ViewBuilder
-    private var chipContent: some View {
-        ForEach(units) { unit in
-            Text(unit.tagName)
-                .font(.caption2.monospaced().weight(.semibold))
-                .foregroundStyle(Color.statusText(.green))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Color.statusText(.green).opacity(0.12), in: Capsule())
-                .overlay(Capsule().stroke(Color.statusText(.green).opacity(0.25), lineWidth: 1))
-        }
-    }
-}
-
-private struct FeedbackBanner: View {
-    let result: KioskReturnView.ScanFeedback
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: icon).accessibilityHidden(true)
-            Text(message).font(.subheadline.weight(.medium))
-        }
-        .foregroundStyle(color)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-        .background(color.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(color.opacity(0.4), lineWidth: 1))
-        .accessibilityElement(children: .combine)
-    }
-
-    private var icon: String {
-        switch result {
-        case .success:         return "checkmark.circle.fill"
-        case .error:           return "xmark.circle.fill"
-        case .alreadyReturned: return "exclamationmark.triangle.fill"
-        }
-    }
-    private var message: String { result.message }
-    private var color: Color {
-        switch result {
-        case .success:         return Color.statusText(.green)
-        case .error:           return Color.statusText(.red)
-        case .alreadyReturned: return Color.statusText(.orange)
-        }
-    }
-}
 
 private extension KioskCheckoutDetail {
     var isOverdue: Bool { endsAt < Date() }

@@ -77,34 +77,11 @@ struct KioskStudentHubView: View {
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 16)
-        .background(Color.white.opacity(0.04))
+        .background(KioskSurface.low)
     }
 
-    @ViewBuilder
     private var userAvatar: some View {
-        let placeholder = Circle()
-            .fill(Color.white.opacity(0.12))
-            .frame(width: 44, height: 44)
-            .overlay {
-                Text(user.initials)
-                    .font(.headline.bold())
-                    .foregroundStyle(.white)
-            }
-
-        if let urlString = user.avatarUrl, let url = URL(string: urlString) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                default:
-                    placeholder
-                }
-            }
-            .frame(width: 44, height: 44)
-            .clipShape(Circle())
-        } else {
-            placeholder
-        }
+        KioskAvatar(url: user.avatarUrl, initials: user.initials, size: 44)
     }
 
     // MARK: - Action Panel
@@ -130,7 +107,7 @@ struct KioskStudentHubView: View {
                         title: "Pickup: \(pickup.title)",
                         subtitle: pickupSubtitle(pickup),
                         icon: "tray.and.arrow.down.fill",
-                        color: Color.statusText(.green)
+                        color: Color.statusText(.orange)
                     ) {
                         store.screen = .pickup(bookingId: pickup.id, userId: user.id)
                     }
@@ -143,7 +120,7 @@ struct KioskStudentHubView: View {
                         title: "Return: \(checkout.title)",
                         subtitle: checkoutSubtitle(checkout),
                         icon: "arrow.down.circle.fill",
-                        color: checkout.isOverdue ? Color.statusText(.orange) : Color.statusText(.blue)
+                        color: checkout.isOverdue ? Color.statusText(.red) : Color.statusText(.blue)
                     ) {
                         store.screen = .return(bookingId: checkout.id, userId: user.id)
                     }
@@ -224,30 +201,11 @@ struct KioskStudentHubView: View {
     // MARK: - Error state
 
     private func errorState(message: String) -> some View {
-        VStack(spacing: 14) {
-            Image(systemName: "wifi.exclamationmark")
-                .font(.system(size: 44))
-                .foregroundStyle(.secondary)
-                .accessibilityHidden(true)
-            Text("Couldn't load your information")
-                .font(.headline)
-                .foregroundStyle(.white)
-            Text(message)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-            Button {
-                Task { await loadContext() }
-            } label: {
-                Text("Try again")
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 22)
-                    .padding(.vertical, 10)
-                    .background(Color.kioskRed, in: Capsule())
-            }
-            .buttonStyle(.plain)
+        KioskErrorState(
+            title: "Couldn't load your information",
+            message: message
+        ) {
+            Task { await loadContext() }
         }
     }
 
@@ -300,11 +258,7 @@ private struct ActionButton: View {
                     .accessibilityHidden(true)
             }
             .padding(16)
-            .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 14))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(color.opacity(0.3), lineWidth: 1)
-            )
+            .kioskCard(KioskSurface.card, radius: KioskRadius.lg, stroke: color.opacity(0.3))
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
@@ -344,7 +298,7 @@ private struct StatusCard: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
+        .background(KioskSurface.low, in: RoundedRectangle(cornerRadius: KioskRadius.sm))
         .overlay(alignment: .leading) {
             // Left-edge tone marker — glanceable, doesn't compete with text.
             if let tone {

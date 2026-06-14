@@ -18,7 +18,7 @@ open Wisconsin.xcodeproj
 In Xcode:
 1. Select the `Wisconsin` target → Signing & Capabilities
 2. Set your **Team** to your Apple Developer account
-3. Change **Bundle Identifier** if needed (`com.erikrole.creative`)
+3. Keep the **Bundle Identifier** aligned with the checked-in project (`com.erikrole.Wisconsin`) unless you intentionally want a separate install/keychain identity.
 
 ## Running on device
 

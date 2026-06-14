@@ -96,6 +96,8 @@ Search/SearchResultRow.swift           |                             | exempt-sh
 Kiosk/KioskScannerField.swift          |                             | exempt-shared
 Kiosk/KioskAPIClient.swift             |                             | exempt-infra
 Kiosk/KioskColors.swift                |                             | exempt-infra
+Kiosk/KioskDesign.swift                |                             | exempt-infra
+Kiosk/KioskComponents.swift            |                             | exempt-shared
 Kiosk/KioskModels.swift                |                             | exempt-infra
 Kiosk/KioskStore.swift                 |                             | exempt-infra
 EOF

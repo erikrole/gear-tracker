@@ -53,7 +53,18 @@ struct KioskAPI {
         struct Body: Encodable { let code: String }
         var req = request(path: "/api/kiosk/activate", method: "POST")
         req.httpBody = try JSONEncoder().encode(Body(code: code))
-        return try await perform(req)
+        let result: (KioskActivationResponse, HTTPURLResponse) = try await performWithResponse(req)
+        let response = result.0
+        let http = result.1
+        guard response.sessionToken == nil, let headerToken = kioskSessionToken(from: http) else {
+            return response
+        }
+        return KioskActivationResponse(
+            kioskId: response.kioskId,
+            name: response.name,
+            location: response.location,
+            sessionToken: headerToken
+        )
     }
 
     func kioskHeartbeat() async throws {
@@ -171,6 +182,11 @@ struct KioskAPI {
     }
 
     private func perform<T: Decodable>(_ request: URLRequest) async throws -> T {
+        let result: (T, HTTPURLResponse) = try await performWithResponse(request)
+        return result.0
+    }
+
+    private func performWithResponse<T: Decodable>(_ request: URLRequest) async throws -> (T, HTTPURLResponse) {
         let data: Data
         let response: URLResponse
         do {
@@ -184,7 +200,7 @@ struct KioskAPI {
         switch http.statusCode {
         case 200...299:
             do {
-                return try decoder.decode(T.self, from: data)
+                return (try decoder.decode(T.self, from: data), http)
             } catch {
                 throw APIError.decodingError(error)
             }
@@ -200,6 +216,29 @@ struct KioskAPI {
             let msg = (try? decoder.decode(ErrorBody.self, from: data))?.error ?? "Server error (\(http.statusCode))"
             throw APIError.serverError(msg)
         }
+    }
+
+    private func kioskSessionToken(from response: HTTPURLResponse) -> String? {
+        for (key, value) in response.allHeaderFields {
+            guard String(describing: key).caseInsensitiveCompare("Set-Cookie") == .orderedSame else {
+                continue
+            }
+            let header = String(describing: value)
+            guard let token = cookieValue(named: "kiosk_session", in: header) else {
+                continue
+            }
+            return token
+        }
+        return nil
+    }
+
+    private func cookieValue(named name: String, in header: String) -> String? {
+        let prefix = "\(name)="
+        guard let start = header.range(of: prefix) else { return nil }
+        let valueStart = start.upperBound
+        let valueEnd = header[valueStart...].firstIndex(of: ";") ?? header.endIndex
+        let value = String(header[valueStart..<valueEnd])
+        return value.isEmpty ? nil : value
     }
 }
 

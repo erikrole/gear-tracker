@@ -6,7 +6,7 @@ struct KioskShellView: View {
 
     var body: some View {
         ZStack {
-            Color(red: 11/255, green: 11/255, blue: 13/255).ignoresSafeArea()
+            KioskSurface.base.ignoresSafeArea()
 
             Group {
                 switch store.screen {
@@ -73,12 +73,12 @@ private struct InactivityWarningOverlay: View {
                         .foregroundStyle(.white)
                         .frame(maxWidth: 220)
                         .padding(.vertical, 14)
-                        .background(Color.kioskRed, in: RoundedRectangle(cornerRadius: 14))
+                        .background(Color.kioskRed, in: RoundedRectangle(cornerRadius: KioskRadius.lg))
                 }
                 .buttonStyle(.plain)
             }
             .padding(40)
-            .background(Color(red: 22/255, green: 22/255, blue: 26/255), in: RoundedRectangle(cornerRadius: 20))
+            .background(KioskSurface.modal, in: RoundedRectangle(cornerRadius: KioskRadius.modal))
             .shadow(radius: 30)
         }
     }

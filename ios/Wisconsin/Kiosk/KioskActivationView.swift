@@ -13,7 +13,7 @@ struct KioskActivationView: View {
     var body: some View {
         GeometryReader { proxy in
             ZStack {
-                Color(red: 8/255, green: 8/255, blue: 10/255).ignoresSafeArea()
+                KioskSurface.base.ignoresSafeArea()
                 activationLayout(isCompact: proxy.size.width < 880 || dynamicTypeSize.isAccessibilitySize)
                     .padding(.horizontal, 44)
                     .padding(.vertical, 36)
@@ -66,7 +66,7 @@ struct KioskActivationView: View {
                 .foregroundStyle(Color.kioskRed)
                 .accessibilityHidden(true)
             Text("Gear Room Kiosk")
-                .font(.system(size: 44, weight: .heavy, design: .rounded))
+                .font(.kioskHeroTitle())
                 .foregroundStyle(.white)
                 .lineLimit(2)
                 .minimumScaleFactor(0.75)
@@ -187,7 +187,7 @@ struct KioskActivationView: View {
             }
             .padding(.horizontal, 32)
             .padding(.vertical, 24)
-            .background(Color(red: 22/255, green: 22/255, blue: 26/255), in: RoundedRectangle(cornerRadius: 16))
+            .background(KioskSurface.modal, in: RoundedRectangle(cornerRadius: KioskRadius.xl))
             .shadow(radius: 24)
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Activating kiosk")

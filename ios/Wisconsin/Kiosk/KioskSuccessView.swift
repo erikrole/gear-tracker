@@ -18,7 +18,7 @@ struct KioskSuccessView: View {
                 .accessibilityHidden(true)
 
             Text(message)
-                .font(.title2.bold())
+                .font(.kioskSuccessTitle())
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 48)

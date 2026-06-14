@@ -79,7 +79,7 @@ struct KioskIdleView: View {
                 event: event,
                 capabilities: dashboard?.capabilities ?? KioskDashboard.Capabilities()
             )
-                .presentationDetents([.medium, .large])
+                .presentationDetents([.height(440), .large])
                 .presentationDragIndicator(.visible)
         }
     }
@@ -111,9 +111,9 @@ struct KioskIdleView: View {
             }
         } label: {
             Image(systemName: debugForcesSleepMode ? "moon.zzz.fill" : "moon.zzz")
-                .font(.title3.weight(.bold))
+                .font(.callout.weight(.bold))
                 .foregroundStyle(debugForcesSleepMode ? Color.black : Color.white)
-                .frame(width: 48, height: 48)
+                .frame(width: 40, height: 40)
                 .background(debugForcesSleepMode ? Color.white : Color.white.opacity(0.12), in: Circle())
                 .overlay(
                     Circle()
@@ -121,6 +121,7 @@ struct KioskIdleView: View {
                 )
         }
         .buttonStyle(.plain)
+        .opacity(debugForcesSleepMode ? 1 : 0.45)
         .accessibilityLabel(debugForcesSleepMode ? "Disable debug night mode" : "Enable debug night mode")
     }
     #endif
@@ -229,7 +230,7 @@ struct KioskIdleView: View {
             if let last = lastLoadedAt {
                 Text("Updated \(last.kioskFreshnessLabel(now: Date()))")
                     .font(.caption)
-                    .foregroundStyle(isStale ? Color.statusText(.orange) : Color.white.opacity(0.62))
+                    .foregroundStyle(isStale ? Color.statusText(.orange) : Color.white.opacity(0.48))
                     .monospacedDigit()
             }
         }
@@ -340,7 +341,9 @@ struct KioskIdleView: View {
         switch dashboardOutcome {
         case .success(let value):
             dashboard = value
+            #if DEBUG
             print("[KioskIdleView] dashboard capabilities: workerDetails=\(value.capabilities.eventWorkerDetails), callTimes=\(value.capabilities.eventCallTimes)")
+            #endif
             loadedAnyData = true
         case .failure(let error) where isUnauthorized(error):
             store.deactivate()
@@ -451,6 +454,14 @@ private struct StatTile: View {
                 RoundedRectangle(cornerRadius: 16)
                     .stroke(isSelected ? Color.white.opacity(0.5) : Color.white.opacity(0.14), lineWidth: isSelected ? 2 : 1)
             )
+            .overlay(alignment: .bottom) {
+                if isSelected {
+                    Capsule()
+                        .fill(Color.white.opacity(0.86))
+                        .frame(width: 34, height: 3)
+                        .padding(.bottom, 8)
+                }
+            }
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
@@ -600,24 +611,17 @@ private struct KioskEventSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(title)
-                    .font(.callout.weight(.bold))
-                    .tracking(1.2)
-                    .foregroundStyle(Color.white.opacity(0.74))
-                Spacer()
-                Text("\(events.count)")
-                    .font(.caption.weight(.bold).monospacedDigit())
-                    .foregroundStyle(Color.white.opacity(0.48))
-            }
+            Text(title)
+                .font(.callout.weight(.bold))
+                .tracking(1.2)
+                .foregroundStyle(Color.white.opacity(0.74))
 
             if events.isEmpty {
                 Text("No events")
                     .font(.subheadline.weight(.medium))
-                    .foregroundStyle(Color.white.opacity(0.42))
-                    .frame(maxWidth: .infinity, minHeight: 42, alignment: .leading)
-                    .padding(.horizontal, 12)
-                    .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 12))
+                    .foregroundStyle(Color.white.opacity(0.30))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 2)
             } else {
                 ForEach(events) { event in
                     KioskEventRow(event: event, hasWorkerDetails: hasWorkerDetails) {
@@ -655,9 +659,7 @@ private struct KioskEventRow: View {
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(Color.white.opacity(0.58))
                 } else if event.shiftCount > 0 {
-                    Text("\(event.shiftCount) shift\(event.shiftCount == 1 ? "" : "s")")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Color.white.opacity(0.58))
+                    KioskEventShiftBadge(count: event.shiftCount)
                 }
             }
             .padding(.horizontal, 14)
@@ -738,16 +740,19 @@ private struct KioskEventDetailSheet: View {
 
     var body: some View {
         ZStack {
-            Color(red: 10/255, green: 10/255, blue: 12/255).ignoresSafeArea()
-            VStack(alignment: .leading, spacing: 22) {
+            KioskSurface.base.ignoresSafeArea()
+            VStack(alignment: .leading, spacing: 18) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(eventDayLabel)
-                            .font(.caption.weight(.bold))
-                            .tracking(1.4)
-                            .foregroundStyle(Color.white.opacity(0.55))
+                        HStack(spacing: 10) {
+                            Text(eventDayLabel)
+                                .font(.caption.weight(.bold))
+                                .tracking(1.4)
+                                .foregroundStyle(Color.white.opacity(0.55))
+                            KioskEventShiftBadge(count: event.shiftCount)
+                        }
                         Text(event.title)
-                            .font(.largeTitle.weight(.heavy))
+                            .font(.title.weight(.heavy))
                             .foregroundStyle(.white)
                             .lineLimit(2)
                             .minimumScaleFactor(0.74)
@@ -761,16 +766,25 @@ private struct KioskEventDetailSheet: View {
                         .background(Color.white.opacity(0.12), in: Capsule())
                 }
 
-                HStack(spacing: 12) {
-                    KioskEventFact(label: "Event", value: eventTimeLabel)
-                    KioskEventFact(label: "Call", value: callTimeLabel)
-                    KioskEventFact(label: "Shifts", value: "\(event.shiftCount)")
+                VStack(spacing: 10) {
+                    KioskEventTimeRow(label: "Event", value: eventTimeLabel)
+                    KioskEventTimeRow(label: "Call", value: callTimeLabel)
                 }
 
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Working")
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(.white)
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 8) {
+                        Text("Working")
+                            .font(.title3.weight(.bold))
+                            .foregroundStyle(.white)
+                        if !event.assignedUsers.isEmpty {
+                            Text("\(event.assignedUserCount)")
+                                .font(.caption.weight(.bold).monospacedDigit())
+                                .foregroundStyle(Color.white.opacity(0.58))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.white.opacity(0.08), in: Capsule())
+                        }
+                    }
 
                     if event.assignedUsers.isEmpty {
                         Text(workerEmptyMessage)
@@ -781,12 +795,13 @@ private struct KioskEventDetailSheet: View {
                             .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 14))
                     } else {
                         ScrollView {
-                            LazyVStack(spacing: 10) {
+                            LazyVStack(spacing: 8) {
                                 ForEach(event.assignedUsers) { user in
                                     KioskEventWorkerRow(user: user)
                                 }
                             }
                         }
+                        .scrollIndicators(.hidden)
                     }
                 }
 
@@ -830,22 +845,27 @@ private struct KioskEventDetailSheet: View {
     }
 }
 
-private struct KioskEventFact: View {
+private struct KioskEventTimeRow: View {
     let label: String
     let value: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        HStack(alignment: .firstTextBaseline, spacing: 14) {
             Text(label.uppercased())
                 .font(.caption2.weight(.bold))
                 .tracking(1)
                 .foregroundStyle(Color.white.opacity(0.5))
+                .frame(width: 48, alignment: .leading)
             Text(value)
-                .font(.title3.weight(.bold).monospacedDigit())
+                .font(.title2.weight(.bold).monospacedDigit())
                 .foregroundStyle(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+            Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 13)
         .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
         .overlay(
             RoundedRectangle(cornerRadius: 14)
@@ -854,56 +874,52 @@ private struct KioskEventFact: View {
     }
 }
 
+private struct KioskEventShiftBadge: View {
+    let count: Int
+
+    var body: some View {
+        Text("\(count) shift\(count == 1 ? "" : "s")")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(Color.white.opacity(0.62))
+            .lineLimit(1)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 5)
+            .background(Color.white.opacity(0.08), in: Capsule())
+    }
+}
+
 private struct KioskEventWorkerRow: View {
     let user: KioskEvent.AssignedUser
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             avatar
             VStack(alignment: .leading, spacing: 2) {
                 Text(user.name)
-                    .font(.headline.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.white)
+                    .lineLimit(1)
                 if let detail = workerDetail {
                     Text(detail)
-                        .font(.subheadline.weight(.medium))
+                        .font(.caption.weight(.medium))
                         .foregroundStyle(Color.white.opacity(0.62))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
                 }
             }
             Spacer()
         }
-        .padding(14)
-        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.white.opacity(0.12), lineWidth: 1)
         )
     }
 
-    @ViewBuilder
     private var avatar: some View {
-        if let urlString = user.avatarUrl, let url = URL(string: urlString) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                default:
-                    initials
-                }
-            }
-            .frame(width: 46, height: 46)
-            .clipShape(Circle())
-        } else {
-            initials
-        }
-    }
-
-    private var initials: some View {
-        Text(user.initials)
-            .font(.headline.weight(.bold))
-            .foregroundStyle(.white)
-            .frame(width: 46, height: 46)
-            .background(Color.white.opacity(0.16), in: Circle())
+        KioskAvatar(url: user.avatarUrl, initials: user.initials, size: 38)
     }
 
     private var workerDetail: String? {
@@ -1061,33 +1077,8 @@ private struct UserTile: View {
         .accessibilityHint("Tap to start checkout for \(user.name)")
     }
 
-    @ViewBuilder
     private var avatar: some View {
-        if let urlString = user.avatarUrl, let url = URL(string: urlString) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                default:
-                    initialsCircle
-                }
-            }
-            .frame(width: 42, height: 42)
-            .clipShape(Circle())
-        } else {
-            initialsCircle
-        }
-    }
-
-    private var initialsCircle: some View {
-        Circle()
-            .fill(Color.white.opacity(0.16))
-            .frame(width: 42, height: 42)
-            .overlay {
-                Text(user.initials)
-                    .font(.callout.bold())
-                    .foregroundStyle(.white)
-            }
+        KioskAvatar(url: user.avatarUrl, initials: user.initials, size: 42)
     }
 }
 

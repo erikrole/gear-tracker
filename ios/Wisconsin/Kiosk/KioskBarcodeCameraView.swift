@@ -7,31 +7,10 @@ import AVFoundation
 /// the floor at an event). Reuses Apple's DataScannerViewController; falls
 /// back to a clear permission-needed message when the camera is denied.
 struct KioskBarcodeCameraView: View {
-    /// In-camera scan feedback. Decoupled from the parent's enum so any of
-    /// the kiosk flows (checkout, pickup, return) can pipe its own state in
-    /// via a simple String + Tone pair without coupling types.
-    enum Tone {
-        case success, error, warning
-
-        var color: Color {
-            switch self {
-            case .success: Color.statusText(.green)
-            case .error:   Color.statusText(.red)
-            case .warning: Color.statusText(.orange)
-            }
-        }
-
-        var icon: String {
-            switch self {
-            case .success: "checkmark.circle.fill"
-            case .error:   "xmark.circle.fill"
-            case .warning: "exclamationmark.triangle.fill"
-            }
-        }
-    }
-
+    // Scan feedback uses the shared `KioskBannerTone` so any flow (checkout,
+    // pickup, return) can pipe its own message + tone in without coupling types.
     let feedbackMessage: String?
-    let feedbackTone: Tone?
+    let feedbackTone: KioskBannerTone?
     let onScan: (String) -> Void
     let onCancel: () -> Void
 
@@ -40,7 +19,7 @@ struct KioskBarcodeCameraView: View {
 
     init(
         feedbackMessage: String? = nil,
-        feedbackTone: Tone? = nil,
+        feedbackTone: KioskBannerTone? = nil,
         onScan: @escaping (String) -> Void,
         onCancel: @escaping () -> Void
     ) {
@@ -94,23 +73,9 @@ struct KioskBarcodeCameraView: View {
     @ViewBuilder
     private var feedbackOverlay: some View {
         if let message = feedbackMessage, let tone = feedbackTone {
-            HStack(spacing: 10) {
-                Image(systemName: tone.icon)
-                    .accessibilityHidden(true)
-                Text(message)
-                    .font(.subheadline.weight(.medium))
-            }
-            .foregroundStyle(tone.color)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(tone.color.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(tone.color.opacity(0.4), lineWidth: 1)
-            )
-            .transition(.move(edge: .bottom).combined(with: .opacity))
-            .animation(.spring(response: 0.3), value: feedbackMessage)
-            .accessibilityElement(children: .combine)
+            KioskFeedbackBanner(tone: tone, message: message)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .animation(.spring(response: 0.3), value: feedbackMessage)
         }
     }
 
