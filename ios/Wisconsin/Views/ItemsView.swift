@@ -156,7 +156,6 @@ struct ItemsView: View {
         NavigationStack(path: $navigationPath) {
             VStack(spacing: 0) {
                 itemsControlStrip
-                Divider()
                 Group {
                     if let error = vm.error, vm.assets.isEmpty {
                         ContentUnavailableView {
@@ -170,10 +169,15 @@ struct ItemsView: View {
                     } else if vm.assets.isEmpty && vm.isLoading {
                         List {
                             ForEach(0..<10, id: \.self) { _ in
-                                ItemRowSkeleton().listRowSeparator(.hidden)
+                                ItemRowSkeleton()
+                                    .listRowSeparator(.hidden)
+                                    .listRowBackground(Color.clear)
+                                    .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
                             }
                         }
                         .listStyle(.plain)
+                        .scrollContentBackground(.hidden)
+                        .background(Color(.systemGroupedBackground))
                         .allowsHitTesting(false)
                         .accessibilityHidden(true)  // Don't pollute VO with placeholder shapes during initial load.
                     } else if vm.assets.isEmpty {
@@ -192,9 +196,15 @@ struct ItemsView: View {
                     } else {
                         List {
                             ForEach(vm.assets) { asset in
-                                NavigationLink(value: asset) {
+                                // Hidden NavigationLink behind the card removes the
+                                // default disclosure chevron; the card draws its own.
+                                ZStack {
+                                    NavigationLink(value: asset) { EmptyView() }.opacity(0)
                                     AssetRow(asset: asset)
                                 }
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                                .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
                                 .swipeActions(edge: .leading, allowsFullSwipe: true) {
                                     Button {
                                         Task { await toggleFavorite(asset) }
@@ -254,9 +264,13 @@ struct ItemsView: View {
                                 }
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 8)
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
                             } else if vm.hasMore {
                                 ProgressView()
                                     .frame(maxWidth: .infinity)
+                                    .listRowSeparator(.hidden)
+                                    .listRowBackground(Color.clear)
                                     .task(id: vm.assets.count) { await vm.load() }
                             } else if vm.assets.count > 10 {
                                 Text("End of list")
@@ -265,9 +279,12 @@ struct ItemsView: View {
                                     .frame(maxWidth: .infinity, alignment: .center)
                                     .padding(.vertical, 12)
                                     .listRowSeparator(.hidden)
+                                    .listRowBackground(Color.clear)
                             }
                         }
                         .listStyle(.plain)
+                        .scrollContentBackground(.hidden)
+                        .background(Color(.systemGroupedBackground))
                     }
                 }
             }
@@ -361,7 +378,7 @@ struct ItemsView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
         }
-        .background(.regularMaterial)
+        .background(Color(.systemGroupedBackground))
     }
 }
 
@@ -384,6 +401,10 @@ struct AssetRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
+            // Shared rail atom — same leading accent the Bookings and dashboard
+            // rows use, tinted by the item's status (overdue red, etc.).
+            StatusRail(tone: assetStatusTone(asset))
+
             AssetThumbnail(imageUrl: asset.imageUrl, size: 44)
                 .accessibilityHidden(true)
 
@@ -427,8 +448,22 @@ struct AssetRow: View {
             Spacer()
 
             AssetListBadge(asset: asset)
+
+            Image(systemName: "chevron.right")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.cardSurface)
+        .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
+                .strokeBorder(Color.hairline, lineWidth: 0.5)
+        )
+        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 3)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(rowAccessibilityLabel)
         .accessibilityHint("Double-tap to view item details")
@@ -478,27 +513,28 @@ struct AssetRow: View {
     }
 }
 
+/// Maps an asset's computed status (with overdue override) to a cross-app
+/// `StatusTone`. Shared by the row's leading `StatusRail` and its trailing
+/// badge so both speak the same color.
+func assetStatusTone(_ asset: Asset) -> StatusTone {
+    if asset.computedStatus == .checkedOut, asset.activeBooking?.isOverdue == true {
+        return .red
+    }
+    switch asset.computedStatus {
+    case .available:   return .green
+    case .checkedOut:  return .blue
+    case .pendingPickup: return .orange
+    case .reserved:    return .purple
+    case .maintenance: return .orange
+    case .retired:     return .gray
+    case .unknown:     return .gray
+    }
+}
+
 private struct AssetListBadge: View {
     let asset: Asset
 
-    /// Maps the asset's computed status (with overdue override) to a
-    /// cross-app `StatusTone`. `nil` falls back to a muted gray pairing
-    /// for retired / unknown — consistent with `Color.statusText/.statusBackground`'s
-    /// gray case.
-    private var tone: StatusTone {
-        if asset.computedStatus == .checkedOut, asset.activeBooking?.isOverdue == true {
-            return .red
-        }
-        switch asset.computedStatus {
-        case .available:   return .green
-        case .checkedOut:  return .blue
-        case .pendingPickup: return .orange
-        case .reserved:    return .purple
-        case .maintenance: return .orange
-        case .retired:     return .gray
-        case .unknown:     return .gray
-        }
-    }
+    private var tone: StatusTone { assetStatusTone(asset) }
 
     private var badgeText: String {
         if let name = asset.activeBooking?.requesterName,
