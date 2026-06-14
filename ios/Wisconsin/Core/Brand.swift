@@ -288,7 +288,7 @@ struct FilterChip: View {
             }
             .foregroundStyle(isOn ? Color.statusText(tone) : Color.primary)
             .padding(.horizontal, Brand.Space.md)
-            .padding(.vertical, Brand.Space.xs)
+            .frame(minHeight: 44)
             .background {
                 if isOn {
                     Capsule().fill(Color.statusBackground(tone))
