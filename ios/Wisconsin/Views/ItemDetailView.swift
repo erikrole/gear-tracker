@@ -46,7 +46,7 @@ struct ItemDetailView: View {
                 }
             } else if let asset {
                 ScrollView {
-                    VStack(spacing: 12) {
+                    VStack(spacing: Brand.Space.sm) {
                         if let parent = asset.parentAsset {
                             ParentLinkCard(parent: parent)
                         }
@@ -68,8 +68,8 @@ struct ItemDetailView: View {
                             NotesCard(notes: notes)
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+                    .padding(.horizontal, Brand.Space.md)
+                    .padding(.vertical, Brand.Space.sm)
                 }
                 .background(Color(.systemGroupedBackground))
             }
@@ -413,11 +413,12 @@ private struct ItemHeroCard: View {
                 )
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous)
+                .strokeBorder(Color.hairline, lineWidth: 0.5)
         )
+        .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
     }
 }
 
@@ -475,12 +476,13 @@ private struct ItemDetailsCard: View {
                 }
             }
         }
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .background(Color.cardSurface)
+        .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous)
+                .strokeBorder(Color.hairline, lineWidth: 0.5)
         )
+        .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
     }
 
     @ViewBuilder
@@ -588,19 +590,13 @@ private struct ActiveBookingCard: View {
                         .accessibilityHidden(true)
                 }
                 .padding(12)
-                .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10))
+                .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
             .buttonStyle(.plain)
             .accessibilityElement(children: .combine)
             .accessibilityLabel("\(title): \(booking.title), \(booking.requesterName)")
         }
-        .padding(14)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
-        )
+        .brandCard()
     }
 }
 
@@ -652,20 +648,14 @@ private struct UpcomingReservationsCard: View {
                             StatusBadge(status: res.status, kind: .reservation)
                         }
                         .padding(10)
-                        .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10))
+                        .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                         .accessibilityElement(children: .combine)
                         .accessibilityLabel("Upcoming reservation: \(res.title), \(res.requesterName), starts \(res.startsAt.relativeLabel)")
                     }
                 }
             }
         }
-        .padding(14)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
-        )
+        .brandCard()
     }
 }
 
@@ -707,10 +697,10 @@ private struct ParentLinkCard: View {
             }
             .padding(12)
             .background(Color(.secondarySystemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
+                    .strokeBorder(Color.hairline, lineWidth: 0.5)
             )
         }
         .buttonStyle(.plain)
@@ -766,7 +756,7 @@ private struct AccessoriesCard: View {
                                 .accessibilityHidden(true)
                         }
                         .padding(10)
-                        .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10))
+                        .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                     }
                     .buttonStyle(.plain)
                     .accessibilityElement(children: .combine)
@@ -774,13 +764,7 @@ private struct AccessoriesCard: View {
                 }
             }
         }
-        .padding(14)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
-        )
+        .brandCard()
     }
 }
 
@@ -806,13 +790,7 @@ private struct NotesCard: View {
                 .foregroundStyle(.primary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
-        )
+        .brandCard()
     }
 }
 

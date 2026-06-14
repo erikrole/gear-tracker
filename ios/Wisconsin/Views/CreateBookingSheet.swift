@@ -1623,14 +1623,7 @@ struct FormCard<Content: View>: View {
         VStack(alignment: .leading, spacing: 12) {
             content()
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(Color(.separator).opacity(0.6), lineWidth: 0.5)
-        )
-        .shadow(color: Color.primary.opacity(0.05), radius: 4, x: 0, y: 2)
+        .brandCard()
     }
 }
 

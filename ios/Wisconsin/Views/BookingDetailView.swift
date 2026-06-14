@@ -452,11 +452,11 @@ private struct KioskHandoffCallout: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(12)
+        .padding(Brand.Space.sm)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.statusBackground(tone), in: RoundedRectangle(cornerRadius: 12))
+        .background(Color.statusBackground(tone), in: RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
                 .strokeBorder(Color.statusText(tone).opacity(0.18), lineWidth: 1)
         )
         .accessibilityElement(children: .combine)
