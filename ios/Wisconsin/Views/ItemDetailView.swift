@@ -331,94 +331,127 @@ private struct ItemHeroCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            LinearGradient(
-                stops: [
-                    .init(color: Color.brandPrimary, location: 0),
-                    .init(color: Color.brandPrimary.opacity(0.2), location: 0.4),
-                    .init(color: .clear, location: 0.75),
-                ],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-            .frame(height: 2)
-
-            HStack(alignment: .top, spacing: 14) {
-                AssetThumbnail(imageUrl: asset.imageUrl, size: 80)
-                    .padding(.top, 2)
-
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(heroTitle)
-                        .font(.title2.weight(.heavy))
-                        .tracking(-0.4)
-                        .lineLimit(2)
-
-                    if let sub = subtitle {
-                        Text(sub)
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-
-                    AssetStatusBadge(status: asset.computedStatus)
-                        .padding(.top, 3)
-
-                    // "Can I grab this right now?" — one-line answer that
-                    // mirrors the at-a-glance info the item list already gives.
-                    if let snapshot = availabilitySnapshot(for: asset) {
-                        Text(snapshot)
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                            .padding(.top, 2)
-                    }
-
-                    // QR sticker code — mirrors the small QR chip web shows
-                    // in the item header. Tap copies the value so staff
-                    // can paste into the kiosk or a relink form.
-                    if let qr = asset.qrCodeValue, !qr.isEmpty {
-                        Button {
-                            onCopyQR(qr)
-                        } label: {
-                            HStack(spacing: 5) {
-                                Image(systemName: "qrcode")
-                                    .font(.caption2.weight(.semibold))
-                                Text(qr)
-                                    .font(.system(.caption2, design: .monospaced))
-                                Image(systemName: "doc.on.doc")
-                                    .font(.caption2)
-                                    .foregroundStyle(.tertiary)
-                            }
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Color(.tertiarySystemFill), in: Capsule())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("QR code \(qr), tap to copy")
-                        .padding(.top, 2)
-                    }
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(16)
+            banner
+            infoBlock
         }
-        .background {
-            ZStack(alignment: .topLeading) {
-                Color(.secondarySystemGroupedBackground)
-                RadialGradient(
-                    colors: [Color.brandPrimary.opacity(0.06), .clear],
-                    center: .topLeading,
-                    startRadius: 0,
-                    endRadius: 220
-                )
-            }
-        }
+        .background(Color.cardSurface)
         .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous)
                 .strokeBorder(Color.hairline, lineWidth: 0.5)
         )
-        .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
+        .shadow(color: Color.black.opacity(0.07), radius: 12, x: 0, y: 5)
+    }
+
+    // MARK: Banner
+
+    private var banner: some View {
+        ZStack(alignment: .topTrailing) {
+            bannerImage
+                .frame(maxWidth: .infinity)
+                .frame(height: 200)
+                .clipped()
+                .overlay(alignment: .bottom) {
+                    // Bottom scrim so a floating chip / bright image edge reads cleanly.
+                    LinearGradient(
+                        colors: [.clear, Color.black.opacity(0.18)],
+                        startPoint: .center,
+                        endPoint: .bottom
+                    )
+                    .allowsHitTesting(false)
+                }
+
+            AssetStatusBadge(status: asset.computedStatus)
+                .padding(6)
+                .background(.ultraThinMaterial, in: Capsule())
+                .padding(12)
+                .shadow(color: .black.opacity(0.15), radius: 4, y: 1)
+        }
+    }
+
+    @ViewBuilder
+    private var bannerImage: some View {
+        if let urlString = asset.imageUrl, let url = URL(string: urlString) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().scaledToFill()
+                case .empty:
+                    ZStack { bannerPlaceholder; ProgressView() }
+                default:
+                    bannerPlaceholder
+                }
+            }
+        } else {
+            bannerPlaceholder
+        }
+    }
+
+    private var bannerPlaceholder: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color.brandPrimary.opacity(0.20), Color.brandPrimary.opacity(0.04)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            Image(systemName: "shippingbox.fill")
+                .font(.system(size: 52))
+                .foregroundStyle(Color.brandPrimary.opacity(0.35))
+        }
+        .accessibilityHidden(true)
+    }
+
+    // MARK: Info
+
+    private var infoBlock: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(heroTitle)
+                .font(.gothamBlack(size: 26))
+                .tracking(-0.3)
+                .lineLimit(2)
+
+            if let sub = subtitle {
+                Text(sub)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+
+            // "Can I grab this right now?" — one-line availability answer.
+            if let snapshot = availabilitySnapshot(for: asset) {
+                Text(snapshot)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .padding(.top, 2)
+            }
+
+            // QR sticker code — tap copies the value for the kiosk / relink form.
+            if let qr = asset.qrCodeValue, !qr.isEmpty {
+                Button {
+                    onCopyQR(qr)
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "qrcode")
+                            .font(.caption2.weight(.semibold))
+                        Text(qr)
+                            .font(.system(.caption2, design: .monospaced))
+                        Image(systemName: "doc.on.doc")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color(.tertiarySystemFill), in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("QR code \(qr), tap to copy")
+                .padding(.top, 2)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
     }
 }
 

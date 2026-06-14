@@ -101,6 +101,7 @@ struct HomeView: View {
     @ViewBuilder private func dashboardScrollView(_ dash: DashboardData) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Brand.Space.lg) {
+                DashboardHero(name: session.currentUser?.name ?? "")
                 if vm.error != nil {
                     RefreshFailurePill(message: vm.error ?? "")
                 }
@@ -164,7 +165,8 @@ struct HomeView: View {
         NavigationStack(path: $navigationPath) {
             mainContent
                 .background(Color(.systemGroupedBackground).ignoresSafeArea())
-                .navigationTitle("Home")
+                .navigationTitle("")
+                .navigationBarTitleDisplayMode(.inline)
                 .overlay(alignment: .bottomTrailing) {
                     Button {
                         showCreate = true
@@ -282,6 +284,47 @@ struct HomeView: View {
     }
 }
 
+// MARK: - Dashboard Hero
+
+private struct DashboardHero: View {
+    let name: String
+
+    private var firstName: String {
+        name.split(separator: " ").first.map(String.init) ?? ""
+    }
+
+    private var greeting: String {
+        switch Calendar.current.component(.hour, from: .now) {
+        case 5..<12:  return "Good morning"
+        case 12..<17: return "Good afternoon"
+        case 17..<22: return "Good evening"
+        default:      return "Hello"
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .tracking(0.6)
+            Text(firstName.isEmpty ? greeting : "\(greeting),")
+                .font(.gothamBlack(size: 30))
+                .foregroundStyle(.primary)
+            if !firstName.isEmpty {
+                Text(firstName)
+                    .font(.gothamBlack(size: 30))
+                    .foregroundStyle(Color.brandPrimary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, Brand.Space.xs)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(firstName.isEmpty ? greeting : "\(greeting), \(firstName)")
+    }
+}
+
 // MARK: - Stat Strip
 
 private struct StatStrip: View {
@@ -292,17 +335,22 @@ private struct StatStrip: View {
     let openBookings: () -> Void
     let openSchedule: () -> Void
 
+    private let columns = [
+        GridItem(.flexible(), spacing: Brand.Space.sm),
+        GridItem(.flexible(), spacing: Brand.Space.sm),
+    ]
+
     var body: some View {
-        VStack(alignment: .trailing, spacing: 6) {
-            HStack(spacing: 8) {
-                StatCell(value: stats.overdue, label: "Overdue",
-                         tone: stats.overdue > 0 ? .red : nil, onTap: openBookings)
-                StatCell(value: stats.dueToday, label: "Due Today",
-                         tone: stats.dueToday > 0 ? .orange : nil, onTap: openBookings)
-                StatCell(value: pendingPickupCount, label: pendingPickupCount == 1 ? "Pickup" : "Pickups",
-                         tone: pendingPickupCount > 0 ? .green : nil, onTap: openBookings)
-                StatCell(value: shiftCount, label: shiftCount == 1 ? "Shift" : "Shifts",
-                         tone: shiftCount > 0 ? .blue : nil, onTap: openSchedule)
+        VStack(alignment: .trailing, spacing: Brand.Space.sm) {
+            LazyVGrid(columns: columns, spacing: Brand.Space.sm) {
+                StatCard(value: stats.overdue, label: "Overdue", systemImage: "exclamationmark.triangle.fill",
+                         tone: .red, onTap: openBookings)
+                StatCard(value: stats.dueToday, label: "Due Today", systemImage: "clock.fill",
+                         tone: .orange, onTap: openBookings)
+                StatCard(value: pendingPickupCount, label: pendingPickupCount == 1 ? "Pickup" : "Pickups", systemImage: "shippingbox.fill",
+                         tone: .green, onTap: openBookings)
+                StatCard(value: shiftCount, label: shiftCount == 1 ? "Shift" : "Shifts", systemImage: "calendar",
+                         tone: .blue, onTap: openSchedule)
             }
             if let lastLoadedAt {
                 HStack(spacing: 4) {
@@ -320,37 +368,53 @@ private struct StatStrip: View {
     }
 }
 
-private struct StatCell: View {
+private struct StatCard: View {
     let value: Int
     let label: String
-    let tone: StatusTone?
+    let systemImage: String
+    let tone: StatusTone
     let onTap: () -> Void
     @State private var hapticTrigger = false
+
+    private var active: Bool { value > 0 }
 
     var body: some View {
         Button(action: {
             hapticTrigger.toggle()
             onTap()
         }) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("\(value)")
-                    .font(.title3.weight(.bold))
-                    .monospacedDigit()
-                    .foregroundStyle(tone.map { Color.statusText($0) } ?? Color.primary)
-                    .contentTransition(.numericText())
-                Text(label)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+            HStack(spacing: Brand.Space.sm) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: Brand.Radius.sm, style: .continuous)
+                        .fill(active ? Color.statusBackground(tone) : Color.secondary.opacity(0.12))
+                    Image(systemName: systemImage)
+                        .font(.headline)
+                        .foregroundStyle(active ? Color.statusText(tone) : Color.secondary)
+                }
+                .frame(width: 46, height: 46)
+
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("\(value)")
+                        .font(.system(size: 30, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(active ? Color.statusText(tone) : Color.primary)
+                        .contentTransition(.numericText())
+                    Text(label)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+                Spacer(minLength: 0)
             }
-            .padding(Brand.Space.sm)
+            .padding(Brand.Space.md)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
+            .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
-                    .strokeBorder(Color.hairline, lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous)
+                    .strokeBorder(active ? Color.statusText(tone).opacity(0.25) : Color.hairline, lineWidth: active ? 1 : 0.5)
             )
+            .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
         }
         .buttonStyle(.plain)
         .sensoryFeedback(.selection, trigger: hapticTrigger)
@@ -360,16 +424,25 @@ private struct StatCell: View {
 }
 
 private struct StatStripSkeleton: View {
+    private let columns = [
+        GridItem(.flexible(), spacing: Brand.Space.sm),
+        GridItem(.flexible(), spacing: Brand.Space.sm),
+    ]
+
     var body: some View {
-        HStack(spacing: 8) {
+        LazyVGrid(columns: columns, spacing: Brand.Space.sm) {
             ForEach(0..<4, id: \.self) { _ in
-                VStack(alignment: .leading, spacing: 6) {
-                    Skeleton().frame(width: 32, height: 24)
-                    Skeleton().frame(width: 50, height: 10)
+                HStack(spacing: Brand.Space.sm) {
+                    Skeleton(cornerRadius: Brand.Radius.sm).frame(width: 46, height: 46)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Skeleton().frame(width: 44, height: 26)
+                        Skeleton().frame(width: 60, height: 10)
+                    }
+                    Spacer(minLength: 0)
                 }
-                .padding(Brand.Space.sm)
+                .padding(Brand.Space.md)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
+                .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous))
             }
         }
         .accessibilityHidden(true)  // Don't pollute VO with placeholder shapes during initial load.
