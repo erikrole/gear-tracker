@@ -212,15 +212,6 @@ struct BookingsView: View {
                     }
                 } else {
                     List {
-                        if let stamp = vm.lastLoadedAt?.freshnessLabel {
-                            Text(stamp)
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                                .listRowSeparator(.hidden)
-                                .listRowBackground(Color.clear)
-                                .padding(.top, 2)
-                        }
                         ForEach(vm.bookings) { booking in
                             // Hidden NavigationLink behind the card removes the
                             // default List disclosure chevron; the card draws its
@@ -392,6 +383,12 @@ struct BookingRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
+            // Rounded accent rail, inset top/bottom — matches the Next Up rows
+            // on the dashboard instead of a hard edge clipped by the corners.
+            RoundedRectangle(cornerRadius: 2)
+                .fill(Color.statusText(accentTone))
+                .frame(width: 4)
+                .accessibilityHidden(true)
             UserAvatarView(name: booking.requester.name, avatarUrl: booking.requester.avatarUrl, size: 40)
             VStack(alignment: .leading, spacing: 5) {
                 HStack(alignment: .firstTextBaseline) {
@@ -436,12 +433,6 @@ struct BookingRow: View {
         .padding(.horizontal, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.cardSurface)
-        .overlay(alignment: .leading) {
-            Rectangle()
-                .fill(Color.statusText(accentTone))
-                .frame(width: 4)
-                .accessibilityHidden(true)
-        }
         .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
