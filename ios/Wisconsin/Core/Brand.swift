@@ -145,3 +145,203 @@ extension Color {
         }
     }
 }
+
+// MARK: - Design system foundation
+//
+// A small, consistent layout vocabulary so screens share the same rhythm and
+// card treatment instead of re-deriving padding/radius per view. Pairs with the
+// native iOS 26 Liquid Glass controls (`.buttonStyle(.glass/.glassProminent)`,
+// material-backed floating controls) the app already uses.
+
+/// Layout tokens — use instead of raw point literals so spacing stays in step.
+enum Brand {
+    /// Spacing scale (points). `md` is the default gutter.
+    enum Space {
+        static let xs: CGFloat = 6
+        static let sm: CGFloat = 10
+        static let md: CGFloat = 14
+        static let lg: CGFloat = 20
+        static let xl: CGFloat = 28
+        static let xxl: CGFloat = 40
+    }
+
+    /// Corner-radius scale. `card` is the default container radius.
+    enum Radius {
+        static let sm: CGFloat = 12
+        static let md: CGFloat = 16
+        static let card: CGFloat = 20
+        static let lg: CGFloat = 26
+    }
+}
+
+extension Color {
+    /// Standard elevated card surface — adapts to light/dark and reads correctly
+    /// on a grouped background.
+    static let cardSurface = Color(.secondarySystemGroupedBackground)
+
+    /// A slightly raised surface for nested tiles inside a card.
+    static let cardSurfaceRaised = Color(.tertiarySystemGroupedBackground)
+
+    /// Hairline stroke tuned for card and divider edges.
+    static let hairline = Color(.separator).opacity(0.5)
+}
+
+// MARK: - Card surface
+
+private struct BrandCardModifier: ViewModifier {
+    var padding: CGFloat
+    var radius: CGFloat
+    var fill: Color
+    var stroke: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .padding(padding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(fill, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .overlay {
+                if stroke {
+                    RoundedRectangle(cornerRadius: radius, style: .continuous)
+                        .strokeBorder(Color.hairline, lineWidth: 0.5)
+                }
+            }
+            .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
+    }
+}
+
+extension View {
+    /// Wraps content in the app's standard card: continuous radius, hairline
+    /// edge, and a soft shadow. One source of truth for every card surface.
+    func brandCard(
+        padding: CGFloat = Brand.Space.md,
+        radius: CGFloat = Brand.Radius.card,
+        fill: Color = .cardSurface,
+        stroke: Bool = true
+    ) -> some View {
+        modifier(BrandCardModifier(padding: padding, radius: radius, fill: fill, stroke: stroke))
+    }
+}
+
+// MARK: - Section header
+
+/// Consistent section header used above grouped card stacks. Optional subtitle,
+/// leading SF Symbol, and a trailing accessory (e.g. a "See all" button).
+struct SectionHeader<Trailing: View>: View {
+    let title: String
+    var subtitle: String? = nil
+    var systemImage: String? = nil
+    @ViewBuilder var trailing: () -> Trailing
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: Brand.Space.sm) {
+            if let systemImage {
+                Image(systemName: systemImage)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.brandPrimary)
+                    .accessibilityHidden(true)
+            }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                if let subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer(minLength: Brand.Space.sm)
+            trailing()
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+extension SectionHeader where Trailing == EmptyView {
+    init(_ title: String, subtitle: String? = nil, systemImage: String? = nil) {
+        self.init(title: title, subtitle: subtitle, systemImage: systemImage, trailing: { EmptyView() })
+    }
+}
+
+// MARK: - Filter chip
+
+/// A selectable pill used for filter/scope strips. Replaces the ad-hoc
+/// `.background(.regularMaterial, in: Capsule())` chips scattered across views.
+struct FilterChip: View {
+    let label: String
+    var systemImage: String? = nil
+    var isOn: Bool
+    var tone: StatusTone = .blue
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                if let systemImage {
+                    Image(systemName: systemImage)
+                        .font(.caption.weight(.semibold))
+                }
+                Text(label)
+                    .font(.subheadline.weight(.medium))
+            }
+            .foregroundStyle(isOn ? Color.statusText(tone) : Color.primary)
+            .padding(.horizontal, Brand.Space.md)
+            .padding(.vertical, Brand.Space.xs)
+            .background {
+                if isOn {
+                    Capsule().fill(Color.statusBackground(tone))
+                    Capsule().strokeBorder(Color.statusText(tone).opacity(0.35), lineWidth: 1)
+                } else {
+                    Capsule().fill(.regularMaterial)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isOn ? [.isButton, .isSelected] : .isButton)
+    }
+}
+
+// MARK: - Stat tile
+
+/// Compact metric tile used on Home and Settings. Tappable when `action` is set.
+struct StatTile: View {
+    let value: String
+    let label: String
+    var systemImage: String? = nil
+    var tone: StatusTone = .gray
+    var action: (() -> Void)? = nil
+
+    var body: some View {
+        if let action {
+            Button(action: action) { content }
+                .buttonStyle(.plain)
+        } else {
+            content
+        }
+    }
+
+    private var content: some View {
+        VStack(alignment: .leading, spacing: Brand.Space.xs) {
+            HStack(spacing: 6) {
+                if let systemImage {
+                    Image(systemName: systemImage)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Color.statusText(tone))
+                }
+                Spacer(minLength: 0)
+            }
+            Text(value)
+                .font(.title2.weight(.bold))
+                .foregroundStyle(tone == .gray ? Color.primary : Color.statusText(tone))
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+            Text(label)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .brandCard(padding: Brand.Space.md, fill: .cardSurface)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(value) \(label)")
+    }
+}
