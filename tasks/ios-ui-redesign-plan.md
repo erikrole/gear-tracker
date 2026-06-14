@@ -28,5 +28,25 @@
 6. ProfileView/Settings + LoginView polish.
 7. Docs + lessons sync.
 
-## Review
-(filled in on completion)
+## Review (2026-06-14)
+
+**Shipped:**
+- Foundation in `Brand.swift`: `Brand.Space`/`Brand.Radius`, `.brandCard()`, `cardSurface`/`cardSurfaceRaised`/`hairline`, `SectionHeader`, `FilterChip`.
+- HomeView: full redesign on the card system (grouped bg, elevated cards, section headers, glass FAB, continuous corners).
+- ItemDetailView: cards → `brandCard()` / continuous corners + spacing scale.
+- Shared `FormCard` routed through `brandCard()` → propagates to BookingDetailView, EditAssetSheet, CreateBookingSheet.
+- ScheduleView: scope chips → shared `FilterChip`.
+- LoginView: continuous squircle corners on fields + card.
+- CreateBookingSheet review cards: continuous corners + tokens.
+- Docs: `IOS_PATTERNS.md` "Layout & cards" section; `AREA_MOBILE.md` change log; `lessons.md`.
+
+**Decisions:**
+- Dropped speculative `StatTile` (no non-regressing adoption site).
+- Left BookingsView / ItemsView lists largely as-is — already clean native plain lists; the design-system wins there are the shared row/card primitives they already use.
+- AppTabView Settings already used continuous corners — no change needed.
+
+**Not done / deferred (needs the user's Xcode pass first):**
+- Compile + simulator verification (no Swift toolchain in the web container).
+- UsersView/UserDetailView and the smaller sheets (EventDetailSheet, ExtendBookingSheet, NotificationsSheet) — mostly Form/List or already use the now-modernized `FormCard`; revisit after a visual pass on device.
+
+**CI note:** the `validate` check fails on `prisma generate` (`Missing DIRECT_URL`) for every PR — pre-existing infra, unrelated to this iOS-only diff.

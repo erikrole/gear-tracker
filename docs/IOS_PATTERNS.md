@@ -39,6 +39,39 @@ Image(systemName: "exclamationmark.triangle.fill")
 
 ---
 
+## Layout & cards → shared design-system vocabulary
+
+**Pattern.** Use the layout tokens and shared surfaces in `Core/Brand.swift` instead of re-deriving padding, radius, and card chrome per view. Added in the **2026-06-14 Liquid Glass UI pass**.
+
+| Token / API        | Use for                                                            |
+| ------------------ | ----------------------------------------------------------------- |
+| `Brand.Space.*`    | Spacing scale: `xs 6 / sm 10 / md 14 / lg 20 / xl 28 / xxl 40`. `md` is the default content gutter. |
+| `Brand.Radius.*`   | Radius scale: `sm 12 / md 16 / card 20 / lg 26`. `card` is the default container radius. |
+| `.brandCard()`     | The one card surface — continuous radius, hairline edge, soft shadow. Replaces per-view `.background(systemBackground, in: RoundedRectangle).overlay(stroke)`. Params: `padding`, `radius`, `fill`, `stroke`, `alignment`. |
+| `Color.cardSurface` / `.cardSurfaceRaised` | Elevated card fill (and a raised fill for nested tiles inside a card). |
+| `Color.hairline`   | Hairline stroke for card/divider edges (replaces `Color(.separator).opacity(0.5)`). |
+| `SectionHeader`    | Section title + optional subtitle / SF Symbol / trailing accessory above a stack of cards. |
+| `FilterChip`       | Selectable pill for filter/scope strips — Liquid Glass material when off, tinted fill when on. |
+
+**Native Liquid Glass.** Lean on the platform: `.buttonStyle(.glassProminent)` for primary CTAs and FABs, `.buttonStyle(.glass)` for secondary actions, and material-backed (`.regularMaterial` / `.ultraThinMaterial`) floating controls. Use **continuous** corners (`RoundedRectangle(cornerRadius:style: .continuous)`) everywhere for the modern squircle look.
+
+**Full-bleed vs padded cards.** Cards whose rows draw edge-to-edge dividers (item details rows, review lists) keep their own `.background(Color.cardSurface, in:).overlay(hairline)` with continuous corners — don't wrap them in `.brandCard()`, which adds interior padding and would inset the dividers.
+
+**Anti-pattern.** New ad-hoc `.background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color(.separator).opacity(0.5)))` card chrome. Use `.brandCard()` (padded) or the `cardSurface` + `hairline` + continuous-corner trio (full-bleed).
+
+```swift
+// ✅ Padded card
+VStack(spacing: Brand.Space.sm) { … }
+    .brandCard()
+
+// ✅ Section header above a card stack
+SectionHeader("Next Up", subtitle: "Upcoming pickups, reservations, shifts.")
+```
+
+> **Tab shell caveat (still in force).** Do not migrate `AppTabView` to the value-based `Tab(...)` API. `TabView` + `.tabItem`/`.tag` is the locked-in path — see `tasks/lessons.md` "UI Reliability".
+
+---
+
 ## Haptics → centralized enum, not UIKit generators
 
 **Pattern.** Use `Haptics.success() / .error() / .warning() / .selection() / .tap()` from `Core/Haptics.swift`.
