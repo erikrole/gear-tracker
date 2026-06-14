@@ -318,6 +318,7 @@ struct EditAssetSheet: View {
 private struct ItemHeroCard: View {
     let asset: AssetDetail
     let onCopyQR: (String) -> Void
+    @State private var showZoom = false
 
     // Primary identifier: assetTag if set, else brand+model
     private var heroTitle: String {
@@ -344,6 +345,11 @@ private struct ItemHeroCard: View {
                 .strokeBorder(Color.hairline, lineWidth: 0.5)
         )
         .shadow(color: Color.black.opacity(0.07), radius: 12, x: 0, y: 5)
+        .fullScreenCover(isPresented: $showZoom) {
+            if let urlString = asset.imageUrl, let url = URL(string: urlString) {
+                ZoomableImageViewer(url: url)
+            }
+        }
     }
 
     // MARK: Banner
@@ -364,6 +370,10 @@ private struct ItemHeroCard: View {
             .frame(maxWidth: .infinity)
             .frame(height: 200)
             .clipped()
+            .contentShape(Rectangle())
+            // Tap a real photo to inspect cosmetic condition full-screen;
+            // mirrors the scan result hero. Placeholders aren't tappable.
+            .onTapGesture { if asset.imageUrl != nil { showZoom = true } }
 
             // The badge carries its own tinted capsule; on the white hero
             // that's contrast enough, so no extra material wrapper — just a
@@ -650,6 +660,26 @@ private struct UpcomingReservationsCard: View {
     let reservations: [UpcomingReservation]
 
     var body: some View {
+        // Empty is the common case; collapse to a single quiet line instead
+        // of a full header-plus-body card that eats vertical space.
+        if reservations.isEmpty {
+            HStack(spacing: 8) {
+                Image(systemName: "calendar")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                Text("No upcoming reservations")
+                    .font(.subheadline)
+                    .foregroundStyle(.tertiary)
+                Spacer(minLength: 0)
+            }
+            .brandCard(padding: Brand.Space.sm)
+            .accessibilityElement(children: .combine)
+        } else {
+            populated
+        }
+    }
+
+    private var populated: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 Image(systemName: "calendar")
@@ -662,14 +692,7 @@ private struct UpcomingReservationsCard: View {
                     .tracking(0.04)
             }
 
-            if reservations.isEmpty {
-                Text("No upcoming reservations")
-                    .font(.subheadline)
-                    .foregroundStyle(.tertiary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 4)
-            } else {
-                VStack(spacing: 6) {
+            VStack(spacing: 6) {
                     ForEach(reservations) { res in
                         HStack(spacing: 10) {
                             VStack(alignment: .leading, spacing: 2) {
@@ -697,7 +720,6 @@ private struct UpcomingReservationsCard: View {
                         .accessibilityLabel("Upcoming reservation: \(res.title), \(res.requesterName), starts \(res.startsAt.relativeLabel)")
                     }
                 }
-            }
         }
         .brandCard()
     }

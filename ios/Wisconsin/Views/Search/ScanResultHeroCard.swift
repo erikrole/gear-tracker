@@ -269,7 +269,7 @@ private struct ScanHeroImage: View {
         }
         .fullScreenCover(isPresented: $showZoom) {
             if let imageUrl, let url = URL(string: imageUrl) {
-                ScanHeroImageViewer(url: url)
+                ZoomableImageViewer(url: url)
             }
         }
     }
@@ -278,65 +278,6 @@ private struct ScanHeroImage: View {
         Image(systemName: placeholderIcon)
             .font(.system(size: 44))
             .foregroundStyle(Color(.systemGray3))
-    }
-}
-
-/// Full-screen pinch-to-zoom photo viewer for the hero image — for checking
-/// cosmetic condition without squinting at a 180pt tile.
-private struct ScanHeroImageViewer: View {
-    let url: URL
-    @Environment(\.dismiss) private var dismiss
-    @State private var scale: CGFloat = 1
-    @GestureState private var pinch: CGFloat = 1
-
-    var body: some View {
-        ZStack(alignment: .topTrailing) {
-            Color.black
-                .ignoresSafeArea()
-                .onTapGesture { dismiss() }
-
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .scaledToFit()
-                        .scaleEffect(min(max(scale * pinch, 1), 5))
-                        .gesture(
-                            MagnificationGesture()
-                                .updating($pinch) { value, state, _ in state = value }
-                                .onEnded { value in
-                                    scale = min(max(scale * value, 1), 5)
-                                }
-                        )
-                        .onTapGesture(count: 2) {
-                            withAnimation(.spring(duration: 0.3)) {
-                                scale = scale > 1 ? 1 : 2.5
-                            }
-                        }
-                case .failure:
-                    Image(systemName: "photo.badge.exclamationmark")
-                        .font(.system(size: 44))
-                        .foregroundStyle(.secondary)
-                default:
-                    ProgressView().tint(.white)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 38, height: 38)
-                    .background(.ultraThinMaterial, in: Circle())
-            }
-            .accessibilityLabel("Close photo")
-            .padding(.trailing, 20)
-            .padding(.top, 8)
-        }
     }
 }
 

@@ -111,6 +111,10 @@ struct HomeView: View {
                     shiftCount: dash.myEventWork.count,
                     lastLoadedAt: vm.lastLoadedAt,
                     openBookings: { appState.selectedTab = 1 },
+                    openCheckouts: {
+                        appState.pendingBookingsTab = BookingTab.checkouts.rawValue
+                        appState.selectedTab = 1
+                    },
                     openSchedule: { appState.selectedTab = 4 }
                 )
                 if HomeActionQueue.hasActions(in: dash, currentUserId: session.currentUser?.id) {
@@ -332,6 +336,7 @@ private struct StatStrip: View {
     let shiftCount: Int
     let lastLoadedAt: Date?
     let openBookings: () -> Void
+    let openCheckouts: () -> Void
     let openSchedule: () -> Void
 
     private let columns = [
@@ -342,10 +347,11 @@ private struct StatStrip: View {
     var body: some View {
         VStack(alignment: .trailing, spacing: Brand.Space.sm) {
             LazyVGrid(columns: columns, spacing: Brand.Space.sm) {
+                // Overdue / Due Today are checkout concepts — land on Checkouts.
                 StatCard(value: stats.overdue, label: "Overdue", systemImage: "exclamationmark.triangle.fill",
-                         tone: .red, onTap: openBookings)
+                         tone: .red, onTap: openCheckouts)
                 StatCard(value: stats.dueToday, label: "Due Today", systemImage: "clock.fill",
-                         tone: .orange, onTap: openBookings)
+                         tone: .orange, onTap: openCheckouts)
                 StatCard(value: pendingPickupCount, label: pendingPickupCount == 1 ? "Pickup" : "Pickups", systemImage: "shippingbox.fill",
                          tone: .green, onTap: openBookings)
                 StatCard(value: shiftCount, label: shiftCount == 1 ? "Shift" : "Shifts", systemImage: "calendar",

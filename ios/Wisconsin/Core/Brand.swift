@@ -265,6 +265,69 @@ extension BrandSectionHeader where Trailing == EmptyView {
     }
 }
 
+// MARK: - Zoomable image viewer
+
+/// Full-screen pinch/double-tap photo viewer shared by every hero image
+/// (scan result sheet, item detail). Lets staff check cosmetic condition
+/// without squinting at a small tile. Tap the backdrop or the close button
+/// to dismiss.
+struct ZoomableImageViewer: View {
+    let url: URL
+    @Environment(\.dismiss) private var dismiss
+    @State private var scale: CGFloat = 1
+    @GestureState private var pinch: CGFloat = 1
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black
+                .ignoresSafeArea()
+                .onTapGesture { dismiss() }
+
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFit()
+                        .scaleEffect(min(max(scale * pinch, 1), 5))
+                        .gesture(
+                            MagnificationGesture()
+                                .updating($pinch) { value, state, _ in state = value }
+                                .onEnded { value in
+                                    scale = min(max(scale * value, 1), 5)
+                                }
+                        )
+                        .onTapGesture(count: 2) {
+                            withAnimation(.spring(duration: 0.3)) {
+                                scale = scale > 1 ? 1 : 2.5
+                            }
+                        }
+                case .failure:
+                    Image(systemName: "photo.badge.exclamationmark")
+                        .font(.system(size: 44))
+                        .foregroundStyle(.secondary)
+                default:
+                    ProgressView().tint(.white)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 38, height: 38)
+                    .background(.ultraThinMaterial, in: Circle())
+            }
+            .accessibilityLabel("Close photo")
+            .padding(.trailing, 20)
+            .padding(.top, 8)
+        }
+    }
+}
+
 // MARK: - Filter chip
 
 /// A selectable pill used for filter/scope strips. Replaces the ad-hoc
