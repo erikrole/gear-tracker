@@ -159,14 +159,17 @@ private struct ReserveButton: View {
     let action: () -> Void
 
     var body: some View {
+        // Matches the scan hero sheet's primary action: solid black
+        // prominent button, so "reserve" reads the same everywhere.
         Button(action: action) {
             Label("Reserve Equipment", systemImage: "calendar.badge.plus")
                 .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color(.systemBackground))
                 .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.glass)
+        .buttonStyle(.borderedProminent)
         .controlSize(.large)
-        .tint(Color.statusText(.purple))
+        .tint(Color(.label))
         .accessibilityLabel("Reserve Equipment")
     }
 }
@@ -347,25 +350,27 @@ private struct ItemHeroCard: View {
 
     private var banner: some View {
         ZStack(alignment: .topTrailing) {
-            bannerImage
-                .frame(maxWidth: .infinity)
-                .frame(height: 200)
-                .clipped()
-                .overlay(alignment: .bottom) {
-                    // Bottom scrim so a floating chip / bright image edge reads cleanly.
-                    LinearGradient(
-                        colors: [.clear, Color.black.opacity(0.18)],
-                        startPoint: .center,
-                        endPoint: .bottom
-                    )
-                    .allowsHitTesting(false)
+            // Full white when a photo exists: inventory shots are catalog
+            // images on white, so the frame disappears into the image instead
+            // of letterboxing it. Placeholders keep the brand-tinted gradient.
+            Group {
+                if asset.imageUrl != nil {
+                    Color.white
+                } else {
+                    Color.clear
                 }
+            }
+            .overlay { bannerImage }
+            .frame(maxWidth: .infinity)
+            .frame(height: 200)
+            .clipped()
 
+            // The badge carries its own tinted capsule; on the white hero
+            // that's contrast enough, so no extra material wrapper — just a
+            // soft shadow to lift it off the image.
             AssetStatusBadge(status: asset.computedStatus)
-                .padding(6)
-                .background(.ultraThinMaterial, in: Capsule())
+                .shadow(color: .black.opacity(0.12), radius: 4, y: 1)
                 .padding(12)
-                .shadow(color: .black.opacity(0.15), radius: 4, y: 1)
         }
     }
 
@@ -375,7 +380,8 @@ private struct ItemHeroCard: View {
             AsyncImage(url: url) { phase in
                 switch phase {
                 case .success(let image):
-                    image.resizable().scaledToFill()
+                    // Fit, not fill: catalog product shots get cropped by fill.
+                    image.resizable().scaledToFit().padding(16)
                 case .empty:
                     ZStack { bannerPlaceholder; ProgressView() }
                 default:
@@ -525,7 +531,10 @@ private struct ItemDetailsCard: View {
                 HStack {
                     Text(row.label)
                         .font(.subheadline)
-                        .foregroundStyle(.primary)
+                        // Explicit label color: inside a tinted Link, the
+                        // hierarchical `.primary` style adopts the accent
+                        // (brand red) instead of the neutral label color.
+                        .foregroundStyle(Color(.label))
                     Spacer()
                     Text(row.value)
                         .font(.subheadline)
@@ -564,9 +573,11 @@ private func availabilitySnapshot(for asset: AssetDetail) -> String? {
     case .available:
         if let next = asset.upcomingReservations.first {
             let when = next.startsAt.formatted(date: .abbreviated, time: .shortened)
-            return "Available — next reserved \(when)"
+            return "Available · next reserved \(when)"
         }
-        return "Available"
+        // Bare "Available" is redundant with the corner status badge; the
+        // snapshot only earns its line when it adds custody/timing info.
+        return nil
     case .maintenance: return "Out for maintenance"
     case .retired:     return "Retired from service"
     case .unknown, .checkedOut, .pendingPickup, .reserved:

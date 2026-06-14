@@ -118,8 +118,7 @@ struct HomeView: View {
                         dash: dash,
                         openBookingSummary: { navigationPath.append($0) },
                         openEventWork: { selectedEventWork = $0 },
-                        currentUserId: session.currentUser?.id,
-                        openScan: { appState.selectedTab = 3 }
+                        currentUserId: session.currentUser?.id
                     )
                 } else if isAllEmpty(dash) || !hasStaffFollowUp(dash) {
                     AllClearEmptyState(openScan: { appState.selectedTab = 3 })
@@ -456,7 +455,6 @@ private struct HomeActionQueue: View {
     let openBookingSummary: (BookingSummary) -> Void
     let openEventWork: (DashboardEventWork) -> Void
     let currentUserId: String?
-    let openScan: () -> Void
 
     private var myOverdueBookings: [BookingSummary] {
         dash.myCheckouts.items.filter(\.isOverdue)
@@ -599,8 +597,6 @@ private struct HomeActionQueue: View {
             ForEach(dash.myEventWork.prefix(3)) { work in
                 EventActionQueueRow(work: work, openEventWork: openEventWork)
             }
-
-            ScanRecoveryButton(openScan: openScan)
         }
         .brandCard(padding: Brand.Space.md, radius: Brand.Radius.card)
     }
@@ -815,44 +811,6 @@ private struct ActionQueueRow: View {
     private var accessibilityLabel: String {
         let detail = detailLines.isEmpty ? (subtitle ?? "") : detailLines.map(\.text).joined(separator: ", ")
         return "\(title), \(detail), \(meta). \(primaryLabel)."
-    }
-}
-
-private struct ScanRecoveryButton: View {
-    let openScan: () -> Void
-
-    var body: some View {
-        Button {
-            Haptics.tap()
-            openScan()
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "barcode.viewfinder")
-                    .font(.subheadline.weight(.semibold))
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Look up gear")
-                        .font(.subheadline.weight(.semibold))
-                    Text("Scan or type a tag without changing checkout custody.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.tertiary)
-                    .accessibilityHidden(true)
-            }
-            .padding(Brand.Space.sm)
-            .background(Color.cardSurfaceRaised, in: RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
-                    .strokeBorder(Color.hairline, lineWidth: 0.5)
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Look up gear. Scan or type a tag without changing checkout custody.")
     }
 }
 
