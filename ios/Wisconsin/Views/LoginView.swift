@@ -101,10 +101,10 @@ struct LoginView: View {
                         .onChange(of: email) { session.clearError() }
                         .padding(.horizontal, 14)
                         .padding(.vertical, 12)
-                        .background(Color(.systemGroupedBackground), in: RoundedRectangle(cornerRadius: 10))
+                        .background(Color(.systemGroupedBackground), in: RoundedRectangle(cornerRadius: Brand.Radius.sm, style: .continuous))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
+                            RoundedRectangle(cornerRadius: Brand.Radius.sm, style: .continuous)
+                                .strokeBorder(Color.hairline, lineWidth: 0.5)
                         )
                 }
 
@@ -134,10 +134,10 @@ struct LoginView: View {
                         .padding(.horizontal, 14)
                         .padding(.trailing, 42)
                         .padding(.vertical, 12)
-                        .background(Color(.systemGroupedBackground), in: RoundedRectangle(cornerRadius: 10))
+                        .background(Color(.systemGroupedBackground), in: RoundedRectangle(cornerRadius: Brand.Radius.sm, style: .continuous))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
+                            RoundedRectangle(cornerRadius: Brand.Radius.sm, style: .continuous)
+                                .strokeBorder(Color.hairline, lineWidth: 0.5)
                         )
 
                         Button {
@@ -199,7 +199,7 @@ struct LoginView: View {
             .padding(.bottom, 28)
         }
         .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous))
         .shadow(color: Color(.sRGBLinear, white: 0, opacity: 0.4), radius: 24, y: 12)
     }
 }
