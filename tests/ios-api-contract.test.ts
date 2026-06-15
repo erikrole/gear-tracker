@@ -88,6 +88,23 @@ describe("iOS API contracts — asset lookup item families", () => {
   });
 });
 
+describe("iOS API contracts — kiosk checkout scan photos", () => {
+  it("kiosk checkout scan can show item photos without requiring them from old responses", () => {
+    const route = source("src/app/api/kiosk/checkout/scan/route.ts");
+    const models = source("ios/Wisconsin/Kiosk/KioskModels.swift");
+    const store = source("ios/Wisconsin/Kiosk/KioskStore.swift");
+    const checkoutView = source("ios/Wisconsin/Kiosk/KioskCheckoutView.swift");
+
+    expect(route).toContain("imageUrl: bulkUnit.imageUrl");
+    expect(route).toContain("imageUrl: true");
+    expect(route).toContain("imageUrl: asset.imageUrl");
+    expect(models).toMatch(/struct ScannedItem[\s\S]*?let imageUrl: String\?/);
+    expect(store).toMatch(/struct KioskCartItem[\s\S]*?let imageUrl: String\?/);
+    expect(checkoutView).toContain("KioskCheckoutThumbnail(item: item)");
+    expect(checkoutView).toContain("imageUrl: item.imageUrl");
+  });
+});
+
 describe("iOS API contracts — availability check", () => {
   it("iOS decodes the route's top-level result (no data envelope)", () => {
     const route = source("src/app/api/availability/check/route.ts");

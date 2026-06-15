@@ -242,6 +242,7 @@ struct KioskScanResult: Decodable {
         let name: String
         let tagName: String
         let type: String?
+        let imageUrl: String?
         let bulkSkuId: String?
         let unitNumber: Int?
     }

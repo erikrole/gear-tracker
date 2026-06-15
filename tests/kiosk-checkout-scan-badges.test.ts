@@ -7,6 +7,17 @@ const mocks = vi.hoisted(() => ({
   badgeOnScanResult: vi.fn(),
 }));
 
+type KioskTestHandler = (
+  req: Request,
+  ctx: {
+    kiosk: {
+      kioskId: string;
+      locationId: string;
+      locationName: string;
+    };
+  },
+) => Promise<Response>;
+
 vi.mock("@/lib/db", () => ({
   db: {
     $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn({})),
@@ -17,7 +28,7 @@ vi.mock("@/lib/db", () => ({
 }));
 
 vi.mock("@/lib/api", () => ({
-  withKiosk: (handler: any) => (req: Request) =>
+  withKiosk: (handler: KioskTestHandler) => (req: Request) =>
     handler(req, {
       kiosk: {
         kioskId: "kiosk-1",
@@ -55,6 +66,8 @@ vi.mock("@/lib/badges", () => ({
 
 import { POST as scanKioskCheckout } from "@/app/api/kiosk/checkout/scan/route";
 
+const runScanKioskCheckout = scanKioskCheckout as unknown as (req: Request) => Promise<Response>;
+
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.findBulkUnitByScanValue.mockResolvedValue(null);
@@ -66,18 +79,23 @@ describe("kiosk checkout scan badge events", () => {
       id: "asset-1",
       assetTag: "FX3 1",
       name: "FX3 1",
+      imageUrl: "https://cdn.example.com/fx3.jpg",
       status: "AVAILABLE",
       category: { name: "Camera" },
     });
     mocks.assetAllocationFindFirst.mockResolvedValue(null);
 
-    const res = await (scanKioskCheckout as any)(new Request("http://test", {
+    const res = await runScanKioskCheckout(new Request("http://test", {
       method: "POST",
       body: JSON.stringify({ actorId: "user-1", scanValue: " FX3-001 " }),
     }));
     const json = await res.json();
 
     expect(json.success).toBe(true);
+    expect(json.item).toEqual(expect.objectContaining({
+      id: "asset-1",
+      imageUrl: "https://cdn.example.com/fx3.jpg",
+    }));
     expect(mocks.badgeOnScanResult).toHaveBeenCalledWith({
       userId: "user-1",
       phase: "checkout",
@@ -91,12 +109,13 @@ describe("kiosk checkout scan badge events", () => {
       id: "asset-1",
       assetTag: "FX3 1",
       name: "FX3 1",
+      imageUrl: null,
       status: "AVAILABLE",
       category: { name: "Camera" },
     });
     mocks.assetAllocationFindFirst.mockResolvedValue(null);
 
-    const res = await (scanKioskCheckout as any)(new Request("http://test", {
+    const res = await runScanKioskCheckout(new Request("http://test", {
       method: "POST",
       body: JSON.stringify({ scanValue: "FX3-001" }),
     }));
@@ -116,9 +135,10 @@ describe("kiosk checkout scan badge events", () => {
       bulkSkuName: "Sony Battery",
       bulkSkuId: "sku-sony",
       unitNumber: 31,
+      imageUrl: "https://cdn.example.com/sony-battery.jpg",
     });
 
-    const res = await (scanKioskCheckout as any)(new Request("http://test", {
+    const res = await runScanKioskCheckout(new Request("http://test", {
       method: "POST",
       body: JSON.stringify({ actorId: "user-1", scanValue: "94e068d1-31" }),
     }));
@@ -131,6 +151,7 @@ describe("kiosk checkout scan badge events", () => {
         name: "Sony Battery #31",
         tagName: "#31",
         type: "Batteries",
+        imageUrl: "https://cdn.example.com/sony-battery.jpg",
         bulkSkuId: "sku-sony",
         unitNumber: 31,
       },

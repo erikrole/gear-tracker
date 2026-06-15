@@ -56,6 +56,7 @@ export const POST = withKiosk(async (req, { kiosk }) => {
         name: bulkUnit.name,
         tagName: bulkUnit.tagName,
         type: bulkUnit.type,
+        imageUrl: bulkUnit.imageUrl,
         bulkSkuId: bulkUnit.bulkSkuId,
         unitNumber: bulkUnit.unitNumber,
       },
@@ -66,6 +67,7 @@ export const POST = withKiosk(async (req, { kiosk }) => {
     id: true,
     assetTag: true,
     name: true,
+    imageUrl: true,
     status: true,
     category: { select: { name: true } },
   });
@@ -130,6 +132,7 @@ export const POST = withKiosk(async (req, { kiosk }) => {
       name: asset.name || asset.assetTag,
       tagName: asset.assetTag,
       type: asset.category?.name || "Unknown",
+      imageUrl: asset.imageUrl,
     },
   });
 });

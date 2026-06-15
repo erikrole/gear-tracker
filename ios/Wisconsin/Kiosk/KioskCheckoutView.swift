@@ -38,7 +38,7 @@ struct KioskCheckoutView: View {
         HStack(spacing: 0) {
             scanZone
             Divider().background(KioskStroke.divider)
-            itemsList.frame(width: 380)
+            itemsList.frame(width: 430)
         }
         .overlay(alignment: .bottom) {
             // Hidden HID scanner field — always first responder
@@ -168,18 +168,25 @@ struct KioskCheckoutView: View {
 
             if scannedItems.isEmpty {
                 Spacer()
-                Text("No items scanned yet")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
+                VStack(spacing: 10) {
+                    Image(systemName: "photo.on.rectangle.angled")
+                        .font(.title3)
+                        .foregroundStyle(KioskText.muted)
+                        .accessibilityHidden(true)
+                    Text("No items scanned yet")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
                 Spacer()
             } else {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 0) {
-                            ForEach(scannedItems) { item in
+                            ForEach(Array(scannedItems.enumerated()), id: \.element.id) { index, item in
                                 ItemRow(item: item, onRemove: { removeItem(item) })
                                     .id(item.id)
+                                    .background(index == scannedItems.count - 1 ? Color.white.opacity(0.025) : Color.clear)
                                 Divider().background(KioskStroke.hairline)
                             }
                         }
@@ -241,6 +248,7 @@ struct KioskCheckoutView: View {
                             name: item.name,
                             tagName: item.tagName,
                             type: item.type,
+                            imageUrl: item.imageUrl,
                             bulkSkuId: item.bulkSkuId,
                             unitNumber: item.unitNumber
                         ))
@@ -316,14 +324,15 @@ private struct ItemRow: View {
     let onRemove: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(Color.statusText(.green))
-                .accessibilityHidden(true)
+        HStack(spacing: 14) {
+            KioskCheckoutThumbnail(item: item)
+
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.name)
-                    .font(.subheadline)
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
                 HStack(spacing: 6) {
                     Text(item.tagName)
                         .font(.caption.monospaced())
@@ -336,7 +345,11 @@ private struct ItemRow: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
             Spacer()
             Button(action: onRemove) {
                 Image(systemName: "xmark.circle.fill")
@@ -349,9 +362,58 @@ private struct ItemRow: View {
             .accessibilityLabel("Remove \(item.name)")
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 14)
+        .padding(.vertical, 12)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(item.name), tag \(item.tagName)")
         .accessibilityAction(named: "Remove") { onRemove() }
+    }
+}
+
+private struct KioskCheckoutThumbnail: View {
+    let item: KioskCartItem
+
+    var body: some View {
+        ZStack(alignment: .bottomTrailing) {
+            Group {
+                if let urlString = item.imageUrl, let url = URL(string: urlString) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .scaledToFill()
+                        default:
+                            placeholder
+                        }
+                    }
+                } else {
+                    placeholder
+                }
+            }
+            .frame(width: 56, height: 56)
+            .clipShape(RoundedRectangle(cornerRadius: KioskRadius.sm))
+            .overlay(
+                RoundedRectangle(cornerRadius: KioskRadius.sm)
+                    .stroke(KioskStroke.standard, lineWidth: 1)
+            )
+
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(Color.statusText(.green))
+                .background(Color.black.opacity(0.78), in: Circle())
+                .offset(x: 4, y: 4)
+                .accessibilityHidden(true)
+        }
+        .accessibilityHidden(true)
+    }
+
+    private var placeholder: some View {
+        RoundedRectangle(cornerRadius: KioskRadius.sm)
+            .fill(Color.white.opacity(0.10))
+            .overlay {
+                Image(systemName: item.isNumberedBulk ? "battery.100percent" : "camera.fill")
+                    .font(.title3)
+                    .foregroundStyle(Color.white.opacity(0.62))
+            }
     }
 }
