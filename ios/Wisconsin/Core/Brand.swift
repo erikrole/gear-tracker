@@ -335,11 +335,18 @@ struct ZoomableImageViewer: View {
 /// row's height so it sits inset from rounded card corners. One source of truth
 /// for rail width/radius/color across screens.
 struct StatusRail: View {
-    let tone: StatusTone
+    let color: Color
+
+    /// Tinted by a semantic status tone (the common case).
+    init(tone: StatusTone) { self.color = Color.statusText(tone) }
+
+    /// Tinted by an explicit color, for rails that aren't status-driven
+    /// (e.g. the schedule's home/away/my-shift accent).
+    init(color: Color) { self.color = color }
 
     var body: some View {
         RoundedRectangle(cornerRadius: 2)
-            .fill(Color.statusText(tone))
+            .fill(color)
             .frame(width: 4)
             .accessibilityHidden(true)
     }

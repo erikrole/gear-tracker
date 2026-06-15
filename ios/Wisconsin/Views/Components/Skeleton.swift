@@ -103,7 +103,15 @@ struct EventRowSkeleton: View {
             Skeleton().frame(width: 130, height: 12)
             Skeleton(cornerRadius: 10).frame(width: 88, height: 20)
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.cardSurface)
+        .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
+                .strokeBorder(Color.hairline, lineWidth: 0.5)
+        )
     }
 }
 
