@@ -443,3 +443,21 @@ struct KioskAvatar: View {
             }
     }
 }
+
+// MARK: Press style
+
+/// Subtle press-scale + dim for kiosk tap targets (roster tiles, stat tiles,
+/// event rows). Gives tactile feedback on the iPad without shifting layout, and
+/// reads as "plain" otherwise — a drop-in for `.buttonStyle(.plain)` on the
+/// kiosk's large touch surfaces. Honors Reduce Motion.
+struct KioskPressStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var scale: CGFloat = 0.97
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed && !reduceMotion ? scale : 1)
+            .opacity(configuration.isPressed ? 0.9 : 1)
+            .animation(reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
+    }
+}

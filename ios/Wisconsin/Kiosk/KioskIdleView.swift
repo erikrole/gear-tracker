@@ -44,7 +44,7 @@ struct KioskIdleView: View {
                                 .padding(32)
 
                             Divider()
-                                .background(Color.white.opacity(0.16))
+                                .background(KioskSurface.placeholder)
 
                             rosterPanel
                                 .frame(width: rosterWidth)
@@ -146,13 +146,13 @@ struct KioskIdleView: View {
             HStack(spacing: 8) {
                 Text(store.info?.name ?? "Gear Room")
                     .font(.callout.weight(.bold))
-                    .foregroundStyle(Color.white.opacity(0.78))
+                    .foregroundStyle(KioskText.secondary)
                 if let location = store.info?.locationName {
                     Text("•")
-                        .foregroundStyle(Color.white.opacity(0.38))
+                        .foregroundStyle(KioskText.muted)
                     Text(location)
                         .font(.callout.weight(.semibold))
-                        .foregroundStyle(Color.white.opacity(0.66))
+                        .foregroundStyle(KioskText.secondary)
                 }
             }
 
@@ -161,7 +161,7 @@ struct KioskIdleView: View {
                     KioskClockView(date: context.date)
                     Text(context.date, format: .dateTime.weekday(.wide).month(.wide).day())
                         .font(.gothamBold(size: 32))
-                        .foregroundStyle(Color.white.opacity(0.86))
+                        .foregroundStyle(KioskText.primary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
                     locationAndFreshness
@@ -238,7 +238,7 @@ struct KioskIdleView: View {
             if let last = lastLoadedAt {
                 Text("Updated \(last.kioskFreshnessLabel(now: Date()))")
                     .font(.caption)
-                    .foregroundStyle(isStale ? Color.statusText(.orange) : Color.white.opacity(0.48))
+                    .foregroundStyle(isStale ? Color.statusText(.orange) : KioskText.tertiary)
                     .monospacedDigit()
             }
         }
@@ -253,13 +253,19 @@ struct KioskIdleView: View {
 
     private var rosterPanel: some View {
         VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Scan Wiscard")
-                    .font(.title2.bold())
-                    .foregroundStyle(KioskText.primary)
-                Text("Or tap your name below")
-                    .font(.subheadline)
-                    .foregroundStyle(KioskText.tertiary)
+            HStack(spacing: 14) {
+                Image(systemName: "barcode.viewfinder")
+                    .font(.system(size: 34, weight: .semibold))
+                    .foregroundStyle(Color.kioskRed)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Scan Wiscard")
+                        .font(.title2.bold())
+                        .foregroundStyle(KioskText.primary)
+                    Text("Or tap your name below")
+                        .font(.subheadline)
+                        .foregroundStyle(KioskText.tertiary)
+                }
             }
 
             if let feedback = identityScanFeedback {
@@ -510,14 +516,14 @@ private struct StatTile: View {
                 Text(label.uppercased())
                     .font(.caption.weight(.semibold))
                     .tracking(0.8)
-                    .foregroundStyle(Color.white.opacity(0.72))
+                    .foregroundStyle(KioskText.secondary)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 22)
-            .background(Color.white.opacity(isSelected ? 0.13 : 0.075), in: RoundedRectangle(cornerRadius: KioskRadius.xl))
+            .background((isSelected ? KioskSurface.cardSelected : KioskSurface.cardRaised), in: RoundedRectangle(cornerRadius: KioskRadius.xl))
             .overlay(
                 RoundedRectangle(cornerRadius: KioskRadius.xl)
-                    .stroke(isSelected ? Color.white.opacity(0.5) : Color.white.opacity(0.14), lineWidth: isSelected ? 2 : 1)
+                    .stroke(isSelected ? KioskStroke.selected : KioskStroke.standard, lineWidth: isSelected ? 2 : 1)
             )
             .overlay(alignment: .bottom) {
                 if isSelected {
@@ -528,7 +534,7 @@ private struct StatTile: View {
                 }
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(KioskPressStyle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(value) \(label.lowercased())")
     }
@@ -541,18 +547,18 @@ private struct StatTilePlaceholder: View {
         VStack(spacing: 6) {
             Text("–")
                 .font(.system(size: 44, weight: .bold, design: .rounded))
-                .foregroundStyle(Color.white.opacity(0.42))
+                .foregroundStyle(KioskText.muted)
             Text(label.uppercased())
                 .font(.caption.weight(.semibold))
                 .tracking(0.8)
-                .foregroundStyle(Color.white.opacity(0.46))
+                .foregroundStyle(KioskText.tertiary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 22)
-        .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: KioskRadius.xl))
+        .background(KioskSurface.low, in: RoundedRectangle(cornerRadius: KioskRadius.xl))
         .overlay(
             RoundedRectangle(cornerRadius: KioskRadius.xl)
-                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                .stroke(KioskStroke.divider, lineWidth: 1)
         )
         .accessibilityHidden(true)
     }
@@ -575,7 +581,7 @@ private struct KioskDashboardList<Content: View>: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
                 .font(.callout.weight(.bold))
-                .foregroundStyle(Color.white.opacity(0.78))
+                .foregroundStyle(KioskText.secondary)
 
             ScrollView {
                 LazyVStack(spacing: 8) {
@@ -588,16 +594,16 @@ private struct KioskDashboardList<Content: View>: View {
                 if isEmpty {
                     Text(emptyMessage)
                         .font(.subheadline.weight(.medium))
-                        .foregroundStyle(Color.white.opacity(0.62))
+                        .foregroundStyle(KioskText.secondary)
                         .frame(maxWidth: .infinity, minHeight: 62)
                 }
             }
         }
         .padding(12)
-        .background(Color.white.opacity(0.045), in: RoundedRectangle(cornerRadius: KioskRadius.lg))
+        .background(KioskSurface.low, in: RoundedRectangle(cornerRadius: KioskRadius.lg))
         .overlay(
             RoundedRectangle(cornerRadius: KioskRadius.lg)
-                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                .stroke(KioskStroke.divider, lineWidth: 1)
         )
     }
 }
@@ -616,7 +622,7 @@ private struct ActiveItemRow: View {
                     .minimumScaleFactor(0.85)
                 Text("\(item.tagName) · \(item.checkoutTitle)")
                     .font(.caption)
-                    .foregroundStyle(Color.white.opacity(0.64))
+                    .foregroundStyle(KioskText.secondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
@@ -630,10 +636,10 @@ private struct ActiveItemRow: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: KioskRadius.sm))
+        .background(KioskSurface.cardRaised, in: RoundedRectangle(cornerRadius: KioskRadius.sm))
         .overlay(
             RoundedRectangle(cornerRadius: KioskRadius.sm)
-                .stroke(Color.white.opacity(0.11), lineWidth: 1)
+                .stroke(KioskStroke.standard, lineWidth: 1)
         )
         .accessibilityElement(children: .combine)
     }
@@ -650,20 +656,20 @@ private struct ActiveItemRow: View {
                 }
             }
             .frame(width: 42, height: 42)
-            .clipShape(RoundedRectangle(cornerRadius: 9))
+            .clipShape(RoundedRectangle(cornerRadius: KioskRadius.sm))
         } else {
             fallbackAssetImage
         }
     }
 
     private var fallbackAssetImage: some View {
-        RoundedRectangle(cornerRadius: 9)
-            .fill(Color.white.opacity(0.12))
+        RoundedRectangle(cornerRadius: KioskRadius.sm)
+            .fill(KioskSurface.placeholder)
             .frame(width: 42, height: 42)
             .overlay {
                 Image(systemName: "camera.fill")
                     .font(.caption)
-                    .foregroundStyle(Color.white.opacity(0.68))
+                    .foregroundStyle(KioskText.secondary)
             }
     }
 }
@@ -679,12 +685,12 @@ private struct KioskEventSection: View {
             Text(title)
                 .font(.callout.weight(.bold))
                 .tracking(1.2)
-                .foregroundStyle(Color.white.opacity(0.74))
+                .foregroundStyle(KioskText.secondary)
 
             if events.isEmpty {
                 Text("No events")
                     .font(.subheadline.weight(.medium))
-                    .foregroundStyle(Color.white.opacity(0.30))
+                    .foregroundStyle(KioskText.muted)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 2)
             } else {
@@ -708,7 +714,7 @@ private struct KioskEventRow: View {
             HStack(spacing: 12) {
                 Text(timeLabel)
                     .font(.subheadline.weight(.semibold).monospacedDigit())
-                    .foregroundStyle(Color.white.opacity(0.88))
+                    .foregroundStyle(KioskText.primary)
                     .frame(minWidth: 88, alignment: .leading)
                     .fixedSize()
                 Text(event.title)
@@ -722,20 +728,20 @@ private struct KioskEventRow: View {
                 } else if event.shiftCount > 0, !hasWorkerDetails {
                     Text("Details pending")
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(Color.white.opacity(0.58))
+                        .foregroundStyle(KioskText.tertiary)
                 } else if event.shiftCount > 0 {
                     KioskEventShiftBadge(count: event.shiftCount)
                 }
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
-            .background(Color.white.opacity(0.075), in: RoundedRectangle(cornerRadius: KioskRadius.md))
+            .background(KioskSurface.cardRaised, in: RoundedRectangle(cornerRadius: KioskRadius.md))
             .overlay(
                 RoundedRectangle(cornerRadius: KioskRadius.md)
-                    .stroke(Color.white.opacity(0.13), lineWidth: 1)
+                    .stroke(KioskStroke.standard, lineWidth: 1)
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(KioskPressStyle())
         .accessibilityElement(children: .combine)
         .accessibilityHint("Opens event details")
     }
@@ -762,7 +768,7 @@ private struct KioskEventAvatarStack: View {
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(KioskText.primary)
                     .frame(width: 30, height: 30)
-                    .background(Color.white.opacity(0.18), in: Circle())
+                    .background(KioskSurface.placeholder, in: Circle())
                     .overlay(Circle().stroke(Color.black.opacity(0.8), lineWidth: 1.5))
             }
         }
@@ -793,7 +799,7 @@ private struct KioskEventAvatarStack: View {
             .font(.caption2.weight(.bold))
             .foregroundStyle(KioskText.primary)
             .frame(width: 30, height: 30)
-            .background(Color.white.opacity(0.16), in: Circle())
+            .background(KioskSurface.placeholder, in: Circle())
             .overlay(Circle().stroke(Color.black.opacity(0.8), lineWidth: 1.5))
     }
 }
@@ -813,7 +819,7 @@ private struct KioskEventDetailSheet: View {
                             Text(eventDayLabel)
                                 .font(.caption.weight(.bold))
                                 .tracking(1.4)
-                                .foregroundStyle(Color.white.opacity(0.55))
+                                .foregroundStyle(KioskText.tertiary)
                             KioskEventShiftBadge(count: event.shiftCount)
                         }
                         Text(event.title)
@@ -828,7 +834,7 @@ private struct KioskEventDetailSheet: View {
                         .foregroundStyle(KioskText.primary)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
-                        .background(Color.white.opacity(0.12), in: Capsule())
+                        .background(KioskSurface.cardSelected, in: Capsule())
                 }
 
                 VStack(spacing: 10) {
@@ -844,20 +850,20 @@ private struct KioskEventDetailSheet: View {
                         if !event.assignedUsers.isEmpty {
                             Text("\(event.assignedUserCount)")
                                 .font(.caption.weight(.bold).monospacedDigit())
-                                .foregroundStyle(Color.white.opacity(0.58))
+                                .foregroundStyle(KioskText.tertiary)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .background(Color.white.opacity(0.08), in: Capsule())
+                                .background(KioskSurface.cardRaised, in: Capsule())
                         }
                     }
 
                     if event.assignedUsers.isEmpty {
                         Text(workerEmptyMessage)
                             .font(.body.weight(.medium))
-                            .foregroundStyle(Color.white.opacity(0.6))
+                            .foregroundStyle(KioskText.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(16)
-                            .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: KioskRadius.lg))
+                            .background(KioskSurface.card, in: RoundedRectangle(cornerRadius: KioskRadius.lg))
                     } else {
                         ScrollView {
                             LazyVStack(spacing: 8) {
@@ -919,7 +925,7 @@ private struct KioskEventTimeRow: View {
             Text(label.uppercased())
                 .font(.caption2.weight(.bold))
                 .tracking(1)
-                .foregroundStyle(Color.white.opacity(0.5))
+                .foregroundStyle(KioskText.tertiary)
                 .frame(width: 48, alignment: .leading)
             Text(value)
                 .font(.title2.weight(.bold).monospacedDigit())
@@ -931,10 +937,10 @@ private struct KioskEventTimeRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 14)
         .padding(.vertical, 13)
-        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: KioskRadius.lg))
+        .background(KioskSurface.cardRaised, in: RoundedRectangle(cornerRadius: KioskRadius.lg))
         .overlay(
             RoundedRectangle(cornerRadius: KioskRadius.lg)
-                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                .stroke(KioskStroke.standard, lineWidth: 1)
         )
     }
 }
@@ -945,11 +951,11 @@ private struct KioskEventShiftBadge: View {
     var body: some View {
         Text("\(count) shift\(count == 1 ? "" : "s")")
             .font(.caption.weight(.semibold))
-            .foregroundStyle(Color.white.opacity(0.62))
+            .foregroundStyle(KioskText.secondary)
             .lineLimit(1)
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
-            .background(Color.white.opacity(0.08), in: Capsule())
+            .background(KioskSurface.cardRaised, in: Capsule())
     }
 }
 
@@ -967,7 +973,7 @@ private struct KioskEventWorkerRow: View {
                 if let detail = workerDetail {
                     Text(detail)
                         .font(.caption.weight(.medium))
-                        .foregroundStyle(Color.white.opacity(0.62))
+                        .foregroundStyle(KioskText.secondary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.82)
                 }
@@ -976,10 +982,10 @@ private struct KioskEventWorkerRow: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: KioskRadius.md))
+        .background(KioskSurface.cardRaised, in: RoundedRectangle(cornerRadius: KioskRadius.md))
         .overlay(
             RoundedRectangle(cornerRadius: KioskRadius.md)
-                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                .stroke(KioskStroke.standard, lineWidth: 1)
         )
     }
 
@@ -1014,7 +1020,7 @@ private struct CheckoutRow: View {
             // signal regardless of which path renders.
             ZStack {
                 Circle()
-                    .fill(checkout.isOverdue ? Color.kioskRed.opacity(0.3) : Color.white.opacity(0.1))
+                    .fill(checkout.isOverdue ? Color.kioskRed.opacity(0.3) : KioskSurface.cardRaised)
                     .frame(width: 36, height: 36)
                 avatarInitialsLayer
             }
@@ -1025,7 +1031,7 @@ private struct CheckoutRow: View {
                     .foregroundStyle(KioskText.primary)
                 Text(itemSummary)
                     .font(.caption)
-                    .foregroundStyle(Color.white.opacity(0.64))
+                    .foregroundStyle(KioskText.secondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
             }
@@ -1039,10 +1045,10 @@ private struct CheckoutRow: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: KioskRadius.sm))
+        .background(KioskSurface.cardRaised, in: RoundedRectangle(cornerRadius: KioskRadius.sm))
         .overlay(
             RoundedRectangle(cornerRadius: KioskRadius.sm)
-                .stroke(Color.white.opacity(0.11), lineWidth: 1)
+                .stroke(KioskStroke.standard, lineWidth: 1)
         )
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilitySummary)
@@ -1130,13 +1136,13 @@ private struct UserTile: View {
             .frame(minHeight: 92)
             .padding(.horizontal, 8)
             .padding(.vertical, 10)
-            .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: KioskRadius.md))
+            .background(KioskSurface.cardRaised, in: RoundedRectangle(cornerRadius: KioskRadius.md))
             .overlay(
                 RoundedRectangle(cornerRadius: KioskRadius.md)
-                    .stroke(Color.white.opacity(0.16), lineWidth: 1)
+                    .stroke(KioskStroke.strong, lineWidth: 1)
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(KioskPressStyle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel(user.name)
         .accessibilityHint("Tap to start checkout for \(user.name)")
