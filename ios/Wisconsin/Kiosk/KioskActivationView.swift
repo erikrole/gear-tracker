@@ -67,7 +67,7 @@ struct KioskActivationView: View {
                 .accessibilityHidden(true)
             Text("Gear Room Kiosk")
                 .font(.kioskHeroTitle())
-                .foregroundStyle(.white)
+                .foregroundStyle(KioskText.primary)
                 .lineLimit(2)
                 .minimumScaleFactor(0.75)
             Text("Activate this iPad")
@@ -75,7 +75,7 @@ struct KioskActivationView: View {
                 .foregroundStyle(Color.white.opacity(0.92))
             Text("Enter the 6-digit kiosk code.")
                 .font(.body)
-                .foregroundStyle(Color.white.opacity(0.72))
+                .foregroundStyle(KioskText.secondary)
                 .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -101,11 +101,7 @@ struct KioskActivationView: View {
                 .disabled(isLoading)
         }
         .padding(24)
-        .background(Color.white.opacity(0.075), in: RoundedRectangle(cornerRadius: 24))
-        .overlay(
-            RoundedRectangle(cornerRadius: 24)
-                .stroke(Color.white.opacity(0.16), lineWidth: 1)
-        )
+        .kioskCard(KioskSurface.cardRaised, radius: KioskRadius.hero, stroke: KioskStroke.strong)
         .shadow(color: .black.opacity(0.35), radius: 24, y: 16)
     }
 
@@ -126,10 +122,10 @@ struct KioskActivationView: View {
         HStack(spacing: 10) {
             let digits = Array(code)
             ForEach(0..<6, id: \.self) { i in
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: KioskRadius.md)
                     .fill(Color.black.opacity(0.22))
                     .overlay {
-                        RoundedRectangle(cornerRadius: 12)
+                        RoundedRectangle(cornerRadius: KioskRadius.md)
                             .stroke(i < code.count ? Color.kioskRed : Color.white.opacity(0.22), lineWidth: 2)
                     }
                     .frame(maxWidth: .infinity)
@@ -138,7 +134,7 @@ struct KioskActivationView: View {
                         if i < digits.count {
                             Text(String(digits[i]))
                                 .font(.system(size: 30, weight: .bold, design: .monospaced))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(KioskText.primary)
                                 .transition(.opacity)
                         }
                     }
@@ -176,14 +172,14 @@ struct KioskActivationView: View {
 
     private var loadingScrim: some View {
         ZStack {
-            Color.black.opacity(0.5).ignoresSafeArea()
+            KioskScrim.control.ignoresSafeArea()
             VStack(spacing: 14) {
                 ProgressView()
                     .scaleEffect(1.4)
-                    .tint(.white)
+                    .tint(KioskText.primary)
                 Text("Activating…")
                     .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(KioskText.primary)
             }
             .padding(.horizontal, 32)
             .padding(.vertical, 24)
@@ -287,12 +283,12 @@ private struct KioskActivationActionButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.callout.weight(.semibold))
-            .foregroundStyle(.white)
+            .foregroundStyle(KioskText.primary)
             .padding(.vertical, 13)
             .padding(.horizontal, 14)
-            .background(tint, in: RoundedRectangle(cornerRadius: 14))
+            .background(tint, in: RoundedRectangle(cornerRadius: KioskRadius.lg))
             .overlay(
-                RoundedRectangle(cornerRadius: 14)
+                RoundedRectangle(cornerRadius: KioskRadius.lg)
                     .stroke(Color.white.opacity(0.14), lineWidth: 1)
             )
             .opacity(configuration.isPressed ? 0.78 : 1)
@@ -368,10 +364,10 @@ private struct KioskNumPadButton: View {
         Button(action: action) {
             Text(key)
                 .font(.title2.weight(.semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(KioskText.primary)
                 .frame(maxWidth: .infinity)
                 .frame(height: 64)
-                .background(background, in: RoundedRectangle(cornerRadius: 12))
+                .background(background, in: RoundedRectangle(cornerRadius: KioskRadius.md))
         }
         .disabled(!isEnabled)
         .opacity(isEnabled ? 1.0 : 0.35)
@@ -382,7 +378,7 @@ private struct KioskNumPadButton: View {
         switch key {
         case "✓": return Color.kioskRed
         case "⌫": return Color.white.opacity(0.1)
-        default:  return Color.white.opacity(0.08)
+        default:  return KioskSurface.cardRaised
         }
     }
 

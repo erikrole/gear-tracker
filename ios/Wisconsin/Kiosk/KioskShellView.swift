@@ -52,17 +52,17 @@ private struct InactivityWarningOverlay: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.7).ignoresSafeArea()
+            KioskScrim.modal.ignoresSafeArea()
             VStack(spacing: 16) {
                 Image(systemName: "clock.fill")
                     .font(.system(size: 44))
                     .foregroundStyle(Color.kioskRed)
                 Text("Still here?")
                     .font(.title2.bold())
-                    .foregroundStyle(.white)
+                    .foregroundStyle(KioskText.primary)
                 Text("Tap to keep your scans. Otherwise this will reset to the home screen in 30 seconds.")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(KioskText.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 30)
                 Button {
@@ -70,7 +70,7 @@ private struct InactivityWarningOverlay: View {
                 } label: {
                     Text("Stay")
                         .font(.headline)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(KioskText.primary)
                         .frame(maxWidth: 220)
                         .padding(.vertical, 14)
                         .background(Color.kioskRed, in: RoundedRectangle(cornerRadius: KioskRadius.lg))

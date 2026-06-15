@@ -54,6 +54,19 @@ enum KioskStroke {
     static let divider = Color.white.opacity(0.1)
 }
 
+/// Dimming scrims layered *over* content (full-screen modal backdrops, floating
+/// controls on top of the live camera). These are black-based — unlike
+/// `KioskSurface`, which is white-on-dark elevation — so screens stop reaching
+/// for ad-hoc `Color.black.opacity(...)` values.
+enum KioskScrim {
+    /// Full-screen backdrop behind a modal/confirmation card.
+    static let modal = Color.black.opacity(0.7)
+    /// Floating control pill resting on top of the live camera feed.
+    static let control = Color.black.opacity(0.5)
+    /// Manual-entry field panel over the camera feed.
+    static let field = Color.black.opacity(0.58)
+}
+
 /// Corner-radius scale. Operational controls stay small; only hero brand
 /// surfaces (activation card, scan frame) use the largest radius.
 enum KioskRadius {

@@ -15,7 +15,7 @@ struct KioskStudentHubView: View {
 
             if isLoading && context == nil {
                 Spacer()
-                ProgressView().tint(.white)
+                ProgressView().tint(KioskText.primary)
                 Spacer()
             } else if let error, context == nil {
                 Spacer()
@@ -27,7 +27,7 @@ struct KioskStudentHubView: View {
                         .frame(maxWidth: .infinity)
                         .padding(24)
 
-                    Divider().background(Color.white.opacity(0.1))
+                    Divider().background(KioskStroke.divider)
 
                     statusPanel
                         .frame(maxWidth: .infinity)
@@ -53,7 +53,7 @@ struct KioskStudentHubView: View {
             } label: {
                 Label("Back", systemImage: "chevron.left")
                     .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(KioskText.secondary)
             }
             .accessibilityLabel("Back to roster")
 
@@ -64,10 +64,10 @@ struct KioskStudentHubView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(user.name)
                         .font(.headline)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(KioskText.primary)
                     Text(user.role.capitalized)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(KioskText.secondary)
                 }
             }
             .accessibilityElement(children: .combine)
@@ -90,7 +90,7 @@ struct KioskStudentHubView: View {
         VStack(alignment: .leading, spacing: 20) {
             Text("What do you need?")
                 .font(.title3.bold())
-                .foregroundStyle(.white)
+                .foregroundStyle(KioskText.primary)
 
             ActionButton(
                 title: "Checkout Gear",
@@ -158,13 +158,13 @@ struct KioskStudentHubView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Coming Up")
                 .font(.headline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(KioskText.secondary)
 
             if let reservations = context?.reservations, !reservations.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Label("Upcoming Reservations", systemImage: "calendar")
                         .font(.caption.uppercaseSmallCaps())
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(KioskText.secondary)
                     ForEach(reservations) { res in
                         StatusCard(
                             title: res.title,
@@ -185,14 +185,14 @@ struct KioskStudentHubView: View {
         VStack(alignment: .leading, spacing: 6) {
             Image(systemName: "calendar")
                 .font(.title3)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(KioskText.secondary)
                 .accessibilityHidden(true)
             Text("Nothing reserved this week")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(KioskText.secondary)
             Text("You're all clear — tap Checkout Gear to grab something.")
                 .font(.caption)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(KioskText.tertiary)
         }
         .padding(.top, 4)
         .accessibilityElement(children: .combine)
@@ -245,16 +245,16 @@ private struct ActionButton: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(.headline)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(KioskText.primary)
                     Text(subtitle)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(KioskText.secondary)
                         .lineLimit(1)
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(KioskText.secondary)
                     .accessibilityHidden(true)
             }
             .padding(16)
@@ -282,7 +282,7 @@ private struct StatusCard: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.subheadline)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(KioskText.primary)
                     .lineLimit(1)
                 Text(detail)
                     .font(.caption)
@@ -317,7 +317,7 @@ private struct StatusCard: View {
         if let tone, tone == .orange || tone == .red {
             return Color.statusText(tone)
         }
-        return Color.white.opacity(0.6)
+        return KioskText.tertiary
     }
 
     private var accessibilityLabel: String {

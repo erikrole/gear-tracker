@@ -19,13 +19,13 @@ struct KioskSuccessView: View {
 
             Text(message)
                 .font(.kioskSuccessTitle())
-                .foregroundStyle(.white)
+                .foregroundStyle(KioskText.primary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 48)
 
             Text("Returning to home in \(countdown)s...")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(KioskText.secondary)
                 .monospacedDigit()
                 .accessibilityHidden(true)
 
@@ -34,7 +34,7 @@ struct KioskSuccessView: View {
             } label: {
                 Text("Done")
                     .font(.headline)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(KioskText.primary)
                     .padding(.horizontal, 36)
                     .padding(.vertical, 14)
                     .background(Color.kioskRed, in: Capsule())

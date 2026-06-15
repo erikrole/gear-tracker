@@ -85,7 +85,7 @@ struct KioskReturnView: View {
             Spacer()
 
             if isLoading {
-                ProgressView().tint(.white)
+                ProgressView().tint(KioskText.primary)
             } else {
                 VStack(spacing: 20) {
                     KioskProgressRing(
@@ -180,11 +180,11 @@ struct KioskReturnView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(detail?.title ?? "Return")
                     .font(.headline)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(KioskText.primary)
                 if let ref = detail?.refNumber {
                     Text(ref)
                         .font(.caption.monospaced())
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(KioskText.secondary)
                 }
                 if totalItems > 0 {
                     ChecklistProgressSummary(
@@ -229,7 +229,7 @@ struct KioskReturnView: View {
                 }
             } else if isLoading {
                 Spacer()
-                ProgressView().tint(.white).frame(maxWidth: .infinity)
+                ProgressView().tint(KioskText.primary).frame(maxWidth: .infinity)
                 Spacer()
             } else if let loadError {
                 // Detail-load error — distinct recovery surface from
