@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Photo Mechanic license pool
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-25
+- Last Updated: 2026-06-15
 - Status: Active — 2-slot model, expiry tracking, unknown occupants, CSV export shipped
 - Version: V2
 
@@ -58,6 +58,7 @@ Replace the Google Sheet at `licenses.xlsx` with an in-app pool that mirrors how
 ## UI
 
 - Page: `src/app/(app)/licenses/page.tsx`
+- Queue filters: URL-backed `status` values `open`, `partial`, `full`, `expiring`, `expired`, and `retired`; default view shows active non-retired codes.
 - Components:
   - `MyLicensePanel.tsx` — student banner showing their active code with copy + return
   - `MyLicenseHistoryDialog.tsx` — user-visible recent claim/return history from the active-license banner
@@ -120,6 +121,7 @@ Implementation: `processLicenseNags` and `processExpiryWarnings` in `src/lib/ser
 - No full admin per-user license usage report beyond the user's own recent history and per-code admin history
 
 ## Change Log
+- **2026-06-15 (Operator queue polish)**: License page filters now live in the URL, summary health metrics for active/open/expiring/retired codes act as keyboard-operable queue filters, stale refresh failures keep visible rows with retry copy, clipboard failures after claim/copy show truthful recovery messages, expired and expiring active-license banners use attention tones, and adding an unknown occupant keeps the admin sheet open while refreshing history.
 - **2026-05-25 (Web bug sweep Batch 31)**: Admin table row clicks now prioritize inspection over self-claiming, so staff/admin users can manage open or partially used license codes from the table instead of being dropped into the student claim dialog.
 - **2026-05-25 (Web bug sweep Batch 30)**: Admin license sheets now show a retryable error when claim history fails instead of looking empty, abort stale history loads when switching sheets, expose stable form metadata on occupant/account/expiry inputs, and guard retire/delete actions while the request is in flight.
 - **2026-05-24 (Client reliability sweep)**: License dialogs and sheets now use the shared safe error helpers for add, bulk add, bulk renew, claim, return, user history, and admin claim-management actions. These flows now handle expired sessions through the shared login redirect and no longer assume failed API responses are JSON.

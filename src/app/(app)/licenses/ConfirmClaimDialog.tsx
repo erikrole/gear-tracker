@@ -26,6 +26,16 @@ type ClaimResponse = {
   };
 };
 
+async function copyLicenseCode(code: string) {
+  if (!navigator.clipboard?.writeText) return false;
+  try {
+    await navigator.clipboard.writeText(code);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function ConfirmClaimDialog({ license, onOpenChange, onClaimed }: Props) {
   const [loading, setLoading] = useState(false);
 
@@ -40,11 +50,17 @@ export function ConfirmClaimDialog({ license, onOpenChange, onClaimed }: Props) 
       const json = await parseJsonSafely<ClaimResponse>(res);
       const code = json?.data?.code;
       if (!code) throw new Error("License claimed, but no code was returned");
-      await navigator.clipboard.writeText(code);
-      toast.success("License claimed and copied to clipboard", {
-        description: code,
-        duration: 6000,
-      });
+      const copied = await copyLicenseCode(code);
+      if (copied) {
+        toast.success("License claimed and copied to clipboard", {
+          description: code,
+          duration: 6000,
+        });
+      } else {
+        toast.success("License claimed. Copy failed; copy the code from your license banner.", {
+          duration: 6000,
+        });
+      }
       onClaimed();
       onOpenChange(false);
     } catch (err) {

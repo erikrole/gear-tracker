@@ -138,7 +138,7 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
       toast.success("Unknown occupant recorded");
       setOccupantLabel("");
       onAction();
-      onOpenChange(false);
+      await loadHistory();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -223,7 +223,7 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
               </Badge>
             )}
           </div>
-          <SheetDescription className="space-y-0.5">
+          <SheetDescription className="flex flex-col gap-0.5">
             {license?.label && <span className="block">{license.label}</span>}
             {license?.accountEmail && (
               <span className="block text-xs text-muted-foreground">{license.accountEmail}</span>
@@ -232,14 +232,14 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
           </SheetDescription>
         </SheetHeader>
 
-        <div className="mt-10 space-y-10">
+        <div className="mt-10 flex flex-col gap-10">
           {/* Active slots */}
-          <section className="space-y-4">
+          <section className="flex flex-col gap-4">
             <h3 className="text-sm font-medium">Active slots ({activeClaims.length}/2)</h3>
             {activeClaims.length === 0 ? (
               <p className="text-xs text-muted-foreground">Both slots are open.</p>
             ) : (
-              <div className="space-y-1.5">
+              <div className="flex flex-col gap-1.5">
                 {activeClaims.map((claim) => {
                   const name = claim.user?.name ?? claim.occupantLabel ?? "Unknown";
                   return (
@@ -322,7 +322,7 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
           {canAddOccupant && (
             <>
               <Separator />
-              <section className="space-y-4">
+              <section className="flex flex-col gap-4">
                 <h3 className="text-sm font-medium">Mark slot occupied</h3>
                 <form onSubmit={handleAddOccupant} className="flex flex-col gap-2">
                   <Label htmlFor="occupant-name" className="text-xs">Occupant name</Label>
@@ -348,9 +348,9 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
           {isAdmin && (
             <>
               <Separator />
-              <section className="space-y-5">
+              <section className="flex flex-col gap-5">
                 <h3 className="text-sm font-medium">Details</h3>
-                <div className="space-y-1.5">
+                <div className="flex flex-col gap-1.5">
                   <Label htmlFor="account" className="text-xs">Account email</Label>
                   <Input
                     id="account"
@@ -361,7 +361,7 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
                     onChange={(e) => setEditAccount(e.target.value)}
                   />
                 </div>
-                <div className="space-y-1.5">
+                <div className="flex flex-col gap-1.5">
                   <Label htmlFor="expiry" className="text-xs">Annual expiry</Label>
                   <Input
                     id="expiry"
@@ -388,7 +388,7 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
           {isAdmin && (
             <>
               <Separator />
-              <section className="space-y-4">
+              <section className="flex flex-col gap-4">
                 <h3 className="text-sm font-medium text-muted-foreground">Danger zone</h3>
                 <div className="flex gap-2 flex-wrap">
                   {license?.status === "AVAILABLE" && (
@@ -466,7 +466,7 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
           <Separator />
 
           {/* History */}
-          <section className="space-y-3 pb-8">
+          <section className="flex flex-col gap-3 pb-8">
             <h3 className="text-sm font-medium">Claim history</h3>
             {loadingHistory ? (
               <p className="text-xs text-muted-foreground">Loading…</p>
@@ -489,7 +489,7 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
             ) : history.length === 0 ? (
               <p className="text-xs text-muted-foreground">No claims yet</p>
             ) : (
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 {history.map((claim) => {
                   const name = claim.user?.name ?? claim.occupantLabel ?? "Unknown";
                   return (

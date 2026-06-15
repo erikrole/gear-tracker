@@ -1,13 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { CalendarClock, KeyRound, Plus, RefreshCw, List, Download } from "lucide-react";
+import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { AlertTriangle, CalendarClock, KeyRound, Plus, RefreshCw, List, Download } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { PageHeader } from "@/components/PageHeader";
 import { FadeUp } from "@/components/ui/motion";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { OperationalMetricCard } from "@/components/OperationalFeedback";
+import { cn } from "@/lib/utils";
 import { useFetch } from "@/hooks/use-fetch";
 import { formatRelativeTime } from "@/lib/format";
 import { LicenseTable } from "./LicenseTable";
@@ -20,6 +24,69 @@ import { BulkRenewDialog } from "./BulkRenewDialog";
 import type { LicenseCode, MyLicense } from "./types";
 
 const MAX_SLOTS = 2;
+const DAY_MS = 86_400_000;
+
+type LicenseQueueFilter = "all" | "open" | "partial" | "full" | "expiring" | "expired" | "retired";
+
+const LICENSE_QUEUE_FILTERS = new Set<LicenseQueueFilter>([
+  "all",
+  "open",
+  "partial",
+  "full",
+  "expiring",
+  "expired",
+  "retired",
+]);
+
+const FILTER_LABELS: Record<LicenseQueueFilter, string> = {
+  all: "All active",
+  open: "Open slots",
+  partial: "Partial",
+  full: "Full",
+  expiring: "Expiring soon",
+  expired: "Expired",
+  retired: "Retired",
+};
+
+function normalizeQueueFilter(value: string | null): LicenseQueueFilter {
+  return value && LICENSE_QUEUE_FILTERS.has(value as LicenseQueueFilter)
+    ? (value as LicenseQueueFilter)
+    : "all";
+}
+
+function isExpiringSoon(expiresAt: string | null | undefined) {
+  if (!expiresAt) return false;
+  const diff = new Date(expiresAt).getTime() - Date.now();
+  return diff >= 0 && diff <= 30 * DAY_MS;
+}
+
+function isExpired(expiresAt: string | null | undefined) {
+  return !!expiresAt && new Date(expiresAt).getTime() < Date.now();
+}
+
+function MetricFilterButton({
+  active,
+  children,
+  onClick,
+}: {
+  active: boolean;
+  children: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={cn(
+        "rounded-md text-left transition focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+        active && "bg-primary/5 ring-1 ring-primary/30",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
 
 function LicenseSummary({
   activeCodes,
@@ -27,24 +94,30 @@ function LicenseSummary({
   expiringCount,
   retiredCount,
   myLicense,
+  activeFilter,
+  onFilterChange,
 }: {
   activeCodes: number;
   usedSlots: number;
   expiringCount: number;
   retiredCount: number;
   myLicense: boolean;
+  activeFilter: LicenseQueueFilter;
+  onFilterChange: (filter: LicenseQueueFilter) => void;
 }) {
   const totalSlots = activeCodes * MAX_SLOTS;
   const openSlots = Math.max(totalSlots - usedSlots, 0);
 
   return (
     <div className="mb-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
-      <OperationalMetricCard
-        label="Active codes"
-        value={activeCodes}
-        helper="Usable license codes"
-        className="bg-muted/30"
-      />
+      <MetricFilterButton active={activeFilter === "all"} onClick={() => onFilterChange("all")}>
+        <OperationalMetricCard
+          label="Active codes"
+          value={activeCodes}
+          helper="Usable license codes"
+          className="bg-muted/30"
+        />
+      </MetricFilterButton>
       <OperationalMetricCard
         label="Slots in use"
         value={`${usedSlots}/${totalSlots}`}
@@ -52,26 +125,32 @@ function LicenseSummary({
         tone={usedSlots > 0 ? "blue" : "muted"}
         className="bg-muted/30"
       />
-      <OperationalMetricCard
-        label="Open slots"
-        value={openSlots}
-        helper="Claimable capacity"
-        tone={openSlots > 0 ? "green" : "muted"}
-        className="bg-muted/30"
-      />
-      <OperationalMetricCard
-        label="Expiring soon"
-        value={expiringCount}
-        helper="Within 30 days"
-        tone={expiringCount > 0 ? "orange" : "muted"}
-        className="bg-muted/30"
-      />
-      <OperationalMetricCard
-        label="Retired"
-        value={retiredCount}
-        helper="Hidden by default"
-        className="bg-muted/30"
-      />
+      <MetricFilterButton active={activeFilter === "open"} onClick={() => onFilterChange("open")}>
+        <OperationalMetricCard
+          label="Open slots"
+          value={openSlots}
+          helper="Claimable capacity"
+          tone={openSlots > 0 ? "green" : "muted"}
+          className="bg-muted/30"
+        />
+      </MetricFilterButton>
+      <MetricFilterButton active={activeFilter === "expiring"} onClick={() => onFilterChange("expiring")}>
+        <OperationalMetricCard
+          label="Expiring soon"
+          value={expiringCount}
+          helper="Within 30 days"
+          tone={expiringCount > 0 ? "orange" : "muted"}
+          className="bg-muted/30"
+        />
+      </MetricFilterButton>
+      <MetricFilterButton active={activeFilter === "retired"} onClick={() => onFilterChange("retired")}>
+        <OperationalMetricCard
+          label="Retired"
+          value={retiredCount}
+          helper="Hidden by default"
+          className="bg-muted/30"
+        />
+      </MetricFilterButton>
       {myLicense && (
         <div className="px-1 text-xs text-muted-foreground sm:col-span-3 lg:col-span-5">
           You hold one slot.
@@ -82,12 +161,16 @@ function LicenseSummary({
 }
 
 export default function LicensesPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const [claimTarget, setClaimTarget] = useState<LicenseCode | null>(null);
   const [adminTarget, setAdminTarget] = useState<LicenseCode | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
   const [showRenew, setShowRenew] = useState(false);
-  const [showRetired, setShowRetired] = useState(false);
+
+  const activeFilter = normalizeQueueFilter(searchParams.get("status"));
 
   const { data: meData } = useFetch<{ id: string; role: string }>({
     url: "/api/me",
@@ -122,18 +205,43 @@ export default function LicensesPage() {
   }
 
   const allCodes = codesData ?? [];
-  const visibleCodes = showRetired ? allCodes : allCodes.filter((c) => c.status !== "RETIRED");
-
   const activeCodes = allCodes.filter((c) => c.status !== "RETIRED");
+  const visibleCodes = useMemo(() => {
+    switch (activeFilter) {
+      case "open":
+        return allCodes.filter((c) => c.status === "AVAILABLE");
+      case "partial":
+        return allCodes.filter((c) => c.status === "PARTIAL");
+      case "full":
+        return allCodes.filter((c) => c.status === "CLAIMED");
+      case "expiring":
+        return allCodes.filter((c) => c.status !== "RETIRED" && isExpiringSoon(c.expiresAt));
+      case "expired":
+        return allCodes.filter((c) => c.status !== "RETIRED" && isExpired(c.expiresAt));
+      case "retired":
+        return allCodes.filter((c) => c.status === "RETIRED");
+      case "all":
+      default:
+        return allCodes.filter((c) => c.status !== "RETIRED");
+    }
+  }, [activeFilter, allCodes]);
+  const visibleActiveCodes = visibleCodes.filter((c) => c.status !== "RETIRED");
   const usedSlots = activeCodes.reduce((sum, c) => sum + c.claims.length, 0);
   const retiredCount = allCodes.length - activeCodes.length;
-  const expiringCount = activeCodes.filter((c) => {
-    if (!c.expiresAt) return false;
-    const diff = new Date(c.expiresAt).getTime() - Date.now();
-    return diff <= 30 * 86_400_000;
-  }).length;
+  const expiringCount = activeCodes.filter((c) => isExpiringSoon(c.expiresAt)).length;
   const hasRetired = allCodes.some((c) => c.status === "RETIRED");
   const hasExpiry = allCodes.some((c) => c.expiresAt);
+
+  function setQueueFilter(filter: LicenseQueueFilter) {
+    const next = new URLSearchParams(searchParams.toString());
+    if (filter === "all") {
+      next.delete("status");
+    } else {
+      next.set("status", filter);
+    }
+    const query = next.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }
 
   function handleClickAvailable(code: LicenseCode) {
     if (myLicense) return;
@@ -178,16 +286,16 @@ export default function LicensesPage() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    variant={showRetired ? "secondary" : "ghost"}
+                    variant={activeFilter === "retired" ? "secondary" : "ghost"}
                     size="icon"
                     className="size-10"
-                    onClick={() => setShowRetired((v) => !v)}
+                    onClick={() => setQueueFilter(activeFilter === "retired" ? "all" : "retired")}
                     aria-label="Toggle retired codes"
                   >
                     <List className="size-3.5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{showRetired ? "Hide retired" : "Show retired"}</TooltipContent>
+                <TooltipContent>{activeFilter === "retired" ? "Hide retired" : "Show retired"}</TooltipContent>
               </Tooltip>
             )}
             <Tooltip>
@@ -212,7 +320,7 @@ export default function LicensesPage() {
               size="sm"
               className="h-10"
               onClick={() => setShowRenew(true)}
-              disabled={activeCodes.length === 0}
+              disabled={visibleActiveCodes.length === 0}
             >
               <CalendarClock className="size-3.5 mr-1" />
               Renew
@@ -238,6 +346,8 @@ export default function LicensesPage() {
           expiringCount={expiringCount}
           retiredCount={retiredCount}
           myLicense={!!myLicense}
+          activeFilter={activeFilter}
+          onFilterChange={setQueueFilter}
         />
       )}
 
@@ -261,23 +371,37 @@ export default function LicensesPage() {
       ) : !codesLoading && visibleCodes.length === 0 ? (
         <EmptyState
           icon="box"
-          title="Only retired licenses are hidden"
-          description="Show retired codes from the header to review archived license history."
-          actionLabel={isAdmin ? "Show retired" : undefined}
-          onAction={isAdmin ? () => setShowRetired(true) : undefined}
+          title="No licenses match this filter"
+          description={`${FILTER_LABELS[activeFilter]} has no matching license rows. Clear the filter to return to the active queue.`}
+          actionLabel={activeFilter !== "all" ? "Clear filter" : undefined}
+          onAction={activeFilter !== "all" ? () => setQueueFilter("all") : undefined}
         />
       ) : (
-        <LicenseTable
-          codes={visibleCodes}
-          loading={codesLoading}
-          currentUserId={currentUserId}
-          isAdmin={isAdmin}
-          hasMyLicense={!!myLicense}
-          myClaimId={myLicense?.claimId ?? null}
-          onClickAvailable={handleClickAvailable}
-          onClickClaimed={handleClickClaimed}
-          showExpiry={hasExpiry}
-        />
+        <div className="flex flex-col gap-3">
+          {codesError && allCodes.length > 0 && (
+            <Alert className="border-[var(--orange)]/40 bg-[var(--orange-bg)]">
+              <AlertTriangle className="size-4 text-[var(--orange-text)]" />
+              <AlertTitle>License list could not refresh</AlertTitle>
+              <AlertDescription className="flex flex-col gap-3 text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+                <span>Visible rows may be stale. Retry before making queue decisions from this list.</span>
+                <Button type="button" variant="outline" size="sm" onClick={reloadAll}>
+                  Retry
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+          <LicenseTable
+            codes={visibleCodes}
+            loading={codesLoading}
+            currentUserId={currentUserId}
+            isAdmin={isAdmin}
+            hasMyLicense={!!myLicense}
+            myClaimId={myLicense?.claimId ?? null}
+            onClickAvailable={handleClickAvailable}
+            onClickClaimed={handleClickClaimed}
+            showExpiry={hasExpiry}
+          />
+        </div>
       )}
 
       {/* Claim dialog (student) */}
@@ -301,7 +425,7 @@ export default function LicensesPage() {
       <BulkRenewDialog
         open={showRenew}
         onOpenChange={setShowRenew}
-        codes={visibleCodes}
+        codes={visibleActiveCodes}
         onRenewed={reloadAll}
       />
 

@@ -162,7 +162,7 @@ export function LicenseTable({
             const rowClass = cn(
               "transition-colors",
               code.status === "AVAILABLE" && "bg-green-50/50 dark:bg-green-950/10",
-              code.status === "PARTIAL" && "bg-blue-50/50 dark:bg-blue-950/10",
+              code.status === "PARTIAL" && "bg-[var(--orange-bg)]/50",
               code.status === "CLAIMED" && "bg-red-50/30 dark:bg-red-950/10",
               code.status === "RETIRED" && "opacity-50",
               isOwn && "ring-1 ring-inset ring-green-300 dark:ring-green-700",
@@ -204,7 +204,7 @@ export function LicenseTable({
                 </TableCell>
                 <TableCell>
                   {code.status === "AVAILABLE" && <Badge variant="green">Open</Badge>}
-                  {code.status === "PARTIAL" && <Badge variant="blue">1/{MAX_SLOTS}</Badge>}
+                  {code.status === "PARTIAL" && <Badge variant="orange">1/{MAX_SLOTS}</Badge>}
                   {code.status === "CLAIMED" && <Badge variant="red">{isOwn ? "Yours" : "Full"}</Badge>}
                   {code.status === "RETIRED" && <Badge variant="gray">Retired</Badge>}
                 </TableCell>

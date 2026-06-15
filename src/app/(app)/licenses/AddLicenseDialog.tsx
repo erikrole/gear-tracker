@@ -66,8 +66,8 @@ export function AddLicenseDialog({ open, onOpenChange, onCreated }: Props) {
           <DialogTitle>Add license code</DialogTitle>
           <DialogDescription>Add a single Photo Mechanic license to the pool.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="code">License code</Label>
             <Input
               id="code"
@@ -78,7 +78,7 @@ export function AddLicenseDialog({ open, onOpenChange, onCreated }: Props) {
               required
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="label">
               Label <span className="text-muted-foreground">(optional)</span>
             </Label>
@@ -89,7 +89,7 @@ export function AddLicenseDialog({ open, onOpenChange, onCreated }: Props) {
               placeholder="e.g. Seat 3, renewed 2026"
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="accountEmail">
               Account email <span className="text-muted-foreground">(optional)</span>
             </Label>
@@ -101,7 +101,7 @@ export function AddLicenseDialog({ open, onOpenChange, onCreated }: Props) {
               placeholder="kms@athletics.wisc.edu"
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="expiresAt">
               Annual expiry <span className="text-muted-foreground">(optional)</span>
             </Label>

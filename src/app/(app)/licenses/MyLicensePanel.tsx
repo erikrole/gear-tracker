@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatRelativeTime } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { MyLicense } from "./types";
 import { ReleaseDialog } from "./ReleaseDialog";
 import { MyLicenseHistoryDialog } from "./MyLicenseHistoryDialog";
@@ -22,10 +23,18 @@ export function MyLicensePanel({ license, isStaff, onReleased }: Props) {
   const [showHistory, setShowHistory] = useState(false);
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(license.code);
-    setCopied(true);
-    toast.success("License code copied to clipboard");
-    setTimeout(() => setCopied(false), 2000);
+    if (!navigator.clipboard?.writeText) {
+      toast.error("Copy failed. Select the visible license code and copy it manually.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(license.code);
+      setCopied(true);
+      toast.success("License code copied to clipboard");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Copy failed. Select the visible license code and copy it manually.");
+    }
   }
 
   const expiryMs = license.expiresAt ? new Date(license.expiresAt).getTime() : null;
@@ -36,13 +45,23 @@ export function MyLicensePanel({ license, isStaff, onReleased }: Props) {
   const headerLabel = isStaff ? "Custody" : "Your license";
   const releaseLabel = isStaff ? "Release" : "Return";
   const timeLabel = isStaff ? "Held since" : "Claimed";
+  const cardToneClass = isExpired
+    ? "border-destructive/40 bg-destructive/5"
+    : isExpiringSoon
+      ? "border-[var(--orange)]/40 bg-[var(--orange-bg)]"
+      : "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30";
+  const headerToneClass = isExpired
+    ? "text-destructive"
+    : isExpiringSoon
+      ? "text-[var(--orange-text)]"
+      : "text-green-700 dark:text-green-400";
 
   return (
     <>
-      <Card className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30 mb-6">
+      <Card className={cn("mb-6", cardToneClass)}>
         <CardContent className="flex flex-col gap-3 pt-4 pb-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="flex items-center gap-2 text-green-700 dark:text-green-400 shrink-0">
+            <div className={cn("flex items-center gap-2 shrink-0", headerToneClass)}>
               <KeyRound className="size-4" />
               <span className="text-xs font-medium uppercase tracking-wide">{headerLabel}</span>
             </div>
@@ -81,7 +100,7 @@ export function MyLicensePanel({ license, isStaff, onReleased }: Props) {
                 "flex items-center gap-1.5 text-xs " +
                 (isExpired
                   ? "text-destructive"
-                  : "text-yellow-700 dark:text-yellow-400")
+                  : "text-[var(--orange-text)]")
               }
             >
               <AlertTriangle className="size-3.5" />

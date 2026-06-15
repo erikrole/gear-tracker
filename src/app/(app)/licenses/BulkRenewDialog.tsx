@@ -92,7 +92,7 @@ export function BulkRenewDialog({ open, onOpenChange, codes, onRenewed }: Props)
             Apply one annual expiry date to a bounded set of visible active license codes.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <RadioGroup value={scope} onValueChange={(value) => setScope(value as RenewScope)}>
             <div className="flex items-start gap-2 rounded-md border p-3">
               <RadioGroupItem id="renew-expiring" value="expiring" disabled={expiringCodes.length === 0} />
@@ -114,7 +114,7 @@ export function BulkRenewDialog({ open, onOpenChange, codes, onRenewed }: Props)
             </div>
           </RadioGroup>
 
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="renew-expiry">New annual expiry</Label>
             <Input
               id="renew-expiry"

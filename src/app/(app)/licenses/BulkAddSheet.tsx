@@ -77,7 +77,7 @@ export function BulkAddSheet({ open, onOpenChange, onCreated }: Props) {
           <SheetDescription>Paste one license code per line. Duplicates are skipped.</SheetDescription>
         </SheetHeader>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-4">
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="bulk-codes">License codes</Label>
             <Textarea
               id="bulk-codes"
@@ -88,7 +88,7 @@ export function BulkAddSheet({ open, onOpenChange, onCreated }: Props) {
               required
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="bulk-account">
               Shared account email <span className="text-muted-foreground">(optional)</span>
             </Label>
@@ -100,7 +100,7 @@ export function BulkAddSheet({ open, onOpenChange, onCreated }: Props) {
               placeholder="kms@athletics.wisc.edu"
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="bulk-expiry">
               Shared expiry <span className="text-muted-foreground">(optional)</span>
             </Label>
