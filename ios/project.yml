@@ -46,6 +46,8 @@ targets:
         aps-environment: development
         com.apple.developer.weatherkit: true
     dependencies:
+      - sdk: AppIntents.framework
+        embed: false
       - sdk: WeatherKit.framework
         embed: false
     settings:

@@ -179,6 +179,7 @@
 ## Process
 
 - **NORTH_STAR.md first**: Read before every session to prevent context drift.
+- **Use referenced Codex sessions for the intended context, not inferred provenance**: When the user points to a session id, confirm what they are using it for before writing a lesson or attribution. Session `019eb9aa-9726-7712-866a-ac831f4e3490` is the iOS framework roadmap discussion containing the App Intents context, not proof that `tasks/roadmap-ideas-2026-06-12.md` came from that session.
 - **Always suggest the next slice or say to stop**: Close every implementation slice with a concrete next-slice recommendation. If the current area is in good shape, say we should stop and move to another area instead of inventing churn.
 - **Questions should be multiple-choice dialogs**: When a decision needs user input, use the interactive multiple-choice request flow instead of freeform prose questions whenever the tool is available.
 - **Keep the dev server running during active web work**: Do not automatically close the dev server after every slice. Leave it open for continued browser verification unless the user asks to stop it, the server is stale/broken, or the task is fully done and cleanup is clearly better.

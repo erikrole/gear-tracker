@@ -356,24 +356,27 @@ private struct ItemHeroCard: View {
 
     private var banner: some View {
         ZStack(alignment: .topTrailing) {
-            // Full white when a photo exists: inventory shots are catalog
-            // images on white, so the frame disappears into the image instead
-            // of letterboxing it. Placeholders keep the brand-tinted gradient.
-            Group {
-                if asset.imageUrl != nil {
-                    Color.white
-                } else {
-                    Color.clear
+            Button {
+                if asset.imageUrl != nil { showZoom = true }
+            } label: {
+                // Full white when a photo exists: inventory shots are catalog
+                // images on white, so the frame disappears into the image instead
+                // of letterboxing it. Placeholders keep the brand-tinted gradient.
+                Group {
+                    if asset.imageUrl != nil {
+                        Color.white
+                    } else {
+                        Color.clear
+                    }
                 }
+                .overlay { bannerImage }
+                .frame(maxWidth: .infinity)
+                .frame(height: 200)
+                .clipped()
             }
-            .overlay { bannerImage }
-            .frame(maxWidth: .infinity)
-            .frame(height: 200)
-            .clipped()
-            .contentShape(Rectangle())
-            // Tap a real photo to inspect cosmetic condition full-screen;
-            // mirrors the scan result hero. Placeholders aren't tappable.
-            .onTapGesture { if asset.imageUrl != nil { showZoom = true } }
+            .buttonStyle(.plain)
+            .disabled(asset.imageUrl == nil)
+            .accessibilityLabel(asset.imageUrl == nil ? "Item image placeholder" : "Open item photo")
 
             // The badge carries its own tinted capsule; on the white hero
             // that's contrast enough, so no extra material wrapper — just a

@@ -58,7 +58,12 @@ struct AppTabView: View {
             }
         }
         .onAppear {
+            appState.consumePendingAppIntentDestination()
+            routePendingAppIntent()
             routePendingEventPush()
+        }
+        .onChange(of: appState.pendingAppIntentDestination) { _, _ in
+            routePendingAppIntent()
         }
         .onChange(of: appState.pendingPushEventId) { _, _ in
             routePendingEventPush()
@@ -81,6 +86,17 @@ struct AppTabView: View {
         if appState.selectedTab != 4 {
             appState.selectedTab = 4
         }
+    }
+
+    private func routePendingAppIntent() {
+        guard let destination = appState.pendingAppIntentDestination else { return }
+        if let bookingsTab = destination.bookingsTab {
+            appState.pendingBookingsTab = bookingsTab
+        }
+        if appState.selectedTab != destination.tabIndex {
+            appState.selectedTab = destination.tabIndex
+        }
+        appState.pendingAppIntentDestination = nil
     }
 }
 

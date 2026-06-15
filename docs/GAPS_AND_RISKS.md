@@ -180,6 +180,7 @@ _2026-06-11 update: iOS native reservation event linking and booking-sheet polis
 ---
 
 ## Change Log
+- 2026-06-15: iOS App Intents safe navigation shipped without opening a new gap. The first shortcut set only opens existing native destinations: Scan lookup, My Gear/Bookings, and Schedule. No custody, checkout, return, kiosk, or mutation action is exposed through App Intents.
 - 2026-06-06: Web full-search item identity fallback shipped without opening a new gap. `/search` item results now avoid blank titles by falling back through tag, name, brand/model, type, and `Untitled item`, preserving role-aware destination search and partial entity-result failure semantics.
 - 2026-06-06: Web booking creation event-list recovery shipped without opening a new gap. Checkout and reservation creation now show a retryable inline calendar error when upcoming-event reads fail instead of falling through to the true no-event state, while preserving ad hoc booking creation and existing event linkage contracts.
 - 2026-06-11: Brother battery label CSV export and printed-label tracking shipped without opening a new gap. Numbered bulk units now carry printed-label state (`labelPrintedAt`/`labelPrintedById`/`labelPrintBatchId`, migration 0077) and a `GET/POST /api/bulk-skus/[id]/units/labels` route exports a `item_number,qr_code` CSV (derived QR, `csvField`-escaped) and marks exported labels printed with audit. No new battery-label gap existed to close; QR data remains derived per D-022.

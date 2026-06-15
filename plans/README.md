@@ -68,6 +68,7 @@ Verified plan status against `main` HEAD (not just branch existence):
 | 020 | Sort iOS booking equipment picker by displayed product name | P1 | S/M | none | TODO |
 | 021 | Show asset photos for battery/counted-item rows in iOS booking picker | P2 | S/M | none | TODO |
 | 022 | Design spike: group iOS booking picker by category | P3 | M | 020 | TODO |
+| 052 | Make the license page a clearer operator queue | P2 | M | none | DONE in `f5a55808`; focused test, DB migration check, and diff check pass; repo-wide tsc/test/build remain blocked by pre-existing or out-of-scope failures |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -87,6 +88,7 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 - 013 depends on 011 to avoid overlapping edits in `CreateBookingSheet.swift` and `UserAvatarView`.
 - 014-017 come from a Kiosk-focused audit pass (2026-06-10, planned at `e8566c54`). They are independent of each other, but 014 and 015 both add a change-log row to `docs/AREA_KIOSK.md` -- run sequentially or expect a trivial merge there.
 - 022 depends on 020: category grouping needs the display-aligned `name` sort as its within-group ordering, and both reason about the same `/api/assets` ordering + the same picker list section. 020 and 021 touch disjoint files and can run in parallel.
+- 052 is independent of the kiosk and iOS picker plans. It is a web-only license-page ownership pass and must not be combined with the deferred license reporting or history-pagination gaps.
 - Do not run 017 concurrently with 010: both touch iOS API error handling (017 consumes `APIError` in `KioskAPIClient.swift`; 010 works in `Core`). Sequential execution avoids conflicting assumptions about `APIError` cases.
 - Plans 014-017 were written without user selection (non-interactive default: top findings by leverage). Unplanned kiosk findings are recorded below so they are not re-audited.
 - 050 comes from the 2026-06-11 screenshot and product-feedback pass on native iOS reservation creation. It should run before broader `CreateBookingSheet` decomposition because it fixes user-visible naming, pickup-location semantics, unified equipment picking, and review treatment without changing server contracts.

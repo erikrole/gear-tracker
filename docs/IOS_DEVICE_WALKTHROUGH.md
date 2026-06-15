@@ -25,7 +25,8 @@ This plan maps directly to the 24+ focused audit docs at `tasks/audit-*-ios.md` 
 - [ ] `npm run audit:ios:gaps` → `✓ no audit gaps`.
 - [ ] `cd ios && xcodegen generate` (if any new files were added).
 - [ ] Restore `Wisconsin/Wisconsin.entitlements` if xcodegen ran (APNs + WeatherKit must be present — see [feedback memory](https://github.com/erikrole/.claude/projects/-Users-erole-GitHub-gear-tracker/memory/feedback_xcodegen_entitlements.md)).
-- [ ] Build for device target in Xcode. **BUILD SUCCEEDED** with zero warnings (other than "AppIntents.framework dependency" notice).
+- [ ] Build for device target in Xcode. **BUILD SUCCEEDED** with zero warnings.
+- [ ] Open Shortcuts and confirm Wisconsin exposes Open Scan, My Gear, and Today's Shift. Run each shortcut: Scan lands on the lookup scanner, My Gear lands on active gear/bookings, and Today's Shift lands on Schedule.
 - [ ] Install to a real iPhone (16 series or later) and a real iPad (Pro / Air).
 
 ### Test accounts

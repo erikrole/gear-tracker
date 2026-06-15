@@ -4,6 +4,47 @@ Last updated: 2026-06-13
 
 ---
 
+## Active: iOS App Intents safe navigation slice (2026-06-15)
+
+Goal: ship the first App Intents surface from Codex session
+`019eb9aa-9726-7712-866a-ac831f4e3490`: safe navigation and read-only entry
+points only. No custody, checkout, scan execution, kiosk, or mutation actions.
+
+### Plan
+- [x] Source audit: App Intents skill, session memory, `docs/NORTH_STAR.md`,
+      `docs/AREA_MOBILE.md`, `docs/AREA_SCAN.md`, `docs/AREA_NOTIFICATIONS.md`,
+      `docs/DECISIONS.md`, `docs/GAPS_AND_RISKS.md`, `prisma/schema.prisma`,
+      and iOS routing files checked.
+- [x] Add App Shortcuts for Open Scan, Show My Gear, and Show Today's Shift.
+- [x] Route intents through `AppState` into existing tabs.
+- [x] Link `AppIntents.framework` and add a source-contract test.
+- [x] Sync mobile/device docs and run iOS verification.
+
+### Constraints
+- App scan remains lookup-only; kiosk owns checkout pickup and return custody.
+- Intents may open existing app destinations but must not call mutation APIs.
+- Widget/live-activity/passkey work remains separate future slices.
+
+### Review
+- 2026-06-15: Shipped the first App Intents surface as three App Shortcuts:
+  Open Scan, Show My Gear, and Show Today's Shift. Each shortcut uses
+  `openAppWhenRun = true` and writes a pending destination into the central
+  `AppState` handoff; `AppTabView` consumes that handoff and switches to Scan,
+  Bookings/My Gear, or Schedule. The slice exposes no custody-changing action,
+  kiosk flow, checkout mutation, return mutation, or inline background action.
+- 2026-06-15: `AppIntents.framework` is now linked through `ios/project.yml`
+  and the generated Xcode project. The prior AppIntents metadata warning is
+  replaced by successful `ExtractAppIntentsMetadata` during the simulator build.
+- 2026-06-15: Cleaned one existing iOS drift failure in `ItemDetailView` by
+  changing the zoomable item photo from `.onTapGesture` to a semantic `Button`.
+  Verification: focused Vitest source contracts passed (7 tests), `npm run
+  drift:ios` passed, touched-file `git diff --check` passed, and the Wisconsin
+  simulator build passed. `npm run audit:ios:gaps` exited successfully with the
+  same unrelated unregistered-surface warnings for `Components/UserAvatarView.swift`
+  and `Search/ScanResultHeroCard.swift`.
+
+---
+
 ## Active: Kiosk iOS UI consolidation + brand polish (2026-06-13)
 
 Goal: `/frontend-design` pass on all 9 iOS kiosk SwiftUI views, **within the
