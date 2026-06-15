@@ -859,43 +859,60 @@ private struct ScheduleDateHeader: View {
     private var isToday: Bool { cal.isDateInToday(date) }
     private var isTomorrow: Bool { cal.isDateInTomorrow(date) }
 
+    private var primaryLabel: String {
+        if isToday { return "Today" }
+        if isTomorrow { return "Tomorrow" }
+        return date.formatted(.dateTime.weekday(.wide))
+    }
+
     var body: some View {
-        HStack(alignment: .center, spacing: 10) {
-            VStack(alignment: .center, spacing: 0) {
+        HStack(alignment: .center, spacing: 12) {
+            // Date tile — weekday + day number, tinted brand on today so the
+            // current day reads at a glance while scrolling.
+            VStack(spacing: 1) {
                 Text(date.formatted(.dateTime.weekday(.abbreviated)).uppercased())
                     .font(.caption2.weight(.bold))
                     .kerning(0.5)
-                    .foregroundStyle(isToday ? Color.accentColor : .secondary)
+                    .foregroundStyle(isToday ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
                 Text(date.formatted(.dateTime.day()))
-                    .font(.title2.weight(.heavy))
+                    .font(.title3.weight(.heavy))
                     .monospacedDigit()
-                    .fixedSize()
-                    .foregroundStyle(isToday ? Color.accentColor : .primary)
+                    .foregroundStyle(isToday ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
             }
-            .frame(minWidth: 36)
+            .frame(width: 44, height: 44)
+            .background(
+                isToday ? AnyShapeStyle(Color.brandPrimary) : AnyShapeStyle(Color.cardSurface),
+                in: RoundedRectangle(cornerRadius: Brand.Radius.sm, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Brand.Radius.sm, style: .continuous)
+                    .strokeBorder(isToday ? Color.clear : Color.hairline, lineWidth: 0.5)
+            )
 
-            VStack(alignment: .leading, spacing: 0) {
-                Text(
-                    isToday ? "Today" :
-                    isTomorrow ? "Tomorrow" :
-                    date.formatted(.dateTime.month(.wide).year())
-                )
-                .font(.caption.weight(.medium))
-                .foregroundStyle(isToday ? Color.accentColor.opacity(0.8) : .secondary)
-            }
-
-            if eventCount > 1 {
-                Text("\(eventCount) events")
-                    .font(.system(.caption2, design: .monospaced))
-                    .foregroundStyle(.tertiary)
-                    .padding(.trailing, 16)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(primaryLabel)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(isToday ? Color.brandPrimary : .primary)
+                Text(date.formatted(.dateTime.month(.wide).day().year()))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Spacer()
+
+            if eventCount > 1 {
+                Label("\(eventCount)", systemImage: "calendar")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.cardSurfaceRaised, in: Capsule())
+                    .accessibilityHidden(true)
+            }
         }
         .padding(.horizontal, 16)
-        .padding(.top, 14)
-        .padding(.bottom, 4)
+        .padding(.top, Brand.Space.lg)
+        .padding(.bottom, 6)
         .background(Color(.systemGroupedBackground))
         .accessibilityElement(children: .ignore)
         .accessibilityAddTraits(.isHeader)
