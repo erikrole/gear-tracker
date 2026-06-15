@@ -91,18 +91,17 @@ struct EventDetailSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: Brand.Space.lg) {
                     eventHeader
                     if eventWork != nil || myShift != nil {
-                        Divider()
                         gearAndCallSection
                     }
-                    Divider()
                     crewSection
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
+                .padding(.horizontal, Brand.Space.md)
+                .padding(.vertical, Brand.Space.md)
             }
+            .background(Color(.systemGroupedBackground))
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -369,9 +368,8 @@ struct EventDetailSheet: View {
 
     @ViewBuilder
     private var gearAndCallSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Your Event")
-                .font(.headline)
+        VStack(alignment: .leading, spacing: Brand.Space.sm) {
+            BrandSectionHeader("Your Event", systemImage: "person.crop.circle.badge.checkmark")
 
             VStack(alignment: .leading, spacing: 10) {
                 if let gear = eventWork?.primaryGear, eventWork?.needsGear == false {
@@ -407,9 +405,7 @@ struct EventDetailSheet: View {
                     )
                 }
             }
-            .padding(12)
-            .background(.background.secondary)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .brandCard()
         }
     }
 
@@ -442,6 +438,31 @@ struct EventDetailSheet: View {
 
     // MARK: - Event Header
 
+    /// Single day → "Saturday, June 14, 2026". Multi-day → "Sat, Jun 14 – Mon,
+    /// Jun 16, 2026" (drops the redundant start-year when both ends share one).
+    private var eventDateText: String {
+        guard event.isMultiDay else {
+            return event.startsAt.formatted(.dateTime.weekday(.wide).month(.wide).day().year())
+        }
+        let cal = Calendar.current
+        let endRef = event.allDay ? event.endsAt.addingTimeInterval(-1) : event.endsAt
+        let sameYear = cal.isDate(event.startsAt, equalTo: endRef, toGranularity: .year)
+        let start = event.startsAt.formatted(
+            sameYear ? .dateTime.weekday(.abbreviated).month(.abbreviated).day()
+                     : .dateTime.weekday(.abbreviated).month(.abbreviated).day().year()
+        )
+        let end = endRef.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().year())
+        return "\(start) – \(end)"
+    }
+
+    /// Times read as a same-day range; for multi-day they're labeled so they
+    /// don't look like one continuous block on a single day.
+    private var eventTimeText: String {
+        let start = event.startsAt.formatted(.dateTime.hour().minute())
+        let end = event.endsAt.formatted(.dateTime.hour().minute())
+        return event.isMultiDay ? "Starts \(start) · ends \(end)" : "\(start) – \(end)"
+    }
+
     private var eventHeader: some View {
         VStack(alignment: .leading, spacing: 10) {
             // Sport + home/away
@@ -465,24 +486,22 @@ struct EventDetailSheet: View {
 
             // Title
             Text(event.summary)
-                .font(.title3.weight(.semibold))
+                .font(.gothamBold(size: 22))
+                .lineLimit(3)
 
             // Date + time
             VStack(alignment: .leading, spacing: 4) {
                 Label(
-                    event.startsAt.formatted(.dateTime.weekday(.wide).month(.wide).day().year()),
-                    systemImage: "calendar"
+                    eventDateText,
+                    systemImage: event.isMultiDay ? "calendar.day.timeline.left" : "calendar"
                 )
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
                 if !event.allDay {
-                    Label(
-                        "\(event.startsAt.formatted(.dateTime.hour().minute())) – \(event.endsAt.formatted(.dateTime.hour().minute()))",
-                        systemImage: "clock"
-                    )
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    Label(eventTimeText, systemImage: "clock")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
 
                 if let location = event.location {
@@ -506,37 +525,62 @@ struct EventDetailSheet: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .brandCard()
     }
 
     // MARK: - Crew Section
 
-    @ViewBuilder
     private var crewSection: some View {
+        VStack(alignment: .leading, spacing: Brand.Space.sm) {
+            BrandSectionHeader(title: "Crew", systemImage: "person.2.fill") {
+                if let coverage = vm.shiftGroup?.coverage {
+                    CoveragePill(coverage: coverage)
+                }
+            }
+            crewBody
+        }
+    }
+
+    @ViewBuilder
+    private var crewBody: some View {
         if vm.isLoading {
             HStack(spacing: 10) {
                 ProgressView()
-                Text("Loading crew...")
+                Text("Loading crew…")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity, alignment: .center)
-            .padding(.vertical, 20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .brandCard()
         } else if let err = vm.error {
-            ContentUnavailableView {
+            VStack(spacing: 8) {
                 Label("Couldn't load crew", systemImage: "exclamationmark.triangle")
-            } description: {
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Color.statusText(.orange))
                 Text(err)
-            } actions: {
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
                 Button("Retry") { Task { await vm.load() } }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
             }
+            .frame(maxWidth: .infinity)
+            .brandCard(alignment: .center)
         } else if vm.shiftGroup == nil {
-            VStack(spacing: 12) {
+            VStack(spacing: 10) {
                 Image(systemName: "person.2.slash")
                     .font(.largeTitle)
                     .foregroundStyle(.tertiary)
                 Text("No crew scheduled")
-                    .font(.subheadline)
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
+                Text("No shifts have been set up for this event yet.")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
                 if canManageShifts {
                     Button {
                         Task {
@@ -556,30 +600,23 @@ struct EventDetailSheet: View {
                             Label("Set up crew", systemImage: "plus.circle")
                         }
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.regular)
+                    .padding(.top, 2)
                     .disabled(isCreatingGroup)
                 }
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 24)
+            .padding(.vertical, 8)
+            .brandCard(alignment: .center)
         } else {
             crewList
         }
     }
 
     private var crewList: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Coverage summary header
-            if let coverage = vm.shiftGroup?.coverage {
-                HStack {
-                    Text("Crew")
-                        .font(.headline)
-                    Spacer()
-                    CoveragePill(coverage: coverage)
-                }
-            }
-
-            // Per-area shift blocks
+        VStack(alignment: .leading, spacing: Brand.Space.md) {
+            // Per-area shift blocks (the "Crew" header lives in crewSection).
             ForEach(vm.shiftsByArea, id: \.area) { group in
                 AreaBlock(
                     area: group.area,
@@ -650,14 +687,12 @@ struct AreaBlock: View {
     var onDelete: ((EventShift) -> Void)? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 8) {
             // Area header — title-cased ("Video" / "Photo") so the row's
-            // ALL-CAPS server token doesn't shout. tracking dropped since
-            // sentence case doesn't need the wide letterspacing.
-            Text(area.shiftAreaLabel)
+            // ALL-CAPS server token doesn't shout, with the area's icon.
+            Label(area.shiftAreaLabel, systemImage: areaIcon)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.primary)
-                .padding(.bottom, 8)
+                .foregroundStyle(.secondary)
 
             VStack(spacing: 0) {
                 ForEach(Array(shifts.enumerated()), id: \.element.id) { idx, shift in
@@ -681,8 +716,23 @@ struct AreaBlock: View {
                     }
                 }
             }
-            .background(.background.secondary)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .background(Color.cardSurface)
+            .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
+                    .strokeBorder(Color.hairline, lineWidth: 0.5)
+            )
+        }
+    }
+
+    /// SF Symbol per shift area, matching the area's job.
+    private var areaIcon: String {
+        switch area {
+        case "VIDEO":    return "video.fill"
+        case "PHOTO":    return "camera.fill"
+        case "GRAPHICS": return "paintpalette.fill"
+        case "COMMS":    return "dot.radiowaves.left.and.right"
+        default:         return "person.fill"
         }
     }
 
