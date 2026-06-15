@@ -218,9 +218,15 @@ export default function KioskDevicesPage() {
 
   async function handleRegenerate(device: KioskDevice) {
     if (device.activated) {
-      toast.error("Deactivate the kiosk before regenerating its code.");
-      return;
+      const ok = await confirm({
+        title: "Reset activation code?",
+        message: `Generate a new code for "${device.name}"? This signs out the iPad and moves this device back to pending activation.`,
+        confirmLabel: "Generate code",
+        variant: "danger",
+      });
+      if (!ok) return;
     }
+
     setRegeneratingId(device.id);
     try {
       const res = await fetch(`/api/kiosk-devices/${device.id}/regenerate-code`, {
@@ -235,6 +241,7 @@ export default function KioskDevicesPage() {
         }
         setCodeDialog({ name: device.name, code: json.activationCode });
         toast.success("New activation code generated");
+        load();
       } else {
         const msg = await parseErrorMessage(res, "Failed to regenerate code");
         toast.error(msg);
@@ -531,13 +538,13 @@ export default function KioskDevicesPage() {
                             : undefined
                         }
                       >
-                        {!device.activated && device.active && (
+                        {device.active && (
                           <DropdownMenuItem
                             onSelect={() => handleRegenerate(device)}
                             disabled={regeneratingId === device.id}
                           >
                             <RefreshCw className="size-4" />
-                            Regenerate code
+                            {device.activated ? "Reset activation code" : "Regenerate code"}
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuItem

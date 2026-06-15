@@ -77,6 +77,32 @@ describe("scanKioskPickupBulkUnit", () => {
     });
   });
 
+  it("binds numbered units when the hand scanner sends a wrapped QR value", async () => {
+    const tx = makeTx();
+    tx.booking.findUnique.mockResolvedValue(pickupBooking);
+    tx.bulkSkuUnit.findUnique.mockResolvedValue({
+      id: "unit-7",
+      bulkSkuId: "sku-1",
+      unitNumber: 7,
+      status: "AVAILABLE",
+    });
+    tx.bookingBulkUnitAllocation.findUnique.mockResolvedValue(null);
+
+    const result = await scanKioskPickupBulkUnit(tx, {
+      bookingId: "booking-1",
+      scanValue: "https://gear.example/scan?qr_code=QR-94e068d1\u20117",
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      handled: true,
+      success: true,
+      item: expect.objectContaining({
+        tagName: "#7",
+        unitNumber: 7,
+      }),
+    }));
+  });
+
   it("returns duplicate feedback with the unit number", async () => {
     const tx = makeTx();
     tx.booking.findUnique.mockResolvedValue(pickupBooking);

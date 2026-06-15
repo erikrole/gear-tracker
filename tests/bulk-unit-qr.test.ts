@@ -41,6 +41,16 @@ describe("parseDerivedBulkUnitQr", () => {
     ])?.unitNumber).toBe(16);
   });
 
+  it("normalizes scanner-shaped numbered battery values", () => {
+    const skus = [{ id: "sony-battery", binQrCodeValue: "94e068d1", trackByNumber: true }];
+
+    expect(parseDerivedBulkUnitQr("QR-94e068d1-7", skus)?.unitNumber).toBe(7);
+    expect(parseDerivedBulkUnitQr("94e068d1\u20117", skus)?.unitNumber).toBe(7);
+    expect(parseDerivedBulkUnitQr("\u000294e068d1-7\u0003", skus)?.unitNumber).toBe(7);
+    expect(parseDerivedBulkUnitQr("https://gear.example/labels/94e068d1-7", skus)?.unitNumber).toBe(7);
+    expect(parseDerivedBulkUnitQr("https://gear.example/scan?qr_code=94e068d1-7", skus)?.unitNumber).toBe(7);
+  });
+
   it("does not resolve quantity-only bulk SKUs", () => {
     expect(parseDerivedBulkUnitQr("94e068d1-7", [
       { id: "gaff-tape", binQrCodeValue: "94e068d1", trackByNumber: false },

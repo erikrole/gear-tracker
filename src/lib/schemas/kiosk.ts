@@ -10,12 +10,18 @@ import { z } from "zod";
 
 const cuidish = z.string().min(1);
 
+const checkoutCompleteItem = z.union([
+  z.object({ assetId: cuidish }),
+  z.object({
+    bulkSkuId: cuidish,
+    unitNumber: z.number().int().positive(),
+  }),
+]);
+
 export const checkoutCompleteBody = z.object({
   actorId: cuidish,
   locationId: cuidish.optional(),
-  items: z
-    .array(z.object({ assetId: cuidish }))
-    .min(1, "At least one item required"),
+  items: z.array(checkoutCompleteItem).min(1, "At least one item required"),
 });
 export type CheckoutCompleteBody = z.infer<typeof checkoutCompleteBody>;
 

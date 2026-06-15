@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { withKiosk } from "@/lib/api";
 import { ok } from "@/lib/http";
 import { findAssetByScanValue } from "@/lib/services/kiosk-scan";
+import { findBulkUnitByScanValue } from "@/lib/services/bulk-unit-scans";
 import { checkoutScanBody } from "@/lib/schemas/kiosk";
 import { assetLocationEvidence, locationEvidencePayload, reconcileAssetLocationToKiosk } from "@/lib/services/kiosk-location";
 import { badges } from "@/lib/badges";
@@ -30,6 +31,34 @@ export const POST = withKiosk(async (req, { kiosk }) => {
         ok: args.ok,
         errorCode: args.errorCode,
       }),
+    });
+  }
+
+  const bulkUnit = await findBulkUnitByScanValue(scanValue);
+  if (bulkUnit) {
+    if (bulkUnit.status === "CHECKED_OUT") {
+      const error = `${bulkUnit.name} is checked out${bulkUnit.holder ? ` by ${bulkUnit.holder}` : ""}`;
+      await emitScanResult({ ok: false, errorCode: "already_checked_out" });
+      return ok({ success: false, error });
+    }
+
+    if (bulkUnit.status !== "AVAILABLE") {
+      const error = `${bulkUnit.name} is marked ${bulkUnit.status.toLowerCase().replace(/_/g, " ")}`;
+      await emitScanResult({ ok: false, errorCode: "wrong_status" });
+      return ok({ success: false, error });
+    }
+
+    await emitScanResult({ ok: true });
+    return ok({
+      success: true,
+      item: {
+        id: `bulk:${bulkUnit.bulkSkuId}:unit:${bulkUnit.unitNumber}`,
+        name: bulkUnit.name,
+        tagName: bulkUnit.tagName,
+        type: bulkUnit.type,
+        bulkSkuId: bulkUnit.bulkSkuId,
+        unitNumber: bulkUnit.unitNumber,
+      },
     });
   }
 

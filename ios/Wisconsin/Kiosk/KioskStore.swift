@@ -61,6 +61,12 @@ struct KioskCartItem: Identifiable, Codable, Equatable {
     let name: String
     let tagName: String
     let type: String?
+    let bulkSkuId: String?
+    let unitNumber: Int?
+
+    var isNumberedBulk: Bool {
+        bulkSkuId != nil && unitNumber != nil
+    }
 }
 
 @Observable

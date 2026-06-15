@@ -29,6 +29,7 @@
 
 - **Asset status is derived, not stored** (D-001): Always compute from allocations. Never write to a status field.
 - **Numbered bulk unit QR codes are derived identities**: A QR value like `{binQrCodeValue}-{unitNumber}` should resolve through the parent `BulkSku` and existing `BulkSkuUnit` row. Do not add per-unit QR fields or convert batteries to serialized assets unless the operational model changes.
+- **Hand-scanner labels need scanner-stream tolerance**: Kiosk custody scans should accept the operational identity even when the scanner emits a legacy `QR-` prefix, URL/query wrapper, Unicode dash, tab suffix, non-printing control bytes, or no Return suffix. Keep the canonical stored QR simple, but normalize at the scan boundary and use a conservative HID idle flush so partial scans do not submit before the suffix arrives.
 - **Battery bookings are quantity intent until kiosk pickup**: Do not force camera-battery hard gates during booking creation. Creation records the requested battery quantity and warns on low compatible availability; kiosk scans bind the actual numbered units.
 - **Concurrent mutations need SERIALIZABLE**: Two users editing the same entity — lost updates happen without proper isolation.
 - **`Promise.allSettled` for read-only parallel queries**: Prevents total failure from one slow query in dashboard-style endpoints.
@@ -380,3 +381,7 @@ Systematic audit of every endpoint in `APIClient.swift`/`SearchService.swift` ag
 
 ### Process
 - **A failing CI "validate" check is not automatically your PR's fault**: gear-tracker's `validate` workflow runs `npm ci` → `postinstall: prisma generate`, which loads `prisma.config.ts` (`env("DIRECT_URL")`) and fails with `Missing required environment variable: DIRECT_URL` when CI has no `DIRECT_URL`. This fails on every PR regardless of contents and is unrelated to an iOS-only (Swift) diff. Diagnose the failing step before assuming the diff caused it; don't silently patch deploy/CI infra to make an unrelated check green.
+
+## Session 2026-06-15 (Kiosk activation rebuild friction)
+
+- **When persistence is still failing in the field, reduce the operational cost while debugging the root cause**: Keychain/session fixes can be correct and still miss a rollout/device edge. Give admins a same-device activation-code reset that revokes the stale session and returns the iPad to pending activation, instead of forcing delete/recreate or pretending persistence is solved without proof.

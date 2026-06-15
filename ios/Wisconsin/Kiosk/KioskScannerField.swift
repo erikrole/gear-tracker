@@ -6,7 +6,18 @@ import UIKit
 // capturing keystrokes from HID devices. Aggressively re-acquires
 // first responder so the scanner is always active.
 struct KioskScannerField: UIViewRepresentable {
+    private static let scannerIdleFlushDelay: TimeInterval = 0.5
+
     let onScan: (String) -> Void
+    let onFocusChange: ((Bool) -> Void)?
+
+    init(
+        onScan: @escaping (String) -> Void,
+        onFocusChange: ((Bool) -> Void)? = nil
+    ) {
+        self.onScan = onScan
+        self.onFocusChange = onFocusChange
+    }
 
     func makeUIView(context: Context) -> UITextField {
         let field = HIDTextField()
@@ -25,25 +36,75 @@ struct KioskScannerField: UIViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onScan: onScan)
+        Coordinator(onScan: onScan, onFocusChange: onFocusChange)
     }
 
     final class Coordinator: NSObject, UITextFieldDelegate {
         let onScan: (String) -> Void
-        init(onScan: @escaping (String) -> Void) { self.onScan = onScan }
+        let onFocusChange: ((Bool) -> Void)?
+        private var pendingFlush: DispatchWorkItem?
+
+        init(
+            onScan: @escaping (String) -> Void,
+            onFocusChange: ((Bool) -> Void)?
+        ) {
+            self.onScan = onScan
+            self.onFocusChange = onFocusChange
+        }
+
+        func textFieldDidBeginEditing(_ textField: UITextField) {
+            onFocusChange?(true)
+        }
+
+        func textField(
+            _ textField: UITextField,
+            shouldChangeCharactersIn range: NSRange,
+            replacementString string: String
+        ) -> Bool {
+            guard let current = textField.text,
+                  let textRange = Range(range, in: current) else {
+                return true
+            }
+
+            let projected = current.replacingCharacters(in: textRange, with: string)
+            if string.rangeOfCharacter(from: .newlines) != nil || string == "\t" {
+                submit(projected, textField: textField)
+                return false
+            }
+
+            scheduleFlush(for: textField)
+            return true
+        }
 
         func textFieldShouldReturn(_ textField: UITextField) -> Bool {
-            let value = (textField.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-            if !value.isEmpty { onScan(value) }
-            textField.text = ""
+            submit(textField.text ?? "", textField: textField)
             return false
         }
 
         // Re-acquire focus if something else steals it
         func textFieldDidEndEditing(_ textField: UITextField) {
+            onFocusChange?(false)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                 textField.becomeFirstResponder()
             }
+        }
+
+        private func scheduleFlush(for textField: UITextField) {
+            pendingFlush?.cancel()
+            let workItem = DispatchWorkItem { [weak self, weak textField] in
+                guard let self, let textField else { return }
+                self.submit(textField.text ?? "", textField: textField)
+            }
+            pendingFlush = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + KioskScannerField.scannerIdleFlushDelay, execute: workItem)
+        }
+
+        private func submit(_ text: String, textField: UITextField) {
+            pendingFlush?.cancel()
+            pendingFlush = nil
+            let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !value.isEmpty { onScan(value) }
+            textField.text = ""
         }
     }
 }

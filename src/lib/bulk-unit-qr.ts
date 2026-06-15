@@ -30,14 +30,52 @@ export function buildDerivedBulkUnitQrValue(
   return `${trimmed}-${unitNumber}`;
 }
 
+function normalizedScanCandidates(scanValue: string): string[] {
+  const rawValue = scanValue
+    .trim()
+    .replace(/[\u0000-\u001F\u007F]/g, "")
+    .replace(/[\u2010-\u2015]/g, "-");
+  if (!rawValue) return [];
+
+  const candidates = new Set<string>([rawValue]);
+
+  try {
+    const url = new URL(rawValue);
+    const queryValue =
+      url.searchParams.get("qr_code") ??
+      url.searchParams.get("qrCode") ??
+      url.searchParams.get("code") ??
+      url.searchParams.get("scan") ??
+      url.searchParams.get("value");
+    if (queryValue) {
+      candidates.add(queryValue.trim().replace(/[\u0000-\u001F\u007F]/g, "").replace(/[\u2010-\u2015]/g, "-"));
+    }
+
+    const pathParts = url.pathname.split("/").filter(Boolean);
+    const lastPart = pathParts.at(-1);
+    if (lastPart) {
+      candidates.add(decodeURIComponent(lastPart).trim().replace(/[\u0000-\u001F\u007F]/g, "").replace(/[\u2010-\u2015]/g, "-"));
+    }
+  } catch {
+    // Plain QR strings are the normal path.
+  }
+
+  const expanded = Array.from(candidates);
+  for (const candidate of expanded) {
+    const withoutLegacyPrefix = candidate.replace(/^qr-/i, "");
+    candidates.add(withoutLegacyPrefix);
+  }
+
+  return Array.from(candidates).filter(Boolean);
+}
+
 export function parseDerivedBulkUnitQr(
   scanValue: string,
   skus: DerivedBulkUnitQrSku[],
 ): DerivedBulkUnitQrMatch | null {
-  const rawValue = scanValue.trim();
-  if (!rawValue) return null;
+  const scanCandidates = normalizedScanCandidates(scanValue);
+  if (scanCandidates.length === 0) return null;
 
-  const normalizedValue = rawValue.toLowerCase();
   const candidates = skus
     .filter((sku) => sku.trackByNumber && sku.binQrCodeValue?.trim())
     .map((sku) => ({
@@ -46,21 +84,24 @@ export function parseDerivedBulkUnitQr(
     }))
     .sort((a, b) => b.binQrCodeValue.length - a.binQrCodeValue.length);
 
-  for (const sku of candidates) {
-    const prefix = `${sku.binQrCodeValue.toLowerCase()}-`;
-    if (!normalizedValue.startsWith(prefix)) continue;
+  for (const rawValue of scanCandidates) {
+    const normalizedValue = rawValue.toLowerCase();
+    for (const sku of candidates) {
+      const prefix = `${sku.binQrCodeValue.toLowerCase()}-`;
+      if (!normalizedValue.startsWith(prefix)) continue;
 
-    const suffix = rawValue.slice(sku.binQrCodeValue.length + 1).trim();
-    if (!/^\d+$/.test(suffix)) return null;
+      const suffix = rawValue.slice(sku.binQrCodeValue.length + 1).trim();
+      if (!/^\d+$/.test(suffix)) return null;
 
-    const unitNumber = Number(suffix);
-    if (!Number.isSafeInteger(unitNumber) || unitNumber <= 0) return null;
+      const unitNumber = Number(suffix);
+      if (!Number.isSafeInteger(unitNumber) || unitNumber <= 0) return null;
 
-    return {
-      bulkSkuId: sku.id,
-      binQrCodeValue: sku.binQrCodeValue,
-      unitNumber,
-    };
+      return {
+        bulkSkuId: sku.id,
+        binQrCodeValue: sku.binQrCodeValue,
+        unitNumber,
+      };
+    }
   }
 
   return null;

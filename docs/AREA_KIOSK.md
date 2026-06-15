@@ -44,7 +44,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 
 ### Web — Backend + Admin (still used)
 
-- **`src/app/(app)/settings/kiosk-devices/`** — admin CRUD page for `KioskDevice` rows (create, toggle active, delete, view activation code, last-seen timestamp).
+- **`src/app/(app)/settings/kiosk-devices/`** — admin CRUD page for `KioskDevice` rows (create, toggle active, reset activation code, delete, view activation code, last-seen timestamp).
 - **`src/app/api/kiosk-devices/`** — REST CRUD for kiosk devices (admin/staff only, 401 redirect on mutations).
 - **`src/app/api/kiosk/`** — kiosk-only API consumed by the iOS app:
   - `POST /activate` — validates 6-digit code, returns kiosk session
@@ -91,11 +91,13 @@ Files under `ios/Wisconsin/Kiosk/`:
 
 - No search / first-letter filter on the avatar grid. Acceptable for ≤30-student locations; revisit on larger-roster rollouts.
 - No "wrong person" undo path inside kiosk — admin must fix from web. Acceptable for V1.
-- Activation code rotation lifecycle: once a device is activated and its cookie is intact, the original code is no longer needed; if cookie is wiped admin must regenerate from Settings → Kiosk Devices.
+- Activation code rotation lifecycle: once a device is activated and its cookie is intact, the original code is no longer needed; if cookie is wiped, an admin can reset the activation code for the existing device from Settings → Kiosk Devices. Resetting revokes the old kiosk session and moves the device back to pending activation.
 
 ## Change Log
 | Date | Change |
 |------|--------|
+| 2026-06-15 | Kiosk activation reset fallback: Settings → Kiosk Devices can now generate a fresh one-time activation code for an existing active kiosk device. The reset revokes the old kiosk session, clears activation/last-seen state, and leaves the same device row pending activation so simulator/device rebuilds do not require deleting and recreating the kiosk. |
+| 2026-06-15 | Kiosk battery hand-scanner hardening: direct kiosk checkout, pickup, and return now accept individual numbered battery unit QR values. Direct checkout stores scanned units as `{bulkSkuId, unitNumber}` cart items, validates availability again at completion, creates `BookingBulkItem` + `BookingBulkUnitAllocation` records, marks units checked out, and decrements bulk balance. Derived numbered battery QR parsing now tolerates real scanner variants of the same value, including legacy `QR-` prefixes, URL/query wrappers, Unicode dash characters, and non-printing scanner control bytes. The native hidden HID scanner field also flushes buffered keystrokes after a conservative idle window, so scans do not depend on every scanner profile sending Return and do not submit partial values before the unit suffix arrives. |
 | 2026-06-15 | Wiscard kiosk selection and location reconciliation shipped. Native idle now scans a Wiscard to select the active location-scoped user, falling back to the roster grid. Kiosk checkout/pickup/return scans now reconcile serialized assets to the kiosk location and record expected/actual location mismatch evidence on pickup/return scan events. |
 | 2026-06-13 | Fixed kiosk online-status staleness: `requireKiosk()` now wraps the `lastSeenAt` + `sessionExpiresAt` DB update in Next.js `after()` so Vercel keeps the serverless function alive until the write completes, preventing the Settings kiosk health cockpit from showing stale/offline while the device is actively heartbeating. |
 | 2026-06-09 | iOS kiosk no longer forces re-activation on every app re-entry: `kioskMe()` decoded a `{data:...}` envelope that `/api/kiosk/me` never sends (it returns `{kioskId, locationId, locationName}` at the top level), so session validation always failed and wiped the stored activation. Also, `validateSession` now only clears the activation on a definitive 401 — transient failures (offline at launch, 5xx) go idle and let the heartbeat's own 401 path catch real deactivation. |

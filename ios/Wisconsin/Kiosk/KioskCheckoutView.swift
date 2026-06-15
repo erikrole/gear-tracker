@@ -236,7 +236,14 @@ struct KioskCheckoutView: View {
                 if result.success, let item = result.item {
                     var updated = cart
                     if !updated.contains(where: { $0.id == item.id }) {
-                        updated.append(KioskCartItem(id: item.id, name: item.name, tagName: item.tagName, type: item.type))
+                        updated.append(KioskCartItem(
+                            id: item.id,
+                            name: item.name,
+                            tagName: item.tagName,
+                            type: item.type,
+                            bulkSkuId: item.bulkSkuId,
+                            unitNumber: item.unitNumber
+                        ))
                         store.setCart(updated, for: userId)
                         cart = updated
                         showFeedback(.success(result.locationMessage ?? item.name))
@@ -287,7 +294,7 @@ struct KioskCheckoutView: View {
                 try await KioskAPI.shared.kioskCheckoutComplete(
                     actorId: userId,
                     locationId: locationId,
-                    assetIds: cart.map(\.id)
+                    items: cart
                 )
                 Haptics.success()
                 store.clearCart(for: userId)

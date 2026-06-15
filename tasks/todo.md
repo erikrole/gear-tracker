@@ -19,6 +19,21 @@ Last updated: 2026-06-15
 
 ---
 
+## Active: Kiosk activation reset fallback (2026-06-15)
+
+- [x] Audit why the current admin flow makes rebuild reactivation painful.
+- [x] Allow active kiosk devices to generate a new one-time code without deleting the device row.
+- [x] Revoke the previous kiosk session when a new code is generated.
+- [x] Confirm Settings copy makes the reset/sign-out behavior explicit.
+- [x] Sync kiosk docs and lessons.
+- [x] Verify focused tests, typecheck/build, and whitespace.
+
+### Review
+- 2026-06-15: Settings -> Kiosk Devices can now reset an existing active kiosk's activation code without deleting the device row. Resetting confirms the sign-out behavior, revokes the old kiosk session, clears activation/last-seen state, shows a fresh one-time code, and reloads the device list back to pending activation.
+- Verification: `npx vitest run tests/settings-kiosk-devices-location-state.test.ts`, focused `npx eslint` on the touched route/page/test, `git diff --check`, and `npx next build` passed. `npx tsc --noEmit --pretty false` remains blocked by the pre-existing `tests/bulk-unit-adjustment-routes.test.ts:171` undefined warning.
+
+---
+
 ## Active: Wiscard profile capture (2026-06-15)
 
 - [x] Add a unique nullable Wiscard value field on user profiles so existing accounts migrate safely.
@@ -36,6 +51,20 @@ Last updated: 2026-06-15
 - 2026-06-15: Added kiosk Wiscard selection through `POST /api/kiosk/identify` and native idle scanner handling. Successful Wiscard scans open the student hub for active users scoped to the kiosk location; the roster grid remains the fallback.
 - 2026-06-15: Serialized kiosk checkout/pickup/return scans now reconcile `Asset.locationId` to the kiosk location. Pickup and return scan events store expected and actual location IDs plus `locationMismatch` evidence so wrong-location handoffs are visible after the fact.
 - Verification: `npm run prisma:generate`, `npm run db:migrate:check`, `npm run drift:ios`, `npm run audit:ios:gaps`, `git diff --check`, `npx next build`, and iOS simulator `xcodebuild` all passed. `npx tsc --noEmit --pretty false` remains blocked by the pre-existing `tests/bulk-unit-adjustment-routes.test.ts:171` undefined warning. Full `npm run build` was not run to completion because its migration-deploy step needs external Neon access and escalation was rejected as database-mutating.
+
+---
+
+## Active: Kiosk numbered battery scanner hardening (2026-06-15)
+
+- [x] Trace kiosk pickup/return scan flow for numbered battery units.
+- [x] Harden derived battery QR parsing for scanner-shaped values.
+- [x] Harden the iOS HID scanner field for scanners without a Return suffix.
+- [x] Add focused parser and kiosk service regression tests.
+- [x] Verify focused tests, iOS drift/audit, whitespace, web build, and simulator build.
+
+### Review
+- 2026-06-15: Kiosk numbered battery scans now normalize scanner-shaped derived QR values before custody flows fall back to serialized asset lookup: legacy `QR-` prefixes, URL/query wrappers, Unicode dash separators, and non-printing scanner control bytes resolve to the same `{binQrCodeValue}-{unitNumber}` identity. Direct kiosk checkout now supports scanned battery units end-to-end by carrying `{bulkSkuId, unitNumber}` through the native cart and complete request, creating booking bulk rows/unit allocations, marking units checked out, and decrementing bulk balance. The shared native `KioskScannerField` also submits buffered HID input after a conservative idle window, so hand-scanner profiles without a Return suffix still trigger the kiosk scan without submitting partial values before the unit suffix arrives.
+- Verification: `npx vitest run tests/bulk-unit-qr.test.ts tests/bulk-unit-kiosk-scans.test.ts` passed 22 tests, `npm run drift:ios` passed, `npm run audit:ios:gaps` passed, `git diff --check` passed, `npx next build` passed, and iOS simulator `xcodebuild` completed with only the existing App Intents metadata warning. `npx tsc --noEmit --pretty false` remains blocked by the pre-existing `tests/bulk-unit-adjustment-routes.test.ts:171` undefined warning.
 
 ---
 

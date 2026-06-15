@@ -23,3 +23,22 @@ describe("settings kiosk devices location state", () => {
     expect(source).toContain('id="kiosk-location"');
   });
 });
+
+describe("settings kiosk device activation reset", () => {
+  it("lets an existing active kiosk generate a fresh code instead of forcing delete/recreate", () => {
+    const page = readFileSync("src/app/(app)/settings/kiosk-devices/page.tsx", "utf8");
+    const route = readFileSync("src/app/api/kiosk-devices/[id]/regenerate-code/route.ts", "utf8");
+
+    expect(page).toContain('title: "Reset activation code?"');
+    expect(page).toContain("This signs out the iPad and moves this device back to pending activation.");
+    expect(page).toContain('{device.activated ? "Reset activation code" : "Regenerate code"}');
+    expect(page).not.toContain("Deactivate the kiosk before regenerating its code.");
+
+    expect(route).not.toContain("Cannot regenerate code for an already-activated kiosk");
+    expect(route).toContain("activatedAt: null");
+    expect(route).toContain("sessionToken: null");
+    expect(route).toContain("sessionExpiresAt: null");
+    expect(route).toContain("lastSeenAt: null");
+    expect(route).toContain("resetSession: wasActivated");
+  });
+});
