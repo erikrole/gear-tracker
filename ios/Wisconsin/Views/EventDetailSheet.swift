@@ -91,18 +91,17 @@ struct EventDetailSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: Brand.Space.lg) {
                     eventHeader
                     if eventWork != nil || myShift != nil {
-                        Divider()
                         gearAndCallSection
                     }
-                    Divider()
                     crewSection
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
+                .padding(.horizontal, Brand.Space.md)
+                .padding(.vertical, Brand.Space.md)
             }
+            .background(Color(.systemGroupedBackground))
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -369,9 +368,8 @@ struct EventDetailSheet: View {
 
     @ViewBuilder
     private var gearAndCallSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Your Event")
-                .font(.headline)
+        VStack(alignment: .leading, spacing: Brand.Space.sm) {
+            BrandSectionHeader("Your Event", systemImage: "person.crop.circle.badge.checkmark")
 
             VStack(alignment: .leading, spacing: 10) {
                 if let gear = eventWork?.primaryGear, eventWork?.needsGear == false {
@@ -407,9 +405,7 @@ struct EventDetailSheet: View {
                     )
                 }
             }
-            .padding(12)
-            .background(.background.secondary)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .brandCard()
         }
     }
 
@@ -490,7 +486,8 @@ struct EventDetailSheet: View {
 
             // Title
             Text(event.summary)
-                .font(.title3.weight(.semibold))
+                .font(.gothamBold(size: 22))
+                .lineLimit(3)
 
             // Date + time
             VStack(alignment: .leading, spacing: 4) {
@@ -528,6 +525,8 @@ struct EventDetailSheet: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .brandCard()
     }
 
     // MARK: - Crew Section
@@ -590,13 +589,9 @@ struct EventDetailSheet: View {
     }
 
     private var crewList: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Coverage summary header
-            if let coverage = vm.shiftGroup?.coverage {
-                HStack {
-                    Text("Crew")
-                        .font(.headline)
-                    Spacer()
+        VStack(alignment: .leading, spacing: Brand.Space.md) {
+            BrandSectionHeader(title: "Crew", systemImage: "person.2.fill") {
+                if let coverage = vm.shiftGroup?.coverage {
                     CoveragePill(coverage: coverage)
                 }
             }
@@ -672,14 +667,12 @@ struct AreaBlock: View {
     var onDelete: ((EventShift) -> Void)? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 8) {
             // Area header — title-cased ("Video" / "Photo") so the row's
-            // ALL-CAPS server token doesn't shout. tracking dropped since
-            // sentence case doesn't need the wide letterspacing.
-            Text(area.shiftAreaLabel)
+            // ALL-CAPS server token doesn't shout, with the area's icon.
+            Label(area.shiftAreaLabel, systemImage: areaIcon)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.primary)
-                .padding(.bottom, 8)
+                .foregroundStyle(.secondary)
 
             VStack(spacing: 0) {
                 ForEach(Array(shifts.enumerated()), id: \.element.id) { idx, shift in
@@ -703,8 +696,23 @@ struct AreaBlock: View {
                     }
                 }
             }
-            .background(.background.secondary)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .background(Color.cardSurface)
+            .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
+                    .strokeBorder(Color.hairline, lineWidth: 0.5)
+            )
+        }
+    }
+
+    /// SF Symbol per shift area, matching the area's job.
+    private var areaIcon: String {
+        switch area {
+        case "VIDEO":    return "video.fill"
+        case "PHOTO":    return "camera.fill"
+        case "GRAPHICS": return "paintpalette.fill"
+        case "COMMS":    return "dot.radiowaves.left.and.right"
+        default:         return "person.fill"
         }
     }
 
