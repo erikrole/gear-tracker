@@ -86,7 +86,7 @@ struct KioskPickupView: View {
             Spacer()
 
             if isLoading {
-                ProgressView().tint(.white)
+                ProgressView().tint(KioskText.primary)
             } else {
                 VStack(spacing: 24) {
                     KioskProgressRing(
@@ -179,11 +179,11 @@ struct KioskPickupView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(detail?.title ?? "Pickup")
                     .font(.headline)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(KioskText.primary)
                 if let ref = detail?.refNumber {
                     Text(ref)
                         .font(.caption.monospaced())
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(KioskText.secondary)
                 }
                 if totalItems > 0 {
                     ChecklistProgressSummary(
@@ -227,7 +227,7 @@ struct KioskPickupView: View {
                 }
             } else if isLoading {
                 Spacer()
-                ProgressView().tint(.white).frame(maxWidth: .infinity)
+                ProgressView().tint(KioskText.primary).frame(maxWidth: .infinity)
                 Spacer()
             } else if let error {
                 // Detail-load error (not confirm error — confirm errors flow
