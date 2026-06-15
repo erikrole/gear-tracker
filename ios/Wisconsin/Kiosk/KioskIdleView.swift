@@ -253,13 +253,19 @@ struct KioskIdleView: View {
 
     private var rosterPanel: some View {
         VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Scan Wiscard")
-                    .font(.title2.bold())
-                    .foregroundStyle(KioskText.primary)
-                Text("Or tap your name below")
-                    .font(.subheadline)
-                    .foregroundStyle(KioskText.tertiary)
+            HStack(spacing: 14) {
+                Image(systemName: "barcode.viewfinder")
+                    .font(.system(size: 34, weight: .semibold))
+                    .foregroundStyle(Color.kioskRed)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Scan Wiscard")
+                        .font(.title2.bold())
+                        .foregroundStyle(KioskText.primary)
+                    Text("Or tap your name below")
+                        .font(.subheadline)
+                        .foregroundStyle(KioskText.tertiary)
+                }
             }
 
             if let feedback = identityScanFeedback {
@@ -528,7 +534,7 @@ private struct StatTile: View {
                 }
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(KioskPressStyle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(value) \(label.lowercased())")
     }
@@ -735,7 +741,7 @@ private struct KioskEventRow: View {
                     .stroke(KioskStroke.standard, lineWidth: 1)
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(KioskPressStyle())
         .accessibilityElement(children: .combine)
         .accessibilityHint("Opens event details")
     }
@@ -1136,7 +1142,7 @@ private struct UserTile: View {
                     .stroke(KioskStroke.strong, lineWidth: 1)
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(KioskPressStyle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel(user.name)
         .accessibilityHint("Tap to start checkout for \(user.name)")
