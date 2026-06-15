@@ -137,6 +137,17 @@ struct KioskEvent: Decodable, Identifiable {
     }
 }
 
+struct KioskCheckoutEvent: Decodable, Identifiable, Equatable {
+    let id: String
+    let title: String
+    let subtitle: String?
+    let sportCode: String?
+    let startsAt: Date
+    let endsAt: Date?
+    let allDay: Bool
+    let locationName: String?
+}
+
 struct KioskActiveCheckout: Decodable, Identifiable {
     let id: String
     let title: String

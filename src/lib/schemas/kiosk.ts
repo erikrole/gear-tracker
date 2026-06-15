@@ -22,6 +22,16 @@ export const checkoutCompleteBody = z.object({
   actorId: cuidish,
   locationId: cuidish.optional(),
   items: z.array(checkoutCompleteItem).min(1, "At least one item required"),
+  eventId: cuidish.optional(),
+  customPurpose: z.string().trim().min(1).max(160).optional(),
+}).superRefine((body, ctx) => {
+  if (!body.eventId && !body.customPurpose) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["eventId"],
+      message: "Select an event or enter what this checkout is for",
+    });
+  }
 });
 export type CheckoutCompleteBody = z.infer<typeof checkoutCompleteBody>;
 

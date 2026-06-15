@@ -1,4 +1,4 @@
-import { BulkMovementKind, BulkUnitStatus, Prisma } from "@prisma/client";
+import { BulkMovementKind, BulkUnitStatus, CalendarEventStatus, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { withKiosk } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
@@ -19,6 +19,7 @@ export const POST = withKiosk(async (req, { kiosk }) => {
   const actorId = body.actorId;
   const locationId = body.locationId || kiosk.locationId;
   const { assetIds, bulkUnitItems } = normalizeCheckoutCompleteItems(body.items);
+  const customPurpose = body.customPurpose?.trim();
 
   // Verify user exists and is active
   const user = await db.user.findFirst({
@@ -29,6 +30,7 @@ export const POST = withKiosk(async (req, { kiosk }) => {
 
   const now = new Date();
   const endsAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // Default: due in 24h
+  const eventWindowEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
   try {
     const { booking, refNumber } = await db.$transaction(
@@ -37,21 +39,59 @@ export const POST = withKiosk(async (req, { kiosk }) => {
         // (held by `nextBookingRef`) serializes concurrent kiosk completions.
         const refNumber = await nextBookingRef(tx, "CO");
 
+        const event = body.eventId
+          ? await tx.calendarEvent.findFirst({
+              where: {
+                id: body.eventId,
+                startsAt: { lte: eventWindowEnd },
+                endsAt: { gte: now },
+                status: { not: CalendarEventStatus.CANCELLED },
+                isHidden: false,
+                archivedAt: null,
+              },
+              select: { id: true, summary: true, sportCode: true },
+            })
+          : null;
+        if (body.eventId && !event) {
+          throw new HttpError(400, "Selected event is no longer available");
+        }
+
+        const title = event?.summary ?? customPurpose;
+        if (!title) {
+          throw new HttpError(400, "Select an event or enter what this checkout is for");
+        }
+        const notes = [
+          `Created via kiosk at ${kiosk.locationName}`,
+          event && customPurpose ? `Purpose: ${customPurpose}` : null,
+        ].filter(Boolean).join("\n");
+
         // Create the booking
         const b = await tx.booking.create({
           data: {
             kind: "CHECKOUT",
             status: "OPEN",
-            title: `Kiosk Checkout — ${user.name}`,
+            title,
+            eventId: event?.id,
+            sportCode: event?.sportCode,
             requesterUserId: actorId,
             createdBy: actorId,
             locationId,
             startsAt: now,
             endsAt,
             refNumber,
-            notes: `Created via kiosk at ${kiosk.locationName}`,
+            notes,
           },
         });
+
+        if (event) {
+          await tx.bookingEvent.create({
+            data: {
+              bookingId: b.id,
+              eventId: event.id,
+              ordinal: 0,
+            },
+          });
+        }
 
         // Create serialized items + allocations
         const ids = assetIds;
@@ -181,6 +221,9 @@ export const POST = withKiosk(async (req, { kiosk }) => {
         source: "KIOSK",
         kioskDeviceId: kiosk.kioskId,
         locationName: kiosk.locationName,
+        eventId: body.eventId ?? null,
+        customPurpose: customPurpose ?? null,
+        title: booking.title,
       },
     });
 

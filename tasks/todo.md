@@ -78,6 +78,21 @@ Last updated: 2026-06-15
 
 ---
 
+## Active: Kiosk checkout event context (2026-06-15)
+
+- [x] Add a kiosk-authenticated upcoming-events feed capped to the next 7 days.
+- [x] Require every kiosk direct checkout to include either a selected event or custom purpose.
+- [x] Use the selected event or custom purpose as the booking title instead of a generic kiosk title.
+- [x] Link selected events through both `Booking.eventId` and `BookingEvent`.
+- [x] Add native kiosk UI for choosing an event and typing custom details before checkout completion.
+- [x] Verify focused tests, TypeScript, iOS drift/audit, whitespace, web build, and simulator build.
+
+### Review
+- 2026-06-15: Kiosk checkout now requires an event or custom purpose before completion. Native checkout loads kiosk-authenticated upcoming events from the next 7 days, shows a required Event or Purpose card, sends `eventId` plus optional custom details, and disables completion until context exists. The server enforces the same rule, titles the booking from the event or typed purpose, and writes selected events to both `Booking.eventId` and `BookingEvent`.
+- Verification: `npx vitest run tests/kiosk-events-route.test.ts tests/kiosk-checkout-complete-bulk-units.test.ts tests/ios-api-contract.test.ts` passed 26 tests, focused `npx eslint` on touched API/test files passed, `npm run drift:ios` passed, `npm run audit:ios:gaps` passed, `git diff --check` passed, `npx next build` passed with existing repo warnings, and escalated iOS simulator `xcodebuild` ended with `BUILD SUCCEEDED`. `npx tsc --noEmit --pretty false` remains blocked only by the pre-existing `tests/bulk-unit-adjustment-routes.test.ts:171` undefined warning.
+
+---
+
 ## Active: Kiosk iOS UI consolidation + brand polish (2026-06-13)
 
 Goal: `/frontend-design` pass on all 9 iOS kiosk SwiftUI views, **within the

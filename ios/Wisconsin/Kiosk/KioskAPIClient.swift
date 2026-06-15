@@ -115,13 +115,32 @@ struct KioskAPI {
         return try await perform(req)
     }
 
-    func kioskCheckoutComplete(actorId: String, locationId: String, items: [KioskCartItem]) async throws {
+    func kioskCheckoutEvents() async throws -> [KioskCheckoutEvent] {
+        struct Resp: Decodable { let data: [KioskCheckoutEvent] }
+        let req = request(path: "/api/kiosk/events")
+        let resp: Resp = try await perform(req)
+        return resp.data
+    }
+
+    func kioskCheckoutComplete(
+        actorId: String,
+        locationId: String,
+        items: [KioskCartItem],
+        eventId: String?,
+        customPurpose: String?
+    ) async throws {
         struct ItemRef: Encodable {
             let assetId: String?
             let bulkSkuId: String?
             let unitNumber: Int?
         }
-        struct Body: Encodable { let actorId: String; let locationId: String; let items: [ItemRef] }
+        struct Body: Encodable {
+            let actorId: String
+            let locationId: String
+            let items: [ItemRef]
+            let eventId: String?
+            let customPurpose: String?
+        }
         var req = request(path: "/api/kiosk/checkout/complete", method: "POST")
         let refs = items.map { item in
             if let bulkSkuId = item.bulkSkuId, let unitNumber = item.unitNumber {
@@ -129,7 +148,13 @@ struct KioskAPI {
             }
             return ItemRef(assetId: item.id, bulkSkuId: nil, unitNumber: nil)
         }
-        req.httpBody = try JSONEncoder().encode(Body(actorId: actorId, locationId: locationId, items: refs))
+        req.httpBody = try JSONEncoder().encode(Body(
+            actorId: actorId,
+            locationId: locationId,
+            items: refs,
+            eventId: eventId,
+            customPurpose: customPurpose
+        ))
         let (data, response) = try await session.data(for: req)
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
             if http.statusCode >= 500 {

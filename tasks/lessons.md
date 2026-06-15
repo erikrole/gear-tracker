@@ -386,3 +386,7 @@ Systematic audit of every endpoint in `APIClient.swift`/`SearchService.swift` ag
 ## Session 2026-06-15 (Kiosk activation rebuild friction)
 
 - **When persistence is still failing in the field, reduce the operational cost while debugging the root cause**: Keychain/session fixes can be correct and still miss a rollout/device edge. Give admins a same-device activation-code reset that revokes the stale session and returns the iPad to pending activation, instead of forcing delete/recreate or pretending persistence is solved without proof.
+
+## Session 2026-06-15 (Kiosk checkout event context)
+
+- **Custody checkouts need purpose at the transaction boundary**: a polished scan flow can still create operationally useless bookings if completion only knows actor, location, and items. Require event or purpose in the route schema, not just the UI, and title the booking from that context so the kiosk dashboard and web checkouts immediately say what the gear is for.

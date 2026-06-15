@@ -105,6 +105,27 @@ describe("iOS API contracts — kiosk checkout scan photos", () => {
   });
 });
 
+describe("iOS API contracts — kiosk checkout context", () => {
+  it("kiosk checkout completion requires an event or custom purpose", () => {
+    const schema = source("src/lib/schemas/kiosk.ts");
+    const route = source("src/app/api/kiosk/checkout/complete/route.ts");
+    const client = source("ios/Wisconsin/Kiosk/KioskAPIClient.swift");
+    const models = source("ios/Wisconsin/Kiosk/KioskModels.swift");
+    const checkoutView = source("ios/Wisconsin/Kiosk/KioskCheckoutView.swift");
+
+    expect(schema).toContain("customPurpose: z.string().trim().min(1).max(160).optional()");
+    expect(schema).toContain("Select an event or enter what this checkout is for");
+    expect(route).toContain("tx.bookingEvent.create");
+    expect(route).toContain("title: booking.title");
+    expect(client).toContain("func kioskCheckoutEvents() async throws -> [KioskCheckoutEvent]");
+    expect(client).toContain("eventId: eventId");
+    expect(client).toContain("customPurpose: customPurpose");
+    expect(models).toContain("struct KioskCheckoutEvent");
+    expect(checkoutView).toContain("KioskCheckoutContextCard");
+    expect(checkoutView).toContain("hasCheckoutContext");
+  });
+});
+
 describe("iOS API contracts — availability check", () => {
   it("iOS decodes the route's top-level result (no data envelope)", () => {
     const route = source("src/app/api/availability/check/route.ts");

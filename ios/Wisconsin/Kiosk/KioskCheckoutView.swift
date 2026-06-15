@@ -10,6 +10,11 @@ struct KioskCheckoutView: View {
     @State private var isCompleting = false
     @State private var showBackConfirm = false
     @State private var showCamera = false
+    @State private var eventOptions: [KioskCheckoutEvent] = []
+    @State private var isLoadingEvents = false
+    @State private var eventLoadError: String?
+    @State private var selectedEventId: String?
+    @State private var customPurpose = ""
 
     enum ScanFeedback: Equatable {
         case success(String)
@@ -72,6 +77,9 @@ struct KioskCheckoutView: View {
                 onCancel: { showCamera = false }
             )
         }
+        .task {
+            await loadCheckoutEvents()
+        }
     }
 
     // MARK: - Scan Zone
@@ -91,6 +99,15 @@ struct KioskCheckoutView: View {
                     }
                 },
                 onCamera: { showCamera = true }
+            )
+
+            KioskCheckoutContextCard(
+                events: eventOptions,
+                isLoading: isLoadingEvents,
+                errorMessage: eventLoadError,
+                selectedEventId: $selectedEventId,
+                customPurpose: $customPurpose,
+                selectedEvent: selectedEvent
             )
 
             Spacer()
@@ -127,7 +144,7 @@ struct KioskCheckoutView: View {
 
             KioskCompletionButton(
                 title: "Complete Checkout",
-                isEnabled: !scannedItems.isEmpty,
+                isEnabled: !scannedItems.isEmpty && hasCheckoutContext,
                 isBusy: isCompleting,
                 accessibilityLabel: completeAccessibilityLabel,
                 action: completeCheckout
@@ -143,6 +160,9 @@ struct KioskCheckoutView: View {
     private var completeAccessibilityLabel: String {
         if isCompleting { return "Processing checkout" }
         let count = scannedItems.count
+        if !hasCheckoutContext {
+            return "Complete Checkout unavailable, choose an event or enter what this checkout is for"
+        }
         return "Complete Checkout, \(count) item\(count == 1 ? "" : "s")"
     }
 
@@ -216,6 +236,32 @@ struct KioskCheckoutView: View {
         case .duplicate: return Color.statusText(.orange)
         case nil: return Color.white.opacity(0.3)
         }
+    }
+
+    private var trimmedCustomPurpose: String {
+        customPurpose.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var hasCheckoutContext: Bool {
+        selectedEvent != nil || !trimmedCustomPurpose.isEmpty
+    }
+
+    private var selectedEvent: KioskCheckoutEvent? {
+        guard let selectedEventId else { return nil }
+        return eventOptions.first { $0.id == selectedEventId }
+    }
+
+    @MainActor
+    private func loadCheckoutEvents() async {
+        guard eventOptions.isEmpty, !isLoadingEvents else { return }
+        isLoadingEvents = true
+        eventLoadError = nil
+        do {
+            eventOptions = try await KioskAPI.shared.kioskCheckoutEvents()
+        } catch {
+            eventLoadError = (error as? APIError)?.errorDescription ?? "Events unavailable"
+        }
+        isLoadingEvents = false
     }
 
     private func handleScan(_ value: String) {
@@ -295,14 +341,16 @@ struct KioskCheckoutView: View {
 
     private func completeCheckout() {
         let cart = store.cart(for: userId)
-        guard !cart.isEmpty, let locationId = store.info?.locationId else { return }
+        guard !cart.isEmpty, hasCheckoutContext, let locationId = store.info?.locationId else { return }
         isCompleting = true
         Task {
             do {
                 try await KioskAPI.shared.kioskCheckoutComplete(
                     actorId: userId,
                     locationId: locationId,
-                    items: cart
+                    items: cart,
+                    eventId: selectedEvent?.id,
+                    customPurpose: trimmedCustomPurpose.isEmpty ? nil : trimmedCustomPurpose
                 )
                 Haptics.success()
                 store.clearCart(for: userId)
@@ -318,6 +366,137 @@ struct KioskCheckoutView: View {
 }
 
 // MARK: - Sub-views
+
+private struct KioskCheckoutContextCard: View {
+    let events: [KioskCheckoutEvent]
+    let isLoading: Bool
+    let errorMessage: String?
+    @Binding var selectedEventId: String?
+    @Binding var customPurpose: String
+    let selectedEvent: KioskCheckoutEvent?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                Image(systemName: "calendar.badge.clock")
+                    .font(.headline)
+                    .foregroundStyle(Color.kioskRed)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Event or Purpose")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                    Text("Required for checkout")
+                        .font(.caption)
+                        .foregroundStyle(KioskText.muted)
+                }
+                Spacer()
+                if selectedEvent != nil {
+                    Button("Clear") {
+                        selectedEventId = nil
+                    }
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(KioskText.secondary)
+                    .buttonStyle(.plain)
+                }
+            }
+
+            HStack(spacing: 12) {
+                Menu {
+                    Button("No event selected") {
+                        selectedEventId = nil
+                    }
+                    ForEach(events) { event in
+                        Button {
+                            selectedEventId = event.id
+                        } label: {
+                            Label(event.title, systemImage: selectedEventId == event.id ? "checkmark" : "calendar")
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "calendar")
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(selectedEvent?.title ?? eventMenuTitle)
+                                .font(.subheadline.weight(.semibold))
+                                .lineLimit(1)
+                            if let selectedEvent {
+                                Text(eventSubtitle(selectedEvent))
+                                    .font(.caption)
+                                    .foregroundStyle(KioskText.muted)
+                                    .lineLimit(1)
+                            }
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(KioskText.muted)
+                            .accessibilityHidden(true)
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 14)
+                    .frame(height: 56)
+                    .background(KioskSurface.sunken, in: RoundedRectangle(cornerRadius: KioskRadius.md))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: KioskRadius.md)
+                            .stroke(KioskStroke.standard, lineWidth: 1)
+                    )
+                }
+                .frame(maxWidth: .infinity)
+                .disabled(isLoading || events.isEmpty)
+
+                TextField(selectedEvent == nil ? "Custom event or purpose" : "Optional details", text: $customPurpose)
+                    .textInputAutocapitalization(.words)
+                    .disableAutocorrection(true)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 14)
+                    .frame(height: 56)
+                    .background(KioskSurface.sunken, in: RoundedRectangle(cornerRadius: KioskRadius.md))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: KioskRadius.md)
+                            .stroke(KioskStroke.standard, lineWidth: 1)
+                    )
+            }
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(Color.statusText(.orange))
+            }
+        }
+        .padding(18)
+        .background(KioskSurface.card, in: RoundedRectangle(cornerRadius: KioskRadius.lg))
+        .overlay(
+            RoundedRectangle(cornerRadius: KioskRadius.lg)
+                .stroke(KioskStroke.standard, lineWidth: 1)
+        )
+        .accessibilityElement(children: .contain)
+    }
+
+    private var eventMenuTitle: String {
+        if isLoading { return "Loading events" }
+        if events.isEmpty { return "No upcoming events" }
+        return "Choose upcoming event"
+    }
+
+    private func eventSubtitle(_ event: KioskCheckoutEvent) -> String {
+        var parts = [Self.eventDateFormatter.string(from: event.startsAt)]
+        if let locationName = event.locationName, !locationName.isEmpty {
+            parts.append(locationName)
+        } else if let sportCode = event.sportCode, !sportCode.isEmpty {
+            parts.append(sportCode)
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    private static let eventDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE h:mm a"
+        return formatter
+    }()
+}
 
 private struct ItemRow: View {
     let item: KioskCartItem

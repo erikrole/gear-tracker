@@ -51,6 +51,7 @@ Files under `ios/Wisconsin/Kiosk/`:
   - `GET /me` — returns kiosk identity
   - `POST /heartbeat` — updates `lastSeenAt`
   - `GET /dashboard` — live stats (active checkouts, today's events, team status) with partial-result fallbacks so one failed read does not blank the idle screen
+  - `GET /events` — visible upcoming events for checkout context, capped to the next 7 days
   - `GET /users` — roster filtered by kiosk's `locationId`
   - `POST /identify` — resolves a scanned Wiscard value to an active, location-scoped kiosk user
   - `GET /student/[userId]` — a student's active checkouts and reservations
@@ -62,6 +63,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 - Pickup and return detail payloads include numbered battery units in the same `items` checklist used by serialized assets, plus typed scan-summary metadata so the native iOS screens can show a distinct battery-unit scan step before pickup/return completion.
 - Serialized pickup confirmation now requires a successful `CHECKOUT` scan event for each serialized asset on the booking. Kiosk scan lookup accepts asset tag, primary scan code, QR value, `qr-` fallback, and serial number values.
 - Serialized kiosk checkout, pickup, and return scans reconcile the asset's saved `locationId` to the kiosk's `locationId`. Pickup and return scan events store expected and actual location evidence plus a mismatch flag when the item or booking location does not match the kiosk handoff location.
+- Direct kiosk checkout requires an event or custom purpose before completion. If a selected event is used, the booking title is the event summary and the event is linked through both `Booking.eventId` and `BookingEvent`; custom detail is saved in notes when present. If no event is selected, the typed purpose becomes the booking title.
 - Stale pending-pickup checkouts auto-expire during the scheduled morning refresh after 48 hours past `startsAt`. Expiry cancels the booking, releases serialized allocations, restores held bulk stock, releases any scanned numbered units, cancels open scan sessions, and writes a system audit entry.
 - **Auth helpers:** `withKiosk()` (`src/lib/api.ts`) and `requireKiosk()` (`src/lib/auth.ts`) validate the kiosk-session cookie, enforce the server-side 7-day `sessionExpiresAt`, refresh `lastSeenAt`, throw 401 if expired/inactive/deactivated.
 
@@ -96,6 +98,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 ## Change Log
 | Date | Change |
 |------|--------|
+| 2026-06-15 | Kiosk direct checkout now requires context before completion. Native checkout loads visible upcoming events from `/api/kiosk/events` for the next 7 days, lets any kiosk user select an event or type a custom purpose/details, and disables completion until one exists. The server enforces the same rule, titles the booking with the selected event or custom purpose, and links selected events through both `Booking.eventId` and `BookingEvent`. |
 | 2026-06-15 | iOS kiosk checkout scanned-items rail now shows optional asset/SKU photos. `POST /api/kiosk/checkout/scan` returns `imageUrl` for serialized assets and numbered battery units, and native checkout rows render thumbnails with battery/camera fallbacks while keeping the complete flow unchanged. |
 | 2026-06-15 | Kiosk battery checkout persistence/display hardening: checkout completion now normalizes legacy synthetic cart IDs like `bulk:{sku}:unit:{n}` into the same numbered bulk write path as the newer `{bulkSkuId, unitNumber}` payload, so iOS rollout skew cannot turn a scanned battery into an unsaved serialized asset ID. The idle dashboard now counts checked-out numbered bulk units in Items Out, lists active battery units in the active-items panel, and includes them in active checkout preview counts/items. |
 | 2026-06-15 | Kiosk activation reset fallback: Settings → Kiosk Devices can now generate a fresh one-time activation code for an existing active kiosk device. The reset revokes the old kiosk session, clears activation/last-seen state, and leaves the same device row pending activation so simulator/device rebuilds do not require deleting and recreating the kiosk. |

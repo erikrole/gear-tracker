@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   bulkSkuUnitUpdateMany: vi.fn(),
   bookingBulkItemCreate: vi.fn(),
   bookingBulkUnitAllocationCreateMany: vi.fn(),
+  calendarEventFindFirst: vi.fn(),
+  bookingEventCreate: vi.fn(),
   createAuditEntry: vi.fn(),
   nextBookingRef: vi.fn(),
   upsertBulkBalancesAndMovements: vi.fn(),
@@ -69,13 +71,15 @@ import { normalizeCheckoutCompleteItems } from "@/lib/services/kiosk-checkout-co
 
 const runCompleteKioskCheckout = completeKioskCheckout as unknown as (req: Request) => Promise<Response>;
 
-function completeRequest(items: Array<Record<string, unknown>>) {
+function completeRequest(items: Array<Record<string, unknown>>, extra: Record<string, unknown> = {}) {
   return new Request("http://test", {
     method: "POST",
     body: JSON.stringify({
       actorId: "user-1",
       locationId: "loc-1",
       items,
+      customPurpose: "Practice checkout",
+      ...extra,
     }),
   });
 }
@@ -92,6 +96,8 @@ function transactionClient() {
     },
     bookingBulkItem: { create: mocks.bookingBulkItemCreate },
     bookingBulkUnitAllocation: { createMany: mocks.bookingBulkUnitAllocationCreateMany },
+    calendarEvent: { findFirst: mocks.calendarEventFindFirst },
+    bookingEvent: { create: mocks.bookingEventCreate },
   };
 }
 
@@ -111,6 +117,7 @@ beforeEach(() => {
   ]);
   mocks.bulkSkuUnitUpdateMany.mockResolvedValue({ count: 1 });
   mocks.bookingBulkItemCreate.mockResolvedValue({ id: "bulk-item-1" });
+  mocks.calendarEventFindFirst.mockResolvedValue(null);
   mocks.transaction.mockImplementation((handler) => handler(transactionClient()));
 });
 
@@ -137,6 +144,13 @@ describe("kiosk checkout complete bulk units", () => {
 
     expect(res.status).toBe(200);
     expect(json.itemCount).toBe(1);
+    expect(mocks.bookingCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        title: "Practice checkout",
+        eventId: undefined,
+      }),
+    });
+    expect(mocks.bookingEventCreate).not.toHaveBeenCalled();
     expect(mocks.bookingSerializedItemCreateMany).not.toHaveBeenCalled();
     expect(mocks.assetAllocationCreateMany).not.toHaveBeenCalled();
     expect(mocks.assetUpdateMany).not.toHaveBeenCalled();
@@ -185,5 +199,50 @@ describe("kiosk checkout complete bulk units", () => {
       source: "kiosk_checkout",
       sourceKey: "booking-1",
     });
+  });
+
+  it("links a selected event and uses the event summary as the booking title", async () => {
+    mocks.calendarEventFindFirst.mockResolvedValue({
+      id: "event-1",
+      summary: "Volleyball vs Iowa",
+      sportCode: "VB",
+    });
+
+    const res = await runCompleteKioskCheckout(completeRequest(
+      [{ assetId: "asset-1" }],
+      { eventId: "event-1", customPurpose: "Broadcast camera" },
+    ));
+
+    expect(res.status).toBe(200);
+    expect(mocks.calendarEventFindFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        id: "event-1",
+        isHidden: false,
+        archivedAt: null,
+      }),
+      select: { id: true, summary: true, sportCode: true },
+    }));
+    expect(mocks.bookingCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        title: "Volleyball vs Iowa",
+        eventId: "event-1",
+        sportCode: "VB",
+        notes: expect.stringContaining("Purpose: Broadcast camera"),
+      }),
+    });
+    expect(mocks.bookingEventCreate).toHaveBeenCalledWith({
+      data: {
+        bookingId: "booking-1",
+        eventId: "event-1",
+        ordinal: 0,
+      },
+    });
+  });
+
+  it("requires an event or custom purpose", async () => {
+    await expect(runCompleteKioskCheckout(completeRequest(
+      [{ assetId: "asset-1" }],
+      { customPurpose: undefined },
+    ))).rejects.toThrow("Select an event or enter what this checkout is for");
   });
 });

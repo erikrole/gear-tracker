@@ -36,6 +36,8 @@ _2026-06-15 update: iOS hand-scanner debugger shipped without opening a new gap.
 
 _2026-06-15 update: Wiscard kiosk selection and serialized location reconciliation shipped without opening a new gap. Wiscard is now a unique profile identifier required at signup, kiosk idle can resolve a scanned Wiscard to a location-scoped active user, and kiosk custody scans reconcile serialized item locations while recording mismatch evidence on pickup/return scan events._
 
+_2026-06-15 update: Kiosk checkout event context shipped without opening a new gap. Direct kiosk checkout now requires either a selected upcoming event or typed purpose, titles bookings from that context, and preserves selected events through the same primary and junction event links used by web bookings._
+
 | ID | Description | Owner Area | Priority | Blocker? |
 |---|---|---|---|---|
 | ~~PD-1~~ | ~~D-009: Escalation recipient model~~ | ~~AREA_NOTIFICATIONS~~ | ~~Resolved~~ | ~~Requester + all admins; admin-configurable fatigue controls~~ |
