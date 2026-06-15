@@ -89,7 +89,7 @@ struct KioskBarcodeCameraView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
-                    .background(.black.opacity(0.5), in: Capsule())
+                    .background(KioskScrim.control, in: Capsule())
             }
             Spacer()
             Text("Aim camera at barcode or QR")
@@ -97,7 +97,7 @@ struct KioskBarcodeCameraView: View {
                 .foregroundStyle(.white)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
-                .background(.black.opacity(0.5), in: Capsule())
+                .background(KioskScrim.control, in: Capsule())
             Spacer()
             Spacer().frame(width: 80)
         }
@@ -187,7 +187,7 @@ struct KioskBarcodeCameraView: View {
             .background(Color.kioskRed, in: Capsule())
         }
         .padding(12)
-        .background(.black.opacity(0.58), in: RoundedRectangle(cornerRadius: 14))
+        .background(KioskScrim.field, in: RoundedRectangle(cornerRadius: KioskRadius.lg))
         .padding(.horizontal, 24)
         .accessibilityElement(children: .contain)
     }
