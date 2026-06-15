@@ -219,7 +219,7 @@ struct KioskIdleView: View {
                         .accessibilityHidden(true)
                     Text("All gear is home")
                         .font(.title3.bold())
-                        .foregroundStyle(.white)
+                        .foregroundStyle(KioskText.primary)
                 }
                 .frame(maxWidth: .infinity)
                 .accessibilityElement(children: .combine)
@@ -256,7 +256,7 @@ struct KioskIdleView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Scan Wiscard")
                     .font(.title2.bold())
-                    .foregroundStyle(.white)
+                    .foregroundStyle(KioskText.primary)
                 Text("Or tap your name below")
                     .font(.subheadline)
                     .foregroundStyle(KioskText.tertiary)
@@ -268,7 +268,7 @@ struct KioskIdleView: View {
             }
 
             if users.isEmpty && isLoading {
-                ProgressView().tint(.white).frame(maxWidth: .infinity, maxHeight: .infinity)
+                ProgressView().tint(KioskText.primary).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 let labels = disambiguatedLabels(for: users)
                 ScrollView {
@@ -483,7 +483,7 @@ private struct KioskClockView: View {
     var body: some View {
         Text("\(parts.time)\(parts.seconds) \(parts.meridiem)")
             .font(.system(size: 118, weight: .black, design: .monospaced))
-            .foregroundStyle(.white)
+            .foregroundStyle(KioskText.primary)
             .lineLimit(1)
             .minimumScaleFactor(0.5)
         .accessibilityLabel(date.formatted(date: .omitted, time: .standard))
@@ -514,9 +514,9 @@ private struct StatTile: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 22)
-            .background(Color.white.opacity(isSelected ? 0.13 : 0.075), in: RoundedRectangle(cornerRadius: 16))
+            .background(Color.white.opacity(isSelected ? 0.13 : 0.075), in: RoundedRectangle(cornerRadius: KioskRadius.xl))
             .overlay(
-                RoundedRectangle(cornerRadius: 16)
+                RoundedRectangle(cornerRadius: KioskRadius.xl)
                     .stroke(isSelected ? Color.white.opacity(0.5) : Color.white.opacity(0.14), lineWidth: isSelected ? 2 : 1)
             )
             .overlay(alignment: .bottom) {
@@ -549,9 +549,9 @@ private struct StatTilePlaceholder: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 22)
-        .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 16))
+        .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: KioskRadius.xl))
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: KioskRadius.xl)
                 .stroke(Color.white.opacity(0.1), lineWidth: 1)
         )
         .accessibilityHidden(true)
@@ -594,9 +594,9 @@ private struct KioskDashboardList<Content: View>: View {
             }
         }
         .padding(12)
-        .background(Color.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 14))
+        .background(Color.white.opacity(0.045), in: RoundedRectangle(cornerRadius: KioskRadius.lg))
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: KioskRadius.lg)
                 .stroke(Color.white.opacity(0.1), lineWidth: 1)
         )
     }
@@ -611,7 +611,7 @@ private struct ActiveItemRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.name)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(KioskText.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
                 Text("\(item.tagName) · \(item.checkoutTitle)")
@@ -630,9 +630,9 @@ private struct ActiveItemRow: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 10))
+        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: KioskRadius.sm))
         .overlay(
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: KioskRadius.sm)
                 .stroke(Color.white.opacity(0.11), lineWidth: 1)
         )
         .accessibilityElement(children: .combine)
@@ -713,7 +713,7 @@ private struct KioskEventRow: View {
                     .fixedSize()
                 Text(event.title)
                     .font(.body.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(KioskText.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
                 Spacer()
@@ -729,9 +729,9 @@ private struct KioskEventRow: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
-            .background(Color.white.opacity(0.075), in: RoundedRectangle(cornerRadius: 12))
+            .background(Color.white.opacity(0.075), in: RoundedRectangle(cornerRadius: KioskRadius.md))
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: KioskRadius.md)
                     .stroke(Color.white.opacity(0.13), lineWidth: 1)
             )
         }
@@ -760,7 +760,7 @@ private struct KioskEventAvatarStack: View {
             if totalCount > 4 {
                 Text("+\(totalCount - 4)")
                     .font(.caption2.weight(.bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(KioskText.primary)
                     .frame(width: 30, height: 30)
                     .background(Color.white.opacity(0.18), in: Circle())
                     .overlay(Circle().stroke(Color.black.opacity(0.8), lineWidth: 1.5))
@@ -791,7 +791,7 @@ private struct KioskEventAvatarStack: View {
     private func eventInitials(for user: KioskEvent.AssignedUser) -> some View {
         Text(user.initials)
             .font(.caption2.weight(.bold))
-            .foregroundStyle(.white)
+            .foregroundStyle(KioskText.primary)
             .frame(width: 30, height: 30)
             .background(Color.white.opacity(0.16), in: Circle())
             .overlay(Circle().stroke(Color.black.opacity(0.8), lineWidth: 1.5))
@@ -818,14 +818,14 @@ private struct KioskEventDetailSheet: View {
                         }
                         Text(event.title)
                             .font(.title.weight(.heavy))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(KioskText.primary)
                             .lineLimit(2)
                             .minimumScaleFactor(0.74)
                     }
                     Spacer()
                     Button("Done") { dismiss() }
                         .font(.headline.weight(.semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(KioskText.primary)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
                         .background(Color.white.opacity(0.12), in: Capsule())
@@ -840,7 +840,7 @@ private struct KioskEventDetailSheet: View {
                     HStack(spacing: 8) {
                         Text("Working")
                             .font(.title3.weight(.bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(KioskText.primary)
                         if !event.assignedUsers.isEmpty {
                             Text("\(event.assignedUserCount)")
                                 .font(.caption.weight(.bold).monospacedDigit())
@@ -857,7 +857,7 @@ private struct KioskEventDetailSheet: View {
                             .foregroundStyle(Color.white.opacity(0.6))
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(16)
-                            .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 14))
+                            .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: KioskRadius.lg))
                     } else {
                         ScrollView {
                             LazyVStack(spacing: 8) {
@@ -923,7 +923,7 @@ private struct KioskEventTimeRow: View {
                 .frame(width: 48, alignment: .leading)
             Text(value)
                 .font(.title2.weight(.bold).monospacedDigit())
-                .foregroundStyle(.white)
+                .foregroundStyle(KioskText.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
             Spacer(minLength: 0)
@@ -931,9 +931,9 @@ private struct KioskEventTimeRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 14)
         .padding(.vertical, 13)
-        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
+        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: KioskRadius.lg))
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: KioskRadius.lg)
                 .stroke(Color.white.opacity(0.12), lineWidth: 1)
         )
     }
@@ -962,7 +962,7 @@ private struct KioskEventWorkerRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(user.name)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(KioskText.primary)
                     .lineLimit(1)
                 if let detail = workerDetail {
                     Text(detail)
@@ -976,9 +976,9 @@ private struct KioskEventWorkerRow: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
+        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: KioskRadius.md))
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: KioskRadius.md)
                 .stroke(Color.white.opacity(0.12), lineWidth: 1)
         )
     }
@@ -1022,7 +1022,7 @@ private struct CheckoutRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(checkout.title)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(KioskText.primary)
                 Text(itemSummary)
                     .font(.caption)
                     .foregroundStyle(Color.white.opacity(0.64))
@@ -1039,9 +1039,9 @@ private struct CheckoutRow: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 10))
+        .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: KioskRadius.sm))
         .overlay(
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: KioskRadius.sm)
                 .stroke(Color.white.opacity(0.11), lineWidth: 1)
         )
         .accessibilityElement(children: .combine)
@@ -1069,7 +1069,7 @@ private struct CheckoutRow: View {
     private var initialsBubble: some View {
         Text(checkout.requesterInitials)
             .font(.caption.bold())
-            .foregroundStyle(.white)
+            .foregroundStyle(KioskText.primary)
     }
 
     private var itemSummary: String {
@@ -1121,7 +1121,7 @@ private struct UserTile: View {
                 avatar
                 Text(displayName)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(KioskText.primary)
                     .lineLimit(1)
                     .multilineTextAlignment(.center)
                     .minimumScaleFactor(0.74)
@@ -1130,9 +1130,9 @@ private struct UserTile: View {
             .frame(minHeight: 92)
             .padding(.horizontal, 8)
             .padding(.vertical, 10)
-            .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+            .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: KioskRadius.md))
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: KioskRadius.md)
                     .stroke(Color.white.opacity(0.16), lineWidth: 1)
             )
         }
