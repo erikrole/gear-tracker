@@ -356,24 +356,17 @@ private struct ItemHeroCard: View {
 
     private var banner: some View {
         ZStack(alignment: .topTrailing) {
-            // Full white when a photo exists: inventory shots are catalog
-            // images on white, so the frame disappears into the image instead
-            // of letterboxing it. Placeholders keep the brand-tinted gradient.
-            Group {
-                if asset.imageUrl != nil {
-                    Color.white
-                } else {
-                    Color.clear
+            if asset.imageUrl != nil {
+                Button {
+                    showZoom = true
+                } label: {
+                    bannerArtwork
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Open item photo")
+            } else {
+                bannerArtwork
             }
-            .overlay { bannerImage }
-            .frame(maxWidth: .infinity)
-            .frame(height: 200)
-            .clipped()
-            .contentShape(Rectangle())
-            // Tap a real photo to inspect cosmetic condition full-screen;
-            // mirrors the scan result hero. Placeholders aren't tappable.
-            .onTapGesture { if asset.imageUrl != nil { showZoom = true } }
 
             // The badge carries its own tinted capsule; on the white hero
             // that's contrast enough, so no extra material wrapper — just a
@@ -382,6 +375,24 @@ private struct ItemHeroCard: View {
                 .shadow(color: .black.opacity(0.12), radius: 4, y: 1)
                 .padding(12)
         }
+    }
+
+    private var bannerArtwork: some View {
+        // Full white when a photo exists: inventory shots are catalog images on
+        // white, so the frame disappears into the image instead of letterboxing
+        // it. Placeholders keep the brand-tinted gradient.
+        Group {
+            if asset.imageUrl != nil {
+                Color.white
+            } else {
+                Color.clear
+            }
+        }
+        .overlay { bannerImage }
+        .frame(maxWidth: .infinity)
+        .frame(height: 200)
+        .clipped()
+        .contentShape(Rectangle())
     }
 
     @ViewBuilder

@@ -261,7 +261,7 @@ struct KioskPickupView: View {
                         confirmedIds.insert(item.id)
                         confirmedItemOverrides[item.id] = item
                         lastConfirmedId = item.id
-                        showFeedback(.success(item.name))
+                        showFeedback(.success(result.locationMessage ?? item.name))
                     }
                 } else {
                     let isInBooking = items.contains { $0.tagName.lowercased() == value.lowercased() || $0.id == value }

@@ -569,6 +569,7 @@ export default function UserInfoTab({
   // Fields a user can edit on their own profile (mirrors updateProfileSchema).
   const SELF_EDITABLE_FIELDS = new Set([
     "name", "locationId", "phone", "slackHandle", "slackProfileUrl",
+    "wiscardNumber",
     "title", "athleticsEmail", "startDate", "gradYear", "studentYearOverride",
     "topSize", "bottomSize", "shoeSize",
   ]);
@@ -803,6 +804,13 @@ export default function UserInfoTab({
             canEdit={canEditProfile || canEditSelf}
             onSave={(v) => patchUser({ phone: v || null })}
             type="tel"
+          />
+          <TextInputField
+            label="Wiscard"
+            value={user.wiscardNumber || ""}
+            placeholder="Scan or type Wiscard value"
+            canEdit={canEditProfile || canEditSelf}
+            onSave={(v) => patchUser({ wiscardNumber: v || null })}
           />
           <TextInputField
             label="Slack"

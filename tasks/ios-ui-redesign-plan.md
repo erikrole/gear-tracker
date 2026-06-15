@@ -45,8 +45,13 @@
 - Left BookingsView / ItemsView lists largely as-is — already clean native plain lists; the design-system wins there are the shared row/card primitives they already use.
 - AppTabView Settings already used continuous corners — no change needed.
 
-**Not done / deferred (needs the user's Xcode pass first):**
-- Compile + simulator verification (no Swift toolchain in the web container).
+**Verified after restore (2026-06-15):**
+- `npm run drift:ios` passed.
+- `npm run audit:ios:gaps` passed.
+- `git diff --check` passed.
+- `xcodebuild -project ios/Wisconsin.xcodeproj -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build` returned `BUILD SUCCEEDED`.
+
+**Not done / deferred:**
 - UsersView/UserDetailView and the smaller sheets (EventDetailSheet, ExtendBookingSheet, NotificationsSheet) — mostly Form/List or already use the now-modernized `FormCard`; revisit after a visual pass on device.
 
 **CI note:** the `validate` check fails on `prisma generate` (`Missing DIRECT_URL`) for every PR — pre-existing infra, unrelated to this iOS-only diff.

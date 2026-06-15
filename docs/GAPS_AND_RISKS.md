@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-11
+- Last Updated: 2026-06-15
 - Status: Living registry — update when shipping features or resolving decisions
 - Purpose: Single file listing every open gap, pending decision, and known risk across all docs
 
@@ -31,6 +31,10 @@ _2026-06-10 update: iOS native booking picker parity shipped for scan-to-add and
 _2026-06-10 update: iOS Settings detail menus shipped for Notifications and Account & Security. No new gap or pending decision opened; the slice uses existing notification preferences and change-password contracts, while full native session-list management remains intentionally deferred behind the web handoff._
 
 _2026-06-11 update: iOS native reservation event linking and booking-sheet polish shipped without opening a new gap. Native creation now supports up to 3 linked upcoming events via the accepted `eventIds[]` contract, keeps event-detail prep-gear prefill behavior intact, and preserves server-authoritative availability enforcement._
+
+_2026-06-15 update: iOS hand-scanner debugger shipped without opening a new gap. Staff/admin Settings -> Tools now presents a dedicated debugger sheet, captures HID scanner input, and previews the normal scan hero card through lookup-only native search while preserving kiosk-owned custody scans._
+
+_2026-06-15 update: Wiscard kiosk selection and serialized location reconciliation shipped without opening a new gap. Wiscard is now a unique profile identifier required at signup, kiosk idle can resolve a scanned Wiscard to a location-scoped active user, and kiosk custody scans reconcile serialized item locations while recording mismatch evidence on pickup/return scan events._
 
 | ID | Description | Owner Area | Priority | Blocker? |
 |---|---|---|---|---|

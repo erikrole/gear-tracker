@@ -1,6 +1,41 @@
 # Task Queue
 
-Last updated: 2026-06-13
+Last updated: 2026-06-15
+
+---
+
+## Active: iOS hand-scanner debugger (2026-06-15)
+
+- [x] Add a staff/admin Settings -> Tools entry for scanner debugging.
+- [x] Capture hand-scanner HID keyboard input with the existing hidden scanner field pattern.
+- [x] Submit scanner values through the native lookup service and reuse the scan hero-card sheet.
+- [x] Show raw/trimmed scan value and lookup status for hardware debugging.
+- [x] Harden Settings launch by presenting Scanner Debugger as its own sheet instead of a `ProfileDestination` value link.
+- [x] Verify iOS drift, audit inventory, whitespace, and simulator build.
+
+### Review
+- 2026-06-15: Hardened the Scanner Debugger launcher after device testing surfaced SwiftUI's "no matching navigationDestination" warning for the `ProfileDestination.scannerDebugger` value link. The Settings row now presents the debugger modally, and the debugger keeps its own `NavigationStack` for scan-result item/booking pushes plus a Done control to close the tool.
+- 2026-06-15: Shipped a staff/admin Scanner Debugger under Settings -> Tools. It captures HID hand-scanner input through the same hidden text-field pattern as kiosk, shows raw and trimmed scan values, submits through native `SearchService`, and reuses `ScanResultSheet` so a successful scan opens the existing serialized/item-family hero card. Added the focused audit note and registered the debugger plus previously unregistered shared scan/avatar components in the iOS audit inventory. Verification passed: `npm run drift:ios`, `npm run audit:ios:gaps`, `git diff --check`, and escalated iOS simulator `xcodebuild` (`BUILD SUCCEEDED`).
+
+---
+
+## Active: Wiscard profile capture (2026-06-15)
+
+- [x] Add a unique nullable Wiscard value field on user profiles so existing accounts migrate safely.
+- [x] Require Wiscard value during invite-gated signup.
+- [x] Expose Wiscard value on self-profile and staff/admin user profile editing.
+- [x] Block duplicate Wiscard values with clear API errors.
+- [x] Let kiosk idle resolve a scanned Wiscard to the location-scoped user selection.
+- [x] Reconcile serialized item locations to the kiosk location on kiosk scan, pickup, checkout, and return completion.
+- [x] Flag kiosk custody scans when an item's stored location does not match the kiosk/booking expected location before reconciliation.
+- [x] Update user/profile docs for the new required signup field and kiosk identity direction.
+- [x] Verify TypeScript, Prisma generation/build, and affected tests.
+
+### Review
+- 2026-06-15: Added `User.wiscardNumber` with a nullable unique migration, required it on invite-gated registration, exposed it on self-profile and staff/admin user detail editing, and kept duplicate conflicts explicit without writing the raw value into audit after state.
+- 2026-06-15: Added kiosk Wiscard selection through `POST /api/kiosk/identify` and native idle scanner handling. Successful Wiscard scans open the student hub for active users scoped to the kiosk location; the roster grid remains the fallback.
+- 2026-06-15: Serialized kiosk checkout/pickup/return scans now reconcile `Asset.locationId` to the kiosk location. Pickup and return scan events store expected and actual location IDs plus `locationMismatch` evidence so wrong-location handoffs are visible after the fact.
+- Verification: `npm run prisma:generate`, `npm run db:migrate:check`, `npm run drift:ios`, `npm run audit:ios:gaps`, `git diff --check`, `npx next build`, and iOS simulator `xcodebuild` all passed. `npx tsc --noEmit --pretty false` remains blocked by the pre-existing `tests/bulk-unit-adjustment-routes.test.ts:171` undefined warning. Full `npm run build` was not run to completion because its migration-deploy step needs external Neon access and escalation was rejected as database-mutating.
 
 ---
 

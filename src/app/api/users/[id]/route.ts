@@ -5,7 +5,7 @@ import { HttpError, ok } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 import { upsertBulkBalancesAndMovements } from "@/lib/services/bookings-helpers";
-import { normalizeSlackHandle, normalizeSlackProfileUrl, slackHandleSchema, slackProfileUrlSchema } from "@/lib/validation";
+import { normalizeSlackHandle, normalizeSlackProfileUrl, normalizeWiscardNumber, slackHandleSchema, slackProfileUrlSchema, wiscardNumberSchema } from "@/lib/validation";
 import { z } from "zod";
 
 const updateUserSchema = z.object({
@@ -13,6 +13,7 @@ const updateUserSchema = z.object({
   email: z.string().email().optional(),
   locationId: z.string().cuid().nullable().optional(),
   phone: z.string().max(20).nullable().optional(),
+  wiscardNumber: wiscardNumberSchema,
   slackHandle: slackHandleSchema,
   slackProfileUrl: slackProfileUrlSchema,
   primaryArea: z.nativeEnum(ShiftArea).nullable().optional(),
@@ -95,6 +96,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
       locationId: target.locationId,
       location: target.location?.name ?? null,
       phone: target.phone,
+      wiscardNumber: target.wiscardNumber ?? null,
       slackHandle: target.slackHandle ?? null,
       slackProfileUrl: target.slackProfileUrl ?? null,
       primaryArea: target.primaryArea,
@@ -156,6 +158,9 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
 
   if (body.phone !== undefined) {
     updateData.phone = body.phone;
+  }
+  if (Object.prototype.hasOwnProperty.call(body, "wiscardNumber")) {
+    updateData.wiscardNumber = normalizeWiscardNumber(body.wiscardNumber);
   }
 
   if (Object.prototype.hasOwnProperty.call(body, "slackHandle")) {
@@ -337,6 +342,9 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
       if (target.some((t) => t.includes("athletics_email"))) {
         throw new HttpError(409, "That athletics email is already in use");
       }
+      if (target.some((t) => t.includes("wiscard_number") || t.includes("wiscardNumber"))) {
+        throw new HttpError(409, "That Wiscard value is already linked to another account");
+      }
       throw new HttpError(409, "A user with this email already exists");
     }
     throw err;
@@ -365,6 +373,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
       locationId: updated.locationId,
       location: updated.location?.name ?? null,
       phone: updated.phone,
+      wiscardNumber: updated.wiscardNumber ?? null,
       slackHandle: updated.slackHandle ?? null,
       slackProfileUrl: updated.slackProfileUrl ?? null,
       primaryArea: updated.primaryArea,

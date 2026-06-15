@@ -3,7 +3,7 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { hashPassword, verifyPassword } from "@/lib/auth";
-import { changePasswordSchema, normalizeSlackHandle, normalizeSlackProfileUrl, updateProfileSchema } from "@/lib/validation";
+import { changePasswordSchema, normalizeSlackHandle, normalizeSlackProfileUrl, normalizeWiscardNumber, updateProfileSchema } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
 
 const profilePatchSchema = z.union([
@@ -32,6 +32,7 @@ export const GET = withAuth(async (_req, { user }) => {
         name: profile.name,
         email: profile.email,
         role: profile.role,
+        wiscardNumber: profile.wiscardNumber ?? null,
         slackHandle: profile.slackHandle ?? null,
         slackProfileUrl: profile.slackProfileUrl ?? null,
         avatarUrl: profile.avatarUrl ?? null,
@@ -93,7 +94,7 @@ export const PATCH = withAuth(async (req, { user }) => {
   const current = await db.user.findUniqueOrThrow({
     where: { id: user.id },
     select: {
-      name: true, phone: true, locationId: true,
+      name: true, phone: true, wiscardNumber: true, locationId: true,
       slackHandle: true, slackProfileUrl: true,
       title: true, athleticsEmail: true, startDate: true,
       gradYear: true, studentYearOverride: true,
@@ -104,6 +105,9 @@ export const PATCH = withAuth(async (req, { user }) => {
   const data: Record<string, unknown> = {};
   if (payload.name !== undefined) data.name = payload.name;
   if (Object.prototype.hasOwnProperty.call(payload, "phone")) data.phone = payload.phone ?? null;
+  if (Object.prototype.hasOwnProperty.call(payload, "wiscardNumber")) {
+    data.wiscardNumber = normalizeWiscardNumber(payload.wiscardNumber);
+  }
   if (Object.prototype.hasOwnProperty.call(payload, "slackHandle")) data.slackHandle = normalizeSlackHandle(payload.slackHandle);
   if (Object.prototype.hasOwnProperty.call(payload, "slackProfileUrl")) data.slackProfileUrl = normalizeSlackProfileUrl(payload.slackProfileUrl);
   if (Object.prototype.hasOwnProperty.call(payload, "locationId")) data.locationId = payload.locationId ?? null;
@@ -129,6 +133,11 @@ export const PATCH = withAuth(async (req, { user }) => {
     });
   } catch (err) {
     if (err && typeof err === "object" && "code" in err && (err as { code?: string }).code === "P2002") {
+      const target = ((err as { meta?: { target?: string[] | string } }).meta?.target) ?? [];
+      const targetValues = Array.isArray(target) ? target : [String(target)];
+      if (targetValues.some((t) => t.includes("wiscard_number") || t.includes("wiscardNumber"))) {
+        throw new HttpError(409, "That Wiscard value is already linked to another account");
+      }
       throw new HttpError(409, "That athletics email is already in use");
     }
     throw err;
@@ -165,6 +174,7 @@ export const PATCH = withAuth(async (req, { user }) => {
       name: updated.name,
       email: updated.email,
       role: updated.role,
+      wiscardNumber: updated.wiscardNumber ?? null,
       slackHandle: updated.slackHandle ?? null,
       slackProfileUrl: updated.slackProfileUrl ?? null,
       avatarUrl: updated.avatarUrl ?? null,

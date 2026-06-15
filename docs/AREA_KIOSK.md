@@ -4,7 +4,7 @@
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Status: Shipped — iOS canonical (web kiosk deprecated 2026-04-24)
 - Created: 2026-04-07
-- Last Updated: 2026-06-12
+- Last Updated: 2026-06-15
 - Brief: `BRIEF_KIOSK.md`
 - Decision Refs: D-030
 
@@ -19,7 +19,7 @@ The kiosk is intentionally low-friction: no per-student password, no PIN, no bio
 1. **Physical trust.** The iPad is at the gear counter or carried by staff. Guided Access pins it to the Wisconsin app.
 2. **Device authentication.** Each `KioskDevice` is created by an admin in Settings → Kiosk Devices. A 6-digit one-time activation code provisions a `kiosk_session` cookie tied to a specific `KioskDevice` row (with `locationId`, `active`, `lastSeenAt`, and `sessionExpiresAt`).
 3. **Server-side scope.** `withKiosk()` rejects all `/api/kiosk/*` calls without a valid kiosk-session cookie. Routes do not accept a regular user-session cookie. Bookings created through the kiosk are stamped with `source: "KIOSK"` for the audit trail.
-4. **Identity = name picker.** A student taps their tile from the location-scoped roster. There is **no password / PIN / NFC** in V1. This is a deliberate trade-off: the counter is staffed during open hours, and physical+device gates carry the security weight. Misattribution risk (a student tapping the wrong tile or someone else's tile) is mitigated by the audit log and the social context of a staffed counter.
+4. **Identity = Wiscard scan or name picker.** A student scans their Wiscard at the kiosk to select their profile; the location-scoped name grid remains the manual fallback. There is **no password / PIN / NFC** in V1. This is a deliberate trade-off: the counter is staffed during open hours, and physical+device gates carry the security weight. Misattribution risk is mitigated by the audit log, Wiscard profile binding, and the social context of a staffed counter.
 
 If at some point the kiosk needs to operate unattended or in a less-trusted physical context, a per-student PIN or NFC tap is the natural extension. Not in V1.
 
@@ -52,6 +52,7 @@ Files under `ios/Wisconsin/Kiosk/`:
   - `POST /heartbeat` — updates `lastSeenAt`
   - `GET /dashboard` — live stats (active checkouts, today's events, team status) with partial-result fallbacks so one failed read does not blank the idle screen
   - `GET /users` — roster filtered by kiosk's `locationId`
+  - `POST /identify` — resolves a scanned Wiscard value to an active, location-scoped kiosk user
   - `GET /student/[userId]` — a student's active checkouts and reservations
   - `POST /checkout/scan`, `POST /checkout/complete`, `GET /checkout/[id]`
   - `POST /checkin/[id]/scan`, `POST /checkin/[id]/complete`
@@ -60,6 +61,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 - Numbered battery units scan through the same pickup/check-in endpoints with derived values like `{binQrCodeValue}-{unitNumber}`. Pickup binds the unit to the booking; check-in returns only the scanned unit.
 - Pickup and return detail payloads include numbered battery units in the same `items` checklist used by serialized assets, plus typed scan-summary metadata so the native iOS screens can show a distinct battery-unit scan step before pickup/return completion.
 - Serialized pickup confirmation now requires a successful `CHECKOUT` scan event for each serialized asset on the booking. Kiosk scan lookup accepts asset tag, primary scan code, QR value, `qr-` fallback, and serial number values.
+- Serialized kiosk checkout, pickup, and return scans reconcile the asset's saved `locationId` to the kiosk's `locationId`. Pickup and return scan events store expected and actual location evidence plus a mismatch flag when the item or booking location does not match the kiosk handoff location.
 - Stale pending-pickup checkouts auto-expire during the scheduled morning refresh after 48 hours past `startsAt`. Expiry cancels the booking, releases serialized allocations, restores held bulk stock, releases any scanned numbered units, cancels open scan sessions, and writes a system audit entry.
 - **Auth helpers:** `withKiosk()` (`src/lib/api.ts`) and `requireKiosk()` (`src/lib/auth.ts`) validate the kiosk-session cookie, enforce the server-side 7-day `sessionExpiresAt`, refresh `lastSeenAt`, throw 401 if expired/inactive/deactivated.
 
@@ -94,6 +96,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 ## Change Log
 | Date | Change |
 |------|--------|
+| 2026-06-15 | Wiscard kiosk selection and location reconciliation shipped. Native idle now scans a Wiscard to select the active location-scoped user, falling back to the roster grid. Kiosk checkout/pickup/return scans now reconcile serialized assets to the kiosk location and record expected/actual location mismatch evidence on pickup/return scan events. |
 | 2026-06-13 | Fixed kiosk online-status staleness: `requireKiosk()` now wraps the `lastSeenAt` + `sessionExpiresAt` DB update in Next.js `after()` so Vercel keeps the serverless function alive until the write completes, preventing the Settings kiosk health cockpit from showing stale/offline while the device is actively heartbeating. |
 | 2026-06-09 | iOS kiosk no longer forces re-activation on every app re-entry: `kioskMe()` decoded a `{data:...}` envelope that `/api/kiosk/me` never sends (it returns `{kioskId, locationId, locationName}` at the top level), so session validation always failed and wiped the stored activation. Also, `validateSession` now only clears the activation on a definitive 401 — transient failures (offline at launch, 5xx) go idle and let the heartbeat's own 401 path catch real deactivation. |
 | 2026-04-07 | Area doc created, all ACs pending |

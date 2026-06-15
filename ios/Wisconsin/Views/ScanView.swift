@@ -430,7 +430,7 @@ private struct DataScannerRepresentable: UIViewControllerRepresentable {
 /// swipe-to-dismiss, and Liquid Glass material via the system.
 /// Background interaction is enabled up through .medium so the camera feed
 /// stays live and the next scan can happen without dismissing manually.
-private struct ScanResultSheet: View {
+struct ScanResultSheet: View {
     let results: SearchResults
     let error: String?
     @Binding var navigationPath: NavigationPath

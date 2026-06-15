@@ -192,6 +192,7 @@ export const loginSchema = z.object({
 export const registerSchema = z.object({
   name: z.string().trim().min(1).max(100),
   email: z.string().email(),
+  wiscardNumber: z.string().trim().min(1, "Wiscard value is required").max(128),
   password: z.string().min(8).max(128)
 });
 
@@ -245,11 +246,24 @@ export function normalizeSlackProfileUrl(value: string | null | undefined) {
   return normalized ? normalized : null;
 }
 
+export const wiscardNumberSchema = z.string()
+  .trim()
+  .max(128)
+  .nullable()
+  .optional();
+
+export function normalizeWiscardNumber(value: string | null | undefined) {
+  if (value == null) return null;
+  const normalized = value.trim();
+  return normalized ? normalized : null;
+}
+
 // Fields a user is allowed to edit on their own profile.
 // Direct report and assignments are intentionally excluded — staff/admin only.
 export const updateProfileSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   phone: z.string().max(30).nullable().optional(),
+  wiscardNumber: wiscardNumberSchema,
   slackHandle: slackHandleSchema,
   slackProfileUrl: slackProfileUrlSchema,
   locationId: z.string().cuid().nullable().optional(),
