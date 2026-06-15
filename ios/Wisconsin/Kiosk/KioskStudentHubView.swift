@@ -98,7 +98,7 @@ struct KioskStudentHubView: View {
                 icon: "arrow.up.circle.fill",
                 color: Color.kioskRed
             ) {
-                store.screen = .checkout(userId: user.id)
+                store.screen = .checkout(user: user)
             }
 
             if let pickups = context?.pendingPickups, !pickups.isEmpty {

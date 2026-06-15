@@ -1,4 +1,4 @@
-import { BulkMovementKind, BulkUnitStatus, CalendarEventStatus, Prisma } from "@prisma/client";
+import { BookingKind, BulkMovementKind, BulkUnitStatus, CalendarEventStatus, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { withKiosk } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
@@ -6,8 +6,14 @@ import { createAuditEntry } from "@/lib/audit";
 import { checkoutCompleteBody } from "@/lib/schemas/kiosk";
 import { nextBookingRef } from "@/lib/services/booking-ref";
 import { upsertBulkBalancesAndMovements } from "@/lib/services/bookings-helpers";
-import { normalizeCheckoutCompleteItems } from "@/lib/services/kiosk-checkout-complete";
+import { bulkRequestsFromCheckoutUnits, normalizeCheckoutCompleteItems } from "@/lib/services/kiosk-checkout-complete";
+import { checkAvailability, type AvailabilityResult } from "@/lib/services/availability";
+import { parseDateRange } from "@/lib/time";
 import { badges } from "@/lib/badges";
+
+function hasBlockingAvailabilityIssue(result: AvailabilityResult) {
+  return result.conflicts.length > 0 || result.shortages.length > 0 || result.unavailableAssets.length > 0;
+}
 
 /**
  * Complete a kiosk checkout: create booking + allocations in one step.
@@ -29,7 +35,6 @@ export const POST = withKiosk(async (req, { kiosk }) => {
   if (!user) throw new HttpError(404, "User not found");
 
   const now = new Date();
-  const endsAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // Default: due in 24h
   const eventWindowEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
   try {
@@ -49,12 +54,20 @@ export const POST = withKiosk(async (req, { kiosk }) => {
                 isHidden: false,
                 archivedAt: null,
               },
-              select: { id: true, summary: true, sportCode: true },
+              select: { id: true, summary: true, sportCode: true, endsAt: true },
             })
           : null;
         if (body.eventId && !event) {
           throw new HttpError(400, "Selected event is no longer available");
         }
+
+        const defaultEndsAt = event?.endsAt && event.endsAt > now
+          ? event.endsAt
+          : new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        const { start: startsAt, end: endsAt } = parseDateRange(
+          now.toISOString(),
+          body.endsAt ?? defaultEndsAt.toISOString(),
+        );
 
         const title = event?.summary ?? customPurpose;
         if (!title) {
@@ -64,6 +77,22 @@ export const POST = withKiosk(async (req, { kiosk }) => {
           `Created via kiosk at ${kiosk.locationName}`,
           event && customPurpose ? `Purpose: ${customPurpose}` : null,
         ].filter(Boolean).join("\n");
+
+        const availability = await checkAvailability(tx, {
+          locationId,
+          startsAt,
+          endsAt,
+          serializedAssetIds: assetIds,
+          bulkItems: bulkRequestsFromCheckoutUnits(bulkUnitItems),
+          bookingKind: BookingKind.CHECKOUT,
+        });
+        if (hasBlockingAvailabilityIssue(availability)) {
+          throw new HttpError(
+            409,
+            "One or more items are not available for the selected return time",
+            availability,
+          );
+        }
 
         // Create the booking
         const b = await tx.booking.create({
@@ -76,7 +105,7 @@ export const POST = withKiosk(async (req, { kiosk }) => {
             requesterUserId: actorId,
             createdBy: actorId,
             locationId,
-            startsAt: now,
+            startsAt,
             endsAt,
             refNumber,
             notes,
@@ -109,7 +138,7 @@ export const POST = withKiosk(async (req, { kiosk }) => {
             data: ids.map((assetId) => ({
               assetId,
               bookingId: b.id,
-              startsAt: now,
+              startsAt,
               endsAt,
               active: true,
               kind: "CHECKOUT" as const,
@@ -224,6 +253,8 @@ export const POST = withKiosk(async (req, { kiosk }) => {
         eventId: body.eventId ?? null,
         customPurpose: customPurpose ?? null,
         title: booking.title,
+        startsAt: booking.startsAt.toISOString(),
+        endsAt: booking.endsAt.toISOString(),
       },
     });
 
@@ -238,7 +269,7 @@ export const POST = withKiosk(async (req, { kiosk }) => {
       bookingId: booking.id,
       refNumber,
       itemCount: assetIds.length + bulkUnitItems.length,
-      endsAt,
+      endsAt: booking.endsAt,
     });
   } catch (error) {
     if (

@@ -86,10 +86,25 @@ Last updated: 2026-06-15
 - [x] Link selected events through both `Booking.eventId` and `BookingEvent`.
 - [x] Add native kiosk UI for choosing an event and typing custom details before checkout completion.
 - [x] Verify focused tests, TypeScript, iOS drift/audit, whitespace, web build, and simulator build.
+- [x] Add selected-student/location/context summaries across setup, scan, review, and success states.
+- [x] Add quick custom-purpose chips and a clearer no-events state.
+- [x] Add scanner health/troubleshooting status in scan mode.
+- [x] Group numbered batteries in the scanned-items rail.
+- [x] Add a final review sheet before submitting checkout.
+- [x] Verify focused tests, iOS drift/audit, whitespace, and simulator build after polish.
+- [x] Add kiosk checkout due-back time support with event-based defaults.
+- [x] Add kiosk-authenticated availability/conflict checks for scanned checkout carts.
+- [x] Enforce the same conflict checks inside checkout completion.
+- [x] Show conflict status in the native checkout setup, scan rail, and review sheet.
+- [x] Verify focused tests, TypeScript status, iOS drift/audit, whitespace, and simulator build.
 
 ### Review
 - 2026-06-15: Kiosk checkout now requires an event or custom purpose before completion. Native checkout loads kiosk-authenticated upcoming events from the next 7 days, shows a required Event or Purpose card, sends `eventId` plus optional custom details, and disables completion until context exists. The server enforces the same rule, titles the booking from the event or typed purpose, and writes selected events to both `Booking.eventId` and `BookingEvent`.
+- 2026-06-15 follow-up: Moved the event/purpose form into a pre-scan setup phase. The hidden HID scanner field is now only mounted after Start Scanning, so typing a custom purpose no longer gets intercepted as an item code. Scan mode keeps a compact context summary with Edit to return to the setup phase without clearing the cart.
+- 2026-06-15 polish pass: Checkout now passes the selected `KioskUser` into the flow, shows student/location/context summaries in setup, scan, side rail, review, and success copy, offers quick purpose chips for no-event days, exposes scanner health/troubleshooting from scan mode, groups numbered battery units into one row with unit chips, and adds a final review sheet before the checkout mutation. Editing context after scans now confirms that the cart will be preserved.
 - Verification: `npx vitest run tests/kiosk-events-route.test.ts tests/kiosk-checkout-complete-bulk-units.test.ts tests/ios-api-contract.test.ts` passed 26 tests, focused `npx eslint` on touched API/test files passed, `npm run drift:ios` passed, `npm run audit:ios:gaps` passed, `git diff --check` passed, `npx next build` passed with existing repo warnings, and escalated iOS simulator `xcodebuild` ended with `BUILD SUCCEEDED`. `npx tsc --noEmit --pretty false` remains blocked only by the pre-existing `tests/bulk-unit-adjustment-routes.test.ts:171` undefined warning.
+- 2026-06-15 due-back/conflict pass: Checkout details now keep pickup as the actual completion time and ask staff only for a return date/time. Selected events prefill due-back from event end, quick time buttons cover common flows, the iPad preflights scanned carts through `/api/kiosk/checkout/availability`, scan/review surfaces show blocking conflicts and tight-turnaround warnings, and completion repeats the same availability check inside the transaction before booking/allocation writes.
+- Verification: `npx vitest run tests/kiosk-checkout-complete-bulk-units.test.ts tests/kiosk-checkout-availability-route.test.ts tests/ios-api-contract.test.ts tests/kiosk-events-route.test.ts` passed 29 tests, focused `npx eslint` on touched API/test files passed, `npm run drift:ios` passed, `npm run audit:ios:gaps` passed, `git diff --check` passed, and escalated iOS simulator `xcodebuild` exited cleanly with only the existing AppIntents metadata warning. `npx tsc --noEmit --pretty false` remains blocked only by the pre-existing `tests/bulk-unit-adjustment-routes.test.ts:171` undefined warning.
 
 ---
 

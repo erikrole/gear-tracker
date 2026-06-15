@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   nextBookingRef: vi.fn(),
   upsertBulkBalancesAndMovements: vi.fn(),
   badgeOnCheckoutOpened: vi.fn(),
+  checkAvailability: vi.fn(),
 }));
 
 type KioskTestHandler = (
@@ -58,6 +59,10 @@ vi.mock("@/lib/services/booking-ref", () => ({
 
 vi.mock("@/lib/services/bookings-helpers", () => ({
   upsertBulkBalancesAndMovements: mocks.upsertBulkBalancesAndMovements,
+}));
+
+vi.mock("@/lib/services/availability", () => ({
+  checkAvailability: mocks.checkAvailability,
 }));
 
 vi.mock("@/lib/badges", () => ({
@@ -105,7 +110,12 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.userFindFirst.mockResolvedValue({ id: "user-1", name: "Bucky Badger", role: "STUDENT" });
   mocks.nextBookingRef.mockResolvedValue("CO-1001");
-  mocks.bookingCreate.mockResolvedValue({ id: "booking-1" });
+  mocks.bookingCreate.mockImplementation(({ data }) => Promise.resolve({
+    id: "booking-1",
+    title: data.title,
+    startsAt: data.startsAt,
+    endsAt: data.endsAt,
+  }));
   mocks.bulkSkuUnitFindMany.mockResolvedValue([
     {
       id: "unit-31",
@@ -118,6 +128,14 @@ beforeEach(() => {
   mocks.bulkSkuUnitUpdateMany.mockResolvedValue({ count: 1 });
   mocks.bookingBulkItemCreate.mockResolvedValue({ id: "bulk-item-1" });
   mocks.calendarEventFindFirst.mockResolvedValue(null);
+  mocks.checkAvailability.mockResolvedValue({
+    conflicts: [],
+    shortages: [],
+    unavailableAssets: [],
+    upcomingCommitments: [],
+    turnaroundRisks: [],
+    bulkTurnaroundRisks: [],
+  });
   mocks.transaction.mockImplementation((handler) => handler(transactionClient()));
 });
 
@@ -206,6 +224,7 @@ describe("kiosk checkout complete bulk units", () => {
       id: "event-1",
       summary: "Volleyball vs Iowa",
       sportCode: "VB",
+      endsAt: new Date("2026-06-16T21:00:00.000Z"),
     });
 
     const res = await runCompleteKioskCheckout(completeRequest(
@@ -220,7 +239,7 @@ describe("kiosk checkout complete bulk units", () => {
         isHidden: false,
         archivedAt: null,
       }),
-      select: { id: true, summary: true, sportCode: true },
+      select: { id: true, summary: true, sportCode: true, endsAt: true },
     }));
     expect(mocks.bookingCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -244,5 +263,60 @@ describe("kiosk checkout complete bulk units", () => {
       [{ assetId: "asset-1" }],
       { customPurpose: undefined },
     ))).rejects.toThrow("Select an event or enter what this checkout is for");
+  });
+
+  it("uses the selected return time for checkout allocations and conflict checks", async () => {
+    const endsAt = "2026-06-16T22:30:00.000Z";
+
+    const res = await runCompleteKioskCheckout(completeRequest(
+      [{ assetId: "asset-1" }],
+      { endsAt },
+    ));
+
+    expect(res.status).toBe(200);
+    expect(mocks.checkAvailability).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      locationId: "loc-1",
+      serializedAssetIds: ["asset-1"],
+      bulkItems: [],
+      bookingKind: "CHECKOUT",
+      startsAt: expect.any(Date),
+      endsAt: new Date(endsAt),
+    }));
+    expect(mocks.bookingCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        startsAt: expect.any(Date),
+        endsAt: new Date(endsAt),
+      }),
+    });
+    expect(mocks.assetAllocationCreateMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({
+        assetId: "asset-1",
+        startsAt: expect.any(Date),
+        endsAt: new Date(endsAt),
+      })],
+    });
+  });
+
+  it("rejects checkout completion when availability finds a blocking conflict", async () => {
+    mocks.checkAvailability.mockResolvedValue({
+      conflicts: [{
+        assetId: "asset-1",
+        conflictingBookingId: "booking-2",
+        conflictingBookingTitle: "Practice",
+        startsAt: new Date("2026-06-16T20:00:00.000Z"),
+        endsAt: new Date("2026-06-16T22:00:00.000Z"),
+      }],
+      shortages: [],
+      unavailableAssets: [],
+      upcomingCommitments: [],
+      turnaroundRisks: [],
+      bulkTurnaroundRisks: [],
+    });
+
+    await expect(runCompleteKioskCheckout(completeRequest(
+      [{ assetId: "asset-1" }],
+      { endsAt: "2026-06-16T22:30:00.000Z" },
+    ))).rejects.toThrow("One or more items are not available for the selected return time");
+    expect(mocks.bookingCreate).not.toHaveBeenCalled();
   });
 });

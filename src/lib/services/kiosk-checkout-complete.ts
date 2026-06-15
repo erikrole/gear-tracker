@@ -1,4 +1,5 @@
 import type { CheckoutCompleteBody } from "@/lib/schemas/kiosk";
+import type { BulkRequest } from "@/lib/services/availability";
 
 type BulkUnitCheckoutItem = {
   bulkSkuId: string;
@@ -38,4 +39,12 @@ export function normalizeCheckoutCompleteItems(items: CheckoutCompleteBody["item
   }
 
   return { assetIds, bulkUnitItems };
+}
+
+export function bulkRequestsFromCheckoutUnits(items: BulkUnitCheckoutItem[]): BulkRequest[] {
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    counts.set(item.bulkSkuId, (counts.get(item.bulkSkuId) ?? 0) + 1);
+  }
+  return [...counts.entries()].map(([bulkSkuId, quantity]) => ({ bulkSkuId, quantity }));
 }

@@ -16,8 +16,8 @@ struct KioskShellView: View {
                     KioskIdleView()
                 case .studentHub(let user):
                     KioskStudentHubView(user: user)
-                case .checkout(let userId):
-                    KioskCheckoutView(userId: userId)
+                case .checkout(let user):
+                    KioskCheckoutView(user: user)
                 case .pickup(let bookingId, let userId):
                     KioskPickupView(bookingId: bookingId, userId: userId)
                 case .return(let bookingId, let userId):

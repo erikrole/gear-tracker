@@ -122,38 +122,52 @@ struct KioskAPI {
         return resp.data
     }
 
+    func kioskCheckoutAvailability(
+        locationId: String,
+        items: [KioskCartItem],
+        startsAt: Date,
+        endsAt: Date
+    ) async throws -> KioskCheckoutAvailabilityResult {
+        struct Body: Encodable {
+            let locationId: String
+            let items: [KioskCheckoutItemRef]
+            let startsAt: String
+            let endsAt: String
+        }
+        var req = request(path: "/api/kiosk/checkout/availability", method: "POST")
+        req.httpBody = try JSONEncoder().encode(Body(
+            locationId: locationId,
+            items: checkoutItemRefs(from: items),
+            startsAt: isoString(from: startsAt),
+            endsAt: isoString(from: endsAt)
+        ))
+        return try await perform(req)
+    }
+
     func kioskCheckoutComplete(
         actorId: String,
         locationId: String,
         items: [KioskCartItem],
         eventId: String?,
-        customPurpose: String?
+        customPurpose: String?,
+        endsAt: Date
     ) async throws {
-        struct ItemRef: Encodable {
-            let assetId: String?
-            let bulkSkuId: String?
-            let unitNumber: Int?
-        }
         struct Body: Encodable {
             let actorId: String
             let locationId: String
-            let items: [ItemRef]
+            let items: [KioskCheckoutItemRef]
             let eventId: String?
             let customPurpose: String?
+            let endsAt: String
         }
         var req = request(path: "/api/kiosk/checkout/complete", method: "POST")
-        let refs = items.map { item in
-            if let bulkSkuId = item.bulkSkuId, let unitNumber = item.unitNumber {
-                return ItemRef(assetId: nil, bulkSkuId: bulkSkuId, unitNumber: unitNumber)
-            }
-            return ItemRef(assetId: item.id, bulkSkuId: nil, unitNumber: nil)
-        }
         req.httpBody = try JSONEncoder().encode(Body(
             actorId: actorId,
             locationId: locationId,
-            items: refs,
+            items: checkoutItemRefs(from: items),
             eventId: eventId,
-            customPurpose: customPurpose
+            customPurpose: customPurpose,
+            endsAt: isoString(from: endsAt)
         ))
         let (data, response) = try await session.data(for: req)
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
@@ -212,6 +226,31 @@ struct KioskAPI {
     }
 
     // MARK: - Internals
+
+    private struct KioskCheckoutItemRef: Encodable {
+        let assetId: String?
+        let bulkSkuId: String?
+        let unitNumber: Int?
+    }
+
+    private func checkoutItemRefs(from items: [KioskCartItem]) -> [KioskCheckoutItemRef] {
+        items.map { item in
+            if let bulkSkuId = item.bulkSkuId, let unitNumber = item.unitNumber {
+                return KioskCheckoutItemRef(assetId: nil, bulkSkuId: bulkSkuId, unitNumber: unitNumber)
+            }
+            return KioskCheckoutItemRef(assetId: item.id, bulkSkuId: nil, unitNumber: nil)
+        }
+    }
+
+    private func isoString(from date: Date) -> String {
+        Self.isoDateFormatter.string(from: date)
+    }
+
+    private static let isoDateFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
 
     private func request(path: String, method: String = "GET") -> URLRequest {
         var req = URLRequest(url: baseURL.appendingPathComponent(path))

@@ -148,6 +148,88 @@ struct KioskCheckoutEvent: Decodable, Identifiable, Equatable {
     let locationName: String?
 }
 
+struct KioskCheckoutAvailabilityResult: Decodable, Equatable {
+    let conflicts: [SerializedConflict]
+    let shortages: [BulkShortage]
+    let unavailableAssets: [UnavailableAsset]
+    let turnaroundRisks: [TurnaroundRisk]
+    let bulkTurnaroundRisks: [BulkTurnaroundRisk]
+
+    var hasBlockingIssue: Bool {
+        !conflicts.isEmpty || !shortages.isEmpty || !unavailableAssets.isEmpty
+    }
+
+    var hasWarning: Bool {
+        !turnaroundRisks.isEmpty || !bulkTurnaroundRisks.isEmpty
+    }
+
+    struct SerializedConflict: Decodable, Equatable {
+        let assetId: String
+        let conflictingBookingId: String
+        let conflictingBookingTitle: String?
+        let startsAt: Date
+        let endsAt: Date
+    }
+
+    struct BulkShortage: Decodable, Equatable {
+        let bulkSkuId: String
+        let requested: Int
+        let available: Int
+    }
+
+    struct UnavailableAsset: Decodable, Equatable {
+        let assetId: String
+        let status: String
+    }
+
+    struct TurnaroundRisk: Decodable, Equatable {
+        let assetId: String
+        let severity: String
+        let message: String
+        let bookingTitle: String?
+        let startsAt: Date?
+    }
+
+    struct BulkTurnaroundRisk: Decodable, Equatable {
+        let bulkSkuId: String
+        let severity: String
+        let message: String
+        let bookingTitle: String?
+        let startsAt: Date
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case conflicts
+        case shortages
+        case unavailableAssets
+        case turnaroundRisks
+        case bulkTurnaroundRisks
+    }
+
+    init(
+        conflicts: [SerializedConflict] = [],
+        shortages: [BulkShortage] = [],
+        unavailableAssets: [UnavailableAsset] = [],
+        turnaroundRisks: [TurnaroundRisk] = [],
+        bulkTurnaroundRisks: [BulkTurnaroundRisk] = []
+    ) {
+        self.conflicts = conflicts
+        self.shortages = shortages
+        self.unavailableAssets = unavailableAssets
+        self.turnaroundRisks = turnaroundRisks
+        self.bulkTurnaroundRisks = bulkTurnaroundRisks
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        conflicts = try container.decodeIfPresent([SerializedConflict].self, forKey: .conflicts) ?? []
+        shortages = try container.decodeIfPresent([BulkShortage].self, forKey: .shortages) ?? []
+        unavailableAssets = try container.decodeIfPresent([UnavailableAsset].self, forKey: .unavailableAssets) ?? []
+        turnaroundRisks = try container.decodeIfPresent([TurnaroundRisk].self, forKey: .turnaroundRisks) ?? []
+        bulkTurnaroundRisks = try container.decodeIfPresent([BulkTurnaroundRisk].self, forKey: .bulkTurnaroundRisks) ?? []
+    }
+}
+
 struct KioskActiveCheckout: Decodable, Identifiable {
     let id: String
     let title: String
@@ -311,7 +393,7 @@ enum KioskScreen: Equatable {
     case activation
     case idle
     case studentHub(KioskUser)
-    case checkout(userId: String)
+    case checkout(user: KioskUser)
     case pickup(bookingId: String, userId: String)
     case `return`(bookingId: String, userId: String)
     case success(String)
