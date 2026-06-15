@@ -531,33 +531,56 @@ struct EventDetailSheet: View {
 
     // MARK: - Crew Section
 
-    @ViewBuilder
     private var crewSection: some View {
+        VStack(alignment: .leading, spacing: Brand.Space.sm) {
+            BrandSectionHeader(title: "Crew", systemImage: "person.2.fill") {
+                if let coverage = vm.shiftGroup?.coverage {
+                    CoveragePill(coverage: coverage)
+                }
+            }
+            crewBody
+        }
+    }
+
+    @ViewBuilder
+    private var crewBody: some View {
         if vm.isLoading {
             HStack(spacing: 10) {
                 ProgressView()
-                Text("Loading crew...")
+                Text("Loading crew…")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity, alignment: .center)
-            .padding(.vertical, 20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .brandCard()
         } else if let err = vm.error {
-            ContentUnavailableView {
+            VStack(spacing: 8) {
                 Label("Couldn't load crew", systemImage: "exclamationmark.triangle")
-            } description: {
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Color.statusText(.orange))
                 Text(err)
-            } actions: {
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
                 Button("Retry") { Task { await vm.load() } }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
             }
+            .frame(maxWidth: .infinity)
+            .brandCard(alignment: .center)
         } else if vm.shiftGroup == nil {
-            VStack(spacing: 12) {
+            VStack(spacing: 10) {
                 Image(systemName: "person.2.slash")
                     .font(.largeTitle)
                     .foregroundStyle(.tertiary)
                 Text("No crew scheduled")
-                    .font(.subheadline)
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
+                Text("No shifts have been set up for this event yet.")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
                 if canManageShifts {
                     Button {
                         Task {
@@ -577,12 +600,15 @@ struct EventDetailSheet: View {
                             Label("Set up crew", systemImage: "plus.circle")
                         }
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.regular)
+                    .padding(.top, 2)
                     .disabled(isCreatingGroup)
                 }
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 24)
+            .padding(.vertical, 8)
+            .brandCard(alignment: .center)
         } else {
             crewList
         }
@@ -590,13 +616,7 @@ struct EventDetailSheet: View {
 
     private var crewList: some View {
         VStack(alignment: .leading, spacing: Brand.Space.md) {
-            BrandSectionHeader(title: "Crew", systemImage: "person.2.fill") {
-                if let coverage = vm.shiftGroup?.coverage {
-                    CoveragePill(coverage: coverage)
-                }
-            }
-
-            // Per-area shift blocks
+            // Per-area shift blocks (the "Crew" header lives in crewSection).
             ForEach(vm.shiftsByArea, id: \.area) { group in
                 AreaBlock(
                     area: group.area,
