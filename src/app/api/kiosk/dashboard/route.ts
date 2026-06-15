@@ -85,18 +85,53 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
   const eventsWindow = dayWindowInTimeZone(now, 2, env.appTimezone);
   const nightHours = now.getHours() >= 22 || now.getHours() < 6;
 
-  const [statsResult, eventsResult, activeItemsResult, checkoutsResult, operationalWindowsResult] = await Promise.allSettled([
+  const [
+    statsResult,
+    eventsResult,
+    activeItemsResult,
+    activeBulkUnitsResult,
+    checkoutsResult,
+    operationalWindowsResult,
+  ] = await Promise.allSettled([
     // Stats: count active checkouts, items out, overdue (scoped to this kiosk's location).
     db.$queryRaw<
       Array<{ checkouts: bigint; items_out: bigint; overdue: bigint }>
     >`
       SELECT
-        COUNT(DISTINCT b.id) FILTER (WHERE b.status = 'OPEN' AND b.kind = 'CHECKOUT') as checkouts,
-        COUNT(bsi.id) FILTER (WHERE b.status = 'OPEN' AND b.kind = 'CHECKOUT') as items_out,
-        COUNT(DISTINCT b.id) FILTER (WHERE b.status = 'OPEN' AND b.kind = 'CHECKOUT' AND b.ends_at < ${now}) as overdue
-      FROM bookings b
-      LEFT JOIN booking_serialized_items bsi ON bsi.booking_id = b.id AND bsi.allocation_status = 'active'
-      WHERE b.location_id = ${kiosk.locationId}
+        (
+          SELECT COUNT(*)
+          FROM bookings b
+          WHERE b.location_id = ${kiosk.locationId}
+            AND b.status = 'OPEN'
+            AND b.kind = 'CHECKOUT'
+        ) as checkouts,
+        (
+          SELECT COUNT(*)
+          FROM booking_serialized_items bsi
+          JOIN bookings b ON b.id = bsi.booking_id
+          WHERE b.location_id = ${kiosk.locationId}
+            AND b.status = 'OPEN'
+            AND b.kind = 'CHECKOUT'
+            AND bsi.allocation_status = 'active'
+        ) + (
+          SELECT COUNT(*)
+          FROM booking_bulk_unit_allocations bua
+          JOIN booking_bulk_items bbi ON bbi.id = bua.booking_bulk_item_id
+          JOIN bookings b ON b.id = bbi.booking_id
+          WHERE b.location_id = ${kiosk.locationId}
+            AND b.status = 'OPEN'
+            AND b.kind = 'CHECKOUT'
+            AND bua.checked_out_at IS NOT NULL
+            AND bua.checked_in_at IS NULL
+        ) as items_out,
+        (
+          SELECT COUNT(*)
+          FROM bookings b
+          WHERE b.location_id = ${kiosk.locationId}
+            AND b.status = 'OPEN'
+            AND b.kind = 'CHECKOUT'
+            AND b.ends_at < ${now}
+        ) as overdue
     `,
 
     // Today and tomorrow in the institution timezone for the counter display.
@@ -179,6 +214,49 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
       },
     }),
 
+    // Active numbered bulk units at this kiosk's location for the Items Out card.
+    db.bookingBulkUnitAllocation.findMany({
+      where: {
+        checkedOutAt: { not: null },
+        checkedInAt: null,
+        bookingBulkItem: {
+          booking: {
+            kind: BookingKind.CHECKOUT,
+            status: BookingStatus.OPEN,
+            locationId: kiosk.locationId,
+          },
+        },
+      },
+      orderBy: { checkedOutAt: "asc" },
+      take: 24,
+      select: {
+        bulkSkuUnit: {
+          select: {
+            id: true,
+            unitNumber: true,
+            bulkSku: {
+              select: {
+                name: true,
+                imageUrl: true,
+              },
+            },
+          },
+        },
+        bookingBulkItem: {
+          select: {
+            booking: {
+              select: {
+                id: true,
+                title: true,
+                endsAt: true,
+                requester: { select: { name: true } },
+              },
+            },
+          },
+        },
+      },
+    }),
+
     // Active checkouts at this kiosk's location, most overdue first, max 10.
     db.booking.findMany({
       where: {
@@ -201,6 +279,28 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
           select: {
             asset: {
               select: { assetTag: true, name: true },
+            },
+          },
+        },
+        bulkItems: {
+          select: {
+            checkedOutQuantity: true,
+            checkedInQuantity: true,
+            bulkSku: {
+              select: { name: true },
+            },
+            unitAllocations: {
+              where: {
+                checkedOutAt: { not: null },
+                checkedInAt: null,
+              },
+              take: 3,
+              orderBy: { checkedOutAt: "asc" },
+              select: {
+                bulkSkuUnit: {
+                  select: { unitNumber: true },
+                },
+              },
             },
           },
         },
@@ -270,6 +370,12 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
       endsAt: Date;
       requester: { id: string; name: string; avatarUrl: string | null };
       serializedItems: Array<{ asset: { assetTag: string; name: string | null } }>;
+      bulkItems: Array<{
+        checkedOutQuantity: number;
+        checkedInQuantity: number;
+        bulkSku: { name: string };
+        unitAllocations: Array<{ bulkSkuUnit: { unitNumber: number } }>;
+      }>;
       _count: { serializedItems: number };
     }>,
     "checkouts",
@@ -282,6 +388,21 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
       booking: { id: string; title: string; endsAt: Date; requester: { name: string } };
     }>,
     "active items",
+    partialFailures,
+  );
+  const activeBulkUnits = settledValue(
+    activeBulkUnitsResult,
+    [] as Array<{
+      bulkSkuUnit: {
+        id: string;
+        unitNumber: number;
+        bulkSku: { name: string; imageUrl: string | null };
+      };
+      bookingBulkItem: {
+        booking: { id: string; title: string; endsAt: Date; requester: { name: string } };
+      };
+    }>,
+    "active bulk units",
     partialFailures,
   );
   const [nearbyEventCount, nearbyBookingWindowCount] = settledValue(
@@ -366,30 +487,56 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
         assignedUserCount: assignedUsers.length,
       };
     }),
-    activeItems: activeItems.map((entry) => ({
-      id: entry.asset.id,
-      name: entry.asset.name || entry.asset.assetTag,
-      tagName: entry.asset.assetTag,
-      imageUrl: entry.asset.imageUrl,
-      checkoutId: entry.booking.id,
-      checkoutTitle: entry.booking.title,
-      requesterName: entry.booking.requester.name,
-      endsAt: entry.booking.endsAt,
-      isOverdue: entry.booking.endsAt < now,
-    })),
-    checkouts: checkouts.map((c) => ({
-      id: c.id,
-      title: c.title,
-      requesterName: c.requester.name,
-      requesterAvatarUrl: c.requester.avatarUrl,
-      requesterInitials: getInitials(c.requester.name),
-      items: c.serializedItems.map((si) => ({
-        name: si.asset.name || si.asset.assetTag,
+    activeItems: [
+      ...activeItems.map((entry) => ({
+        id: entry.asset.id,
+        name: entry.asset.name || entry.asset.assetTag,
+        tagName: entry.asset.assetTag,
+        imageUrl: entry.asset.imageUrl,
+        checkoutId: entry.booking.id,
+        checkoutTitle: entry.booking.title,
+        requesterName: entry.booking.requester.name,
+        endsAt: entry.booking.endsAt,
+        isOverdue: entry.booking.endsAt < now,
       })),
-      itemCount: c._count.serializedItems,
-      endsAt: c.endsAt,
-      isOverdue: c.endsAt < now,
-    })),
+      ...activeBulkUnits.map((entry) => ({
+        id: entry.bulkSkuUnit.id,
+        name: `${entry.bulkSkuUnit.bulkSku.name} #${entry.bulkSkuUnit.unitNumber}`,
+        tagName: `#${entry.bulkSkuUnit.unitNumber}`,
+        imageUrl: entry.bulkSkuUnit.bulkSku.imageUrl,
+        checkoutId: entry.bookingBulkItem.booking.id,
+        checkoutTitle: entry.bookingBulkItem.booking.title,
+        requesterName: entry.bookingBulkItem.booking.requester.name,
+        endsAt: entry.bookingBulkItem.booking.endsAt,
+        isOverdue: entry.bookingBulkItem.booking.endsAt < now,
+      })),
+    ],
+    checkouts: checkouts.map((c) => {
+      const bulkPreviewItems = c.bulkItems.flatMap((bi) =>
+        bi.unitAllocations.map((allocation) => ({
+          name: `${bi.bulkSku.name} #${allocation.bulkSkuUnit.unitNumber}`,
+        }))
+      );
+      const bulkItemCount = c.bulkItems.reduce((sum, bi) => {
+        const allocatedCount = bi.unitAllocations.length;
+        if (allocatedCount > 0) return sum + allocatedCount;
+        return sum + Math.max(0, bi.checkedOutQuantity - bi.checkedInQuantity);
+      }, 0);
+
+      return {
+        id: c.id,
+        title: c.title,
+        requesterName: c.requester.name,
+        requesterAvatarUrl: c.requester.avatarUrl,
+        requesterInitials: getInitials(c.requester.name),
+        items: c.serializedItems.map((si) => ({
+          name: si.asset.name || si.asset.assetTag,
+        })).concat(bulkPreviewItems).slice(0, 3),
+        itemCount: c._count.serializedItems + bulkItemCount,
+        endsAt: c.endsAt,
+        isOverdue: c.endsAt < now,
+      };
+    }),
     partialFailures,
   });
 });

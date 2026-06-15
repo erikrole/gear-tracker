@@ -6,6 +6,7 @@ import { createAuditEntry } from "@/lib/audit";
 import { checkoutCompleteBody } from "@/lib/schemas/kiosk";
 import { nextBookingRef } from "@/lib/services/booking-ref";
 import { upsertBulkBalancesAndMovements } from "@/lib/services/bookings-helpers";
+import { normalizeCheckoutCompleteItems } from "@/lib/services/kiosk-checkout-complete";
 import { badges } from "@/lib/badges";
 
 /**
@@ -17,10 +18,7 @@ export const POST = withKiosk(async (req, { kiosk }) => {
   const body = checkoutCompleteBody.parse(await req.json());
   const actorId = body.actorId;
   const locationId = body.locationId || kiosk.locationId;
-  const assetIds = body.items.flatMap((item) => "assetId" in item ? [item.assetId] : []);
-  const bulkUnitItems = body.items.flatMap((item) =>
-    "bulkSkuId" in item ? [{ bulkSkuId: item.bulkSkuId, unitNumber: item.unitNumber }] : [],
-  );
+  const { assetIds, bulkUnitItems } = normalizeCheckoutCompleteItems(body.items);
 
   // Verify user exists and is active
   const user = await db.user.findFirst({
