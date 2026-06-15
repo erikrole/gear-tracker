@@ -72,6 +72,7 @@ AppTabView.swift                       | profile                     | audit
 ScanPrePromptView.swift                | scan                        | audit
 PushPrePromptView.swift                | profile                     | audit
 DevTools/LinkStickerWizard.swift       | link-sticker-wizard         | audit
+DevTools/ScannerDebuggerView.swift     | scanner-debugger            | audit
 Schedule/PostTradeSheet.swift          | post-trade                  | audit
 Schedule/TradeBoardSheet.swift         | trade-board                 | audit
 Schedule/AddShiftSheet.swift           | add-shift                   | audit
@@ -91,7 +92,9 @@ Components/BannerView.swift            |                             | exempt-sh
 Components/Skeleton.swift              |                             | exempt-shared
 Components/StatusPill.swift            |                             | exempt-shared
 Components/Toast.swift                 |                             | exempt-shared
+Components/UserAvatarView.swift        |                             | exempt-shared
 Search/FloatingSearchButton.swift      |                             | exempt-tiny
+Search/ScanResultHeroCard.swift        |                             | exempt-shared
 Search/SearchResultRow.swift           |                             | exempt-shared
 Kiosk/KioskScannerField.swift          |                             | exempt-shared
 Kiosk/KioskAPIClient.swift             |                             | exempt-infra

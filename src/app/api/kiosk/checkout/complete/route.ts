@@ -73,6 +73,11 @@ export const POST = withKiosk(async (req, { kiosk }) => {
           })),
         });
 
+        await tx.asset.updateMany({
+          where: { id: { in: ids } },
+          data: { locationId },
+        });
+
         return { booking: b, refNumber };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }

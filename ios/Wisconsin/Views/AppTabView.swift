@@ -94,6 +94,7 @@ struct ProfileView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var showSignOutConfirm = false
     @State private var showLinkStickerWizard = false
+    @State private var showScannerDebugger = false
     @State private var showPushPrompt = false
     @State private var prefsVM = NotificationPrefsViewModel()
     @State private var pushAuth: UNAuthorizationStatus = .notDetermined
@@ -136,6 +137,11 @@ struct ProfileView: View {
             .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $showLinkStickerWizard) {
                 LinkStickerWizard()
+            }
+            .sheet(isPresented: $showScannerDebugger) {
+                ScannerDebuggerView()
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showPushPrompt) {
                 PushPrePromptView()
@@ -342,6 +348,18 @@ struct ProfileView: View {
                     subtitle: "Pair printed QR stickers with items in the field.",
                     systemImage: "qrcode.viewfinder",
                     tint: Color.statusText(.blue)
+                ) {
+                    EmptyView()
+                }
+            }
+            Button {
+                showScannerDebugger = true
+            } label: {
+                SettingsMenuRow(
+                    title: "Scanner Debugger",
+                    subtitle: "Test a hand scanner and preview the scan result card.",
+                    systemImage: "barcode.viewfinder",
+                    tint: Color.statusText(.green)
                 ) {
                     EmptyView()
                 }

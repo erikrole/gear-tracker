@@ -262,7 +262,7 @@ struct KioskReturnView: View {
                     } else {
                         returnedIds.insert(item.id)
                         lastReturnedId = item.id
-                        showFeedback(.success(item.name))
+                        showFeedback(.success(result.locationMessage ?? item.name))
                     }
                 } else {
                     showFeedback(.error(result.error ?? "Item not in this checkout"))

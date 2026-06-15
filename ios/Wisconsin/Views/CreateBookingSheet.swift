@@ -1045,10 +1045,10 @@ struct CreateBookingSheet: View {
                             .padding(.vertical, 10)
                         }
                     }
-                    .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
+                    .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(Color(.separator).opacity(0.6), lineWidth: 0.5)
+                        RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
+                            .strokeBorder(Color.hairline, lineWidth: 0.5)
                     )
                 }
                 .padding(.horizontal, 20)
@@ -1063,10 +1063,10 @@ struct CreateBookingSheet: View {
                                 ReviewEventRow(event: event)
                             }
                         }
-                        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
+                        .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .strokeBorder(Color(.separator).opacity(0.6), lineWidth: 0.5)
+                            RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
+                                .strokeBorder(Color.hairline, lineWidth: 0.5)
                         )
                     }
                     .padding(.horizontal, 20)
@@ -1623,14 +1623,7 @@ struct FormCard<Content: View>: View {
         VStack(alignment: .leading, spacing: 12) {
             content()
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(Color(.separator).opacity(0.6), lineWidth: 0.5)
-        )
-        .shadow(color: Color.primary.opacity(0.05), radius: 4, x: 0, y: 2)
+        .brandCard()
     }
 }
 

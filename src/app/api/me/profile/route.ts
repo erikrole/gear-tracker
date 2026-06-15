@@ -4,10 +4,12 @@ import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
 import { createAuditEntry } from "@/lib/audit";
+import { normalizeWiscardNumber } from "@/lib/validation";
 
 const putSchema = z.object({
   name: z.string().min(1, "Name is required").max(100).transform((s) => s.trim()),
   phone: z.string().max(30).nullable().transform((s) => s?.trim() || null),
+  wiscardNumber: z.string().max(128).nullable().optional().transform((s) => normalizeWiscardNumber(s)),
   primaryArea: z.enum(["VIDEO", "PHOTO", "GRAPHICS", "COMMS"]).nullable(),
   title: z.string().max(100).nullable().transform((s) => s?.trim() || null),
   athleticsEmail: z
@@ -27,6 +29,7 @@ export const GET = withAuth(async (_req, { user }) => {
       id: true,
       name: true,
       phone: true,
+      wiscardNumber: true,
       avatarUrl: true,
       primaryArea: true,
       title: true,
@@ -58,6 +61,7 @@ export const PUT = withAuth(async (req, { user }) => {
     select: {
       name: true,
       phone: true,
+      wiscardNumber: true,
       primaryArea: true,
       title: true,
       athleticsEmail: true,
@@ -74,6 +78,7 @@ export const PUT = withAuth(async (req, { user }) => {
         id: true,
         name: true,
         phone: true,
+        wiscardNumber: true,
         avatarUrl: true,
         primaryArea: true,
         title: true,
@@ -85,6 +90,9 @@ export const PUT = withAuth(async (req, { user }) => {
     const prismaErr = err as { code?: string; meta?: { target?: string[] } };
     if (prismaErr?.code === "P2002" && prismaErr.meta?.target?.includes("athletics_email")) {
       throw new HttpError(409, "That athletics email is already in use by another account.");
+    }
+    if (prismaErr?.code === "P2002" && prismaErr.meta?.target?.includes("wiscard_number")) {
+      throw new HttpError(409, "That Wiscard value is already linked to another account.");
     }
     throw err;
   }

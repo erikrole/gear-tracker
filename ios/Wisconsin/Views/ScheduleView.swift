@@ -377,19 +377,19 @@ struct ScheduleView: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    scheduleScopeChip(
-                        "My shifts",
+                    FilterChip(
+                        label: "My shifts",
                         systemImage: myShiftsOnly ? "person.fill" : "person",
-                        isSelected: myShiftsOnly
+                        isOn: myShiftsOnly
                     ) {
                         myShiftsOnly.toggle()
                     }
 
                     if viewMode == .list && canSeePastEvents {
-                        scheduleScopeChip(
-                            "Past events",
+                        FilterChip(
+                            label: "Past events",
                             systemImage: vm.includePast ? "clock.arrow.circlepath" : "clock",
-                            isSelected: vm.includePast
+                            isOn: vm.includePast
                         ) {
                             vm.includePast.toggle()
                             Task { await vm.load(forceRefresh: true) }
@@ -400,34 +400,12 @@ struct ScheduleView: View {
                 .padding(.vertical, 2)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
-        .padding(.bottom, 10)
+        .padding(.horizontal, Brand.Space.md)
+        .padding(.vertical, Brand.Space.sm)
         .background(.regularMaterial)
         .sensoryFeedback(.selection, trigger: viewMode)
         .sensoryFeedback(.selection, trigger: myShiftsOnly)
         .sensoryFeedback(.selection, trigger: vm.includePast)
-    }
-
-    private func scheduleScopeChip(
-        _ title: String,
-        systemImage: String,
-        isSelected: Bool,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .font(.subheadline.weight(.semibold))
-                .padding(.horizontal, 12)
-                .frame(minHeight: 44)
-                .background(
-                    isSelected ? Color.statusBackground(.blue) : Color(.tertiarySystemFill),
-                    in: Capsule()
-                )
-                .foregroundStyle(isSelected ? Color.statusText(.blue) : Color.primary)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(isSelected ? "\(title) on" : "\(title) off")
     }
 
     private func subscribeToCalendar() async {

@@ -46,7 +46,7 @@ struct ItemDetailView: View {
                 }
             } else if let asset {
                 ScrollView {
-                    VStack(spacing: 12) {
+                    VStack(spacing: Brand.Space.sm) {
                         if let parent = asset.parentAsset {
                             ParentLinkCard(parent: parent)
                         }
@@ -68,8 +68,8 @@ struct ItemDetailView: View {
                             NotesCard(notes: notes)
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+                    .padding(.horizontal, Brand.Space.md)
+                    .padding(.vertical, Brand.Space.sm)
                 }
                 .background(Color(.systemGroupedBackground))
             }
@@ -159,14 +159,17 @@ private struct ReserveButton: View {
     let action: () -> Void
 
     var body: some View {
+        // Matches the scan hero sheet's primary action: solid black
+        // prominent button, so "reserve" reads the same everywhere.
         Button(action: action) {
             Label("Reserve Equipment", systemImage: "calendar.badge.plus")
                 .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color(.systemBackground))
                 .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.glass)
+        .buttonStyle(.borderedProminent)
         .controlSize(.large)
-        .tint(Color.statusText(.purple))
+        .tint(Color(.label))
         .accessibilityLabel("Reserve Equipment")
     }
 }
@@ -315,6 +318,7 @@ struct EditAssetSheet: View {
 private struct ItemHeroCard: View {
     let asset: AssetDetail
     let onCopyQR: (String) -> Void
+    @State private var showZoom = false
 
     // Primary identifier: assetTag if set, else brand+model
     private var heroTitle: String {
@@ -331,93 +335,150 @@ private struct ItemHeroCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            LinearGradient(
-                stops: [
-                    .init(color: Color.brandPrimary, location: 0),
-                    .init(color: Color.brandPrimary.opacity(0.2), location: 0.4),
-                    .init(color: .clear, location: 0.75),
-                ],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-            .frame(height: 2)
-
-            HStack(alignment: .top, spacing: 14) {
-                AssetThumbnail(imageUrl: asset.imageUrl, size: 80)
-                    .padding(.top, 2)
-
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(heroTitle)
-                        .font(.title2.weight(.heavy))
-                        .tracking(-0.4)
-                        .lineLimit(2)
-
-                    if let sub = subtitle {
-                        Text(sub)
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-
-                    AssetStatusBadge(status: asset.computedStatus)
-                        .padding(.top, 3)
-
-                    // "Can I grab this right now?" — one-line answer that
-                    // mirrors the at-a-glance info the item list already gives.
-                    if let snapshot = availabilitySnapshot(for: asset) {
-                        Text(snapshot)
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                            .padding(.top, 2)
-                    }
-
-                    // QR sticker code — mirrors the small QR chip web shows
-                    // in the item header. Tap copies the value so staff
-                    // can paste into the kiosk or a relink form.
-                    if let qr = asset.qrCodeValue, !qr.isEmpty {
-                        Button {
-                            onCopyQR(qr)
-                        } label: {
-                            HStack(spacing: 5) {
-                                Image(systemName: "qrcode")
-                                    .font(.caption2.weight(.semibold))
-                                Text(qr)
-                                    .font(.system(.caption2, design: .monospaced))
-                                Image(systemName: "doc.on.doc")
-                                    .font(.caption2)
-                                    .foregroundStyle(.tertiary)
-                            }
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Color(.tertiarySystemFill), in: Capsule())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("QR code \(qr), tap to copy")
-                        .padding(.top, 2)
-                    }
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(16)
+            banner
+            infoBlock
         }
-        .background {
-            ZStack(alignment: .topLeading) {
-                Color(.secondarySystemGroupedBackground)
-                RadialGradient(
-                    colors: [Color.brandPrimary.opacity(0.06), .clear],
-                    center: .topLeading,
-                    startRadius: 0,
-                    endRadius: 220
-                )
-            }
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .background(Color.cardSurface)
+        .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous)
+                .strokeBorder(Color.hairline, lineWidth: 0.5)
         )
+        .shadow(color: Color.black.opacity(0.07), radius: 12, x: 0, y: 5)
+        .fullScreenCover(isPresented: $showZoom) {
+            if let urlString = asset.imageUrl, let url = URL(string: urlString) {
+                ZoomableImageViewer(url: url)
+            }
+        }
+    }
+
+    // MARK: Banner
+
+    private var banner: some View {
+        ZStack(alignment: .topTrailing) {
+            if asset.imageUrl != nil {
+                Button {
+                    showZoom = true
+                } label: {
+                    bannerArtwork
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Open item photo")
+            } else {
+                bannerArtwork
+            }
+
+            // The badge carries its own tinted capsule; on the white hero
+            // that's contrast enough, so no extra material wrapper — just a
+            // soft shadow to lift it off the image.
+            AssetStatusBadge(status: asset.computedStatus)
+                .shadow(color: .black.opacity(0.12), radius: 4, y: 1)
+                .padding(12)
+        }
+    }
+
+    private var bannerArtwork: some View {
+        // Full white when a photo exists: inventory shots are catalog images on
+        // white, so the frame disappears into the image instead of letterboxing
+        // it. Placeholders keep the brand-tinted gradient.
+        Group {
+            if asset.imageUrl != nil {
+                Color.white
+            } else {
+                Color.clear
+            }
+        }
+        .overlay { bannerImage }
+        .frame(maxWidth: .infinity)
+        .frame(height: 200)
+        .clipped()
+        .contentShape(Rectangle())
+    }
+
+    @ViewBuilder
+    private var bannerImage: some View {
+        if let urlString = asset.imageUrl, let url = URL(string: urlString) {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    // Fit, not fill: catalog product shots get cropped by fill.
+                    image.resizable().scaledToFit().padding(16)
+                case .empty:
+                    ZStack { bannerPlaceholder; ProgressView() }
+                default:
+                    bannerPlaceholder
+                }
+            }
+        } else {
+            bannerPlaceholder
+        }
+    }
+
+    private var bannerPlaceholder: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color.brandPrimary.opacity(0.20), Color.brandPrimary.opacity(0.04)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            Image(systemName: "shippingbox.fill")
+                .font(.system(size: 52))
+                .foregroundStyle(Color.brandPrimary.opacity(0.35))
+        }
+        .accessibilityHidden(true)
+    }
+
+    // MARK: Info
+
+    private var infoBlock: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(heroTitle)
+                .font(.gothamBlack(size: 26))
+                .tracking(-0.3)
+                .lineLimit(2)
+
+            if let sub = subtitle {
+                Text(sub)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+
+            // "Can I grab this right now?" — one-line availability answer.
+            if let snapshot = availabilitySnapshot(for: asset) {
+                Text(snapshot)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .padding(.top, 2)
+            }
+
+            // QR sticker code — tap copies the value for the kiosk / relink form.
+            if let qr = asset.qrCodeValue, !qr.isEmpty {
+                Button {
+                    onCopyQR(qr)
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "qrcode")
+                            .font(.caption2.weight(.semibold))
+                        Text(qr)
+                            .font(.system(.caption2, design: .monospaced))
+                        Image(systemName: "doc.on.doc")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color(.tertiarySystemFill), in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("QR code \(qr), tap to copy")
+                .padding(.top, 2)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
     }
 }
 
@@ -475,12 +536,13 @@ private struct ItemDetailsCard: View {
                 }
             }
         }
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .background(Color.cardSurface)
+        .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous)
+                .strokeBorder(Color.hairline, lineWidth: 0.5)
         )
+        .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
     }
 
     @ViewBuilder
@@ -490,7 +552,10 @@ private struct ItemDetailsCard: View {
                 HStack {
                     Text(row.label)
                         .font(.subheadline)
-                        .foregroundStyle(.primary)
+                        // Explicit label color: inside a tinted Link, the
+                        // hierarchical `.primary` style adopts the accent
+                        // (brand red) instead of the neutral label color.
+                        .foregroundStyle(Color(.label))
                     Spacer()
                     Text(row.value)
                         .font(.subheadline)
@@ -529,9 +594,11 @@ private func availabilitySnapshot(for asset: AssetDetail) -> String? {
     case .available:
         if let next = asset.upcomingReservations.first {
             let when = next.startsAt.formatted(date: .abbreviated, time: .shortened)
-            return "Available — next reserved \(when)"
+            return "Available · next reserved \(when)"
         }
-        return "Available"
+        // Bare "Available" is redundant with the corner status badge; the
+        // snapshot only earns its line when it adds custody/timing info.
+        return nil
     case .maintenance: return "Out for maintenance"
     case .retired:     return "Retired from service"
     case .unknown, .checkedOut, .pendingPickup, .reserved:
@@ -588,19 +655,13 @@ private struct ActiveBookingCard: View {
                         .accessibilityHidden(true)
                 }
                 .padding(12)
-                .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10))
+                .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
             .buttonStyle(.plain)
             .accessibilityElement(children: .combine)
             .accessibilityLabel("\(title): \(booking.title), \(booking.requesterName)")
         }
-        .padding(14)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
-        )
+        .brandCard()
     }
 }
 
@@ -610,6 +671,26 @@ private struct UpcomingReservationsCard: View {
     let reservations: [UpcomingReservation]
 
     var body: some View {
+        // Empty is the common case; collapse to a single quiet line instead
+        // of a full header-plus-body card that eats vertical space.
+        if reservations.isEmpty {
+            HStack(spacing: 8) {
+                Image(systemName: "calendar")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                Text("No upcoming reservations")
+                    .font(.subheadline)
+                    .foregroundStyle(.tertiary)
+                Spacer(minLength: 0)
+            }
+            .brandCard(padding: Brand.Space.sm)
+            .accessibilityElement(children: .combine)
+        } else {
+            populated
+        }
+    }
+
+    private var populated: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 Image(systemName: "calendar")
@@ -622,14 +703,7 @@ private struct UpcomingReservationsCard: View {
                     .tracking(0.04)
             }
 
-            if reservations.isEmpty {
-                Text("No upcoming reservations")
-                    .font(.subheadline)
-                    .foregroundStyle(.tertiary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 4)
-            } else {
-                VStack(spacing: 6) {
+            VStack(spacing: 6) {
                     ForEach(reservations) { res in
                         HStack(spacing: 10) {
                             VStack(alignment: .leading, spacing: 2) {
@@ -652,20 +726,13 @@ private struct UpcomingReservationsCard: View {
                             StatusBadge(status: res.status, kind: .reservation)
                         }
                         .padding(10)
-                        .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10))
+                        .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                         .accessibilityElement(children: .combine)
                         .accessibilityLabel("Upcoming reservation: \(res.title), \(res.requesterName), starts \(res.startsAt.relativeLabel)")
                     }
                 }
-            }
         }
-        .padding(14)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
-        )
+        .brandCard()
     }
 }
 
@@ -707,10 +774,10 @@ private struct ParentLinkCard: View {
             }
             .padding(12)
             .background(Color(.secondarySystemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
+                    .strokeBorder(Color.hairline, lineWidth: 0.5)
             )
         }
         .buttonStyle(.plain)
@@ -766,7 +833,7 @@ private struct AccessoriesCard: View {
                                 .accessibilityHidden(true)
                         }
                         .padding(10)
-                        .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10))
+                        .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                     }
                     .buttonStyle(.plain)
                     .accessibilityElement(children: .combine)
@@ -774,13 +841,7 @@ private struct AccessoriesCard: View {
                 }
             }
         }
-        .padding(14)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
-        )
+        .brandCard()
     }
 }
 
@@ -806,13 +867,7 @@ private struct NotesCard: View {
                 .foregroundStyle(.primary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
-        )
+        .brandCard()
     }
 }
 

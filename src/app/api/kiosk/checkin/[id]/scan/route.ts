@@ -5,6 +5,7 @@ import { HttpError, ok } from "@/lib/http";
 import { findAssetByScanValue } from "@/lib/services/kiosk-scan";
 import { kioskCheckinAsset } from "@/lib/services/bookings-checkin";
 import { scanKioskCheckinBulkUnit } from "@/lib/services/bulk-unit-scans";
+import { locationEvidencePayload } from "@/lib/services/kiosk-location";
 import { checkinScanBody } from "@/lib/schemas/kiosk";
 import { badges } from "@/lib/badges";
 import { badgeScanSourceKey } from "@/lib/badges/scan";
@@ -16,12 +17,12 @@ import type { BadgeScanErrorCode } from "@/lib/badges/types";
  * inside one SERIALIZABLE transaction so the update + allocation
  * deactivation cannot drift apart under concurrent scans.
  */
-export const POST = withKiosk<{ id: string }>(async (req, { params }) => {
+export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => {
   const { scanValue } = checkinScanBody.parse(await req.json());
 
   const booking = await db.booking.findUnique({
     where: { id: params.id },
-    select: { id: true, status: true, kind: true, requesterUserId: true },
+    select: { id: true, status: true, kind: true, requesterUserId: true, locationId: true },
   });
 
   if (!booking || booking.kind !== "CHECKOUT" || booking.status !== "OPEN") {
@@ -69,8 +70,31 @@ export const POST = withKiosk<{ id: string }>(async (req, { params }) => {
     return ok({ success: false, error: "Item not found" });
   }
 
-  const result = await db.$transaction(
-    (tx) => kioskCheckinAsset(tx, { bookingId: params.id, assetId: asset.id }),
+  const result = await db.$transaction(async (tx) => {
+    const outcome = await kioskCheckinAsset(tx, {
+      bookingId: params.id,
+      assetId: asset.id,
+      kioskLocationId: kiosk.locationId,
+    });
+    if (outcome.ok) {
+      await tx.scanEvent.create({
+        data: {
+          bookingId: activeBooking.id,
+          actorUserId: activeBooking.requesterUserId,
+          scanType: "SERIALIZED",
+          scanValue,
+          success: true,
+          phase: "CHECKIN",
+          assetId: asset.id,
+          locationMismatch: outcome.locationEvidence?.locationMismatch ?? false,
+          expectedLocationId: outcome.locationEvidence?.expectedLocationId ?? activeBooking.locationId,
+          actualLocationId: outcome.locationEvidence?.actualLocationId ?? null,
+          deviceContext: req.headers.get("user-agent") ?? "kiosk",
+        },
+      });
+    }
+    return outcome;
+  },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
 
@@ -89,6 +113,7 @@ export const POST = withKiosk<{ id: string }>(async (req, { params }) => {
 
   return ok({
     success: true,
+    ...(result.locationEvidence ? locationEvidencePayload(result.locationEvidence) : {}),
     item: {
       id: asset.id,
       name: asset.name || asset.assetTag,

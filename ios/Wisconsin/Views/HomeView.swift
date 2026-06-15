@@ -52,18 +52,20 @@ struct HomeView: View {
     @ViewBuilder private var mainContent: some View {
         if vm.dashboard == nil && vm.error == nil {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: Brand.Space.lg) {
                     StatStripSkeleton()
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: Brand.Space.sm) {
                         Skeleton().frame(width: 140, height: 14)
                         ForEach(0..<3, id: \.self) { _ in BookingRowSkeleton() }
                     }
-                    VStack(alignment: .leading, spacing: 12) {
+                    .brandCard(padding: Brand.Space.md, radius: Brand.Radius.card)
+                    VStack(alignment: .leading, spacing: Brand.Space.sm) {
                         Skeleton().frame(width: 140, height: 14)
                         ForEach(0..<4, id: \.self) { _ in BookingRowSkeleton() }
                     }
+                    .brandCard(padding: Brand.Space.md, radius: Brand.Radius.card)
                 }
-                .padding()
+                .padding(Brand.Space.md)
             }
             .allowsHitTesting(false)
         } else if let error = vm.error, vm.dashboard == nil {
@@ -98,7 +100,8 @@ struct HomeView: View {
 
     @ViewBuilder private func dashboardScrollView(_ dash: DashboardData) -> some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: Brand.Space.lg) {
+                DashboardHero(name: session.currentUser?.name ?? "")
                 if vm.error != nil {
                     RefreshFailurePill(message: vm.error ?? "")
                 }
@@ -108,6 +111,10 @@ struct HomeView: View {
                     shiftCount: dash.myEventWork.count,
                     lastLoadedAt: vm.lastLoadedAt,
                     openBookings: { appState.selectedTab = 1 },
+                    openCheckouts: {
+                        appState.pendingBookingsTab = BookingTab.checkouts.rawValue
+                        appState.selectedTab = 1
+                    },
                     openSchedule: { appState.selectedTab = 4 }
                 )
                 if HomeActionQueue.hasActions(in: dash, currentUserId: session.currentUser?.id) {
@@ -115,8 +122,7 @@ struct HomeView: View {
                         dash: dash,
                         openBookingSummary: { navigationPath.append($0) },
                         openEventWork: { selectedEventWork = $0 },
-                        currentUserId: session.currentUser?.id,
-                        openScan: { appState.selectedTab = 3 }
+                        currentUserId: session.currentUser?.id
                     )
                 } else if isAllEmpty(dash) || !hasStaffFollowUp(dash) {
                     AllClearEmptyState(openScan: { appState.selectedTab = 3 })
@@ -125,7 +131,7 @@ struct HomeView: View {
                     staffExceptionSection(dash)
                 }
             }
-            .padding()
+            .padding(Brand.Space.md)
         }
         .sheet(item: $selectedEventWork) { work in
             EventDetailSheet(event: work.asScheduleEvent, myShift: nil, eventWork: work)
@@ -139,12 +145,8 @@ struct HomeView: View {
     @ViewBuilder
     private func staffExceptionSection(_ dash: DashboardData) -> some View {
         if !dash.flaggedItems.isEmpty || !dash.lostBulkUnits.isEmpty || !dash.drafts.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Staff Follow-Up")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-                    .tracking(0.3)
+            VStack(alignment: .leading, spacing: Brand.Space.sm) {
+                BrandSectionHeader("Staff Follow-Up", systemImage: "flag.checkered")
                 if !dash.flaggedItems.isEmpty {
                     FlaggedItemsBanner(items: dash.flaggedItems)
                 }
@@ -165,7 +167,9 @@ struct HomeView: View {
     var body: some View {
         NavigationStack(path: $navigationPath) {
             mainContent
-                .navigationTitle("Home")
+                .background(Color(.systemGroupedBackground).ignoresSafeArea())
+                .navigationTitle("")
+                .navigationBarTitleDisplayMode(.inline)
                 .overlay(alignment: .bottomTrailing) {
                     Button {
                         showCreate = true
@@ -283,6 +287,47 @@ struct HomeView: View {
     }
 }
 
+// MARK: - Dashboard Hero
+
+private struct DashboardHero: View {
+    let name: String
+
+    private var firstName: String {
+        name.split(separator: " ").first.map(String.init) ?? ""
+    }
+
+    private var greeting: String {
+        switch Calendar.current.component(.hour, from: .now) {
+        case 5..<12:  return "Good morning"
+        case 12..<17: return "Good afternoon"
+        case 17..<22: return "Good evening"
+        default:      return "Hello"
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .tracking(0.6)
+            Text(firstName.isEmpty ? greeting : "\(greeting),")
+                .font(.gothamBlack(size: 30))
+                .foregroundStyle(.primary)
+            if !firstName.isEmpty {
+                Text(firstName)
+                    .font(.gothamBlack(size: 30))
+                    .foregroundStyle(Color.brandPrimary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, Brand.Space.xs)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(firstName.isEmpty ? greeting : "\(greeting), \(firstName)")
+    }
+}
+
 // MARK: - Stat Strip
 
 private struct StatStrip: View {
@@ -291,19 +336,26 @@ private struct StatStrip: View {
     let shiftCount: Int
     let lastLoadedAt: Date?
     let openBookings: () -> Void
+    let openCheckouts: () -> Void
     let openSchedule: () -> Void
 
+    private let columns = [
+        GridItem(.flexible(), spacing: Brand.Space.sm),
+        GridItem(.flexible(), spacing: Brand.Space.sm),
+    ]
+
     var body: some View {
-        VStack(alignment: .trailing, spacing: 6) {
-            HStack(spacing: 8) {
-                StatCell(value: stats.overdue, label: "Overdue",
-                         tone: stats.overdue > 0 ? .red : nil, onTap: openBookings)
-                StatCell(value: stats.dueToday, label: "Due Today",
-                         tone: stats.dueToday > 0 ? .orange : nil, onTap: openBookings)
-                StatCell(value: pendingPickupCount, label: pendingPickupCount == 1 ? "Pickup" : "Pickups",
-                         tone: pendingPickupCount > 0 ? .green : nil, onTap: openBookings)
-                StatCell(value: shiftCount, label: shiftCount == 1 ? "Shift" : "Shifts",
-                         tone: shiftCount > 0 ? .blue : nil, onTap: openSchedule)
+        VStack(alignment: .trailing, spacing: Brand.Space.sm) {
+            LazyVGrid(columns: columns, spacing: Brand.Space.sm) {
+                // Overdue / Due Today are checkout concepts — land on Checkouts.
+                StatCard(value: stats.overdue, label: "Overdue", systemImage: "exclamationmark.triangle.fill",
+                         tone: .red, onTap: openCheckouts)
+                StatCard(value: stats.dueToday, label: "Due Today", systemImage: "clock.fill",
+                         tone: .orange, onTap: openCheckouts)
+                StatCard(value: pendingPickupCount, label: pendingPickupCount == 1 ? "Pickup" : "Pickups", systemImage: "shippingbox.fill",
+                         tone: .green, onTap: openBookings)
+                StatCard(value: shiftCount, label: shiftCount == 1 ? "Shift" : "Shifts", systemImage: "calendar",
+                         tone: .blue, onTap: openSchedule)
             }
             if let lastLoadedAt {
                 HStack(spacing: 4) {
@@ -321,37 +373,53 @@ private struct StatStrip: View {
     }
 }
 
-private struct StatCell: View {
+private struct StatCard: View {
     let value: Int
     let label: String
-    let tone: StatusTone?
+    let systemImage: String
+    let tone: StatusTone
     let onTap: () -> Void
     @State private var hapticTrigger = false
+
+    private var active: Bool { value > 0 }
 
     var body: some View {
         Button(action: {
             hapticTrigger.toggle()
             onTap()
         }) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("\(value)")
-                    .font(.title3.weight(.bold))
-                    .monospacedDigit()
-                    .foregroundStyle(tone.map { Color.statusText($0) } ?? Color.primary)
-                    .contentTransition(.numericText())
-                Text(label)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+            HStack(spacing: Brand.Space.sm) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: Brand.Radius.sm, style: .continuous)
+                        .fill(active ? Color.statusBackground(tone) : Color.secondary.opacity(0.12))
+                    Image(systemName: systemImage)
+                        .font(.headline)
+                        .foregroundStyle(active ? Color.statusText(tone) : Color.secondary)
+                }
+                .frame(width: 46, height: 46)
+
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("\(value)")
+                        .font(.system(size: 30, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(active ? Color.statusText(tone) : Color.primary)
+                        .contentTransition(.numericText())
+                    Text(label)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+                Spacer(minLength: 0)
             }
-            .padding(12)
+            .padding(Brand.Space.md)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
+            .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous)
+                    .strokeBorder(active ? Color.statusText(tone).opacity(0.25) : Color.hairline, lineWidth: active ? 1 : 0.5)
             )
+            .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
         }
         .buttonStyle(.plain)
         .sensoryFeedback(.selection, trigger: hapticTrigger)
@@ -361,16 +429,25 @@ private struct StatCell: View {
 }
 
 private struct StatStripSkeleton: View {
+    private let columns = [
+        GridItem(.flexible(), spacing: Brand.Space.sm),
+        GridItem(.flexible(), spacing: Brand.Space.sm),
+    ]
+
     var body: some View {
-        HStack(spacing: 8) {
+        LazyVGrid(columns: columns, spacing: Brand.Space.sm) {
             ForEach(0..<4, id: \.self) { _ in
-                VStack(alignment: .leading, spacing: 6) {
-                    Skeleton().frame(width: 32, height: 24)
-                    Skeleton().frame(width: 50, height: 10)
+                HStack(spacing: Brand.Space.sm) {
+                    Skeleton(cornerRadius: Brand.Radius.sm).frame(width: 46, height: 46)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Skeleton().frame(width: 44, height: 26)
+                        Skeleton().frame(width: 60, height: 10)
+                    }
+                    Spacer(minLength: 0)
                 }
-                .padding(12)
+                .padding(Brand.Space.md)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
+                .background(Color.cardSurface, in: RoundedRectangle(cornerRadius: Brand.Radius.card, style: .continuous))
             }
         }
         .accessibilityHidden(true)  // Don't pollute VO with placeholder shapes during initial load.
@@ -384,7 +461,6 @@ private struct HomeActionQueue: View {
     let openBookingSummary: (BookingSummary) -> Void
     let openEventWork: (DashboardEventWork) -> Void
     let currentUserId: String?
-    let openScan: () -> Void
 
     private var myOverdueBookings: [BookingSummary] {
         dash.myCheckouts.items.filter(\.isOverdue)
@@ -527,28 +603,15 @@ private struct HomeActionQueue: View {
             ForEach(dash.myEventWork.prefix(3)) { work in
                 EventActionQueueRow(work: work, openEventWork: openEventWork)
             }
-
-            ScanRecoveryButton(openScan: openScan)
         }
-        .padding(16)
-        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
-        )
+        .brandCard(padding: Brand.Space.md, radius: Brand.Radius.card)
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Next Up")
-                    .font(.title3.weight(.semibold))
-                Text("Upcoming pickups, reservations, shifts, and due work.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-        }
+        BrandSectionHeader(
+            "Next Up",
+            subtitle: "Upcoming pickups, reservations, shifts, and due work."
+        )
     }
 }
 
@@ -572,10 +635,7 @@ private struct EventActionQueueRow: View {
             openEventWork(work)
         } label: {
             HStack(spacing: 12) {
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(Color.statusText(tone))
-                    .frame(width: 4, height: 56)
-                    .accessibilityHidden(true)
+                StatusRail(tone: tone)
 
                 VStack(alignment: .leading, spacing: 7) {
                     Text(work.event.summary)
@@ -678,10 +738,7 @@ private struct ActionQueueRow: View {
                 action()
             } label: {
                 HStack(spacing: 12) {
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(Color.statusText(tone))
-                        .frame(width: 4, height: 36)
-                        .accessibilityHidden(true)
+                    StatusRail(tone: tone)
 
                     VStack(alignment: .leading, spacing: 3) {
                         Text(title)
@@ -757,44 +814,6 @@ private struct ActionQueueRow: View {
     }
 }
 
-private struct ScanRecoveryButton: View {
-    let openScan: () -> Void
-
-    var body: some View {
-        Button {
-            Haptics.tap()
-            openScan()
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "barcode.viewfinder")
-                    .font(.subheadline.weight(.semibold))
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Look up gear")
-                        .font(.subheadline.weight(.semibold))
-                    Text("Scan or type a tag without changing checkout custody.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.tertiary)
-                    .accessibilityHidden(true)
-            }
-            .padding(12)
-            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(Color(.separator).opacity(0.45), lineWidth: 0.5)
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Look up gear. Scan or type a tag without changing checkout custody.")
-    }
-}
-
 // MARK: - Refresh Failure Pill
 
 private struct RefreshFailurePill: View {
@@ -849,9 +868,7 @@ private struct AllClearEmptyState: View {
             .controlSize(.regular)
             .padding(.top, 4)
         }
-        .frame(maxWidth: .infinity)
-        .padding(28)
-        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
+        .brandCard(padding: Brand.Space.xl, radius: Brand.Radius.card, alignment: .center)
         .accessibilityElement(children: .contain)
     }
 }
@@ -889,13 +906,7 @@ private struct DashboardCard<Content: View>: View {
             }
             content()
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
-        )
+        .brandCard(padding: Brand.Space.md, radius: Brand.Radius.card)
     }
 }
 
@@ -942,9 +953,9 @@ private struct FlaggedItemsBanner: View {
                 if item.id != items.last?.id { Divider() }
             }
         }
-        .padding(14)
-        .background(Color.statusBackground(.orange), in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.statusText(.orange).opacity(0.2), lineWidth: 1))
+        .padding(Brand.Space.md)
+        .background(Color.statusBackground(.orange), in: RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous).strokeBorder(Color.statusText(.orange).opacity(0.2), lineWidth: 1))
     }
 
     private func flaggedRowLabel(for item: DashboardFlaggedItem) -> String {
@@ -984,9 +995,9 @@ private struct LostBulkUnitsBanner: View {
                 .accessibilityLabel("\(item.skuName), \(item.count) missing")
             }
         }
-        .padding(14)
-        .background(Color.statusBackground(.red), in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.statusText(.red).opacity(0.2), lineWidth: 1))
+        .padding(Brand.Space.md)
+        .background(Color.statusBackground(.red), in: RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous).strokeBorder(Color.statusText(.red).opacity(0.2), lineWidth: 1))
     }
 }
 

@@ -8,14 +8,13 @@ struct UserAvatarView: View {
     var size: CGFloat = 36
 
     var body: some View {
-        if let urlString = avatarUrl, let url = URL(string: urlString) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                default:
-                    initialsCircle
-                }
+        if let urlString = avatarUrl, !urlString.isEmpty, let url = URL(string: urlString) {
+            // Initials sit underneath as the placeholder; the cached, downsampled
+            // photo fades in on top and persists across reloads. Plain AsyncImage
+            // re-fetched on every list refresh and flickered back to initials.
+            ZStack {
+                initialsCircle
+                CachedThumbnail(url: url, size: size)
             }
             .frame(width: size, height: size)
             .clipShape(Circle())

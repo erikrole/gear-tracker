@@ -32,6 +32,7 @@ type Profile = {
   id: string;
   name: string;
   phone: string | null;
+  wiscardNumber: string | null;
   avatarUrl: string | null;
   primaryArea: "VIDEO" | "PHOTO" | "GRAPHICS" | "COMMS" | null;
   title: string | null;
@@ -45,6 +46,7 @@ function toForm(p: Profile): FormState {
   return {
     name: p.name,
     phone: p.phone ?? "",
+    wiscardNumber: p.wiscardNumber ?? "",
     primaryArea: p.primaryArea,
     title: p.title ?? "",
     athleticsEmail: p.athleticsEmail ?? "",
@@ -114,6 +116,7 @@ export default function ProfileSettingsPage() {
         body: JSON.stringify({
           name: form.name,
           phone: form.phone || null,
+          wiscardNumber: form.wiscardNumber || null,
           primaryArea: form.primaryArea || null,
           title: form.title || null,
           athleticsEmail: form.athleticsEmail || null,
@@ -356,6 +359,22 @@ export default function ProfileSettingsPage() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="profile-wiscard">Wiscard value</Label>
+              <Input
+                id="profile-wiscard"
+                name="wiscardNumber"
+                autoComplete="off"
+                value={form.wiscardNumber ?? ""}
+                onChange={(e) => setField("wiscardNumber", e.target.value)}
+                placeholder="Scan or type Wiscard value"
+                disabled={saving}
+              />
+              <p className="text-xs text-muted-foreground">
+                Used to identify you at the kiosk.
+              </p>
             </div>
 
             {/* Title */}

@@ -12,6 +12,7 @@ import { HttpError } from "@/lib/http";
 import { createAuditEntryTx, lookupActorRole } from "@/lib/audit";
 import { badges } from "@/lib/badges";
 import { upsertBulkBalancesAndMovements } from "./bookings-helpers";
+import { assetLocationEvidence, reconcileAssetLocationToKiosk, type KioskLocationEvidence } from "./kiosk-location";
 
 function wasReturnedOnTime(endsAt: Date, completedAt: Date) {
   return completedAt.getTime() <= endsAt.getTime() + 15 * 60 * 1000;
@@ -335,9 +336,9 @@ export async function checkinItems(
  */
 export async function kioskCheckinAsset(
   tx: Prisma.TransactionClient,
-  args: { bookingId: string; assetId: string },
+  args: { bookingId: string; assetId: string; kioskLocationId?: string },
 ): Promise<
-  | { ok: true; alreadyReturned: false }
+  | { ok: true; alreadyReturned: false; locationEvidence?: KioskLocationEvidence }
   | { ok: false; reason: "not_in_booking" | "already_returned" }
 > {
   const item = await tx.bookingSerializedItem.findUnique({
@@ -353,6 +354,18 @@ export async function kioskCheckinAsset(
     return { ok: false, reason: "already_returned" };
   }
 
+  const booking = await tx.booking.findUnique({
+    where: { id: args.bookingId },
+    select: { locationId: true },
+  });
+
+  const locationEvidence = args.kioskLocationId && booking
+    ? await assetLocationEvidence(tx, {
+        assetId: args.assetId,
+        expectedLocationId: booking.locationId,
+      })
+    : undefined;
+
   await tx.bookingSerializedItem.update({
     where: { id: item.id },
     data: { allocationStatus: "returned" },
@@ -365,8 +378,19 @@ export async function kioskCheckinAsset(
     },
     data: { active: false },
   });
+  if (args.kioskLocationId) {
+    await reconcileAssetLocationToKiosk(tx, {
+      assetId: args.assetId,
+      kioskLocationId: args.kioskLocationId,
+    });
+  }
 
-  return { ok: true, alreadyReturned: false };
+  if (locationEvidence && booking && args.kioskLocationId !== booking.locationId) {
+    locationEvidence.locationMismatch = true;
+    locationEvidence.message = locationEvidence.message ?? "Location mismatch: returned at a different kiosk than expected. Updated to this kiosk.";
+  }
+
+  return { ok: true, alreadyReturned: false, locationEvidence };
 }
 
 /**

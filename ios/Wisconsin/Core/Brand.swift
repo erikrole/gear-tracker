@@ -145,3 +145,240 @@ extension Color {
         }
     }
 }
+
+// MARK: - Design system foundation
+//
+// A small, consistent layout vocabulary so screens share the same rhythm and
+// card treatment instead of re-deriving padding/radius per view. Pairs with the
+// native iOS 26 Liquid Glass controls (`.buttonStyle(.glass/.glassProminent)`,
+// material-backed floating controls) the app already uses.
+
+/// Layout tokens — use instead of raw point literals so spacing stays in step.
+enum Brand {
+    /// Spacing scale (points). `md` is the default gutter.
+    enum Space {
+        static let xs: CGFloat = 6
+        static let sm: CGFloat = 10
+        static let md: CGFloat = 14
+        static let lg: CGFloat = 20
+        static let xl: CGFloat = 28
+        static let xxl: CGFloat = 40
+    }
+
+    /// Corner-radius scale. `card` is the default container radius.
+    enum Radius {
+        static let sm: CGFloat = 12
+        static let md: CGFloat = 16
+        static let card: CGFloat = 20
+        static let lg: CGFloat = 26
+    }
+}
+
+extension Color {
+    /// Standard elevated card surface — adapts to light/dark and reads correctly
+    /// on a grouped background.
+    static let cardSurface = Color(.secondarySystemGroupedBackground)
+
+    /// A slightly raised surface for nested tiles inside a card.
+    static let cardSurfaceRaised = Color(.tertiarySystemGroupedBackground)
+
+    /// Hairline stroke tuned for card and divider edges.
+    static let hairline = Color(.separator).opacity(0.5)
+}
+
+// MARK: - Card surface
+
+private struct BrandCardModifier: ViewModifier {
+    var padding: CGFloat
+    var radius: CGFloat
+    var fill: Color
+    var stroke: Bool
+    var alignment: Alignment
+
+    func body(content: Content) -> some View {
+        content
+            .padding(padding)
+            .frame(maxWidth: .infinity, alignment: alignment)
+            .background(fill, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .overlay {
+                if stroke {
+                    RoundedRectangle(cornerRadius: radius, style: .continuous)
+                        .strokeBorder(Color.hairline, lineWidth: 0.5)
+                }
+            }
+            .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
+    }
+}
+
+extension View {
+    /// Wraps content in the app's standard card: continuous radius, hairline
+    /// edge, and a soft shadow. One source of truth for every card surface.
+    func brandCard(
+        padding: CGFloat = Brand.Space.md,
+        radius: CGFloat = Brand.Radius.card,
+        fill: Color = .cardSurface,
+        stroke: Bool = true,
+        alignment: Alignment = .leading
+    ) -> some View {
+        modifier(BrandCardModifier(padding: padding, radius: radius, fill: fill, stroke: stroke, alignment: alignment))
+    }
+}
+
+// MARK: - Section header
+
+/// Consistent section header used above grouped card stacks. Optional subtitle,
+/// leading SF Symbol, and a trailing accessory (e.g. a "See all" button).
+struct BrandSectionHeader<Trailing: View>: View {
+    let title: String
+    var subtitle: String? = nil
+    var systemImage: String? = nil
+    @ViewBuilder var trailing: () -> Trailing
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: Brand.Space.sm) {
+            if let systemImage {
+                Image(systemName: systemImage)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.brandPrimary)
+                    .accessibilityHidden(true)
+            }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                if let subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer(minLength: Brand.Space.sm)
+            trailing()
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+extension BrandSectionHeader where Trailing == EmptyView {
+    init(_ title: String, subtitle: String? = nil, systemImage: String? = nil) {
+        self.init(title: title, subtitle: subtitle, systemImage: systemImage, trailing: { EmptyView() })
+    }
+}
+
+// MARK: - Zoomable image viewer
+
+/// Full-screen pinch/double-tap photo viewer shared by every hero image
+/// (scan result sheet, item detail). Lets staff check cosmetic condition
+/// without squinting at a small tile. Tap the backdrop or the close button
+/// to dismiss.
+struct ZoomableImageViewer: View {
+    let url: URL
+    @Environment(\.dismiss) private var dismiss
+    @State private var scale: CGFloat = 1
+    @GestureState private var pinch: CGFloat = 1
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black
+                .ignoresSafeArea()
+                .onTapGesture { dismiss() }
+
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFit()
+                        .scaleEffect(min(max(scale * pinch, 1), 5))
+                        .gesture(
+                            MagnificationGesture()
+                                .updating($pinch) { value, state, _ in state = value }
+                                .onEnded { value in
+                                    scale = min(max(scale * value, 1), 5)
+                                }
+                        )
+                        .onTapGesture(count: 2) {
+                            withAnimation(.spring(duration: 0.3)) {
+                                scale = scale > 1 ? 1 : 2.5
+                            }
+                        }
+                case .failure:
+                    Image(systemName: "photo.badge.exclamationmark")
+                        .font(.system(size: 44))
+                        .foregroundStyle(.secondary)
+                default:
+                    ProgressView().tint(.white)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 38, height: 38)
+                    .background(.ultraThinMaterial, in: Circle())
+            }
+            .accessibilityLabel("Close photo")
+            .padding(.trailing, 20)
+            .padding(.top, 8)
+        }
+    }
+}
+
+// MARK: - Status rail
+
+/// The leading accent rail shared by list/queue rows (Bookings cards, dashboard
+/// "Next Up" rows). A rounded 4pt bar tinted by status tone; stretches to the
+/// row's height so it sits inset from rounded card corners. One source of truth
+/// for rail width/radius/color across screens.
+struct StatusRail: View {
+    let tone: StatusTone
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 2)
+            .fill(Color.statusText(tone))
+            .frame(width: 4)
+            .accessibilityHidden(true)
+    }
+}
+
+// MARK: - Filter chip
+
+/// A selectable pill used for filter/scope strips. Replaces the ad-hoc
+/// `.background(.regularMaterial, in: Capsule())` chips scattered across views.
+struct FilterChip: View {
+    let label: String
+    var systemImage: String? = nil
+    var isOn: Bool
+    var tone: StatusTone = .blue
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                if let systemImage {
+                    Image(systemName: systemImage)
+                        .font(.caption.weight(.semibold))
+                }
+                Text(label)
+                    .font(.subheadline.weight(.medium))
+            }
+            .foregroundStyle(isOn ? Color.statusText(tone) : Color.primary)
+            .padding(.horizontal, Brand.Space.md)
+            .frame(minHeight: 44)
+            .background {
+                if isOn {
+                    Capsule().fill(Color.statusBackground(tone))
+                    Capsule().strokeBorder(Color.statusText(tone).opacity(0.35), lineWidth: 1)
+                } else {
+                    Capsule().fill(.regularMaterial)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isOn ? [.isButton, .isSelected] : .isButton)
+    }
+}

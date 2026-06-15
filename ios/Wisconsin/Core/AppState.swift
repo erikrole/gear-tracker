@@ -15,6 +15,10 @@ final class AppState {
     var selectedTab: Int = 0
     var resetTab: Int?
     var tabResetToken = 0
+    /// Requests the Bookings tab open on a specific sub-tab (e.g. the dashboard
+    /// "Overdue" tile deep-links into Checkouts). BookingsView consumes and
+    /// clears it. Raw value matches `BookingTab` ("Reservations"/"Checkouts").
+    var pendingBookingsTab: String?
     private var isRefreshing = false
     private var lastRefreshAttemptAt: Date?
     private let minimumRefreshInterval: TimeInterval = 60

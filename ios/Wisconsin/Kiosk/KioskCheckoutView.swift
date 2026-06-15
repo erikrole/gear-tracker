@@ -239,7 +239,7 @@ struct KioskCheckoutView: View {
                         updated.append(KioskCartItem(id: item.id, name: item.name, tagName: item.tagName, type: item.type))
                         store.setCart(updated, for: userId)
                         cart = updated
-                        showFeedback(.success(item.name))
+                        showFeedback(.success(result.locationMessage ?? item.name))
                     } else {
                         showFeedback(.duplicate("Already scanned"))
                     }

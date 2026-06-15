@@ -45,16 +45,27 @@ struct StatCardSkeleton: View {
 
 struct BookingRowSkeleton: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            HStack {
-                Skeleton().frame(width: 160, height: 14)
-                Spacer()
-                Skeleton(cornerRadius: 9).frame(width: 58, height: 18)
+        HStack(spacing: 12) {
+            Skeleton(cornerRadius: 20).frame(width: 40, height: 40)
+            VStack(alignment: .leading, spacing: 7) {
+                HStack {
+                    Skeleton().frame(width: 150, height: 14)
+                    Spacer()
+                    Skeleton(cornerRadius: 9).frame(width: 58, height: 18)
+                }
+                Skeleton().frame(width: 120, height: 12)
+                Skeleton().frame(width: 96, height: 10)
             }
-            Skeleton().frame(width: 120, height: 12)
-            Skeleton().frame(width: 96, height: 10)
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.cardSurface)
+        .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
+                .strokeBorder(Color.hairline, lineWidth: 0.5)
+        )
     }
 }
 
@@ -71,7 +82,15 @@ struct ItemRowSkeleton: View {
             Spacer()
             Skeleton(cornerRadius: 10).frame(width: 64, height: 20)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.cardSurface)
+        .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
+                .strokeBorder(Color.hairline, lineWidth: 0.5)
+        )
     }
 }
 

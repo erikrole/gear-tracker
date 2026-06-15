@@ -166,6 +166,12 @@ struct KioskUser: Decodable, Identifiable, Equatable {
     }
 }
 
+struct KioskIdentifyResult: Decodable {
+    let success: Bool
+    let error: String?
+    let data: KioskUser?
+}
+
 // MARK: - Student Context
 
 struct KioskStudentContext: Decodable {
@@ -224,6 +230,12 @@ struct KioskScanResult: Decodable {
     let success: Bool
     let error: String?
     let item: ScannedItem?
+    let locationMismatch: Bool?
+    let expectedLocationId: String?
+    let actualLocationId: String?
+    let expectedLocationName: String?
+    let actualLocationName: String?
+    let locationMessage: String?
 
     struct ScannedItem: Decodable, Identifiable {
         let id: String

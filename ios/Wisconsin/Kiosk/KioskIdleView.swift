@@ -12,6 +12,8 @@ struct KioskIdleView: View {
     @State private var sleepDismissedUntil: Date?
     @State private var selectedSummary: KioskSummarySelection = .events
     @State private var selectedEvent: KioskEvent?
+    @State private var identityScanFeedback: IdentityScanFeedback?
+    @State private var isIdentifyingScan = false
     #if DEBUG
     @State private var debugForcesSleepMode = false
     #endif
@@ -65,6 +67,12 @@ struct KioskIdleView: View {
                     .padding(24)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                 #endif
+
+                KioskScannerField { value in
+                    handleIdentityScan(value)
+                }
+                .frame(width: 1, height: 1)
+                .opacity(0)
             }
         }
         .task { await loadAll() }
@@ -246,9 +254,17 @@ struct KioskIdleView: View {
     private var rosterPanel: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Select your name")
+                Text("Scan Wiscard")
                     .font(.title2.bold())
                     .foregroundStyle(.white)
+                Text("Or tap your name below")
+                    .font(.subheadline)
+                    .foregroundStyle(KioskText.tertiary)
+            }
+
+            if let feedback = identityScanFeedback {
+                KioskFeedbackBanner(tone: feedback.tone, message: feedback.message)
+                    .transition(.move(edge: .top).combined(with: .opacity))
             }
 
             if users.isEmpty && isLoading {
@@ -397,9 +413,58 @@ struct KioskIdleView: View {
         }
         return false
     }
+
+    private func handleIdentityScan(_ value: String) {
+        guard !isIdentifyingScan else { return }
+        store.resetInactivity()
+        isIdentifyingScan = true
+        identityScanFeedback = .working("Reading Wiscard...")
+        Task {
+            do {
+                let result = try await KioskAPI.shared.kioskIdentify(scanValue: value)
+                if result.success, let user = result.data {
+                    Haptics.success()
+                    identityScanFeedback = .success(user.name)
+                    store.screen = .studentHub(user)
+                } else {
+                    Haptics.warning()
+                    identityScanFeedback = .error(result.error ?? "No user found for that Wiscard")
+                }
+            } catch {
+                if isUnauthorized(error) {
+                    store.deactivate()
+                } else {
+                    Haptics.error()
+                    identityScanFeedback = .error((error as? APIError)?.errorDescription ?? "Could not read Wiscard")
+                }
+            }
+            isIdentifyingScan = false
+        }
+    }
 }
 
 // MARK: - Sub-views
+
+private enum IdentityScanFeedback: Equatable {
+    case working(String)
+    case success(String)
+    case error(String)
+
+    var message: String {
+        switch self {
+        case .working(let message), .success(let message), .error(let message):
+            return message
+        }
+    }
+
+    var tone: KioskBannerTone {
+        switch self {
+        case .working: .warning
+        case .success: .success
+        case .error: .error
+        }
+    }
+}
 
 private enum KioskSummarySelection {
     case events

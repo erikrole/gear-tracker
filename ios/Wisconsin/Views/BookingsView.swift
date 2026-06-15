@@ -161,8 +161,13 @@ struct BookingsView: View {
             : "Active checkouts appear here once gear is picked up at a kiosk."
     }
 
-    private var screenTitle: String {
-        vm.tab == .reservations ? "Reservations" : "Checkouts"
+    /// Honor a deep-linked sub-tab request (e.g. dashboard "Overdue" tile),
+    /// then clear it so a later manual switch sticks.
+    private func consumePendingTab() {
+        guard let raw = appState.pendingBookingsTab,
+              let requested = BookingTab(rawValue: raw) else { return }
+        appState.pendingBookingsTab = nil
+        if vm.tab != requested { vm.tab = requested }
     }
 
     private var searchPrompt: String {
@@ -186,10 +191,15 @@ struct BookingsView: View {
                 } else if vm.bookings.isEmpty && vm.isLoading {
                     List {
                         ForEach(0..<8, id: \.self) { _ in
-                            BookingRowSkeleton().listRowSeparator(.hidden)
+                            BookingRowSkeleton()
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                                .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
                         }
                     }
                     .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .background(Color(.systemGroupedBackground))
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)  // Don't pollute VO with placeholder shapes.
                 } else if vm.bookings.isEmpty {
@@ -202,19 +212,17 @@ struct BookingsView: View {
                     }
                 } else {
                     List {
-                        if let stamp = vm.lastLoadedAt?.freshnessLabel {
-                            Text(stamp)
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                                .listRowSeparator(.hidden)
-                                .listRowBackground(Color.clear)
-                                .padding(.top, 2)
-                        }
                         ForEach(vm.bookings) { booking in
-                            NavigationLink(value: booking) {
+                            // Hidden NavigationLink behind the card removes the
+                            // default List disclosure chevron; the card draws its
+                            // own affordance and sits flush on the grouped bg.
+                            ZStack {
+                                NavigationLink(value: booking) { EmptyView() }.opacity(0)
                                 BookingRow(booking: booking)
                             }
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
                         }
                         if let pageError = vm.pageError {
                             VStack(spacing: 8) {
@@ -227,18 +235,26 @@ struct BookingsView: View {
                             }
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 8)
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
                         } else if vm.hasMore {
                             ProgressView()
                                 .frame(maxWidth: .infinity)
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
                                 .task(id: vm.bookings.count) {
                                     await vm.load()
                                 }
                         }
                     }
                     .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .background(Color(.systemGroupedBackground))
                 }
             }
-            .navigationTitle(screenTitle)
+            // Generic title: the segmented control names the sub-tab, so a
+            // dynamic "Reservations"/"Checkouts" title would just echo it.
+            .navigationTitle("Bookings")
             .searchable(text: $vm.searchText, prompt: searchPrompt)
             .onChange(of: vm.searchText) { vm.onSearchChange() }
             .onChange(of: vm.tab) { Task { await vm.load(reset: true) } }
@@ -288,7 +304,14 @@ struct BookingsView: View {
             .refreshable { await vm.load(reset: true) }
             .task {
                 vm.applyUserContext(id: session.currentUser?.id, role: session.currentUser?.role)
+                consumePendingTab()
                 await vm.load(reset: true)
+            }
+            .onChange(of: appState.pendingBookingsTab) { _, _ in
+                // A deep link arrived while this tab was already alive (e.g. the
+                // dashboard "Overdue" tile). Switch sub-tabs; the tab change
+                // triggers the reload via onChange(of: vm.tab).
+                consumePendingTab()
             }
             .onChange(of: appState.tabResetToken) { _, _ in
                 guard appState.resetTab == 1 else { return }
@@ -346,13 +369,27 @@ struct BookingRow: View {
         booking.serializedItems.count + booking.bulkItems.count
     }
 
+    /// Accent tone for the leading bar — overdue shouts red, otherwise the
+    /// status' own tone (reservation purple, checkout blue, pickup orange).
+    private var accentTone: StatusTone {
+        if isOverdue { return .red }
+        switch booking.status {
+        case .booked: return booking.kind == .reservation ? .purple : .blue
+        case .pendingPickup: return .orange
+        case .open: return .blue
+        default: return .gray
+        }
+    }
+
     var body: some View {
         HStack(spacing: 12) {
-            UserAvatarView(name: booking.requester.name, avatarUrl: booking.requester.avatarUrl, size: 38)
+            // Shared rail atom — inset top/bottom, matching the Next Up rows.
+            StatusRail(tone: accentTone)
+            UserAvatarView(name: booking.requester.name, avatarUrl: booking.requester.avatarUrl, size: 40)
             VStack(alignment: .leading, spacing: 5) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(booking.title)
-                        .font(.subheadline.weight(.medium))
+                        .font(.subheadline.weight(.semibold))
                         .lineLimit(1)
                     Spacer()
                     StatusBadge(status: booking.status, kind: booking.kind)
@@ -374,17 +411,30 @@ struct BookingRow: View {
                 TimelineView(.periodic(from: .now, by: 60)) { context in
                     let info = relativeTiming(now: context.date)
                     Label {
-                        Text(info.text).font(.caption2)
+                        Text(info.text).font(.caption2.weight(.medium))
                     } icon: {
                         Image(systemName: info.icon)
                             .font(.caption2)
                             .accessibilityHidden(true)
                     }
-                    .foregroundStyle(info.urgent ? AnyShapeStyle(Color.statusText(.red)) : AnyShapeStyle(.tertiary))
+                    .foregroundStyle(info.urgent ? AnyShapeStyle(Color.statusText(.red)) : AnyShapeStyle(.secondary))
                 }
             }
+            Image(systemName: "chevron.right")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.cardSurface)
+        .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
+                .strokeBorder(Color.hairline, lineWidth: 0.5)
+        )
+        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 3)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(rowAccessibilityLabel)
     }

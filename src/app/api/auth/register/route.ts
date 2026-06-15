@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { createSession, hashPassword } from "@/lib/auth";
 import { HttpError, ok } from "@/lib/http";
-import { registerSchema } from "@/lib/validation";
+import { normalizeWiscardNumber, registerSchema } from "@/lib/validation";
 import { withHandler } from "@/lib/api";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { createAuditEntry } from "@/lib/audit";
@@ -42,6 +42,10 @@ export const POST = withHandler(async (req) => {
   }
 
   const passwordHash = await hashPassword(body.password);
+  const wiscardNumber = normalizeWiscardNumber(body.wiscardNumber);
+  if (!wiscardNumber) {
+    throw new HttpError(400, "Wiscard value is required");
+  }
 
   // Atomic: create user + claim invitation in one transaction
   let user;
@@ -51,6 +55,7 @@ export const POST = withHandler(async (req) => {
         data: {
           name: body.name.trim(),
           email,
+          wiscardNumber,
           passwordHash,
           role: allowedEntry.role, // Use role from allowlist (not hardcoded STUDENT)
         },
@@ -65,6 +70,11 @@ export const POST = withHandler(async (req) => {
     });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      const target = (error.meta?.target as string[] | string | undefined) ?? "";
+      const targetStr = Array.isArray(target) ? target.join(",") : String(target);
+      if (targetStr.includes("wiscard_number") || targetStr.includes("wiscardNumber")) {
+        throw new HttpError(409, "That Wiscard value is already linked to another account");
+      }
       throw new HttpError(409, "An account with this email already exists");
     }
     throw error;
@@ -78,7 +88,7 @@ export const POST = withHandler(async (req) => {
     entityType: "user",
     entityId: user.id,
     action: "registered",
-    after: { name: user.name, email: user.email, role: user.role },
+    after: { name: user.name, email: user.email, role: user.role, wiscardLinked: true },
   });
 
   return ok(

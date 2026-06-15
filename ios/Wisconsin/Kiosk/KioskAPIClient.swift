@@ -92,6 +92,13 @@ struct KioskAPI {
         return resp.data
     }
 
+    func kioskIdentify(scanValue: String) async throws -> KioskIdentifyResult {
+        struct Body: Encodable { let scanValue: String }
+        var req = request(path: "/api/kiosk/identify", method: "POST")
+        req.httpBody = try JSONEncoder().encode(Body(scanValue: scanValue))
+        return try await perform(req)
+    }
+
     // MARK: - Student
 
     func kioskStudentContext(userId: String) async throws -> KioskStudentContext {
