@@ -47,24 +47,33 @@ final class ScheduleViewModel {
         return Date.now.timeIntervalSince(t) > scheduleStaleAfter
     }
 
+    /// Lower bound for expanding multi-day events: when "Past" is off we don't
+    /// want a long-running event to spawn day groups before today.
+    private var spanLowerBound: Date {
+        includePast ? .distantPast : Calendar.current.startOfDay(for: .now)
+    }
+
     var groupedEvents: [(date: Date, events: [ScheduleEvent])] {
-        let calendar = Calendar.current
         var byDay: [Date: [ScheduleEvent]] = [:]
+        let lowerBound = spanLowerBound
         for event in events {
-            let day = calendar.startOfDay(for: event.startsAt)
-            byDay[day, default: []].append(event)
+            // A multi-day event appears under each calendar day it covers, so
+            // it stays visible while it's still in progress.
+            for day in event.spannedDays where day >= lowerBound {
+                byDay[day, default: []].append(event)
+            }
         }
         return byDay
             .sorted { $0.key < $1.key }
-            .map { (date: $0.key, events: $0.value) }
+            .map { (date: $0.key, events: $0.value.sorted { $0.startsAt < $1.startsAt }) }
     }
 
     var eventsByDay: [Date: [ScheduleEvent]] {
-        let calendar = Calendar.current
         var dict: [Date: [ScheduleEvent]] = [:]
         for event in events {
-            let day = calendar.startOfDay(for: event.startsAt)
-            dict[day, default: []].append(event)
+            for day in event.spannedDays {
+                dict[day, default: []].append(event)
+            }
         }
         return dict
     }
@@ -489,7 +498,8 @@ struct ScheduleView: View {
                                 EventRow(
                                     event: event,
                                     myShift: vm.shiftsByEventId[event.id],
-                                    showCoverage: canSeePastEvents
+                                    showCoverage: canSeePastEvents,
+                                    contextDay: group.date
                                 )
                             }
                             .buttonStyle(.plain)
@@ -703,7 +713,7 @@ struct ScheduleCalendarView: View {
             List {
                 ForEach(selectedDayEvents) { event in
                     Button { onSelectEvent(event) } label: {
-                        EventRow(event: event, myShift: shiftsByEventId[event.id])
+                        EventRow(event: event, myShift: shiftsByEventId[event.id], contextDay: calendar.startOfDay(for: selectedDate))
                     }
                     .buttonStyle(.plain)
                     .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
@@ -919,7 +929,29 @@ struct EventRow: View {
     /// Staff/admin see a crew fill chip ("2/3") so they can spot understaffed
     /// events from the list. Off for students — coverage triage is a staff job.
     var showCoverage: Bool = false
+    /// The day this row is rendered under. For a multi-day event it drives the
+    /// "Day n/m" marker and the segment-aware time line.
+    var contextDay: Date? = nil
     @State private var weatherData: EventWeatherData?
+
+    /// When this row represents one day of a multi-day event, its 1-based
+    /// position and the total span length.
+    private var segment: (index: Int, total: Int)? {
+        guard event.isMultiDay, let day = contextDay, let idx = event.dayIndex(for: day) else { return nil }
+        return (idx, event.dayCount)
+    }
+
+    /// Segment-aware time line: the first day shows the start, the last day the
+    /// end, interior days read "All day".
+    private var timeRowText: String {
+        if let seg = segment {
+            if event.allDay { return "All day" }
+            if seg.index == 1 { return "From \(event.startsAt.formatted(.dateTime.hour().minute()))" }
+            if seg.index == seg.total { return "Until \(event.endsAt.formatted(.dateTime.hour().minute()))" }
+            return "All day"
+        }
+        return event.allDay ? "All day" : eventTimeLabel
+    }
 
     private var eventDisplayTitle: String {
         var parts: [String] = []
@@ -964,6 +996,16 @@ struct EventRow: View {
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 0)
+                    if let seg = segment {
+                        Label("Day \(seg.index)/\(seg.total)", systemImage: "calendar.day.timeline.left")
+                            .labelStyle(.titleAndIcon)
+                            .font(.caption2.weight(.bold))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Color.statusBackground(.purple), in: Capsule())
+                            .foregroundStyle(Color.statusText(.purple))
+                            .fixedSize()
+                    }
                     if showCoverage, let cov = event.coverage, cov.total > 0 {
                         coverageChip(cov)
                     }
@@ -998,13 +1040,9 @@ struct EventRow: View {
                             TimeBlock(label: "EVENT", time: event.startsAt)
                             TimeBlock(label: "END", time: shift.endsAt)
                         }
-                    } else if !event.allDay {
-                        Text(eventTimeLabel)
+                    } else {
+                        Text(timeRowText)
                             .font(.caption.monospacedDigit())
-                            .foregroundStyle(.secondary)
-                    } else if event.allDay {
-                        Text("All day")
-                            .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }

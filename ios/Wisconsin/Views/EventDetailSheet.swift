@@ -442,6 +442,31 @@ struct EventDetailSheet: View {
 
     // MARK: - Event Header
 
+    /// Single day → "Saturday, June 14, 2026". Multi-day → "Sat, Jun 14 – Mon,
+    /// Jun 16, 2026" (drops the redundant start-year when both ends share one).
+    private var eventDateText: String {
+        guard event.isMultiDay else {
+            return event.startsAt.formatted(.dateTime.weekday(.wide).month(.wide).day().year())
+        }
+        let cal = Calendar.current
+        let endRef = event.allDay ? event.endsAt.addingTimeInterval(-1) : event.endsAt
+        let sameYear = cal.isDate(event.startsAt, equalTo: endRef, toGranularity: .year)
+        let start = event.startsAt.formatted(
+            sameYear ? .dateTime.weekday(.abbreviated).month(.abbreviated).day()
+                     : .dateTime.weekday(.abbreviated).month(.abbreviated).day().year()
+        )
+        let end = endRef.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().year())
+        return "\(start) – \(end)"
+    }
+
+    /// Times read as a same-day range; for multi-day they're labeled so they
+    /// don't look like one continuous block on a single day.
+    private var eventTimeText: String {
+        let start = event.startsAt.formatted(.dateTime.hour().minute())
+        let end = event.endsAt.formatted(.dateTime.hour().minute())
+        return event.isMultiDay ? "Starts \(start) · ends \(end)" : "\(start) – \(end)"
+    }
+
     private var eventHeader: some View {
         VStack(alignment: .leading, spacing: 10) {
             // Sport + home/away
@@ -470,19 +495,16 @@ struct EventDetailSheet: View {
             // Date + time
             VStack(alignment: .leading, spacing: 4) {
                 Label(
-                    event.startsAt.formatted(.dateTime.weekday(.wide).month(.wide).day().year()),
-                    systemImage: "calendar"
+                    eventDateText,
+                    systemImage: event.isMultiDay ? "calendar.day.timeline.left" : "calendar"
                 )
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
                 if !event.allDay {
-                    Label(
-                        "\(event.startsAt.formatted(.dateTime.hour().minute())) – \(event.endsAt.formatted(.dateTime.hour().minute()))",
-                        systemImage: "clock"
-                    )
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    Label(eventTimeText, systemImage: "clock")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
 
                 if let location = event.location {

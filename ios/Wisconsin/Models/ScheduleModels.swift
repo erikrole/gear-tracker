@@ -27,6 +27,47 @@ struct EventLocation: Codable, Identifiable {
     let name: String
 }
 
+// MARK: - Multi-day spans
+
+extension ScheduleEvent {
+    /// The reference end day for span math. All-day events carry an *exclusive*
+    /// end (next-midnight), so step back a second to land on the true last day.
+    private var spanEndDate: Date {
+        allDay ? endsAt.addingTimeInterval(-1) : endsAt
+    }
+
+    /// True when the event covers more than one calendar day.
+    var isMultiDay: Bool {
+        !Calendar.current.isDate(startsAt, inSameDayAs: spanEndDate)
+    }
+
+    /// Start-of-day for every calendar day the event covers, inclusive.
+    /// Single-day events return just their start day.
+    var spannedDays: [Date] {
+        let cal = Calendar.current
+        let start = cal.startOfDay(for: startsAt)
+        let end = cal.startOfDay(for: spanEndDate)
+        guard end > start else { return [start] }
+        var days: [Date] = []
+        var cursor = start
+        while cursor <= end {
+            days.append(cursor)
+            guard let next = cal.date(byAdding: .day, value: 1, to: cursor) else { break }
+            cursor = next
+        }
+        return days
+    }
+
+    var dayCount: Int { spannedDays.count }
+
+    /// 1-based position of `day` within the span (for "Day n of m"); nil if the
+    /// day isn't part of the span.
+    func dayIndex(for day: Date) -> Int? {
+        let cal = Calendar.current
+        return spannedDays.firstIndex { cal.isDate($0, inSameDayAs: day) }.map { $0 + 1 }
+    }
+}
+
 // MARK: - My Shifts
 
 struct MyShift: Codable, Identifiable {
