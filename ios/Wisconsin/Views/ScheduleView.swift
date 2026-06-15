@@ -167,6 +167,7 @@ struct ScheduleView: View {
                         ForEach(0..<6, id: \.self) { _ in
                             EventRowSkeleton()
                                 .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
                                 .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
                         }
                     }
@@ -194,7 +195,6 @@ struct ScheduleView: View {
                 } else {
                     VStack(spacing: 0) {
                         scheduleControlStrip
-                        Divider()
 
                         switch viewMode {
                         case .list:
@@ -402,7 +402,7 @@ struct ScheduleView: View {
         }
         .padding(.horizontal, Brand.Space.md)
         .padding(.vertical, Brand.Space.sm)
-        .background(.regularMaterial)
+        .background(Color(.systemGroupedBackground))
         .sensoryFeedback(.selection, trigger: viewMode)
         .sensoryFeedback(.selection, trigger: myShiftsOnly)
         .sensoryFeedback(.selection, trigger: vm.includePast)
@@ -431,24 +431,6 @@ struct ScheduleView: View {
         }
     }
 
-    /// Shared pill used by both the Home/Away and sport filter rows so they stay
-    /// visually identical.
-    @ViewBuilder
-    private func filterChip(_ label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(label)
-                .font(.caption.weight(.semibold))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(
-                    isSelected ? Color.accentColor : Color(.tertiarySystemFill),
-                    in: Capsule()
-                )
-                .foregroundStyle(isSelected ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
-        }
-        .buttonStyle(.plain)
-    }
-
     @ViewBuilder
     private var eventList: some View {
         if displayedGroups.isEmpty && myShiftsOnly {
@@ -464,7 +446,7 @@ struct ScheduleView: View {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 8) {
                                 ForEach(HomeAwayFilter.allCases, id: \.self) { filter in
-                                    filterChip(filter.rawValue, isSelected: homeAwayFilter == filter) {
+                                    FilterChip(label: filter.rawValue, isOn: homeAwayFilter == filter) {
                                         homeAwayFilter = filter
                                     }
                                 }
@@ -479,11 +461,11 @@ struct ScheduleView: View {
                         if availableSportCodes.count > 1 {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 8) {
-                                    filterChip("All Sports", isSelected: sportFilter == nil) {
+                                    FilterChip(label: "All Sports", isOn: sportFilter == nil) {
                                         sportFilter = nil
                                     }
                                     ForEach(availableSportCodes, id: \.self) { code in
-                                        filterChip(scheduleSportLabel(code), isSelected: sportFilter == code) {
+                                        FilterChip(label: scheduleSportLabel(code), isOn: sportFilter == code) {
                                             sportFilter = sportFilter == code ? nil : code
                                         }
                                     }
@@ -513,6 +495,7 @@ struct ScheduleView: View {
                             .buttonStyle(.plain)
                             .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
                             .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
                         }
                     } header: {
                         ScheduleDateHeader(date: group.date, eventCount: group.events.count)
@@ -970,10 +953,8 @@ struct EventRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            Rectangle()
-                .fill(barColor)
-                .frame(width: 3)
+        HStack(spacing: 12) {
+            StatusRail(color: barColor)
 
             VStack(alignment: .leading, spacing: 5) {
                 // Title row
@@ -1035,18 +1016,17 @@ struct EventRow: View {
                         .lineLimit(1)
                 }
             }
-            .padding(.leading, 12)
-            .padding(.vertical, 10)
-            .padding(.trailing, 12)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .background(.background)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .padding(.vertical, 12)
+        .padding(.horizontal, 14)
+        .background(Color.cardSurface)
+        .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .strokeBorder(Color(.separator).opacity(0.5), lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
+                .strokeBorder(Color.hairline, lineWidth: 0.5)
         )
-        .shadow(color: Color.primary.opacity(0.05), radius: 4, y: 2)
+        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 3)
         .task { weatherData = await EventWeatherService.shared.weather(for: event) }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(rowAccessibilityLabel)
