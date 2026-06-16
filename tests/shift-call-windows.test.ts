@@ -88,6 +88,23 @@ describe("shift call-window helpers", () => {
     expect(summary.title).toBe("Slot call window");
   });
 
+  it("suppresses all call-window labels when the owning event is all-day", () => {
+    const summary = summarizeEffectiveCallWindows([
+      {
+        startsAt: "2026-06-17T13:00:00.000Z",
+        endsAt: "2026-06-18T00:00:00.000Z",
+        source: "slot",
+      },
+      {
+        startsAt: "2026-06-17T14:00:00.000Z",
+        endsAt: "2026-06-17T18:00:00.000Z",
+        source: "assignment",
+      },
+    ], { hideAllDayEventWindows: true });
+
+    expect(summary).toEqual({ label: null, title: null, mixed: false });
+  });
+
   it("round-trips datetime-local values through ISO strings", () => {
     const localValue = toDateTimeLocalValue("2026-07-07T14:15:00.000Z");
     expect(localValue).toMatch(/^2026-07-07T\d{2}:15$/);

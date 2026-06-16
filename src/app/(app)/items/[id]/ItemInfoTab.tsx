@@ -53,7 +53,7 @@ function TextInputField({
   warnDuplicate,
 }: {
   label: string;
-  value: string;
+  value: string | null | undefined;
   placeholder?: string;
   canEdit: boolean;
   onSave: (v: string) => Promise<void>;
@@ -62,24 +62,25 @@ function TextInputField({
   /** If set, checks for duplicate values on blur via search API */
   warnDuplicate?: { field: "assetTag" | "serialNumber"; assetId: string };
 }) {
-  const [draft, setDraft] = useState(value);
+  const normalizedValue = value ?? "";
+  const [draft, setDraft] = useState(normalizedValue);
   const [dupWarning, setDupWarning] = useState("");
   const saveField = useSaveField(onSave);
   const fieldId = useId();
 
   useEffect(() => {
-    setDraft(value);
-  }, [value]);
+    setDraft(normalizedValue);
+  }, [normalizedValue]);
 
   async function checkDuplicate(val: string) {
-    if (!warnDuplicate || !val || val === value) { setDupWarning(""); return; }
+    if (!warnDuplicate || !val || val === normalizedValue) { setDupWarning(""); return; }
     try {
       const res = await fetch(`/api/assets?q=${encodeURIComponent(val)}&limit=5`);
       if (handleAuthRedirect(res)) return;
       if (!res.ok) return;
-      const json = await parseJsonSafely<{ data?: Array<{ id: string; assetTag: string; serialNumber: string }> }>(res);
+      const json = await parseJsonSafely<{ data?: Array<{ id: string; assetTag: string; serialNumber: string | null }> }>(res);
       const matches = (json?.data || []).filter(
-        (a: { id: string; assetTag: string; serialNumber: string }) =>
+        (a: { id: string; assetTag: string; serialNumber: string | null }) =>
           a.id !== warnDuplicate.assetId &&
           (warnDuplicate.field === "assetTag" ? a.assetTag === val : a.serialNumber === val)
       );
@@ -88,18 +89,18 @@ function TextInputField({
     } catch { /* ignore */ }
   }
 
-  const isDirty = draft.trim() !== value;
+  const isDirty = draft.trim() !== normalizedValue;
 
   async function commit() {
     if (saveField.isSaving) return;
     const trimmed = draft.trim();
-    if (trimmed === value) return;
+    if (trimmed === normalizedValue) return;
     await checkDuplicate(trimmed);
     await saveField.save(trimmed);
   }
 
   function cancel() {
-    setDraft(value);
+    setDraft(normalizedValue);
     saveField.reset();
     setDupWarning("");
   }
@@ -1026,7 +1027,7 @@ export function QRModal({
         <DialogHeader>
           <div>
             <DialogTitle>QR Code</DialogTitle>
-            <DialogDescription>Scan identity for {asset.assetTag}</DialogDescription>
+            <DialogDescription>Identity details for {asset.assetTag}</DialogDescription>
           </div>
         </DialogHeader>
         <DialogBody className="py-5">
@@ -1201,7 +1202,6 @@ export default function ItemInfoCard({
   onFieldSaved,
   onRefresh,
   onCategoriesChanged,
-  onDepartmentsChanged,
 }: {
   asset: AssetDetail;
   canEdit: boolean;
@@ -1212,7 +1212,6 @@ export default function ItemInfoCard({
   onFieldSaved: (updated: Partial<AssetDetail>) => void;
   onRefresh: () => void;
   onCategoriesChanged: () => void;
-  onDepartmentsChanged: () => void;
 }) {
   const [showQrModal, setShowQrModal] = useState(false);
   const [copiedScanValue, setCopiedScanValue] = useState<"qr" | "serial" | null>(null);
@@ -1362,7 +1361,7 @@ export default function ItemInfoCard({
                     label="Serial"
                     value={asset.serialNumber}
                     copied={copiedScanValue === "serial"}
-                    onCopy={() => copyScanValue("serial", asset.serialNumber)}
+                    onCopy={() => copyScanValue("serial", asset.serialNumber ?? "")}
                   />
                 )}
                 {asset.firmwareWatch && (

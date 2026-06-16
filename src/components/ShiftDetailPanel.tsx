@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { formatDateShort, formatTimeShort } from "@/lib/format";
+import { formatCalendarEventDateRange } from "@/lib/calendar-event-dates";
 import { sportLabel } from "@/lib/sports";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -80,6 +81,7 @@ type ShiftGroupDetail = {
     summary: string;
     startsAt: string;
     endsAt: string;
+    allDay: boolean;
     sportCode: string | null;
     isHome: boolean | null;
     opponent: string | null;
@@ -140,6 +142,11 @@ export default function ShiftDetailPanel({
   const [userSearch, setUserSearch] = useState("");
 
   const isStaff = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
+  const eventTimingLabel = group?.event.allDay
+    ? formatCalendarEventDateRange(group.event, { includeYear: true })
+    : group
+      ? `${formatDateShort(group.event.startsAt)} · ${formatTimeShort(group.event.startsAt)} - ${formatTimeShort(group.event.endsAt)}`
+      : "";
 
   /* ── Data fetching ── */
 
@@ -515,7 +522,7 @@ export default function ShiftDetailPanel({
                   <Badge variant="purple">{sportLabel(group.event.sportCode)}</Badge>
                 )}
                 <span className="text-sm text-muted-foreground">
-                  {formatDateShort(group.event.startsAt)} · {formatTimeShort(group.event.startsAt)} - {formatTimeShort(group.event.endsAt)}
+                  {eventTimingLabel}
                 </span>
               </div>
               {isStaff && (
@@ -539,6 +546,7 @@ export default function ShiftDetailPanel({
                   key={area}
                   area={area}
                   shifts={shifts}
+                  eventAllDay={group.event.allDay}
                   isStaff={isStaff}
                   currentUserId={currentUserId}
                   acting={acting}

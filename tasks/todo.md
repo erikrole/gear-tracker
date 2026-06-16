@@ -4,6 +4,20 @@ Last updated: 2026-06-16
 
 ---
 
+## Active: Laowa 10mm item detail crash trace (2026-06-16)
+
+- [x] Trace the items-list click path for the Laowa 10mm lens.
+- [x] Inspect the newly-created item row and compare it with working item rows.
+- [x] Identify whether the failure is route construction, API shape, data shape, or client rendering.
+- [x] Fix the smallest root cause if code is responsible.
+- [x] Verify with focused tests/build checks and browser/API proof where the environment allows.
+
+### Review
+- 2026-06-16: Root cause was client rendering, not route construction. Item detail treated `serialNumber` as a required string even though `Asset.serialNumber` is nullable; a newly-created Laowa 10mm lens with no serial number passed `null` into the Serial text field, which called `.trim()` during render and tripped the app error boundary. The shared item-detail text field now normalizes null/undefined values to an empty string, the detail type reflects nullable serial numbers, and the serial copy callback plus image-search seed helper are null-safe.
+- Verification: focused Vitest (`tests/item-detail-firmware-display.test.ts`, `tests/items-response-parsing.test.ts`, `tests/item-detail-actions-source.test.ts`), focused ESLint, `git diff --check`, and `npx next build` passed. `npx tsc --noEmit --pretty false` is still blocked only by the pre-existing `tests/bulk-unit-adjustment-routes.test.ts:171` undefined warning. Live Prisma/API proof for the real Laowa row could not run because this environment cannot reach the Neon database, even with approval.
+
+---
+
 ## Active: Event all-day call-window display cleanup (2026-06-16)
 
 - [x] Reproduce the visible issue from the screenshot: the event header shows the all-day date and a duplicate inherited `Call Jun 17, 12:00 AM - Jun 18, 12:00 AM` range.

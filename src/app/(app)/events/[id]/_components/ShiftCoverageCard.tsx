@@ -44,6 +44,7 @@ type Props = {
     locationParam: string;
     eventParam: string;
   };
+  eventAllDay?: boolean;
   onNudge: (assignmentId: string, userName: string) => void;
   onUpdated?: () => void;
 };
@@ -54,6 +55,7 @@ export function ShiftCoverageCard({
   currentUserRole,
   acting,
   linkParams,
+  eventAllDay = false,
   onNudge,
   onUpdated,
 }: Props) {
@@ -426,7 +428,7 @@ export function ShiftCoverageCard({
   }
 
   function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
-    return !isInheritedFullDayCallWindow(window);
+    return !eventAllDay && !isInheritedFullDayCallWindow(window);
   }
 
   // ── Staff table (grouped by area) ──

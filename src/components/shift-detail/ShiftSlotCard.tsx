@@ -18,7 +18,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { AlertTriangle, CheckIcon, MinusIcon, PlusIcon, XIcon } from "lucide-react";
 import { CallWindowEditor } from "./CallWindowEditor";
 import { UserAvatarPicker, type PickerUser } from "./UserAvatarPicker";
-import { effectiveCallWindow } from "@/lib/shift-call-windows";
+import { effectiveCallWindow, isInheritedFullDayCallWindow } from "@/lib/shift-call-windows";
 import { shiftWorkerSlotLabel } from "@/lib/shift-display";
 
 type ShiftUser = {
@@ -55,6 +55,7 @@ type Props = {
   endsAt: string;
   callStartsAt?: string | null;
   callEndsAt?: string | null;
+  eventAllDay?: boolean;
   activeAssignment: ShiftAssignment | null;
   pendingRequests: ShiftAssignment[];
   isStaff: boolean;
@@ -90,6 +91,7 @@ export function ShiftSlotCard({
   endsAt,
   callStartsAt,
   callEndsAt,
+  eventAllDay = false,
   activeAssignment,
   pendingRequests,
   isStaff,
@@ -117,6 +119,12 @@ export function ShiftSlotCard({
   const userHasRequested = pendingRequests.some((a) => a.user.id === currentUserId);
   const isMyAssignment = activeAssignment?.user.id === currentUserId;
   const shiftWindow = { startsAt, endsAt, callStartsAt, callEndsAt };
+  const slotWindow = effectiveCallWindow(shiftWindow);
+  const assignmentWindow = activeAssignment ? effectiveCallWindow(shiftWindow, activeAssignment) : null;
+  const showSlotWindow = !eventAllDay && !isInheritedFullDayCallWindow(slotWindow);
+  const showAssignmentWindow = Boolean(
+    assignmentWindow && !eventAllDay && !isInheritedFullDayCallWindow(assignmentWindow),
+  );
 
   const contextItems = (
     <ContextMenuContent className="w-48">
@@ -170,14 +178,16 @@ export function ShiftSlotCard({
               )}
               <Badge variant="gray" size="sm">{shiftWorkerSlotLabel(workerType)}</Badge>
             </div>
-            <CallWindowEditor
-              target={isStaff ? { type: "slot", id: shiftId } : undefined}
-              effectiveWindow={effectiveCallWindow(shiftWindow)}
-              overrideWindow={{ startsAt: callStartsAt ?? null, endsAt: callEndsAt ?? null }}
-              onSaved={onCallWindowSaved}
-              disabled={acting !== null}
-              compact
-            />
+            {showSlotWindow && (
+              <CallWindowEditor
+                target={isStaff ? { type: "slot", id: shiftId } : undefined}
+                effectiveWindow={slotWindow}
+                overrideWindow={{ startsAt: callStartsAt ?? null, endsAt: callEndsAt ?? null }}
+                onSaved={onCallWindowSaved}
+                disabled={acting !== null}
+                compact
+              />
+            )}
             {isStaff && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -236,16 +246,18 @@ export function ShiftSlotCard({
                   )}
                 </div>
               </div>
-              <div className="mt-1.5 pl-9">
-                <CallWindowEditor
-                  target={isStaff ? { type: "assignment", id: activeAssignment.id } : undefined}
-                  effectiveWindow={effectiveCallWindow(shiftWindow, activeAssignment)}
-                  overrideWindow={{ startsAt: activeAssignment.callStartsAt ?? null, endsAt: activeAssignment.callEndsAt ?? null }}
-                  onSaved={onCallWindowSaved}
-                  disabled={acting !== null}
-                  compact
-                />
-              </div>
+              {showAssignmentWindow && assignmentWindow && (
+                <div className="mt-1.5 pl-9">
+                  <CallWindowEditor
+                    target={isStaff ? { type: "assignment", id: activeAssignment.id } : undefined}
+                    effectiveWindow={assignmentWindow}
+                    overrideWindow={{ startsAt: activeAssignment.callStartsAt ?? null, endsAt: activeAssignment.callEndsAt ?? null }}
+                    onSaved={onCallWindowSaved}
+                    disabled={acting !== null}
+                    compact
+                  />
+                </div>
+              )}
 
               {/* Post for trade (own shift, student only) */}
               {!isStaff && onPostTrade && isMyAssignment && (

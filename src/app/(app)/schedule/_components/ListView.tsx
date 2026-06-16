@@ -156,7 +156,7 @@ function CoveragePill({ percentage, filled, total }: { percentage: number; fille
 function shiftCallSummary(entry: CalendarEntry) {
   return summarizeEffectiveCallWindows(
     entry.shifts.map((shift) => effectiveCallWindow(shift, activeShiftAssignment(shift))),
-    { hideInheritedFullDayWindows: true },
+    { hideAllDayEventWindows: entry.allDay, hideInheritedFullDayWindows: true },
   );
 }
 
@@ -249,6 +249,7 @@ function ShiftRowList({
         const slotWindow = effectiveCallWindow(shift);
         const assignmentWindow = activeAssignment ? effectiveCallWindow(shift, activeAssignment) : null;
         const visibleWindow = assignmentWindow ?? slotWindow;
+        const showCallWindows = !entry.allDay;
 
         return (
           <div
@@ -417,7 +418,7 @@ function ShiftRowList({
               <div className="flex min-w-0 flex-col items-start gap-1">
                 {isStaff ? (
                   <>
-                    {!isInheritedFullDayCallWindow(slotWindow) && (
+                    {showCallWindows && !isInheritedFullDayCallWindow(slotWindow) && (
                       <CallWindowEditor
                         target={{ type: "slot", id: shift.id }}
                         effectiveWindow={slotWindow}
@@ -427,7 +428,7 @@ function ShiftRowList({
                         compact
                       />
                     )}
-                    {activeAssignment && assignmentWindow && !isInheritedFullDayCallWindow(assignmentWindow) && (
+                    {showCallWindows && activeAssignment && assignmentWindow && !isInheritedFullDayCallWindow(assignmentWindow) && (
                       <CallWindowEditor
                         target={{ type: "assignment", id: activeAssignment.id }}
                         effectiveWindow={assignmentWindow}
@@ -438,7 +439,7 @@ function ShiftRowList({
                       />
                     )}
                   </>
-                ) : !isInheritedFullDayCallWindow(visibleWindow) ? (
+                ) : showCallWindows && !isInheritedFullDayCallWindow(visibleWindow) ? (
                   <CallWindowEditor
                     effectiveWindow={visibleWindow}
                     compact
@@ -449,7 +450,7 @@ function ShiftRowList({
               <div className="flex min-h-10 min-w-0 flex-col items-end justify-center gap-1">
                 {isStaff ? (
                   <>
-                    {!isInheritedFullDayCallWindow(slotWindow) && (
+                    {showCallWindows && !isInheritedFullDayCallWindow(slotWindow) && (
                       <CallWindowEditor
                         target={{ type: "slot", id: shift.id }}
                         effectiveWindow={slotWindow}
@@ -459,7 +460,7 @@ function ShiftRowList({
                         compact
                       />
                     )}
-                    {activeAssignment && assignmentWindow && !isInheritedFullDayCallWindow(assignmentWindow) && (
+                    {showCallWindows && activeAssignment && assignmentWindow && !isInheritedFullDayCallWindow(assignmentWindow) && (
                       <CallWindowEditor
                         target={{ type: "assignment", id: activeAssignment.id }}
                         effectiveWindow={assignmentWindow}
@@ -470,7 +471,7 @@ function ShiftRowList({
                       />
                     )}
                   </>
-                ) : !isInheritedFullDayCallWindow(visibleWindow) ? (
+                ) : showCallWindows && !isInheritedFullDayCallWindow(visibleWindow) ? (
                   <CallWindowEditor
                     effectiveWindow={visibleWindow}
                     compact

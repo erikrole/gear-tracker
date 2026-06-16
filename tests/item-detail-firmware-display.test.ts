@@ -39,4 +39,15 @@ describe("item detail firmware display", () => {
     expect(infoTab).toContain('saveField("metadata.installedFirmwareVersion", v)');
     expect(infoTab).toContain('timeZone: "UTC"');
   });
+
+  it("keeps nullable serialized fields render-safe on item detail", () => {
+    const types = source("src/app/(app)/items/[id]/types.ts");
+    const infoTab = source("src/app/(app)/items/[id]/ItemInfoTab.tsx");
+
+    expect(types).toContain("serialNumber: string | null;");
+    expect(infoTab).toContain("value: string | null | undefined;");
+    expect(infoTab).toContain("const normalizedValue = value ?? \"\";");
+    expect(infoTab).toContain("const isDirty = draft.trim() !== normalizedValue;");
+    expect(infoTab).toContain("value={asset.serialNumber}");
+  });
 });

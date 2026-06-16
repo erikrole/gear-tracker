@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
@@ -49,8 +48,8 @@ function serializeDetailTab(tab: TabKey): string | null {
 
 function buildImageSearchSeed(asset: AssetDetail) {
   const productName = asset.name?.trim() ?? "";
-  const brand = asset.brand.trim();
-  const model = asset.model.trim();
+  const brand = asset.brand?.trim() ?? "";
+  const model = asset.model?.trim() ?? "";
   const productLower = productName.toLowerCase();
   const metadata = [brand, model].filter((part) => part && !productLower.includes(part.toLowerCase()));
   return [productName, ...metadata].filter(Boolean).join(" ")
@@ -94,8 +93,6 @@ function SerializedItemDetailsPage({ id }: { id: string }) {
     now,
     loadAsset,
     loadCategories,
-    loadDepartments,
-    loadLocations,
     canEdit,
   } = useItemData(id);
 
@@ -291,7 +288,6 @@ function SerializedItemDetailsPage({ id }: { id: string }) {
               onRefresh={loadAsset}
               locations={locations}
               onCategoriesChanged={loadCategories}
-              onDepartmentsChanged={loadDepartments}
             />
           </div>
         </>

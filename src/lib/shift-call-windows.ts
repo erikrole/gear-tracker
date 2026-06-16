@@ -138,13 +138,15 @@ export function callWindowKey(window: Pick<EffectiveCallWindow, "startsAt" | "en
 
 export function summarizeEffectiveCallWindows(
   windows: EffectiveCallWindow[],
-  options: { hideInheritedFullDayWindows?: boolean } = {},
+  options: { hideAllDayEventWindows?: boolean; hideInheritedFullDayWindows?: boolean } = {},
 ): {
   label: string | null;
   title: string | null;
   mixed: boolean;
 } {
-  const visibleWindows = options.hideInheritedFullDayWindows
+  const visibleWindows = options.hideAllDayEventWindows
+    ? []
+    : options.hideInheritedFullDayWindows
     ? windows.filter((window) => !isInheritedFullDayCallWindow(window))
     : windows;
 

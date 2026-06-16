@@ -27,7 +27,7 @@ export type AssetDetail = {
   type: string;
   brand: string;
   model: string;
-  serialNumber: string;
+  serialNumber: string | null;
   qrCodeValue: string;
   purchaseDate: string | null;
   purchasePrice: string | number | null;
@@ -68,7 +68,7 @@ export type AssetDetail = {
     name: string | null;
     brand: string;
     model: string;
-    serialNumber: string;
+    serialNumber: string | null;
     status: string;
     type: string;
     imageUrl: string | null;
