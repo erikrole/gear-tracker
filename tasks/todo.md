@@ -13,7 +13,7 @@ Last updated: 2026-06-16
 - [x] Verify focused tests, typecheck status, whitespace, and build. Browser smoke was attempted but blocked because Neon was unreachable from this environment.
 
 ### Review
-- 2026-06-16: The double label was display duplication, not two separate operational call times. The header already owns the all-day event date; default shift and assignment call windows were inheriting the same exclusive all-day boundary and rendering it as midnight-to-midnight. Event detail now suppresses that inherited default window for all-day events, leaving the date-only event label and crew rows without the redundant time.
+- 2026-06-16: The double label was display duplication, not two separate operational call times. The event title cluster already owns the all-day event date; default shift and assignment call windows were inheriting the same local full-day boundary and rendering it as midnight-to-midnight. Event detail and schedule list now suppress inherited full-day default windows, leaving the date-only event label and crew rows without the redundant time.
 - Verification: `npx vitest run tests/shift-call-windows.test.ts tests/calendar-event-dates.test.ts`, focused `npx eslint`, `git diff --check`, `npm run db:migrate:check`, and `npx next build` passed. `npx tsc --noEmit --pretty false` remains blocked by the pre-existing `tests/bulk-unit-adjustment-routes.test.ts:171` undefined warning. Browser smoke could not reach the real event because both sandboxed and approved Prisma reads could not connect to Neon.
 
 ---

@@ -81,19 +81,26 @@ function sameLocalDay(startIso: string, endIso: string): boolean {
   );
 }
 
-export function isMidnightToMidnightWindow(window: Pick<EffectiveCallWindow, "startsAt" | "endsAt">): boolean {
+export function isFullDayBoundaryWindow(window: Pick<EffectiveCallWindow, "startsAt" | "endsAt">): boolean {
   const start = new Date(window.startsAt);
   const end = new Date(window.endsAt);
+  const durationMs = end.getTime() - start.getTime();
   return (
-    start.getUTCHours() === 0 &&
-    start.getUTCMinutes() === 0 &&
-    start.getUTCSeconds() === 0 &&
-    start.getUTCMilliseconds() === 0 &&
-    end.getUTCHours() === 0 &&
-    end.getUTCMinutes() === 0 &&
-    end.getUTCSeconds() === 0 &&
-    end.getUTCMilliseconds() === 0
+    durationMs > 0 &&
+    durationMs % (24 * 60 * 60 * 1000) === 0 &&
+    start.getHours() === 0 &&
+    start.getMinutes() === 0 &&
+    start.getSeconds() === 0 &&
+    start.getMilliseconds() === 0 &&
+    end.getHours() === 0 &&
+    end.getMinutes() === 0 &&
+    end.getSeconds() === 0 &&
+    end.getMilliseconds() === 0
   );
+}
+
+export function isInheritedFullDayCallWindow(window: EffectiveCallWindow): boolean {
+  return window.source === "default" && isFullDayBoundaryWindow(window);
 }
 
 export function formatCallWindow(window: Pick<EffectiveCallWindow, "startsAt" | "endsAt">): string {
@@ -131,14 +138,14 @@ export function callWindowKey(window: Pick<EffectiveCallWindow, "startsAt" | "en
 
 export function summarizeEffectiveCallWindows(
   windows: EffectiveCallWindow[],
-  options: { hideDefaultAllDayWindows?: boolean } = {},
+  options: { hideInheritedFullDayWindows?: boolean } = {},
 ): {
   label: string | null;
   title: string | null;
   mixed: boolean;
 } {
-  const visibleWindows = options.hideDefaultAllDayWindows
-    ? windows.filter((window) => !(window.source === "default" && isMidnightToMidnightWindow(window)))
+  const visibleWindows = options.hideInheritedFullDayWindows
+    ? windows.filter((window) => !isInheritedFullDayCallWindow(window))
     : windows;
 
   if (visibleWindows.length === 0) return { label: null, title: null, mixed: false };

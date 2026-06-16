@@ -25,7 +25,7 @@ import { CallWindowEditor } from "@/components/shift-detail/CallWindowEditor";
 import type { ShiftGroupSummary, CommandCenterData } from "../_utils";
 import { AREA_LABELS } from "../_utils";
 import { shiftWorkerLabel, shiftWorkerSlotLabel } from "@/lib/shift-display";
-import { effectiveCallWindow, isMidnightToMidnightWindow, type EffectiveCallWindow } from "@/lib/shift-call-windows";
+import { effectiveCallWindow, isInheritedFullDayCallWindow, type EffectiveCallWindow } from "@/lib/shift-call-windows";
 
 const AREAS = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS"] as const;
 
@@ -44,7 +44,6 @@ type Props = {
     locationParam: string;
     eventParam: string;
   };
-  eventAllDay?: boolean;
   onNudge: (assignmentId: string, userName: string) => void;
   onUpdated?: () => void;
 };
@@ -55,7 +54,6 @@ export function ShiftCoverageCard({
   currentUserRole,
   acting,
   linkParams,
-  eventAllDay = false,
   onNudge,
   onUpdated,
 }: Props) {
@@ -428,7 +426,7 @@ export function ShiftCoverageCard({
   }
 
   function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
-    return !(eventAllDay && window.source === "default" && isMidnightToMidnightWindow(window));
+    return !isInheritedFullDayCallWindow(window);
   }
 
   // ── Staff table (grouped by area) ──

@@ -38,7 +38,7 @@ import { handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } 
 import { cn } from "@/lib/utils";
 import { VENUE_TONES, venueToneFromEvent } from "@/lib/venue-tone";
 import { shiftWorkerLabel, shiftWorkerSlotLabel, type ShiftWorkerKind } from "@/lib/shift-display";
-import { effectiveCallWindow, summarizeEffectiveCallWindows } from "@/lib/shift-call-windows";
+import { effectiveCallWindow, isInheritedFullDayCallWindow, summarizeEffectiveCallWindows } from "@/lib/shift-call-windows";
 import type { CalendarEntry, Shift } from "./types";
 import {
   ACTIVE_STATUSES,
@@ -156,6 +156,7 @@ function CoveragePill({ percentage, filled, total }: { percentage: number; fille
 function shiftCallSummary(entry: CalendarEntry) {
   return summarizeEffectiveCallWindows(
     entry.shifts.map((shift) => effectiveCallWindow(shift, activeShiftAssignment(shift))),
+    { hideInheritedFullDayWindows: true },
   );
 }
 
@@ -245,6 +246,9 @@ function ShiftRowList({
         const emptyAssignAriaLabel = `Assign ${workerRoleLabel} to ${areaLabel}`;
         const isAddingShift = addingShiftId === shift.id;
         const isRemovingAssignment = Boolean(activeAssignment && removingAssignmentId === activeAssignment.id);
+        const slotWindow = effectiveCallWindow(shift);
+        const assignmentWindow = activeAssignment ? effectiveCallWindow(shift, activeAssignment) : null;
+        const visibleWindow = assignmentWindow ?? slotWindow;
 
         return (
           <div
@@ -413,18 +417,20 @@ function ShiftRowList({
               <div className="flex min-w-0 flex-col items-start gap-1">
                 {isStaff ? (
                   <>
-                    <CallWindowEditor
-                      target={{ type: "slot", id: shift.id }}
-                      effectiveWindow={effectiveCallWindow(shift)}
-                      overrideWindow={{ startsAt: shift.callStartsAt ?? null, endsAt: shift.callEndsAt ?? null }}
-                      onSaved={onCallWindowSaved}
-                      disabled={Boolean(addingShiftId || removingAssignmentId)}
-                      compact
-                    />
-                    {activeAssignment && (
+                    {!isInheritedFullDayCallWindow(slotWindow) && (
+                      <CallWindowEditor
+                        target={{ type: "slot", id: shift.id }}
+                        effectiveWindow={slotWindow}
+                        overrideWindow={{ startsAt: shift.callStartsAt ?? null, endsAt: shift.callEndsAt ?? null }}
+                        onSaved={onCallWindowSaved}
+                        disabled={Boolean(addingShiftId || removingAssignmentId)}
+                        compact
+                      />
+                    )}
+                    {activeAssignment && assignmentWindow && !isInheritedFullDayCallWindow(assignmentWindow) && (
                       <CallWindowEditor
                         target={{ type: "assignment", id: activeAssignment.id }}
-                        effectiveWindow={effectiveCallWindow(shift, activeAssignment)}
+                        effectiveWindow={assignmentWindow}
                         overrideWindow={{ startsAt: activeAssignment.callStartsAt ?? null, endsAt: activeAssignment.callEndsAt ?? null }}
                         onSaved={onCallWindowSaved}
                         disabled={Boolean(addingShiftId || removingAssignmentId)}
@@ -432,29 +438,31 @@ function ShiftRowList({
                       />
                     )}
                   </>
-                ) : (
+                ) : !isInheritedFullDayCallWindow(visibleWindow) ? (
                   <CallWindowEditor
-                    effectiveWindow={effectiveCallWindow(shift, activeAssignment)}
+                    effectiveWindow={visibleWindow}
                     compact
                   />
-                )}
+                ) : null}
               </div>
             ) : (
               <div className="flex min-h-10 min-w-0 flex-col items-end justify-center gap-1">
                 {isStaff ? (
                   <>
-                    <CallWindowEditor
-                      target={{ type: "slot", id: shift.id }}
-                      effectiveWindow={effectiveCallWindow(shift)}
-                      overrideWindow={{ startsAt: shift.callStartsAt ?? null, endsAt: shift.callEndsAt ?? null }}
-                      onSaved={onCallWindowSaved}
-                      disabled={Boolean(addingShiftId || removingAssignmentId)}
-                      compact
-                    />
-                    {activeAssignment && (
+                    {!isInheritedFullDayCallWindow(slotWindow) && (
+                      <CallWindowEditor
+                        target={{ type: "slot", id: shift.id }}
+                        effectiveWindow={slotWindow}
+                        overrideWindow={{ startsAt: shift.callStartsAt ?? null, endsAt: shift.callEndsAt ?? null }}
+                        onSaved={onCallWindowSaved}
+                        disabled={Boolean(addingShiftId || removingAssignmentId)}
+                        compact
+                      />
+                    )}
+                    {activeAssignment && assignmentWindow && !isInheritedFullDayCallWindow(assignmentWindow) && (
                       <CallWindowEditor
                         target={{ type: "assignment", id: activeAssignment.id }}
-                        effectiveWindow={effectiveCallWindow(shift, activeAssignment)}
+                        effectiveWindow={assignmentWindow}
                         overrideWindow={{ startsAt: activeAssignment.callStartsAt ?? null, endsAt: activeAssignment.callEndsAt ?? null }}
                         onSaved={onCallWindowSaved}
                         disabled={Boolean(addingShiftId || removingAssignmentId)}
@@ -462,12 +470,12 @@ function ShiftRowList({
                       />
                     )}
                   </>
-                ) : (
+                ) : !isInheritedFullDayCallWindow(visibleWindow) ? (
                   <CallWindowEditor
-                    effectiveWindow={effectiveCallWindow(shift, activeAssignment)}
+                    effectiveWindow={visibleWindow}
                     compact
                   />
-                )}
+                ) : null}
               </div>
             )}
 

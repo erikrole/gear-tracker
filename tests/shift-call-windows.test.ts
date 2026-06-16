@@ -62,13 +62,15 @@ describe("shift call-window helpers", () => {
   });
 
   it("hides inherited midnight-to-midnight windows for all-day event chrome", () => {
+    const startsAt = new Date(2026, 5, 17).toISOString();
+    const endsAt = new Date(2026, 5, 18).toISOString();
     const summary = summarizeEffectiveCallWindows([
       {
-        startsAt: "2026-06-17T00:00:00.000Z",
-        endsAt: "2026-06-18T00:00:00.000Z",
+        startsAt,
+        endsAt,
         source: "default",
       },
-    ], { hideDefaultAllDayWindows: true });
+    ], { hideInheritedFullDayWindows: true });
 
     expect(summary).toEqual({ label: null, title: null, mixed: false });
   });
@@ -80,7 +82,7 @@ describe("shift call-window helpers", () => {
         endsAt: "2026-06-17T18:00:00.000Z",
         source: "slot",
       },
-    ], { hideDefaultAllDayWindows: true });
+    ], { hideInheritedFullDayWindows: true });
 
     expect(summary.label).toContain("Call");
     expect(summary.title).toBe("Slot call window");
