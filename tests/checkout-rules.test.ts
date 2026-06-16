@@ -117,12 +117,14 @@ describe("canPerformBookingAction", () => {
       expect(result.reason).toContain("staff or admin");
     });
 
-    it("allows owner to checkin", () => {
-      expect(canPerformBookingAction(owner, booking, "checkin").allowed).toBe(true);
+    it("denies app/web checkin because returns are kiosk-only", () => {
+      const result = canPerformBookingAction(owner, booking, "checkin");
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toContain("checkin");
     });
 
-    it("allows staff to checkin", () => {
-      expect(canPerformBookingAction(staff, booking, "checkin").allowed).toBe(true);
+    it("denies staff app/web checkin because returns are kiosk-only", () => {
+      expect(canPerformBookingAction(staff, booking, "checkin").allowed).toBe(false);
     });
 
     it("denies non-owner student from checking in", () => {
@@ -155,7 +157,7 @@ describe("getAllowedActions", () => {
     expect(actions).toContain("edit");
     expect(actions).toContain("extend");
     expect(actions).toContain("cancel");
-    expect(actions).toContain("checkin");
+    expect(actions).not.toContain("checkin");
     expect(actions).not.toContain("open");
   });
 

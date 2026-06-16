@@ -21,7 +21,7 @@ type Props = {
   canCheckin: boolean;
   checkinLoading: boolean;
   onEnterEquipEditMode: () => void;
-  onCheckinItem: (assetId: string) => void;
+  onCheckinItem?: (assetId: string) => void;
 };
 
 export default function BookingItems({
@@ -90,7 +90,7 @@ export default function BookingItems({
                       {item.asset.serialNumber && ` · ${item.asset.serialNumber}`}
                     </div>
                   </div>
-                  {canCheckin && (
+                  {canCheckin && onCheckinItem && (
                     <div className="shrink-0">
                       {isReturned ? (
                         <CheckCircle2 className="size-4 text-green-600" />

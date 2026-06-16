@@ -4,6 +4,27 @@ Last updated: 2026-06-15
 
 ---
 
+## Active: Kiosk-only custody contract (2026-06-15)
+
+Plan: `tasks/kiosk-only-custody-plan.md`
+
+- [x] Capture the product decision: app/web cannot check out or return gear; only kiosk custody flows can.
+- [x] Ground the plan in current checkout, reservation, scan, kiosk, and schema contracts.
+- [x] Decide the source-reservation close state when kiosk pickup creates the active checkout.
+- [x] Slice 1: Contract docs and decision sync.
+- [x] Slice 2: Server-side custody boundary enforcement.
+- [x] Slice 3: Web/app affordance removal and reservation-first creation.
+- [ ] Slice 4: Kiosk reservation pickup path.
+- [ ] Slice 5: Reporting, search, wording, tests, and browser/iOS verification.
+
+### Review
+- 2026-06-15: Product direction is now explicit: checkout in its current web/app form is eliminated. If a user is not physically at a kiosk picking gear up, they reserve gear. Direct immediate checkout remains kiosk-only. Return remains kiosk-only. `PENDING_PICKUP` may survive as a derived waiting state once a reservation reaches its start window but has not yet been collected, not as a web/app-created custody path.
+- 2026-06-15: Slice 1 synced the durable contract into `DECISIONS.md`, checkout/reservation/kiosk/scan area docs, and `GAPS_AND_RISKS.md`. Source reservations fulfilled by kiosk pickup should close as `COMPLETED`, preserving `sourceReservationId` on the linked checkout.
+- 2026-06-15: Slice 2 shipped the server boundary: regular authenticated checkout creation, reservation conversion, checkout pickup completion, check-in completion, item/bulk returns, and custody scan-session starts now return kiosk-boundary errors. Focused Vitest coverage passed; TypeScript still stops on the pre-existing `tests/bulk-unit-adjustment-routes.test.ts:171` warning.
+- 2026-06-15: Slice 3 removed non-kiosk checkout creation, conversion, and return affordances from web and native non-kiosk surfaces. Dashboard, item detail, bookings, event missing-gear, and `/checkouts/new` now route remote booking creation to reservations; checkout detail/list views remain for active custody and history.
+
+---
+
 ## Active: iOS hand-scanner debugger (2026-06-15)
 
 - [x] Add a staff/admin Settings -> Tools entry for scanner debugging.

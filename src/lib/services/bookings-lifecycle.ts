@@ -26,6 +26,7 @@ import {
 
 type CreateBookingInput = {
   kind: BookingKind;
+  custodySource?: "KIOSK";
   title: string;
   requesterUserId: string;
   locationId: string;
@@ -100,6 +101,12 @@ function assertValidCreateEquipment(serializedAssetIds: string[], bulkItems: Bul
   }
 }
 
+function assertCheckoutCustodySource(input: CreateBookingInput) {
+  if (input.kind === BookingKind.CHECKOUT && input.custodySource !== "KIOSK") {
+    throw new HttpError(403, "Direct checkout custody can only be created at a kiosk");
+  }
+}
+
 function prismaErrorText(error: unknown) {
   const message = error instanceof Error ? error.message : "";
   const meta = typeof error === "object" && error && "meta" in error
@@ -143,6 +150,7 @@ function isBookingAllocationConstraintError(error: unknown) {
 export async function createBooking(input: CreateBookingInput) {
   assertValidBookingWindow(input.startsAt, input.endsAt);
   assertValidCreateEventLinks(input);
+  assertCheckoutCustodySource(input);
 
   try {
     return await db.$transaction(
@@ -312,11 +320,11 @@ export async function createBooking(input: CreateBookingInput) {
         },
       });
 
-      // Cancel the source reservation atomically within the same transaction
+      // Fulfill the source reservation atomically within the same transaction.
       if (input.sourceReservationId) {
         await tx.booking.update({
           where: { id: input.sourceReservationId },
-          data: { status: BookingStatus.CANCELLED }
+          data: { status: BookingStatus.COMPLETED, completedAt: new Date() }
         });
 
         await tx.assetAllocation.updateMany({
@@ -334,7 +342,7 @@ export async function createBooking(input: CreateBookingInput) {
           actorRole,
           entityType: "booking",
           entityId: input.sourceReservationId,
-          action: "cancelled_by_checkout_conversion",
+          action: "fulfilled_by_kiosk_pickup",
           after: { convertedToCheckoutId: booking.id },
         });
       }

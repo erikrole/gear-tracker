@@ -1,34 +1,37 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import {
-  getBookingCancelCopy,
-  getReservationConvertCopy,
-} from "@/hooks/booking-action-copy";
+import { getBookingCancelCopy } from "@/hooks/booking-action-copy";
 
 function sourceFor(relativeFile: string) {
   return readFileSync(path.join(process.cwd(), relativeFile), "utf8");
 }
 
 describe("booking detail custody contracts", () => {
-  it("keeps full-detail bulk returns out of the desktop booking page", () => {
+  it("keeps web return controls out of the desktop booking page and equipment tab", () => {
     const detailSource = sourceFor("src/app/(app)/bookings/BookingDetailPage.tsx");
     const equipmentSource = sourceFor("src/app/(app)/bookings/BookingEquipmentTab.tsx");
+    const actionSource = sourceFor("src/hooks/useBookingActions.ts");
 
     expect(detailSource).not.toContain("onCheckinBulk={actions.checkinBulk}");
-    expect(equipmentSource).toContain("!!onCheckinBulk");
-    expect(equipmentSource).toContain("Return All");
+    expect(detailSource).not.toContain("actions.completeCheckin");
+    expect(equipmentSource).not.toContain("onCheckinBulk");
+    expect(equipmentSource).not.toContain("Return All");
+    expect(actionSource).not.toContain("/checkin-items");
+    expect(actionSource).not.toContain("/checkin-bulk");
+    expect(actionSource).not.toContain("/complete-checkin");
   });
 
-  it("describes reservation conversion as a pending pickup, not active custody", () => {
-    expect(getReservationConvertCopy("Lens weekend")).toEqual({
-      title: "Start checkout from reservation?",
-      message: 'Create a pending pickup from "Lens weekend". The reservation closes, and gear custody still begins at kiosk pickup.',
-      confirmLabel: "Start checkout",
-      success: "Checkout pending pickup",
-      successDescription: "Open the checkout to complete pickup at the kiosk.",
-      missingLinkError: "Checkout started, but the response did not include a checkout link. Refresh the page.",
-    });
+  it("keeps reservation-to-checkout conversion out of web detail surfaces", () => {
+    const detailSource = sourceFor("src/app/(app)/bookings/BookingDetailPage.tsx");
+    const sheetSource = sourceFor("src/components/BookingDetailsSheet.tsx");
+    const actionSource = sourceFor("src/hooks/useBookingActions.ts");
+
+    expect(detailSource).not.toContain("actions.convert");
+    expect(detailSource).not.toContain("Start checkout");
+    expect(sheetSource).not.toContain("/api/reservations/${booking.id}/convert");
+    expect(sheetSource).not.toContain("Start checkout");
+    expect(actionSource).not.toContain("/api/reservations/${bookingId}/convert");
   });
 
   it("names cancellation as an irreversible release of equipment commitments", () => {

@@ -4,20 +4,41 @@ import UIKit
 struct KioskSuccessView: View {
     @Environment(KioskStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    let message: String
+    let info: KioskSuccessInfo
     @State private var countdown = 5
+
+    private var accent: Color {
+        switch info.kind {
+        case .checkout: return Color.kioskRed
+        case .returned: return Color.statusText(.green)
+        case .pickup:   return Color.statusText(.orange)
+        }
+    }
 
     var body: some View {
         VStack(spacing: 32) {
             Spacer()
 
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 96))
-                .foregroundStyle(Color.statusText(.green))
-                .symbolEffect(.bounce, options: reduceMotion ? .nonRepeating.speed(0) : .nonRepeating)
-                .accessibilityHidden(true)
+            ZStack(alignment: .bottomTrailing) {
+                Image(systemName: info.kind.icon)
+                    .font(.system(size: 96))
+                    .foregroundStyle(accent)
+                    .symbolEffect(.bounce, options: reduceMotion ? .nonRepeating.speed(0) : .nonRepeating)
 
-            Text(message)
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 34))
+                    .foregroundStyle(Color.statusText(.green))
+                    .background(KioskSurface.base, in: Circle())
+                    .offset(x: 8, y: 8)
+            }
+            .accessibilityHidden(true)
+
+            Text(info.kind.label.uppercased())
+                .font(.headline.weight(.bold))
+                .tracking(2)
+                .foregroundStyle(accent)
+
+            Text(info.message)
                 .font(.kioskSuccessTitle())
                 .foregroundStyle(KioskText.primary)
                 .multilineTextAlignment(.center)
@@ -48,11 +69,11 @@ struct KioskSuccessView: View {
         .contentShape(Rectangle())
         .onTapGesture { skip() }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Success: \(message)")
+        .accessibilityLabel("\(info.kind.label): \(info.message)")
         .accessibilityAddTraits(.isHeader)
         .task {
             Haptics.success()
-            UIAccessibility.post(notification: .announcement, argument: "Success. \(message)")
+            UIAccessibility.post(notification: .announcement, argument: "\(info.kind.label). \(info.message)")
             for i in stride(from: 4, through: 0, by: -1) {
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
                 if Task.isCancelled { return }

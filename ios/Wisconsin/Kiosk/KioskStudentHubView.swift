@@ -14,9 +14,7 @@ struct KioskStudentHubView: View {
             topBar
 
             if isLoading && context == nil {
-                Spacer()
-                ProgressView().tint(KioskText.primary)
-                Spacer()
+                loadingSkeleton
             } else if let error, context == nil {
                 Spacer()
                 errorState(message: error)
@@ -87,48 +85,81 @@ struct KioskStudentHubView: View {
     // MARK: - Action Panel
 
     private var actionPanel: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 16) {
             Text("What do you need?")
                 .font(.title3.bold())
                 .foregroundStyle(KioskText.primary)
 
-            ActionButton(
-                title: "Checkout Gear",
-                subtitle: "Scan items to check out",
-                icon: "arrow.up.circle.fill",
-                color: Color.kioskRed
-            ) {
-                store.screen = .checkout(user: user)
-            }
-
-            if let pickups = context?.pendingPickups, !pickups.isEmpty {
-                ForEach(pickups) { pickup in
+            // A student with several open checkouts/pickups would otherwise push
+            // the lower actions off-screen — keep the list scrollable.
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
                     ActionButton(
-                        title: "Pickup: \(pickup.title)",
-                        subtitle: pickupSubtitle(pickup),
-                        icon: "tray.and.arrow.down.fill",
-                        color: Color.statusText(.orange)
+                        title: "Checkout Gear",
+                        subtitle: "Scan items to check out",
+                        icon: "arrow.up.circle.fill",
+                        color: Color.kioskRed
                     ) {
-                        store.screen = .pickup(bookingId: pickup.id, userId: user.id)
+                        store.screen = .checkout(user: user)
+                    }
+
+                    if let pickups = context?.pendingPickups, !pickups.isEmpty {
+                        ForEach(pickups) { pickup in
+                            ActionButton(
+                                title: "Pickup: \(pickup.title)",
+                                subtitle: pickupSubtitle(pickup),
+                                icon: "tray.and.arrow.down.fill",
+                                color: Color.statusText(.orange)
+                            ) {
+                                store.screen = .pickup(bookingId: pickup.id, userId: user.id)
+                            }
+                        }
+                    }
+
+                    if let checkouts = context?.checkouts, !checkouts.isEmpty {
+                        ForEach(checkouts) { checkout in
+                            ActionButton(
+                                title: "Return: \(checkout.title)",
+                                subtitle: checkoutSubtitle(checkout),
+                                icon: "arrow.down.circle.fill",
+                                color: checkout.isOverdue ? Color.statusText(.red) : Color.statusText(.blue)
+                            ) {
+                                store.screen = .return(bookingId: checkout.id, userId: user.id)
+                            }
+                        }
                     }
                 }
+                .padding(.bottom, 8)
             }
-
-            if let checkouts = context?.checkouts, !checkouts.isEmpty {
-                ForEach(checkouts) { checkout in
-                    ActionButton(
-                        title: "Return: \(checkout.title)",
-                        subtitle: checkoutSubtitle(checkout),
-                        icon: "arrow.down.circle.fill",
-                        color: checkout.isOverdue ? Color.statusText(.red) : Color.statusText(.blue)
-                    ) {
-                        store.screen = .return(bookingId: checkout.id, userId: user.id)
-                    }
-                }
-            }
-
-            Spacer()
+            .scrollIndicators(.visible)
         }
+    }
+
+    private var loadingSkeleton: some View {
+        HStack(alignment: .top, spacing: 0) {
+            VStack(alignment: .leading, spacing: 18) {
+                KioskSkeletonBox(cornerRadius: 8).frame(width: 200, height: 26)
+                ForEach(0..<3, id: \.self) { _ in
+                    KioskSkeletonBox(cornerRadius: KioskRadius.lg).frame(height: 76)
+                }
+                Spacer()
+            }
+            .frame(maxWidth: .infinity)
+            .padding(24)
+
+            Divider().background(KioskStroke.divider)
+
+            VStack(alignment: .leading, spacing: 14) {
+                KioskSkeletonBox(cornerRadius: 8).frame(width: 140, height: 22)
+                ForEach(0..<2, id: \.self) { _ in
+                    KioskSkeletonBox(cornerRadius: KioskRadius.sm).frame(height: 52)
+                }
+                Spacer()
+            }
+            .frame(maxWidth: .infinity)
+            .padding(24)
+        }
+        .accessibilityLabel("Loading your gear")
     }
 
     private func pickupSubtitle(_ pickup: KioskPendingPickup) -> String {

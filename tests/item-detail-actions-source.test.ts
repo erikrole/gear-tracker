@@ -4,21 +4,22 @@ import { describe, expect, it } from "vitest";
 const HEADER_SOURCE = "src/app/(app)/items/[id]/_components/ItemHeader.tsx";
 
 describe("item detail header booking actions", () => {
-  it("gates new bookings on the AVAILABLE derived status", () => {
+  it("gates new reservations on the AVAILABLE derived status", () => {
     const source = readFileSync(HEADER_SOURCE, "utf8");
 
-    // Reserve and Check out only start when current status is AVAILABLE,
-    // matching server-side booking validation in availability.ts.
+    // Reserve only starts when current status is AVAILABLE, matching
+    // server-side booking validation in availability.ts.
     expect(source).toContain('const isAvailable = asset.computedStatus === "AVAILABLE"');
     expect(source).toContain("const canReserve = asset.availableForReservation && isAvailable");
-    expect(source).toContain("const canCheckOut = asset.availableForCheckout && isAvailable");
+    expect(source).not.toContain("const canCheckOut");
   });
 
-  it("keeps the enabled Reserve and Check out links pointing at newFor flows", () => {
+  it("keeps Reserve as the only item-level newFor flow", () => {
     const source = readFileSync(HEADER_SOURCE, "utf8");
 
     expect(source).toContain("/reservations?newFor=${asset.id}");
-    expect(source).toContain("/checkouts?newFor=${asset.id}");
+    expect(source).not.toContain("/checkouts?newFor=${asset.id}");
+    expect(source).not.toContain(">Check out<");
   });
 
   it("names the maintenance and retired blockers in disabled reserve copy", () => {
@@ -29,11 +30,11 @@ describe("item detail header booking actions", () => {
     expect(source).toContain("title={reserveDisabledTitle}");
   });
 
-  it("names the maintenance and retired blockers in disabled check out copy", () => {
+  it("does not keep disabled check out copy in the item header", () => {
     const source = readFileSync(HEADER_SOURCE, "utf8");
 
-    expect(source).toContain("Maintenance items cannot be checked out");
-    expect(source).toContain("Retired items cannot be checked out");
-    expect(source).toContain("title={checkOutDisabledTitle}");
+    expect(source).not.toContain("Maintenance items cannot be checked out");
+    expect(source).not.toContain("Retired items cannot be checked out");
+    expect(source).not.toContain("title={checkOutDisabledTitle}");
   });
 });

@@ -75,7 +75,7 @@ Values: `ACTIVE`, `MAINTENANCE`, `UNKNOWN`
 
 ## Model `User`
 
-Fields: 63
+Fields: 64
 
 - `id                   String                     @id @default(cuid())`
 - `name                 String`
@@ -85,6 +85,7 @@ Fields: 63
 - `role                 Role`
 - `active               Boolean                    @default(true)`
 - `phone                String?`
+- `wiscardNumber        String?                    @unique @map("wiscard_number")`
 - `slackHandle          String?                    @map("slack_handle")`
 - `slackProfileUrl      String?                    @map("slack_profile_url")`
 - `avatarUrl            String?                    @map("avatar_url")`
@@ -572,24 +573,27 @@ Indexes and constraints:
 
 ## Model `ScanEvent`
 
-Fields: 16
+Fields: 19
 
-- `id            String    @id @default(cuid())`
-- `bookingId     String    @map("booking_id")`
-- `actorUserId   String    @map("actor_user_id")`
-- `scanType      ScanType  @map("scan_type")`
-- `scanValue     String    @map("scan_value")`
-- `success       Boolean`
-- `phase         ScanPhase`
-- `assetId       String?   @map("asset_id")`
-- `bulkSkuId     String?   @map("bulk_sku_id")`
-- `quantity      Int?`
-- `deviceContext String?   @map("device_context")`
-- `createdAt     DateTime  @default(now()) @map("created_at")`
-- `booking       Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)`
-- `actor         User      @relation(fields: [actorUserId], references: [id], onDelete: Restrict)`
-- `asset         Asset?    @relation(fields: [assetId], references: [id], onDelete: SetNull)`
-- `bulkSku       BulkSku?  @relation(fields: [bulkSkuId], references: [id], onDelete: SetNull)`
+- `id                 String    @id @default(cuid())`
+- `bookingId          String    @map("booking_id")`
+- `actorUserId        String    @map("actor_user_id")`
+- `scanType           ScanType  @map("scan_type")`
+- `scanValue          String    @map("scan_value")`
+- `success            Boolean`
+- `phase              ScanPhase`
+- `assetId            String?   @map("asset_id")`
+- `bulkSkuId          String?   @map("bulk_sku_id")`
+- `quantity           Int?`
+- `deviceContext      String?   @map("device_context")`
+- `locationMismatch   Boolean   @default(false) @map("location_mismatch")`
+- `expectedLocationId String?   @map("expected_location_id")`
+- `actualLocationId   String?   @map("actual_location_id")`
+- `createdAt          DateTime  @default(now()) @map("created_at")`
+- `booking            Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)`
+- `actor              User      @relation(fields: [actorUserId], references: [id], onDelete: Restrict)`
+- `asset              Asset?    @relation(fields: [assetId], references: [id], onDelete: SetNull)`
+- `bulkSku            BulkSku?  @relation(fields: [bulkSkuId], references: [id], onDelete: SetNull)`
 
 Indexes and constraints:
 

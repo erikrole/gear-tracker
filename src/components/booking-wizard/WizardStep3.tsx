@@ -7,7 +7,6 @@ import { AssetImage } from "@/components/AssetImage";
 import {
   AlertCircleIcon,
   CalendarIcon,
-  Clock3Icon,
 } from "lucide-react";
 import { sportLabel } from "@/lib/sports";
 import { VENUE_TONES, venueBadgeVariant, venueToneFromIsHome } from "@/lib/venue-tone";
@@ -20,7 +19,7 @@ import { MAX_SCROLL_HEIGHT } from "./constants";
 import { buildAvailabilityReview, getTurnaroundWarningTotal } from "./flow-summary";
 
 type WizardConfig = {
-  kind: "CHECKOUT" | "RESERVATION";
+  kind: "RESERVATION";
   label: string;
   requesterLabel: string;
   startLabel: string;
@@ -80,7 +79,6 @@ export function WizardStep3({
 }: Props) {
   const locationName = locations.find((l) => l.id === form.locationId)?.name || "";
   const requester = users.find((u) => u.id === form.requester);
-  const isCheckout = config.kind === "CHECKOUT";
   const requesterName = requester?.name || "the requester";
   const availabilityReview = buildAvailabilityReview(selectionState);
   const turnaroundCount = getTurnaroundWarningTotal(selectionState);
@@ -94,7 +92,7 @@ export function WizardStep3({
     : null;
   const primaryWindowLabel = linkedAllDayWindowLabel ?? formatDateTime(form.startsAt);
   const secondaryWindowLabel = linkedAllDayWindowLabel ? null : (
-    isCheckout ? `Return by ${formatDateTime(form.endsAt)}` : `Ends ${formatDateTime(form.endsAt)}`
+    `Ends ${formatDateTime(form.endsAt)}`
   );
 
   const bulkDisplay = selectedBulkItems.map((bi) => {
@@ -107,18 +105,9 @@ export function WizardStep3({
       <div className="mx-auto w-full max-w-3xl rounded-2xl border border-border/35 bg-background/60 px-5 py-8 text-center shadow-[0_12px_50px_rgba(0,0,0,0.05)] dark:shadow-none md:px-10">
         <div className="mx-auto flex max-w-xl flex-col items-center">
           <div
-            className={
-              isCheckout
-                ? "flex size-12 shrink-0 items-center justify-center rounded-xl bg-[var(--orange-bg)] text-[var(--orange-text)]"
-                : "flex size-12 shrink-0 items-center justify-center rounded-xl bg-[var(--purple-bg)] text-[var(--purple-text)]"
-            }
+            className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-[var(--purple-bg)] text-[var(--purple-text)]"
           >
-            {isCheckout ? (
-              <Clock3Icon className="size-6" />
-            ) : (
-              // Canonical kind icon per docs/COLOR_SYSTEM.md: reservation = calendar
-              <CalendarIcon className="size-6" />
-            )}
+            <CalendarIcon className="size-6" />
           </div>
           <h2 className="mt-5 text-2xl font-semibold tracking-tight text-balance">
             Review your {config.label}
@@ -138,8 +127,8 @@ export function WizardStep3({
 
           <div className="mt-7 w-full max-w-lg divide-y divide-border/70 border-y border-border/70">
             <SummaryRow label="Status">
-              <Badge variant={isCheckout ? "orange" : "purple"} size="sm">
-                {isCheckout ? "Pending pickup" : "Reserved"}
+              <Badge variant="purple" size="sm">
+                Reserved
               </Badge>
             </SummaryRow>
             {form.selectedEvents.length > 0 && (
@@ -268,17 +257,6 @@ export function WizardStep3({
           </div>
         )}
       </div>
-
-      {/* ── Kiosk pickup notice (CHECKOUT only) ── */}
-      {config.kind === "CHECKOUT" && (
-        <Alert className="mx-auto w-full max-w-3xl">
-          <Clock3Icon />
-          <AlertTitle>Pickup is not complete yet</AlertTitle>
-          <AlertDescription>
-            Scan at kiosk before custody starts.
-          </AlertDescription>
-        </Alert>
-      )}
     </div>
   );
 }

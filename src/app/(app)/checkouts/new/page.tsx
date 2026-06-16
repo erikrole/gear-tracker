@@ -1,35 +1,19 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { Suspense } from "react";
-import { BookingWizard } from "@/components/booking-wizard/BookingWizard";
-import { Skeleton } from "@/components/ui/skeleton";
-
-function WizardSkeleton() {
-  return (
-    <div className="mx-auto max-w-4xl space-y-6 px-4 py-8 md:py-12">
-      <div className="flex flex-col items-center gap-3">
-        <Skeleton className="h-5 w-20 rounded-full" />
-        <Skeleton className="h-9 w-72" />
-      </div>
-      <div className="flex justify-center gap-2">
-        <Skeleton className="h-8 w-24 rounded-full" />
-        <Skeleton className="h-8 w-24 rounded-full" />
-        <Skeleton className="h-8 w-24 rounded-full" />
-      </div>
-      <div className="mt-8 space-y-4">
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
-      </div>
-    </div>
-  );
-}
-
-export default function NewCheckoutPage() {
-  return (
-    <Suspense fallback={<WizardSkeleton />}>
-      <BookingWizard kind="CHECKOUT" />
-    </Suspense>
-  );
+export default async function NewCheckoutPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(sp)) {
+    if (typeof value === "string") {
+      params.set(key, value);
+    } else if (Array.isArray(value)) {
+      value.forEach((entry) => params.append(key, entry));
+    }
+  }
+  const qs = params.toString();
+  redirect(qs ? `/reservations/new?${qs}` : "/reservations/new");
 }

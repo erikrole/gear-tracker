@@ -38,6 +38,10 @@ _2026-06-15 update: Wiscard kiosk selection and serialized location reconciliati
 
 _2026-06-15 update: Kiosk checkout event context shipped without opening a new gap. Direct kiosk checkout now requires either a selected upcoming event or typed purpose, titles bookings from that context, and preserves selected events through the same primary and junction event links used by web bookings._
 
+_2026-06-15 update: Kiosk-only custody accepted as D-040 without opening a new gap. App/web becomes reservation-first; direct checkout, reservation pickup, and return custody mutations are kiosk-only. Implementation is tracked in `tasks/kiosk-only-custody-plan.md`._
+
+_2026-06-15 update: Kiosk-only custody server boundary shipped without opening a new gap. App/web checkout creation, reservation conversion, checkout pickup completion, check-in completion, item/bulk returns, and custody scan-session starts now reject regular authenticated callers._
+
 | ID | Description | Owner Area | Priority | Blocker? |
 |---|---|---|---|---|
 | ~~PD-1~~ | ~~D-009: Escalation recipient model~~ | ~~AREA_NOTIFICATIONS~~ | ~~Resolved~~ | ~~Requester + all admins; admin-configurable fatigue controls~~ |
@@ -138,7 +142,7 @@ _2026-06-15 update: Kiosk checkout event context shipped without opening a new g
 
 | Feature | Owner Area |
 |---|---|
-| Kiosk mode (self-serve scan station) | AREA_CHECKOUTS |
+| ~~Kiosk mode (self-serve scan station)~~ | ~~AREA_KIOSK~~ |
 | Reservation and checkout templates | AREA_RESERVATIONS |
 | Board / ops view for game-day coordinators | AREA_DASHBOARD |
 | Advanced analytics | NORTH_STAR |
@@ -186,6 +190,8 @@ _2026-06-15 update: Kiosk checkout event context shipped without opening a new g
 ---
 
 ## Change Log
+- 2026-06-15: Shipped the D-040 server-side custody boundary without opening a new gap. Regular authenticated checkout creation, reservation conversion, checkout pickup completion, checkout return completion, item/bulk returns, and custody scan-session starts now return kiosk-boundary errors; kiosk APIs remain the custody mutation surface.
+- 2026-06-15: Accepted D-040 for kiosk-only custody without opening a new gap. Removed stale Phase C wording that still treated kiosk mode as deferred; the kiosk is already canonical, and the remaining work is the reservation-pickup bridge plus app/web affordance removal tracked in `tasks/kiosk-only-custody-plan.md`.
 - 2026-06-06: Web full-search item identity fallback shipped without opening a new gap. `/search` item results now avoid blank titles by falling back through tag, name, brand/model, type, and `Untitled item`, preserving role-aware destination search and partial entity-result failure semantics.
 - 2026-06-06: Web booking creation event-list recovery shipped without opening a new gap. Checkout and reservation creation now show a retryable inline calendar error when upcoming-event reads fail instead of falling through to the true no-event state, while preserving ad hoc booking creation and existing event linkage contracts.
 - 2026-06-11: Brother battery label CSV export and printed-label tracking shipped without opening a new gap. Numbered bulk units now carry printed-label state (`labelPrintedAt`/`labelPrintedById`/`labelPrintBatchId`, migration 0077) and a `GET/POST /api/bulk-skus/[id]/units/labels` route exports a `item_number,qr_code` CSV (derived QR, `csvField`-escaped) and marks exported labels printed with audit. No new battery-label gap existed to close; QR data remains derived per D-022.

@@ -670,8 +670,8 @@ export function ShiftCoverageCard({
                       {acting === m.assignmentId ? "Sending..." : "Nudge"}
                     </Button>
                     <Button size="sm" className="h-10" asChild>
-                      <Link href={`/checkouts?create=true&title=${titleParam}&startsAt=${dateParam}&endsAt=${endParam}${locationParam}${eventParam}&requesterUserId=${m.userId}`}>
-                        Create checkout
+                      <Link href={`/reservations?create=true&title=${titleParam}&startsAt=${dateParam}&endsAt=${endParam}${locationParam}${eventParam}&requesterUserId=${m.userId}`}>
+                        Reserve gear
                       </Link>
                     </Button>
                   </div>

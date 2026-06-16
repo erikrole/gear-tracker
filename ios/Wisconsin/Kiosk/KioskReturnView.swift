@@ -295,7 +295,7 @@ struct KioskReturnView: View {
             do {
                 let result = try await KioskAPI.shared.kioskCheckinComplete(bookingId: bookingId, actorId: userId)
                 Haptics.success()
-                store.screen = .success(successMessage(for: result))
+                store.screen = .success(KioskSuccessInfo(kind: .returned, message: successMessage(for: result)))
             } catch {
                 let message = (error as? APIError)?.errorDescription
                     ?? "Return failed. Please try again."
@@ -308,10 +308,11 @@ struct KioskReturnView: View {
     /// Use the SERVER-authoritative counts in the success message — local
     /// counts can drift if a sister kiosk checked items in mid-session.
     private func successMessage(for result: KioskCheckinCompleteResult) -> String {
+        let total = result.totalItems
         if result.completed {
-            return "All \(result.totalItems) items returned. Thanks!"
+            return "All \(total) item\(total == 1 ? "" : "s") returned. Thanks!"
         }
-        return "\(result.returnedItems) of \(result.totalItems) items returned."
+        return "\(result.returnedItems) of \(total) item\(total == 1 ? "" : "s") returned."
     }
 
     private func loadDetail() async {

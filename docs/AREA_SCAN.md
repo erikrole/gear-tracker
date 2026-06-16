@@ -1,7 +1,7 @@
 # Area: Scan
 
 ## Overview
-The app scan page is a camera and manual-code lookup tool for finding inventory items by tag, QR value, serial number, or primary scan code. Checkout pickup and return scans are executed by kiosk flows, not by the signed-in web app scan page.
+The app scan page is a camera and manual-code lookup tool for finding inventory items by tag, QR value, serial number, or primary scan code. Checkout pickup, reservation pickup, and return scans are executed by kiosk flows, not by the signed-in web app scan page.
 
 Design language reference: `docs/DESIGN_LANGUAGE.md`.
 
@@ -34,7 +34,7 @@ src/components/
 
 ## Key Patterns
 
-1. **Lookup-only web contract** - app `/scan` never starts or completes booking custody scans.
+1. **Lookup-only web contract** - app `/scan` never starts or completes booking custody scans, checkout creation, reservation pickup, or return.
 2. **Kiosk execution boundary** - checkout pickup, check-in, and numbered battery unit scans run through kiosk routes.
 3. **Stale deep-link guard** - old `/scan?checkout=...` URLs do not show a broken booking checklist; they show the kiosk handoff and a checkout detail link.
 4. **Manual fallback** - `ScanControls` supports typed tag, QR, serial, or primary scan code values for desktop/no-camera situations.
@@ -57,6 +57,7 @@ Kiosk execution endpoints are documented in `docs/AREA_KIOSK.md`.
 
 | Date | Change |
 |---|---|
+| 2026-06-15 | Synced scan scope with D-040: app/web scan remains lookup-only, while checkout creation, reservation pickup, and return custody scans belong to kiosk flows. |
 | 2026-06-15 | Kiosk custody location evidence shipped. Serialized kiosk checkout/pickup/return scans now reconcile the item's saved location to the kiosk location, and pickup/return scan events record expected and actual location IDs plus a mismatch flag when the item or booking is not where the kiosk flow expected it. App `/scan` remains lookup-only. |
 | 2026-06-15 | iOS hand-scanner debugger: staff/admin Settings -> Tools now has a Scanner Debugger that opens as a dedicated sheet, captures HID keyboard scanner input, displays raw/trimmed scan values, submits through native `SearchService`, and reuses the existing `ScanResultSheet` hero-card presentation. This is lookup/debug only; checkout pickup and return custody scans stay kiosk-owned. |
 | 2026-06-11 | iOS hero card hardening: pull-to-refresh re-runs the lookup in place so availability/custody stay current while the sheet sits open; numbered-family cards show a per-unit status roster grid (new `units` array on `/api/assets` bulkItems, exact-unit scan path only) with the scanned unit ringed; Reserve is hidden for retired/maintenance assets; the hero photo opens a full-screen pinch-to-zoom viewer; and card content caps at 560pt width for iPad/landscape. |

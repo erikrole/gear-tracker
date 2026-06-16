@@ -180,15 +180,15 @@ describe("booking list routes", () => {
     );
   });
 
-  it("rejects malformed checkout create JSON before creating a booking", async () => {
+  it("blocks app/web checkout creation before creating a booking", async () => {
     const res = await postCheckouts(
       malformedPost("/api/checkouts"),
       { params: Promise.resolve({}) },
     );
     const body = await res.json();
 
-    expect(res.status).toBe(400);
-    expect(body.error).toBe("Request body must be valid JSON");
+    expect(res.status).toBe(403);
+    expect(body.error).toBe("Create a reservation in app/web. Direct checkout is only available at a kiosk.");
     expect(createBooking).not.toHaveBeenCalled();
   });
 
@@ -204,7 +204,7 @@ describe("booking list routes", () => {
     expect(createBooking).not.toHaveBeenCalled();
   });
 
-  it("preserves explicit checkout eventIds instead of synthesizing a legacy eventId", async () => {
+  it("does not run checkout event-default or create logic for app/web checkout POST", async () => {
     const res = await postCheckouts(
       post("/api/checkouts", {
         title: "Event kit",
@@ -221,18 +221,11 @@ describe("booking list routes", () => {
       }),
       { params: Promise.resolve({}) },
     );
+    const body = await res.json();
 
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(403);
+    expect(body.error).toBe("Create a reservation in app/web. Direct checkout is only available at a kiosk.");
     expect(resolveEventDefaults).not.toHaveBeenCalled();
-    expect(createBooking).toHaveBeenCalledWith(
-      expect.objectContaining({
-        eventId: undefined,
-        eventIds: [
-          "cm000000000000000000000004",
-          "cm000000000000000000000005",
-        ],
-        sportCode: "MBB",
-      }),
-    );
+    expect(createBooking).not.toHaveBeenCalled();
   });
 });

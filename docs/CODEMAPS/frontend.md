@@ -89,11 +89,11 @@
 | File | Lines |
 |---|---:|
 | `src/components/EquipmentPicker.tsx` | 1083 |
-| `src/components/BookingDetailsSheet.tsx` | 968 |
 | `src/components/ActivityTimeline.tsx` | 906 |
+| `src/components/BookingDetailsSheet.tsx` | 803 |
 | `src/components/onboarding/OnboardingDialog.tsx` | 756 |
-| `src/components/booking-wizard/BookingWizard.tsx` | 735 |
 | `src/components/ui/sidebar.tsx` | 727 |
+| `src/components/booking-wizard/BookingWizard.tsx` | 709 |
 | `src/components/ChooseImageModal.tsx` | 676 |
 | `src/components/ShiftDetailPanel.tsx` | 659 |
 | `src/components/AppShell.tsx` | 601 |
@@ -107,7 +107,7 @@
 | `src/components/Sidebar.tsx` | 373 |
 | `src/components/PageBreadcrumb.tsx` | 356 |
 | `src/components/booking-details/BookingOverview.tsx` | 300 |
-| `src/components/booking-wizard/WizardStep3.tsx` | 285 |
+| `src/components/booking-wizard/WizardStep3.tsx` | 263 |
 | `src/components/QrScanner.tsx` | 258 |
 | `src/components/ui/dropdown-menu.tsx` | 258 |
 | `src/components/ui/context-menu.tsx` | 242 |
@@ -123,7 +123,7 @@
 
 | File | Lines |
 |---|---:|
-| `src/hooks/booking-action-copy.ts` | 35 |
+| `src/hooks/booking-action-copy.ts` | 22 |
 | `src/hooks/use-assignment-grid.ts` | 228 |
 | `src/hooks/use-current-user.ts` | 28 |
 | `src/hooks/use-dashboard-data.ts` | 168 |
@@ -137,5 +137,5 @@
 | `src/hooks/use-scan-submission.ts` | 241 |
 | `src/hooks/use-schedule-data.ts` | 399 |
 | `src/hooks/use-url-state.ts` | 166 |
-| `src/hooks/useBookingActions.ts` | 265 |
+| `src/hooks/useBookingActions.ts` | 172 |
 | `src/hooks/useBookingDetail.ts` | 71 |

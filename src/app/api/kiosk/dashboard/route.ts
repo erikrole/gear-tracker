@@ -208,7 +208,7 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
             id: true,
             title: true,
             endsAt: true,
-            requester: { select: { name: true } },
+            requester: { select: { name: true, avatarUrl: true } },
           },
         },
       },
@@ -236,6 +236,7 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
             unitNumber: true,
             bulkSku: {
               select: {
+                id: true,
                 name: true,
                 imageUrl: true,
               },
@@ -249,7 +250,7 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
                 id: true,
                 title: true,
                 endsAt: true,
-                requester: { select: { name: true } },
+                requester: { select: { name: true, avatarUrl: true } },
               },
             },
           },
@@ -385,7 +386,12 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
     activeItemsResult,
     [] as Array<{
       asset: { id: string; assetTag: string; name: string | null; imageUrl: string | null };
-      booking: { id: string; title: string; endsAt: Date; requester: { name: string } };
+      booking: {
+        id: string;
+        title: string;
+        endsAt: Date;
+        requester: { name: string; avatarUrl: string | null };
+      };
     }>,
     "active items",
     partialFailures,
@@ -396,10 +402,15 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
       bulkSkuUnit: {
         id: string;
         unitNumber: number;
-        bulkSku: { name: string; imageUrl: string | null };
+        bulkSku: { id: string; name: string; imageUrl: string | null };
       };
       bookingBulkItem: {
-        booking: { id: string; title: string; endsAt: Date; requester: { name: string } };
+        booking: {
+          id: string;
+          title: string;
+          endsAt: Date;
+          requester: { name: string; avatarUrl: string | null };
+        };
       };
     }>,
     "active bulk units",
@@ -493,9 +504,13 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
         name: entry.asset.name || entry.asset.assetTag,
         tagName: entry.asset.assetTag,
         imageUrl: entry.asset.imageUrl,
+        bulkSkuId: null,
+        unitNumber: null,
         checkoutId: entry.booking.id,
         checkoutTitle: entry.booking.title,
         requesterName: entry.booking.requester.name,
+        requesterAvatarUrl: entry.booking.requester.avatarUrl,
+        requesterInitials: getInitials(entry.booking.requester.name),
         endsAt: entry.booking.endsAt,
         isOverdue: entry.booking.endsAt < now,
       })),
@@ -504,9 +519,13 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
         name: `${entry.bulkSkuUnit.bulkSku.name} #${entry.bulkSkuUnit.unitNumber}`,
         tagName: `#${entry.bulkSkuUnit.unitNumber}`,
         imageUrl: entry.bulkSkuUnit.bulkSku.imageUrl,
+        bulkSkuId: entry.bulkSkuUnit.bulkSku.id,
+        unitNumber: entry.bulkSkuUnit.unitNumber,
         checkoutId: entry.bookingBulkItem.booking.id,
         checkoutTitle: entry.bookingBulkItem.booking.title,
         requesterName: entry.bookingBulkItem.booking.requester.name,
+        requesterAvatarUrl: entry.bookingBulkItem.booking.requester.avatarUrl,
+        requesterInitials: getInitials(entry.bookingBulkItem.booking.requester.name),
         endsAt: entry.bookingBulkItem.booking.endsAt,
         isOverdue: entry.bookingBulkItem.booking.endsAt < now,
       })),

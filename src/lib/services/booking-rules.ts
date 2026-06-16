@@ -14,7 +14,7 @@ import type { AuthUser } from "@/lib/auth";
  * | edit     | staff+/owner | staff+/owner | staff+/owner   | staff+/owner  | ✗         | ✗         |
  * | extend   | ✗            | staff+/owner | ✗              | staff+/owner  | ✗         | ✗         |
  * | cancel   | staff+/owner | staff+/owner | staff+/owner   | staff+ only   | ✗         | ✗         |
- * | checkin  | ✗            | ✗            | ✗              | staff+/owner  | ✗         | ✗         |
+ * | checkin  | ✗            | ✗            | ✗              | kiosk only    | ✗         | ✗         |
  * | open     | ✗            | staff+/owner | ✗              | ✗             | ✗         | ✗         |
  * | pickup   | ✗            | ✗            | kiosk only     | ✗             | ✗         | ✗         |
  *
@@ -24,7 +24,7 @@ import type { AuthUser } from "@/lib/auth";
  * | edit     | staff+/owner | staff+/owner | ✗         | ✗         |
  * | extend   | ✗            | staff+/owner | ✗         | ✗         |
  * | cancel   | staff+/owner | staff+/owner | ✗         | ✗         |
- * | convert  | ✗            | staff+/owner | ✗         | ✗         |
+ * | convert  | ✗            | kiosk only   | ✗         | ✗         |
  *
  * "staff+" = ADMIN or STAFF
  * "owner" = STUDENT who is the requester or creator of the booking
@@ -71,13 +71,13 @@ const STATE_ACTIONS: Record<BookingKind, Record<BookingStatus, Set<string>>> = {
     [BookingStatus.DRAFT]: new Set(["edit", "cancel"]),
     [BookingStatus.BOOKED]: new Set(["edit", "extend", "cancel", "open"]),
     [BookingStatus.PENDING_PICKUP]: new Set(["edit", "cancel"]),
-    [BookingStatus.OPEN]: new Set(["edit", "extend", "cancel", "checkin", "force-complete", "nudge"]),
+    [BookingStatus.OPEN]: new Set(["edit", "extend", "cancel", "force-complete", "nudge"]),
     [BookingStatus.COMPLETED]: new Set(),
     [BookingStatus.CANCELLED]: new Set(),
   },
   [BookingKind.RESERVATION]: {
     [BookingStatus.DRAFT]: new Set(["edit", "cancel"]),
-    [BookingStatus.BOOKED]: new Set(["edit", "extend", "cancel", "convert", "duplicate"]),
+    [BookingStatus.BOOKED]: new Set(["edit", "extend", "cancel", "duplicate"]),
     [BookingStatus.PENDING_PICKUP]: new Set(),
     [BookingStatus.OPEN]: new Set(),
     [BookingStatus.COMPLETED]: new Set(),
@@ -195,4 +195,3 @@ export async function requireBookingAction(
 
   return booking;
 }
-

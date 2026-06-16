@@ -11,7 +11,7 @@
 
 | Model | Fields | Model-level indexes/constraints |
 |---|---:|---:|
-| `User` | 63 | 2 |
+| `User` | 64 | 2 |
 | `Session` | 6 | 2 |
 | `PasswordResetToken` | 6 | 2 |
 | `Location` | 17 | 1 |
@@ -28,7 +28,7 @@
 | `BulkStockMovement` | 13 | 4 |
 | `BulkSkuUnit` | 12 | 4 |
 | `BookingBulkUnitAllocation` | 8 | 3 |
-| `ScanEvent` | 16 | 4 |
+| `ScanEvent` | 19 | 4 |
 | `ScanSession` | 9 | 2 |
 | `OverrideEvent` | 8 | 4 |
 | `AuditLog` | 9 | 4 |

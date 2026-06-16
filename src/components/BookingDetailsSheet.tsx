@@ -1,10 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import {
@@ -19,9 +17,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
-import { getBookingCancelCopy, getReservationConvertCopy } from "@/hooks/booking-action-copy";
+import { getBookingCancelCopy } from "@/hooks/booking-action-copy";
 import { statusBadgeVariant, statusLabel } from "./booking-details/helpers";
 import { toLocalDateTimeValue } from "./booking-details/helpers";
 import {
@@ -71,12 +68,6 @@ type FormOptionsResponse = {
   };
 };
 
-type ConvertResponse = {
-  data?: {
-    id?: string;
-  };
-};
-
 /* ───── Section heading ───── */
 
 function SectionHead({
@@ -111,12 +102,8 @@ export default function BookingDetailsSheet({
   onClose,
   onUpdated,
 }: Props) {
-  const router = useRouter();
   const confirm = useConfirm();
 
-  // Admin role — used to gate the manual override return buttons (kiosk handles all check-in/out for other roles)
-  const { data: meData } = useCurrentUser();
-  const isAdmin = meData?.role === "ADMIN";
   const [booking, setBooking] = useState<BookingDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
@@ -152,14 +139,10 @@ export default function BookingDetailsSheet({
 
   const [extending, setExtending] = useState(false);
   const [cancelling, setCancelling] = useState(false);
-  const [converting, setConverting] = useState(false);
-  const [checkinLoading, setCheckinLoading] = useState(false);
   const saveBusyRef = useRef(false);
   const equipSaveBusyRef = useRef(false);
   const extendBusyRef = useRef(false);
   const cancelBusyRef = useRef(false);
-  const convertBusyRef = useRef(false);
-  const checkinBusyRef = useRef(false);
   const auditBusyRef = useRef(false);
   const sheetBodyRef = useRef<HTMLDivElement | null>(null);
   const detailsSectionRef = useRef<HTMLDivElement | null>(null);
@@ -320,16 +303,7 @@ export default function BookingDetailsSheet({
   const canEdit = booking && actions.includes("edit");
   const canCancel = booking && actions.includes("cancel");
   const canExtend = booking && actions.includes("extend");
-  const canCheckin = booking && booking.kind === "CHECKOUT" && actions.includes("checkin");
-  const canConvert = booking && booking.kind === "RESERVATION" && actions.includes("convert");
   const canEditEquipment = canEdit;
-
-  /* ───── Scan-to-return ───── */
-
-  const unreturnedCount = (booking?.serializedItems ?? []).filter(
-    (i) => i.allocationStatus !== "returned"
-  ).length;
-
 
   /* ───── Filtered equipment ───── */
 
@@ -548,109 +522,6 @@ export default function BookingDetailsSheet({
     }
   }
 
-  async function handleConvert() {
-    if (!booking || convertBusyRef.current) return;
-    const copy = getReservationConvertCopy(booking.title);
-    const ok = await confirm({
-      title: copy.title,
-      message: copy.message,
-      confirmLabel: copy.confirmLabel,
-    });
-    if (!ok) return;
-
-    convertBusyRef.current = true;
-    setConverting(true);
-    try {
-      const res = await fetchWithTimeout(`/api/reservations/${booking.id}/convert`, { method: "POST" });
-      if (handleAuthRedirect(res)) return;
-      if (res.ok) {
-        const json = await parseJsonSafely<ConvertResponse>(res);
-        if (!json?.data?.id) {
-          toast.error(copy.missingLinkError);
-          await fetchBooking({ silent: true });
-          onUpdated?.();
-          return;
-        }
-        toast.success(copy.success, { description: copy.successDescription });
-        onUpdated?.();
-        onClose();
-        router.push(`/checkouts/${json.data.id}`);
-      } else {
-        const msg = await parseErrorMessage(res, "Could not start the checkout. Refresh the reservation and try again.");
-        toast.error(msg);
-      }
-    } catch {
-      toast.error("Could not reach the server. The checkout was not started.");
-    } finally {
-      convertBusyRef.current = false;
-      setConverting(false);
-    }
-  }
-
-  async function handleCheckinItem(assetId: string) {
-    if (!booking || checkinBusyRef.current) return;
-    checkinBusyRef.current = true;
-    setCheckinLoading(true);
-    const item = (booking.serializedItems ?? []).find((i) => i.asset.id === assetId);
-    try {
-      const res = await fetchWithTimeout(`/api/checkouts/${booking.id}/checkin-items`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ assetIds: [assetId] }),
-      });
-      if (handleAuthRedirect(res)) return;
-      if (res.ok) {
-        toast.success(`${item?.asset.assetTag ?? "Item"} checked in`);
-        await fetchBooking({ silent: true });
-        onUpdated?.();
-      } else {
-        const msg = await parseErrorMessage(res, "Could not check in this item. Refresh the booking and try again.");
-        toast.error(msg);
-      }
-    } catch {
-      toast.error("Could not reach the server. The item was not checked in.");
-    } finally {
-      checkinBusyRef.current = false;
-      setCheckinLoading(false);
-    }
-  }
-
-  async function handleCheckinAll() {
-    if (!booking || checkinBusyRef.current) return;
-    const activeItems = (booking.serializedItems ?? []).filter((i) => i.allocationStatus !== "returned");
-    if (activeItems.length === 0) return;
-    const ok = await confirm({
-      title: "Check in all items",
-      message: `Check in all ${activeItems.length} remaining item${activeItems.length === 1 ? "" : "s"} for "${booking.title}". This records the remaining gear as returned.`,
-      confirmLabel: "Check in all",
-    });
-    if (!ok) return;
-
-    checkinBusyRef.current = true;
-    setCheckinLoading(true);
-    try {
-      const res = await fetchWithTimeout(`/api/checkouts/${booking.id}/checkin-items`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ assetIds: activeItems.map((i) => i.asset.id) }),
-      });
-      if (handleAuthRedirect(res)) return;
-      if (res.ok) {
-        toast.success("All items checked in");
-        await fetchBooking({ silent: true });
-        onUpdated?.();
-      } else {
-        const msg = await parseErrorMessage(res, "Could not check in all items. Refresh the booking and try again.");
-        toast.error(msg);
-      }
-    } catch {
-      toast.error("Could not reach the server. Items were not checked in.");
-    } finally {
-      checkinBusyRef.current = false;
-      setCheckinLoading(false);
-    }
-  }
-
   /* ───── Render ───── */
 
   const detailHref = booking
@@ -848,10 +719,9 @@ export default function BookingDetailsSheet({
                     filteredSerializedItems={filteredSerializedItems}
                     filteredBulkItems={filteredBulkItems}
                     canEditEquipment={false}
-                    canCheckin={isAdmin && !!canCheckin}
-                    checkinLoading={checkinLoading}
+                    canCheckin={false}
+                    checkinLoading={false}
                     onEnterEquipEditMode={enterEquipEditMode}
-                    onCheckinItem={handleCheckinItem}
                   />
                 </div>
               </div>
@@ -895,36 +765,6 @@ export default function BookingDetailsSheet({
                   />
                 </div>
               </div>
-
-              {/* ─ Sticky check-in bar — admin override only; kiosk handles all standard returns ─ */}
-              {isAdmin && canCheckin && unreturnedCount > 0 && (
-                <div
-                  className="sticky bottom-0 left-0 right-0 z-10 flex items-center gap-4 border-t border-border bg-background px-6 py-4 shadow-[0_-10px_30px_rgba(0,0,0,0.08)]"
-                >
-                  <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                    <Progress
-                      value={checkinProgress?.percent ?? 0}
-                      className="h-1.5"
-                      style={
-                        {
-                          "--progress-bg": "hsl(var(--muted))",
-                          "--progress-fill": "var(--wi-red)",
-                        } as React.CSSProperties
-                      }
-                    />
-                    <span className="text-[11px] text-muted-foreground">
-                      {checkinProgress?.returned ?? 0} of {checkinProgress?.total ?? unreturnedCount} items returned
-                    </span>
-                  </div>
-                  <Button
-                    onClick={handleCheckinAll}
-                    disabled={checkinLoading}
-                    className="shrink-0"
-                  >
-                    {checkinLoading ? "Checking in..." : "Check in all"}
-                  </Button>
-                </div>
-              )}
             </>
           )}
         </SheetBody>
@@ -947,12 +787,7 @@ export default function BookingDetailsSheet({
 
               <div className="flex-1" />
 
-              {/* Right: Convert (reservations) + Full page */}
-              {canConvert && (
-                <Button size="sm" variant="brand" onClick={handleConvert} disabled={converting}>
-                  {converting ? "Converting..." : "Start checkout"}
-                </Button>
-              )}
+              {/* Right: Full page */}
               <Button variant="outline" size="sm" asChild>
                 <Link href={detailHref}>
                   Open full booking <ExternalLinkIcon className="size-3.5 ml-1" />

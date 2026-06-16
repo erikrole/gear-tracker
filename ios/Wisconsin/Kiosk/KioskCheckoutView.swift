@@ -16,7 +16,6 @@ struct KioskCheckoutView: View {
     @State private var selectedEventId: String?
     @State private var customPurpose = ""
     @State private var checkoutContextReady = false
-    @State private var showReview = false
     @State private var showScannerHelp = false
     @State private var showEditContextConfirm = false
     @State private var lastScanAt: Date?
@@ -113,22 +112,6 @@ struct KioskCheckoutView: View {
                     showScannerHelp = false
                     showCamera = true
                 }
-            )
-        }
-        .sheet(isPresented: $showReview) {
-            KioskCheckoutReviewSheet(
-                user: user,
-                locationName: store.info?.locationName,
-                contextTitle: checkoutContextTitle,
-                contextDetail: checkoutContextDetail,
-                dueBackAt: dueBackAt,
-                itemCount: scannedItems.count,
-                groups: groupedScannedItems,
-                availabilityResult: availabilityResult,
-                isCheckingAvailability: isCheckingAvailability,
-                isCompleting: isCompleting,
-                onCancel: { showReview = false },
-                onConfirm: performCheckout
             )
         }
         .task {
@@ -572,29 +555,23 @@ struct KioskCheckoutView: View {
         }
     }
 
+    /// The scan flow already confirms each item as it's added, so checkout
+    /// completes directly here — no redundant review modal. A final
+    /// availability check still guards against conflicts that appeared while
+    /// the cart was open.
     private func completeCheckout() {
         let cart = store.cart(for: userId)
-        guard !cart.isEmpty, hasCheckoutContext, hasValidReturnTime, store.info?.locationId != nil else { return }
-        guard !isCompleting else { return }
-        Task {
-            await refreshAvailability(for: cart)
-            guard !availabilityResult.hasBlockingIssue else {
-                showFeedback(.error("Resolve item conflicts before checkout"))
-                return
-            }
-            showReview = true
-            store.resetInactivity()
-        }
-    }
-
-    private func performCheckout() {
-        let cart = store.cart(for: userId)
         guard !cart.isEmpty, hasCheckoutContext, hasValidReturnTime, let locationId = store.info?.locationId else { return }
-        guard !availabilityResult.hasBlockingIssue else { return }
         guard !isCompleting else { return }
         let message = successMessage
         isCompleting = true
         Task {
+            await refreshAvailability(for: cart)
+            guard !availabilityResult.hasBlockingIssue else {
+                isCompleting = false
+                showFeedback(.error("Resolve item conflicts before checkout"))
+                return
+            }
             do {
                 try await KioskAPI.shared.kioskCheckoutComplete(
                     actorId: userId,
@@ -606,12 +583,10 @@ struct KioskCheckoutView: View {
                 )
                 Haptics.success()
                 store.clearCart(for: userId)
-                showReview = false
-                store.screen = .success(message)
+                store.screen = .success(KioskSuccessInfo(kind: .checkout, message: message))
             } catch {
                 let message = (error as? APIError)?.errorDescription
                     ?? "Checkout failed. Please try again."
-                showReview = false
                 showFeedback(.error(message))
             }
             isCompleting = false
@@ -903,82 +878,6 @@ private struct KioskScannerTroubleshootingSheet: View {
     private var lastScanText: String {
         guard let lastScanAt else { return "No scanner input received in this checkout yet" }
         return "Last scanner input: \(lastScanAt.formatted(date: .omitted, time: .shortened))"
-    }
-}
-
-private struct KioskCheckoutReviewSheet: View {
-    let user: KioskUser
-    let locationName: String?
-    let contextTitle: String
-    let contextDetail: String?
-    let dueBackAt: Date
-    let itemCount: Int
-    let groups: [KioskCartDisplayGroup]
-    let availabilityResult: KioskCheckoutAvailabilityResult
-    let isCheckingAvailability: Bool
-    let isCompleting: Bool
-    let onCancel: () -> Void
-    let onConfirm: () -> Void
-
-    var body: some View {
-        NavigationStack {
-            VStack(alignment: .leading, spacing: 20) {
-                VStack(alignment: .leading, spacing: 12) {
-                    KioskCheckoutIdentityCard(user: user, locationName: locationName)
-                    KioskCheckoutContextSummary(
-                        title: contextTitle,
-                        detail: contextDetail,
-                        dueBackAt: dueBackAt,
-                        showsEdit: false,
-                        onEdit: {}
-                    )
-                    KioskCheckoutAvailabilityBanner(
-                        result: availabilityResult,
-                        isChecking: isCheckingAvailability,
-                        errorMessage: nil
-                    )
-                }
-
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("\(itemCount) Item\(itemCount == 1 ? "" : "s")")
-                        .font(.headline)
-                        .foregroundStyle(KioskText.primary)
-                    ScrollView {
-                        LazyVStack(spacing: 8) {
-                            ForEach(groups) { group in
-                                KioskCartGroupRow(
-                                    group: group,
-                                    availabilityIssue: nil,
-                                    onRemove: nil
-                                )
-                                    .kioskCard(KioskSurface.sunken, radius: KioskRadius.md, stroke: KioskStroke.hairline)
-                            }
-                        }
-                    }
-                }
-
-                Spacer(minLength: 0)
-
-                KioskCompletionButton(
-                    title: "Confirm Checkout",
-                    isEnabled: itemCount > 0 && !availabilityResult.hasBlockingIssue,
-                    isBusy: isCompleting,
-                    accessibilityLabel: "Confirm checkout for \(itemCount) item\(itemCount == 1 ? "" : "s")",
-                    action: onConfirm
-                )
-            }
-            .padding(24)
-            .background(KioskSurface.base.ignoresSafeArea())
-            .navigationTitle("Review Checkout")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel", action: onCancel)
-                        .disabled(isCompleting)
-                }
-            }
-        }
-        .presentationDetents([.large])
     }
 }
 

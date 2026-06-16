@@ -34,7 +34,7 @@ import { MAX_SCROLL_HEIGHT } from "./constants";
 import type { FormState, FormAction, ShiftInfo } from "@/components/create-booking/types";
 
 type WizardConfig = {
-  kind: "CHECKOUT" | "RESERVATION";
+  kind: "RESERVATION";
   label: string;
   requesterLabel: string;
   startLabel: string;

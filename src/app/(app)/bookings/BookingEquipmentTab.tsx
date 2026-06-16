@@ -14,7 +14,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
 import { Check, ImageIcon, MoreHorizontal, Search } from "lucide-react";
 import { StaggerList, StaggerItem } from "@/components/ui/motion";
 import { toast } from "sonner";
@@ -95,12 +94,8 @@ function riskTitle(risks: Array<{ message: string }> | undefined) {
 
 export default function BookingEquipmentTab({
   booking,
-  onCheckinBulk,
-  actionLoading,
 }: {
   booking: BookingDetail;
-  onCheckinBulk?: (bulkItemId: string, quantity: number) => Promise<boolean>;
-  actionLoading?: string | null;
 }) {
   const [search, setSearch] = useState("");
   const isCheckout = booking.kind === "CHECKOUT";
@@ -304,8 +299,6 @@ export default function BookingEquipmentTab({
                 <BulkRow
                   item={item}
                   isCheckout={isCheckout}
-                  onCheckinBulk={onCheckinBulk}
-                  actionLoading={actionLoading}
                   risks={bulkTurnaroundRisks.get(item.bulkSku.id)}
                 />
               </StaggerItem>
@@ -444,14 +437,10 @@ function SerializedRow({
 function BulkRow({
   item,
   isCheckout,
-  onCheckinBulk,
-  actionLoading,
   risks,
 }: {
   item: BulkItem;
   isCheckout: boolean;
-  onCheckinBulk?: (bulkItemId: string, quantity: number) => Promise<boolean>;
-  actionLoading?: string | null;
   risks?: BulkTurnaroundRiskInfo[];
 }) {
   // checkedOutQuantity is 0 (not null) until pickup — show planned quantity until
@@ -459,9 +448,6 @@ function BulkRow({
   const outQty = item.checkedOutQuantity > 0 ? item.checkedOutQuantity : item.plannedQuantity;
   const inQty = item.checkedInQuantity ?? 0;
   const allReturned = isCheckout && item.checkedOutQuantity > 0 && inQty >= outQty;
-  const remaining = outQty - inQty;
-  const canReturn = isCheckout && !allReturned && remaining > 0 && !!onCheckinBulk;
-  const isLoading = actionLoading === `bulk-${item.id}`;
   const riskText = riskLabel(risks);
 
   return (
@@ -502,7 +488,7 @@ function BulkRow({
         )}
       </div>
 
-      {/* Status + Return All button */}
+      {/* Status */}
       <div className="shrink-0 flex items-center gap-2">
         {risks && risks.length > 0 && !allReturned && (
           <Badge variant="orange" size="sm" title={riskTitle(risks)}>
@@ -513,15 +499,6 @@ function BulkRow({
           <span className="text-xs font-medium text-[var(--green-text)]">
             Returned
           </span>
-        ) : canReturn ? (
-          <Button
-            variant="outline"
-            size="xs"
-            disabled={isLoading}
-            onClick={() => onCheckinBulk(item.id, remaining)}
-          >
-            {isLoading ? "Returning..." : "Return All"}
-          </Button>
         ) : (
           <span className="text-sm text-muted-foreground tabular-nums">
             {isCheckout ? outQty : item.plannedQuantity}

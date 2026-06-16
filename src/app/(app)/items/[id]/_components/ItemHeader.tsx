@@ -137,31 +137,18 @@ export function ItemHeader({
   const imageSrc = normalizeAssetImageSrc(asset.imageUrl);
   const isRetired = asset.computedStatus === "RETIRED";
   const isMaintenance = asset.computedStatus === "MAINTENANCE";
-  // A new booking can only start when the item's derived status is AVAILABLE.
-  // Policy flags (availableForReservation / availableForCheckout) enable the
-  // workflow; current status decides whether a booking can actually begin.
+  // A new reservation can only start when the item's derived status is AVAILABLE.
+  // The item policy flag enables the workflow; current status decides whether a
+  // reservation can actually begin.
   // This mirrors server-side booking validation in availability.ts so the
   // header never sends staff into a flow that is rejected at submit time.
   const isAvailable = asset.computedStatus === "AVAILABLE";
-  const hasBlockingCheckout =
-    (asset.computedStatus === "CHECKED_OUT" || asset.computedStatus === "PENDING_PICKUP") &&
-    asset.activeBooking?.kind === "CHECKOUT";
   const canReserve = asset.availableForReservation && isAvailable;
-  const canCheckOut = asset.availableForCheckout && isAvailable;
   const reserveDisabledTitle = isRetired
     ? "Retired items cannot be reserved"
     : isMaintenance
       ? "Maintenance items cannot be reserved"
       : "Reservations are disabled for this item";
-  const checkOutDisabledTitle = hasBlockingCheckout
-    ? asset.computedStatus === "PENDING_PICKUP"
-      ? "This item is awaiting pickup"
-      : "This item is already checked out"
-    : isRetired
-      ? "Retired items cannot be checked out"
-      : isMaintenance
-        ? "Maintenance items cannot be checked out"
-        : "Check out is disabled for this item";
   const activeBookingHref = asset.activeBooking
     ? asset.activeBooking.kind === "RESERVATION"
       ? `/reservations/${asset.activeBooking.id}`
@@ -313,17 +300,8 @@ export function ItemHeader({
                   <Link href={activeBookingHref}>{activeBookingLabel}</Link>
                 </Button>
               )}
-              {canCheckOut ? (
-                <Button size="sm" variant={activeBookingHref ? "outline" : "default"} asChild>
-                  <Link href={`/checkouts?newFor=${asset.id}`}>Check out</Link>
-                </Button>
-              ) : (
-                <Button size="sm" variant="outline" disabled title={checkOutDisabledTitle}>
-                  Check out
-                </Button>
-              )}
               {canReserve ? (
-                <Button size="sm" variant="outline" asChild>
+                <Button size="sm" variant={activeBookingHref ? "outline" : "default"} asChild>
                   <Link href={`/reservations?newFor=${asset.id}`}>Reserve</Link>
                 </Button>
               ) : (

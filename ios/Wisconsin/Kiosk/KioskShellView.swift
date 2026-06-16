@@ -9,21 +9,25 @@ struct KioskShellView: View {
             KioskSurface.base.ignoresSafeArea()
 
             Group {
-                switch store.screen {
-                case .activation:
-                    KioskActivationView()
-                case .idle:
-                    KioskIdleView()
-                case .studentHub(let user):
-                    KioskStudentHubView(user: user)
-                case .checkout(let user):
-                    KioskCheckoutView(user: user)
-                case .pickup(let bookingId, let userId):
-                    KioskPickupView(bookingId: bookingId, userId: userId)
-                case .return(let bookingId, let userId):
-                    KioskReturnView(bookingId: bookingId, userId: userId)
-                case .success(let message):
-                    KioskSuccessView(message: message)
+                if store.isResuming {
+                    KioskResumeSplash()
+                } else {
+                    switch store.screen {
+                    case .activation:
+                        KioskActivationView()
+                    case .idle:
+                        KioskIdleView()
+                    case .studentHub(let user):
+                        KioskStudentHubView(user: user)
+                    case .checkout(let user):
+                        KioskCheckoutView(user: user)
+                    case .pickup(let bookingId, let userId):
+                        KioskPickupView(bookingId: bookingId, userId: userId)
+                    case .return(let bookingId, let userId):
+                        KioskReturnView(bookingId: bookingId, userId: userId)
+                    case .success(let info):
+                        KioskSuccessView(info: info)
+                    }
                 }
             }
 
@@ -37,6 +41,9 @@ struct KioskShellView: View {
         .preferredColorScheme(.dark)
         .persistentSystemOverlays(.hidden)
         .statusBarHidden()
+        // Restore an activated kiosk on cold launch without needing the
+        // deeplink — a dedicated iPad always returns to kiosk mode.
+        .task { store.resumeIfNeeded() }
         // Kiosk iPads live plugged in on a counter — never let the screen
         // sleep while the kiosk shell is up; restore normal behavior on exit.
         .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
@@ -44,6 +51,24 @@ struct KioskShellView: View {
         .simultaneousGesture(TapGesture().onEnded { store.resetInactivity() })
         .simultaneousGesture(DragGesture(minimumDistance: 0).onChanged { _ in store.resetInactivity() })
         .animation(.easeInOut(duration: 0.2), value: store.inactivityWarningVisible)
+    }
+}
+
+/// Brief splash shown while a cold-launch session restore is in flight, so the
+/// kiosk never flashes the activation numpad to a returning device.
+private struct KioskResumeSplash: View {
+    var body: some View {
+        VStack(spacing: 18) {
+            ProgressView()
+                .controlSize(.large)
+                .tint(KioskText.primary)
+            Text("Resuming kiosk…")
+                .font(.headline)
+                .foregroundStyle(KioskText.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Resuming kiosk")
     }
 }
 

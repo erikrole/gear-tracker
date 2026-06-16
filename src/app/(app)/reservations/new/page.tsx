@@ -29,7 +29,7 @@ function WizardSkeleton() {
 export default function NewReservationPage() {
   return (
     <Suspense fallback={<WizardSkeleton />}>
-      <BookingWizard kind="RESERVATION" />
+      <BookingWizard />
     </Suspense>
   );
 }

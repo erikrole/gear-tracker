@@ -3,27 +3,31 @@
 ## Document Control
 - Area: Checkouts
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-10
+- Last Updated: 2026-06-15
 - Status: Active — V1 Shipped
 - Version: V1
 
 ## Direction
-Optimize handoff and return execution so daily operators can move fast without data integrity regressions.
+Maintain the custody ledger for gear that has physically left or returned through kiosk-controlled handoff flows. App and web surfaces can read, report, edit allowed metadata, extend, cancel where policy permits, and recover exceptions, but they do not create direct checkout custody or return gear.
 
 ## Core Rules
 1. Checkout records use the unified Booking model and states: `PENDING_PICKUP`, `OPEN`, `COMPLETED`, `CANCELLED`.
-2. Event tie-in defaults ON at creation.
-3. Event link is optional for ad hoc checkouts.
+2. Direct checkout creation is kiosk-only. App/web creation routes should send users to reservation creation unless the user is physically at a kiosk.
+3. Event or purpose context is required for direct kiosk checkout; event linkage remains optional for ad hoc kiosk checkout when a typed purpose exists.
 4. Status and availability logic remain derived from allocations, never authoritative stored status.
 5. Role and ownership controls follow `AREA_USERS.md`.
 6. `PENDING_PICKUP` checkout allocations block overlapping serialized-item reservations and checkouts because custody has not transferred yet but the gear is already committed.
 7. Booking windows are half-open for availability: a booking ending exactly when the next pickup/reservation starts is allowed; any overrun past that start time conflicts.
-8. Checkout creation is guarded at the shared service boundary: non-source creates require at least one equipment item, duplicate multi-event links and duplicate bulk lines are rejected, invalid windows fail before availability work, and DB overlap races return booking conflict responses.
+8. Checkout creation is guarded at the shared service boundary: non-kiosk callers must not create checkout custody, kiosk/source creates require at least one equipment item, duplicate multi-event links and duplicate bulk lines are rejected, invalid windows fail before availability work, and DB overlap races return booking conflict responses.
 
 ## V1 Workflow
 
-### Create Checkout (Wizard — `/checkouts/new`)
-Multi-step wizard page (replaced the old side-sheet flow as of 2026-04-09):
+### Create Checkout (Kiosk-Only)
+Direct checkout is the "I need this now" gear-room handoff path and runs through the native iOS kiosk. It requires kiosk authentication, student identity selection, event or purpose context, scan evidence, availability checks, and kiosk location evidence before the booking enters custody.
+
+App/web must not expose `/checkouts/new` as a normal creation surface. Users away from the kiosk reserve gear for a future claim through `/reservations/new`.
+
+Legacy documentation below describes the retired web wizard contract and is preserved only for migration/history work:
 
 **Step 1 — Context & Details:**
 1. Event tie-in defaults ON. Select sport → event (next 30 days) → auto-fills title, dates, location.
@@ -43,7 +47,7 @@ Multi-step wizard page (replaced the old side-sheet flow as of 2026-04-09):
 **Step 3 — Confirmation:**
 1. Apple-like review panel leads with the selected window, requester, location, pending-pickup status, linked event, and equipment count.
 2. Submit → POST `/api/checkouts`. 409 conflicts shown inline (returns to Step 2).
-3. Checkout is created with status `PENDING_PICKUP`. Gear must be picked up at a kiosk — no desktop/phone scanning allowed.
+3. Retired: checkout used to be created with status `PENDING_PICKUP`. Under D-040, app/web users create reservations instead; kiosk pickup is the custody boundary.
 4. Confirmation repeats selected availability warnings only when warnings exist, and the checkout notice stays concise: kiosk scan starts custody.
 
 **Deep-link parameters:** `?title`, `?startsAt`, `?endsAt`, `?locationId`, `?newFor` (pre-select asset), `?eventId`, `?sportCode`, `?requesterUserId`, `?draftId`.
@@ -152,7 +156,7 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[CHECKOUT
   - Cancel (discard)
 
 ### `PENDING_PICKUP`
-- Created on desktop wizard submit
+- Compatibility or staged handoff state, not the normal result of app/web checkout creation.
 - Allocations and bulk stock held immediately
 - Kiosk pickup requires successful scan evidence for every serialized item before confirmation can transition the checkout to `OPEN`.
 - Auto-expires after 48 hours past `startsAt` during `morning-refresh` if the student never picks it up. Expiry cancels the checkout, releases serialized allocations, restores held bulk stock, releases scanned numbered units, cancels open scan sessions, and writes a system audit entry.
@@ -180,7 +184,7 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[CHECKOUT
 
 ## List and Detail UX Requirements
 1. Checkout list is action-first and grouped by urgency.
-2. Default active Checkouts view includes both `OPEN` and `PENDING_PICKUP` records because both are daily checkout work.
+2. Default active Checkouts view includes `OPEN` custody records and any remaining `PENDING_PICKUP` compatibility/staged pickup records because both are daily checkout work.
 3. Row click opens BookingDetailsSheet.
 4. Desktop and mobile row overflow actions use the shared `OperationalRowActions` trigger; right-click context menus keep the same action policy.
 5. Mobile uses the same overflow action behavior.
@@ -213,7 +217,7 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 
 ### Tabs (BookingDetailsSheet)
 1. **Details** — Booking overview: dates, requester, location, event context, extend presets, checkin progress, conflict banner.
-2. **Equipment** — Item list with thumbnails, scan-to-return camera (for checkouts with `canCheckin`), "Edit equipment" opens full `EquipmentPicker` with QR scan-to-add. Badge shows unreturned item count.
+2. **Equipment** — Item list with thumbnails, return progress, kiosk handoff context, and gated equipment-edit controls where policy allows. Badge shows unreturned item count.
 3. **History** — Audit timeline with ToggleGroup filters (All / Booking changes / Equipment changes), cursor-paginated load-more.
 
 ### Inline Editing
@@ -266,6 +270,8 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 - [x] AC-5: Extend flow blocks cleanly with actionable overlap details.
 - [x] AC-6: Permission and ownership gates match `AREA_USERS.md`.
 - [x] AC-7: Every mutation emits audit records with actor and diff context.
+- [x] AC-8: Non-kiosk app/web callers cannot create checkout custody or return gear; only kiosk-authenticated routes can perform those mutations.
+- [ ] AC-9: Existing `PENDING_PICKUP` records remain visible and recoverable during rollout without presenting web/app checkout creation as the forward path.
 
 ## Dependencies
 - Event normalization read model from `AREA_EVENTS.md`.
@@ -273,6 +279,7 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 - Permission policy from `AREA_USERS.md`.
 - Integrity constraints and audit requirements from `DECISIONS.md` (D-001, D-006, D-007).
 - Mobile operations contract from `AREA_MOBILE.md`.
+- Kiosk custody boundary from `DECISIONS.md` (D-028, D-030, D-040).
 
 ## Roadmaps
 - `tasks/item-picker-roadmap.md` — EquipmentPicker V1→V2→V3
@@ -280,17 +287,20 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 
 ## Out of Scope (V1)
 1. Booking engine rewrite.
-2. Kiosk mode.
+2. Reintroducing app/web checkout creation or return execution outside kiosk.
 3. Advanced automation flows.
 
 ## Developer Brief (No Code)
-1. Implement deterministic checkout creation path with event-default and ad hoc fallback.
+1. Preserve deterministic kiosk checkout creation with event or purpose context.
 2. Enforce state transition rules and action gating by state, role, and ownership.
-3. Implement safe extend and check-in flows with overlap-aware conflict handling.
+3. Implement safe extend and kiosk-owned return flows with overlap-aware conflict handling.
 4. Preserve transaction integrity and derived-status invariants in every mutation.
-5. Add regression coverage for race conditions, partial returns, and permission bypass attempts.
+5. Add regression coverage for race conditions, partial returns, non-kiosk custody attempts, and permission bypass attempts.
 
 ## Change Log
+- 2026-06-15: Kiosk-only custody Slice 3. Web and non-kiosk iOS no longer expose checkout creation, reservation-to-checkout conversion, or return controls; checkout pages remain available for active custody visibility and history, while `/checkouts/new` redirects to reservation creation.
+- 2026-06-15: Server-side kiosk-only custody boundary shipped. `/api/checkouts` POST now rejects app/web checkout creation, app/web checkout pickup/return scan-session and completion routes reject custody mutation, and the shared `createBooking()` service refuses checkout creation unless the caller explicitly marks kiosk custody. Focused regressions cover checkout creation, retired reservation conversion, action gating, and blocked web return routes.
+- 2026-06-15: Accepted the kiosk-only custody contract (D-040). Checkout records remain the custody ledger, but direct checkout creation and return are kiosk-only; app/web creation becomes reservation-first. `PENDING_PICKUP` remains only as compatibility/staged handoff work, not the normal result of app/web checkout creation.
 - 2026-06-10: Web checkout Step 1 now preserves the booking duration when the Pickup/Start time changes, matching the iOS reservation sheet behavior. Verified with focused Vitest coverage, TypeScript, whitespace check, and authenticated local browser smoke on `/checkouts/new`; the smoke also found no visible `\u2026` escape literals or console warnings/errors.
 - 2026-06-10: Web checkout creation audit/polish pass (refresh Slice 6). Fixed Step 1 requester/location placeholders and the Step 3 empty-equipment notice rendering literal `\u2026`/`\u2014` escape text (JSX attributes/text do not process JS escapes), aligned the header kind badge to the canonical blue (was red), aligned the Step 3 notes card and availability alert to the review panel width, removed a dead nested notes conditional, switched Step 1 event loading to geometry-preserving skeleton rows, and raised step chips, picker tabs, tray chip remove buttons, and quantity steppers to the 40px hit-target baseline with a more prominent final submit action.
 - 2026-06-08: Web checkout creation visual refresh shipped. `/checkouts/new` now promotes the selected event/booking title instead of a generic New Checkout hero, uses a quieter creation-page breadcrumb, replaces dense Step 1 admin rows with local stacked field groups, compresses Step 2 helper copy, removes unused picker tab counts and select-visible action, uses row skeletons for picker loading, keeps footer navigation tied to review instead of category browsing, compresses selected equipment into removable tray chips, and presents confirmation as a calmer Apple-like review panel while preserving multi-event, draft, availability, and kiosk-pickup contracts.

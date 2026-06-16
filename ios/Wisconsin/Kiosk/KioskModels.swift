@@ -74,16 +74,29 @@ struct KioskDashboard: Decodable {
         let nearbyBookingWindowCount: Int
     }
 
-    struct ActiveItem: Decodable, Identifiable {
+    struct ActiveItem: Decodable, Identifiable, Equatable {
         let id: String
         let name: String
         let tagName: String
         let imageUrl: String?
+        let bulkSkuId: String?
+        let unitNumber: Int?
         let checkoutId: String
         let checkoutTitle: String
         let requesterName: String
+        let requesterAvatarUrl: String?
         let endsAt: Date
         let isOverdue: Bool
+
+        var isNumberedBulk: Bool { bulkSkuId != nil && unitNumber != nil }
+
+        var requesterInitials: String {
+            requesterName.split(separator: " ").prefix(2)
+                .compactMap { $0.first }
+                .map { String($0) }
+                .joined()
+                .uppercased()
+        }
     }
 }
 
@@ -367,6 +380,7 @@ struct KioskCheckoutDetail: Decodable {
         let bulkSkuId: String?
         let bulkSkuName: String?
         let unitNumber: Int?
+        let imageUrl: String?
 
         var isNumberedBulk: Bool { type == "numbered_bulk" }
     }
@@ -396,5 +410,34 @@ enum KioskScreen: Equatable {
     case checkout(user: KioskUser)
     case pickup(bookingId: String, userId: String)
     case `return`(bookingId: String, userId: String)
-    case success(String)
+    case success(KioskSuccessInfo)
+}
+
+/// The action a success screen is confirming, so it can show the right icon,
+/// accent, and label instead of a one-size-fits-all green check.
+enum KioskSuccessKind: String, Equatable {
+    case checkout
+    case returned
+    case pickup
+
+    var icon: String {
+        switch self {
+        case .checkout: return "arrow.up.circle.fill"
+        case .returned: return "arrow.down.circle.fill"
+        case .pickup:   return "tray.and.arrow.down.fill"
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .checkout: return "Checked Out"
+        case .returned: return "Returned"
+        case .pickup:   return "Picked Up"
+        }
+    }
+}
+
+struct KioskSuccessInfo: Equatable {
+    let kind: KioskSuccessKind
+    let message: String
 }

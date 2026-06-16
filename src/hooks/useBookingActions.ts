@@ -6,7 +6,7 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
-import { getBookingCancelCopy, getReservationConvertCopy } from "@/hooks/booking-action-copy";
+import { getBookingCancelCopy } from "@/hooks/booking-action-copy";
 
 type ActionResult = { ok: boolean; error?: string };
 
@@ -111,29 +111,6 @@ export function useBookingActions(
     [bookingId, toast, onSuccess],
   );
 
-  const convert = useCallback(async () => {
-    const copy = getReservationConvertCopy();
-    const ok = await confirm({
-      title: copy.title,
-      message: copy.message,
-      confirmLabel: copy.confirmLabel,
-    });
-    if (!ok) return;
-    if (!guardStart("convert")) return;
-    try {
-      const result = await callAction(`/api/reservations/${bookingId}/convert`);
-      if (result.ok) {
-        toast.success(copy.success, { description: copy.successDescription });
-        const checkoutId = (result as { data?: { id?: string } }).data?.id;
-        router.push(checkoutId ? `/checkouts/${checkoutId}` : "/checkouts");
-      } else {
-        toast.error(result.error!);
-      }
-    } finally {
-      guardEnd();
-    }
-  }, [bookingId, confirm, toast, router]);
-
   const duplicate = useCallback(async () => {
     if (!guardStart("duplicate")) return;
     try {
@@ -148,72 +125,6 @@ export function useBookingActions(
       guardEnd();
     }
   }, [bookingId, toast, router]);
-
-  const checkinItems = useCallback(
-    async (assetIds: string[]): Promise<boolean> => {
-      if (assetIds.length === 0) return false;
-      if (!guardStart("checkin")) return false;
-      try {
-        const result = await callAction(`/api/checkouts/${bookingId}/checkin-items`, "POST", {
-          assetIds,
-        });
-        if (result.ok) {
-          toast.success(`${assetIds.length} item${assetIds.length > 1 ? "s" : ""} returned`);
-          onSuccess();
-        } else {
-          toast.error(result.error!);
-        }
-        return result.ok;
-      } finally {
-        guardEnd();
-      }
-    },
-    [bookingId, toast, onSuccess],
-  );
-
-  const checkinBulk = useCallback(
-    async (bulkItemId: string, quantity: number): Promise<boolean> => {
-      if (quantity <= 0) return false;
-      if (!guardStart(`bulk-${bulkItemId}`)) return false;
-      try {
-        const result = await callAction(`/api/checkouts/${bookingId}/checkin-bulk`, "POST", {
-          bulkItemId,
-          quantity,
-        });
-        if (result.ok) {
-          toast.success("Item-family quantity returned");
-          onSuccess();
-        } else {
-          toast.error(result.error!);
-        }
-        return result.ok;
-      } finally {
-        guardEnd();
-      }
-    },
-    [bookingId, toast, onSuccess],
-  );
-
-  const completeCheckin = useCallback(async () => {
-    const ok = await confirm({
-      title: "Complete check in",
-      message: "Complete check in? Any items not yet returned will be flagged.",
-      confirmLabel: "Complete check in",
-    });
-    if (!ok) return;
-    if (!guardStart("complete-checkin")) return;
-    try {
-      const result = await callAction(`/api/checkouts/${bookingId}/complete-checkin`);
-      if (result.ok) {
-        toast.success("Check in completed");
-        onSuccess();
-      } else {
-        toast.error(result.error!);
-      }
-    } finally {
-      guardEnd();
-    }
-  }, [bookingId, confirm, toast, onSuccess]);
 
   const nudge = useCallback(async () => {
     if (!guardStart("nudge")) return;
@@ -253,11 +164,7 @@ export function useBookingActions(
     actionLoading,
     cancel,
     extend,
-    convert,
     duplicate,
-    checkinItems,
-    checkinBulk,
-    completeCheckin,
     nudge,
     saveField,
   };

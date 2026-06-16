@@ -124,13 +124,6 @@ export default function BookingsPage() {
 
   const checkoutContextMenuExtras = useMemo<ContextMenuExtra[]>(() => [
     {
-      action: "checkin",
-      label: "Check in",
-      kind: "CHECKOUT",
-      opensSheet: true,
-      sheetTab: "equipment",
-    },
-    {
       action: "cancel",
       label: "Cancel checkout",
       kind: "CHECKOUT",
@@ -176,39 +169,6 @@ export default function BookingsPage() {
   ], [confirm]);
 
   const reservationContextMenuExtras = useMemo<ContextMenuExtra[]>(() => [
-    {
-      action: "convert",
-      label: "Start checkout",
-      kind: "RESERVATION",
-      handler: async (bookingId, items, reload) => {
-        const r = items.find((i: BookingItem) => i.id === bookingId);
-        if (!r) return;
-        const ok = await confirm({
-          title: "Convert to checkout",
-          message: `Convert "${r.title}" to a checkout? The reservation will be cancelled.`,
-          confirmLabel: "Start checkout",
-        });
-        if (!ok) return;
-        if (actionBusyRef.current) return;
-        actionBusyRef.current = true;
-        try {
-          const res = await fetchAction(`/api/reservations/${bookingId}/convert`);
-          if (res.ok) {
-            toast.success("Reservation converted to checkout");
-            setActiveTab("checkouts"); router.push("/bookings?tab=checkouts");
-          } else {
-            const msg = await parseErrorMessage(res, "Conversion failed");
-            toast.error(msg);
-            await reload();
-          }
-        } catch (err) {
-          if (isAbortError(err)) return;
-          toast.error("Network error \u2014 please try again.");
-        } finally {
-          actionBusyRef.current = false;
-        }
-      },
-    },
     {
       action: "duplicate",
       label: "Duplicate",
@@ -283,8 +243,8 @@ export default function BookingsPage() {
     apiBase: "/api/checkouts",
     label: "checkout",
     labelPlural: "Checkouts",
-    actionLabel: "Pick up now",
-    actionLabelProgress: "Picking up\u2026",
+    actionLabel: "",
+    actionLabelProgress: "",
     requesterLabel: "Checked out to",
     startLabel: "Pickup",
     endLabel: "Return by",
@@ -418,7 +378,7 @@ export default function BookingsPage() {
         </TabsContent>
 
         <TabsContent value="checkouts">
-          <BookingListPage key={`checkouts-${scope}`} config={checkoutConfig} viewMode={viewMode} hideHeader initialHighlight={pendingHighlight?.tab === "checkouts" ? pendingHighlight.id : null} initialSheetTab={pendingHighlight?.tab === "checkouts" ? pendingHighlight.sheetTab : null} />
+          <BookingListPage key={`checkouts-${scope}`} config={checkoutConfig} viewMode={viewMode} hideHeader hideNewButton initialHighlight={pendingHighlight?.tab === "checkouts" ? pendingHighlight.id : null} initialSheetTab={pendingHighlight?.tab === "checkouts" ? pendingHighlight.sheetTab : null} />
         </TabsContent>
 
         <TabsContent value="reservations">

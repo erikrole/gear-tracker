@@ -6,11 +6,11 @@
 - Created: 2026-04-07
 - Last Updated: 2026-06-15
 - Brief: `BRIEF_KIOSK.md`
-- Decision Refs: D-030
+- Decision Refs: D-030, D-040
 
 ## Description
 
-Self-serve iPad kiosk for gear checkout / pickup / return at the equipment counter, plus on-the-floor kiosk activation by staff carrying an iPad. Implementation lives in the **native iOS app** (`ios/Wisconsin/Kiosk/`). The previously-shipped web kiosk surface (`src/app/(kiosk)/kiosk/`) was deleted on 2026-04-24 to remove the dual-implementation maintenance burden — iPads run the Wisconsin app directly and flip into kiosk mode via `KioskStore`.
+Self-serve iPad kiosk for gear checkout / reservation pickup / return at the equipment counter, plus on-the-floor kiosk activation by staff carrying an iPad. Implementation lives in the **native iOS app** (`ios/Wisconsin/Kiosk/`). The previously-shipped web kiosk surface (`src/app/(kiosk)/kiosk/`) was deleted on 2026-04-24 to remove the dual-implementation maintenance burden — iPads run the Wisconsin app directly and flip into kiosk mode via `KioskStore`.
 
 ## Trust Model
 
@@ -34,7 +34,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 - **`KioskIdleView.swift`** — left panel: stats + today's events + active checkouts (polls `/api/kiosk/dashboard` every 30s). Right panel: location-scoped student roster grid (`/api/kiosk/users`).
 - **`KioskStudentHubView.swift`** — entry point after a student taps their tile; lists their active checkouts/reservations and routes to checkout/pickup/return.
 - **`KioskCheckoutView.swift`** — scan zone + scanned-items list + Complete button.
-- **`KioskPickupView.swift`** — for `PENDING_PICKUP` bookings.
+- **`KioskPickupView.swift`** — for reservation pickup handoffs and compatibility `PENDING_PICKUP` bookings.
 - **`KioskReturnView.swift`** — return flow.
 - **`KioskSuccessView.swift`** — terminal screen with 5s auto-return to idle.
 - **`KioskScannerField.swift`** — invisible UITextField that captures HID barcode-scanner keystrokes.
@@ -65,6 +65,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 - Serialized kiosk checkout, pickup, and return scans reconcile the asset's saved `locationId` to the kiosk's `locationId`. Pickup and return scan events store expected and actual location evidence plus a mismatch flag when the item or booking location does not match the kiosk handoff location.
 - Direct kiosk checkout requires an event or custom purpose before completion. If a selected event is used, the booking title is the event summary and the event is linked through both `Booking.eventId` and `BookingEvent`; custom detail is saved in notes when present. If no event is selected, the typed purpose becomes the booking title.
 - Direct kiosk checkout records pickup at the actual completion time and lets staff define the return date/time. Selected events prefill the due-back time from the event end when possible. The native kiosk preflights scanned items through `/api/kiosk/checkout/availability`, and checkout completion repeats the same conflict/shortage/unavailable checks inside the transaction before creating the booking.
+- Kiosk owns the reservation-to-custody bridge. When a due reservation is picked up at kiosk, the kiosk must validate identity and scans, create or open the linked checkout custody record through `sourceReservationId`, and mark the source reservation `COMPLETED` because the reservation was fulfilled.
 - Stale pending-pickup checkouts auto-expire during the scheduled morning refresh after 48 hours past `startsAt`. Expiry cancels the booking, releases serialized allocations, restores held bulk stock, releases any scanned numbered units, cancels open scan sessions, and writes a system audit entry.
 - **Auth helpers:** `withKiosk()` (`src/lib/api.ts`) and `requireKiosk()` (`src/lib/auth.ts`) validate the kiosk-session cookie, enforce the server-side 7-day `sessionExpiresAt`, refresh `lastSeenAt`, throw 401 if expired/inactive/deactivated.
 
@@ -89,6 +90,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 | AC-15 | Heartbeat / dashboard 401 routes back to activation | ✅ Complete (2026-04-24) |
 | AC-16 | Idle dashboard survives partial read failures | ✅ Complete (2026-05-13) |
 | AC-17 | Stale pending-pickup checkouts auto-expire | ✅ Complete (2026-05-13) |
+| AC-18 | Reservation pickup can be fulfilled into linked checkout custody only through kiosk | Planned |
 
 ## Known Gaps
 
@@ -99,6 +101,13 @@ Files under `ios/Wisconsin/Kiosk/`:
 ## Change Log
 | Date | Change |
 |------|--------|
+| 2026-06-16 | Kiosk UI batch (iOS + one API field). Student hub action list is now scrollable so several open checkouts/pickups can't push actions off-screen. Idle roster gains a keyboard-free A–Z quick filter (shown only when >12 names). Success screen is now action-aware — distinct icon, accent, and label for Checked Out / Returned / Picked Up (`KioskScreen.success` carries a `KioskSuccessInfo`). Bare loading spinners on the idle roster and student hub replaced with shimmering `KioskSkeletonBox` placeholders (static under Reduce Motion). Checkout detail drawer now shows asset thumbnails and a relative "due in/ago" chip — `GET /api/kiosk/checkout/[id]` items gained `imageUrl` (needs deploy for thumbnails to appear). Sleep overlay now shows a faint "Tap anywhere to wake" hint inside the pixel-shifted cluster. |
+| 2026-06-16 | Kiosk idle reliability + polish pass (iOS-only). The hidden Wiscard HID scanner field now unmounts while a detail sheet is open or the kiosk is asleep, so it can't swallow keystrokes or fight a presented view for first responder. The idle header gained a quiet session-health dot (Active / Stale / Offline) and, on a failed refresh, a "Can't reach the server" banner with a Retry that re-runs the dashboard/roster load and notes how old the shown data is. No API change. Deferred by user choice (not yet done): per-device rate limits on kiosk mutation routes, and a stable keychain-access-group entitlement. |
+| 2026-06-16 | Kiosk session auto-resume (always-on, D-039 follow-up). Root cause of "re-enter the code on every build": a cold launch (icon tap, Xcode rebuild, OS relaunch) only restored the session via the `wisconsin://kiosk` deeplink or the DEBUG button — a direct launch never consulted the surviving Keychain token, so the activation numpad showed. Also, a reinstall wipes UserDefaults so `isActive` was lost. Fix: `KioskStore.init()` now treats a surviving Keychain token as an activated kiosk, and `KioskShellView` calls `resumeIfNeeded()` on first appear, which rebuilds device info from `/api/kiosk/me` and routes to idle without a code. A short "Resuming kiosk…" splash replaces the numpad flash during restore. The kiosk now only asks for a code after a manual deactivation or a genuine 7-day-dark session expiry. Server APIs were already strong here (hashed 64-hex token, sliding 7-day `sessionExpiresAt` pushed forward by the 60s heartbeat, admin-deactivation revoke, rate-limited activation). Known dev caveat: Simulator "Erase All Content" wipes the Keychain; physical iPads retain it across reinstalls. |
+| 2026-06-16 | Kiosk return count fix + idle interaction pass. `kioskCompleteCheckin` counted only `serializedItems`, so a battery-only (numbered-bulk) return reported "0 items returned" — now counts bulk unit allocations (and plain bulk quantities) alongside serialized assets; success copy is also pluralized. Idle stat tiles now toggle off on re-tap and the detail list has an explicit close (×). Items Out / Active Checkouts / Overdue rows are tappable and open a new read-only checkout detail drawer (`KioskCheckoutDetailSheet`, reuses `GET /api/kiosk/checkout/[id]`) showing holder, due/overdue, and grouped items. |
+| 2026-06-16 | Kiosk checkout/idle polish: removed the redundant "Review Checkout" confirmation modal — the scan flow already confirms each item as it is added, so the Checkout button completes directly after a final transactional availability check (no behavior/API change to completion). Idle "Items Out" now groups a holder's numbered battery units into a single row with unit chips (keyed by SKU + checkout) and shows the holder's avatar on every active-item row so staff can see who has each piece at a glance. `/api/kiosk/dashboard` active-item entries gained `bulkSkuId`, `unitNumber`, `requesterAvatarUrl`, and `requesterInitials`; new iOS `ActiveItem` fields are optional for rollout safety. |
+| 2026-06-15 | Server-side custody boundary for D-040 shipped outside the kiosk surface: regular authenticated checkout creation, reservation conversion, checkout pickup completion, check-in completion, item/bulk returns, and custody scan-session start routes now return kiosk-boundary errors. Kiosk-authenticated routes remain the custody mutation surface. |
+| 2026-06-15 | Accepted kiosk-only custody as D-040. The kiosk remains the only surface that can create immediate checkout custody, fulfill a reservation into linked checkout custody, or return gear. Reservation pickup must preserve `sourceReservationId` and close the source reservation as `COMPLETED`. |
 | 2026-06-15 | Kiosk checkout due-back and conflict support: checkout details now include a return date/time picker with quick options and selected-event end defaults. The iPad preflights scanned carts against a new kiosk-authenticated availability endpoint, shows conflict/short-turnaround status in scan/review, and the completion route enforces the same availability check transactionally before creating allocations. Pickup time remains the real checkout completion time. |
 | 2026-06-15 | Kiosk checkout polish pass: checkout details and scan mode now read as separate steps, selected student/location/context stay visible through setup, scan, review, and success copy, no-event days get quick purpose chips, scan mode exposes a scanner health/troubleshooting badge, numbered batteries group into one row with unit chips, and completion opens a final review sheet before creating the booking. |
 | 2026-06-15 | Kiosk checkout context follow-up: the event/purpose form now appears as a pre-scan setup phase before the hidden HID scanner field mounts. This prevents typed custom purpose text from being intercepted as an item scan. Scan mode shows a compact context summary with Edit, preserving the cart while temporarily unmounting scanner capture. |

@@ -85,6 +85,11 @@ final class KioskStore {
     /// True when the inactivity warning should be shown ahead of the reset.
     var inactivityWarningVisible: Bool = false
 
+    /// True while a cold-launch session restore is in flight, so the shell can
+    /// show a brief splash instead of flashing the activation numpad.
+    var isResuming: Bool = false
+    private var didAttemptResume = false
+
     private var inactivityTask: Task<Void, Never>?
     private var heartbeatTask: Task<Void, Never>?
 
@@ -97,7 +102,27 @@ final class KioskStore {
            let saved = try? JSONDecoder().decode(KioskInfo.self, from: data) {
             info = saved
             isActive = true
+        } else if KioskSessionVault.load() != nil {
+            // A reinstall/update wiped the app container (UserDefaults + cookie
+            // jar) but the Keychain kiosk token survived. Treat the device as a
+            // kiosk so it boots back into kiosk mode; `resumeIfNeeded()` rebuilds
+            // device info from /api/kiosk/me without an activation code.
+            isActive = true
         }
+    }
+
+    /// Restore an activated kiosk on a cold launch (icon tap, Xcode rebuild, OS
+    /// relaunch) WITHOUT requiring the `wisconsin://kiosk` deeplink. Runs once
+    /// when the kiosk shell first appears. A dedicated kiosk iPad therefore
+    /// always comes back up in kiosk mode and only ever asks for a code after a
+    /// manual deactivation or a genuine 7-day-dark session expiry.
+    func resumeIfNeeded() {
+        guard !didAttemptResume else { return }
+        didAttemptResume = true
+        if info != nil || KioskSessionVault.load() != nil {
+            isResuming = true
+        }
+        enterKiosk()
     }
 
     // Called when the kiosk deeplink is opened or debug button tapped.
@@ -109,12 +134,14 @@ final class KioskStore {
         if info != nil || KioskSessionVault.load() != nil {
             Task { await validateSession() }
         } else {
+            isResuming = false
             screen = .activation
         }
     }
 
     // Validates the stored kiosk_session cookie is still live.
     private func validateSession() async {
+        defer { isResuming = false }
         do {
             let me = try await KioskAPI.shared.kioskMe()
             if info == nil {
@@ -175,6 +202,8 @@ final class KioskStore {
 
     func deactivate() {
         isActive = false
+        isResuming = false
+        didAttemptResume = false
         clearStoredInfo()
         KioskSessionVault.clear()
         checkoutCarts.removeAll()

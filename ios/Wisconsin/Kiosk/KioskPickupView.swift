@@ -295,7 +295,11 @@ struct KioskPickupView: View {
             do {
                 try await KioskAPI.shared.kioskPickupConfirm(bookingId: bookingId, actorId: userId)
                 Haptics.success()
-                store.screen = .success("Pickup confirmed! \(confirmedCount) items checked out.")
+                let itemWord = confirmedCount == 1 ? "item" : "items"
+                store.screen = .success(KioskSuccessInfo(
+                    kind: .pickup,
+                    message: "Pickup confirmed! \(confirmedCount) \(itemWord) checked out."
+                ))
             } catch {
                 let message = (error as? APIError)?.errorDescription
                     ?? "Could not confirm pickup. Please try again."

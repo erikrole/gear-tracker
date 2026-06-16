@@ -110,19 +110,18 @@ export default function BookingDetailPage({
   const canEdit = allowedActions.includes("edit");
   const canExtend = allowedActions.includes("extend");
   const canCancel = allowedActions.includes("cancel");
-  const canCheckin = allowedActions.includes("checkin");
-  const canConvert = kind === "RESERVATION" && allowedActions.includes("convert");
   const canDuplicate = kind === "RESERVATION" && allowedActions.includes("duplicate");
-  const canForceComplete = allowedActions.includes("force-complete");
   const canNudge = allowedActions.includes("nudge");
   const isOpen = booking?.status === "OPEN";
   const isActive = isOpen || booking?.status === "BOOKED";
-  const hasAnyAction = canEdit || canExtend || canConvert || canCancel || canDuplicate || canForceComplete || canNudge;
+  const hasAnyAction = canEdit || canExtend || canCancel || canDuplicate || canNudge;
   const kioskHandoffLabel =
     kind === "CHECKOUT" && booking?.status === "PENDING_PICKUP"
       ? "Pickup at kiosk"
-      : kind === "CHECKOUT" && canCheckin
+      : kind === "CHECKOUT" && booking?.status === "OPEN"
         ? "Return at kiosk"
+        : kind === "RESERVATION" && booking?.status === "BOOKED"
+          ? "Pick up at kiosk"
         : null;
 
   // Keyboard shortcut: E to open edit sheet
@@ -225,7 +224,7 @@ export default function BookingDetailPage({
 
         {hasAnyAction && <div className="flex items-center gap-2 shrink-0 overflow-x-auto">
           {/* Actions dropdown — secondary/less-common actions */}
-          {(canDuplicate || canCancel || canForceComplete || canNudge) && (
+          {(canDuplicate || canCancel || canNudge) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="gap-1.5">
@@ -240,14 +239,6 @@ export default function BookingDetailPage({
                     disabled={!!actions.actionLoading}
                   >
                     {actions.actionLoading === "nudge" ? "Sending..." : "Nudge borrower"}
-                  </DropdownMenuItem>
-                )}
-                {canForceComplete && (
-                  <DropdownMenuItem
-                    onSelect={actions.completeCheckin}
-                    disabled={!!actions.actionLoading}
-                  >
-                    {actions.actionLoading === "complete-checkin" ? "Completing..." : "Force complete"}
                   </DropdownMenuItem>
                 )}
                 {canDuplicate && (
@@ -291,13 +282,6 @@ export default function BookingDetailPage({
               }}
             >
               Extend
-            </Button>
-          )}
-
-          {/* Primary CTA — rightmost, most prominent */}
-          {canConvert && (
-            <Button onClick={actions.convert} disabled={!!actions.actionLoading}>
-              {actions.actionLoading === "convert" ? "Converting..." : "Start checkout"}
             </Button>
           )}
         </div>}

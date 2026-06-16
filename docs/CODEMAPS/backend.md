@@ -8,19 +8,21 @@
 | `src/lib/services/auto-assign.ts` | 231 |
 | `src/lib/services/availability.ts` | 551 |
 | `src/lib/services/booking-ref.ts` | 26 |
-| `src/lib/services/booking-rules.ts` | 199 |
-| `src/lib/services/bookings-checkin.ts` | 551 |
+| `src/lib/services/booking-rules.ts` | 198 |
+| `src/lib/services/bookings-checkin.ts` | 599 |
 | `src/lib/services/bookings-helpers.ts` | 197 |
-| `src/lib/services/bookings-lifecycle.ts` | 887 |
+| `src/lib/services/bookings-lifecycle.ts` | 895 |
 | `src/lib/services/bookings-queries.ts` | 232 |
 | `src/lib/services/bookings.ts` | 4 |
-| `src/lib/services/bulk-unit-scans.ts` | 440 |
+| `src/lib/services/bulk-unit-scans.ts` | 442 |
 | `src/lib/services/calendar-sync-health.ts` | 164 |
 | `src/lib/services/calendar-sync.ts` | 647 |
 | `src/lib/services/checkout-policies.ts` | 32 |
 | `src/lib/services/dashboard-counts.ts` | 111 |
 | `src/lib/services/event-defaults.ts` | 64 |
 | `src/lib/services/firmware-watch.ts` | 298 |
+| `src/lib/services/kiosk-checkout-complete.ts` | 51 |
+| `src/lib/services/kiosk-location.ts` | 72 |
 | `src/lib/services/kiosk-scan.ts` | 36 |
 | `src/lib/services/kits.ts` | 327 |
 | `src/lib/services/licenses.ts` | 489 |
@@ -50,14 +52,14 @@
 | `src/lib/asset-qr-code.ts` | 9 |
 | `src/lib/assignment-conflict-review.ts` | 97 |
 | `src/lib/audit.ts` | 168 |
-| `src/lib/auth.ts` | 250 |
+| `src/lib/auth.ts` | 272 |
 | `src/lib/avatar.ts` | 44 |
 | `src/lib/battery-compatibility.ts` | 159 |
 | `src/lib/bhphoto-image.ts` | 67 |
 | `src/lib/blob.ts` | 151 |
 | `src/lib/booking-actions.ts` | 104 |
 | `src/lib/bulk-batteries.ts` | 28 |
-| `src/lib/bulk-unit-qr.ts` | 68 |
+| `src/lib/bulk-unit-qr.ts` | 109 |
 | `src/lib/calendar-event-dates.ts` | 168 |
 | `src/lib/calendar-source-freshness.ts` | 259 |
 | `src/lib/cron.ts` | 35 |
@@ -102,7 +104,7 @@
 | `src/lib/time.ts` | 28 |
 | `src/lib/url-sync.ts` | 16 |
 | `src/lib/utils.ts` | 7 |
-| `src/lib/validation.ts` | 446 |
+| `src/lib/validation.ts` | 460 |
 | `src/lib/venue-tone.ts` | 74 |
 
 ## API Route Groups
@@ -276,10 +278,13 @@
 - `/api/kiosk/checkin/[id]/complete`
 - `/api/kiosk/checkin/[id]/scan`
 - `/api/kiosk/checkout/[id]`
+- `/api/kiosk/checkout/availability`
 - `/api/kiosk/checkout/complete`
 - `/api/kiosk/checkout/scan`
 - `/api/kiosk/dashboard`
+- `/api/kiosk/events`
 - `/api/kiosk/heartbeat`
+- `/api/kiosk/identify`
 - `/api/kiosk/me`
 - `/api/kiosk/pickup/[id]/confirm`
 - `/api/kiosk/pickup/[id]/scan`

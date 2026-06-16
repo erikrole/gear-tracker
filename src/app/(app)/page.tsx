@@ -63,7 +63,7 @@ export default function DashboardPage() {
   const router = useRouter();
 
   const handleCreateBooking = useCallback((ctx: CreateBookingContext) => {
-    const base = ctx.kind === "CHECKOUT" ? "/checkouts/new" : "/reservations/new";
+    const base = "/reservations/new";
     const params = new URLSearchParams();
     if (ctx.title) params.set("title", ctx.title);
     if (ctx.startsAt) params.set("startsAt", ctx.startsAt);
@@ -147,29 +147,6 @@ export default function DashboardPage() {
     }
   };
 
-  const handleConvert = async (bookingId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (actionBusyRef.current) return;
-    actionBusyRef.current = true;
-    setActing(bookingId);
-    try {
-      const res = await fetch(`/api/reservations/${bookingId}/convert`, { method: "POST" });
-      if (handleAuthRedirect(res, "/")) return;
-      if (res.ok) {
-        toast.success("Converted to checkout");
-        loadData();
-      } else {
-        const msg = await parseErrorMessage(res, "Could not start the checkout from this reservation. Refresh and try again.");
-        toast.error(msg);
-      }
-    } catch {
-      toast.error("Could not reach the server. The reservation was not converted.");
-    } finally {
-      actionBusyRef.current = false;
-      setActing(null);
-    }
-  };
-
   if (fetchError) {
     return (
       <EmptyState
@@ -233,13 +210,9 @@ export default function DashboardPage() {
           </div>
           {roleKnown && !isStudent && (
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => handleCreateBooking({ kind: "RESERVATION" })}>
+              <Button onClick={() => handleCreateBooking({ kind: "RESERVATION" })}>
                 <PlusIcon className="size-3.5" />
                 New reservation
-              </Button>
-              <Button onClick={() => handleCreateBooking({ kind: "CHECKOUT" })}>
-                <PlusIcon className="size-3.5" />
-                New checkout
               </Button>
             </div>
           )}
@@ -338,7 +311,6 @@ export default function DashboardPage() {
             onSelectBooking={setSelectedBookingId}
             onDeleteDraft={handleDeleteDraft}
             onExtend={handleExtend}
-            onConvert={handleConvert}
             onCreateBooking={handleCreateBooking}
           />
           {!isStudent && (
@@ -372,7 +344,7 @@ export default function DashboardPage() {
         </Suspense>
       )}
 
-      {/* Create flow is now at /checkouts/new and /reservations/new */}
+      {/* Remote creation is reservation-first. Checkout custody starts at kiosk pickup. */}
     </PageTransition>
   );
 }

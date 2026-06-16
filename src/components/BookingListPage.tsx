@@ -176,7 +176,7 @@ export default function BookingListPage({
   // ── Navigate to wizard page for creation ──
   const navigateToCreate = useCallback(() => {
     const nextParams = new URLSearchParams(urlSignature);
-    const base = config.kind === "CHECKOUT" ? "/checkouts/new" : "/reservations/new";
+    const base = "/reservations/new";
     const params = new URLSearchParams();
     const title = nextParams.get("title");
     const startsAt = nextParams.get("startsAt");
@@ -198,7 +198,7 @@ export default function BookingListPage({
     if (requesterUserId) params.set("requesterUserId", requesterUserId);
     const qs = params.toString();
     router.push(qs ? `${base}?${qs}` : base);
-  }, [config.kind, router, urlSignature]);
+  }, [router, urlSignature]);
 
   // Auto-navigate to wizard if deep-link params present
   useEffect(() => {
@@ -499,7 +499,7 @@ export default function BookingListPage({
         </Suspense>
       )}
 
-      {/* Create flow is now at /checkouts/new and /reservations/new */}
+      {/* Remote creation is reservation-first. Checkout custody starts at kiosk pickup. */}
     </>
   );
 }

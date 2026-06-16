@@ -3,17 +3,17 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-10
+- Last Updated: 2026-06-15
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
 ## Direction
-Keep reservation planning and checkout execution unified, predictable, and safe under concurrency.
+Make app and web reservation-first. A user who is not physically at a kiosk reserves gear for a future claim; the kiosk turns that reservation into active custody only when pickup scans pass.
 
 ## Core Rules
-1. Reservations live in Booking with lifecycle states: `BOOKED`, `OPEN`, `COMPLETED`, `CANCELLED`.
+1. Reservations live in Booking with lifecycle states: `BOOKED`, `COMPLETED`, `CANCELLED`; `DRAFT` exists for interrupted creation.
 2. Reservation creation typically starts as `BOOKED`.
-3. Transition from `BOOKED` to `OPEN` represents active handoff start.
+3. Reservations do not become custody records in the normal flow. Kiosk pickup creates or opens the linked checkout custody record and closes the source reservation as fulfilled.
 4. Cancel and archive patterns are used in V1. No hard delete.
 5. Role and ownership controls follow `AREA_USERS.md`.
 6. Availability checks treat overlapping `PENDING_PICKUP` checkout allocations as committed gear and subtract overlapping `BOOKED` bulk reservation quantities from available bulk stock.
@@ -46,11 +46,12 @@ Native iOS creation mirrors the three-step reservation rhythm while staying mobi
 2. Edit must re-run conflict checks for changed windows/items.
 3. Edit path remains fully auditable.
 
-### Start Checkout From Reservation
-1. Action: `Start checkout` from reservation detail.
-2. The route creates a new checkout through the shared checkout create path, so the new checkout starts as `PENDING_PICKUP`.
-3. The source reservation is closed as converted/cancelled, and gear custody still begins at kiosk pickup.
-4. Preserve allocation linkage and audit trail.
+### Kiosk Pickup From Reservation
+1. App/web reservation detail should show pickup guidance, not a `Start checkout` custody action.
+2. The user claims the reservation at the kiosk once the pickup window is due.
+3. The kiosk validates identity, scans required serialized assets and numbered units, rechecks availability, and creates or opens the linked checkout custody record only after required scan evidence passes.
+4. The source reservation is marked `COMPLETED` because it was fulfilled, not cancelled.
+5. Preserve allocation linkage, `sourceReservationId`, and audit trail.
 
 ### Cancel Reservation
 1. Allowed by role and policy.
@@ -70,8 +71,8 @@ The reservation detail page (`/reservations/[id]`) uses the shared `BookingDetai
 
 ### Reservation-Specific Behavior
 - Status badge shows "Confirmed" (not "BOOKED") via `statusLabel()` helper
-- "Start checkout" primary CTA when `convert` action is allowed
-- Action buttons: `[Actions ▼] [Edit] [Extend] [Start checkout]` — Start checkout is primary CTA
+- Primary custody guidance points to kiosk pickup when the reservation is due; app/web does not expose `Start checkout` as a normal action.
+- Action buttons: `[Actions ▼] [Edit] [Extend]` for app-owned actions.
 - Actions dropdown contains: Duplicate, Cancel
 - No checkin checkboxes or scan buttons (those are checkout-only)
 - Equipment tab shows Serial and Location columns (instead of checkout's Status column)
@@ -134,11 +135,10 @@ The reservation detail page (`/reservations/[id]`) uses the shared `BookingDetai
 3. Persist user rows-per-page preference per user/session when feasible.
 
 ## State Transition Rules
-1. `BOOKED` reservation -> new `PENDING_PICKUP` checkout allowed through `Start checkout`.
+1. `BOOKED` reservation -> linked checkout custody only through kiosk pickup.
 2. `BOOKED` -> `CANCELLED` allowed.
-3. `OPEN` -> `COMPLETED` allowed when all items returned.
-4. `OPEN` -> `CANCELLED` not allowed in normal flow; use return/check-in workflow.
-5. `COMPLETED` and `CANCELLED` are terminal in V1.
+3. `BOOKED` -> `COMPLETED` allowed when kiosk pickup fulfills the reservation and opens linked checkout custody.
+4. `COMPLETED` and `CANCELLED` are terminal in V1.
 
 ## Action Matrix by State
 
@@ -149,7 +149,7 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - Access: staff+ or owner
 
 ### `BOOKED`
-- Allowed actions: Edit, Extend, Cancel, Convert to checkout
+- Allowed actions: Edit, Extend, Cancel, view kiosk pickup guidance
 - Access: staff+ or owner
 
 ### `COMPLETED`
@@ -158,11 +158,11 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 ### `CANCELLED`
 - Allowed actions: View only
 
-**Note**: Reservations do not use the `OPEN` state; `Start checkout` creates a new `PENDING_PICKUP` checkout linked via `sourceReservationId`.
+**Note**: Reservations do not use the `OPEN` state in the normal flow; kiosk pickup creates or opens the linked checkout custody record via `sourceReservationId`.
 
 ## Actions Menu (V1 Shipped)
 1. Edit — respects state + role gating
-2. Proceed to check-out — creates a new `PENDING_PICKUP` checkout from the `BOOKED` reservation
+2. Pickup guidance — explains kiosk pickup when the reservation window is due; does not create checkout custody from app/web
 3. Extend — extends booking window (conflict-checked)
 4. Cancel reservation — soft cancel, record preserved for audit
 5. Duplicate — clones a BOOKED reservation with same items, dates, and settings
@@ -218,7 +218,7 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - Thumbnail image missing for one or more items in row.
 
 ## Acceptance Criteria
-- [x] AC-1: `BOOKED` reservations can transition to `OPEN` without data loss.
+- [ ] AC-1: `BOOKED` reservations can be fulfilled at kiosk pickup into linked checkout custody without data loss.
 - [x] AC-2: Edit operations revalidate conflicts for all relevant field changes.
 - [x] AC-3: `OPEN` records cannot be canceled directly in normal flow.
 - [x] AC-4: Permission and ownership enforcement matches `AREA_USERS.md`.
@@ -229,7 +229,7 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - [x] AC-9: Actions menu behavior matches state and policy mapping.
 - [x] AC-10: Reservations list supports status scope, search, sort, and required columns.
 - [x] AC-11: `Export` visibility follows role policy.
-- [x] AC-12: List and detail views remain consistent after edit/cancel/start-checkout actions.
+- [ ] AC-12: List and detail views remain consistent after edit, cancel, and kiosk pickup fulfillment.
 
 ## Dependencies
 - Booking and allocation constraints from `DECISIONS.md` (D-001, D-006, D-007).
@@ -245,14 +245,17 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 ## Developer Brief (No Code)
 1. Implement explicit transition guardrails for booking lifecycle states.
 2. Enforce conflict revalidation for every reservation edit that impacts availability.
-3. Prevent cancel misuse on active handoffs by enforcing check-in completion flows.
+3. Prevent cancel misuse by treating fulfilled reservations as `COMPLETED` and active custody as checkout-owned.
 4. Preserve audit completeness for transitions, denials, and reassignment events.
 5. Add regression coverage for concurrency races, permission bypass, and cross-midnight edits.
 6. Implement reservation detail anatomy with tabbed context and searchable equipment panel.
-7. Implement state-aware actions menu with clone/repeat behaviors and deferred items hidden.
+7. Implement state-aware actions menu with duplicate behavior, kiosk pickup guidance, and deferred items hidden.
 8. Implement list page controls and row behavior from V1 list surface spec.
 
 ## Change Log
+- 2026-06-15: Kiosk-only custody Slice 3. App/web reservation flows are now the only remote booking creation path: dashboard, item detail, event missing-gear, bookings, and native non-kiosk surfaces point users to reservations, with pickup guidance instead of `Start checkout` actions.
+- 2026-06-15: Server boundary for D-040 shipped. `/api/reservations/[id]/convert` now rejects app/web conversion into checkout custody, and fulfilled source reservations now close as `COMPLETED` when a kiosk-marked checkout creation path uses `sourceReservationId`.
+- 2026-06-15: Accepted the reservation-first app/web contract (D-040). App/web reservation detail should no longer create checkout custody; kiosk pickup fulfills due reservations, creates or opens the linked checkout custody record, and closes the source reservation as `COMPLETED`.
 - 2026-06-11: iOS native reservation creation event linking and showtime polish shipped. The Details step now loads upcoming events, supports up to 3 linked event selections, auto-fills context from the selected span while respecting user edits, and submits `eventIds[]` when events are selected. The native sheet keeps event-detail prep-gear legacy prefill behavior, scan-to-add, bulk/countable selection, and server-side availability enforcement unchanged.
 - 2026-06-10: Web reservation creation inherits the shared Step 1 duration-preserving start-date behavior from the booking wizard. Moving Start now shifts End by the previous duration instead of making a valid window invalid.
 - 2026-06-10: Web reservation creation audit/polish pass (refresh Slice 6). Same fixes as checkouts (escape-literal placeholders, layout alignment, hit targets, skeletons), plus the header kind badge now uses the canonical purple (was blue) and the Step 3 review icon uses the canonical calendar glyph per docs/COLOR_SYSTEM.md.

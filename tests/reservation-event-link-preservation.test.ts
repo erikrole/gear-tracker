@@ -85,31 +85,20 @@ beforeEach(() => {
   vi.mocked(createBooking).mockResolvedValue({ id: "new-booking", title: "x" } as any);
 });
 
-describe("reservation convert preserves multi-event links", () => {
-  it("passes ordered eventIds and omits legacy eventId for multi-event sources", async () => {
+describe("reservation convert custody boundary", () => {
+  it("blocks app/web conversion before creating checkout custody", async () => {
     vi.mocked(db.booking.findUniqueOrThrow).mockResolvedValue({
       ...baseSource,
       events: [{ eventId: "evt-a" }, { eventId: "evt-b" }],
     } as any);
 
-    await convert(request(`/api/reservations/${RESERVATION_ID}/convert`), ctx());
+    const res = await convert(request(`/api/reservations/${RESERVATION_ID}/convert`), ctx());
+    const body = await res.json();
 
-    const arg = vi.mocked(createBooking).mock.calls[0]![0];
-    expect(arg.eventIds).toEqual(["evt-a", "evt-b"]);
-    expect("eventId" in arg).toBe(false);
-  });
-
-  it("falls back to legacy eventId for single-event sources with no junction rows", async () => {
-    vi.mocked(db.booking.findUniqueOrThrow).mockResolvedValue({
-      ...baseSource,
-      events: [],
-    } as any);
-
-    await convert(request(`/api/reservations/${RESERVATION_ID}/convert`), ctx());
-
-    const arg = vi.mocked(createBooking).mock.calls[0]![0];
-    expect(arg.eventId).toBe("evt-primary");
-    expect("eventIds" in arg).toBe(false);
+    expect(res.status).toBe(403);
+    expect(body.error).toBe("Pick up this reservation at a kiosk. App/web cannot create checkout custody.");
+    expect(createBooking).not.toHaveBeenCalled();
+    expect(db.booking.findUniqueOrThrow).not.toHaveBeenCalled();
   });
 });
 

@@ -404,6 +404,46 @@ struct KioskErrorState: View {
     }
 }
 
+// MARK: Skeleton
+
+/// A shimmering placeholder block for loading states — softer than a bare
+/// spinner and matches the dark kiosk surfaces. Respects Reduce Motion (it
+/// holds a static dim fill instead of animating).
+struct KioskSkeletonBox: View {
+    var cornerRadius: CGFloat = KioskRadius.md
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var animate = false
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: cornerRadius)
+            .fill(KioskSurface.cardRaised)
+            .overlay {
+                if !reduceMotion {
+                    GeometryReader { geo in
+                        RoundedRectangle(cornerRadius: cornerRadius)
+                            .fill(
+                                LinearGradient(
+                                    colors: [.clear, Color.white.opacity(0.07), .clear],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .frame(width: geo.size.width * 0.6)
+                            .offset(x: animate ? geo.size.width : -geo.size.width * 0.6)
+                    }
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+            .onAppear {
+                guard !reduceMotion else { return }
+                withAnimation(.linear(duration: 1.15).repeatForever(autoreverses: false)) {
+                    animate = true
+                }
+            }
+            .accessibilityHidden(true)
+    }
+}
+
 // MARK: Avatar
 
 /// Async avatar with an initials fallback, used by the roster, student hub,

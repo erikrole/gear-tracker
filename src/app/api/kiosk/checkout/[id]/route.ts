@@ -22,6 +22,7 @@ export const GET = withKiosk<{ id: string }>(async (_req, { params }) => {
               id: true,
               assetTag: true,
               name: true,
+              imageUrl: true,
             },
           },
         },
@@ -38,6 +39,7 @@ export const GET = withKiosk<{ id: string }>(async (_req, { params }) => {
               name: true,
               category: true,
               trackByNumber: true,
+              imageUrl: true,
             },
           },
           unitAllocations: {
@@ -67,6 +69,7 @@ export const GET = withKiosk<{ id: string }>(async (_req, { params }) => {
     name: si.asset.name || si.asset.assetTag,
     returned: si.allocationStatus === "returned",
     type: "serialized" as const,
+    imageUrl: si.asset.imageUrl,
   }));
 
   const bulkItems = booking.status === "PENDING_PICKUP"
@@ -80,6 +83,7 @@ export const GET = withKiosk<{ id: string }>(async (_req, { params }) => {
           bulkSkuId: bi.bulkSku.id,
           bulkSkuName: bi.bulkSku.name,
           unitNumber: null,
+          imageUrl: bi.bulkSku.imageUrl,
         }))
       )
     : booking.bulkItems.flatMap((bi) =>
@@ -92,6 +96,7 @@ export const GET = withKiosk<{ id: string }>(async (_req, { params }) => {
           bulkSkuId: bi.bulkSku.id,
           bulkSkuName: bi.bulkSku.name,
           unitNumber: allocation.bulkSkuUnit.unitNumber,
+          imageUrl: bi.bulkSku.imageUrl,
         }))
       );
   const numberedBulkItems = booking.bulkItems.filter((bi) => bi.bulkSku.trackByNumber);

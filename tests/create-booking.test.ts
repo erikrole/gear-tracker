@@ -58,6 +58,7 @@ const mockTx = (db as any)._mockTx;
 function baseInput(overrides: Record<string, unknown> = {}) {
   return {
     kind: "CHECKOUT" as any,
+    custodySource: "KIOSK" as const,
     title: "Test Checkout",
     requesterUserId: "user-1",
     locationId: "loc-1",
@@ -99,6 +100,16 @@ describe("createBooking", () => {
   it("uses SERIALIZABLE isolation", async () => {
     await createBooking(baseInput());
     expectSerializableIsolation(transactionCalls, 0);
+  });
+
+  it("rejects checkout creation without kiosk custody source before opening a transaction", async () => {
+    await expect(createBooking(baseInput({ custodySource: undefined }))).rejects.toMatchObject({
+      status: 403,
+      message: "Direct checkout custody can only be created at a kiosk",
+    });
+
+    expect(transactionCalls).toHaveLength(0);
+    expect(mockTx.booking.create).not.toHaveBeenCalled();
   });
 
   it("creates a CHECKOUT with PENDING_PICKUP status", async () => {
@@ -309,11 +320,11 @@ describe("createBooking", () => {
 
     await createBooking(baseInput({ sourceReservationId: "rv-1", serializedAssetIds: [], bulkItems: [] }));
 
-    // Should cancel the source reservation
+    // Should complete the source reservation as fulfilled
     expect(mockTx.booking.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: "rv-1" },
-        data: { status: "CANCELLED" },
+        data: { status: "COMPLETED", completedAt: expect.any(Date) },
       })
     );
   });

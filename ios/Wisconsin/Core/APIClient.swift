@@ -226,18 +226,6 @@ final class APIClient {
         }
     }
 
-    func checkinItems(bookingId: String, assetIds: [String]) async throws {
-        struct Body: Encodable { let assetIds: [String] }
-        var req = request(path: "/api/checkouts/\(bookingId)/checkin-items", method: "POST")
-        req.httpBody = try JSONEncoder().encode(Body(assetIds: assetIds))
-        let (data, response) = try await session.data(for: req)
-        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            if http.statusCode == 401 { NotificationCenter.default.post(name: .sessionDidExpire, object: nil); throw APIError.unauthorized }
-            let msg = (try? JSONDecoder().decode(ServerErrorBody.self, from: data))?.error ?? "Check-in failed"
-            throw APIError.serverError(msg)
-        }
-    }
-
     func extendBooking(id: String, endsAt: Date) async throws {
         struct Body: Encodable { let endsAt: String }
         var req = request(path: "/api/bookings/\(id)/extend", method: "POST")

@@ -19,16 +19,3 @@ export function getBookingCancelCopy(kind: BookingKind, title?: string | null) {
     success: `${sentenceCase(label)} cancelled`,
   };
 }
-
-export function getReservationConvertCopy(title?: string | null) {
-  const subject = title ? `"${title}"` : "this reservation";
-
-  return {
-    title: "Start checkout from reservation?",
-    message: `Create a pending pickup from ${subject}. The reservation closes, and gear custody still begins at kiosk pickup.`,
-    confirmLabel: "Start checkout",
-    success: "Checkout pending pickup",
-    successDescription: "Open the checkout to complete pickup at the kiosk.",
-    missingLinkError: "Checkout started, but the response did not include a checkout link. Refresh the page.",
-  };
-}

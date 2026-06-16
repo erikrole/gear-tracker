@@ -39,9 +39,9 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 
 - Doc: `docs/AREA_EVENTS.md`
 - Pages: `/events/[id]`, `/events`
-- APIs: `/api/calendar-events/[id]/command-center`, `/api/calendar-events/[id]`, `/api/calendar-events/[id]/travel/[memberId]`, `/api/calendar-events/[id]/travel`, `/api/calendar-events/[id]/visibility`, `/api/calendar-events`
+- APIs: `/api/calendar-events/[id]/command-center`, `/api/calendar-events/[id]`, `/api/calendar-events/[id]/travel/[memberId]`, `/api/calendar-events/[id]/travel`, `/api/calendar-events/[id]/visibility`, `/api/calendar-events`, `/api/kiosk/events`
 - Services: _none matched_
-- Tests: `tests/calendar-events-query.test.ts`, `tests/calendar-events-route.test.ts`
+- Tests: `tests/calendar-events-query.test.ts`, `tests/calendar-events-route.test.ts`, `tests/kiosk-events-route.test.ts`
 
 ## importer
 
@@ -63,9 +63,9 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 
 - Doc: `docs/AREA_KIOSK.md`
 - Pages: `/settings/kiosk-devices`
-- APIs: `/api/kiosk-devices/[id]/regenerate-code`, `/api/kiosk-devices/[id]`, `/api/kiosk-devices`, `/api/kiosk/activate`, `/api/kiosk/checkin/[id]/complete`, `/api/kiosk/checkin/[id]/scan`, `/api/kiosk/checkout/[id]`, `/api/kiosk/checkout/complete`, `/api/kiosk/checkout/scan`, `/api/kiosk/dashboard`
-- Services: `src/lib/services/kiosk-scan.ts`
-- Tests: `tests/bulk-unit-kiosk-scans.test.ts`, `tests/kiosk-bulk-detail-routes.test.ts`, `tests/kiosk-checkout-scan-badges.test.ts`, `tests/kiosk-dashboard-route.test.ts`, `tests/kiosk-session-auth.test.ts`, `tests/settings-kiosk-devices-location-state.test.ts`
+- APIs: `/api/kiosk-devices/[id]/regenerate-code`, `/api/kiosk-devices/[id]`, `/api/kiosk-devices`, `/api/kiosk/activate`, `/api/kiosk/checkin/[id]/complete`, `/api/kiosk/checkin/[id]/scan`, `/api/kiosk/checkout/[id]`, `/api/kiosk/checkout/availability`, `/api/kiosk/checkout/complete`, `/api/kiosk/checkout/scan`
+- Services: `src/lib/services/kiosk-checkout-complete.ts`, `src/lib/services/kiosk-location.ts`, `src/lib/services/kiosk-scan.ts`
+- Tests: `tests/bulk-unit-kiosk-scans.test.ts`, `tests/kiosk-bulk-detail-routes.test.ts`, `tests/kiosk-checkout-availability-route.test.ts`, `tests/kiosk-checkout-complete-bulk-units.test.ts`, `tests/kiosk-checkout-scan-badges.test.ts`, `tests/kiosk-dashboard-route.test.ts`, `tests/kiosk-events-route.test.ts`, `tests/kiosk-only-custody-routes.test.ts`
 
 ## kits
 
@@ -87,8 +87,8 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 
 - Doc: `docs/AREA_MOBILE.md`
 - Pages: `/settings/kiosk-devices`
-- APIs: `/api/kiosk-devices/[id]/regenerate-code`, `/api/kiosk-devices/[id]`, `/api/kiosk-devices`, `/api/kiosk/activate`, `/api/kiosk/checkin/[id]/complete`, `/api/kiosk/checkin/[id]/scan`, `/api/kiosk/checkout/[id]`, `/api/kiosk/checkout/complete`, `/api/kiosk/checkout/scan`, `/api/kiosk/dashboard`
-- Services: `src/lib/services/kiosk-scan.ts`
+- APIs: `/api/kiosk-devices/[id]/regenerate-code`, `/api/kiosk-devices/[id]`, `/api/kiosk-devices`, `/api/kiosk/activate`, `/api/kiosk/checkin/[id]/complete`, `/api/kiosk/checkin/[id]/scan`, `/api/kiosk/checkout/[id]`, `/api/kiosk/checkout/availability`, `/api/kiosk/checkout/complete`, `/api/kiosk/checkout/scan`
+- Services: `src/lib/services/kiosk-checkout-complete.ts`, `src/lib/services/kiosk-location.ts`, `src/lib/services/kiosk-scan.ts`
 - Tests: `tests/bulk-unit-kiosk-scans.test.ts`, `tests/ios-api-contract.test.ts`, `tests/ios-appstate-refresh.test.ts`, `tests/ios-bookings-empty-state.test.ts`, `tests/ios-create-booking-picker-parity.test.ts`, `tests/ios-forced-password.test.ts`, `tests/ios-items-empty-state-recovery.test.ts`, `tests/ios-items-error-copy.test.ts`
 
 ## notifications

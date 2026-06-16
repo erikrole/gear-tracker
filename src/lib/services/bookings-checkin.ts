@@ -417,7 +417,10 @@ export async function kioskCompleteCheckin(args: {
     async (tx) => {
       const booking = await tx.booking.findUnique({
         where: { id: args.bookingId },
-        include: { serializedItems: true, bulkItems: true },
+        include: {
+          serializedItems: true,
+          bulkItems: { include: { unitAllocations: true } },
+        },
       });
       if (
         !booking ||
@@ -427,10 +430,31 @@ export async function kioskCompleteCheckin(args: {
         throw new HttpError(404, "Active checkout not found");
       }
 
-      const totalItems = booking.serializedItems.length;
-      const returnedItems = booking.serializedItems.filter(
+      // Count serialized assets AND bulk units so battery-only (or mixed)
+      // returns report a truthful "N of M" instead of 0. Numbered batteries
+      // track per-unit allocations; plain bulk falls back to quantities.
+      const serializedTotal = booking.serializedItems.length;
+      const serializedReturned = booking.serializedItems.filter(
         (i) => i.allocationStatus === "returned",
       ).length;
+
+      let bulkTotal = 0;
+      let bulkReturned = 0;
+      for (const item of booking.bulkItems) {
+        const units = item.unitAllocations.filter((u) => u.checkedOutAt !== null);
+        if (units.length > 0) {
+          bulkTotal += units.length;
+          bulkReturned += units.filter((u) => u.checkedInAt !== null).length;
+        } else {
+          const out = item.checkedOutQuantity ?? item.plannedQuantity;
+          const inn = item.checkedInQuantity ?? 0;
+          bulkTotal += Math.max(0, out);
+          bulkReturned += Math.max(0, Math.min(inn, out));
+        }
+      }
+
+      const totalItems = serializedTotal + bulkTotal;
+      const returnedItems = serializedReturned + bulkReturned;
 
       // Bulk stock to return if everything else is now in. `maybeAutoComplete`
       // uses this only when both serialized + bulk are fully returned.

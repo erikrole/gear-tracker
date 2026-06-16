@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Card, CardContent } from "@/components/ui/card";
-import { ClipboardCheckIcon, CalendarCheckIcon, ClockIcon, ArrowRightCircleIcon } from "lucide-react";
+import { ClipboardCheckIcon, CalendarCheckIcon, ClockIcon } from "lucide-react";
 import { ScaleIn } from "@/components/ui/motion";
 import { formatDayLabel, formatRelativeTime, isDueToday } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
@@ -27,7 +27,6 @@ type Props = {
   onSelectBooking: (id: string) => void;
   onDeleteDraft: (draftId: string) => void;
   onExtend: (booking: BookingSummary, e: React.MouseEvent) => void;
-  onConvert: (bookingId: string, e: React.MouseEvent) => void;
   onCreateBooking?: (ctx: CreateBookingContext) => void;
 };
 
@@ -42,7 +41,6 @@ export function MyGearColumn({
   onSelectBooking,
   onDeleteDraft,
   onExtend,
-  onConvert,
   onCreateBooking,
 }: Props) {
   const visibleMyCheckouts = filtered?.myCheckouts ?? data.myCheckouts.items;
@@ -77,19 +75,11 @@ export function MyGearColumn({
               {onCreateBooking && (
                 <div className="flex shrink-0 gap-2 max-sm:w-full">
                   <Button
-                    variant="outline"
                     size="sm"
                     className="max-sm:flex-1"
                     onClick={() => onCreateBooking({ kind: "RESERVATION" })}
                   >
                     Reserve
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="max-sm:flex-1"
-                    onClick={() => onCreateBooking({ kind: "CHECKOUT" })}
-                  >
-                    Check out
                   </Button>
                 </div>
               )}
@@ -160,23 +150,6 @@ export function MyGearColumn({
                     now={now}
                     accent="reservation"
                     onSelectBooking={onSelectBooking}
-                    actions={
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            className="opacity-100 transition-opacity duration-150 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100"
-                            disabled={acting}
-                            onClick={(e) => onConvert(r.id, e)}
-                            aria-label={`Convert reservation "${r.title}" to checkout`}
-                          >
-                            <ArrowRightCircleIcon className="size-3.5" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Convert to checkout</TooltipContent>
-                      </Tooltip>
-                    }
                   />
                 ))}
                 {!hasActiveFilter && data.myReservations.length >= 5 && (
@@ -225,7 +198,7 @@ export function MyGearColumn({
                         variant="outline"
                         size="sm"
                         onClick={() => onCreateBooking?.({
-                          kind: "CHECKOUT",
+                          kind: "RESERVATION",
                           title: eventTitle,
                           startsAt: s.event.startsAt,
                           endsAt: s.event.endsAt,
@@ -265,11 +238,13 @@ export function MyGearColumn({
                   </span>
                 </div>
                 <div className="flex gap-1.5 shrink-0">
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/${d.kind === "CHECKOUT" ? "checkouts" : "reservations"}?draftId=${d.id}`}>
-                      Continue
-                    </Link>
-                  </Button>
+                  {d.kind === "RESERVATION" && (
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href={`/reservations?draftId=${d.id}`}>
+                        Continue
+                      </Link>
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"

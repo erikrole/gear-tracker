@@ -45,7 +45,7 @@ import { CheckIcon, AlertCircleIcon, RotateCcwIcon, XIcon } from "lucide-react";
 /* ───── Config per kind ───── */
 
 type WizardConfig = {
-  kind: "CHECKOUT" | "RESERVATION";
+  kind: "RESERVATION";
   apiBase: string;
   label: string;
   actionLabel: string;
@@ -54,18 +54,6 @@ type WizardConfig = {
   startLabel: string;
   endLabel: string;
   defaultTieToEvent: boolean;
-};
-
-const CHECKOUT_CONFIG: WizardConfig = {
-  kind: "CHECKOUT",
-  apiBase: "/api/checkouts",
-  label: "checkout",
-  actionLabel: "Create pickup",
-  actionLabelProgress: "Creating\u2026",
-  requesterLabel: "Checked out to",
-  startLabel: "Pickup",
-  endLabel: "Return by",
-  defaultTieToEvent: true,
 };
 
 const RESERVATION_CONFIG: WizardConfig = {
@@ -142,14 +130,10 @@ function formReducer(state: FormState, action: FormAction): FormState {
 
 /* ───── Component ───── */
 
-export type BookingWizardProps = {
-  kind: "CHECKOUT" | "RESERVATION";
-};
-
-export function BookingWizard({ kind }: BookingWizardProps) {
+export function BookingWizard() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const config = kind === "CHECKOUT" ? CHECKOUT_CONFIG : RESERVATION_CONFIG;
+  const config = RESERVATION_CONFIG;
 
   // ── URL params ──
   const initialTitle = searchParams.get("title") || "";
@@ -174,7 +158,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
 
   // ── Existing drafts (for resume banner) ──
   // Persist dismissal for 1 hour via sessionStorage so it doesn't reappear on every reload.
-  const draftBannerKey = `wi:draftBannerDismissed:${kind}`;
+  const draftBannerKey = "wi:draftBannerDismissed:RESERVATION";
   const [draftBannerDismissed, setDraftBannerDismissed] = useState(() => {
     if (typeof window === "undefined") return false;
     const ts = window.sessionStorage.getItem(draftBannerKey);
@@ -200,7 +184,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
     enabled: !initialDraftId, // skip if already resuming a draft
   });
   const existingDrafts: Array<{ id: string; kind: string; title: string; itemCount: number; updatedAt: string }> =
-    (draftsData ?? []).filter((d: { kind: string }) => d.kind === kind);
+    (draftsData ?? []).filter((d: { kind: string }) => d.kind === "RESERVATION");
 
   // ── Step state ──
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -470,23 +454,14 @@ export function BookingWizard({ kind }: BookingWizardProps) {
       }
       const refNumber = created.refNumber ?? undefined;
       toast.success(`${config.label.charAt(0).toUpperCase() + config.label.slice(1)}${refNumber ? ` ${refNumber}` : ""} created`, {
-        description: kind === "CHECKOUT"
-          ? "Opened Bookings with this pickup highlighted."
-          : "Opened Bookings with this reservation highlighted.",
+        description: "Opened Bookings with this reservation highlighted.",
       });
 
       const bookingId = created.id;
-      if (kind === "CHECKOUT") {
-        const params = new URLSearchParams();
-        params.set("tab", "checkouts");
-        params.set("highlight", bookingId);
-        router.push(`/bookings?${params.toString()}`);
-      } else {
-        const params = new URLSearchParams();
-        params.set("tab", "reservations");
-        params.set("highlight", bookingId);
-        router.push(`/bookings?${params.toString()}`);
-      }
+      const params = new URLSearchParams();
+      params.set("tab", "reservations");
+      params.set("highlight", bookingId);
+      router.push(`/bookings?${params.toString()}`);
     } catch {
       setCreateError(`Couldn\u2019t create this ${config.label}. Please try again`);
     } finally {
@@ -500,16 +475,15 @@ export function BookingWizard({ kind }: BookingWizardProps) {
     { label: "Equipment", step: 2 as const },
     { label: "Confirm", step: 3 as const },
   ];
-  const headerTitle = form.title.trim() || (kind === "CHECKOUT" ? "Checkout details" : "Reservation details");
+  const headerTitle = form.title.trim() || "Reservation details";
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 md:py-12">
 
       {/* ── Header ── */}
       <header className="mb-7 flex flex-col items-center gap-2 text-center">
-        {/* Canonical kind colors per docs/COLOR_SYSTEM.md: checkout = blue, reservation = purple */}
-        <Badge variant={kind === "CHECKOUT" ? "blue" : "purple"} size="sm">
-          {kind === "CHECKOUT" ? "Checkout" : "Reservation"}
+        <Badge variant="purple" size="sm">
+          Reservation
         </Badge>
         <h1 className="max-w-3xl text-2xl font-semibold tracking-tight text-balance md:text-3xl">
           {headerTitle}
@@ -531,7 +505,7 @@ export function BookingWizard({ kind }: BookingWizardProps) {
             <div className="flex items-center gap-1">
               {existingDrafts.slice(0, 2).map((d) => (
                 <Button key={d.id} variant="ghost" size="sm" asChild className="shrink-0">
-                  <a href={`/${kind === "CHECKOUT" ? "checkouts" : "reservations"}/new?draftId=${d.id}`}>
+                  <a href={`/reservations/new?draftId=${d.id}`}>
                     {d.title || "Resume"}
                   </a>
                 </Button>

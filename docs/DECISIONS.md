@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-06-08
+- Last Updated: 2026-06-15
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -42,6 +42,7 @@
 - D-036: Product image search is Brave-backed and human-picked
 - D-037: Bulk onboarding uses an invitation-scoped account lifecycle
 - D-039: Kiosk sessions slide on activity and survive reinstalls via Keychain
+- D-040: Kiosk-only custody, reservation-first app/web
 
 ---
 
@@ -208,7 +209,7 @@
   - Checkout and reservation flows are the highest-frequency workflows and the highest risk for integrity bugs.
 - Decision:
   - Use explicit transition guardrails:
-    - `BOOKED -> OPEN` allowed.
+    - `BOOKED -> OPEN` allowed only where a specific custody flow owns that transition. D-040 supersedes the old app/web reservation conversion path: normal reservation fulfillment now happens at kiosk pickup by opening linked checkout custody and completing the source reservation.
     - `BOOKED -> CANCELLED` allowed by role/policy.
     - `OPEN -> COMPLETED` only when all allocations are returned.
     - `OPEN -> CANCELLED` disallowed in normal flow.
@@ -756,6 +757,29 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - An active kiosk never re-prompts for an activation code; only 7 full days of darkness (or admin deactivation, which still revokes instantly via `active: false`) ends a session.
   - The Keychain copy outlives app deletion by design — `deactivate()` and any 401 path must keep clearing it (both do).
 
+## D-040: Kiosk-Only Custody, Reservation-First App/Web
+- Date: 2026-06-15
+- Status: Accepted
+- Context:
+  - Checkout and return are physical custody events. Letting app/web users create checkout custody away from a kiosk blurs intent, inventory commitment, and physical handoff evidence.
+  - The app `/scan` surface is already lookup-only by D-028, and the native iOS kiosk is already the canonical checkout, pickup, and return surface by D-030.
+  - The unified `Booking` model already supports reservations and checkouts, including `sourceReservationId` for preserving a fulfilled-reservation trail.
+- Decision:
+  - Direct checkout and return mutations are kiosk-only. They must require kiosk authentication, scan evidence where applicable, and the kiosk's physical location context.
+  - App and web users create and manage reservations when they are not physically at the kiosk with the gear.
+  - Direct "I need this now" checkout remains available through kiosk checkout, not through app/web checkout creation.
+  - Reservation pickup is fulfilled at the kiosk. Once scans pass, the kiosk creates or opens the linked checkout custody record and marks the source reservation `COMPLETED`; it must not treat a fulfilled reservation as user-cancelled.
+  - `PENDING_PICKUP` may remain as a compatibility or staged handoff state, but it is no longer the normal result of app/web checkout creation.
+  - Checkout records remain the custody ledger for active and historical gear-out reporting, search, and audit.
+- Consequences:
+  - Non-kiosk app/web routes must not create checkout custody, convert reservations into pickup custody, or return gear.
+  - Overdue checkout counts mean physical gear is out. Stale reservations, due reservations, and awaiting-pickup work must be reported separately.
+  - Existing `PENDING_PICKUP` records need a compatibility path during rollout; they continue to block availability until cancelled, picked up, or expired.
+- Guardrails:
+  - Keep server-side enforcement at the mutation boundary. UI removal alone is insufficient.
+  - Preserve `sourceReservationId` and audit entries when a reservation is fulfilled into checkout custody.
+  - Do not reintroduce app/web scan completion paths outside kiosk APIs.
+
 ---
 
 ## Pending Decisions
@@ -765,6 +789,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 4. ~~Student mobile KPI definitions~~ — resolved (PD-5): taps-to-checkout ≤3, scan success ≥95%, task completion <30s. Telemetry deferred to Phase B.
 
 ## Change Log
+- 2026-06-15: Added D-040 for kiosk-only custody. App/web becomes reservation-first; direct checkout, reservation pickup, and return custody mutations are kiosk-only, with fulfilled source reservations closing as `COMPLETED`.
 - 2026-06-08: Updated D-029/D-037 for the no-temp-password beta pivot. First-time onboarding now stays invite-first through AllowedEmail registration, while forced-password handling remains recovery-only.
 - 2026-06-03: Added D-037 to make onboarding a bulk-capable, invitation-scoped account lifecycle while preserving the allowlist gate and forced-password safety.
 - 2026-06-02: Updated D-026 to match shipped cron reality. Calendar sync is now documented as part of `morning-refresh` at 08:00 UTC, aligned with D-035, while manual Settings sync remains the on-demand escape hatch.

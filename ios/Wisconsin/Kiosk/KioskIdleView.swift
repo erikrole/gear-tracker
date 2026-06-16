@@ -12,6 +12,8 @@ struct KioskIdleView: View {
     @State private var sleepDismissedUntil: Date?
     @State private var selectedSummary: KioskSummarySelection = .events
     @State private var selectedEvent: KioskEvent?
+    @State private var selectedCheckout: KioskCheckoutDrawerContext?
+    @State private var rosterLetter: Character?
     @State private var identityScanFeedback: IdentityScanFeedback?
     @State private var isIdentifyingScan = false
     #if DEBUG
@@ -68,11 +70,17 @@ struct KioskIdleView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                 #endif
 
-                KioskScannerField { value in
-                    handleIdentityScan(value)
+                // Only capture Wiscard scans when the roster is actually the
+                // active surface. While a detail sheet is open or the kiosk is
+                // asleep, unmount the hidden HID field so it can't swallow input
+                // or fight a presented view for first responder.
+                if !isScannerPaused {
+                    KioskScannerField { value in
+                        handleIdentityScan(value)
+                    }
+                    .frame(width: 1, height: 1)
+                    .opacity(0)
                 }
-                .frame(width: 1, height: 1)
-                .opacity(0)
             }
         }
         .task { await loadAll() }
@@ -88,6 +96,11 @@ struct KioskIdleView: View {
                 capabilities: dashboard?.capabilities ?? KioskDashboard.Capabilities()
             )
                 .presentationDetents([.height(440), .large])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(item: $selectedCheckout) { context in
+            KioskCheckoutDetailSheet(context: context)
+                .presentationDetents([.height(520), .large])
                 .presentationDragIndicator(.visible)
         }
     }
@@ -108,6 +121,26 @@ struct KioskIdleView: View {
         if debugForcesSleepMode { return "debug_night_mode" }
         #endif
         return dashboard?.standby?.reason ?? "idle_window"
+    }
+
+    /// Pause Wiscard capture while a detail sheet is open or the kiosk is
+    /// asleep — those surfaces own the screen and the hidden field should not
+    /// be grabbing keystrokes or first responder underneath them.
+    private var isScannerPaused: Bool {
+        selectedEvent != nil || selectedCheckout != nil || shouldShowSleepMode
+    }
+
+    /// The last refresh hit a failure (and we have no fresh data to mask it).
+    private var hasConnectionIssue: Bool {
+        loadFailedAt != nil
+    }
+
+    /// Connection health for the quiet status dot: green when a refresh landed
+    /// recently, orange when the data is going stale, red when refreshes fail.
+    private var connectionTone: Color {
+        if hasConnectionIssue { return Color.statusText(.red) }
+        if isStale { return Color.statusText(.orange) }
+        return Color.statusText(.green)
     }
 
     #if DEBUG
@@ -154,6 +187,12 @@ struct KioskIdleView: View {
                         .font(.callout.weight(.semibold))
                         .foregroundStyle(KioskText.secondary)
                 }
+                Spacer(minLength: 8)
+                kioskHealthDot
+            }
+
+            if hasConnectionIssue {
+                connectionBanner
             }
 
             TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -178,21 +217,21 @@ struct KioskIdleView: View {
                         accent: .white,
                         isSelected: selectedSummary == .itemsOut,
                         reduceMotion: reduceMotion
-                    ) { selectedSummary = .itemsOut }
+                    ) { toggleSummary(.itemsOut) }
                     StatTile(
                         value: stats.checkouts,
                         label: "Checkouts",
                         accent: .white,
                         isSelected: selectedSummary == .checkouts,
                         reduceMotion: reduceMotion
-                    ) { selectedSummary = .checkouts }
+                    ) { toggleSummary(.checkouts) }
                     StatTile(
                         value: stats.overdue,
                         label: "Overdue",
                         accent: stats.overdue > 0 ? Color.statusText(.red) : .white,
                         isSelected: selectedSummary == .overdue,
                         reduceMotion: reduceMotion
-                    ) { selectedSummary = .overdue }
+                    ) { toggleSummary(.overdue) }
                 }
             } else {
                 HStack(spacing: 16) {
@@ -249,6 +288,68 @@ struct KioskIdleView: View {
         return Date().timeIntervalSince(last) > 300
     }
 
+    /// Quiet at-a-glance signal for staff that the kiosk is up and talking to
+    /// the server — green/online, orange/stale, red/offline.
+    private var kioskHealthDot: some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(connectionTone)
+                .frame(width: 8, height: 8)
+            Text(hasConnectionIssue ? "Offline" : (isStale ? "Stale" : "Active"))
+                .font(.caption2.weight(.bold))
+                .tracking(0.6)
+                .foregroundStyle(KioskText.tertiary)
+                .textCase(.uppercase)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Kiosk \(hasConnectionIssue ? "offline" : (isStale ? "data stale" : "active and online"))")
+    }
+
+    private var connectionBanner: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "wifi.exclamationmark")
+                .foregroundStyle(Color.statusText(.orange))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Can't reach the server")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(KioskText.primary)
+                if let last = lastLoadedAt {
+                    Text("Showing data from \(last.kioskFreshnessLabel(now: Date()))")
+                        .font(.caption2)
+                        .foregroundStyle(KioskText.muted)
+                } else {
+                    Text("No data loaded yet")
+                        .font(.caption2)
+                        .foregroundStyle(KioskText.muted)
+                }
+            }
+            Spacer()
+            Button {
+                Task { await loadAll() }
+            } label: {
+                Text(isLoading ? "Retrying…" : "Retry")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(KioskText.primary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Color.kioskRed.opacity(0.85), in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .disabled(isLoading)
+            .accessibilityLabel("Retry loading kiosk data")
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(Color.statusText(.orange).opacity(0.12), in: RoundedRectangle(cornerRadius: KioskRadius.md))
+        .overlay(
+            RoundedRectangle(cornerRadius: KioskRadius.md)
+                .stroke(Color.statusText(.orange).opacity(0.4), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Can't reach the server. \(lastLoadedAt != nil ? "Showing cached data." : "No data yet.") Retry available.")
+    }
+
     // MARK: - Roster Panel
 
     private var rosterPanel: some View {
@@ -274,12 +375,15 @@ struct KioskIdleView: View {
             }
 
             if users.isEmpty && isLoading {
-                ProgressView().tint(KioskText.primary).frame(maxWidth: .infinity, maxHeight: .infinity)
+                rosterSkeleton
             } else {
+                if showsLetterFilter {
+                    rosterLetterFilter
+                }
                 let labels = disambiguatedLabels(for: users)
                 ScrollView {
                     LazyVGrid(columns: rosterColumns, spacing: 10) {
-                        ForEach(users) { user in
+                        ForEach(filteredUsers) { user in
                             UserTile(user: user, displayName: labels[user.id] ?? user.name) {
                                 store.screen = .studentHub(user)
                             }
@@ -290,11 +394,89 @@ struct KioskIdleView: View {
         }
     }
 
+    /// First letters present in the roster, for the A–Z quick filter.
+    private var rosterLetters: [Character] {
+        let set = Set(users.compactMap { user -> Character? in
+            guard let first = user.name.trimmingCharacters(in: .whitespaces).first else { return nil }
+            return Character(first.uppercased())
+        })
+        return set.sorted()
+    }
+
+    /// Only worth showing the filter once the grid is big enough to hunt through.
+    private var showsLetterFilter: Bool {
+        users.count > 12 && rosterLetters.count > 1
+    }
+
+    private var filteredUsers: [KioskUser] {
+        guard let rosterLetter else { return users }
+        let matches = users.filter {
+            $0.name.trimmingCharacters(in: .whitespaces).first?.uppercased().first == rosterLetter
+        }
+        // A stale selection (roster changed on refresh) falls back to everyone.
+        return matches.isEmpty ? users : matches
+    }
+
+    private var rosterLetterFilter: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                letterChip(title: "All", isSelected: rosterLetter == nil) { rosterLetter = nil }
+                ForEach(rosterLetters, id: \.self) { letter in
+                    letterChip(title: String(letter), isSelected: rosterLetter == letter) {
+                        rosterLetter = (rosterLetter == letter) ? nil : letter
+                        store.resetInactivity()
+                    }
+                }
+            }
+            .padding(.vertical, 2)
+        }
+        .scrollIndicators(.hidden)
+        .accessibilityLabel("Filter roster by first letter")
+    }
+
+    private func letterChip(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(isSelected ? .white : KioskText.secondary)
+                .frame(minWidth: 38, minHeight: 38)
+                .background(
+                    isSelected ? Color.kioskRed : KioskSurface.cardRaised,
+                    in: RoundedRectangle(cornerRadius: KioskRadius.sm)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: KioskRadius.sm)
+                        .stroke(isSelected ? Color.clear : KioskStroke.standard, lineWidth: 1)
+                )
+        }
+        .buttonStyle(KioskPressStyle())
+        .accessibilityLabel(title == "All" ? "Show all names" : "Names starting with \(title)")
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+    }
+
+    private var rosterSkeleton: some View {
+        ScrollView {
+            LazyVGrid(columns: rosterColumns, spacing: 10) {
+                ForEach(0..<9, id: \.self) { _ in
+                    KioskSkeletonBox(cornerRadius: KioskRadius.md)
+                        .frame(height: 92)
+                }
+            }
+        }
+        .scrollDisabled(true)
+        .accessibilityLabel("Loading roster")
+    }
+
     private var rosterColumns: [GridItem] {
         if dynamicTypeSize.isAccessibilitySize {
             return [GridItem(.flexible(minimum: 150), spacing: 10)]
         }
         return [GridItem(.adaptive(minimum: 112, maximum: 148), spacing: 10)]
+    }
+
+    private func toggleSummary(_ summary: KioskSummarySelection) {
+        selectedSummary = selectedSummary == summary ? .events : summary
+        store.resetInactivity()
     }
 
     @ViewBuilder
@@ -304,26 +486,50 @@ struct KioskIdleView: View {
             case .events:
                 EmptyView()
             case .itemsOut:
-                KioskDashboardList(title: "Items Out", emptyMessage: "No items are out.", isEmpty: dashboard.activeItems.isEmpty) {
-                    ForEach(dashboard.activeItems) { item in
-                        ActiveItemRow(item: item)
+                let itemGroups = ActiveItemGroup.groups(from: dashboard.activeItems)
+                KioskDashboardList(title: "Items Out", emptyMessage: "No items are out.", isEmpty: dashboard.activeItems.isEmpty, onClose: { toggleSummary(.itemsOut) }) {
+                    ForEach(itemGroups) { group in
+                        ActiveItemRow(group: group) { openCheckout(id: group.first.checkoutId, title: group.first.checkoutTitle, requesterName: group.first.requesterName, requesterAvatarUrl: group.first.requesterAvatarUrl, endsAt: group.first.endsAt, isOverdue: group.first.isOverdue) }
                     }
                 }
             case .checkouts:
-                KioskDashboardList(title: "Active Checkouts", emptyMessage: "No active checkouts.", isEmpty: dashboard.checkouts.isEmpty) {
+                KioskDashboardList(title: "Active Checkouts", emptyMessage: "No active checkouts.", isEmpty: dashboard.checkouts.isEmpty, onClose: { toggleSummary(.checkouts) }) {
                     ForEach(dashboard.checkouts) { checkout in
-                        CheckoutRow(checkout: checkout)
+                        CheckoutRow(checkout: checkout) { openCheckout(checkout) }
                     }
                 }
             case .overdue:
                 let overdueCheckouts = dashboard.checkouts.filter(\.isOverdue)
-                KioskDashboardList(title: "Overdue", emptyMessage: "No overdue checkouts.", isEmpty: overdueCheckouts.isEmpty) {
+                KioskDashboardList(title: "Overdue", emptyMessage: "No overdue checkouts.", isEmpty: overdueCheckouts.isEmpty, onClose: { toggleSummary(.overdue) }) {
                     ForEach(overdueCheckouts) { checkout in
-                        CheckoutRow(checkout: checkout)
+                        CheckoutRow(checkout: checkout) { openCheckout(checkout) }
                     }
                 }
             }
         }
+    }
+
+    private func openCheckout(_ checkout: KioskActiveCheckout) {
+        openCheckout(
+            id: checkout.id,
+            title: checkout.title,
+            requesterName: checkout.requesterName,
+            requesterAvatarUrl: checkout.requesterAvatarUrl,
+            endsAt: checkout.endsAt,
+            isOverdue: checkout.isOverdue
+        )
+    }
+
+    private func openCheckout(id: String, title: String, requesterName: String, requesterAvatarUrl: String?, endsAt: Date, isOverdue: Bool) {
+        selectedCheckout = KioskCheckoutDrawerContext(
+            checkoutId: id,
+            title: title,
+            requesterName: requesterName,
+            requesterAvatarUrl: requesterAvatarUrl,
+            endsAt: endsAt,
+            isOverdue: isOverdue
+        )
+        store.resetInactivity()
     }
 
     @ViewBuilder
@@ -568,20 +774,36 @@ private struct KioskDashboardList<Content: View>: View {
     let title: String
     let emptyMessage: String
     let isEmpty: Bool
+    var onClose: (() -> Void)?
     let content: Content
 
-    init(title: String, emptyMessage: String, isEmpty: Bool, @ViewBuilder content: () -> Content) {
+    init(title: String, emptyMessage: String, isEmpty: Bool, onClose: (() -> Void)? = nil, @ViewBuilder content: () -> Content) {
         self.title = title
         self.emptyMessage = emptyMessage
         self.isEmpty = isEmpty
+        self.onClose = onClose
         self.content = content()
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(title)
-                .font(.callout.weight(.bold))
-                .foregroundStyle(KioskText.secondary)
+            HStack {
+                Text(title)
+                    .font(.callout.weight(.bold))
+                    .foregroundStyle(KioskText.secondary)
+                Spacer()
+                if let onClose {
+                    Button(action: onClose) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.body)
+                            .foregroundStyle(KioskText.muted)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Close \(title)")
+                }
+            }
 
             ScrollView {
                 LazyVStack(spacing: 8) {
@@ -608,40 +830,130 @@ private struct KioskDashboardList<Content: View>: View {
     }
 }
 
-private struct ActiveItemRow: View {
-    let item: KioskDashboard.ActiveItem
+/// Groups the flat active-item list so a holder's numbered battery units
+/// collapse into one row with unit chips, mirroring the checkout cart.
+/// Units are keyed by SKU *and* checkout so two students holding the same
+/// battery type stay on separate rows.
+private struct ActiveItemGroup: Identifiable {
+    let id: String
+    var items: [KioskDashboard.ActiveItem]
 
-    var body: some View {
-        HStack(spacing: 10) {
-            assetImage
-            VStack(alignment: .leading, spacing: 2) {
-                Text(item.name)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(KioskText.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-                Text("\(item.tagName) · \(item.checkoutTitle)")
-                    .font(.caption)
-                    .foregroundStyle(KioskText.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
-            Spacer()
-            if item.isOverdue {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(Color.statusText(.red))
-                    .font(.caption)
-                    .accessibilityLabel("Overdue")
+    var first: KioskDashboard.ActiveItem { items[0] }
+    var isBulkGroup: Bool { first.isNumberedBulk }
+    var count: Int { items.count }
+    var isOverdue: Bool { first.isOverdue }
+    var unitNumbers: [Int] { items.compactMap(\.unitNumber).sorted() }
+
+    var title: String {
+        guard isBulkGroup else { return first.name }
+        return first.name.replacingOccurrences(of: #" #\d+$"#, with: "", options: .regularExpression)
+    }
+
+    static func groups(from items: [KioskDashboard.ActiveItem]) -> [ActiveItemGroup] {
+        var groups: [ActiveItemGroup] = []
+        var bulkIndex: [String: Int] = [:]
+        for item in items {
+            if item.isNumberedBulk, let bulkSkuId = item.bulkSkuId {
+                let key = "bulk-\(bulkSkuId)-\(item.checkoutId)"
+                if let index = bulkIndex[key] {
+                    groups[index].items.append(item)
+                } else {
+                    bulkIndex[key] = groups.count
+                    groups.append(ActiveItemGroup(id: key, items: [item]))
+                }
+            } else {
+                groups.append(ActiveItemGroup(id: item.id, items: [item]))
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(KioskSurface.cardRaised, in: RoundedRectangle(cornerRadius: KioskRadius.sm))
-        .overlay(
-            RoundedRectangle(cornerRadius: KioskRadius.sm)
-                .stroke(KioskStroke.standard, lineWidth: 1)
-        )
+        return groups
+    }
+}
+
+private struct ActiveItemRow: View {
+    let group: ActiveItemGroup
+    let onTap: () -> Void
+    private var item: KioskDashboard.ActiveItem { group.first }
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 10) {
+                assetImage
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Text(group.title)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(KioskText.primary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+                        if group.count > 1 {
+                            Text("x\(group.count)")
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(Color.kioskRed)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.kioskRed.opacity(0.16), in: Capsule())
+                        }
+                    }
+
+                    if group.isBulkGroup, !group.unitNumbers.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 4) {
+                                ForEach(group.unitNumbers, id: \.self) { unitNumber in
+                                    Text("#\(unitNumber)")
+                                        .font(.caption2.monospacedDigit().weight(.semibold))
+                                        .foregroundStyle(KioskText.secondary)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 3)
+                                        .background(KioskSurface.placeholder, in: Capsule())
+                                }
+                            }
+                        }
+                    } else {
+                        Text("\(item.tagName) · \(item.checkoutTitle)")
+                            .font(.caption)
+                            .foregroundStyle(KioskText.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
+                }
+                Spacer(minLength: 6)
+                KioskAvatar(url: item.requesterAvatarUrl, initials: item.requesterInitials, size: 30)
+                    .accessibilityHidden(true)
+                if group.isOverdue {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(Color.statusText(.red))
+                        .font(.caption)
+                        .accessibilityLabel("Overdue")
+                }
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(KioskText.muted)
+                    .accessibilityHidden(true)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(KioskSurface.cardRaised, in: RoundedRectangle(cornerRadius: KioskRadius.sm))
+            .overlay(
+                RoundedRectangle(cornerRadius: KioskRadius.sm)
+                    .stroke(KioskStroke.standard, lineWidth: 1)
+            )
+        }
+        .buttonStyle(KioskPressStyle())
         .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint("Opens checkout details")
+    }
+
+    private var accessibilityLabel: String {
+        let prefix = group.isOverdue ? "Overdue: " : ""
+        let what: String
+        if group.isBulkGroup {
+            let units = group.unitNumbers.map { "#\($0)" }.joined(separator: ", ")
+            what = "\(group.title), \(group.count) unit\(group.count == 1 ? "" : "s"), \(units)"
+        } else {
+            what = "\(group.title), \(item.tagName)"
+        }
+        return "\(prefix)\(what), held by \(item.requesterName) for \(item.checkoutTitle)"
     }
 
     @ViewBuilder
@@ -667,7 +979,7 @@ private struct ActiveItemRow: View {
             .fill(KioskSurface.placeholder)
             .frame(width: 42, height: 42)
             .overlay {
-                Image(systemName: "camera.fill")
+                Image(systemName: item.isNumberedBulk ? "battery.100percent" : "camera.fill")
                     .font(.caption)
                     .foregroundStyle(KioskText.secondary)
             }
@@ -1012,46 +1324,55 @@ private struct KioskEventWorkerRow: View {
 
 private struct CheckoutRow: View {
     let checkout: KioskActiveCheckout
+    let onTap: () -> Void
 
     var body: some View {
-        HStack {
-            // Real avatar when available; falls back to the existing initials
-            // disc on missing/failed loads. Overdue ring stays as the visual
-            // signal regardless of which path renders.
-            ZStack {
-                Circle()
-                    .fill(checkout.isOverdue ? Color.kioskRed.opacity(0.3) : KioskSurface.cardRaised)
-                    .frame(width: 36, height: 36)
-                avatarInitialsLayer
-            }
+        Button(action: onTap) {
+            HStack {
+                // Real avatar when available; falls back to the existing initials
+                // disc on missing/failed loads. Overdue ring stays as the visual
+                // signal regardless of which path renders.
+                ZStack {
+                    Circle()
+                        .fill(checkout.isOverdue ? Color.kioskRed.opacity(0.3) : KioskSurface.cardRaised)
+                        .frame(width: 36, height: 36)
+                    avatarInitialsLayer
+                }
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(checkout.title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(KioskText.primary)
-                Text(itemSummary)
-                    .font(.caption)
-                    .foregroundStyle(KioskText.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(checkout.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(KioskText.primary)
+                    Text(itemSummary)
+                        .font(.caption)
+                        .foregroundStyle(KioskText.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                }
+                Spacer()
+                if checkout.isOverdue {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(Color.statusText(.red))
+                        .font(.caption)
+                        .accessibilityLabel("Overdue")
+                }
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(KioskText.muted)
+                    .accessibilityHidden(true)
             }
-            Spacer()
-            if checkout.isOverdue {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(Color.statusText(.red))
-                    .font(.caption)
-                    .accessibilityLabel("Overdue")
-            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(KioskSurface.cardRaised, in: RoundedRectangle(cornerRadius: KioskRadius.sm))
+            .overlay(
+                RoundedRectangle(cornerRadius: KioskRadius.sm)
+                    .stroke(KioskStroke.standard, lineWidth: 1)
+            )
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(KioskSurface.cardRaised, in: RoundedRectangle(cornerRadius: KioskRadius.sm))
-        .overlay(
-            RoundedRectangle(cornerRadius: KioskRadius.sm)
-                .stroke(KioskStroke.standard, lineWidth: 1)
-        )
+        .buttonStyle(KioskPressStyle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilitySummary)
+        .accessibilityHint("Opens checkout details")
     }
 
     @ViewBuilder
@@ -1091,6 +1412,280 @@ private struct CheckoutRow: View {
     private var accessibilitySummary: String {
         let prefix = checkout.isOverdue ? "Overdue: " : ""
         return "\(prefix)\(checkout.title), \(itemSummary)"
+    }
+}
+
+// MARK: - Checkout Detail Drawer
+
+/// Lightweight context captured from the tapped row so the drawer can render
+/// its header (who/what/when) immediately while the item list loads.
+private struct KioskCheckoutDrawerContext: Identifiable {
+    let checkoutId: String
+    let title: String
+    let requesterName: String
+    let requesterAvatarUrl: String?
+    let endsAt: Date
+    let isOverdue: Bool
+
+    var id: String { checkoutId }
+
+    var requesterInitials: String {
+        requesterName.split(separator: " ").prefix(2)
+            .compactMap { $0.first }
+            .map { String($0) }
+            .joined()
+            .uppercased()
+    }
+}
+
+private struct KioskCheckoutDetailSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let context: KioskCheckoutDrawerContext
+
+    @State private var detail: KioskCheckoutDetail?
+    @State private var isLoading = true
+    @State private var loadError: String?
+
+    private struct ItemGroup: Identifiable {
+        let id: String
+        var items: [KioskCheckoutDetail.ReturnItem]
+        var first: KioskCheckoutDetail.ReturnItem { items[0] }
+        var isBulkGroup: Bool { first.isNumberedBulk }
+        var count: Int { items.count }
+        var title: String {
+            guard isBulkGroup else { return first.name }
+            return (first.bulkSkuName ?? first.name)
+                .replacingOccurrences(of: #" #\d+$"#, with: "", options: .regularExpression)
+        }
+        var unitNumbers: [Int] { items.compactMap(\.unitNumber).sorted() }
+        var returnedCount: Int { items.filter(\.returned).count }
+    }
+
+    private var groups: [ItemGroup] {
+        guard let items = detail?.items else { return [] }
+        var groups: [ItemGroup] = []
+        var bulkIndex: [String: Int] = [:]
+        for item in items {
+            if item.isNumberedBulk, let bulkSkuId = item.bulkSkuId {
+                if let index = bulkIndex[bulkSkuId] {
+                    groups[index].items.append(item)
+                } else {
+                    bulkIndex[bulkSkuId] = groups.count
+                    groups.append(ItemGroup(id: "bulk-\(bulkSkuId)", items: [item]))
+                }
+            } else {
+                groups.append(ItemGroup(id: item.id, items: [item]))
+            }
+        }
+        return groups
+    }
+
+    var body: some View {
+        ZStack {
+            KioskSurface.base.ignoresSafeArea()
+            VStack(alignment: .leading, spacing: 18) {
+                header
+
+                timingRow
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Items")
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(KioskText.primary)
+
+                    if isLoading {
+                        ProgressView().tint(KioskText.primary)
+                            .frame(maxWidth: .infinity, minHeight: 80)
+                    } else if let loadError {
+                        KioskErrorState(title: loadError) { Task { await load() } }
+                    } else {
+                        ScrollView {
+                            LazyVStack(spacing: 8) {
+                                ForEach(groups) { group in
+                                    itemRow(group)
+                                }
+                            }
+                        }
+                        .scrollIndicators(.hidden)
+                    }
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(28)
+        }
+        .task { await load() }
+    }
+
+    private var header: some View {
+        HStack(alignment: .top, spacing: 14) {
+            KioskAvatar(url: context.requesterAvatarUrl, initials: context.requesterInitials, size: 48)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(context.title)
+                    .font(.title2.weight(.heavy))
+                    .foregroundStyle(KioskText.primary)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.78)
+                Text(context.requesterName)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(KioskText.secondary)
+            }
+            Spacer()
+            Button("Done") { dismiss() }
+                .font(.headline.weight(.semibold))
+                .foregroundStyle(KioskText.primary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(KioskSurface.cardSelected, in: Capsule())
+        }
+    }
+
+    private var timingRow: some View {
+        HStack(spacing: 10) {
+            Image(systemName: context.isOverdue ? "exclamationmark.triangle.fill" : "clock.badge.checkmark")
+                .foregroundStyle(context.isOverdue ? Color.statusText(.red) : Color.kioskRed)
+                .accessibilityHidden(true)
+            Text(context.isOverdue ? "Overdue" : "Due")
+                .font(.caption.weight(.bold))
+                .tracking(0.8)
+                .foregroundStyle(context.isOverdue ? Color.statusText(.red) : KioskText.tertiary)
+                .textCase(.uppercase)
+            Text(context.endsAt.formatted(date: .abbreviated, time: .shortened))
+                .font(.subheadline.weight(.semibold).monospacedDigit())
+                .foregroundStyle(KioskText.primary)
+            Text(relativeDue)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(context.isOverdue ? Color.statusText(.red) : KioskText.tertiary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(
+                    (context.isOverdue ? Color.statusText(.red) : KioskText.tertiary).opacity(0.14),
+                    in: Capsule()
+                )
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(KioskSurface.cardRaised, in: RoundedRectangle(cornerRadius: KioskRadius.lg))
+        .overlay(
+            RoundedRectangle(cornerRadius: KioskRadius.lg)
+                .stroke(KioskStroke.standard, lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(context.isOverdue ? "Overdue, due" : "Due") \(context.endsAt.formatted(date: .abbreviated, time: .shortened))")
+    }
+
+    private var relativeDue: String {
+        let rel = Self.relativeFormatter.localizedString(for: context.endsAt, relativeTo: Date())
+        return context.isOverdue ? "\(rel)" : rel
+    }
+
+    private static let relativeFormatter: RelativeDateTimeFormatter = {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter
+    }()
+
+    @ViewBuilder
+    private func itemRow(_ group: ItemGroup) -> some View {
+        HStack(spacing: 12) {
+            itemThumbnail(group)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(group.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(KioskText.primary)
+                        .lineLimit(1)
+                    if group.count > 1 {
+                        Text("x\(group.count)")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(Color.kioskRed)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.kioskRed.opacity(0.16), in: Capsule())
+                    }
+                }
+                if group.isBulkGroup, !group.unitNumbers.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 4) {
+                            ForEach(group.unitNumbers, id: \.self) { unit in
+                                Text("#\(unit)")
+                                    .font(.caption2.monospacedDigit().weight(.semibold))
+                                    .foregroundStyle(KioskText.secondary)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 3)
+                                    .background(KioskSurface.cardRaised, in: Capsule())
+                            }
+                        }
+                    }
+                } else {
+                    Text(group.first.tagName)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(KioskText.secondary)
+                }
+            }
+            Spacer()
+            if group.returnedCount > 0 {
+                Text(group.returnedCount == group.count ? "Returned" : "\(group.returnedCount)/\(group.count) back")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(Color.statusText(.green))
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(KioskSurface.card, in: RoundedRectangle(cornerRadius: KioskRadius.md))
+        .overlay(
+            RoundedRectangle(cornerRadius: KioskRadius.md)
+                .stroke(KioskStroke.hairline, lineWidth: 1)
+        )
+    }
+
+    @ViewBuilder
+    private func itemThumbnail(_ group: ItemGroup) -> some View {
+        let fallbackIcon = group.isBulkGroup ? "battery.100percent" : "camera.fill"
+        Group {
+            if let urlString = group.first.imageUrl, let url = URL(string: urlString) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().scaledToFill()
+                    default:
+                        thumbnailFallback(icon: fallbackIcon)
+                    }
+                }
+            } else {
+                thumbnailFallback(icon: fallbackIcon)
+            }
+        }
+        .frame(width: 40, height: 40)
+        .clipShape(RoundedRectangle(cornerRadius: KioskRadius.sm))
+        .overlay(
+            RoundedRectangle(cornerRadius: KioskRadius.sm)
+                .stroke(KioskStroke.hairline, lineWidth: 1)
+        )
+    }
+
+    private func thumbnailFallback(icon: String) -> some View {
+        RoundedRectangle(cornerRadius: KioskRadius.sm)
+            .fill(KioskSurface.placeholder)
+            .overlay {
+                Image(systemName: icon)
+                    .font(.headline)
+                    .foregroundStyle(KioskText.secondary)
+            }
+    }
+
+    private func load() async {
+        isLoading = true
+        loadError = nil
+        do {
+            detail = try await KioskAPI.shared.kioskCheckoutDetail(id: context.checkoutId)
+        } catch {
+            loadError = (error as? APIError)?.errorDescription ?? "Could not load checkout details."
+        }
+        isLoading = false
     }
 }
 
@@ -1176,6 +1771,14 @@ private struct KioskSleepModeView: View {
                     Text(deviceName)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(Color.white.opacity(0.1))
+                    HStack(spacing: 6) {
+                        Image(systemName: "hand.tap.fill")
+                            .font(.caption2)
+                        Text("Tap anywhere to wake")
+                            .font(.caption2.weight(.semibold))
+                    }
+                    .foregroundStyle(Color.white.opacity(0.09))
+                    .padding(.top, 6)
                 }
                 .offset(pixelShiftOffset(for: context.date))
                 .accessibilityElement(children: .combine)
