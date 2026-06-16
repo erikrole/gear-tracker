@@ -81,6 +81,21 @@ function sameLocalDay(startIso: string, endIso: string): boolean {
   );
 }
 
+export function isMidnightToMidnightWindow(window: Pick<EffectiveCallWindow, "startsAt" | "endsAt">): boolean {
+  const start = new Date(window.startsAt);
+  const end = new Date(window.endsAt);
+  return (
+    start.getUTCHours() === 0 &&
+    start.getUTCMinutes() === 0 &&
+    start.getUTCSeconds() === 0 &&
+    start.getUTCMilliseconds() === 0 &&
+    end.getUTCHours() === 0 &&
+    end.getUTCMinutes() === 0 &&
+    end.getUTCSeconds() === 0 &&
+    end.getUTCMilliseconds() === 0
+  );
+}
+
 export function formatCallWindow(window: Pick<EffectiveCallWindow, "startsAt" | "endsAt">): string {
   const start = sameLocalDay(window.startsAt, window.endsAt)
     ? formatCallWindowTime(window.startsAt)
@@ -114,14 +129,21 @@ export function callWindowKey(window: Pick<EffectiveCallWindow, "startsAt" | "en
   return `${new Date(window.startsAt).getTime()}|${new Date(window.endsAt).getTime()}`;
 }
 
-export function summarizeEffectiveCallWindows(windows: EffectiveCallWindow[]): {
+export function summarizeEffectiveCallWindows(
+  windows: EffectiveCallWindow[],
+  options: { hideDefaultAllDayWindows?: boolean } = {},
+): {
   label: string | null;
   title: string | null;
   mixed: boolean;
 } {
-  if (windows.length === 0) return { label: null, title: null, mixed: false };
+  const visibleWindows = options.hideDefaultAllDayWindows
+    ? windows.filter((window) => !(window.source === "default" && isMidnightToMidnightWindow(window)))
+    : windows;
+
+  if (visibleWindows.length === 0) return { label: null, title: null, mixed: false };
   const unique = new Map<string, EffectiveCallWindow>();
-  for (const window of windows) unique.set(callWindowKey(window), window);
+  for (const window of visibleWindows) unique.set(callWindowKey(window), window);
   const values = [...unique.values()];
   if (values.length === 1) {
     return {

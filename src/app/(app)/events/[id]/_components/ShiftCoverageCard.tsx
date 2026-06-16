@@ -25,7 +25,7 @@ import { CallWindowEditor } from "@/components/shift-detail/CallWindowEditor";
 import type { ShiftGroupSummary, CommandCenterData } from "../_utils";
 import { AREA_LABELS } from "../_utils";
 import { shiftWorkerLabel, shiftWorkerSlotLabel } from "@/lib/shift-display";
-import { effectiveCallWindow } from "@/lib/shift-call-windows";
+import { effectiveCallWindow, isMidnightToMidnightWindow, type EffectiveCallWindow } from "@/lib/shift-call-windows";
 
 const AREAS = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS"] as const;
 
@@ -44,6 +44,7 @@ type Props = {
     locationParam: string;
     eventParam: string;
   };
+  eventAllDay?: boolean;
   onNudge: (assignmentId: string, userName: string) => void;
   onUpdated?: () => void;
 };
@@ -54,6 +55,7 @@ export function ShiftCoverageCard({
   currentUserRole,
   acting,
   linkParams,
+  eventAllDay = false,
   onNudge,
   onUpdated,
 }: Props) {
@@ -425,6 +427,10 @@ export function ShiftCoverageCard({
     );
   }
 
+  function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
+    return !(eventAllDay && window.source === "default" && isMidnightToMidnightWindow(window));
+  }
+
   // ── Staff table (grouped by area) ──
   const staffTable = (
     <Table>
@@ -474,26 +480,30 @@ export function ShiftCoverageCard({
                 (a) => a.status === "DIRECT_ASSIGNED" || a.status === "APPROVED"
               ) ?? null;
               const pendingRequests = shift.assignments.filter((a) => a.status === "REQUESTED");
+              const slotWindow = effectiveCallWindow(shift);
+              const assignmentWindow = activeAssignment ? effectiveCallWindow(shift, activeAssignment) : null;
               return (
                 <TableRow key={shift.id}>
                   <TableCell>
                     <div className="flex flex-col items-start gap-1">
                       <div className="flex items-center gap-1.5">
-                        <CallWindowEditor
-                          target={{ type: "slot", id: shift.id }}
-                          effectiveWindow={effectiveCallWindow(shift)}
-                          overrideWindow={{ startsAt: shift.callStartsAt ?? null, endsAt: shift.callEndsAt ?? null }}
-                          onSaved={onUpdated}
-                          disabled={inlineActing !== null}
-                          compact
-                        />
+                        {shouldShowCallWindow(slotWindow) && (
+                          <CallWindowEditor
+                            target={{ type: "slot", id: shift.id }}
+                            effectiveWindow={slotWindow}
+                            overrideWindow={{ startsAt: shift.callStartsAt ?? null, endsAt: shift.callEndsAt ?? null }}
+                            onSaved={onUpdated}
+                            disabled={inlineActing !== null}
+                            compact
+                          />
+                        )}
                         <Badge variant="gray" size="sm">{shiftWorkerSlotLabel(shift.workerType)}</Badge>
                       </div>
-                      {activeAssignment && (
+                      {activeAssignment && assignmentWindow && shouldShowCallWindow(assignmentWindow) && (
                         <div className="flex flex-col items-start gap-1">
                           <CallWindowEditor
                             target={{ type: "assignment", id: activeAssignment.id }}
-                            effectiveWindow={effectiveCallWindow(shift, activeAssignment)}
+                            effectiveWindow={assignmentWindow}
                             overrideWindow={{ startsAt: activeAssignment.callStartsAt ?? null, endsAt: activeAssignment.callEndsAt ?? null }}
                             onSaved={onUpdated}
                             disabled={inlineActing !== null}
@@ -564,6 +574,7 @@ export function ShiftCoverageCard({
             (a) => a.status === "DIRECT_ASSIGNED" || a.status === "APPROVED"
           ) ?? null;
           const pendingCount = shift.assignments.filter((a) => a.status === "REQUESTED").length;
+          const callWindow = effectiveCallWindow(shift, activeAssignment);
           return (
             <TableRow key={shift.id}>
               <TableCell>
@@ -573,10 +584,14 @@ export function ShiftCoverageCard({
                 </span>
               </TableCell>
               <TableCell>
-                <CallWindowEditor
-                  effectiveWindow={effectiveCallWindow(shift, activeAssignment)}
-                  compact
-                />
+                {shouldShowCallWindow(callWindow) ? (
+                  <CallWindowEditor
+                    effectiveWindow={callWindow}
+                    compact
+                  />
+                ) : (
+                  <span className="text-muted-foreground">-</span>
+                )}
               </TableCell>
               <TableCell>
                 {activeAssignment ? (

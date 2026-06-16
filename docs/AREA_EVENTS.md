@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Events
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-06
+- Last Updated: 2026-06-16
 - Status: Active
 
 ## Direction
@@ -79,6 +79,7 @@ Make athletics schedule data the operational backbone for booking and checkout w
 4. Fallback behavior for incomplete events is implemented — treat event context as non-blocking metadata on all booking flows.
 
 ## Change Log
+- 2026-06-16: Event detail all-day display cleanup shipped. All-day event headers now keep the date as the canonical event timing and suppress inherited midnight-to-midnight default crew call windows, so manual all-day events no longer show duplicate `12:00 AM` ranges while explicit slot or personal call-time overrides remain visible.
 - 2026-06-06: Booking wizard calendar-event recovery shipped for web. Checkout and reservation creation now distinguish failed upcoming-event reads from a true no-event list with inline retry and ad hoc fallback, preserving the Event area rule that missing or stale events never block non-event booking work.
 - 2026-06-03: Event detail Crew conflict actionability improved. Assigned-person conflict notes now appear in the call-window column beside the personal call-window editor, so staff/admin can see the availability conflict and adjust that person's override from the same row without changing slot/default call-time rules.
 - 2026-06-03: Event detail Crew now surfaces assigned-person availability conflicts next to the assignee, using the same effective call-window conflict helper as Schedule Assign. Staff/admin can use the visible conflict context with the personal call-window editor without the system automatically changing assignment times.

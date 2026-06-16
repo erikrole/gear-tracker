@@ -61,6 +61,31 @@ describe("shift call-window helpers", () => {
     expect(summary.title).toContain("Personal:");
   });
 
+  it("hides inherited midnight-to-midnight windows for all-day event chrome", () => {
+    const summary = summarizeEffectiveCallWindows([
+      {
+        startsAt: "2026-06-17T00:00:00.000Z",
+        endsAt: "2026-06-18T00:00:00.000Z",
+        source: "default",
+      },
+    ], { hideDefaultAllDayWindows: true });
+
+    expect(summary).toEqual({ label: null, title: null, mixed: false });
+  });
+
+  it("keeps explicit all-day call overrides visible", () => {
+    const summary = summarizeEffectiveCallWindows([
+      {
+        startsAt: "2026-06-17T14:00:00.000Z",
+        endsAt: "2026-06-17T18:00:00.000Z",
+        source: "slot",
+      },
+    ], { hideDefaultAllDayWindows: true });
+
+    expect(summary.label).toContain("Call");
+    expect(summary.title).toBe("Slot call window");
+  });
+
   it("round-trips datetime-local values through ISO strings", () => {
     const localValue = toDateTimeLocalValue("2026-07-07T14:15:00.000Z");
     expect(localValue).toMatch(/^2026-07-07T\d{2}:15$/);

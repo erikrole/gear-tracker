@@ -295,6 +295,7 @@ export default function EventDetailPage() {
           );
           return effectiveCallWindow(shift, activeAssignment);
         }),
+        { hideDefaultAllDayWindows: event.allDay },
       )
     : null;
 
@@ -524,6 +525,7 @@ export default function EventDetailPage() {
           currentUserRole={currentUserRole}
           acting={acting}
           linkParams={{ titleParam, dateParam, endParam, locationParam, eventParam }}
+          eventAllDay={event.allDay}
           onUpdated={() => {
             reloadShiftGroup();
             if (isStaffOrAdmin) reloadCommandCenter();

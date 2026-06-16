@@ -1,6 +1,20 @@
 # Task Queue
 
-Last updated: 2026-06-15
+Last updated: 2026-06-16
+
+---
+
+## Active: Event all-day call-window display cleanup (2026-06-16)
+
+- [x] Reproduce the visible issue from the screenshot: the event header shows the all-day date and a duplicate inherited `Call Jun 17, 12:00 AM - Jun 18, 12:00 AM` range.
+- [x] Confirm the route uses `CalendarEvent.allDay` with exclusive end dates and shift default windows inherited from the event boundary.
+- [x] Hide inherited midnight-to-midnight call windows on all-day event detail chrome while preserving explicit slot or personal call-time overrides.
+- [x] Add focused regression coverage for hidden inherited all-day windows and visible explicit overrides.
+- [x] Verify focused tests, typecheck status, whitespace, and build. Browser smoke was attempted but blocked because Neon was unreachable from this environment.
+
+### Review
+- 2026-06-16: The double label was display duplication, not two separate operational call times. The header already owns the all-day event date; default shift and assignment call windows were inheriting the same exclusive all-day boundary and rendering it as midnight-to-midnight. Event detail now suppresses that inherited default window for all-day events, leaving the date-only event label and crew rows without the redundant time.
+- Verification: `npx vitest run tests/shift-call-windows.test.ts tests/calendar-event-dates.test.ts`, focused `npx eslint`, `git diff --check`, `npm run db:migrate:check`, and `npx next build` passed. `npx tsc --noEmit --pretty false` remains blocked by the pre-existing `tests/bulk-unit-adjustment-routes.test.ts:171` undefined warning. Browser smoke could not reach the real event because both sandboxed and approved Prisma reads could not connect to Neon.
 
 ---
 

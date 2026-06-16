@@ -1,6 +1,6 @@
 # AREA: Shift Calendar & Scheduling
 
-> Status: **Implemented** | Owner: TBD | Last Updated: 2026-06-06
+> Status: **Implemented** | Owner: TBD | Last Updated: 2026-06-16
 
 ## Purpose
 
@@ -75,6 +75,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - Sports code mappings (existing — `src/lib/sports.ts`)
 
 ## Change Log
+- 2026-06-16: Event detail Crew all-day call-window display cleanup shipped. Inherited default shift and assignment windows that exactly mirror an all-day event boundary are hidden in the Crew table and event header summary, while explicit slot or personal call-time overrides still render and remain editable.
 - 2026-06-15: Kiosk-only custody Slice 3. Event missing-gear actions now reserve gear for the assigned worker instead of creating a checkout from the web command center.
 - 2026-06-09: Shift mutation response shapes aligned with list endpoints. `POST /api/shift-groups` now includes the `event` relation (same select as GET) and `PATCH /api/shift-trades/[id]/cancel` now returns the trade with `postedBy`/`claimedBy`/`shiftAssignment` relations (same shape as post/claim). Both previously returned bare rows that iOS — which decodes every trade/group mutation into the same model as the list — could not decode, so "Set up crew" and trade cancel failed on iOS despite succeeding server-side.
 - 2026-06-06: Web Schedule Assign filter metadata cleanup shipped. `/schedule/assign` now gives the Sport and Area filters stable rendered browser/accessibility identities while preserving month navigation, review filters, grid data, and assignment behavior.
