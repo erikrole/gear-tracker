@@ -10,7 +10,6 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { CalendarIcon, ClockIcon, InboxIcon } from "lucide-react";
 import { ScaleIn } from "@/components/ui/motion";
 import { formatDayLabel, formatTimeShort, isDueToday } from "@/lib/format";
-import { sportLabel } from "@/lib/sports";
 import { cn } from "@/lib/utils";
 import {
   VENUE_FILTER_OPTIONS,
@@ -22,6 +21,7 @@ import {
 } from "@/lib/venue-tone";
 import { ShiftAvatarStack } from "./dashboard-avatars";
 import { DashboardBookingRow, dashboardBookingAccent } from "./booking-row";
+import { dashboardEventTitle } from "./event-title";
 import { DashboardSectionHeader } from "./section-header";
 import type { DashboardData, BookingSummary } from "../dashboard-types";
 import type { FilteredDashboardData } from "@/hooks/use-dashboard-filters";
@@ -66,13 +66,6 @@ export function TeamActivityColumn({ data, filtered, activeSport, hasActiveFilte
   }, [filtered?.upcomingEvents, data.upcomingEvents, homeAwayFilter]);
 
   const cappedEvents = useMemo(() => filteredEvents.slice(0, 10), [filteredEvents]);
-
-  function eventTitle(e: DashboardData["upcomingEvents"][number]) {
-    if (e.opponent) {
-      return `${e.sportCode ? `${sportLabel(e.sportCode)} ` : ""}${e.isHome === false ? "at" : "vs"} ${e.opponent}`;
-    }
-    return e.sportCode ? sportLabel(e.sportCode) : e.title;
-  }
 
   function eventBorder(e: DashboardData["upcomingEvents"][number]) {
     return VENUE_TONES[venueToneFromIsHome(e.isHome)].railClass;
@@ -264,7 +257,7 @@ export function TeamActivityColumn({ data, filtered, activeSport, hasActiveFilte
                 )}
               >
                 <Link href={`/events/${e.id}`} className="flex min-w-0 flex-1 flex-col gap-1 no-underline">
-                  <span className="text-sm font-bold text-foreground truncate">{eventTitle(e)}</span>
+                  <span className="text-sm font-bold text-foreground truncate">{dashboardEventTitle(e)}</span>
                   <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground leading-snug">
                     <span>
                       {formatDayLabel(e.startsAt, now)}{e.allDay ? " \u2013 All day" : `, ${formatTimeShort(e.startsAt)} \u2013 ${formatTimeShort(e.endsAt)}`}

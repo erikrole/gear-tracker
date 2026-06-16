@@ -177,6 +177,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 7. Add regression tests for permissions, window filtering (7 days), and overdue consistency.
 
 ## Change Log
+- 2026-06-16: Dashboard Upcoming Events now preserves the actual event title when an event has sport metadata but no opponent, preventing manual events like Lambeau Field Visit from collapsing to the sport label `Football`.
 - 2026-06-15: Kiosk-only custody Slice 3. Dashboard quick actions and My Gear empty/prep states now create reservations only, and reservation rows no longer expose conversion to checkout outside a kiosk.
 - 2026-06-11: Plan 039. Dashboard `View all` overflow links are now filter-aware. Previously the section header counts scoped to the active sport or location filter while the overflow footers only checked `activeSport`, so a location-only filter could show a scoped count above a `View all N` link pointing at the unfiltered total. Both columns now hide overflow totals whenever any dashboard filter is active across My checkouts, My reservations, Team checkouts, Awaiting pickup, Stale reservations, and Team reservations, while sport-specific empty-state copy is preserved.
 - 2026-05-25: Web bug sweep Batch 47. Fix Today's `Review overdue` CTA now routes to the actual overdue checkout special filter (`/bookings?tab=checkouts&filter=overdue`) instead of the broad open-checkouts list, matching the dashboard banner and reports drill-down contract.

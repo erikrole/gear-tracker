@@ -1059,6 +1059,9 @@ private struct KioskEventRow: View {
     }
 
     private var timeLabel: String {
+        if event.allDay {
+            return "All day"
+        }
         if Calendar.current.isDateInToday(event.startsAt) {
             return event.startsAt.formatted(.dateTime.hour().minute())
         }
@@ -1151,7 +1154,9 @@ private struct KioskEventDetailSheet: View {
 
                 VStack(spacing: 10) {
                     KioskEventTimeRow(label: "Event", value: eventTimeLabel)
-                    KioskEventTimeRow(label: "Call", value: callTimeLabel)
+                    if !event.allDay {
+                        KioskEventTimeRow(label: "Call", value: callTimeLabel)
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: 10) {
@@ -1180,7 +1185,7 @@ private struct KioskEventDetailSheet: View {
                         ScrollView {
                             LazyVStack(spacing: 8) {
                                 ForEach(event.assignedUsers) { user in
-                                    KioskEventWorkerRow(user: user)
+                                    KioskEventWorkerRow(user: user, eventAllDay: event.allDay)
                                 }
                             }
                         }
@@ -1205,7 +1210,10 @@ private struct KioskEventDetailSheet: View {
     }
 
     private var eventTimeLabel: String {
-        formatRange(start: event.startsAt, end: event.endsAt)
+        if event.allDay {
+            return allDayDateLabel
+        }
+        return formatRange(start: event.startsAt, end: event.endsAt)
     }
 
     private var callTimeLabel: String {
@@ -1219,6 +1227,17 @@ private struct KioskEventDetailSheet: View {
             return "Worker details are not available from this API version yet."
         }
         return "No assigned workers listed yet."
+    }
+
+    private var allDayDateLabel: String {
+        guard let end = event.endsAt else {
+            return event.startsAt.formatted(.dateTime.month(.abbreviated).day())
+        }
+        let inclusiveEnd = end.addingTimeInterval(-1)
+        if Calendar.current.isDate(event.startsAt, inSameDayAs: inclusiveEnd) {
+            return event.startsAt.formatted(.dateTime.month(.abbreviated).day())
+        }
+        return "\(event.startsAt.formatted(.dateTime.month(.abbreviated).day())) - \(inclusiveEnd.formatted(.dateTime.month(.abbreviated).day()))"
     }
 
     private func formatRange(start: Date, end: Date?) -> String {
@@ -1273,6 +1292,7 @@ private struct KioskEventShiftBadge: View {
 
 private struct KioskEventWorkerRow: View {
     let user: KioskEvent.AssignedUser
+    let eventAllDay: Bool
 
     var body: some View {
         HStack(spacing: 10) {
@@ -1307,6 +1327,9 @@ private struct KioskEventWorkerRow: View {
 
     private var workerDetail: String? {
         let area = user.area?.capitalized
+        if eventAllDay {
+            return area
+        }
         guard let callStartsAt = user.callStartsAt else { return area }
         let callLabel = formatRange(start: callStartsAt, end: user.callEndsAt)
         if let area {

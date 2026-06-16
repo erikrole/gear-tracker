@@ -149,6 +149,7 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
         sportCode: true,
         startsAt: true,
         endsAt: true,
+        allDay: true,
         shiftGroup: {
           select: {
             shifts: {
@@ -346,6 +347,7 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
       sportCode: string | null;
       startsAt: Date;
       endsAt: Date;
+      allDay: boolean;
       shiftGroup: {
         shifts: Array<{
           area: string;
@@ -491,6 +493,7 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
         sportCode: e.sportCode,
         startsAt: e.startsAt,
         endsAt: e.endsAt,
+        allDay: e.allDay,
         callStartsAt,
         callEndsAt,
         shiftCount: e.shiftGroup?._count.shifts ?? 0,

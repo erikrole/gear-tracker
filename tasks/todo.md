@@ -4,6 +4,34 @@ Last updated: 2026-06-16
 
 ---
 
+## Active: Dashboard upcoming event title cleanup (2026-06-16)
+
+- [x] Trace the web Upcoming Events row formatter from the screenshot symptom.
+- [x] Confirm the API already provides the real event title plus sport metadata.
+- [x] Preserve manual event titles when no opponent exists.
+- [x] Add focused regression coverage for the Lambeau-style case.
+- [x] Verify focused test, lint, whitespace, typecheck/build status.
+
+### Review
+- 2026-06-16: Dashboard Upcoming Events now preserves manual event titles when `sportCode` exists without an opponent, so the Lambeau Field Visit card renders as `Lambeau Field Visit` instead of falling back to `Football`. Structured sport matchups still render with sport plus vs/at opponent copy.
+- Verification: `npx vitest run tests/dashboard-event-title.test.ts`, focused `npx eslint`, `git diff --check`, and `npx next build` passed. The first `npx tsc --noEmit --pretty false` run failed before build because stale `.next/types` files were missing; after `npx next build`, `tsc` returned only the pre-existing `tests/bulk-unit-adjustment-routes.test.ts:171` undefined warning.
+
+---
+
+## Active: iOS kiosk all-day call-time cleanup (2026-06-16)
+
+- [x] Audit kiosk docs, mobile/event/shift contracts, Prisma event/shift fields, and prior kiosk event/call split.
+- [x] Confirm `/api/kiosk/dashboard` owns the iOS idle event payload and currently omits `allDay`.
+- [x] Add `allDay` to the kiosk dashboard event contract with rollout-safe Swift decoding.
+- [x] Suppress kiosk call-time rows for all-day events while preserving timed event call ranges.
+- [x] Add focused regression coverage and verify web/API plus iOS checks.
+
+### Review
+- 2026-06-16: iOS kiosk now receives `allDay` on idle dashboard events, decodes it safely in `KioskEvent`, shows all-day rows as `All day`, hides the event detail `Call` row, and removes worker call ranges for all-day events. Timed kiosk events still show event and call ranges separately.
+- Verification: `npx vitest run tests/kiosk-dashboard-route.test.ts tests/ios-kiosk-all-day-contract.test.ts`, focused `npx eslint`, `git diff --check`, `npm run drift:ios`, `npm run audit:ios:gaps`, XcodeBuildMCP `build_sim` on iPad Pro 13-inch (M5), and `npx next build` passed. `npx tsc --noEmit --pretty false` remains blocked by the pre-existing `tests/bulk-unit-adjustment-routes.test.ts:171` undefined warning. The broad `tests/student-field-contracts.test.ts` suite also has pre-existing stale source assertions unrelated to this slice.
+
+---
+
 ## Active: Laowa 10mm item detail crash trace (2026-06-16)
 
 - [x] Trace the items-list click path for the Laowa 10mm lens.

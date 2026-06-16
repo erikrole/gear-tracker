@@ -54,6 +54,7 @@ describe("kiosk dashboard route", () => {
         summary: "Softball vs Iowa",
         sportCode: "SB",
         startsAt: new Date("2026-05-13T18:00:00.000Z"),
+        allDay: true,
         shiftGroup: { _count: { shifts: 3 } },
       },
     ]);
@@ -86,6 +87,7 @@ describe("kiosk dashboard route", () => {
     expect(res.status).toBe(200);
     expect(body.stats).toEqual({ itemsOut: 4, checkouts: 2, overdue: 1 });
     expect(body.events).toHaveLength(1);
+    expect(body.events[0]).toEqual(expect.objectContaining({ allDay: true }));
     expect(body.activeItems).toEqual([
       expect.objectContaining({
         id: "asset-1",

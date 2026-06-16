@@ -106,6 +106,7 @@ struct KioskEvent: Decodable, Identifiable {
     let sportCode: String?
     let startsAt: Date
     let endsAt: Date?
+    let allDay: Bool
     let callStartsAt: Date?
     let callEndsAt: Date?
     let shiftCount: Int
@@ -128,6 +129,7 @@ struct KioskEvent: Decodable, Identifiable {
         case sportCode
         case startsAt
         case endsAt
+        case allDay
         case callStartsAt
         case callEndsAt
         case shiftCount
@@ -142,6 +144,7 @@ struct KioskEvent: Decodable, Identifiable {
         sportCode = try container.decodeIfPresent(String.self, forKey: .sportCode)
         startsAt = try container.decode(Date.self, forKey: .startsAt)
         endsAt = try container.decodeIfPresent(Date.self, forKey: .endsAt)
+        allDay = try container.decodeIfPresent(Bool.self, forKey: .allDay) ?? false
         callStartsAt = try container.decodeIfPresent(Date.self, forKey: .callStartsAt)
         callEndsAt = try container.decodeIfPresent(Date.self, forKey: .callEndsAt)
         shiftCount = try container.decodeIfPresent(Int.self, forKey: .shiftCount) ?? 0
