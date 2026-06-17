@@ -30,11 +30,11 @@ struct EventLocation: Codable, Identifiable {
 // MARK: - Multi-day spans
 
 extension ScheduleEvent {
-    /// All-day events are stored as UTC-midnight boundaries (calendar *dates*,
-    /// not instants), so their covered days must be read in UTC — matching the
-    /// web (`calendar-event-dates.ts`). Reading them with the device's local
-    /// calendar shifts them by the timezone offset and produces off-by-one day
-    /// counts and wrong date-header placement on any non-UTC device.
+    /// All-day events store calendar dates as ISO instants whose UTC date
+    /// component is the event date. The clock time is not display semantics:
+    /// manual events may be stored as Central midnight (`05:00Z`) while imported
+    /// ICS all-day events are UTC midnight. Read only the UTC Y/M/D components
+    /// so device timezone never changes the covered dates.
     private var dayComponentsCalendar: Calendar {
         guard allDay else { return .current }
         var cal = Calendar(identifier: .gregorian)
@@ -59,11 +59,27 @@ extension ScheduleEvent {
             abs(endsAt.timeIntervalSince(startOfEndDay)) < 60
     }
 
-    /// The reference end instant for span math. All-day / midnight-span events
-    /// carry an *exclusive* end (next-midnight), so step back a second to land
-    /// on the true last day.
+    /// The reference end instant for local timed span math. Midnight-span
+    /// timed events carry an exclusive end, so step back a second to land on
+    /// the true last day. True all-day events use `spanEndDay` below because
+    /// their end must be floored to the encoded calendar date before subtracting
+    /// a day.
     private var spanEndDate: Date {
         displayAllDay ? endsAt.addingTimeInterval(-1) : endsAt
+    }
+
+    private var spanStartDay: Date {
+        displayDay(for: startsAt)
+    }
+
+    private var spanEndDay: Date {
+        if allDay {
+            let start = spanStartDay
+            let rawEndExclusiveDay = displayDay(for: endsAt)
+            guard rawEndExclusiveDay > start else { return start }
+            return Calendar.current.date(byAdding: .day, value: -1, to: rawEndExclusiveDay) ?? start
+        }
+        return displayDay(for: spanEndDate)
     }
 
     /// The local-midnight `Date` for a given instant's calendar day — read in
@@ -79,15 +95,15 @@ extension ScheduleEvent {
 
     /// True when the event covers more than one calendar day.
     var isMultiDay: Bool {
-        displayDay(for: startsAt) != displayDay(for: spanEndDate)
+        spanStartDay != spanEndDay
     }
 
     /// Local start-of-day for every calendar day the event covers, inclusive.
     /// Single-day events return just their start day.
     var spannedDays: [Date] {
         let cal = Calendar.current
-        let start = displayDay(for: startsAt)
-        let end = displayDay(for: spanEndDate)
+        let start = spanStartDay
+        let end = spanEndDay
         guard end > start else { return [start] }
         var days: [Date] = []
         var cursor = start

@@ -159,33 +159,50 @@
       in the VoiceOver label), and added a trailing disclosure chevron since the
       row opens the detail sheet (HIG: navigable rows carry a disclosure indicator).
 
-### all-day / multi-day UTC fix — IMPLEMENTED, needs simulator verification
-- Root cause: web (`calendar-event-dates.ts`) reads all-day spans in **UTC**
-  (all-day events are UTC-midnight *dates*), but iOS read them with the device's
-  **local** `Calendar.current` → off-by-one day counts + wrong date-header
-  placement on non-UTC devices. `groupedEvents`/`eventsByDay` inherited it.
-- Fix (`ScheduleModels.swift`): added `dayComponentsCalendar` (UTC when `allDay`,
-  else local) and `displayDay(for:)`, which reads each instant's calendar day in
-  the correct zone but returns it as **local-midnight** so grouping keys and the
-  locally-formatted date headers stay consistent across all-day + timed events.
-  `isMultiDay`/`spannedDays` now route through `displayDay`. `hasLocalMidnightSpan`
-  is now guarded to timed events only.
-- VERIFY IN SIMULATOR before trusting: set the sim timezone to Pacific AND to UTC
-  (Settings → General → Date & Time) and confirm a 1-day all-day event shows on the
-  right single day with no "Day 1/2", and a true multi-day event shows the correct
-  Day n/m on each correct day. This is the one change that must not be trusted blind.
+### all-day / multi-day UTC fix — VERIFIED
+- Root cause: iOS read all-day spans with the device's **local** calendar, then
+  derived the inclusive end from `endsAt - 1 second`. That still breaks live manual
+  all-day events stored as Central-midnight encoded boundaries (`05:00Z` during
+  daylight time): Lambeau Field Visit (`2026-06-17T05:00Z` to
+  `2026-06-18T05:00Z`) incorrectly became a two-day event on a Pacific simulator.
+- Fix (`ScheduleModels.swift`): all-day spans now derive `spanStartDay` and
+  `spanEndDay` from encoded calendar days, subtracting one day from the exclusive
+  end day instead of subtracting one second from the raw end instant. Timed events
+  still use local calendar display days, and `hasLocalMidnightSpan` stays guarded
+  to timed events only.
+- Simulator verification complete: on an `America/Los_Angeles` iPhone 16 simulator,
+  Lambeau Field Visit renders once on Wednesday, June 17 with `All day` and no
+  `Day 1/2`; Football Media Day renders on July 7 and July 8 with `Day 1 of 2` and
+  `Day 2 of 2`.
 - Unit tests added: `ios/WisconsinTests/ScheduleDateMathTests.swift` (Swift Testing)
-  pin `NSTimeZone.default` to Pacific/UTC/Tokyo and assert single-day all-day events
-  are not multi-day, multi-day spans land on the right local days, the result is
-  timezone-independent, and timed events still use the local calendar. These would
-  FAIL on the old local-calendar logic and PASS on the fix. NEW iOS test target
-  `WisconsinTests` + a `Wisconsin` scheme test action added to `ios/project.yml` —
-  run `cd ios && xcodegen generate` to pick them up, then `xcodebuild test` (or ⌘U).
+  pin `NSTimeZone.default` to Pacific/UTC/Tokyo and assert Central-midnight encoded
+  single-day all-day events are not multi-day, real multi-day spans land on the
+  right local days, the result is timezone-independent, and timed events still use
+  the local calendar. NEW iOS test target `WisconsinTests` + a `Wisconsin` scheme
+  test action added to `ios/project.yml` - run `cd ios && xcodegen generate` to
+  pick them up, then `xcodebuild test` (or Command-U).
 
 ### Event card type pass (HIG 17/15)
 - [x] Title bumped to 17pt (`.body.weight(.semibold)`); home/away + time aligned to
       a single 15pt secondary line with a `·` separator. Trailing chevron + venue
       removal from the earlier slice round it out.
+
+### Schedule from-device feedback round 2
+- [x] My-shift signal moved from text → an **accent card stroke** (1.5pt). The left
+      rail now always encodes venue (home=green/away=orange/neutral=gray) instead of
+      double-dutying as the my-shift color. "My shift" text removed from the meta line.
+- [x] Header deadspace: switched to `.navigationBarTitleDisplayMode(.inline)` so the
+      tall empty large-title band on this pushed view collapses and content rises.
+- [x] Added a **Neutral** venue filter chip (mirrors the web's Home/Away/Neutral);
+      filters `isHome == nil`.
+- [x] Date badge redesigned to an Apple-Calendar agenda tile: weekday over the day
+      number with today's number in a brand circle — dropped the heavy filled box.
+- [x] Trade Board icon `arrow.triangle.2.circlepath` (read as "refresh") →
+      `arrow.left.arrow.right` (reads as exchange/trade).
+- CONFIRMED bug + fix: all-day event spans must be interpreted as exclusive encoded
+  calendar-day boundaries, not raw elapsed time windows. Lambeau showing on June 18
+  was the live proof that subtracting one second from `endsAt` is the wrong model
+  for Central-midnight encoded manual events.
 
 ### Event card declutter ("way too much going on" — from-device feedback)
 - [x] The title row was fighting a Day-n/m pill + coverage chip + My-Shift pill +

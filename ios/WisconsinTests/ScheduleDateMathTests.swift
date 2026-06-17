@@ -4,10 +4,11 @@ import Foundation
 
 /// Locks in the all-day / multi-day day math for `ScheduleEvent`.
 ///
-/// All-day events are stored as UTC-midnight boundaries (calendar *dates*), so
-/// their covered days must be read in UTC regardless of the device timezone —
-/// otherwise a single-day event off-by-ones into "Day 1/2" and lands on the
-/// wrong date header on non-UTC devices (the bug these tests guard against).
+/// All-day events carry encoded calendar dates. Imported ICS all-day events can
+/// arrive as UTC midnight, while manual all-day events can arrive as Central
+/// midnight (`05:00Z` during daylight saving). In both cases the UTC Y/M/D
+/// components are the event dates and the clock time must not turn a single-day
+/// event into "Day 1/2" on non-UTC devices.
 ///
 /// Serialized because each test overrides the process-wide default time zone.
 @Suite(.serialized)
@@ -20,6 +21,15 @@ struct ScheduleDateMathTests {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = TimeZone(identifier: "UTC")!
         return cal.date(from: DateComponents(year: year, month: month, day: day))!
+    }
+
+    /// A Central-midnight all-day instant as it appears in the live API during
+    /// daylight saving time, e.g. Lambeau Field Visit:
+    /// `2026-06-17T05:00:00.000Z` → `2026-06-18T05:00:00.000Z`.
+    private func centralDaylightMidnightEncoded(_ year: Int, _ month: Int, _ day: Int) -> Date {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "UTC")!
+        return cal.date(from: DateComponents(year: year, month: month, day: day, hour: 5))!
     }
 
     /// Local midnight for the given calendar date (in the active default zone).
@@ -46,11 +56,15 @@ struct ScheduleDateMathTests {
 
     @Test func singleDayAllDayEventIsNotMultiDay_pacific() {
         withTimeZone("America/Los_Angeles") {
-            // All-day July 7: stored UTC midnight Jul 7 → exclusive end Jul 8.
-            let event = allDayEvent(start: utcMidnight(2026, 7, 7), end: utcMidnight(2026, 7, 8))
+            // Lambeau-shaped one-day all-day event: Central midnight Jun 17
+            // through exclusive Central midnight Jun 18.
+            let event = allDayEvent(
+                start: centralDaylightMidnightEncoded(2026, 6, 17),
+                end: centralDaylightMidnightEncoded(2026, 6, 18)
+            )
             #expect(event.isMultiDay == false)
             #expect(event.dayCount == 1)
-            #expect(event.spannedDays == [localMidnight(2026, 7, 7)])
+            #expect(event.spannedDays == [localMidnight(2026, 6, 17)])
         }
     }
 
@@ -58,8 +72,12 @@ struct ScheduleDateMathTests {
 
     @Test func twoDayAllDayEventSpansTwoCorrectDays_pacific() {
         withTimeZone("America/Los_Angeles") {
-            // All-day Jul 7–8: stored UTC midnight Jul 7 → exclusive end Jul 9.
-            let event = allDayEvent(start: utcMidnight(2026, 7, 7), end: utcMidnight(2026, 7, 9))
+            // All-day Jul 7-8: Central midnight Jul 7 through exclusive
+            // Central midnight Jul 9.
+            let event = allDayEvent(
+                start: centralDaylightMidnightEncoded(2026, 7, 7),
+                end: centralDaylightMidnightEncoded(2026, 7, 9)
+            )
             #expect(event.isMultiDay == true)
             #expect(event.dayCount == 2)
 
@@ -74,7 +92,10 @@ struct ScheduleDateMathTests {
     // MARK: Timezone independence
 
     @Test func allDayEventReadsIdenticallyAcrossTimeZones() {
-        let event = allDayEvent(start: utcMidnight(2026, 7, 7), end: utcMidnight(2026, 7, 8))
+        let event = allDayEvent(
+            start: centralDaylightMidnightEncoded(2026, 6, 17),
+            end: centralDaylightMidnightEncoded(2026, 6, 18)
+        )
         var pacific = -1
         var utc = -1
         var tokyo = -1

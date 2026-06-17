@@ -119,6 +119,7 @@ enum HomeAwayFilter: String, CaseIterable {
     case all = "All"
     case home = "Home"
     case away = "Away"
+    case neutral = "Neutral"
 }
 
 // MARK: - Main View
@@ -154,6 +155,7 @@ struct ScheduleView: View {
             switch homeAwayFilter {
             case .home: filtered = filtered.filter { $0.isHome == true }
             case .away: filtered = filtered.filter { $0.isHome == false }
+            case .neutral: filtered = filtered.filter { $0.isHome == nil }
             case .all: break
             }
             if let sportFilter { filtered = filtered.filter { $0.sportCode == sportFilter } }
@@ -263,13 +265,16 @@ struct ScheduleView: View {
             .toast($toast)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: vm.refreshError)
             .navigationTitle("Schedule")
+            // Inline title reclaims the tall, empty large-title band on this
+            // pushed view, pulling the content up under the nav bar.
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button {
                         showTradeBoard = true
                     } label: {
                         HStack(spacing: 5) {
-                            Label("Trades", systemImage: "arrow.triangle.2.circlepath")
+                            Label("Trades", systemImage: "arrow.left.arrow.right")
                             if appState.openTradeCount > 0 {
                                 Text("\(appState.openTradeCount)")
                                     .font(.caption2.weight(.semibold).monospacedDigit())
@@ -863,27 +868,24 @@ private struct ScheduleDateHeader: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
-            // Date tile — weekday + day number, tinted brand on today so the
-            // current day reads at a glance while scrolling.
-            VStack(spacing: 1) {
+            // Apple Calendar-style agenda tile: weekday over the day number, with
+            // today's number in a brand circle — no heavy filled box per day.
+            VStack(spacing: 3) {
                 Text(date.formatted(.dateTime.weekday(.abbreviated)).uppercased())
-                    .font(.caption2.weight(.bold))
+                    .font(.caption2.weight(.semibold))
                     .kerning(0.5)
-                    .foregroundStyle(isToday ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
+                    .foregroundStyle(isToday ? AnyShapeStyle(Color.brandPrimary) : AnyShapeStyle(.secondary))
                 Text(date.formatted(.dateTime.day()))
-                    .font(.title3.weight(.heavy))
+                    .font(.title2.weight(.bold))
                     .monospacedDigit()
                     .foregroundStyle(isToday ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
+                    .frame(width: 34, height: 34)
+                    .background(
+                        isToday ? AnyShapeStyle(Color.brandPrimary) : AnyShapeStyle(Color.clear),
+                        in: Circle()
+                    )
             }
-            .frame(width: 44, height: 44)
-            .background(
-                isToday ? AnyShapeStyle(Color.brandPrimary) : AnyShapeStyle(Color.cardSurface),
-                in: RoundedRectangle(cornerRadius: Brand.Radius.sm, style: .continuous)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: Brand.Radius.sm, style: .continuous)
-                    .strokeBorder(isToday ? Color.clear : Color.hairline, lineWidth: 0.5)
-            )
+            .frame(width: 44)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(primaryLabel)
@@ -1002,8 +1004,12 @@ struct EventRow: View {
         .background(Color.cardSurface)
         .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
         .overlay(
+            // Accent stroke = "this is my shift"; hairline otherwise.
             RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
-                .strokeBorder(Color.hairline, lineWidth: 0.5)
+                .strokeBorder(
+                    myShift != nil ? Color.accentColor : Color.hairline,
+                    lineWidth: myShift != nil ? 1.5 : 0.5
+                )
         )
         .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 3)
         .accessibilityElement(children: .ignore)
@@ -1026,12 +1032,6 @@ struct EventRow: View {
                 metaDot
                 Text("Day \(seg.index) of \(seg.total)")
                     .foregroundStyle(Color.statusText(.purple))
-            }
-            if myShift != nil {
-                metaDot
-                Text("My shift")
-                    .fontWeight(.semibold)
-                    .foregroundStyle(Color.accentColor)
             }
         }
         .font(.subheadline)
@@ -1094,8 +1094,9 @@ struct EventRow: View {
         return .red
     }
 
+    /// The left rail now always encodes the venue (home/away/neutral); "my shift"
+    /// is signalled by the card's accent stroke instead, so the two don't fight.
     private var barColor: Color {
-        if myShift != nil { return .accentColor }
         switch event.isHome {
         case true:  return Color.statusText(.green)
         case false: return Color.statusText(.orange)
