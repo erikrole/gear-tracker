@@ -13,12 +13,12 @@ import { VENUE_TONES, venueToneFromEvent } from "@/lib/venue-tone";
 import { eventOccursOnCalendarDay, formatCalendarEventAllDayLabel } from "@/lib/calendar-event-dates";
 import {
   type CalendarEntry,
-  coverageVariant,
   getMonday,
   scheduleEventTitleParts,
   userHasShift,
   formatTime,
 } from "./types";
+import { CoverageMeter } from "./Coverage";
 
 type WeekViewProps = {
   entries: CalendarEntry[];
@@ -78,39 +78,6 @@ function shiftWeek(weekStart: Date, delta: number): Date {
   return d;
 }
 
-/* ── Coverage fill bar ── */
-
-function CoverageBar({
-  percentage,
-  filled,
-  total,
-}: {
-  percentage: number;
-  filled: number;
-  total: number;
-}) {
-  const variant = coverageVariant(percentage);
-  const barColor =
-    variant === "green"
-      ? "bg-[var(--green)]"
-      : variant === "orange"
-        ? "bg-[var(--orange)]"
-        : "bg-[var(--red)]";
-  return (
-    <div className="mt-1.5 flex items-center gap-1.5">
-      <div className="flex-1 h-[2px] rounded-full overflow-hidden bg-muted/70">
-        <div
-          className={cn("h-full rounded-full transition-[width]", barColor)}
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
-      <span className="text-[9px] font-medium text-muted-foreground tabular-nums">
-        {filled}/{total}
-      </span>
-    </div>
-  );
-}
-
 /* ── Event Card (week grid cell) ── */
 
 function EventCard({
@@ -159,7 +126,8 @@ function EventCard({
           </span>
         )}
         {entry.coverage && (
-          <CoverageBar
+          <CoverageMeter
+            className="mt-1.5"
             percentage={entry.coverage.percentage}
             filled={entry.coverage.filled}
             total={entry.coverage.total}

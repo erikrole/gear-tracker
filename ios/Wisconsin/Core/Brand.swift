@@ -381,7 +381,11 @@ struct FilterChip: View {
                     Capsule().fill(Color.statusBackground(tone))
                     Capsule().strokeBorder(Color.statusText(tone).opacity(0.35), lineWidth: 1)
                 } else {
-                    Capsule().fill(.regularMaterial)
+                    // A defined surface + hairline so an unselected chip still
+                    // reads as a tappable pill on the grouped background, instead
+                    // of dissolving into faint floating text.
+                    Capsule().fill(Color(.secondarySystemBackground))
+                    Capsule().strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
                 }
             }
         }

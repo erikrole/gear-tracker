@@ -77,6 +77,38 @@ function dayWindowInTimeZone(now: Date, days: number, timeZone: string) {
   return { start, end };
 }
 
+function localDateTimeParts(date: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const value = (type: string) => Number(parts.find((part) => part.type === type)?.value);
+  return {
+    year: value("year"),
+    month: value("month"),
+    day: value("day"),
+    hour: value("hour"),
+    minute: value("minute"),
+    second: value("second"),
+  };
+}
+
+function isAllDaySpan(startsAt: Date, endsAt: Date | null, timeZone: string) {
+  if (!endsAt || endsAt <= startsAt) return false;
+  const start = localDateTimeParts(startsAt, timeZone);
+  const end = localDateTimeParts(endsAt, timeZone);
+  const startsAtMidnight = start.hour === 0 && start.minute === 0 && start.second === 0;
+  const endsAtMidnight = end.hour === 0 && end.minute === 0 && end.second === 0;
+  const crossesDay = start.year !== end.year || start.month !== end.month || start.day !== end.day;
+  return startsAtMidnight && endsAtMidnight && crossesDay;
+}
+
 /** Kiosk idle screen data: stats, nearby events, active items, and active checkouts. */
 export const GET = withKiosk(async (_req, { kiosk }) => {
   const now = new Date();
@@ -453,6 +485,7 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
     events: events.map((e) => {
       const seenUserIds = new Set<string>();
       const shifts = e.shiftGroup?.shifts ?? [];
+      const allDay = e.allDay || isAllDaySpan(e.startsAt, e.endsAt, env.appTimezone);
       const callStartsAt = shifts.reduce<Date | null>((earliest, shift) => {
         const value = shift.callStartsAt ?? shift.startsAt;
         if (!earliest || value < earliest) return value;
@@ -482,8 +515,8 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
             initials: getInitials(assignment.user.name),
             avatarUrl: assignment.user.avatarUrl,
             area: shift.area,
-            callStartsAt: shift.callStartsAt ?? shift.startsAt,
-            callEndsAt: shift.callEndsAt ?? shift.endsAt,
+            callStartsAt: allDay ? null : (shift.callStartsAt ?? shift.startsAt),
+            callEndsAt: allDay ? null : (shift.callEndsAt ?? shift.endsAt),
           });
         }
       }
@@ -493,9 +526,9 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
         sportCode: e.sportCode,
         startsAt: e.startsAt,
         endsAt: e.endsAt,
-        allDay: e.allDay,
-        callStartsAt,
-        callEndsAt,
+        allDay,
+        callStartsAt: allDay ? null : callStartsAt,
+        callEndsAt: allDay ? null : callEndsAt,
         shiftCount: e.shiftGroup?._count.shifts ?? 0,
         assignedUsers,
         assignedUserCount: assignedUsers.length,

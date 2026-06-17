@@ -57,6 +57,7 @@ Kiosk execution endpoints are documented in `docs/AREA_KIOSK.md`.
 
 | Date | Change |
 |---|---|
+| 2026-06-16 | iOS camera preview fix (`QrScanner.tsx`): a benign `video.play()` rejection on iOS (AbortError/NotAllowedError) no longer surfaces as a fatal "Camera not available" error, and the live feed sets the `muted` DOM property plus `playsinline`/`webkit-playsinline`/`disablepictureinpicture` attributes so WebKit keeps the camera inline and stops offering/auto-popping Picture-in-Picture. Affects web scan lookup, new-item serialized form, and the equipment picker. |
 | 2026-06-15 | Synced scan scope with D-040: app/web scan remains lookup-only, while checkout creation, reservation pickup, and return custody scans belong to kiosk flows. |
 | 2026-06-15 | Kiosk custody location evidence shipped. Serialized kiosk checkout/pickup/return scans now reconcile the item's saved location to the kiosk location, and pickup/return scan events record expected and actual location IDs plus a mismatch flag when the item or booking is not where the kiosk flow expected it. App `/scan` remains lookup-only. |
 | 2026-06-15 | iOS hand-scanner debugger: staff/admin Settings -> Tools now has a Scanner Debugger that opens as a dedicated sheet, captures HID keyboard scanner input, displays raw/trimmed scan values, submits through native `SearchService`, and reuses the existing `ScanResultSheet` hero-card presentation. This is lookup/debug only; checkout pickup and return custody scans stay kiosk-owned. |

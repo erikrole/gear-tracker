@@ -13,11 +13,14 @@ describe("iOS kiosk all-day event contract", () => {
     const idle = source("ios/Wisconsin/Kiosk/KioskIdleView.swift");
 
     expect(route).toContain("allDay: true");
-    expect(route).toContain("allDay: e.allDay");
+    expect(route).toContain("isAllDaySpan(e.startsAt, e.endsAt, env.appTimezone)");
+    expect(route).toContain("callStartsAt: allDay ? null : callStartsAt");
     expect(models).toContain("let allDay: Bool");
     expect(models).toContain("decodeIfPresent(Bool.self, forKey: .allDay) ?? false");
-    expect(idle).toContain("if event.allDay {\n            return \"All day\"");
-    expect(idle).toContain("if !event.allDay {\n                        KioskEventTimeRow(label: \"Call\", value: callTimeLabel)");
-    expect(idle).toContain("if eventAllDay {\n            return area");
+    expect(models).toContain("var displayAllDay: Bool");
+    expect(models).toContain("allDay || hasLocalMidnightSpan");
+    expect(idle).toContain("if event.displayAllDay {\n            return \"All day\"");
+    expect(idle).toContain("if !event.displayAllDay {\n                        KioskEventTimeRow(label: \"Call\", value: callTimeLabel)");
+    expect(idle).toContain("KioskEventWorkerRow(user: user, eventAllDay: event.displayAllDay)");
   });
 });

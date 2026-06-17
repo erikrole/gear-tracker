@@ -151,6 +151,20 @@ struct KioskEvent: Decodable, Identifiable {
         assignedUsers = try container.decodeIfPresent([AssignedUser].self, forKey: .assignedUsers) ?? []
         assignedUserCount = try container.decodeIfPresent(Int.self, forKey: .assignedUserCount) ?? assignedUsers.count
     }
+
+    var displayAllDay: Bool {
+        allDay || hasLocalMidnightSpan
+    }
+
+    private var hasLocalMidnightSpan: Bool {
+        guard let endsAt, endsAt > startsAt else { return false }
+        let calendar = Calendar.current
+        let startOfStartDay = calendar.startOfDay(for: startsAt)
+        let startOfEndDay = calendar.startOfDay(for: endsAt)
+        guard startOfEndDay > startOfStartDay else { return false }
+        return abs(startsAt.timeIntervalSince(startOfStartDay)) < 60 &&
+            abs(endsAt.timeIntervalSince(startOfEndDay)) < 60
+    }
 }
 
 struct KioskCheckoutEvent: Decodable, Identifiable, Equatable {

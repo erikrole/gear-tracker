@@ -43,11 +43,11 @@ import type { CalendarEntry, Shift } from "./types";
 import {
   ACTIVE_STATUSES,
   AREA_LABELS,
-  coverageVariant,
   scheduleEventTitleParts,
   userHasShift,
   userShiftStatus,
 } from "./types";
+import { CoverageBadge } from "./Coverage";
 
 type ListViewProps = {
   entries: CalendarEntry[];
@@ -133,24 +133,6 @@ function RoleNeedSummary({ entry, compact = false }: { entry: CalendarEntry; com
 
 function eventStartLabel(entry: CalendarEntry) {
   return entry.allDay ? formatCalendarEventAllDayLabel(entry) : formatTimeShort(entry.startsAt);
-}
-
-/* ── Coverage fraction badge ── */
-function CoveragePill({ percentage, filled, total }: { percentage: number; filled: number; total: number }) {
-  const variant = coverageVariant(percentage);
-  return (
-    <span className="flex items-center gap-1">
-      <span
-        className={cn(
-          "inline-flex size-[7px] rounded-full flex-shrink-0",
-          variant === "green" ? "bg-[var(--green)]" : variant === "orange" ? "bg-[var(--orange)]" : "bg-[var(--red)]",
-        )}
-      />
-      <Badge variant={variant} size="sm">
-        {filled}/{total}
-      </Badge>
-    </span>
-  );
 }
 
 function shiftCallSummary(entry: CalendarEntry) {
@@ -1007,12 +989,11 @@ export function ListView({
                           </Badge>
                         )}
                         {entry.coverage && (
-                          <Badge
-                            variant={coverageVariant(entry.coverage.percentage)}
-                            size="sm"
-                          >
-                            {entry.coverage.filled}/{entry.coverage.total}
-                          </Badge>
+                          <CoverageBadge
+                            percentage={entry.coverage.percentage}
+                            filled={entry.coverage.filled}
+                            total={entry.coverage.total}
+                          />
                         )}
                         {missingSlots > 0 && (
                           <RoleNeedSummary entry={entry} />
@@ -1273,7 +1254,7 @@ function EventRows({
               )}
             </div>
             {entry.coverage && (
-              <CoveragePill
+              <CoverageBadge
                 percentage={entry.coverage.percentage}
                 filled={entry.coverage.filled}
                 total={entry.coverage.total}

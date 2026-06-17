@@ -9,7 +9,8 @@ import { eventOccursOnCalendarDay, formatCalendarEventAllDayLabel } from "@/lib/
 import { cn } from "@/lib/utils";
 import { VENUE_TONES, venueToneFromEvent } from "@/lib/venue-tone";
 import type { CalendarEntry } from "./types";
-import { ACTIVE_STATUSES, AREA_LABELS, coverageDot, scheduleEventTitleParts } from "./types";
+import { ACTIVE_STATUSES, AREA_LABELS, scheduleEventTitleParts } from "./types";
+import { CoverageTag } from "./Coverage";
 
 type CalendarViewProps = {
   entries: CalendarEntry[];
@@ -89,15 +90,16 @@ function EventChip({
       <div className={cn("w-[2.5px] flex-shrink-0", venueTone.solidClass)} />
       <div className={cn("flex-1 px-1 py-[2px] min-w-0", venueTone.surfaceClass)}>
         <div className="flex items-center gap-1 min-w-0">
-          {entry.coverage && (
-            <span
-              className="size-1.5 rounded-full flex-shrink-0"
-              style={{ background: coverageDot(entry.coverage.percentage) }}
-            />
-          )}
-          <span className="text-[10px] font-medium leading-[1.35] truncate">
+          <span className="min-w-0 flex-1 truncate text-[10px] font-medium leading-[1.35]">
             {titleParts.title}
           </span>
+          {entry.coverage && (
+            <CoverageTag
+              percentage={entry.coverage.percentage}
+              filled={entry.coverage.filled}
+              total={entry.coverage.total}
+            />
+          )}
         </div>
       </div>
     </>

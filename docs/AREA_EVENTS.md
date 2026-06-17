@@ -79,6 +79,7 @@ Make athletics schedule data the operational backbone for booking and checkout w
 4. Fallback behavior for incomplete events is implemented — treat event context as non-blocking metadata on all booking flows.
 
 ## Change Log
+- 2026-06-16: Native iOS Schedule all-day display follow-up shipped. The iPhone Schedule list now preserves manual event titles when sport metadata has no opponent, renders signed-in all-day shift rows as `All day`, and hides EventDetailSheet call-time and crew-row time columns for all-day events.
 - 2026-06-16: Schedule and event detail all-day display cleanup shipped. All-day event labels now keep the date as the canonical event timing and suppress crew call-window text across event detail, Schedule list expansion, and the shift detail sheet, so manual all-day events no longer show duplicate time ranges.
 - 2026-06-06: Booking wizard calendar-event recovery shipped for web. Checkout and reservation creation now distinguish failed upcoming-event reads from a true no-event list with inline retry and ad hoc fallback, preserving the Event area rule that missing or stale events never block non-event booking work.
 - 2026-06-03: Event detail Crew conflict actionability improved. Assigned-person conflict notes now appear in the call-window column beside the personal call-window editor, so staff/admin can see the availability conflict and adjust that person's override from the same row without changing slot/default call-time rules.

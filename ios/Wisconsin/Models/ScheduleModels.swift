@@ -30,23 +30,64 @@ struct EventLocation: Codable, Identifiable {
 // MARK: - Multi-day spans
 
 extension ScheduleEvent {
-    /// The reference end day for span math. All-day events carry an *exclusive*
-    /// end (next-midnight), so step back a second to land on the true last day.
+    /// All-day events are stored as UTC-midnight boundaries (calendar *dates*,
+    /// not instants), so their covered days must be read in UTC — matching the
+    /// web (`calendar-event-dates.ts`). Reading them with the device's local
+    /// calendar shifts them by the timezone offset and produces off-by-one day
+    /// counts and wrong date-header placement on any non-UTC device.
+    private var dayComponentsCalendar: Calendar {
+        guard allDay else { return .current }
+        var cal = Calendar(identifier: .gregorian)
+        if let utc = TimeZone(identifier: "UTC") { cal.timeZone = utc }
+        return cal
+    }
+
+    var displayAllDay: Bool {
+        allDay || hasLocalMidnightSpan
+    }
+
+    /// Heuristic for *timed* events whose start and end land exactly on local
+    /// midnight (so they should display like all-day). True all-day events take
+    /// the `allDay` flag path above and are handled in UTC.
+    private var hasLocalMidnightSpan: Bool {
+        guard !allDay, endsAt > startsAt else { return false }
+        let calendar = Calendar.current
+        let startOfStartDay = calendar.startOfDay(for: startsAt)
+        let startOfEndDay = calendar.startOfDay(for: endsAt)
+        guard startOfEndDay > startOfStartDay else { return false }
+        return abs(startsAt.timeIntervalSince(startOfStartDay)) < 60 &&
+            abs(endsAt.timeIntervalSince(startOfEndDay)) < 60
+    }
+
+    /// The reference end instant for span math. All-day / midnight-span events
+    /// carry an *exclusive* end (next-midnight), so step back a second to land
+    /// on the true last day.
     private var spanEndDate: Date {
-        allDay ? endsAt.addingTimeInterval(-1) : endsAt
+        displayAllDay ? endsAt.addingTimeInterval(-1) : endsAt
+    }
+
+    /// The local-midnight `Date` for a given instant's calendar day — read in
+    /// UTC for all-day events, locally otherwise. Returning local-midnight keeps
+    /// grouping keys and the (locally-formatted) date headers consistent across
+    /// all-day and timed events that fall on the same day.
+    private func displayDay(for instant: Date) -> Date {
+        let comps = dayComponentsCalendar.dateComponents([.year, .month, .day], from: instant)
+        return Calendar.current.date(from: DateComponents(
+            year: comps.year, month: comps.month, day: comps.day
+        )) ?? Calendar.current.startOfDay(for: instant)
     }
 
     /// True when the event covers more than one calendar day.
     var isMultiDay: Bool {
-        !Calendar.current.isDate(startsAt, inSameDayAs: spanEndDate)
+        displayDay(for: startsAt) != displayDay(for: spanEndDate)
     }
 
-    /// Start-of-day for every calendar day the event covers, inclusive.
+    /// Local start-of-day for every calendar day the event covers, inclusive.
     /// Single-day events return just their start day.
     var spannedDays: [Date] {
         let cal = Calendar.current
-        let start = cal.startOfDay(for: startsAt)
-        let end = cal.startOfDay(for: spanEndDate)
+        let start = displayDay(for: startsAt)
+        let end = displayDay(for: spanEndDate)
         guard end > start else { return [start] }
         var days: [Date] = []
         var cursor = start
@@ -254,6 +295,39 @@ let SPORT_LABELS: [String: String] = [
 func sportLabel(_ code: String?) -> String? {
     guard let code else { return nil }
     return SPORT_LABELS[code] ?? code
+}
+
+func scheduleEventDisplayTitle(_ event: ScheduleEvent) -> String {
+    if let opponent = event.opponent, !opponent.isEmpty {
+        var parts: [String] = []
+        if let code = event.sportCode {
+            parts.append(sportLabel(code) ?? code)
+        }
+        switch event.isHome {
+        case true:  parts.append("vs \(opponent)")
+        case false: parts.append("at \(opponent)")
+        case nil:   parts.append("- \(opponent)")
+        }
+        return parts.joined(separator: " ")
+    }
+
+    let title = cleanScheduleEventSummary(event.summary)
+    if !title.isEmpty { return title }
+    if let code = event.sportCode { return sportLabel(code) ?? code }
+    return "Event"
+}
+
+func cleanScheduleEventSummary(_ raw: String) -> String {
+    var s = raw
+    // Strip leading home/away bracket: [W], [L], [H], [A], [N], etc.
+    s = s.replacingOccurrences(of: #"^\[[A-Za-z]\]\s*"#, with: "", options: .regularExpression)
+    // Strip "Wisconsin Badgers " or "Wisconsin " team prefix.
+    s = s.replacingOccurrences(of: #"^Wisconsin Badgers\s+"#, with: "", options: .regularExpression)
+    s = s.replacingOccurrences(of: #"^Wisconsin\s+"#, with: "", options: .regularExpression)
+    // Strip trailing annotation like " (VIDEO)".
+    s = s.replacingOccurrences(of: #"\s+\([A-Z]+\)$"#, with: "", options: .regularExpression)
+    // Collapse extra whitespace.
+    return s.components(separatedBy: .whitespaces).filter { !$0.isEmpty }.joined(separator: " ")
 }
 
 // MARK: - Shift area label

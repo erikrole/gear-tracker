@@ -51,11 +51,24 @@ describe("kiosk dashboard route", () => {
     mockDb.calendarEvent.findMany.mockResolvedValue([
       {
         id: "event-1",
-        summary: "Softball vs Iowa",
-        sportCode: "SB",
-        startsAt: new Date("2026-05-13T18:00:00.000Z"),
-        allDay: true,
-        shiftGroup: { _count: { shifts: 3 } },
+        summary: "Lambeau Field Visit",
+        sportCode: "FB",
+        startsAt: new Date("2026-06-17T05:00:00.000Z"),
+        endsAt: new Date("2026-06-18T05:00:00.000Z"),
+        allDay: false,
+        shiftGroup: {
+          _count: { shifts: 3 },
+          shifts: [{
+            area: "Video",
+            startsAt: new Date("2026-06-17T13:00:00.000Z"),
+            endsAt: new Date("2026-06-18T00:00:00.000Z"),
+            callStartsAt: new Date("2026-06-17T13:00:00.000Z"),
+            callEndsAt: new Date("2026-06-18T00:00:00.000Z"),
+            assignments: [{
+              user: { id: "user-1", name: "Erik Role", avatarUrl: null },
+            }],
+          }],
+        },
       },
     ]);
     mockDb.bookingSerializedItem.findMany.mockResolvedValue([
@@ -87,7 +100,17 @@ describe("kiosk dashboard route", () => {
     expect(res.status).toBe(200);
     expect(body.stats).toEqual({ itemsOut: 4, checkouts: 2, overdue: 1 });
     expect(body.events).toHaveLength(1);
-    expect(body.events[0]).toEqual(expect.objectContaining({ allDay: true }));
+    expect(body.events[0]).toEqual(expect.objectContaining({
+      title: "Lambeau Field Visit",
+      allDay: true,
+      callStartsAt: null,
+      callEndsAt: null,
+    }));
+    expect(body.events[0].assignedUsers[0]).toEqual(expect.objectContaining({
+      name: "Erik Role",
+      callStartsAt: null,
+      callEndsAt: null,
+    }));
     expect(body.activeItems).toEqual([
       expect.objectContaining({
         id: "asset-1",

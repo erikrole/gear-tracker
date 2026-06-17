@@ -4,6 +4,33 @@ Last updated: 2026-06-16
 
 ---
 
+## Active: iOS Schedule all-day display correction (2026-06-16)
+
+- [x] Trace the latest screenshots to regular native Schedule and EventDetailSheet, not kiosk.
+- [x] Preserve manual event titles when sport metadata has no opponent.
+- [x] Use all-day display fallback for list-row timing, EventDetail call-time prompts, and crew-row time columns.
+- [x] Add focused source-contract coverage for the iPhone Schedule regression.
+- [ ] Verify focused tests, iOS drift/audit, whitespace, and simulator build status.
+
+### Review
+- Pending verification.
+
+---
+
+## Active: Kiosk all-day fallback correction (2026-06-16)
+
+- [x] Re-check the kiosk screenshot and identify every visible time still leaking for the all-day event.
+- [x] Add server fallback detection for local midnight-to-midnight event spans when `CalendarEvent.allDay` is stale.
+- [x] Add native fallback detection for all-day display when the deployed API payload is stale or missing the flag.
+- [x] Suppress aggregate call times and worker call ranges for derived all-day events.
+- [x] Verify kiosk route coverage, iOS source contract, drift/audit, whitespace, build status.
+
+### Review
+- 2026-06-16: The kiosk now treats local midnight-to-midnight event spans as all-day even when the stored `CalendarEvent.allDay` flag is stale or an older API payload omits it. `/api/kiosk/dashboard` derives `allDay`, nulls aggregate event call ranges, and nulls worker call ranges for those derived all-day events. Native `KioskEvent.displayAllDay` applies the same fallback before rendering the idle row, detail timing rows, and worker sublines.
+- Verification: `npx vitest run tests/kiosk-dashboard-route.test.ts tests/ios-kiosk-all-day-contract.test.ts`, focused `npx eslint`, `npm run drift:ios`, `npm run audit:ios:gaps`, `git diff --check`, `npx next build`, and XcodeBuildMCP `build_sim` on iPad Pro 13-inch (M5) passed. `npx tsc --noEmit --pretty false` remains blocked only by the pre-existing `tests/bulk-unit-adjustment-routes.test.ts:171` undefined warning.
+
+---
+
 ## Active: Dashboard upcoming event title cleanup (2026-06-16)
 
 - [x] Trace the web Upcoming Events row formatter from the screenshot symptom.

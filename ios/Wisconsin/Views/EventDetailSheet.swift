@@ -363,7 +363,8 @@ struct EventDetailSheet: View {
     }
 
     private var callTime: Date? {
-        eventWork?.shift.startsAt ?? myShift?.startsAt
+        if event.displayAllDay { return nil }
+        return eventWork?.shift.startsAt ?? myShift?.startsAt
     }
 
     @ViewBuilder
@@ -445,7 +446,7 @@ struct EventDetailSheet: View {
             return event.startsAt.formatted(.dateTime.weekday(.wide).month(.wide).day().year())
         }
         let cal = Calendar.current
-        let endRef = event.allDay ? event.endsAt.addingTimeInterval(-1) : event.endsAt
+        let endRef = event.displayAllDay ? event.endsAt.addingTimeInterval(-1) : event.endsAt
         let sameYear = cal.isDate(event.startsAt, equalTo: endRef, toGranularity: .year)
         let start = event.startsAt.formatted(
             sameYear ? .dateTime.weekday(.abbreviated).month(.abbreviated).day()
@@ -498,7 +499,7 @@ struct EventDetailSheet: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-                if !event.allDay {
+                if !event.displayAllDay {
                     Label(eventTimeText, systemImage: "clock")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -638,7 +639,8 @@ struct EventDetailSheet: View {
                         } else {
                             deleteTarget = shift
                         }
-                    }
+                    },
+                    hidesShiftTimes: event.displayAllDay
                 )
             }
         }
@@ -685,14 +687,46 @@ struct AreaBlock: View {
     var onDuplicate: ((EventShift) -> Void)? = nil
     var onEditTimes: ((EventShift) -> Void)? = nil
     var onDelete: ((EventShift) -> Void)? = nil
+    var hidesShiftTimes = false
+
+    /// True when this area mixes Student and Staff slots. When false, the single
+    /// worker type is shown once on the header instead of on every row.
+    private var mixesWorkerTypes: Bool {
+        Set(shifts.map(\.workerType)).count > 1
+    }
+
+    private var uniformWorkerTypeLabel: String? {
+        guard !mixesWorkerTypes, let type = shifts.first?.workerType else { return nil }
+        switch type {
+        case "ST": return "Student"
+        case "FT": return "Staff"
+        default:   return type
+        }
+    }
+
+    private var uniformWorkerTypeColor: Color {
+        shifts.first?.workerType == "FT" ? .secondary : Color.statusText(.blue)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // Area header — title-cased ("Video" / "Photo") so the row's
-            // ALL-CAPS server token doesn't shout, with the area's icon.
-            Label(area.shiftAreaLabel, systemImage: areaIcon)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
+            // ALL-CAPS server token doesn't shout, with the area's icon. When the
+            // block is a single worker type, it's labeled here once.
+            HStack(spacing: 8) {
+                Label(area.shiftAreaLabel, systemImage: areaIcon)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                if let uniformWorkerTypeLabel {
+                    Text(uniformWorkerTypeLabel)
+                        .font(.caption2.weight(.medium))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(uniformWorkerTypeColor.opacity(0.12))
+                        .foregroundStyle(uniformWorkerTypeColor)
+                        .clipShape(Capsule())
+                }
+            }
 
             VStack(spacing: 0) {
                 ForEach(Array(shifts.enumerated()), id: \.element.id) { idx, shift in
@@ -702,6 +736,8 @@ struct AreaBlock: View {
                         currentUserId: currentUserId,
                         canManageShifts: canManageShifts,
                         isStudent: isStudent,
+                        hidesShiftTimes: hidesShiftTimes,
+                        showsWorkerType: mixesWorkerTypes,
                         onAssign: onAssign,
                         onRequest: onRequest,
                         onUnassign: onUnassign,
@@ -750,6 +786,11 @@ struct ShiftRow: View {
     let currentUserId: String?
     var canManageShifts: Bool = false
     var isStudent: Bool = false
+    var hidesShiftTimes = false
+    /// Per-row Student/Staff badge. Suppressed when the whole area block is one
+    /// worker type (it's shown once on the area header instead), so an all-staff
+    /// crew isn't a column of identical "Staff" pills.
+    var showsWorkerType: Bool = true
     var onAssign: ((EventShift) -> Void)? = nil
     var onRequest: ((EventShift) -> Void)? = nil
     var onUnassign: ((ShiftAssignmentRecord) -> Void)? = nil
@@ -764,26 +805,30 @@ struct ShiftRow: View {
     var body: some View {
         HStack(spacing: 12) {
             // Call time column
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(shift.startsAt.formatted(.dateTime.hour().minute()))
-                    .font(.caption.monospacedDigit().weight(.medium))
-                Text(shift.endsAt.formatted(.dateTime.hour().minute()))
-                    .font(.caption2.monospacedDigit())
-                    .foregroundStyle(.tertiary)
+            if !hidesShiftTimes {
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(shift.startsAt.formatted(.dateTime.hour().minute()))
+                        .font(.caption.monospacedDigit().weight(.medium))
+                    Text(shift.endsAt.formatted(.dateTime.hour().minute()))
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.tertiary)
+                }
+                .frame(width: 52, alignment: .trailing)
+
+                Divider().frame(height: 36)
             }
-            .frame(width: 52, alignment: .trailing)
 
-            Divider().frame(height: 36)
-
-            // Worker type badge
-            Text(workerTypeLabel)
-                .font(.caption2.weight(.medium))
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(workerTypeColor.opacity(0.12))
-                .foregroundStyle(workerTypeColor)
-                .clipShape(Capsule())
-                .fixedSize()
+            // Worker type badge — only when the block mixes Student/Staff.
+            if showsWorkerType {
+                Text(workerTypeLabel)
+                    .font(.caption2.weight(.medium))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(workerTypeColor.opacity(0.12))
+                    .foregroundStyle(workerTypeColor)
+                    .clipShape(Capsule())
+                    .fixedSize()
+            }
 
             // Assigned person (or open slot)
             assignedPersonView
@@ -808,11 +853,13 @@ struct ShiftRow: View {
     }
 
     private var rowAccessibilityLabel: String {
-        let timeRange = "\(shift.startsAt.formatted(.dateTime.hour().minute())) to \(shift.endsAt.formatted(.dateTime.hour().minute()))"
         var parts: [String] = []
         if isHighlighted { parts.append("Your shift") }
         parts.append("\(workerTypeLabel) shift")
-        parts.append(timeRange)
+        if !hidesShiftTimes {
+            let timeRange = "\(shift.startsAt.formatted(.dateTime.hour().minute())) to \(shift.endsAt.formatted(.dateTime.hour().minute()))"
+            parts.append(timeRange)
+        }
         if shift.isOpen {
             parts.append("Open slot")
         } else {
@@ -895,52 +942,77 @@ struct ShiftRow: View {
     @ViewBuilder
     private var assignedPersonView: some View {
         if shift.isOpen {
-            openSlotView
+            HStack(spacing: 8) {
+                openSlotAvatar
+                openSlotView
+            }
         } else {
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 6) {
                 ForEach(shift.assignments, id: \.id) { assignment in
-                    let isMe = currentUserId.map { $0 == assignment.user.id } ?? false
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 4) {
-                            Text(assignment.user.name)
-                                .font(.subheadline)
-                                .foregroundStyle(isMe ? Color.primary : Color.secondary)
-                            if isMe {
-                                Image(systemName: "person.fill")
-                                    .font(.caption2)
-                                    .foregroundStyle(Color.accentColor)
-                            }
-                            if assignment.status == "REQUESTED" {
-                                StatusPill(label: "Pending", tone: .orange)
-                            }
-                        }
-                        if canManageShifts && assignment.status == "REQUESTED" {
-                            // Approve is the primary call-to-action (filled green);
-                            // Decline is a clearly-separated outlined red. Bumped from
-                            // .mini to .small + wider spacing so two consequential
-                            // actions aren't a mis-tap risk on a dense row.
-                            HStack(spacing: 10) {
-                                if let onApprove {
-                                    Button("Approve \(assignment.user.name)") { onApprove(assignment) }
-                                        .buttonStyle(.borderedProminent)
-                                        .controlSize(.small)
-                                        .tint(Color.statusText(.green))
-                                        .accessibilityLabel("Approve \(assignment.user.name)")
-                                }
-                                if let onDecline {
-                                    Button("Decline \(assignment.user.name)") { onDecline(assignment) }
-                                        .buttonStyle(.bordered)
-                                        .controlSize(.small)
-                                        .tint(Color.statusText(.red))
-                                        .accessibilityLabel("Decline \(assignment.user.name)")
-                                }
-                            }
-                            .padding(.top, 2)
-                        }
-                    }
+                    assignmentRow(assignment)
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private func assignmentRow(_ assignment: ShiftAssignmentRecord) -> some View {
+        let isMe = currentUserId.map { $0 == assignment.user.id } ?? false
+        HStack(alignment: .top, spacing: 8) {
+            UserAvatarView(name: assignment.user.name, avatarUrl: assignment.user.avatarUrl, size: 28)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 4) {
+                    Text(assignment.user.name)
+                        .font(.subheadline)
+                        .foregroundStyle(isMe ? Color.primary : Color.secondary)
+                    if isMe {
+                        Image(systemName: "person.fill")
+                            .font(.caption2)
+                            .foregroundStyle(Color.accentColor)
+                    }
+                    if assignment.status == "REQUESTED" {
+                        StatusPill(label: "Pending", tone: .orange)
+                    }
+                }
+                if canManageShifts && assignment.status == "REQUESTED" {
+                    // Approve is the primary call-to-action (filled green);
+                    // Decline is a clearly-separated outlined red. Bumped from
+                    // .mini to .small + wider spacing so two consequential
+                    // actions aren't a mis-tap risk on a dense row.
+                    HStack(spacing: 10) {
+                        if let onApprove {
+                            Button("Approve \(assignment.user.name)") { onApprove(assignment) }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
+                                .tint(Color.statusText(.green))
+                                .accessibilityLabel("Approve \(assignment.user.name)")
+                        }
+                        if let onDecline {
+                            Button("Decline \(assignment.user.name)") { onDecline(assignment) }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                                .tint(Color.statusText(.red))
+                                .accessibilityLabel("Decline \(assignment.user.name)")
+                        }
+                    }
+                    .padding(.top, 2)
+                }
+            }
+        }
+    }
+
+    /// Dashed placeholder so an open slot's row aligns with the avatars on
+    /// filled rows instead of the name/button jumping to the left edge.
+    private var openSlotAvatar: some View {
+        Circle()
+            .strokeBorder(Color.secondary.opacity(0.35), style: StrokeStyle(lineWidth: 1, dash: [3]))
+            .frame(width: 28, height: 28)
+            .overlay(
+                Image(systemName: "person")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            )
+            .accessibilityHidden(true)
     }
 
     @ViewBuilder

@@ -369,20 +369,15 @@ struct ScheduleView: View {
 
     private var scheduleControlStrip: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .center, spacing: 10) {
-                Text("View")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 42, alignment: .leading)
-
-                Picker("Schedule view", selection: $viewMode) {
-                    ForEach(ScheduleViewMode.allCases, id: \.self) { mode in
-                        Text(mode.rawValue).tag(mode)
-                    }
+            // The segmented control is self-explanatory (List / Calendar), so it
+            // stands on its own — no "View" label, matching Apple's own switchers.
+            Picker("Schedule view", selection: $viewMode) {
+                ForEach(ScheduleViewMode.allCases, id: \.self) { mode in
+                    Text(mode.rawValue).tag(mode)
                 }
-                .pickerStyle(.segmented)
-                .accessibilityLabel("Schedule view")
             }
+            .pickerStyle(.segmented)
+            .accessibilityLabel("Schedule view")
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
@@ -515,6 +510,7 @@ struct ScheduleView: View {
                 }
             }
             .listStyle(.plain)
+            .listSectionSpacing(.compact)
             .scrollContentBackground(.hidden)
             .background(Color(.systemGroupedBackground))
         }
@@ -911,7 +907,7 @@ private struct ScheduleDateHeader: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.top, Brand.Space.lg)
+        .padding(.top, Brand.Space.sm)
         .padding(.bottom, 6)
         .background(Color(.systemGroupedBackground))
         .accessibilityElement(children: .ignore)
@@ -962,43 +958,16 @@ struct EventRow: View {
     /// end, interior days read "All day".
     private var timeRowText: String {
         if let seg = segment {
-            if event.allDay { return "All day" }
+            if event.displayAllDay { return "All day" }
             if seg.index == 1 { return "From \(event.startsAt.formatted(.dateTime.hour().minute()))" }
             if seg.index == seg.total { return "Until \(event.endsAt.formatted(.dateTime.hour().minute()))" }
             return "All day"
         }
-        return event.allDay ? "All day" : eventTimeLabel
+        return event.displayAllDay ? "All day" : eventTimeLabel
     }
 
     private var eventDisplayTitle: String {
-        var parts: [String] = []
-        if let code = event.sportCode {
-            parts.append(scheduleSportLabel(code))
-        }
-        if let opponent = event.opponent, !opponent.isEmpty {
-            switch event.isHome {
-            case true:  parts.append("vs \(opponent)")
-            case false: parts.append("at \(opponent)")
-            case nil:   parts.append("- \(opponent)")
-            }
-        }
-        if !parts.isEmpty {
-            return parts.joined(separator: " ")
-        }
-        return Self.cleanSummary(event.summary)
-    }
-
-    private static func cleanSummary(_ raw: String) -> String {
-        var s = raw
-        // Strip leading home/away bracket: [W], [L], [H], [A], [N], etc.
-        s = s.replacingOccurrences(of: #"^\[[A-Za-z]\]\s*"#, with: "", options: .regularExpression)
-        // Strip "Wisconsin Badgers " or "Wisconsin " team prefix
-        s = s.replacingOccurrences(of: #"^Wisconsin Badgers\s+"#, with: "", options: .regularExpression)
-        s = s.replacingOccurrences(of: #"^Wisconsin\s+"#, with: "", options: .regularExpression)
-        // Strip trailing annotation like " (VIDEO)"
-        s = s.replacingOccurrences(of: #"\s+\([A-Z]+\)$"#, with: "", options: .regularExpression)
-        // Collapse extra whitespace
-        return s.components(separatedBy: .whitespaces).filter { !$0.isEmpty }.joined(separator: " ")
+        scheduleEventDisplayTitle(event)
     }
 
     var body: some View {
@@ -1009,7 +978,7 @@ struct EventRow: View {
                 // Title row
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(eventDisplayTitle)
-                        .font(.subheadline.weight(.semibold))
+                        .font(.body.weight(.semibold))
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 0)
@@ -1041,14 +1010,21 @@ struct EventRow: View {
                 HStack(spacing: 8) {
                     if let isHome = event.isHome {
                         Text(isHome ? "Home" : "Away")
-                            .font(.caption2.weight(.semibold))
+                            .font(.subheadline.weight(.semibold))
                             .foregroundStyle(isHome ? Color.statusText(.green) : Color.statusText(.orange))
+                        Text("·")
+                            .font(.subheadline)
+                            .foregroundStyle(.tertiary)
                     }
                     if let weather = weatherData {
                         WeatherBadge(data: weather)
                     }
 
-                    if let shift = myShift {
+                    if event.displayAllDay {
+                        Text("All day")
+                            .font(.subheadline.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    } else if let shift = myShift {
                         HStack(spacing: 10) {
                             // Hide redundant CALL when call time == event start.
                             if !calendarSame(shift.startsAt, event.startsAt) {
@@ -1059,19 +1035,22 @@ struct EventRow: View {
                         }
                     } else {
                         Text(timeRowText)
-                            .font(.caption.monospacedDigit())
+                            .font(.subheadline.monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
                 }
 
-                if let location = event.location {
-                    Label(location.name, systemImage: "mappin")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                }
+                // Venue intentionally omitted from the list row — it's redundant
+                // for home events ("Camp Randall") and lives on the detail sheet.
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Disclosure chevron — the row opens the event detail sheet, so per
+            // the HIG it carries a disclosure indicator to read as navigable.
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 14)
@@ -1106,7 +1085,7 @@ struct EventRow: View {
             } else {
                 parts.append("Call \(callTime), event \(eventTime), end \(endTime)")
             }
-        } else if event.allDay {
+        } else if event.displayAllDay {
             parts.append("All day")
         } else {
             parts.append(eventTimeLabel)
@@ -1151,7 +1130,7 @@ struct EventRow: View {
     }
 
     private var eventTimeLabel: String {
-        if event.allDay { return "All day" }
+        if event.displayAllDay { return "All day" }
         let start = event.startsAt.formatted(.dateTime.hour().minute())
         let end = event.endsAt.formatted(.dateTime.hour().minute())
         return "\(start) – \(end)"

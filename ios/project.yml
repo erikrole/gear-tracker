@@ -59,3 +59,27 @@ targets:
       configs:
         Debug:
           OTHER_SWIFT_FLAGS: "-DDEBUG"
+
+  WisconsinTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: WisconsinTests
+    dependencies:
+      - target: Wisconsin
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: "YES"
+        PRODUCT_NAME: WisconsinTests
+        PRODUCT_BUNDLE_IDENTIFIER: com.erikrole.WisconsinTests
+        DEVELOPMENT_TEAM: T26T3G8C7Q
+
+schemes:
+  Wisconsin:
+    build:
+      targets:
+        Wisconsin: all
+    test:
+      targets:
+        - WisconsinTests

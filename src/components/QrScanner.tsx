@@ -100,7 +100,34 @@ export default function QrScanner({
         if (!video) return;
 
         video.srcObject = stream;
-        await video.play();
+
+        // iOS WebKit hardening for a live camera preview:
+        //  - `muted` must be the DOM *property* (React's `muted` prop is not
+        //    reliably reflected before play()), or iOS refuses inline autoplay.
+        //  - `playsinline` / legacy `webkit-playsinline` keep the feed inline
+        //    instead of forcing the native fullscreen player.
+        //  - `disablepictureinpicture` stops iOS from offering or auto-popping
+        //    the camera feed into Picture-in-Picture (which yanks the scanner
+        //    out of the page on tab switch / scroll).
+        video.muted = true;
+        video.setAttribute("muted", "");
+        video.setAttribute("playsinline", "");
+        video.setAttribute("webkit-playsinline", "");
+        video.setAttribute("disablepictureinpicture", "");
+
+        // play() can reject on iOS with a benign AbortError/NotAllowedError when
+        // the element re-renders or the system interrupts (e.g. PiP attempt).
+        // The stream is already attached, so the detect loop below will start
+        // reading frames once readyState is ready — don't surface this as a
+        // fatal "camera not available" error.
+        try {
+          await video.play();
+        } catch (playErr) {
+          const name = playErr instanceof DOMException ? playErr.name : "";
+          if (name !== "AbortError" && name !== "NotAllowedError") throw playErr;
+        }
+
+        if (!mounted) return;
 
         // Detection loop — runs via requestAnimationFrame for smooth perf
         // Throttled to ~12 fps to balance battery vs responsiveness
@@ -179,6 +206,9 @@ export default function QrScanner({
         ref={videoRef}
         playsInline
         muted
+        autoPlay
+        controls={false}
+        disablePictureInPicture
         style={{
           display: "block",
           width: "100%",

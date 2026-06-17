@@ -1059,7 +1059,7 @@ private struct KioskEventRow: View {
     }
 
     private var timeLabel: String {
-        if event.allDay {
+        if event.displayAllDay {
             return "All day"
         }
         if Calendar.current.isDateInToday(event.startsAt) {
@@ -1154,7 +1154,7 @@ private struct KioskEventDetailSheet: View {
 
                 VStack(spacing: 10) {
                     KioskEventTimeRow(label: "Event", value: eventTimeLabel)
-                    if !event.allDay {
+                    if !event.displayAllDay {
                         KioskEventTimeRow(label: "Call", value: callTimeLabel)
                     }
                 }
@@ -1185,7 +1185,7 @@ private struct KioskEventDetailSheet: View {
                         ScrollView {
                             LazyVStack(spacing: 8) {
                                 ForEach(event.assignedUsers) { user in
-                                    KioskEventWorkerRow(user: user, eventAllDay: event.allDay)
+                                    KioskEventWorkerRow(user: user, eventAllDay: event.displayAllDay)
                                 }
                             }
                         }
@@ -1210,7 +1210,7 @@ private struct KioskEventDetailSheet: View {
     }
 
     private var eventTimeLabel: String {
-        if event.allDay {
+        if event.displayAllDay {
             return allDayDateLabel
         }
         return formatRange(start: event.startsAt, end: event.endsAt)
