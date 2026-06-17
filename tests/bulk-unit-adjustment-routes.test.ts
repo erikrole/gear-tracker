@@ -168,7 +168,9 @@ describe("bulk unit adjustment routes", () => {
       routeParams,
     );
 
-    const updateArg = tx.bulkSkuUnit.update.mock.calls[0][0];
+    const updateCall = tx.bulkSkuUnit.update.mock.calls[0];
+    expect(updateCall).toBeDefined();
+    const updateArg = updateCall![0];
     expect(updateArg.data).not.toHaveProperty("labelPrintedAt");
     expect(updateArg.data).not.toHaveProperty("labelPrintedById");
     expect(updateArg.data).not.toHaveProperty("labelPrintBatchId");
