@@ -186,6 +186,19 @@
 - [x] Title bumped to 17pt (`.body.weight(.semibold)`); home/away + time aligned to
       a single 15pt secondary line with a `·` separator. Trailing chevron + venue
       removal from the earlier slice round it out.
+
+### Event card declutter ("way too much going on" — from-device feedback)
+- [x] The title row was fighting a Day-n/m pill + coverage chip + My-Shift pill +
+      chevron, and the 17pt title wrapped into them. Rebuilt: title alone on top,
+      then ONE quiet `metaLine` (home/away · time · "Day n of m" · "My shift"),
+      with only the coverage chip + chevron trailing. "My shift" is now quiet accent
+      text (the red status rail already signals it); "Day n of m" is quiet purple
+      text instead of a filled pill.
+- [x] Dropped the dense CALL/EVENT/END `TimeBlock` cluster from list rows (call
+      times live on the detail sheet). Removed now-dead `TimeBlock` + `WeatherBadge`
+      structs and the per-row weather fetch (it only fed the a11y label after the
+      badge was gone — one network call per row for no visible payoff; weather still
+      shows on the detail sheet).
 - [ ] Deferred (needs a simulator build in the loop — cannot compile iOS in this
       env): consolidate the split filter rows (My shifts/Past in the strip vs
       Home-Away/Sport inside the list section) into one persistent strip; consider

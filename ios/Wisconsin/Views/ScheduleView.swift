@@ -945,7 +945,6 @@ struct EventRow: View {
     /// The day this row is rendered under. For a multi-day event it drives the
     /// "Day n/m" marker and the segment-aware time line.
     var contextDay: Date? = nil
-    @State private var weatherData: EventWeatherData?
 
     /// When this row represents one day of a multi-day event, its 1-based
     /// position and the total span length.
@@ -974,76 +973,22 @@ struct EventRow: View {
         HStack(spacing: 12) {
             StatusRail(color: barColor)
 
-            VStack(alignment: .leading, spacing: 5) {
-                // Title row
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(eventDisplayTitle)
-                        .font(.body.weight(.semibold))
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 0)
-                    if let seg = segment {
-                        Label("Day \(seg.index)/\(seg.total)", systemImage: "calendar.day.timeline.left")
-                            .labelStyle(.titleAndIcon)
-                            .font(.caption2.weight(.bold))
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 2)
-                            .background(Color.statusBackground(.purple), in: Capsule())
-                            .foregroundStyle(Color.statusText(.purple))
-                            .fixedSize()
-                    }
-                    if showCoverage, let cov = event.coverage, cov.total > 0 {
-                        coverageChip(cov)
-                    }
-                    if myShift != nil {
-                        Text("My Shift")
-                            .font(.caption2.weight(.bold))
-                            .tracking(0.4)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 2)
-                            .background(Color.accentColor.opacity(0.12), in: Capsule())
-                            .foregroundStyle(Color.accentColor)
-                    }
-                }
+            VStack(alignment: .leading, spacing: 3) {
+                Text(eventDisplayTitle)
+                    .font(.body.weight(.semibold))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
-                // Time row
-                HStack(spacing: 8) {
-                    if let isHome = event.isHome {
-                        Text(isHome ? "Home" : "Away")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(isHome ? Color.statusText(.green) : Color.statusText(.orange))
-                        Text("·")
-                            .font(.subheadline)
-                            .foregroundStyle(.tertiary)
-                    }
-                    if let weather = weatherData {
-                        WeatherBadge(data: weather)
-                    }
-
-                    if event.displayAllDay {
-                        Text("All day")
-                            .font(.subheadline.monospacedDigit())
-                            .foregroundStyle(.secondary)
-                    } else if let shift = myShift {
-                        HStack(spacing: 10) {
-                            // Hide redundant CALL when call time == event start.
-                            if !calendarSame(shift.startsAt, event.startsAt) {
-                                TimeBlock(label: "CALL", time: shift.startsAt)
-                            }
-                            TimeBlock(label: "EVENT", time: event.startsAt)
-                            TimeBlock(label: "END", time: shift.endsAt)
-                        }
-                    } else {
-                        Text(timeRowText)
-                            .font(.subheadline.monospacedDigit())
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                // Venue intentionally omitted from the list row — it's redundant
-                // for home events ("Camp Randall") and lives on the detail sheet.
+                // One calm secondary line carries the rest, so the title no
+                // longer competes with a cluster of pills.
+                metaLine
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Crew fill is the one staff signal worth a trailing chip.
+            if showCoverage, let cov = event.coverage, cov.total > 0 {
+                coverageChip(cov)
+            }
 
             // Disclosure chevron — the row opens the event detail sheet, so per
             // the HIG it carries a disclosure indicator to read as navigable.
@@ -1061,9 +1006,41 @@ struct EventRow: View {
                 .strokeBorder(Color.hairline, lineWidth: 0.5)
         )
         .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 3)
-        .task { weatherData = await EventWeatherService.shared.weather(for: event) }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(rowAccessibilityLabel)
+    }
+
+    /// A single, quiet secondary line: home/away · time · multi-day · my-shift —
+    /// replacing the old stack of pills that crowded the title.
+    private var metaLine: some View {
+        HStack(spacing: 5) {
+            if let isHome = event.isHome {
+                Text(isHome ? "Home" : "Away")
+                    .foregroundStyle(isHome ? Color.statusText(.green) : Color.statusText(.orange))
+                metaDot
+            }
+            Text(timeRowText)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+            if let seg = segment {
+                metaDot
+                Text("Day \(seg.index) of \(seg.total)")
+                    .foregroundStyle(Color.statusText(.purple))
+            }
+            if myShift != nil {
+                metaDot
+                Text("My shift")
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.accentColor)
+            }
+        }
+        .font(.subheadline)
+        .lineLimit(1)
+        .minimumScaleFactor(0.8)
+    }
+
+    private var metaDot: some View {
+        Text("·").foregroundStyle(.tertiary)
     }
 
     private var rowAccessibilityLabel: String {
@@ -1092,9 +1069,6 @@ struct EventRow: View {
         }
         if let location = event.location {
             parts.append(location.name)
-        }
-        if let weather = weatherData {
-            parts.append("Weather \(weather.temperature)")
         }
         return parts.joined(separator: ", ")
     }
@@ -1134,41 +1108,6 @@ struct EventRow: View {
         let start = event.startsAt.formatted(.dateTime.hour().minute())
         let end = event.endsAt.formatted(.dateTime.hour().minute())
         return "\(start) – \(end)"
-    }
-}
-
-private struct TimeBlock: View {
-    let label: String
-    let time: Date
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label)
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.tertiary)
-                .kerning(0.4)
-            Text(time.formatted(.dateTime.hour().minute()))
-                .font(.caption.weight(.medium).monospacedDigit())
-                .foregroundStyle(.primary)
-        }
-    }
-}
-
-
-// MARK: - Weather Badge
-
-private struct WeatherBadge: View {
-    let data: EventWeatherData
-
-    var body: some View {
-        HStack(spacing: 3) {
-            Image(systemName: data.symbolName)
-                .symbolRenderingMode(.multicolor)
-                .font(.caption2.weight(.medium))
-            Text(data.temperature)
-                .font(.caption2.weight(.medium).monospacedDigit())
-                .foregroundStyle(.secondary)
-        }
     }
 }
 
