@@ -257,13 +257,13 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
 
   return (
     <Sheet open={open} onOpenChange={(v) => { if (submitting) return; onOpenChange(v); if (!v) reset(); }}>
-      <SheetContent className="sm:max-w-xl">
+      <SheetContent className="sm:inset-y-auto sm:bottom-auto sm:top-4 sm:h-auto sm:max-h-[calc(100vh-2rem)] sm:max-w-xl sm:rounded-lg sm:border">
         <SheetHeader>
           <SheetTitle>New event</SheetTitle>
           <SheetDescription>Add an event directly to the schedule.</SheetDescription>
         </SheetHeader>
 
-        <SheetBody className="px-6 py-6">
+        <SheetBody className="px-6 py-5">
           {createdEvent ? (
             <div className="flex flex-col gap-4">
               <Alert>
@@ -279,7 +279,7 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
               </div>
             </div>
           ) : (
-          <form id="new-event-form" onSubmit={handleSubmit} className="flex flex-col gap-5">
+          <form id="new-event-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
             {/* Title */}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="event-title">Title</Label>

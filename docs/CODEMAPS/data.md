@@ -11,7 +11,7 @@
 
 | Model | Fields | Model-level indexes/constraints |
 |---|---:|---:|
-| `User` | 64 | 2 |
+| `User` | 67 | 2 |
 | `Session` | 6 | 2 |
 | `PasswordResetToken` | 6 | 2 |
 | `Location` | 17 | 1 |
@@ -52,13 +52,13 @@
 | `LicenseCodeClaim` | 10 | 3 |
 | `SportConfig` | 8 | 1 |
 | `SportShiftConfig` | 12 | 2 |
-| `ShiftGroup` | 11 | 1 |
+| `ShiftGroup` | 15 | 3 |
 | `Shift` | 13 | 4 |
-| `ShiftAssignment` | 22 | 3 |
+| `ShiftAssignment` | 25 | 5 |
 | `StudentSportAssignment` | 6 | 3 |
 | `StudentAreaAssignment` | 6 | 3 |
 | `ShiftTrade` | 15 | 4 |
-| `StudentAvailabilityBlock` | 14 | 4 |
+| `StudentAvailabilityBlock` | 20 | 6 |
 | `BookingPhoto` | 8 | 2 |
 | `CheckinItemReport` | 11 | 3 |
 | `KioskDevice` | 12 | 3 |
@@ -218,6 +218,19 @@
 
 - `WEEKLY`
 - `AD_HOC`
+
+### `StudentAvailabilityIntent`
+
+- `CANNOT_WORK`
+- `PREFER`
+- `DISLIKE`
+- `TIME_OFF`
+
+### `StudentAvailabilityStatus`
+
+- `APPROVED`
+- `PENDING`
+- `DENIED`
 
 ### `ShiftAssignmentStatus`
 

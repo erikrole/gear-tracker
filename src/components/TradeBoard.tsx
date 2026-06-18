@@ -603,9 +603,10 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
             description={
               hasFilters
                 ? "Clear or adjust the filters to see more shift and trade activity."
-                : "No shifts are currently open for pickup or posted for trade."
+                : "No shifts are currently open for pickup or posted for trade. Published shifts will appear here when someone opens a slot or requests coverage."
             }
-            actionLabel={hasFilters ? "Clear filters" : undefined}
+            actionLabel={hasFilters ? "Clear filters" : "View schedule"}
+            actionHref={!hasFilters ? "/schedule" : undefined}
             onAction={hasFilters ? () => {
               setAreaFilter("");
               setStatusFilter("");

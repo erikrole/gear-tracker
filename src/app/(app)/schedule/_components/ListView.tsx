@@ -137,12 +137,13 @@ function RoleNeedSummary({ entry, compact = false }: { entry: CalendarEntry; com
   );
 }
 
-function PublicationBadge({ entry }: { entry: CalendarEntry }) {
+function PublicationBadge({ entry, quietPublished = false }: { entry: CalendarEntry; quietPublished?: boolean }) {
   const state = entry.publication;
   if (!state) return null;
   if (!state.publishedAt) return <Badge variant="gray" size="sm">Draft</Badge>;
   if (state.changedAfterPublish) return <Badge variant="orange" size="sm">Changed</Badge>;
   if (state.unacknowledgedCount > 0) return <Badge variant="blue" size="sm">{state.unacknowledgedCount} unack</Badge>;
+  if (quietPublished) return null;
   return <Badge variant="green" size="sm">Published</Badge>;
 }
 
@@ -180,9 +181,16 @@ function buildGearPrepHref(entry: CalendarEntry, assignment: ScheduleGearAssignm
   return `/reservations/new?${params.toString()}`;
 }
 
-function EventGearBadge({ readiness }: { readiness?: ScheduleGearEventReadiness | null }) {
+function EventGearBadge({
+  readiness,
+  priorityOnly = false,
+}: {
+  readiness?: ScheduleGearEventReadiness | null;
+  priorityOnly?: boolean;
+}) {
   const meta = gearReadinessLabel(readiness);
   if (!meta) return null;
+  if (priorityOnly && meta.variant !== "red" && meta.variant !== "orange") return null;
   return (
     <Badge variant={meta.variant} size="sm">
       {meta.label}
@@ -190,8 +198,15 @@ function EventGearBadge({ readiness }: { readiness?: ScheduleGearEventReadiness 
   );
 }
 
-function ChangeHistoryBadge({ summary }: { summary?: ScheduleChangeEventSummary | null }) {
+function ChangeHistoryBadge({
+  summary,
+  reviewOnly = false,
+}: {
+  summary?: ScheduleChangeEventSummary | null;
+  reviewOnly?: boolean;
+}) {
   if (!summary || summary.items.length === 0) return null;
+  if (reviewOnly && !summary.needsReview) return null;
   return (
     <Badge variant={summary.needsReview ? "orange" : "gray"} size="sm">
       {summary.needsReview ? "Review changes" : "Changed recently"}
@@ -1129,12 +1144,12 @@ export function ListView({
                             total={entry.coverage.total}
                           />
                         )}
-                        <EventGearBadge readiness={scheduleHealth?.gearReadiness.events[entry.id] ?? null} />
-                        {isStaff && <ChangeHistoryBadge summary={changeEvent} />}
+                        <EventGearBadge readiness={scheduleHealth?.gearReadiness.events[entry.id] ?? null} priorityOnly />
+                        {isStaff && <ChangeHistoryBadge summary={changeEvent} reviewOnly />}
                         {missingSlots > 0 && (
                           <RoleNeedSummary entry={entry} />
                         )}
-                        <PublicationBadge entry={entry} />
+                        <PublicationBadge entry={entry} quietPublished />
                       </div>
                     </div>
                     <div className="text-xs text-muted-foreground flex gap-2 flex-wrap pl-5">
@@ -1420,9 +1435,9 @@ function EventRows({
                 Premier
               </Badge>
             )}
-            <PublicationBadge entry={entry} />
-            <EventGearBadge readiness={gearEvent} />
-            {isStaff && <ChangeHistoryBadge summary={changeEvent} />}
+            <PublicationBadge entry={entry} quietPublished />
+            <EventGearBadge readiness={gearEvent} priorityOnly />
+            {isStaff && <ChangeHistoryBadge summary={changeEvent} reviewOnly />}
             {showShiftStatus && shiftStatus === "Pending" && (
               <Badge
                 variant="orange"

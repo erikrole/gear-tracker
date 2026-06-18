@@ -33,7 +33,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: _none matched_
 - APIs: `/api/dashboard`, `/api/dashboard/stats`, `/api/kiosk/dashboard`
 - Services: `src/lib/services/dashboard-counts.ts`
-- Tests: `tests/dashboard-accessibility.test.ts`, `tests/dashboard-overflow-filter-aware.test.ts`, `tests/dashboard-pending-pickup-link.test.ts`, `tests/dashboard-stats-transient-lanes.test.ts`, `tests/kiosk-dashboard-route.test.ts`
+- Tests: `tests/dashboard-accessibility.test.ts`, `tests/dashboard-event-title.test.ts`, `tests/dashboard-overflow-filter-aware.test.ts`, `tests/dashboard-pending-pickup-link.test.ts`, `tests/dashboard-stats-transient-lanes.test.ts`, `tests/kiosk-dashboard-route.test.ts`
 
 ## events
 
@@ -65,7 +65,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: `/settings/kiosk-devices`
 - APIs: `/api/kiosk-devices/[id]/regenerate-code`, `/api/kiosk-devices/[id]`, `/api/kiosk-devices`, `/api/kiosk/activate`, `/api/kiosk/checkin/[id]/complete`, `/api/kiosk/checkin/[id]/scan`, `/api/kiosk/checkout/[id]`, `/api/kiosk/checkout/availability`, `/api/kiosk/checkout/complete`, `/api/kiosk/checkout/scan`
 - Services: `src/lib/services/kiosk-checkout-complete.ts`, `src/lib/services/kiosk-location.ts`, `src/lib/services/kiosk-scan.ts`
-- Tests: `tests/bulk-unit-kiosk-scans.test.ts`, `tests/kiosk-bulk-detail-routes.test.ts`, `tests/kiosk-checkout-availability-route.test.ts`, `tests/kiosk-checkout-complete-bulk-units.test.ts`, `tests/kiosk-checkout-scan-badges.test.ts`, `tests/kiosk-dashboard-route.test.ts`, `tests/kiosk-events-route.test.ts`, `tests/kiosk-only-custody-routes.test.ts`
+- Tests: `tests/bulk-unit-kiosk-scans.test.ts`, `tests/ios-kiosk-all-day-contract.test.ts`, `tests/kiosk-bulk-detail-routes.test.ts`, `tests/kiosk-checkout-availability-route.test.ts`, `tests/kiosk-checkout-complete-bulk-units.test.ts`, `tests/kiosk-checkout-scan-badges.test.ts`, `tests/kiosk-dashboard-route.test.ts`, `tests/kiosk-events-route.test.ts`
 
 ## kits
 
@@ -151,9 +151,9 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 
 - Doc: `docs/AREA_SHIFTS.md`
 - Pages: `/schedule/assign`, `/schedule`
-- APIs: `/api/my-shifts`, `/api/shift-assignments/[id]/approve`, `/api/shift-assignments/[id]/attendance`, `/api/shift-assignments/[id]/decline`, `/api/shift-assignments/[id]`, `/api/shift-assignments/[id]/swap`, `/api/shift-assignments/request`, `/api/shift-assignments`, `/api/shift-groups/[id]/archive`, `/api/shift-groups/[id]/auto-assign`
-- Services: `src/lib/services/shift-assignments.ts`, `src/lib/services/shift-generation.ts`, `src/lib/services/shift-trade-emails.ts`, `src/lib/services/shift-trades.ts`
-- Tests: `tests/ios-schedule-calendar-hit-targets.test.ts`, `tests/ios-schedule-dynamic-type.test.ts`, `tests/schedule-assign-source.test.ts`, `tests/schedule-date-validation.test.ts`, `tests/shift-assignments.test.ts`, `tests/shift-call-window-routes.test.ts`, `tests/shift-call-windows.test.ts`, `tests/shift-display.test.ts`
+- APIs: `/api/my-shifts`, `/api/schedule/automation`, `/api/schedule/export`, `/api/schedule/health`, `/api/schedule/open-work`, `/api/shift-assignments/[id]/acknowledge`, `/api/shift-assignments/[id]/approve`, `/api/shift-assignments/[id]/attendance`, `/api/shift-assignments/[id]/decline`, `/api/shift-assignments/[id]`
+- Services: `src/lib/services/schedule-automation.ts`, `src/lib/services/schedule-change-history.ts`, `src/lib/services/schedule-exports.ts`, `src/lib/services/schedule-health.ts`, `src/lib/services/schedule-notification-policy.ts`, `src/lib/services/schedule-open-work.ts`, `src/lib/services/schedule-publication.ts`, `src/lib/services/schedule-template-review.ts`
+- Tests: `tests/ios-schedule-all-day-display.test.ts`, `tests/ios-schedule-calendar-hit-targets.test.ts`, `tests/ios-schedule-dynamic-type.test.ts`, `tests/schedule-assign-source.test.ts`, `tests/schedule-automation-source.test.ts`, `tests/schedule-automation.test.ts`, `tests/schedule-change-history.test.ts`, `tests/schedule-date-validation.test.ts`
 
 ## users
 

@@ -5,7 +5,8 @@
 
 | File | Lines |
 |---|---:|
-| `src/lib/services/auto-assign.ts` | 231 |
+| `src/lib/services/auto-assign.ts` | 91 |
+| `src/lib/services/auto-fill-preview.ts` | 178 |
 | `src/lib/services/availability.ts` | 551 |
 | `src/lib/services/booking-ref.ts` | 26 |
 | `src/lib/services/booking-rules.ts` | 198 |
@@ -17,26 +18,35 @@
 | `src/lib/services/bulk-unit-scans.ts` | 442 |
 | `src/lib/services/calendar-sync-health.ts` | 164 |
 | `src/lib/services/calendar-sync.ts` | 647 |
+| `src/lib/services/candidate-scoring.ts` | 406 |
 | `src/lib/services/checkout-policies.ts` | 32 |
 | `src/lib/services/dashboard-counts.ts` | 111 |
-| `src/lib/services/event-defaults.ts` | 64 |
+| `src/lib/services/event-defaults.ts` | 69 |
 | `src/lib/services/firmware-watch.ts` | 298 |
 | `src/lib/services/kiosk-checkout-complete.ts` | 51 |
 | `src/lib/services/kiosk-location.ts` | 72 |
 | `src/lib/services/kiosk-scan.ts` | 36 |
 | `src/lib/services/kits.ts` | 327 |
 | `src/lib/services/licenses.ts` | 489 |
-| `src/lib/services/notification-prefs.ts` | 85 |
-| `src/lib/services/notifications.ts` | 753 |
+| `src/lib/services/notification-prefs.ts` | 103 |
+| `src/lib/services/notifications.ts` | 818 |
 | `src/lib/services/onboarding-lifecycle.ts` | 498 |
 | `src/lib/services/pending-pickup-expiry.ts` | 218 |
 | `src/lib/services/reports.ts` | 1366 |
 | `src/lib/services/reservation-rules.ts` | 32 |
 | `src/lib/services/scans.ts` | 624 |
-| `src/lib/services/shift-assignments.ts` | 384 |
+| `src/lib/services/schedule-automation.ts` | 365 |
+| `src/lib/services/schedule-change-history.ts` | 354 |
+| `src/lib/services/schedule-exports.ts` | 491 |
+| `src/lib/services/schedule-health.ts` | 398 |
+| `src/lib/services/schedule-notification-policy.ts` | 106 |
+| `src/lib/services/schedule-open-work.ts` | 422 |
+| `src/lib/services/schedule-publication.ts` | 263 |
+| `src/lib/services/schedule-template-review.ts` | 549 |
+| `src/lib/services/shift-assignments.ts` | 453 |
 | `src/lib/services/shift-generation.ts` | 378 |
-| `src/lib/services/shift-trade-emails.ts` | 70 |
-| `src/lib/services/shift-trades.ts` | 648 |
+| `src/lib/services/shift-trade-emails.ts` | 72 |
+| `src/lib/services/shift-trades.ts` | 751 |
 | `src/lib/services/sport-configs.ts` | 257 |
 | `src/lib/services/status.ts` | 439 |
 
@@ -47,12 +57,14 @@
 | `src/lib/admin-fix-today.ts` | 389 |
 | `src/lib/api-dates.ts` | 32 |
 | `src/lib/api.ts` | 162 |
+| `src/lib/app-time.ts` | 104 |
 | `src/lib/asset-attachments.ts` | 166 |
 | `src/lib/asset-image.ts` | 11 |
 | `src/lib/asset-qr-code.ts` | 9 |
 | `src/lib/assignment-conflict-review.ts` | 97 |
 | `src/lib/audit.ts` | 168 |
 | `src/lib/auth.ts` | 272 |
+| `src/lib/auto-fill-preview-types.ts` | 40 |
 | `src/lib/avatar.ts` | 44 |
 | `src/lib/battery-compatibility.ts` | 159 |
 | `src/lib/bhphoto-image.ts` | 67 |
@@ -62,6 +74,7 @@
 | `src/lib/bulk-unit-qr.ts` | 109 |
 | `src/lib/calendar-event-dates.ts` | 168 |
 | `src/lib/calendar-source-freshness.ts` | 259 |
+| `src/lib/candidate-scoring-types.ts` | 26 |
 | `src/lib/cron.ts` | 35 |
 | `src/lib/crypto.ts` | 17 |
 | `src/lib/csv.ts` | 17 |
@@ -91,15 +104,21 @@
 | `src/lib/rbac.ts` | 25 |
 | `src/lib/sanitize.ts` | 40 |
 | `src/lib/scan-feedback.ts` | 87 |
+| `src/lib/schedule-automation-types.ts` | 55 |
+| `src/lib/schedule-change-history-types.ts` | 55 |
+| `src/lib/schedule-health-types.ts` | 79 |
+| `src/lib/schedule-publication-types.ts` | 34 |
+| `src/lib/schedule-queues.ts` | 163 |
+| `src/lib/schedule-template-review-types.ts` | 104 |
 | `src/lib/search-pages.ts` | 72 |
 | `src/lib/search-result-title.ts` | 13 |
-| `src/lib/shift-call-windows.ts` | 139 |
+| `src/lib/shift-call-windows.ts` | 170 |
 | `src/lib/shift-constants.ts` | 8 |
 | `src/lib/shift-display.ts` | 16 |
 | `src/lib/sports.ts` | 68 |
 | `src/lib/status-colors.ts` | 40 |
 | `src/lib/status-styles.ts` | 46 |
-| `src/lib/student-availability.ts` | 123 |
+| `src/lib/student-availability.ts` | 189 |
 | `src/lib/theme.ts` | 145 |
 | `src/lib/time.ts` | 28 |
 | `src/lib/url-sync.ts` | 16 |
@@ -377,6 +396,13 @@
 - `/api/resources`
 - `/api/resources/upload-image`
 
+### `/api/schedule`
+
+- `/api/schedule/automation`
+- `/api/schedule/export`
+- `/api/schedule/health`
+- `/api/schedule/open-work`
+
 ### `/api/seed`
 
 - `/api/seed`
@@ -390,22 +416,27 @@
 
 ### `/api/shift-assignments`
 
+- `/api/shift-assignments/[id]/acknowledge`
 - `/api/shift-assignments/[id]/approve`
 - `/api/shift-assignments/[id]/attendance`
 - `/api/shift-assignments/[id]/decline`
 - `/api/shift-assignments/[id]`
 - `/api/shift-assignments/[id]/swap`
+- `/api/shift-assignments/pickup`
 - `/api/shift-assignments/request`
 - `/api/shift-assignments`
 
 ### `/api/shift-groups`
 
 - `/api/shift-groups/[id]/archive`
+- `/api/shift-groups/[id]/auto-assign/preview`
 - `/api/shift-groups/[id]/auto-assign`
+- `/api/shift-groups/[id]/publish`
 - `/api/shift-groups/[id]/regenerate`
 - `/api/shift-groups/[id]`
 - `/api/shift-groups/[id]/shifts/[shiftId]`
 - `/api/shift-groups/[id]/shifts`
+- `/api/shift-groups/[id]/template-review`
 - `/api/shift-groups`
 
 ### `/api/shift-trades`
@@ -418,6 +449,7 @@
 
 ### `/api/shifts`
 
+- `/api/shifts/[id]/candidate-scores`
 - `/api/shifts/[id]/conflicts`
 - `/api/shifts/[id]`
 - `/api/shifts/backfill`

@@ -260,6 +260,8 @@ export function AssignPageClient() {
           grid.setAreaFilter("");
           setReviewFilter("all");
         }}
+        monthLabel={monthLabel}
+        onViewSchedule={() => router.push("/schedule")}
       />
     </FadeUp>
   );

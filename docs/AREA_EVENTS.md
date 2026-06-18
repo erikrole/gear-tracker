@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Events
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-16
+- Last Updated: 2026-06-18
 - Status: Active
 
 ## Direction
@@ -81,6 +81,7 @@ Make athletics schedule data the operational backbone for booking and checkout w
 4. Fallback behavior for incomplete events is implemented — treat event context as non-blocking metadata on all booking flows.
 
 ## Change Log
+- 2026-06-18: Event detail schedule polish shipped. Crew is now the dominant operational summary, source metadata stays in the header unless edited synced fields need review, and events without crew setup lead with Set up crew before gear reservation so manual and synced event details have a clearer next action.
 - 2026-06-18: Schedule Source Of Truth Slice 12 added recent Schedule changes to Event detail Crew. The command-center payload now includes audit-derived assignment, shift, event, publish, copy-forward, pickup/request, and reservation gear-prep changes for the event, with post-publication changes flagged for review.
 - 2026-06-18: Schedule Source Of Truth Slice 10 added crew template and copy-forward review to Event detail and the shift detail sheet. The review is event-centered and preview-first: staff/admin can inspect template drift and proposed copied workers before applying, while manual slots and existing assignments remain untouched.
 - 2026-06-18: Schedule Source Of Truth Slice 9 added a read-only automation digest to `morning-refresh` and `/schedule` without adding a second cron route. The morning response now reports Schedule automation context alongside source sync, shift generation, archives, stale trade expiry, pending pickup expiry, and firmware watch results.

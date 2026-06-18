@@ -204,6 +204,7 @@ _2026-06-18 update: Schedule source-of-truth plan reconciliation shipped without
 ---
 
 ## Change Log
+- 2026-06-18: Schedule MVP polish pass strengthened the existing Schedule source-of-truth track without opening a new gap. Overview noise, event-row badge duplication, event-detail action priority, New Event sheet sizing, and Assign/Trade Board empty-state recovery were tightened as UI contract work only.
 - 2026-06-18: Schedule Source Of Truth Slice 15 reconciled and archived the plan without opening a new gap. Slice 0 evidence now matches shipped Event detail docs/source/tests, and the no-Playwright authenticated browser limitation is documented as source-contract fallback coverage rather than unresolved Schedule product scope.
 - 2026-06-18: Schedule Source Of Truth Slice 13 shipped without opening a new gap. Schedule exports are staff/admin-only CSV downloads behind `report.view`, use shared formula-safe escaping, carry row-count/truncation headers, and are bounded by 5,000 rows plus a 366-day date-window cap.
 - 2026-06-18: Schedule Source Of Truth Slice 14 shipped without opening a new gap. The remaining browser-smoke debt is now mapped to source-contract fallback coverage for readiness queues, automation review, candidate scoring, preview/apply staffing, publish/acknowledgement, Open Work, copy-forward review, gear readiness, change history, and exports; authenticated browser smoke remains manual until the project adds a harness.

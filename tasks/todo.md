@@ -1,6 +1,23 @@
 # Task Queue
 
-Last updated: 2026-06-16
+Last updated: 2026-06-18
+
+---
+
+## Active: Schedule first-class UI polish pass (2026-06-18)
+
+- [x] Calm the Schedule overview by reducing duplicate top-level metrics and making Automation review collapsed/contextual.
+- [x] Tighten Schedule event rows so only action-changing badges stay prominent.
+- [x] Make Event detail action priority state-aware, with Set up crew leading when no crew exists.
+- [x] Reduce Event detail source/status duplication and make Crew the dominant operational summary.
+- [x] Improve Assign shifts and Trade Board empty states with clearer context and recovery actions.
+- [x] Make the New event sheet feel content-sized and cleaner without adding unsupported fields.
+- [x] Sync Schedule/Event docs and run focused verification.
+
+### Review
+- Shipped the Schedule overview, event row, Event detail, Assign empty state, Trade Board empty state, and New Event sheet UI polish pass.
+- Verification: `./node_modules/.bin/tsc --noEmit`; focused Schedule/Event source tests; `npm run lint`; `npm run verify:docs`; `./node_modules/.bin/next build`.
+- Note: `npm run build` was not used as final proof because it runs Prisma migration deploy against Neon. The sandboxed attempt failed DNS, and escalation was rejected because the command can mutate the shared database. The safer local `next build` passed.
 
 ---
 

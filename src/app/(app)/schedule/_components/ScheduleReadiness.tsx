@@ -161,75 +161,94 @@ export function ScheduleReadiness({
     {
       label: "Covered events",
       value: coveredEvents,
-      detail: `${totalVisibleEvents} in current view`,
+      detail: `${totalVisibleEvents} event${totalVisibleEvents === 1 ? "" : "s"} in current view`,
       icon: CheckCircle2Icon,
       tone: "good",
     },
     {
-      label: "My shifts",
-      value: myShiftCount,
-      detail: currentUserId
-        ? `${myShiftEventCount} event${myShiftEventCount === 1 ? "" : "s"} assigned`
-        : "Sign in required",
-      icon: UserCheckIcon,
-      tone: "neutral",
-      onClick: () => onShowQueue("my-calls-today"),
-      actionLabel: "Today",
-    },
-    {
-      label: "Trade board",
-      value: health?.queues.openTrades.count ?? openTradeCount,
-      detail: tradeApprovals > 0 ? `${tradeApprovals} awaiting approval` : "Open trades",
-      icon: Repeat2Icon,
-      tone: (health?.queues.openTrades.count ?? openTradeCount) > 0 || tradeApprovals > 0 ? "attention" : "neutral",
-      onClick: tradeApprovals > 0 ? () => onShowQueue("trade-approval") : onOpenTradeBoard,
-      actionLabel: tradeApprovals > 0 ? "Review" : "Open board",
-    },
-    {
-      label: "Requests",
-      value: pendingRequests,
-      detail: pendingRequests === 1 ? "Pending assignment request" : "Pending assignment requests",
-      icon: UsersIcon,
-      tone: pendingRequests > 0 ? "attention" : "neutral",
-      onClick: () => onShowQueue("pending-requests"),
-      actionLabel: "Open queue",
-    },
-    {
-      label: "Conflicts",
-      value: conflicts,
-      detail: conflicts === 1 ? "Assignment conflict" : "Assignment conflicts",
-      icon: AlertTriangleIcon,
-      tone: conflicts > 0 ? "critical" : "good",
-      onClick: () => onShowQueue("conflicts"),
-      actionLabel: "Open queue",
-    },
-    {
       label: "Gear gaps",
       value: gearGaps,
-      detail: gearGaps === 1 ? "Assigned worker without linked gear" : "Assigned workers without linked gear",
+      detail: gearGaps > 0
+        ? `${gearGaps} assigned worker${gearGaps === 1 ? "" : "s"} without linked gear`
+        : "No gear gaps",
       icon: PackageCheckIcon,
       tone: gearGaps > 0 ? "attention" : "good",
       onClick: () => onShowQueue("gear-gaps"),
       actionLabel: "Open queue",
     },
     {
-      label: "Source health",
-      value: sourceNeedsAttention ? "Check" : hiddenAndArchivedCount,
-      detail: sourceNeedsAttention
-        ? sourceSignal.label
-        : hiddenAndArchivedCount > 0
-          ? "Hidden or archived events"
-          : "Sources and visibility look clear",
-      icon: CloudAlertIcon,
-      tone: sourceNeedsAttention || hiddenAndArchivedCount > 0 || healthWarnings > 0 ? "attention" : "good",
-      onClick: sourceNeedsAttention ? () => onShowQueue("stale-source") : undefined,
-      actionLabel: sourceNeedsAttention ? "Open queue" : undefined,
+      label: "Trade board",
+      value: health?.queues.openTrades.count ?? openTradeCount,
+      detail: tradeApprovals > 0
+        ? `${tradeApprovals} awaiting approval`
+        : (health?.queues.openTrades.count ?? openTradeCount) > 0
+          ? "Open trades"
+          : "No open trades",
+      icon: Repeat2Icon,
+      tone: (health?.queues.openTrades.count ?? openTradeCount) > 0 || tradeApprovals > 0 ? "attention" : "neutral",
+      onClick: tradeApprovals > 0 ? () => onShowQueue("trade-approval") : onOpenTradeBoard,
+      actionLabel: tradeApprovals > 0 ? "Review" : "Open board",
     },
   ];
 
+  const contextualItems: ReadinessItem[] = [
+    ...(myShiftCount > 0
+      ? [{
+          label: "My shifts",
+          value: myShiftCount,
+          detail: currentUserId
+            ? `${myShiftEventCount} event${myShiftEventCount === 1 ? "" : "s"} assigned`
+            : "Sign in required",
+          icon: UserCheckIcon,
+          tone: "neutral" as const,
+          onClick: () => onShowQueue("my-calls-today"),
+          actionLabel: "Today",
+        }]
+      : []),
+    ...(pendingRequests > 0
+      ? [{
+          label: "Requests",
+          value: pendingRequests,
+          detail: pendingRequests === 1 ? "Pending assignment request" : "Pending assignment requests",
+          icon: UsersIcon,
+          tone: "attention" as const,
+          onClick: () => onShowQueue("pending-requests"),
+          actionLabel: "Open queue",
+        }]
+      : []),
+    ...(conflicts > 0
+      ? [{
+          label: "Conflicts",
+          value: conflicts,
+          detail: conflicts === 1 ? "Assignment conflict" : "Assignment conflicts",
+          icon: AlertTriangleIcon,
+          tone: "critical" as const,
+          onClick: () => onShowQueue("conflicts"),
+          actionLabel: "Open queue",
+        }]
+      : []),
+    ...((sourceNeedsAttention || hiddenAndArchivedCount > 0 || healthWarnings > 0)
+      ? [{
+          label: "Source health",
+          value: sourceNeedsAttention ? "Check" : hiddenAndArchivedCount,
+          detail: sourceNeedsAttention
+            ? sourceSignal.label
+            : hiddenAndArchivedCount > 0
+              ? "Hidden or archived events"
+              : "Sources and visibility need review",
+          icon: CloudAlertIcon,
+          tone: "attention" as const,
+          onClick: sourceNeedsAttention ? () => onShowQueue("stale-source") : undefined,
+          actionLabel: sourceNeedsAttention ? "Open queue" : undefined,
+        }]
+      : []),
+  ];
+
+  const readinessItems = [...items, ...contextualItems];
+
   return (
-    <div className="mb-4 grid grid-cols-2 gap-2 lg:grid-cols-4 2xl:grid-cols-[minmax(260px,1.35fr)_repeat(8,minmax(0,1fr))]">
-      {items.map((item) => {
+    <div className="mb-4 grid grid-cols-2 gap-2 lg:grid-cols-5">
+      {readinessItems.map((item) => {
         const Icon = item.icon;
         const className = cn(
           "group min-h-[86px] rounded-lg border border-border/60 bg-card/80 px-3 py-2.5 text-left shadow-sm transition-[background-color,border-color,box-shadow,transform]",
@@ -237,7 +256,7 @@ export function ScheduleReadiness({
           item.tone === "critical" && "border-[var(--red-text)]/20 bg-[var(--red-bg)]/20",
           item.tone === "attention" && "border-[var(--orange-text)]/20 bg-[var(--orange-bg)]/20",
           item.tone === "good" && "border-[var(--green-text)]/15",
-          item.wide && "col-span-2 border-primary/20 bg-primary/5 2xl:col-span-1",
+          item.wide && "col-span-2 border-primary/20 bg-primary/5 lg:col-span-1",
         );
         const content = (
           <>
@@ -299,7 +318,7 @@ export function ScheduleReadiness({
         );
       })}
       {filteredEntries.length === 0 && entries.length > 0 && (
-        <div className="col-span-2 rounded-lg border border-dashed border-border/70 bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground lg:col-span-4 2xl:col-span-9">
+        <div className="col-span-full rounded-lg border border-dashed border-border/70 bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground">
           <CalendarDaysIcon className="mr-1 inline size-3.5" />
           Current filters hide all schedule entries.
         </div>

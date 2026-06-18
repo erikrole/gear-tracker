@@ -343,6 +343,7 @@ export default function EventDetailPage() {
   const missingGearCount = commandCenter?.missingGear.length ?? 0;
   const linkedGearCount = commandCenter?.shifts.filter((shift) => shift.assignment?.linkedBookingId).length ?? 0;
   const hasTravel = event.isHome === false && Boolean(event.sportCode);
+  const crewNeedsSetup = isStaffOrAdmin && !shiftGroup;
   const linkSummaryItems = [
     {
       label: "Crew",
@@ -350,6 +351,7 @@ export default function EventDetailPage() {
       detail: shiftGroup ? "slots filled" : "create crew when ready",
       icon: Users,
       tone: shiftGroup && totalShifts > 0 && filledShifts >= totalShifts ? "text-green-600" : shiftGroup ? "text-orange-600" : "text-muted-foreground",
+      wide: true,
     },
     {
       label: "Gear",
@@ -363,6 +365,7 @@ export default function EventDetailPage() {
         : "gear for this event",
       icon: PackageCheck,
       tone: missingGearCount > 0 ? "text-red-600" : linkedGearCount > 0 ? "text-green-600" : "text-muted-foreground",
+      wide: false,
     },
     {
       label: "Travel",
@@ -370,14 +373,16 @@ export default function EventDetailPage() {
       detail: hasTravel ? "travel roster available" : "no travel roster",
       icon: Plane,
       tone: hasTravel ? "text-orange-600" : "text-muted-foreground",
+      wide: false,
     },
-    {
+    ...(anyFieldLocked ? [{
       label: "Source",
       value: source.label,
       detail: anyFieldLocked ? "edited from source" : event.source ? "calendar import" : "manual event",
       icon: source.icon,
       tone: anyFieldLocked ? "text-amber-600" : event.source ? "text-blue-600" : "text-purple-600",
-    },
+      wide: false,
+    }] : []),
   ];
 
   return (
@@ -607,7 +612,7 @@ export default function EventDetailPage() {
             {linkSummaryItems.map((item) => {
               const Icon = item.icon;
               return (
-                <div key={item.label} className="rounded-lg bg-muted/45 px-3 py-3">
+                <div key={item.label} className={cn("rounded-lg bg-muted/45 px-3 py-3", item.wide && "lg:col-span-2")}>
                   <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                     <Icon className={cn("size-3.5", item.tone)} />
                     {item.label}
@@ -692,11 +697,29 @@ export default function EventDetailPage() {
       )}
 
       <div className="flex gap-2 mt-6 max-sm:flex-col sm:flex-row flex-wrap">
-        <Button asChild className="min-h-11 px-5 active:scale-[0.96] transition-transform">
-          <Link href={`/reservations?title=${titleParam}&startsAt=${dateParam}&endsAt=${endParam}${locationParam}${eventParam}`}>
-            Reserve gear for this event
-          </Link>
-        </Button>
+        {crewNeedsSetup ? (
+          <Button
+            type="button"
+            className="min-h-11 px-5 active:scale-[0.96] transition-transform"
+            onClick={handleCreateShiftGroup}
+            disabled={creatingGroup}
+          >
+            {creatingGroup ? "Setting up..." : "Set up crew"}
+          </Button>
+        ) : (
+          <Button asChild className="min-h-11 px-5 active:scale-[0.96] transition-transform">
+            <Link href={`/reservations?title=${titleParam}&startsAt=${dateParam}&endsAt=${endParam}${locationParam}${eventParam}`}>
+              Reserve gear for this event
+            </Link>
+          </Button>
+        )}
+        {crewNeedsSetup && (
+          <Button variant="outline" asChild className="min-h-11 px-5 active:scale-[0.96] transition-transform">
+            <Link href={`/reservations?title=${titleParam}&startsAt=${dateParam}&endsAt=${endParam}${locationParam}${eventParam}`}>
+              Reserve gear for this event
+            </Link>
+          </Button>
+        )}
         {isStaffOrAdmin && (
           <Button variant="outline" asChild className="min-h-11 px-5 active:scale-[0.96] transition-transform">
             <Link href="/schedule">

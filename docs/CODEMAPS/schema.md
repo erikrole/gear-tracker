@@ -75,7 +75,7 @@ Values: `ACTIVE`, `MAINTENANCE`, `UNKNOWN`
 
 ## Model `User`
 
-Fields: 64
+Fields: 67
 
 - `id                   String                     @id @default(cuid())`
 - `name                 String`
@@ -105,6 +105,8 @@ Fields: 64
 - `audits               AuditLog[]                 @relation("AuditActor")`
 - `shiftAssignments     ShiftAssignment[]          @relation("ShiftAssignee")`
 - `shiftAssignedBy      ShiftAssignment[]          @relation("ShiftAssigner")`
+- `shiftGroupsPublished ShiftGroup[]               @relation("ShiftGroupPublisher")`
+- `shiftAcknowledged    ShiftAssignment[]          @relation("ShiftAssignmentAcknowledgedBy")`
 - `sportAssignments     StudentSportAssignment[]`
 - `areaAssignments      StudentAreaAssignment[]`
 - `tradesPosted         ShiftTrade[]               @relation("TradePostedBy")`
@@ -123,6 +125,7 @@ Fields: 64
 - `resources            Resource[]`
 - `resourcesVerified    Resource[]                 @relation("ResourceLastVerifiedBy")`
 - `availabilityBlocks   StudentAvailabilityBlock[]`
+- `availabilityReviewed StudentAvailabilityBlock[] @relation("AvailabilityReviewer")`
 - `travelMemberships    EventTravelMember[]        @relation("TravelMembers")`
 - `badges               StudentBadge[]`
 - `badgesAwardedByMe    StudentBadge[]             @relation("BadgeAwardedBy")`
@@ -1070,6 +1073,14 @@ Values: `FT`, `ST`
 
 Values: `WEEKLY`, `AD_HOC`
 
+## Enum `StudentAvailabilityIntent`
+
+Values: `CANNOT_WORK`, `PREFER`, `DISLIKE`, `TIME_OFF`
+
+## Enum `StudentAvailabilityStatus`
+
+Values: `APPROVED`, `PENDING`, `DENIED`
+
 ## Enum `ShiftAssignmentStatus`
 
 Values: `DIRECT_ASSIGNED`, `REQUESTED`, `APPROVED`, `DECLINED`, `SWAPPED`
@@ -1119,22 +1130,28 @@ Indexes and constraints:
 
 ## Model `ShiftGroup`
 
-Fields: 11
+Fields: 15
 
-- `id             String        @id @default(cuid())`
-- `eventId        String        @unique @map("event_id")`
-- `isPremier      Boolean       @default(false) @map("is_premier")`
-- `notes          String?`
-- `generatedAt    DateTime?     @map("generated_at")`
-- `manuallyEdited Boolean       @default(false) @map("manually_edited")`
-- `archivedAt     DateTime?     @map("archived_at")`
-- `createdAt      DateTime      @default(now()) @map("created_at")`
-- `updatedAt      DateTime      @updatedAt @map("updated_at")`
-- `event          CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)`
-- `shifts         Shift[]`
+- `id                    String        @id @default(cuid())`
+- `eventId               String        @unique @map("event_id")`
+- `isPremier             Boolean       @default(false) @map("is_premier")`
+- `notes                 String?`
+- `generatedAt           DateTime?     @map("generated_at")`
+- `manuallyEdited        Boolean       @default(false) @map("manually_edited")`
+- `publishedAt           DateTime?     @map("published_at")`
+- `publishedById         String?       @map("published_by_id")`
+- `lastPublishedSnapshot Json?         @map("last_published_snapshot")`
+- `archivedAt            DateTime?     @map("archived_at")`
+- `createdAt             DateTime      @default(now()) @map("created_at")`
+- `updatedAt             DateTime      @updatedAt @map("updated_at")`
+- `event                 CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)`
+- `publishedBy           User?         @relation("ShiftGroupPublisher", fields: [publishedById], references: [id], onDelete: SetNull)`
+- `shifts                Shift[]`
 
 Indexes and constraints:
 
+- `@@index([publishedAt])`
+- `@@index([publishedById])`
 - `@@map("shift_groups")`
 
 ## Model `Shift`
@@ -1164,35 +1181,40 @@ Indexes and constraints:
 
 ## Model `ShiftAssignment`
 
-Fields: 22
+Fields: 25
 
-- `id           String                @id @default(cuid())`
-- `shiftId      String                @map("shift_id")`
-- `userId       String                @map("user_id")`
-- `status       ShiftAssignmentStatus`
-- `assignedBy   String?               @map("assigned_by")`
-- `swapFromId   String?               @map("swap_from_id")`
-- `callStartsAt DateTime?             @map("call_starts_at")`
-- `callEndsAt   DateTime?             @map("call_ends_at")`
-- `callNote     String?               @map("call_note")`
-- `notes        String?`
-- `hasConflict  Boolean               @default(false) @map("has_conflict")`
-- `conflictNote String?               @map("conflict_note")`
-- `attended     Boolean? // null=unlogged, true=attended, false=no-show`
-- `createdAt    DateTime              @default(now()) @map("created_at")`
-- `updatedAt    DateTime              @updatedAt @map("updated_at")`
-- `shift        Shift                 @relation(fields: [shiftId], references: [id], onDelete: Cascade)`
-- `user         User                  @relation("ShiftAssignee", fields: [userId], references: [id], onDelete: Restrict)`
-- `assigner     User?                 @relation("ShiftAssigner", fields: [assignedBy], references: [id], onDelete: SetNull)`
-- `swapFrom     ShiftAssignment?      @relation("ShiftSwap", fields: [swapFromId], references: [id], onDelete: SetNull)`
-- `swappedTo    ShiftAssignment[]     @relation("ShiftSwap")`
-- `trades       ShiftTrade[]`
-- `bookings     Booking[]`
+- `id               String                @id @default(cuid())`
+- `shiftId          String                @map("shift_id")`
+- `userId           String                @map("user_id")`
+- `status           ShiftAssignmentStatus`
+- `assignedBy       String?               @map("assigned_by")`
+- `swapFromId       String?               @map("swap_from_id")`
+- `callStartsAt     DateTime?             @map("call_starts_at")`
+- `callEndsAt       DateTime?             @map("call_ends_at")`
+- `callNote         String?               @map("call_note")`
+- `notes            String?`
+- `hasConflict      Boolean               @default(false) @map("has_conflict")`
+- `conflictNote     String?               @map("conflict_note")`
+- `acknowledgedAt   DateTime?             @map("acknowledged_at")`
+- `acknowledgedById String?               @map("acknowledged_by_id")`
+- `attended         Boolean? // null=unlogged, true=attended, false=no-show`
+- `createdAt        DateTime              @default(now()) @map("created_at")`
+- `updatedAt        DateTime              @updatedAt @map("updated_at")`
+- `shift            Shift                 @relation(fields: [shiftId], references: [id], onDelete: Cascade)`
+- `user             User                  @relation("ShiftAssignee", fields: [userId], references: [id], onDelete: Restrict)`
+- `assigner         User?                 @relation("ShiftAssigner", fields: [assignedBy], references: [id], onDelete: SetNull)`
+- `acknowledgedBy   User?                 @relation("ShiftAssignmentAcknowledgedBy", fields: [acknowledgedById], references: [id], onDelete: SetNull)`
+- `swapFrom         ShiftAssignment?      @relation("ShiftSwap", fields: [swapFromId], references: [id], onDelete: SetNull)`
+- `swappedTo        ShiftAssignment[]     @relation("ShiftSwap")`
+- `trades           ShiftTrade[]`
+- `bookings         Booking[]`
 
 Indexes and constraints:
 
 - `@@index([shiftId, status])`
 - `@@index([userId, status])`
+- `@@index([acknowledgedById])`
+- `@@index([userId, status, acknowledgedAt])`
 - `@@map("shift_assignments")`
 
 ## Model `StudentSportAssignment`
@@ -1258,28 +1280,36 @@ Indexes and constraints:
 
 ## Model `StudentAvailabilityBlock`
 
-Fields: 14
+Fields: 20
 
-- `id               String                  @id @default(cuid())`
-- `userId           String                  @map("user_id")`
-- `kind             StudentAvailabilityKind @default(WEEKLY)`
-- `dayOfWeek        Int?                    @map("day_of_week") // 0=Sun, 1=Mon … 6=Sat; weekly blocks only`
-- `date             DateTime?               @db.Date // ad hoc local date`
-- `startsAt         String                  @map("starts_at") // "09:00" HH:mm local time`
-- `endsAt           String                  @map("ends_at") // "11:00" HH:mm local time`
+- `id               String                    @id @default(cuid())`
+- `userId           String                    @map("user_id")`
+- `kind             StudentAvailabilityKind   @default(WEEKLY)`
+- `intent           StudentAvailabilityIntent @default(CANNOT_WORK)`
+- `status           StudentAvailabilityStatus @default(APPROVED)`
+- `dayOfWeek        Int?                      @map("day_of_week") // 0=Sun, 1=Mon … 6=Sat; weekly blocks only`
+- `date             DateTime?                 @db.Date // ad hoc local date`
+- `startsAt         String                    @map("starts_at") // "09:00" HH:mm local time`
+- `endsAt           String                    @map("ends_at") // "11:00" HH:mm local time`
 - `label            String? // e.g. "CHEM 101"`
-- `semesterLabel    String?                 @map("semester_label") // e.g. "Spring 2026"`
-- `semesterStartsOn DateTime?               @map("semester_starts_on") @db.Date`
-- `semesterEndsOn   DateTime?               @map("semester_ends_on") @db.Date`
-- `createdAt        DateTime                @default(now()) @map("created_at")`
-- `updatedAt        DateTime                @updatedAt @map("updated_at")`
-- `user             User                    @relation(fields: [userId], references: [id], onDelete: Cascade)`
+- `semesterLabel    String?                   @map("semester_label") // e.g. "Spring 2026"`
+- `semesterStartsOn DateTime?                 @map("semester_starts_on") @db.Date`
+- `semesterEndsOn   DateTime?                 @map("semester_ends_on") @db.Date`
+- `reviewedAt       DateTime?                 @map("reviewed_at")`
+- `reviewedById     String?                   @map("reviewed_by_id")`
+- `reviewNote       String?                   @map("review_note")`
+- `createdAt        DateTime                  @default(now()) @map("created_at")`
+- `updatedAt        DateTime                  @updatedAt @map("updated_at")`
+- `user             User                      @relation(fields: [userId], references: [id], onDelete: Cascade)`
+- `reviewedBy       User?                     @relation("AvailabilityReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)`
 
 Indexes and constraints:
 
 - `@@index([userId])`
 - `@@index([kind, date])`
 - `@@index([userId, kind])`
+- `@@index([intent, status])`
+- `@@index([reviewedById])`
 - `@@map("student_availability_blocks")`
 
 ## Model `BookingPhoto`

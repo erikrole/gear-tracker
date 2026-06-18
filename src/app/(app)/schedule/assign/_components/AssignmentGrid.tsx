@@ -23,6 +23,8 @@ type Props = {
   onRefetch: () => void;
   hasFilters: boolean;
   onClearFilters: () => void;
+  monthLabel: string;
+  onViewSchedule: () => void;
 };
 
 export function AssignmentGrid({
@@ -36,20 +38,22 @@ export function AssignmentGrid({
   onRefetch,
   hasFilters,
   onClearFilters,
+  monthLabel,
+  onViewSchedule,
 }: Props) {
   if (events.length === 0) {
     return (
       <div className="rounded-lg border bg-card">
         <EmptyState
           icon="calendar"
-          title={hasFilters ? "No matching active events" : "No active future events"}
+          title={hasFilters ? "No matching active events" : `No active future events in ${monthLabel}`}
           description={
             hasFilters
               ? "Clear the assignment filters or choose another future month."
-              : "Assign only shows active events from today forward."
+              : "Assign only shows active events from today forward. The full Schedule may still include synced, archived, or later events."
           }
-          actionLabel={hasFilters ? "Clear filters" : undefined}
-          onAction={hasFilters ? onClearFilters : undefined}
+          actionLabel={hasFilters ? "Clear filters" : "View schedule"}
+          onAction={hasFilters ? onClearFilters : onViewSchedule}
           compact
         />
       </div>
