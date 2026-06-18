@@ -90,9 +90,10 @@ function DateTimeField({
 function buildDateTime(date: Date | undefined, time: string, allDay: boolean): string | null {
   if (!date) return null;
   if (allDay) {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    return d.toISOString();
+    // All-day events are dates, not instants — emit UTC midnight of the picked
+    // calendar day so the value is timezone-independent (the server stores it
+    // as-is). Timed events keep their real local clock time.
+    return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())).toISOString();
   }
   const [h = "0", m = "0"] = time.split(":");
   const d = new Date(date);
@@ -102,10 +103,8 @@ function buildDateTime(date: Date | undefined, time: string, allDay: boolean): s
 
 function buildAllDayEndDate(date: Date | undefined): string | null {
   if (!date) return null;
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + 1);
-  return d.toISOString();
+  // Exclusive end = UTC midnight of the day *after* the last selected day.
+  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate() + 1)).toISOString();
 }
 
 export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {

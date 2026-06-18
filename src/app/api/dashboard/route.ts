@@ -5,6 +5,7 @@ import { getInitials } from "@/lib/avatar";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { shiftWorkerLabel } from "@/lib/shift-display";
 import { readDashboardCounts, zeroDashboardCounts } from "@/lib/services/dashboard-counts";
+import { startOfDayInAppTz } from "@/lib/app-time";
 
 const DASHBOARD_LIMIT = { max: 30, windowMs: 60_000 };
 
@@ -128,11 +129,12 @@ export const GET = withAuth(async (_req, { user }) => {
   const now = new Date();
   const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-  // Compute start/end of today for dueToday count
-  const startOfToday = new Date(now);
-  startOfToday.setHours(0, 0, 0, 0);
-  const startOfTomorrow = new Date(startOfToday);
-  startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+  // Day bounds in the institution timezone, not the server's UTC. Drives the
+  // "due today" count and the "today's events" lower bound — events stay listed
+  // until local midnight (a 7pm game is still shown at 9pm) and all-day events
+  // (which start at midnight) don't vanish the instant the day begins.
+  const startOfToday = startOfDayInAppTz(now, 0);
+  const startOfTomorrow = startOfDayInAppTz(now, 1);
 
   const bookingInclude = {
     requester: { select: { id: true, name: true, avatarUrl: true } },
@@ -221,10 +223,14 @@ export const GET = withAuth(async (_req, { user }) => {
       take: 5,
       include: bookingInclude,
     }),
-    // Upcoming events (with shift assignment data)
+    // Upcoming events (with shift assignment data). Keep any event that occurs
+    // today visible until local midnight (endsAt > start of today), so an
+    // all-day event doesn't vanish at 12:00am and a 7pm game isn't hidden the
+    // moment it ends. Encoding-independent for all-day events.
     db.calendarEvent.findMany({
       where: {
-        startsAt: { gte: now, lte: sevenDaysFromNow },
+        startsAt: { lte: sevenDaysFromNow },
+        endsAt: { gt: startOfToday },
         status: "CONFIRMED",
         isHidden: false,
       },
@@ -302,7 +308,8 @@ export const GET = withAuth(async (_req, { user }) => {
         status: { in: ["DIRECT_ASSIGNED", "APPROVED"] },
         shift: {
           shiftGroup: {
-            event: { startsAt: { gte: now }, status: "CONFIRMED" },
+            // Keep a shift on today's events listed until local midnight.
+            event: { endsAt: { gt: startOfToday }, status: "CONFIRMED" },
           },
         },
       },

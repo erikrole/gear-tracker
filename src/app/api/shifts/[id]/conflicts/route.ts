@@ -35,6 +35,8 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
       availabilityBlocks: {
         select: {
           kind: true,
+          intent: true,
+          status: true,
           dayOfWeek: true,
           date: true,
           startsAt: true,

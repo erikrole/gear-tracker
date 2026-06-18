@@ -53,7 +53,7 @@ export const POST = withAuth(async (req, { user }) => {
   await enforceRateLimit(`notifications:nudge:assignment:${assignment.id}`, { max: 2, windowMs: 60 * 60_000 });
   await enforceRateLimit(`notifications:nudge:recipient:${assignment.userId}`, { max: 5, windowMs: 60 * 60_000 });
 
-  await createShiftGearUpNotification(body.assignmentId);
+  await createShiftGearUpNotification(body.assignmentId, { source: "manual_nudge" });
 
   await createAuditEntry({
     actorId: user.id,

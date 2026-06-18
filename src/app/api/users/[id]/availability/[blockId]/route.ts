@@ -8,6 +8,8 @@ import { z } from "zod";
 
 const updateBlockSchema = z.object({
   kind:             z.enum(["WEEKLY", "AD_HOC"]).default("WEEKLY"),
+  intent:           z.enum(["CANNOT_WORK", "PREFER", "DISLIKE", "TIME_OFF"]).default("CANNOT_WORK"),
+  status:           z.enum(["APPROVED", "PENDING", "DENIED"]).optional(),
   dayOfWeek:        z.number().int().min(0).max(6).optional().nullable(),
   date:             z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD").optional().nullable(),
   startsAt:         z.string().regex(/^\d{2}:\d{2}$/, "Must be HH:mm"),
@@ -16,6 +18,7 @@ const updateBlockSchema = z.object({
   semesterLabel:    z.string().trim().max(40).optional().nullable(),
   semesterStartsOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD").optional().nullable(),
   semesterEndsOn:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD").optional().nullable(),
+  reviewNote:       z.string().trim().max(500).optional().nullable(),
 });
 
 function parseDateOnly(value: string | null | undefined): Date | null {
@@ -45,6 +48,9 @@ function assertBlockShape(body: z.infer<typeof updateBlockSchema>) {
   if (body.semesterStartsOn && body.semesterEndsOn && body.semesterStartsOn > body.semesterEndsOn) {
     throw new HttpError(400, "Semester end date must be on or after start date");
   }
+  if (body.intent !== "TIME_OFF" && body.status && body.status !== "APPROVED") {
+    throw new HttpError(400, "Only time-off requests can be pending or denied");
+  }
 }
 
 async function findOwnedBlock(id: string, blockId: string) {
@@ -61,6 +67,8 @@ function auditShape(block: Awaited<ReturnType<typeof findOwnedBlock>>) {
   return {
     userId: block.userId,
     kind: block.kind,
+    intent: block.intent,
+    status: block.status,
     dayOfWeek: block.dayOfWeek,
     date: block.date,
     startsAt: block.startsAt,
@@ -69,7 +77,36 @@ function auditShape(block: Awaited<ReturnType<typeof findOwnedBlock>>) {
     semesterLabel: block.semesterLabel,
     semesterStartsOn: block.semesterStartsOn,
     semesterEndsOn: block.semesterEndsOn,
+    reviewedAt: block.reviewedAt,
+    reviewedById: block.reviewedById,
+    reviewNote: block.reviewNote,
   };
+}
+
+async function notifyTimeOffReview(
+  block: Awaited<ReturnType<typeof findOwnedBlock>>,
+  status: "APPROVED" | "DENIED",
+) {
+  const title = status === "APPROVED" ? "Time off approved" : "Time off denied";
+  const body = block.label
+    ? `${block.label} was ${status === "APPROVED" ? "approved" : "denied"}.`
+    : `Your time-off request was ${status === "APPROVED" ? "approved" : "denied"}.`;
+
+  await db.notification.create({
+    data: {
+      userId: block.userId,
+      type: status === "APPROVED" ? "time_off_approved" : "time_off_denied",
+      title,
+      body,
+      payload: {
+        availabilityBlockId: block.id,
+        href: `/users/${block.userId}?tab=availability`,
+      },
+      channel: "IN_APP",
+      sentAt: new Date(),
+      dedupeKey: `availability:${block.id}:${status.toLowerCase()}`,
+    },
+  });
 }
 
 export const PATCH = withAuth<{ id: string; blockId: string }>(async (req, { user, params }) => {
@@ -84,11 +121,21 @@ export const PATCH = withAuth<{ id: string; blockId: string }>(async (req, { use
   const existing = await findOwnedBlock(id, blockId);
   const body = updateBlockSchema.parse(await req.json());
   assertBlockShape(body);
+  const staffReview = user.role === "ADMIN" || user.role === "STAFF";
+  if (!staffReview && body.status && body.status !== existing.status) {
+    throw new HttpError(403, "Only staff can review time-off requests");
+  }
+  const status = body.intent === "TIME_OFF"
+    ? body.status ?? (staffReview ? existing.status : "PENDING")
+    : "APPROVED";
+  const reviewed = body.intent === "TIME_OFF" && staffReview && status !== "PENDING";
 
   const block = await db.studentAvailabilityBlock.update({
     where: { id: blockId },
     data: {
       kind:             body.kind,
+      intent:           body.intent,
+      status,
       dayOfWeek:        body.kind === "WEEKLY" ? body.dayOfWeek : null,
       date:             body.kind === "AD_HOC" ? parseDateOnly(body.date) : null,
       startsAt:         body.startsAt,
@@ -97,6 +144,9 @@ export const PATCH = withAuth<{ id: string; blockId: string }>(async (req, { use
       semesterLabel:    body.semesterLabel?.trim() || null,
       semesterStartsOn: parseDateOnly(body.semesterStartsOn),
       semesterEndsOn:   parseDateOnly(body.semesterEndsOn),
+      reviewedAt:       reviewed ? new Date() : status === "PENDING" ? null : existing.reviewedAt,
+      reviewedById:     reviewed ? user.id : status === "PENDING" ? null : existing.reviewedById,
+      reviewNote:       body.reviewNote?.trim() || null,
     },
   });
 
@@ -109,6 +159,16 @@ export const PATCH = withAuth<{ id: string; blockId: string }>(async (req, { use
     before: auditShape(existing),
     after: auditShape(block),
   });
+
+  if (
+    staffReview &&
+    existing.intent === "TIME_OFF" &&
+    block.intent === "TIME_OFF" &&
+    existing.status !== block.status &&
+    (block.status === "APPROVED" || block.status === "DENIED")
+  ) {
+    await notifyTimeOffReview(block, block.status);
+  }
 
   return ok({ data: block });
 });

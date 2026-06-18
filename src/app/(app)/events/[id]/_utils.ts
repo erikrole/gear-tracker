@@ -1,3 +1,5 @@
+import type { ScheduleChangeItem } from "@/lib/schedule-change-history-types";
+
 export type CalendarEvent = {
   id: string;
   summary: string;
@@ -24,6 +26,15 @@ export type ShiftGroupSummary = {
   id: string;
   isPremier: boolean;
   coverage?: { total: number; filled: number; percentage: number };
+  publication?: {
+    status: "draft" | "published" | "changed";
+    publishedAt: string | null;
+    publishedById: string | null;
+    changedAfterPublish: boolean;
+    activeAssignmentCount: number;
+    acknowledgedCount: number;
+    unacknowledgedCount: number;
+  } | null;
   shifts: Array<{
     id: string;
     area: string;
@@ -41,6 +52,8 @@ export type ShiftGroupSummary = {
       callNote?: string | null;
       hasConflict?: boolean;
       conflictNote?: string | null;
+      acknowledgedAt?: string | null;
+      acknowledgedById?: string | null;
       user: { id: string; name: string; avatarUrl: string | null };
     }>;
   }>;
@@ -80,6 +93,7 @@ export type CommandCenterData = {
     shiftId: string;
     assignmentId: string;
   }>;
+  recentChanges: ScheduleChangeItem[];
 };
 
 export const AREA_LABELS: Record<string, string> = {

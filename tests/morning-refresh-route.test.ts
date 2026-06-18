@@ -43,6 +43,10 @@ vi.mock("@/lib/services/firmware-watch", () => ({
   pollFirmwareWatchTargets: vi.fn(),
 }));
 
+vi.mock("@/lib/services/schedule-automation", () => ({
+  getScheduleAutomationDigest: vi.fn(),
+}));
+
 import { db } from "@/lib/db";
 import { syncCalendarSource } from "@/lib/services/calendar-sync";
 import { updateCalendarSyncHealth } from "@/lib/services/calendar-sync-health";
@@ -50,6 +54,7 @@ import { generateShiftsForNewEvents } from "@/lib/services/shift-generation";
 import { expireOpenTrades } from "@/lib/services/shift-trades";
 import { expirePendingPickupCheckouts } from "@/lib/services/pending-pickup-expiry";
 import { pollFirmwareWatchTargets } from "@/lib/services/firmware-watch";
+import { getScheduleAutomationDigest } from "@/lib/services/schedule-automation";
 import { GET } from "@/app/api/cron/morning-refresh/route";
 
 const mockDb = db as unknown as {
@@ -95,6 +100,38 @@ describe("morning refresh cron route", () => {
       notificationsCreated: 2,
       errors: [],
     });
+    vi.mocked(getScheduleAutomationDigest).mockResolvedValue({
+      generatedAt: "2026-05-13T12:00:00.000Z",
+      window: {
+        startsAt: null,
+        endsAt: null,
+        includePast: false,
+        includeArchived: false,
+        sportCode: null,
+      },
+      metrics: {
+        openSlots: 0,
+        eventsWithoutCrew: 0,
+        pendingRequests: 0,
+        conflicts: 0,
+        gearGaps: 0,
+        readyToPublish: 0,
+        autoFillCandidates: 0,
+        staleSources: 0,
+        sourceErrors: 0,
+        staleTrades: 0,
+        syncEventsAdded: 0,
+        syncEventsUpdated: 0,
+        syncGroupsCreated: 0,
+        syncShiftsCreated: 0,
+        shiftGroupsArchived: 0,
+        eventsArchived: 0,
+        tradesExpired: 1,
+        pendingPickupsExpired: 1,
+      },
+      cards: [],
+      partialFailures: [],
+    });
   });
 
   afterEach(() => {
@@ -110,7 +147,16 @@ describe("morning refresh cron route", () => {
     expect(body.tradesExpired).toBe(1);
     expect(body.pendingPickups).toMatchObject({ scanned: 2, expired: 1, failed: 0 });
     expect(body.firmwareWatch).toMatchObject({ checked: 1, changed: 1, notificationsCreated: 2 });
+    expect(body.scheduleAutomation).toMatchObject({
+      metrics: expect.objectContaining({ tradesExpired: 1, pendingPickupsExpired: 1 }),
+    });
     expect(body.maintenanceFailures).toEqual([]);
+    expect(getScheduleAutomationDigest).toHaveBeenCalledWith(expect.objectContaining({
+      maintenance: expect.objectContaining({
+        tradesExpired: 1,
+        pendingPickupsExpired: 1,
+      }),
+    }));
   });
 
   it("reports maintenance failures without throwing away the cron response", async () => {
@@ -178,5 +224,19 @@ describe("morning refresh cron route", () => {
       sourceName: "UW Badgers",
       result: expect.objectContaining({ error: "HTTP 500" }),
     }));
+  });
+
+  it("reports automation digest failures without blocking other daily maintenance", async () => {
+    vi.mocked(getScheduleAutomationDigest).mockRejectedValue(new Error("automation read failed"));
+
+    const res = await GET(request(), { params: Promise.resolve({}) });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.ok).toBe(false);
+    expect(body.scheduleAutomation).toBeNull();
+    expect(body.tradesExpired).toBe(1);
+    expect(body.pendingPickups).toMatchObject({ scanned: 2, expired: 1, failed: 0 });
+    expect(body.maintenanceFailures).toEqual(["scheduleAutomation"]);
   });
 });

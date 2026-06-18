@@ -4,10 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   ArrowLeftRightIcon,
+  AlertTriangleIcon,
   CalendarClockIcon,
   CalendarDaysIcon,
   CheckIcon,
   Clock3Icon,
+  ClipboardListIcon,
   ShieldCheckIcon,
   XIcon,
 } from "lucide-react";
@@ -71,11 +73,54 @@ type Trade = {
 type Props = {
   currentUserId: string;
   currentUserRole: string;
+  initialStatusFilter?: string;
+};
+
+type OpenWorkShift = {
+  id: string;
+  kind: "open_shift";
+  action: "claim" | "request" | "none";
+  canAct: boolean;
+  reason: string;
+  score: number | null;
+  bucket: string | null;
+  advisoryConflict: boolean;
+  advisoryConflictNote: string | null;
+  warnings: Array<{ code: string; label: string; weight?: number }>;
+  ownRequestId: string | null;
+  requestCount: number;
+  shift: TradeShift & {
+    callStartsAt: string | null;
+    callEndsAt: string | null;
+    shiftGroup: TradeShift["shiftGroup"] & {
+      id: string;
+      publishedAt: string | null;
+    };
+  };
+};
+
+type PickupRequest = {
+  id: string;
+  kind: "pickup_request";
+  status: string;
+  hasConflict: boolean;
+  conflictNote: string | null;
+  createdAt: string;
+  user: { id: string; name: string; primaryArea: string | null; avatarUrl?: string | null };
+  shift: OpenWorkShift["shift"];
+};
+
+type OpenWorkResponse = {
+  openShifts: OpenWorkShift[];
+  pickupRequests: PickupRequest[];
 };
 
 const AREAS = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS"] as const;
+const TRADE_STATUSES = ["OPEN", "CLAIMED", "COMPLETED", "CANCELLED"] as const;
 
 const STATUS_OPTIONS = [
+  { value: "OPEN_SHIFT", label: "Open shifts" },
+  { value: "REQUESTED", label: "Requests" },
   { value: "OPEN", label: "Open" },
   { value: "CLAIMED", label: "Claimed" },
   { value: "COMPLETED", label: "Completed" },
@@ -113,7 +158,11 @@ function statusMeta(status: string) {
   };
 }
 
-function formatShiftWindow(shift: TradeShift) {
+function isTradeStatus(value: string): value is typeof TRADE_STATUSES[number] {
+  return (TRADE_STATUSES as readonly string[]).includes(value);
+}
+
+function formatShiftWindow(shift: Pick<TradeShift, "startsAt" | "endsAt">) {
   const starts = new Date(shift.startsAt);
   const ends = new Date(shift.endsAt);
   const sameDay = starts.toDateString() === ends.toDateString();
@@ -159,20 +208,28 @@ function TradeSkeleton() {
   );
 }
 
-export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
+export default function TradeBoard({ currentUserId, currentUserRole, initialStatusFilter = "" }: Props) {
   const confirm = useConfirm();
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [openWork, setOpenWork] = useState<OpenWorkResponse>({ openShifts: [], pickupRequests: [] });
   const [loading, setLoading] = useState(true);
+  const [openWorkLoading, setOpenWorkLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [openWorkError, setOpenWorkError] = useState(false);
   const [acting, setActing] = useState<string | null>(null);
   const actingRef = useRef<string | null>(null);
   const loadSeqRef = useRef(0);
+  const openWorkSeqRef = useRef(0);
 
   const [areaFilter, setAreaFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState(initialStatusFilter);
   const [myTradesOnly, setMyTradesOnly] = useState(false);
 
   const isStaff = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
+
+  useEffect(() => {
+    if (initialStatusFilter) setStatusFilter(initialStatusFilter);
+  }, [initialStatusFilter]);
 
   const loadTrades = useCallback(async () => {
     const requestId = loadSeqRef.current + 1;
@@ -182,7 +239,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
     try {
       const params = new URLSearchParams({ limit: "100" });
       if (areaFilter) params.set("area", areaFilter);
-      if (statusFilter) params.set("status", statusFilter);
+      if (isTradeStatus(statusFilter)) params.set("status", statusFilter);
 
       const res = await fetch(`/api/shift-trades?${params}`);
       if (handleAuthRedirect(res)) return;
@@ -206,11 +263,47 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
     }
   }, [areaFilter, statusFilter]);
 
+  const loadOpenWork = useCallback(async () => {
+    const requestId = openWorkSeqRef.current + 1;
+    openWorkSeqRef.current = requestId;
+    setOpenWorkLoading(true);
+
+    try {
+      const params = new URLSearchParams();
+      if (areaFilter) params.set("area", areaFilter);
+
+      const res = await fetch(`/api/schedule/open-work?${params}`);
+      if (handleAuthRedirect(res)) return;
+      if (requestId !== openWorkSeqRef.current) return;
+
+      if (res.ok) {
+        const json = await parseJsonSafely<{ data?: OpenWorkResponse }>(res);
+        if (!Array.isArray(json?.data?.openShifts) || !Array.isArray(json?.data?.pickupRequests)) {
+          setOpenWorkError(true);
+          return;
+        }
+        setOpenWork(json.data);
+        setOpenWorkError(false);
+      } else {
+        setOpenWorkError(true);
+      }
+    } catch {
+      if (requestId === openWorkSeqRef.current) setOpenWorkError(true);
+    } finally {
+      if (requestId === openWorkSeqRef.current) setOpenWorkLoading(false);
+    }
+  }, [areaFilter]);
+
   useEffect(() => {
     void loadTrades();
   }, [loadTrades]);
 
+  useEffect(() => {
+    void loadOpenWork();
+  }, [loadOpenWork]);
+
   const filteredTrades = useMemo(() => {
+    if (statusFilter === "OPEN_SHIFT" || statusFilter === "REQUESTED") return [];
     let result = trades;
     if (myTradesOnly) {
       result = result.filter(
@@ -223,6 +316,22 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
     }
     return result;
   }, [trades, statusFilter, isStaff, currentUserId, myTradesOnly]);
+
+  const filteredOpenShifts = useMemo(() => {
+    if (myTradesOnly) return [];
+    if (statusFilter && statusFilter !== "OPEN_SHIFT") return [];
+    return openWork.openShifts;
+  }, [myTradesOnly, openWork.openShifts, statusFilter]);
+
+  const filteredPickupRequests = useMemo(() => {
+    if (!isStaff || myTradesOnly) return [];
+    if (statusFilter && statusFilter !== "REQUESTED") return [];
+    return openWork.pickupRequests;
+  }, [isStaff, myTradesOnly, openWork.pickupRequests, statusFilter]);
+
+  const reloadWork = useCallback(async () => {
+    await Promise.all([loadTrades(), loadOpenWork()]);
+  }, [loadOpenWork, loadTrades]);
 
   const beginAction = useCallback((tradeId: string) => {
     if (actingRef.current) return false;
@@ -244,7 +353,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
         toast.success("Trade claimed");
-        await loadTrades();
+        await reloadWork();
       } else {
         const msg = await parseErrorMessage(res, "Failed to claim trade");
         toast.error(msg);
@@ -254,7 +363,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
     } finally {
       endAction(tradeId);
     }
-  }, [beginAction, endAction, loadTrades]);
+  }, [beginAction, endAction, reloadWork]);
 
   const handleApprove = useCallback(async (tradeId: string) => {
     if (!beginAction(tradeId)) return;
@@ -263,7 +372,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
         toast.success("Trade approved");
-        await loadTrades();
+        await reloadWork();
       } else {
         const msg = await parseErrorMessage(res, "Failed to approve trade");
         toast.error(msg);
@@ -273,7 +382,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
     } finally {
       endAction(tradeId);
     }
-  }, [beginAction, endAction, loadTrades]);
+  }, [beginAction, endAction, reloadWork]);
 
   const handleDecline = useCallback(async (tradeId: string) => {
     if (!beginAction(tradeId)) return;
@@ -282,7 +391,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
         toast.success("Trade declined");
-        await loadTrades();
+        await reloadWork();
       } else {
         const msg = await parseErrorMessage(res, "Failed to decline trade");
         toast.error(msg);
@@ -292,7 +401,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
     } finally {
       endAction(tradeId);
     }
-  }, [beginAction, endAction, loadTrades]);
+  }, [beginAction, endAction, reloadWork]);
 
   const handleCancel = useCallback(async (trade: Trade) => {
     const tradeId = trade.id;
@@ -310,7 +419,7 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
         toast.success(`Trade cancelled for ${eventLabel}`);
-        await loadTrades();
+        await reloadWork();
       } else {
         const msg = await parseErrorMessage(res, "Failed to cancel trade");
         toast.error(msg);
@@ -320,7 +429,71 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
     } finally {
       endAction(tradeId);
     }
-  }, [beginAction, confirm, endAction, loadTrades]);
+  }, [beginAction, confirm, endAction, reloadWork]);
+
+  const handlePickup = useCallback(async (shift: OpenWorkShift) => {
+    const actionId = `pickup:${shift.id}`;
+    if (!beginAction(actionId)) return;
+    try {
+      const res = await fetch("/api/shift-assignments/pickup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shiftId: shift.id }),
+      });
+      if (handleAuthRedirect(res)) return;
+      if (res.ok) {
+        toast.success(shift.action === "request" ? "Shift requested" : "Shift claimed");
+        await reloadWork();
+      } else {
+        const msg = await parseErrorMessage(res, "Failed to claim shift");
+        toast.error(msg);
+      }
+    } catch {
+      toast.error("Network error: could not update shift");
+    } finally {
+      endAction(actionId);
+    }
+  }, [beginAction, endAction, reloadWork]);
+
+  const handleApprovePickupRequest = useCallback(async (requestId: string) => {
+    const actionId = `request:${requestId}`;
+    if (!beginAction(actionId)) return;
+    try {
+      const res = await fetch(`/api/shift-assignments/${requestId}/approve`, { method: "PATCH" });
+      if (handleAuthRedirect(res)) return;
+      if (res.ok) {
+        toast.success("Pickup request approved");
+        await reloadWork();
+      } else {
+        const msg = await parseErrorMessage(res, "Failed to approve request");
+        toast.error(msg);
+      }
+    } catch {
+      toast.error("Network error: could not approve request");
+    } finally {
+      endAction(actionId);
+    }
+  }, [beginAction, endAction, reloadWork]);
+
+  const handleDeclinePickupRequest = useCallback(async (requestId: string) => {
+    const actionId = `request:${requestId}`;
+    if (!beginAction(actionId)) return;
+    try {
+      const res = await fetch(`/api/shift-assignments/${requestId}/decline`, { method: "PATCH" });
+      if (handleAuthRedirect(res)) return;
+      if (res.ok) {
+        toast.success("Pickup request declined");
+        await reloadWork();
+      } else {
+        const msg = await parseErrorMessage(res, "Failed to decline request");
+        toast.error(msg);
+      }
+    } catch {
+      toast.error("Network error: could not decline request");
+    } finally {
+      endAction(actionId);
+    }
+  }, [beginAction, endAction, reloadWork]);
 
   const hasFilters = !!(areaFilter || statusFilter || myTradesOnly);
   const activeFilters: OperationalActiveFilter[] = [
@@ -346,7 +519,10 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
       }]
       : []),
   ];
-  const countLabel = `${filteredTrades.length} ${filteredTrades.length === 1 ? "trade" : "trades"}`;
+  const totalRows = filteredOpenShifts.length + filteredPickupRequests.length + filteredTrades.length;
+  const isLoadingWork = loading || openWorkLoading;
+  const hasLoadError = loadError && openWorkError;
+  const countLabel = `${totalRows} ${totalRows === 1 ? "item" : "items"}`;
 
   return (
     <div className="space-y-3">
@@ -354,8 +530,8 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
         <div className="flex items-start gap-2.5 rounded-md border border-border/60 bg-muted/50 px-3 py-2.5 text-sm">
           <CalendarDaysIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
           <p className="leading-snug text-muted-foreground">
-            To post a shift for trade, open an event you&apos;re scheduled for and use{" "}
-            <span className="font-medium text-foreground">Trade</span> on your assignment.
+            Claim open non-premier shifts here, request premier shifts for staff review, or post a trade from
+            an assignment you already own.
           </p>
         </div>
       )}
@@ -407,27 +583,27 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
 
       <Card elevation="flat" className="overflow-hidden border-border/60 shadow-sm">
         <CardHeader className="flex-row items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
-          <CardTitle className="text-sm">Trade Board</CardTitle>
+          <CardTitle className="text-sm">Open Work</CardTitle>
           <span className="text-xs font-medium tabular-nums text-muted-foreground">{countLabel}</span>
         </CardHeader>
 
-        {loading ? (
+        {isLoadingWork ? (
           <TradeSkeleton />
-        ) : loadError ? (
+        ) : hasLoadError ? (
           <CardContent className="p-4 text-center">
-            <p className="mb-3 text-sm text-muted-foreground">Failed to load trades.</p>
-            <Button variant="outline" size="sm" onClick={loadTrades}>
+            <p className="mb-3 text-sm text-muted-foreground">Failed to load open work.</p>
+            <Button variant="outline" size="sm" onClick={reloadWork}>
               Retry
             </Button>
           </CardContent>
-        ) : filteredTrades.length === 0 ? (
+        ) : totalRows === 0 ? (
           <EmptyState
             icon="clipboard"
-            title={hasFilters ? "No matching trades" : "No open trades"}
+            title={hasFilters ? "No matching work" : "No open work"}
             description={
               hasFilters
-                ? "Clear or adjust the filters to see more trade activity."
-                : "No shifts are currently posted for trade."
+                ? "Clear or adjust the filters to see more shift and trade activity."
+                : "No shifts are currently open for pickup or posted for trade."
             }
             actionLabel={hasFilters ? "Clear filters" : undefined}
             onAction={hasFilters ? () => {
@@ -439,6 +615,169 @@ export default function TradeBoard({ currentUserId, currentUserRole }: Props) {
           />
         ) : (
           <div className="divide-y divide-border/50">
+            {filteredOpenShifts.map((item) => {
+              const shift = item.shift;
+              const event = shift.shiftGroup.event;
+              const titleParts = scheduleEventTitleParts({
+                summary: event.summary,
+                sportCode: event.sportCode,
+                opponent: event.opponent ?? null,
+                isHome: event.isHome ?? null,
+              });
+              const areaLabel = AREA_LABELS[shift.area] ?? shift.area;
+              const isBusy = acting === `pickup:${item.id}`;
+              const primaryWarning = item.advisoryConflictNote ?? item.warnings[0]?.label ?? null;
+
+              return (
+                <article
+                  key={`open-${item.id}`}
+                  className="group/open-work px-4 py-3 transition-colors hover:bg-muted/25"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                      <ClipboardListIcon className="size-4" />
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="flex min-w-0 items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="truncate text-sm font-semibold leading-tight">{titleParts.title}</h3>
+                          {titleParts.detail && (
+                            <p className="mt-0.5 truncate text-xs text-muted-foreground">{titleParts.detail}</p>
+                          )}
+                        </div>
+                        <Badge variant={item.action === "request" ? "orange" : "green"} size="sm">
+                          {item.action === "request" ? "Request" : "Open"}
+                        </Badge>
+                      </div>
+
+                      <div className="grid gap-1.5 text-xs text-muted-foreground sm:grid-cols-2">
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <CalendarClockIcon className="size-3.5 shrink-0" />
+                          <span className="truncate tabular-nums">{formatShiftWindow(shift)}</span>
+                        </span>
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <ArrowLeftRightIcon className="size-3.5 shrink-0" />
+                          <span className="truncate">{areaLabel}</span>
+                        </span>
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <ShieldCheckIcon className="size-3.5 shrink-0" />
+                          <span className="truncate">{item.reason}</span>
+                        </span>
+                        {item.score !== null && (
+                          <span className="flex min-w-0 items-center gap-1.5">
+                            <Clock3Icon className="size-3.5 shrink-0" />
+                            <span className="truncate tabular-nums">Fit score {item.score}</span>
+                          </span>
+                        )}
+                      </div>
+
+                      {primaryWarning && (
+                        <p className="flex items-start gap-1.5 rounded-md bg-amber-50 px-2.5 py-2 text-xs leading-relaxed text-amber-800">
+                          <AlertTriangleIcon className="mt-0.5 size-3.5 shrink-0" />
+                          <span>{primaryWarning}</span>
+                        </p>
+                      )}
+
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <Button
+                          size="sm"
+                          className="h-8 gap-1.5"
+                          onClick={() => void handlePickup(item)}
+                          disabled={acting !== null || !item.canAct}
+                        >
+                          <CheckIcon className="size-3.5" />
+                          {isBusy
+                            ? item.action === "request" ? "Requesting..." : "Claiming..."
+                            : item.action === "request" ? "Request shift" : "Claim shift"}
+                        </Button>
+                        {item.requestCount > 0 && (
+                          <span className="text-xs text-muted-foreground">
+                            {item.requestCount} pending {item.requestCount === 1 ? "request" : "requests"}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+
+            {filteredPickupRequests.map((request) => {
+              const shift = request.shift;
+              const event = shift.shiftGroup.event;
+              const titleParts = scheduleEventTitleParts({
+                summary: event.summary,
+                sportCode: event.sportCode,
+                opponent: event.opponent ?? null,
+                isHome: event.isHome ?? null,
+              });
+              const isBusy = acting === `request:${request.id}`;
+
+              return (
+                <article
+                  key={`request-${request.id}`}
+                  className="group/open-request px-4 py-3 transition-colors hover:bg-muted/25"
+                >
+                  <div className="flex items-start gap-3">
+                    <UserAvatar name={request.user.name} avatarUrl={request.user.avatarUrl ?? undefined} size="sm" className="mt-0.5 shrink-0" />
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="flex min-w-0 items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="truncate text-sm font-semibold leading-tight">{titleParts.title}</h3>
+                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                            {request.user.name} requested {AREA_LABELS[shift.area] ?? shift.area}
+                          </p>
+                        </div>
+                        <Badge variant={request.hasConflict ? "orange" : "blue"} size="sm">
+                          Request
+                        </Badge>
+                      </div>
+
+                      <div className="grid gap-1.5 text-xs text-muted-foreground sm:grid-cols-2">
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <CalendarClockIcon className="size-3.5 shrink-0" />
+                          <span className="truncate tabular-nums">{formatShiftWindow(shift)}</span>
+                        </span>
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <Clock3Icon className="size-3.5 shrink-0" />
+                          <span className="truncate tabular-nums">Requested {formatDateShort(request.createdAt)}</span>
+                        </span>
+                      </div>
+
+                      {request.conflictNote && (
+                        <p className="flex items-start gap-1.5 rounded-md bg-amber-50 px-2.5 py-2 text-xs leading-relaxed text-amber-800">
+                          <AlertTriangleIcon className="mt-0.5 size-3.5 shrink-0" />
+                          <span>{request.conflictNote}</span>
+                        </p>
+                      )}
+
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <Button
+                          size="sm"
+                          className="h-8 gap-1.5"
+                          onClick={() => void handleApprovePickupRequest(request.id)}
+                          disabled={acting !== null}
+                        >
+                          <CheckIcon className="size-3.5" />
+                          {isBusy ? "Approving..." : "Approve"}
+                        </Button>
+                        <OperationalRowActions label={`Actions for ${request.user.name} request`}>
+                          <DropdownMenuItem
+                            variant="destructive"
+                            disabled={acting !== null}
+                            onSelect={() => void handleDeclinePickupRequest(request.id)}
+                          >
+                            <XIcon className="size-4" />
+                            Decline
+                          </DropdownMenuItem>
+                        </OperationalRowActions>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+
             {filteredTrades.map((trade) => {
               const shift = trade.shiftAssignment.shift;
               const event = shift.shiftGroup.event;

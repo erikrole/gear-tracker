@@ -40,6 +40,9 @@ import { VENUE_TONES, venueToneFromEvent } from "@/lib/venue-tone";
 import { shiftWorkerLabel, shiftWorkerSlotLabel, type ShiftWorkerKind } from "@/lib/shift-display";
 import { effectiveCallWindow, isInheritedFullDayCallWindow, summarizeEffectiveCallWindows } from "@/lib/shift-call-windows";
 import type { CalendarEntry, Shift } from "./types";
+import type { ScheduleGearAssignmentReadiness, ScheduleGearEventReadiness, ScheduleHealthSnapshot } from "@/lib/schedule-health-types";
+import type { ScheduleChangeEventSummary } from "@/lib/schedule-change-history-types";
+import type { ScheduleQueueMeta } from "@/lib/schedule-queues";
 import {
   ACTIVE_STATUSES,
   AREA_LABELS,
@@ -61,8 +64,11 @@ type ListViewProps = {
   clearFilters: () => void;
   includePast: boolean;
   hasFilters: boolean;
+  activeQueueMeta: ScheduleQueueMeta | null;
+  clearQueue: () => void;
   currentUserId: string;
   isStaff: boolean;
+  scheduleHealth: ScheduleHealthSnapshot | null;
   expandedRowId: string | null;
   setExpandedRowId: (id: string | null) => void;
   onSelectGroup: (groupId: string | null) => void;
@@ -95,7 +101,7 @@ function isShiftOpen(shift: Shift) {
   return !shift.assignments.some((a) => ACTIVE_STATUSES.includes(a.status));
 }
 
-function workerKindForShift(shift: Shift, _user: ReturnType<typeof shiftAssignee>): ShiftWorkerKind {
+function workerKindForShift(shift: Shift): ShiftWorkerKind {
   return shift.workerType === "FT" ? "FT" : "ST";
 }
 
@@ -112,7 +118,7 @@ function RoleNeedSummary({ entry, compact = false }: { entry: CalendarEntry; com
 
   if (openSlots.length === 0) return null;
 
-  const staff = openSlots.filter((shift) => workerKindForShift(shift, null) === "FT").length;
+  const staff = openSlots.filter((shift) => workerKindForShift(shift) === "FT").length;
   const students = openSlots.length - staff;
   const parts = [
     staff > 0 ? `${staff} Staff` : null,
@@ -128,6 +134,116 @@ function RoleNeedSummary({ entry, compact = false }: { entry: CalendarEntry; com
         {parts.join(", ")}
       </span>
     </span>
+  );
+}
+
+function PublicationBadge({ entry }: { entry: CalendarEntry }) {
+  const state = entry.publication;
+  if (!state) return null;
+  if (!state.publishedAt) return <Badge variant="gray" size="sm">Draft</Badge>;
+  if (state.changedAfterPublish) return <Badge variant="orange" size="sm">Changed</Badge>;
+  if (state.unacknowledgedCount > 0) return <Badge variant="blue" size="sm">{state.unacknowledgedCount} unack</Badge>;
+  return <Badge variant="green" size="sm">Published</Badge>;
+}
+
+function gearReadinessLabel(readiness?: ScheduleGearEventReadiness | null) {
+  if (!readiness || readiness.assignmentIds.length === 0) return null;
+  const { counts } = readiness;
+  if (counts.missing > 0) return { label: `${counts.missing} missing gear`, variant: "red" as const };
+  if (counts.awaitingPickup > 0) return { label: `${counts.awaitingPickup} pickup ready`, variant: "orange" as const };
+  if (counts.checkedOut > 0) return { label: `${counts.checkedOut} checked out`, variant: "green" as const };
+  if (counts.reserved > 0) return { label: `${counts.reserved} reserved`, variant: "purple" as const };
+  if (counts.ready > 0) return { label: `${counts.ready} gear ready`, variant: "green" as const };
+  return null;
+}
+
+function assignmentGearLabel(readiness?: ScheduleGearAssignmentReadiness | null) {
+  if (!readiness) return null;
+  if (readiness.status === "missing") return { label: "Missing gear", variant: "red" as const };
+  const suffix = readiness.linkType === "assignment" ? "" : " · event";
+  if (readiness.status === "awaiting_pickup") return { label: `Pickup ready${suffix}`, variant: "orange" as const };
+  if (readiness.status === "checked_out") return { label: `Checked out${suffix}`, variant: "green" as const };
+  return { label: `Reserved${suffix}`, variant: readiness.linkType === "assignment" ? "purple" as const : "orange" as const };
+}
+
+function buildGearPrepHref(entry: CalendarEntry, assignment: ScheduleGearAssignmentReadiness) {
+  const params = new URLSearchParams({
+    eventId: entry.id,
+    title: entry.summary,
+    startsAt: entry.startsAt,
+    endsAt: entry.endsAt,
+    requesterUserId: assignment.userId,
+    shiftAssignmentId: assignment.assignmentId,
+  });
+  if (entry.location?.id) params.set("locationId", entry.location.id);
+  if (entry.sportCode) params.set("sportCode", entry.sportCode);
+  return `/reservations/new?${params.toString()}`;
+}
+
+function EventGearBadge({ readiness }: { readiness?: ScheduleGearEventReadiness | null }) {
+  const meta = gearReadinessLabel(readiness);
+  if (!meta) return null;
+  return (
+    <Badge variant={meta.variant} size="sm">
+      {meta.label}
+    </Badge>
+  );
+}
+
+function ChangeHistoryBadge({ summary }: { summary?: ScheduleChangeEventSummary | null }) {
+  if (!summary || summary.items.length === 0) return null;
+  return (
+    <Badge variant={summary.needsReview ? "orange" : "gray"} size="sm">
+      {summary.needsReview ? "Review changes" : "Changed recently"}
+    </Badge>
+  );
+}
+
+function latestChangeLabel(summary?: ScheduleChangeEventSummary | null) {
+  const latest = summary?.items[0];
+  if (!latest) return null;
+  const time = new Date(latest.createdAt).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return `${latest.label} · ${time}`;
+}
+
+function AssignmentGearBadge({
+  entry,
+  readiness,
+  isStaff,
+  compact,
+}: {
+  entry: CalendarEntry;
+  readiness?: ScheduleGearAssignmentReadiness | null;
+  isStaff: boolean;
+  compact?: boolean;
+}) {
+  const meta = assignmentGearLabel(readiness);
+  if (!meta) return null;
+
+  return (
+    <div className={cn("flex min-w-0 items-center gap-1.5", compact ? "flex-wrap" : "justify-end")}>
+      <Badge variant={meta.variant} size="sm" className="max-w-full">
+        <span className="truncate">{meta.label}</span>
+      </Badge>
+      {isStaff && readiness && (readiness.status === "missing" || readiness.linkType === "event") && (
+        <Button
+          asChild
+          variant="ghost"
+          size="sm"
+          className="h-8 px-2 text-xs"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <Link href={buildGearPrepHref(entry, readiness)}>
+            Reserve gear
+          </Link>
+        </Button>
+      )}
+    </div>
   );
 }
 
@@ -188,6 +304,7 @@ function ShiftRowList({
   onRemoveAssignment,
   onSelectGroup,
   onCallWindowSaved,
+  gearAssignments,
   compact = false,
 }: {
   entry: CalendarEntry;
@@ -209,6 +326,7 @@ function ShiftRowList({
   onRemoveAssignment?: (assignmentId: string) => void;
   onSelectGroup: () => void;
   onCallWindowSaved: () => void;
+  gearAssignments?: ScheduleHealthSnapshot["gearReadiness"]["assignments"];
   compact?: boolean;
 }) {
   return (
@@ -220,8 +338,7 @@ function ShiftRowList({
           (a) => a.user.id === currentUserId && ACTIVE_STATUSES.includes(a.status),
         );
         const areaLabel = AREA_LABELS[shift.area] ?? shift.area;
-        const assignedLabel = user ? user.name : "Unassigned";
-        const workerType = workerKindForShift(shift, user);
+        const workerType = workerKindForShift(shift);
         const slotLabel = roleSlotLabel(workerType);
         const workerRoleLabel = roleLabel(workerType);
         const emptyAssignLabel = compact ? `Assign ${workerRoleLabel}` : "Assign";
@@ -232,6 +349,7 @@ function ShiftRowList({
         const assignmentWindow = activeAssignment ? effectiveCallWindow(shift, activeAssignment) : null;
         const visibleWindow = assignmentWindow ?? slotWindow;
         const showCallWindows = !entry.allDay;
+        const assignmentGear = activeAssignment ? gearAssignments?.[activeAssignment.id] ?? null : null;
 
         return (
           <div
@@ -463,20 +581,23 @@ function ShiftRowList({
             )}
 
             <div className={cn("flex min-h-9", compact ? "justify-start" : "w-24 shrink-0 justify-end")}>
-              {onPostTrade && myAssignment && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-9 shrink-0 px-2 text-xs text-muted-foreground transition-[background-color,color,scale] hover:text-foreground active:scale-[0.96]"
-                  disabled={postingTradeId === myAssignment.id}
-                  onClick={async (e) => {
-                    e.stopPropagation();
-                    onPostTrade(myAssignment.id);
-                  }}
-                >
-                  {postingTradeId === myAssignment.id ? "Posting..." : "Trade"}
-                </Button>
-              )}
+              <div className={cn("flex min-w-0 items-center gap-1.5", compact && "flex-wrap")}>
+                <AssignmentGearBadge entry={entry} readiness={assignmentGear} isStaff={isStaff} compact={compact} />
+                {onPostTrade && myAssignment && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 shrink-0 px-2 text-xs text-muted-foreground transition-[background-color,color,scale] hover:text-foreground active:scale-[0.96]"
+                    disabled={postingTradeId === myAssignment.id}
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      onPostTrade(myAssignment.id);
+                    }}
+                  >
+                    {postingTradeId === myAssignment.id ? "Posting..." : "Trade"}
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         );
@@ -497,8 +618,11 @@ export function ListView({
   clearFilters,
   includePast,
   hasFilters,
+  activeQueueMeta,
+  clearQueue,
   currentUserId,
   isStaff,
+  scheduleHealth,
   expandedRowId,
   setExpandedRowId,
   onSelectGroup,
@@ -747,30 +871,36 @@ export function ListView({
         ) : filteredEntries.length === 0 ? (
           <EmptyState
             icon="calendar"
-            title={myShiftsOnly ? "No shifts assigned" : "No events found"}
+            title={activeQueueMeta ? activeQueueMeta.emptyTitle : myShiftsOnly ? "No shifts assigned" : "No events found"}
             description={
-              myShiftsOnly
+              activeQueueMeta
+                ? activeQueueMeta.emptyDescription
+                : myShiftsOnly
                 ? "You don't have any upcoming shift assignments."
                 : hasFilters
                   ? "Try adjusting your filters."
                   : "No upcoming events. Check Settings > Calendar Sources to add an ICS feed."
             }
             actionLabel={
-              myShiftsOnly
+              activeQueueMeta
+                ? "Show full schedule"
+                : myShiftsOnly
                 ? "Show all events"
                 : hasFilters
                   ? "Clear filters"
                   : "Calendar Sources"
             }
             actionHref={
-              myShiftsOnly
+              activeQueueMeta || myShiftsOnly
                 ? undefined
                 : hasFilters
                   ? undefined
                   : "/settings/calendar-sources"
             }
             onAction={
-              myShiftsOnly ? () => setMyShiftsOnly(false) : hasFilters ? clearFilters : undefined
+              activeQueueMeta
+                ? clearQueue
+                : myShiftsOnly ? () => setMyShiftsOnly(false) : hasFilters ? clearFilters : undefined
             }
           />
         ) : (
@@ -886,7 +1016,7 @@ export function ListView({
                             pickerLoading={usersLoading}
                             pickerSearch={userSearch}
                             assigning={assigning}
-                            onOpenPicker={(shiftId) => {
+                            onOpenPicker={() => {
                               setUserSearch("");
                               loadUsers();
                             }}
@@ -898,6 +1028,9 @@ export function ListView({
                             currentUserId={currentUserId}
                             showShiftStatus={myShiftsOnly}
                             postingTradeId={postingTradeId}
+                            gearEvent={scheduleHealth?.gearReadiness.events[entry.id] ?? null}
+                            gearAssignments={scheduleHealth?.gearReadiness.assignments}
+                            changeEvent={scheduleHealth?.changeHistory.events[entry.id] ?? null}
                             addingShiftId={addingShiftId}
                             onAddShift={(shift, workerType) => handleAddMatchingShift(entry, shift, workerType)}
                             removingAssignmentId={removingAssignmentId}
@@ -926,6 +1059,7 @@ export function ListView({
 
               const venueTone = VENUE_TONES[venueToneFromEvent(entry)];
               const missingSlots = missingSlotCount(entry);
+              const changeEvent = scheduleHealth?.changeHistory.events[entry.id] ?? null;
 
               return (
                 <div
@@ -995,9 +1129,12 @@ export function ListView({
                             total={entry.coverage.total}
                           />
                         )}
+                        <EventGearBadge readiness={scheduleHealth?.gearReadiness.events[entry.id] ?? null} />
+                        {isStaff && <ChangeHistoryBadge summary={changeEvent} />}
                         {missingSlots > 0 && (
                           <RoleNeedSummary entry={entry} />
                         )}
+                        <PublicationBadge entry={entry} />
                       </div>
                     </div>
                     <div className="text-xs text-muted-foreground flex gap-2 flex-wrap pl-5">
@@ -1027,6 +1164,11 @@ export function ListView({
 
                   {isExpanded && entry.shifts.length > 0 && (
                     <div className="border-t border-border/40 px-4 py-3 pl-8">
+                      {isStaff && latestChangeLabel(changeEvent) && (
+                        <div className="mb-2 text-xs text-muted-foreground">
+                          {latestChangeLabel(changeEvent)}
+                        </div>
+                      )}
                       <ShiftRowList
                         entry={entry}
                         isStaff={isStaff}
@@ -1034,7 +1176,7 @@ export function ListView({
                         pickerLoading={usersLoading}
                         pickerSearch={userSearch}
                         assigning={assigning}
-                        onOpenPicker={(shiftId) => {
+                        onOpenPicker={() => {
                           setUserSearch("");
                           loadUsers();
                         }}
@@ -1045,6 +1187,7 @@ export function ListView({
                         onInlineAssign={handleInlineAssign}
                         currentUserId={currentUserId}
                         postingTradeId={postingTradeId}
+                        gearAssignments={scheduleHealth?.gearReadiness.assignments}
                         addingShiftId={addingShiftId}
                         onAddShift={(shift, workerType) => handleAddMatchingShift(entry, shift, workerType)}
                         removingAssignmentId={removingAssignmentId}
@@ -1145,6 +1288,9 @@ function EventRows({
   currentUserId,
   showShiftStatus,
   postingTradeId,
+  gearEvent,
+  gearAssignments,
+  changeEvent,
   addingShiftId,
   onAddShift,
   removingAssignmentId,
@@ -1173,6 +1319,9 @@ function EventRows({
   currentUserId: string;
   showShiftStatus: boolean;
   postingTradeId: string | null;
+  gearEvent?: ScheduleGearEventReadiness | null;
+  gearAssignments?: ScheduleHealthSnapshot["gearReadiness"]["assignments"];
+  changeEvent?: ScheduleChangeEventSummary | null;
   addingShiftId: string | null;
   onAddShift?: (shift: Shift, workerType: ShiftWorkerKind) => void;
   removingAssignmentId: string | null;
@@ -1271,6 +1420,9 @@ function EventRows({
                 Premier
               </Badge>
             )}
+            <PublicationBadge entry={entry} />
+            <EventGearBadge readiness={gearEvent} />
+            {isStaff && <ChangeHistoryBadge summary={changeEvent} />}
             {showShiftStatus && shiftStatus === "Pending" && (
               <Badge
                 variant="orange"
@@ -1334,9 +1486,16 @@ function EventRows({
           <td colSpan={2} className="border-b border-border/15 px-4 py-3">
             <div className="pl-5">
               <div className="mb-2 flex items-center justify-between gap-3">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Assignment detail
-                </span>
+                <div className="flex min-w-0 flex-col gap-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Assignment detail
+                  </span>
+                  {isStaff && latestChangeLabel(changeEvent) && (
+                    <span className="truncate text-xs text-muted-foreground">
+                      {latestChangeLabel(changeEvent)}
+                    </span>
+                  )}
+                </div>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -1359,6 +1518,7 @@ function EventRows({
                 onInlineAssign={onInlineAssign}
                 currentUserId={currentUserId}
                 postingTradeId={postingTradeId}
+                gearAssignments={gearAssignments}
                 addingShiftId={addingShiftId}
                 onAddShift={onAddShift}
                 removingAssignmentId={removingAssignmentId}

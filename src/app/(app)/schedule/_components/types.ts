@@ -34,6 +34,10 @@ export type ShiftAssignment = {
   callStartsAt?: string | null;
   callEndsAt?: string | null;
   callNote?: string | null;
+  hasConflict?: boolean;
+  conflictNote?: string | null;
+  acknowledgedAt?: string | null;
+  acknowledgedById?: string | null;
 };
 
 export type Shift = {
@@ -54,9 +58,20 @@ export type ShiftGroup = {
   isPremier: boolean;
   notes: string | null;
   archivedAt?: string | null;
+  publication?: SchedulePublicationState | null;
   event: { id: string; startsAt: string };
   shifts: Shift[];
   coverage: { total: number; filled: number; percentage: number };
+};
+
+export type SchedulePublicationState = {
+  status: "draft" | "published" | "changed";
+  publishedAt: string | null;
+  publishedById: string | null;
+  changedAfterPublish: boolean;
+  activeAssignmentCount: number;
+  acknowledgedCount: number;
+  unacknowledgedCount: number;
 };
 
 /** Merged entry for display */
@@ -66,6 +81,7 @@ export type CalendarEntry = CalendarEvent & {
   shifts: Shift[];
   isPremier: boolean;
   archivedAt?: string | null;
+  publication?: SchedulePublicationState | null;
 };
 
 /* ───── Constants ───── */

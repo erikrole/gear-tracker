@@ -20,7 +20,18 @@ const putSchema = z.object({
     checkoutOverdue: z.boolean().default(true),
     reservation: z.boolean().default(true),
     licenseExpiry: z.boolean().default(true),
-  }).default({ checkoutDue: true, checkoutOverdue: true, reservation: true, licenseExpiry: true }),
+    schedule: z.boolean().default(true),
+    trade: z.boolean().default(true),
+    gearPrep: z.boolean().default(true),
+  }).default({
+    checkoutDue: true,
+    checkoutOverdue: true,
+    reservation: true,
+    licenseExpiry: true,
+    schedule: true,
+    trade: true,
+    gearPrep: true,
+  }),
 });
 
 /** GET /api/me/notification-preferences — returns the caller's prefs (or defaults). */

@@ -23,11 +23,11 @@ describe("iOS notification tap-through contracts", () => {
       "type ShiftScheduleEvent",
     );
 
-    expect(gearUp).toContain("const pushPayload = {");
+    expect(gearUp).toContain("const pushPayload = scheduleNotificationPayload({");
     expect(gearUp).toContain("assignmentId: assignment.id");
     expect(gearUp).toContain("shiftId: assignment.shiftId");
     expect(gearUp).toContain("eventId: event.id");
-    expect(gearUp).toContain("void sendPushToUser(assignment.userId, { title, body, payload: pushPayload });");
+    expect(gearUp).toContain('category: categoryForScheduleNotificationType("shift_gear_up")');
   });
 
   it("sends shift schedule APNs payloads with event routing context", () => {
@@ -38,17 +38,19 @@ describe("iOS notification tap-through contracts", () => {
       "type ReservationLifecycleEvent",
     );
 
-    expect(schedule).toContain("const pushPayload = {");
+    expect(schedule).toContain("const pushPayload = scheduleNotificationPayload({");
     expect(schedule).toContain("assignmentId: assignment.id");
     expect(schedule).toContain("shiftId: assignment.shiftId");
     expect(schedule).toContain("eventId: calendarEvent.id");
-    expect(schedule).toContain("void sendPushToUser(assignment.userId, { title: copy.title, body: copy.body, payload: pushPayload });");
+    expect(schedule).toContain("category,");
   });
 
-  it("routes tapped event pushes into Schedule without consuming the event id in the tab shell", () => {
+  it("routes tapped event pushes and inbox shift rows into Schedule without consuming the event id in the tab shell", () => {
     const appDelegate = source("ios/Wisconsin/App/AppDelegate.swift");
     const appTab = source("ios/Wisconsin/Views/AppTabView.swift").split("// MARK: - Profile")[0];
     const schedule = source("ios/Wisconsin/Views/ScheduleView.swift");
+    const notifications = source("ios/Wisconsin/Views/NotificationsSheet.swift");
+    const notificationModels = source("ios/Wisconsin/Models/NotificationModels.swift");
 
     expect(appDelegate).toContain("userInfo[\"eventId\"] as? String");
     expect(appDelegate).toContain("sharedAppState?.pendingPushEventId = eventId");
@@ -61,5 +63,9 @@ describe("iOS notification tap-through contracts", () => {
     expect(schedule).toContain(".onChange(of: appState.pendingPushEventId)");
     expect(schedule).toContain("appState.pendingPushEventId = nil");
     expect(schedule).toContain("selectedEvent = event");
+
+    expect(notificationModels).toContain("let eventId: String?");
+    expect(notifications).toContain("if isShiftTargetedType(notif.type), let eventId = notif.payload?.eventId");
+    expect(notifications).toContain("onSelectEvent?(eventId)");
   });
 });

@@ -3,8 +3,8 @@
 ## Document Control
 - Area: Notifications
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-10
-- Status: Active — escalation schedule + iOS booking/event tap-through + APNs native push + calendar sync health alerts shipped
+- Last Updated: 2026-06-18
+- Status: Active: escalation schedule + iOS booking/event tap-through + APNs native push + calendar sync health alerts + schedule notification policy shipped
 - Version: V1.2
 
 ## Direction
@@ -53,7 +53,9 @@ Implementation: `src/lib/services/notifications.ts`
 | Trade declined by staff | `trade_declined` | Claimer | In-app + email |
 
 - Email is best-effort and sent after the trade transaction resolves.
-- Email respects `notificationPrefs.channels.email` and `pausedUntil`.
+- Email respects `notificationPrefs.channels.email`, `notificationPrefs.categories.trade`, and `pausedUntil`.
+- Trade lifecycle rows now carry event-routable payloads with `eventId`, `shiftId`, `assignmentId`, `tradeId`, and `/events/{eventId}` where the trade can be tied back to a scheduled event.
+- Native push is best-effort for claimed, completed, approved, and declined trade events when push and the `trade` category are enabled.
 - Staff-wide claim fanout and direct-assignment emails are out of scope.
 - Implementation: `src/lib/services/shift-trades.ts` + `src/lib/services/shift-trade-emails.ts`
 
@@ -69,7 +71,11 @@ Implementation: `src/lib/services/notifications.ts`
 
 - Copy uses Staff and Student labels plus the effective call time.
 - Deduplication includes assignment id, event type, and effective call window so retries do not duplicate unchanged messages.
-- Implementation: `createShiftScheduleNotification` in `src/lib/services/notifications.ts`.
+- Worker-facing schedule notifications are publication-aware: draft assignments and draft call-time changes do not notify workers, while published assignment creates, approved requests, removals, and call-time changes do.
+- Changed-after-publish call-time edits clear assignment acknowledgement before notifying the worker.
+- Payloads are event-routable with `target: "event"`, `/events/{eventId}`, `eventId`, `shiftId`, and `assignmentId`.
+- Delivery respects additive notification categories: `schedule`, `trade`, and `gearPrep`. Old preference JSON defaults these categories to enabled.
+- Implementation: `src/lib/services/schedule-notification-policy.ts` and `src/lib/services/notifications.ts`.
 
 ## Badge Award Triggers (Implemented 2026-05-09)
 
@@ -95,9 +101,9 @@ Implementation: `src/lib/services/notifications.ts`
 - Schema: `DeviceToken` model (`prisma/migrations/0040_add_device_tokens`) — `token` unique, indexed on `(userId, revokedAt)`
 - Registration: `POST /api/devices` upserts token on every app foreground after login; `DELETE /api/devices` bulk-revokes on logout. Native registration/revocation decodes the `{ success: true }` response through the shared API handler so 401s trigger the global session-expired path.
 - iOS: `AppDelegate.didRegisterForRemoteNotificationsWithDeviceToken` → POST hex token. Permission requested once after login (`.notDetermined` guard; existing `.authorized` silently re-registers).
-- Push fires for: checkout due/overdue escalation, `shift_gear_up`, shift schedule changes, reservation lifecycle events, and license nag/expiry warnings when the recipient has push enabled for that category.
+- Push fires for: checkout due/overdue escalation, `shift_gear_up`, shift schedule changes, trade lifecycle events, reservation lifecycle events, and license nag/expiry warnings when the recipient has push enabled for that category.
 - Tap handling: `UNUserNotificationCenterDelegate.didReceive` sets `AppState.pendingPushBookingId` or `AppState.pendingPushEventId`. Booking pushes open through `HomeView`; event pushes switch to Schedule and let `ScheduleView` open the matching event sheet.
-- Native Settings > Notifications exposes the same notification category toggles as web: checkout due reminders, checkout overdue alerts, reservation updates, and license expiry reminders. In-app inbox rows remain always visible regardless of category settings.
+- Native Settings > Notifications exposes the same notification category toggles as web: checkout due reminders, checkout overdue alerts, reservation updates, license expiry reminders, schedule updates, trade updates, and gear prep nudges. In-app inbox rows remain always visible regardless of category settings.
 - Revoked/BadDeviceToken responses auto-revoke the token in DB on next push attempt
 - Required env vars: `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_BUNDLE_ID`, `APNS_P8_KEY` (base64-encoded full PEM including headers). Missing = push silently skipped.
 - Source: `src/lib/push/apns.ts` (sendPush), `src/lib/services/notifications.ts` (sendPushToUser), `src/app/api/devices/route.ts`
@@ -237,6 +243,7 @@ Current behavior:
 | `EMAIL_FROM` | No | From address for transactional email. Default: `Gear Tracker <noreply@gear-tracker.app>` |
 
 ## Change Log
+- 2026-06-18: Schedule Source Of Truth Slice 6 shipped. Scheduling notifications now use one policy for schedule, trade, and gear-prep categories with defensive defaults for old preference JSON; draft assignment changes are suppressed for workers until publish, changed published call times clear acknowledgement, trade lifecycle rows and push/email delivery respect the `trade` category, and schedule/trade/gear-prep payloads carry event-routable context for web and iOS tap-through.
 - 2026-06-10: Daily firmware watch notifications shipped. `morning-refresh` now polls enabled official-source firmware watch targets, baselines the first successful result silently, records latest version/release date/check errors, and creates deduped `firmware_update_released` admin inbox rows plus best-effort push when a newer version appears.
 - 2026-06-10: iOS notification settings detail menu shipped. Native Settings now keeps notification delivery status at the root and moves OS push permission recovery, pause controls, email/push channel toggles, and category toggles into a dedicated Notifications drill-down while preserving the in-app inbox always-on contract.
 - 2026-06-10: iOS notification category parity shipped. Native Profile now exposes the existing web-backed toggles for checkout due reminders, checkout overdue alerts, reservation updates, and license expiry reminders while preserving the in-app inbox always-on contract.

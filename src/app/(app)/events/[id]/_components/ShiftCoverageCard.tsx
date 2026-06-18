@@ -10,6 +10,14 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -22,10 +30,12 @@ import { toast } from "sonner";
 import { handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { UserAvatarPicker, type PickerUser } from "@/components/shift-detail/UserAvatarPicker";
 import { CallWindowEditor } from "@/components/shift-detail/CallWindowEditor";
+import { CrewTemplateReviewButton } from "@/components/shift-detail/CrewTemplateReviewButton";
 import type { ShiftGroupSummary, CommandCenterData } from "../_utils";
 import { AREA_LABELS } from "../_utils";
 import { shiftWorkerLabel, shiftWorkerSlotLabel } from "@/lib/shift-display";
 import { effectiveCallWindow, isInheritedFullDayCallWindow, type EffectiveCallWindow } from "@/lib/shift-call-windows";
+import type { AutoFillPreviewResponse } from "@/lib/auto-fill-preview-types";
 
 const AREAS = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS"] as const;
 
@@ -35,6 +45,7 @@ type Assignment = Shift["assignments"][number];
 type Props = {
   shiftGroup: ShiftGroupSummary;
   commandCenter: CommandCenterData | null;
+  currentUserId?: string;
   currentUserRole: string;
   acting: string | null;
   linkParams: {
@@ -52,6 +63,7 @@ type Props = {
 export function ShiftCoverageCard({
   shiftGroup,
   commandCenter,
+  currentUserId,
   currentUserRole,
   acting,
   linkParams,
@@ -74,6 +86,11 @@ export function ShiftCoverageCard({
   // ── Local acting state for all mutations ──
   const [inlineActing, setInlineActing] = useState<string | null>(null);
   const [autoFilling, setAutoFilling] = useState(false);
+  const [autoFillApplying, setAutoFillApplying] = useState(false);
+  const [autoFillPreview, setAutoFillPreview] = useState<AutoFillPreviewResponse | null>(null);
+  const [autoFillPreviewOpen, setAutoFillPreviewOpen] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [acknowledgingId, setAcknowledgingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState("");
   const [createdShiftNotice, setCreatedShiftNotice] = useState("");
   const actionBusyRef = useRef(false);
@@ -149,6 +166,14 @@ export function ShiftCoverageCard({
     : coverage.percentage >= 100 ? "green"
     : coverage.percentage > 0 ? "orange"
     : "red";
+  const publication = shiftGroup.publication;
+  const publicationBadge = !publication?.publishedAt
+    ? { label: "Draft", variant: "gray" as const }
+    : publication.changedAfterPublish
+      ? { label: "Changed", variant: "orange" as const }
+      : publication.unacknowledgedCount > 0
+        ? { label: `${publication.unacknowledgedCount} unacknowledged`, variant: "blue" as const }
+        : { label: "Published", variant: "green" as const };
 
   // ── Mutations ──
 
@@ -223,6 +248,33 @@ export function ShiftCoverageCard({
     actionBusyRef.current = true;
     setAutoFilling(true);
     try {
+      const res = await fetch(`/api/shift-groups/${groupId}/auto-assign/preview`);
+      if (handleAuthRedirect(res)) return;
+      if (res.ok) {
+        const json = await parseJsonSafely<{ data?: AutoFillPreviewResponse }>(res);
+        if (!json?.data) {
+          toast.error("Auto-fill preview could not be read. Refresh and try again.");
+          return;
+        }
+        setAutoFillPreview(json.data);
+        setAutoFillPreviewOpen(true);
+      } else {
+        const msg = await parseErrorMessage(res, "Auto-fill preview failed");
+        toast.error(msg);
+      }
+    } catch (err) {
+      toast.error(err instanceof TypeError ? "You’re offline. Check your connection." : "Auto-fill preview failed");
+    } finally {
+      actionBusyRef.current = false;
+      setAutoFilling(false);
+    }
+  }
+
+  async function handleApplyAutoFill() {
+    if (actionBusyRef.current || !autoFillPreview) return;
+    actionBusyRef.current = true;
+    setAutoFillApplying(true);
+    try {
       const res = await fetch(`/api/shift-groups/${groupId}/auto-assign`, { method: "POST" });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
@@ -237,6 +289,7 @@ export function ShiftCoverageCard({
         if (assigned === 0) toast.info("No eligible workers found");
         else if (conflicts > 0) toast.warning(`${assigned} filled - ${conflicts} have conflicts`);
         else toast.success(`${assigned} shift${assigned !== 1 ? "s" : ""} auto-filled`);
+        setAutoFillPreviewOpen(false);
         onUpdated?.();
       } else {
         const msg = await parseErrorMessage(res, "Auto-fill failed");
@@ -246,7 +299,49 @@ export function ShiftCoverageCard({
       toast.error(err instanceof TypeError ? "You’re offline. Check your connection." : "Auto-fill failed");
     } finally {
       actionBusyRef.current = false;
-      setAutoFilling(false);
+      setAutoFillApplying(false);
+    }
+  }
+
+  async function handlePublish() {
+    if (actionBusyRef.current) return;
+    actionBusyRef.current = true;
+    setPublishing(true);
+    try {
+      const res = await fetch(`/api/shift-groups/${groupId}/publish`, { method: "POST" });
+      if (handleAuthRedirect(res)) return;
+      if (res.ok) {
+        toast.success(shiftGroup.publication?.publishedAt ? "Schedule republished" : "Schedule published");
+        onUpdated?.();
+      } else {
+        toast.error(await parseErrorMessage(res, "Publish failed"));
+      }
+    } catch (err) {
+      toast.error(err instanceof TypeError ? "You’re offline. Check your connection." : "Publish failed");
+    } finally {
+      actionBusyRef.current = false;
+      setPublishing(false);
+    }
+  }
+
+  async function handleAcknowledge(assignmentId: string) {
+    if (actionBusyRef.current) return;
+    actionBusyRef.current = true;
+    setAcknowledgingId(assignmentId);
+    try {
+      const res = await fetch(`/api/shift-assignments/${assignmentId}/acknowledge`, { method: "POST" });
+      if (handleAuthRedirect(res)) return;
+      if (res.ok) {
+        toast.success("Shift acknowledged");
+        onUpdated?.();
+      } else {
+        toast.error(await parseErrorMessage(res, "Acknowledge failed"));
+      }
+    } catch (err) {
+      toast.error(err instanceof TypeError ? "You’re offline. Check your connection." : "Acknowledge failed");
+    } finally {
+      actionBusyRef.current = false;
+      setAcknowledgingId(null);
     }
   }
 
@@ -383,9 +478,14 @@ export function ShiftCoverageCard({
     const cs = gearMap.get(shiftId);
     if (!cs?.assignment) return <span className="text-muted-foreground">-</span>;
     const hasMissing = commandCenter.missingGear.some((m) => m.shiftId === shiftId);
-    if (hasMissing) return <Badge variant="red">None</Badge>;
-    if (cs.assignment.linkedBookingId) return <Badge variant="green">Linked</Badge>;
-    return <Badge variant="orange">Unlinked</Badge>;
+    if (hasMissing) return <Badge variant="red">Missing gear</Badge>;
+    if (cs.assignment.linkedBookingId) {
+      if (cs.assignment.linkedBookingStatus === "PENDING_PICKUP") return <Badge variant="orange">Pickup ready</Badge>;
+      if (cs.assignment.linkedBookingStatus === "OPEN") return <Badge variant="green">Checked out</Badge>;
+      if (cs.assignment.linkedBookingStatus === "BOOKED") return <Badge variant="purple">Assignment gear</Badge>;
+      return <Badge variant="green">Assignment gear</Badge>;
+    }
+    return <Badge variant="orange">Event reservation</Badge>;
   }
 
   function DeleteCell({ shift, activeAssignment }: { shift: Shift; activeAssignment: Assignment | null }) {
@@ -427,9 +527,21 @@ export function ShiftCoverageCard({
     );
   }
 
-  function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
+function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
     return !eventAllDay && !isInheritedFullDayCallWindow(window);
   }
+
+  function changeTimeLabel(iso: string) {
+    return new Date(iso).toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+
+  const recentChanges = commandCenter?.recentChanges ?? [];
+  const reviewChangeCount = recentChanges.filter((change) => change.needsReview).length;
 
   // ── Staff table (grouped by area) ──
   const staffTable = (
@@ -575,6 +687,13 @@ export function ShiftCoverageCard({
           ) ?? null;
           const pendingCount = shift.assignments.filter((a) => a.status === "REQUESTED").length;
           const callWindow = effectiveCallWindow(shift, activeAssignment);
+          const canAcknowledge = Boolean(
+            currentUserId
+            && activeAssignment
+            && activeAssignment.user.id === currentUserId
+            && publication?.publishedAt
+            && (!activeAssignment.acknowledgedAt || activeAssignment.acknowledgedAt < publication.publishedAt),
+          );
           return (
             <TableRow key={shift.id}>
               <TableCell>
@@ -608,7 +727,16 @@ export function ShiftCoverageCard({
                 )}
               </TableCell>
               <TableCell>
-                {activeAssignment ? <Badge variant="green">Filled</Badge>
+                {canAcknowledge && activeAssignment ? (
+                  <Button
+                    size="sm"
+                    className="h-9"
+                    onClick={() => handleAcknowledge(activeAssignment.id)}
+                    disabled={acknowledgingId === activeAssignment.id}
+                  >
+                    {acknowledgingId === activeAssignment.id ? "Saving..." : "Acknowledge"}
+                  </Button>
+                ) : activeAssignment ? <Badge variant="green">Filled</Badge>
                   : pendingCount > 0 ? <Badge variant="orange">{pendingCount} req</Badge>
                   : <Badge variant="red">Open</Badge>}
               </TableCell>
@@ -620,6 +748,7 @@ export function ShiftCoverageCard({
   );
 
   return (
+    <>
     <Card className="mt-4">
       <CardHeader className="flex-row items-center justify-between">
         <div className="flex items-center gap-2">
@@ -629,11 +758,24 @@ export function ShiftCoverageCard({
               {coverage.filled}/{coverage.total} filled
             </Badge>
           )}
+          <Badge variant={publicationBadge.variant} size="sm">
+            {publicationBadge.label}
+          </Badge>
         </div>
         {isStaffOrAdmin && (
-          <Button variant="outline" size="sm" onClick={handleAutoFill} disabled={autoFilling || inlineActing !== null}>
-            {autoFilling ? "Filling..." : "Auto-fill"}
-          </Button>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={handleAutoFill} disabled={autoFilling || inlineActing !== null || publishing}>
+              {autoFilling ? "Building preview..." : "Preview auto-fill"}
+            </Button>
+            <CrewTemplateReviewButton
+              shiftGroupId={groupId}
+              disabled={autoFilling || inlineActing !== null || publishing}
+              onUpdated={onUpdated}
+            />
+            <Button size="sm" onClick={handlePublish} disabled={publishing || inlineActing !== null}>
+              {publishing ? "Publishing..." : shiftGroup.publication?.publishedAt ? "Republish" : "Publish"}
+            </Button>
+          </div>
         )}
       </CardHeader>
 
@@ -662,6 +804,37 @@ export function ShiftCoverageCard({
         )}
 
         {isStaffOrAdmin ? staffTable : studentTable}
+
+        {isStaffOrAdmin && recentChanges.length > 0 && (
+          <div className="mt-4 rounded-lg border border-border/60 bg-muted/20 px-3 py-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h3 className="text-sm font-medium">Recent schedule changes</h3>
+              {reviewChangeCount > 0 ? (
+                <Badge variant="orange">{reviewChangeCount} review</Badge>
+              ) : (
+                <Badge variant="gray">Audit trail</Badge>
+              )}
+            </div>
+            <div className="divide-y divide-border/50">
+              {recentChanges.slice(0, 5).map((change) => (
+                <div key={change.id} className="grid gap-1 py-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                  <div className="min-w-0">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="truncate text-sm font-medium">{change.label}</span>
+                      {change.needsReview && <Badge variant="orange" size="sm">Needs review</Badge>}
+                    </div>
+                    {change.detail && (
+                      <p className="truncate text-xs text-muted-foreground">{change.detail}</p>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground sm:text-right">
+                    {change.actorName} · {changeTimeLabel(change.createdAt)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Missing gear actions (staff only) */}
         {commandCenter && commandCenter.missingGear.length > 0 && isStaffOrAdmin && (
@@ -697,5 +870,68 @@ export function ShiftCoverageCard({
         )}
       </CardContent>
     </Card>
+    <Dialog open={autoFillPreviewOpen} onOpenChange={setAutoFillPreviewOpen}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Auto-fill preview</DialogTitle>
+          <DialogDescription>
+            Review the proposed crew changes before applying them. Existing assignments stay unchanged until you apply.
+          </DialogDescription>
+        </DialogHeader>
+        {autoFillPreview && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-2 text-sm">
+              <div className="rounded-lg bg-muted/50 p-3">
+                <div className="text-xs text-muted-foreground">Open slots</div>
+                <div className="text-lg font-semibold tabular-nums">{autoFillPreview.summary.openSlots}</div>
+              </div>
+              <div className="rounded-lg bg-muted/50 p-3">
+                <div className="text-xs text-muted-foreground">Proposed</div>
+                <div className="text-lg font-semibold tabular-nums">{autoFillPreview.summary.proposed}</div>
+              </div>
+              <div className="rounded-lg bg-muted/50 p-3">
+                <div className="text-xs text-muted-foreground">Warnings</div>
+                <div className="text-lg font-semibold tabular-nums">{autoFillPreview.summary.warnings}</div>
+              </div>
+            </div>
+            <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
+              {autoFillPreview.proposals.map((proposal) => (
+                <div key={proposal.shiftId} className="rounded-lg border border-border/60 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium">{proposal.userName}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {AREA_LABELS[proposal.area] ?? proposal.area} · {shiftWorkerSlotLabel(proposal.workerType)}
+                      </div>
+                    </div>
+                    <Badge variant={proposal.warnings.length > 0 ? "orange" : "green"} className="shrink-0 tabular-nums">
+                      {proposal.score}
+                    </Badge>
+                  </div>
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    {[proposal.warnings[0]?.label, proposal.reasons[0]?.label].filter(Boolean).join(" · ")}
+                  </div>
+                </div>
+              ))}
+              {autoFillPreview.skipped.map((slot) => (
+                <div key={slot.shiftId} className="rounded-lg border border-dashed border-border/70 p-3 text-sm">
+                  <div className="font-medium">{AREA_LABELS[slot.area] ?? slot.area} · {shiftWorkerSlotLabel(slot.workerType)}</div>
+                  <div className="text-xs text-muted-foreground">{slot.reason}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setAutoFillPreviewOpen(false)} disabled={autoFillApplying}>
+            Cancel
+          </Button>
+          <Button onClick={handleApplyAutoFill} disabled={autoFillApplying || !autoFillPreview || autoFillPreview.proposals.length === 0}>
+            {autoFillApplying ? "Applying..." : "Apply recommended assignments"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

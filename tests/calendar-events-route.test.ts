@@ -85,7 +85,7 @@ describe("POST /api/calendar-events", () => {
     expect(createAuditEntry).toHaveBeenCalledOnce();
   });
 
-  it("persists a manual multi-day all-day event with the provided exclusive end", async () => {
+  it("persists a manual multi-day all-day event with canonical UTC-midnight date bounds", async () => {
     await POST(
       post({
         summary: "Football Media Day Shoot",
@@ -101,8 +101,8 @@ describe("POST /api/calendar-events", () => {
         data: expect.objectContaining({
           sourceId: null,
           summary: "Football Media Day Shoot",
-          startsAt: new Date("2026-07-07T07:00:00.000Z"),
-          endsAt: new Date("2026-07-09T07:00:00.000Z"),
+          startsAt: new Date("2026-07-07T00:00:00.000Z"),
+          endsAt: new Date("2026-07-09T00:00:00.000Z"),
           allDay: true,
         }),
       }),

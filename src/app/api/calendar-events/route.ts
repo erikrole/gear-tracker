@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { HttpError, ok, parsePagination } from "@/lib/http";
 import { createAuditEntry } from "@/lib/audit";
 import { assertDateOrder, parseOptionalDate } from "@/lib/api-dates";
+import { startOfTodayInAppTz, normalizeAllDayToUtcMidnight } from "@/lib/app-time";
 import type { Prisma } from "@prisma/client";
 
 function buildCalendarEventsWhere({
@@ -40,7 +41,10 @@ function buildCalendarEventsWhere({
   } else if (parsedEndDate) {
     where.startsAt = { lte: parsedEndDate };
   } else if (!includePast) {
-    where.endsAt = { gt: now };
+    // Keep every event that occurs today listed until local midnight — a 7pm
+    // game shouldn't drop off the schedule the moment it ends, and all-day
+    // events shouldn't vanish at 12:00am. Start of today in the app timezone.
+    where.endsAt = { gt: startOfTodayInAppTz(now) };
   }
 
   return where;
@@ -131,10 +135,17 @@ export const POST = withAuth(async (req, { user }) => {
   if (!startsAt) throw new HttpError(400, "Start date/time is required");
   if (!endsAt) throw new HttpError(400, "End date/time is required");
 
-  const start = new Date(startsAt);
-  const end = new Date(endsAt);
-  if (isNaN(start.getTime()) || isNaN(end.getTime())) throw new HttpError(400, "Invalid date");
-  if (end <= start) throw new HttpError(400, "End must be after start");
+  const rawStart = new Date(startsAt);
+  const rawEnd = new Date(endsAt);
+  if (isNaN(rawStart.getTime()) || isNaN(rawEnd.getTime())) throw new HttpError(400, "Invalid date");
+  if (rawEnd <= rawStart) throw new HttpError(400, "End must be after start");
+
+  const isAllDay = allDay === true;
+  // All-day events are dates, not instants — store them as canonical UTC
+  // midnight so every reader treats them the same regardless of timezone,
+  // instead of the local-midnight encoding the form historically sent.
+  const start = isAllDay ? normalizeAllDayToUtcMidnight(rawStart) : rawStart;
+  const end = isAllDay ? normalizeAllDayToUtcMidnight(rawEnd) : rawEnd;
 
   const event = await db.calendarEvent.create({
     data: {
@@ -143,7 +154,7 @@ export const POST = withAuth(async (req, { user }) => {
       summary: summary.trim(),
       startsAt: start,
       endsAt: end,
-      allDay: allDay === true,
+      allDay: isAllDay,
       locationId: locationId || null,
       sportCode: sportCode || null,
       isHome: sportCode ? (isHome ?? null) : null,

@@ -1,7 +1,22 @@
+import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
-import { AlertTriangleIcon, CalendarDaysIcon, CheckCircle2Icon, ClockIcon, Repeat2Icon, UserCheckIcon } from "lucide-react";
+import {
+  AlertTriangleIcon,
+  CalendarDaysIcon,
+  CheckCircle2Icon,
+  ClockIcon,
+  CloudAlertIcon,
+  PackageCheckIcon,
+  Repeat2Icon,
+  UserCheckIcon,
+  UsersIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-import { effectiveCallWindow } from "@/lib/shift-call-windows";
+import { effectiveCallWindow, isInheritedFullDayCallWindow } from "@/lib/shift-call-windows";
+import { formatCalendarEventDateRange } from "@/lib/calendar-event-dates";
+import type { ScheduleHealthSnapshot } from "@/lib/schedule-health-types";
+import type { ScheduleSourceSignal } from "@/lib/calendar-source-freshness";
+import type { ScheduleQueue } from "@/lib/schedule-queues";
 import type { CalendarEntry } from "./types";
 import { ACTIVE_STATUSES } from "./types";
 
@@ -10,6 +25,10 @@ type ScheduleReadinessProps = {
   filteredEntries: CalendarEntry[];
   currentUserId: string;
   openTradeCount: number;
+  health: ScheduleHealthSnapshot | null;
+  sourceSignal: ScheduleSourceSignal | null;
+  onShowQueue: (queue: ScheduleQueue) => void;
+  onOpenTradeBoard: () => void;
 };
 
 type ReadinessTone = "attention" | "critical" | "good" | "neutral";
@@ -21,6 +40,9 @@ type ReadinessItem = {
   icon: LucideIcon;
   tone: ReadinessTone;
   wide?: boolean;
+  actionLabel?: string;
+  onClick?: () => void;
+  href?: string;
 };
 
 function missingSlots(entry: CalendarEntry) {
@@ -61,17 +83,21 @@ function formatNextCall(entries: CalendarEntry[]) {
 
   if (!next) return "No upcoming calls";
 
-  const callSource = next.shifts.length > 0
-    ? next.shifts
-        .map((shift) => effectiveCallWindow(shift, shift.assignments.find((assignment) => ACTIVE_STATUSES.includes(assignment.status))))
-        .reduce((earliest, window) =>
-          new Date(window.startsAt).getTime() < new Date(earliest.startsAt).getTime()
-            ? window
-            : earliest,
-        )
-    : { startsAt: next.startsAt };
+  // The earliest *real* crew call window — i.e. one with an explicit call time,
+  // not an all-day event's inherited full-day window (which would otherwise
+  // render as a meaningless "12:00 AM").
+  const realCall = next.shifts
+    .map((shift) => effectiveCallWindow(shift, shift.assignments.find((assignment) => ACTIVE_STATUSES.includes(assignment.status))))
+    .filter((window) => !isInheritedFullDayCallWindow(window))
+    .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())[0];
 
-  return new Date(callSource.startsAt).toLocaleString("en-US", {
+  // No explicit call on an all-day event → say "All day", not midnight. Uses the
+  // all-day-aware (UTC) date formatter so the date doesn't shift by timezone.
+  if (!realCall && next.allDay) {
+    return `${formatCalendarEventDateRange(next, { includeYear: false })} · All day`;
+  }
+
+  return new Date(realCall ? realCall.startsAt : next.startsAt).toLocaleString("en-US", {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -85,15 +111,32 @@ export function ScheduleReadiness({
   filteredEntries,
   currentUserId,
   openTradeCount,
+  health,
+  sourceSignal,
+  onShowQueue,
+  onOpenTradeBoard,
 }: ScheduleReadinessProps) {
-  const openSlots = filteredEntries.reduce((sum, entry) => sum + missingSlots(entry), 0);
-  const needsCoverageEvents = filteredEntries.filter((entry) => missingSlots(entry) > 0).length;
-  const coveredEvents = filteredEntries.filter(
+  const fallbackOpenSlots = filteredEntries.reduce((sum, entry) => sum + missingSlots(entry), 0);
+  const fallbackNeedsCoverageEvents = filteredEntries.filter((entry) => missingSlots(entry) > 0).length;
+  const fallbackCoveredEvents = filteredEntries.filter(
     (entry) => entry.coverage && missingSlots(entry) === 0,
   ).length;
-  const myShiftCount = userActiveShiftCount(entries, currentUserId);
-  const myShiftEventCount = entries.filter((entry) => userHasActiveShift(entry, currentUserId)).length;
-  const nextCall = formatNextCall(filteredEntries);
+  const fallbackMyShiftCount = userActiveShiftCount(entries, currentUserId);
+  const fallbackMyShiftEventCount = entries.filter((entry) => userHasActiveShift(entry, currentUserId)).length;
+  const openSlots = health?.queues.openSlots.count ?? fallbackOpenSlots;
+  const needsCoverageEvents = health?.queues.openSlots.eventCount ?? fallbackNeedsCoverageEvents;
+  const coveredEvents = health?.queues.coveredEvents.count ?? fallbackCoveredEvents;
+  const totalVisibleEvents = health?.queues.coveredEvents.totalVisibleEvents ?? filteredEntries.length;
+  const myShiftCount = health?.queues.myShifts.count ?? fallbackMyShiftCount;
+  const myShiftEventCount = health?.queues.myShifts.eventCount ?? fallbackMyShiftEventCount;
+  const pendingRequests = health?.queues.pendingRequests.count ?? 0;
+  const conflicts = health?.queues.conflicts.count ?? 0;
+  const gearGaps = health?.queues.gearGaps.count ?? 0;
+  const tradeApprovals = health?.queues.tradeApprovals.count ?? 0;
+  const nextCall = health?.nextCall.label ?? formatNextCall(filteredEntries);
+  const sourceNeedsAttention = sourceSignal?.severity === "attention";
+  const hiddenAndArchivedCount = (health?.queues.hiddenEvents.count ?? 0) + (health?.queues.archivedEvents.count ?? 0);
+  const healthWarnings = health?.partialFailures.length ?? 0;
 
   const items: ReadinessItem[] = [
     {
@@ -103,6 +146,8 @@ export function ScheduleReadiness({
       icon: ClockIcon,
       tone: "neutral",
       wide: true,
+      href: health?.nextCall.eventId ? `/events/${health.nextCall.eventId}` : undefined,
+      actionLabel: health?.nextCall.eventId ? "Open next event" : undefined,
     },
     {
       label: "Staff needed",
@@ -110,11 +155,13 @@ export function ScheduleReadiness({
       detail: needsCoverageEvents > 0 ? `${needsCoverageEvents} events need staff` : "Staffing is set",
       icon: AlertTriangleIcon,
       tone: openSlots > 0 ? "critical" : "good",
+      onClick: () => onShowQueue("needs-staffing"),
+      actionLabel: "Open queue",
     },
     {
       label: "Covered events",
       value: coveredEvents,
-      detail: `${filteredEntries.length} in current view`,
+      detail: `${totalVisibleEvents} in current view`,
       icon: CheckCircle2Icon,
       tone: "good",
     },
@@ -126,31 +173,74 @@ export function ScheduleReadiness({
         : "Sign in required",
       icon: UserCheckIcon,
       tone: "neutral",
+      onClick: () => onShowQueue("my-calls-today"),
+      actionLabel: "Today",
     },
     {
       label: "Trade board",
-      value: openTradeCount,
-      detail: openTradeCount === 1 ? "Open trade" : "Open trades",
+      value: health?.queues.openTrades.count ?? openTradeCount,
+      detail: tradeApprovals > 0 ? `${tradeApprovals} awaiting approval` : "Open trades",
       icon: Repeat2Icon,
-      tone: openTradeCount > 0 ? "attention" : "neutral",
+      tone: (health?.queues.openTrades.count ?? openTradeCount) > 0 || tradeApprovals > 0 ? "attention" : "neutral",
+      onClick: tradeApprovals > 0 ? () => onShowQueue("trade-approval") : onOpenTradeBoard,
+      actionLabel: tradeApprovals > 0 ? "Review" : "Open board",
+    },
+    {
+      label: "Requests",
+      value: pendingRequests,
+      detail: pendingRequests === 1 ? "Pending assignment request" : "Pending assignment requests",
+      icon: UsersIcon,
+      tone: pendingRequests > 0 ? "attention" : "neutral",
+      onClick: () => onShowQueue("pending-requests"),
+      actionLabel: "Open queue",
+    },
+    {
+      label: "Conflicts",
+      value: conflicts,
+      detail: conflicts === 1 ? "Assignment conflict" : "Assignment conflicts",
+      icon: AlertTriangleIcon,
+      tone: conflicts > 0 ? "critical" : "good",
+      onClick: () => onShowQueue("conflicts"),
+      actionLabel: "Open queue",
+    },
+    {
+      label: "Gear gaps",
+      value: gearGaps,
+      detail: gearGaps === 1 ? "Assigned worker without linked gear" : "Assigned workers without linked gear",
+      icon: PackageCheckIcon,
+      tone: gearGaps > 0 ? "attention" : "good",
+      onClick: () => onShowQueue("gear-gaps"),
+      actionLabel: "Open queue",
+    },
+    {
+      label: "Source health",
+      value: sourceNeedsAttention ? "Check" : hiddenAndArchivedCount,
+      detail: sourceNeedsAttention
+        ? sourceSignal.label
+        : hiddenAndArchivedCount > 0
+          ? "Hidden or archived events"
+          : "Sources and visibility look clear",
+      icon: CloudAlertIcon,
+      tone: sourceNeedsAttention || hiddenAndArchivedCount > 0 || healthWarnings > 0 ? "attention" : "good",
+      onClick: sourceNeedsAttention ? () => onShowQueue("stale-source") : undefined,
+      actionLabel: sourceNeedsAttention ? "Open queue" : undefined,
     },
   ];
 
   return (
-    <div className="mb-4 grid grid-cols-2 gap-2 xl:grid-cols-[minmax(260px,1.35fr)_repeat(4,minmax(0,1fr))]">
+    <div className="mb-4 grid grid-cols-2 gap-2 lg:grid-cols-4 2xl:grid-cols-[minmax(260px,1.35fr)_repeat(8,minmax(0,1fr))]">
       {items.map((item) => {
         const Icon = item.icon;
-        return (
-          <div
-            key={item.label}
-            className={cn(
-              "min-h-[74px] rounded-lg border border-border/60 bg-card/80 px-3 py-2.5 shadow-sm transition-[background-color,border-color]",
-              item.tone === "critical" && "border-[var(--red-text)]/20 bg-[var(--red-bg)]/20",
-              item.tone === "attention" && "border-[var(--orange-text)]/20 bg-[var(--orange-bg)]/20",
-              item.tone === "good" && "border-[var(--green-text)]/15",
-              item.wide && "col-span-2 border-primary/20 bg-primary/5 xl:col-span-1",
-            )}
-          >
+        const className = cn(
+          "group min-h-[86px] rounded-lg border border-border/60 bg-card/80 px-3 py-2.5 text-left shadow-sm transition-[background-color,border-color,box-shadow,transform]",
+          (item.onClick || item.href) && "cursor-pointer hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          item.tone === "critical" && "border-[var(--red-text)]/20 bg-[var(--red-bg)]/20",
+          item.tone === "attention" && "border-[var(--orange-text)]/20 bg-[var(--orange-bg)]/20",
+          item.tone === "good" && "border-[var(--green-text)]/15",
+          item.wide && "col-span-2 border-primary/20 bg-primary/5 2xl:col-span-1",
+        );
+        const content = (
+          <>
             <div className="mb-1.5 flex items-center justify-between gap-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                 {item.label}
@@ -175,14 +265,41 @@ export function ScheduleReadiness({
                 {item.value}
               </span>
             </div>
-            <div className="mt-1 truncate text-xs text-muted-foreground">
+            <div className="mt-1 line-clamp-2 min-h-8 text-xs leading-4 text-muted-foreground">
               {item.detail}
             </div>
+            {item.actionLabel && (
+              <div className="mt-2 text-[10px] font-semibold uppercase tracking-wide text-primary opacity-80 transition-opacity group-hover:opacity-100">
+                {item.actionLabel}
+              </div>
+            )}
+          </>
+        );
+
+        if (item.href) {
+          return (
+            <Link key={item.label} href={item.href} className={className}>
+              {content}
+            </Link>
+          );
+        }
+
+        if (item.onClick) {
+          return (
+            <button key={item.label} type="button" className={className} onClick={item.onClick}>
+              {content}
+            </button>
+          );
+        }
+
+        return (
+          <div key={item.label} className={className}>
+            {content}
           </div>
         );
       })}
       {filteredEntries.length === 0 && entries.length > 0 && (
-        <div className="col-span-2 rounded-lg border border-dashed border-border/70 bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground 2xl:col-span-5">
+        <div className="col-span-2 rounded-lg border border-dashed border-border/70 bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground lg:col-span-4 2xl:col-span-9">
           <CalendarDaysIcon className="mr-1 inline size-3.5" />
           Current filters hide all schedule entries.
         </div>

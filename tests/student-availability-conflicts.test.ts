@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   availabilityConflictNote,
+  evaluateAvailabilityPreferences,
   findAvailabilityConflict,
 } from "@/lib/student-availability";
 import { effectiveCallWindow } from "@/lib/shift-call-windows";
@@ -62,6 +63,68 @@ describe("student availability conflict helpers", () => {
       startsAt: new Date("2026-10-07T15:15:00.000Z"),
       endsAt: new Date("2026-10-07T15:45:00.000Z"),
     })).toBeNull();
+  });
+
+  it("treats prefer and dislike as preference signals without blocking", () => {
+    const evaluation = evaluateAvailabilityPreferences([
+      {
+        kind: "AD_HOC",
+        intent: "PREFER",
+        status: "APPROVED",
+        date: "2026-10-06",
+        startsAt: "10:00",
+        endsAt: "11:00",
+        label: "Tuesday mornings",
+      },
+      {
+        kind: "AD_HOC",
+        intent: "DISLIKE",
+        status: "APPROVED",
+        date: "2026-10-06",
+        startsAt: "10:00",
+        endsAt: "11:00",
+        label: "Lab prep",
+      },
+    ], {
+      startsAt: new Date("2026-10-06T15:15:00.000Z"),
+      endsAt: new Date("2026-10-06T15:45:00.000Z"),
+    });
+
+    expect(evaluation.blocking).toBeNull();
+    expect(evaluation.preferred?.note).toBe("Prefers Tuesday mornings (10:00-11:00)");
+    expect(evaluation.advisory?.note).toBe("Dislikes Lab prep (10:00-11:00)");
+  });
+
+  it("blocks only approved time off and ignores denied time off", () => {
+    const evaluation = evaluateAvailabilityPreferences([
+      {
+        kind: "AD_HOC",
+        intent: "TIME_OFF",
+        status: "DENIED",
+        date: "2026-10-06",
+        startsAt: "10:00",
+        endsAt: "11:00",
+        label: "Denied trip",
+      },
+      {
+        kind: "AD_HOC",
+        intent: "TIME_OFF",
+        status: "APPROVED",
+        date: "2026-10-06",
+        startsAt: "10:00",
+        endsAt: "11:00",
+        label: "Family trip",
+      },
+    ], {
+      startsAt: new Date("2026-10-06T15:15:00.000Z"),
+      endsAt: new Date("2026-10-06T15:45:00.000Z"),
+    });
+
+    expect(evaluation.blocking?.note).toBe("Approved time off: Family trip (10:00-11:00)");
+    expect(availabilityConflictNote(evaluation.conflicts.map((conflict) => conflict.block), {
+      startsAt: new Date("2026-10-06T15:15:00.000Z"),
+      endsAt: new Date("2026-10-06T15:45:00.000Z"),
+    })).toBe("Approved time off: Family trip (10:00-11:00)");
   });
 
   it("keeps call-window precedence unchanged for conflict checks", () => {

@@ -17,11 +17,15 @@ describe("schedule assign source wiring", () => {
     expect(assignmentGrid).toContain("onRetryUsers: () => void");
     expect(assignmentCell).toContain("loadError={usersLoadError}");
     expect(assignmentCell).toContain("onRetry={onRetryUsers}");
+    expect(assignmentCell).toContain("/api/shifts/${shiftId}/candidate-scores");
+    expect(assignmentCell).toContain("setConflictMap(Object.fromEntries(");
 
     expect(picker).toContain("loadError?: false | \"network\" | \"server\"");
     expect(picker).toContain("Could not load assignable users. Retry before assigning this slot.");
     expect(picker).toContain("Retry users");
     expect(picker).toContain("filteredUsers.length === 0");
+    expect(picker).toContain("SCORE_BUCKET_LABELS");
+    expect(picker).toContain("Scoring candidates...");
   });
 
   it("gives assignment toolbar filters stable rendered metadata", () => {
@@ -33,5 +37,53 @@ describe("schedule assign source wiring", () => {
     expect(assignPage).toContain('id="assignment-area-filter"');
     expect(assignPage).toContain('name="assignmentAreaFilter"');
     expect(assignPage).toContain('aria-label="Assignment area filter"');
+  });
+
+  it("keeps auto-fill preview-first before assignment mutation", () => {
+    const eventCrew = readFileSync("src/app/(app)/events/[id]/_components/ShiftCoverageCard.tsx", "utf8");
+    const shiftDetail = readFileSync("src/components/ShiftDetailPanel.tsx", "utf8");
+
+    expect(eventCrew).toContain("/api/shift-groups/${groupId}/auto-assign/preview");
+    expect(eventCrew).toContain("Apply recommended assignments");
+    expect(eventCrew).toContain("Review the proposed crew changes before applying them.");
+
+    expect(shiftDetail).toContain("/api/shift-groups/${group.id}/auto-assign/preview");
+    expect(shiftDetail).toContain("Apply recommended assignments");
+    expect(shiftDetail).toContain("Nothing changes until you apply.");
+  });
+
+  it("keeps publish and acknowledgement routes permissioned and audited", () => {
+    const publishRoute = readFileSync("src/app/api/shift-groups/[id]/publish/route.ts", "utf8");
+    const acknowledgeRoute = readFileSync("src/app/api/shift-assignments/[id]/acknowledge/route.ts", "utf8");
+
+    expect(publishRoute).toContain('requirePermission(user.role, "shift", "manage")');
+    expect(publishRoute).toContain("publishShiftGroup(params.id, user.id)");
+    expect(publishRoute).toContain("createAuditEntry");
+    expect(publishRoute).toContain('"shift_group_republished"');
+    expect(publishRoute).toContain('"shift_group_published"');
+
+    expect(acknowledgeRoute).toContain("acknowledgeShiftAssignment(params.id");
+    expect(acknowledgeRoute).toContain("createAuditEntry");
+    expect(acknowledgeRoute).toContain('"shift_assignment_acknowledged"');
+    expect(acknowledgeRoute).toContain("acknowledgedAt: result.after.acknowledgedAt");
+    expect(acknowledgeRoute).toContain("shiftGroupId: result.shiftGroupId");
+  });
+
+  it("routes assignment notifications through the publication-aware schedule policy", () => {
+    const assignRoute = readFileSync("src/app/api/shift-assignments/route.ts", "utf8");
+    const approveRoute = readFileSync("src/app/api/shift-assignments/[id]/approve/route.ts", "utf8");
+    const assignmentRoute = readFileSync("src/app/api/shift-assignments/[id]/route.ts", "utf8");
+    const shiftRoute = readFileSync("src/app/api/shifts/[id]/route.ts", "utf8");
+    const publishRoute = readFileSync("src/app/api/shift-groups/[id]/publish/route.ts", "utf8");
+
+    expect(assignRoute).toContain("dispatchScheduleAssignmentNotifications(assignment.id, \"assigned\")");
+    expect(assignRoute).not.toContain("createShiftGearUpNotification(assignment.id)");
+    expect(approveRoute).toContain("dispatchScheduleAssignmentNotifications(assignment.id, \"approved\")");
+    expect(assignmentRoute).toContain("existing.shift?.shiftGroup?.publishedAt");
+    expect(assignmentRoute).toContain("data.acknowledgedAt = null");
+    expect(shiftRoute).toContain("existing.shiftGroup.publishedAt");
+    expect(shiftRoute).toContain("acknowledgedById: null");
+    expect(publishRoute).toContain("createPublishedShiftGroupNotifications(params.id)");
+    expect(publishRoute).toContain("if (!result.before.publishedAt)");
   });
 });

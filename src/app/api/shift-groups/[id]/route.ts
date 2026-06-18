@@ -5,6 +5,7 @@ import { ok, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { updateShiftGroupSchema } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
+import { getSchedulePublicationState } from "@/lib/services/schedule-publication";
 
 export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
   requirePermission(user.role, "shift", "view");
@@ -30,7 +31,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
   });
 
   if (!group) throw new HttpError(404, "Shift group not found");
-  return ok({ data: group });
+  return ok({ data: { ...group, publication: getSchedulePublicationState(group) } });
 });
 
 export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
@@ -51,7 +52,21 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     const result = await tx.shiftGroup.update({
       where: { id },
       data: patchData,
-      include: { event: true, shifts: true },
+      include: {
+        event: true,
+        shifts: {
+          include: {
+            assignments: {
+              include: {
+                user: { select: { id: true, name: true, email: true, role: true, primaryArea: true } },
+                assigner: { select: { id: true, name: true } },
+              },
+              orderBy: { createdAt: "desc" },
+            },
+          },
+          orderBy: [{ area: "asc" }, { workerType: "asc" }],
+        },
+      },
     });
 
     return {
@@ -70,5 +85,5 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     after: { isPremier: updated.isPremier, notes: updated.notes },
   });
 
-  return ok({ data: updated });
+  return ok({ data: { ...updated, publication: getSchedulePublicationState(updated) } });
 });

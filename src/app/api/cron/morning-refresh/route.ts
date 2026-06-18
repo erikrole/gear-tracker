@@ -8,6 +8,7 @@ import { expireOpenTrades } from "@/lib/services/shift-trades";
 import { expirePendingPickupCheckouts } from "@/lib/services/pending-pickup-expiry";
 import { pollFirmwareWatchTargets } from "@/lib/services/firmware-watch";
 import { DEFAULT_RESERVATION_RULES } from "@/lib/services/reservation-rules";
+import { getScheduleAutomationDigest } from "@/lib/services/schedule-automation";
 
 function maintenanceValue<T>(
   result: PromiseSettledResult<T>,
@@ -171,6 +172,24 @@ export const GET = withCron(async () => {
     "firmwareWatch",
     maintenanceFailures,
   );
+  const automationDigest = await getScheduleAutomationDigest({
+    userId: "system",
+    includePast: false,
+    includeArchived: false,
+    sportCode: null,
+    now,
+    maintenance: {
+      syncResults,
+      shiftGroupsArchived: archived,
+      eventsArchived,
+      tradesExpired,
+      pendingPickupsExpired: pendingPickups.expired,
+    },
+  }).catch((err) => {
+    console.error("morning-refresh: schedule automation digest failed", err);
+    maintenanceFailures.push("scheduleAutomation");
+    return null;
+  });
 
   return NextResponse.json({
     ok: maintenanceFailures.length === 0,
@@ -182,6 +201,7 @@ export const GET = withCron(async () => {
     tradesExpired,
     pendingPickups,
     firmwareWatch,
+    scheduleAutomation: automationDigest,
     maintenanceFailures,
   });
 });

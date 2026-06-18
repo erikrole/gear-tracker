@@ -7,7 +7,7 @@ import { createAuditEntry } from "@/lib/audit";
 import { updateShiftAssignmentSchema } from "@/lib/validation";
 import { assertCallTimePair, assertDateOrder, parseOptionalDate } from "@/lib/api-dates";
 import { createShiftScheduleNotification } from "@/lib/services/notifications";
-import { availabilityConflictNote } from "@/lib/student-availability";
+import { evaluateAvailabilityPreferences } from "@/lib/student-availability";
 
 export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "shift_assignment", "assign");
@@ -17,13 +17,19 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   const existing = await db.shiftAssignment.findUnique({
     where: { id },
     include: {
-      shift: true,
+      shift: {
+        include: {
+          shiftGroup: { select: { publishedAt: true } },
+        },
+      },
       user: {
         select: {
           role: true,
           availabilityBlocks: {
             select: {
               kind: true,
+              intent: true,
+              status: true,
               dayOfWeek: true,
               date: true,
               startsAt: true,
@@ -61,14 +67,25 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     const effectiveEndsAt = (body.callEndsAt !== undefined ? callEndsAt : existing.callEndsAt)
       ?? existing.shift.callEndsAt
       ?? existing.shift.endsAt;
-    const conflictNote = existing.user.role === "STUDENT"
-      ? availabilityConflictNote(existing.user.availabilityBlocks, {
-          startsAt: effectiveStartsAt,
-          endsAt: effectiveEndsAt,
-        })
+    const availability = existing.user.role === "STUDENT"
+      ? evaluateAvailabilityPreferences(existing.user.availabilityBlocks, {
+        startsAt: effectiveStartsAt,
+        endsAt: effectiveEndsAt,
+      })
       : null;
+    if (availability?.blocking) {
+      throw new HttpError(409, availability.blocking.note);
+    }
+    const conflictNote = availability?.advisory?.note ?? null;
     data.hasConflict = Boolean(conflictNote);
     data.conflictNote = conflictNote;
+  }
+  const callContextChanged = body.callStartsAt !== undefined
+    || body.callEndsAt !== undefined
+    || body.callNote !== undefined;
+  if (callContextChanged && existing.shift?.shiftGroup?.publishedAt) {
+    data.acknowledgedAt = null;
+    data.acknowledgedById = null;
   }
 
   const assignment = await db.shiftAssignment.update({ where: { id }, data });
@@ -91,7 +108,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     },
   });
 
-  if (body.callStartsAt !== undefined || body.callEndsAt !== undefined || body.callNote !== undefined) {
+  if (callContextChanged) {
     createShiftScheduleNotification(id, "personal_call_time_changed").catch(() => {});
   }
 

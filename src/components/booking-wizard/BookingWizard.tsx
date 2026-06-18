@@ -145,6 +145,7 @@ export function BookingWizard() {
   const initialSportCode = searchParams.get("sportCode") || undefined;
   const initialDraftId = searchParams.get("draftId") || null;
   const initialRequesterUserId = searchParams.get("requesterUserId") || undefined;
+  const initialShiftAssignmentId = searchParams.get("shiftAssignmentId") || undefined;
 
   // ── Form options ──
   const { data: formOpts, isError: formOptsError, refetch: refetchFormOpts } = useFormOptions();
@@ -268,7 +269,7 @@ export function BookingWizard() {
   const step1Dispatch = useCallback((action: FormAction) => {
     setCreateError("");
     dispatch(action);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Equipment requirement check ──
   const unsatisfiedRequirements = useMemo(() => {
@@ -366,6 +367,7 @@ export function BookingWizard() {
 
     if (kitId) payload.kitId = kitId;
     if (form.notes.trim()) payload.notes = form.notes.trim();
+    if (initialShiftAssignmentId) payload.shiftAssignmentId = initialShiftAssignmentId;
     if (form.selectedEvents.length > 0) {
       // Multi-event contract (D-031): client always sends `eventIds[]` sorted chronologically.
       // Server picks ordinal 0 as the canonical Booking.eventId and writes a BookingEvent

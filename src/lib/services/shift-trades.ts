@@ -4,8 +4,10 @@ import { HttpError } from "@/lib/http";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 import { checkTimeConflict } from "@/lib/services/shift-assignments";
 import { sendShiftTradeEmail, type ShiftTradeEmail } from "@/lib/services/shift-trade-emails";
+import { sendPushToUser } from "@/lib/services/notifications";
+import { scheduleNotificationPayload } from "@/lib/services/schedule-notification-policy";
 import { badges } from "@/lib/badges";
-import { availabilityConflictNote } from "@/lib/student-availability";
+import { evaluateAvailabilityPreferences } from "@/lib/student-availability";
 
 function assertShiftNotStarted(startsAt: Date) {
   if (startsAt <= new Date()) {
@@ -108,6 +110,7 @@ export async function postTrade(
  */
 export async function claimTrade(tradeId: string, userId: string) {
   const emailJobs: ShiftTradeEmail[] = [];
+  const pushJobs: Array<{ userId: string; title: string; body: string; payload: Record<string, unknown> }> = [];
   const badgeJobs: Array<Parameters<typeof badges.onTradeCompleted>[0]> = [];
 
   const result = await db.$transaction(async (tx) => {
@@ -180,8 +183,24 @@ export async function claimTrade(tradeId: string, userId: string) {
         title,
         body,
         `trade_claimed_${tradeId}`,
-        { tradeId },
+        scheduleNotificationPayload({
+          tradeId,
+          assignmentId: updated.shiftAssignment.id,
+          shiftId: updated.shiftAssignment.shift.id,
+          eventId: updated.shiftAssignment.shift.shiftGroup.event.id,
+        }),
       );
+      pushJobs.push({
+        userId: trade.postedByUserId,
+        title,
+        body,
+        payload: scheduleNotificationPayload({
+          tradeId,
+          assignmentId: updated.shiftAssignment.id,
+          shiftId: updated.shiftAssignment.shift.id,
+          eventId: updated.shiftAssignment.shift.shiftGroup.event.id,
+        }),
+      });
       emailJobs.push({
         userId: trade.postedByUserId,
         title,
@@ -229,8 +248,24 @@ export async function claimTrade(tradeId: string, userId: string) {
       title,
       body,
       `trade_completed_${tradeId}`,
-      { tradeId },
+      scheduleNotificationPayload({
+        tradeId,
+        assignmentId: completed.shiftAssignment.id,
+        shiftId: completed.shiftAssignment.shift.id,
+        eventId: completed.shiftAssignment.shift.shiftGroup.event.id,
+      }),
     );
+    pushJobs.push({
+      userId: trade.postedByUserId,
+      title,
+      body,
+      payload: scheduleNotificationPayload({
+        tradeId,
+        assignmentId: completed.shiftAssignment.id,
+        shiftId: completed.shiftAssignment.shift.id,
+        eventId: completed.shiftAssignment.shift.shiftGroup.event.id,
+      }),
+    });
     emailJobs.push({
       userId: trade.postedByUserId,
       title,
@@ -243,6 +278,14 @@ export async function claimTrade(tradeId: string, userId: string) {
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
   await Promise.all(badgeJobs.map((event) => badges.onTradeCompleted(event)));
+  await Promise.allSettled(pushJobs.map((job) =>
+    sendPushToUser(job.userId, {
+      title: job.title,
+      body: job.body,
+      payload: job.payload,
+      category: "trade",
+    }),
+  ));
   await sendShiftTradeEmails(emailJobs);
   return result;
 }
@@ -252,6 +295,7 @@ export async function claimTrade(tradeId: string, userId: string) {
  */
 export async function approveTrade(tradeId: string) {
   const emailJobs: ShiftTradeEmail[] = [];
+  const pushJobs: Array<{ userId: string; title: string; body: string; payload: Record<string, unknown> }> = [];
   const badgeJobs: Array<Parameters<typeof badges.onTradeCompleted>[0]> = [];
 
   const result = await db.$transaction(async (tx) => {
@@ -261,7 +305,7 @@ export async function approveTrade(tradeId: string) {
         shiftAssignment: {
           include: {
             shift: {
-              include: { shiftGroup: { include: { event: { select: { summary: true } } } } },
+              include: { shiftGroup: { include: { event: { select: { id: true, summary: true } } } } },
             },
           },
         },
@@ -297,8 +341,24 @@ export async function approveTrade(tradeId: string) {
       title,
       body,
       `trade_approved_${tradeId}`,
-      { tradeId },
+      scheduleNotificationPayload({
+        tradeId,
+        assignmentId: trade.shiftAssignment.id,
+        shiftId: trade.shiftAssignment.shift.id,
+        eventId: trade.shiftAssignment.shift.shiftGroup.event.id,
+      }),
     );
+    pushJobs.push({
+      userId: trade.claimedByUserId,
+      title,
+      body,
+      payload: scheduleNotificationPayload({
+        tradeId,
+        assignmentId: trade.shiftAssignment.id,
+        shiftId: trade.shiftAssignment.shift.id,
+        eventId: trade.shiftAssignment.shift.shiftGroup.event.id,
+      }),
+    });
     emailJobs.push({
       userId: trade.claimedByUserId,
       title,
@@ -311,6 +371,14 @@ export async function approveTrade(tradeId: string) {
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
   await Promise.all(badgeJobs.map((event) => badges.onTradeCompleted(event)));
+  await Promise.allSettled(pushJobs.map((job) =>
+    sendPushToUser(job.userId, {
+      title: job.title,
+      body: job.body,
+      payload: job.payload,
+      category: "trade",
+    }),
+  ));
   await sendShiftTradeEmails(emailJobs);
   return result;
 }
@@ -320,6 +388,7 @@ export async function approveTrade(tradeId: string) {
  */
 export async function declineTrade(tradeId: string) {
   const emailJobs: ShiftTradeEmail[] = [];
+  const pushJobs: Array<{ userId: string; title: string; body: string; payload: Record<string, unknown> }> = [];
 
   const result = await db.$transaction(async (tx) => {
     const trade = await tx.shiftTrade.findUnique({
@@ -328,7 +397,7 @@ export async function declineTrade(tradeId: string) {
         shiftAssignment: {
           include: {
             shift: {
-              include: { shiftGroup: { include: { event: { select: { summary: true } } } } },
+              include: { shiftGroup: { include: { event: { select: { id: true, summary: true } } } } },
             },
           },
         },
@@ -361,8 +430,24 @@ export async function declineTrade(tradeId: string) {
         title,
         body,
         `trade_declined_${tradeId}_${Date.now()}`,
-        { tradeId },
+        scheduleNotificationPayload({
+          tradeId,
+          assignmentId: trade.shiftAssignment.id,
+          shiftId: trade.shiftAssignment.shift.id,
+          eventId: trade.shiftAssignment.shift.shiftGroup.event.id,
+        }),
       );
+      pushJobs.push({
+        userId: trade.claimedByUserId,
+        title,
+        body,
+        payload: scheduleNotificationPayload({
+          tradeId,
+          assignmentId: trade.shiftAssignment.id,
+          shiftId: trade.shiftAssignment.shift.id,
+          eventId: trade.shiftAssignment.shift.shiftGroup.event.id,
+        }),
+      });
       emailJobs.push({
         userId: trade.claimedByUserId,
         title,
@@ -375,6 +460,14 @@ export async function declineTrade(tradeId: string) {
     return updated;
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
+  await Promise.allSettled(pushJobs.map((job) =>
+    sendPushToUser(job.userId, {
+      title: job.title,
+      body: job.body,
+      payload: job.payload,
+      category: "trade",
+    }),
+  ));
   await sendShiftTradeEmails(emailJobs);
   return result;
 }
@@ -508,7 +601,7 @@ export async function expireOpenTrades(): Promise<{ expired: number }> {
             select: {
               area: true,
               shiftGroup: {
-                select: { event: { select: { summary: true } } },
+                select: { event: { select: { id: true, summary: true } } },
               },
             },
           },
@@ -537,7 +630,10 @@ export async function expireOpenTrades(): Promise<{ expired: number }> {
         body: `Your trade for ${t.shiftAssignment.shift.area} at ${
           t.shiftAssignment.shift.shiftGroup?.event?.summary ?? "the event"
         } expired — the shift has passed.`,
-        payload: JSON.parse(JSON.stringify({ tradeId: t.id })),
+        payload: JSON.parse(JSON.stringify(scheduleNotificationPayload({
+          tradeId: t.id,
+          eventId: t.shiftAssignment.shift.shiftGroup.event.id,
+        }))),
         channel: "IN_APP" as const,
         sentAt: now,
         dedupeKey: `trade_expired_${t.id}`,
@@ -575,6 +671,8 @@ async function executeSwap(tx: Prisma.TransactionClient, assignmentId: string, t
         availabilityBlocks: {
           select: {
             kind: true,
+            intent: true,
+            status: true,
             dayOfWeek: true,
             date: true,
             startsAt: true,
@@ -587,8 +685,13 @@ async function executeSwap(tx: Prisma.TransactionClient, assignmentId: string, t
         },
       },
     });
-    conflictNote = claimer ? availabilityConflictNote(claimer.availabilityBlocks, effectiveWindow) : null;
-  } catch {
+    if (claimer) {
+      const availability = evaluateAvailabilityPreferences(claimer.availabilityBlocks, effectiveWindow);
+      if (availability.blocking) throw new HttpError(409, availability.blocking.note);
+      conflictNote = availability.advisory?.note ?? null;
+    }
+  } catch (error) {
+    if (error instanceof HttpError) throw error;
     // Non-fatal — proceed without conflict flag if lookup fails
   }
 

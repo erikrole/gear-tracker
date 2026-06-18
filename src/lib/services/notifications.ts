@@ -4,6 +4,13 @@ import { sendPush } from "@/lib/push/apns";
 import { loadUserPrefs, shouldDeliverEmail, shouldDeliverPush, shouldDeliverCategory, type NotificationCategory } from "@/lib/services/notification-prefs";
 import { loadCheckoutPolicies } from "@/lib/services/checkout-policies";
 import { shiftWorkerLabel } from "@/lib/shift-display";
+import {
+  categoryForScheduleNotificationType,
+  scheduleNotificationPayload,
+  shouldNotifyGearPrep,
+  shouldNotifyWorkerForScheduleEvent,
+  type GearPrepNotificationSource,
+} from "@/lib/services/schedule-notification-policy";
 
 export async function sendPushToUser(
   userId: string,
@@ -277,7 +284,10 @@ export async function processOverdueNotifications(): Promise<{
  * Creates a "Gear Up" notification for a student when they are assigned/approved for a shift.
  * Skips if a notification for this assignment already exists (deduped).
  */
-export async function createShiftGearUpNotification(assignmentId: string): Promise<void> {
+export async function createShiftGearUpNotification(
+  assignmentId: string,
+  opts: { source?: GearPrepNotificationSource } = {},
+): Promise<void> {
   const assignment = await db.shiftAssignment.findUnique({
     where: { id: assignmentId },
     include: {
@@ -307,6 +317,9 @@ export async function createShiftGearUpNotification(assignmentId: string): Promi
   if (!assignment) return;
 
   const event = assignment.shift.shiftGroup.event;
+  const source = opts.source ?? "manual_nudge";
+  if (!shouldNotifyGearPrep({ source, publishedAt: assignment.shift.shiftGroup.publishedAt })) return;
+
   const dedupeKey = `shift:${assignmentId}:gear_up`;
 
   const existing = await db.notification.findUnique({ where: { dedupeKey } });
@@ -325,11 +338,11 @@ export async function createShiftGearUpNotification(assignmentId: string): Promi
 
   const title = "Gear up for your shift";
   const body = `You're assigned to ${assignment.shift.area} for ${eventTitle} at ${shiftTime}. Reserve your gear now.`;
-  const pushPayload = {
+  const pushPayload = scheduleNotificationPayload({
     assignmentId: assignment.id,
     shiftId: assignment.shiftId,
     eventId: event.id,
-  };
+  });
 
   try {
     await db.notification.create({
@@ -339,9 +352,7 @@ export async function createShiftGearUpNotification(assignmentId: string): Promi
         title,
         body,
         payload: {
-          assignmentId: assignment.id,
-          shiftId: assignment.shiftId,
-          eventId: event.id,
+          ...pushPayload,
           eventSummary: event.summary,
           area: assignment.shift.area,
           startsAt: assignment.shift.startsAt.toISOString(),
@@ -354,7 +365,12 @@ export async function createShiftGearUpNotification(assignmentId: string): Promi
       },
     });
 
-    void sendPushToUser(assignment.userId, { title, body, payload: pushPayload });
+    void sendPushToUser(assignment.userId, {
+      title,
+      body,
+      payload: pushPayload,
+      category: categoryForScheduleNotificationType("shift_gear_up") ?? undefined,
+    });
 
     // Also send email notification
     if (assignment.user.email) {
@@ -367,7 +383,7 @@ export async function createShiftGearUpNotification(assignmentId: string): Promi
           bookingTitle: event.summary,
           dueAt: assignment.shift.startsAt.toISOString(),
         }),
-      });
+      }, categoryForScheduleNotificationType("shift_gear_up") ?? undefined);
     }
   } catch (err) {
     console.error(`[NOTIFY] Failed to create shift gear-up notification for assignment ${assignmentId}:`, err);
@@ -470,6 +486,10 @@ export async function createShiftScheduleNotification(
   });
 
   if (!assignment) return;
+  if (!shouldNotifyWorkerForScheduleEvent({
+    event,
+    publishedAt: assignment.shift.shiftGroup.publishedAt,
+  })) return;
 
   const calendarEvent = assignment.shift.shiftGroup.event;
   const eventTitle = calendarEvent.opponent
@@ -487,11 +507,12 @@ export async function createShiftScheduleNotification(
     callNote: assignment.callNote,
   });
   const dedupeKey = `shift:${assignmentId}:${copy.type}:${callStartsAt.toISOString()}:${callEndsAt.toISOString()}:${assignment.callNote ?? ""}`;
-  const pushPayload = {
+  const pushPayload = scheduleNotificationPayload({
     assignmentId: assignment.id,
     shiftId: assignment.shiftId,
     eventId: calendarEvent.id,
-  };
+  });
+  const category = categoryForScheduleNotificationType(copy.type) ?? undefined;
 
   const existing = await db.notification.findUnique({ where: { dedupeKey } });
   if (existing) return;
@@ -504,9 +525,7 @@ export async function createShiftScheduleNotification(
         title: copy.title,
         body: copy.body,
         payload: {
-          assignmentId: assignment.id,
-          shiftId: assignment.shiftId,
-          eventId: calendarEvent.id,
+          ...pushPayload,
           eventSummary: calendarEvent.summary,
           area: assignment.shift.area,
           workerType: shiftWorkerLabel(assignment.shift.workerType),
@@ -522,7 +541,12 @@ export async function createShiftScheduleNotification(
       },
     });
 
-    void sendPushToUser(assignment.userId, { title: copy.title, body: copy.body, payload: pushPayload });
+    void sendPushToUser(assignment.userId, {
+      title: copy.title,
+      body: copy.body,
+      payload: pushPayload,
+      category,
+    });
 
     if (assignment.user.email) {
       await sendEmailToUser(assignment.userId, {
@@ -534,11 +558,52 @@ export async function createShiftScheduleNotification(
           bookingTitle: calendarEvent.summary,
           dueAt: callStartsAt.toISOString(),
         }),
-      });
+      }, category);
     }
   } catch (err) {
     console.error(`[NOTIFY] Failed to create shift schedule notification for assignment ${assignmentId}:`, err);
   }
+}
+
+export async function dispatchScheduleAssignmentNotifications(
+  assignmentId: string,
+  event: ShiftScheduleEvent,
+): Promise<void> {
+  await Promise.allSettled([
+    createShiftGearUpNotification(assignmentId, { source: "assignment" }),
+    createShiftScheduleNotification(assignmentId, event),
+  ]);
+}
+
+export async function createPublishedShiftGroupNotifications(shiftGroupId: string): Promise<void> {
+  const group = await db.shiftGroup.findUnique({
+    where: { id: shiftGroupId },
+    select: {
+      publishedAt: true,
+      shifts: {
+        select: {
+          assignments: {
+            where: { status: { in: ["DIRECT_ASSIGNED", "APPROVED"] } },
+            select: { id: true, status: true },
+          },
+        },
+      },
+    },
+  });
+
+  if (!group?.publishedAt) return;
+  const assignmentEvents = group.shifts.flatMap((shift) =>
+    shift.assignments.map((assignment) => ({
+      id: assignment.id,
+      event: (assignment.status === "APPROVED" ? "approved" : "assigned") as ShiftScheduleEvent,
+    })),
+  );
+
+  await Promise.allSettled(
+    assignmentEvents.map((assignment) =>
+      dispatchScheduleAssignmentNotifications(assignment.id, assignment.event),
+    ),
+  );
 }
 
 type ReservationLifecycleEvent = "booked" | "pickup_ready" | "cancelled";

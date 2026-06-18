@@ -149,6 +149,8 @@ model User {
   audits               AuditLog[]                 @relation("AuditActor")
   shiftAssignments     ShiftAssignment[]          @relation("ShiftAssignee")
   shiftAssignedBy      ShiftAssignment[]          @relation("ShiftAssigner")
+  shiftGroupsPublished ShiftGroup[]               @relation("ShiftGroupPublisher")
+  shiftAcknowledged    ShiftAssignment[]          @relation("ShiftAssignmentAcknowledgedBy")
   sportAssignments     StudentSportAssignment[]
   areaAssignments      StudentAreaAssignment[]
   tradesPosted         ShiftTrade[]               @relation("TradePostedBy")
@@ -167,6 +169,7 @@ model User {
   resources            Resource[]
   resourcesVerified    Resource[]                 @relation("ResourceLastVerifiedBy")
   availabilityBlocks   StudentAvailabilityBlock[]
+  availabilityReviewed StudentAvailabilityBlock[] @relation("AvailabilityReviewer")
   travelMemberships    EventTravelMember[]        @relation("TravelMembers")
   badges               StudentBadge[]
   badgesAwardedByMe    StudentBadge[]             @relation("BadgeAwardedBy")
@@ -990,6 +993,19 @@ enum StudentAvailabilityKind {
   AD_HOC
 }
 
+enum StudentAvailabilityIntent {
+  CANNOT_WORK
+  PREFER
+  DISLIKE
+  TIME_OFF
+}
+
+enum StudentAvailabilityStatus {
+  APPROVED
+  PENDING
+  DENIED
+}
+
 enum ShiftAssignmentStatus {
   DIRECT_ASSIGNED
   REQUESTED
@@ -1038,18 +1054,24 @@ model SportShiftConfig {
 }
 
 model ShiftGroup {
-  id             String        @id @default(cuid())
-  eventId        String        @unique @map("event_id")
-  isPremier      Boolean       @default(false) @map("is_premier")
-  notes          String?
-  generatedAt    DateTime?     @map("generated_at")
-  manuallyEdited Boolean       @default(false) @map("manually_edited")
-  archivedAt     DateTime?     @map("archived_at")
-  createdAt      DateTime      @default(now()) @map("created_at")
-  updatedAt      DateTime      @updatedAt @map("updated_at")
-  event          CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  shifts         Shift[]
+  id                    String        @id @default(cuid())
+  eventId               String        @unique @map("event_id")
+  isPremier             Boolean       @default(false) @map("is_premier")
+  notes                 String?
+  generatedAt           DateTime?     @map("generated_at")
+  manuallyEdited        Boolean       @default(false) @map("manually_edited")
+  publishedAt           DateTime?     @map("published_at")
+  publishedById         String?       @map("published_by_id")
+  lastPublishedSnapshot Json?         @map("last_published_snapshot")
+  archivedAt            DateTime?     @map("archived_at")
+  createdAt             DateTime      @default(now()) @map("created_at")
+  updatedAt             DateTime      @updatedAt @map("updated_at")
+  event                 CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  publishedBy           User?         @relation("ShiftGroupPublisher", fields: [publishedById], references: [id], onDelete: SetNull)
+  shifts                Shift[]
 
+  @@index([publishedAt])
+  @@index([publishedById])
   @@map("shift_groups")
 }
 
@@ -1075,31 +1097,36 @@ model Shift {
 }
 
 model ShiftAssignment {
-  id           String                @id @default(cuid())
-  shiftId      String                @map("shift_id")
-  userId       String                @map("user_id")
-  status       ShiftAssignmentStatus
-  assignedBy   String?               @map("assigned_by")
-  swapFromId   String?               @map("swap_from_id")
-  callStartsAt DateTime?             @map("call_starts_at")
-  callEndsAt   DateTime?             @map("call_ends_at")
-  callNote     String?               @map("call_note")
-  notes        String?
-  hasConflict  Boolean               @default(false) @map("has_conflict")
-  conflictNote String?               @map("conflict_note")
-  attended     Boolean? // null=unlogged, true=attended, false=no-show
-  createdAt    DateTime              @default(now()) @map("created_at")
-  updatedAt    DateTime              @updatedAt @map("updated_at")
-  shift        Shift                 @relation(fields: [shiftId], references: [id], onDelete: Cascade)
-  user         User                  @relation("ShiftAssignee", fields: [userId], references: [id], onDelete: Restrict)
-  assigner     User?                 @relation("ShiftAssigner", fields: [assignedBy], references: [id], onDelete: SetNull)
-  swapFrom     ShiftAssignment?      @relation("ShiftSwap", fields: [swapFromId], references: [id], onDelete: SetNull)
-  swappedTo    ShiftAssignment[]     @relation("ShiftSwap")
-  trades       ShiftTrade[]
-  bookings     Booking[]
+  id               String                @id @default(cuid())
+  shiftId          String                @map("shift_id")
+  userId           String                @map("user_id")
+  status           ShiftAssignmentStatus
+  assignedBy       String?               @map("assigned_by")
+  swapFromId       String?               @map("swap_from_id")
+  callStartsAt     DateTime?             @map("call_starts_at")
+  callEndsAt       DateTime?             @map("call_ends_at")
+  callNote         String?               @map("call_note")
+  notes            String?
+  hasConflict      Boolean               @default(false) @map("has_conflict")
+  conflictNote     String?               @map("conflict_note")
+  acknowledgedAt   DateTime?             @map("acknowledged_at")
+  acknowledgedById String?               @map("acknowledged_by_id")
+  attended         Boolean? // null=unlogged, true=attended, false=no-show
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+  shift            Shift                 @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  user             User                  @relation("ShiftAssignee", fields: [userId], references: [id], onDelete: Restrict)
+  assigner         User?                 @relation("ShiftAssigner", fields: [assignedBy], references: [id], onDelete: SetNull)
+  acknowledgedBy   User?                 @relation("ShiftAssignmentAcknowledgedBy", fields: [acknowledgedById], references: [id], onDelete: SetNull)
+  swapFrom         ShiftAssignment?      @relation("ShiftSwap", fields: [swapFromId], references: [id], onDelete: SetNull)
+  swappedTo        ShiftAssignment[]     @relation("ShiftSwap")
+  trades           ShiftTrade[]
+  bookings         Booking[]
 
   @@index([shiftId, status])
   @@index([userId, status])
+  @@index([acknowledgedById])
+  @@index([userId, status, acknowledgedAt])
   @@map("shift_assignments")
 }
 
@@ -1153,24 +1180,32 @@ model ShiftTrade {
 }
 
 model StudentAvailabilityBlock {
-  id               String                  @id @default(cuid())
-  userId           String                  @map("user_id")
-  kind             StudentAvailabilityKind @default(WEEKLY)
-  dayOfWeek        Int?                    @map("day_of_week") // 0=Sun, 1=Mon … 6=Sat; weekly blocks only
-  date             DateTime?               @db.Date // ad hoc local date
-  startsAt         String                  @map("starts_at") // "09:00" HH:mm local time
-  endsAt           String                  @map("ends_at") // "11:00" HH:mm local time
+  id               String                    @id @default(cuid())
+  userId           String                    @map("user_id")
+  kind             StudentAvailabilityKind   @default(WEEKLY)
+  intent           StudentAvailabilityIntent @default(CANNOT_WORK)
+  status           StudentAvailabilityStatus @default(APPROVED)
+  dayOfWeek        Int?                      @map("day_of_week") // 0=Sun, 1=Mon … 6=Sat; weekly blocks only
+  date             DateTime?                 @db.Date // ad hoc local date
+  startsAt         String                    @map("starts_at") // "09:00" HH:mm local time
+  endsAt           String                    @map("ends_at") // "11:00" HH:mm local time
   label            String? // e.g. "CHEM 101"
-  semesterLabel    String?                 @map("semester_label") // e.g. "Spring 2026"
-  semesterStartsOn DateTime?               @map("semester_starts_on") @db.Date
-  semesterEndsOn   DateTime?               @map("semester_ends_on") @db.Date
-  createdAt        DateTime                @default(now()) @map("created_at")
-  updatedAt        DateTime                @updatedAt @map("updated_at")
-  user             User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  semesterLabel    String?                   @map("semester_label") // e.g. "Spring 2026"
+  semesterStartsOn DateTime?                 @map("semester_starts_on") @db.Date
+  semesterEndsOn   DateTime?                 @map("semester_ends_on") @db.Date
+  reviewedAt       DateTime?                 @map("reviewed_at")
+  reviewedById     String?                   @map("reviewed_by_id")
+  reviewNote       String?                   @map("review_note")
+  createdAt        DateTime                  @default(now()) @map("created_at")
+  updatedAt        DateTime                  @updatedAt @map("updated_at")
+  user             User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy       User?                     @relation("AvailabilityReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([kind, date])
   @@index([userId, kind])
+  @@index([intent, status])
+  @@index([reviewedById])
   @@map("student_availability_blocks")
 }
 

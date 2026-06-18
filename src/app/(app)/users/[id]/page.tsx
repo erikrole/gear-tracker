@@ -1047,7 +1047,7 @@ export default function UserDetailPage() {
       )}
 
       {activeTab === "availability" && profile.role === "STUDENT" && (
-        <UserAvailabilityTab userId={user.id} canEdit={canEdit} />
+        <UserAvailabilityTab userId={user.id} canEdit={canEdit} currentUserRole={currentUserRole} />
       )}
 
       {activeTab === "badges" && (

@@ -8,6 +8,8 @@ import { z } from "zod";
 
 const createBlockSchema = z.object({
   kind:             z.enum(["WEEKLY", "AD_HOC"]).default("WEEKLY"),
+  intent:           z.enum(["CANNOT_WORK", "PREFER", "DISLIKE", "TIME_OFF"]).default("CANNOT_WORK"),
+  status:           z.enum(["APPROVED", "PENDING", "DENIED"]).optional(),
   dayOfWeek:        z.number().int().min(0).max(6).optional().nullable(),
   date:             z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD").optional().nullable(),
   startsAt:         z.string().regex(/^\d{2}:\d{2}$/, "Must be HH:mm"),
@@ -16,6 +18,7 @@ const createBlockSchema = z.object({
   semesterLabel:    z.string().trim().max(40).optional(),
   semesterStartsOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD").optional().nullable(),
   semesterEndsOn:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD").optional().nullable(),
+  reviewNote:       z.string().trim().max(500).optional().nullable(),
 });
 
 function parseDateOnly(value: string | null | undefined): Date | null {
@@ -44,6 +47,9 @@ function assertBlockShape(body: z.infer<typeof createBlockSchema>) {
   }
   if (body.semesterStartsOn && body.semesterEndsOn && body.semesterStartsOn > body.semesterEndsOn) {
     throw new HttpError(400, "Semester end date must be on or after start date");
+  }
+  if (body.intent !== "TIME_OFF" && body.status && body.status !== "APPROVED") {
+    throw new HttpError(400, "Only time-off requests can be pending or denied");
   }
 }
 
@@ -82,11 +88,17 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
 
   const body = createBlockSchema.parse(await req.json());
   assertBlockShape(body);
+  const staffReview = user.role === "ADMIN" || user.role === "STAFF";
+  const status = body.intent === "TIME_OFF"
+    ? body.status ?? (staffReview ? "APPROVED" : "PENDING")
+    : "APPROVED";
 
   const block = await db.studentAvailabilityBlock.create({
     data: {
       userId:           id,
       kind:             body.kind,
+      intent:           body.intent,
+      status,
       dayOfWeek:        body.kind === "WEEKLY" ? body.dayOfWeek : null,
       date:             body.kind === "AD_HOC" ? parseDateOnly(body.date) : null,
       startsAt:         body.startsAt,
@@ -95,6 +107,9 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
       semesterLabel:    body.semesterLabel ?? null,
       semesterStartsOn: parseDateOnly(body.semesterStartsOn),
       semesterEndsOn:   parseDateOnly(body.semesterEndsOn),
+      reviewedAt:       body.intent === "TIME_OFF" && staffReview && status !== "PENDING" ? new Date() : null,
+      reviewedById:     body.intent === "TIME_OFF" && staffReview && status !== "PENDING" ? user.id : null,
+      reviewNote:       body.reviewNote?.trim() || null,
     },
   });
 
@@ -107,6 +122,8 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
     after: {
       userId: id,
       kind: block.kind,
+      intent: block.intent,
+      status: block.status,
       dayOfWeek: block.dayOfWeek,
       date: block.date,
       startsAt: block.startsAt,
@@ -115,6 +132,9 @@ export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
       semesterLabel: block.semesterLabel,
       semesterStartsOn: block.semesterStartsOn,
       semesterEndsOn: block.semesterEndsOn,
+      reviewedAt: block.reviewedAt,
+      reviewedById: block.reviewedById,
+      reviewNote: block.reviewNote,
     },
   });
 

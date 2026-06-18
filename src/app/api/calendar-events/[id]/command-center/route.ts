@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { shiftWorkerLabel } from "@/lib/shift-display";
+import { getScheduleChangeHistory } from "@/lib/services/schedule-change-history";
 
 export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
   if (user.role === "STUDENT") {
@@ -12,7 +13,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
 
   const eventId = params.id;
 
-  const [shiftGroup, bookings] = await Promise.all([
+  const [shiftGroup, bookings, changeHistory] = await Promise.all([
     db.shiftGroup.findUnique({
       where: { eventId },
       include: {
@@ -23,7 +24,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
               include: {
                 user: { select: { id: true, name: true } },
                 bookings: {
-                  where: { eventId, status: { not: "CANCELLED" } },
+                  where: { status: { not: "CANCELLED" } },
                   select: { id: true, status: true },
                   take: 1,
                 },
@@ -52,6 +53,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
       },
       take: 500,
     }),
+    getScheduleChangeHistory({ eventIds: [eventId], limitPerEvent: 8 }),
   ]);
 
   if (!shiftGroup) {
@@ -60,13 +62,43 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
         shifts: [],
         gearSummary: { total: 0, byStatus: { draft: 0, reserved: 0, pendingPickup: 0, checkedOut: 0, completed: 0 } },
         missingGear: [],
+        recentChanges: changeHistory.events[eventId]?.items ?? [],
       },
     });
   }
 
+  const assignmentIds = shiftGroup.shifts.flatMap((shift) =>
+    shift.assignments
+      .filter((assignment) => assignment.status === "DIRECT_ASSIGNED" || assignment.status === "APPROVED")
+      .map((assignment) => assignment.id),
+  );
+  const assignmentBookings = assignmentIds.length > 0
+    ? await db.booking.findMany({
+        where: {
+          status: { not: "CANCELLED" },
+          shiftAssignmentId: { in: assignmentIds },
+        },
+        select: {
+          id: true,
+          status: true,
+          requesterUserId: true,
+          shiftAssignmentId: true,
+          requester: { select: { id: true, name: true } },
+        },
+        take: 500,
+      })
+    : [];
+  const allBookings = [...bookings];
+  const seenBookingIds = new Set(allBookings.map((booking) => booking.id));
+  for (const booking of assignmentBookings) {
+    if (seenBookingIds.has(booking.id)) continue;
+    seenBookingIds.add(booking.id);
+    allBookings.push(booking);
+  }
+
   // Build gear summary
   const byStatus = { draft: 0, reserved: 0, pendingPickup: 0, checkedOut: 0, completed: 0 };
-  for (const b of bookings) {
+  for (const b of allBookings) {
     if (b.status === "DRAFT") byStatus.draft++;
     else if (b.status === "BOOKED") byStatus.reserved++;
     else if (b.status === "PENDING_PICKUP") byStatus.pendingPickup++;
@@ -75,7 +107,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
   }
 
   // Set of userIds who have any booking for this event
-  const usersWithGear = new Set(bookings.map((b) => b.requesterUserId));
+  const usersWithGear = new Set(allBookings.map((b) => b.requesterUserId));
 
   // Build shifts response and collect missing gear
   const missingGear: Array<{
@@ -136,8 +168,9 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
   return ok({
     data: {
       shifts,
-      gearSummary: { total: bookings.length, byStatus },
+      gearSummary: { total: allBookings.length, byStatus },
       missingGear,
+      recentChanges: changeHistory.events[eventId]?.items ?? [],
     },
   });
 });

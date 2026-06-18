@@ -3,7 +3,7 @@ import { ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { approveRequest } from "@/lib/services/shift-assignments";
 import { createAuditEntry } from "@/lib/audit";
-import { createShiftGearUpNotification, createShiftScheduleNotification } from "@/lib/services/notifications";
+import { dispatchScheduleAssignmentNotifications } from "@/lib/services/notifications";
 
 export const PATCH = withAuth<{ id: string }>(async (_req, { user, params }) => {
   requirePermission(user.role, "shift_assignment", "approve");
@@ -20,9 +20,7 @@ export const PATCH = withAuth<{ id: string }>(async (_req, { user, params }) => 
     after: { userId: assignment.userId, shiftId: assignment.shiftId },
   });
 
-  // Notify student to reserve gear (non-blocking)
-  createShiftGearUpNotification(assignment.id).catch(() => {});
-  createShiftScheduleNotification(assignment.id, "approved").catch(() => {});
+  dispatchScheduleAssignmentNotifications(assignment.id, "approved").catch(() => {});
 
   return ok({ data: assignment });
 });

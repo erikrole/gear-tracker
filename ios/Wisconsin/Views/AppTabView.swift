@@ -758,6 +758,27 @@ private struct NotificationSettingsView: View {
                         description: "Notified when one of your licenses is approaching expiry.",
                         category: .licenseExpiry
                     )
+
+                    categoryToggle(
+                        title: "Schedule updates",
+                        icon: "calendar.badge.clock",
+                        description: "Published shift assignments, removals, and call-time changes.",
+                        category: .schedule
+                    )
+
+                    categoryToggle(
+                        title: "Trade updates",
+                        icon: "arrow.triangle.2.circlepath",
+                        description: "Claimed, approved, declined, completed, and expired shift trades.",
+                        category: .trade
+                    )
+
+                    categoryToggle(
+                        title: "Gear prep nudges",
+                        icon: "bag.badge.plus",
+                        description: "Staff-triggered reminders to reserve or prepare gear.",
+                        category: .gearPrep
+                    )
                 } else if let err = prefsVM.error {
                     HStack {
                         Text(err)

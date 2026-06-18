@@ -57,6 +57,9 @@ describe("iOS Settings detail menus", () => {
       ".checkoutOverdue",
       ".reservation",
       ".licenseExpiry",
+      ".schedule",
+      ".trade",
+      ".gearPrep",
     ]) {
       expect(detail).toContain(`category: ${category}`);
     }

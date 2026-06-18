@@ -375,7 +375,11 @@ describe("approveRequest", () => {
 
     expect(mockTx.shiftAssignment.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: { status: "APPROVED" },
+        data: {
+          status: "APPROVED",
+          hasConflict: false,
+          conflictNote: undefined,
+        },
       })
     );
     expect(result.status).toBe("APPROVED");
@@ -454,7 +458,13 @@ describe("approveRequest", () => {
     await approveRequest(assignment.id);
 
     expect(mockTx.shiftAssignment.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { status: "APPROVED" } })
+      expect.objectContaining({
+        data: {
+          status: "APPROVED",
+          hasConflict: false,
+          conflictNote: undefined,
+        },
+      })
     );
   });
 });

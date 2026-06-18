@@ -16,6 +16,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { CallWindowEditor } from "@/components/shift-detail/CallWindowEditor";
 import { UserAvatarPicker } from "@/components/shift-detail/UserAvatarPicker";
 import type { PickerUser } from "@/components/shift-detail/UserAvatarPicker";
+import type { CandidateRecommendation } from "@/lib/candidate-scoring-types";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import type { GridShift, GridAssignment } from "@/hooks/use-assignment-grid";
 import { cn } from "@/lib/utils";
@@ -51,24 +52,35 @@ export function AssignmentCell({
   const actingRef = useRef(false);
   const [conflictMap, setConflictMap] = useState<Record<string, string>>({});
   const [conflictsLoading, setConflictsLoading] = useState(false);
+  const [candidateScores, setCandidateScores] = useState<Record<string, CandidateRecommendation> | undefined>();
+  const [scoresLoading, setScoresLoading] = useState(false);
 
   const filteredUsers = allUsers.filter((u) => {
     const q = search.toLowerCase();
     return u.name.toLowerCase().includes(q) || (u.primaryArea ?? "").toLowerCase().includes(q);
   });
 
-  const fetchConflicts = useCallback(async (shiftId: string) => {
+  const fetchCandidateScores = useCallback(async (shiftId: string) => {
+    setCandidateScores(undefined);
+    setScoresLoading(true);
     setConflictsLoading(true);
     try {
-      const res = await fetch(`/api/shifts/${shiftId}/conflicts`);
+      const res = await fetch(`/api/shifts/${shiftId}/candidate-scores`);
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        const j = await parseJsonSafely<{ data?: Record<string, string> }>(res);
-        setConflictMap(j?.data ?? {});
+        const j = await parseJsonSafely<{ data?: CandidateRecommendation[] }>(res);
+        const scores = j?.data ?? [];
+        setCandidateScores(Object.fromEntries(scores.map((score) => [score.userId, score])));
+        setConflictMap(Object.fromEntries(
+          scores
+            .filter((score) => score.advisoryConflictNote)
+            .map((score) => [score.userId, score.advisoryConflictNote as string]),
+        ));
       }
     } catch {
-      // Non-critical: picker still works without conflict data.
+      // Non-critical: picker still works without scoring data.
     } finally {
+      setScoresLoading(false);
       setConflictsLoading(false);
     }
   }, []);
@@ -328,10 +340,11 @@ export function AssignmentCell({
             <div className="flex items-center gap-0.5">
             <Popover
               onOpenChange={(isOpen) => {
-                if (isOpen) void fetchConflicts(firstOpenShift.id);
+                if (isOpen) void fetchCandidateScores(firstOpenShift.id);
                 else {
                   setSearch("");
                   setConflictMap({});
+                  setCandidateScores(undefined);
                 }
               }}
             >
@@ -344,7 +357,6 @@ export function AssignmentCell({
                   )}
                   disabled={!isStaff || Boolean(acting)}
                   aria-label={openCount > 1 ? `Assign one of ${openCount} open slots` : "Assign open slot"}
-                  onClick={() => void fetchConflicts(firstOpenShift.id)}
                 >
                   <UserIcon className={cn("size-3.5 opacity-70", acting?.endsWith(firstOpenShift.id) && "animate-pulse")} />
                   <span className="min-w-0 truncate font-medium">
@@ -365,6 +377,8 @@ export function AssignmentCell({
                   disabled={Boolean(acting)}
                   conflictMap={conflictMap}
                   conflictsLoading={conflictsLoading}
+                  candidateScores={candidateScores}
+                  scoresLoading={scoresLoading}
                 />
               </PopoverContent>
             </Popover>

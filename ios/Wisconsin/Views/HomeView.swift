@@ -263,7 +263,11 @@ struct HomeView: View {
                     onSelectBooking: { id in pendingBookingId = id },
                     onSelectTrades: { pendingShowTrades = true },
                     onSelectAsset: { id in pendingAssetId = id },
-                    onSelectUser: { id in pendingUserId = id }
+                    onSelectUser: { id in pendingUserId = id },
+                    onSelectEvent: { id in
+                        appState.pendingPushEventId = id
+                        appState.selectedTab = 4
+                    }
                 )
             }
             .sheet(isPresented: $showTrades) {

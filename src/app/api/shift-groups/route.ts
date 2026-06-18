@@ -4,6 +4,7 @@ import { ok, fail, HttpError, parsePagination } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 import { assertDateOrder, parseOptionalDate } from "@/lib/api-dates";
+import { getSchedulePublicationState } from "@/lib/services/schedule-publication";
 import type { Prisma } from "@prisma/client";
 
 function applyEventWindowFilter(
@@ -93,6 +94,7 @@ export const GET = withAuth(async (req, { user }) => {
 
     return {
       ...g,
+      publication: getSchedulePublicationState(g),
       coverage: {
         total: totalShifts,
         filled: filledShifts,
@@ -152,6 +154,7 @@ export const POST = withAuth(async (req, { user }) => {
   return ok({
     data: {
       ...group,
+      publication: getSchedulePublicationState(group),
       coverage: { total: 0, filled: 0, percentage: 0 },
     },
   });

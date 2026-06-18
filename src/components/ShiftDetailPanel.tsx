@@ -30,6 +30,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { shiftWorkerLabel } from "@/lib/shift-display";
+import { shiftWorkerSlotLabel } from "@/lib/shift-display";
+import type { AutoFillPreviewResponse } from "@/lib/auto-fill-preview-types";
+import { CrewTemplateReviewButton } from "@/components/shift-detail/CrewTemplateReviewButton";
 
 /* ───── Types ───── */
 
@@ -51,6 +54,8 @@ type ShiftAssignment = {
   callNote?: string | null;
   hasConflict: boolean;
   conflictNote: string | null;
+  acknowledgedAt?: string | null;
+  acknowledgedById?: string | null;
   attended: boolean | null;
   createdAt: string;
   user: ShiftUser;
@@ -73,6 +78,15 @@ type ShiftGroupDetail = {
   id: string;
   eventId: string;
   isPremier: boolean;
+  publication?: {
+    status: "draft" | "published" | "changed";
+    publishedAt: string | null;
+    publishedById: string | null;
+    changedAfterPublish: boolean;
+    activeAssignmentCount: number;
+    acknowledgedCount: number;
+    unacknowledgedCount: number;
+  } | null;
   manuallyEdited?: boolean;
   notes: string | null;
   archivedAt: string | null;
@@ -104,6 +118,13 @@ type Props = {
 
 const AREAS = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS"] as const;
 
+function publicationLabel(publication: ShiftGroupDetail["publication"]) {
+  if (!publication?.publishedAt) return { label: "Draft", variant: "gray" as const };
+  if (publication.changedAfterPublish) return { label: "Changed", variant: "orange" as const };
+  if (publication.unacknowledgedCount > 0) return { label: `${publication.unacknowledgedCount} unacknowledged`, variant: "blue" as const };
+  return { label: "Published", variant: "green" as const };
+}
+
 /* ───── Component ───── */
 
 export default function ShiftDetailPanel({
@@ -119,6 +140,10 @@ export default function ShiftDetailPanel({
   const [loadError, setLoadError] = useState<false | "network" | "server">(false);
   const [acting, setActing] = useState<string | null>(null);
   const [autoFilling, setAutoFilling] = useState(false);
+  const [autoFillApplying, setAutoFillApplying] = useState(false);
+  const [autoFillPreview, setAutoFillPreview] = useState<AutoFillPreviewResponse | null>(null);
+  const [autoFillPreviewOpen, setAutoFillPreviewOpen] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [tradeDialogAssignmentId, setTradeDialogAssignmentId] = useState<string | null>(null);
   const [tradeNotes, setTradeNotes] = useState("");
@@ -130,6 +155,7 @@ export default function ShiftDetailPanel({
   const usersAbortRef = useRef<AbortController | null>(null);
   const actingRef = useRef<string | null>(null);
   const autoFillingRef = useRef(false);
+  const publishingRef = useRef(false);
   const archivingRef = useRef(false);
   const postingRef = useRef(false);
   const attendanceRef = useRef<Set<string>>(new Set());
@@ -322,6 +348,33 @@ export default function ShiftDetailPanel({
     autoFillingRef.current = true;
     setAutoFilling(true);
     try {
+      const res = await fetch(`/api/shift-groups/${group.id}/auto-assign/preview`);
+      if (handleAuthRedirect(res)) return;
+      if (res.ok) {
+        const json = await parseJsonSafely<{ data?: AutoFillPreviewResponse }>(res);
+        if (!json?.data) {
+          toast.error("Auto-fill preview could not be read. Refresh schedule before continuing.");
+          return;
+        }
+        setAutoFillPreview(json.data);
+        setAutoFillPreviewOpen(true);
+      } else {
+        const msg = await parseErrorMessage(res, "Auto-fill preview failed");
+        toast.error(msg);
+      }
+    } catch {
+      toast.error("Could not reach the server. Auto-fill preview was not loaded.");
+    } finally {
+      autoFillingRef.current = false;
+      setAutoFilling(false);
+    }
+  }
+
+  async function handleApplyAutoFill() {
+    if (!group || autoFillingRef.current || !autoFillPreview) return;
+    autoFillingRef.current = true;
+    setAutoFillApplying(true);
+    try {
       const res = await fetch(`/api/shift-groups/${group.id}/auto-assign`, { method: "POST" });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
@@ -341,6 +394,7 @@ export default function ShiftDetailPanel({
         } else {
           toast.success(`${assigned} shift${assigned !== 1 ? "s" : ""} auto-filled`);
         }
+        setAutoFillPreviewOpen(false);
         await fetchGroup();
         onUpdated?.();
       } else {
@@ -351,7 +405,30 @@ export default function ShiftDetailPanel({
       toast.error("Could not reach the server. Open shifts were not auto-filled.");
     } finally {
       autoFillingRef.current = false;
-      setAutoFilling(false);
+      setAutoFillApplying(false);
+    }
+  }
+
+  async function handlePublish() {
+    if (!group || publishingRef.current) return;
+    publishingRef.current = true;
+    setPublishing(true);
+    try {
+      const res = await fetch(`/api/shift-groups/${group.id}/publish`, { method: "POST" });
+      if (handleAuthRedirect(res)) return;
+      if (res.ok) {
+        toast.success(group.publication?.publishedAt ? "Schedule republished" : "Schedule published");
+        await fetchGroup();
+        onUpdated?.();
+      } else {
+        const msg = await parseErrorMessage(res, "Publish failed");
+        toast.error(msg);
+      }
+    } catch {
+      toast.error("Could not reach the server. Schedule was not published.");
+    } finally {
+      publishingRef.current = false;
+      setPublishing(false);
     }
   }
 
@@ -475,6 +552,7 @@ export default function ShiftDetailPanel({
 
   const isPast = group ? new Date(group.event.endsAt) < new Date() : false;
   const showAttendance = isStaff && isPast;
+  const publication = publicationLabel(group?.publication ?? null);
 
   const shiftsByArea = useMemo(() => {
     const map: Record<string, Shift[]> = {};
@@ -521,20 +599,39 @@ export default function ShiftDetailPanel({
                 {group.event.sportCode && (
                   <Badge variant="purple">{sportLabel(group.event.sportCode)}</Badge>
                 )}
+                <Badge variant={publication.variant}>{publication.label}</Badge>
                 <span className="text-sm text-muted-foreground">
                   {eventTimingLabel}
                 </span>
               </div>
               {isStaff && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-9"
-                  onClick={handleAutoFill}
-                  disabled={autoFilling || acting !== null}
-                >
-                  {autoFilling ? "Filling..." : "Auto-fill"}
-                </Button>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9"
+                    onClick={handleAutoFill}
+                    disabled={autoFilling || acting !== null || publishing}
+                  >
+                    {autoFilling ? "Building preview..." : "Preview auto-fill"}
+                  </Button>
+                  <CrewTemplateReviewButton
+                    shiftGroupId={group.id}
+                    disabled={acting !== null || publishing || autoFilling}
+                    onUpdated={() => {
+                      void fetchGroup();
+                      onUpdated?.();
+                    }}
+                  />
+                  <Button
+                    size="sm"
+                    className="h-9"
+                    onClick={handlePublish}
+                    disabled={publishing || acting !== null}
+                  >
+                    {publishing ? "Publishing..." : group.publication?.publishedAt ? "Republish" : "Publish"}
+                  </Button>
+                </div>
               )}
             </div>
 
@@ -657,6 +754,72 @@ export default function ShiftDetailPanel({
             disabled={posting}
           >
             {posting ? "Posting..." : "Post trade"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    {/* Auto-fill preview dialog */}
+    <Dialog open={autoFillPreviewOpen} onOpenChange={setAutoFillPreviewOpen}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Auto-fill preview</DialogTitle>
+          <DialogDescription>
+            Review suggested assignments before applying them. Nothing changes until you apply.
+          </DialogDescription>
+        </DialogHeader>
+        {autoFillPreview && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-2 text-sm">
+              <div className="rounded-lg bg-muted/50 p-3">
+                <div className="text-xs text-muted-foreground">Open slots</div>
+                <div className="text-lg font-semibold tabular-nums">{autoFillPreview.summary.openSlots}</div>
+              </div>
+              <div className="rounded-lg bg-muted/50 p-3">
+                <div className="text-xs text-muted-foreground">Proposed</div>
+                <div className="text-lg font-semibold tabular-nums">{autoFillPreview.summary.proposed}</div>
+              </div>
+              <div className="rounded-lg bg-muted/50 p-3">
+                <div className="text-xs text-muted-foreground">Warnings</div>
+                <div className="text-lg font-semibold tabular-nums">{autoFillPreview.summary.warnings}</div>
+              </div>
+            </div>
+            <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
+              {autoFillPreview.proposals.map((proposal) => (
+                <div key={proposal.shiftId} className="rounded-lg border border-border/60 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium">{proposal.userName}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {proposal.area.charAt(0) + proposal.area.slice(1).toLowerCase()} · {shiftWorkerSlotLabel(proposal.workerType)}
+                      </div>
+                    </div>
+                    <Badge variant={proposal.warnings.length > 0 ? "orange" : "green"} className="shrink-0 tabular-nums">
+                      {proposal.score}
+                    </Badge>
+                  </div>
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    {[proposal.warnings[0]?.label, proposal.reasons[0]?.label].filter(Boolean).join(" · ")}
+                  </div>
+                </div>
+              ))}
+              {autoFillPreview.skipped.map((slot) => (
+                <div key={slot.shiftId} className="rounded-lg border border-dashed border-border/70 p-3 text-sm">
+                  <div className="font-medium">
+                    {slot.area.charAt(0) + slot.area.slice(1).toLowerCase()} · {shiftWorkerSlotLabel(slot.workerType)}
+                  </div>
+                  <div className="text-xs text-muted-foreground">{slot.reason}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setAutoFillPreviewOpen(false)} disabled={autoFillApplying}>
+            Cancel
+          </Button>
+          <Button onClick={handleApplyAutoFill} disabled={autoFillApplying || !autoFillPreview || autoFillPreview.proposals.length === 0}>
+            {autoFillApplying ? "Applying..." : "Apply recommended assignments"}
           </Button>
         </DialogFooter>
       </DialogContent>

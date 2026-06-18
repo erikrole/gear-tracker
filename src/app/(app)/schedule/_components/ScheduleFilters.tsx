@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from "react";
-import { AlertTriangleIcon, FilterIcon, ListIcon, CalendarIcon, CalendarDaysIcon, XIcon } from "lucide-react";
+import { AlertTriangleIcon, FilterIcon, ListIcon, CalendarIcon, CalendarDaysIcon, XIcon, WorkflowIcon } from "lucide-react";
 import { FilterChip } from "@/components/FilterChip";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -72,6 +72,31 @@ export function ScheduleFilters({ filters, entries, sourceSignal }: ScheduleFilt
 
   return (
     <div className="mb-4 rounded-lg border border-border/60 bg-card/80 p-2 shadow-sm">
+      {filters.queueMeta && (
+        <div className="mb-2 flex min-h-10 flex-wrap items-center justify-between gap-2 rounded-md bg-primary/5 px-3 py-2 shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.14)]">
+          <div className="flex min-w-0 items-center gap-2">
+            <WorkflowIcon className="size-4 shrink-0 text-primary" />
+            <div className="min-w-0">
+              <div className="truncate text-sm font-semibold text-foreground">
+                {filters.queueMeta.label}
+              </div>
+              <div className="text-pretty text-xs text-muted-foreground">
+                Shareable Schedule queue from the current window.
+              </div>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-1.5 px-2.5 text-xs"
+            onClick={() => filters.setQueue(null)}
+          >
+            <XIcon className="size-3.5" />
+            Clear queue
+          </Button>
+        </div>
+      )}
       <div className="flex flex-row items-center gap-2 flex-wrap">
         {/* View mode toggle */}
         <ToolbarGroup label="View">

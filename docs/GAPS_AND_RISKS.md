@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-15
+- Last Updated: 2026-06-18
 - Status: Living registry — update when shipping features or resolving decisions
 - Purpose: Single file listing every open gap, pending decision, and known risk across all docs
 
@@ -41,6 +41,16 @@ _2026-06-15 update: Kiosk checkout event context shipped without opening a new g
 _2026-06-15 update: Kiosk-only custody accepted as D-040 without opening a new gap. App/web becomes reservation-first; direct checkout, reservation pickup, and return custody mutations are kiosk-only. Implementation is tracked in `tasks/kiosk-only-custody-plan.md`._
 
 _2026-06-15 update: Kiosk-only custody server boundary shipped without opening a new gap. App/web checkout creation, reservation conversion, checkout pickup completion, check-in completion, item/bulk returns, and custody scan-session starts now reject regular authenticated callers._
+
+_2026-06-18 update: Schedule notification policy shipped without opening a new gap. Schedule, trade, and gear-prep preferences are additive; draft worker notifications are suppressed until publish; and event-routable payloads preserve web/iOS navigation contracts._
+
+_2026-06-18 update: Schedule Open Work shipped without opening a new gap. Published open Student slots now share the Trade Board surface with trade posts and staff-review pickup requests using existing assignment/trade models; preference and time-off expansion remains Slice 8._
+
+_2026-06-18 update: Schedule preferences and time off shipped without opening a new gap. Existing availability blocks remain compatible cannot-work advisory blocks; prefer/dislike and pending time off feed recommendation warnings; approved time off blocks new assignment, pickup, trade, and call-window review paths; staff review outcomes create student in-app notifications._
+
+_2026-06-18 update: Schedule in-season automation review shipped without opening a new gap. The new staff/admin automation digest is read-only, reuses morning-refresh, and routes operators to existing review surfaces instead of adding another cron route or silently mutating worker-facing schedule state._
+
+_2026-06-18 update: Schedule copy-forward and template review shipped without opening a new gap. Copy-forward crew setup remains preview-first and uses existing assignment safety checks; template drift is read-only and additive, so manually edited groups are not overwritten. Bulk call-window editing remains a separate follow-up slice if staff need it._
 
 | ID | Description | Owner Area | Priority | Blocker? |
 |---|---|---|---|---|
@@ -190,6 +200,11 @@ _2026-06-15 update: Kiosk-only custody server boundary shipped without opening a
 ---
 
 ## Change Log
+- 2026-06-18: Schedule Source Of Truth Slice 12 shipped without opening a new gap. Schedule change history is read from existing audit rows, displayed on Schedule/Event detail, and flags post-publication review work without adding rollback, automated republish, worker notification fanout, schema changes, or custody mutation.
+- 2026-06-18: Schedule Source Of Truth Slice 10 shipped without opening a new gap. Copy-forward crew setup now remains preview-first and uses existing assignment safety checks; template drift is read-only and additive, so manually edited groups are not overwritten. Bulk call-window editing stayed deferred because it is a separate mutation family and should be sliced independently if staff need it.
+- 2026-06-18: Schedule Source Of Truth Slice 9 shipped without opening a new gap. `/api/schedule/automation` and `morning-refresh` now expose a read-only automation digest for staffing gaps, auto-fill preview eligibility, publish readiness, blockers, source state, and cleanup outcomes while preserving D-035's single morning-refresh cron boundary.
+- 2026-06-18: Schedule Source Of Truth Slice 7 shipped without opening a new gap. Open Work reuses existing `ShiftAssignment` and `ShiftTrade` models for open pickup, premier requests, staff approval, and trade review; no schema or new decision was needed.
+- 2026-06-18: Schedule Source Of Truth Slice 6 shipped without opening a new gap. Scheduling notifications now use additive schedule/trade/gear-prep preference categories, suppress worker-facing draft changes until publish, route payloads back to the event context, and preserve native decode safety through optional payload fields.
 - 2026-06-15: Shipped the D-040 server-side custody boundary without opening a new gap. Regular authenticated checkout creation, reservation conversion, checkout pickup completion, checkout return completion, item/bulk returns, and custody scan-session starts now return kiosk-boundary errors; kiosk APIs remain the custody mutation surface.
 - 2026-06-15: Accepted D-040 for kiosk-only custody without opening a new gap. Removed stale Phase C wording that still treated kiosk mode as deferred; the kiosk is already canonical, and the remaining work is the reservation-pickup bridge plus app/web affordance removal tracked in `tasks/kiosk-only-custody-plan.md`.
 - 2026-06-06: Web full-search item identity fallback shipped without opening a new gap. `/search` item results now avoid blank titles by falling back through tag, name, brand/model, type, and `Untitled item`, preserving role-aware destination search and partial entity-result failure semantics.
@@ -282,6 +297,7 @@ _2026-06-15 update: Kiosk-only custody server boundary shipped without opening a
 - 2026-03-16: Sentry error tracking wired (optional DSN, source maps, global error boundary). Vercel Blob image upload wired (POST/DELETE /api/assets/:id/image).
 - 2026-03-16: UI overhaul — modern minimal design system. Removed liquid glass, warm neutrals, #202020 dark sidebar, Wisconsin red for brand moments only, neutral dark primary buttons.
 - 2026-03-16: Closed GAP-2 (draft persistence). D-017 shipped: DRAFT CRUD API, dashboard Drafts section, auto-save on cancel, resume pre-fill. D-018 marked shipped (financial fields already in UI).
+- 2026-06-18: Schedule Source Of Truth Slice 11 strengthened scheduling and gear deep linking without opening a new gap. Schedule health now carries event/assignment gear readiness from primary event, secondary event, and shift-assignment booking paths, and Schedule/Event detail surfaces keep reservation/prep separate from kiosk-only custody.
 - 2026-03-18: Closed scheduling + gear deep linking. shiftAssignmentId FK on Booking shipped, Event Command Center with missing gear detection.
 - 2026-03-18: Audit logging hardening — added createAuditEntry to 8 mutation endpoints (asset create, accessory attach/move/detach, image upload/delete, escalation config/rule update, profile update, draft discard). Per D-007.
 - 2026-03-19: Department filter/display on items page. Calendar source health UI shipped (/settings/calendar-sources). Notification center polish confirmed already shipped. Archived 8 completed plan files.

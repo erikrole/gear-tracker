@@ -48,6 +48,10 @@ vi.mock("@/lib/services/shift-trade-emails", () => ({
   sendShiftTradeEmail: vi.fn().mockResolvedValue(true),
 }));
 
+vi.mock("@/lib/services/notifications", () => ({
+  sendPushToUser: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("@/lib/badges", () => ({
   badges: {
     onTradeCompleted: vi.fn().mockResolvedValue(undefined),

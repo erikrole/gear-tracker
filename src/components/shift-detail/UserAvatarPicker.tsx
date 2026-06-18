@@ -12,6 +12,8 @@ import {
   filterCandidatesByConflict,
   type CandidateConflictFilter,
 } from "@/lib/assignment-conflict-review";
+import type { CandidateRecommendation, CandidateScoreBucket } from "@/lib/candidate-scoring-types";
+import { cn } from "@/lib/utils";
 
 const AREA_LABELS: Record<string, string> = {
   VIDEO: "Video",
@@ -40,6 +42,24 @@ type Props = {
   /** Map of userId to conflict note for users with scheduling conflicts */
   conflictMap?: Record<string, string>;
   conflictsLoading?: boolean;
+  candidateScores?: Record<string, CandidateRecommendation>;
+  scoresLoading?: boolean;
+};
+
+const SCORE_BUCKET_LABELS: Record<CandidateScoreBucket, string> = {
+  recommended: "Recommended",
+  good_fit: "Good fit",
+  warning: "Warning",
+  overloaded: "Overloaded",
+};
+
+const SCORE_BUCKET_ORDER: CandidateScoreBucket[] = ["recommended", "good_fit", "warning", "overloaded"];
+
+const SCORE_BUCKET_BADGE: Record<CandidateScoreBucket, "default" | "secondary" | "orange" | "destructive"> = {
+  recommended: "default",
+  good_fit: "secondary",
+  warning: "orange",
+  overloaded: "destructive",
 };
 
 export function UserAvatarPicker({
@@ -53,6 +73,8 @@ export function UserAvatarPicker({
   disabled,
   conflictMap,
   conflictsLoading,
+  candidateScores,
+  scoresLoading,
 }: Props) {
   const [conflictFilter, setConflictFilter] = useState<CandidateConflictFilter>("all");
   const canFilterConflicts = Boolean(conflictMap);
@@ -60,6 +82,17 @@ export function UserAvatarPicker({
     () => filterCandidatesByConflict(users, conflictMap, conflictFilter),
     [conflictFilter, conflictMap, users],
   );
+  const groupedUsers = useMemo(() => {
+    if (!candidateScores) return [{ key: "all", label: null, users: filteredUsers }];
+    const groups: Array<{ key: string; label: string | null; users: PickerUser[] }> = SCORE_BUCKET_ORDER.map((bucket) => ({
+      key: bucket,
+      label: SCORE_BUCKET_LABELS[bucket],
+      users: filteredUsers.filter((user) => candidateScores[user.id]?.bucket === bucket),
+    })).filter((group) => group.users.length > 0);
+    const unscored = filteredUsers.filter((user) => !candidateScores[user.id]);
+    if (unscored.length > 0) groups.push({ key: "unscored", label: "Other", users: unscored });
+    return groups;
+  }, [candidateScores, filteredUsers]);
   const conflictCount = users.reduce((count, user) => count + (conflictMap?.[user.id] ? 1 : 0), 0);
   const cleanCount = users.length - conflictCount;
 
@@ -130,43 +163,78 @@ export function UserAvatarPicker({
         </p>
       ) : (
         <ScrollArea className="max-h-52">
-          {filteredUsers.map((u) => {
-            const conflict = conflictMap?.[u.id];
-            return (
-              <Button
-                key={u.id}
-                type="button"
-                variant="ghost"
-                className="min-h-10 w-full justify-start gap-2 p-1.5 text-left text-sm hover:bg-accent disabled:opacity-50"
-                onClick={() => onSelect(u.id)}
-                disabled={disabled}
-                title={conflict ?? undefined}
-              >
-                <div className="relative shrink-0">
-	                  <UserAvatar name={u.name} avatarUrl={u.avatarUrl} size="default" />
-	                  {conflict && (
-	                    <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full border border-background bg-[var(--orange)]" />
-	                  )}
-	                </div>
-	                <div className="min-w-0 flex-1">
-	                  <div className="truncate font-medium text-xs">{u.name}</div>
-	                  <div className="flex min-w-0 items-center gap-1 text-[10px] text-muted-foreground">
-	                    {u.role === "STUDENT" ? "Student" : "Staff"}
-	                    {u.primaryArea ? ` · ${AREA_LABELS[u.primaryArea] ?? u.primaryArea}` : ""}
-	                    {conflict && (
-	                      <Badge variant="orange" size="sm" className="ml-1 px-1 py-0 text-[9px]">
-	                        Conflict
-	                      </Badge>
-	                    )}
-	                  </div>
-	                </div>
-	              </Button>
-            );
-          })}
+          <div className="space-y-2 pr-2">
+            {groupedUsers.map((group) => (
+              <div key={group.key} className="space-y-1">
+                {group.label && (
+                  <div className="flex items-center justify-between px-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                    <span>{group.label}</span>
+                    <span className="tabular-nums">{group.users.length}</span>
+                  </div>
+                )}
+                {group.users.map((u) => {
+                  const conflict = conflictMap?.[u.id];
+                  const score = candidateScores?.[u.id];
+                  const topReason = score?.warnings[0]?.label ?? score?.reasons[0]?.label;
+                  return (
+                    <Button
+                      key={u.id}
+                      type="button"
+                      variant="ghost"
+                      className="min-h-10 w-full justify-start gap-2 rounded-md p-1.5 text-left text-sm transition-[background-color,color,scale] hover:bg-accent active:scale-[0.96] disabled:opacity-50"
+                      onClick={() => onSelect(u.id)}
+                      disabled={disabled}
+                      title={topReason ?? conflict ?? undefined}
+                    >
+                      <div className="relative shrink-0">
+                        <UserAvatar name={u.name} avatarUrl={u.avatarUrl} size="default" />
+                        {conflict && (
+                          <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full border border-background bg-[var(--orange)]" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-medium text-xs">{u.name}</div>
+                        <div className="flex min-w-0 items-center gap-1 text-[10px] text-muted-foreground">
+                          <span className="truncate">
+                            {u.role === "STUDENT" ? "Student" : "Staff"}
+                            {u.primaryArea ? ` · ${AREA_LABELS[u.primaryArea] ?? u.primaryArea}` : ""}
+                          </span>
+                          {conflict && (
+                            <Badge variant="orange" size="sm" className="ml-1 px-1 py-0 text-[9px]">
+                              Conflict
+                            </Badge>
+                          )}
+                        </div>
+                        {topReason && (
+                          <div className="mt-0.5 truncate text-[10px] text-muted-foreground">
+                            {topReason}
+                          </div>
+                        )}
+                      </div>
+                      {score && (
+                        <Badge
+                          variant={SCORE_BUCKET_BADGE[score.bucket]}
+                          size="sm"
+                          className={cn(
+                            "shrink-0 px-1.5 py-0 text-[9px] tabular-nums",
+                            score.bucket === "recommended" && "bg-emerald-600 text-white hover:bg-emerald-600",
+                          )}
+                        >
+                          {score.score}
+                        </Badge>
+                      )}
+                    </Button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
         </ScrollArea>
       )}
-      {conflictsLoading && (
-        <p className="text-[10px] text-muted-foreground px-1.5 mt-1">Checking availability...</p>
+      {(conflictsLoading || scoresLoading) && (
+        <p className="mt-1 px-1.5 text-[10px] text-muted-foreground">
+          {scoresLoading ? "Scoring candidates..." : "Checking availability..."}
+        </p>
       )}
     </>
   );

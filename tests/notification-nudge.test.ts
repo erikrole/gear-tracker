@@ -124,7 +124,10 @@ describe("POST /api/notifications/nudge", () => {
       "notifications:nudge:recipient:student-target",
       { max: 5, windowMs: 60 * 60_000 },
     );
-    expect(createShiftGearUpNotification).toHaveBeenCalledWith("cmassignment000000000000001");
+    expect(createShiftGearUpNotification).toHaveBeenCalledWith(
+      "cmassignment000000000000001",
+      { source: "manual_nudge" },
+    );
     expect(createAuditEntry).toHaveBeenCalledWith(
       expect.objectContaining({
         actorId: "staff-1",

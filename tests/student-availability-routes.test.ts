@@ -23,6 +23,9 @@ vi.mock("@/lib/db", () => ({
     auditLog: {
       create: vi.fn(),
     },
+    notification: {
+      create: vi.fn(),
+    },
   },
 }));
 
@@ -92,6 +95,8 @@ describe("student availability routes", () => {
       id: "block-1",
       userId: "student-1",
       kind: "AD_HOC",
+      intent: "CANNOT_WORK",
+      status: "APPROVED",
       dayOfWeek: null,
       date: new Date("2026-10-06T00:00:00.000Z"),
       startsAt: "10:00",
@@ -100,6 +105,9 @@ describe("student availability routes", () => {
       semesterLabel: null,
       semesterStartsOn: null,
       semesterEndsOn: null,
+      reviewedAt: null,
+      reviewedById: null,
+      reviewNote: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     } as never);
@@ -131,6 +139,54 @@ describe("student availability routes", () => {
     }));
   });
 
+  it("creates student time-off requests as pending and keeps them auditable", async () => {
+    vi.mocked(db.studentAvailabilityBlock.create).mockResolvedValue({
+      id: "block-2",
+      userId: "student-1",
+      kind: "AD_HOC",
+      intent: "TIME_OFF",
+      status: "PENDING",
+      dayOfWeek: null,
+      date: new Date("2026-10-10T00:00:00.000Z"),
+      startsAt: "09:00",
+      endsAt: "17:00",
+      label: "Family trip",
+      semesterLabel: null,
+      semesterStartsOn: null,
+      semesterEndsOn: null,
+      reviewedAt: null,
+      reviewedById: null,
+      reviewNote: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as never);
+
+    const res = await createAvailability(
+      jsonRequest("/api/users/student-1/availability", "POST", {
+        kind: "AD_HOC",
+        intent: "TIME_OFF",
+        date: "2026-10-10",
+        startsAt: "09:00",
+        endsAt: "17:00",
+        label: "Family trip",
+      }),
+      params({ id: "student-1" }),
+    );
+
+    expect(res.status).toBe(201);
+    expect(db.studentAvailabilityBlock.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        intent: "TIME_OFF",
+        status: "PENDING",
+        reviewedAt: null,
+        reviewedById: null,
+      }),
+    });
+    expect(createAuditEntry).toHaveBeenCalledWith(expect.objectContaining({
+      after: expect.objectContaining({ intent: "TIME_OFF", status: "PENDING" }),
+    }));
+  });
+
   it("denies students editing another student's availability", async () => {
     const res = await createAvailability(
       jsonRequest("/api/users/student-2/availability", "POST", {
@@ -152,6 +208,8 @@ describe("student availability routes", () => {
       id: "block-1",
       userId: "student-1",
       kind: "WEEKLY",
+      intent: "CANNOT_WORK",
+      status: "APPROVED",
       dayOfWeek: 1,
       date: null,
       startsAt: "09:00",
@@ -160,6 +218,9 @@ describe("student availability routes", () => {
       semesterLabel: null,
       semesterStartsOn: null,
       semesterEndsOn: null,
+      reviewedAt: null,
+      reviewedById: null,
+      reviewNote: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     } as never);
@@ -167,6 +228,8 @@ describe("student availability routes", () => {
       id: "block-1",
       userId: "student-1",
       kind: "WEEKLY",
+      intent: "CANNOT_WORK",
+      status: "APPROVED",
       dayOfWeek: 2,
       date: null,
       startsAt: "09:30",
@@ -175,6 +238,9 @@ describe("student availability routes", () => {
       semesterLabel: "Fall 2026",
       semesterStartsOn: new Date("2026-08-24T00:00:00.000Z"),
       semesterEndsOn: new Date("2026-12-18T00:00:00.000Z"),
+      reviewedAt: null,
+      reviewedById: null,
+      reviewNote: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     } as never);
@@ -209,6 +275,125 @@ describe("student availability routes", () => {
       before: expect.objectContaining({ label: "Old" }),
       after: expect.objectContaining({ label: "COMM 201" }),
     }));
+  });
+
+  it("denies a student trying to approve their own time off", async () => {
+    vi.mocked(db.studentAvailabilityBlock.findUnique).mockResolvedValue({
+      id: "block-2",
+      userId: "student-1",
+      kind: "AD_HOC",
+      intent: "TIME_OFF",
+      status: "PENDING",
+      dayOfWeek: null,
+      date: new Date("2026-10-10T00:00:00.000Z"),
+      startsAt: "09:00",
+      endsAt: "17:00",
+      label: "Family trip",
+      semesterLabel: null,
+      semesterStartsOn: null,
+      semesterEndsOn: null,
+      reviewedAt: null,
+      reviewedById: null,
+      reviewNote: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as never);
+
+    const res = await updateAvailability(
+      jsonRequest("/api/users/student-1/availability/block-2", "PATCH", {
+        kind: "AD_HOC",
+        intent: "TIME_OFF",
+        status: "APPROVED",
+        date: "2026-10-10",
+        startsAt: "09:00",
+        endsAt: "17:00",
+        label: "Family trip",
+      }),
+      params({ id: "student-1", blockId: "block-2" }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(db.studentAvailabilityBlock.update).not.toHaveBeenCalled();
+  });
+
+  it("lets staff approve pending time off and records reviewer metadata", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(staffUser);
+    vi.mocked(db.studentAvailabilityBlock.findUnique).mockResolvedValue({
+      id: "block-2",
+      userId: "student-1",
+      kind: "AD_HOC",
+      intent: "TIME_OFF",
+      status: "PENDING",
+      dayOfWeek: null,
+      date: new Date("2026-10-10T00:00:00.000Z"),
+      startsAt: "09:00",
+      endsAt: "17:00",
+      label: "Family trip",
+      semesterLabel: null,
+      semesterStartsOn: null,
+      semesterEndsOn: null,
+      reviewedAt: null,
+      reviewedById: null,
+      reviewNote: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as never);
+    vi.mocked(db.studentAvailabilityBlock.update).mockResolvedValue({
+      id: "block-2",
+      userId: "student-1",
+      kind: "AD_HOC",
+      intent: "TIME_OFF",
+      status: "APPROVED",
+      dayOfWeek: null,
+      date: new Date("2026-10-10T00:00:00.000Z"),
+      startsAt: "09:00",
+      endsAt: "17:00",
+      label: "Family trip",
+      semesterLabel: null,
+      semesterStartsOn: null,
+      semesterEndsOn: null,
+      reviewedAt: new Date("2026-09-01T12:00:00.000Z"),
+      reviewedById: "staff-1",
+      reviewNote: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as never);
+
+    const res = await updateAvailability(
+      jsonRequest("/api/users/student-1/availability/block-2", "PATCH", {
+        kind: "AD_HOC",
+        intent: "TIME_OFF",
+        status: "APPROVED",
+        date: "2026-10-10",
+        startsAt: "09:00",
+        endsAt: "17:00",
+        label: "Family trip",
+      }),
+      params({ id: "student-1", blockId: "block-2" }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(db.studentAvailabilityBlock.update).toHaveBeenCalledWith({
+      where: { id: "block-2" },
+      data: expect.objectContaining({
+        intent: "TIME_OFF",
+        status: "APPROVED",
+        reviewedAt: expect.any(Date),
+        reviewedById: "staff-1",
+      }),
+    });
+    expect(db.notification.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        userId: "student-1",
+        type: "time_off_approved",
+        title: "Time off approved",
+        payload: expect.objectContaining({
+          availabilityBlockId: "block-2",
+          href: "/users/student-1?tab=availability",
+        }),
+        channel: "IN_APP",
+      }),
+    });
   });
 
   it("rejects weekly blocks without a weekday", async () => {

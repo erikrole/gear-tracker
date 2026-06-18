@@ -4,7 +4,7 @@ import { requirePermission } from "@/lib/rbac";
 import { assignShiftSchema } from "@/lib/validation";
 import { directAssignShift } from "@/lib/services/shift-assignments";
 import { createAuditEntry } from "@/lib/audit";
-import { createShiftGearUpNotification, createShiftScheduleNotification } from "@/lib/services/notifications";
+import { dispatchScheduleAssignmentNotifications } from "@/lib/services/notifications";
 import { assertCallTimePair, assertDateOrder, parseOptionalDate } from "@/lib/api-dates";
 
 export const POST = withAuth(async (req, { user }) => {
@@ -32,9 +32,7 @@ export const POST = withAuth(async (req, { user }) => {
     after: { requestedShiftId: body.shiftId, shiftId: assignment.shiftId, userId: body.userId },
   });
 
-  // Notify assigned user to reserve gear (non-blocking)
-  createShiftGearUpNotification(assignment.id).catch(() => {});
-  createShiftScheduleNotification(assignment.id, "assigned").catch(() => {});
+  dispatchScheduleAssignmentNotifications(assignment.id, "assigned").catch(() => {});
 
   return ok({ data: assignment }, 201);
 });

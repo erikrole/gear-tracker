@@ -2,7 +2,7 @@
 
 import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
-import { AlertCircle, CalendarPlusIcon, PencilIcon, PlusIcon, Trash2 } from "lucide-react";
+import { AlertCircle, CalendarPlusIcon, CheckIcon, PencilIcon, PlusIcon, Trash2, XIcon } from "lucide-react";
 import { useFetch } from "@/hooks/use-fetch";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -22,11 +22,15 @@ import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/er
 import { cn } from "@/lib/utils";
 
 type AvailabilityKind = "WEEKLY" | "AD_HOC";
+type AvailabilityIntent = "CANNOT_WORK" | "PREFER" | "DISLIKE" | "TIME_OFF";
+type AvailabilityStatus = "APPROVED" | "PENDING" | "DENIED";
 
 type AvailabilityBlock = {
   id: string;
   userId: string;
   kind?: AvailabilityKind;
+  intent?: AvailabilityIntent;
+  status?: AvailabilityStatus;
   dayOfWeek: number | null;
   date: string | null;
   startsAt: string;
@@ -35,6 +39,9 @@ type AvailabilityBlock = {
   semesterLabel: string | null;
   semesterStartsOn: string | null;
   semesterEndsOn: string | null;
+  reviewedAt?: string | null;
+  reviewedById?: string | null;
+  reviewNote?: string | null;
   createdAt: string;
   updatedAt?: string;
 };
@@ -44,6 +51,14 @@ const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function blockKind(block: AvailabilityBlock): AvailabilityKind {
   return block.kind ?? "WEEKLY";
+}
+
+function blockIntent(block: AvailabilityBlock): AvailabilityIntent {
+  return block.intent ?? "CANNOT_WORK";
+}
+
+function blockStatus(block: AvailabilityBlock): AvailabilityStatus {
+  return block.status ?? "APPROVED";
 }
 
 function dateValue(value: string | null | undefined): string {
@@ -71,6 +86,10 @@ function formatDate(value: string | null): string {
 
 function sortBlocks(blocks: AvailabilityBlock[]): AvailabilityBlock[] {
   return [...blocks].sort((a, b) => {
+    if (blockIntent(a) !== blockIntent(b)) {
+      const order: AvailabilityIntent[] = ["TIME_OFF", "CANNOT_WORK", "DISLIKE", "PREFER"];
+      return order.indexOf(blockIntent(a)) - order.indexOf(blockIntent(b));
+    }
     if (blockKind(a) !== blockKind(b)) return blockKind(a) === "WEEKLY" ? -1 : 1;
     if (blockKind(a) === "AD_HOC") return dateValue(a.date).localeCompare(dateValue(b.date)) || a.startsAt.localeCompare(b.startsAt);
     const dayA = a.dayOfWeek ?? 7;
@@ -84,10 +103,13 @@ type AvailabilityFormProps = {
   initial?: AvailabilityBlock | null;
   onSaved: (block: AvailabilityBlock) => void;
   onCancel: () => void;
+  canReview: boolean;
 };
 
-function AvailabilityForm({ userId, initial, onSaved, onCancel }: AvailabilityFormProps) {
+function AvailabilityForm({ userId, initial, onSaved, onCancel, canReview }: AvailabilityFormProps) {
   const kindId = useId();
+  const intentId = useId();
+  const statusId = useId();
   const dayId = useId();
   const dateId = useId();
   const startId = useId();
@@ -98,6 +120,8 @@ function AvailabilityForm({ userId, initial, onSaved, onCancel }: AvailabilityFo
   const semesterEndId = useId();
 
   const [kind, setKind] = useState<AvailabilityKind>(blockKind(initial ?? ({ kind: "WEEKLY" } as AvailabilityBlock)));
+  const [intent, setIntent] = useState<AvailabilityIntent>(blockIntent(initial ?? ({ intent: "CANNOT_WORK" } as AvailabilityBlock)));
+  const [status, setStatus] = useState<AvailabilityStatus>(blockStatus(initial ?? ({ status: "APPROVED" } as AvailabilityBlock)));
   const [dayOfWeek, setDayOfWeek] = useState(String(initial?.dayOfWeek ?? 1));
   const [date, setDate] = useState(dateValue(initial?.date));
   const [startsAt, setStartsAt] = useState(initial?.startsAt ?? "09:00");
@@ -134,6 +158,8 @@ function AvailabilityForm({ userId, initial, onSaved, onCancel }: AvailabilityFo
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             kind,
+            intent,
+            status: intent === "TIME_OFF" && canReview ? status : undefined,
             dayOfWeek: kind === "WEEKLY" ? Number(dayOfWeek) : null,
             date: kind === "AD_HOC" ? date : null,
             startsAt,
@@ -169,6 +195,29 @@ function AvailabilityForm({ userId, initial, onSaved, onCancel }: AvailabilityFo
     <form onSubmit={handleSubmit} className="rounded-lg border bg-muted/30 p-4">
       <div className="flex flex-col gap-4">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_1fr]">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={intentId} className="text-xs">Intent</Label>
+            <Select
+              name="availability-intent"
+              value={intent}
+              onValueChange={(value) => {
+                const next = value as AvailabilityIntent;
+                setIntent(next);
+                if (next !== "TIME_OFF") setStatus("APPROVED");
+                if (next === "TIME_OFF" && !canReview) setStatus("PENDING");
+              }}
+            >
+              <SelectTrigger id={intentId} size="sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="CANNOT_WORK">Cannot work</SelectItem>
+                <SelectItem value="PREFER">Prefer</SelectItem>
+                <SelectItem value="DISLIKE">Dislike</SelectItem>
+                <SelectItem value="TIME_OFF">Time off</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor={kindId} className="text-xs">Type</Label>
             <Select name="availability-kind" value={kind} onValueChange={(value) => setKind(value as AvailabilityKind)}>
@@ -206,6 +255,24 @@ function AvailabilityForm({ userId, initial, onSaved, onCancel }: AvailabilityFo
             <Input id={labelId} name="availability-label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder={kind === "WEEKLY" ? "COMM 201" : "Exam"} className="h-8 text-sm" maxLength={80} />
           </div>
         </div>
+
+        {intent === "TIME_OFF" && canReview && (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_1fr]">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={statusId} className="text-xs">Review status</Label>
+              <Select name="availability-status" value={status} onValueChange={(value) => setStatus(value as AvailabilityStatus)}>
+                <SelectTrigger id={statusId} size="sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="APPROVED">Approved</SelectItem>
+                  <SelectItem value="DENIED">Denied</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_1fr]">
           <div className="flex flex-col gap-1.5">
@@ -249,28 +316,54 @@ function AvailabilityForm({ userId, initial, onSaved, onCancel }: AvailabilityFo
 function BlockPill({
   block,
   canEdit,
+  canReview,
   deleting,
+  reviewing,
   onEdit,
   onDelete,
+  onReview,
 }: {
   block: AvailabilityBlock;
   canEdit: boolean;
+  canReview: boolean;
   deleting: boolean;
+  reviewing: boolean;
   onEdit: () => void;
   onDelete: () => void;
+  onReview: (status: "APPROVED" | "DENIED") => void;
 }) {
   const kind = blockKind(block);
+  const intent = blockIntent(block);
+  const status = blockStatus(block);
   const range = `${formatTime(block.startsAt)}-${formatTime(block.endsAt)}`;
   const semesterRange = [formatDate(block.semesterStartsOn), formatDate(block.semesterEndsOn)].filter(Boolean).join(" to ");
+  const intentBadge = intent === "TIME_OFF"
+    ? status === "APPROVED" ? { label: "Approved time off", variant: "green" as const }
+      : status === "DENIED" ? { label: "Denied", variant: "gray" as const }
+        : { label: "Pending time off", variant: "orange" as const }
+    : intent === "PREFER" ? { label: "Prefer", variant: "green" as const }
+      : intent === "DISLIKE" ? { label: "Dislike", variant: "orange" as const }
+        : { label: kind === "AD_HOC" ? "Conflict" : "Class", variant: "blue" as const };
 
   return (
     <div className="group flex min-w-0 items-center gap-1 rounded-md border bg-muted/40 px-2 py-1 text-xs">
       <span className="font-medium tabular-nums">{range}</span>
+      <Badge variant={intentBadge.variant} className="h-4 px-1 text-[10px]">{intentBadge.label}</Badge>
       {block.label && <Badge variant="secondary" className="h-4 px-1 text-[10px]">{block.label}</Badge>}
       {block.semesterLabel && <Badge variant="gray" className="h-4 px-1 text-[10px]">{block.semesterLabel}</Badge>}
       {semesterRange && kind === "WEEKLY" && <span className="text-muted-foreground">{semesterRange}</span>}
-      {canEdit && (
+      {(canReview && intent === "TIME_OFF" && status === "PENDING") && (
         <span className="ml-auto flex items-center gap-0.5">
+          <Button type="button" variant="ghost" size="icon-xs" className="size-6 text-[var(--green-text)]" onClick={() => onReview("APPROVED")} disabled={reviewing} aria-label="Approve time off">
+            <CheckIcon className="size-3" />
+          </Button>
+          <Button type="button" variant="ghost" size="icon-xs" className="size-6 text-destructive" onClick={() => onReview("DENIED")} disabled={reviewing} aria-label="Deny time off">
+            <XIcon className="size-3" />
+          </Button>
+        </span>
+      )}
+      {canEdit && (
+        <span className={cn("flex items-center gap-0.5", !(canReview && intent === "TIME_OFF" && status === "PENDING") && "ml-auto")}>
           <Button type="button" variant="ghost" size="icon-xs" className="size-6 text-muted-foreground" onClick={onEdit} aria-label="Edit availability block">
             <PencilIcon className="size-3" />
           </Button>
@@ -286,15 +379,20 @@ function BlockPill({
 export default function UserAvailabilityTab({
   userId,
   canEdit,
+  currentUserRole,
 }: {
   userId: string;
   canEdit: boolean;
+  currentUserRole: string | null;
 }) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<AvailabilityBlock | null>(null);
   const [localBlocks, setLocalBlocks] = useState<AvailabilityBlock[] | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [reviewing, setReviewing] = useState<string | null>(null);
   const deletingRef = useRef(false);
+  const reviewingRef = useRef(false);
+  const canReview = canEdit && (currentUserRole === "ADMIN" || currentUserRole === "STAFF");
 
   const {
     data: fetchedBlocks,
@@ -344,6 +442,48 @@ export default function UserAvailabilityTab({
     }
   }
 
+  async function handleReview(block: AvailabilityBlock, status: "APPROVED" | "DENIED") {
+    if (reviewingRef.current) return;
+    reviewingRef.current = true;
+    setReviewing(block.id);
+    try {
+      const res = await fetch(`/api/users/${userId}/availability/${block.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: blockKind(block),
+          intent: "TIME_OFF",
+          status,
+          dayOfWeek: blockKind(block) === "WEEKLY" ? block.dayOfWeek : null,
+          date: blockKind(block) === "AD_HOC" ? dateValue(block.date) : null,
+          startsAt: block.startsAt,
+          endsAt: block.endsAt,
+          label: block.label ?? null,
+          semesterLabel: block.semesterLabel ?? null,
+          semesterStartsOn: dateValue(block.semesterStartsOn) || null,
+          semesterEndsOn: dateValue(block.semesterEndsOn) || null,
+        }),
+      });
+      if (handleAuthRedirect(res)) return;
+      if (!res.ok) {
+        toast.error(await parseErrorMessage(res, "Could not review time off"));
+        return;
+      }
+      const json = await parseJsonSafely<{ data?: AvailabilityBlock }>(res);
+      if (!json?.data) {
+        toast.error("Review saved, but the response was incomplete. Refresh the profile.");
+        return;
+      }
+      upsertBlock(json.data);
+      toast.success(status === "APPROVED" ? "Time off approved" : "Time off denied");
+    } catch {
+      toast.error("Network error");
+    } finally {
+      reviewingRef.current = false;
+      setReviewing(null);
+    }
+  }
+
   if (loading) {
     return (
       <div className="mt-4 flex flex-col gap-3">
@@ -388,6 +528,7 @@ export default function UserAvailabilityTab({
           {showForm && (
             <AvailabilityForm
               userId={userId}
+              canReview={canReview}
               onSaved={upsertBlock}
               onCancel={() => setShowForm(false)}
             />
@@ -396,6 +537,7 @@ export default function UserAvailabilityTab({
             <AvailabilityForm
               userId={userId}
               initial={editing}
+              canReview={canReview}
               onSaved={upsertBlock}
               onCancel={() => setEditing(null)}
             />
@@ -426,9 +568,12 @@ export default function UserAvailabilityTab({
                             key={block.id}
                             block={block}
                             canEdit={canEdit}
+                            canReview={canReview}
                             deleting={deleting === block.id}
+                            reviewing={reviewing === block.id}
                             onEdit={() => setEditing(block)}
                             onDelete={() => handleDelete(block.id)}
+                            onReview={(status) => handleReview(block, status)}
                           />
                         ))}
                       </div>
@@ -459,9 +604,12 @@ export default function UserAvailabilityTab({
                       <BlockPill
                         block={block}
                         canEdit={canEdit}
+                        canReview={canReview}
                         deleting={deleting === block.id}
+                        reviewing={reviewing === block.id}
                         onEdit={() => setEditing(block)}
                         onDelete={() => handleDelete(block.id)}
+                        onReview={(status) => handleReview(block, status)}
                       />
                     </div>
                   </div>

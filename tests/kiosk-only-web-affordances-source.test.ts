@@ -10,6 +10,7 @@ describe("kiosk-only web affordance contract", () => {
     const dashboard = source("src/app/(app)/page.tsx");
     const list = source("src/components/BookingListPage.tsx");
     const newCheckout = source("src/app/(app)/checkouts/new/page.tsx");
+    const eventDetail = source("src/app/(app)/events/[id]/page.tsx");
     const eventGear = source("src/app/(app)/events/[id]/_components/ShiftCoverageCard.tsx");
     const wizard = source("src/components/booking-wizard/BookingWizard.tsx");
 
@@ -17,6 +18,9 @@ describe("kiosk-only web affordance contract", () => {
     expect(dashboard).not.toContain('"/checkouts/new"');
     expect(list).not.toContain('const base = config.kind === "CHECKOUT"');
     expect(newCheckout).toContain('redirect(qs ? `/reservations/new?${qs}` : "/reservations/new")');
+    expect(eventDetail).toContain("Reserve gear for this event");
+    expect(eventDetail).not.toContain("Checkout to this event");
+    expect(eventDetail).not.toContain("/checkouts?title=");
     expect(eventGear).toContain("/reservations?create=true");
     expect(eventGear).not.toContain("/checkouts?create=true");
     expect(wizard).not.toContain("/api/checkouts");

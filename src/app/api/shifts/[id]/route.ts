@@ -14,7 +14,10 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   const { id } = params;
 
   const body = updateShiftSchema.parse(await req.json());
-  const existing = await db.shift.findUnique({ where: { id } });
+  const existing = await db.shift.findUnique({
+    where: { id },
+    include: { shiftGroup: { select: { publishedAt: true } } },
+  });
   if (!existing) throw new HttpError(404, "Shift not found");
 
   const data: Record<string, unknown> = {};
@@ -70,6 +73,8 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
             availabilityBlocks: {
               select: {
                 kind: true,
+                intent: true,
+                status: true,
                 dayOfWeek: true,
                 date: true,
                 startsAt: true,
@@ -99,6 +104,9 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
           data: {
             hasConflict: Boolean(conflictNote),
             conflictNote,
+            ...(existing.shiftGroup.publishedAt
+              ? { acknowledgedAt: null, acknowledgedById: null }
+              : {}),
           },
         });
       }

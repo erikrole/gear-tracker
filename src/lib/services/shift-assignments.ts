@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 import { shiftWorkerTypeForRole } from "@/lib/shift-display";
-import { availabilityConflictNote } from "@/lib/student-availability";
+import { evaluateAvailabilityPreferences } from "@/lib/student-availability";
 
 function effectiveShiftWindow(shift: {
   startsAt: Date;
@@ -131,6 +131,8 @@ export async function directAssignShift(
         availabilityBlocks: {
           select: {
             kind: true,
+            intent: true,
+            status: true,
             dayOfWeek: true,
             date: true,
             startsAt: true,
@@ -162,9 +164,13 @@ export async function directAssignShift(
       endsAt: opts.callEndsAt ?? effectiveShiftWindow(targetShift).endsAt,
     };
     await checkTimeConflict(tx, userId, conflictWindow.startsAt, conflictWindow.endsAt);
-    const conflictNote = assignee.role === "STUDENT"
-      ? availabilityConflictNote(assignee.availabilityBlocks ?? [], conflictWindow)
+    const availability = assignee.role === "STUDENT"
+      ? evaluateAvailabilityPreferences(assignee.availabilityBlocks ?? [], conflictWindow)
       : null;
+    if (availability?.blocking) {
+      throw new HttpError(409, availability.blocking.note);
+    }
+    const conflictNote = availability?.advisory?.note ?? null;
 
     // Decline any pending requests — slot is being filled by direct assignment
     await tx.shiftAssignment.updateMany({
@@ -203,11 +209,36 @@ export async function directAssignShift(
  */
 export async function requestShift(shiftId: string, userId: string) {
   return db.$transaction(async (tx) => {
-    const shift = await tx.shift.findUnique({
-      where: { id: shiftId },
-      include: { shiftGroup: true },
-    });
+    const [shift, requester] = await Promise.all([
+      tx.shift.findUnique({
+        where: { id: shiftId },
+        include: { shiftGroup: true },
+      }),
+      tx.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          role: true,
+          availabilityBlocks: {
+            select: {
+              kind: true,
+              intent: true,
+              status: true,
+              dayOfWeek: true,
+              date: true,
+              startsAt: true,
+              endsAt: true,
+              label: true,
+              semesterLabel: true,
+              semesterStartsOn: true,
+              semesterEndsOn: true,
+            },
+          },
+        },
+      }),
+    ]);
     if (!shift) throw new HttpError(404, "Shift not found");
+    if (!requester) throw new HttpError(404, "User not found");
     if (!shift.shiftGroup.isPremier) {
       throw new HttpError(400, "Shift requests are only available for premier events");
     }
@@ -231,12 +262,21 @@ export async function requestShift(shiftId: string, userId: string) {
     // Check for time conflicts with the user's other shifts
     const conflictWindow = effectiveShiftWindow(shift);
     await checkTimeConflict(tx, userId, conflictWindow.startsAt, conflictWindow.endsAt);
+    const availability = requester.role === "STUDENT"
+      ? evaluateAvailabilityPreferences(requester.availabilityBlocks ?? [], conflictWindow)
+      : null;
+    if (availability?.blocking) {
+      throw new HttpError(409, availability.blocking.note);
+    }
+    const conflictNote = availability?.advisory?.note ?? null;
 
     return tx.shiftAssignment.create({
       data: {
         shiftId,
         userId,
         status: "REQUESTED",
+        hasConflict: Boolean(conflictNote),
+        conflictNote,
       },
       include: {
         user: { select: { id: true, name: true, role: true, primaryArea: true } },
@@ -252,7 +292,29 @@ export async function approveRequest(assignmentId: string) {
   return db.$transaction(async (tx) => {
     const assignment = await tx.shiftAssignment.findUnique({
       where: { id: assignmentId },
-      include: { shift: true },
+      include: {
+        shift: true,
+        user: {
+          select: {
+            role: true,
+            availabilityBlocks: {
+              select: {
+                kind: true,
+                intent: true,
+                status: true,
+                dayOfWeek: true,
+                date: true,
+                startsAt: true,
+                endsAt: true,
+                label: true,
+                semesterLabel: true,
+                semesterStartsOn: true,
+                semesterEndsOn: true,
+              },
+            },
+          },
+        },
+      },
     });
     if (!assignment) throw new HttpError(404, "Assignment not found");
     if (assignment.status !== "REQUESTED") {
@@ -263,6 +325,13 @@ export async function approveRequest(assignmentId: string) {
     // between the time they requested and the time staff approves.
     const conflictWindow = effectiveShiftWindow(assignment.shift);
     await checkTimeConflict(tx, assignment.userId, conflictWindow.startsAt, conflictWindow.endsAt);
+    const availability = assignment.user?.role === "STUDENT"
+      ? evaluateAvailabilityPreferences(assignment.user.availabilityBlocks ?? [], conflictWindow)
+      : null;
+    if (availability?.blocking) {
+      throw new HttpError(409, availability.blocking.note);
+    }
+    const conflictNote = availability?.advisory?.note ?? assignment.conflictNote;
 
     // Re-check no other active assignment was created on this shift since the request
     const existing = await tx.shiftAssignment.findFirst({
@@ -287,7 +356,7 @@ export async function approveRequest(assignmentId: string) {
 
     return tx.shiftAssignment.update({
       where: { id: assignmentId },
-      data: { status: "APPROVED" },
+      data: { status: "APPROVED", hasConflict: Boolean(conflictNote), conflictNote },
       include: {
         user: { select: { id: true, name: true, role: true, primaryArea: true } },
       },

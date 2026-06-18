@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { startOfTodayInAppTz } from "@/lib/app-time";
 
 /**
  * Event-default checkout creation contract (BRIEF_CHECKOUT_UX_V2.md):
@@ -45,7 +46,11 @@ export async function resolveEventDefaults(
     where: {
       sportCode,
       status: "CONFIRMED",
-      startsAt: { gte: now, lte: windowEnd },
+      // Today's events (including all-day, which start at midnight) should still
+      // be eligible defaults — match on endsAt past the start of today rather
+      // than startsAt >= now, which would skip them.
+      startsAt: { lte: windowEnd },
+      endsAt: { gt: startOfTodayInAppTz(now) },
     },
     orderBy: { startsAt: "asc" },
   });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import { classifyError, handleAuthRedirect, isAbortError, parseErrorMessage } fr
 import { ListView } from "./_components/ListView";
 import { NewEventSheet } from "./_components/NewEventSheet";
 import { ScheduleReadiness } from "./_components/ScheduleReadiness";
+import { ScheduleAutomationDigest } from "./_components/ScheduleAutomationDigest";
 
 const ShiftDetailPanel = dynamic(
   () => import("@/components/ShiftDetailPanel"),
@@ -36,6 +37,8 @@ const TradeBoard = dynamic(() => import("@/components/TradeBoard"), {
 export default function SchedulePage() {
   const data = useScheduleData();
   const isStaff = data.currentUserRole === "STAFF" || data.currentUserRole === "ADMIN";
+  const { loadData, setTradeSheetOpen } = data;
+  const { queue, setQueue } = data.filters;
   const hidingRef = useRef<Set<string>>(new Set());
   const [hidingEventIds, setHidingEventIds] = useState<Set<string>>(() => new Set());
   const [newEventOpen, setNewEventOpen] = useState(false);
@@ -64,7 +67,7 @@ export default function SchedulePage() {
         } else {
           toast.success("Event restored");
         }
-        data.loadData();
+        loadData();
       } else {
         const msg = await parseErrorMessage(res, isHidden ? "Failed to hide event" : "Failed to restore event");
         toast.error(msg);
@@ -85,11 +88,24 @@ export default function SchedulePage() {
         return next;
       });
     }
-  }, [data.loadData]);
+  }, [loadData]);
 
   const handleHideEvent = useCallback((eventId: string) => {
     void handleSetEventVisibility(eventId, true);
   }, [handleSetEventVisibility]);
+
+  const openTradeBoard = useCallback(() => {
+    setTradeSheetOpen(true);
+  }, [setTradeSheetOpen]);
+
+  const showQueue = useCallback((nextQueue: NonNullable<typeof queue>) => {
+    setQueue(nextQueue);
+    if (nextQueue === "trade-approval") setTradeSheetOpen(true);
+  }, [setQueue, setTradeSheetOpen]);
+
+  useEffect(() => {
+    if (queue === "trade-approval") setTradeSheetOpen(true);
+  }, [queue, setTradeSheetOpen]);
 
   return (
     <FadeUp>
@@ -130,7 +146,19 @@ export default function SchedulePage() {
         filteredEntries={data.filteredEntries}
         currentUserId={data.currentUserId}
         openTradeCount={data.openTradeCount}
+        health={data.scheduleHealth}
+        sourceSignal={data.sourceSignal}
+        onShowQueue={showQueue}
+        onOpenTradeBoard={openTradeBoard}
       />
+
+      {isStaff && (
+        <ScheduleAutomationDigest
+          digest={data.scheduleAutomation}
+          onShowQueue={showQueue}
+          onOpenTradeBoard={openTradeBoard}
+        />
+      )}
 
       {/* Calendar View */}
       {data.filters.viewMode === "calendar" && (
@@ -173,8 +201,11 @@ export default function SchedulePage() {
           clearFilters={data.filters.clearAll}
           includePast={data.filters.includePast}
           hasFilters={data.filters.hasFilters}
+          activeQueueMeta={data.filters.queueMeta}
+          clearQueue={() => data.filters.setQueue(null)}
           currentUserId={data.currentUserId}
           isStaff={isStaff}
+          scheduleHealth={data.scheduleHealth}
           expandedRowId={data.expandedRowId}
           setExpandedRowId={data.setExpandedRowId}
           onSelectGroup={data.setSelectedGroupId}
@@ -208,6 +239,7 @@ export default function SchedulePage() {
         open={data.tradeSheetOpen}
         onOpenChange={(open) => {
           data.setTradeSheetOpen(open);
+          if (!open && data.filters.queue === "trade-approval") data.filters.setQueue(null);
           if (!open) data.loadTradeCount();
         }}
       >
@@ -223,6 +255,7 @@ export default function SchedulePage() {
               <TradeBoard
                 currentUserId={data.currentUserId}
                 currentUserRole={data.currentUserRole}
+                initialStatusFilter={data.filters.queue === "trade-approval" ? "CLAIMED" : undefined}
               />
             )}
           </SheetBody>

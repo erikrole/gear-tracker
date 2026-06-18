@@ -92,6 +92,7 @@ struct NotificationsSheet: View {
     var onSelectTrades: (() -> Void)?
     var onSelectAsset: ((String) -> Void)?
     var onSelectUser: ((String) -> Void)?
+    var onSelectEvent: ((String) -> Void)?
 
     @State private var vm = NotificationsViewModel()
     @Environment(\.dismiss) private var dismiss
@@ -269,6 +270,12 @@ struct NotificationsSheet: View {
             return
         }
 
+        if isShiftTargetedType(notif.type), let eventId = notif.payload?.eventId {
+            onSelectEvent?(eventId)
+            dismiss()
+            return
+        }
+
         // Asset-related types → asset detail. Damage / lost / low-stock all
         // carry assetId; routing there puts the staffer one tap from action.
         if let assetId = notif.payload?.assetId, isAssetTargetedType(notif.type) {
@@ -283,7 +290,7 @@ struct NotificationsSheet: View {
             return
         }
 
-        // shift_gear_up and other no-target types: mark-read only (handled
+        // Shift rows without event routing and other no-target types: mark-read only (handled
         // above), no navigation.
     }
 
@@ -291,6 +298,10 @@ struct NotificationsSheet: View {
         type.hasPrefix("checkin_item_damaged")
             || type.hasPrefix("checkin_item_lost")
             || type.hasPrefix("low_stock")
+    }
+
+    private func isShiftTargetedType(_ type: String) -> Bool {
+        type.hasPrefix("shift_")
     }
 
     private var groupedSections: [(String, [AppNotification])] {
@@ -389,6 +400,7 @@ private extension String {
         if hasPrefix("checkin_item_lost") { return "questionmark.circle" }
         if hasPrefix("trade_") { return "arrow.triangle.2.circlepath" }
         if hasPrefix("shift_gear_up") { return "bag.badge.plus" }
+        if hasPrefix("shift_") { return "calendar.badge.clock" }
         if hasPrefix("badge_awarded") { return "trophy.fill" }
         if hasPrefix("low_stock") { return "cube.box" }
         if hasPrefix("reservation_booked") { return "calendar.badge.plus" }
@@ -405,6 +417,7 @@ private extension String {
         if self == "trade_claimed" || self == "trade_approved" { return .blue }
         if self == "trade_declined" || self == "trade_expired" { return .red }
         if hasPrefix("shift_gear_up") { return .green }
+        if hasPrefix("shift_") { return .blue }
         if hasPrefix("badge_awarded") { return .purple }
         if hasPrefix("low_stock") { return .orange }
         if hasPrefix("reservation_booked") || hasPrefix("reservation_pickup_ready") { return .purple }

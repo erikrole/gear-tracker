@@ -7,6 +7,7 @@ import {
   zeroDashboardCounts,
   type DashboardCounts,
 } from "@/lib/services/dashboard-counts";
+import { startOfDayInAppTz } from "@/lib/app-time";
 
 const STATS_LIMIT = { max: 180, windowMs: 60_000 };
 
@@ -33,10 +34,9 @@ export const GET = withAuth(async (_req, { user }) => {
   const now = new Date();
   const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-  const startOfToday = new Date(now);
-  startOfToday.setHours(0, 0, 0, 0);
-  const startOfTomorrow = new Date(startOfToday);
-  startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+  // Institution-timezone day bounds (not the server's UTC).
+  const startOfToday = startOfDayInAppTz(now, 0);
+  const startOfTomorrow = startOfDayInAppTz(now, 1);
 
   const [countsResult, myShiftsCountResult] = await Promise.allSettled([
     readDashboardCounts({
@@ -51,7 +51,9 @@ export const GET = withAuth(async (_req, { user }) => {
       where: {
         userId: user.id,
         status: { in: ["DIRECT_ASSIGNED", "APPROVED"] },
-        shift: { shiftGroup: { event: { startsAt: { gte: now }, status: "CONFIRMED" } } },
+        // Keep today's shifts counted until local midnight (endsAt past the
+        // start of today) so all-day / evening shifts don't drop to 0 early.
+        shift: { shiftGroup: { event: { endsAt: { gt: startOfToday }, status: "CONFIRMED" } } },
       },
     }),
   ]);

@@ -1,6 +1,6 @@
 # AREA: Shift Calendar & Scheduling
 
-> Status: **Implemented** | Owner: TBD | Last Updated: 2026-06-16
+> Status: **Implemented** | Owner: TBD | Last Updated: 2026-06-18
 
 ## Purpose
 
@@ -14,7 +14,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - **ShiftGroup**: 1:1 with CalendarEvent, container for all shifts at an event
 - **Premier Events**: Events where students can request to work (requires staff approval)
 - **Trade Board**: Area-filtered board where students post shifts they can't work; other students in the same area can claim them
-- **StudentAvailabilityBlock**: Recurring weekly unavailability block, usually a class schedule conflict, used to warn during shift assignment
+- **StudentAvailabilityBlock**: Weekly or ad hoc student availability signal used by scheduling. Existing blocks read as approved cannot-work advisory conflicts; newer blocks can express prefer, dislike, pending time off, approved time off, or denied time off.
 
 ## Acceptance Criteria
 
@@ -32,32 +32,45 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - [x] Week view: 7-day time-block view with coverage dots, navigation, My Shifts highlight
 - [x] Home/away/neutral toggle: filterable with shared green, orange, and gray venue treatment
 - [x] Hide events: staff can hide irrelevant events from schedule views
-- [x] Schedule readiness snapshot: staff-needed count, covered events, my shifts, trade count, and next call displayed on schedule page
+- [x] Schedule readiness snapshot: server-side health snapshot for staff/admin with open slots, requests, conflicts, trades, gear gaps, source/visibility state, my shifts, and next call displayed as actionable queue cards
 - [x] Student availability: profile Availability tab stores recurring weekly blocks and assignment flows show conflicts
 - [x] Student availability exceptions: web profile Availability supports semester date ranges and one-time conflicts
 - [x] Shift trade emails: claimed, completed, approved, and declined trade events send best-effort email companions
 - [x] Staff/Student slot planning: sport templates generate separate Staff and Student slots and preserve the planned slot type after assignment
 - [x] Call-time overrides: default sport call windows can be overridden per shift and per assignment, with personal overrides used for conflict checks
 - [x] Assignment conflict review: staff/admin can filter assignment work by conflicted, open, and clean states and adjust personal call windows from the conflict context
+- [x] Candidate recommendations: staff/admin assignment pickers can show read-only recommended, good fit, warning, and overloaded candidate groups without changing manual assignment behavior
+- [x] Preview-first auto-fill: staff/admin auto-fill actions show proposed assignments, skipped slots, warnings, and require an explicit apply action before mutating assignments
+- [x] Schedule publish/acknowledgement: staff/admin can publish or republish shift groups, Schedule/Event detail surfaces show Draft, Published, Changed, and Unacknowledged states, and assigned workers can acknowledge published assignments
+- [x] Scheduling notification policy: worker-facing assignment, call-time, gear-prep, and trade notifications respect publication state, additive schedule/trade/gear-prep preferences, and event-routable payloads
+- [x] Open Work: Trade Board now also surfaces published open Student shifts, premier pickup requests, claimed trades, and my trade posts in one Schedule work surface
+- [x] Preferences and time off: Availability blocks now support prefer/dislike/cannot-work signals plus pending/approved/denied time-off lifecycle, feeding candidate scoring, Open Work, assignment, trade, and call-window conflict checks
+- [x] In-season automation review: Schedule surfaces read-only automation suggestions for staffing gaps, auto-fill preview, publish readiness, risk blockers, stale sources, and daily cleanup without silently mutating worker-facing commitments
+- [x] Copy-forward and template review: staff/admin can compare an event's crew slots against the active sport template and preview crew copied from the last matching event before applying assignments through existing safety checks
+- [x] Gear readiness: Schedule health carries event and assignment gear readiness across primary event, linked-event, and shift-assignment booking paths, while Schedule list rows show compact gear state and reserve/prep actions without creating checkout custody
 
 ## Information Architecture
 
 ### Schedule Page (`/schedule`)
 1. **Page Header** — title, "Trade Board" button (with open-trade count badge)
-2. **Schedule readiness snapshot** — staff-needed count, covered events, viewer shift count, open trades, and next visible call time
-3. **Filter Bar** (`ScheduleFilters`) — View, Venue, Needs staff, My Shifts, Past, Sport, Area, and Coverage controls
-3. **View Toggle** — List | Week | Calendar (persisted to localStorage)
-4. **List View** (`ListView`) — date-grouped expandable table; parent rows = events, child rows = shifts
-5. **Week View** (`WeekView`) — 7-day strip with time-block events, coverage dots, navigation (prev/next/this week)
-6. **Calendar View** (`CalendarView`) — month grid with coverage indicator dots (green/orange/red)
-7. **ShiftDetailPanel** — side sheet for per-event shift management (add/remove shifts, assign users, premier toggle)
-8. **Trade Board** — sheet overlay with area/status filters, claim/approve/cancel workflows
+2. **Schedule readiness snapshot** — server-backed health queue cards for next call, staff needed, covered events, my shifts, trades, requests, conflicts, gear gaps, source/visibility state
+3. **Automation review** — staff/admin digest cards for review-first automation suggestions: staffing, auto-fill preview, publish readiness, blockers, sources, and cleanup
+4. **Work queues** — URL-backed `queue` state for Needs staffing, Conflicts, Pending requests, Trade approval, Gear gaps, My calls today, and Stale source
+5. **Filter Bar** (`ScheduleFilters`) — View, Venue, Needs staff, My Shifts, Past, Sport, Area, Coverage controls, and active queue banner
+6. **View Toggle** — List | Week | Calendar (persisted to localStorage)
+7. **List View** (`ListView`) — date-grouped expandable table; parent rows = events with crew, publication, and gear readiness chips; child rows = shifts with assignment gear state and reservation/prep jump actions
+8. **Week View** (`WeekView`) — 7-day strip with time-block events, coverage dots, navigation (prev/next/this week)
+9. **Calendar View** (`CalendarView`) — month grid with coverage indicator dots (green/orange/red)
+10. **ShiftDetailPanel** — side sheet for per-event shift management (add/remove shifts, assign users, premier toggle, template drift review, copy-forward crew preview)
+11. **Open Work / Trade Board** — sheet overlay with area/status filters for open shifts, premier pickup requests, posted trades, claimed trades awaiting approval, and my trade posts; Trade approval queue opens it to claimed trades
 
 ### Event Detail Page (`/events/[id]`)
-1. Badge bar — status, sport, home/away, location
-2. Details card — Opponent, When, Venue
+1. Event identity card — status plus Synced, Manual, or Edited source state, event timing, opponent, venue, and source context
+2. Link summary — crew fill, gear links/gaps, travel state, and source edit state
 3. Shift Coverage card — merged with Command Center (staff: gear summary + 5-col table; students: 4-col table)
-4. Action CTAs — "Reserve gear", "Checkout to this event"
+4. Crew template review — staff/admin can inspect template drift and copy-forward proposals before applying assignments
+5. Crew gear state — staff/admin can distinguish assignment-linked gear, event reservations, pickup-ready gear, checked-out gear, and missing gear from the Crew table
+6. Action CTAs — "Reserve gear for this event" and staff/admin "Review schedule"; normal web checkout creation is not exposed because kiosk owns custody
 
 ### Dashboard Integration
 1. **My Shifts card** — upcoming assigned shifts with area, time, "Prep gear" button
@@ -75,6 +88,19 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - Sports code mappings (existing — `src/lib/sports.ts`)
 
 ## Change Log
+- 2026-06-18: Schedule Source Of Truth Slice 12 shipped. `/api/schedule/health` and Event command-center reads now include an audit-derived Schedule change history keyed by event. `/schedule` shows compact Changed recently/Review changes indicators and expanded-row latest change text, while Event detail Crew shows recent schedule changes with actor, timestamp, detail, and post-publication review state. The slice is read-only and does not add rollback, automated republish, worker notification fanout, or custody mutation.
+- 2026-06-18: Schedule Source Of Truth Slice 11 shipped. `/api/schedule/health` now exposes a first-class gear readiness read model keyed by event and assignment, resolving gear through `Booking.eventId`, `BookingEvent`, and `Booking.shiftAssignmentId`. `/schedule` list rows show compact event gear chips and expanded assignment gear badges with reservation/prep links that carry event, requester, and assignment context into the reservation wizard. Event detail Crew labels now distinguish assignment gear, event reservation, pickup ready, checked out, and missing gear while preserving kiosk-only custody.
+- 2026-06-18: Schedule Source Of Truth Slice 10 shipped. Event detail Crew and `ShiftDetailPanel` now expose a preview-first crew template review. Staff/admin can compare current slots to the active sport template, see missing additive slots and extra/manual slots without deletion, preview crew copied from the last matching staffed event, and apply copied assignments through the existing direct-assignment safety checks. No manual slots are removed, no existing assignments are overwritten, and copy-forward remains staff-reviewed.
+- 2026-06-18: Schedule Source Of Truth Slice 9 shipped. `/api/schedule/automation` now provides a staff/admin read-only automation digest over the active Schedule window, combining Schedule health, publication state, source freshness, auto-fill preview eligibility, stale trade cleanup, and morning-refresh maintenance context. `/schedule` shows review-first automation cards that route to existing queues, Assign, Event detail, Trade Board, or Calendar Sources. `morning-refresh` includes the same digest in its response after sync, archive, trade, pending-pickup, and firmware maintenance, without adding a second cron route or silently changing worker assignments, publish state, trades, or notifications.
+- 2026-06-18: Schedule Source Of Truth Slice 8 shipped. Student availability now supports preference intent and time-off status on the existing `StudentAvailabilityBlock` contract, preserving old weekly/ad hoc blocks as approved cannot-work advisory conflicts. Profile Availability lets students add cannot-work, prefer, dislike, and time-off entries; staff/admin can review pending time-off requests. Candidate scoring now rewards preferred windows, warns on dislikes and pending time off, and treats approved time off as blocking for assignment, pickup, trade, and personal call-window updates. Staff approval or denial of time off writes an in-app notification to the student.
+- 2026-06-18: Schedule Source Of Truth Slice 7 shipped. Trade Board is now an Open Work surface backed by `/api/schedule/open-work`: students see published open Student slots alongside posted trades, can claim non-premier shifts directly, and can request premier shifts for staff review. Staff/admin users see pickup requests in the same surface and approve or decline them through the existing assignment lifecycle. Draft, hidden, archived, cancelled, already-filled, and past shifts are excluded from pickup inventory, and eligibility reuses the candidate scoring/conflict path instead of creating a separate rule set.
+- 2026-06-18: Schedule Source Of Truth Slice 6 shipped. Scheduling notifications now have a publication-aware policy: draft assignment changes stay quiet for workers, published assignment creates/approvals/removals/call-time changes route to the event with `eventId`, `shiftId`, and `assignmentId`, changed published call times clear acknowledgement state, manual gear-prep nudges remain staff-triggered, trade lifecycle notifications respect the `trade` category, and web/iOS notification settings expose schedule, trade, and gear-prep toggles.
+- 2026-06-18: Schedule Source Of Truth Slice 5 shipped. Schedule now has an explicit publish/acknowledgement contract: `ShiftGroup` stores publication metadata and a stable worker-facing snapshot, `ShiftAssignment` stores acknowledgement metadata, staff/admin can publish or republish shift groups, and assigned workers can acknowledge active published assignments. Schedule list, Event detail Crew, and `ShiftDetailPanel` now surface Draft, Published, Changed, and Unacknowledged states without sending worker-facing notifications yet. `/api/my-shifts` exposes additive optional publication/acknowledgement fields for native follow-up.
+- 2026-06-18: Schedule Source Of Truth Slice 4 shipped. Auto-fill is now preview-first on Event detail Crew and `ShiftDetailPanel`: staff/admin users fetch a read-only preview before assignment mutation, review proposed candidates, skipped slots, and warnings, then explicitly apply recommended assignments. The apply path now commits the same preview proposals through the existing serialized assignment transaction recheck, preserving conflict notes and preventing preview/apply drift.
+- 2026-06-18: Schedule Source Of Truth Slice 3 shipped. Assignment candidate scoring is now a read-only service and staff/admin API at `/api/shifts/[id]/candidate-scores`. The score uses trustworthy current scheduling data only: role fit, area assignment, primary area, sport roster, recent same-sport assignment, overlapping active assignments, advisory availability conflicts, and assignment workload. `/schedule/assign` now groups open-slot candidates as Recommended, Good fit, Warning, and Overloaded with concise reason labels while preserving manual selection and the existing serialized assignment transaction. Attendance/no-show scoring remains deferred because attendance-based shift signals are currently out of scope.
+- 2026-06-18: Schedule Source Of Truth Slice 2 shipped. `/schedule` work queues are now URL-backed through `queue=needs-staffing|conflicts|pending-requests|trade-approval|gear-gaps|my-calls-today|stale-source`, with readiness cards routing into the matching queue. The filter bar shows an active queue banner, List empty states now distinguish clear queues from hidden filters, and Trade approval opens Trade Board with the Claimed status selected. The health snapshot now includes queue event IDs so conflict, request, and gear-gap queues can filter event rows without widening the schedule list API.
+- 2026-06-18: Schedule Source Of Truth Slice 1 shipped. `/api/schedule/health` now provides a read-only, staff/admin schedule health snapshot over the active Schedule window with open slots, uncovered events, covered events, viewer shifts, pending requests, assignment conflicts, open trades, claimed trades needing approval, gear gaps, hidden/archived counts, and next call. `/schedule` now uses that snapshot to render actionable readiness cards that filter staff-needed and my-shifts views, open Trade Board, or route staff into Assign, Reservations, Event detail, and Calendar Sources. Non-critical health reads return partial-failure keys instead of failing the whole snapshot.
+- 2026-06-18: Event Detail Slice 0 polish shipped. `/events/[id]` now starts with a source-of-truth identity card that distinguishes Synced, Manual, and Edited events, summarizes Crew/Gear/Travel/Source links, and surfaces edited-from-source fields outside the edit dialog. The normal web "Checkout to this event" CTA was removed in favor of reservation-first gear prep, matching the kiosk-only custody decision. Manual all-day event route coverage now expects canonical UTC-midnight date bounds.
 - 2026-06-16: Schedule list and Event detail Crew all-day call-window display cleanup shipped. All-day events suppress shift call-window text in event header summaries, schedule rows, expanded schedule assignment rows, the Crew table, and the shift detail sheet. Timed events still render slot and personal call windows normally.
 - 2026-06-15: Kiosk-only custody Slice 3. Event missing-gear actions now reserve gear for the assigned worker instead of creating a checkout from the web command center.
 - 2026-06-09: Shift mutation response shapes aligned with list endpoints. `POST /api/shift-groups` now includes the `event` relation (same select as GET) and `PATCH /api/shift-trades/[id]/cancel` now returns the trade with `postedBy`/`claimedBy`/`shiftAssignment` relations (same shape as post/claim). Both previously returned bare rows that iOS — which decodes every trade/group mutation into the same model as the list — could not decode, so "Set up crew" and trade cancel failed on iOS despite succeeding server-side.

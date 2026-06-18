@@ -2,6 +2,7 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
 import { shiftWorkerLabel } from "@/lib/shift-display";
+import { startOfTodayInAppTz } from "@/lib/app-time";
 
 function gearStatusForBooking(status: string) {
   if (status === "OPEN") return "checked_out";
@@ -49,7 +50,10 @@ export const GET = withAuth(async (req, { user }) => {
       shiftGroup: {
         event: eventId
           ? { id: eventId }
-          : { startsAt: { gte: now }, status: "CONFIRMED" },
+          // Keep a shift on today's events listed until local midnight (endsAt
+          // past the start of today), so an all-day shift doesn't vanish at
+          // 12:00am and an evening game's shift isn't hidden the moment it ends.
+          : { endsAt: { gt: startOfTodayInAppTz(now) }, status: "CONFIRMED" },
       },
     },
   };
@@ -157,6 +161,14 @@ export const GET = withAuth(async (req, { user }) => {
       callEndsAt: (a.callEndsAt ?? a.shift.callEndsAt ?? a.shift.endsAt).toISOString(),
       callNote: a.callNote,
       status: a.status,
+      acknowledgedAt: a.acknowledgedAt?.toISOString() ?? null,
+      acknowledgedById: a.acknowledgedById,
+      schedulePublishedAt: a.shift.shiftGroup.publishedAt?.toISOString() ?? null,
+      scheduleAcknowledged: Boolean(
+        a.shift.shiftGroup.publishedAt
+        && a.acknowledgedAt
+        && a.acknowledgedAt >= a.shift.shiftGroup.publishedAt,
+      ),
       event: {
         id: event.id,
         summary: event.summary,

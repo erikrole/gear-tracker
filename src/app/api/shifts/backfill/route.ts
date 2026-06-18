@@ -1,9 +1,9 @@
 import { withAuth } from "@/lib/api";
-import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { generateShiftsForEvents } from "@/lib/services/shift-generation";
 import { createAuditEntry } from "@/lib/audit";
+import { startOfTodayInAppTz } from "@/lib/app-time";
 
 /**
  * One-time backfill: generate shifts for future events that have a
@@ -16,7 +16,9 @@ export const POST = withAuth(async (_req, { user }) => {
     where: {
       sportCode: { not: null },
       shiftGroup: null,
-      startsAt: { gte: new Date() },
+      // Include events still happening today (all-day events start at midnight),
+      // not just those starting in the future.
+      endsAt: { gt: startOfTodayInAppTz() },
     },
   });
 

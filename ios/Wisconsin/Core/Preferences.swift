@@ -91,6 +91,9 @@ final class NotificationPrefsViewModel {
         case .checkoutOverdue:  return categories.checkoutOverdue
         case .reservation:      return categories.reservation
         case .licenseExpiry:    return categories.licenseExpiry
+        case .schedule:         return categories.schedule
+        case .trade:            return categories.trade
+        case .gearPrep:         return categories.gearPrep
         }
     }
 
@@ -104,6 +107,9 @@ final class NotificationPrefsViewModel {
         case .checkoutOverdue:  categories.checkoutOverdue = value
         case .reservation:      categories.reservation = value
         case .licenseExpiry:    categories.licenseExpiry = value
+        case .schedule:         categories.schedule = value
+        case .trade:            categories.trade = value
+        case .gearPrep:         categories.gearPrep = value
         }
         current.categories = categories
         prefs = current
@@ -140,13 +146,16 @@ final class NotificationPrefsViewModel {
 
     enum Channel { case email, push }
 
-    enum Category { case checkoutDue, checkoutOverdue, reservation, licenseExpiry }
+    enum Category { case checkoutDue, checkoutOverdue, reservation, licenseExpiry, schedule, trade, gearPrep }
 
     private static let defaultCategories = NotificationPreferences.Categories(
         checkoutDue: true,
         checkoutOverdue: true,
         reservation: true,
-        licenseExpiry: true
+        licenseExpiry: true,
+        schedule: true,
+        trade: true,
+        gearPrep: true
     )
 
     private func save(

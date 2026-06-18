@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import type {
@@ -13,10 +14,20 @@ import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 import { calendarDate } from "@/lib/format";
 import {
   buildScheduleSourceSignal,
+  getCalendarSourceFreshness,
   type CalendarSourceFreshnessInput,
   type ScheduleSourceSignal,
 } from "@/lib/calendar-source-freshness";
 import type { VenueFilter } from "@/lib/venue-tone";
+import type { ScheduleHealthSnapshot } from "@/lib/schedule-health-types";
+import type { ScheduleAutomationDigest } from "@/lib/schedule-automation-types";
+import {
+  filterEntriesForScheduleQueue,
+  parseScheduleQueue,
+  SCHEDULE_QUEUE_META,
+  type ScheduleQueue,
+  type ScheduleQueueMeta,
+} from "@/lib/schedule-queues";
 
 export type ViewMode = "list" | "calendar" | "week";
 
@@ -39,6 +50,9 @@ export type ScheduleFilters = {
   setIncludeArchived: (v: boolean) => void;
   myShiftsOnly: boolean;
   setMyShiftsOnly: (v: boolean) => void;
+  queue: ScheduleQueue | null;
+  queueMeta: ScheduleQueueMeta | null;
+  setQueue: (v: ScheduleQueue | null) => void;
   hasFilters: boolean;
   clearAll: () => void;
 };
@@ -62,6 +76,8 @@ export type UseScheduleDataResult = {
   setTradeSheetOpen: (v: boolean) => void;
   loadTradeCount: () => void;
   sourceSignal: ScheduleSourceSignal | null;
+  scheduleHealth: ScheduleHealthSnapshot | null;
+  scheduleAutomation: ScheduleAutomationDigest | null;
   selectedGroupId: string | null;
   setSelectedGroupId: (id: string | null) => void;
   expandedRowId: string | null;
@@ -84,6 +100,7 @@ function mergeData(events: CalendarEvent[], groups: ShiftGroup[]): CalendarEntry
       shifts: g?.shifts ?? [],
       isPremier: g?.isPremier ?? false,
       archivedAt: g?.archivedAt ?? null,
+      publication: g?.publication ?? null,
     };
   });
 }
@@ -92,6 +109,8 @@ function mergeData(events: CalendarEvent[], groups: ShiftGroup[]): CalendarEntry
 function buildScheduleUrls(viewMode: string, calMonth: Date, weekStart: Date, includePast: boolean, includeArchived: boolean, sportFilter: string) {
   const evParams = new URLSearchParams({ limit: "200" });
   const sgParams = new URLSearchParams({ limit: "200" });
+  const healthParams = new URLSearchParams();
+  const automationParams = new URLSearchParams();
 
   if (viewMode === "calendar") {
     const startDate = calMonth.toISOString();
@@ -101,6 +120,12 @@ function buildScheduleUrls(viewMode: string, calMonth: Date, weekStart: Date, in
     evParams.set("includePast", "true");
     sgParams.set("startDate", startDate);
     sgParams.set("endDate", endDate);
+    healthParams.set("startDate", startDate);
+    healthParams.set("endDate", endDate);
+    healthParams.set("includePast", "true");
+    automationParams.set("startDate", startDate);
+    automationParams.set("endDate", endDate);
+    automationParams.set("includePast", "true");
   } else if (viewMode === "week") {
     const startDate = weekStart.toISOString();
     const weekEnd = new Date(weekStart);
@@ -112,6 +137,12 @@ function buildScheduleUrls(viewMode: string, calMonth: Date, weekStart: Date, in
     evParams.set("includePast", "true");
     sgParams.set("startDate", startDate);
     sgParams.set("endDate", endDate);
+    healthParams.set("startDate", startDate);
+    healthParams.set("endDate", endDate);
+    healthParams.set("includePast", "true");
+    automationParams.set("startDate", startDate);
+    automationParams.set("endDate", endDate);
+    automationParams.set("includePast", "true");
   } else {
     if (!includePast) {
       // Use start-of-today to avoid constantly changing URLs
@@ -120,14 +151,20 @@ function buildScheduleUrls(viewMode: string, calMonth: Date, weekStart: Date, in
       const startDate = today.toISOString();
       evParams.set("startDate", startDate);
       sgParams.set("startDate", startDate);
+      healthParams.set("startDate", startDate);
+      automationParams.set("startDate", startDate);
     } else {
       evParams.set("includePast", "true");
+      healthParams.set("includePast", "true");
+      automationParams.set("includePast", "true");
     }
   }
 
   if (sportFilter) {
     evParams.set("sportCode", sportFilter);
     sgParams.set("sportCode", sportFilter);
+    healthParams.set("sportCode", sportFilter);
+    automationParams.set("sportCode", sportFilter);
   }
 
   // Archived events are always in the past — also pass includePast so the
@@ -135,11 +172,17 @@ function buildScheduleUrls(viewMode: string, calMonth: Date, weekStart: Date, in
   if (includeArchived) {
     evParams.set("includeArchived", "true");
     evParams.set("includePast", "true");
+    healthParams.set("includeArchived", "true");
+    healthParams.set("includePast", "true");
+    automationParams.set("includeArchived", "true");
+    automationParams.set("includePast", "true");
   }
 
   return {
     eventsUrl: `/api/calendar-events?${evParams}`,
     groupsUrl: `/api/shift-groups?${sgParams}`,
+    healthUrl: `/api/schedule/health?${healthParams}`,
+    automationUrl: `/api/schedule/automation?${automationParams}`,
   };
 }
 
@@ -188,7 +231,34 @@ async function fetchCalendarSources(signal?: AbortSignal): Promise<CalendarSourc
   return json.data;
 }
 
+async function fetchScheduleHealth(url: string, signal?: AbortSignal): Promise<ScheduleHealthSnapshot> {
+  const res = await fetch(url, { signal });
+  if (handleAuthRedirect(res, "/schedule")) {
+    throw new DOMException("Auth redirect", "AbortError");
+  }
+  if (!res.ok) throw new Error("schedule health fetch failed");
+
+  const json = await parseJsonSafely<{ data?: ScheduleHealthSnapshot }>(res);
+  if (!json?.data) throw new Error("schedule health response malformed");
+  return json.data;
+}
+
+async function fetchScheduleAutomation(url: string, signal?: AbortSignal): Promise<ScheduleAutomationDigest> {
+  const res = await fetch(url, { signal });
+  if (handleAuthRedirect(res, "/schedule")) {
+    throw new DOMException("Auth redirect", "AbortError");
+  }
+  if (!res.ok) throw new Error("schedule automation fetch failed");
+
+  const json = await parseJsonSafely<{ data?: ScheduleAutomationDigest }>(res);
+  if (!json?.data) throw new Error("schedule automation response malformed");
+  return json.data;
+}
+
 export function useScheduleData(): UseScheduleDataResult {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [calMonth, setCalMonth] = useState(() => {
@@ -211,6 +281,20 @@ export function useScheduleData(): UseScheduleDataResult {
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   const [tradeSheetOpen, setTradeSheetOpen] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const activeQueue = parseScheduleQueue(searchParams.get("queue"));
+  const activeQueueMeta = activeQueue ? SCHEDULE_QUEUE_META[activeQueue] : null;
+
+  const setQueue = useCallback((queue: ScheduleQueue | null) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (queue) {
+      params.set("queue", queue);
+      setViewMode("list");
+    } else {
+      params.delete("queue");
+    }
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }, [pathname, router, searchParams]);
 
   useEffect(() => {
     const storedView = localStorage.getItem(LS_VIEW_MODE);
@@ -241,6 +325,7 @@ export function useScheduleData(): UseScheduleDataResult {
   const currentUserId = meData?.id ?? "";
   const currentUserRole = meData?.role ?? "STUDENT";
   const canViewSourceStatus = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
+  const canViewScheduleHealth = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
 
   // Set default myShiftsOnly for students
   useEffect(() => {
@@ -267,16 +352,41 @@ export function useScheduleData(): UseScheduleDataResult {
     enabled: canViewSourceStatus,
     staleTime: 60_000,
   });
+  const staleSourceIds = useMemo(() => {
+    return new Set(
+      calendarSources
+        .filter((source) => {
+          const state = getCalendarSourceFreshness(source);
+          return state === "error" || state === "stale" || state === "never-synced";
+        })
+        .map((source) => source.id),
+    );
+  }, [calendarSources]);
 
   // --- React Query: schedule entries ---
-  const { eventsUrl, groupsUrl } = buildScheduleUrls(viewMode, calMonth, weekStart, includePast, includeArchived, sportFilter);
+  const { eventsUrl, groupsUrl, healthUrl, automationUrl } = buildScheduleUrls(viewMode, calMonth, weekStart, includePast, includeArchived, sportFilter);
   const scheduleQueryKey = ["schedule", eventsUrl, groupsUrl];
 
   const { data: entries = [], isLoading, error: scheduleError, refetch: refetchSchedule } = useQuery({
     queryKey: scheduleQueryKey,
     queryFn: ({ signal }) => fetchSchedule(eventsUrl, groupsUrl, signal),
   });
-  const visibleEntries = preferencesLoaded ? entries : [];
+  const { data: scheduleHealth = null, refetch: refetchScheduleHealth } = useQuery({
+    queryKey: ["schedule-health", healthUrl],
+    queryFn: ({ signal }) => fetchScheduleHealth(healthUrl, signal),
+    enabled: canViewScheduleHealth,
+    staleTime: 30_000,
+  });
+  const { data: scheduleAutomation = null, refetch: refetchScheduleAutomation } = useQuery({
+    queryKey: ["schedule-automation", automationUrl],
+    queryFn: ({ signal }) => fetchScheduleAutomation(automationUrl, signal),
+    enabled: canViewScheduleHealth,
+    staleTime: 30_000,
+  });
+  const visibleEntries = useMemo(
+    () => preferencesLoaded ? entries : [],
+    [entries, preferencesLoaded],
+  );
   const loading = !preferencesLoaded || isLoading;
 
   // Classify error — only show error screen when no cached data
@@ -306,8 +416,15 @@ export function useScheduleData(): UseScheduleDataResult {
     } else if (coverageFilter === "filled") {
       result = result.filter((e) => e.coverage && e.coverage.percentage >= 100);
     }
+    result = filterEntriesForScheduleQueue({
+      entries: result,
+      queue: activeQueue,
+      health: scheduleHealth,
+      currentUserId,
+      staleSourceIds,
+    });
     return result;
-  }, [visibleEntries, homeAwayFilter, areaFilter, coverageFilter, myShiftsOnly, currentUserId]);
+  }, [visibleEntries, homeAwayFilter, areaFilter, coverageFilter, myShiftsOnly, currentUserId, activeQueue, scheduleHealth, staleSourceIds]);
 
   // Group entries by date for list view
   const groupedEntries = useMemo(() => {
@@ -324,7 +441,7 @@ export function useScheduleData(): UseScheduleDataResult {
     return groups;
   }, [filteredEntries]);
 
-  const hasFilters = !!(sportFilter || areaFilter || coverageFilter || homeAwayFilter !== "all" || includePast || includeArchived || myShiftsOnly);
+  const hasFilters = !!(sportFilter || areaFilter || coverageFilter || homeAwayFilter !== "all" || includePast || includeArchived || myShiftsOnly || activeQueue);
 
   const sourceSignal = useMemo(() => {
     if (!canViewSourceStatus) return null;
@@ -338,9 +455,11 @@ export function useScheduleData(): UseScheduleDataResult {
 
   const loadData = useCallback(async () => {
     const tasks: Promise<unknown>[] = [refetchSchedule()];
+    if (canViewScheduleHealth) tasks.push(refetchScheduleHealth());
+    if (canViewScheduleHealth) tasks.push(refetchScheduleAutomation());
     if (canViewSourceStatus) tasks.push(refetchSources());
     await Promise.allSettled(tasks);
-  }, [canViewSourceStatus, refetchSchedule, refetchSources]);
+  }, [canViewScheduleHealth, canViewSourceStatus, refetchSchedule, refetchScheduleAutomation, refetchScheduleHealth, refetchSources]);
 
   return {
     entries: visibleEntries,
@@ -366,6 +485,9 @@ export function useScheduleData(): UseScheduleDataResult {
       setIncludeArchived,
       myShiftsOnly,
       setMyShiftsOnly,
+      queue: activeQueue,
+      queueMeta: activeQueueMeta,
+      setQueue,
       hasFilters,
       clearAll: () => {
         setSportFilter("");
@@ -375,6 +497,7 @@ export function useScheduleData(): UseScheduleDataResult {
         setIncludePast(false);
         setIncludeArchived(false);
         setMyShiftsOnly(false);
+        setQueue(null);
       },
     },
     calMonth,
@@ -388,6 +511,8 @@ export function useScheduleData(): UseScheduleDataResult {
     setTradeSheetOpen,
     loadTradeCount: refetchTrades,
     sourceSignal,
+    scheduleHealth,
+    scheduleAutomation,
     selectedGroupId,
     setSelectedGroupId,
     expandedRowId,

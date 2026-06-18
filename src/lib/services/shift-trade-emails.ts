@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
-import { normalizePrefs, shouldDeliverEmail } from "@/lib/services/notification-prefs";
+import { normalizePrefs, shouldDeliverCategory, shouldDeliverEmail } from "@/lib/services/notification-prefs";
 
 export type ShiftTradeEmail = {
   userId: string;
@@ -23,7 +23,9 @@ export async function sendShiftTradeEmail({
   });
 
   if (!user?.email) return false;
-  if (!shouldDeliverEmail(normalizePrefs(user.notificationPrefs))) return false;
+  const prefs = normalizePrefs(user.notificationPrefs);
+  if (!shouldDeliverEmail(prefs)) return false;
+  if (!shouldDeliverCategory(prefs, "trade")) return false;
 
   return sendEmail({
     to: user.email,

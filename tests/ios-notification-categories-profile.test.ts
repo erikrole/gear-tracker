@@ -19,6 +19,9 @@ const categories = [
   { key: "checkoutOverdue", label: "Checkout overdue alerts" },
   { key: "reservation", label: "Reservation updates" },
   { key: "licenseExpiry", label: "License expiry reminders" },
+  { key: "schedule", label: "Schedule updates" },
+  { key: "trade", label: "Trade updates" },
+  { key: "gearPrep", label: "Gear prep nudges" },
 ] as const;
 
 describe("iOS notification category preferences", () => {
@@ -34,9 +37,9 @@ describe("iOS notification category preferences", () => {
       expect(webSettings).toContain(`setCategory("${key}", v)`);
     }
 
-    expect(route).toContain(
-      "}).default({ checkoutDue: true, checkoutOverdue: true, reservation: true, licenseExpiry: true })",
-    );
+    expect(route).toContain("schedule: true");
+    expect(route).toContain("trade: true");
+    expect(route).toContain("gearPrep: true");
     expect(models).toContain("var categories: Categories? = nil");
     expect(models).toContain("try container.encodeIfPresent(categories, forKey: .categories)");
   });
@@ -63,7 +66,7 @@ describe("iOS notification category preferences", () => {
     expect(categoryToggle).toContain(".disabled(prefsVM.saving)");
     expect(categoryToggle).not.toContain("prefsVM.isPaused");
 
-    expect(preferences).toContain("enum Category { case checkoutDue, checkoutOverdue, reservation, licenseExpiry }");
+    expect(preferences).toContain("enum Category { case checkoutDue, checkoutOverdue, reservation, licenseExpiry, schedule, trade, gearPrep }");
     expect(preferences).toContain("private static let defaultCategories = NotificationPreferences.Categories(");
     for (const { key } of categories) {
       expect(preferences).toContain(`${key}: true`);

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Calendar, Clock, MapPin, RefreshCw, WifiOff, AlertTriangle, Pencil, RotateCcw } from "lucide-react";
+import { Calendar, Clock, MapPin, RefreshCw, WifiOff, AlertTriangle, Pencil, RotateCcw, Users, PackageCheck, Plane, History, Cloud, Sparkles } from "lucide-react";
 import { classifyError, handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { useFetch } from "@/hooks/use-fetch";
 import { toast } from "sonner";
@@ -22,6 +22,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 import type { CalendarEvent, ShiftGroupSummary, CommandCenterData } from "./_utils";
@@ -42,6 +43,36 @@ function opponentLabel(event: CalendarEvent) {
 function locationDisplay(event: CalendarEvent): string | null {
   if (event.locationLocked && event.location) return event.location.name;
   return event.rawLocationText ?? event.location?.name ?? null;
+}
+
+function sourceState(event: CalendarEvent) {
+  const edited = event.summaryLocked || event.isHomeLocked || event.locationLocked;
+  if (edited) {
+    return {
+      label: "Edited",
+      description: event.source ? `Synced from ${event.source.name}; display fields were adjusted here.` : "Display fields were adjusted here.",
+      icon: Pencil,
+      badgeClassName: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300",
+    };
+  }
+  if (event.source) {
+    return {
+      label: "Synced",
+      description: `Synced from ${event.source.name}.`,
+      icon: Cloud,
+      badgeClassName: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-300",
+    };
+  }
+  return {
+    label: "Manual",
+    description: "Created directly in Schedule.",
+    icon: Sparkles,
+    badgeClassName: "border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-500/30 dark:bg-purple-500/10 dark:text-purple-300",
+  };
+}
+
+function compactNumber(value: number) {
+  return value.toLocaleString("en-US");
 }
 
 export default function EventDetailPage() {
@@ -304,6 +335,50 @@ export default function EventDetailPage() {
     : new Date(event.startsAt).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
   const opponentText = opponentLabel(event);
   const anyFieldLocked = event.summaryLocked || event.isHomeLocked || event.locationLocked;
+  const source = sourceState(event);
+  const SourceIcon = source.icon;
+  const totalShifts = shiftGroup?.coverage?.total ?? shiftGroup?.shifts.length ?? 0;
+  const filledShifts = shiftGroup?.coverage?.filled ?? 0;
+  const gearTotal = commandCenter?.gearSummary.total ?? 0;
+  const missingGearCount = commandCenter?.missingGear.length ?? 0;
+  const linkedGearCount = commandCenter?.shifts.filter((shift) => shift.assignment?.linkedBookingId).length ?? 0;
+  const hasTravel = event.isHome === false && Boolean(event.sportCode);
+  const linkSummaryItems = [
+    {
+      label: "Crew",
+      value: shiftGroup ? `${compactNumber(filledShifts)}/${compactNumber(totalShifts)}` : "Not set up",
+      detail: shiftGroup ? "slots filled" : "create crew when ready",
+      icon: Users,
+      tone: shiftGroup && totalShifts > 0 && filledShifts >= totalShifts ? "text-green-600" : shiftGroup ? "text-orange-600" : "text-muted-foreground",
+    },
+    {
+      label: "Gear",
+      value: isStaffOrAdmin ? compactNumber(gearTotal) : "Reserve",
+      detail: isStaffOrAdmin
+        ? missingGearCount > 0
+          ? `${compactNumber(missingGearCount)} assignment gap${missingGearCount === 1 ? "" : "s"}`
+          : linkedGearCount > 0
+            ? `${compactNumber(linkedGearCount)} assignment link${linkedGearCount === 1 ? "" : "s"}`
+            : "no assignment gaps"
+        : "gear for this event",
+      icon: PackageCheck,
+      tone: missingGearCount > 0 ? "text-red-600" : linkedGearCount > 0 ? "text-green-600" : "text-muted-foreground",
+    },
+    {
+      label: "Travel",
+      value: hasTravel ? "Away" : "Local",
+      detail: hasTravel ? "travel roster available" : "no travel roster",
+      icon: Plane,
+      tone: hasTravel ? "text-orange-600" : "text-muted-foreground",
+    },
+    {
+      label: "Source",
+      value: source.label,
+      detail: anyFieldLocked ? "edited from source" : event.source ? "calendar import" : "manual event",
+      icon: source.icon,
+      tone: anyFieldLocked ? "text-amber-600" : event.source ? "text-blue-600" : "text-purple-600",
+    },
+  ];
 
   return (
     <>
@@ -481,47 +556,86 @@ export default function EventDetailPage() {
         </DialogContent>
       </Dialog>
 
-      <div className="flex items-center gap-2 mb-3 flex-wrap">
-        <Badge variant={event.status === "CANCELLED" ? "red" : "green"}>
-          {event.status.toLowerCase()}
-        </Badge>
-        {event.sportCode && <Badge variant="purple">{sportLabel(event.sportCode)}</Badge>}
-        {event.opponent ? (
-          <Badge variant={venueBadgeVariant(event.isHome)}>
-            {VENUE_TONES[venueToneFromIsHome(event.isHome)].label}
-          </Badge>
-        ) : null}
-      </div>
+      <section className="mb-6 rounded-xl bg-background p-4 shadow-[0_1px_2px_rgba(0,0,0,0.05),0_0_0_1px_rgba(0,0,0,0.06)] dark:shadow-[0_1px_2px_rgba(0,0,0,0.25),0_0_0_1px_rgba(255,255,255,0.08)]">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant={event.status === "CANCELLED" ? "red" : "green"}>
+                  {event.status.toLowerCase()}
+                </Badge>
+                <span className={cn("inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-xs font-medium", source.badgeClassName)}>
+                  <SourceIcon className="size-3.5" />
+                  {source.label}
+                </span>
+                {event.sportCode && <Badge variant="purple">{sportLabel(event.sportCode)}</Badge>}
+                {event.opponent ? (
+                  <Badge variant={venueBadgeVariant(event.isHome)}>
+                    {VENUE_TONES[venueToneFromIsHome(event.isHome)].label}
+                  </Badge>
+                ) : null}
+              </div>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="size-3.5 shrink-0" />
+                  {eventDate}
+                </span>
+                {!event.allDay && (
+                  <span className="flex items-center gap-1.5 tabular-nums">
+                    <Clock className="size-3.5 shrink-0" />
+                    {formatTimeShort(event.startsAt)} - {formatTimeShort(event.endsAt)}
+                  </span>
+                )}
+                {callSummary?.label && (
+                  <span className="flex items-center gap-1.5 font-medium text-foreground">
+                    {callSummary.label}
+                  </span>
+                )}
+                {opponentText && <span>{opponentText}</span>}
+                {locationDisplay(event) && (
+                  <span className="flex items-center gap-1.5">
+                    <MapPin className="size-3.5 shrink-0" />
+                    {locationDisplay(event)}
+                  </span>
+                )}
+              </div>
+              <p className="max-w-3xl text-sm text-muted-foreground [text-wrap:pretty]">{source.description}</p>
+            </div>
+          </div>
 
-      <div className="flex items-center gap-4 text-sm text-muted-foreground mb-6 flex-wrap">
-        <span className="flex items-center gap-1.5">
-          <Calendar className="size-3.5 shrink-0" />
-          {eventDate}
-        </span>
-        {!event.allDay && (
-          <span className="flex items-center gap-1.5">
-            <Clock className="size-3.5 shrink-0" />
-            {formatTimeShort(event.startsAt)} - {formatTimeShort(event.endsAt)}
-          </span>
-        )}
-        {callSummary?.label && (
-          <span className="flex items-center gap-1.5 font-medium text-foreground">
-            {callSummary.label}
-          </span>
-        )}
-        {opponentText && <span>{opponentText}</span>}
-        {locationDisplay(event) && (
-          <span className="flex items-center gap-1.5">
-            <MapPin className="size-3.5 shrink-0" />
-            {locationDisplay(event)}
-          </span>
-        )}
-      </div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {linkSummaryItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.label} className="rounded-lg bg-muted/45 px-3 py-3">
+                  <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                    <Icon className={cn("size-3.5", item.tone)} />
+                    {item.label}
+                  </div>
+                  <div className="mt-1 text-lg font-semibold leading-none tracking-normal tabular-nums">{item.value}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">{item.detail}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          {anyFieldLocked && (
+            <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+              <History className="size-3.5" />
+              Edited fields:
+              {event.summaryLocked && <Badge variant="outline" size="sm">Title</Badge>}
+              {event.isHomeLocked && <Badge variant="outline" size="sm">Home/Away</Badge>}
+              {event.locationLocked && <Badge variant="outline" size="sm">Location</Badge>}
+            </div>
+          )}
+        </div>
+      </section>
 
       {shiftGroup ? (
         <ShiftCoverageCard
           shiftGroup={shiftGroup}
           commandCenter={commandCenter}
+          currentUserId={meData?.id}
           currentUserRole={currentUserRole}
           acting={acting}
           linkParams={{ titleParam, dateParam, endParam, locationParam, eventParam }}
@@ -578,16 +692,18 @@ export default function EventDetailPage() {
       )}
 
       <div className="flex gap-2 mt-6 max-sm:flex-col sm:flex-row flex-wrap">
-        <Button asChild className="min-h-11 px-5">
-          <Link href={`/checkouts?title=${titleParam}&startsAt=${dateParam}&endsAt=${endParam}${locationParam}${eventParam}`}>
-            Checkout to this event
-          </Link>
-        </Button>
-        <Button variant="outline" asChild className="min-h-11 px-5">
+        <Button asChild className="min-h-11 px-5 active:scale-[0.96] transition-transform">
           <Link href={`/reservations?title=${titleParam}&startsAt=${dateParam}&endsAt=${endParam}${locationParam}${eventParam}`}>
             Reserve gear for this event
           </Link>
         </Button>
+        {isStaffOrAdmin && (
+          <Button variant="outline" asChild className="min-h-11 px-5 active:scale-[0.96] transition-transform">
+            <Link href="/schedule">
+              Review schedule
+            </Link>
+          </Button>
+        )}
       </div>
 
       {currentUserRole === "ADMIN" && (

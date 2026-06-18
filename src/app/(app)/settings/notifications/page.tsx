@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, BellOff, Mail, ShoppingBag, Smartphone, Tag, WifiOff } from "lucide-react";
+import { AlertTriangle, BellOff, CalendarClock, Mail, PackageCheck, Repeat2, ShoppingBag, Smartphone, Tag, WifiOff } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -26,6 +26,9 @@ type Prefs = {
     checkoutOverdue: boolean;
     reservation: boolean;
     licenseExpiry: boolean;
+    schedule: boolean;
+    trade: boolean;
+    gearPrep: boolean;
   };
 };
 
@@ -34,6 +37,9 @@ const DEFAULT_CATEGORIES: Prefs["categories"] = {
   checkoutOverdue: true,
   reservation: true,
   licenseExpiry: true,
+  schedule: true,
+  trade: true,
+  gearPrep: true,
 };
 
 const PAUSE_OPTIONS = [
@@ -274,6 +280,33 @@ export default function NotificationsSettingsPage() {
               description="Notified when a license you hold is approaching expiry."
               checked={(prefs.categories ?? DEFAULT_CATEGORIES).licenseExpiry}
               onChange={(v) => setCategory("licenseExpiry", v)}
+              disabled={saving}
+            />
+            <div className="border-t border-border my-1" />
+            <ChannelRow
+              icon={<CalendarClock className="size-4" />}
+              label="Schedule updates"
+              description="Published shift assignments, approvals, removals, and call-time changes."
+              checked={(prefs.categories ?? DEFAULT_CATEGORIES).schedule}
+              onChange={(v) => setCategory("schedule", v)}
+              disabled={saving}
+            />
+            <div className="border-t border-border my-1" />
+            <ChannelRow
+              icon={<Repeat2 className="size-4" />}
+              label="Trade updates"
+              description="Claimed, approved, declined, completed, and expired shift trades."
+              checked={(prefs.categories ?? DEFAULT_CATEGORIES).trade}
+              onChange={(v) => setCategory("trade", v)}
+              disabled={saving}
+            />
+            <div className="border-t border-border my-1" />
+            <ChannelRow
+              icon={<PackageCheck className="size-4" />}
+              label="Gear prep nudges"
+              description="Staff-triggered reminders to reserve or prepare gear for an assigned shift."
+              checked={(prefs.categories ?? DEFAULT_CATEGORIES).gearPrep}
+              onChange={(v) => setCategory("gearPrep", v)}
               disabled={saving}
             />
             <p className="text-xs text-muted-foreground pt-2 m-0">

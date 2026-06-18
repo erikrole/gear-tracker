@@ -9,7 +9,14 @@ import { db } from "@/lib/db";
  * non-in-app channels skip. In-app delivery (notifications inbox row) always
  * fires regardless of prefs so the user can catch up later.
  */
-export type NotificationCategory = "checkoutDue" | "checkoutOverdue" | "reservation" | "licenseExpiry";
+export type NotificationCategory =
+  | "checkoutDue"
+  | "checkoutOverdue"
+  | "reservation"
+  | "licenseExpiry"
+  | "schedule"
+  | "trade"
+  | "gearPrep";
 
 export type NotificationPrefs = {
   pausedUntil: string | null;
@@ -22,7 +29,15 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   pausedUntil: null,
   channels: { email: true, push: true },
   badges: true,
-  categories: { checkoutDue: true, checkoutOverdue: true, reservation: true, licenseExpiry: true },
+  categories: {
+    checkoutDue: true,
+    checkoutOverdue: true,
+    reservation: true,
+    licenseExpiry: true,
+    schedule: true,
+    trade: true,
+    gearPrep: true,
+  },
 };
 
 /** Defensive parse — old shapes or partial writes fall back to defaults. */
@@ -43,6 +58,9 @@ export function normalizePrefs(raw: unknown): NotificationPrefs {
       checkoutOverdue: categories.checkoutOverdue === false ? false : true,
       reservation: categories.reservation === false ? false : true,
       licenseExpiry: categories.licenseExpiry === false ? false : true,
+      schedule: categories.schedule === false ? false : true,
+      trade: categories.trade === false ? false : true,
+      gearPrep: categories.gearPrep === false ? false : true,
     },
   };
 }

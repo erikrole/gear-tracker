@@ -74,6 +74,9 @@ struct NotificationPreferences: Codable, Equatable {
         var checkoutOverdue: Bool
         var reservation: Bool
         var licenseExpiry: Bool
+        var schedule: Bool
+        var trade: Bool
+        var gearPrep: Bool
     }
 
     enum CodingKeys: String, CodingKey {
