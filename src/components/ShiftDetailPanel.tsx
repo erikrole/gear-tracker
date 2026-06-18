@@ -32,7 +32,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { shiftWorkerLabel } from "@/lib/shift-display";
 import { shiftWorkerSlotLabel } from "@/lib/shift-display";
 import type { AutoFillPreviewResponse } from "@/lib/auto-fill-preview-types";
-import { CrewTemplateReviewButton } from "@/components/shift-detail/CrewTemplateReviewButton";
 
 /* ───── Types ───── */
 
@@ -56,7 +55,6 @@ type ShiftAssignment = {
   conflictNote: string | null;
   acknowledgedAt?: string | null;
   acknowledgedById?: string | null;
-  attended: boolean | null;
   createdAt: string;
   user: ShiftUser;
   assigner?: { id: string; name: string } | null;
@@ -158,7 +156,6 @@ export default function ShiftDetailPanel({
   const publishingRef = useRef(false);
   const archivingRef = useRef(false);
   const postingRef = useRef(false);
-  const attendanceRef = useRef<Set<string>>(new Set());
 
   // User picker state
   const [pickerShiftId, setPickerShiftId] = useState<string | null>(null);
@@ -307,7 +304,7 @@ export default function ShiftDetailPanel({
               ...s,
               assignments: [...s.assignments, {
                 id: `optimistic-${Date.now()}`, status: "DIRECT_ASSIGNED",
-                notes: null, hasConflict: false, conflictNote: null, attended: null,
+                notes: null, hasConflict: false, conflictNote: null,
                 createdAt: new Date().toISOString(),
                 user: { ...assignedUser, email: undefined }, assigner: null,
               }],
@@ -432,39 +429,6 @@ export default function ShiftDetailPanel({
     }
   }
 
-  async function handleSetAttendance(assignmentId: string, attended: boolean | null) {
-    if (!group || attendanceRef.current.has(assignmentId)) return;
-    attendanceRef.current.add(assignmentId);
-    // Optimistic update
-    setGroup({
-      ...group,
-      shifts: group.shifts.map((s) => ({
-        ...s,
-        assignments: s.assignments.map((a) =>
-          a.id === assignmentId ? { ...a, attended } : a
-        ),
-      })),
-    });
-    try {
-      const res = await fetch(`/api/shift-assignments/${assignmentId}/attendance`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ attended }),
-      });
-      if (handleAuthRedirect(res)) return;
-      if (!res.ok) {
-        const msg = await parseErrorMessage(res, "Failed to update attendance");
-        toast.error(msg);
-        await fetchGroup(); // revert
-      }
-    } catch {
-      toast.error("Could not reach the server. Attendance was not saved.");
-      await fetchGroup(); // revert
-    } finally {
-      attendanceRef.current.delete(assignmentId);
-    }
-  }
-
   async function handleArchive() {
     if (!group || archivingRef.current) return;
     archivingRef.current = true;
@@ -551,7 +515,6 @@ export default function ShiftDetailPanel({
   /* ── Derived data ── */
 
   const isPast = group ? new Date(group.event.endsAt) < new Date() : false;
-  const showAttendance = isStaff && isPast;
   const publication = publicationLabel(group?.publication ?? null);
 
   const shiftsByArea = useMemo(() => {
@@ -615,14 +578,6 @@ export default function ShiftDetailPanel({
                   >
                     {autoFilling ? "Building preview..." : "Preview auto-fill"}
                   </Button>
-                  <CrewTemplateReviewButton
-                    shiftGroupId={group.id}
-                    disabled={acting !== null || publishing || autoFilling}
-                    onUpdated={() => {
-                      void fetchGroup();
-                      onUpdated?.();
-                    }}
-                  />
                   <Button
                     size="sm"
                     className="h-9"
@@ -664,8 +619,6 @@ export default function ShiftDetailPanel({
                   onPostTrade={!isStaff && !isPast && !group.archivedAt
                     ? (assignmentId) => { setTradeDialogAssignmentId(assignmentId); setTradeNotes(""); }
                     : undefined}
-                  showAttendance={showAttendance}
-                  onSetAttendance={handleSetAttendance}
                   onCallWindowSaved={() => {
                     void fetchGroup();
                     onUpdated?.();
@@ -684,7 +637,7 @@ export default function ShiftDetailPanel({
                 ) : (
                   <>
                     <p className="text-xs text-muted-foreground">
-                      Log attendance above, then archive to lock the record.
+                      Archive past events when the schedule record is ready to close.
                     </p>
                     <Button
                       variant="outline"

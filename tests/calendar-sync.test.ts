@@ -715,9 +715,9 @@ describe("splitEventsForSync", () => {
     expect(result.toUpdate[0]!.data.summary).toBe("My Custom Title");
   });
 
-  it("isHomeLocked: sync does not overwrite a manually set home/away value", () => {
-    // ICS has no sport code so isHome parses to null (away),
-    // but staff locked it to home. Only isHome would differ — lock prevents update.
+  it("isHomeLocked: sync does not overwrite a manually set event type", () => {
+    // ICS has no sport code so isHome parses to null, but staff locked it to
+    // home. Only isHome would differ, so the lock prevents update.
     const parsed = [makeParsedEvent({
       uid: "evt-1",
       summary: "Test Event",
@@ -732,20 +732,24 @@ describe("splitEventsForSync", () => {
     expect(result.toUpdate).toHaveLength(0);
   });
 
-  it("isHomeLocked: other field changes still update while preserving isHome", () => {
+  it("isHomeLocked: other field changes still update while preserving isHome and opponent", () => {
     const parsed = [makeParsedEvent({
       uid: "evt-1",
-      summary: "Test Event",
+      summary: "Football vs Notre Dame",
       dtstart: "20260320T100000Z", // changed start → triggers update
     })];
     const existing = [makeExistingRow({
       id: "db-1", externalId: "evt-1",
-      isHome: true,
+      summary: "Football Media Day",
+      sportCode: "FOOTBALL",
+      opponent: null,
+      isHome: null,
       isHomeLocked: true,
     })];
     const result = splitEventsForSync(parsed, existing, []);
     expect(result.toUpdate).toHaveLength(1);
-    expect(result.toUpdate[0]!.data.isHome).toBe(true);
+    expect(result.toUpdate[0]!.data.isHome).toBeNull();
+    expect(result.toUpdate[0]!.data.opponent).toBeNull();
   });
 
   it("unlocked fields are updated as normal", () => {

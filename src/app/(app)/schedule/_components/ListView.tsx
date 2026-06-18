@@ -207,9 +207,10 @@ function ChangeHistoryBadge({
 }) {
   if (!summary || summary.items.length === 0) return null;
   if (reviewOnly && !summary.needsReview) return null;
+  if (!summary.needsReview) return null;
   return (
-    <Badge variant={summary.needsReview ? "orange" : "gray"} size="sm">
-      {summary.needsReview ? "Review changes" : "Changed recently"}
+    <Badge variant="orange" size="sm">
+      Review changes
     </Badge>
   );
 }

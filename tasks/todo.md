@@ -4,6 +4,40 @@ Last updated: 2026-06-18
 
 ---
 
+## Active: Schedule crew UI trim pass (2026-06-18)
+
+- [x] Remove attendance tracking affordances from shift detail UI.
+- [x] Remove visible crew template review actions from Event detail and shift detail.
+- [x] Remove the Changed recently badge path while keeping review-required change signals.
+- [x] Normalize Event detail and Crew badge sizing, casing, and tone.
+- [x] Sync Schedule docs, tests, lessons, and codemaps.
+- [x] Run focused verification plus type/build checks.
+
+### Review
+- Event detail and Shift Detail no longer surface attendance controls, Review template, or Changed recently. Crew badges were normalized locally while retaining Draft, Publish, Review changes, auto-fill preview, and gear readiness.
+- Verification: `./node_modules/.bin/tsc --noEmit`; focused Schedule source tests; `git diff --check`; `npm run verify:docs`.
+- Broader lint/build-safe checks are being carried forward into the next Schedule event-editing pass so the final working tree is verified as one coherent UI slice.
+
+---
+
+## Active: Schedule event editing clarity pass (2026-06-18)
+
+- [x] Expose manual event type editing for Home, Away, Neutral, and quiet Non-game classification.
+- [x] Rename the event edit `Location` control to `Pickup location` and preserve calendar venue as source context.
+- [x] Keep Non-game quiet in event detail metadata instead of repeating it across Crew rows.
+- [x] Collapse Event detail Crew rows to one call-time range per shift row.
+- [x] Sync Schedule/Event docs, source-contract tests, codemaps, and lessons.
+- [x] Run focused tests, type/doc checks, whitespace, and build-safe verification.
+
+### Review
+- Event edit now has an Event type control for Home, Away, Neutral, and Non-game. Game types expose an Opponent field; Non-game clears the opponent and stays quiet in the event metadata row.
+- The old Location selector is now Pickup location. Calendar venue remains separate source context through the imported raw venue text.
+- Event detail Crew rows now render one effective call range per row, using personal assignment call time when present and otherwise the slot/default call time. Source badges are suppressed in the dense row so the visible text stays crew-facing.
+- Verification: `./node_modules/.bin/tsc --noEmit`; `npm run test -- tests/calendar-events-route.test.ts tests/calendar-sync.test.ts tests/schedule-source-truth-smoke-contract.test.ts tests/schedule-gear-readiness-source.test.ts tests/schedule-template-review-source.test.ts`; `git diff --check`; `npm run verify:docs`; `npm run lint`; `./node_modules/.bin/next build`.
+- Note: `npm run build` was not used as final proof because it runs Prisma migration deploy against Neon. This slice did not add a schema migration, so local `next build` is the safer compile proof.
+
+---
+
 ## Active: Schedule first-class UI polish pass (2026-06-18)
 
 - [x] Calm the Schedule overview by reducing duplicate top-level metrics and making Automation review collapsed/contextual.

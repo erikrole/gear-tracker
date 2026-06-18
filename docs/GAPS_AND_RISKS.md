@@ -56,6 +56,10 @@ _2026-06-18 update: Schedule source-of-truth smoke closure shipped without openi
 
 _2026-06-18 update: Schedule source-of-truth plan reconciliation shipped without opening a new gap. The plan was archived after Slice 0 evidence and remaining browser-smoke debt were reconciled; a durable authenticated browser harness remains an optional cross-cutting test-infrastructure follow-up, not a Schedule blocker._
 
+_2026-06-18 update: Schedule crew UI trim shipped without opening a new gap. Attendance controls and crew template-review buttons are retired from visible Schedule/Event surfaces; backend safety code can be removed later if we decide to fully delete the retired contracts._
+
+_2026-06-18 update: Schedule event editing clarity shipped without opening a new gap. Home, Away, Neutral, and Non-game classification uses the existing event lock path, with locked event type also preserving the manually selected or cleared opponent through calendar sync. Pickup location remains the existing internal location relation, now labeled clearly apart from calendar venue._
+
 | ID | Description | Owner Area | Priority | Blocker? |
 |---|---|---|---|---|
 | ~~PD-1~~ | ~~D-009: Escalation recipient model~~ | ~~AREA_NOTIFICATIONS~~ | ~~Resolved~~ | ~~Requester + all admins; admin-configurable fatigue controls~~ |
@@ -204,6 +208,8 @@ _2026-06-18 update: Schedule source-of-truth plan reconciliation shipped without
 ---
 
 ## Change Log
+- 2026-06-18: Schedule event editing clarity pass shipped without opening a new gap. Event type, pickup location, calendar venue, and crew call-time display were clarified using existing CalendarEvent and Shift call-window contracts rather than a schema migration.
+- 2026-06-18: Schedule crew UI trim pass simplified visible Schedule operations without opening a new gap. Attendance tracking and Review template affordances were removed from Event detail/Shift Detail UI, Changed recently badges were removed, and badge formatting was normalized locally on Event detail Crew.
 - 2026-06-18: Schedule MVP polish pass strengthened the existing Schedule source-of-truth track without opening a new gap. Overview noise, event-row badge duplication, event-detail action priority, New Event sheet sizing, and Assign/Trade Board empty-state recovery were tightened as UI contract work only.
 - 2026-06-18: Schedule Source Of Truth Slice 15 reconciled and archived the plan without opening a new gap. Slice 0 evidence now matches shipped Event detail docs/source/tests, and the no-Playwright authenticated browser limitation is documented as source-contract fallback coverage rather than unresolved Schedule product scope.
 - 2026-06-18: Schedule Source Of Truth Slice 13 shipped without opening a new gap. Schedule exports are staff/admin-only CSV downloads behind `report.view`, use shared formula-safe escaping, carry row-count/truncation headers, and are bounded by 5,000 rows plus a 366-day date-window cap.

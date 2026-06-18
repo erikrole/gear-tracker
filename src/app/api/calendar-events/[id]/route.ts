@@ -15,6 +15,7 @@ const patchSchema = z
     summary: z.string().min(1).max(200).optional(),
     subtitle: z.string().max(100).nullable().optional(),
     isHome: z.boolean().nullable().optional(),
+    opponent: z.string().max(120).nullable().optional(),
     locationId: z.string().cuid().nullable().optional(),
     revertTitle: z.literal(true).optional(),
     revertHomeAway: z.literal(true).optional(),
@@ -26,6 +27,7 @@ const patchSchema = z
       v.summary !== undefined ||
       v.subtitle !== undefined ||
       v.isHome !== undefined ||
+      v.opponent !== undefined ||
       v.locationId !== undefined ||
       v.revertTitle !== undefined ||
       v.revertHomeAway !== undefined ||
@@ -55,6 +57,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
         locationId: true,
         rawSummary: true,
         rawLocationText: true,
+        opponent: true,
         summaryLocked: true,
         isHomeLocked: true,
         locationLocked: true,
@@ -94,11 +97,14 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     if (body.revertHomeAway) {
       before.isHome = existing.isHome;
       before.isHomeLocked = existing.isHomeLocked;
+      before.opponent = existing.opponent;
       let derived: boolean | null = null;
+      let derivedOpponent: string | null = null;
       if (existing.rawSummary) {
         const cleaned = cleanSummary(existing.rawSummary);
         const info = extractSportInfo(cleaned);
         derived = info.isHome;
+        derivedOpponent = info.opponent;
         const locationText = existing.rawLocationText || "";
         if (locationText) {
           const homeByLocation = isHomeLocationText(locationText);
@@ -107,16 +113,27 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
         }
       }
       patch.isHome = derived;
+      patch.opponent = derivedOpponent;
       patch.isHomeLocked = false;
       after.isHome = derived;
+      after.opponent = derivedOpponent;
       after.isHomeLocked = false;
     } else if (body.isHome !== undefined) {
       before.isHome = existing.isHome;
       before.isHomeLocked = existing.isHomeLocked;
       patch.isHome = body.isHome;
-      patch.isHomeLocked = body.isHome !== null;
+      patch.isHomeLocked = true;
       after.isHome = body.isHome;
       after.isHomeLocked = patch.isHomeLocked;
+    }
+
+    if (body.opponent !== undefined) {
+      before.opponent = existing.opponent;
+      before.isHomeLocked = existing.isHomeLocked;
+      patch.opponent = body.opponent?.trim() || null;
+      patch.isHomeLocked = true;
+      after.opponent = patch.opponent;
+      after.isHomeLocked = true;
     }
 
     if (body.revertLocation) {
@@ -142,6 +159,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
         summary: true,
         subtitle: true,
         isHome: true,
+        opponent: true,
         locationId: true,
         summaryLocked: true,
         isHomeLocked: true,

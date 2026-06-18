@@ -22,7 +22,7 @@ describe("schedule gear readiness source contracts", () => {
 
   it("shows audit-derived schedule changes on Schedule and Event detail surfaces", () => {
     expect(listViewSource).toContain("Review changes");
-    expect(listViewSource).toContain("Changed recently");
+    expect(listViewSource).not.toContain("Changed recently");
     expect(crewSource).toContain("Recent schedule changes");
     expect(crewSource).toContain("Needs review");
   });

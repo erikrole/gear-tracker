@@ -15,7 +15,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { AlertTriangle, CheckIcon, MinusIcon, PlusIcon, XIcon } from "lucide-react";
+import { AlertTriangle, PlusIcon, XIcon } from "lucide-react";
 import { CallWindowEditor } from "./CallWindowEditor";
 import { UserAvatarPicker, type PickerUser } from "./UserAvatarPicker";
 import { effectiveCallWindow, isInheritedFullDayCallWindow } from "@/lib/shift-call-windows";
@@ -36,7 +36,6 @@ type ShiftAssignment = {
   callStartsAt?: string | null;
   callEndsAt?: string | null;
   callNote?: string | null;
-  attended?: boolean | null;
   user: ShiftUser;
 };
 
@@ -78,9 +77,6 @@ type Props = {
   onDeleteShift: () => void;
   // Trade
   onPostTrade?: (assignmentId: string) => void;
-  // Attendance (post-event, staff only)
-  showAttendance?: boolean;
-  onSetAttendance?: (assignmentId: string, attended: boolean | null) => void;
   onCallWindowSaved?: () => void;
 };
 
@@ -111,8 +107,6 @@ export function ShiftSlotCard({
   onRequest,
   onDeleteShift,
   onPostTrade,
-  showAttendance,
-  onSetAttendance,
   onCallWindowSaved,
 }: Props) {
   const isAssigned = !!activeAssignment;
@@ -274,66 +268,6 @@ export function ShiftSlotCard({
                 </div>
               )}
             </>
-          )}
-
-          {/* Attendance logging (past events, staff only) */}
-          {activeAssignment && showAttendance && onSetAttendance && (
-            <div className="flex items-center gap-1 mt-1.5 pl-9">
-              <span className="text-xs text-muted-foreground mr-1">Attended:</span>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() =>
-                      onSetAttendance(
-                        activeAssignment.id,
-                        activeAssignment.attended === true ? null : true,
-                      )
-                    }
-                    disabled={acting !== null}
-                    className={`flex size-10 items-center justify-center rounded border transition-[background-color,border-color,color,scale] active:scale-[0.96] ${
-                      activeAssignment.attended === true
-                        ? "bg-green-500/15 border-green-500/40 text-green-600"
-                        : "border-border text-muted-foreground hover:border-green-400 hover:text-green-600"
-                    }`}
-                    aria-label="Mark attended"
-                  >
-                    <CheckIcon className="size-3.5" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {activeAssignment.attended === true ? "Attended - click to clear" : "Mark attended"}
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() =>
-                      onSetAttendance(
-                        activeAssignment.id,
-                        activeAssignment.attended === false ? null : false,
-                      )
-                    }
-                    disabled={acting !== null}
-                    className={`flex size-10 items-center justify-center rounded border transition-[background-color,border-color,color,scale] active:scale-[0.96] ${
-                      activeAssignment.attended === false
-                        ? "bg-red-500/15 border-red-500/40 text-red-600"
-                        : "border-border text-muted-foreground hover:border-red-400 hover:text-red-600"
-                    }`}
-                    aria-label="Mark no-show"
-                  >
-                    <XIcon className="size-3.5" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {activeAssignment.attended === false ? "No-show - click to clear" : "Mark no-show"}
-                </TooltipContent>
-              </Tooltip>
-              {activeAssignment.attended == null && (
-                <span className="text-[10px] text-muted-foreground/60 ml-0.5">
-                  <MinusIcon className="size-3 inline" /> not logged
-                </span>
-              )}
-            </div>
           )}
 
           {/* Pending requests */}

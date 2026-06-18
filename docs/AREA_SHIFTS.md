@@ -37,7 +37,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - [x] Student availability exceptions: web profile Availability supports semester date ranges and one-time conflicts
 - [x] Shift trade emails: claimed, completed, approved, and declined trade events send best-effort email companions
 - [x] Staff/Student slot planning: sport templates generate separate Staff and Student slots and preserve the planned slot type after assignment
-- [x] Call-time overrides: default sport call windows can be overridden per shift and per assignment, with personal overrides used for conflict checks
+- [x] Call-time overrides: default sport call windows can be overridden per shift and per assignment, with personal overrides used for conflict checks. Crew rows show one effective call-time range; the event time range stays global in the event header.
 - [x] Assignment conflict review: staff/admin can filter assignment work by conflicted, open, and clean states and adjust personal call windows from the conflict context
 - [x] Candidate recommendations: staff/admin assignment pickers can show read-only recommended, good fit, warning, and overloaded candidate groups without changing manual assignment behavior
 - [x] Preview-first auto-fill: staff/admin auto-fill actions show proposed assignments, skipped slots, warnings, and require an explicit apply action before mutating assignments
@@ -46,7 +46,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - [x] Open Work: Trade Board now also surfaces published open Student shifts, premier pickup requests, claimed trades, and my trade posts in one Schedule work surface
 - [x] Preferences and time off: Availability blocks now support prefer/dislike/cannot-work signals plus pending/approved/denied time-off lifecycle, feeding candidate scoring, Open Work, assignment, trade, and call-window conflict checks
 - [x] In-season automation review: Schedule surfaces read-only automation suggestions for staffing gaps, auto-fill preview, publish readiness, risk blockers, stale sources, and daily cleanup without silently mutating worker-facing commitments
-- [x] Copy-forward and template review: staff/admin can compare an event's crew slots against the active sport template and preview crew copied from the last matching event before applying assignments through existing safety checks
+- [x] Auto-fill and manual crew review: staff/admin can preview auto-fill recommendations before applying assignments through existing safety checks. Template-review UI is retired to keep Event detail focused.
 - [x] Gear readiness: Schedule health carries event and assignment gear readiness across primary event, linked-event, and shift-assignment booking paths, while Schedule list rows show compact gear state and reserve/prep actions without creating checkout custody
 
 ## Information Architecture
@@ -61,16 +61,15 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 7. **List View** (`ListView`) — date-grouped expandable table; parent rows = events with crew, publication, and gear readiness chips; child rows = shifts with assignment gear state and reservation/prep jump actions
 8. **Week View** (`WeekView`) — 7-day strip with time-block events, coverage dots, navigation (prev/next/this week)
 9. **Calendar View** (`CalendarView`) — month grid with coverage indicator dots (green/orange/red)
-10. **ShiftDetailPanel** — side sheet for per-event shift management (add/remove shifts, assign users, premier toggle, template drift review, copy-forward crew preview)
+10. **ShiftDetailPanel** — side sheet for per-event shift management (add/remove shifts, assign users, publish, archive, and preview auto-fill)
 11. **Open Work / Trade Board** — sheet overlay with area/status filters for open shifts, premier pickup requests, posted trades, claimed trades awaiting approval, and my trade posts; Trade approval queue opens it to claimed trades
 
 ### Event Detail Page (`/events/[id]`)
 1. Event identity card — status plus Synced, Manual, or Edited source state, event timing, opponent, venue, and source context
 2. Link summary — crew fill, gear links/gaps, travel state, and source edit state
 3. Shift Coverage card — merged with Command Center (staff: gear summary + 5-col table; students: 4-col table)
-4. Crew template review — staff/admin can inspect template drift and copy-forward proposals before applying assignments
-5. Crew gear state — staff/admin can distinguish assignment-linked gear, event reservations, pickup-ready gear, checked-out gear, and missing gear from the Crew table
-6. Action CTAs — "Reserve gear for this event" and staff/admin "Review schedule"; normal web checkout creation is not exposed because kiosk owns custody
+4. Crew gear state — staff/admin can distinguish assignment-linked gear, event reservations, pickup-ready gear, checked-out gear, and missing gear from the Crew table
+5. Action CTAs — "Reserve gear for this event" and staff/admin "Review schedule"; normal web checkout creation is not exposed because kiosk owns custody
 
 ### Dashboard Integration
 1. **My Shifts card** — upcoming assigned shifts with area, time, "Prep gear" button
@@ -88,6 +87,8 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - Sports code mappings (existing — `src/lib/sports.ts`)
 
 ## Change Log
+- 2026-06-18: Schedule event editing clarity pass shipped. Event edit/new-event flows now distinguish Event type from Pickup location, support quiet Non-game classification for one-off events and media days, preserve locked event-type/opponent values through calendar sync, and collapse Event detail Crew rows to one effective call-time range per row.
+- 2026-06-18: Schedule crew UI trim pass shipped. Event detail and Shift Detail no longer surface attendance tracking or crew template-review actions, Schedule rows no longer show a Changed recently badge, and Crew badges now use one compact size/casing system while preserving Draft, Publish, review-required changes, auto-fill preview, and gear readiness.
 - 2026-06-18: Schedule MVP polish pass tightened the source-of-truth UI without changing scheduling data contracts. `/schedule` now prioritizes the main operational signals, keeps clean secondary health cards contextual, collapses Automation review by default, quiets non-action row badges, and gives Assign and Trade Board empty states recovery paths back to Schedule.
 - 2026-06-18: Schedule Source Of Truth Slice 15 reconciled and archived the Schedule source-of-truth plan. Slice 0 shipped evidence was matched back to Event detail source/docs/tests, remaining browser-smoke debt was explicitly covered by source-contract fallback where no authenticated browser harness exists, and no new Schedule product behavior was added.
 - 2026-06-18: Schedule Source Of Truth Slice 14 shipped. Added source-contract smoke fallback coverage for the Schedule source-of-truth operator loop where authenticated browser smoke is unavailable: readiness queues, automation review, candidate scoring, auto-fill preview, copy-forward review, publish/acknowledgement, Open Work, gear readiness links, change history, and exports. No product surface changed.

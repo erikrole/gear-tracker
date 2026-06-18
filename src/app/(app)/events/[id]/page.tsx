@@ -33,6 +33,7 @@ import { EventTravelCard } from "./_components/EventTravelCard";
 import { effectiveCallWindow, summarizeEffectiveCallWindows } from "@/lib/shift-call-windows";
 
 type LocationOption = { id: string; name: string };
+type EventTypeDraft = VenueTone | "non-game";
 
 function opponentLabel(event: CalendarEvent) {
   if (!event.opponent) return null;
@@ -41,8 +42,21 @@ function opponentLabel(event: CalendarEvent) {
 }
 
 function locationDisplay(event: CalendarEvent): string | null {
-  if (event.locationLocked && event.location) return event.location.name;
-  return event.rawLocationText ?? event.location?.name ?? null;
+  return event.rawLocationText ?? null;
+}
+
+function pickupLocationDisplay(event: CalendarEvent): string | null {
+  return event.location?.name ?? null;
+}
+
+function eventTypeFromEvent(event: CalendarEvent): EventTypeDraft {
+  if (!event.opponent) return "non-game";
+  return venueToneFromIsHome(event.isHome);
+}
+
+function eventTypeLabel(type: EventTypeDraft): string {
+  if (type === "non-game") return "Non-game";
+  return VENUE_TONES[type].label;
 }
 
 function sourceState(event: CalendarEvent) {
@@ -75,6 +89,11 @@ function compactNumber(value: number) {
   return value.toLocaleString("en-US");
 }
 
+function titleCase(value: string) {
+  const lower = value.toLowerCase();
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
+}
+
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { setBreadcrumbLabel } = useBreadcrumbLabel();
@@ -86,7 +105,8 @@ export default function EventDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const [subtitleDraft, setSubtitleDraft] = useState("");
-  const [homeAwayDraft, setHomeAwayDraft] = useState<VenueTone>("neutral");
+  const [eventTypeDraft, setEventTypeDraft] = useState<EventTypeDraft>("non-game");
+  const [opponentDraft, setOpponentDraft] = useState("");
   const [locationIdDraft, setLocationIdDraft] = useState<string>("__none__");
   const [saving, setSaving] = useState(false);
   const [locations, setLocations] = useState<LocationOption[]>([]);
@@ -149,7 +169,8 @@ export default function EventDetailPage() {
     if (!event) return;
     setTitleDraft(event.summary);
     setSubtitleDraft(event.subtitle ?? "");
-    setHomeAwayDraft(venueToneFromIsHome(event.isHome));
+    setEventTypeDraft(eventTypeFromEvent(event));
+    setOpponentDraft(event.opponent ?? "");
     setLocationIdDraft(event.location?.id ?? "__none__");
     setEditOpen(true);
 
@@ -208,11 +229,14 @@ export default function EventDetailPage() {
       // Always send subtitle so clearing it is persisted
       body.subtitle = subtitleDraft.trim() || null;
 
-      if (event.sportCode) {
-        const newIsHome = homeAwayDraft === "home" ? true : homeAwayDraft === "away" ? false : null;
-        if (newIsHome !== event.isHome) {
-          body.isHome = newIsHome;
-        }
+      const newIsHome = eventTypeDraft === "home" ? true : eventTypeDraft === "away" ? false : null;
+      if (newIsHome !== event.isHome || eventTypeDraft === "non-game") {
+        body.isHome = newIsHome;
+      }
+      if (eventTypeDraft === "non-game" && event.opponent !== null) {
+        body.opponent = null;
+      } else if (eventTypeDraft !== "non-game" && opponentDraft.trim() !== (event.opponent ?? "")) {
+        body.opponent = opponentDraft.trim() || null;
       }
 
       const newLocationId = locationIdDraft === "__none__" ? null : locationIdDraft;
@@ -334,6 +358,7 @@ export default function EventDetailPage() {
     ? formatCalendarEventDateRange(event, { includeYear: true })
     : new Date(event.startsAt).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
   const opponentText = opponentLabel(event);
+  const eventType = eventTypeFromEvent(event);
   const anyFieldLocked = event.summaryLocked || event.isHomeLocked || event.locationLocked;
   const source = sourceState(event);
   const SourceIcon = source.icon;
@@ -451,7 +476,7 @@ export default function EventDetailPage() {
                     disabled={saving}
                   >
                     <RotateCcw className="size-3" />
-                    Revert to synced
+                    Restore calendar value
                   </button>
                 )}
               </div>
@@ -478,47 +503,59 @@ export default function EventDetailPage() {
               />
             </div>
 
-            {/* Home / Away / Neutral — only meaningful for sport events */}
-            {event.sportCode && (
+            {/* Event type */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <Label>Event type</Label>
+                {event.isHomeLocked && (
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 text-[11px] text-amber-500 hover:text-amber-600"
+                    onClick={() => handleRevertField("homeAway")}
+                    disabled={saving}
+                  >
+                    <RotateCcw className="size-3" />
+                    Restore calendar value
+                  </button>
+                )}
+              </div>
+              <ToggleGroup
+                type="single"
+                value={eventTypeDraft}
+                onValueChange={(val) => { if (val) setEventTypeDraft(val as EventTypeDraft); }}
+                disabled={saving}
+                className="h-9 w-full gap-0 rounded-md border border-input bg-background p-0.5"
+              >
+                {(["home", "away", "neutral", "non-game"] as EventTypeDraft[]).map((type) => (
+                  <ToggleGroupItem
+                    key={type}
+                    value={type}
+                    className="h-8 flex-1 rounded-sm px-2 text-sm data-[state=on]:bg-muted data-[state=on]:text-foreground"
+                  >
+                    {eventTypeLabel(type)}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            </div>
+
+            {eventTypeDraft !== "non-game" && (
               <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between">
-                  <Label>Home / Away / Neutral</Label>
-                  {event.isHomeLocked && (
-                    <button
-                      type="button"
-                      className="flex items-center gap-1 text-[11px] text-amber-500 hover:text-amber-600"
-                      onClick={() => handleRevertField("homeAway")}
-                      disabled={saving}
-                    >
-                      <RotateCcw className="size-3" />
-                      Revert to synced
-                    </button>
-                  )}
-                </div>
-                <ToggleGroup
-                  type="single"
-                  value={homeAwayDraft}
-                  onValueChange={(val) => { if (val) setHomeAwayDraft(val as VenueTone); }}
+                <Label htmlFor="edit-opponent">Opponent</Label>
+                <Input
+                  id="edit-opponent"
+                  value={opponentDraft}
+                  onChange={(e) => setOpponentDraft(e.target.value)}
+                  maxLength={120}
+                  placeholder="e.g. Notre Dame"
                   disabled={saving}
-                  className="h-9 w-full gap-0 rounded-md border border-input bg-background p-0.5"
-                >
-                  {(["home", "away", "neutral"] as VenueTone[]).map((tone) => (
-                    <ToggleGroupItem
-                      key={tone}
-                      value={tone}
-                      className="h-8 flex-1 rounded-sm px-2 text-sm data-[state=on]:bg-muted data-[state=on]:text-foreground capitalize"
-                    >
-                      {VENUE_TONES[tone].label}
-                    </ToggleGroupItem>
-                  ))}
-                </ToggleGroup>
+                />
               </div>
             )}
 
             {/* Location */}
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between">
-                <Label htmlFor="edit-location">Location</Label>
+                <Label htmlFor="edit-location">Pickup location</Label>
                 {event.locationLocked && (
                   <button
                     type="button"
@@ -527,7 +564,7 @@ export default function EventDetailPage() {
                     disabled={saving}
                   >
                     <RotateCcw className="size-3" />
-                    Revert to synced
+                    Restore calendar value
                   </button>
                 )}
               </div>
@@ -537,24 +574,24 @@ export default function EventDetailPage() {
                 disabled={saving || locationsLoading}
               >
                 <SelectTrigger id="edit-location">
-                  <SelectValue placeholder={locationsLoading ? "Loading…" : "No location"} />
+                  <SelectValue placeholder={locationsLoading ? "Loading…" : "No pickup location"} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">No location</SelectItem>
+                  <SelectItem value="__none__">No pickup location</SelectItem>
                   {locations.map((loc) => (
                     <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               {event.rawLocationText && (
-                <p className="text-[11px] text-muted-foreground">ICS venue: {event.rawLocationText}</p>
+                <p className="text-[11px] text-muted-foreground">Event venue from calendar: {event.rawLocationText}</p>
               )}
             </div>
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)} disabled={saving}>Cancel</Button>
-            <Button onClick={handleSaveEdit} disabled={saving || !titleDraft.trim()}>
+            <Button onClick={handleSaveEdit} disabled={saving || !titleDraft.trim() || (eventTypeDraft !== "non-game" && !opponentDraft.trim())}>
               {saving ? "Saving…" : "Save"}
             </Button>
           </DialogFooter>
@@ -566,16 +603,16 @@ export default function EventDetailPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0 space-y-3">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={event.status === "CANCELLED" ? "red" : "green"}>
-                  {event.status.toLowerCase()}
+                <Badge variant={event.status === "CANCELLED" ? "red" : "green"} className="h-7 px-3 text-xs">
+                  {titleCase(event.status)}
                 </Badge>
-                <span className={cn("inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-xs font-medium", source.badgeClassName)}>
+                <span className={cn("inline-flex h-7 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold tracking-wide", source.badgeClassName)}>
                   <SourceIcon className="size-3.5" />
                   {source.label}
                 </span>
-                {event.sportCode && <Badge variant="purple">{sportLabel(event.sportCode)}</Badge>}
+                {event.sportCode && <Badge variant="purple" className="h-7 px-3 text-xs">{sportLabel(event.sportCode)}</Badge>}
                 {event.opponent ? (
-                  <Badge variant={venueBadgeVariant(event.isHome)}>
+                  <Badge variant={venueBadgeVariant(event.isHome)} className="h-7 px-3 text-xs">
                     {VENUE_TONES[venueToneFromIsHome(event.isHome)].label}
                   </Badge>
                 ) : null}
@@ -597,11 +634,15 @@ export default function EventDetailPage() {
                   </span>
                 )}
                 {opponentText && <span>{opponentText}</span>}
+                {eventType === "non-game" && <span>Non-game</span>}
                 {locationDisplay(event) && (
                   <span className="flex items-center gap-1.5">
                     <MapPin className="size-3.5 shrink-0" />
                     {locationDisplay(event)}
                   </span>
+                )}
+                {pickupLocationDisplay(event) && event.rawLocationText && pickupLocationDisplay(event) !== event.rawLocationText && (
+                  <span className="text-xs">Pickup: {pickupLocationDisplay(event)}</span>
                 )}
               </div>
               <p className="max-w-3xl text-sm text-muted-foreground [text-wrap:pretty]">{source.description}</p>
@@ -629,8 +670,8 @@ export default function EventDetailPage() {
               <History className="size-3.5" />
               Edited fields:
               {event.summaryLocked && <Badge variant="outline" size="sm">Title</Badge>}
-              {event.isHomeLocked && <Badge variant="outline" size="sm">Home/Away</Badge>}
-              {event.locationLocked && <Badge variant="outline" size="sm">Location</Badge>}
+              {event.isHomeLocked && <Badge variant="outline" size="sm">Event type</Badge>}
+              {event.locationLocked && <Badge variant="outline" size="sm">Pickup location</Badge>}
             </div>
           )}
         </div>

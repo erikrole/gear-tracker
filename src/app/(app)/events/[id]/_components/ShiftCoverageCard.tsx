@@ -30,7 +30,6 @@ import { toast } from "sonner";
 import { handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { UserAvatarPicker, type PickerUser } from "@/components/shift-detail/UserAvatarPicker";
 import { CallWindowEditor } from "@/components/shift-detail/CallWindowEditor";
-import { CrewTemplateReviewButton } from "@/components/shift-detail/CrewTemplateReviewButton";
 import type { ShiftGroupSummary, CommandCenterData } from "../_utils";
 import { AREA_LABELS } from "../_utils";
 import { shiftWorkerLabel, shiftWorkerSlotLabel } from "@/lib/shift-display";
@@ -468,9 +467,9 @@ export function ShiftCoverageCard({
       );
     }
 
-    if (activeAssignment) return <Badge variant="green">Filled</Badge>;
-    if (pendingRequests.length > 0) return <Badge variant="orange">{pendingRequests.length} req</Badge>;
-    return <Badge variant="red">Open</Badge>;
+    if (activeAssignment) return <Badge variant="green" size="sm" className="h-6 px-2.5 text-[11px]">Filled</Badge>;
+    if (pendingRequests.length > 0) return <Badge variant="orange" size="sm" className="h-6 px-2.5 text-[11px]">{pendingRequests.length} req</Badge>;
+    return <Badge variant="red" size="sm" className="h-6 px-2.5 text-[11px]">Open</Badge>;
   }
 
   function GearCell({ shiftId, hasAssignment }: { shiftId: string; hasAssignment: boolean }) {
@@ -478,14 +477,14 @@ export function ShiftCoverageCard({
     const cs = gearMap.get(shiftId);
     if (!cs?.assignment) return <span className="text-muted-foreground">-</span>;
     const hasMissing = commandCenter.missingGear.some((m) => m.shiftId === shiftId);
-    if (hasMissing) return <Badge variant="red">Missing gear</Badge>;
+    if (hasMissing) return <Badge variant="red" size="sm" className="h-6 px-2.5 text-[11px]">Missing gear</Badge>;
     if (cs.assignment.linkedBookingId) {
-      if (cs.assignment.linkedBookingStatus === "PENDING_PICKUP") return <Badge variant="orange">Pickup ready</Badge>;
-      if (cs.assignment.linkedBookingStatus === "OPEN") return <Badge variant="green">Checked out</Badge>;
-      if (cs.assignment.linkedBookingStatus === "BOOKED") return <Badge variant="purple">Assignment gear</Badge>;
-      return <Badge variant="green">Assignment gear</Badge>;
+      if (cs.assignment.linkedBookingStatus === "PENDING_PICKUP") return <Badge variant="orange" size="sm" className="h-6 px-2.5 text-[11px]">Pickup ready</Badge>;
+      if (cs.assignment.linkedBookingStatus === "OPEN") return <Badge variant="green" size="sm" className="h-6 px-2.5 text-[11px]">Checked out</Badge>;
+      if (cs.assignment.linkedBookingStatus === "BOOKED") return <Badge variant="purple" size="sm" className="h-6 px-2.5 text-[11px]">Assignment gear</Badge>;
+      return <Badge variant="green" size="sm" className="h-6 px-2.5 text-[11px]">Assignment gear</Badge>;
     }
-    return <Badge variant="orange">Event reservation</Badge>;
+    return <Badge variant="orange" size="sm" className="h-6 px-2.5 text-[11px]">Event reservation</Badge>;
   }
 
   function DeleteCell({ shift, activeAssignment }: { shift: Shift; activeAssignment: Assignment | null }) {
@@ -594,42 +593,38 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
               const pendingRequests = shift.assignments.filter((a) => a.status === "REQUESTED");
               const slotWindow = effectiveCallWindow(shift);
               const assignmentWindow = activeAssignment ? effectiveCallWindow(shift, activeAssignment) : null;
+              const rowCallWindow = assignmentWindow ?? slotWindow;
+              const rowCallTarget = activeAssignment
+                ? { type: "assignment" as const, id: activeAssignment.id }
+                : { type: "slot" as const, id: shift.id };
+              const rowCallOverride = activeAssignment
+                ? { startsAt: activeAssignment.callStartsAt ?? null, endsAt: activeAssignment.callEndsAt ?? null }
+                : { startsAt: shift.callStartsAt ?? null, endsAt: shift.callEndsAt ?? null };
               return (
                 <TableRow key={shift.id}>
                   <TableCell>
                     <div className="flex flex-col items-start gap-1">
                       <div className="flex items-center gap-1.5">
-                        {shouldShowCallWindow(slotWindow) && (
+                        {shouldShowCallWindow(rowCallWindow) && (
                           <CallWindowEditor
-                            target={{ type: "slot", id: shift.id }}
-                            effectiveWindow={slotWindow}
-                            overrideWindow={{ startsAt: shift.callStartsAt ?? null, endsAt: shift.callEndsAt ?? null }}
+                            target={rowCallTarget}
+                            effectiveWindow={rowCallWindow}
+                            overrideWindow={rowCallOverride}
                             onSaved={onUpdated}
                             disabled={inlineActing !== null}
                             compact
+                            showSourceBadge={false}
                           />
                         )}
                         <Badge variant="gray" size="sm">{shiftWorkerSlotLabel(shift.workerType)}</Badge>
                       </div>
-                      {activeAssignment && assignmentWindow && shouldShowCallWindow(assignmentWindow) && (
-                        <div className="flex flex-col items-start gap-1">
-                          <CallWindowEditor
-                            target={{ type: "assignment", id: activeAssignment.id }}
-                            effectiveWindow={assignmentWindow}
-                            overrideWindow={{ startsAt: activeAssignment.callStartsAt ?? null, endsAt: activeAssignment.callEndsAt ?? null }}
-                            onSaved={onUpdated}
-                            disabled={inlineActing !== null}
-                            compact
-                          />
-                          {activeAssignment.hasConflict && (
-                            <Badge variant="orange" size="sm" className="max-w-56 gap-1">
-                              <AlertTriangleIcon className="size-3 shrink-0" />
-                              <span className="truncate">
-                                {activeAssignment.conflictNote ?? "Schedule conflict"}
-                              </span>
-                            </Badge>
-                          )}
-                        </div>
+                      {activeAssignment?.hasConflict && (
+                        <Badge variant="orange" size="sm" className="max-w-56 gap-1">
+                          <AlertTriangleIcon className="size-3 shrink-0" />
+                          <span className="truncate">
+                            {activeAssignment.conflictNote ?? "Schedule conflict"}
+                          </span>
+                        </Badge>
                       )}
                     </div>
                   </TableCell>
@@ -707,6 +702,7 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
                   <CallWindowEditor
                     effectiveWindow={callWindow}
                     compact
+                    showSourceBadge={false}
                   />
                 ) : (
                   <span className="text-muted-foreground">-</span>
@@ -754,11 +750,11 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
         <div className="flex items-center gap-2">
           <CardTitle>Crew</CardTitle>
           {coverage && (
-            <Badge variant={coverageVariant} size="sm">
+            <Badge variant={coverageVariant} size="sm" className="h-6 px-2.5 text-[11px]">
               {coverage.filled}/{coverage.total} filled
             </Badge>
           )}
-          <Badge variant={publicationBadge.variant} size="sm">
+          <Badge variant={publicationBadge.variant} size="sm" className="h-6 px-2.5 text-[11px]">
             {publicationBadge.label}
           </Badge>
         </div>
@@ -767,11 +763,6 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
             <Button variant="outline" size="sm" onClick={handleAutoFill} disabled={autoFilling || inlineActing !== null || publishing}>
               {autoFilling ? "Building preview..." : "Preview auto-fill"}
             </Button>
-            <CrewTemplateReviewButton
-              shiftGroupId={groupId}
-              disabled={autoFilling || inlineActing !== null || publishing}
-              onUpdated={onUpdated}
-            />
             <Button size="sm" onClick={handlePublish} disabled={publishing || inlineActing !== null}>
               {publishing ? "Publishing..." : shiftGroup.publication?.publishedAt ? "Republish" : "Publish"}
             </Button>
@@ -795,11 +786,11 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
           commandCenter.gearSummary.byStatus.completed > 0
         ) && (
           <div className="flex gap-2 flex-wrap mb-4">
-            {commandCenter.gearSummary.byStatus.draft > 0 && <Badge variant="gray">{commandCenter.gearSummary.byStatus.draft} Draft</Badge>}
-            {commandCenter.gearSummary.byStatus.reserved > 0 && <Badge variant="purple">{commandCenter.gearSummary.byStatus.reserved} Reserved</Badge>}
-            {commandCenter.gearSummary.byStatus.pendingPickup > 0 && <Badge variant="orange">{commandCenter.gearSummary.byStatus.pendingPickup} Awaiting pickup</Badge>}
-            {commandCenter.gearSummary.byStatus.checkedOut > 0 && <Badge variant="green">{commandCenter.gearSummary.byStatus.checkedOut} Checked out</Badge>}
-            {commandCenter.gearSummary.byStatus.completed > 0 && <Badge variant="blue">{commandCenter.gearSummary.byStatus.completed} Returned</Badge>}
+            {commandCenter.gearSummary.byStatus.draft > 0 && <Badge variant="gray" size="sm" className="h-6 px-2.5 text-[11px]">{commandCenter.gearSummary.byStatus.draft} draft</Badge>}
+            {commandCenter.gearSummary.byStatus.reserved > 0 && <Badge variant="purple" size="sm" className="h-6 px-2.5 text-[11px]">{commandCenter.gearSummary.byStatus.reserved} reserved</Badge>}
+            {commandCenter.gearSummary.byStatus.pendingPickup > 0 && <Badge variant="orange" size="sm" className="h-6 px-2.5 text-[11px]">{commandCenter.gearSummary.byStatus.pendingPickup} awaiting pickup</Badge>}
+            {commandCenter.gearSummary.byStatus.checkedOut > 0 && <Badge variant="green" size="sm" className="h-6 px-2.5 text-[11px]">{commandCenter.gearSummary.byStatus.checkedOut} checked out</Badge>}
+            {commandCenter.gearSummary.byStatus.completed > 0 && <Badge variant="blue" size="sm" className="h-6 px-2.5 text-[11px]">{commandCenter.gearSummary.byStatus.completed} returned</Badge>}
           </div>
         )}
 

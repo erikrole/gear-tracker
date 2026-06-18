@@ -64,12 +64,11 @@ describe("schedule source-of-truth smoke fallback contracts", () => {
     expect(service).toContain("action:");
   });
 
-  it("keeps manual assignment, scoring, auto-fill, and copy-forward preview-first", () => {
+  it("keeps manual assignment, scoring, and auto-fill preview-first without surfacing template review", () => {
     const assignmentCell = source("src/app/(app)/schedule/assign/_components/AssignmentCell.tsx");
     const picker = source("src/components/shift-detail/UserAvatarPicker.tsx");
     const eventCrew = source("src/app/(app)/events/[id]/_components/ShiftCoverageCard.tsx");
     const shiftPanel = source("src/components/ShiftDetailPanel.tsx");
-    const templateReview = source("src/components/shift-detail/CrewTemplateReviewButton.tsx");
 
     expect(assignmentCell).toContain("/api/shifts/${shiftId}/candidate-scores");
     for (const label of ["Recommended", "Good fit", "Warning", "Overloaded"]) {
@@ -85,11 +84,14 @@ describe("schedule source-of-truth smoke fallback contracts", () => {
     }
     expect(eventCrew).toContain("Review the proposed crew changes before applying them.");
     expect(shiftPanel).toContain("Review suggested assignments before applying them.");
+    expect(eventCrew).toContain("rowCallWindow");
+    expect(eventCrew.match(/<CallWindowEditor/g)?.length).toBe(2);
+    expect(eventCrew).toContain("showSourceBadge={false}");
 
-    expect(templateReview).toContain("Compare this event to the sport template");
-    expect(templateReview).toContain("Copy-forward preview");
-    expect(templateReview).toContain("applyCopyForward");
-    expect(templateReview).toContain("Copy crew forward");
+    expect(eventCrew).not.toContain("CrewTemplateReviewButton");
+    expect(shiftPanel).not.toContain("CrewTemplateReviewButton");
+    expect(eventCrew).not.toContain("Review template");
+    expect(shiftPanel).not.toContain("Review template");
   });
 
   it("keeps publish acknowledgement, Open Work, gear readiness, and change history visible", () => {
@@ -119,12 +121,32 @@ describe("schedule source-of-truth smoke fallback contracts", () => {
     expect(eventCrew).toContain("Event reservation");
     expect(eventCrew).toContain("Missing gear");
     expect(eventCrew).toContain("Pickup ready");
+    expect(eventCrew).not.toContain("type: \"slot\", id: shift.id");
 
     expect(listView).toContain("Review changes");
-    expect(listView).toContain("Changed recently");
+    expect(listView).not.toContain("Changed recently");
     expect(listView).toContain("latestChangeLabel");
     expect(eventCrew).toContain("Recent schedule changes");
     expect(eventCrew).toContain("Needs review");
+  });
+
+  it("keeps event editing language clear for type, pickup location, and calendar venue", () => {
+    const eventDetail = source("src/app/(app)/events/[id]/page.tsx");
+    const newEventSheet = source("src/app/(app)/schedule/_components/NewEventSheet.tsx");
+    const patchRoute = source("src/app/api/calendar-events/[id]/route.ts");
+    const syncService = source("src/lib/services/calendar-sync.ts");
+
+    for (const file of [eventDetail, newEventSheet]) {
+      expect(file).toContain("Event type");
+      expect(file).toContain("Non-game");
+      expect(file).toContain("Pickup location");
+    }
+
+    expect(eventDetail).toContain("Event venue from calendar");
+    expect(eventDetail).toContain("opponentDraft");
+    expect(patchRoute).toContain("opponent: z.string().max(120).nullable().optional()");
+    expect(patchRoute).toContain("patch.isHomeLocked = true");
+    expect(syncService).toContain("data.opponent = existing.opponent");
   });
 
   it("keeps Schedule exports discoverable and bounded from the source-of-truth page", () => {

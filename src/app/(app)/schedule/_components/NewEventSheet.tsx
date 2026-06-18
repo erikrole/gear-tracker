@@ -28,6 +28,7 @@ import { formatCalendarEventDateRange } from "@/lib/calendar-event-dates";
 
 type Location = { id: string; name: string };
 type CreatedEvent = { id: string; summary: string };
+type EventTypeDraft = "home" | "away" | "neutral" | "non-game";
 
 type Props = {
   open: boolean;
@@ -124,7 +125,7 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
   const [allDay, setAllDay] = useState(false);
   const [locationId, setLocationId] = useState("");
   const [sportCode, setSportCode] = useState("");
-  const [isHome, setIsHome] = useState<"home" | "away" | "neutral">("home");
+  const [eventType, setEventType] = useState<EventTypeDraft>("non-game");
   const [opponent, setOpponent] = useState("");
   const [error, setError] = useState("");
 
@@ -168,7 +169,7 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
     setAllDay(false);
     setLocationId("");
     setSportCode("");
-    setIsHome("home");
+    setEventType("non-game");
     setOpponent("");
     setError("");
     setLocationsError("");
@@ -224,8 +225,8 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
           allDay,
           locationId: locationId || null,
           sportCode: sportCode || null,
-          isHome: sportCode ? (isHome === "home" ? true : isHome === "away" ? false : null) : null,
-          opponent: (sportCode && opponent.trim()) ? opponent.trim() : null,
+          isHome: sportCode && eventType !== "non-game" ? (eventType === "home" ? true : eventType === "away" ? false : null) : null,
+          opponent: (sportCode && eventType !== "non-game" && opponent.trim()) ? opponent.trim() : null,
         }),
       });
 
@@ -340,19 +341,19 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
               </Alert>
             )}
 
-            {/* Location */}
+            {/* Pickup location */}
             <div className="flex flex-col gap-1.5">
-              <Label>Location</Label>
+              <Label>Pickup location</Label>
               <Select
                 value={locationId || NONE_LOCATION_VALUE}
                 onValueChange={(v) => setLocationId(v === NONE_LOCATION_VALUE ? "" : v)}
                 disabled={submitting}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="None" />
+                  <SelectValue placeholder="No pickup location" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NONE_LOCATION_VALUE}>None</SelectItem>
+                  <SelectItem value={NONE_LOCATION_VALUE}>No pickup location</SelectItem>
                   {locations.map((l) => (
                     <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
                   ))}
@@ -383,14 +384,14 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
               </Select>
             </div>
 
-            {/* Home / Away + Opponent - only shown when sport is selected */}
+            {/* Event type + opponent - only shown when sport is selected */}
             {sportCode && (
               <>
                 <div className="flex flex-col gap-1.5">
-                  <Label>Location type</Label>
+                  <Label>Event type</Label>
                   <Select
-                    value={isHome}
-                    onValueChange={(v) => setIsHome(v as "home" | "away" | "neutral")}
+                    value={eventType}
+                    onValueChange={(v) => setEventType(v as EventTypeDraft)}
                     disabled={submitting}
                   >
                     <SelectTrigger>
@@ -400,19 +401,22 @@ export function NewEventSheet({ open, onOpenChange, onCreated }: Props) {
                       <SelectItem value="home">Home</SelectItem>
                       <SelectItem value="away">Away</SelectItem>
                       <SelectItem value="neutral">Neutral site</SelectItem>
+                      <SelectItem value="non-game">Non-game</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="opponent">Opponent <span className="text-muted-foreground font-normal">(optional)</span></Label>
-                  <Input
-                    id="opponent"
-                    placeholder="e.g. Duke"
-                    value={opponent}
-                    onChange={(e) => setOpponent(e.target.value)}
-                    disabled={submitting}
-                  />
-                </div>
+                {eventType !== "non-game" && (
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="opponent">Opponent <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                    <Input
+                      id="opponent"
+                      placeholder="e.g. Duke"
+                      value={opponent}
+                      onChange={(e) => setOpponent(e.target.value)}
+                      disabled={submitting}
+                    />
+                  </div>
+                )}
               </>
             )}
 

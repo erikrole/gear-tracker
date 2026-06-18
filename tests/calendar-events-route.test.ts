@@ -1,25 +1,32 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CalendarEventStatus, Role } from "@prisma/client";
 
+const dbMock = vi.hoisted(() => ({
+  $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => callback(dbMock)),
+  calendarEvent: {
+    create: vi.fn(),
+    findUnique: vi.fn(),
+    update: vi.fn(),
+  },
+}));
+
 vi.mock("@/lib/auth", () => ({
   requireAuth: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({
-  db: {
-    calendarEvent: {
-      create: vi.fn(),
-    },
-  },
+  db: dbMock,
 }));
 
 vi.mock("@/lib/audit", () => ({
   createAuditEntry: vi.fn(),
+  createAuditEntryTx: vi.fn(),
 }));
 
 import { requireAuth } from "@/lib/auth";
-import { createAuditEntry } from "@/lib/audit";
+import { createAuditEntry, createAuditEntryTx } from "@/lib/audit";
 import { db } from "@/lib/db";
+import { PATCH } from "@/app/api/calendar-events/[id]/route";
 import { POST } from "@/app/api/calendar-events/route";
 
 const staffUser = {
@@ -33,6 +40,18 @@ const staffUser = {
 function post(body: Record<string, unknown>) {
   return new Request("https://app.example.com/api/calendar-events", {
     method: "POST",
+    headers: {
+      "content-type": "application/json",
+      host: "app.example.com",
+      origin: "https://app.example.com",
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+function patch(body: Record<string, unknown>) {
+  return new Request("https://app.example.com/api/calendar-events/cmevent000000000000000001", {
+    method: "PATCH",
     headers: {
       "content-type": "application/json",
       host: "app.example.com",
@@ -73,6 +92,32 @@ beforeEach(() => {
     location: null,
   } as Awaited<ReturnType<typeof db.calendarEvent.create>>);
   vi.mocked(createAuditEntry).mockResolvedValue(undefined);
+  vi.mocked(createAuditEntryTx).mockResolvedValue(undefined);
+  vi.mocked(db.calendarEvent.findUnique).mockResolvedValue({
+    id: "cmevent000000000000000001",
+    summary: "Football vs Notre Dame",
+    subtitle: null,
+    isHome: true,
+    locationId: null,
+    rawSummary: "Football vs Notre Dame",
+    rawLocationText: "Green Bay, Wis., Lambeau Field",
+    opponent: "Notre Dame",
+    summaryLocked: false,
+    isHomeLocked: false,
+    locationLocked: false,
+  } as Awaited<ReturnType<typeof db.calendarEvent.findUnique>>);
+  vi.mocked(db.calendarEvent.update).mockResolvedValue({
+    id: "cmevent000000000000000001",
+    summary: "Football vs Notre Dame",
+    subtitle: null,
+    isHome: null,
+    locationId: null,
+    opponent: null,
+    summaryLocked: false,
+    isHomeLocked: true,
+    locationLocked: false,
+    location: null,
+  } as unknown as Awaited<ReturnType<typeof db.calendarEvent.update>>);
 });
 
 describe("POST /api/calendar-events", () => {
@@ -121,5 +166,29 @@ describe("POST /api/calendar-events", () => {
         }),
       }),
     );
+  });
+});
+
+describe("PATCH /api/calendar-events/[id]", () => {
+  it("lets staff save a game as a locked non-game event by clearing opponent", async () => {
+    const res = await PATCH(
+      patch({
+        isHome: null,
+        opponent: null,
+      }),
+      { params: Promise.resolve({ id: "cmevent000000000000000001" }) },
+    );
+
+    expect(res.status).toBe(200);
+    expect(db.calendarEvent.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          isHome: null,
+          opponent: null,
+          isHomeLocked: true,
+        }),
+      }),
+    );
+    expect(createAuditEntryTx).toHaveBeenCalledOnce();
   });
 });

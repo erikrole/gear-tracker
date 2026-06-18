@@ -91,8 +91,8 @@
 | `src/components/EquipmentPicker.tsx` | 1083 |
 | `src/components/TradeBoard.tsx` | 929 |
 | `src/components/ActivityTimeline.tsx` | 906 |
-| `src/components/ShiftDetailPanel.tsx` | 830 |
 | `src/components/BookingDetailsSheet.tsx` | 803 |
+| `src/components/ShiftDetailPanel.tsx` | 783 |
 | `src/components/onboarding/OnboardingDialog.tsx` | 756 |
 | `src/components/ui/sidebar.tsx` | 727 |
 | `src/components/booking-wizard/BookingWizard.tsx` | 711 |
@@ -100,11 +100,11 @@
 | `src/components/AppShell.tsx` | 601 |
 | `src/components/booking-wizard/WizardStep1.tsx` | 565 |
 | `src/components/BookingListPage.tsx` | 506 |
-| `src/components/shift-detail/ShiftSlotCard.tsx` | 436 |
 | `src/components/ui/heatmap.tsx` | 431 |
 | `src/components/ui/chart.tsx` | 389 |
 | `src/components/FormCombobox.tsx` | 373 |
 | `src/components/Sidebar.tsx` | 373 |
+| `src/components/shift-detail/ShiftSlotCard.tsx` | 370 |
 | `src/components/PageBreadcrumb.tsx` | 356 |
 | `src/components/booking-details/BookingOverview.tsx` | 300 |
 | `src/components/QrScanner.tsx` | 288 |
@@ -112,12 +112,12 @@
 | `src/components/ui/dropdown-menu.tsx` | 258 |
 | `src/components/shift-detail/UserAvatarPicker.tsx` | 242 |
 | `src/components/ui/context-menu.tsx` | 242 |
-| `src/components/shift-detail/CallWindowEditor.tsx` | 236 |
-| `src/components/shift-detail/CrewTemplateReviewButton.tsx` | 236 |
+| `src/components/shift-detail/CallWindowEditor.tsx` | 240 |
 | `src/components/booking-list/BookingRow.tsx` | 219 |
 | `src/components/booking-list/BookingFilters.tsx` | 202 |
 | `src/components/resources/MarkdownReader.tsx` | 202 |
 | `src/components/booking-list/types.ts` | 195 |
+| `src/components/ui/item.tsx` | 194 |
 
 ## Hooks
 

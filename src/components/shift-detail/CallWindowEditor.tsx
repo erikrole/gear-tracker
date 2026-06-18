@@ -37,6 +37,7 @@ type Props = {
   onSaved?: () => void;
   className?: string;
   compact?: boolean;
+  showSourceBadge?: boolean;
 };
 
 const SOURCE_VARIANTS: Record<CallWindowSource, BadgeProps["variant"]> = {
@@ -61,6 +62,7 @@ export function CallWindowEditor({
   onSaved,
   className,
   compact,
+  showSourceBadge = true,
 }: Props) {
   const editable = Boolean(target);
   const [open, setOpen] = useState(false);
@@ -165,9 +167,11 @@ export function CallWindowEditor({
     >
       <ClockIcon className="size-3.5 shrink-0 text-muted-foreground" />
       <span className="min-w-0 truncate">Call {label}</span>
-      <Badge variant={SOURCE_VARIANTS[effectiveWindow.source]} size="sm" className="shrink-0">
-        {callWindowSourceLabel(effectiveWindow.source)}
-      </Badge>
+      {showSourceBadge && (
+        <Badge variant={SOURCE_VARIANTS[effectiveWindow.source]} size="sm" className="shrink-0">
+          {callWindowSourceLabel(effectiveWindow.source)}
+        </Badge>
+      )}
     </Button>
   );
 
