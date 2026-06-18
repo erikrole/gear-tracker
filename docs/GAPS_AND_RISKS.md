@@ -52,6 +52,10 @@ _2026-06-18 update: Schedule in-season automation review shipped without opening
 
 _2026-06-18 update: Schedule copy-forward and template review shipped without opening a new gap. Copy-forward crew setup remains preview-first and uses existing assignment safety checks; template drift is read-only and additive, so manually edited groups are not overwritten. Bulk call-window editing remains a separate follow-up slice if staff need it._
 
+_2026-06-18 update: Schedule source-of-truth smoke closure shipped without opening a new gap. Authenticated browser smoke is still unavailable in the repo, so Slice 14 added source-contract fallback coverage for the priority Schedule workflows and left browser proof as a manual merge gate._
+
+_2026-06-18 update: Schedule source-of-truth plan reconciliation shipped without opening a new gap. The plan was archived after Slice 0 evidence and remaining browser-smoke debt were reconciled; a durable authenticated browser harness remains an optional cross-cutting test-infrastructure follow-up, not a Schedule blocker._
+
 | ID | Description | Owner Area | Priority | Blocker? |
 |---|---|---|---|---|
 | ~~PD-1~~ | ~~D-009: Escalation recipient model~~ | ~~AREA_NOTIFICATIONS~~ | ~~Resolved~~ | ~~Requester + all admins; admin-configurable fatigue controls~~ |
@@ -200,6 +204,9 @@ _2026-06-18 update: Schedule copy-forward and template review shipped without op
 ---
 
 ## Change Log
+- 2026-06-18: Schedule Source Of Truth Slice 15 reconciled and archived the plan without opening a new gap. Slice 0 evidence now matches shipped Event detail docs/source/tests, and the no-Playwright authenticated browser limitation is documented as source-contract fallback coverage rather than unresolved Schedule product scope.
+- 2026-06-18: Schedule Source Of Truth Slice 13 shipped without opening a new gap. Schedule exports are staff/admin-only CSV downloads behind `report.view`, use shared formula-safe escaping, carry row-count/truncation headers, and are bounded by 5,000 rows plus a 366-day date-window cap.
+- 2026-06-18: Schedule Source Of Truth Slice 14 shipped without opening a new gap. The remaining browser-smoke debt is now mapped to source-contract fallback coverage for readiness queues, automation review, candidate scoring, preview/apply staffing, publish/acknowledgement, Open Work, copy-forward review, gear readiness, change history, and exports; authenticated browser smoke remains manual until the project adds a harness.
 - 2026-06-18: Schedule Source Of Truth Slice 12 shipped without opening a new gap. Schedule change history is read from existing audit rows, displayed on Schedule/Event detail, and flags post-publication review work without adding rollback, automated republish, worker notification fanout, schema changes, or custody mutation.
 - 2026-06-18: Schedule Source Of Truth Slice 10 shipped without opening a new gap. Copy-forward crew setup now remains preview-first and uses existing assignment safety checks; template drift is read-only and additive, so manually edited groups are not overwritten. Bulk call-window editing stayed deferred because it is a separate mutation family and should be sliced independently if staff need it.
 - 2026-06-18: Schedule Source Of Truth Slice 9 shipped without opening a new gap. `/api/schedule/automation` and `morning-refresh` now expose a read-only automation digest for staffing gaps, auto-fill preview eligibility, publish readiness, blockers, source state, and cleanup outcomes while preserving D-035's single morning-refresh cron boundary.

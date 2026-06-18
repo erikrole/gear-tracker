@@ -3,8 +3,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { DownloadIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sheet,
   SheetContent,
@@ -33,6 +42,15 @@ const ShiftDetailPanel = dynamic(
 const TradeBoard = dynamic(() => import("@/components/TradeBoard"), {
   ssr: false,
 });
+
+const SCHEDULE_EXPORTS = [
+  { type: "roster", label: "Weekly roster" },
+  { type: "hours", label: "Hours by person" },
+  { type: "open-slots", label: "Open slots" },
+  { type: "conflicts", label: "Conflicts" },
+  { type: "trades", label: "Trades and open work" },
+  { type: "gear-readiness", label: "Gear readiness" },
+] as const;
 
 export default function SchedulePage() {
   const data = useScheduleData();
@@ -103,6 +121,45 @@ export default function SchedulePage() {
     if (nextQueue === "trade-approval") setTradeSheetOpen(true);
   }, [setQueue, setTradeSheetOpen]);
 
+  const buildExportHref = useCallback((type: (typeof SCHEDULE_EXPORTS)[number]["type"]) => {
+    const params = new URLSearchParams({ type });
+    const now = new Date();
+    let startDate: Date;
+    let endDate: Date;
+
+    if (data.filters.viewMode === "calendar") {
+      startDate = data.calMonth;
+      endDate = new Date(data.calMonth.getFullYear(), data.calMonth.getMonth() + 1, 0, 23, 59, 59, 999);
+    } else if (data.filters.viewMode === "week") {
+      startDate = data.weekStart;
+      endDate = new Date(data.weekStart);
+      endDate.setDate(data.weekStart.getDate() + 6);
+      endDate.setHours(23, 59, 59, 999);
+    } else if (data.filters.includePast) {
+      startDate = new Date(now);
+      startDate.setFullYear(now.getFullYear() - 1);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(now);
+      endDate.setHours(23, 59, 59, 999);
+      params.set("includePast", "true");
+    } else {
+      startDate = new Date(now);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(startDate);
+      endDate.setDate(startDate.getDate() + 7);
+      endDate.setHours(23, 59, 59, 999);
+    }
+
+    params.set("startDate", startDate.toISOString());
+    params.set("endDate", endDate.toISOString());
+    if (data.filters.sportFilter) params.set("sportCode", data.filters.sportFilter);
+    if (data.filters.includeArchived) {
+      params.set("includeArchived", "true");
+      params.set("includePast", "true");
+    }
+    return `/api/schedule/export?${params.toString()}`;
+  }, [data.calMonth, data.filters.includeArchived, data.filters.includePast, data.filters.sportFilter, data.filters.viewMode, data.weekStart]);
+
   useEffect(() => {
     if (queue === "trade-approval") setTradeSheetOpen(true);
   }, [queue, setTradeSheetOpen]);
@@ -118,6 +175,24 @@ export default function SchedulePage() {
             <Button variant="outline" size="sm" onClick={() => setNewEventOpen(true)}>
               New event
             </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <DownloadIcon data-icon="inline-start" />
+                  Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Schedule CSV</DropdownMenuLabel>
+                <DropdownMenuGroup>
+                  {SCHEDULE_EXPORTS.map((item) => (
+                    <DropdownMenuItem key={item.type} asChild>
+                      <a href={buildExportHref(item.type)}>{item.label}</a>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </>
         )}
         <Button

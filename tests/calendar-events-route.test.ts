@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { CalendarEventStatus, Role } from "@prisma/client";
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: vi.fn(),
@@ -25,7 +26,7 @@ const staffUser = {
   id: "staff-1",
   email: "staff@example.com",
   name: "Staff One",
-  role: "STAFF" as any,
+  role: Role.STAFF,
   avatarUrl: null,
 };
 
@@ -49,16 +50,29 @@ beforeEach(() => {
     sourceId: null,
     externalId: "manual-event-1",
     summary: "Manual smoke event",
+    description: null,
+    rawSummary: null,
+    rawLocationText: null,
+    rawDescription: null,
     startsAt: new Date("2026-05-12T14:00:00.000Z"),
     endsAt: new Date("2026-05-12T16:00:00.000Z"),
     allDay: false,
+    status: CalendarEventStatus.CONFIRMED,
     locationId: null,
     sportCode: null,
     isHome: null,
+    isHidden: false,
+    summaryLocked: false,
+    isHomeLocked: false,
+    locationLocked: false,
+    archivedAt: null,
+    subtitle: null,
     opponent: null,
+    createdAt: new Date("2026-05-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-05-01T00:00:00.000Z"),
     location: null,
-  } as any);
-  vi.mocked(createAuditEntry).mockResolvedValue(undefined as any);
+  } as Awaited<ReturnType<typeof db.calendarEvent.create>>);
+  vi.mocked(createAuditEntry).mockResolvedValue(undefined);
 });
 
 describe("POST /api/calendar-events", () => {
