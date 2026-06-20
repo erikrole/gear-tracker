@@ -26,6 +26,10 @@ export type ShiftUser = {
   role: string;
   primaryArea: string | null;
   avatarUrl?: string | null;
+  gradYear?: number | null;
+  studentYearOverride?: string | null;
+  sportAssignments?: Array<{ sportCode: string }>;
+  areaAssignments?: Array<{ area: string; isPrimary: boolean }>;
 };
 
 export type ShiftAssignment = {

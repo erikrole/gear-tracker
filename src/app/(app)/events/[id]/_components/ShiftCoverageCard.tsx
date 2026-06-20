@@ -107,7 +107,7 @@ export function ShiftCoverageCard({
     usersAbortRef.current = ctrl;
     setUsersLoading(true);
     try {
-      const res = await fetch("/api/users?limit=200&active=true", { signal: ctrl.signal });
+      const res = await fetch("/api/users?limit=200&active=true&scheduleProfile=true", { signal: ctrl.signal });
       if (ctrl.signal.aborted) return;
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
@@ -117,13 +117,7 @@ export function ShiftCoverageCard({
           toast.error("User response was incomplete. Refresh and try again.");
           return;
         }
-        setAllUsers(users.map((u) => ({
-          id: u.id,
-          name: u.name,
-          role: u.role,
-          primaryArea: u.primaryArea ?? null,
-          avatarUrl: u.avatarUrl ?? null,
-        })));
+        setAllUsers(users);
         setUsersLoaded(true);
       } else {
         toast.error(await parseErrorMessage(res, "Failed to load users"));

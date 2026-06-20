@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { buildScheduleEventWhere } from "@/lib/schedule-event-where";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
-import { shiftWorkerLabel, shiftWorkerLabelForRole, shiftWorkerSlotLabel } from "@/lib/shift-display";
+import { shiftWorkerLabel, shiftWorkerLabelForProfile, shiftWorkerSlotLabel, type ShiftWorkerProfile } from "@/lib/shift-display";
 import { getSchedulePublicationState } from "@/lib/services/schedule-publication";
 
 export const SCHEDULE_EXPORT_TYPES = [
@@ -157,7 +157,17 @@ async function loadScheduleExportGroups(input: ScheduleExportInput) {
               hasConflict: true,
               conflictNote: true,
               acknowledgedAt: true,
-              user: { select: { name: true, role: true, primaryArea: true } },
+              user: {
+                select: {
+                  name: true,
+                  role: true,
+                  primaryArea: true,
+                  gradYear: true,
+                  studentYearOverride: true,
+                  sportAssignments: { select: { sportCode: true } },
+                  areaAssignments: { select: { area: true, isPrimary: true } },
+                },
+              },
             },
           },
         },
@@ -171,7 +181,7 @@ function activeAssignment(shift: ExportShift) {
 }
 
 function assignedRoleLabel(assignment: ExportAssignment | null | undefined) {
-  return assignment ? shiftWorkerLabelForRole(assignment.user.role) : "";
+  return assignment ? shiftWorkerLabelForProfile(assignment.user) ?? "" : "";
 }
 
 function rosterRows(groups: ExportGroup[]) {
@@ -207,7 +217,7 @@ function rosterRows(groups: ExportGroup[]) {
 function hoursRows(groups: ExportGroup[]) {
   const byUser = new Map<string, {
     name: string;
-    role: string;
+    user: ShiftWorkerProfile;
     shiftCount: number;
     hours: number;
     eventCount: Set<string>;
@@ -220,7 +230,7 @@ function hoursRows(groups: ExportGroup[]) {
       if (!assignment) continue;
       const current = byUser.get(assignment.userId) ?? {
         name: assignment.user.name,
-        role: assignment.user.role,
+        user: assignment.user,
         shiftCount: 0,
         hours: 0,
         eventCount: new Set<string>(),
@@ -238,7 +248,7 @@ function hoursRows(groups: ExportGroup[]) {
     .sort((a, b) => b.hours - a.hours || a.name.localeCompare(b.name))
     .map((row) => [
       row.name,
-      shiftWorkerLabelForRole(row.role),
+      shiftWorkerLabelForProfile(row.user) ?? "",
       row.shiftCount,
       row.eventCount.size,
       row.hours.toFixed(2),
@@ -277,7 +287,7 @@ function conflictRows(groups: ExportGroup[]) {
           exportDate(group.event.startsAt),
           shift.area,
           shiftWorkerSlotLabel(shift.workerType),
-          shiftWorkerLabelForRole(assignment.user.role),
+          shiftWorkerLabelForProfile(assignment.user) ?? "",
           assignment.user.name,
           assignment.status,
           exportDate(effectiveStartsAt(shift, assignment)),
@@ -326,7 +336,7 @@ async function tradeRows(groups: ExportGroup[]) {
       linked ? exportDate(linked.group.event.startsAt) : "",
       linked?.shift.area ?? "",
       linked ? shiftWorkerSlotLabel(linked.shift.workerType) : "",
-      linked ? shiftWorkerLabelForRole(linked.assignment.user.role) : "",
+      linked ? shiftWorkerLabelForProfile(linked.assignment.user) ?? "" : "",
       linked?.assignment.user.name ?? "",
       trade.status,
       trade.requiresApproval ? "yes" : "no",
@@ -349,7 +359,7 @@ async function tradeRows(groups: ExportGroup[]) {
           exportDate(group.event.startsAt),
           shift.area,
           shiftWorkerSlotLabel(shift.workerType),
-          shiftWorkerLabelForRole(assignment.user.role),
+          shiftWorkerLabelForProfile(assignment.user) ?? "",
           assignment.user.name,
           assignment.status,
           "",
@@ -431,7 +441,7 @@ async function gearRows(groups: ExportGroup[]) {
       exportDate(group.event.startsAt),
       shift.area,
       shiftWorkerSlotLabel(shift.workerType),
-      shiftWorkerLabelForRole(assignment.user.role),
+      shiftWorkerLabelForProfile(assignment.user) ?? "",
       assignment.user.name,
       booking ? bookingStatusLabel(booking.status) : "Missing",
       linkType,

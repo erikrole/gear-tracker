@@ -13,7 +13,7 @@ import {
   type CandidateConflictFilter,
 } from "@/lib/assignment-conflict-review";
 import type { CandidateRecommendation, CandidateScoreBucket } from "@/lib/candidate-scoring-types";
-import { shiftWorkerSlotLabel, shiftWorkerTypeForRole } from "@/lib/shift-display";
+import { shiftWorkerLabelForProfile, shiftWorkerSlotLabel, shiftWorkerTypeForProfile } from "@/lib/shift-display";
 import { cn } from "@/lib/utils";
 
 const AREA_LABELS: Record<string, string> = {
@@ -29,6 +29,10 @@ export type PickerUser = {
   role: string;
   primaryArea: string | null;
   avatarUrl?: string | null;
+  gradYear?: number | null;
+  studentYearOverride?: string | null;
+  sportAssignments?: Array<{ sportCode: string }>;
+  areaAssignments?: Array<{ area: string; isPrimary: boolean }>;
 };
 
 type Props = {
@@ -179,8 +183,9 @@ export function UserAvatarPicker({
                   const conflict = conflictMap?.[u.id];
                   const score = candidateScores?.[u.id];
                   const topReason = score?.warnings[0]?.label ?? score?.reasons[0]?.label;
-                  const candidateWorkerType = shiftWorkerTypeForRole(u.role);
-                  const roleSlotNote = slotWorkerType && candidateWorkerType !== slotWorkerType
+                  const candidateWorkerType = shiftWorkerTypeForProfile(u);
+                  const candidateWorkerLabel = shiftWorkerLabelForProfile(u) ?? "Worker";
+                  const roleSlotNote = slotWorkerType && candidateWorkerType && candidateWorkerType !== slotWorkerType
                     ? `Will use ${shiftWorkerSlotLabel(candidateWorkerType).toLowerCase()} and leave ${shiftWorkerSlotLabel(slotWorkerType).toLowerCase()} open.`
                     : null;
                   return (
@@ -203,7 +208,7 @@ export function UserAvatarPicker({
                         <div className="truncate font-medium text-xs">{u.name}</div>
                         <div className="flex min-w-0 items-center gap-1 text-[10px] text-muted-foreground">
                           <span className="truncate">
-                            {u.role === "STUDENT" ? "Student" : "Staff"}
+                            {candidateWorkerLabel}
                             {u.primaryArea ? ` · ${AREA_LABELS[u.primaryArea] ?? u.primaryArea}` : ""}
                           </span>
                           {conflict && (

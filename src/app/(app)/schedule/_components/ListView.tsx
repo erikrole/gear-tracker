@@ -37,7 +37,7 @@ import { UserAvatarPicker, type PickerUser } from "@/components/shift-detail/Use
 import { handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 import { VENUE_TONES, venueToneFromEvent } from "@/lib/venue-tone";
-import { formatRoleSlotAssignmentOutcome, shiftWorkerLabelForRole, shiftWorkerSlotLabel, type RoleSlotOutcomeLike, type ShiftWorkerKind } from "@/lib/shift-display";
+import { formatRoleSlotAssignmentOutcome, shiftWorkerLabelForProfile, shiftWorkerSlotLabel, type RoleSlotOutcomeLike, type ShiftWorkerKind } from "@/lib/shift-display";
 import { effectiveCallWindow, isInheritedFullDayCallWindow, summarizeEffectiveCallWindows } from "@/lib/shift-call-windows";
 import type { CalendarEntry, Shift } from "./types";
 import type { ScheduleGearAssignmentReadiness, ScheduleGearEventReadiness, ScheduleHealthSnapshot } from "@/lib/schedule-health-types";
@@ -347,8 +347,8 @@ function ShiftRowList({
         const areaLabel = AREA_LABELS[shift.area] ?? shift.area;
         const workerType = workerKindForShift(shift);
         const slotLabel = roleSlotLabel(workerType);
-        const assignedRoleLabel = user ? shiftWorkerLabelForRole(user.role) : null;
-        const rowRoleLabel = assignedRoleLabel ?? slotLabel;
+        const assignedRoleLabel = user ? shiftWorkerLabelForProfile(user) : null;
+        const rowRoleLabel = user ? assignedRoleLabel ?? "Assigned" : slotLabel;
         const emptyAssignLabel = compact ? "Assign" : "Assign";
         const emptyAssignAriaLabel = `Assign open ${slotLabel.toLowerCase()} to ${areaLabel}`;
         const isAddingShift = addingShiftId === shift.id;
@@ -356,7 +356,14 @@ function ShiftRowList({
         const slotWindow = effectiveCallWindow(shift);
         const assignmentWindow = activeAssignment ? effectiveCallWindow(shift, activeAssignment) : null;
         const visibleWindow = assignmentWindow ?? slotWindow;
+        const callEditorTarget = activeAssignment
+          ? { type: "assignment" as const, id: activeAssignment.id }
+          : { type: "slot" as const, id: shift.id };
+        const callEditorOverride = activeAssignment
+          ? { startsAt: activeAssignment.callStartsAt ?? null, endsAt: activeAssignment.callEndsAt ?? null }
+          : { startsAt: shift.callStartsAt ?? null, endsAt: shift.callEndsAt ?? null };
         const showCallWindows = !entry.allDay;
+        const showStaffCallEditor = showCallWindows && !isInheritedFullDayCallWindow(visibleWindow);
         const assignmentGear = activeAssignment ? gearAssignments?.[activeAssignment.id] ?? null : null;
 
         return (
@@ -525,29 +532,15 @@ function ShiftRowList({
 
             {compact ? (
               <div className="flex min-w-0 flex-col items-start gap-1">
-                {isStaff ? (
-                  <>
-                    {showCallWindows && !isInheritedFullDayCallWindow(slotWindow) && (
-                      <CallWindowEditor
-                        target={{ type: "slot", id: shift.id }}
-                        effectiveWindow={slotWindow}
-                        overrideWindow={{ startsAt: shift.callStartsAt ?? null, endsAt: shift.callEndsAt ?? null }}
-                        onSaved={onCallWindowSaved}
-                        disabled={Boolean(addingShiftId || removingAssignmentId)}
-                        compact
-                      />
-                    )}
-                    {showCallWindows && activeAssignment && assignmentWindow && !isInheritedFullDayCallWindow(assignmentWindow) && (
-                      <CallWindowEditor
-                        target={{ type: "assignment", id: activeAssignment.id }}
-                        effectiveWindow={assignmentWindow}
-                        overrideWindow={{ startsAt: activeAssignment.callStartsAt ?? null, endsAt: activeAssignment.callEndsAt ?? null }}
-                        onSaved={onCallWindowSaved}
-                        disabled={Boolean(addingShiftId || removingAssignmentId)}
-                        compact
-                      />
-                    )}
-                  </>
+                {isStaff && showStaffCallEditor ? (
+                  <CallWindowEditor
+                    target={callEditorTarget}
+                    effectiveWindow={visibleWindow}
+                    overrideWindow={callEditorOverride}
+                    onSaved={onCallWindowSaved}
+                    disabled={Boolean(addingShiftId || removingAssignmentId)}
+                    compact
+                  />
                 ) : showCallWindows && !isInheritedFullDayCallWindow(visibleWindow) ? (
                   <CallWindowEditor
                     effectiveWindow={visibleWindow}
@@ -557,29 +550,15 @@ function ShiftRowList({
               </div>
             ) : (
               <div className="flex min-h-10 min-w-0 flex-col items-end justify-center gap-1">
-                {isStaff ? (
-                  <>
-                    {showCallWindows && !isInheritedFullDayCallWindow(slotWindow) && (
-                      <CallWindowEditor
-                        target={{ type: "slot", id: shift.id }}
-                        effectiveWindow={slotWindow}
-                        overrideWindow={{ startsAt: shift.callStartsAt ?? null, endsAt: shift.callEndsAt ?? null }}
-                        onSaved={onCallWindowSaved}
-                        disabled={Boolean(addingShiftId || removingAssignmentId)}
-                        compact
-                      />
-                    )}
-                    {showCallWindows && activeAssignment && assignmentWindow && !isInheritedFullDayCallWindow(assignmentWindow) && (
-                      <CallWindowEditor
-                        target={{ type: "assignment", id: activeAssignment.id }}
-                        effectiveWindow={assignmentWindow}
-                        overrideWindow={{ startsAt: activeAssignment.callStartsAt ?? null, endsAt: activeAssignment.callEndsAt ?? null }}
-                        onSaved={onCallWindowSaved}
-                        disabled={Boolean(addingShiftId || removingAssignmentId)}
-                        compact
-                      />
-                    )}
-                  </>
+                {isStaff && showStaffCallEditor ? (
+                  <CallWindowEditor
+                    target={callEditorTarget}
+                    effectiveWindow={visibleWindow}
+                    overrideWindow={callEditorOverride}
+                    onSaved={onCallWindowSaved}
+                    disabled={Boolean(addingShiftId || removingAssignmentId)}
+                    compact
+                  />
                 ) : showCallWindows && !isInheritedFullDayCallWindow(visibleWindow) ? (
                   <CallWindowEditor
                     effectiveWindow={visibleWindow}
@@ -666,19 +645,17 @@ export function ListView({
     abortRef.current = controller;
     setUsersLoading(true);
     try {
-      const res = await fetch("/api/users?limit=200&active=true", { signal: controller.signal });
+      const res = await fetch("/api/users?limit=200&active=true&scheduleProfile=true", { signal: controller.signal });
       if (controller.signal.aborted) return;
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
-        const json = await parseJsonSafely<{ data?: Array<{ id: string; name: string; role: string; primaryArea: string | null; avatarUrl?: string | null }> }>(res);
+        const json = await parseJsonSafely<{ data?: PickerUser[] }>(res);
         if (!Array.isArray(json?.data)) {
           usersLoadedRef.current = false;
           toast.error("Failed to load users");
           return;
         }
-        setAllUsers((json.data ?? []).map((u: { id: string; name: string; role: string; primaryArea: string | null; avatarUrl?: string | null }) => ({
-          id: u.id, name: u.name, role: u.role, primaryArea: u.primaryArea, avatarUrl: u.avatarUrl,
-        })));
+        setAllUsers(json.data ?? []);
       } else {
         usersLoadedRef.current = false;
         const msg = await parseErrorMessage(res, "Failed to load users");

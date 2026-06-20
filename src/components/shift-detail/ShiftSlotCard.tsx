@@ -19,13 +19,17 @@ import { AlertTriangle, PlusIcon, XIcon } from "lucide-react";
 import { CallWindowEditor } from "./CallWindowEditor";
 import { UserAvatarPicker, type PickerUser } from "./UserAvatarPicker";
 import { effectiveCallWindow, isInheritedFullDayCallWindow } from "@/lib/shift-call-windows";
-import { shiftWorkerLabelForRole, shiftWorkerSlotLabel } from "@/lib/shift-display";
+import { shiftWorkerLabelForProfile, shiftWorkerSlotLabel } from "@/lib/shift-display";
 
 type ShiftUser = {
   id: string;
   name: string;
   role?: string;
   avatarUrl?: string | null;
+  gradYear?: number | null;
+  studentYearOverride?: string | null;
+  sportAssignments?: Array<{ sportCode: string }>;
+  areaAssignments?: Array<{ area: string; isPrimary: boolean }>;
 };
 
 type ShiftAssignment = {
@@ -115,12 +119,12 @@ export function ShiftSlotCard({
   const shiftWindow = { startsAt, endsAt, callStartsAt, callEndsAt };
   const slotWindow = effectiveCallWindow(shiftWindow);
   const assignmentWindow = activeAssignment ? effectiveCallWindow(shiftWindow, activeAssignment) : null;
-  const showSlotWindow = !eventAllDay && !isInheritedFullDayCallWindow(slotWindow);
+  const showSlotWindow = !isAssigned && !eventAllDay && !isInheritedFullDayCallWindow(slotWindow);
   const showAssignmentWindow = Boolean(
     assignmentWindow && !eventAllDay && !isInheritedFullDayCallWindow(assignmentWindow),
   );
   const roleBadgeLabel = activeAssignment
-    ? shiftWorkerLabelForRole(activeAssignment.user.role)
+    ? shiftWorkerLabelForProfile(activeAssignment.user) ?? "Assigned"
     : shiftWorkerSlotLabel(workerType);
 
   const contextItems = (

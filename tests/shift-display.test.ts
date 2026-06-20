@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   formatRoleSlotAssignmentOutcome,
   shiftWorkerLabel,
+  shiftWorkerLabelForProfile,
   shiftWorkerLabelForRole,
   shiftWorkerSlotLabel,
+  shiftWorkerTypeForProfile,
   shiftWorkerTypeForRole,
 } from "@/lib/shift-display";
 
@@ -25,7 +27,17 @@ describe("shift display helpers", () => {
     expect(shiftWorkerLabelForRole("ADMIN")).toBe("Staff");
     expect(shiftWorkerLabelForRole("STAFF")).toBe("Staff");
     expect(shiftWorkerLabelForRole("STUDENT")).toBe("Student");
-    expect(shiftWorkerLabelForRole(null)).toBe("Staff");
+    expect(shiftWorkerLabelForRole("student")).toBe("Student");
+    expect(shiftWorkerLabelForRole(null)).toBeNull();
+    expect(shiftWorkerLabelForRole("")).toBeNull();
+  });
+
+  it("uses student profile signals for scheduling worker labels", () => {
+    expect(shiftWorkerTypeForProfile({ role: "STAFF", areaAssignments: [{ area: "VIDEO", isPrimary: true }] })).toBe("ST");
+    expect(shiftWorkerLabelForProfile({ role: "STAFF", sportAssignments: [{ sportCode: "WSOC" }] })).toBe("Student");
+    expect(shiftWorkerLabelForProfile({ role: "STAFF", gradYear: 2027 })).toBe("Student");
+    expect(shiftWorkerLabelForProfile({ role: "STAFF" })).toBe("Staff");
+    expect(shiftWorkerLabelForProfile({ role: null })).toBeNull();
   });
 
   it("keeps role matching as a slot-selection concern, not display copy", () => {

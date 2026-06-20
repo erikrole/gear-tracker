@@ -30,18 +30,12 @@ import {
 } from "@/lib/assignment-conflict-review";
 
 async function fetchUsers(): Promise<PickerUser[]> {
-  const res = await fetch("/api/users?limit=200&active=true");
+  const res = await fetch("/api/users?limit=200&active=true&scheduleProfile=true");
   if (handleAuthRedirect(res)) throw new DOMException("Auth redirect", "AbortError");
   if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to load users"));
-  const j = await parseJsonSafely<{ data?: Array<{ id: string; name: string; role: string; primaryArea: string | null; avatarUrl?: string | null }> }>(res);
+  const j = await parseJsonSafely<{ data?: PickerUser[] }>(res);
   if (!j?.data) throw new Error("Users response was malformed");
-  return j.data.map((u: { id: string; name: string; role: string; primaryArea: string | null; avatarUrl?: string | null }) => ({
-    id: u.id,
-    name: u.name,
-    role: u.role,
-    primaryArea: u.primaryArea,
-    avatarUrl: u.avatarUrl,
-  }));
+  return j.data;
 }
 
 export function AssignPageClient() {

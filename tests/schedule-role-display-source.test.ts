@@ -11,11 +11,13 @@ describe("schedule staff/student display source contracts", () => {
     const slotCard = source("src/components/shift-detail/ShiftSlotCard.tsx");
     const picker = source("src/components/shift-detail/UserAvatarPicker.tsx");
 
-    expect(listView).toContain("const assignedRoleLabel = user ? shiftWorkerLabelForRole(user.role) : null");
-    expect(listView).toContain("const rowRoleLabel = assignedRoleLabel ?? slotLabel");
+    expect(listView).toContain("const assignedRoleLabel = user ? shiftWorkerLabelForProfile(user) : null");
+    expect(listView).toContain('const rowRoleLabel = user ? assignedRoleLabel ?? "Assigned" : slotLabel');
     expect(slotCard).toContain("activeAssignment");
-    expect(slotCard).toContain("shiftWorkerLabelForRole(activeAssignment.user.role)");
+    expect(slotCard).toContain("shiftWorkerLabelForProfile(activeAssignment.user)");
     expect(slotCard).toContain("shiftWorkerSlotLabel(workerType)");
+    expect(picker).toContain("shiftWorkerTypeForProfile(u)");
+    expect(picker).toContain("shiftWorkerLabelForProfile(u)");
     expect(picker).toContain("Will use ${shiftWorkerSlotLabel(candidateWorkerType).toLowerCase()}");
     expect(picker).toContain("leave ${shiftWorkerSlotLabel(slotWorkerType).toLowerCase()} open");
   });
@@ -47,6 +49,24 @@ describe("schedule staff/student display source contracts", () => {
     expect(listView).toContain("formatRoleSlotAssignmentOutcome(json?.meta?.roleSlotOutcome");
     expect(assignmentCell).toContain("formatRoleSlotAssignmentOutcome(json?.meta?.roleSlotOutcome");
     expect(shiftDetail).toContain("formatRoleSlotAssignmentOutcome(json?.meta?.roleSlotOutcome");
+  });
+
+  it("shows one editable call time for each filled schedule row", () => {
+    const listView = source("src/app/(app)/schedule/_components/ListView.tsx");
+    const assignmentCell = source("src/app/(app)/schedule/assign/_components/AssignmentCell.tsx");
+    const slotCard = source("src/components/shift-detail/ShiftSlotCard.tsx");
+
+    expect(listView).toContain("const callEditorTarget = activeAssignment");
+    expect(listView).toContain('target={callEditorTarget}');
+    expect(listView).not.toContain('target={{ type: "slot", id: shift.id }}');
+    expect(listView).not.toContain('target={{ type: "assignment", id: activeAssignment.id }}');
+
+    expect(assignmentCell).toContain('target={{ type: "assignment", id: assignment.id }}');
+    expect(assignmentCell).toContain('target={{ type: "slot", id: firstOpenShift.id }}');
+    expect(assignmentCell).not.toContain('target={{ type: "slot", id: shift.id }}');
+
+    expect(slotCard).toContain("const showSlotWindow = !isAssigned");
+    expect(slotCard).toContain('target={isStaff ? { type: "assignment", id: activeAssignment.id } : undefined}');
   });
 
   it("keeps historical role-slot repair permissioned and audited", () => {

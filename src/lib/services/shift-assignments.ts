@@ -2,7 +2,7 @@ import { Prisma, Role, ShiftArea, ShiftAssignmentStatus, ShiftWorkerType } from 
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
-import { shiftWorkerTypeForRole } from "@/lib/shift-display";
+import { shiftWorkerTypeForProfile } from "@/lib/shift-display";
 import { evaluateAvailabilityPreferences } from "@/lib/student-availability";
 
 export type RoleSlotOutcome = {
@@ -39,9 +39,15 @@ async function resolveAssignableShiftForUser(
     callStartsAt?: Date | null;
     callEndsAt?: Date | null;
   },
-  userRole: Role,
+  userProfile: {
+    role: Role;
+    gradYear?: number | null;
+    studentYearOverride?: string | null;
+    sportAssignments?: unknown[] | null;
+    areaAssignments?: unknown[] | null;
+  },
 ) {
-  const targetWorkerType = shiftWorkerTypeForRole(userRole);
+  const targetWorkerType = shiftWorkerTypeForProfile(userProfile) ?? "FT";
   if (targetWorkerType === shift.workerType) {
     return {
       shift,
@@ -185,6 +191,10 @@ export async function directAssignShiftWithOutcome(
         id: true,
         role: true,
         active: true,
+        gradYear: true,
+        studentYearOverride: true,
+        sportAssignments: { select: { sportCode: true } },
+        areaAssignments: { select: { area: true, isPrimary: true } },
         availabilityBlocks: {
           select: {
             kind: true,
@@ -205,7 +215,7 @@ export async function directAssignShiftWithOutcome(
     if (!assignee) throw new HttpError(404, "User not found");
     if (!assignee.active) throw new HttpError(400, "Cannot assign an inactive user");
 
-    const { shift: targetShift, outcome } = await resolveAssignableShiftForUser(tx, shift, assignee.role);
+    const { shift: targetShift, outcome } = await resolveAssignableShiftForUser(tx, shift, assignee);
 
     // Check for existing active assignment on this shift
     const existing = await tx.shiftAssignment.findFirst({
@@ -252,7 +262,19 @@ export async function directAssignShiftWithOutcome(
         conflictNote,
       },
       include: {
-        user: { select: { id: true, name: true, role: true, primaryArea: true, avatarUrl: true } },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            role: true,
+            primaryArea: true,
+            avatarUrl: true,
+            gradYear: true,
+            studentYearOverride: true,
+            sportAssignments: { select: { sportCode: true } },
+            areaAssignments: { select: { area: true, isPrimary: true } },
+          },
+        },
       },
     });
 
@@ -265,7 +287,17 @@ export async function repairRoleSlotMismatch(assignmentId: string) {
     const assignment = await tx.shiftAssignment.findUnique({
       where: { id: assignmentId },
       include: {
-        user: { select: { id: true, role: true, name: true } },
+        user: {
+          select: {
+            id: true,
+            role: true,
+            name: true,
+            gradYear: true,
+            studentYearOverride: true,
+            sportAssignments: { select: { sportCode: true } },
+            areaAssignments: { select: { area: true, isPrimary: true } },
+          },
+        },
         shift: true,
       },
     });
@@ -274,7 +306,7 @@ export async function repairRoleSlotMismatch(assignmentId: string) {
       throw new HttpError(400, "Only active assignments can be repaired");
     }
 
-    const targetWorkerType = shiftWorkerTypeForRole(assignment.user.role);
+    const targetWorkerType = shiftWorkerTypeForProfile(assignment.user) ?? "FT";
     if (targetWorkerType === assignment.shift.workerType) {
       return {
         assignment,
@@ -290,7 +322,7 @@ export async function repairRoleSlotMismatch(assignmentId: string) {
       };
     }
 
-    const { shift: targetShift, outcome } = await resolveAssignableShiftForUser(tx, assignment.shift, assignment.user.role);
+    const { shift: targetShift, outcome } = await resolveAssignableShiftForUser(tx, assignment.shift, assignment.user);
 
     const existing = await tx.shiftAssignment.findFirst({
       where: {
@@ -315,7 +347,19 @@ export async function repairRoleSlotMismatch(assignmentId: string) {
       where: { id: assignment.id },
       data: { shiftId: targetShift.id },
       include: {
-        user: { select: { id: true, name: true, role: true, primaryArea: true, avatarUrl: true } },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            role: true,
+            primaryArea: true,
+            avatarUrl: true,
+            gradYear: true,
+            studentYearOverride: true,
+            sportAssignments: { select: { sportCode: true } },
+            areaAssignments: { select: { area: true, isPrimary: true } },
+          },
+        },
       },
     });
 

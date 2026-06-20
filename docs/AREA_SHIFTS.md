@@ -37,7 +37,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - [x] Student availability exceptions: web profile Availability supports semester date ranges and one-time conflicts
 - [x] Shift trade emails: claimed, completed, approved, and declined trade events send best-effort email companions
 - [x] Staff/Student slot planning: sport templates generate separate Staff and Student slots and preserve the planned slot type after assignment
-- [x] Staff/Student display truth: filled Schedule rows/cards derive Staff or Student labels from the assigned user's role, while Staff slot/Student slot labels are reserved for open planned slots and editing controls
+- [x] Staff/Student display truth: filled Schedule rows/cards derive Staff or Student labels from the assigned user's scheduling profile, while Staff slot/Student slot labels are reserved for open planned slots and editing controls
 - [x] Call-time overrides: default sport call windows can be overridden per shift and per assignment, with personal overrides used for conflict checks. Crew rows show one effective call time per slot/person; the full coverage window remains available for editing and conflict checks, and the event time range stays global in the event header.
 - [x] Assignment conflict review: staff/admin can filter assignment work by conflicted, open, and clean states and adjust personal call windows from the conflict context
 - [x] Candidate recommendations: staff/admin assignment pickers can show read-only recommended, good fit, warning, and overloaded candidate groups without changing manual assignment behavior
@@ -153,6 +153,8 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - 2026-05-21: Schedule filter view and venue segmented controls now use shadcn `ToggleGroup` while staying a documented schedule-specific command bar instead of a generic list toolbar.
 - 2026-05-21: Design language Area 5 state/copy audit. Shift detail confirmations and failures now say whether an assignment is removed, a slot reopens, a staffed shift is deleted, a trade failed to post, or an archive/attendance/autofill action was not saved.
 - 2026-05-21: Shift slot remove, attendance, approve/decline request, and student request controls now align with the 40px operational target baseline inside event staffing cards.
+- 2026-06-20: Filled Schedule rows, Event detail shift cards, and `/schedule/assign` cells now render one editable call time per assigned person. Open slots keep the slot call-time editor; filled slots use the assignment call-time editor so the UI no longer shows duplicate default call times.
+- 2026-06-20: Schedule worker classification now uses a scheduling profile, not only app access role. Filled rows/cards, assignment pickers, candidate scoring, direct assignment, repair, and exports treat student roster/profile signals as Student, and unknown role payloads render neutral `Assigned` instead of defaulting to Staff.
 - 2026-05-21: Event detail travel roster controls now align with the 40px operational target baseline, and the empty travel roster uses shared inline `EmptyState` copy.
 - 2026-05-20: Event detail missing-gear Nudge and Create checkout actions now use 40px operational targets and wrap cleanly in narrow rows.
 - 2026-05-20: Event detail crew assignment, request-review, and remove controls now use visible keyboard-friendly 40px targets instead of hover-only or sub-40px controls.

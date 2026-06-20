@@ -2,6 +2,13 @@ import type { Role, ShiftWorkerType } from "@prisma/client";
 
 export type ShiftWorkerKind = ShiftWorkerType;
 export type ShiftUserRoleKind = Role | string | null | undefined;
+export type ShiftWorkerProfile = {
+  role?: ShiftUserRoleKind;
+  gradYear?: number | null;
+  studentYearOverride?: string | null;
+  sportAssignments?: unknown[] | null;
+  areaAssignments?: unknown[] | null;
+} | null | undefined;
 export type RoleSlotOutcomeLike = {
   originalWorkerType?: ShiftWorkerType | string | null;
   assignedWorkerType?: ShiftWorkerType | string | null;
@@ -18,12 +25,47 @@ export function shiftWorkerSlotLabel(workerType: ShiftWorkerType | string | null
   return `${shiftWorkerLabel(workerType)} slot`;
 }
 
-export function shiftWorkerTypeForRole(role: Role | string | null | undefined): ShiftWorkerType {
-  return role === "STUDENT" ? "ST" : "FT";
+function normalizeRole(role: ShiftUserRoleKind): Role | null {
+  if (typeof role !== "string") return null;
+  const normalized = role.trim().toUpperCase();
+  return normalized === "ADMIN" || normalized === "STAFF" || normalized === "STUDENT"
+    ? normalized
+    : null;
 }
 
-export function shiftWorkerLabelForRole(role: ShiftUserRoleKind): "Staff" | "Student" {
-  return role === "STUDENT" ? "Student" : "Staff";
+function hasStudentProfileSignal(profile: ShiftWorkerProfile): boolean {
+  return Boolean(
+    profile
+      && (
+        profile.gradYear != null
+        || profile.studentYearOverride != null
+        || (profile.sportAssignments?.length ?? 0) > 0
+        || (profile.areaAssignments?.length ?? 0) > 0
+      ),
+  );
+}
+
+export function shiftWorkerTypeForRole(role: Role | string | null | undefined): ShiftWorkerType {
+  return normalizeRole(role) === "STUDENT" ? "ST" : "FT";
+}
+
+export function shiftWorkerTypeForProfile(profile: ShiftWorkerProfile): ShiftWorkerType | null {
+  const role = normalizeRole(profile?.role);
+  if (role === "STUDENT" || hasStudentProfileSignal(profile)) return "ST";
+  if (role === "STAFF" || role === "ADMIN") return "FT";
+  return null;
+}
+
+export function shiftWorkerLabelForRole(role: ShiftUserRoleKind): "Staff" | "Student" | null {
+  const normalized = normalizeRole(role);
+  if (normalized === "STUDENT") return "Student";
+  if (normalized === "STAFF" || normalized === "ADMIN") return "Staff";
+  return null;
+}
+
+export function shiftWorkerLabelForProfile(profile: ShiftWorkerProfile): "Staff" | "Student" | null {
+  const workerType = shiftWorkerTypeForProfile(profile);
+  return workerType ? shiftWorkerLabel(workerType) : null;
 }
 
 export function formatRoleSlotAssignmentOutcome(outcome: RoleSlotOutcomeLike, userName?: string | null): string {

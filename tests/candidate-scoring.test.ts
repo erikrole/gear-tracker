@@ -91,6 +91,23 @@ describe("scoreCandidatesForShift", () => {
     expect(score?.warnings.map((warning) => warning.code)).toContain("availability_conflict");
   });
 
+  it("treats staff-access users with student profile metadata as student slot fits", () => {
+    const [score] = scoreCandidatesForShift({
+      shift,
+      candidates: [
+        candidate({
+          id: "student-profile",
+          role: "STAFF",
+          areaAssignments: [{ area: "VIDEO", isPrimary: true }],
+        }),
+      ],
+      now: new Date("2026-10-01T12:00:00.000Z"),
+    });
+
+    expect(score?.reasons.map((reason) => reason.code)).toContain("role_fit");
+    expect(score?.warnings.map((warning) => warning.code)).not.toContain("role_mismatch");
+  });
+
   it("adds a positive reason for preferred work windows", () => {
     const [score] = scoreCandidatesForShift({
       shift,

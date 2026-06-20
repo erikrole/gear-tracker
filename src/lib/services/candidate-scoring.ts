@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 import { evaluateAvailabilityPreferences, type AvailabilityBlockLike } from "@/lib/student-availability";
+import { shiftWorkerTypeForProfile } from "@/lib/shift-display";
 import type {
   CandidateRecommendation,
   CandidateScoreBucket,
@@ -117,11 +118,6 @@ function addDays(value: Date, days: number) {
   return next;
 }
 
-function roleFits(workerType: ShiftWorkerType, role: Role) {
-  if (workerType === "ST") return role === "STUDENT";
-  return role === "STAFF" || role === "ADMIN";
-}
-
 function bucketFor(score: number, warnings: CandidateScoreSignal[], workloadOverloaded: boolean): CandidateScoreBucket {
   if (workloadOverloaded) return "overloaded";
   if (warnings.length > 0) return "warning";
@@ -144,6 +140,7 @@ export function scoreCandidatesForShift({ shift, candidates, now }: ScoreArgs): 
   return candidates
     .map((candidate) => {
       let score = 50;
+      const candidateWorkerType = shiftWorkerTypeForProfile(candidate);
       const reasons: CandidateScoreSignal[] = [];
       const warnings: CandidateScoreSignal[] = [];
       const addReason = (code: string, label: string, weight: number) => {
@@ -155,7 +152,7 @@ export function scoreCandidatesForShift({ shift, candidates, now }: ScoreArgs): 
         warnings.push({ code, label, weight });
       };
 
-      if (roleFits(shift.workerType, candidate.role)) {
+      if (candidateWorkerType === shift.workerType) {
         addReason("role_fit", shift.workerType === "ST" ? "Student slot fit" : "Staff slot fit", 24);
       } else {
         addWarning(
@@ -200,7 +197,7 @@ export function scoreCandidatesForShift({ shift, candidates, now }: ScoreArgs): 
         addWarning("overlapping_assignment", "Already assigned during this call window", -60);
       }
 
-      const availability = candidate.role === "STUDENT"
+      const availability = candidateWorkerType === "ST"
         ? evaluateAvailabilityPreferences(candidate.availabilityBlocks, targetWindow)
         : null;
       if (availability?.blocking) {

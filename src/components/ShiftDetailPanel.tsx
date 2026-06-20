@@ -41,6 +41,10 @@ type ShiftUser = {
   role?: string;
   primaryArea: string | null;
   avatarUrl?: string | null;
+  gradYear?: number | null;
+  studentYearOverride?: string | null;
+  sportAssignments?: Array<{ sportCode: string }>;
+  areaAssignments?: Array<{ area: string; isPrimary: boolean }>;
 };
 
 type ShiftAssignment = {
@@ -210,7 +214,7 @@ export default function ShiftDetailPanel({
     usersAbortRef.current = controller;
     setUsersLoading(true);
     try {
-      const res = await fetch("/api/users?limit=200&active=true", { signal: controller.signal });
+      const res = await fetch("/api/users?limit=200&active=true&scheduleProfile=true", { signal: controller.signal });
       if (controller.signal.aborted) return;
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
@@ -767,7 +771,7 @@ export default function ShiftDetailPanel({
                     <div className="min-w-0">
                       <div className="font-medium">{proposal.userName}</div>
                       <div className="text-xs text-muted-foreground">
-                        {proposal.area.charAt(0) + proposal.area.slice(1).toLowerCase()} · Planned {shiftWorkerSlotLabel(proposal.workerType)} · Assigned {shiftWorkerLabelForRole(proposal.userRole)}
+                        {proposal.area.charAt(0) + proposal.area.slice(1).toLowerCase()} · Planned {shiftWorkerSlotLabel(proposal.workerType)} · Assigned {shiftWorkerLabelForRole(proposal.userRole) ?? "worker"}
                       </div>
                     </div>
                     <Badge variant={proposal.warnings.length > 0 ? "orange" : "green"} className="shrink-0 tabular-nums">

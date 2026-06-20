@@ -126,6 +126,14 @@ Plan: `tasks/schedule-call-time-display-plan.md`
 - [x] Update shared call-time display so rows show one call time per slot/person while preserving full-window edit/conflict data.
 - [x] Run full verification and record results.
 
+### Follow-up
+- [x] Remove duplicate slot + assignment call-time controls from filled Schedule rows, event detail shift cards, and `/schedule/assign` cells.
+- [x] Add regression coverage that filled rows use one assignment-target call editor and open slots use one slot-target call editor.
+- [x] Run focused verification and record results.
+
+### Follow-up Review
+- 2026-06-20: Duplicate call-time controls removed. Filled Schedule rows, Event detail shift cards, and `/schedule/assign` assigned cells now render a single assignment-target call editor; open slots render the slot-target editor. Verification passed with focused Vitest, TypeScript, diff whitespace, and `npm run build:app`.
+
 ---
 
 ## Active: Schedule hardening from improve pass (2026-06-19)

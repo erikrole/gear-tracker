@@ -307,14 +307,6 @@ export function AssignmentCell({
                   </Badge>
                 )}
                 <CallWindowEditor
-                  target={{ type: "slot", id: shift.id }}
-                  effectiveWindow={effectiveCallWindow(shift)}
-                  overrideWindow={{ startsAt: shift.callStartsAt ?? null, endsAt: shift.callEndsAt ?? null }}
-                  onSaved={onRefetch}
-                  disabled={Boolean(acting)}
-                  compact
-                />
-                <CallWindowEditor
                   target={{ type: "assignment", id: assignment.id }}
                   effectiveWindow={effectiveCallWindow(shift, assignment)}
                   overrideWindow={{ startsAt: assignment.callStartsAt ?? null, endsAt: assignment.callEndsAt ?? null }}

@@ -247,6 +247,40 @@ describe("directAssignShift", () => {
     );
   });
 
+  it("keeps a staff-access user with student profile metadata in a student slot", async () => {
+    const studentSlot = makeShift({ workerType: "ST" });
+    mockTx.shift.findUnique.mockResolvedValue(studentSlot);
+    mockTx.user.findUnique.mockResolvedValue({
+      id: "student-profile-user",
+      role: "STAFF",
+      active: true,
+      areaAssignments: [{ area: studentSlot.area, isPrimary: true }],
+      sportAssignments: [],
+    });
+    mockTx.shiftAssignment.findFirst.mockResolvedValue(null);
+    mockTx.shiftAssignment.findMany.mockResolvedValue([]);
+    mockTx.shiftAssignment.updateMany.mockResolvedValue({ count: 0 });
+    mockTx.shiftAssignment.create.mockResolvedValue({
+      id: "sa-1",
+      shiftId: studentSlot.id,
+      userId: "student-profile-user",
+      status: "DIRECT_ASSIGNED",
+    });
+
+    await directAssignShift(studentSlot.id, "student-profile-user", "admin-1");
+
+    expect(mockTx.shift.findFirst).not.toHaveBeenCalled();
+    expect(mockTx.shift.create).not.toHaveBeenCalled();
+    expect(mockTx.shiftAssignment.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          shiftId: studentSlot.id,
+          userId: "student-profile-user",
+        }),
+      })
+    );
+  });
+
   it("uses personal call-time overrides when checking conflicts", async () => {
     const shiftWithDefaultWindow = makeShift({
       startsAt: new Date("2026-04-01T10:00:00Z"),
