@@ -48,7 +48,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - [x] Preferences and time off: Availability blocks now support prefer/dislike/cannot-work signals plus pending/approved/denied time-off lifecycle, feeding candidate scoring, Open Work, assignment, trade, and call-window conflict checks
 - [x] In-season automation review: Schedule surfaces read-only automation suggestions for staffing gaps, auto-fill preview, publish readiness, risk blockers, stale sources, and daily cleanup without silently mutating worker-facing commitments
 - [x] Auto-fill and manual crew review: staff/admin can preview auto-fill recommendations before applying assignments through existing safety checks. Template-review UI is retired to keep Event detail focused.
-- [x] Gear readiness: Schedule health carries event and assignment gear readiness across primary event, linked-event, and shift-assignment booking paths, while Schedule list rows show compact gear state and reserve/prep actions without creating checkout custody
+- [x] Gear readiness: Schedule health carries event and assignment gear readiness across primary event, linked-event, and shift-assignment booking paths, while detailed gear prep stays on Event detail and gear queues instead of the main Schedule list
 
 ## Information Architecture
 
@@ -60,7 +60,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 5. **Data quality queue** — staff/admin Schedule health flags visible events with missing sport context, missing opponents, missing venue/location mapping, future archived status, or shifts without sport metadata. The queue filters the list to affected events and routes cleanup back through existing Event detail, Locations, and Venue Mappings ownership.
 6. **Filter Bar** (`ScheduleFilters`) — View, Venue, Needs staff, My Shifts, Past, Sport, Area, Coverage controls, and active queue banner
 7. **View Toggle** — List | Week | Calendar (persisted to localStorage)
-8. **List View** (`ListView`) — date-grouped expandable table; parent rows = events with crew, publication, and gear readiness chips; child rows = shifts with assignment gear state and reservation/prep jump actions
+8. **List View** (`ListView`) — date-grouped expandable table; parent rows = event triage with crew and publication status; child rows = compact staffing rows with area, assignee/open slot, common or exception call times, and assignment actions
 9. **Week View** (`WeekView`) — 7-day strip with time-block events, coverage dots, navigation (prev/next/this week)
 10. **Calendar View** (`CalendarView`) — month grid with coverage indicator dots (green/orange/red)
 11. **ShiftDetailPanel** — side sheet for per-event shift management (add/remove shifts, assign users, publish, archive, and preview auto-fill)
@@ -90,6 +90,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 
 ## Change Log
 - 2026-06-20: Explicit Schedule worker-class model shipped. `User.staffingType` now separates Staff/Student scheduling identity from app permission role, backfills existing users from role, appears as Scheduling class on user detail, and drives Schedule labels, assignment routing, candidate scoring, copy-forward, auto-fill preview, exports, data-quality checks, Open Work pickup, and trade eligibility.
+- 2026-06-20: Schedule list simplification shipped. Schedule parent rows now stay focused on event triage without call-time preview copy, while expanded rows focus on crew staffing and call-time exceptions by grouping repeated call times behind one common-call summary, hiding redundant filled-row Staff/Student labels, and removing per-row add-slot controls plus linked/reserved gear badges/actions from the list; deeper slot editing and gear prep remain in Manage event, Event detail, and gear queues.
 - 2026-06-20: Schedule role-slot hardening shipped. Schedule data quality now detects filled slots whose planned worker type disagrees with the assigned user's scheduling class, readiness highlights those crew mismatches, staff/admin can repair a historical mismatch through an audited role-slot repair route, assignment success copy explains when a matching Staff/Student slot was reused or created, exports split Assigned Class from Planned Slot, auto-fill preview labels planned slot versus assigned class, and Open Work defensively keeps Staff slots out of student pickup actions.
 - 2026-06-20: Schedule staff/student display cleanup shipped. Filled Schedule rows and shift cards now show Staff or Student from the assigned user's scheduling class, open planned rows keep Staff slot/Student slot language, assignment buttons use generic open-slot copy, and readiness/open-needs summaries use neutral crew/people counts instead of role-specific "Needs n students" wording.
 - 2026-06-19: Schedule event identity normalization shipped. Calendar sync and Schedule title rendering now share opponent and venue cleanup so ranked/boilerplate opponents and `Wis.` venue spellings do not leak into event rows, while calendar venue and pickup location remain separate operational concepts.

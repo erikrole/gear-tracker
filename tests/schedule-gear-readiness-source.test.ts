@@ -6,10 +6,9 @@ const crewSource = readFileSync("src/app/(app)/events/[id]/_components/ShiftCove
 const reservationWizardSource = readFileSync("src/components/booking-wizard/BookingWizard.tsx", "utf8");
 
 describe("schedule gear readiness source contracts", () => {
-  it("keeps Schedule gear actions on reservation prep rather than checkout custody", () => {
-    expect(listViewSource).toContain("Reserve gear");
-    expect(listViewSource).toContain("/reservations/new?");
-    expect(listViewSource).toContain("shiftAssignmentId");
+  it("keeps Schedule list free of reservation prep and checkout custody actions", () => {
+    expect(listViewSource).not.toContain("Reserve gear");
+    expect(listViewSource).not.toContain("/reservations/new?");
     expect(listViewSource).not.toContain("/checkouts/new");
   });
 

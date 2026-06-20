@@ -13,7 +13,7 @@ describe("schedule staff/student display source contracts", () => {
     const picker = source("src/components/shift-detail/UserAvatarPicker.tsx");
 
     expect(listView).toContain("const assignedClassLabel = user ? shiftWorkerLabelForProfile(user) : null");
-    expect(listView).toContain('const rowClassLabel = user ? assignedClassLabel ?? "Assigned" : slotLabel');
+    expect(listView).toContain("const assignedClassDiffersFromSlot");
     expect(slotCard).toContain("activeAssignment");
     expect(slotCard).toContain("shiftWorkerLabelForProfile(activeAssignment.user)");
     expect(slotCard).toContain("shiftWorkerSlotLabel(workerType)");
@@ -64,6 +64,13 @@ describe("schedule staff/student display source contracts", () => {
 
     expect(listView).toContain("const callEditorTarget = activeAssignment");
     expect(listView).toContain('target={callEditorTarget}');
+    expect(listView).toContain("commonCallWindow(entry)");
+    expect(listView).toContain("Most rows");
+    expect(listView).toContain("!callMatchesCommon");
+    expect(listView).toContain("Crew");
+    expect(listView).not.toContain("shiftCallSummary");
+    expect(listView).not.toContain("mobileCallSummary");
+    expect(listView).not.toContain("Assignment detail");
     expect(listView).not.toContain('target={{ type: "slot", id: shift.id }}');
     expect(listView).not.toContain('target={{ type: "assignment", id: activeAssignment.id }}');
 

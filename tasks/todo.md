@@ -20,6 +20,26 @@ Plan: `tasks/schedule-role-slot-hardening-plan.md`
 
 ---
 
+## Active: Schedule list simplification (2026-06-20)
+
+Plan: compact the expanded Schedule list row so it stays focused on staffing and call time.
+
+- [x] Remove linked/reserved gear badges and reservation-prep actions from the Schedule list.
+- [x] Remove repeated inline add-slot controls from expanded shift rows.
+- [x] Keep assignment, remove, trade, and one-call-time controls visible.
+- [x] Group repeated call times and hide redundant filled-row Staff/Student labels.
+- [x] Remove parent-row call-time summary copy from desktop and mobile list rows.
+- [x] Sync source-contract tests and Schedule docs.
+- [x] Run focused verification and record results.
+
+### Review
+- 2026-06-20: Schedule list simplification shipped locally. Expanded Schedule rows now show area, assigned person/open slot, one call-time editor, and minimal assignment actions; repeated add-slot controls plus linked/reserved gear badges and reserve-gear actions were removed from the Schedule list. Detailed gear readiness remains in Event detail and gear queues. Verification passed with focused source-contract Vitest, TypeScript, codemap/docs check, diff whitespace, and `npm run build:app`.
+- 2026-06-20: Follow-up simplification grouped repeated expanded-row call times behind one "Most rows" call summary, kept only exception call-time controls visible, renamed the expanded section to Crew, and hid filled-row Staff/Student labels when they match the planned slot. Verification passed with focused source-contract Vitest, TypeScript, docs check, whitespace, and `npm run build:app`.
+- 2026-06-20: Follow-up correction removed parent-row call-time preview copy from desktop and mobile Schedule list rows. Call time now lives only in expanded Crew rows, with common and exception call times shown there. Verification recorded after focused checks.
+- 2026-06-20: Browser-smoke follow-up started a clean local dev server on `127.0.0.1:3060`; protected `/schedule` redirected to `/login`, but the documented seed admin credentials did not authenticate against the current Neon-backed environment, so authenticated Schedule visual proof remains blocked. Source-contract tests, TypeScript, docs check, whitespace, and `npm run build:app` remain the accepted verification for this local slice.
+
+---
+
 ## Active: Schedule staffing class model (2026-06-20)
 
 Plan: `tasks/schedule-staffing-class-plan.md`
@@ -29,10 +49,11 @@ Plan: `tasks/schedule-staffing-class-plan.md`
 - [x] Surface editable Scheduling class on user detail.
 - [x] Add focused regression coverage and sync Schedule docs/gaps.
 - [x] Run local verification and record results.
-- [ ] Deploy pending migration and rerun live migration health.
+- [x] Deploy pending migration and rerun live migration health.
 
 ### Review
 - 2026-06-20: Explicit Schedule worker-class model implemented locally. `User.staffingType` now separates scheduling identity from app permission role, backfills existing users from current role, appears as editable Scheduling class on user detail, and drives Schedule labels, direct assignment routing, candidate scoring, copy-forward, auto-fill preview, exports, data-quality checks, Open Work pickup, and trade eligibility. Local verification passed with Prisma format/generate/validate, migration prefix check, focused Vitest schedule tests, TypeScript, codemap generation, docs verification, whitespace check, and `npm run build:app`. Live migration health reached Neon and reported `0082_user_staffing_type` pending; `npm run db:migrate:deploy` was blocked by the approval system before execution, so deploy plus final health remain open.
+- 2026-06-20: Live migration follow-up completed. `npm run db:migrate:health` reached Neon and reported all 84 local migrations applied, newest local migration `0082_user_staffing_type` applied, no pending local migrations, no unresolved failed rows, and no DB-only migrations.
 
 ---
 

@@ -95,7 +95,7 @@ describe("schedule source-of-truth smoke fallback contracts", () => {
     expect(shiftPanel).not.toContain("Review template");
   });
 
-  it("keeps publish acknowledgement, Open Work, gear readiness, and change history visible", () => {
+  it("keeps publish acknowledgement, Open Work, Event detail gear readiness, and change history visible", () => {
     const listView = source("src/app/(app)/schedule/_components/ListView.tsx");
     const eventCrew = source("src/app/(app)/events/[id]/_components/ShiftCoverageCard.tsx");
     const tradeBoard = source("src/components/TradeBoard.tsx");
@@ -115,9 +115,8 @@ describe("schedule source-of-truth smoke fallback contracts", () => {
     expect(tradeBoard).toContain("Request shift");
     expect(tradeBoard).toContain("Pickup request approved");
 
-    expect(listView).toContain("Reserve gear");
-    expect(listView).toContain("/reservations/new?");
-    expect(listView).toContain("shiftAssignmentId");
+    expect(listView).not.toContain("Reserve gear");
+    expect(listView).not.toContain("/reservations/new?");
     expect(eventCrew).toContain("Assignment gear");
     expect(eventCrew).toContain("Event reservation");
     expect(eventCrew).toContain("Missing gear");
