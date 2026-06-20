@@ -42,7 +42,7 @@
   "dependencies": {
     "@fontsource/barlow": "^5.2.8",
     "@hookform/resolvers": "^5.4.0",
-    "@mdxeditor/editor": "^4.0.3",
+    "@mdxeditor/editor": "^4.0.4",
     "@neondatabase/serverless": "1.1.0",
     "@prisma/adapter-neon": "^6.19.3",
     "@prisma/client": "^6.19.3",
@@ -55,7 +55,7 @@
     "@tanstack/react-table": "^8.21.3",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",
-    "@vercel/blob": "^2.4.0",
+    "@vercel/blob": "^2.4.1",
     "barcode-detector": "^3.2.0",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
