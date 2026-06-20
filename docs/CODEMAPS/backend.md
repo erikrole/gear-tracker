@@ -75,6 +75,7 @@
 | `src/lib/calendar-event-dates.ts` | 168 |
 | `src/lib/calendar-source-freshness.ts` | 259 |
 | `src/lib/candidate-scoring-types.ts` | 26 |
+| `src/lib/category-options.ts` | 34 |
 | `src/lib/cron.ts` | 35 |
 | `src/lib/crypto.ts` | 17 |
 | `src/lib/csv.ts` | 17 |

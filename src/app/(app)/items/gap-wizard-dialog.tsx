@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AssetImage } from "@/components/AssetImage";
 import { CategoryCombobox, FormCombobox } from "@/components/FormCombobox";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
+import { buildCategoryPathOptions } from "@/lib/category-options";
 import type { CategoryOption } from "@/types/category";
 
 type GapField = "category" | "department";
@@ -29,6 +30,7 @@ type GapItem = {
   brand: string;
   model: string;
   imageUrl: string | null;
+  suggestedCategoryId?: string | null;
   suggestedDepartmentId?: string | null;
 };
 
@@ -250,15 +252,7 @@ export function GapWizardDialog({ open, onOpenChange, categories, departments, o
     [departments]
   );
 
-  const categoryLabels = useMemo(() => {
-    const byId = new Map(categories.map((category) => [category.id, category]));
-    return new Map(
-      categories.map((category) => {
-        const parent = category.parentId ? byId.get(category.parentId) : null;
-        return [category.id, parent ? `${parent.name} / ${category.name}` : category.name];
-      })
-    );
-  }, [categories]);
+  const categoryOptions = useMemo(() => buildCategoryPathOptions(categories), [categories]);
 
   const suggestions = useMemo<GapSuggestion[]>(() => {
     if (!item || !field) return [];
@@ -274,20 +268,32 @@ export function GapWizardDialog({ open, onOpenChange, categories, departments, o
       const exactProductHit = [currentItem.name, `${currentItem.brand} ${currentItem.model}`]
         .filter(Boolean)
         .some((value) => value!.trim().length > 0 && name.toLowerCase().includes(value!.trim().toLowerCase()));
-      const categoryPatternHit = field === "department" && currentItem.suggestedDepartmentId === id;
-      const score = matches.length * 2 + reverseMatches.length + (exactProductHit ? 4 : 0) + (categoryPatternHit ? 8 : 0);
+      const serverCategoryHit = field === "category" && currentItem.suggestedCategoryId === id;
+      const departmentPatternHit = field === "department" && currentItem.suggestedDepartmentId === id;
+      const categoryKeywordHit = field === "category" ? categoryKeywordScore(currentItem, name) : 0;
+      const score =
+        matches.length * 2
+        + reverseMatches.length
+        + (exactProductHit ? 4 : 0)
+        + (serverCategoryHit ? 10 : 0)
+        + (departmentPatternHit ? 8 : 0)
+        + categoryKeywordHit;
       if (score === 0) return null;
-      const reason = categoryPatternHit
+      const reason = serverCategoryHit
+        ? "Similar categorized items"
+        : departmentPatternHit
         ? "Similar category items"
+        : categoryKeywordHit > 0
+          ? "Gear terms"
         : [...new Set([...matches, ...reverseMatches])].slice(0, 3).join(", ");
       return { id, name, score, reason };
     }
 
     const source =
       field === "category"
-        ? categories.map((category) => ({
-            id: category.id,
-            name: categoryLabels.get(category.id) ?? category.name,
+        ? categoryOptions.map((category) => ({
+            id: category.value,
+            name: category.label,
           }))
         : departments;
 
@@ -296,7 +302,7 @@ export function GapWizardDialog({ open, onOpenChange, categories, departments, o
       .filter((suggestion): suggestion is GapSuggestion => Boolean(suggestion))
       .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
       .slice(0, 4);
-  }, [categories, categoryLabels, departments, field, item]);
+  }, [categoryOptions, departments, field, item]);
 
   const activeCount = field ? counts[field] : null;
   const currentPosition = sessionTotal
@@ -319,7 +325,7 @@ export function GapWizardDialog({ open, onOpenChange, categories, departments, o
             <DialogHeader>
               <DialogTitle>Fill data gaps</DialogTitle>
               <DialogDescription>
-                Pick the missing field to clean up. Department is listed first because every item should have one.
+                Clean up missing category or department values across standard items and item families.
               </DialogDescription>
             </DialogHeader>
 
@@ -582,6 +588,28 @@ function tokenize(value: string): string[] {
     .filter((word) => word.length > 2 && !/^\d+$/.test(word) && !STOP_WORDS.has(word));
 }
 
+function categoryKeywordScore(item: GapItem, categoryName: string) {
+  const categoryWords = new Set(tokenizeForCategoryRules(categoryName));
+  const itemWords = new Set(tokenizeForCategoryRules([item.assetTag, item.name, item.brand, item.model].filter(Boolean).join(" ")));
+  let score = 0;
+
+  for (const rule of CATEGORY_KEYWORD_RULES) {
+    const categoryHit = rule.category.some((word) => categoryWords.has(word));
+    const itemHit = rule.item.some((word) => itemWords.has(word));
+    if (categoryHit && itemHit) score += rule.weight;
+  }
+
+  return score;
+}
+
+function tokenizeForCategoryRules(value: string): string[] {
+  return value
+    .toLowerCase()
+    .split(/[\s/_,.()+-]+/)
+    .map((word) => word.trim())
+    .filter((word) => word.length > 1 && !/^\d+$/.test(word));
+}
+
 const STOP_WORDS = new Set([
   "and",
   "the",
@@ -593,3 +621,15 @@ const STOP_WORDS = new Set([
   "gear",
   "camera",
 ]);
+
+const CATEGORY_KEYWORD_RULES = [
+  { category: ["audio", "microphone", "sound"], item: ["audio", "mic", "microphone", "lav", "xlr"], weight: 5 },
+  { category: ["battery", "batteries", "power"], item: ["battery", "batteries", "charger", "sony", "vlock", "anton"], weight: 5 },
+  { category: ["cable", "cables"], item: ["cable", "hdmi", "sdi", "xlr", "usb", "ethernet"], weight: 5 },
+  { category: ["camera", "cameras", "body", "bodies"], item: ["camera", "body", "fx3", "fx6", "a7", "canon"], weight: 5 },
+  { category: ["lens", "lenses"], item: ["lens", "mm", "sigma", "canon", "sony", "tamron"], weight: 5 },
+  { category: ["light", "lighting"], item: ["light", "lighting", "aputure", "nanlite", "tube"], weight: 5 },
+  { category: ["media", "card", "cards", "storage"], item: ["card", "media", "sd", "cfexpress", "reader"], weight: 5 },
+  { category: ["monitor", "monitors"], item: ["monitor", "smallhd", "atomos"], weight: 5 },
+  { category: ["support", "tripod", "tripods", "grip"], item: ["tripod", "stand", "plate", "head", "grip"], weight: 5 },
+];

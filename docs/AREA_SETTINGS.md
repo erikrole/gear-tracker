@@ -76,6 +76,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - Sort toggles A→Z / Z→A.
 - Move opens a parent picker that excludes the category and its own descendants (server still enforces cycle/depth limits).
 - Item-count badge reflects items linked **directly** to that category, matching the `/items?category=` filter it links to (descendants are not rolled up).
+- Items filters and item create/edit pickers show every category as a full hierarchy path, so parent categories with direct items and deeply nested subcategories remain selectable.
 - Delete is guarded: blocked if category has items or children, and STAFF cannot delete (ADMIN-only). The kebab item is disabled with an inline reason in those cases.
 - Duplicate names are blocked within the same tree level, and rows show last audit actor/time when audit history exists.
 
@@ -188,9 +189,12 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 
 Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 
-All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages.
+All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages. Role-gated Settings sibling menus now wait for the current role before becoming dropdowns, so the loading frame does not expose an empty menu. The global breadcrumb UI now uses a lighter trail treatment with the current Settings sub-page marked by a subtle underline instead of a filled chip.
 
 ## Change Log
+- 2026-06-20: **Breadcrumb UI refinement.** Settings breadcrumb trails now inherit the lighter global breadcrumb treatment: quieter parent-link hover states, softer separators, and a current-page underline that keeps the Settings header from competing with another framed control strip.
+- 2026-06-19: **Category cleanup wizard and picker visibility.** Items filters and shared category comboboxes now show every category as a full path, including parent categories with direct items and deeply nested subcategories. The Fill gaps wizard now gets server-side missing-category suggestions from already-categorized inventory and falls back to gear-term matching for common categories such as cameras, lenses, batteries, media, audio, cables, lighting, monitors, and support gear.
+- 2026-06-19: **Breadcrumb role-load polish.** The global breadcrumb keeps Settings sibling jumps role-aware and now withholds the dropdown state while the current role is unresolved, avoiding an empty Settings menu during the `/api/me` loading frame.
 - 2026-06-19: **Venue mapping audit surface.** Settings > Venue Mappings now renders the read-only audit helper as an admin diagnostics card, with recovery actions for missing home-venue mappings and links back to Locations for inactive or non-home venue fixes.
 - 2026-06-19: **Venue mapping audit helper.** A read-only helper now classifies home venues without active mappings and mappings that point to missing or inactive locations, giving Settings-owned venue data a regression target before future diagnostics UI.
 - 2026-06-19: **Sport settings code hardening.** Settings > Sports and related roster/config routes now normalize lowercase sport-code input to canonical UW codes and reject unknown codes before reads or writes. Locations' Home Venue flag is also consumed by calendar sync when mapped venues determine whether a `vs` event stays home or becomes neutral.

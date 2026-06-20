@@ -20,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
-import { Check, ChevronDown, Clock3 } from "lucide-react";
+import { Check, ChevronDown, Clock3, HomeIcon } from "lucide-react";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SETTINGS_SECTIONS, REPORT_SECTIONS, meetsRoleRequirement, type SettingsRole } from "@/lib/nav-sections";
@@ -55,14 +55,18 @@ const RECENT_STORAGE_KEY = "breadcrumb-recent";
 const MAX_RECENT_PER_SECTION = 5;
 const MAX_RECENT_TOTAL = 30;
 const CRUMB_MAX_WIDTH = "max-w-[min(240px,58vw)] sm:max-w-[240px]";
+const HOME_CRUMB_COMPACT_THRESHOLD = 3;
+const breadcrumbItemClass = "min-w-0";
+const separatorClass = "text-muted-foreground/35 [&>svg]:size-3";
 const crumbControlClass = cn(
-  "group inline-flex min-h-10 min-w-0 items-center gap-1 rounded-md px-2.5 py-1 text-sm font-medium text-muted-foreground no-underline outline-none",
-  "transition-[background-color,color,box-shadow,scale] duration-150 hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.96]",
+  "group relative inline-flex min-h-10 min-w-0 items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-muted-foreground no-underline outline-none",
+  "transition-[background-color,color,box-shadow,scale] duration-150 hover:bg-foreground/[0.04] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.96]",
   "max-md:min-h-11 max-md:px-2 [&_svg]:size-3.5 [&_svg]:shrink-0",
 );
 const crumbPageClass = cn(
-  "inline-flex min-h-10 min-w-0 items-center rounded-md bg-muted px-2.5 py-1 text-sm font-semibold text-foreground shadow-xs ring-1 ring-border/60",
-  "max-md:min-h-11 max-md:px-2 [&_svg]:size-3.5 [&_svg]:shrink-0",
+  "relative inline-flex min-h-10 min-w-0 items-center rounded-md px-2 py-1 text-sm font-semibold text-foreground outline-none",
+  "after:absolute after:inset-x-2 after:bottom-1 after:h-0.5 after:rounded-full after:bg-primary/55",
+  "max-md:min-h-11 max-md:px-2 max-md:after:bottom-1.5 [&_svg]:size-3.5 [&_svg]:shrink-0",
 );
 
 type RecentEntity = { href: string; label: string; section: string };
@@ -103,11 +107,30 @@ function isDynamicSegment(segment: string): boolean {
   return false;
 }
 
+function isQuietBreadcrumbRoute(pathname: string): boolean {
+  return pathname === "/import" || pathname.endsWith("/new");
+}
+
+function hasRoleGatedSiblings(siblings: ReadonlyArray<SiblingItem>): boolean {
+  return siblings.some((s) => s.requiredRole != null);
+}
+
+function visibleSiblingsForRole(
+  siblings: ReadonlyArray<SiblingItem>,
+  role: string | undefined,
+): ReadonlyArray<SiblingItem> {
+  if (!hasRoleGatedSiblings(siblings)) return siblings;
+  if (!role) return [];
+  return siblings.filter(
+    (s) => !s.requiredRole || meetsRoleRequirement(s.requiredRole, role),
+  );
+}
+
 export default function PageBreadcrumb() {
   const pathname = usePathname();
   const { label: entityLabel } = useBreadcrumbLabel();
   const { data: currentUser } = useCurrentUser();
-  const currentUserRole = currentUser?.role ?? "";
+  const currentUserRole = currentUser?.role;
   const [expanded, setExpanded] = useState(false);
 
   // Reset collapse when navigating
@@ -117,9 +140,7 @@ export default function PageBreadcrumb() {
   const firstSegment = segments[0] ?? "";
   const hasDynamicSegment = segments.some(isDynamicSegment);
   const onDetailPage = hasDynamicSegment;
-  const isCreationFlow =
-    pathname === "/checkouts/new" ||
-    pathname === "/reservations/new";
+  const isQuietRoute = isQuietBreadcrumbRoute(pathname);
 
   // Re-read recents only when section changes or after we save a new entity.
   // Empty deps would miss cross-section navigation; keying on firstSegment +
@@ -165,25 +186,29 @@ export default function PageBreadcrumb() {
     : allItems;
 
   const showSkeleton = onDetailPage && !entityLabel;
+  const compactHome = visibleItems.length >= HOME_CRUMB_COMPACT_THRESHOLD;
 
   return (
-    <Breadcrumb className={cn("flex min-w-0 items-center print:hidden", isCreationFlow ? "mb-0" : "mb-5")}>
+    <Breadcrumb className={cn("flex min-w-0 items-center print:hidden", isQuietRoute ? "mb-0" : "mb-5")}>
       <BreadcrumbList
         className={cn(
-          "min-w-0 gap-1 rounded-xl border border-border/60 bg-card/70 px-1.5 py-1 shadow-xs backdrop-blur supports-[backdrop-filter]:bg-card/60 sm:gap-1",
-          isCreationFlow && "border-transparent bg-transparent px-0 py-0 shadow-none backdrop-blur-none supports-[backdrop-filter]:bg-transparent",
+          "min-w-0 gap-0 rounded-lg bg-background/45 px-0 py-0.5 shadow-[0_1px_0_rgba(15,23,42,0.05)] backdrop-blur supports-[backdrop-filter]:bg-background/35 sm:gap-0.5",
+          isQuietRoute && "bg-transparent py-0 shadow-none backdrop-blur-none supports-[backdrop-filter]:bg-transparent",
         )}
       >
         {visibleItems.map((item, i) => {
-          const hasSiblings = !item.isPage && SIBLING_MAP[item.href] != null;
+          const siblingItems = SIBLING_MAP[item.href];
+          const visibleSiblings = siblingItems ? visibleSiblingsForRole(siblingItems, currentUserRole) : [];
+          const hasSiblings = !item.isPage && visibleSiblings.length > 0;
           const hasRecent = item.isPage && onDetailPage && recentEntities.length > 1;
+          const isHomeItem = item.href === "/";
 
           return (
             <Fragment key={item.href}>
-              {i > 0 && <BreadcrumbSeparator />}
+              {i > 0 && <BreadcrumbSeparator className={separatorClass} />}
               {shouldCollapse && i === 1 && (
                 <>
-                  <BreadcrumbItem>
+                  <BreadcrumbItem className={breadcrumbItemClass}>
                     <button
                       type="button"
                       onClick={() => setExpanded(true)}
@@ -193,16 +218,16 @@ export default function PageBreadcrumb() {
                       <BreadcrumbEllipsis />
                     </button>
                   </BreadcrumbItem>
-                  <BreadcrumbSeparator />
+                  <BreadcrumbSeparator className={separatorClass} />
                 </>
               )}
-              <BreadcrumbItem>
+              <BreadcrumbItem className={breadcrumbItemClass}>
                 {item.isPage && !hasRecent ? (
                   <BreadcrumbPage
                     className={cn(
                       crumbPageClass,
                       CRUMB_MAX_WIDTH,
-                      isCreationFlow && "bg-transparent px-1 shadow-none ring-0",
+                      isQuietRoute && "px-1 after:inset-x-1",
                     )}
                   >
                     <span className="truncate">{item.label}</span>
@@ -211,8 +236,7 @@ export default function PageBreadcrumb() {
                   <SiblingDropdown
                     currentHref={item.href}
                     label={item.label}
-                    siblings={SIBLING_MAP[item.href]!}
-                    role={currentUserRole}
+                    siblings={visibleSiblings}
                   />
                 ) : hasRecent ? (
                   <RecentDropdown
@@ -227,10 +251,14 @@ export default function PageBreadcrumb() {
                       className={cn(
                         crumbControlClass,
                         CRUMB_MAX_WIDTH,
-                        isCreationFlow && "px-1 hover:bg-transparent",
+                        isQuietRoute && "px-1 hover:bg-foreground/[0.04]",
+                        isHomeItem && compactHome && "max-md:size-11 max-md:justify-center max-md:px-0",
                       )}
                     >
-                      <span className="truncate">{item.label}</span>
+                      {isHomeItem && compactHome && <HomeIcon className="hidden max-md:block" />}
+                      <span className={cn("truncate", isHomeItem && compactHome && "max-md:sr-only")}>
+                        {item.label}
+                      </span>
                     </Link>
                   </BreadcrumbLink>
                 )}
@@ -240,9 +268,9 @@ export default function PageBreadcrumb() {
         })}
         {showSkeleton && (
           <>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <Skeleton className="h-10 w-32 rounded-md max-md:h-11" />
+            <BreadcrumbSeparator className={separatorClass} />
+            <BreadcrumbItem className={breadcrumbItemClass}>
+              <Skeleton className="h-10 w-32 rounded-md bg-muted/55 max-md:h-11" />
             </BreadcrumbItem>
           </>
         )}
@@ -255,17 +283,12 @@ function SiblingDropdown({
   currentHref,
   label,
   siblings,
-  role,
 }: {
   currentHref: string;
   label: string;
   siblings: ReadonlyArray<SiblingItem>;
-  role: string;
 }) {
-  const visible = siblings.filter(
-    (s) => !s.requiredRole || meetsRoleRequirement(s.requiredRole, role),
-  );
-  const current = visible.find((s) => s.href === currentHref);
+  const current = siblings.find((s) => s.href === currentHref);
   const menuLabel = current?.group ? `${label}: ${current.group}` : `${label} pages`;
 
   return (
@@ -279,7 +302,7 @@ function SiblingDropdown({
           {menuLabel}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {visible.map((s) => (
+        {siblings.map((s) => (
           s.href === currentHref ? (
             <DropdownMenuItem key={s.href} disabled className="items-start gap-2 py-2 data-[disabled]:opacity-100">
               <Check className="mt-0.5 opacity-80" />

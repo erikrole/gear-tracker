@@ -86,6 +86,8 @@ _2026-06-19 update: Schedule data-quality queue shipped without opening a new ga
 
 _2026-06-19 update: Schedule event identity normalization shipped without opening a new gap. Shared helper code now normalizes opponent and venue strings at ingest/edit/display boundaries, preserving raw calendar venue evidence and the existing pickup-location separation._
 
+_2026-06-19 update: Category cleanup wizard and picker visibility shipped without opening a new gap. Items filters and shared category pickers now include every category as a full path, and the Fill gaps wizard suggests missing categories from existing categorized inventory before using gear-term fallback matching._
+
 | ID | Description | Owner Area | Priority | Blocker? |
 |---|---|---|---|---|
 | ~~PD-1~~ | ~~D-009: Escalation recipient model~~ | ~~AREA_NOTIFICATIONS~~ | ~~Resolved~~ | ~~Requester + all admins; admin-configurable fatigue controls~~ |

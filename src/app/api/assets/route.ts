@@ -296,6 +296,7 @@ export const GET = withAuth(async (req, { user }) => {
         brand: asset.brand,
         model: asset.model,
         imageUrl: asset.imageUrl,
+        suggestedCategoryId: null as string | null,
         suggestedDepartmentId: departmentSuggestionByCategory.get(getCategorySuggestionKey(asset.categoryId, asset.category?.name ?? null) ?? "") ?? null,
       })),
       ...bulkGaps.map((sku) => ({
@@ -306,9 +307,17 @@ export const GET = withAuth(async (req, { user }) => {
         brand: "Bulk",
         model: "SKU",
         imageUrl: sku.imageUrl,
+        suggestedCategoryId: null as string | null,
         suggestedDepartmentId: departmentSuggestionByCategory.get(getCategorySuggestionKey(sku.categoryId, sku.category) ?? "") ?? null,
       })),
     ].sort((a, b) => a.assetTag.localeCompare(b.assetTag, undefined, { numeric: true, sensitivity: "base" }));
+
+    if (missingField === "category" && gapItems.length > 0) {
+      const categorySuggestions = await buildCategorySuggestions(gapItems);
+      for (const item of gapItems) {
+        item.suggestedCategoryId = categorySuggestions.get(item.id) ?? null;
+      }
+    }
 
     return ok({
       data: gapItems.slice(offset, offset + limit),
@@ -607,6 +616,93 @@ function getCategorySuggestionKeys(categoryId: string | null, categoryName: stri
   const normalizedName = categoryName?.trim().toLowerCase();
   if (normalizedName) keys.push(`name:${normalizedName}`);
   return keys;
+}
+
+type CategoryGapItem = {
+  kind: "asset" | "bulk";
+  id: string;
+  assetTag: string;
+  name: string | null;
+  brand: string;
+  model: string;
+};
+
+async function buildCategorySuggestions(items: CategoryGapItem[]) {
+  const [categories, assetSources, bulkSources] = await Promise.all([
+    db.category.findMany({ select: { id: true, name: true } }),
+    db.asset.findMany({
+      where: { categoryId: { not: null } },
+      take: 5000,
+      select: { assetTag: true, name: true, brand: true, model: true, categoryId: true },
+    }),
+    db.bulkSku.findMany({
+      where: { active: true, categoryId: { not: null } },
+      take: 5000,
+      select: { name: true, category: true, categoryId: true },
+    }),
+  ]);
+
+  const categoryIdByLegacyName = new Map(
+    categories.map((category) => [normalizeSuggestionKey(category.name), category.id])
+  );
+  const categoryCountsByKey = new Map<string, Map<string, number>>();
+
+  function addSource(keys: string[], categoryId: string | null) {
+    if (!categoryId) return;
+    for (const key of keys) {
+      const counts = categoryCountsByKey.get(key) ?? new Map<string, number>();
+      counts.set(categoryId, (counts.get(categoryId) ?? 0) + 1);
+      categoryCountsByKey.set(key, counts);
+    }
+  }
+
+  for (const source of assetSources) {
+    addSource(identitySuggestionKeys(source), source.categoryId);
+  }
+  for (const source of bulkSources) {
+    addSource(bulkSuggestionKeys(source), source.categoryId);
+  }
+
+  function bestCategoryId(keys: string[]) {
+    for (const key of keys) {
+      const exactLegacyMatch = categoryIdByLegacyName.get(key);
+      if (exactLegacyMatch) return exactLegacyMatch;
+
+      const counts = categoryCountsByKey.get(key);
+      if (!counts) continue;
+      const [categoryId] = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0] ?? [];
+      if (categoryId) return categoryId;
+    }
+    return null;
+  }
+
+  return new Map(
+    items
+      .map((item) => [item.id, bestCategoryId(item.kind === "bulk" ? bulkSuggestionKeys(item) : identitySuggestionKeys(item))] as const)
+      .filter((entry): entry is readonly [string, string] => Boolean(entry[1]))
+  );
+}
+
+function identitySuggestionKeys(item: { assetTag?: string | null; name?: string | null; brand?: string | null; model?: string | null }) {
+  const brand = normalizeSuggestionKey(item.brand);
+  const model = normalizeSuggestionKey(item.model);
+  return [
+    brand && model ? `${brand} ${model}` : "",
+    model,
+    normalizeSuggestionKey(item.name),
+    normalizeSuggestionKey(item.assetTag),
+  ].filter(Boolean);
+}
+
+function bulkSuggestionKeys(item: { name?: string | null; category?: string | null }) {
+  return [
+    normalizeSuggestionKey(item.category),
+    normalizeSuggestionKey(item.name),
+  ].filter(Boolean);
+}
+
+function normalizeSuggestionKey(value?: string | null) {
+  return value?.trim().toLowerCase().replace(/\s+/g, " ") ?? "";
 }
 
 export const POST = withAuth(async (req, { user }) => {

@@ -18,6 +18,7 @@ import {
   CommandItem,
   CommandSeparator,
 } from "@/components/ui/command";
+import { buildCategoryPathOptions } from "@/lib/category-options";
 import type { CategoryOption } from "@/types/category";
 
 // ── Simple flat combobox ──
@@ -153,31 +154,12 @@ export function CategoryCombobox({
 }: CategoryComboboxProps) {
   const [open, setOpen] = useState(false);
 
-  const selectedCat = categories.find((c) => c.id === value);
+  const options = buildCategoryPathOptions(categories);
+  const selectedCat = options.find((c) => c.value === value);
 
   if (disabled) {
-    return <span className="text-sm">{disabledLabel || selectedCat?.name || "\u2014"}</span>;
+    return <span className="text-sm">{disabledLabel || selectedCat?.label || "\u2014"}</span>;
   }
-
-  // Build grouped structure
-  const parentMap = new Map<string, CategoryOption[]>();
-  const topLevel: CategoryOption[] = [];
-
-  for (const cat of categories) {
-    if (cat.parentId) {
-      const children = parentMap.get(cat.parentId) || [];
-      children.push(cat);
-      parentMap.set(cat.parentId, children);
-    }
-  }
-
-  for (const cat of categories) {
-    if (!cat.parentId && !parentMap.has(cat.id)) {
-      topLevel.push(cat);
-    }
-  }
-
-  const parentCategories = categories.filter((c) => !c.parentId && parentMap.has(c.id));
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -190,7 +172,7 @@ export function CategoryCombobox({
           className={cn("h-9 w-full justify-between text-sm font-normal", triggerClassName)}
         >
           {selectedCat ? (
-            selectedCat.name
+            selectedCat.label
           ) : (
             <span className="text-muted-foreground">Select category</span>
           )}
@@ -224,52 +206,27 @@ export function CategoryCombobox({
                 <CommandSeparator />
               </>
             )}
-            {/* Top-level categories (no children) */}
-            {topLevel.length > 0 && (
-              <CommandGroup heading={parentCategories.length > 0 ? "Categories" : undefined}>
-                {topLevel.map((cat) => (
-                  <CommandItem
-                    key={cat.id}
-                    value={cat.name}
-                    onSelect={() => {
-                      onValueChange(cat.id);
-                      setOpen(false);
-                    }}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 size-4",
-                        value === cat.id ? "opacity-100" : "opacity-0",
-                      )}
-                    />
-                    {cat.name}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            )}
-            {/* Grouped categories (parent → children) */}
-            {parentCategories.map((parent) => (
-              <CommandGroup key={parent.id} heading={parent.name}>
-                {(parentMap.get(parent.id) || []).map((child) => (
-                  <CommandItem
-                    key={child.id}
-                    value={`${parent.name} ${child.name}`}
-                    onSelect={() => {
-                      onValueChange(child.id);
-                      setOpen(false);
-                    }}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 size-4",
-                        value === child.id ? "opacity-100" : "opacity-0",
-                      )}
-                    />
-                    {child.name}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            ))}
+            <CommandGroup heading="Categories">
+              {options.map((opt) => (
+                <CommandItem
+                  key={opt.value}
+                  value={opt.label}
+                  keywords={opt.keywords}
+                  onSelect={() => {
+                    onValueChange(opt.value);
+                    setOpen(false);
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 size-4",
+                      value === opt.value ? "opacity-100" : "opacity-0",
+                    )}
+                  />
+                  {opt.label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
             {allowCreate && onCreateRequested && (
               <>
                 <CommandSeparator />

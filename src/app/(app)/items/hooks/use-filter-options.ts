@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { parseJsonSafely } from "@/lib/errors";
+import { buildCategoryPathOptions } from "@/lib/category-options";
 import type { CategoryOption } from "@/types/category";
 
 type Location = { id: string; name: string };
@@ -44,17 +45,7 @@ export function useFilterOptions() {
 
   const canEdit = userRole === "ADMIN" || userRole === "STAFF";
 
-  // Build flat category options for filter dropdowns
-  const categoryOptions = categories
-    .filter((c) => !c.parentId)
-    .flatMap((parent) => {
-      const children = categories.filter((c) => c.parentId === parent.id);
-      if (children.length === 0) return [{ value: parent.id, label: parent.name }];
-      return children.map((child) => ({
-        value: child.id,
-        label: `${parent.name} / ${child.name}`,
-      }));
-    });
+  const categoryOptions = buildCategoryPathOptions(categories);
 
   return {
     locations,

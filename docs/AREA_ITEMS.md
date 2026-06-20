@@ -49,6 +49,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 3. Each issue card links to the existing repair surface instead of adding new mutation paths.
 4. Slice 1 checks missing category, missing department, missing primary scan code, missing image, duplicate scan identity, retired items still in active kits, camera bodies with no attachments, and active bulk SKUs below threshold.
 5. The page frames those checks as a read-only cleanup queue with priority ordering, clean/check progress, needs-work/all/clean views, partial-failure warnings, and tag-first sample rows.
+6. The Items Fill gaps wizard can repair missing categories and departments across standard items and item families. Missing-category suggestions prefer existing categorized inventory patterns, then fall back to gear-term matching.
 
 ### Create Item
 1. User starts `Add item`.
@@ -87,6 +88,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
    - Flag
    - Item kind
    - Kit status
+   Category options are exact-ID filters and use full hierarchy paths, including parent nodes and deeply nested subcategories.
 3. Sort defaults to tagName ascending.
 4. View toggle supports table mode as required baseline.
 5. Mobile keeps search and filter access pinned at top for long lists per `AREA_MOBILE.md`.

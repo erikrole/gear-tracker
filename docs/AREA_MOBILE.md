@@ -114,6 +114,7 @@ All versions shipped (2026-03-25):
 - **V2**: ✅ Entity name display on detail pages, collapsible ellipsis for deep paths
 - **V3**: ✅ Sibling quick-jump dropdown, recently visited entities
 - **Polish**: ✅ Loading skeleton on detail pages, parent-level sibling dropdown
+- **2026-06 polish**: ✅ Mobile-crowded trails render the Home crumb as a compact icon with screen-reader text, role-gated sibling dropdowns wait for role data before becoming menus, quiet breadcrumb treatment applies to `/new` task routes plus import, and the visual treatment uses a lighter navigation trail with a subtle current-page accent instead of a boxed chip.
 
 ## Sidebar Roadmap
 
@@ -124,6 +125,8 @@ Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md` (revised 2026-03-
 - **V3 (later)**: Bottom nav badge counts via live `/api/nav-counts` polling, game-day/shift context cards
 
 ## Change Log
+- 2026-06-19: **Breadcrumb display polish.** Web breadcrumbs now keep global AppShell ownership while making mobile-crowded trails more compact, preventing empty role-gated sibling menus during identity load, and applying the quieter creation/import treatment through route shape instead of two hardcoded booking paths.
+- 2026-06-20: **Breadcrumb UI refinement.** The global breadcrumb now reads as a quiet navigation trail instead of a framed toolbar: parent links use lighter hover surfaces, separators are softer, and the current page is marked with a subtle Wisconsin-red underline rather than a filled chip.
 - 2026-06-19: **iOS reservation creation showtime polish** - native reservation creation now uses sport-code event titles such as `VB vs Maryland` and `FB at Minnesota`, treats booking location copy as pickup location instead of event venue, keeps serialized and counted equipment in one Equipment flow, and makes the Confirm step pickup/return-oriented with thumbnail-led equipment rows plus compact linked-event indication.
 - 2026-06-19: **iOS avatar rendering consolidation** - native user avatars now route Profile toolbar/header, User detail, Schedule assignment picker, Users, Booking rows, Event detail crew, and reservation requester pickers through `UserAvatarView` or a thin current-user wrapper. The shared component keeps cached thumbnail rendering with initials fallback and supports tone-aware fallback colors without changing user data contracts.
 - 2026-06-19: **iOS booking creation split** - native reservation creation now keeps `CreateBookingSheet.swift` focused on the three-step sheet flow, scanner presentation, submit handling, and view-model wiring. View model logic, event-linking views, selected equipment rows, form rows, and picker views live under `ios/Wisconsin/Views/CreateBooking/`. No booking payload, scan lookup, Details/Equipment/Confirm flow, picker UI, or kiosk custody behavior changed.

@@ -102,10 +102,10 @@
 | `src/components/BookingListPage.tsx` | 507 |
 | `src/components/ui/heatmap.tsx` | 422 |
 | `src/components/ui/chart.tsx` | 389 |
+| `src/components/PageBreadcrumb.tsx` | 379 |
 | `src/components/Sidebar.tsx` | 373 |
-| `src/components/FormCombobox.tsx` | 372 |
 | `src/components/shift-detail/ShiftSlotCard.tsx` | 370 |
-| `src/components/PageBreadcrumb.tsx` | 356 |
+| `src/components/FormCombobox.tsx` | 329 |
 | `src/components/booking-details/BookingOverview.tsx` | 300 |
 | `src/components/QrScanner.tsx` | 288 |
 | `src/components/booking-wizard/WizardStep3.tsx` | 263 |

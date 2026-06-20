@@ -1,6 +1,36 @@
 # Task Queue
 
-Last updated: 2026-06-19
+Last updated: 2026-06-20
+
+---
+
+## Active: Categories visibility audit and patch (2026-06-19)
+
+Plan: `tasks/categories-visibility-plan.md`
+
+- [x] Audit category schema, API, Settings page, Items filters, and item create/detail pickers.
+- [x] Patch category option generation so every category, including parent categories and grandchildren, can show up where exact category filters/assignments are valid.
+- [x] Make the Fill gaps wizard smarter for missing-category cleanup across standard items and item families.
+- [x] Add focused regression coverage.
+- [x] Sync Settings/Items docs and record verification.
+
+### Review
+- 2026-06-19: Categories cleanup patch shipped locally. Category filters and shared pickers now use full hierarchy paths, `/api/assets?missing=category` suggests categories from already-categorized inventory, and Fill gaps uses those suggestions before gear-term fallback matching. Verification passed with focused Vitest, TypeScript, migration-prefix check, whitespace check, app build, and docs check. Browser smoke was blocked by the Codex/DevTools usage limit after starting the dev server.
+
+---
+
+## Active: Breadcrumb audit and patch (2026-06-19)
+
+Plan: cross-cutting navigation slice in `src/components/PageBreadcrumb.tsx`
+
+- [x] Audit current breadcrumb ownership, route derivation, role-aware sibling menus, recents, creation-flow treatment, and mobile constraints.
+- [x] Patch remaining breadcrumb presentation and loading-edge issues without changing AppShell ownership.
+- [x] Sync breadcrumb docs and record verification results.
+- [x] Run focused verification and browser smoke.
+
+### Review
+- 2026-06-19: Shipped the breadcrumb display polish. `PageBreadcrumb` now treats `/new` task routes plus `/import` as quiet breadcrumb routes, waits for current-user role data before rendering role-gated Settings sibling dropdowns, and makes crowded Home crumbs compact on narrow screens while preserving screen-reader text. Verification passed with `npx tsc --noEmit`, `git diff --check -- src/components/PageBreadcrumb.tsx tasks/todo.md docs/AREA_MOBILE.md docs/AREA_SETTINGS.md`, and `npm run build:app`. `npm run verify:docs` reported codemap drift in `docs/CODEMAPS/architecture.md`, `docs/CODEMAPS/backend.md`, and `docs/CODEMAPS/frontend.md`; codemap regeneration was not run because the current worktree includes unrelated category/API edits. Authenticated Chrome DevTools smoke with the seeded admin verified `/settings/notifications` rendered `Home > Settings > Notifications` with 40px breadcrumb targets, `/resources/new` used the transparent quiet breadcrumb treatment, route data retried cleanly to 200, and the console had no app warnings or errors. Screenshot: `/private/tmp/breadcrumb-resources-new.png`.
+- 2026-06-20: Follow-up UI refinement shipped locally. The breadcrumb shell now uses a quiet translucent trail without a boxed border, parent crumbs keep 40px+ targets with softer hover surfaces, separators are lower contrast, current-page crumbs use a subtle underline instead of a filled chip, and loading skeletons match the lighter treatment. Verification passed with `npx tsc --noEmit`, `npm run build:app`, `npm run verify:docs`, and focused diff whitespace checks. Authenticated Chrome DevTools smoke verified `/settings/notifications` and `/resources/new`: parent controls stayed transparent at 40px height, quiet routes had no shell background/shadow, current crumbs rendered a 2px underline, route/data requests returned 200 after expected dev retries, and the console had no app warnings or errors. Screenshot capture timed out in DevTools, so verification used DOM measurements and computed styles.
 
 ---
 
