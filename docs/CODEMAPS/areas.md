@@ -151,7 +151,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 
 - Doc: `docs/AREA_SHIFTS.md`
 - Pages: `/schedule/assign`, `/schedule`
-- APIs: `/api/my-shifts`, `/api/schedule/automation`, `/api/schedule/export`, `/api/schedule/health`, `/api/schedule/open-work`, `/api/shift-assignments/[id]/acknowledge`, `/api/shift-assignments/[id]/approve`, `/api/shift-assignments/[id]/attendance`, `/api/shift-assignments/[id]/decline`, `/api/shift-assignments/[id]`
+- APIs: `/api/my-shifts`, `/api/schedule/automation`, `/api/schedule/export`, `/api/schedule/health`, `/api/schedule/open-work`, `/api/shift-assignments/[id]/acknowledge`, `/api/shift-assignments/[id]/approve`, `/api/shift-assignments/[id]/attendance`, `/api/shift-assignments/[id]/decline`, `/api/shift-assignments/[id]/repair-role-slot`
 - Services: `src/lib/services/schedule-automation.ts`, `src/lib/services/schedule-change-history.ts`, `src/lib/services/schedule-exports.ts`, `src/lib/services/schedule-health.ts`, `src/lib/services/schedule-notification-policy.ts`, `src/lib/services/schedule-open-work.ts`, `src/lib/services/schedule-publication.ts`, `src/lib/services/schedule-template-review.ts`
 - Tests: `tests/ios-schedule-all-day-display.test.ts`, `tests/ios-schedule-calendar-hit-targets.test.ts`, `tests/ios-schedule-dynamic-type.test.ts`, `tests/schedule-assign-source.test.ts`, `tests/schedule-automation-source.test.ts`, `tests/schedule-automation.test.ts`, `tests/schedule-change-history.test.ts`, `tests/schedule-data-quality.test.ts`
 

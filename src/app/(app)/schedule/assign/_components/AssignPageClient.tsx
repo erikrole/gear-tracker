@@ -30,7 +30,7 @@ import {
 } from "@/lib/assignment-conflict-review";
 
 async function fetchUsers(): Promise<PickerUser[]> {
-  const res = await fetch("/api/users?limit=200&active=true&scheduleProfile=true");
+  const res = await fetch("/api/users?limit=200&active=true");
   if (handleAuthRedirect(res)) throw new DOMException("Auth redirect", "AbortError");
   if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to load users"));
   const j = await parseJsonSafely<{ data?: PickerUser[] }>(res);

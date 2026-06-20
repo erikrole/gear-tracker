@@ -15,7 +15,7 @@ import type {
 import { getCandidateScoresForShift } from "@/lib/services/candidate-scoring";
 import { directAssignShift } from "@/lib/services/shift-assignments";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
-import { shiftWorkerTypeForRole } from "@/lib/shift-display";
+import { shiftWorkerTypeForProfile } from "@/lib/shift-display";
 
 const ACTIVE_STATUSES = new Set<string>(ACTIVE_ASSIGNMENT_STATUSES);
 const AREA_ORDER: ShiftArea[] = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS"];
@@ -189,6 +189,7 @@ async function loadSourceCandidates(group: LoadedTargetGroup) {
                       id: true,
                       name: true,
                       role: true,
+                      staffingType: true,
                       active: true,
                     },
                   },
@@ -333,8 +334,8 @@ function sourceAssignmentsBySlot(source: SourceCandidate | null) {
   return byKey;
 }
 
-function roleMatchesWorkerType(workerType: ShiftWorkerType, role: Role) {
-  return shiftWorkerTypeForRole(role) === workerType;
+function userMatchesWorkerType(workerType: ShiftWorkerType, user: { role: Role; staffingType?: ShiftWorkerType | string | null }) {
+  return shiftWorkerTypeForProfile(user) === workerType;
 }
 
 async function buildCopyForwardPreview(group: LoadedTargetGroup): Promise<CopyForwardPreview> {
@@ -411,7 +412,7 @@ async function buildCopyForwardPreview(group: LoadedTargetGroup): Promise<CopyFo
       });
       continue;
     }
-    if (!roleMatchesWorkerType(shift.workerType, user.role)) {
+    if (!userMatchesWorkerType(shift.workerType, user)) {
       skipped.push({
         shiftId: shift.id,
         sourceShiftId: sourceShift.id,
@@ -420,7 +421,7 @@ async function buildCopyForwardPreview(group: LoadedTargetGroup): Promise<CopyFo
         workerType: shift.workerType,
         userId: user.id,
         userName: user.name,
-        reason: "Source worker role does not match this slot type.",
+        reason: "Source worker scheduling class does not match this slot type.",
       });
       continue;
     }
@@ -450,6 +451,7 @@ async function buildCopyForwardPreview(group: LoadedTargetGroup): Promise<CopyFo
       userId: user.id,
       userName: user.name,
       userRole: user.role,
+      userStaffingType: shiftWorkerTypeForProfile(user),
       score: score?.score ?? null,
       bucket: score?.bucket ?? null,
       reasons: score?.reasons ?? [],

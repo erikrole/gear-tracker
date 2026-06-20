@@ -134,7 +134,7 @@ export async function getScheduleHealth(input: ScheduleHealthInput): Promise<Sch
                   status: true,
                   hasConflict: true,
                   callStartsAt: true,
-                  user: { select: { role: true } },
+                  user: { select: { role: true, staffingType: true } },
                 },
               },
             },

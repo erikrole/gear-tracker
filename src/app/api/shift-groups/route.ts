@@ -75,19 +75,7 @@ export const GET = withAuth(async (req, { user }) => {
               status: { in: ACTIVE_ASSIGNMENT_STATUSES },
             },
             include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  role: true,
-                  primaryArea: true,
-                  avatarUrl: true,
-                  gradYear: true,
-                  studentYearOverride: true,
-                  sportAssignments: { select: { sportCode: true } },
-                  areaAssignments: { select: { area: true, isPrimary: true } },
-                },
-              },
+              user: { select: { id: true, name: true, role: true, staffingType: true, primaryArea: true, avatarUrl: true } },
             },
           },
         },
@@ -157,21 +145,7 @@ export const POST = withAuth(async (req, { user }) => {
         include: {
           assignments: {
             where: { status: { in: ACTIVE_ASSIGNMENT_STATUSES } },
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  role: true,
-                  primaryArea: true,
-                  avatarUrl: true,
-                  gradYear: true,
-                  studentYearOverride: true,
-                  sportAssignments: { select: { sportCode: true } },
-                  areaAssignments: { select: { area: true, isPrimary: true } },
-                },
-              },
-            },
+            include: { user: { select: { id: true, name: true, role: true, staffingType: true, primaryArea: true, avatarUrl: true } } },
           },
         },
       },

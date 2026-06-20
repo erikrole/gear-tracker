@@ -20,6 +20,22 @@ Plan: `tasks/schedule-role-slot-hardening-plan.md`
 
 ---
 
+## Active: Schedule staffing class model (2026-06-20)
+
+Plan: `tasks/schedule-staffing-class-plan.md`
+
+- [x] Add `User.staffingType` schema field and migration backfilled from current role.
+- [x] Wire Schedule display/routing/scoring/export logic to scheduling class while leaving permissions on `User.role`.
+- [x] Surface editable Scheduling class on user detail.
+- [x] Add focused regression coverage and sync Schedule docs/gaps.
+- [x] Run local verification and record results.
+- [ ] Deploy pending migration and rerun live migration health.
+
+### Review
+- 2026-06-20: Explicit Schedule worker-class model implemented locally. `User.staffingType` now separates scheduling identity from app permission role, backfills existing users from current role, appears as editable Scheduling class on user detail, and drives Schedule labels, direct assignment routing, candidate scoring, copy-forward, auto-fill preview, exports, data-quality checks, Open Work pickup, and trade eligibility. Local verification passed with Prisma format/generate/validate, migration prefix check, focused Vitest schedule tests, TypeScript, codemap generation, docs verification, whitespace check, and `npm run build:app`. Live migration health reached Neon and reported `0082_user_staffing_type` pending; `npm run db:migrate:deploy` was blocked by the approval system before execution, so deploy plus final health remain open.
+
+---
+
 ## Active: Schedule staff/student display cleanup (2026-06-20)
 
 Plan: `tasks/schedule-role-label-cleanup-plan.md`
@@ -32,6 +48,7 @@ Plan: `tasks/schedule-role-label-cleanup-plan.md`
 
 ### Review
 - 2026-06-20: Staff/student display cleanup shipped locally. Filled Schedule rows and shift cards now show Staff or Student from the assigned user's role, open rows keep Staff slot/Student slot language, assignment buttons use generic open-slot copy, and coverage/readiness copy says Needs crew or Needs n people instead of Needs n students. Verification passed with focused Vitest, TypeScript, diff whitespace, and `npm run build:app`.
+- 2026-06-20: Follow-up correction removed inferred worker classification from roster/profile metadata. Schedule MVP now treats `User.role` as the only current Staff/Student identity source for filled assignments, keeps `Shift.workerType` as the planned open-slot source, and tracks the smarter explicit scheduling-classification model as `PENDING-SCHEDULE-01` in `docs/GAPS_AND_RISKS.md`.
 
 ---
 

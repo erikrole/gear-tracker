@@ -6,7 +6,7 @@
 | File | Lines |
 |---|---:|
 | `src/lib/services/auto-assign.ts` | 91 |
-| `src/lib/services/auto-fill-preview.ts` | 178 |
+| `src/lib/services/auto-fill-preview.ts` | 180 |
 | `src/lib/services/availability.ts` | 551 |
 | `src/lib/services/booking-ref.ts` | 26 |
 | `src/lib/services/booking-rules.ts` | 198 |
@@ -30,23 +30,23 @@
 | `src/lib/services/licenses.ts` | 489 |
 | `src/lib/services/notification-prefs.ts` | 103 |
 | `src/lib/services/notifications.ts` | 818 |
-| `src/lib/services/onboarding-lifecycle.ts` | 498 |
+| `src/lib/services/onboarding-lifecycle.ts` | 503 |
 | `src/lib/services/pending-pickup-expiry.ts` | 218 |
 | `src/lib/services/reports.ts` | 1369 |
 | `src/lib/services/reservation-rules.ts` | 32 |
 | `src/lib/services/scans.ts` | 625 |
 | `src/lib/services/schedule-automation.ts` | 336 |
 | `src/lib/services/schedule-change-history.ts` | 354 |
-| `src/lib/services/schedule-exports.ts` | 486 |
-| `src/lib/services/schedule-health.ts` | 377 |
+| `src/lib/services/schedule-exports.ts` | 495 |
+| `src/lib/services/schedule-health.ts` | 378 |
 | `src/lib/services/schedule-notification-policy.ts` | 106 |
-| `src/lib/services/schedule-open-work.ts` | 422 |
+| `src/lib/services/schedule-open-work.ts` | 426 |
 | `src/lib/services/schedule-publication.ts` | 263 |
-| `src/lib/services/schedule-template-review.ts` | 549 |
-| `src/lib/services/shift-assignments.ts` | 453 |
+| `src/lib/services/schedule-template-review.ts` | 551 |
+| `src/lib/services/shift-assignments.ts` | 587 |
 | `src/lib/services/shift-generation.ts` | 378 |
 | `src/lib/services/shift-trade-emails.ts` | 72 |
-| `src/lib/services/shift-trades.ts` | 751 |
+| `src/lib/services/shift-trades.ts` | 755 |
 | `src/lib/services/sport-configs.ts` | 257 |
 | `src/lib/services/status.ts` | 439 |
 
@@ -64,7 +64,7 @@
 | `src/lib/assignment-conflict-review.ts` | 97 |
 | `src/lib/audit.ts` | 168 |
 | `src/lib/auth.ts` | 272 |
-| `src/lib/auto-fill-preview-types.ts` | 40 |
+| `src/lib/auto-fill-preview-types.ts` | 41 |
 | `src/lib/avatar.ts` | 44 |
 | `src/lib/battery-compatibility.ts` | 166 |
 | `src/lib/bhphoto-image.ts` | 67 |
@@ -107,18 +107,18 @@
 | `src/lib/scan-feedback.ts` | 87 |
 | `src/lib/schedule-automation-types.ts` | 55 |
 | `src/lib/schedule-change-history-types.ts` | 55 |
-| `src/lib/schedule-data-quality.ts` | 91 |
+| `src/lib/schedule-data-quality.ts` | 128 |
 | `src/lib/schedule-event-identity.ts` | 78 |
 | `src/lib/schedule-event-where.ts` | 46 |
 | `src/lib/schedule-health-types.ts` | 81 |
 | `src/lib/schedule-publication-types.ts` | 34 |
 | `src/lib/schedule-queues.ts` | 174 |
-| `src/lib/schedule-template-review-types.ts` | 104 |
+| `src/lib/schedule-template-review-types.ts` | 105 |
 | `src/lib/search-pages.ts` | 72 |
 | `src/lib/search-result-title.ts` | 13 |
 | `src/lib/shift-call-windows.ts` | 176 |
 | `src/lib/shift-constants.ts` | 8 |
-| `src/lib/shift-display.ts` | 16 |
+| `src/lib/shift-display.ts` | 70 |
 | `src/lib/sports.ts` | 78 |
 | `src/lib/status-colors.ts` | 40 |
 | `src/lib/status-styles.ts` | 46 |
@@ -426,6 +426,7 @@
 - `/api/shift-assignments/[id]/approve`
 - `/api/shift-assignments/[id]/attendance`
 - `/api/shift-assignments/[id]/decline`
+- `/api/shift-assignments/[id]/repair-role-slot`
 - `/api/shift-assignments/[id]`
 - `/api/shift-assignments/[id]/swap`
 - `/api/shift-assignments/pickup`

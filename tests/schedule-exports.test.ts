@@ -64,7 +64,7 @@ function groupFixture() {
             hasConflict: true,
             conflictNote: "-Class overlap",
             acknowledgedAt: null,
-            user: { name: "@Ada", role: "STUDENT", primaryArea: "VIDEO" },
+            user: { name: "@Ada", role: "STUDENT", staffingType: "ST", primaryArea: "VIDEO" },
           },
         ],
       },
@@ -86,7 +86,7 @@ function groupFixture() {
             hasConflict: false,
             conflictNote: null,
             acknowledgedAt: null,
-            user: { name: "Grace", role: "STUDENT", primaryArea: "PHOTO" },
+            user: { name: "Grace", role: "STUDENT", staffingType: "FT", primaryArea: "PHOTO" },
           },
         ],
       },
@@ -108,7 +108,7 @@ function groupFixture() {
             hasConflict: false,
             conflictNote: null,
             acknowledgedAt: null,
-            user: { name: "Pat", role: "STUDENT", primaryArea: "GRAPHICS" },
+            user: { name: "Pat", role: "STUDENT", staffingType: "ST", primaryArea: "GRAPHICS" },
           },
         ],
       },
@@ -127,9 +127,9 @@ describe("schedule exports", () => {
   it("exports a formula-safe roster CSV with publication and acknowledgement columns", async () => {
     const result = await buildScheduleExport({ ...baseInput, type: "roster" });
 
-    expect(result.csv).toContain("Assigned Role,Planned Slot,Assignee");
+    expect(result.csv).toContain("Assigned Class,Planned Slot,Assignee");
     expect(result.csv).toContain("Student,Student slot,'@Ada");
-    expect(result.csv).toContain("Student,Staff slot,Grace");
+    expect(result.csv).toContain("Staff,Staff slot,Grace");
     expect(result.csv).toContain("Publication,Published At,Acknowledged,Acknowledged At");
     expect(result.csv).toContain("'=Volleyball");
     expect(result.csv).toContain("'+Field House");
@@ -142,15 +142,15 @@ describe("schedule exports", () => {
   it("summarizes hours by active worker only", async () => {
     const result = await buildScheduleExport({ ...baseInput, type: "hours" });
 
-    expect(result.csv).toContain("Worker,Role,Shifts,Events,Hours,Conflicts");
+    expect(result.csv).toContain("Worker,Class,Shifts,Events,Hours,Conflicts");
     expect(result.csv).toContain("'@Ada,Student,1,1,4.00,1");
-    expect(result.csv).toContain("Grace,Student,1,1,3.00,0");
+    expect(result.csv).toContain("Grace,Staff,1,1,3.00,0");
   });
 
   it("exports open slot and pending request counts", async () => {
     const result = await buildScheduleExport({ ...baseInput, type: "open-slots" });
 
-    expect(result.csv).toContain("Shift ID,Area,Role");
+    expect(result.csv).toContain("Shift ID,Area,Planned Slot");
     expect(result.csv).toContain("shift-3,GRAPHICS,Staff");
     expect(result.csv).toContain(",1\n");
   });
@@ -172,7 +172,7 @@ describe("schedule exports", () => {
 
     const result = await buildScheduleExport({ ...baseInput, type: "trades" });
 
-    expect(result.csv).toContain("Planned Slot,Assigned Role,Worker");
+    expect(result.csv).toContain("Planned Slot,Assigned Class,Worker");
     expect(result.csv).toContain("trade,event-1");
     expect(result.csv).toContain("open-work-request,event-1");
   });
@@ -193,7 +193,7 @@ describe("schedule exports", () => {
 
     const result = await buildScheduleExport({ ...baseInput, type: "gear-readiness" });
 
-    expect(result.csv).toContain("Planned Slot,Assigned Role,Worker,Gear Status,Link Type,Booking ID,Booking");
+    expect(result.csv).toContain("Planned Slot,Assigned Class,Worker,Gear Status,Link Type,Booking ID,Booking");
     expect(result.csv).toContain('Reserved,assignment,booking-1,"Gear, prep"');
   });
 

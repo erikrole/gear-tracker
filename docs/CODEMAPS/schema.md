@@ -75,7 +75,7 @@ Values: `ACTIVE`, `MAINTENANCE`, `UNKNOWN`
 
 ## Model `User`
 
-Fields: 67
+Fields: 68
 
 - `id                   String                     @id @default(cuid())`
 - `name                 String`
@@ -83,6 +83,7 @@ Fields: 67
 - `passwordHash         String                     @map("password_hash")`
 - `forcePasswordChange  Boolean                    @default(false) @map("force_password_change")`
 - `role                 Role`
+- `staffingType         ShiftWorkerType            @default(ST) @map("staffing_type")`
 - `active               Boolean                    @default(true)`
 - `phone                String?`
 - `wiscardNumber        String?                    @unique @map("wiscard_number")`

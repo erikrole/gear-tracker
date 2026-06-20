@@ -1,5 +1,5 @@
 import { withAuth } from "@/lib/api";
-import { BookingKind, BookingStatus, BulkMovementKind, Prisma, ScanSessionStatus, ShiftArea, StudentYear } from "@prisma/client";
+import { BookingKind, BookingStatus, BulkMovementKind, Prisma, ScanSessionStatus, ShiftArea, ShiftWorkerType, StudentYear } from "@prisma/client";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
@@ -17,6 +17,7 @@ const updateUserSchema = z.object({
   slackHandle: slackHandleSchema,
   slackProfileUrl: slackProfileUrlSchema,
   primaryArea: z.nativeEnum(ShiftArea).nullable().optional(),
+  staffingType: z.nativeEnum(ShiftWorkerType).optional(),
   active: z.boolean().optional(),
   // Profile fields migrated from the Sheet.
   title: z.string().max(120).nullable().optional(),
@@ -93,6 +94,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
       name: target.name,
       email: target.email,
       role: target.role,
+      staffingType: target.staffingType,
       locationId: target.locationId,
       location: target.location?.name ?? null,
       phone: target.phone,
@@ -172,6 +174,10 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
 
   if (body.primaryArea !== undefined) {
     updateData.primaryArea = body.primaryArea;
+  }
+
+  if (body.staffingType !== undefined) {
+    updateData.staffingType = body.staffingType;
   }
 
   if (body.active !== undefined) {
@@ -370,6 +376,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
       name: updated.name,
       email: updated.email,
       role: updated.role,
+      staffingType: updated.staffingType,
       locationId: updated.locationId,
       location: updated.location?.name ?? null,
       phone: updated.phone,

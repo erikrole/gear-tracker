@@ -8,6 +8,7 @@ import { updateShiftAssignmentSchema } from "@/lib/validation";
 import { assertCallTimePair, assertDateOrder, parseOptionalDate } from "@/lib/api-dates";
 import { createShiftScheduleNotification } from "@/lib/services/notifications";
 import { evaluateAvailabilityPreferences } from "@/lib/student-availability";
+import { shiftWorkerTypeForProfile } from "@/lib/shift-display";
 
 export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "shift_assignment", "assign");
@@ -25,6 +26,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
       user: {
         select: {
           role: true,
+          staffingType: true,
           availabilityBlocks: {
             select: {
               kind: true,
@@ -67,7 +69,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     const effectiveEndsAt = (body.callEndsAt !== undefined ? callEndsAt : existing.callEndsAt)
       ?? existing.shift.callEndsAt
       ?? existing.shift.endsAt;
-    const availability = existing.user.role === "STUDENT"
+    const availability = shiftWorkerTypeForProfile(existing.user) === "ST"
       ? evaluateAvailabilityPreferences(existing.user.availabilityBlocks, {
         startsAt: effectiveStartsAt,
         endsAt: effectiveEndsAt,

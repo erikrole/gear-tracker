@@ -41,10 +41,7 @@ async function resolveAssignableShiftForUser(
   },
   userProfile: {
     role: Role;
-    gradYear?: number | null;
-    studentYearOverride?: string | null;
-    sportAssignments?: unknown[] | null;
-    areaAssignments?: unknown[] | null;
+    staffingType: ShiftWorkerType;
   },
 ) {
   const targetWorkerType = shiftWorkerTypeForProfile(userProfile) ?? "FT";
@@ -190,11 +187,8 @@ export async function directAssignShiftWithOutcome(
       select: {
         id: true,
         role: true,
+        staffingType: true,
         active: true,
-        gradYear: true,
-        studentYearOverride: true,
-        sportAssignments: { select: { sportCode: true } },
-        areaAssignments: { select: { area: true, isPrimary: true } },
         availabilityBlocks: {
           select: {
             kind: true,
@@ -231,7 +225,7 @@ export async function directAssignShiftWithOutcome(
       endsAt: opts.callEndsAt ?? effectiveShiftWindow(targetShift).endsAt,
     };
     await checkTimeConflict(tx, userId, conflictWindow.startsAt, conflictWindow.endsAt);
-    const availability = assignee.role === "STUDENT"
+    const availability = outcome.assignedWorkerType === "ST"
       ? evaluateAvailabilityPreferences(assignee.availabilityBlocks ?? [], conflictWindow)
       : null;
     if (availability?.blocking) {
@@ -262,19 +256,7 @@ export async function directAssignShiftWithOutcome(
         conflictNote,
       },
       include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            role: true,
-            primaryArea: true,
-            avatarUrl: true,
-            gradYear: true,
-            studentYearOverride: true,
-            sportAssignments: { select: { sportCode: true } },
-            areaAssignments: { select: { area: true, isPrimary: true } },
-          },
-        },
+        user: { select: { id: true, name: true, role: true, staffingType: true, primaryArea: true, avatarUrl: true } },
       },
     });
 
@@ -287,17 +269,7 @@ export async function repairRoleSlotMismatch(assignmentId: string) {
     const assignment = await tx.shiftAssignment.findUnique({
       where: { id: assignmentId },
       include: {
-        user: {
-          select: {
-            id: true,
-            role: true,
-            name: true,
-            gradYear: true,
-            studentYearOverride: true,
-            sportAssignments: { select: { sportCode: true } },
-            areaAssignments: { select: { area: true, isPrimary: true } },
-          },
-        },
+        user: { select: { id: true, role: true, staffingType: true, name: true } },
         shift: true,
       },
     });
@@ -347,19 +319,7 @@ export async function repairRoleSlotMismatch(assignmentId: string) {
       where: { id: assignment.id },
       data: { shiftId: targetShift.id },
       include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            role: true,
-            primaryArea: true,
-            avatarUrl: true,
-            gradYear: true,
-            studentYearOverride: true,
-            sportAssignments: { select: { sportCode: true } },
-            areaAssignments: { select: { area: true, isPrimary: true } },
-          },
-        },
+        user: { select: { id: true, name: true, role: true, staffingType: true, primaryArea: true, avatarUrl: true } },
       },
     });
 
@@ -388,6 +348,7 @@ export async function requestShift(shiftId: string, userId: string) {
         select: {
           id: true,
           role: true,
+          staffingType: true,
           availabilityBlocks: {
             select: {
               kind: true,
@@ -411,6 +372,9 @@ export async function requestShift(shiftId: string, userId: string) {
     if (!shift.shiftGroup.isPremier) {
       throw new HttpError(400, "Shift requests are only available for premier events");
     }
+    if (shift.workerType !== "ST" || shiftWorkerTypeForProfile(requester) !== "ST") {
+      throw new HttpError(400, "Shift requests are available for Student slots only");
+    }
 
     // Check no active assignment
     const existing = await tx.shiftAssignment.findFirst({
@@ -431,7 +395,7 @@ export async function requestShift(shiftId: string, userId: string) {
     // Check for time conflicts with the user's other shifts
     const conflictWindow = effectiveShiftWindow(shift);
     await checkTimeConflict(tx, userId, conflictWindow.startsAt, conflictWindow.endsAt);
-    const availability = requester.role === "STUDENT"
+    const availability = shiftWorkerTypeForProfile(requester) === "ST"
       ? evaluateAvailabilityPreferences(requester.availabilityBlocks ?? [], conflictWindow)
       : null;
     if (availability?.blocking) {
@@ -448,7 +412,7 @@ export async function requestShift(shiftId: string, userId: string) {
         conflictNote,
       },
       include: {
-        user: { select: { id: true, name: true, role: true, primaryArea: true } },
+        user: { select: { id: true, name: true, role: true, staffingType: true, primaryArea: true } },
       },
     });
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
@@ -466,6 +430,7 @@ export async function approveRequest(assignmentId: string) {
         user: {
           select: {
             role: true,
+            staffingType: true,
             availabilityBlocks: {
               select: {
                 kind: true,
@@ -494,7 +459,7 @@ export async function approveRequest(assignmentId: string) {
     // between the time they requested and the time staff approves.
     const conflictWindow = effectiveShiftWindow(assignment.shift);
     await checkTimeConflict(tx, assignment.userId, conflictWindow.startsAt, conflictWindow.endsAt);
-    const availability = assignment.user?.role === "STUDENT"
+    const availability = shiftWorkerTypeForProfile(assignment.user) === "ST"
       ? evaluateAvailabilityPreferences(assignment.user.availabilityBlocks ?? [], conflictWindow)
       : null;
     if (availability?.blocking) {
@@ -527,7 +492,7 @@ export async function approveRequest(assignmentId: string) {
       where: { id: assignmentId },
       data: { status: "APPROVED", hasConflict: Boolean(conflictNote), conflictNote },
       include: {
-        user: { select: { id: true, name: true, role: true, primaryArea: true } },
+        user: { select: { id: true, name: true, role: true, staffingType: true, primaryArea: true } },
       },
     });
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
@@ -589,7 +554,7 @@ export async function initiateSwap(
         swapFromId: assignmentId,
       },
       include: {
-        user: { select: { id: true, name: true, role: true, primaryArea: true } },
+        user: { select: { id: true, name: true, role: true, staffingType: true, primaryArea: true } },
       },
     });
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });

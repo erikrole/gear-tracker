@@ -8,6 +8,7 @@ import { assertCallTimePair, assertDateOrder, parseOptionalDate } from "@/lib/ap
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 import { createShiftScheduleNotification } from "@/lib/services/notifications";
 import { availabilityConflictNote } from "@/lib/student-availability";
+import { shiftWorkerTypeForProfile } from "@/lib/shift-display";
 
 export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "shift", "edit");
@@ -70,6 +71,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
         user: {
           select: {
             role: true,
+            staffingType: true,
             availabilityBlocks: {
               select: {
                 kind: true,
@@ -92,7 +94,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     for (const assignment of assignments) {
       const effectiveStartsAt = assignment.callStartsAt ?? updated.callStartsAt ?? updated.startsAt;
       const effectiveEndsAt = assignment.callEndsAt ?? updated.callEndsAt ?? updated.endsAt;
-      const conflictNote = assignment.user?.role === "STUDENT"
+      const conflictNote = shiftWorkerTypeForProfile(assignment.user) === "ST"
         ? availabilityConflictNote(assignment.user.availabilityBlocks, {
             startsAt: effectiveStartsAt,
             endsAt: effectiveEndsAt,

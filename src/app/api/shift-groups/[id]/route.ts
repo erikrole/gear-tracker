@@ -19,19 +19,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
         include: {
           assignments: {
             include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true,
-                  role: true,
-                  primaryArea: true,
-                  gradYear: true,
-                  studentYearOverride: true,
-                  sportAssignments: { select: { sportCode: true } },
-                  areaAssignments: { select: { area: true, isPrimary: true } },
-                },
-              },
+              user: { select: { id: true, name: true, email: true, role: true, staffingType: true, primaryArea: true } },
               assigner: { select: { id: true, name: true } },
             },
             orderBy: { createdAt: "desc" },
@@ -70,19 +58,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
           include: {
             assignments: {
               include: {
-                user: {
-                  select: {
-                    id: true,
-                    name: true,
-                    email: true,
-                    role: true,
-                    primaryArea: true,
-                    gradYear: true,
-                    studentYearOverride: true,
-                    sportAssignments: { select: { sportCode: true } },
-                    areaAssignments: { select: { area: true, isPrimary: true } },
-                  },
-                },
+                user: { select: { id: true, name: true, email: true, role: true, staffingType: true, primaryArea: true } },
                 assigner: { select: { id: true, name: true } },
               },
               orderBy: { createdAt: "desc" },

@@ -247,27 +247,69 @@ describe("directAssignShift", () => {
     );
   });
 
-  it("keeps a staff-access user with student profile metadata in a student slot", async () => {
+  it("routes a staff user to a staff slot even when roster metadata exists", async () => {
     const studentSlot = makeShift({ workerType: "ST" });
+    const openStaffSlot = makeShift({ id: "metadata-staff-slot", shiftGroupId: studentSlot.shiftGroupId, area: studentSlot.area, workerType: "FT" });
     mockTx.shift.findUnique.mockResolvedValue(studentSlot);
     mockTx.user.findUnique.mockResolvedValue({
-      id: "student-profile-user",
+      id: "staff-with-roster",
       role: "STAFF",
       active: true,
       areaAssignments: [{ area: studentSlot.area, isPrimary: true }],
       sportAssignments: [],
     });
+    mockTx.shift.findFirst.mockResolvedValue(openStaffSlot);
     mockTx.shiftAssignment.findFirst.mockResolvedValue(null);
     mockTx.shiftAssignment.findMany.mockResolvedValue([]);
     mockTx.shiftAssignment.updateMany.mockResolvedValue({ count: 0 });
     mockTx.shiftAssignment.create.mockResolvedValue({
       id: "sa-1",
-      shiftId: studentSlot.id,
-      userId: "student-profile-user",
+      shiftId: openStaffSlot.id,
+      userId: "staff-with-roster",
       status: "DIRECT_ASSIGNED",
     });
 
-    await directAssignShift(studentSlot.id, "student-profile-user", "admin-1");
+    await directAssignShift(studentSlot.id, "staff-with-roster", "admin-1");
+
+    expect(mockTx.shift.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        workerType: "FT",
+      }),
+    }));
+    expect(mockTx.shift.create).not.toHaveBeenCalled();
+    expect(mockTx.shiftAssignment.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          shiftId: openStaffSlot.id,
+          userId: "staff-with-roster",
+        }),
+      })
+    );
+  });
+
+  it("keeps a staff-access user in a student slot when their scheduling class is student", async () => {
+    const studentSlot = makeShift({ workerType: "ST" });
+    mockTx.shift.findUnique.mockResolvedValue(studentSlot);
+    mockTx.user.findUnique.mockResolvedValue({
+      id: "staff-access-student-worker",
+      role: "STAFF",
+      staffingType: "ST",
+      active: true,
+      availabilityBlocks: [],
+    });
+    mockTx.shiftAssignment.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    mockTx.shiftAssignment.findMany.mockResolvedValue([]);
+    mockTx.shiftAssignment.updateMany.mockResolvedValue({ count: 0 });
+    mockTx.shiftAssignment.create.mockResolvedValue({
+      id: "sa-1",
+      shiftId: studentSlot.id,
+      userId: "staff-access-student-worker",
+      status: "DIRECT_ASSIGNED",
+    });
+
+    await directAssignShift(studentSlot.id, "staff-access-student-worker", "admin-1");
 
     expect(mockTx.shift.findFirst).not.toHaveBeenCalled();
     expect(mockTx.shift.create).not.toHaveBeenCalled();
@@ -275,7 +317,7 @@ describe("directAssignShift", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           shiftId: studentSlot.id,
-          userId: "student-profile-user",
+          userId: "staff-access-student-worker",
         }),
       })
     );

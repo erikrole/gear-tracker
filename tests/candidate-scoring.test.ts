@@ -33,6 +33,7 @@ function assignment(id: string, startsAt: string, endsAt: string, sportCode = "V
 function candidate(overrides: Partial<CandidateScoringUser> & { id: string }): CandidateScoringUser {
   return {
     role: "STUDENT",
+    staffingType: "ST",
     primaryArea: "VIDEO",
     areaAssignments: [{ area: "VIDEO", isPrimary: true }],
     sportAssignments: [{ sportCode: "VB" }],
@@ -91,14 +92,32 @@ describe("scoreCandidatesForShift", () => {
     expect(score?.warnings.map((warning) => warning.code)).toContain("availability_conflict");
   });
 
-  it("treats staff-access users with student profile metadata as student slot fits", () => {
+  it("does not treat staff-class users with roster metadata as student slot fits", () => {
     const [score] = scoreCandidatesForShift({
       shift,
       candidates: [
         candidate({
-          id: "student-profile",
+          id: "staff-with-roster",
           role: "STAFF",
+          staffingType: "FT",
           areaAssignments: [{ area: "VIDEO", isPrimary: true }],
+        }),
+      ],
+      now: new Date("2026-10-01T12:00:00.000Z"),
+    });
+
+    expect(score?.reasons.map((reason) => reason.code)).not.toContain("role_fit");
+    expect(score?.warnings.map((warning) => warning.code)).toContain("role_mismatch");
+  });
+
+  it("treats staff-access users with student scheduling class as student slot fits", () => {
+    const [score] = scoreCandidatesForShift({
+      shift,
+      candidates: [
+        candidate({
+          id: "staff-access-student-worker",
+          role: "STAFF",
+          staffingType: "ST",
         }),
       ],
       now: new Date("2026-10-01T12:00:00.000Z"),

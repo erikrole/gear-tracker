@@ -81,6 +81,7 @@ function activeStudent() {
   return {
     id: "student-1",
     role: "STUDENT",
+    staffingType: "ST",
     active: true,
     primaryArea: "VIDEO",
     areaAssignments: [{ area: "VIDEO", isPrimary: true }],
@@ -144,6 +145,28 @@ describe("schedule open work", () => {
     expect(result.openShifts[0]).toEqual(expect.objectContaining({
       action: "none",
       canAct: false,
+    }));
+  });
+
+  it("allows staff-access users with Student scheduling class to claim Student open work", async () => {
+    mockDb._mockTx.shift.findUnique.mockResolvedValue(baseShift());
+    mockDb._mockTx.user.findUnique.mockResolvedValue({
+      ...activeStudent(),
+      id: "staff-access-student-worker",
+      role: "STAFF",
+      staffingType: "ST",
+    });
+    mockDb._mockTx.shiftAssignment.findFirst.mockResolvedValue(null);
+    mockDb._mockTx.shiftAssignment.create.mockResolvedValue({ id: "assignment-1", status: "DIRECT_ASSIGNED" });
+
+    await pickupOpenShift("shift-1", "staff-access-student-worker");
+
+    expect(mockDb._mockTx.shiftAssignment.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        shiftId: "shift-1",
+        userId: "staff-access-student-worker",
+        status: "DIRECT_ASSIGNED",
+      }),
     }));
   });
 

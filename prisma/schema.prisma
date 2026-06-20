@@ -127,6 +127,7 @@ model User {
   passwordHash         String                     @map("password_hash")
   forcePasswordChange  Boolean                    @default(false) @map("force_password_change")
   role                 Role
+  staffingType         ShiftWorkerType            @default(ST) @map("staffing_type")
   active               Boolean                    @default(true)
   phone                String?
   wiscardNumber        String?                    @unique @map("wiscard_number")

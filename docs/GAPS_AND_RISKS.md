@@ -2,13 +2,21 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-19
+- Last Updated: 2026-06-20
 - Status: Living registry — update when shipping features or resolving decisions
 - Purpose: Single file listing every open gap, pending decision, and known risk across all docs
 
 ---
 
 ## Pending Decisions
+
+### PENDING-SCHEDULE-01: Explicit Scheduling Worker Class
+
+**Status:** Closed 2026-06-20
+**Owner:** Product + Engineering
+**Context:** Resolved by adding `User.staffingType` as the explicit Staff/Student scheduling class while preserving `User.role` for app authorization. Existing users are backfilled from role, new onboarding sets an initial class from role, and staff/admin can edit the scheduling class on user detail.
+**Decision:** Schedule display labels, assignment routing, candidate scoring, copy-forward, auto-fill preview, exports, data-quality checks, Open Work pickup, and trade eligibility use `User.staffingType` for worker class decisions. RBAC, invitations, navigation, and audit actor roles remain on `User.role`.
+**Residual risk:** If an operator changes a user's app role later, scheduling class does not auto-sync by design; staff/admin must edit Scheduling class intentionally when access and staffing identity both need to change.
 
 _2026-06-06 update: iOS Scan result retry recovery shipped as HIG polish. No new gap or pending decision opened._
 
@@ -85,6 +93,8 @@ _2026-06-19 update: Venue mapping audit surface shipped without opening a new ga
 _2026-06-19 update: Schedule data-quality queue shipped without opening a new gap. The queue is read-only, uses existing CalendarEvent, ShiftGroup, Location, and archive fields, and routes cleanup through current Event detail and Settings ownership surfaces._
 
 _2026-06-19 update: Schedule event identity normalization shipped without opening a new gap. Shared helper code now normalizes opponent and venue strings at ingest/edit/display boundaries, preserving raw calendar venue evidence and the existing pickup-location separation._
+
+_2026-06-20 update: Explicit Schedule worker-class model shipped and closed PENDING-SCHEDULE-01. `User.staffingType` is now the Staff/Student scheduling source while `User.role` remains the permissions source._
 
 _2026-06-19 update: Category cleanup wizard and picker visibility shipped without opening a new gap. Items filters and shared category pickers now include every category as a full path, and the Fill gaps wizard suggests missing categories from existing categorized inventory before using gear-term fallback matching._
 

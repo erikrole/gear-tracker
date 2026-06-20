@@ -16,7 +16,6 @@ export const GET = withAuth(async (req, { user }) => {
   const locationId = searchParams.get("locationId");
   const activeParam = searchParams.get("active");
   const sort = searchParams.get("sort") || "name";
-  const scheduleProfile = searchParams.get("scheduleProfile") === "true";
   const yearParam = searchParams.get("year");      // FRESHMAN | SOPHOMORE | JUNIOR | SENIOR | GRAD
   const sportParam = optionalSportCodeSchema.parse(searchParams.get("sport") ?? undefined);    // sport code (e.g. WHKY)
   const areaParam = searchParams.get("area");      // ShiftArea enum value
@@ -125,12 +124,6 @@ export const GET = withAuth(async (req, { user }) => {
       skip: offset,
       include: {
         location: { select: { id: true, name: true } },
-        ...(scheduleProfile
-          ? {
-              sportAssignments: { select: { sportCode: true } },
-              areaAssignments: { select: { area: true, isPrimary: true } },
-            }
-          : {}),
       },
     }),
     db.user.count({ where }),
@@ -159,6 +152,7 @@ export const GET = withAuth(async (req, { user }) => {
       name: u.name,
       email: u.email,
       role: u.role,
+      staffingType: u.staffingType,
       phone: u.phone,
       slackHandle: u.slackHandle ?? null,
       slackProfileUrl: u.slackProfileUrl ?? null,
@@ -170,12 +164,6 @@ export const GET = withAuth(async (req, { user }) => {
       title: u.title ?? null,
       gradYear: u.gradYear ?? null,
       studentYearOverride: u.studentYearOverride ?? null,
-      ...(scheduleProfile
-        ? {
-            sportAssignments: "sportAssignments" in u ? u.sportAssignments : [],
-            areaAssignments: "areaAssignments" in u ? u.areaAssignments : [],
-          }
-        : {}),
       lastActiveAt: u.lastActiveAt?.toISOString() ?? null,
     })),
     total,

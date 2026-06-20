@@ -198,7 +198,7 @@ describe("getScheduleTemplateReview", () => {
                 id: "source-assignment-video",
                 userId: "student-active",
                 status: "DIRECT_ASSIGNED",
-                user: { id: "student-active", name: "Active Student", role: "STUDENT", active: true },
+                user: { id: "student-active", name: "Active Student", role: "STUDENT", staffingType: "ST", active: true },
               }],
             },
             {
@@ -210,7 +210,7 @@ describe("getScheduleTemplateReview", () => {
                 id: "source-assignment-photo",
                 userId: "student-inactive",
                 status: "DIRECT_ASSIGNED",
-                user: { id: "student-inactive", name: "Inactive Student", role: "STUDENT", active: false },
+                user: { id: "student-inactive", name: "Inactive Student", role: "STUDENT", staffingType: "ST", active: false },
               }],
             },
             {
@@ -222,7 +222,7 @@ describe("getScheduleTemplateReview", () => {
                 id: "source-assignment-graphics",
                 userId: "student-time-off",
                 status: "DIRECT_ASSIGNED",
-                user: { id: "student-time-off", name: "Time Off Student", role: "STUDENT", active: true },
+                user: { id: "student-time-off", name: "Time Off Student", role: "STUDENT", staffingType: "ST", active: true },
               }],
             },
           ],
@@ -256,6 +256,7 @@ describe("getScheduleTemplateReview", () => {
         shiftId: "target-video-st",
         sourceAssignmentId: "source-assignment-video",
         userId: "student-active",
+        userStaffingType: "ST",
       }),
     ]);
     expect(review.copyForward.skipped).toEqual(expect.arrayContaining([
@@ -286,7 +287,7 @@ describe("applyCopyForwardCrew", () => {
                 id: "source-assignment-video",
                 userId: "student-active",
                 status: "DIRECT_ASSIGNED",
-                user: { id: "student-active", name: "Active Student", role: "STUDENT", active: true },
+                user: { id: "student-active", name: "Active Student", role: "STUDENT", staffingType: "ST", active: true },
               }],
             },
             {
@@ -298,7 +299,7 @@ describe("applyCopyForwardCrew", () => {
                 id: "source-assignment-ft",
                 userId: "staff-busy",
                 status: "DIRECT_ASSIGNED",
-                user: { id: "staff-busy", name: "Busy Staff", role: "STAFF", active: true },
+                user: { id: "staff-busy", name: "Busy Staff", role: "STAFF", staffingType: "FT", active: true },
               }],
             },
           ],

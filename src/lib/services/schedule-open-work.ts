@@ -4,6 +4,7 @@ import { HttpError } from "@/lib/http";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 import { scoreCandidatesForShift, type CandidateScoringUser } from "@/lib/services/candidate-scoring";
 import { evaluateAvailabilityPreferences } from "@/lib/student-availability";
+import { shiftWorkerTypeForProfile } from "@/lib/shift-display";
 
 const ACTIVE_STATUSES = ACTIVE_ASSIGNMENT_STATUSES as ShiftAssignmentStatus[];
 
@@ -83,6 +84,7 @@ async function loadCurrentCandidate(userId: string, now: Date, futureEnd: Date):
     select: {
       id: true,
       role: true,
+      staffingType: true,
       active: true,
       primaryArea: true,
       areaAssignments: { select: { area: true, isPrimary: true } },
@@ -140,6 +142,7 @@ async function loadCurrentCandidate(userId: string, now: Date, futureEnd: Date):
   return {
     id: user.id,
     role: user.role,
+    staffingType: user.staffingType,
     primaryArea: user.primaryArea,
     areaAssignments: user.areaAssignments,
     sportAssignments: user.sportAssignments,
@@ -201,9 +204,9 @@ function serializeOpenShift(shift: OpenWorkShift, args: {
     })[0] ?? null
     : null;
   const ownRequest = shift.assignments.find((assignment) => assignment.userId === args.userId) ?? null;
-  const isStudent = args.role === "STUDENT";
-  const canAct = isStudent && shift.workerType === "ST" && !recommendation?.blockingConflict && !ownRequest;
-  const action = !canAct || !isStudent || shift.workerType !== "ST" || ownRequest || recommendation?.blockingConflict
+  const isStudentWorker = args.candidate?.staffingType === "ST";
+  const canAct = isStudentWorker && shift.workerType === "ST" && !recommendation?.blockingConflict && !ownRequest;
+  const action = !canAct || !isStudentWorker || shift.workerType !== "ST" || ownRequest || recommendation?.blockingConflict
     ? "none"
     : shift.shiftGroup.isPremier ? "request" : "claim";
 
@@ -331,6 +334,7 @@ export async function pickupOpenShift(shiftId: string, userId: string) {
         select: {
           id: true,
           role: true,
+          staffingType: true,
           active: true,
           availabilityBlocks: {
             select: {
@@ -353,7 +357,7 @@ export async function pickupOpenShift(shiftId: string, userId: string) {
 
     if (!shift) throw new HttpError(404, "Shift not found");
     if (!user || !user.active) throw new HttpError(400, "Cannot claim a shift for an inactive user");
-    if (user.role !== "STUDENT" || shift.workerType !== "ST") {
+    if (shiftWorkerTypeForProfile(user) !== "ST" || shift.workerType !== "ST") {
       throw new HttpError(400, "Open pickup is available for Student slots only");
     }
     if (!shift.shiftGroup.publishedAt) throw new HttpError(400, "Draft shifts are not open for pickup");
@@ -409,7 +413,7 @@ export async function pickupOpenShift(shiftId: string, userId: string) {
           : {}),
       },
       include: {
-        user: { select: { id: true, name: true, role: true, primaryArea: true, avatarUrl: true } },
+        user: { select: { id: true, name: true, role: true, staffingType: true, primaryArea: true, avatarUrl: true } },
         shift: {
           include: {
             shiftGroup: { include: { event: true } },

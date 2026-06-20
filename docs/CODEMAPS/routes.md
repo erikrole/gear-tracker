@@ -253,6 +253,7 @@
 - `/api/shift-assignments/[id]/approve` -> `src/app/api/shift-assignments/[id]/approve/route.ts`
 - `/api/shift-assignments/[id]/attendance` -> `src/app/api/shift-assignments/[id]/attendance/route.ts`
 - `/api/shift-assignments/[id]/decline` -> `src/app/api/shift-assignments/[id]/decline/route.ts`
+- `/api/shift-assignments/[id]/repair-role-slot` -> `src/app/api/shift-assignments/[id]/repair-role-slot/route.ts`
 - `/api/shift-assignments/[id]` -> `src/app/api/shift-assignments/[id]/route.ts`
 - `/api/shift-assignments/[id]/swap` -> `src/app/api/shift-assignments/[id]/swap/route.ts`
 - `/api/shift-assignments/pickup` -> `src/app/api/shift-assignments/pickup/route.ts`

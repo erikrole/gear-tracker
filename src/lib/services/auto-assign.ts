@@ -10,8 +10,8 @@
  * StudentAvailabilityBlock schedule, marking hasConflict + conflictNote
  * when the shift overlaps a class block.
  *
- * ST shifts → users with role STUDENT
- * FT shifts → users with role STAFF or ADMIN
+ * ST shifts → users with Student scheduling class
+ * FT shifts → users with Staff scheduling class
  *
  * Wraps the read-of-unassigned + createMany in a single SERIALIZABLE
  * transaction to prevent duplicate assignments under concurrent requests.

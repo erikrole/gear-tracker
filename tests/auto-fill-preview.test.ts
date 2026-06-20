@@ -23,6 +23,7 @@ const staffUser = {
   email: "staff@example.com",
   name: "Staff One",
   role: "STAFF" as const,
+  staffingType: "FT" as const,
   avatarUrl: null,
   forcePasswordChange: false,
 };
@@ -31,6 +32,7 @@ const studentUser = {
   ...staffUser,
   id: "student-1",
   role: "STUDENT" as const,
+  staffingType: "ST" as const,
 };
 
 function params<T extends Record<string, string>>(value: T) {
@@ -74,8 +76,8 @@ describe("buildAutoFillPreview", () => {
     },
   ];
   const users = [
-    { id: "student-a", name: "A Student", role: "STUDENT" },
-    { id: "student-b", name: "B Student", role: "STUDENT" },
+    { id: "student-a", name: "A Student", role: "STUDENT", staffingType: "ST" },
+    { id: "student-b", name: "B Student", role: "STUDENT", staffingType: "ST" },
   ];
 
   it("proposes deterministic assignments and avoids using the same candidate twice", () => {
@@ -96,6 +98,7 @@ describe("buildAutoFillPreview", () => {
       ["shift-1", "student-a"],
       ["shift-2", "student-b"],
     ]);
+    expect(preview.proposals.map((proposal) => proposal.userStaffingType)).toEqual(["ST", "ST"]);
     expect(preview.summary).toEqual({ openSlots: 2, proposed: 2, skipped: 0, warnings: 0 });
   });
 

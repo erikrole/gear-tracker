@@ -54,7 +54,7 @@ export type ShiftGroupSummary = {
       conflictNote?: string | null;
       acknowledgedAt?: string | null;
       acknowledgedById?: string | null;
-      user: { id: string; name: string; avatarUrl: string | null };
+      user: { id: string; name: string; role: string; staffingType?: string | null; avatarUrl: string | null };
     }>;
   }>;
 };

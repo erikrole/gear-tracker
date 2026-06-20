@@ -7,6 +7,7 @@ import {
   shiftWorkerSlotLabel,
   shiftWorkerTypeForProfile,
   shiftWorkerTypeForRole,
+  shiftWorkerTypeForStaffingType,
 } from "@/lib/shift-display";
 
 describe("shift display helpers", () => {
@@ -32,11 +33,15 @@ describe("shift display helpers", () => {
     expect(shiftWorkerLabelForRole("")).toBeNull();
   });
 
-  it("uses student profile signals for scheduling worker labels", () => {
-    expect(shiftWorkerTypeForProfile({ role: "STAFF", areaAssignments: [{ area: "VIDEO", isPrimary: true }] })).toBe("ST");
-    expect(shiftWorkerLabelForProfile({ role: "STAFF", sportAssignments: [{ sportCode: "WSOC" }] })).toBe("Student");
-    expect(shiftWorkerLabelForProfile({ role: "STAFF", gradYear: 2027 })).toBe("Student");
+  it("uses staffing type before role for scheduling worker labels", () => {
+    expect(shiftWorkerTypeForStaffingType("ST")).toBe("ST");
+    expect(shiftWorkerTypeForStaffingType("FT")).toBe("FT");
+    expect(shiftWorkerTypeForStaffingType("")).toBeNull();
+    expect(shiftWorkerTypeForProfile({ role: "STAFF", staffingType: "ST" })).toBe("ST");
+    expect(shiftWorkerLabelForProfile({ role: "STAFF", staffingType: "ST" })).toBe("Student");
+    expect(shiftWorkerTypeForProfile({ role: "STAFF" })).toBe("FT");
     expect(shiftWorkerLabelForProfile({ role: "STAFF" })).toBe("Staff");
+    expect(shiftWorkerLabelForProfile({ role: "STUDENT" })).toBe("Student");
     expect(shiftWorkerLabelForProfile({ role: null })).toBeNull();
   });
 

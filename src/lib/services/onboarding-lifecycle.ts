@@ -2,6 +2,7 @@ import { Prisma, Role } from "@prisma/client";
 import { createAuditEntries, createAuditEntry } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
+import { shiftWorkerTypeForRole } from "@/lib/shift-display";
 
 export type OnboardingActor = {
   id: string;
@@ -137,6 +138,7 @@ export async function createDirectUserAccount(input: {
         passwordHash: input.passwordHash,
         forcePasswordChange: true,
         role: input.role,
+        staffingType: shiftWorkerTypeForRole(input.role),
         locationId: input.locationId ?? null,
       },
       include: {
@@ -164,6 +166,7 @@ export async function createDirectUserAccount(input: {
       name: result.created.name,
       email: result.created.email,
       role: result.created.role,
+      staffingType: result.created.staffingType,
       locationId: result.created.locationId,
       forcePasswordChange: true,
     },
@@ -228,6 +231,7 @@ export async function createDirectUserAccountsBulk(input: {
           passwordHash: entry.passwordHash,
           forcePasswordChange: true,
           role: entry.role,
+          staffingType: shiftWorkerTypeForRole(entry.role),
           locationId: entry.locationId,
         },
         include: {
@@ -259,6 +263,7 @@ export async function createDirectUserAccountsBulk(input: {
         name: created.name,
         email: created.email,
         role: created.role,
+        staffingType: created.staffingType,
         locationId: created.locationId,
         forcePasswordChange: true,
         source: "bulk_direct_user_create",

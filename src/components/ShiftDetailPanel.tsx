@@ -29,7 +29,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { formatRoleSlotAssignmentOutcome, shiftWorkerLabel, shiftWorkerLabelForRole, shiftWorkerSlotLabel, type RoleSlotOutcomeLike } from "@/lib/shift-display";
+import { formatRoleSlotAssignmentOutcome, shiftWorkerLabel, shiftWorkerSlotLabel, type RoleSlotOutcomeLike } from "@/lib/shift-display";
 import type { AutoFillPreviewResponse } from "@/lib/auto-fill-preview-types";
 
 /* ───── Types ───── */
@@ -39,12 +39,9 @@ type ShiftUser = {
   name: string;
   email?: string;
   role?: string;
+  staffingType?: string | null;
   primaryArea: string | null;
   avatarUrl?: string | null;
-  gradYear?: number | null;
-  studentYearOverride?: string | null;
-  sportAssignments?: Array<{ sportCode: string }>;
-  areaAssignments?: Array<{ area: string; isPrimary: boolean }>;
 };
 
 type ShiftAssignment = {
@@ -214,13 +211,13 @@ export default function ShiftDetailPanel({
     usersAbortRef.current = controller;
     setUsersLoading(true);
     try {
-      const res = await fetch("/api/users?limit=200&active=true&scheduleProfile=true", { signal: controller.signal });
+      const res = await fetch("/api/users?limit=200&active=true", { signal: controller.signal });
       if (controller.signal.aborted) return;
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
         const json = await parseJsonSafely<UserListResponse>(res);
         setAllUsers((json?.data ?? json?.users ?? []).map((u) => ({
-          id: u.id, name: u.name, role: u.role,
+          id: u.id, name: u.name, role: u.role, staffingType: u.staffingType,
           primaryArea: u.primaryArea ?? null, avatarUrl: u.avatarUrl ?? null,
         })));
         setUsersLoaded(true);
@@ -771,7 +768,7 @@ export default function ShiftDetailPanel({
                     <div className="min-w-0">
                       <div className="font-medium">{proposal.userName}</div>
                       <div className="text-xs text-muted-foreground">
-                        {proposal.area.charAt(0) + proposal.area.slice(1).toLowerCase()} · Planned {shiftWorkerSlotLabel(proposal.workerType)} · Assigned {shiftWorkerLabelForRole(proposal.userRole) ?? "worker"}
+                        {proposal.area.charAt(0) + proposal.area.slice(1).toLowerCase()} · Planned {shiftWorkerSlotLabel(proposal.workerType)} · Assigned {proposal.userStaffingType ? shiftWorkerLabel(proposal.userStaffingType) : "worker"}
                       </div>
                     </div>
                     <Badge variant={proposal.warnings.length > 0 ? "orange" : "green"} className="shrink-0 tabular-nums">

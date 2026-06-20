@@ -1,10 +1,12 @@
 export type Role = "ADMIN" | "STAFF" | "STUDENT";
+export type StaffingType = "FT" | "ST";
 
 export type UserRow = {
   id: string;
   name: string;
   email: string;
   role: Role;
+  staffingType: StaffingType;
   phone: string | null;
   wiscardNumber?: string | null;
   slackHandle: string | null;
@@ -116,6 +118,11 @@ export const ROLE_OPTIONS: { value: string; label: string }[] = [
   { value: "ADMIN", label: "Admin" },
   { value: "STAFF", label: "Staff" },
   { value: "STUDENT", label: "Student" },
+];
+
+export const STAFFING_TYPE_OPTIONS: { value: StaffingType; label: string }[] = [
+  { value: "FT", label: "Staff" },
+  { value: "ST", label: "Student" },
 ];
 
 export const AREA_LABELS: Record<string, string> = {

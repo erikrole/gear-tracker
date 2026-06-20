@@ -4,10 +4,7 @@ export type ShiftWorkerKind = ShiftWorkerType;
 export type ShiftUserRoleKind = Role | string | null | undefined;
 export type ShiftWorkerProfile = {
   role?: ShiftUserRoleKind;
-  gradYear?: number | null;
-  studentYearOverride?: string | null;
-  sportAssignments?: unknown[] | null;
-  areaAssignments?: unknown[] | null;
+  staffingType?: ShiftWorkerType | string | null | undefined;
 } | null | undefined;
 export type RoleSlotOutcomeLike = {
   originalWorkerType?: ShiftWorkerType | string | null;
@@ -33,25 +30,19 @@ function normalizeRole(role: ShiftUserRoleKind): Role | null {
     : null;
 }
 
-function hasStudentProfileSignal(profile: ShiftWorkerProfile): boolean {
-  return Boolean(
-    profile
-      && (
-        profile.gradYear != null
-        || profile.studentYearOverride != null
-        || (profile.sportAssignments?.length ?? 0) > 0
-        || (profile.areaAssignments?.length ?? 0) > 0
-      ),
-  );
-}
-
 export function shiftWorkerTypeForRole(role: Role | string | null | undefined): ShiftWorkerType {
   return normalizeRole(role) === "STUDENT" ? "ST" : "FT";
 }
 
+export function shiftWorkerTypeForStaffingType(staffingType: ShiftWorkerType | string | null | undefined): ShiftWorkerType | null {
+  return staffingType === "FT" || staffingType === "ST" ? staffingType : null;
+}
+
 export function shiftWorkerTypeForProfile(profile: ShiftWorkerProfile): ShiftWorkerType | null {
+  const staffingType = shiftWorkerTypeForStaffingType(profile?.staffingType);
+  if (staffingType) return staffingType;
   const role = normalizeRole(profile?.role);
-  if (role === "STUDENT" || hasStudentProfileSignal(profile)) return "ST";
+  if (role === "STUDENT") return "ST";
   if (role === "STAFF" || role === "ADMIN") return "FT";
   return null;
 }

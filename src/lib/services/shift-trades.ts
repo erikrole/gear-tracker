@@ -8,6 +8,7 @@ import { sendPushToUser } from "@/lib/services/notifications";
 import { scheduleNotificationPayload } from "@/lib/services/schedule-notification-policy";
 import { badges } from "@/lib/badges";
 import { evaluateAvailabilityPreferences } from "@/lib/student-availability";
+import { shiftWorkerTypeForProfile } from "@/lib/shift-display";
 
 function assertShiftNotStarted(startsAt: Date) {
   if (startsAt <= new Date()) {
@@ -142,8 +143,11 @@ export async function claimTrade(tradeId: string, userId: string) {
     // Validate claimant's primary area matches the shift area
     const claimant = await tx.user.findUnique({
       where: { id: userId },
-      select: { primaryArea: true, role: true },
+      select: { primaryArea: true, role: true, staffingType: true },
     });
+    if (!claimant || shiftWorkerTypeForProfile(claimant) !== shift.workerType) {
+      throw new HttpError(400, "Your scheduling class does not match this shift slot");
+    }
     if (claimant?.primaryArea && claimant.primaryArea !== shift.area) {
       throw new HttpError(400, `Your primary area (${claimant.primaryArea}) does not match this shift's area (${shift.area})`);
     }

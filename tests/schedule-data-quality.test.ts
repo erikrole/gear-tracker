@@ -53,7 +53,7 @@ describe("schedule data quality", () => {
     }), new Date("2026-07-01T00:00:00Z")).map((issue) => issue.reason)).toEqual(["future_archived"]);
   });
 
-  it("flags active assignments whose user role disagrees with the planned slot", () => {
+  it("flags active assignments whose user scheduling class disagrees with the planned slot", () => {
     expect(getScheduleDataQuality(event({
       shiftGroup: {
         shifts: [
@@ -64,7 +64,7 @@ describe("schedule data quality", () => {
               {
                 id: "assignment-1",
                 status: "DIRECT_ASSIGNED",
-                user: { role: "STAFF" },
+                user: { role: "STUDENT", staffingType: "FT" },
               },
             ],
           },

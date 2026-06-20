@@ -27,12 +27,9 @@ export type PickerUser = {
   id: string;
   name: string;
   role: string;
+  staffingType?: string | null;
   primaryArea: string | null;
   avatarUrl?: string | null;
-  gradYear?: number | null;
-  studentYearOverride?: string | null;
-  sportAssignments?: Array<{ sportCode: string }>;
-  areaAssignments?: Array<{ area: string; isPrimary: boolean }>;
 };
 
 type Props = {

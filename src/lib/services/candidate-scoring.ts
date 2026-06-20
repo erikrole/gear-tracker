@@ -40,6 +40,7 @@ type CandidateScoringAssignment = {
 export type CandidateScoringUser = {
   id: string;
   role: Role;
+  staffingType: ShiftWorkerType;
   primaryArea?: ShiftArea | null;
   areaAssignments: Array<{ area: ShiftArea; isPrimary: boolean }>;
   sportAssignments: Array<{ sportCode: string }>;
@@ -315,6 +316,7 @@ export async function getCandidateScoresForShift(shiftId: string, opts: { now?: 
     select: {
       id: true,
       role: true,
+      staffingType: true,
       primaryArea: true,
       areaAssignments: { select: { area: true, isPrimary: true } },
       sportAssignments: { select: { sportCode: true } },
@@ -385,6 +387,7 @@ export async function getCandidateScoresForShift(shiftId: string, opts: { now?: 
   const candidates: CandidateScoringUser[] = users.map((user) => ({
     id: user.id,
     role: user.role,
+    staffingType: user.staffingType,
     primaryArea: user.primaryArea,
     areaAssignments: user.areaAssignments,
     sportAssignments: user.sportAssignments,

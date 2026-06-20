@@ -14,7 +14,7 @@ export type ScheduleDataQualityEvent = {
       assignments?: Array<{
         id?: string;
         status?: string | null;
-        user?: { role?: string | null } | null;
+        user?: { role?: string | null; staffingType?: string | null } | null;
       }>;
     }>;
   } | null;
@@ -54,8 +54,9 @@ function isFutureArchived(event: ScheduleDataQualityEvent, now: Date) {
   return !Number.isNaN(endsAt.getTime()) && endsAt.getTime() >= now.getTime();
 }
 
-function plannedWorkerTypeForRole(role: string | null | undefined) {
-  return role === "STUDENT" ? "ST" : "FT";
+function plannedWorkerTypeForUser(user: { role?: string | null; staffingType?: string | null } | null | undefined) {
+  if (user?.staffingType === "FT" || user?.staffingType === "ST") return user.staffingType;
+  return user?.role === "STUDENT" ? "ST" : "FT";
 }
 
 function isActiveAssignmentStatus(status: string | null | undefined) {
@@ -96,7 +97,7 @@ export function getScheduleDataQuality(event: ScheduleDataQualityEvent, now = ne
   for (const shift of event.shiftGroup?.shifts ?? []) {
     for (const assignment of shift.assignments ?? []) {
       if (!isActiveAssignmentStatus(assignment.status)) continue;
-      const assignedWorkerType = plannedWorkerTypeForRole(assignment.user?.role);
+      const assignedWorkerType = plannedWorkerTypeForUser(assignment.user);
       if (shift.workerType && assignedWorkerType !== shift.workerType) {
         issues.push({
           eventId: event.id,

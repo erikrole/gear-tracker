@@ -47,6 +47,7 @@ export type CopyForwardProposal = {
   userId: string;
   userName: string;
   userRole: string;
+  userStaffingType?: string | null;
   score: number | null;
   bucket: CandidateScoreBucket | null;
   reasons: CandidateScoreSignal[];

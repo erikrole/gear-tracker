@@ -347,8 +347,8 @@ function ShiftRowList({
         const areaLabel = AREA_LABELS[shift.area] ?? shift.area;
         const workerType = workerKindForShift(shift);
         const slotLabel = roleSlotLabel(workerType);
-        const assignedRoleLabel = user ? shiftWorkerLabelForProfile(user) : null;
-        const rowRoleLabel = user ? assignedRoleLabel ?? "Assigned" : slotLabel;
+        const assignedClassLabel = user ? shiftWorkerLabelForProfile(user) : null;
+        const rowClassLabel = user ? assignedClassLabel ?? "Assigned" : slotLabel;
         const emptyAssignLabel = compact ? "Assign" : "Assign";
         const emptyAssignAriaLabel = `Assign open ${slotLabel.toLowerCase()} to ${areaLabel}`;
         const isAddingShift = addingShiftId === shift.id;
@@ -462,7 +462,7 @@ function ShiftRowList({
                   )}
                   {compact && (
                     <span className="ml-auto shrink-0 text-xs font-medium text-muted-foreground">
-                      {assignedRoleLabel}
+                      {assignedClassLabel}
                     </span>
                   )}
                 </div>
@@ -525,7 +525,7 @@ function ShiftRowList({
             {!compact && (
               <div className="flex min-h-10 items-center justify-end">
                 <span className="text-xs font-medium text-muted-foreground">
-                  {rowRoleLabel}
+                  {rowClassLabel}
                 </span>
               </div>
             )}
@@ -645,7 +645,7 @@ export function ListView({
     abortRef.current = controller;
     setUsersLoading(true);
     try {
-      const res = await fetch("/api/users?limit=200&active=true&scheduleProfile=true", { signal: controller.signal });
+      const res = await fetch("/api/users?limit=200&active=true", { signal: controller.signal });
       if (controller.signal.aborted) return;
       if (handleAuthRedirect(res)) return;
       if (res.ok) {

@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { createSession, hashPassword } from "@/lib/auth";
 import { HttpError, ok } from "@/lib/http";
 import { normalizeWiscardNumber, registerSchema } from "@/lib/validation";
+import { shiftWorkerTypeForRole } from "@/lib/shift-display";
 import { withHandler } from "@/lib/api";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { createAuditEntry } from "@/lib/audit";
@@ -58,6 +59,7 @@ export const POST = withHandler(async (req) => {
           wiscardNumber,
           passwordHash,
           role: allowedEntry.role, // Use role from allowlist (not hardcoded STUDENT)
+          staffingType: shiftWorkerTypeForRole(allowedEntry.role),
         },
       });
 
@@ -88,7 +90,7 @@ export const POST = withHandler(async (req) => {
     entityType: "user",
     entityId: user.id,
     action: "registered",
-    after: { name: user.name, email: user.email, role: user.role, wiscardLinked: true },
+    after: { name: user.name, email: user.email, role: user.role, staffingType: user.staffingType, wiscardLinked: true },
   });
 
   return ok(

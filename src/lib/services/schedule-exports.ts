@@ -157,17 +157,7 @@ async function loadScheduleExportGroups(input: ScheduleExportInput) {
               hasConflict: true,
               conflictNote: true,
               acknowledgedAt: true,
-              user: {
-                select: {
-                  name: true,
-                  role: true,
-                  primaryArea: true,
-                  gradYear: true,
-                  studentYearOverride: true,
-                  sportAssignments: { select: { sportCode: true } },
-                  areaAssignments: { select: { area: true, isPrimary: true } },
-                },
-              },
+              user: { select: { name: true, role: true, staffingType: true, primaryArea: true } },
             },
           },
         },
@@ -180,7 +170,7 @@ function activeAssignment(shift: ExportShift) {
   return shift.assignments.find((assignment) => ACTIVE_STATUS_SET.has(assignment.status)) ?? null;
 }
 
-function assignedRoleLabel(assignment: ExportAssignment | null | undefined) {
+function assignedClassLabel(assignment: ExportAssignment | null | undefined) {
   return assignment ? shiftWorkerLabelForProfile(assignment.user) ?? "" : "";
 }
 
@@ -197,7 +187,7 @@ function rosterRows(groups: ExportGroup[]) {
         group.event.location?.name ?? "",
         group.event.sportCode ?? "",
         shift.area,
-        assignedRoleLabel(assignment),
+        assignedClassLabel(assignment),
         shiftWorkerSlotLabel(shift.workerType),
         assignment?.user.name ?? "",
         assignment?.status ?? "OPEN",
@@ -469,32 +459,32 @@ export async function buildScheduleExport(input: ScheduleExportInput): Promise<S
 
   if (input.type === "roster") {
     return buildResult(input.type, input, [
-      "Event ID", "Event", "Starts", "Ends", "Location", "Sport", "Area", "Assigned Role", "Planned Slot", "Assignee", "Status", "Call Starts", "Call Ends", "Publication", "Published At", "Acknowledged", "Acknowledged At", "Conflict", "Conflict Note",
+      "Event ID", "Event", "Starts", "Ends", "Location", "Sport", "Area", "Assigned Class", "Planned Slot", "Assignee", "Status", "Call Starts", "Call Ends", "Publication", "Published At", "Acknowledged", "Acknowledged At", "Conflict", "Conflict Note",
     ], rosterRows(groups));
   }
   if (input.type === "hours") {
     return buildResult(input.type, input, [
-      "Worker", "Role", "Shifts", "Events", "Hours", "Conflicts",
+      "Worker", "Class", "Shifts", "Events", "Hours", "Conflicts",
     ], hoursRows(groups));
   }
   if (input.type === "open-slots") {
     return buildResult(input.type, input, [
-      "Event ID", "Event", "Starts", "Location", "Sport", "Shift ID", "Area", "Role", "Call Starts", "Call Ends", "Pending Requests",
+      "Event ID", "Event", "Starts", "Location", "Sport", "Shift ID", "Area", "Planned Slot", "Call Starts", "Call Ends", "Pending Requests",
     ], openSlotRows(groups));
   }
   if (input.type === "conflicts") {
     return buildResult(input.type, input, [
-      "Event ID", "Event", "Starts", "Area", "Planned Slot", "Assigned Role", "Worker", "Status", "Call Starts", "Call Ends", "Conflict Note",
+      "Event ID", "Event", "Starts", "Area", "Planned Slot", "Assigned Class", "Worker", "Status", "Call Starts", "Call Ends", "Conflict Note",
     ], conflictRows(groups));
   }
   if (input.type === "trades") {
     return buildResult(input.type, input, [
-      "Kind", "Event ID", "Event", "Starts", "Area", "Planned Slot", "Assigned Role", "Worker", "Status", "Requires Approval", "Posted By", "Claimed By", "Posted At", "Claimed At", "Resolved At",
+      "Kind", "Event ID", "Event", "Starts", "Area", "Planned Slot", "Assigned Class", "Worker", "Status", "Requires Approval", "Posted By", "Claimed By", "Posted At", "Claimed At", "Resolved At",
     ], await tradeRows(groups));
   }
 
   return buildResult(input.type, input, [
-    "Event ID", "Event", "Starts", "Area", "Planned Slot", "Assigned Role", "Worker", "Gear Status", "Link Type", "Booking ID", "Booking",
+    "Event ID", "Event", "Starts", "Area", "Planned Slot", "Assigned Class", "Worker", "Gear Status", "Link Type", "Booking ID", "Booking",
   ], await gearRows(groups));
 }
 

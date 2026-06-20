@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { sportLabel } from "@/lib/sports";
 import { SPORT_CODES } from "@/lib/sports";
 import type { UserDetail, Location, Role, StudentYear } from "../types";
-import { AREA_LABELS, AREA_OPTIONS, ROLE_OPTIONS, STUDENT_YEAR_OPTIONS, deriveStudentYear } from "../types";
+import { AREA_LABELS, AREA_OPTIONS, ROLE_OPTIONS, STAFFING_TYPE_OPTIONS, STUDENT_YEAR_OPTIONS, deriveStudentYear } from "../types";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -562,6 +562,7 @@ export default function UserInfoTab({
   const canEditProfile = isAdmin || (isStaff && targetIsStudent);
   const canEditSelf = isSelf; // own name, phone, location
   const canEditRole = isAdmin || (isStaff && !isSelf && targetIsStudent);
+  const canEditStaffingClass = canEditProfile;
   // Assignments: admin/staff can edit for self + students
   const canEditAssignments = isAdmin || (isStaff && (isSelf || targetIsStudent));
 
@@ -830,6 +831,13 @@ export default function UserInfoTab({
             options={ROLE_OPTIONS}
             canEdit={canEditRole}
             onSave={changeRole}
+          />
+          <SelectInputField
+            label="Scheduling class"
+            value={user.staffingType}
+            options={STAFFING_TYPE_OPTIONS}
+            canEdit={canEditStaffingClass}
+            onSave={(v) => patchUser({ staffingType: v })}
           />
           {locationsError && (
             <Alert variant="destructive" className="mx-3 my-2 w-auto">

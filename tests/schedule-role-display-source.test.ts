@@ -6,23 +6,27 @@ function source(path: string) {
 }
 
 describe("schedule staff/student display source contracts", () => {
-  it("uses assigned user role labels for filled schedule rows", () => {
+  it("uses assigned user scheduling-class labels for filled schedule rows", () => {
     const listView = source("src/app/(app)/schedule/_components/ListView.tsx");
+    const eventCrew = source("src/app/(app)/events/[id]/_components/ShiftCoverageCard.tsx");
     const slotCard = source("src/components/shift-detail/ShiftSlotCard.tsx");
     const picker = source("src/components/shift-detail/UserAvatarPicker.tsx");
 
-    expect(listView).toContain("const assignedRoleLabel = user ? shiftWorkerLabelForProfile(user) : null");
-    expect(listView).toContain('const rowRoleLabel = user ? assignedRoleLabel ?? "Assigned" : slotLabel');
+    expect(listView).toContain("const assignedClassLabel = user ? shiftWorkerLabelForProfile(user) : null");
+    expect(listView).toContain('const rowClassLabel = user ? assignedClassLabel ?? "Assigned" : slotLabel');
     expect(slotCard).toContain("activeAssignment");
     expect(slotCard).toContain("shiftWorkerLabelForProfile(activeAssignment.user)");
     expect(slotCard).toContain("shiftWorkerSlotLabel(workerType)");
+    expect(eventCrew).toContain("shiftWorkerLabelForProfile(activeAssignment.user)");
+    expect(eventCrew).toContain("const rowClassLabel = activeAssignment");
+    expect(eventCrew).toContain("<TableHead>Person</TableHead>");
     expect(picker).toContain("shiftWorkerTypeForProfile(u)");
     expect(picker).toContain("shiftWorkerLabelForProfile(u)");
     expect(picker).toContain("Will use ${shiftWorkerSlotLabel(candidateWorkerType).toLowerCase()}");
     expect(picker).toContain("leave ${shiftWorkerSlotLabel(slotWorkerType).toLowerCase()} open");
   });
 
-  it("keeps open-coverage needs copy neutral instead of role-specific", () => {
+  it("keeps open-coverage needs copy neutral instead of class-specific", () => {
     const listView = source("src/app/(app)/schedule/_components/ListView.tsx");
     const readiness = source("src/app/(app)/schedule/_components/ScheduleReadiness.tsx");
     const assignmentCell = source("src/app/(app)/schedule/assign/_components/AssignmentCell.tsx");
@@ -35,7 +39,9 @@ describe("schedule staff/student display source contracts", () => {
     expect(readiness).not.toContain('label: "Staff needed"');
     expect(filters).toContain("Needs crew");
     expect(filters).not.toContain("Needs staff");
-    expect(assignmentCell).toContain('"Assign open slot"');
+    expect(assignmentCell).toContain("const openSlotSummary = (() => {");
+    expect(assignmentCell).toContain("shiftWorkerSlotLabel(openShifts[0]!.workerType)");
+    expect(assignmentCell).toContain('aria-label={openSlotSummary ? `Assign ${openSlotSummary}` : "Assign open slot"}');
     expect(assignmentCell).not.toContain("`Assign ${shiftWorkerLabel(firstOpenShift.workerType)}`");
   });
 

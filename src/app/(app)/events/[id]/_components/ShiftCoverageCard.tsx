@@ -32,7 +32,7 @@ import { UserAvatarPicker, type PickerUser } from "@/components/shift-detail/Use
 import { CallWindowEditor } from "@/components/shift-detail/CallWindowEditor";
 import type { ShiftGroupSummary, CommandCenterData } from "../_utils";
 import { AREA_LABELS } from "../_utils";
-import { shiftWorkerLabel, shiftWorkerSlotLabel } from "@/lib/shift-display";
+import { shiftWorkerLabel, shiftWorkerLabelForProfile, shiftWorkerSlotLabel } from "@/lib/shift-display";
 import { effectiveCallWindow, isInheritedFullDayCallWindow, type EffectiveCallWindow } from "@/lib/shift-call-windows";
 import type { AutoFillPreviewResponse } from "@/lib/auto-fill-preview-types";
 
@@ -107,7 +107,7 @@ export function ShiftCoverageCard({
     usersAbortRef.current = ctrl;
     setUsersLoading(true);
     try {
-      const res = await fetch("/api/users?limit=200&active=true&scheduleProfile=true", { signal: ctrl.signal });
+      const res = await fetch("/api/users?limit=200&active=true", { signal: ctrl.signal });
       if (ctrl.signal.aborted) return;
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
@@ -542,7 +542,7 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
       <TableHeader>
         <TableRow>
           <TableHead className="w-56">Call</TableHead>
-          <TableHead>Assigned</TableHead>
+          <TableHead>Person</TableHead>
           <TableHead className="w-28">Status</TableHead>
           {commandCenter && <TableHead className="w-24">Gear</TableHead>}
           <TableHead className="w-6" />
@@ -594,6 +594,9 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
               const rowCallOverride = activeAssignment
                 ? { startsAt: activeAssignment.callStartsAt ?? null, endsAt: activeAssignment.callEndsAt ?? null }
                 : { startsAt: shift.callStartsAt ?? null, endsAt: shift.callEndsAt ?? null };
+              const rowClassLabel = activeAssignment
+                ? shiftWorkerLabelForProfile(activeAssignment.user) ?? "Assigned"
+                : shiftWorkerSlotLabel(shift.workerType);
               return (
                 <TableRow key={shift.id}>
                   <TableCell>
@@ -610,7 +613,7 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
                             showSourceBadge={false}
                           />
                         )}
-                        <Badge variant="gray" size="sm">{shiftWorkerSlotLabel(shift.workerType)}</Badge>
+                        <Badge variant="gray" size="sm">{rowClassLabel}</Badge>
                       </div>
                       {activeAssignment?.hasConflict && (
                         <Badge variant="orange" size="sm" className="max-w-56 gap-1">
@@ -676,6 +679,9 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
           ) ?? null;
           const pendingCount = shift.assignments.filter((a) => a.status === "REQUESTED").length;
           const callWindow = effectiveCallWindow(shift, activeAssignment);
+          const rowClassLabel = activeAssignment
+            ? shiftWorkerLabelForProfile(activeAssignment.user) ?? "Assigned"
+            : shiftWorkerSlotLabel(shift.workerType);
           const canAcknowledge = Boolean(
             currentUserId
             && activeAssignment
@@ -688,7 +694,7 @@ function shouldShowCallWindow(window: EffectiveCallWindow): boolean {
               <TableCell>
                 <span className="flex items-center gap-1.5">
                   {AREA_LABELS[shift.area] ?? shift.area}
-                  <Badge variant="gray" size="sm">{shiftWorkerSlotLabel(shift.workerType)}</Badge>
+                  <Badge variant="gray" size="sm">{rowClassLabel}</Badge>
                 </span>
               </TableCell>
               <TableCell>

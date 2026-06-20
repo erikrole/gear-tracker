@@ -21,7 +21,7 @@ import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/er
 import type { GridShift, GridAssignment } from "@/hooks/use-assignment-grid";
 import { cn } from "@/lib/utils";
 import { AlertTriangleIcon, PlusIcon, UserIcon, XIcon } from "lucide-react";
-import { formatRoleSlotAssignmentOutcome, shiftWorkerLabel, type RoleSlotOutcomeLike } from "@/lib/shift-display";
+import { formatRoleSlotAssignmentOutcome, shiftWorkerLabel, shiftWorkerSlotLabel, type RoleSlotOutcomeLike } from "@/lib/shift-display";
 import { effectiveCallWindow, formatCallTime } from "@/lib/shift-call-windows";
 
 type Props = {
@@ -199,6 +199,16 @@ export function AssignmentCell({
   const openShifts = shifts.filter((shift) => shift.assignments.length === 0);
   const firstOpenShift = openShifts[0];
   const openCount = openShifts.length;
+  const openSlotSummary = (() => {
+    if (openShifts.length === 0) return null;
+    if (openShifts.length === 1) return shiftWorkerSlotLabel(openShifts[0]!.workerType);
+    const staff = openShifts.filter((shift) => shift.workerType === "FT").length;
+    const students = openShifts.length - staff;
+    return [
+      staff > 0 ? `${staff} Staff` : null,
+      students > 0 ? `${students} Student` : null,
+    ].filter(Boolean).join(", ");
+  })();
   const addSlotButton = canEditSlots ? (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -350,11 +360,13 @@ export function AssignmentCell({
                     "hover:bg-muted/45 hover:text-foreground active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2",
                   )}
                   disabled={!isStaff || Boolean(acting)}
-                  aria-label={openCount > 1 ? `Assign one of ${openCount} open slots` : "Assign open slot"}
+                  aria-label={openSlotSummary ? `Assign ${openSlotSummary}` : "Assign open slot"}
                 >
                   <UserIcon className={cn("size-3.5 opacity-70", acting?.endsWith(firstOpenShift.id) && "animate-pulse")} />
                   <span className="min-w-0 truncate font-medium">
-                    {assignedShifts.length > 0 ? `${openCount} open` : "Assign open slot"}
+                    {assignedShifts.length > 0
+                      ? `${openCount} open${openSlotSummary ? ` · ${openSlotSummary}` : ""}`
+                      : `Assign ${openSlotSummary ?? "open slot"}`}
                   </span>
                 </button>
               </PopoverTrigger>

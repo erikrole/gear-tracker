@@ -9,6 +9,7 @@ import type {
 } from "@/lib/auto-fill-preview-types";
 import { getCandidateScoresForShift } from "@/lib/services/candidate-scoring";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
+import { shiftWorkerTypeForProfile } from "@/lib/shift-display";
 
 type PreviewShift = {
   id: string;
@@ -22,6 +23,7 @@ type PreviewUser = {
   id: string;
   name: string;
   role: string;
+  staffingType?: string | null;
 };
 
 type BuildPreviewArgs = {
@@ -38,9 +40,8 @@ const ACTIVE_STATUSES = new Set<string>(ACTIVE_ASSIGNMENT_STATUSES);
 const AREA_ORDER = ["VIDEO", "PHOTO", "GRAPHICS", "COMMS"] as const;
 const AREA_RANK = new Map<string, number>(AREA_ORDER.map((area, index) => [area, index]));
 
-function roleMatchesShift(workerType: string, role: string) {
-  if (workerType === "ST") return role === "STUDENT";
-  return role === "STAFF" || role === "ADMIN";
+function userMatchesShift(workerType: string, user: PreviewUser) {
+  return shiftWorkerTypeForProfile(user) === workerType;
 }
 
 function isOpenShift(shift: PreviewShift) {
@@ -80,7 +81,7 @@ export function buildAutoFillPreview({
       if (!user) return false;
       if (usedUserIds.has(score.userId)) return false;
       if (score.blockingConflict) return false;
-      if (!roleMatchesShift(shift.workerType, user.role)) return false;
+      if (!userMatchesShift(shift.workerType, user)) return false;
       if (!hasAreaFit(score)) return false;
       return true;
     });
@@ -91,7 +92,7 @@ export function buildAutoFillPreview({
         shiftId: shift.id,
         area: shift.area,
         workerType: shift.workerType,
-        reason: "No role and area matched candidate without a blocking overlap.",
+        reason: "No scheduling class and area matched candidate without a blocking overlap.",
         blockingCandidateCount: scores.filter((score) => score.blockingConflict).length,
       });
       continue;
@@ -106,6 +107,7 @@ export function buildAutoFillPreview({
       userId: chosen.userId,
       userName: user.name,
       userRole: user.role,
+      userStaffingType: shiftWorkerTypeForProfile(user),
       score: chosen.score,
       bucket: chosen.bucket,
       reasons: chosen.reasons,
@@ -159,7 +161,7 @@ export async function getAutoFillPreview(shiftGroupId: string): Promise<AutoFill
   const [users, scorePairs] = await Promise.all([
     db.user.findMany({
       where: { active: true },
-      select: { id: true, name: true, role: true },
+      select: { id: true, name: true, role: true, staffingType: true },
       orderBy: { name: "asc" },
     }),
     Promise.all(openShifts.map(async (shift) => [shift.id, await getCandidateScoresForShift(shift.id)] as const)),

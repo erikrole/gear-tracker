@@ -7,6 +7,7 @@ export type AutoFillPreviewProposal = {
   userId: string;
   userName: string;
   userRole: string;
+  userStaffingType?: string | null;
   score: number;
   bucket: CandidateRecommendation["bucket"];
   reasons: CandidateScoreSignal[];
