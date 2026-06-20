@@ -31,6 +31,14 @@ vi.mock("@/lib/db", () => ({
 import { db } from "@/lib/db";
 import { generateShiftsForEvent } from "@/lib/services/shift-generation";
 
+function calendarEvent(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.calendarEvent.findUnique>>;
+}
+
+function sportConfig(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.sportConfig.findUnique>>;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -45,8 +53,8 @@ describe("generateShiftsForEvent", () => {
       endsAt: new Date("2026-04-01T21:00:00Z"),
       shiftGroup: null,
     };
-    vi.mocked(db.calendarEvent.findUnique).mockResolvedValue(event as any);
-    vi.mocked(db.sportConfig.findUnique).mockResolvedValue({
+    vi.mocked(db.calendarEvent.findUnique).mockResolvedValue(calendarEvent(event));
+    vi.mocked(db.sportConfig.findUnique).mockResolvedValue(sportConfig({
       sportCode: "FB",
       active: true,
       shiftStartOffset: 60,
@@ -62,7 +70,7 @@ describe("generateShiftsForEvent", () => {
           awayStudentCount: 1,
         },
       ],
-    } as any);
+    }));
     mockTx.calendarEvent.findUnique.mockResolvedValue({ ...event, shiftGroup: null });
     mockTx.shiftGroup.create.mockResolvedValue({ id: "shift-group-1" });
     mockTx.shift.createMany.mockResolvedValue({ count: 3 });

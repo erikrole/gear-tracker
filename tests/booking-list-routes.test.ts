@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
-import { BookingKind, BookingStatus } from "@prisma/client";
+import { BookingKind, BookingStatus, Role } from "@prisma/client";
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: vi.fn(),
@@ -54,7 +54,7 @@ const adminUser = {
   id: "admin-1",
   email: "admin@example.com",
   name: "Admin One",
-  role: "ADMIN" as any,
+  role: Role.ADMIN,
   avatarUrl: null,
 };
 
@@ -62,7 +62,7 @@ const studentUser = {
   id: "student-1",
   email: "student@example.com",
   name: "Student One",
-  role: "STUDENT" as any,
+  role: Role.STUDENT,
   avatarUrl: null,
 };
 

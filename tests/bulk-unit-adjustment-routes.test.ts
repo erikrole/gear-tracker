@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { BulkUnitStatus, Role } from "@prisma/client";
 
 const tx = {
   bulkSku: {
@@ -64,8 +65,9 @@ beforeEach(() => {
     id: "staff-1",
     name: "Staff One",
     email: "staff@example.com",
-    role: "STAFF",
-  } as any);
+    role: Role.STAFF,
+    avatarUrl: null,
+  });
   tx.bulkSku.findUnique.mockResolvedValue({
     id: "sku-1",
     trackByNumber: true,
@@ -81,20 +83,20 @@ beforeEach(() => {
     id: "unit-7",
     bulkSkuId: "sku-1",
     unitNumber: 7,
-    status: "AVAILABLE",
+    status: BulkUnitStatus.AVAILABLE,
     notes: null,
   });
   tx.bulkSkuUnit.update.mockResolvedValue({
     id: "unit-7",
     bulkSkuId: "sku-1",
     unitNumber: 7,
-    status: "LOST",
+    status: BulkUnitStatus.LOST,
     notes: null,
   });
-  tx.bulkStockBalance.upsert.mockResolvedValue({} as any);
-  tx.bulkStockBalance.update.mockResolvedValue({} as any);
-  tx.bulkStockMovement.create.mockResolvedValue({} as any);
-  vi.mocked(createAuditEntry).mockResolvedValue(undefined as any);
+  tx.bulkStockBalance.upsert.mockResolvedValue({});
+  tx.bulkStockBalance.update.mockResolvedValue({});
+  tx.bulkStockMovement.create.mockResolvedValue({});
+  vi.mocked(createAuditEntry).mockResolvedValue(undefined);
 });
 
 describe("bulk unit adjustment routes", () => {
@@ -156,7 +158,7 @@ describe("bulk unit adjustment routes", () => {
       id: "unit-7",
       bulkSkuId: "sku-1",
       unitNumber: 7,
-      status: "AVAILABLE",
+      status: BulkUnitStatus.AVAILABLE,
       notes: null,
       labelPrintedAt: new Date("2026-06-01T00:00:00.000Z"),
       labelPrintedById: "staff-1",
@@ -182,7 +184,7 @@ describe("bulk unit adjustment routes", () => {
       id: "unit-7",
       bulkSkuId: "sku-1",
       unitNumber: 7,
-      status: "CHECKED_OUT",
+      status: BulkUnitStatus.CHECKED_OUT,
       notes: null,
     });
 

@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { BookingStatus } from "@prisma/client";
 import { canPerformBookingAction, getAllowedBookingActions, type CheckoutAction } from "@/lib/services/booking-rules";
 
 const admin = { id: "admin-1", role: "ADMIN" as const };
@@ -6,10 +7,10 @@ const staff = { id: "staff-1", role: "STAFF" as const };
 const owner = { id: "student-1", role: "STUDENT" as const };
 const otherStudent = { id: "student-2", role: "STUDENT" as const };
 
-function makeCheckout(status: string, requesterId = "student-1", createdById = "staff-1") {
+function makeCheckout(status: BookingStatus, requesterId = "student-1", createdById = "staff-1") {
   return {
     kind: "CHECKOUT" as const,
-    status: status as any,
+    status,
     requesterUserId: requesterId,
     createdBy: createdById,
   };
@@ -18,13 +19,13 @@ function makeCheckout(status: string, requesterId = "student-1", createdById = "
 describe("canPerformBookingAction", () => {
   // ── Cross-kind validation ──
   it("allows edit on BOOKED reservation (unified function works for all kinds)", () => {
-    const reservation = { kind: "RESERVATION" as const, status: "BOOKED" as any, requesterUserId: "u1", createdBy: "u1" };
+    const reservation = { kind: "RESERVATION" as const, status: BookingStatus.BOOKED, requesterUserId: "u1", createdBy: "u1" };
     expect(canPerformBookingAction(admin, reservation, "edit").allowed).toBe(true);
   });
 
   // ── Terminal states (COMPLETED, CANCELLED) ──
   describe("terminal states", () => {
-    for (const status of ["COMPLETED", "CANCELLED"]) {
+    for (const status of [BookingStatus.COMPLETED, BookingStatus.CANCELLED]) {
       for (const action of ["edit", "extend", "cancel", "checkin", "open"] as CheckoutAction[]) {
         it(`rejects ${action} on ${status} checkout`, () => {
           const result = canPerformBookingAction(admin, makeCheckout(status), action);

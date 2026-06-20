@@ -9,7 +9,7 @@
 - `docs/NORTH_STAR.md`: prioritize operational speed, clarity, trust, derived status, auditability, and explicit failure handling.
 - `docs/DECISIONS.md`: D-007 makes audit logging part of the product; D-009 owns overdue escalation behavior.
 - `docs/GAPS_AND_RISKS.md`: current open gaps do not require schema changes for this web pass; avoid reopening closed broad reliability work without evidence.
-- `tasks/web-bug-sweep-plan.md`: prior batches already handled raw response parsing, URL rehydration, false-empty states, and many Settings load failures; the next useful slice should target remaining concrete behavior.
+- `tasks/archive/completed-2026-06/web-bug-sweep-plan-2026-05-24.md`: prior batches already handled raw response parsing, URL rehydration, false-empty states, and many Settings load failures; the next useful slice should target remaining concrete behavior.
 - `docs/AREA_SETTINGS.md`: `/settings/escalation` lets admins configure overdue notification triggers and max notifications per booking.
 - `docs/AREA_NOTIFICATIONS.md`: escalation settings affect alert fatigue and overdue notification delivery.
 - `prisma/schema.prisma`: escalation settings are existing `EscalationRule` and `SystemConfig` behavior; this slice does not require data model changes.

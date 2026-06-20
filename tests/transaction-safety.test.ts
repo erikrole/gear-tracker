@@ -1,4 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { Role, ScanPhase, ScanType } from "@prisma/client";
+
+declare global {
+  var __transactionCalls: Array<{ options: unknown }> | undefined;
+}
 
 // ─── Track $transaction options to verify isolation levels ────────────────────
 const transactionCalls: Array<{ options: unknown }> = [];
@@ -23,8 +28,7 @@ vi.mock("@/lib/db", () => {
   return {
     db: {
       $transaction: vi.fn(async (fn: (tx: typeof mockTx) => Promise<unknown>, options?: unknown) => {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const calls = (globalThis as any).__transactionCalls;
+        const calls = globalThis.__transactionCalls;
         if (calls) calls.push({ options });
         return fn(mockTx);
       }),
@@ -66,12 +70,27 @@ import { db } from "@/lib/db";
 import { createAuditEntries } from "@/lib/audit";
 import { recordScan, completeCheckoutScan, completeCheckinScan, startScanSession } from "@/lib/services/scans";
 
-const mockTx = (db as any)._mockTx;
+type TransactionMock = {
+  booking: { findUnique: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> };
+  bookingSerializedItem: { updateMany: ReturnType<typeof vi.fn> };
+  bookingBulkItem: { findUnique: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> };
+  bulkStockBalance: { findMany: ReturnType<typeof vi.fn>; upsert: ReturnType<typeof vi.fn> };
+  bulkStockMovement: { createMany: ReturnType<typeof vi.fn> };
+  scanEvent: { findFirst: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn> };
+  scanSession: { findFirst: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn>; updateMany: ReturnType<typeof vi.fn> };
+  overrideEvent: { count: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn> };
+  assetAllocation: { updateMany: ReturnType<typeof vi.fn> };
+  auditLog: { create: ReturnType<typeof vi.fn>; createMany: ReturnType<typeof vi.fn> };
+  checkinItemReport: { findMany: ReturnType<typeof vi.fn> };
+  user: { findUnique: ReturnType<typeof vi.fn> };
+};
+
+const mockTx = (db as unknown as { _mockTx: TransactionMock })._mockTx;
 
 beforeEach(() => {
   vi.clearAllMocks();
   transactionCalls.length = 0;
-  (globalThis as any).__transactionCalls = transactionCalls;
+  globalThis.__transactionCalls = transactionCalls;
   mockTx.checkinItemReport.findMany.mockResolvedValue([]);
 });
 
@@ -137,8 +156,8 @@ describe("recordScan", () => {
     await recordScan({
       bookingId: "b-1",
       actorUserId: "actor-1",
-      phase: "CHECKOUT" as any,
-      scanType: "SERIALIZED" as any,
+      phase: ScanPhase.CHECKOUT,
+      scanType: ScanType.SERIALIZED,
       scanValue: "QR-1",
     });
 
@@ -160,8 +179,8 @@ describe("recordScan", () => {
       recordScan({
         bookingId: "b-1",
         actorUserId: "actor-1",
-        phase: "CHECKOUT" as any,
-        scanType: "SERIALIZED" as any,
+        phase: ScanPhase.CHECKOUT,
+        scanType: ScanType.SERIALIZED,
         scanValue: "QR-1",
       })
     ).rejects.toThrow("Duplicate scan detected");
@@ -175,8 +194,8 @@ describe("recordScan", () => {
       recordScan({
         bookingId: "nonexistent",
         actorUserId: "actor-1",
-        phase: "CHECKOUT" as any,
-        scanType: "SERIALIZED" as any,
+        phase: ScanPhase.CHECKOUT,
+        scanType: ScanType.SERIALIZED,
         scanValue: "QR-1",
       })
     ).rejects.toThrow("Checkout not found");
@@ -196,8 +215,8 @@ describe("recordScan", () => {
       recordScan({
         bookingId: "b-1",
         actorUserId: "actor-1",
-        phase: "CHECKOUT" as any,
-        scanType: "SERIALIZED" as any,
+        phase: ScanPhase.CHECKOUT,
+        scanType: ScanType.SERIALIZED,
         scanValue: "QR-1",
       })
     ).rejects.toThrow("no longer open");
@@ -222,8 +241,8 @@ describe("recordScan", () => {
       recordScan({
         bookingId: "b-1",
         actorUserId: "actor-1",
-        phase: "CHECKOUT" as any,
-        scanType: "SERIALIZED" as any,
+        phase: ScanPhase.CHECKOUT,
+        scanType: ScanType.SERIALIZED,
         scanValue: "QR-UNKNOWN",
       })
     ).rejects.toThrow("does not belong to this checkout");
@@ -243,8 +262,8 @@ describe("recordScan", () => {
       recordScan({
         bookingId: "b-1",
         actorUserId: "actor-1",
-        phase: "CHECKOUT" as any,
-        scanType: "SERIALIZED" as any,
+        phase: ScanPhase.CHECKOUT,
+        scanType: ScanType.SERIALIZED,
         scanValue: "QR-UNKNOWN",
       })
     ).rejects.toThrow();
@@ -280,8 +299,8 @@ describe("recordScan", () => {
       recordScan({
         bookingId: "b-1",
         actorUserId: "actor-1",
-        phase: "CHECKOUT" as any,
-        scanType: "BULK_BIN" as any,
+        phase: ScanPhase.CHECKOUT,
+        scanType: ScanType.BULK_BIN,
         scanValue: "BIN-QR-1",
       })
     ).rejects.toThrow("Bulk scans require a positive quantity");
@@ -318,8 +337,8 @@ describe("recordScan", () => {
       recordScan({
         bookingId: "b-1",
         actorUserId: "actor-1",
-        phase: "CHECKOUT" as any,
-        scanType: "BULK_BIN" as any,
+        phase: ScanPhase.CHECKOUT,
+        scanType: ScanType.BULK_BIN,
         scanValue: "BIN-QR-1",
         quantity: 5,
       })
@@ -342,7 +361,7 @@ describe("startScanSession", () => {
       startScanSession({
         bookingId: "nonexistent",
         actorUserId: "actor-1",
-        phase: "CHECKOUT" as any,
+        phase: ScanPhase.CHECKOUT,
       })
     ).rejects.toThrow("Checkout not found");
   });
@@ -358,7 +377,7 @@ describe("startScanSession", () => {
       startScanSession({
         bookingId: "b-1",
         actorUserId: "actor-1",
-        phase: "CHECKOUT" as any,
+        phase: ScanPhase.CHECKOUT,
       })
     ).rejects.toThrow("no longer open");
   });
@@ -375,7 +394,7 @@ describe("startScanSession", () => {
     const result = await startScanSession({
       bookingId: "b-1",
       actorUserId: "actor-1",
-      phase: "CHECKOUT" as any,
+      phase: ScanPhase.CHECKOUT,
     });
 
     expect(result).toEqual(existingSession);
@@ -402,10 +421,10 @@ describe("completeCheckoutScan", () => {
     });
     mockTx.overrideEvent.count.mockResolvedValue(0);
 
-    await completeCheckoutScan("b-1", "actor-1", "ADMIN" as any);
+    await completeCheckoutScan("b-1", "actor-1", Role.ADMIN);
 
     const serializableCalls = transactionCalls.filter(
-      (c) => (c.options as any)?.isolationLevel === "Serializable"
+      (c) => (c.options as { isolationLevel?: unknown }).isolationLevel === "Serializable"
     );
     expect(serializableCalls.length).toBeGreaterThanOrEqual(1);
   });
@@ -421,7 +440,7 @@ describe("completeCheckoutScan", () => {
     });
 
     await expect(
-      completeCheckoutScan("b-1", "actor-1", "ADMIN" as any)
+      completeCheckoutScan("b-1", "actor-1", Role.ADMIN)
     ).rejects.toThrow("Checkout must be open");
   });
 
@@ -437,7 +456,7 @@ describe("completeCheckoutScan", () => {
     mockTx.overrideEvent.count.mockResolvedValue(0);
 
     await expect(
-      completeCheckoutScan("b-1", "actor-1", "ADMIN" as any)
+      completeCheckoutScan("b-1", "actor-1", Role.ADMIN)
     ).rejects.toThrow("Scan requirements not met");
   });
 
@@ -452,7 +471,7 @@ describe("completeCheckoutScan", () => {
     });
     mockTx.overrideEvent.count.mockResolvedValue(1);
 
-    const result = await completeCheckoutScan("b-1", "actor-1", "ADMIN" as any);
+    const result = await completeCheckoutScan("b-1", "actor-1", Role.ADMIN);
 
     expect(result.success).toBe(true);
     expect(result.overrideUsed).toBe(true);
@@ -472,7 +491,7 @@ describe("completeCheckoutScan", () => {
     });
     mockTx.overrideEvent.count.mockResolvedValue(0);
 
-    const result = await completeCheckoutScan("b-1", "actor-1", "STAFF" as any);
+    const result = await completeCheckoutScan("b-1", "actor-1", Role.STAFF);
 
     expect(result.success).toBe(true);
     expect(result.missingSerialized).toEqual([]);
@@ -490,7 +509,7 @@ describe("completeCheckoutScan", () => {
     });
     mockTx.overrideEvent.count.mockResolvedValue(0);
 
-    await completeCheckoutScan("b-1", "actor-1", "ADMIN" as any);
+    await completeCheckoutScan("b-1", "actor-1", Role.ADMIN);
 
     expect(mockTx.scanSession.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -526,10 +545,10 @@ describe("completeCheckinScan", () => {
     });
     mockTx.overrideEvent.count.mockResolvedValue(0);
 
-    await completeCheckinScan("b-1", "actor-1", "ADMIN" as any);
+    await completeCheckinScan("b-1", "actor-1", Role.ADMIN);
 
     const serializableCalls = transactionCalls.filter(
-      (c) => (c.options as any)?.isolationLevel === "Serializable"
+      (c) => (c.options as { isolationLevel?: unknown }).isolationLevel === "Serializable"
     );
     expect(serializableCalls.length).toBeGreaterThanOrEqual(1);
   });
@@ -546,7 +565,7 @@ describe("completeCheckinScan", () => {
     mockTx.overrideEvent.count.mockResolvedValue(0);
 
     await expect(
-      completeCheckinScan("b-1", "actor-1", "ADMIN" as any)
+      completeCheckinScan("b-1", "actor-1", Role.ADMIN)
     ).rejects.toThrow("Scan requirements not met");
   });
 
@@ -563,7 +582,7 @@ describe("completeCheckinScan", () => {
     });
     mockTx.overrideEvent.count.mockResolvedValue(0);
 
-    await completeCheckinScan("b-1", "actor-1", "ADMIN" as any);
+    await completeCheckinScan("b-1", "actor-1", Role.ADMIN);
 
     expect(markCheckoutCompleted).toHaveBeenCalledWith("b-1", "actor-1");
   });

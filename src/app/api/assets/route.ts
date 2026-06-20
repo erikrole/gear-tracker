@@ -44,7 +44,12 @@ const assetInclude = {
 };
 
 /** Map sort param to Prisma orderBy clause. */
-const SORT_MAP: Record<string, Prisma.AssetOrderByWithRelationInput> = {
+const SORT_MAP: Record<
+  string,
+  Prisma.AssetOrderByWithRelationInput | Prisma.AssetOrderByWithRelationInput[]
+> = {
+  name: [{ brand: "asc" }, { model: "asc" }, { assetTag: "asc" }],
+  "-name": [{ brand: "desc" }, { model: "desc" }, { assetTag: "desc" }],
   assetTag: { assetTag: "asc" },
   "-assetTag": { assetTag: "desc" },
   brand: { brand: "asc" },

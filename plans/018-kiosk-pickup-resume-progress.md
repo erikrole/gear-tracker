@@ -20,6 +20,15 @@
 - **Depends on**: none
 - **Category**: bug
 - **Planned at**: commit `6e4b35ae`, 2026-06-13
+- **State**: DONE ON MAIN (2026-06-19)
+
+## Completion notes
+
+- 2026-06-19: Live route drifted ahead of the original plan by adding reservation pickup support and serialized pickup scan progress to the shared detail response.
+- Filled already-picked numbered-bulk slots for `CHECKOUT/PENDING_PICKUP` detail responses so resumed kiosk pickups reload exact scanned battery units instead of empty placeholders.
+- Seeded native `KioskPickupView` from server-marked `returned` rows so a partially scanned pickup can be reopened and completed without rescanning already accepted items.
+- Added focused detail-route regressions for resumed numbered-bulk pickup progress and serialized pickup progress.
+- Follow-up build proof completed on 2026-06-19: XcodeBuildMCP `build_sim` passed for the `Wisconsin` scheme on iPhone 17 iOS 26.5.
 
 ## Why this matters
 
@@ -282,7 +291,7 @@ Add a change-log row to `docs/AREA_KIOSK.md` noting that resumed/partial kiosk p
 - New server tests in `tests/kiosk-bulk-detail-routes.test.ts` (model after the existing `"includes pending pickup battery quantity as scan checklist slots"`):
   - battery: already-checked-out slot reports `returned: true` with the real `unitNumber`; remaining slots stay `returned: false`.
   - serialized: `returned: true` iff a successful `CHECKOUT`-phase `ScanEvent` exists for the asset (one positive, one negative).
-- The iOS seeding has no compile/runtime gate in this environment; it is verified by source inspection against the `KioskReturnView` exemplar and `npm run drift:ios`. The maintenance note flags the required build check.
+- The iOS seeding is covered by source inspection against the `KioskReturnView` exemplar, `npm run drift:ios`, and the 2026-06-19 XcodeBuildMCP simulator build.
 - Regression guard: the two existing detail-GET tests must still pass after the `scanEvents: []` fixture additions, proving the return-flow branch is unchanged.
 
 ## Done criteria
@@ -312,7 +321,7 @@ Stop and report back (do not improvise) if:
 
 For whoever owns this after it lands:
 
-- **iOS build check required before merge**: this environment has no Xcode. Compile `KioskPickupView.swift` and visually confirm that reopening a partially-scanned pickup shows the already-scanned items pre-checked and the Confirm button enabled once the rest are scanned. (iOS is the day-to-day ops surface for this flow.)
+- iOS compile proof passed on 2026-06-19 via XcodeBuildMCP `build_sim` for `Wisconsin` on iPhone 17 iOS 26.5. A visual smoke can still confirm that reopening a partially-scanned pickup shows already-scanned items pre-checked and the Confirm button enabled once the rest are scanned.
 - The fix overloads the shared `returned` field to mean "already picked up" inside the `PENDING_PICKUP` branch. It is mechanically safe because the pickup view previously ignored `returned`, but if pickup ever needs to distinguish "picked up" from "returned" on the same payload, add a dedicated flag rather than overloading further.
 - The slot<->unit mapping assumes scan order equals `checkedOutAt asc`. If the scan service (`src/lib/services/bulk-unit-scans.ts`) ever changes how it assigns `:slot:N` ids, Step 2's ordering must be revisited in lockstep.
 - A reviewer should scrutinize that the **return** branch of the detail route is byte-unchanged and that the two pre-existing detail tests still pass -- that is the regression boundary.

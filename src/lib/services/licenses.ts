@@ -190,7 +190,7 @@ export async function releaseCode(
   });
 }
 
-export async function addUnknownOccupant(codeId: string, label: string, _adminId: string) {
+export async function addUnknownOccupant(codeId: string, label: string) {
   return withSerializableRetry(() =>
     db.$transaction(
       async (tx) => {

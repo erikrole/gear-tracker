@@ -1,6 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { expectSerializableIsolation } from "./_helpers/assert-transaction";
 
+type MockFn = ReturnType<typeof vi.fn>;
+type UpdateBookingTx = {
+  booking: Record<"findUnique" | "findUniqueOrThrow" | "update", MockFn>;
+  bookingSerializedItem: Record<"deleteMany" | "createMany", MockFn>;
+  bookingBulkItem: Record<"deleteMany" | "createMany", MockFn>;
+  assetAllocation: Record<"deleteMany" | "createMany", MockFn>;
+  auditLog: Record<"create" | "createMany", MockFn>;
+  user: Record<"findUnique", MockFn>;
+};
+
 // ─── Transaction tracking ───────────────────────────────────────────────────
 const transactionCalls: Array<{ options: unknown }> = [];
 
@@ -41,7 +51,7 @@ import { db } from "@/lib/db";
 import { checkAvailability } from "@/lib/services/availability";
 import { updateReservation, updateCheckout } from "@/lib/services/bookings";
 
-const mockTx = (db as any)._mockTx;
+const mockTx = (db as unknown as { _mockTx: UpdateBookingTx })._mockTx;
 
 const startsAt = new Date("2026-04-10T08:00:00Z");
 const endsAt = new Date("2026-04-10T17:00:00Z");
@@ -312,7 +322,7 @@ describe("updateCheckout", () => {
 
     await updateCheckout("c-1", "actor-1", { serializedAssetIds: ["a-1", "a-1", "a-2"] });
 
-    const createCall = mockTx.bookingSerializedItem.createMany.mock.calls[0][0];
+    const createCall = mockTx.bookingSerializedItem.createMany.mock.calls[0]![0];
     expect(createCall.data).toHaveLength(2); // deduped from 3 to 2
   });
 

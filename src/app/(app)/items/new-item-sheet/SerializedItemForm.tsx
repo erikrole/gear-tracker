@@ -1,6 +1,7 @@
 "use client";
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import Image from "next/image";
 import { Dices, ImageIcon, ScanLine, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -463,9 +464,9 @@ export const SerializedItemForm = forwardRef<SerializedFormHandle, Props>(
               {photoError && <p className="text-sm text-destructive">{photoError}</p>}
               {photoFile && (
                 <div className="flex items-center gap-3 rounded-md border bg-muted/30 p-2">
-                  <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded bg-background">
+                  <div className="relative flex size-14 shrink-0 items-center justify-center overflow-hidden rounded bg-background">
                     {photoPreviewUrl ? (
-                      <img src={photoPreviewUrl} alt="" className="h-full w-full object-contain" />
+                      <Image src={photoPreviewUrl} alt="" fill sizes="56px" className="object-contain" unoptimized />
                     ) : (
                       <ImageIcon className="size-5 text-muted-foreground" />
                     )}

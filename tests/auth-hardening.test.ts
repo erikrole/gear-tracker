@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { Role } from "@prisma/client";
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: vi.fn(),
@@ -22,7 +23,7 @@ const mockTx = {
 
 vi.mock("@/lib/db", () => ({
   db: {
-    $transaction: vi.fn(async (input: unknown, _options?: unknown) => {
+    $transaction: vi.fn(async (input: unknown) => {
       if (Array.isArray(input)) return Promise.all(input);
       return (input as (tx: typeof mockTx) => Promise<unknown>)(mockTx);
     }),
@@ -60,6 +61,18 @@ import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { PATCH as patchProfile } from "@/app/api/profile/route";
 import { POST as resetPassword } from "@/app/api/auth/reset-password/route";
 
+function userForPassword(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.user.findUniqueOrThrow>>;
+}
+
+function userUpdateResult(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.user.update>>;
+}
+
+function deleteManyResult(count: number) {
+  return { count } as Awaited<ReturnType<typeof db.session.deleteMany>>;
+}
+
 function authedRequest(path: string, body: Record<string, unknown>) {
   return new Request(`https://app.example.com${path}`, {
     method: "PATCH",
@@ -84,7 +97,7 @@ beforeEach(() => {
     id: "user-1",
     email: "user@example.com",
     name: "User One",
-    role: "STAFF" as any,
+    role: Role.STAFF,
     avatarUrl: null,
     forcePasswordChange: false,
   });
@@ -98,18 +111,18 @@ beforeEach(() => {
   });
   vi.mocked(getClientIp).mockReturnValue("127.0.0.1");
 
-  vi.mocked(db.user.findUniqueOrThrow).mockResolvedValue({
+  vi.mocked(db.user.findUniqueOrThrow).mockResolvedValue(userForPassword({
     id: "user-1",
     passwordHash: "old-hash",
-  } as any);
-  vi.mocked(db.user.update).mockResolvedValue({ id: "user-1" } as any);
-  vi.mocked(db.session.deleteMany).mockResolvedValue({ count: 2 } as any);
+  }));
+  vi.mocked(db.user.update).mockResolvedValue(userUpdateResult({ id: "user-1" }));
+  vi.mocked(db.session.deleteMany).mockResolvedValue(deleteManyResult(2));
 
   mockTx.passwordResetToken.findUnique.mockResolvedValue({
     id: "token-1",
     userId: "user-1",
     expiresAt: new Date(Date.now() + 60_000),
-    user: { id: "user-1", role: "STUDENT" },
+    user: { id: "user-1", role: Role.STUDENT },
   });
   mockTx.passwordResetToken.deleteMany
     .mockResolvedValueOnce({ count: 1 })

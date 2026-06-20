@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Prisma } from "@prisma/client";
+import { describe, it, expect, vi } from "vitest";
+import { Prisma, Role } from "@prisma/client";
 
 // ─── Mock modules ───────────────────────────────────────────────────────────
 vi.mock("@/lib/auth", () => ({
@@ -93,15 +93,43 @@ function makeDeleteRequest() {
 
 const noParams = { params: Promise.resolve({}) };
 
+type AllowedEmailRow = {
+  id: string;
+  email: string;
+  role: Role;
+  claimedAt?: Date | null;
+  claimedById?: string | null;
+};
+
+function allowedEmailResult(row: AllowedEmailRow) {
+  return row as unknown as Awaited<ReturnType<typeof db.allowedEmail.create>>;
+}
+
+function allowedEmailFindUniqueResult(row: AllowedEmailRow | null) {
+  return row as unknown as Awaited<ReturnType<typeof db.allowedEmail.findUnique>>;
+}
+
+function allowedEmailFindManyResult(rows: Array<Partial<AllowedEmailRow>>) {
+  return rows as unknown as Awaited<ReturnType<typeof db.allowedEmail.findMany>>;
+}
+
+function allowedEmailCreateManyResult(value: { count: number }) {
+  return value as unknown as Awaited<ReturnType<typeof db.allowedEmail.createMany>>;
+}
+
+function registeredUserResult(value: { id: string; role: Role } | null) {
+  return value as unknown as Awaited<ReturnType<typeof db.user.findUnique>>;
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // GET /api/allowed-emails
 // ═════════════════════════════════════════════════════════════════════════════
 describe("GET /api/allowed-emails", () => {
   it("returns paginated allowed emails for ADMIN", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
-    vi.mocked(db.allowedEmail.findMany).mockResolvedValue([
-      { id: "e-1", email: "stu@uw.edu", role: "STUDENT", claimedAt: null } as any,
-    ]);
+    vi.mocked(db.allowedEmail.findMany).mockResolvedValue(allowedEmailFindManyResult([
+      { id: "e-1", email: "stu@uw.edu", role: Role.STUDENT, claimedAt: null },
+    ]));
     vi.mocked(db.allowedEmail.count).mockResolvedValue(1);
 
     const res = await GET(makeGetRequest(), noParams);
@@ -160,11 +188,11 @@ describe("POST /api/allowed-emails (single)", () => {
   it("creates a single allowed email entry", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
     vi.mocked(db.user.findUnique).mockResolvedValue(null);
-    vi.mocked(db.allowedEmail.create).mockResolvedValue({
+    vi.mocked(db.allowedEmail.create).mockResolvedValue(allowedEmailResult({
       id: "e-1",
       email: "new@uw.edu",
-      role: "STUDENT",
-    } as any);
+      role: Role.STUDENT,
+    }));
 
     const res = await POST(
       makePostRequest({ email: "New@UW.edu", role: "STUDENT" }),
@@ -184,14 +212,14 @@ describe("POST /api/allowed-emails (single)", () => {
 
   it("creates a claimed allowlist row when the email already belongs to a registered user", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
-    vi.mocked(db.user.findUnique).mockResolvedValue({ id: "existing-user", role: "STAFF" } as any);
-    vi.mocked(db.allowedEmail.create).mockResolvedValue({
+    vi.mocked(db.user.findUnique).mockResolvedValue(registeredUserResult({ id: "existing-user", role: Role.STAFF }));
+    vi.mocked(db.allowedEmail.create).mockResolvedValue(allowedEmailResult({
       id: "e-1",
       email: "existing@uw.edu",
-      role: "STAFF",
+      role: Role.STAFF,
       claimedAt: new Date("2026-05-12T18:30:00.000Z"),
       claimedById: "existing-user",
-    } as any);
+    }));
 
     const res = await POST(
       makePostRequest({ email: "existing@uw.edu", role: "STUDENT" }),
@@ -228,7 +256,7 @@ describe("POST /api/allowed-emails (single)", () => {
 
   it("returns a generic success skip when the registered user already has an allowlist row", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
-    vi.mocked(db.user.findUnique).mockResolvedValue({ id: "existing-user", role: "STUDENT" } as any);
+    vi.mocked(db.user.findUnique).mockResolvedValue(registeredUserResult({ id: "existing-user", role: Role.STUDENT }));
     vi.mocked(db.allowedEmail.create).mockRejectedValue(
       new Prisma.PrismaClientKnownRequestError("Unique constraint", {
         code: "P2002",
@@ -252,7 +280,7 @@ describe("POST /api/allowed-emails (single)", () => {
 
   it("prevents STAFF from backfilling a registered STAFF allowlist row", async () => {
     vi.mocked(requireAuth).mockResolvedValue(staffUser);
-    vi.mocked(db.user.findUnique).mockResolvedValue({ id: "existing-user", role: "STAFF" } as any);
+    vi.mocked(db.user.findUnique).mockResolvedValue(registeredUserResult({ id: "existing-user", role: Role.STAFF }));
 
     const res = await POST(
       makePostRequest({ email: "existing-staff@uw.edu", role: "STUDENT" }),
@@ -277,11 +305,11 @@ describe("POST /api/allowed-emails (single)", () => {
   it("ADMIN can add STAFF-role entries", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
     vi.mocked(db.user.findUnique).mockResolvedValue(null);
-    vi.mocked(db.allowedEmail.create).mockResolvedValue({
+    vi.mocked(db.allowedEmail.create).mockResolvedValue(allowedEmailResult({
       id: "e-1",
       email: "staff2@uw.edu",
-      role: "STAFF",
-    } as any);
+      role: Role.STAFF,
+    }));
 
     const res = await POST(
       makePostRequest({ email: "staff2@uw.edu", role: "STAFF" }),
@@ -309,17 +337,17 @@ describe("POST /api/allowed-emails (single)", () => {
 describe("POST /api/allowed-emails (bulk)", () => {
   it("creates multiple allowed email entries and reports skipped ones", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
-    vi.mocked(db.allowedEmail.findMany).mockResolvedValue([
-      { email: "existing@uw.edu" } as any,
-    ]);
+    vi.mocked(db.allowedEmail.findMany).mockResolvedValue(allowedEmailFindManyResult([
+      { email: "existing@uw.edu" },
+    ]));
     vi.mocked(db.user.findMany).mockResolvedValue([]);
-    vi.mocked(db.allowedEmail.createMany).mockResolvedValue({ count: 1 } as any);
+    vi.mocked(db.allowedEmail.createMany).mockResolvedValue(allowedEmailCreateManyResult({ count: 1 }));
     // After createMany, fetch the created records
-    vi.mocked(db.allowedEmail.findMany).mockResolvedValueOnce([
-      { email: "existing@uw.edu" } as any,
-    ]).mockResolvedValueOnce([
-      { id: "e-1", email: "new@uw.edu", role: "STUDENT" } as any,
-    ]);
+    vi.mocked(db.allowedEmail.findMany).mockResolvedValueOnce(allowedEmailFindManyResult([
+      { email: "existing@uw.edu" },
+    ])).mockResolvedValueOnce(allowedEmailFindManyResult([
+      { id: "e-1", email: "new@uw.edu", role: Role.STUDENT },
+    ]));
 
     const res = await POST(
       makePostRequest({
@@ -360,12 +388,12 @@ describe("POST /api/allowed-emails (bulk)", () => {
 describe("DELETE /api/allowed-emails/[id]", () => {
   it("deletes an unclaimed entry", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
-    vi.mocked(db.allowedEmail.findUnique).mockResolvedValue({
+    vi.mocked(db.allowedEmail.findUnique).mockResolvedValue(allowedEmailFindUniqueResult({
       id: "entry-1",
       email: "del@uw.edu",
-      role: "STUDENT",
+      role: Role.STUDENT,
       claimedAt: null,
-    } as any);
+    }));
     vi.mocked(db.allowedEmail.deleteMany).mockResolvedValue({ count: 1 });
 
     const res = await DELETE(
@@ -392,12 +420,12 @@ describe("DELETE /api/allowed-emails/[id]", () => {
 
   it("returns 400 when entry is already claimed", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
-    vi.mocked(db.allowedEmail.findUnique).mockResolvedValue({
+    vi.mocked(db.allowedEmail.findUnique).mockResolvedValue(allowedEmailFindUniqueResult({
       id: "entry-1",
       email: "claimed@uw.edu",
-      role: "STUDENT",
+      role: Role.STUDENT,
       claimedAt: new Date(),
-    } as any);
+    }));
 
     const res = await DELETE(
       makeDeleteRequest(),
@@ -411,12 +439,12 @@ describe("DELETE /api/allowed-emails/[id]", () => {
 
   it("handles race condition where entry becomes claimed between check and delete", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
-    vi.mocked(db.allowedEmail.findUnique).mockResolvedValue({
+    vi.mocked(db.allowedEmail.findUnique).mockResolvedValue(allowedEmailFindUniqueResult({
       id: "entry-1",
       email: "race@uw.edu",
-      role: "STUDENT",
+      role: Role.STUDENT,
       claimedAt: null,
-    } as any);
+    }));
     // deleteMany returns 0 because the entry was claimed between findUnique and deleteMany
     vi.mocked(db.allowedEmail.deleteMany).mockResolvedValue({ count: 0 });
 

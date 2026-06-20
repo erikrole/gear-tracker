@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { withKiosk } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
 
-/** Get checkout details for kiosk return flow */
+/** Get checkout details for kiosk return and pickup flows */
 export const GET = withKiosk<{ id: string }>(async (_req, { params }) => {
   const booking = await db.booking.findUnique({
     where: { id: params.id },
@@ -13,6 +13,17 @@ export const GET = withKiosk<{ id: string }>(async (_req, { params }) => {
       status: true,
       kind: true,
       endsAt: true,
+      scanEvents: {
+        where: {
+          success: true,
+          phase: "CHECKOUT",
+        },
+        select: {
+          assetId: true,
+          bulkSkuId: true,
+          scanType: true,
+        },
+      },
       serializedItems: {
         select: {
           id: true,
@@ -59,33 +70,71 @@ export const GET = withKiosk<{ id: string }>(async (_req, { params }) => {
     },
   });
 
-  if (!booking || booking.kind !== "CHECKOUT") {
+  if (
+    !booking ||
+    (booking.kind !== "CHECKOUT" && booking.kind !== "RESERVATION") ||
+    (booking.kind === "CHECKOUT" && booking.status !== "PENDING_PICKUP" && booking.status !== "OPEN") ||
+    (booking.kind === "RESERVATION" && booking.status !== "BOOKED")
+  ) {
     throw new HttpError(404, "Checkout not found");
   }
+
+  const isPickupChecklist =
+    (booking.kind === "CHECKOUT" && booking.status === "PENDING_PICKUP") ||
+    booking.kind === "RESERVATION";
+  const scanEvents = booking.scanEvents ?? [];
+  const scannedSerializedAssetIds = new Set(
+    scanEvents
+      .filter((event) => event.scanType === "SERIALIZED" && event.assetId)
+      .map((event) => event.assetId),
+  );
 
   const serializedItems = booking.serializedItems.map((si) => ({
     id: si.asset.id,
     tagName: si.asset.assetTag,
     name: si.asset.name || si.asset.assetTag,
-    returned: si.allocationStatus === "returned",
+    returned: isPickupChecklist
+      ? scannedSerializedAssetIds.has(si.asset.id)
+      : si.allocationStatus === "returned",
     type: "serialized" as const,
     imageUrl: si.asset.imageUrl,
   }));
 
-  const bulkItems = booking.status === "PENDING_PICKUP"
-    ? booking.bulkItems.flatMap((bi) =>
-        Array.from({ length: bi.plannedQuantity }, (_, index) => ({
-          id: `${bi.id}:slot:${index + 1}`,
-          tagName: `#${index + 1}`,
-          name: `${bi.bulkSku.name} ${index + 1}`,
-          returned: false,
-          type: "numbered_bulk" as const,
-          bulkSkuId: bi.bulkSku.id,
-          bulkSkuName: bi.bulkSku.name,
-          unitNumber: null,
-          imageUrl: bi.bulkSku.imageUrl,
-        }))
-      )
+  const bulkItems = isPickupChecklist
+    ? booking.bulkItems.flatMap((bi) => {
+        const pickedUnits = booking.kind === "CHECKOUT" && booking.status === "PENDING_PICKUP"
+          ? bi.unitAllocations.filter((allocation) => !allocation.checkedInAt)
+          : [];
+
+        return Array.from({ length: bi.plannedQuantity }, (_, index) => {
+          const allocation = pickedUnits[index];
+          if (allocation) {
+            return {
+              id: `${bi.id}:slot:${index + 1}`,
+              tagName: `#${allocation.bulkSkuUnit.unitNumber}`,
+              name: `${bi.bulkSku.name} #${allocation.bulkSkuUnit.unitNumber}`,
+              returned: true,
+              type: "numbered_bulk" as const,
+              bulkSkuId: bi.bulkSku.id,
+              bulkSkuName: bi.bulkSku.name,
+              unitNumber: allocation.bulkSkuUnit.unitNumber,
+              imageUrl: bi.bulkSku.imageUrl,
+            };
+          }
+
+          return {
+            id: `${bi.id}:slot:${index + 1}`,
+            tagName: `#${index + 1}`,
+            name: `${bi.bulkSku.name} ${index + 1}`,
+            returned: false,
+            type: "numbered_bulk" as const,
+            bulkSkuId: bi.bulkSku.id,
+            bulkSkuName: bi.bulkSku.name,
+            unitNumber: null,
+            imageUrl: bi.bulkSku.imageUrl,
+          };
+        });
+      })
     : booking.bulkItems.flatMap((bi) =>
         bi.unitAllocations.map((allocation) => ({
           id: allocation.bulkSkuUnit.id,
@@ -100,11 +149,22 @@ export const GET = withKiosk<{ id: string }>(async (_req, { params }) => {
         }))
       );
   const numberedBulkItems = booking.bulkItems.filter((bi) => bi.bulkSku.trackByNumber);
-  const numberedBulkTotal = booking.status === "PENDING_PICKUP"
+  const numberedBulkTotal = isPickupChecklist
     ? numberedBulkItems.reduce((sum, bi) => sum + bi.plannedQuantity, 0)
     : numberedBulkItems.reduce((sum, bi) => sum + bi.unitAllocations.length, 0);
-  const numberedBulkCompleted = booking.status === "PENDING_PICKUP"
-    ? numberedBulkItems.reduce((sum, bi) => sum + (bi.checkedOutQuantity ?? 0), 0)
+  const scannedBulkCounts = scanEvents
+    .filter((event) => event.scanType === "BULK_BIN" && event.bulkSkuId)
+    .reduce((counts, event) => {
+      counts.set(event.bulkSkuId!, (counts.get(event.bulkSkuId!) ?? 0) + 1);
+      return counts;
+    }, new Map<string, number>());
+  const numberedBulkCompleted = isPickupChecklist
+    ? numberedBulkItems.reduce(
+        (sum, bi) => sum + (booking.kind === "RESERVATION"
+          ? (scannedBulkCounts.get(bi.bulkSku.id) ?? 0)
+          : (bi.checkedOutQuantity ?? 0)),
+        0,
+      )
     : numberedBulkItems.reduce(
         (sum, bi) => sum + bi.unitAllocations.filter((allocation) => !!allocation.checkedInAt).length,
         0,

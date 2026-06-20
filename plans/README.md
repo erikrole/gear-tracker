@@ -13,6 +13,10 @@ Dispatched via isolated worktree executors (advisor reviews, never merges). Key 
 - **iOS build caveat**: this environment has no Xcode/`xcodebuild`. Swift-source plans (005, 010, 013, 050) can be verified only by source inspection + the `ios-*.test.ts` vitest contract tests + `npm run drift:ios` — NOT by a real compile. Those will be marked "needs your iOS build check" rather than fully verified. Registry/docs iOS plans (009) ARE fully verifiable here. Note: iOS uses XcodeGen — new Swift files require `xcodegen generate` in `ios/`, which wipes `Wisconsin.entitlements` (APNs + WeatherKit must be restored after).
 - **Verdicts**: 001 APPROVE (branch `worktree-agent-adbcb81416542397f`); 002 APPROVE (branch `codex/002-bound-calendar-sync-fetch` @ a9d00595, 88/88 focused tests pass); 008 APPROVE (branch `improve-exec/008-limit-parsing`, 10/10 route tests assert clamped `take`).
 
+### Final state (2026-06-19 reconciliation)
+
+All ledger rows below are now complete on main or verified already shipped on main. The remaining work in this file is historical context only; use the status table as the source of truth for plan disposition.
+
 ### Final state (2026-06-13, after spend-limit reset and resume)
 
 The session hit the monthly spend limit mid-run, then resumed after it was raised and finished the executable set. Final disposition of all 21 plan files:
@@ -21,9 +25,9 @@ The session hit the monthly spend limit mid-run, then resumed after it was raise
 - Web/infra, fully verified here: 001, 002, 003, 004, 006, 007, 008, 010, 012, 014, 015, 016. (004 includes an approved deviation: added the missing `BulkSku.imageRehostAttempts` to schema.prisma to match its existing migration — schema↔DB drift fix, no new migration.)
 - iOS, verified by source inspection + `ios-*.test.ts` + `drift:ios` but NOT compile-verified (no Xcode here — build-check before merge): 009, 011 (minor visual-only initials delta noted), 017 (merge manually with your in-flight KioskAPIClient.swift WIP).
 
-**VERIFIED ALREADY DONE IN MAIN — 3:** 043, 049, 051. No work needed.
+**VERIFIED ALREADY DONE IN MAIN — 3:** 043, 049, 051. Reconciled on 2026-06-19 with individual plan-file review notes and checked done criteria.
 
-**HELD FOR XCODE (your decision, 2026-06-13) — 3:** 005 (split AppTabView, live, 1504 lines), 013 (split CreateBookingSheet, live, 1806 lines; stack on 011's branch), 050 (booking UI polish). All are large Swift refactors / UI work requiring a real compile + visual check that this environment can't provide. Re-run with `/improve execute` from a machine with Xcode (fresh `improve-exec/NNN` branch off HEAD; `xcodegen generate` after adding files, then restore `Wisconsin.entitlements`).
+**HELD FOR XCODE (your decision, 2026-06-13) — 1:** 050 (booking UI polish). This remaining Swift UI work requires a real compile + visual check. Re-run with `/improve execute` from a machine with Xcode (fresh `improve-exec/NNN` branch off HEAD; `xcodegen generate` after adding files, then restore `Wisconsin.entitlements`).
 
 Branch names per plan are in the status rows above. To merge: review + `xcodebuild` the iOS branches, then merge each `improve-exec/*` (003 stacks on codex/002; merge 002 first).
 
@@ -35,7 +39,7 @@ Verified plan status against `main` HEAD (not just branch existence):
 - **NOT on main:** **016** — `requireKiosk` still fire-and-forgets the `lastSeenAt` update (`src/lib/auth.ts:253`); the `after()` durability fix is branch-only. Kiosk online-status-goes-stale bug is still live.
 - **Partially on main:** **014** — behavior shipped, but its 6 regression tests did not land (no test imports `checkout/complete`).
 - **Test holes on main (confirmed):** `checkout/complete` and `checkin/*` routes have zero tests; `users` route untested. Plan 019 covers checkin; 014's tests need re-merging.
-- **TODO, no drift, executable now:** 018, 019, 020, 021, 022 (in-scope `src/`+`ios/` files unchanged since each was planned).
+- **Now done on main:** 018, 019, 020, 021, 022, and follow-up 023. The old executable queue is closed.
 - **Lingering branches to retire after merge decisions:** `advisor/014-017` and `improve-exec/014-017`.
 
 ## Execution Order And Status
@@ -46,32 +50,33 @@ Verified plan status against `main` HEAD (not just branch existence):
 | 002 | Bound calendar-source sync fetches | P1 | M | none | DONE (branch codex/002-bound-calendar-sync-fetch) |
 | 003 | Report calendar sync changes truthfully | P1 | S/M | 002 | DONE (branch improve-exec/003-truthful-counts, stacked on codex/002; 101 tests) |
 | 004 | Rehost external BulkSku images through Blob | P2 | M/L | none | DONE (branch improve-exec/004-rehost-bulk-sku-images; 9 cron tests). Deviation (approved): also added BulkSku.imageRehostAttempts to schema.prisma — it was missing despite the migration SQL existing (schema↔DB drift). No new migration. |
-| 005 | Split iOS profile and availability views out of AppTabView | P2 | M | none | HELD for Xcode (user decision 2026-06-13) — finding live (AppTabView 1504 lines); large Swift decomposition + xcodegen, not compile-verifiable here |
+| 005 | Split iOS profile and availability views out of AppTabView | P2 | M | none | DONE ON MAIN (2026-06-19): `AppTabView.swift` now owns only the stable native tab shell and push routing; profile, notification settings, account security, account avatar, and availability code live in focused Swift files. XcodeBuildMCP simulator build passed. |
 | 006 | Refresh the testing guide against the current suite | P3 | S | none | DONE (branch improve-exec/006-testing-guide; counts → 198 files/1202 tests) |
 | 007 | Make database diagnostics use live migration truth | P2 | M | 001 | DONE (branch improve-exec/007-db-diagnostics, 12/12 tests) |
 | 008 | Normalize custom API limit parsing | P3 | S | none | DONE (branch improve-exec/008-limit-parsing) |
 | 009 | Register iOS UserAvatarView in the audit inventory | P1 | S | none | DONE (branch improve-exec/009-ios-audit-registry; both surfaces registered, gate green) |
 | 010 | Extend iOS API error guardrails into Core | P1 | M | none | DONE (branch improve-exec/010-ios-core-api-guardrails; source-contract R3 guardrail test, no Swift code change, 21 tests + drift:ios green) |
-| 011 | Consolidate iOS avatar rendering | P2 | S/M | 009 | DONE pending Xcode build (branch improve-exec/011-consolidate-ios-avatars; source-verified, 9 tests + drift:ios green; minor visual-only initials delta in UserDetailView noted) |
+| 011 | Consolidate iOS avatar rendering | P2 | S/M | 009 | DONE ON MAIN (2026-06-19): `UserAvatarView` now covers user list, requester picker, Profile wrapper, User detail, and Schedule assignment rows with tone-aware fallback colors. XcodeBuildMCP simulator build passed. |
 | 012 | Add an iOS TestFlight build metadata gate | P2 | S | none | DONE (branch improve-exec/012-ios-testflight-metadata; checker verified both modes) |
-| 013 | Split iOS CreateBookingSheet into focused pieces | P2 | M | 011 | HELD for Xcode (user decision 2026-06-13) — finding live (CreateBookingSheet 1806 lines); large Swift decomposition + xcodegen, not compile-verifiable here. Stack on 011's branch. |
-| 014 | Kiosk checkout completion validates availability, friendly 409s, first tests | P1 | M | none | PARTIALLY ON MAIN (reconcile 2026-06-13): the 409 availability guard IS on main (`checkout/complete/route.ts:124`), but the 6 regression tests are NOT — no test imports `checkout/complete` on main. Re-merge the tests from branch improve-exec/014-kiosk-complete-availability-exec. |
+| 013 | Split iOS CreateBookingSheet into focused pieces | P2 | M | 011 | DONE ON MAIN (2026-06-19): `CreateBookingSheet.swift` now owns sheet flow, scanner presentation, submit handling, and view-model wiring; focused CreateBooking files own the view model, event-linking views, equipment rows, form rows, and pickers. XcodeBuildMCP simulator build passed. |
+| 014 | Kiosk checkout completion validates availability, friendly 409s, first tests | P1 | M | none | DONE ON MAIN (2026-06-19): live route already had transactional availability validation; added regression coverage plus allocation-constraint fallback mapping to friendly 409s. |
 | 015 | Fix kiosk activation-code lifecycle dead end; make docs truthful | P2 | S | none | DONE (branch improve-exec/015-kiosk-code-lifecycle; 4 tests) |
 | 016 | Make kiosk lastSeenAt update durable on serverless (`after()`) | P2 | S | none | DONE ON MAIN (2026-06-13, commit de216774): re-executed off current main, advisor-reviewed (diff swaps fire-and-forget for `after()` preserving the `sessionExpiresAt` slide; 3/3 focused tests; no new tsc/lint errors; scope clean), then fast-forwarded onto main. Stale branches advisor/016 + improve-exec/016 can be deleted. |
-| 017 | Route iOS kiosk checkout completion through shared error path | P3 | S | none | DONE pending Xcode build (branch improve-exec/017-ios-kiosk-error-path; source-verified, drift:ios green; MERGE manually with your KioskAPIClient.swift WIP) |
-| 043 | Make Step 2 available-only use derived status | P1 | S/M | none | DONE (verified in main: picker-search uses buildDerivedStatusWhere) |
-| 049 | Prevent quantity-add on existing unit family adjustments | P1 | M | none | DONE (verified in main: adjust route rejects trackByNumber; BulkItemForm filters) |
-| 050 | Make iOS booking creation showtime-ready | P1 | M | none | HELD for Xcode (user decision 2026-06-13) — UI/UX polish from screenshot feedback; needs visual + build verification, not possible here |
-| 051 | Brother battery label CSV and printed label tracking | P1 | M | D-022 | DONE |
-| 018 | Make a resumed kiosk pickup completable instead of a dead end | P1 | M | none | TODO |
-| 019 | Count batteries in kiosk return completion; add missing kiosk-return tests | P1 | M | none | TODO |
-| 020 | Sort iOS booking equipment picker by displayed product name | P1 | S/M | none | TODO |
-| 021 | Show asset photos for battery/counted-item rows in iOS booking picker | P2 | S/M | none | TODO |
-| 022 | Design spike: group iOS booking picker by category | P3 | M | 020 | TODO |
+| 017 | Route iOS kiosk checkout completion through shared error path | P3 | S | none | DONE ON MAIN (2026-06-19): native kiosk checkout completion now routes through `perform`, so expired/deactivated kiosk sessions propagate as `APIError.unauthorized`. XcodeBuildMCP simulator build passed. |
+| 043 | Make Step 2 available-only use derived status | P1 | S/M | none | DONE ON MAIN (2026-06-19 reconciliation): picker-search uses `buildDerivedStatusWhere(["AVAILABLE"])` for available-only rows, totals, and section counts while preserving ids/qr bypasses. |
+| 049 | Prevent quantity-add on existing unit family adjustments | P1 | M | none | DONE ON MAIN (2026-06-19 reconciliation): adjust route rejects `trackByNumber`; Add Item quantity path filters to quantity-tracked families. |
+| 050 | Make iOS booking creation showtime-ready | P1 | M | none | DONE ON MAIN (2026-06-19): native reservation creation now uses sport-code event titles, explicit pickup/return copy, unified Equipment treatment for serialized and counted gear, thumbnail-led review rows, and inline linked-event context. XcodeBuildMCP simulator build passed. |
+| 051 | Brother battery label CSV and printed label tracking | P1 | M | D-022 | DONE ON MAIN (2026-06-19 reconciliation): label-print metadata, Brother CSV export, Battery Ops controls, and numbered-unit indicators are shipped against the D-022 derived-QR model. |
+| 018 | Make a resumed kiosk pickup completable instead of a dead end | P1 | M | none | DONE ON MAIN (2026-06-19): resumed pickup detail now marks already-scanned serialized and numbered-bulk progress; native pickup seeds confirmed rows from the server detail payload. XcodeBuildMCP simulator build passed. |
+| 019 | Count batteries in kiosk return completion; add missing kiosk-return tests | P1 | M | none | DONE ON MAIN (2026-06-19): live service already counted bulk return items; added focused return scan/complete route coverage and battery-count regression tests in `tests/kiosk-checkin-routes.test.ts` |
+| 020 | Sort iOS booking equipment picker by displayed product name | P1 | S/M | none | DONE ON MAIN (2026-06-19): `/api/assets?sort=name` now orders by brand, model, then tag; native reservation creation requests it for the Equipment picker. XcodeBuildMCP simulator build passed. |
+| 021 | Show asset photos for battery/counted-item rows in iOS booking picker | P2 | S/M | none | DONE ON MAIN (2026-06-19): `/api/form-options` now exposes bulk SKU photos and native reservation creation renders them in bulk picker and selected rows. XcodeBuildMCP simulator build passed. |
+| 022 | Design spike: group iOS booking picker by category | P3 | M | 020 | DONE ON MAIN (2026-06-19): `docs/DESIGN_ios-picker-grouping.md` chooses bounded full-fetch client grouping for native reservation creation, with `location_id`, `sort=name`, and a 300-row cap as the future thin slice. |
+| 023 | Implement iOS booking picker category grouping | P3 | S/M | 020, 022 | DONE ON MAIN (2026-06-19): native reservation creation now fetches up to 300 available serialized assets for the selected location and groups Equipment picker rows by category. XcodeBuildMCP simulator build passed. |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
-> **018** comes from a focused Kiosk pickup-flow audit (2026-06-13, planned at `6e4b35ae`). It touches the shared checkout-detail route (`PENDING_PICKUP` branch only) and `KioskPickupView`; the iOS half needs a real Xcode build check before merge (no `xcodebuild` in the advisor environment).
+> **018** comes from a focused Kiosk pickup-flow audit (2026-06-13, planned at `6e4b35ae`). It touches the shared checkout-detail route (`PENDING_PICKUP` branch only) and `KioskPickupView`; the iOS half now has compile proof from the 2026-06-19 XcodeBuildMCP simulator build.
 >
 > **019** comes from a focused Kiosk return-flow audit (2026-06-13, planned at `6e4b35ae`). Server-only fix in `kioskCompleteCheckin` (counts excluded numbered bulk → "All 0 items returned" on battery-only checkouts) plus the first direct tests for the kiosk return scan/complete routes. Fully verifiable in CI; no iOS change. Independent of 018 (different files).
 >

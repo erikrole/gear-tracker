@@ -236,6 +236,153 @@ export async function scanKioskPickupBulkUnit(
   };
 }
 
+export async function stageKioskReservationPickupBulkUnit(
+  tx: TxClient,
+  args: { bookingId: string; scanValue: string; deviceContext?: string | null },
+): Promise<KioskUnitScanResult> {
+  const booking = await tx.booking.findUnique({
+    where: { id: args.bookingId },
+    include: {
+      bulkItems: { include: { bulkSku: true } },
+    },
+  });
+
+  if (
+    !booking ||
+    booking.kind !== BookingKind.RESERVATION ||
+    booking.status !== BookingStatus.BOOKED
+  ) {
+    throw new HttpError(404, "Pending pickup not found");
+  }
+
+  const resolved = await resolveDerivedScan(tx, args.scanValue, booking.bulkItems);
+  if (!resolved) return { handled: false };
+  const { derived } = resolved;
+
+  if (!resolved.belongsToBooking) {
+    const scanned = resolved.scannedSku
+      ? `${resolved.scannedSku.name} #${derived.unitNumber}`
+      : `unit #${derived.unitNumber}`;
+    return {
+      handled: true,
+      success: false,
+      error: `Wrong battery type: scanned ${scanned}, but this pickup expects ${expectedSkuNames(booking.bulkItems)}`,
+      errorCode: "not_in_booking",
+    };
+  }
+
+  const bulkItem = booking.bulkItems.find((item) => item.bulkSkuId === derived.bulkSkuId);
+  if (!bulkItem || !bulkItem.bulkSku.trackByNumber) {
+    return { handled: true, success: false, error: "Battery unit is not in this reservation", errorCode: "not_in_booking" };
+  }
+
+  const unit = await tx.bulkSkuUnit.findUnique({
+    where: {
+      bulkSkuId_unitNumber: {
+        bulkSkuId: bulkItem.bulkSkuId,
+        unitNumber: derived.unitNumber,
+      },
+    },
+    include: {
+      allocations: {
+        where: {
+          checkedOutAt: { not: null },
+          checkedInAt: null,
+        },
+        take: 1,
+        include: {
+          bookingBulkItem: {
+            include: {
+              booking: {
+                select: {
+                  title: true,
+                  requester: { select: { name: true } },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+  if (!unit) {
+    return { handled: true, success: false, error: `${bulkItem.bulkSku.name} #${derived.unitNumber} does not exist`, errorCode: "not_found" };
+  }
+
+  const stagedScans = await tx.scanEvent.findMany({
+    where: {
+      bookingId: booking.id,
+      phase: "CHECKOUT",
+      scanType: "BULK_BIN",
+      success: true,
+      bulkSkuId: bulkItem.bulkSkuId,
+    },
+    select: { scanValue: true },
+  });
+  const stagedUnits = stagedScans
+    .map((event) => parseDerivedBulkUnitQr(event.scanValue, [bulkItem.bulkSku]))
+    .filter((match): match is NonNullable<typeof match> => !!match);
+  if (stagedUnits.some((match) => match.unitNumber === unit.unitNumber)) {
+    return { handled: true, success: false, error: `${bulkItem.bulkSku.name} #${unit.unitNumber} already scanned`, errorCode: "duplicate" };
+  }
+
+  if (stagedUnits.length >= bulkItem.plannedQuantity) {
+    return {
+      handled: true,
+      success: false,
+      error: `${bulkItem.bulkSku.name} already has ${bulkItem.plannedQuantity} of ${bulkItem.plannedQuantity} units scanned`,
+      errorCode: "quantity_exceeded",
+    };
+  }
+
+  if (unit.status === BulkUnitStatus.CHECKED_OUT) {
+    const activeBooking = unit.allocations[0]?.bookingBulkItem.booking;
+    const holder = activeBooking?.requester.name;
+    return {
+      handled: true,
+      success: false,
+      error: `${bulkItem.bulkSku.name} #${unit.unitNumber} is already checked out${holder ? ` to ${holder}` : ""}`,
+      errorCode: "already_checked_out",
+    };
+  }
+
+  if (unit.status !== BulkUnitStatus.AVAILABLE) {
+    return {
+      handled: true,
+      success: false,
+      error: `${bulkItem.bulkSku.name} #${unit.unitNumber} is marked ${statusLabel(unit.status)} and cannot be picked up`,
+      errorCode: "wrong_status",
+    };
+  }
+
+  await tx.scanEvent.create({
+    data: {
+      bookingId: booking.id,
+      actorUserId: booking.requesterUserId,
+      scanType: "BULK_BIN",
+      scanValue: args.scanValue,
+      success: true,
+      phase: "CHECKOUT",
+      bulkSkuId: bulkItem.bulkSkuId,
+      quantity: 1,
+      deviceContext: args.deviceContext ?? "kiosk",
+    },
+  });
+
+  return {
+    handled: true,
+    success: true,
+    item: {
+      id: `${bulkItem.id}:slot:${stagedUnits.length + 1}`,
+      name: unitDisplayName(bulkItem.bulkSku.name, unit.unitNumber),
+      tagName: unitTagName(unit.unitNumber),
+      type: bulkItem.bulkSku.category,
+      unitNumber: unit.unitNumber,
+      bulkSkuId: bulkItem.bulkSkuId,
+    },
+  };
+}
+
 export async function scanKioskCheckinBulkUnit(
   tx: TxClient,
   args: { bookingId: string; scanValue: string },

@@ -87,7 +87,7 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
     } finally {
       if (!signal?.aborted) setLoadingHistory(false);
     }
-  }, [license?.id]);
+  }, [license]);
 
   useEffect(() => {
     if (!license) {
@@ -101,7 +101,7 @@ export function AdminClaimSheet({ license, isAdmin, onOpenChange, onAction }: Pr
     const controller = new AbortController();
     void loadHistory(controller.signal);
     return () => controller.abort();
-  }, [license?.id, license?.expiresAt, license?.accountEmail, loadHistory]);
+  }, [license, loadHistory]);
 
   async function handleReleaseClaim(claimId?: string) {
     if (!license) return;

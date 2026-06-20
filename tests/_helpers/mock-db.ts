@@ -2,6 +2,10 @@ import { vi } from "vitest";
 
 type MockModel = Record<string, ReturnType<typeof vi.fn>>;
 
+declare global {
+  var __transactionCalls: Array<{ options: unknown }> | undefined;
+}
+
 /**
  * Create a mock transaction client with the given model mocks.
  * Each model should be an object of vi.fn() stubs.
@@ -39,5 +43,5 @@ export function createMockDb(models: Record<string, MockModel>) {
  * that use the globalThis.__transactionCalls pattern.
  */
 export function setupTransactionTracking(transactionCalls: Array<{ options: unknown }>) {
-  (globalThis as any).__transactionCalls = transactionCalls;
+  globalThis.__transactionCalls = transactionCalls;
 }

@@ -112,7 +112,7 @@ export default function BookingListPage({
     return `${config.apiBase}?${params}`;
   }, [page, search, sort, statusFilter, sportFilter, locationFilter, userFilter, specialFilter, config.apiBase, config.activeOnly, config.pastOnly, config.hasSportFilter, defaultStatusFiltersKey]);
 
-  const { data: listData, isLoading: loading, isFetching, isError, refetch } = useQuery<ListResponse>({
+  const { data: listData, isLoading: loading, isError, refetch } = useQuery<ListResponse>({
     queryKey: ["bookingList", config.kind, listUrl],
     queryFn: async ({ signal }) => {
       const res = await fetch(listUrl, { signal });
@@ -127,7 +127,8 @@ export default function BookingListPage({
     refetchOnWindowFocus: true,
   });
   const reload = async () => { await refetch(); };
-  const items = listData?.data ?? [];
+  const listItems = listData?.data;
+  const items = useMemo(() => listItems ?? [], [listItems]);
   const total = listData?.total ?? 0;
 
   // On background refresh failure (cached data still visible): toast instead of replacing UI

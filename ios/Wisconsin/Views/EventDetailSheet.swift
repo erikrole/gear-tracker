@@ -473,8 +473,8 @@ struct EventDetailSheet: View {
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(Color.accentColor.opacity(0.12))
-                        .foregroundStyle(Color.accentColor)
+                        .background(Color.brandPrimary.opacity(0.12))
+                        .foregroundStyle(Color.brandPrimary)
                         .clipShape(Capsule())
                 }
                 if let isHome = event.isHome {
@@ -838,14 +838,14 @@ struct ShiftRow: View {
             // My-shift indicator dot
             if isHighlighted {
                 Circle()
-                    .fill(Color.accentColor)
+                    .fill(Color.statusText(.blue))
                     .frame(width: 7, height: 7)
                     .accessibilityHidden(true)
             }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(isHighlighted ? Color.accentColor.opacity(0.06) : Color.clear)
+        .background(isHighlighted ? Color.statusText(.blue).opacity(0.06) : Color.clear)
         .contentShape(.contextMenuPreview, Rectangle())
         .contextMenu { rowContextMenu }
         .accessibilityElement(children: .combine)
@@ -968,7 +968,7 @@ struct ShiftRow: View {
                     if isMe {
                         Image(systemName: "person.fill")
                             .font(.caption2)
-                            .foregroundStyle(Color.accentColor)
+                            .foregroundStyle(Color.statusText(.blue))
                     }
                     if assignment.status == "REQUESTED" {
                         StatusPill(label: "Pending", tone: .orange)
@@ -1027,7 +1027,7 @@ struct ShiftRow: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
-            .tint(Color.accentColor)
+            .tint(Color.brandPrimary)
             .accessibilityLabel("Assign \(shift.area.shiftAreaLabel) shift")
         } else if isStudent && isStudentSlot, let onRequest {
             Button { onRequest(shift) } label: {
@@ -1036,7 +1036,7 @@ struct ShiftRow: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
-            .tint(Color.accentColor)
+            .tint(Color.brandPrimary)
             .accessibilityLabel("Request \(shift.area.shiftAreaLabel) shift")
         } else {
             Text("Open")

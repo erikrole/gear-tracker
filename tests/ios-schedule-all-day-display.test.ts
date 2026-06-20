@@ -18,7 +18,8 @@ describe("iOS Schedule all-day display", () => {
     expect(models).toContain("let title = cleanScheduleEventSummary(event.summary)");
 
     expect(scheduleView).toContain("scheduleEventDisplayTitle(event)");
-    expect(scheduleView).toContain("if event.displayAllDay {\n                        Text(\"All day\")");
+    expect(scheduleView).toContain("if event.displayAllDay { return \"All day\" }");
+    expect(scheduleView).toContain("return event.displayAllDay ? \"All day\" : eventTimeLabel");
     expect(scheduleView).not.toContain("return Self.cleanSummary(event.summary)");
 
     expect(eventDetail).toContain("if event.displayAllDay { return nil }");

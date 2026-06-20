@@ -319,8 +319,12 @@ export async function checkinItems(
     if (result.badgeEvent) {
       await badges.onCheckoutReturned(result.badgeEvent);
     }
-    const { badgeEvent: _badgeEvent, ...publicResult } = result;
-    return publicResult;
+    return {
+      success: result.success,
+      returnedAssetIds: result.returnedAssetIds,
+      remainingActiveItems: result.remainingActiveItems,
+      autoCompleted: result.autoCompleted,
+    };
   });
 }
 
@@ -496,8 +500,12 @@ export async function kioskCompleteCheckin(args: {
     if (result.badgeEvent) {
       await badges.onCheckoutReturned(result.badgeEvent);
     }
-    const { badgeEvent: _badgeEvent, ...publicResult } = result;
-    return publicResult;
+    return {
+      refNumber: result.refNumber,
+      totalItems: result.totalItems,
+      returnedItems: result.returnedItems,
+      completed: result.completed,
+    };
   });
 }
 
@@ -592,7 +600,12 @@ export async function checkinBulkItem(
     if (result.badgeEvent) {
       await badges.onCheckoutReturned(result.badgeEvent);
     }
-    const { badgeEvent: _badgeEvent, ...publicResult } = result;
-    return publicResult;
+    return {
+      success: result.success,
+      bulkItemId: result.bulkItemId,
+      checkedInQuantity: result.checkedInQuantity,
+      totalQuantity: result.totalQuantity,
+      autoCompleted: result.autoCompleted,
+    };
   });
 }

@@ -65,7 +65,7 @@ Scope: `KioskPickupView` in `ios/Wisconsin/Kiosk/KioskPickupView.swift` (PENDING
 
 ## Acceptance criteria status
 
-There is no `AREA_KIOSK_PICKUP` doc; AC inferred from `AREA_KIOSK.md` and `tasks/kiosk-gate-pending-pickup-plan.md`:
+There is no `AREA_KIOSK_PICKUP` doc; AC inferred from `AREA_KIOSK.md` and `tasks/archive/completed-2026-06/kiosk-gate-pending-pickup-plan-2026-05-10.md`:
 
 - [x] AC: pickup transitions PENDING_PICKUP → OPEN.
 - [x] AC: HID scanner + camera fallback both work.

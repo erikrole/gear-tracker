@@ -22,6 +22,14 @@ import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 const validToken = "a".repeat(48);
 
+function user(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.user.findFirst>>;
+}
+
+function shiftAssignments(rows: unknown) {
+  return rows as Awaited<ReturnType<typeof db.shiftAssignment.findMany>>;
+}
+
 function request() {
   return new Request(`https://app.example.com/api/shifts/ics/${validToken}`, {
     headers: { "x-forwarded-for": "203.0.113.10" },
@@ -36,11 +44,11 @@ beforeEach(() => {
     remaining: 10,
     resetAt: Date.now() + 60_000,
   });
-  vi.mocked(db.user.findFirst).mockResolvedValue({
+  vi.mocked(db.user.findFirst).mockResolvedValue(user({
     id: "user-1",
     name: "Student One",
-  } as any);
-  vi.mocked(db.shiftAssignment.findMany).mockResolvedValue([
+  }));
+  vi.mocked(db.shiftAssignment.findMany).mockResolvedValue(shiftAssignments([
     {
       id: "assignment-1",
       shift: {
@@ -57,7 +65,7 @@ beforeEach(() => {
         },
       },
     },
-  ] as any);
+  ]));
 });
 
 describe("shift ICS feed hardening", () => {

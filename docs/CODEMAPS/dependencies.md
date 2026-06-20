@@ -71,6 +71,7 @@
 - `audit:ios`: `bash scripts/ios-audit-inventory.sh`
 - `audit:ios:gaps`: `bash scripts/ios-audit-inventory.sh --gaps`
 - `build`: `node scripts/prisma-migrate-deploy.mjs && next build`
+- `build:app`: `next build`
 - `codemap`: `node scripts/generate-codemaps.mjs`
 - `codemap:check`: `node scripts/generate-codemaps.mjs --check`
 - `db:check:dupe-allocations`: `node --env-file=.env scripts/check-dupe-allocations.mjs`
@@ -86,7 +87,9 @@
 - `drift:ios`: `bash scripts/ios-drift-check.sh`
 - `drift:ios:warn`: `bash scripts/ios-drift-check.sh --warn`
 - `import:cheqroom`: `node scripts/import-cheqroom-items.mjs`
+- `ios:project:check`: `node scripts/check-ios-project.mjs`
 - `lint`: `eslint .`
+- `lint:summary`: `node scripts/lint-summary.mjs`
 - `migrate`: `node scripts/prisma-migrate-deploy.mjs`
 - `postinstall`: `prisma generate`
 - `prisma:generate`: `prisma generate`

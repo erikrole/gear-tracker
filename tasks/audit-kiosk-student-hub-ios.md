@@ -53,7 +53,7 @@ _None._ Auth/scoping is correct (server gates 404 by `kiosk.locationId`). Sub-fl
 
 ## P2 — post-MVP
 
-- [ ] [Polish] **Deferred.** Pending-pickup ordering: server returns newest-first (`createdAt: "desc"`), but oldest-first (closest-to-expiry) might serve students better. No expiry exists yet (`tasks/kiosk-gate-pending-pickup-plan.md` flags cron auto-expiry as GAP-33), so this is moot until that lands.
+- [ ] [Polish] **Deferred.** Pending-pickup ordering: server returns newest-first (`createdAt: "desc"`), but oldest-first (closest-to-expiry) might serve students better. No expiry exists yet (`tasks/archive/completed-2026-06/kiosk-gate-pending-pickup-plan-2026-05-10.md` flags cron auto-expiry as GAP-33), so this is moot until that lands.
 - [ ] [Polish] **Deferred.** "What was I doing?" — when a student returns mid-checkout (cart persistence shipped per the prior audit), the hub doesn't surface "you have a cart in progress." Today's flow takes them to `.idle` first then they re-pick their name; the cart restores when they hit Checkout. Not broken, just non-obvious. Defer until observed.
 - [ ] [Polish] **Deferred.** Inline reservation pickup confirmation — tap a reservation in the status panel to jump to its pickup flow. Today reservations are read-only; pickups appear separately as PENDING_PICKUP bookings in the action panel. The split is correct (BOOKED ≠ PENDING_PICKUP) but a future "Pickup" button on a hub-displayed reservation could compress the path.
 - [ ] [Hardening] **Deferred.** Distinguish "transient network" from "user not at this kiosk" (server returns 404 with body for both). The student reaction is the same — hit Back — so the differentiation is staff-only. Skip.

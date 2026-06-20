@@ -7,6 +7,7 @@
 
 ## Status
 
+- **State**: DONE ON MAIN (2026-06-19 reconciliation; implementation originally shipped 2026-06-11)
 - **Priority**: P1
 - **Effort**: S/M
 - **Risk**: MED
@@ -192,15 +193,15 @@ Document:
 
 ## Done criteria
 
-- [ ] Quantity add-to-existing selector excludes unit-tracked item families.
-- [ ] `/api/bulk-skus/[id]/adjust` rejects `trackByNumber: true` SKUs before balance or movement writes.
-- [ ] Unit additions remain handled through `/api/bulk-skus/[id]/units`.
-- [ ] `npx vitest run tests/new-item-sheet-ui-source.test.ts` exits 0.
-- [ ] `npx vitest run tests/api-hardening-wave11.test.ts` exits 0.
-- [ ] `npx tsc --noEmit` exits 0.
-- [ ] `git diff --check` exits 0.
-- [ ] Relevant docs are updated.
-- [ ] `plans/README.md` status row for plan 049 is updated.
+- [x] Quantity add-to-existing selector excludes unit-tracked item families.
+- [x] `/api/bulk-skus/[id]/adjust` rejects `trackByNumber: true` SKUs before balance or movement writes.
+- [x] Unit additions remain handled through `/api/bulk-skus/[id]/units`.
+- [x] `npx vitest run tests/new-item-sheet-ui-source.test.ts` exits 0.
+- [x] `npx vitest run tests/api-hardening-wave11.test.ts` exits 0.
+- [x] `npx tsc --noEmit` exits 0.
+- [x] `git diff --check` exits 0.
+- [x] Relevant docs are updated.
+- [x] `plans/README.md` status row for plan 049 is updated.
 
 ## STOP conditions
 
@@ -214,3 +215,9 @@ Stop and report back if:
 ## Maintenance notes
 
 This plan protects the core D-022 split between quantity-only counts and unit-backed custody. A future "Units add to existing" Add Item flow is valid, but it must call `/api/bulk-skus/[id]/units` and collect an operator reason, not reuse the quantity adjustment endpoint.
+
+## Review
+
+- Shipped: Quantity add-to-existing filters out unit-tracked families, and the generic adjust route rejects `trackByNumber` SKUs before balance or movement writes.
+- Verified: focused source-contract and API hardening tests pass, plus typecheck and diff hygiene in the 2026-06-19 reconciliation pass.
+- Deferred: future Units add-to-existing UI remains separate and must call the units route.

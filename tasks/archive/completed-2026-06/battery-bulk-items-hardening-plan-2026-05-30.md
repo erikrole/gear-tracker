@@ -17,7 +17,7 @@
 - `src/app/api/assets/route.ts`, `src/app/api/bulk-skus/route.ts`, and `src/app/api/bulk-skus/[id]/route.ts`: `/items`, item-family list, and item-family detail already use no-store responses and derive numbered availability from unit status.
 - `src/components/EquipmentPicker.tsx`: bulk rows cap requested quantity at `getBulkAvailable(sku)` and display "units scan at pickup" for unit-tracked families.
 - `src/lib/services/bulk-unit-scans.ts`: pickup/return already distinguish wrong family, duplicate scan, checked out elsewhere, missing/retired, not on booking, and quantity-exceeded cases.
-- `tasks/archive/bulk-battery-hardening-plan.md`, `tasks/battery-follow-through-plan.md`, `tasks/battery-ops-empty-state-plan.md`, and `tasks/bulk-items-v2-plan.md`: prior battery work settled quantity-first picker and kiosk-bound unit custody. The location-aware Bulk Items V2 plan is not approved for this pass and conflicts with the current schema because `BulkSkuUnit` has no `locationId`.
+- `tasks/archive/bulk-battery-hardening-plan.md`, `tasks/archive/completed-2026-06/battery-follow-through-plan-2026-05-13.md`, `tasks/archive/completed-2026-06/battery-ops-empty-state-plan-2026-05-20.md`, and `tasks/bulk-items-v2-plan.md`: prior battery work settled quantity-first picker and kiosk-bound unit custody. The location-aware Bulk Items V2 plan is not approved for this pass and conflicts with the current schema because `BulkSkuUnit` has no `locationId`.
 
 ## Slices
 - [x] Slice 1: Live count read paths

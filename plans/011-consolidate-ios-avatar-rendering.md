@@ -13,6 +13,7 @@
 - **Depends on**: 009
 - **Category**: tech-debt
 - **Planned at**: commit `e8566c54`, 2026-06-10
+- **Result**: DONE ON MAIN, 2026-06-19
 
 ## Why This Matters
 
@@ -111,13 +112,13 @@ Manual reviewer check:
 
 ## Done Criteria
 
-- [ ] Shared avatar code handles user list, requester picker, profile, user detail, and assign picker cases.
-- [ ] Duplicate AsyncImage plus initials fallback implementations are removed or documented as intentional.
-- [ ] Existing avatar-facing source tests pass.
-- [ ] `npm run drift:ios` exits 0.
-- [ ] `npm run audit:ios:gaps` exits 0.
-- [ ] iOS simulator build succeeds.
-- [ ] `plans/README.md` status row updated.
+- [x] Shared avatar code handles user list, requester picker, profile, user detail, and assign picker cases.
+- [x] Duplicate AsyncImage plus initials fallback implementations are removed or documented as intentional.
+- [x] Existing avatar-facing source tests pass.
+- [x] `npm run drift:ios` exits 0.
+- [x] `npm run audit:ios:gaps` exits 0.
+- [x] iOS simulator build succeeds.
+- [x] `plans/README.md` status row updated.
 
 ## STOP Conditions
 
@@ -129,3 +130,8 @@ Manual reviewer check:
 
 Keep this as a consolidation pass. If a surface wants a different visual language, express that as parameters on the shared component rather than another full renderer.
 
+## Review
+
+- Shipped 2026-06-19: `UserAvatarView` now supports tone-aware initials fallback colors and optional border rendering while preserving its default list/picker behavior. `AccountAvatar` became a thin current-user wrapper, and User detail plus Schedule assignment rows now use the shared avatar component.
+- Intentional remaining `AsyncImage` users are non-user thumbnails and scan/result media surfaces, not duplicate user-avatar renderers.
+- Verification: avatar source search, focused iOS settings/create-booking/student tests, `npm run drift:ios`, `npm run audit:ios:gaps`, XcodeBuildMCP simulator build, `npm test`, `npm run lint`, `npm run verify:docs`, and `git diff --check` passed.

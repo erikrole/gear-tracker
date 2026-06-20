@@ -22,6 +22,13 @@
 - **Depends on**: none
 - **Category**: bug
 - **Planned at**: commit `e8566c54`, 2026-06-10
+- **State**: DONE ON MAIN (2026-06-19)
+
+## Completion notes
+
+- 2026-06-19: Live route drifted ahead of this plan: `POST /api/kiosk/checkout/complete` already runs `checkAvailability` inside the SERIALIZABLE transaction and now includes numbered-bulk requests in that check.
+- Added the missing residual allocation-constraint fallback so a last-second `asset_allocations_no_overlap` race returns a friendly 409 instead of falling through to a 500.
+- Added checkout-complete route regressions in `tests/kiosk-checkout-complete-bulk-units.test.ts` for default kiosk location behavior and allocation-race conflict mapping, alongside the existing availability-guard tests.
 
 ## Why this matters
 

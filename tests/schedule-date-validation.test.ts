@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Role } from "@prisma/client";
 
 const mockShiftTx = {
   shiftGroup: {
@@ -42,9 +43,21 @@ const staffUser = {
   id: "staff-1",
   email: "staff@example.com",
   name: "Staff One",
-  role: "STAFF" as any,
+  role: Role.STAFF,
   avatarUrl: null,
 };
+
+function shiftGroup(row: unknown) {
+  return row as Awaited<ReturnType<typeof mockShiftTx.shiftGroup.findUnique>>;
+}
+
+function shift(row: unknown) {
+  return row as Awaited<ReturnType<typeof mockShiftTx.shift.create>>;
+}
+
+function shiftGroupUpdate(row: unknown) {
+  return row as Awaited<ReturnType<typeof mockShiftTx.shiftGroup.update>>;
+}
 
 function get(path: string) {
   return new Request(`https://app.example.com${path}`, {
@@ -72,15 +85,15 @@ beforeEach(() => {
   vi.mocked(db.calendarEvent.count).mockResolvedValue(0);
   vi.mocked(db.shiftGroup.findMany).mockResolvedValue([]);
   vi.mocked(db.shiftGroup.count).mockResolvedValue(0);
-  mockShiftTx.shiftGroup.findUnique.mockResolvedValue({
+  mockShiftTx.shiftGroup.findUnique.mockResolvedValue(shiftGroup({
     id: "group-1",
     event: {
       startsAt: new Date("2026-06-01T10:00:00.000Z"),
       endsAt: new Date("2026-06-01T12:00:00.000Z"),
     },
-  } as any);
-  mockShiftTx.shift.create.mockResolvedValue({ id: "shift-1", area: "VIDEO", workerType: "FT" } as any);
-  mockShiftTx.shiftGroup.update.mockResolvedValue({} as any);
+  }));
+  mockShiftTx.shift.create.mockResolvedValue(shift({ id: "shift-1", area: "VIDEO", workerType: "FT" }));
+  mockShiftTx.shiftGroup.update.mockResolvedValue(shiftGroupUpdate({}));
 });
 
 describe("schedule date validation", () => {

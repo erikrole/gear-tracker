@@ -24,7 +24,6 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -288,7 +287,6 @@ export default function UserDetailPage() {
   // ── Data fetching via useFetch ──
   const {
     data: user,
-    loading: userLoading,
     error: fetchError,
     reload: loadUser,
   } = useFetch<UserDetail>({

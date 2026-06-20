@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Role } from "@prisma/client";
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: vi.fn(),
@@ -27,7 +28,7 @@ const adminUser = {
   id: "admin-1",
   email: "admin@test.com",
   name: "Admin",
-  role: "ADMIN" as const,
+  role: Role.ADMIN,
   avatarUrl: null,
 };
 
@@ -35,9 +36,17 @@ const staffUser = {
   id: "staff-1",
   email: "staff@test.com",
   name: "Staff",
-  role: "STAFF" as const,
+  role: Role.STAFF,
   avatarUrl: null,
 };
+
+function allowedEmails(rows: unknown) {
+  return rows as Awaited<ReturnType<typeof db.allowedEmail.findMany>>;
+}
+
+function users(rows: unknown) {
+  return rows as Awaited<ReturnType<typeof db.user.findMany>>;
+}
 
 function makePreviewRequest(body: Record<string, unknown>) {
   return new Request("https://app.example.com/api/allowed-emails/preview", {
@@ -60,12 +69,12 @@ beforeEach(() => {
 describe("POST /api/allowed-emails/preview", () => {
   it("returns account-status preview rows for authorized admins", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
-    vi.mocked(db.allowedEmail.findMany).mockResolvedValue([
-      { email: "pending@uw.edu", role: "STUDENT", claimedAt: null },
-    ] as any);
-    vi.mocked(db.user.findMany).mockResolvedValue([
-      { email: "existing@uw.edu", role: "STAFF" },
-    ] as any);
+    vi.mocked(db.allowedEmail.findMany).mockResolvedValue(allowedEmails([
+      { email: "pending@uw.edu", role: Role.STUDENT, claimedAt: null },
+    ]));
+    vi.mocked(db.user.findMany).mockResolvedValue(users([
+      { email: "existing@uw.edu", role: Role.STAFF },
+    ]));
 
     const response = await POST(
       makePreviewRequest({

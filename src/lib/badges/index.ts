@@ -3,14 +3,12 @@ import { captureBadgeError } from "@/lib/observability";
 import * as evaluator from "./evaluator";
 import type { BadgeService } from "./types";
 
-type BadgeEvaluator = (...args: any[]) => Promise<void>;
-
 export function badgesEnabled(): boolean {
   return process.env.BADGES_ENABLED === "true";
 }
 
-function safeCall<F extends BadgeEvaluator>(fn: F): F {
-  return (async (...args: Parameters<F>) => {
+function safeCall<Args extends unknown[]>(fn: (...args: Args) => Promise<void>): (...args: Args) => Promise<void> {
+  return async (...args: Args) => {
     if (!badgesEnabled()) return;
 
     try {
@@ -24,7 +22,7 @@ function safeCall<F extends BadgeEvaluator>(fn: F): F {
       }
       captureBadgeError(error, { evaluator: fn.name });
     }
-  }) as F;
+  };
 }
 
 export const badges: BadgeService = {

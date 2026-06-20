@@ -1,4 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Role } from "@prisma/client";
+
+declare global {
+  var __assetTransactionOptions: unknown;
+}
 
 const mockTx = {
   asset: {
@@ -14,7 +19,7 @@ vi.mock("@/lib/auth", () => ({
 vi.mock("@/lib/db", () => ({
   db: {
     $transaction: vi.fn(async (fn: (tx: typeof mockTx) => Promise<unknown>, options?: unknown) => {
-      (globalThis as any).__assetTransactionOptions = options;
+      globalThis.__assetTransactionOptions = options;
       return fn(mockTx);
     }),
     asset: {
@@ -46,6 +51,14 @@ import { PATCH as moveAccessory } from "@/app/api/assets/[id]/accessories/route"
 
 const assetParams = { params: Promise.resolve({ id: "asset-1" }) };
 
+function assetRow(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.asset.findUnique>>;
+}
+
+function favoriteRow(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.favoriteItem.create>>;
+}
+
 function post(path: string) {
   return new Request(`https://app.example.com${path}`, {
     method: "POST",
@@ -70,19 +83,19 @@ function patch(path: string, body: Record<string, unknown>) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  (globalThis as any).__assetTransactionOptions = undefined;
+  globalThis.__assetTransactionOptions = undefined;
   vi.mocked(requireAuth).mockResolvedValue({
     id: "staff-1",
     email: "staff@example.com",
     name: "Staff One",
-    role: "STAFF" as any,
+    role: Role.STAFF,
     avatarUrl: null,
   });
   mockTx.asset.findUnique.mockResolvedValue({ id: "asset-1", status: "AVAILABLE" });
   mockTx.asset.update.mockResolvedValue({ id: "asset-1", status: "RETIRED" });
-  vi.mocked(db.asset.findUnique).mockResolvedValue({ id: "asset-1" } as any);
+  vi.mocked(db.asset.findUnique).mockResolvedValue(assetRow({ id: "asset-1" }));
   vi.mocked(db.favoriteItem.findUnique).mockResolvedValue(null);
-  vi.mocked(db.favoriteItem.create).mockResolvedValue({ id: "favorite-1" } as any);
+  vi.mocked(db.favoriteItem.create).mockResolvedValue(favoriteRow({ id: "favorite-1" }));
 });
 
 describe("asset action hardening", () => {
@@ -91,7 +104,7 @@ describe("asset action hardening", () => {
 
     expect(res.status).toBe(200);
     expect(db.$transaction).toHaveBeenCalledOnce();
-    expect((globalThis as any).__assetTransactionOptions).toEqual({
+    expect(globalThis.__assetTransactionOptions).toEqual({
       isolationLevel: "Serializable",
     });
     expect(mockTx.asset.findUnique).toHaveBeenCalledWith({ where: { id: "asset-1" } });

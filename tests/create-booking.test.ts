@@ -1,6 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Prisma } from "@prisma/client";
+import { BookingKind, Prisma } from "@prisma/client";
 import { expectSerializableIsolation } from "./_helpers/assert-transaction";
+
+type MockFn = ReturnType<typeof vi.fn>;
+type CreateBookingTx = {
+  booking: Record<"findUnique" | "findUniqueOrThrow" | "create" | "update", MockFn>;
+  calendarEvent: Record<"findMany", MockFn>;
+  bookingEvent: Record<"createMany", MockFn>;
+  bookingSerializedItem: Record<"createMany", MockFn>;
+  bookingBulkItem: Record<"createMany", MockFn>;
+  assetAllocation: Record<"createMany" | "updateMany", MockFn>;
+  bulkStockBalance: Record<"findMany" | "upsert", MockFn>;
+  bulkStockMovement: Record<"createMany", MockFn>;
+  auditLog: Record<"create", MockFn>;
+  scanSession: Record<"updateMany", MockFn>;
+  user: Record<"findUnique", MockFn>;
+  $queryRaw: MockFn;
+};
 
 // ─── Transaction tracking ───────────────────────────────────────────────────
 const transactionCalls: Array<{ options: unknown }> = [];
@@ -53,11 +69,11 @@ import { db } from "@/lib/db";
 import { checkAvailability } from "@/lib/services/availability";
 import { createBooking } from "@/lib/services/bookings";
 
-const mockTx = (db as any)._mockTx;
+const mockTx = (db as unknown as { _mockTx: CreateBookingTx })._mockTx;
 
 function baseInput(overrides: Record<string, unknown> = {}) {
   return {
-    kind: "CHECKOUT" as any,
+    kind: BookingKind.CHECKOUT,
     custodySource: "KIOSK" as const,
     title: "Test Checkout",
     requesterUserId: "user-1",

@@ -14,6 +14,7 @@
 
 ## Status
 
+- **State**: DONE ON MAIN (2026-06-19) — service count fix was already present; this pass added focused kiosk return scan/complete route coverage and a battery-count regression.
 - **Priority**: P1
 - **Effort**: M
 - **Risk**: LOW

@@ -18,4 +18,4 @@
 ## Review
 - Shipped: `BookingOverflowMenu` now renders the shared `OperationalRowActions` trigger, so table rows, mobile rows, and booking cards share the same 40px accessible overflow control.
 - Verified: `npx tsc --noEmit`, `git diff --check`, `npx next build`, and protected-route browser smoke on `/bookings`.
-- Deferred: None. Trade Board row action migration is tracked in `tasks/trade-board-row-actions-plan.md`.
+- Deferred: None. Trade Board row action migration is tracked in `tasks/archive/completed-2026-06/trade-board-row-actions-plan-2026-05-20.md`.

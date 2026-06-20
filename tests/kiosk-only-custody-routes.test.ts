@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Role } from "@prisma/client";
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: vi.fn(),
@@ -24,9 +25,13 @@ const staffUser = {
   id: "staff-1",
   email: "staff@example.com",
   name: "Staff One",
-  role: "STAFF" as any,
+  role: Role.STAFF,
   avatarUrl: null,
 };
+
+function bookingAction(row: unknown) {
+  return row as Awaited<ReturnType<typeof requireBookingAction>>;
+}
 
 const BOOKING_ID = "cm000000000000000000000001";
 
@@ -49,7 +54,7 @@ function ctx() {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(requireAuth).mockResolvedValue(staffUser);
-  vi.mocked(requireBookingAction).mockResolvedValue({ id: BOOKING_ID } as any);
+  vi.mocked(requireBookingAction).mockResolvedValue(bookingAction({ id: BOOKING_ID }));
 });
 
 describe("kiosk-only custody route boundary", () => {

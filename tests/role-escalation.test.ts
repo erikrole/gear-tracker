@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { Role } from "@prisma/client";
 
 // ─── Mock modules ───────────────────────────────────────────────────────────
 vi.mock("@/lib/auth", () => ({
@@ -26,6 +27,24 @@ import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { PATCH } from "@/app/api/users/[id]/role/route";
 
+function authUser(id: string, role: Role) {
+  return {
+    id,
+    email: `${id}@test.com`,
+    name: id,
+    role,
+    avatarUrl: null,
+  };
+}
+
+function userRoleResult(id: string, role: Role) {
+  return { id, role } as Awaited<ReturnType<typeof db.user.findUnique>>;
+}
+
+function userRoleUpdateResult(id: string, role: Role) {
+  return { id, role } as Awaited<ReturnType<typeof db.user.update>>;
+}
+
 function makeRequest(body: Record<string, unknown>) {
   return new Request("https://app.example.com/api/users/target-1/role", {
     method: "PATCH",
@@ -39,19 +58,13 @@ function makeRequest(body: Record<string, unknown>) {
 }
 
 beforeEach(() => {
-  vi.mocked(db.user.update).mockResolvedValue({
-    id: "target-1", role: "STAFF",
-  } as any);
+  vi.mocked(db.user.update).mockResolvedValue(userRoleUpdateResult("target-1", Role.STAFF));
 });
 
 describe("PATCH /api/users/[id]/role", () => {
   it("ADMIN can change any role", async () => {
-    vi.mocked(requireAuth).mockResolvedValue({
-      id: "admin-1", email: "admin@test.com", name: "Admin", role: "ADMIN" as any, avatarUrl: null,
-    });
-    vi.mocked(db.user.findUnique).mockResolvedValue({
-      id: "target-1", role: "STUDENT",
-    } as any);
+    vi.mocked(requireAuth).mockResolvedValue(authUser("admin-1", Role.ADMIN));
+    vi.mocked(db.user.findUnique).mockResolvedValue(userRoleResult("target-1", Role.STUDENT));
 
     const res = await PATCH(
       makeRequest({ role: "STAFF" }),
@@ -62,12 +75,8 @@ describe("PATCH /api/users/[id]/role", () => {
   });
 
   it("STAFF cannot grant ADMIN role", async () => {
-    vi.mocked(requireAuth).mockResolvedValue({
-      id: "staff-1", email: "staff@test.com", name: "Staff", role: "STAFF" as any, avatarUrl: null,
-    });
-    vi.mocked(db.user.findUnique).mockResolvedValue({
-      id: "target-1", role: "STUDENT",
-    } as any);
+    vi.mocked(requireAuth).mockResolvedValue(authUser("staff-1", Role.STAFF));
+    vi.mocked(db.user.findUnique).mockResolvedValue(userRoleResult("target-1", Role.STUDENT));
 
     const res = await PATCH(
       makeRequest({ role: "ADMIN" }),
@@ -78,12 +87,8 @@ describe("PATCH /api/users/[id]/role", () => {
   });
 
   it("STAFF cannot revoke ADMIN role", async () => {
-    vi.mocked(requireAuth).mockResolvedValue({
-      id: "staff-1", email: "staff@test.com", name: "Staff", role: "STAFF" as any, avatarUrl: null,
-    });
-    vi.mocked(db.user.findUnique).mockResolvedValue({
-      id: "target-1", role: "ADMIN",
-    } as any);
+    vi.mocked(requireAuth).mockResolvedValue(authUser("staff-1", Role.STAFF));
+    vi.mocked(db.user.findUnique).mockResolvedValue(userRoleResult("target-1", Role.ADMIN));
 
     const res = await PATCH(
       makeRequest({ role: "STAFF" }),
@@ -94,12 +99,8 @@ describe("PATCH /api/users/[id]/role", () => {
   });
 
   it("cannot change own role", async () => {
-    vi.mocked(requireAuth).mockResolvedValue({
-      id: "admin-1", email: "admin@test.com", name: "Admin", role: "ADMIN" as any, avatarUrl: null,
-    });
-    vi.mocked(db.user.findUnique).mockResolvedValue({
-      id: "admin-1", role: "ADMIN",
-    } as any);
+    vi.mocked(requireAuth).mockResolvedValue(authUser("admin-1", Role.ADMIN));
+    vi.mocked(db.user.findUnique).mockResolvedValue(userRoleResult("admin-1", Role.ADMIN));
 
     const res = await PATCH(
       makeRequest({ role: "STAFF" }),
@@ -110,9 +111,7 @@ describe("PATCH /api/users/[id]/role", () => {
   });
 
   it("returns 404 when target user not found", async () => {
-    vi.mocked(requireAuth).mockResolvedValue({
-      id: "admin-1", email: "admin@test.com", name: "Admin", role: "ADMIN" as any, avatarUrl: null,
-    });
+    vi.mocked(requireAuth).mockResolvedValue(authUser("admin-1", Role.ADMIN));
     vi.mocked(db.user.findUnique).mockResolvedValue(null);
 
     const res = await PATCH(
@@ -124,9 +123,7 @@ describe("PATCH /api/users/[id]/role", () => {
   });
 
   it("STUDENT cannot access role change endpoint", async () => {
-    vi.mocked(requireAuth).mockResolvedValue({
-      id: "student-1", email: "stu@test.com", name: "Student", role: "STUDENT" as any, avatarUrl: null,
-    });
+    vi.mocked(requireAuth).mockResolvedValue(authUser("student-1", Role.STUDENT));
 
     const res = await PATCH(
       makeRequest({ role: "STAFF" }),
@@ -137,15 +134,9 @@ describe("PATCH /api/users/[id]/role", () => {
   });
 
   it("ADMIN can change STUDENT to ADMIN", async () => {
-    vi.mocked(requireAuth).mockResolvedValue({
-      id: "admin-1", email: "admin@test.com", name: "Admin", role: "ADMIN" as any, avatarUrl: null,
-    });
-    vi.mocked(db.user.findUnique).mockResolvedValue({
-      id: "target-1", role: "STUDENT",
-    } as any);
-    vi.mocked(db.user.update).mockResolvedValue({
-      id: "target-1", role: "ADMIN",
-    } as any);
+    vi.mocked(requireAuth).mockResolvedValue(authUser("admin-1", Role.ADMIN));
+    vi.mocked(db.user.findUnique).mockResolvedValue(userRoleResult("target-1", Role.STUDENT));
+    vi.mocked(db.user.update).mockResolvedValue(userRoleUpdateResult("target-1", Role.ADMIN));
 
     const res = await PATCH(
       makeRequest({ role: "ADMIN" }),

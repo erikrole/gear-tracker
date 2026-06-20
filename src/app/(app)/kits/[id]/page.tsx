@@ -120,7 +120,7 @@ export default function KitDetailPage() {
   const queryClient = useQueryClient();
 
   const kitUrl = `/api/kits/${id}`;
-  const { data: kit, loading, error: loadError, reload: reloadKit } = useFetch<KitDetail>({
+  const { data: kit, loading, error: loadError } = useFetch<KitDetail>({
     url: kitUrl,
     transform: (json) => (json as Record<string, unknown>).data as KitDetail,
   });

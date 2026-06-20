@@ -5,7 +5,6 @@ import {
   updateReservation,
   updateCheckout
 } from "@/lib/services/bookings";
-import { BookingKind } from "@prisma/client";
 import { getAllowedBookingActions, requireBookingAction } from "@/lib/services/booking-rules";
 import { updateBookingSchema, sanitizeBookingFields } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";

@@ -192,6 +192,8 @@ export function sectionIndex(key: EquipmentSectionKey): number {
 }
 
 /** All sections are always reachable (tabs are never gated). */
-export function isSectionReachable(_key: EquipmentSectionKey, _from: EquipmentSectionKey): boolean {
+export function isSectionReachable(key: EquipmentSectionKey, from: EquipmentSectionKey): boolean {
+  void key;
+  void from;
   return true;
 }

@@ -6,6 +6,17 @@ function source(relativeFile: string) {
   return readFileSync(path.join(process.cwd(), relativeFile), "utf8");
 }
 
+function createBookingSource() {
+  return [
+    "ios/Wisconsin/Views/CreateBookingSheet.swift",
+    "ios/Wisconsin/Views/CreateBooking/CreateBookingViewModel.swift",
+    "ios/Wisconsin/Views/CreateBooking/CreateBookingEventViews.swift",
+    "ios/Wisconsin/Views/CreateBooking/CreateBookingEquipmentRows.swift",
+    "ios/Wisconsin/Views/CreateBooking/CreateBookingFormRows.swift",
+    "ios/Wisconsin/Views/CreateBooking/CreateBookingPickers.swift",
+  ].map(source).join("\n");
+}
+
 function sliceBetween(sourceText: string, start: string, end: string) {
   const startIndex = sourceText.indexOf(start);
   const endIndex = sourceText.indexOf(end, startIndex);
@@ -16,9 +27,10 @@ function sliceBetween(sourceText: string, start: string, end: string) {
 
 describe("iOS create booking picker parity", () => {
   it("can scan equipment directly into the native booking picker", () => {
-    const createSheet = source("ios/Wisconsin/Views/CreateBookingSheet.swift");
+    const createSheet = createBookingSource();
+    const sheet = source("ios/Wisconsin/Views/CreateBookingSheet.swift");
     const picker = sliceBetween(
-      createSheet,
+      sheet,
       "private var equipmentPicker: some View",
       "private var reviewStep: some View",
     );
@@ -37,9 +49,10 @@ describe("iOS create booking picker parity", () => {
   });
 
   it("treats counted supplies as first-class selected equipment", () => {
-    const createSheet = source("ios/Wisconsin/Views/CreateBookingSheet.swift");
+    const createSheet = createBookingSource();
+    const sheet = source("ios/Wisconsin/Views/CreateBookingSheet.swift");
     const review = sliceBetween(
-      createSheet,
+      sheet,
       "private var reviewStep: some View",
       "private func reviewFactRow",
     );
@@ -47,7 +60,8 @@ describe("iOS create booking picker parity", () => {
     expect(createSheet).toContain("var selectedBulkTotal: Int");
     expect(createSheet).toContain("selectedAssetIds.count + selectedBulkTotal");
     expect(createSheet).toContain("selectedBulkQuantities.values.reduce(0, +)");
-    expect(createSheet).toContain("Text(\"Batteries & Counted Items\")");
+    expect(createSheet).toContain("Text(\"Equipment\")");
+    expect(createSheet).not.toContain("Batteries & Counted Items");
     expect(createSheet).toContain("BulkQuantityRow(");
     expect(createSheet).toContain("SelectedBulkRow(");
     expect(review).toContain("Text(\"\\(vm.selectedEquipmentCount) item\\(vm.selectedEquipmentCount == 1 ? \"\" : \"s\")\")");
@@ -56,7 +70,7 @@ describe("iOS create booking picker parity", () => {
   });
 
   it("submits selected bulk quantities through the shared API client", () => {
-    const createSheet = source("ios/Wisconsin/Views/CreateBookingSheet.swift");
+    const createSheet = createBookingSource();
     const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
 
     expect(createSheet).toContain("bulkItems: selectedBulkRequests");
@@ -66,18 +80,75 @@ describe("iOS create booking picker parity", () => {
     expect(apiClient).toContain("bulkItems: bulkItems");
   });
 
+  it("sorts the available equipment picker by the displayed product name", () => {
+    const assetsRoute = source("src/app/api/assets/route.ts");
+    const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
+    const createSheet = createBookingSource();
+
+    expect(assetsRoute).toMatch(/name:\s*\[\{\s*brand:\s*"asc"\s*\},\s*\{\s*model:\s*"asc"\s*\},\s*\{\s*assetTag:\s*"asc"\s*\}\]/);
+    expect(apiClient).toContain("sort: String? = nil");
+    expect(apiClient).toContain('items.append(.init(name: "sort", value: sort))');
+    expect(createSheet).toContain('sort: "name"');
+  });
+
+  it("groups native available equipment by category from a bounded location fetch", () => {
+    const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
+    const createSheet = createBookingSource();
+    const sheet = source("ios/Wisconsin/Views/CreateBookingSheet.swift");
+    const loadAvailableAssets = sliceBetween(
+      createSheet,
+      "func loadAvailableAssets(reset: Bool = false) async",
+      "func toggleAsset",
+    );
+    const picker = sliceBetween(
+      sheet,
+      "private var equipmentPicker: some View",
+      "private var reviewStep: some View",
+    );
+
+    expect(apiClient).toContain("locationId: String? = nil");
+    expect(apiClient).toContain('items.append(.init(name: "location_id", value: locationId))');
+    expect(createSheet).toContain("private let assetPickerLimit = 300");
+    expect(loadAvailableAssets).toContain("locationId: selectedLocationId.isEmpty ? nil : selectedLocationId");
+    expect(loadAvailableAssets).toContain("limit: assetPickerLimit");
+    expect(loadAvailableAssets).toContain("offset: 0");
+    expect(loadAvailableAssets).toContain("availableAssets = resp.data");
+    expect(createSheet).toContain("struct AssetCategoryGroup: Identifiable");
+    expect(createSheet).toContain("var availableAssetGroups: [AssetCategoryGroup]");
+    expect(createSheet).toContain("return categoryName?.isEmpty == false ? categoryName! : \"Uncategorized\"");
+    expect(picker).toContain("ForEach(vm.availableAssetGroups) { group in");
+    expect(picker).toContain("ForEach(group.assets) { asset in");
+    expect(picker).toContain("Text(group.title)");
+    expect(picker).toContain("More equipment exists. Search to narrow results.");
+    expect(picker).not.toContain("Task { await vm.loadAvailableAssets() }");
+  });
+
+  it("shows battery/counted-item photos in the native picker", () => {
+    const formOptions = source("src/app/api/form-options/route.ts");
+    const models = source("ios/Wisconsin/Models/FormModels.swift");
+    const createSheet = createBookingSource();
+    const bulkRow = createSheet.slice(createSheet.indexOf("struct BulkQuantityRow"));
+
+    expect(formOptions).toContain("imageUrl: true");
+    expect(formOptions).toContain("imageUrl: s.imageUrl");
+    expect(models).toContain("let imageUrl: String?");
+    expect(bulkRow).toContain("BookingBulkThumbnail(imageUrl: sku.imageUrl)");
+    expect(createSheet).toContain("AsyncImage(url: url)");
+  });
+
   it("lets native reservation creation link upcoming events", () => {
-    const createSheet = source("ios/Wisconsin/Views/CreateBookingSheet.swift");
+    const createSheet = createBookingSource();
+    const sheet = source("ios/Wisconsin/Views/CreateBookingSheet.swift");
     const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
     const details = sliceBetween(
-      createSheet,
+      sheet,
       "private var detailsForm: some View",
       "private var detailHeaderSubtitle",
     );
     const eventCard = sliceBetween(
       createSheet,
-      "private struct EventLinkingCard: View",
-      "private struct EventPickRow: View",
+      "struct EventLinkingCard: View",
+      "struct EventPickRow: View",
     );
 
     expect(createSheet).toContain("var events: [ScheduleEvent] = []");
@@ -99,22 +170,55 @@ describe("iOS create booking picker parity", () => {
     expect(eventCard).toContain("EventPickRow(");
   });
 
-  it("keeps the native review screen event-aware", () => {
-    const createSheet = source("ios/Wisconsin/Views/CreateBookingSheet.swift");
+  it("keeps the native review screen event-aware without a separate linked-event card", () => {
+    const createSheet = createBookingSource();
+    const sheet = source("ios/Wisconsin/Views/CreateBookingSheet.swift");
     const review = sliceBetween(
-      createSheet,
+      sheet,
       "private var reviewStep: some View",
       "private func reviewFactRow",
     );
 
     expect(createSheet).toContain("var linkedEventLabel: String?");
-    expect(createSheet).toContain("private struct ReviewEventRow: View");
-    expect(createSheet).toContain("private extension ScheduleEvent");
+    expect(createSheet).toContain("extension ScheduleEvent");
     expect(createSheet).toContain("var shortBookingEventTitle: String");
     expect(createSheet).toContain("var bookingEventSubtitle: String");
+    expect(createSheet).not.toContain("struct ReviewEventRow: View");
     expect(review).toContain("calendar.badge.checkmark");
     expect(review).toContain("reviewFactRow(label: vm.linkedEventCount > 1 ? \"Events\" : \"Event\")");
-    expect(review).toContain("Text(vm.selectedEvents.count == 1 ? \"Linked Event\" : \"Linked Events\")");
-    expect(review).toContain("ReviewEventRow(event: event)");
+    expect(review).toContain("Label(linked, systemImage: \"calendar.badge.checkmark\")");
+    expect(review).not.toContain("Linked Event");
+    expect(review).not.toContain("ReviewEventRow(event: event)");
+  });
+
+  it("uses showtime-ready event titles, pickup copy, and thumbnail-led review rows", () => {
+    const createSheet = createBookingSource();
+    const sheet = source("ios/Wisconsin/Views/CreateBookingSheet.swift");
+    const viewModel = source("ios/Wisconsin/Views/CreateBooking/CreateBookingViewModel.swift");
+    const formRows = source("ios/Wisconsin/Views/CreateBooking/CreateBookingFormRows.swift");
+    const equipmentRows = source("ios/Wisconsin/Views/CreateBooking/CreateBookingEquipmentRows.swift");
+    const review = sliceBetween(
+      sheet,
+      "private var reviewStep: some View",
+      "private func reviewFactRow",
+    );
+
+    expect(formRows).toContain("return \"\\(code) \\(prefix) \\(opponent)\"");
+    expect(formRows).toContain("let prefix = isHome == false ? \"at\" : \"vs\"");
+    expect(formRows).not.toContain("sportLabel(sportCode)");
+    expect(formRows).not.toContain("(Neutral)");
+    expect(viewModel).toContain("title = first.shortBookingEventTitle");
+    expect(viewModel).not.toContain("title = \"Gear - \\(first.summary)\"");
+    expect(viewModel).not.toContain("first.location?.id");
+    expect(sheet).toContain("title: \"Pickup location\"");
+    expect(sheet).toContain("label: \"Pickup\"");
+    expect(sheet).toContain("Select pickup");
+    expect(review).toContain("Text(\"Pickup\")");
+    expect(review).toContain("Text(\"Return \\(vm.endsAt.formatted(date: .abbreviated, time: .shortened))\")");
+    expect(review).toContain("BookingAssetThumbnail(imageUrl: asset.imageUrl, size: 40, cornerRadius: 8)");
+    expect(review).toContain("BookingBulkThumbnail(imageUrl: sku.imageUrl, size: 40, cornerRadius: 8)");
+    expect(equipmentRows).toContain("struct BookingAssetThumbnail");
+    expect(equipmentRows).toContain("struct BookingBulkThumbnail");
+    expect(createSheet).not.toContain("Ends ");
   });
 });

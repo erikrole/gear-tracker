@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Role } from "@prisma/client";
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: vi.fn(),
@@ -39,7 +40,7 @@ const staffUser = {
   id: "staff-1",
   email: "staff@test.com",
   name: "Staff",
-  role: "STAFF" as const,
+  role: Role.STAFF,
   avatarUrl: null,
 };
 
@@ -47,9 +48,13 @@ const studentUser = {
   id: "student-1",
   email: "student@test.com",
   name: "Student",
-  role: "STUDENT" as const,
+  role: Role.STUDENT,
   avatarUrl: null,
 };
+
+function shiftAssignment(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.shiftAssignment.findUnique>>;
+}
 
 function makePostRequest(assignmentId = "cmassignment000000000000001") {
   return new Request("https://app.example.com/api/notifications/nudge", {
@@ -93,7 +98,7 @@ describe("POST /api/notifications/nudge", () => {
 
   it("requires an active future assignment before nudging", async () => {
     vi.mocked(requireAuth).mockResolvedValue(staffUser);
-    vi.mocked(db.shiftAssignment.findUnique).mockResolvedValue(activeAssignment({ status: "DECLINED" }) as any);
+    vi.mocked(db.shiftAssignment.findUnique).mockResolvedValue(shiftAssignment(activeAssignment({ status: "DECLINED" })));
 
     const res = await POST(makePostRequest(), { params: Promise.resolve({}) });
 
@@ -103,7 +108,7 @@ describe("POST /api/notifications/nudge", () => {
 
   it("applies actor, assignment, and recipient nudge rate limits", async () => {
     vi.mocked(requireAuth).mockResolvedValue(staffUser);
-    vi.mocked(db.shiftAssignment.findUnique).mockResolvedValue(activeAssignment() as any);
+    vi.mocked(db.shiftAssignment.findUnique).mockResolvedValue(shiftAssignment(activeAssignment()));
 
     const res = await POST(makePostRequest(), { params: Promise.resolve({}) });
 

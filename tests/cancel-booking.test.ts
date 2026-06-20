@@ -1,6 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { expectSerializableIsolation } from "./_helpers/assert-transaction";
 
+type MockFn = ReturnType<typeof vi.fn>;
+type CancelBookingTx = {
+  booking: Record<"findUnique" | "update", MockFn>;
+  assetAllocation: Record<"updateMany", MockFn>;
+  scanSession: Record<"updateMany", MockFn>;
+  bulkStockBalance: Record<"findMany" | "upsert", MockFn>;
+  bulkStockMovement: Record<"createMany", MockFn>;
+  bookingBulkUnitAllocation: Record<"updateMany", MockFn>;
+  bulkSkuUnit: Record<"updateMany", MockFn>;
+  auditLog: Record<"create", MockFn>;
+  user: Record<"findUnique", MockFn>;
+};
+
 // ─── Transaction tracking ───────────────────────────────────────────────────
 const transactionCalls: Array<{ options: unknown }> = [];
 
@@ -36,7 +49,7 @@ vi.mock("@/lib/services/availability", () => ({
 import { db } from "@/lib/db";
 import { cancelBooking, cancelReservation } from "@/lib/services/bookings";
 
-const mockTx = (db as any)._mockTx;
+const mockTx = (db as unknown as { _mockTx: CancelBookingTx })._mockTx;
 
 beforeEach(() => {
   vi.clearAllMocks();

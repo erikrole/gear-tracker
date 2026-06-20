@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { Role } from "@prisma/client";
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: vi.fn(),
@@ -31,7 +32,7 @@ const staffUser = {
   id: "staff-1",
   email: "staff@test.com",
   name: "Staff",
-  role: "STAFF" as const,
+  role: Role.STAFF,
   avatarUrl: null,
 };
 
@@ -39,9 +40,17 @@ const studentUser = {
   id: "student-1",
   email: "student@test.com",
   name: "Student",
-  role: "STUDENT" as const,
+  role: Role.STUDENT,
   avatarUrl: null,
 };
+
+function calendarEvent(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.calendarEvent.findUnique>>;
+}
+
+function travelMembers(rows: unknown) {
+  return rows as Awaited<ReturnType<typeof db.eventTravelMember.findMany>>;
+}
 
 function makeGetRequest() {
   return new Request("https://app.example.com/api/calendar-events/event-1/travel", {
@@ -87,8 +96,8 @@ function makeDeleteRequest() {
 describe("calendar event travel authorization", () => {
   it("allows STUDENT to read event travel rosters", async () => {
     vi.mocked(requireAuth).mockResolvedValue(studentUser);
-    vi.mocked(db.calendarEvent.findUnique).mockResolvedValue({ id: "event-1" } as any);
-    vi.mocked(db.eventTravelMember.findMany).mockResolvedValue([
+    vi.mocked(db.calendarEvent.findUnique).mockResolvedValue(calendarEvent({ id: "event-1" }));
+    vi.mocked(db.eventTravelMember.findMany).mockResolvedValue(travelMembers([
       {
         id: "member-2",
         eventId: "event-1",
@@ -98,12 +107,12 @@ describe("calendar event travel authorization", () => {
         user: {
           id: "student-2",
           name: "Teammate",
-          role: "STUDENT",
+          role: Role.STUDENT,
           primaryArea: null,
           avatarUrl: null,
         },
       },
-    ] as any);
+    ]));
 
     const res = await GET(makeGetRequest(), { params: Promise.resolve({ id: "event-1" }) });
     const body = await res.json();
@@ -114,8 +123,8 @@ describe("calendar event travel authorization", () => {
 
   it("allows STAFF to read event travel rosters for an existing event", async () => {
     vi.mocked(requireAuth).mockResolvedValue(staffUser);
-    vi.mocked(db.calendarEvent.findUnique).mockResolvedValue({ id: "event-1" } as any);
-    vi.mocked(db.eventTravelMember.findMany).mockResolvedValue([
+    vi.mocked(db.calendarEvent.findUnique).mockResolvedValue(calendarEvent({ id: "event-1" }));
+    vi.mocked(db.eventTravelMember.findMany).mockResolvedValue(travelMembers([
       {
         id: "member-1",
         eventId: "event-1",
@@ -125,12 +134,12 @@ describe("calendar event travel authorization", () => {
         user: {
           id: "user-target",
           name: "Traveler",
-          role: "STUDENT",
+          role: Role.STUDENT,
           primaryArea: null,
           avatarUrl: null,
         },
       },
-    ] as any);
+    ]));
 
     const res = await GET(makeGetRequest(), { params: Promise.resolve({ id: "event-1" }) });
     const body = await res.json();
@@ -160,7 +169,7 @@ describe("calendar event travel authorization", () => {
 
   it("rejects malformed add-member JSON before creating travel members", async () => {
     vi.mocked(requireAuth).mockResolvedValue(staffUser);
-    vi.mocked(db.calendarEvent.findUnique).mockResolvedValue({ id: "event-1" } as any);
+    vi.mocked(db.calendarEvent.findUnique).mockResolvedValue(calendarEvent({ id: "event-1" }));
 
     const res = await POST(makeMalformedPostRequest(), { params: Promise.resolve({ id: "event-1" }) });
     const body = await res.json();

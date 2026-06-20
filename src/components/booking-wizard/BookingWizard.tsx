@@ -253,8 +253,6 @@ export function BookingWizard() {
     dispatch,
     setSelectedAssetIds,
     setSelectedBulkItems,
-    setSelectedAssetDetails,
-    setKitId,
     onDraftIdChange: setDraftId,
     config: { apiBase: config.apiBase } as never,
   });

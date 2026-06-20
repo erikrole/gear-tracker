@@ -46,6 +46,38 @@ import {
   getUtilizationReportExport,
 } from "@/lib/services/reports";
 
+function assetRows(rows: unknown[]) {
+  return rows as Awaited<ReturnType<typeof db.asset.findMany>>;
+}
+
+function assetAllocationRows(rows: unknown[]) {
+  return rows as Awaited<ReturnType<typeof db.assetAllocation.findMany>>;
+}
+
+function bookingRows(rows: unknown[]) {
+  return rows as Awaited<ReturnType<typeof db.booking.findMany>>;
+}
+
+function bulkSkuUnitGroups(rows: unknown[]) {
+  return rows as Awaited<ReturnType<typeof db.bulkSkuUnit.groupBy>>;
+}
+
+function bulkSkuUnitRows(rows: unknown[]) {
+  return rows as Awaited<ReturnType<typeof db.bulkSkuUnit.findMany>>;
+}
+
+function bulkSkuRows(rows: unknown[]) {
+  return rows as Awaited<ReturnType<typeof db.bulkSku.findMany>>;
+}
+
+function bookingBulkUnitAllocationRows(rows: unknown[]) {
+  return rows as Awaited<ReturnType<typeof db.bookingBulkUnitAllocation.findMany>>;
+}
+
+function auditLogRows(rows: unknown[]) {
+  return rows as Awaited<ReturnType<typeof db.auditLog.findMany>>;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers();
@@ -58,7 +90,7 @@ afterEach(() => {
 
 describe("reports service", () => {
   it("exports utilization inventory rows with derived status evidence", async () => {
-    vi.mocked(db.asset.findMany).mockResolvedValue([
+    vi.mocked(db.asset.findMany).mockResolvedValue(assetRows([
       {
         id: "asset-1",
         assetTag: "CAM-001",
@@ -91,9 +123,9 @@ describe("reports service", () => {
         department: null,
         category: null,
       },
-    ] as any);
+    ]));
     vi.mocked(db.asset.count).mockResolvedValue(2);
-    vi.mocked(db.assetAllocation.findMany).mockResolvedValue([
+    vi.mocked(db.assetAllocation.findMany).mockResolvedValue(assetAllocationRows([
       {
         assetId: "asset-1",
         startsAt: new Date("2026-05-10T09:00:00.000Z"),
@@ -103,7 +135,7 @@ describe("reports service", () => {
           status: "OPEN",
         },
       },
-    ] as any);
+    ]));
 
     const report = await getUtilizationReportExport();
 
@@ -143,7 +175,7 @@ describe("reports service", () => {
     ]);
   });
 
-  it("excludes draft bookings from checkout activity analytics", async () => {
+  it("counts only custody checkouts in checkout activity analytics", async () => {
     vi.mocked(db.booking.count)
       .mockResolvedValueOnce(7)
       .mockResolvedValueOnce(2);
@@ -158,27 +190,31 @@ describe("reports service", () => {
     expect(db.booking.count).toHaveBeenNthCalledWith(1, {
       where: expect.objectContaining({
         kind: "CHECKOUT",
-        status: { not: BookingStatus.DRAFT },
+        status: { in: [BookingStatus.OPEN, BookingStatus.COMPLETED] },
         createdAt: { gte: expect.any(Date) },
       }),
     });
     expect(db.booking.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ status: { not: BookingStatus.DRAFT } }),
+        where: expect.objectContaining({
+          status: { in: [BookingStatus.OPEN, BookingStatus.COMPLETED] },
+        }),
       }),
     );
     expect(db.booking.groupBy).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ status: { not: BookingStatus.DRAFT } }),
+        where: expect.objectContaining({
+          status: { in: [BookingStatus.OPEN, BookingStatus.COMPLETED] },
+        }),
       }),
     );
     const rawSql = vi.mocked(db.$queryRaw).mock.calls[0]?.[0] as unknown;
     const rawSqlText = Array.isArray(rawSql) ? rawSql.join("") : String(rawSql);
-    expect(rawSqlText).toContain('"status" <> \'DRAFT\'');
+    expect(rawSqlText).toContain("\"status\" IN ('OPEN', 'COMPLETED')");
   });
 
   it("counts only outstanding gear in the overdue report", async () => {
-    vi.mocked(db.booking.findMany).mockResolvedValue([
+    vi.mocked(db.booking.findMany).mockResolvedValue(bookingRows([
       {
         id: "booking-1",
         title: "Camera checkout",
@@ -203,7 +239,7 @@ describe("reports service", () => {
           },
         ],
       },
-    ] as any);
+    ]));
 
     const report = await getOverdueReport();
     const requester = report.leaderboard[0];
@@ -225,7 +261,7 @@ describe("reports service", () => {
   });
 
   it("exports overdue rows with complete outstanding item summaries", async () => {
-    vi.mocked(db.booking.findMany).mockResolvedValue([
+    vi.mocked(db.booking.findMany).mockResolvedValue(bookingRows([
       {
         id: "booking-1",
         title: "Camera checkout",
@@ -250,7 +286,7 @@ describe("reports service", () => {
           },
         ],
       },
-    ] as any);
+    ]));
     vi.mocked(db.booking.count).mockResolvedValue(1);
 
     const report = await getOverdueReportExport();
@@ -283,10 +319,10 @@ describe("reports service", () => {
   });
 
   it("adds numbered battery audit details to the bulk loss report", async () => {
-    vi.mocked(db.bulkSkuUnit.groupBy).mockResolvedValue([
+    vi.mocked(db.bulkSkuUnit.groupBy).mockResolvedValue(bulkSkuUnitGroups([
       { bulkSkuId: "battery-sku-1", _count: { id: 2 } },
-    ] as any);
-    vi.mocked(db.bulkSkuUnit.findMany).mockResolvedValue([
+    ]));
+    vi.mocked(db.bulkSkuUnit.findMany).mockResolvedValue(bulkSkuUnitRows([
       {
         id: "unit-1",
         unitNumber: 1,
@@ -325,10 +361,10 @@ describe("reports service", () => {
           },
         ],
       },
-    ] as any);
+    ]));
     vi.mocked(db.auditLog.findMany).mockResolvedValue([]);
     vi.mocked(db.bulkSku.findMany)
-      .mockResolvedValueOnce([
+      .mockResolvedValueOnce(bulkSkuRows([
         {
           id: "battery-sku-1",
           name: "Sony NP-FZ100 Battery",
@@ -415,11 +451,11 @@ describe("reports service", () => {
             },
           ],
         },
-      ] as any)
-      .mockResolvedValueOnce([
+      ]))
+      .mockResolvedValueOnce(bulkSkuRows([
         { id: "battery-sku-1", name: "Sony NP-FZ100 Battery" },
-      ] as any);
-    vi.mocked(db.bookingBulkUnitAllocation.findMany).mockResolvedValue([
+      ]));
+    vi.mocked(db.bookingBulkUnitAllocation.findMany).mockResolvedValue(bookingBulkUnitAllocationRows([
       {
         id: "alloc-1",
         checkedOutAt: new Date("2026-05-02T12:00:00.000Z"),
@@ -470,7 +506,7 @@ describe("reports service", () => {
           },
         },
       },
-    ] as any);
+    ]));
 
     const report = await getBulkLossReport();
 
@@ -500,10 +536,10 @@ describe("reports service", () => {
   });
 
   it("exports missing-unit report evidence across grouped and battery sections", async () => {
-    vi.mocked(db.bulkSkuUnit.groupBy).mockResolvedValue([
+    vi.mocked(db.bulkSkuUnit.groupBy).mockResolvedValue(bulkSkuUnitGroups([
       { bulkSkuId: "battery-sku-1", _count: { id: 1 } },
-    ] as any);
-    vi.mocked(db.bulkSkuUnit.findMany).mockResolvedValue([
+    ]));
+    vi.mocked(db.bulkSkuUnit.findMany).mockResolvedValue(bulkSkuUnitRows([
       {
         id: "unit-1",
         unitNumber: 7,
@@ -523,8 +559,8 @@ describe("reports service", () => {
           },
         ],
       },
-    ] as any);
-    vi.mocked(db.auditLog.findMany).mockResolvedValue([
+    ]));
+    vi.mocked(db.auditLog.findMany).mockResolvedValue(auditLogRows([
       {
         id: "audit-1",
         entityId: "booking-1",
@@ -532,9 +568,9 @@ describe("reports service", () => {
         createdAt: new Date("2026-05-09T13:00:00.000Z"),
         actor: { id: "staff-1", name: "Creative Staff", avatarUrl: null },
       },
-    ] as any);
+    ]));
     vi.mocked(db.bulkSku.findMany)
-      .mockResolvedValueOnce([
+      .mockResolvedValueOnce(bulkSkuRows([
         {
           id: "battery-sku-1",
           name: "Sony NP-FZ100 Battery",
@@ -566,11 +602,11 @@ describe("reports service", () => {
             },
           ],
         },
-      ] as any)
-      .mockResolvedValueOnce([
+      ]))
+      .mockResolvedValueOnce(bulkSkuRows([
         { id: "battery-sku-1", name: "Sony NP-FZ100 Battery" },
-      ] as any);
-    vi.mocked(db.bookingBulkUnitAllocation.findMany).mockResolvedValue([
+      ]));
+    vi.mocked(db.bookingBulkUnitAllocation.findMany).mockResolvedValue(bookingBulkUnitAllocationRows([
       {
         id: "alloc-1",
         checkedOutAt: new Date("2026-05-01T12:00:00.000Z"),
@@ -596,7 +632,7 @@ describe("reports service", () => {
           },
         },
       },
-    ] as any);
+    ]));
 
     const report = await getBulkLossReportExport();
 

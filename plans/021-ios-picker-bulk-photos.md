@@ -20,6 +20,7 @@
 - **Depends on**: none
 - **Category**: bug (UX consistency)
 - **Planned at**: commit `6e4b35ae`, 2026-06-13
+- **State**: DONE ON MAIN (2026-06-19)
 
 ## Why this matters
 
@@ -239,13 +240,19 @@ it("shows battery/counted-item photos in the native picker", () => {
 
 ALL must hold:
 
-- [ ] `src/app/api/form-options/route.ts` selects `imageUrl: true` and maps `imageUrl: s.imageUrl`
-- [ ] `FormBulkSku` has `let imageUrl: String?`
-- [ ] `BulkQuantityRow` renders `AsyncImage` with a `bulkPlaceholder` fallback (box only when no image)
-- [ ] `npx vitest run tests/form-options-bulk-counts.test.ts tests/ios-create-booking-picker-parity.test.ts` exits 0
-- [ ] `npx tsc --noEmit` exits 0; `npm run test` exits 0; `npm run lint` exits 0; `npm run drift:ios` exits 0
-- [ ] No files modified outside the in-scope list (`git status`)
-- [ ] `plans/README.md` status row for 021 updated
+- [x] `src/app/api/form-options/route.ts` selects `imageUrl: true` and maps `imageUrl: s.imageUrl`
+- [x] `FormBulkSku` has `let imageUrl: String?`
+- [x] `BulkQuantityRow` renders `AsyncImage` with a `bulkPlaceholder` fallback (box only when no image)
+- [x] `npx vitest run tests/form-options-bulk-counts.test.ts tests/ios-create-booking-picker-parity.test.ts` exits 0
+- [x] `npx tsc --noEmit` exits 0; `npm run test` exits 0; `npm run lint` exits 0; `npm run drift:ios` exits 0
+- [x] No implementation or test files modified outside the in-scope list (`git status`; docs/task tracking updated per project rules)
+- [x] `plans/README.md` status row for 021 updated
+
+## Review
+
+- Shipped: `/api/form-options` now carries `BulkSku.imageUrl`, `FormBulkSku` decodes it, and both the bulk quantity row and selected bulk row render the SKU photo with the previous shipping-box fallback.
+- Verified: `npx vitest run tests/form-options-bulk-counts.test.ts tests/ios-create-booking-picker-parity.test.ts`; `npx tsc --noEmit`; `npm run drift:ios`; `npm run test`; `npm run lint`; `npm run verify:docs`; `git diff --check`; XcodeBuildMCP `build_sim` for `Wisconsin` on iPhone 17 iOS 26.5.
+- Remaining: visual smoke before release to confirm photo and fallback rendering with real SKU images.
 
 ## STOP conditions
 
@@ -258,7 +265,7 @@ Stop and report back (do not improvise) if:
 
 ## Maintenance notes
 
-- iOS build check before merge: confirm battery rows show their photo when the SKU has one and fall back to the box otherwise.
+- iOS compile proof passed on 2026-06-19 via XcodeBuildMCP `build_sim` for `Wisconsin` on iPhone 17 iOS 26.5. A visual smoke can still confirm battery rows show their photo when the SKU has one and fall back to the box otherwise.
 - This depends on `BulkSku.imageUrl` being populated; plan 004 rehosts external SKU images to Blob, so most should resolve. SKUs without an image keep the box -- that is expected, not a regression.
 - If a future change adds image rendering to the web equipment picker, the same `imageUrl` is now in the form-options payload -- no further server change needed.
 - A reviewer should confirm the box fallback is byte-equivalent to the old look so SKUs without images are visually unchanged.

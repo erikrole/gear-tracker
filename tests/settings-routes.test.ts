@@ -125,19 +125,55 @@ function makePostRequest(body: Record<string, unknown>, url = "https://app.examp
 
 const noParams = { params: Promise.resolve({}) };
 
+function escalationRuleRows(rows: unknown[]) {
+  return rows as Awaited<ReturnType<typeof db.escalationRule.findMany>>;
+}
+
+function escalationRuleRow(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.escalationRule.findUnique>>;
+}
+
+function escalationRuleUpdateRow(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.escalationRule.update>>;
+}
+
+function systemConfigRow(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.systemConfig.findUnique>>;
+}
+
+function systemConfigUpsertRow(row: unknown = {}) {
+  return row as Awaited<ReturnType<typeof db.systemConfig.upsert>>;
+}
+
+function departmentRows(rows: unknown[]) {
+  return rows as Awaited<ReturnType<typeof db.department.findMany>>;
+}
+
+function departmentRow(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.department.findUnique>>;
+}
+
+function departmentCreateRow(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.department.create>>;
+}
+
+function departmentUpdateRow(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.department.update>>;
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // GET /api/settings/escalation
 // ═════════════════════════════════════════════════════════════════════════════
 describe("GET /api/settings/escalation", () => {
   it("returns escalation rules and config for ADMIN", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
-    vi.mocked(db.escalationRule.findMany).mockResolvedValue([
-      { id: "rule-1", name: "Overdue 24h", sortOrder: 1, enabled: true, notifyAdmins: true, notifyRequester: false } as any,
-    ]);
-    vi.mocked(db.systemConfig.findUnique).mockResolvedValue({
+    vi.mocked(db.escalationRule.findMany).mockResolvedValue(escalationRuleRows([
+      { id: "rule-1", name: "Overdue 24h", sortOrder: 1, enabled: true, notifyAdmins: true, notifyRequester: false },
+    ]));
+    vi.mocked(db.systemConfig.findUnique).mockResolvedValue(systemConfigRow({
       key: "escalation",
       value: { maxNotificationsPerBooking: 5 },
-    } as any);
+    }));
 
     const res = await getEscalation(makeGetRequest(), noParams);
 
@@ -183,7 +219,7 @@ describe("PATCH /api/settings/escalation", () => {
   it("updates maxNotificationsPerBooking", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
     vi.mocked(db.systemConfig.findUnique).mockResolvedValue(null);
-    vi.mocked(db.systemConfig.upsert).mockResolvedValue({} as any);
+    vi.mocked(db.systemConfig.upsert).mockResolvedValue(systemConfigUpsertRow());
 
     const res = await patchEscalation(
       makePatchRequest({ maxNotificationsPerBooking: 20 }),
@@ -203,11 +239,11 @@ describe("PATCH /api/settings/escalation", () => {
       notifyAdmins: false,
       notifyRequester: false,
     };
-    vi.mocked(db.escalationRule.findUnique).mockResolvedValue(beforeRule as any);
-    vi.mocked(db.escalationRule.update).mockResolvedValue({
+    vi.mocked(db.escalationRule.findUnique).mockResolvedValue(escalationRuleRow(beforeRule));
+    vi.mocked(db.escalationRule.update).mockResolvedValue(escalationRuleUpdateRow({
       ...beforeRule,
       notifyAdmins: true,
-    } as any);
+    }));
 
     const res = await patchEscalation(
       makePatchRequest({ ruleId: "esc_due_1h", notifyAdmins: true }),
@@ -264,10 +300,10 @@ describe("PATCH /api/settings/escalation", () => {
 describe("GET /api/settings/extend-presets", () => {
   it("returns stored presets", async () => {
     vi.mocked(requireAuth).mockResolvedValue(studentUser);
-    vi.mocked(db.systemConfig.findUnique).mockResolvedValue({
+    vi.mocked(db.systemConfig.findUnique).mockResolvedValue(systemConfigRow({
       key: "extend_presets",
       value: [{ label: "+2 days", minutes: 2880 }],
-    } as any);
+    }));
 
     const res = await getExtendPresets(
       makeGetRequest("https://app.example.com/api/settings/extend-presets"),
@@ -301,7 +337,7 @@ describe("GET /api/settings/extend-presets", () => {
 describe("PUT /api/settings/extend-presets", () => {
   it("updates presets for ADMIN", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
-    vi.mocked(db.systemConfig.upsert).mockResolvedValue({} as any);
+    vi.mocked(db.systemConfig.upsert).mockResolvedValue(systemConfigUpsertRow());
 
     const presets = [
       { label: "+1 day", minutes: 1440 },
@@ -342,7 +378,7 @@ describe("PUT /api/settings/extend-presets", () => {
 
   it("allows an empty presets array for custom-only extension", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
-    vi.mocked(db.systemConfig.upsert).mockResolvedValue({} as any);
+    vi.mocked(db.systemConfig.upsert).mockResolvedValue(systemConfigUpsertRow());
 
     const res = await putExtendPresets(
       makePutRequest({ presets: [] }),
@@ -383,9 +419,9 @@ describe("PUT /api/settings/extend-presets", () => {
 describe("Departments settings routes", () => {
   it("returns active departments by default", async () => {
     vi.mocked(requireAuth).mockResolvedValue(staffUser);
-    vi.mocked(db.department.findMany).mockResolvedValue([
+    vi.mocked(db.department.findMany).mockResolvedValue(departmentRows([
       { id: "dept-1", name: "Video", active: true, _count: { assets: 2, bulkSkus: 1 } },
-    ] as any);
+    ]));
 
     const res = await getDepartments(makeGetRequest("https://app.example.com/api/departments"), noParams);
 
@@ -409,7 +445,7 @@ describe("Departments settings routes", () => {
 
   it("creates a department for STAFF", async () => {
     vi.mocked(requireAuth).mockResolvedValue(staffUser);
-    vi.mocked(db.department.create).mockResolvedValue({ id: "dept-1", name: "Video" } as any);
+    vi.mocked(db.department.create).mockResolvedValue(departmentCreateRow({ id: "dept-1", name: "Video" }));
 
     const res = await postDepartment(makePostRequest({ name: "  Video  " }), noParams);
 
@@ -426,16 +462,16 @@ describe("Departments settings routes", () => {
       meta: { target: ["name"] },
     });
     vi.mocked(db.department.create).mockRejectedValue(uniqueError);
-    vi.mocked(db.department.findUnique).mockResolvedValue({
+    vi.mocked(db.department.findUnique).mockResolvedValue(departmentRow({
       id: "dept-1",
       name: "Video",
       active: false,
-    } as any);
-    vi.mocked(db.department.update).mockResolvedValue({
+    }));
+    vi.mocked(db.department.update).mockResolvedValue(departmentUpdateRow({
       id: "dept-1",
       name: "Video",
       active: true,
-    } as any);
+    }));
 
     const res = await postDepartment(makePostRequest({ name: "Video" }), noParams);
 
@@ -454,11 +490,11 @@ describe("Departments settings routes", () => {
       meta: { target: ["name"] },
     });
     vi.mocked(db.department.create).mockRejectedValue(uniqueError);
-    vi.mocked(db.department.findUnique).mockResolvedValue({
+    vi.mocked(db.department.findUnique).mockResolvedValue(departmentRow({
       id: "dept-1",
       name: "Video",
       active: true,
-    } as any);
+    }));
 
     const res = await postDepartment(makePostRequest({ name: "Video" }), noParams);
 
@@ -476,17 +512,17 @@ describe("Departments settings routes", () => {
 
   it("renames and deactivates a department for STAFF", async () => {
     vi.mocked(requireAuth).mockResolvedValue(staffUser);
-    vi.mocked(db.department.findUnique).mockResolvedValue({
+    vi.mocked(db.department.findUnique).mockResolvedValue(departmentRow({
       id: "dept-1",
       name: "Video",
       active: true,
-    } as any);
-    vi.mocked(db.department.update).mockResolvedValue({
+    }));
+    vi.mocked(db.department.update).mockResolvedValue(departmentUpdateRow({
       id: "dept-1",
       name: "Production",
       active: false,
       _count: { assets: 2, bulkSkus: 0 },
-    } as any);
+    }));
 
     const res = await patchDepartment(
       makePatchRequest({ name: "Production", active: false }, "https://app.example.com/api/departments/dept-1"),

@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Mobile Operations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-15
+- Last Updated: 2026-06-19
 - Status: Active
 - Version: V1
 
@@ -124,6 +124,13 @@ Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md` (revised 2026-03-
 - **V3 (later)**: Bottom nav badge counts via live `/api/nav-counts` polling, game-day/shift context cards
 
 ## Change Log
+- 2026-06-19: **iOS reservation creation showtime polish** - native reservation creation now uses sport-code event titles such as `VB vs Maryland` and `FB at Minnesota`, treats booking location copy as pickup location instead of event venue, keeps serialized and counted equipment in one Equipment flow, and makes the Confirm step pickup/return-oriented with thumbnail-led equipment rows plus compact linked-event indication.
+- 2026-06-19: **iOS avatar rendering consolidation** - native user avatars now route Profile toolbar/header, User detail, Schedule assignment picker, Users, Booking rows, Event detail crew, and reservation requester pickers through `UserAvatarView` or a thin current-user wrapper. The shared component keeps cached thumbnail rendering with initials fallback and supports tone-aware fallback colors without changing user data contracts.
+- 2026-06-19: **iOS booking creation split** - native reservation creation now keeps `CreateBookingSheet.swift` focused on the three-step sheet flow, scanner presentation, submit handling, and view-model wiring. View model logic, event-linking views, selected equipment rows, form rows, and picker views live under `ios/Wisconsin/Views/CreateBooking/`. No booking payload, scan lookup, Details/Equipment/Confirm flow, picker UI, or kiosk custody behavior changed.
+- 2026-06-19: **iOS tab shell isolation** - native `AppTabView.swift` now owns only the stable `.tabItem`/`.tag` tab shell and push routing, while Profile, Notification Settings, Account Security, Account Avatar, and Availability views live in focused Swift files. No tab labels, tags, badges, Schedule routing, or role gating changed.
+- 2026-06-19: **iOS reservation equipment picker grouping** - native reservation creation now fetches available serialized assets for the selected pickup location with a bounded 300-row `/api/assets` request, groups the Equipment picker by category, and prompts search when more matching equipment exists past the cap.
+- 2026-06-19: **iOS reservation bulk photos** - native reservation creation now decodes `BulkSku.imageUrl` from `/api/form-options` and renders SKU photos for battery/countable item picker rows and selected rows, with the shipping-box fallback preserved for SKUs without an image.
+- 2026-06-19: **iOS reservation equipment picker sort** - native reservation creation now requests `/api/assets?sort=name`, which orders serialized equipment by brand, model, then asset tag so the picker follows the displayed product name instead of an invisible tag sort.
 - 2026-06-16: **iOS Schedule all-day display follow-up** - native iPhone Schedule now preserves manual event titles when sport metadata has no opponent, renders all-day rows as `All day` even when the signed-in user has a shift, and hides call-time prompts plus crew-row time columns in EventDetailSheet for all-day events.
 - 2026-06-16: **iOS kiosk all-day event display cleanup** - native kiosk idle/detail event surfaces now use the kiosk dashboard event `allDay` value plus a local midnight-to-midnight fallback to keep all-day events date-only and suppress event-time rows, call-time rows, and worker call ranges. Timed events continue to show event and call ranges separately.
 - 2026-06-15: **iOS kiosk checkout due-back/conflict support** - native kiosk checkout details now include a return date/time picker with quick options and selected-event end defaults. Pickup time is still the actual checkout completion time. Scan mode preflights the current cart through `/api/kiosk/checkout/availability`, shows blocking conflicts and tight-turnaround warnings, and review/confirm stays disabled when a blocking issue exists.

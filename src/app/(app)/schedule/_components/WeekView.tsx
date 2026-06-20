@@ -49,14 +49,6 @@ function isSameDay(a: Date, b: Date): boolean {
   );
 }
 
-function dayHeaderLabel(d: Date): string {
-  return d.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-}
-
 function weekRangeLabel(weekStart: Date): string {
   const end = new Date(weekStart);
   end.setDate(weekStart.getDate() + 6);
@@ -104,7 +96,7 @@ function EventCard({
     "flex items-stretch rounded-sm mb-1.5 w-full text-left overflow-hidden transition-colors",
     venueTone.surfaceClass,
     myShiftsOnly && !hasShift && "opacity-40",
-    hasShift && "ring-1 ring-blue-400/50",
+    hasShift && "ring-1 ring-[var(--blue)]/50",
   );
 
   const inner = (
@@ -237,7 +229,7 @@ function MobileDaySection({
       onOpenChange={setExpanded}
       className={cn(
         "border-b last:border-b-0",
-        isToday && "bg-[#A00000]/[0.03]",
+        isToday && "bg-[var(--wi-red)]/[0.04] dark:bg-[var(--wi-red)]/[0.08]",
       )}
     >
       <CollapsibleTrigger asChild>
@@ -247,7 +239,7 @@ function MobileDaySection({
             <div
               className={cn(
                 "flex flex-col items-center w-8 leading-none",
-                isToday ? "text-[#A00000]" : "text-foreground",
+                isToday ? "text-[var(--wi-red)]" : "text-foreground",
               )}
             >
               <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -264,7 +256,7 @@ function MobileDaySection({
               <span
                 className={cn(
                   "text-sm font-medium",
-                  isToday && "text-[#A00000]",
+                  isToday && "text-[var(--wi-red)]",
                 )}
               >
                 {day.toLocaleDateString("en-US", {
@@ -273,7 +265,7 @@ function MobileDaySection({
                 })}
               </span>
               {isToday && (
-                <span className="text-[10px] font-semibold text-[#A00000] uppercase tracking-wider">
+                <span className="text-[10px] font-semibold text-[var(--wi-red)] uppercase tracking-wider">
                   Today
                 </span>
               )}
@@ -364,20 +356,24 @@ export function WeekView({
       {/* ── Week navigation ── */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-1">
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-10 text-muted-foreground"
             onClick={() => setWeekStart(shiftWeek(weekStart, -1))}
             aria-label="Previous week"
-            className="flex size-10 items-center justify-center rounded-md text-muted-foreground transition-[background-color,color,scale] hover:bg-muted/60 hover:text-foreground active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
           >
             <ChevronLeftIcon className="size-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-10 text-muted-foreground"
             onClick={() => setWeekStart(shiftWeek(weekStart, 1))}
             aria-label="Next week"
-            className="flex size-10 items-center justify-center rounded-md text-muted-foreground transition-[background-color,color,scale] hover:bg-muted/60 hover:text-foreground active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
           >
             <ChevronRightIcon className="size-4" />
-          </button>
+          </Button>
           {!isThisWeek && (
             <Button
               variant="ghost"
@@ -400,7 +396,7 @@ export function WeekView({
       {loading && <WeekSkeleton />}
 
       {/* ── Desktop: 7-column grid ── */}
-      {!loading && (
+      {!loading && entries.length > 0 && (
         <div className="grid grid-cols-7 gap-px bg-border/40 rounded-lg overflow-hidden max-md:hidden">
           {weekDays.map((day) => {
             const dayKey = day.toDateString();
@@ -412,7 +408,7 @@ export function WeekView({
                 key={dayKey}
                 className={cn(
                   "bg-card p-2 pb-2 min-h-[120px]",
-                  isDayToday && "bg-[#A00000]/[0.04]",
+                  isDayToday && "bg-[var(--wi-red)]/[0.04] dark:bg-[var(--wi-red)]/[0.08]",
                 )}
               >
                 {/* Day column header */}
@@ -420,7 +416,7 @@ export function WeekView({
                   <span
                     className={cn(
                       "text-[9px] font-semibold uppercase tracking-widest leading-none mb-0.5",
-                      isDayToday ? "text-[#A00000]" : "text-muted-foreground",
+                      isDayToday ? "text-[var(--wi-red)]" : "text-muted-foreground",
                     )}
                     style={{ fontFamily: "var(--font-heading)" }}
                   >
@@ -429,7 +425,7 @@ export function WeekView({
                   <span
                     className={cn(
                       "text-lg font-bold leading-none",
-                      isDayToday ? "text-[#A00000]" : "text-foreground",
+                      isDayToday ? "text-[var(--wi-red)]" : "text-foreground",
                     )}
                     style={{ fontFamily: "var(--font-heading)" }}
                   >
@@ -462,7 +458,7 @@ export function WeekView({
       )}
 
       {/* ── Mobile: collapsible day sections ── */}
-      {!loading && (
+      {!loading && entries.length > 0 && (
         <div className="md:hidden border border-border/60 rounded-lg overflow-hidden">
           {weekDays.map((day) => {
             const dayKey = day.toDateString();

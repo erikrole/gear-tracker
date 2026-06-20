@@ -114,7 +114,14 @@ export function getBatteryAvailabilityAlerts(args: {
     rules: args.rules,
   })
     .filter((summary) => summary.isLow)
-    .map(({ cameraCount: _cameraCount, batterySkuNames: _batterySkuNames, isLow: _isLow, ...alert }) => alert);
+    .map((summary) => ({
+      ruleId: summary.ruleId,
+      label: summary.label,
+      cameraModels: summary.cameraModels,
+      batterySkuIds: summary.batterySkuIds,
+      availableQuantity: summary.availableQuantity,
+      threshold: summary.threshold,
+    }));
 }
 
 export function getBatteryCompatibilitySummaries(args: {

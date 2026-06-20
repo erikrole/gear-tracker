@@ -94,30 +94,46 @@ function makeUser(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function userRows(rows: unknown[]) {
+  return rows as Awaited<ReturnType<typeof db.user.findMany>>;
+}
+
+function userRow(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.user.findUnique>>;
+}
+
+function updatedUser(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.user.update>>;
+}
+
+function roleGroups(rows: unknown[]) {
+  return rows as Awaited<ReturnType<typeof db.user.groupBy>>;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(requireAuth).mockResolvedValue(adminUser);
   vi.mocked(db.user.findMany).mockResolvedValue([]);
   vi.mocked(db.user.count).mockResolvedValue(0);
   vi.mocked(db.user.groupBy).mockResolvedValue([]);
-  vi.mocked(db.user.update).mockResolvedValue(makeUser({ directReportId: managerId }) as any);
+  vi.mocked(db.user.update).mockResolvedValue(updatedUser(makeUser({ directReportId: managerId })));
 });
 
 describe("GET /api/users", () => {
   it("returns lastActiveAt and supports last-active sorting", async () => {
     const lastActiveAt = new Date("2026-05-13T14:00:00.000Z");
-    vi.mocked(db.user.findMany).mockResolvedValue([
+    vi.mocked(db.user.findMany).mockResolvedValue(userRows([
       makeUser({
         id: targetId,
         name: "Student One",
         lastActiveAt,
         location: { id: "loc-1", name: "Camp Randall" },
-      }) as any,
-    ]);
+      }),
+    ]));
     vi.mocked(db.user.count).mockResolvedValue(1);
-    vi.mocked(db.user.groupBy).mockResolvedValue([
+    vi.mocked(db.user.groupBy).mockResolvedValue(roleGroups([
       { role: "STUDENT", _count: { _all: 1 } },
-    ] as any);
+    ]));
 
     const res = await GET(
       new Request("https://app.example.com/api/users?sort=lastActive_desc"),
@@ -141,8 +157,8 @@ describe("GET /api/users", () => {
 describe("PATCH /api/users/[id]", () => {
   it("saves a linked direct report when the reporting chain is valid", async () => {
     vi.mocked(db.user.findUnique)
-      .mockResolvedValueOnce(makeUser() as any)
-      .mockResolvedValueOnce({ id: managerId, directReportId: null } as any);
+      .mockResolvedValueOnce(userRow(makeUser()))
+      .mockResolvedValueOnce(userRow({ id: managerId, directReportId: null }));
 
     const res = await PATCH(
       patchRequest({ directReportId: managerId }),
@@ -172,7 +188,7 @@ describe("PATCH /api/users/[id]", () => {
 
   it("rejects a missing linked direct report before updating the user", async () => {
     vi.mocked(db.user.findUnique)
-      .mockResolvedValueOnce(makeUser() as any)
+      .mockResolvedValueOnce(userRow(makeUser()))
       .mockResolvedValueOnce(null);
 
     const res = await PATCH(
@@ -188,8 +204,8 @@ describe("PATCH /api/users/[id]", () => {
 
   it("rejects direct-report cycles before updating the user", async () => {
     vi.mocked(db.user.findUnique)
-      .mockResolvedValueOnce(makeUser() as any)
-      .mockResolvedValueOnce({ id: managerId, directReportId: targetId } as any);
+      .mockResolvedValueOnce(userRow(makeUser()))
+      .mockResolvedValueOnce(userRow({ id: managerId, directReportId: targetId }));
 
     const res = await PATCH(
       patchRequest({ directReportId: managerId }),

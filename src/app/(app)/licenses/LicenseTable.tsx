@@ -12,7 +12,6 @@ import {
 import { UserAvatar } from "@/components/UserAvatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { LicenseCode, ActiveClaim } from "./types";
 
@@ -93,7 +92,6 @@ type Props = {
   currentUserId: string | null;
   isAdmin: boolean;
   hasMyLicense: boolean;
-  myClaimId: string | null;
   onClickAvailable: (code: LicenseCode) => void;
   onClickClaimed: (code: LicenseCode) => void;
   showExpiry?: boolean;
@@ -105,7 +103,6 @@ export function LicenseTable({
   currentUserId,
   isAdmin,
   hasMyLicense,
-  myClaimId,
   onClickAvailable,
   onClickClaimed,
   showExpiry = false,

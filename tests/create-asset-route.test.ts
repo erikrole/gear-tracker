@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Role } from "@prisma/client";
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: vi.fn(),
@@ -18,7 +19,7 @@ vi.mock("@/lib/audit", () => ({
 
 vi.mock("@/lib/services/status", () => ({
   buildDerivedStatusWhere: vi.fn(() => []),
-  enrichAssetsWithStatusFromLoaded: vi.fn(async (assets: any[]) => assets),
+  enrichAssetsWithStatusFromLoaded: vi.fn(async (assets: unknown[]) => assets),
 }));
 
 import { requireAuth } from "@/lib/auth";
@@ -30,9 +31,13 @@ const staffUser = {
   id: "staff-1",
   email: "staff@example.com",
   name: "Staff One",
-  role: "STAFF" as any,
+  role: Role.STAFF,
   avatarUrl: null,
 };
+
+function assetCreateResult(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.asset.create>>;
+}
 
 function post(body: Record<string, unknown>) {
   return new Request("https://app.example.com/api/assets", {
@@ -49,7 +54,7 @@ function post(body: Record<string, unknown>) {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(requireAuth).mockResolvedValue(staffUser);
-  vi.mocked(db.asset.create).mockResolvedValue({
+  vi.mocked(db.asset.create).mockResolvedValue(assetCreateResult({
     id: "cmasset000000000000000001",
     assetTag: "SMOKE-1",
     name: "Smoke Test Asset",
@@ -62,8 +67,8 @@ beforeEach(() => {
     departmentId: "54a4abe3-2500-4a28-8970-86f671cfffd3",
     location: { id: "cmlocation000000000000001", name: "Camp Randall" },
     category: { id: "cmcategory000000000000001", name: "Accessories" },
-  } as any);
-  vi.mocked(createAuditEntry).mockResolvedValue(undefined as any);
+  }));
+  vi.mocked(createAuditEntry).mockResolvedValue(undefined);
 });
 
 describe("POST /api/assets", () => {

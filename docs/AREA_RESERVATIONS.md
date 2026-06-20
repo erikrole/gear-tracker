@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-15
+- Last Updated: 2026-06-19
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
@@ -36,9 +36,9 @@ Multi-step wizard page (replaced the old side-sheet flow as of 2026-04-09):
 ### Native iOS Create Reservation
 Native iOS creation mirrors the three-step reservation rhythm while staying mobile-first:
 1. Details preserves duration when the start date moves.
-2. Details can link up to 3 upcoming calendar events. Selected events auto-fill the title, location, and start/end window until the user edits those fields, then submit through the existing `eventIds[]` reservation API. Event-launched prep-gear flows keep the prefilled `eventId`/`shiftAssignmentId` contract unless the user explicitly picks events in the sheet.
-3. Equipment supports searchable serialized assets, scan-to-add through the shared QR scanner, and countable bulk/battery quantities from `/api/form-options`.
-4. Review counts serialized assets plus selected bulk quantities, shows selected bulk rows, summarizes linked events, and submits typed `bulkItems` alongside `serializedAssetIds`.
+2. Details can link up to 3 upcoming calendar events. Selected events auto-fill the title and pickup/return window until the user edits those fields, then submit through the existing `eventIds[]` reservation API. Pickup location remains the booking pickup location and is not silently copied from event venue. Event-launched prep-gear flows keep the prefilled `eventId`/`shiftAssignmentId` contract unless the user explicitly picks events in the sheet.
+3. Equipment supports searchable serialized assets grouped by category for the selected pickup location and ordered by the displayed product name, scan-to-add through the shared QR scanner, and countable bulk/battery quantities from `/api/form-options`; bulk/battery rows use SKU photos when available and fall back to the box placeholder inside the same Equipment flow as serialized gear.
+4. Review counts serialized assets plus selected bulk quantities, uses pickup/return language, shows thumbnail-led serialized and counted equipment rows, summarizes linked events inline, and submits typed `bulkItems` alongside `serializedAssetIds`.
 5. Serialized conflict hints stay advisory before submit; server-side availability and bulk shortage checks remain authoritative.
 
 ### Edit Reservation
@@ -49,9 +49,10 @@ Native iOS creation mirrors the three-step reservation rhythm while staying mobi
 ### Kiosk Pickup From Reservation
 1. App/web reservation detail should show pickup guidance, not a `Start checkout` custody action.
 2. The user claims the reservation at the kiosk once the pickup window is due.
-3. The kiosk validates identity, scans required serialized assets and numbered units, rechecks availability, and creates or opens the linked checkout custody record only after required scan evidence passes.
+3. The kiosk validates identity, scans required serialized assets and numbered units, rechecks availability, and creates the linked checkout custody record only after required scan evidence passes.
 4. The source reservation is marked `COMPLETED` because it was fulfilled, not cancelled.
 5. Preserve allocation linkage, `sourceReservationId`, and audit trail.
+6. Numbered-unit intent remains quantity-based on the reservation; exact unit binding happens only during kiosk pickup confirmation.
 
 ### Cancel Reservation
 1. Allowed by role and policy.
@@ -218,7 +219,7 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - Thumbnail image missing for one or more items in row.
 
 ## Acceptance Criteria
-- [ ] AC-1: `BOOKED` reservations can be fulfilled at kiosk pickup into linked checkout custody without data loss.
+- [x] AC-1: `BOOKED` reservations can be fulfilled at kiosk pickup into linked checkout custody without data loss.
 - [x] AC-2: Edit operations revalidate conflicts for all relevant field changes.
 - [x] AC-3: `OPEN` records cannot be canceled directly in normal flow.
 - [x] AC-4: Permission and ownership enforcement matches `AREA_USERS.md`.
@@ -253,6 +254,10 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 8. Implement list page controls and row behavior from V1 list surface spec.
 
 ## Change Log
+- 2026-06-19: Native reservation creation showtime polish shipped. iOS event-linked reservation titles now use sport-code `vs`/`at` naming, selected events no longer overwrite pickup location with event venue, counted item families sit in the same Equipment flow as serialized assets, and the Confirm step uses pickup/return language with thumbnail-led equipment rows plus inline linked-event context.
+- 2026-06-19: Native reservation creation now loads available serialized equipment for the selected pickup location in a bounded 300-row request, groups rows by category in the iOS Equipment picker, and shows search recovery copy if more matches exist past the cap.
+- 2026-06-19: Native reservation creation now carries `BulkSku.imageUrl` through `/api/form-options` into iOS `FormBulkSku`, so battery and counted-item rows show SKU photos in the Equipment picker and selected list with the existing box fallback for photo-less SKUs.
+- 2026-06-18: Kiosk-only custody Slice 4. Due `BOOKED` reservations now appear as pickup work in the kiosk student hub. Kiosk pickup detail, scan, and confirm accept reservations as well as legacy `PENDING_PICKUP` checkouts. Serialized and numbered-unit scans are staged on the source reservation; confirmation creates an `OPEN` checkout through `sourceReservationId`, binds exact numbered units, completes the source reservation, and writes kiosk pickup audit. AC-1 is now met; broader list/detail consistency after kiosk fulfillment remains tracked by AC-12.
 - 2026-06-15: Kiosk-only custody Slice 3. App/web reservation flows are now the only remote booking creation path: dashboard, item detail, event missing-gear, bookings, and native non-kiosk surfaces point users to reservations, with pickup guidance instead of `Start checkout` actions.
 - 2026-06-15: Server boundary for D-040 shipped. `/api/reservations/[id]/convert` now rejects app/web conversion into checkout custody, and fulfilled source reservations now close as `COMPLETED` when a kiosk-marked checkout creation path uses `sourceReservationId`.
 - 2026-06-15: Accepted the reservation-first app/web contract (D-040). App/web reservation detail should no longer create checkout custody; kiosk pickup fulfills due reservations, creates or opens the linked checkout custody record, and closes the source reservation as `COMPLETED`.

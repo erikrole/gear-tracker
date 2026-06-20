@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { BookingStatus, Role } from "@prisma/client";
 
 const mockTx = {
   bulkSku: {
@@ -106,7 +107,7 @@ const adminUser = {
   id: "admin-1",
   email: "admin@example.com",
   name: "Admin One",
-  role: "ADMIN" as any,
+  role: Role.ADMIN,
   avatarUrl: null,
 };
 
@@ -114,9 +115,78 @@ const staffUser = {
   id: "staff-1",
   email: "staff@example.com",
   name: "Staff One",
-  role: "STAFF" as any,
+  role: Role.STAFF,
   avatarUrl: null,
 };
+
+function userFindUniqueResult(value: { id: string; name: string }) {
+  return value as unknown as Awaited<ReturnType<typeof db.user.findUnique>>;
+}
+
+function userUpdateResult(value: { id: string }) {
+  return value as unknown as Awaited<ReturnType<typeof db.user.update>>;
+}
+
+function deleteManyResult(value: { count: number }) {
+  return value as unknown as Awaited<ReturnType<typeof db.session.deleteMany>>;
+}
+
+function checkoutReportResult(value: { data: unknown[] }) {
+  return value as unknown as Awaited<ReturnType<typeof getCheckoutReport>>;
+}
+
+function auditFindFirstResult(value: { id: string } | null) {
+  return value as unknown as Awaited<ReturnType<typeof db.auditLog.findFirst>>;
+}
+
+function auditFindManyResult(value: unknown[]) {
+  return value as unknown as Awaited<ReturnType<typeof db.auditLog.findMany>>;
+}
+
+function bookingActionResult(value: { id: string }) {
+  return value as unknown as Awaited<ReturnType<typeof requireBookingAction>>;
+}
+
+function bookingFindUniqueResult(value: {
+  id: string;
+  title: string;
+  status: BookingStatus;
+  requesterUserId?: string;
+  locationId?: string;
+  startsAt?: Date;
+  endsAt?: Date;
+  serializedItems: unknown[];
+  bulkItems: unknown[];
+  notes?: string | null;
+  eventId?: string | null;
+  sportCode?: string | null;
+}) {
+  return value as unknown as Awaited<ReturnType<typeof db.booking.findUniqueOrThrow>>;
+}
+
+function createBookingResult(value: { id: string; title: string }) {
+  return value as unknown as Awaited<ReturnType<typeof createBooking>>;
+}
+
+function kioskDeviceResult(value: {
+  id: string;
+  active: boolean;
+  name: string;
+  locationId: string;
+  location: { id: string; name: string };
+}) {
+  return value as unknown as Awaited<ReturnType<typeof db.kioskDevice.findUnique>>;
+}
+
+function assetScanResult(value: {
+  id: string;
+  assetTag: string;
+  name: string;
+  status: string;
+  category: { name: string };
+}) {
+  return value as unknown as Awaited<ReturnType<typeof findAssetByScanValue>>;
+}
 
 function authedPost(path: string, body?: Record<string, unknown>) {
   return new Request(`https://app.example.com${path}`, {
@@ -151,21 +221,21 @@ beforeEach(() => {
   vi.mocked(createKioskSession).mockResolvedValue("session-token");
   vi.mocked(enforceRateLimit).mockResolvedValue(undefined);
   vi.mocked(getClientIp).mockReturnValue("203.0.113.10");
-  vi.mocked(db.user.findUnique).mockResolvedValue({ id: "user-1", name: "User One" } as any);
-  vi.mocked(db.user.update).mockResolvedValue({ id: "user-1" } as any);
-  vi.mocked(db.session.deleteMany).mockResolvedValue({ count: 2 } as any);
+  vi.mocked(db.user.findUnique).mockResolvedValue(userFindUniqueResult({ id: "user-1", name: "User One" }));
+  vi.mocked(db.user.update).mockResolvedValue(userUpdateResult({ id: "user-1" }));
+  vi.mocked(db.session.deleteMany).mockResolvedValue(deleteManyResult({ count: 2 }));
   mockTx.bulkSku.findUnique.mockResolvedValue({ id: "sku-1", locationId: "loc-1" });
   mockTx.bulkStockBalance.findUnique.mockResolvedValue({ onHandQuantity: 10 });
-  mockTx.bulkStockBalance.upsert.mockResolvedValue({} as any);
-  mockTx.bulkStockMovement.create.mockResolvedValue({} as any);
-  vi.mocked(getCheckoutReport).mockResolvedValue({ data: [] } as any);
-  vi.mocked(db.auditLog.findFirst).mockResolvedValue({ id: "cursor-1" } as any);
-  vi.mocked(db.auditLog.findMany).mockResolvedValue([] as any);
-  vi.mocked(requireBookingAction).mockResolvedValue({ id: "booking-1" } as any);
-  vi.mocked(db.booking.findUniqueOrThrow).mockResolvedValue({
+  mockTx.bulkStockBalance.upsert.mockResolvedValue({});
+  mockTx.bulkStockMovement.create.mockResolvedValue({});
+  vi.mocked(getCheckoutReport).mockResolvedValue(checkoutReportResult({ data: [] }));
+  vi.mocked(db.auditLog.findFirst).mockResolvedValue(auditFindFirstResult({ id: "cursor-1" }));
+  vi.mocked(db.auditLog.findMany).mockResolvedValue(auditFindManyResult([]));
+  vi.mocked(requireBookingAction).mockResolvedValue(bookingActionResult({ id: "booking-1" }));
+  vi.mocked(db.booking.findUniqueOrThrow).mockResolvedValue(bookingFindUniqueResult({
     id: "booking-1",
     title: "Reservation",
-    status: "BOOKED",
+    status: BookingStatus.BOOKED,
     requesterUserId: "student-1",
     locationId: "loc-1",
     startsAt: new Date("2026-06-01T10:00:00.000Z"),
@@ -175,23 +245,23 @@ beforeEach(() => {
     notes: null,
     eventId: null,
     sportCode: null,
-  } as any);
-  vi.mocked(createBooking).mockResolvedValue({ id: "copy-1", title: "Copy of Reservation" } as any);
-  vi.mocked(db.kioskDevice.findUnique).mockResolvedValue({
+  }));
+  vi.mocked(createBooking).mockResolvedValue(createBookingResult({ id: "copy-1", title: "Copy of Reservation" }));
+  vi.mocked(db.kioskDevice.findUnique).mockResolvedValue(kioskDeviceResult({
     id: "kiosk-1",
     active: true,
     name: "Kiosk One",
     locationId: "loc-1",
     location: { id: "loc-1", name: "Main" },
-  } as any);
+  }));
   vi.mocked(db.assetAllocation.findFirst).mockResolvedValue(null);
-  vi.mocked(findAssetByScanValue).mockResolvedValue({
+  vi.mocked(findAssetByScanValue).mockResolvedValue(assetScanResult({
     id: "asset-1",
     assetTag: "CAM-1",
     name: "Camera",
     status: "AVAILABLE",
     category: { name: "Camera" },
-  } as any);
+  }));
   vi.mocked(findBulkUnitByScanValue).mockResolvedValue(null);
 });
 
@@ -273,13 +343,13 @@ describe("API hardening wave 11", () => {
   });
 
   it("blocks duplicating a terminal reservation after the source reload", async () => {
-    vi.mocked(db.booking.findUniqueOrThrow).mockResolvedValueOnce({
+    vi.mocked(db.booking.findUniqueOrThrow).mockResolvedValueOnce(bookingFindUniqueResult({
       id: "booking-1",
       title: "Reservation",
-      status: "CANCELLED",
+      status: BookingStatus.CANCELLED,
       serializedItems: [],
       bulkItems: [],
-    } as any);
+    }));
 
     const res = await duplicateReservation(
       authedPost("/api/reservations/booking-1/duplicate"),

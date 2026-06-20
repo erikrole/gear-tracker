@@ -1,26 +1,30 @@
 import { describe, it, expect } from "vitest";
+import { Role } from "@prisma/client";
 import { requireRole, requirePermission } from "@/lib/rbac";
 import { getAllowedRoles, PERMISSIONS } from "@/lib/permissions";
+import { HttpError } from "@/lib/http";
 
 // Pure function tests — no mocking needed
 
 describe("requireRole", () => {
   it("passes when user role is in allowed list", () => {
-    expect(() => requireRole("ADMIN" as any, ["ADMIN", "STAFF"] as any[])).not.toThrow();
+    expect(() => requireRole(Role.ADMIN, [Role.ADMIN, Role.STAFF])).not.toThrow();
   });
 
   it("passes for STUDENT role when allowed", () => {
-    expect(() => requireRole("STUDENT" as any, ["ADMIN", "STAFF", "STUDENT"] as any[])).not.toThrow();
+    expect(() => requireRole(Role.STUDENT, [Role.ADMIN, Role.STAFF, Role.STUDENT])).not.toThrow();
   });
 
   it("throws 403 when user role is not in allowed list", () => {
-    expect(() => requireRole("STUDENT" as any, ["ADMIN", "STAFF"] as any[])).toThrow("Forbidden");
+    expect(() => requireRole(Role.STUDENT, [Role.ADMIN, Role.STAFF])).toThrow("Forbidden");
   });
 
   it("throws HttpError with status 403", () => {
     try {
-      requireRole("STUDENT" as any, ["ADMIN"] as any[]);
-    } catch (err: any) {
+      requireRole(Role.STUDENT, [Role.ADMIN]);
+    } catch (err: unknown) {
+      expect(err).toBeInstanceOf(HttpError);
+      if (!(err instanceof HttpError)) throw err;
       expect(err.status).toBe(403);
     }
   });
@@ -28,31 +32,31 @@ describe("requireRole", () => {
 
 describe("requirePermission", () => {
   it("passes for ADMIN on asset.delete", () => {
-    expect(() => requirePermission("ADMIN" as any, "asset", "delete")).not.toThrow();
+    expect(() => requirePermission(Role.ADMIN, "asset", "delete")).not.toThrow();
   });
 
   it("throws 403 for STUDENT on asset.delete", () => {
-    expect(() => requirePermission("STUDENT" as any, "asset", "delete")).toThrow("Forbidden");
+    expect(() => requirePermission(Role.STUDENT, "asset", "delete")).toThrow("Forbidden");
   });
 
   it("throws 403 for STAFF on asset.delete", () => {
-    expect(() => requirePermission("STAFF" as any, "asset", "delete")).toThrow("Forbidden");
+    expect(() => requirePermission(Role.STAFF, "asset", "delete")).toThrow("Forbidden");
   });
 
   it("passes for STUDENT on booking.create", () => {
-    expect(() => requirePermission("STUDENT" as any, "booking", "create")).not.toThrow();
+    expect(() => requirePermission(Role.STUDENT, "booking", "create")).not.toThrow();
   });
 
   it("passes for STAFF on shift.manage", () => {
-    expect(() => requirePermission("STAFF" as any, "shift", "manage")).not.toThrow();
+    expect(() => requirePermission(Role.STAFF, "shift", "manage")).not.toThrow();
   });
 
   it("throws 403 for STUDENT on shift.manage", () => {
-    expect(() => requirePermission("STUDENT" as any, "shift", "manage")).toThrow("Forbidden");
+    expect(() => requirePermission(Role.STUDENT, "shift", "manage")).toThrow("Forbidden");
   });
 
   it("passes for STUDENT on asset.favorite", () => {
-    expect(() => requirePermission("STUDENT" as any, "asset", "favorite")).not.toThrow();
+    expect(() => requirePermission(Role.STUDENT, "asset", "favorite")).not.toThrow();
   });
 });
 
@@ -87,8 +91,8 @@ describe("PERMISSIONS map completeness", () => {
   });
 
   it("every permission has at least one allowed role", () => {
-    for (const [resource, actions] of Object.entries(PERMISSIONS)) {
-      for (const [action, roles] of Object.entries(actions)) {
+    for (const actions of Object.values(PERMISSIONS)) {
+      for (const roles of Object.values(actions)) {
         expect(roles.length).toBeGreaterThan(0);
       }
     }

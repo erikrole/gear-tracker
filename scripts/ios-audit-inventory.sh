@@ -69,8 +69,18 @@ ScanView.swift                         | scan                        | audit
 UsersView.swift                        | users                       | audit
 UserDetailView.swift                   | users                       | audit
 AppTabView.swift                       | profile                     | audit
+ProfileView.swift                      | profile                     | audit
+NotificationSettingsView.swift         | profile                     | audit
+AccountSecuritySettingsView.swift      | profile                     | audit
+AvailabilityView.swift                 | schedule                    | audit
+AccountAvatar.swift                    |                             | exempt-shared
 ScanPrePromptView.swift                | scan                        | audit
 PushPrePromptView.swift                | profile                     | audit
+CreateBooking/CreateBookingEventViews.swift  | create-booking              | audit
+CreateBooking/CreateBookingEquipmentRows.swift  |                            | exempt-shared
+CreateBooking/CreateBookingFormRows.swift  |                                | exempt-shared
+CreateBooking/CreateBookingPickers.swift  |                                 | exempt-shared
+CreateBooking/CreateBookingViewModel.swift  |                               | exempt-infra
 DevTools/LinkStickerWizard.swift       | link-sticker-wizard         | audit
 DevTools/ScannerDebuggerView.swift     | scanner-debugger            | audit
 Schedule/PostTradeSheet.swift          | post-trade                  | audit

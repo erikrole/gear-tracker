@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-18
+- Last Updated: 2026-06-19
 - Status: Living registry — update when shipping features or resolving decisions
 - Purpose: Single file listing every open gap, pending decision, and known risk across all docs
 
@@ -60,6 +60,12 @@ _2026-06-18 update: Schedule crew UI trim shipped without opening a new gap. Att
 
 _2026-06-18 update: Schedule event editing clarity shipped without opening a new gap. Home, Away, Neutral, and Non-game classification uses the existing event lock path, with locked event type also preserving the manually selected or cleared opponent through calendar sync. Pickup location remains the existing internal location relation, now labeled clearly apart from calendar venue._
 
+_2026-06-19 update: Reconciled stale Phase C battery-reporting status. GAP-37 and Missing Units battery audit reporting are already closed; remaining battery-adjacent deferred work is inventory health, templates/presets, attachment slot schema, and database-configurable guidance rules._
+
+_2026-06-19 update: Reconciled stale low-priority backlog wording. GAP-33 is already closed through pending-pickup auto-expiry, GAP-35 is already closed through native booking conflict badges, and GAP-21 now means no generic all-key SystemConfig UI; specific SystemConfig-backed settings pages exist for checkout policies and reservation rules._
+
+_2026-06-19 update: iOS reservation creation showtime polish shipped without opening a new gap. The slice used existing `eventIds[]`, `serializedAssetIds`, `bulkItems`, and `BulkSku.imageUrl` contracts, so no schema or API expansion was needed._
+
 | ID | Description | Owner Area | Priority | Blocker? |
 |---|---|---|---|---|
 | ~~PD-1~~ | ~~D-009: Escalation recipient model~~ | ~~AREA_NOTIFICATIONS~~ | ~~Resolved~~ | ~~Requester + all admins; admin-configurable fatigue controls~~ |
@@ -94,7 +100,7 @@ _2026-06-18 update: Schedule event editing clarity shipped without opening a new
 | ~~GAP-18~~ | ~~Kit-to-booking integration missing — kits can't be checked out as a group~~ | ~~AREA_CHECKOUTS~~ | ~~Closed~~ | ~~Shipped 2026-03-25: `kitId` FK on Booking (migration 0018), kit selector in CreateBookingSheet (location-filtered), kit badge on booking detail page, validation + service + API route wiring~~ |
 | ~~GAP-19~~ | ~~`useFormSubmit` hook extracted but only adopted by 1 form (Create User) — checkout/reservation/kit creation still use ad-hoc fetch+validation~~ | ~~CROSS-CUTTING~~ | ~~Closed~~ | ~~All create/edit forms migrated to `useFormSubmit` 2026-03-27: auth forms (login, register, forgot-password, reset-password), kit creation, bulk inventory. `skipAuthRedirect` option added for auth pages.~~ |
 | ~~GAP-20~~ | ~~Events list page is 817 lines — monolithic, no loading states, no error recovery, no AbortController~~ | ~~AREA_EVENTS~~ | ~~Closed~~ | ~~Event detail page hardened 2026-03-26: AbortController on all fetches + onUpdated, error differentiation, skeleton loading, nudge toast feedback, color-coded avatars. Page reduced from 817→607 lines in prior pass, 6-pass audit complete.~~ |
-| GAP-21 | `SystemConfig` model has zero UI — key-value config store with no admin surface | AREA_SETTINGS | Expected | Low priority. Used internally for escalation config. Admin UI deferred until more config keys are needed. |
+| GAP-21 | `SystemConfig` has no generic all-key admin surface | AREA_SETTINGS | Expected | Low priority. Operator-facing pages now exist for specific keys such as checkout policies and reservation rules; a generic key/value UI stays deferred until more keys need direct admin ownership. |
 | ~~GAP-28~~ | ~~React Query adoption incomplete — Kits page uses raw useState+useEffect, Search uses raw fetch()~~ | ~~CROSS-CUTTING~~ | ~~Closed~~ | ~~Kits migrated to useFetch (React Query), Search kept raw fetch (multi-endpoint fan-out pattern is correct) but replaced Spinner with Skeleton. 2026-04-03~~ |
 | ~~GAP-29~~ | ~~URL state not persisted on Kits and Bulk Inventory pages~~ | ~~CROSS-CUTTING~~ | ~~Closed~~ | ~~Added useUrlState for location/archived on Kits, search on Bulk Inventory. 2026-04-03~~ |
 | ~~GAP-30~~ | ~~No CSP header~~ | ~~CROSS-CUTTING~~ | ~~Closed~~ | ~~CSP header added to next.config.ts with self/inline/blob rules. 2026-04-03~~ |
@@ -164,7 +170,7 @@ _2026-06-18 update: Schedule event editing clarity shipped without opening a new
 | Reservation and checkout templates | AREA_RESERVATIONS |
 | Board / ops view for game-day coordinators | AREA_DASHBOARD |
 | Advanced analytics | NORTH_STAR |
-| Battery audit/reporting | AREA_BULK_INVENTORY |
+| ~~Battery audit/reporting~~ | ~~AREA_BULK_INVENTORY~~ |
 | Multi-source event ingestion beyond UW Badgers ICS | AREA_EVENTS |
 | Database-configurable equipment guidance rules | AREA_CHECKOUTS (D-016) |
 
@@ -250,7 +256,7 @@ _2026-06-18 update: Schedule event editing clarity shipped without opening a new
 - 2026-06-02: Web operator trust Utilization report export slice added bounded row-level inventory CSV semantics without opening a new gap. `/reports/utilization` now exports derived-status inventory rows while preserving JSON metric/card/chart behavior. Remaining visible-row report export risk is limited to Badges.
 - 2026-06-02: Web operator trust Missing Units report export slice added bounded evidence CSV semantics without opening a new gap. `/reports/bulk-losses` now exports missing-unit family counts, requester attribution, recent loss events, battery family summaries, missing battery units, battery checkout history, and repeat patterns while preserving JSON report sections and drill-down behavior.
 - 2026-06-02: Web operator trust Overdue report export slice tightened CSV semantics without opening a new gap. `/reports/overdue` now exports bounded booking-level overdue evidence with outstanding item counts and summaries, while preserving JSON leaderboard grouping and expansion behavior.
-- 2026-06-02: Web operator trust Checkouts report export slice tightened filtered CSV semantics without opening a new gap. `/reports/checkouts` now exports all matching non-draft checkout activity rows from a bounded server-backed path and reports capped exports, while preserving JSON report metrics, charts, heatmap, and draft-exclusion semantics.
+- 2026-06-02: Web operator trust Checkouts report export slice tightened filtered CSV semantics without opening a new gap. `/reports/checkouts` now exports bounded matching checkout activity rows from a server-backed path and reports capped exports. As of 2026-06-18, checkout activity means actual custody rows only: `OPEN` and `COMPLETED`.
 - 2026-06-02: Web operator trust Scans report export slice tightened filtered CSV semantics without opening a new gap. `/reports/scans` now exports all matching filtered scan events from a bounded server-backed path and reports capped exports, while preserving JSON report pagination and chart semantics.
 - 2026-06-02: Web operator trust Audit report export slice tightened filtered CSV semantics without opening a new gap. `/reports/audit` now exports all matching filtered audit rows from a bounded server-backed path and reports capped exports, while preserving JSON report pagination and chart semantics.
 - 2026-06-02: Web operator trust Settings Audit filter slice tightened date-range validation without opening a new gap. Settings > Audit Log now blocks invalid or inverted date filters inline before fetching, preserving the current audit table instead of showing a misleading backend failure or false empty result.

@@ -86,7 +86,7 @@ export function useBookingActions(
     } finally {
       guardEnd();
     }
-  }, [bookingId, kind, confirm, toast, onSuccess]);
+  }, [bookingId, kind, confirm, onSuccess]);
 
   const extend = useCallback(
     async (endsAt: string) => {
@@ -108,7 +108,7 @@ export function useBookingActions(
         guardEnd();
       }
     },
-    [bookingId, toast, onSuccess],
+    [bookingId, onSuccess],
   );
 
   const duplicate = useCallback(async () => {
@@ -124,7 +124,7 @@ export function useBookingActions(
     } finally {
       guardEnd();
     }
-  }, [bookingId, toast, router]);
+  }, [bookingId, router]);
 
   const nudge = useCallback(async () => {
     if (!guardStart("nudge")) return;
@@ -138,7 +138,7 @@ export function useBookingActions(
     } finally {
       guardEnd();
     }
-  }, [bookingId, toast]);
+  }, [bookingId]);
 
   const saveField = useCallback(
     async (field: string, value: unknown) => {

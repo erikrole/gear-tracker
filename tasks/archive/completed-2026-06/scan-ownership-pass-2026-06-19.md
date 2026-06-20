@@ -9,7 +9,7 @@ Make the app `/scan` surface match the current custody contract: app scan is loo
 - `docs/AREA_DASHBOARD.md`
 - `docs/DECISIONS.md`
 - `docs/GAPS_AND_RISKS.md`
-- `tasks/kiosk-gate-pending-pickup-plan.md`
+- `tasks/archive/completed-2026-06/kiosk-gate-pending-pickup-plan-2026-05-10.md`
 - `src/app/(app)/scan/page.tsx`
 - `src/app/(app)/bookings/BookingDetailPage.tsx`
 - `src/app/(app)/dashboard/overdue-banner.tsx`

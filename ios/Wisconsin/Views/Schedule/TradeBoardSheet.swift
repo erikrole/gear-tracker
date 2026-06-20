@@ -319,7 +319,7 @@ private struct TradeRow: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
-                .tint(.accentColor)
+                .tint(Color.brandPrimary)
                 .controlSize(.small)
                 .accessibilityLabel("Claim \(shift.area.shiftAreaLabel) shift")
             }

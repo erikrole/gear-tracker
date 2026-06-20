@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } fr
 import { toast } from "sonner";
 import { toLocalDateTimeValue } from "../booking-list/types";
 import type { BulkSelection } from "@/components/EquipmentPicker";
-import type { AvailableAsset, BookingListConfig, CalendarEvent } from "../booking-list/types";
+import type { BookingListConfig, CalendarEvent } from "../booking-list/types";
 import type { FormState, FormAction } from "./types";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 
@@ -17,8 +17,6 @@ export function useDraftManagement({
   dispatch,
   setSelectedAssetIds,
   setSelectedBulkItems,
-  setSelectedAssetDetails,
-  setKitId,
   onDraftIdChange,
   config,
 }: {
@@ -30,8 +28,6 @@ export function useDraftManagement({
   dispatch: Dispatch<FormAction>;
   setSelectedAssetIds: Dispatch<SetStateAction<string[]>>;
   setSelectedBulkItems: Dispatch<SetStateAction<BulkSelection[]>>;
-  setSelectedAssetDetails: Dispatch<SetStateAction<AvailableAsset[]>>;
-  setKitId: Dispatch<SetStateAction<string>>;
   onDraftIdChange: (id: string | null) => void;
   config: BookingListConfig;
 }) {
@@ -79,7 +75,7 @@ export function useDraftManagement({
       .catch(() => {
         toast.error("Couldn\u2019t load your draft \u2014 starting fresh");
       });
-  }, [draftId, open]);
+  }, [dispatch, draftId, open, setSelectedAssetIds, setSelectedBulkItems]);
 
   // ── Draft save ──
   const saveDraft = useCallback(async () => {

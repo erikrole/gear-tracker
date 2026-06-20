@@ -124,7 +124,7 @@ private struct ShiftPickerRow: View {
             Spacer()
             if isSelected {
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(Color.brandPrimary)
                     .accessibilityHidden(true)
             }
         }

@@ -39,8 +39,8 @@ Status: Complete
 - `src/app/(app)/items/new-item-sheet/BulkItemForm.tsx`
 - `src/app/(app)/bookings/BookingEquipmentTab.tsx`
 - `src/app/(app)/schedule/_components/NewEventSheet.tsx`
-- `tasks/booking-creation-ownership-pass.md`
-- `tasks/booking-create-hardening-plan.md`
+- `tasks/archive/completed-2026-06/booking-creation-ownership-pass-2026-05-07.md`
+- `tasks/archive/completed-2026-06/booking-create-hardening-plan-2026-05-30.md`
 
 ## Peer Patterns Checked
 - Items create/edit forms: section headings, compact shadcn inputs, explicit required fields, and direct validation copy.

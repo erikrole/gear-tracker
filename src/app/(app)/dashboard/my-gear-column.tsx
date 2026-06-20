@@ -23,7 +23,6 @@ type Props = {
   hasActiveFilter: boolean;
   now: Date;
   acting: boolean;
-  ownedAccent?: boolean;
   onSelectBooking: (id: string) => void;
   onDeleteDraft: (draftId: string) => void;
   onExtend: (booking: BookingSummary, e: React.MouseEvent) => void;
@@ -37,7 +36,6 @@ export function MyGearColumn({
   hasActiveFilter,
   now,
   acting,
-  ownedAccent,
   onSelectBooking,
   onDeleteDraft,
   onExtend,

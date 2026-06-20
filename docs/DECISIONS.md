@@ -267,6 +267,7 @@
 ## D-016: Equipment Picker Sections and Guidance Rules Are Code-Defined in V1
 - Date: 2026-03-09
 - Status: Accepted
+- Related design note: `docs/DESIGN_ios-picker-grouping.md` records the accepted first-slice direction for native iOS reservation picker category grouping.
 - Context:
   - The checkout picker uses a sectioned kit-first flow with context-aware guidance hints.
   - Configuring sections and rules via a database admin UI adds complexity without clear near-term need.

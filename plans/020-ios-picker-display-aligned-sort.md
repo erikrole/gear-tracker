@@ -20,6 +20,14 @@
 - **Depends on**: none
 - **Category**: bug
 - **Planned at**: commit `6e4b35ae`, 2026-06-13
+- **State**: DONE ON MAIN (2026-06-19)
+
+## Completion notes
+
+- 2026-06-19: Added a display-aligned `/api/assets?sort=name` order that sorts serialized assets by brand, then model, then asset tag.
+- Native reservation creation now requests `sort: "name"` for the Equipment step, so the list order matches the visible `asset.displayName` row title.
+- Added source-contract coverage tying the server sort key, iOS API client query parameter, and picker call site together.
+- Follow-up build proof completed on 2026-06-19: XcodeBuildMCP `build_sim` passed for the `Wisconsin` scheme on iPhone 17 iOS 26.5.
 
 ## Why this matters
 
@@ -245,9 +253,14 @@ Stop and report back (do not improvise) if:
 - The `sortKey` logic has changed such that `name`/`-name` would not resolve -- report.
 - Adding the `sort` parameter forces a change to any **other** `assets(...)` call site (the parameter is optional with a default, so it should not) -- if it does, report rather than editing unrelated call sites.
 
+## Review
+
+- Shipped: `/api/assets?sort=name` sorts by brand, model, then asset tag; native reservation creation requests that sort for the Equipment picker.
+- Verified: `npx vitest run tests/ios-create-booking-picker-parity.test.ts`; `npx tsc --noEmit`; `npm run drift:ios`; `npm run test`; `npm run lint`; `npm run verify:docs`; `git diff --check`; XcodeBuildMCP `build_sim` for `Wisconsin` on iPhone 17 iOS 26.5.
+
 ## Maintenance notes
 
-- iOS build check before merge: confirm the picker list visibly orders by product name and that a freshly scanned item still appears at the top (intentional "just added" behavior; it is the one item not in sorted position).
+- iOS compile proof passed on 2026-06-19 via XcodeBuildMCP `build_sim` for `Wisconsin` on iPhone 17 iOS 26.5. A visual smoke can still confirm the picker list orders by product name and that a freshly scanned item appears at the top.
 - If a future change wants the scanned item to slot into sorted position instead of the top, that is a separate decision -- this plan deliberately preserved the pin-to-top behavior.
 - The new `name` sort is now available to every `/api/assets` consumer (web included); if the web list later adopts it, no server change is needed.
 - A reviewer should confirm no other `SORT_MAP` entry changed and the default (`assetTag`) is intact for callers that pass no `sort`.

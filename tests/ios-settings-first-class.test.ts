@@ -16,8 +16,8 @@ function bodyBetween(text: string, startNeedle: string, endNeedle: string) {
 
 describe("iOS Settings hub", () => {
   it("presents Profile as a first-class Settings surface", () => {
-    const appTab = source("ios/Wisconsin/Views/AppTabView.swift");
-    const profileBody = bodyBetween(appTab, "struct ProfileView: View", "// MARK: - Profile destinations");
+    const profile = source("ios/Wisconsin/Views/ProfileView.swift");
+    const profileBody = bodyBetween(profile, "struct ProfileView: View", "// MARK: - Profile destinations");
 
     expect(profileBody).toContain(".navigationTitle(\"Settings\")");
     expect(profileBody).not.toContain(".navigationTitle(\"Profile\")");
@@ -42,13 +42,13 @@ describe("iOS Settings hub", () => {
   });
 
   it("keeps role-gated settings menus reachable without exposing staff tools to students", () => {
-    const appTab = source("ios/Wisconsin/Views/AppTabView.swift");
+    const profile = source("ios/Wisconsin/Views/ProfileView.swift");
 
-    expect(appTab).toContain("if isStaffOrAdmin { toolsSection }");
-    expect(appTab).toContain("title: \"Link Sticker Codes\"");
-    expect(appTab).toContain("systemImage: \"qrcode.viewfinder\"");
+    expect(profile).toContain("if isStaffOrAdmin { toolsSection }");
+    expect(profile).toContain("title: \"Link Sticker Codes\"");
+    expect(profile).toContain("systemImage: \"qrcode.viewfinder\"");
 
-    const scheduleSection = bodyBetween(appTab, "private var scheduleSection", "private var toolsSection");
+    const scheduleSection = bodyBetween(profile, "private var scheduleSection", "private var toolsSection");
     expect(scheduleSection).toContain("Text(\"Schedule\")");
     expect(scheduleSection).toContain("title: \"Upcoming shifts\"");
     expect(scheduleSection).toContain("title: \"Overdue bookings\"");
@@ -58,18 +58,19 @@ describe("iOS Settings hub", () => {
   });
 
   it("keeps notification and app settings honest at the menu level", () => {
-    const appTab = source("ios/Wisconsin/Views/AppTabView.swift");
+    const profile = source("ios/Wisconsin/Views/ProfileView.swift");
+    const notifications = source("ios/Wisconsin/Views/NotificationSettingsView.swift");
 
-    expect(appTab).toContain("title: \"Delivery status\"");
-    expect(appTab).toContain("notificationSummaryText");
-    expect(appTab).toContain("pushStatusText");
-    expect(appTab).toContain("case .denied:");
-    expect(appTab).toContain("\"iOS off\"");
-    expect(appTab).toContain("Text(\"In-app notifications always show in your inbox, regardless of these settings.\")");
+    expect(notifications).toContain("title: \"Delivery status\"");
+    expect(notifications).toContain("notificationSummaryText");
+    expect(notifications).toContain("pushStatusText");
+    expect(notifications).toContain("case .denied:");
+    expect(notifications).toContain("\"iOS off\"");
+    expect(notifications).toContain("Text(\"In-app notifications always show in your inbox, regardless of these settings.\")");
 
-    expect(appTab).toContain("title: \"Theme\"");
-    expect(appTab).toContain("Text(themeChoice.label)");
-    expect(appTab).toContain("title: \"Open iOS Settings\"");
-    expect(appTab).toContain("title: \"Sign Out\"");
+    expect(profile).toContain("title: \"Theme\"");
+    expect(profile).toContain("Text(themeChoice.label)");
+    expect(profile).toContain("title: \"Open iOS Settings\"");
+    expect(profile).toContain("title: \"Sign Out\"");
   });
 });

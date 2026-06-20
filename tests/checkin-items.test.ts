@@ -1,5 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+type MockFn = ReturnType<typeof vi.fn>;
+type CheckinItemsTx = {
+  booking: Record<"findUnique" | "update", MockFn>;
+  bookingSerializedItem: Record<"updateMany" | "count", MockFn>;
+  bookingBulkItem: Record<"findMany", MockFn>;
+  assetAllocation: Record<"updateMany", MockFn>;
+  bulkStockBalance: Record<"findUnique" | "upsert", MockFn>;
+  bulkStockMovement: Record<"create", MockFn>;
+  scanSession: Record<"updateMany", MockFn>;
+  auditLog: Record<"create", MockFn>;
+  user: Record<"findUnique", MockFn>;
+};
+
 // Mock the db module
 vi.mock("@/lib/db", () => {
   const mockTx = {
@@ -33,7 +46,9 @@ import { db } from "@/lib/db";
 import { badges } from "@/lib/badges";
 import { checkinItems } from "@/lib/services/bookings";
 
-const mockTx = (db as any)._mockTx;
+const mockTx = (db as unknown as { _mockTx: CheckinItemsTx })._mockTx;
+
+type OpenCheckout = ReturnType<typeof makeOpenCheckout>;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -149,8 +164,10 @@ describe("checkinItems", () => {
   });
 
   it("rejects check-in on non-OPEN checkout", async () => {
-    const booking = makeOpenCheckout([{ assetId: "a1", allocationStatus: "active" }]);
-    (booking as any).status = "COMPLETED";
+    const booking: OpenCheckout = {
+      ...makeOpenCheckout([{ assetId: "a1", allocationStatus: "active" }]),
+      status: "COMPLETED",
+    };
     mockTx.booking.findUnique.mockResolvedValue(booking);
 
     await expect(
@@ -201,7 +218,7 @@ describe("checkinItems", () => {
     // Should have two audit entries: partial_checkin + auto_completed
     const auditCalls = mockTx.auditLog.create.mock.calls;
     expect(auditCalls).toHaveLength(2);
-    expect(auditCalls[0][0].data.action).toBe("partial_checkin");
-    expect(auditCalls[1][0].data.action).toBe("auto_completed_by_partial_checkin");
+    expect(auditCalls[0]![0].data.action).toBe("partial_checkin");
+    expect(auditCalls[1]![0].data.action).toBe("auto_completed_by_partial_checkin");
   });
 });

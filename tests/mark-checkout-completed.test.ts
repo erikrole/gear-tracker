@@ -2,6 +2,17 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { makeBulkItem } from "./_helpers/factories";
 import { expectSerializableIsolation } from "./_helpers/assert-transaction";
 
+type MockFn = ReturnType<typeof vi.fn>;
+type MarkCheckoutCompletedTx = {
+  booking: Record<"findUnique" | "update", MockFn>;
+  assetAllocation: Record<"updateMany", MockFn>;
+  bulkStockBalance: Record<"findMany" | "upsert", MockFn>;
+  bulkStockMovement: Record<"createMany", MockFn>;
+  scanSession: Record<"updateMany", MockFn>;
+  auditLog: Record<"create", MockFn>;
+  user: Record<"findUnique", MockFn>;
+};
+
 // ─── Transaction tracking ───────────────────────────────────────────────────
 const transactionCalls: Array<{ options: unknown }> = [];
 
@@ -42,7 +53,7 @@ import { db } from "@/lib/db";
 import { badges } from "@/lib/badges";
 import { markCheckoutCompleted } from "@/lib/services/bookings";
 
-const mockTx = (db as any)._mockTx;
+const mockTx = (db as unknown as { _mockTx: MarkCheckoutCompletedTx })._mockTx;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -50,7 +61,7 @@ beforeEach(() => {
 });
 
 describe("markCheckoutCompleted", () => {
-  function openCheckout(bulkItems: any[] = []) {
+  function openCheckout(bulkItems: unknown[] = []) {
     return {
       id: "b-1",
       kind: "CHECKOUT",

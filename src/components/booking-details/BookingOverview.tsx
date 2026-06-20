@@ -6,7 +6,7 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
-import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -101,7 +101,7 @@ export default function BookingOverview({
     if (!ok) return;
     onExtendTo(target.toISOString());
     setCustomOpen(false);
-  }, [customValue, confirm, onExtendTo]);
+  }, [booking.title, customValue, confirm, onExtendTo]);
 
   // Default custom value: current due date + 1 day
   function openCustom() {

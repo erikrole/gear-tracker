@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Role } from "@prisma/client";
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: vi.fn(),
@@ -25,7 +26,7 @@ const adminUser = {
   id: "admin-1",
   email: "admin@example.com",
   name: "Admin",
-  role: "ADMIN" as const,
+  role: Role.ADMIN,
   avatarUrl: null,
 };
 
@@ -33,9 +34,13 @@ const studentUser = {
   id: "student-1",
   email: "student@example.com",
   name: "Student",
-  role: "STUDENT" as const,
+  role: Role.STUDENT,
   avatarUrl: null,
 };
+
+function manualAward(row: unknown) {
+  return row as Awaited<ReturnType<typeof awardBadgeManually>>;
+}
 
 function makePostRequest(body: unknown) {
   return new Request("https://app.example.com/api/badges/award", {
@@ -85,7 +90,7 @@ describe("POST /api/badges/award", () => {
 
   it("creates a manual award and audit entry", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
-    vi.mocked(awardBadgeManually).mockResolvedValue({
+    vi.mocked(awardBadgeManually).mockResolvedValue(manualAward({
       id: "cmaward000000000000001",
       userId: "cmstudent000000000000001",
       definitionId: "cmbadge000000000000001",
@@ -100,7 +105,7 @@ describe("POST /api/badges/award", () => {
         icon: "Handshake",
         category: "TRADE",
       },
-    } as any);
+    }));
 
     const res = await POST(makePostRequest({
       userId: "cmstudent000000000000001",
@@ -131,7 +136,7 @@ describe("POST /api/badges/award", () => {
 
   it("creates and awards a custom manual badge", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
-    vi.mocked(awardBadgeManually).mockResolvedValue({
+    vi.mocked(awardBadgeManually).mockResolvedValue(manualAward({
       id: "cmaward000000000000002",
       userId: "cmstaff000000000000001",
       definitionId: "cmbadge000000000000002",
@@ -146,7 +151,7 @@ describe("POST /api/badges/award", () => {
         icon: "Trophy",
         category: "MILESTONE",
       },
-    } as any);
+    }));
 
     const res = await POST(makePostRequest({
       userId: "cmstaff000000000000001",

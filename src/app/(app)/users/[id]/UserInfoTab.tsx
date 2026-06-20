@@ -552,7 +552,6 @@ export default function UserInfoTab({
   const areaBusyRef = useRef(false);
 
   const isAdmin = currentUserRole === "ADMIN";
-  const isStaffOrAdmin = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
   const targetIsStudent = user.role === "STUDENT";
 
   // Permission logic:
@@ -762,10 +761,8 @@ export default function UserInfoTab({
   const locationOptionsUnavailable = locationsLoading || locationsError;
 
   const assignedSportCodes = new Set((user.sportAssignments ?? []).map((sa) => sa.sportCode));
-  const availableSports = SPORT_OPTIONS.filter((s) => !assignedSportCodes.has(s.value));
 
   const assignedAreas = new Set((user.areaAssignments ?? []).map((aa) => aa.area));
-  const availableAreas = AREA_OPTIONS.filter((a) => !assignedAreas.has(a.value));
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4 mt-3.5">

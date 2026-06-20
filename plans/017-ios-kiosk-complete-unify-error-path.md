@@ -20,6 +20,7 @@
 - **Depends on**: none
 - **Category**: bug
 - **Planned at**: commit `e8566c54` (working tree), 2026-06-10
+- **Result**: DONE ON MAIN, 2026-06-19
 
 ## Why this matters
 
@@ -115,11 +116,11 @@ There is no iOS unit-test target in this repo; the gates are the Xcode build and
 
 ## Done criteria
 
-- [ ] `grep -n "session.data(for:" ios/Wisconsin/Kiosk/KioskAPIClient.swift` matches only inside `perform` (one site)
-- [ ] `xcodebuild` build succeeds
-- [ ] `npm run drift:ios` exits 0
-- [ ] No files outside scope (plus `docs/AREA_KIOSK.md`) modified (`git status`)
-- [ ] `plans/README.md` status row updated
+- [x] `grep -n "session.data(for:" ios/Wisconsin/Kiosk/KioskAPIClient.swift` matches only inside `perform` (one site)
+- [x] `xcodebuild` build succeeds
+- [x] `npm run drift:ios` exits 0
+- [x] No files outside scope (plus docs/tests/plan tracking) modified for this slice (`git status`)
+- [x] `plans/README.md` status row updated
 
 ## STOP conditions
 
@@ -133,3 +134,9 @@ Stop and report back (do not improvise) if:
 
 - A follow-up worth considering (deferred): `KioskCheckoutView`'s catch could explicitly handle `APIError.unauthorized` by deactivating the kiosk immediately instead of waiting for the heartbeat. That is a UX decision; this plan only makes the error distinguishable.
 - If Plan 009 lands, the server's 409 messages become student-readable; this method's `perform` path already surfaces them via `APIError.serverError(msg)`.
+
+## Review
+
+- Shipped 2026-06-19: `kioskCheckoutComplete` keeps the current event/purpose/due-back request body and now decodes the checkout-complete response through `perform`, so 401, 404, 409, and 5xx handling matches the rest of the kiosk client.
+- Added a source-contract test that pins checkout completion to `perform` and blocks direct `session.data(for: req)` response handling from returning.
+- Verification: focused iOS API contract test, `npm run drift:ios`, `npm run audit:ios:gaps`, XcodeBuildMCP simulator build, `npm run verify:docs`, and `git diff --check` passed.

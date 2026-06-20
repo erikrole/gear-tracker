@@ -77,12 +77,14 @@ import { normalizeCheckoutCompleteItems } from "@/lib/services/kiosk-checkout-co
 const runCompleteKioskCheckout = completeKioskCheckout as unknown as (req: Request) => Promise<Response>;
 
 function completeRequest(items: Array<Record<string, unknown>>, extra: Record<string, unknown> = {}) {
+  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
   return new Request("http://test", {
     method: "POST",
     body: JSON.stringify({
       actorId: "user-1",
       locationId: "loc-1",
       items,
+      endsAt: tomorrow,
       customPurpose: "Practice checkout",
       ...extra,
     }),
@@ -266,7 +268,7 @@ describe("kiosk checkout complete bulk units", () => {
   });
 
   it("uses the selected return time for checkout allocations and conflict checks", async () => {
-    const endsAt = "2026-06-16T22:30:00.000Z";
+    const endsAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString();
 
     const res = await runCompleteKioskCheckout(completeRequest(
       [{ assetId: "asset-1" }],
@@ -297,7 +299,26 @@ describe("kiosk checkout complete bulk units", () => {
     });
   });
 
+  it("uses the kiosk location when the request omits a location", async () => {
+    const res = await runCompleteKioskCheckout(completeRequest(
+      [{ assetId: "asset-1" }],
+      { locationId: undefined },
+    ));
+
+    expect(res.status).toBe(200);
+    expect(mocks.checkAvailability).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      locationId: "loc-1",
+      serializedAssetIds: ["asset-1"],
+    }));
+    expect(mocks.bookingCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        locationId: "loc-1",
+      }),
+    });
+  });
+
   it("rejects checkout completion when availability finds a blocking conflict", async () => {
+    const endsAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString();
     mocks.checkAvailability.mockResolvedValue({
       conflicts: [{
         assetId: "asset-1",
@@ -315,8 +336,21 @@ describe("kiosk checkout complete bulk units", () => {
 
     await expect(runCompleteKioskCheckout(completeRequest(
       [{ assetId: "asset-1" }],
-      { endsAt: "2026-06-16T22:30:00.000Z" },
+      { endsAt },
     ))).rejects.toThrow("One or more items are not available for the selected return time");
     expect(mocks.bookingCreate).not.toHaveBeenCalled();
+  });
+
+  it("maps a last-second allocation constraint race to a friendly conflict", async () => {
+    mocks.assetAllocationCreateMany.mockRejectedValue({
+      code: "23P01",
+      message: "violates exclusion constraint asset_allocations_no_overlap",
+    });
+
+    await expect(runCompleteKioskCheckout(completeRequest([
+      { assetId: "asset-1" },
+    ]))).rejects.toThrow("One or more items are no longer available");
+    expect(mocks.createAuditEntry).not.toHaveBeenCalled();
+    expect(mocks.badgeOnCheckoutOpened).not.toHaveBeenCalled();
   });
 });

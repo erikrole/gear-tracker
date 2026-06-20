@@ -148,6 +148,37 @@ const defaultIntensityColours = [
 ];
 
 const daysOfTheWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const internalHeatmapPropKeys = new Set<string>([
+  "data",
+  "startDate",
+  "endDate",
+  "cellSize",
+  "daysOfTheWeek",
+  "gap",
+  "displayStyle",
+  "valueDisplayFunction",
+  "dateDisplayFunction",
+  "className",
+  "colorMode",
+]);
+
+function safeHtmlProps(props: HeatmapProps): HTMLAttributes<HTMLDivElement> {
+  const omittedKeys = new Set(internalHeatmapPropKeys);
+  if (props.colorMode === "discrete") {
+    omittedKeys.add("customColorMap");
+    omittedKeys.add("colorScale");
+  } else {
+    omittedKeys.add("minColor");
+    omittedKeys.add("maxColor");
+    omittedKeys.add("interpolation");
+  }
+
+  const htmlProps: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(props)) {
+    if (!omittedKeys.has(key)) htmlProps[key] = value;
+  }
+  return htmlProps as HTMLAttributes<HTMLDivElement>;
+}
 
 interface DaysOfTheWeekIndicatorProps {
   daysOfTheWeekOption: "all" | "MWF" | "none" | "single letter";
@@ -274,47 +305,7 @@ export default function Heatmap(props: HeatmapProps) {
   });
 
   const fontSize = Math.min(16, cellSize);
-
-  let safeProps: HTMLAttributes<HTMLDivElement> = {};
-
-  if (colorMode === "discrete") {
-    const {
-      data,
-      startDate,
-      endDate,
-      cellSize,
-      daysOfTheWeek,
-      gap,
-      displayStyle,
-      valueDisplayFunction,
-      dateDisplayFunction,
-      className,
-      colorMode,
-      customColorMap,
-      colorScale,
-      ...others
-    } = props;
-    safeProps = others;
-  } else if (colorMode === "interpolate") {
-    const {
-      data,
-      startDate,
-      endDate,
-      cellSize,
-      daysOfTheWeek,
-      gap,
-      displayStyle,
-      valueDisplayFunction,
-      dateDisplayFunction,
-      className,
-      colorMode,
-      minColor,
-      maxColor,
-      interpolation,
-      ...others
-    } = props;
-    safeProps = others;
-  }
+  const rootHtmlProps = safeHtmlProps(props);
 
   const getCellColor = (value: number) => {
     if (colorMode === "interpolate") {
@@ -353,7 +344,7 @@ export default function Heatmap(props: HeatmapProps) {
         gridTemplateColumns: `max-content repeat(${weeks.length}, ${cellSize}px)`,
         gridTemplateRows: `repeat(8, ${cellSize}px)`
       }}
-      {...safeProps}
+      {...rootHtmlProps}
     >
       {daysOfTheWeekIndicator({ daysOfTheWeekOption: daysOfTheWeek, fontSize })}
 

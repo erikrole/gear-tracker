@@ -12,7 +12,7 @@
 - `prisma/schema.prisma`: this pass starts with existing `AllowedEmail`, `User.forcePasswordChange`, and role/location models; no schema change in Slice 1.
 - `docs/AREA_USERS.md` and `docs/BRIEF_ONBOARDING_V1.md`: onboarding is a People workflow with status/follow-up controls for pending, stale, claimed, and direct-created rows.
 - `docs/DESIGN_LANGUAGE.md` and `tasks/design-language-route-conformance-checklist.md`: web controls need labels, visible focus, 40px targets, shared page headers, shared empty states, and operational metric patterns.
-- `tasks/web-bug-sweep-plan.md` and `tasks/web-operator-trust-plan.md`: broad reliability sweeps already covered many raw JSON, stale data, export, and settings/report issues. New work should target concrete current drift.
+- `tasks/archive/completed-2026-06/web-bug-sweep-plan-2026-05-24.md` and `tasks/web-operator-trust-plan.md`: broad reliability sweeps already covered many raw JSON, stale data, export, and settings/report issues. New work should target concrete current drift.
 - Current route/component inventory under `src/app/(app)`, `src/components`, and `src/components/ui` confirms the app already has `PageHeader`, `EmptyState`, `OperationalRowActions`, `OperationalToolbar`, shadcn primitives, and report/settings shells.
 
 ## Route Inventory

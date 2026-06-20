@@ -44,9 +44,33 @@ import {
 const admin = { id: "admin-1", role: "ADMIN" as const };
 const staff = { id: "staff-1", role: "STAFF" as const };
 
+type OnboardingTransaction = typeof tx;
+
+function existingUser(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.user.findUnique>>;
+}
+
+function userRows(rows: unknown[]) {
+  return rows as Awaited<ReturnType<typeof db.user.findMany>>;
+}
+
+function allowedEmailRow(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.allowedEmail.create>>;
+}
+
+function allowedEmailRows(rows: unknown[]) {
+  return rows as Awaited<ReturnType<typeof db.allowedEmail.findMany>>;
+}
+
+function createManyResult(count: number) {
+  return { count } as Awaited<ReturnType<typeof db.allowedEmail.createMany>>;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(db.$transaction).mockImplementation(async (fn: any) => fn(tx));
+  vi.mocked(db.$transaction).mockImplementation(async (fn) =>
+    (fn as unknown as (transaction: OnboardingTransaction) => Promise<unknown>)(tx)
+  );
 });
 
 describe("onboarding lifecycle service", () => {
@@ -180,14 +204,14 @@ describe("onboarding lifecycle service", () => {
   });
 
   it("backfills a claimed allowlist row for an existing registered user", async () => {
-    vi.mocked(db.user.findUnique).mockResolvedValue({ id: "existing-user", role: "STAFF" } as any);
-    vi.mocked(db.allowedEmail.create).mockResolvedValue({
+    vi.mocked(db.user.findUnique).mockResolvedValue(existingUser({ id: "existing-user", role: "STAFF" }));
+    vi.mocked(db.allowedEmail.create).mockResolvedValue(allowedEmailRow({
       id: "allowed-1",
       email: "existing@uw.edu",
       role: "STAFF",
       claimedAt: new Date("2026-06-03T12:00:00.000Z"),
       claimedById: "existing-user",
-    } as any);
+    }));
 
     const result = await createAllowedEmailInvite({
       actor: admin,
@@ -238,10 +262,10 @@ describe("onboarding lifecycle service", () => {
 
   it("bulk invite creation preserves generic skip counts and batched audit writes", async () => {
     vi.mocked(db.allowedEmail.findMany)
-      .mockResolvedValueOnce([{ email: "existing@uw.edu" }] as any)
-      .mockResolvedValueOnce([{ id: "allowed-1", email: "new@uw.edu", role: "STUDENT" }] as any);
+      .mockResolvedValueOnce(allowedEmailRows([{ email: "existing@uw.edu" }]))
+      .mockResolvedValueOnce(allowedEmailRows([{ id: "allowed-1", email: "new@uw.edu", role: "STUDENT" }]));
     vi.mocked(db.user.findMany).mockResolvedValue([]);
-    vi.mocked(db.allowedEmail.createMany).mockResolvedValue({ count: 1 } as any);
+    vi.mocked(db.allowedEmail.createMany).mockResolvedValue(createManyResult(1));
 
     const result = await createAllowedEmailInvitesBulk({
       actor: admin,
@@ -271,13 +295,13 @@ describe("onboarding lifecycle service", () => {
   });
 
   it("previews bulk invite account status without creating rows", async () => {
-    vi.mocked(db.allowedEmail.findMany).mockResolvedValue([
+    vi.mocked(db.allowedEmail.findMany).mockResolvedValue(allowedEmailRows([
       { email: "pending@uw.edu", role: "STUDENT", claimedAt: null },
       { email: "claimed@uw.edu", role: "STAFF", claimedAt: new Date("2026-06-03T12:00:00.000Z") },
-    ] as any);
-    vi.mocked(db.user.findMany).mockResolvedValue([
+    ]));
+    vi.mocked(db.user.findMany).mockResolvedValue(userRows([
       { email: "existing@uw.edu", role: "STUDENT" },
-    ] as any);
+    ]));
 
     const result = await previewAllowedEmailInvitesBulk({
       actor: admin,

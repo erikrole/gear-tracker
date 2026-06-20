@@ -6,7 +6,7 @@ import { OperationalActiveFilterChips, OperationalToolbar, type OperationalActiv
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SearchIcon, XIcon } from "lucide-react";
-import type { BookingListConfig, StatusOption, Location, FormUser } from "./types";
+import type { BookingListConfig, Location, FormUser } from "./types";
 
 export type BookingFiltersProps = {
   config: BookingListConfig;

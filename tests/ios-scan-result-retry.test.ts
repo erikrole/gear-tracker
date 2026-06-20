@@ -32,7 +32,7 @@ describe("iOS Scan result retry recovery", () => {
     const retry = sliceBetween(
       scanView,
       "private func retryLastScan()",
-      "private func singleAssetMatch",
+      "private func refreshLookup",
     );
 
     expect(retry).toContain("guard let code = lastHandledCode else { return }");
@@ -45,7 +45,7 @@ describe("iOS Scan result retry recovery", () => {
     const scanView = source("ios/Wisconsin/Views/ScanView.swift");
     const resultSheet = sliceBetween(
       scanView,
-      "private struct ScanResultSheet: View",
+      "struct ScanResultSheet: View",
       "private var resultRows: some View",
     );
     const tryAgainIndex = resultSheet.indexOf('Label("Try again", systemImage: "arrow.clockwise")');

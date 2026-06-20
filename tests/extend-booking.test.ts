@@ -1,6 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { makeBooking, makeSerializedItem, makeBulkItem } from "./_helpers/factories";
 import { expectSerializableIsolation } from "./_helpers/assert-transaction";
+
+type MockFn = ReturnType<typeof vi.fn>;
+type ExtendBookingTx = {
+  booking: Record<"findUnique" | "findUniqueOrThrow" | "update", MockFn>;
+  assetAllocation: Record<"updateMany", MockFn>;
+  auditLog: Record<"create", MockFn>;
+  user: Record<"findUnique", MockFn>;
+};
 
 // ─── Transaction tracking ───────────────────────────────────────────────────
 const transactionCalls: Array<{ options: unknown }> = [];
@@ -40,7 +47,7 @@ import { db } from "@/lib/db";
 import { checkAvailability } from "@/lib/services/availability";
 import { extendBooking } from "@/lib/services/bookings";
 
-const mockTx = (db as any)._mockTx;
+const mockTx = (db as unknown as { _mockTx: ExtendBookingTx })._mockTx;
 
 const now = new Date("2026-04-01T12:00:00Z");
 const currentEnd = new Date("2026-04-01T17:00:00Z");

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseIcsDate, splitEventsForSync, cleanSummary, extractSportInfo, unescapeIcsText, isHomeLocationText, WRITE_CHUNK_SIZE, type SyncResult, type SyncEventError, type SyncDiagnostics, type SyncEventSample, type ParsedIcsEvent, type ExistingEventRow } from "@/lib/services/calendar-sync";
+import { parseIcsDate, splitEventsForSync, cleanSummary, extractSportInfo, unescapeIcsText, isHomeLocationText, WRITE_CHUNK_SIZE, type SyncResult, type SyncEventError, type SyncDiagnostics, type ParsedIcsEvent, type ExistingEventRow } from "@/lib/services/calendar-sync";
 
 // ── unescapeIcsText unit tests ──
 

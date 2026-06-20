@@ -15,6 +15,39 @@ function hasBlockingAvailabilityIssue(result: AvailabilityResult) {
   return result.conflicts.length > 0 || result.shortages.length > 0 || result.unavailableAssets.length > 0;
 }
 
+function prismaErrorText(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+  const meta = typeof error === "object" && error && "meta" in error
+    ? JSON.stringify((error as { meta?: unknown }).meta ?? {})
+    : "";
+  return `${message} ${meta}`;
+}
+
+function isBookingAllocationConstraintError(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const code = (error as { code?: unknown }).code;
+  const text = prismaErrorText(error);
+
+  if (code === "23P01" || text.includes("asset_allocations_no_overlap")) {
+    return true;
+  }
+
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
+    return false;
+  }
+
+  if (error.code === "P2002") {
+    const target = (error.meta?.target as string[] | string | undefined) ?? "";
+    const targetStr = Array.isArray(target) ? target.join(",") : String(target);
+    return (
+      targetStr.includes("asset_allocations_asset_id_active_unique") ||
+      targetStr.includes("asset_id")
+    );
+  }
+
+  return error.code === "P2004" && text.includes("asset_allocations");
+}
+
 /**
  * Complete a kiosk checkout: create booking + allocations in one step.
  * This is the scan-first flow: items were validated during scanning,
@@ -272,6 +305,10 @@ export const POST = withKiosk(async (req, { kiosk }) => {
       endsAt: booking.endsAt,
     });
   } catch (error) {
+    if (isBookingAllocationConstraintError(error)) {
+      throw new HttpError(409, "One or more items are no longer available");
+    }
+
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"

@@ -307,7 +307,6 @@ export default function DashboardPage() {
             hasActiveFilter={filters.hasActiveFilter}
             now={now}
             acting={acting !== null}
-            ownedAccent
             onSelectBooking={setSelectedBookingId}
             onDeleteDraft={handleDeleteDraft}
             onExtend={handleExtend}

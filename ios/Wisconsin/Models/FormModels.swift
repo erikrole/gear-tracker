@@ -23,6 +23,7 @@ struct FormBulkSku: Codable, Identifiable, Hashable, Equatable {
     let binQrCodeValue: String?
     let trackByNumber: Bool
     let categoryName: String?
+    let imageUrl: String?
     let currentQuantity: Int
     let availableQuantity: Int
 }

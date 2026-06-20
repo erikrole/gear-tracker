@@ -2,6 +2,19 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { makeBulkItem } from "./_helpers/factories";
 import { expectSerializableIsolation } from "./_helpers/assert-transaction";
 
+type MockFn = ReturnType<typeof vi.fn>;
+type CheckinBulkTx = {
+  booking: Record<"findUnique" | "update", MockFn>;
+  bookingBulkItem: Record<"update" | "findMany", MockFn>;
+  bookingSerializedItem: Record<"count", MockFn>;
+  bulkStockBalance: Record<"findMany" | "upsert", MockFn>;
+  bulkStockMovement: Record<"createMany", MockFn>;
+  assetAllocation: Record<"updateMany", MockFn>;
+  scanSession: Record<"updateMany", MockFn>;
+  auditLog: Record<"create", MockFn>;
+  user: Record<"findUnique", MockFn>;
+};
+
 // ─── Transaction tracking ───────────────────────────────────────────────────
 const transactionCalls: Array<{ options: unknown }> = [];
 
@@ -44,9 +57,9 @@ import { db } from "@/lib/db";
 import { badges } from "@/lib/badges";
 import { checkinBulkItem } from "@/lib/services/bookings";
 
-const mockTx = (db as any)._mockTx;
+const mockTx = (db as unknown as { _mockTx: CheckinBulkTx })._mockTx;
 
-function openCheckout(bulkItems: any[] = []) {
+function openCheckout(bulkItems: unknown[] = []) {
   return {
     id: "b-1",
     kind: "CHECKOUT",

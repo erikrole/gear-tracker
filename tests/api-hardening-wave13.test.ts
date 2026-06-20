@@ -1,4 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { BookingKind, CheckinReportType, Role } from "@prisma/client";
+
+declare global {
+  var __wave13TransactionOptions: unknown;
+}
 
 const mockShiftTx = {
   shiftGroup: {
@@ -18,7 +23,7 @@ vi.mock("@/lib/auth", () => ({
 vi.mock("@/lib/db", () => ({
   db: {
     $transaction: vi.fn(async (fn: (tx: typeof mockShiftTx) => Promise<unknown>, options?: unknown) => {
-      (globalThis as any).__wave13TransactionOptions = options;
+      globalThis.__wave13TransactionOptions = options;
       return fn(mockShiftTx);
     }),
     bookingSerializedItem: {
@@ -105,7 +110,7 @@ const staffUser = {
   id: "staff-1",
   email: "staff@example.com",
   name: "Staff One",
-  role: "STAFF" as any,
+  role: Role.STAFF,
   avatarUrl: null,
 };
 
@@ -136,16 +141,86 @@ function post(path: string, body: Record<string, unknown>, headers?: Record<stri
   });
 }
 
+function bookingDetailResult(value: {
+  id: string;
+  kind: BookingKind;
+  title: string;
+  requesterUserId: string;
+  createdBy: string;
+  locationId: string;
+  startsAt: Date;
+  endsAt: Date;
+  updatedAt: Date;
+  serializedItems: Array<{ assetId: string }>;
+  bulkItems: Array<{ bulkSkuId: string; plannedQuantity: number }>;
+  notes: string | null;
+}) {
+  return value as unknown as Awaited<ReturnType<typeof getBookingDetail>>;
+}
+
+function bookingActionResult(value: { id: string; title: string }) {
+  return value as unknown as Awaited<ReturnType<typeof requireBookingAction>>;
+}
+
+function checkoutUpdateResult(value: { id: string }) {
+  return value as unknown as Awaited<ReturnType<typeof updateCheckout>>;
+}
+
+function bookingSerializedItemResult(value: { asset: { assetTag: string; brand: string; model: string } }) {
+  return value as unknown as Awaited<ReturnType<typeof db.bookingSerializedItem.findUnique>>;
+}
+
+function scanEventResult(value: { id: string }) {
+  return value as unknown as Awaited<ReturnType<typeof db.scanEvent.findFirst>>;
+}
+
+function checkinReportResult(value: {
+  id?: string;
+  type?: CheckinReportType;
+  description?: string;
+  imageUrl: string | null;
+  createdAt?: Date;
+}) {
+  return value as unknown as Awaited<ReturnType<typeof db.checkinItemReport.findUnique>>;
+}
+
+function checkinReportUpsertResult(value: {
+  id: string;
+  type: CheckinReportType;
+  description: string;
+  imageUrl: string | null;
+}) {
+  return value as unknown as Awaited<ReturnType<typeof db.checkinItemReport.upsert>>;
+}
+
+function blobPutResult(value: { url: string }) {
+  return value as unknown as Awaited<ReturnType<typeof put>>;
+}
+
+function userFindUniqueResult(value: { id: string; active: boolean; locationId: string }) {
+  return value as unknown as Awaited<ReturnType<typeof db.user.findUnique>>;
+}
+
+function shiftGroupResult(value: {
+  id: string;
+  event: {
+    startsAt: Date;
+    endsAt: Date;
+  };
+}) {
+  return value as unknown as Awaited<ReturnType<typeof mockShiftTx.shiftGroup.findUnique>>;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
-  (globalThis as any).__wave13TransactionOptions = undefined;
+  globalThis.__wave13TransactionOptions = undefined;
   vi.mocked(requireAuth).mockResolvedValue(staffUser);
   vi.mocked(requireKiosk).mockResolvedValue(kiosk);
   vi.mocked(enforceRateLimit).mockResolvedValue(undefined);
   vi.mocked(getClientIp).mockReturnValue("203.0.113.10");
-  vi.mocked(getBookingDetail).mockResolvedValue({
+  vi.mocked(getBookingDetail).mockResolvedValue(bookingDetailResult({
     id: "booking-1",
-    kind: "CHECKOUT",
+    kind: BookingKind.CHECKOUT,
     title: "Checkout",
     requesterUserId: "student-1",
     createdBy: "staff-1",
@@ -156,38 +231,38 @@ beforeEach(() => {
     serializedItems: [{ assetId: "asset-1" }],
     bulkItems: [{ bulkSkuId: "sku-1", plannedQuantity: 2 }],
     notes: null,
-  } as any);
-  vi.mocked(requireBookingAction).mockResolvedValue({ id: "booking-1", title: "Checkout" } as any);
-  vi.mocked(updateCheckout).mockResolvedValue({ id: "booking-1" } as any);
-  vi.mocked(db.bookingSerializedItem.findUnique).mockResolvedValue({
+  }));
+  vi.mocked(requireBookingAction).mockResolvedValue(bookingActionResult({ id: "booking-1", title: "Checkout" }));
+  vi.mocked(updateCheckout).mockResolvedValue(checkoutUpdateResult({ id: "booking-1" }));
+  vi.mocked(db.bookingSerializedItem.findUnique).mockResolvedValue(bookingSerializedItemResult({
     asset: { assetTag: "CAM-1", brand: "Sony", model: "FX3" },
-  } as any);
-  vi.mocked(db.scanEvent.findFirst).mockResolvedValue({ id: "scan-1" } as any);
+  }));
+  vi.mocked(db.scanEvent.findFirst).mockResolvedValue(scanEventResult({ id: "scan-1" }));
   vi.mocked(db.checkinItemReport.findUnique).mockResolvedValue(null);
-  vi.mocked(db.checkinItemReport.upsert).mockResolvedValue({
+  vi.mocked(db.checkinItemReport.upsert).mockResolvedValue(checkinReportUpsertResult({
     id: "report-1",
-    type: "DAMAGED",
+    type: CheckinReportType.DAMAGED,
     description: "Scratched",
     imageUrl: null,
-  } as any);
-  vi.mocked(put).mockResolvedValue({ url: "https://blob.example.com/new.jpg" } as any);
+  }));
+  vi.mocked(put).mockResolvedValue(blobPutResult({ url: "https://blob.example.com/new.jpg" }));
   vi.mocked(db.calendarSource.findMany).mockResolvedValue([]);
   vi.mocked(db.booking.findMany).mockResolvedValue([]);
-  vi.mocked(db.user.findUnique).mockResolvedValue({
+  vi.mocked(db.user.findUnique).mockResolvedValue(userFindUniqueResult({
     id: "student-1",
     active: true,
     locationId: "loc-1",
-  } as any);
+  }));
   vi.mocked(db.licenseCodeClaim.findMany).mockResolvedValue([]);
-  mockShiftTx.shiftGroup.findUnique.mockResolvedValue({
+  mockShiftTx.shiftGroup.findUnique.mockResolvedValue(shiftGroupResult({
     id: "group-1",
     event: {
       startsAt: new Date("2026-06-01T10:00:00.000Z"),
       endsAt: new Date("2026-06-01T12:00:00.000Z"),
     },
-  } as any);
-  mockShiftTx.shift.create.mockResolvedValue({ id: "shift-1", area: "VIDEO", workerType: "ST" } as any);
-  mockShiftTx.shiftGroup.update.mockResolvedValue({} as any);
+  }));
+  mockShiftTx.shift.create.mockResolvedValue({ id: "shift-1", area: "VIDEO", workerType: "ST" });
+  mockShiftTx.shiftGroup.update.mockResolvedValue({});
 });
 
 describe("API hardening wave 13", () => {
@@ -224,10 +299,10 @@ describe("API hardening wave 13", () => {
   });
 
   it("rejects duplicate check-in reports inside the five-second window", async () => {
-    vi.mocked(db.checkinItemReport.findUnique).mockResolvedValue({
+    vi.mocked(db.checkinItemReport.findUnique).mockResolvedValue(checkinReportResult({
       imageUrl: null,
       createdAt: new Date(),
-    } as any);
+    }));
 
     const res = await checkinReport(
       post("/api/checkouts/booking-1/checkin-report", {
@@ -288,7 +363,7 @@ describe("API hardening wave 13", () => {
     );
 
     expect(res.status).toBe(201);
-    expect((globalThis as any).__wave13TransactionOptions).toEqual({ isolationLevel: "Serializable" });
+    expect(globalThis.__wave13TransactionOptions).toEqual({ isolationLevel: "Serializable" });
   });
 
   it("bounds license claim history service queries", async () => {

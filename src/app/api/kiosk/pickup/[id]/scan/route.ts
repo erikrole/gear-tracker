@@ -4,7 +4,7 @@ import { withKiosk } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
 import { findAssetByScanValue } from "@/lib/services/kiosk-scan";
 import { pickupScanBody } from "@/lib/schemas/kiosk";
-import { scanKioskPickupBulkUnit } from "@/lib/services/bulk-unit-scans";
+import { scanKioskPickupBulkUnit, stageKioskReservationPickupBulkUnit } from "@/lib/services/bulk-unit-scans";
 import { assetLocationEvidence, locationEvidencePayload, reconcileAssetLocationToKiosk } from "@/lib/services/kiosk-location";
 import { badges } from "@/lib/badges";
 import { badgeScanSourceKey } from "@/lib/badges/scan";
@@ -12,7 +12,8 @@ import type { BadgeScanErrorCode } from "@/lib/badges/types";
 
 /**
  * Scan an item for kiosk pickup flow.
- * Validates that the scanned item belongs to the PENDING_PICKUP booking.
+ * Validates that the scanned item belongs to the PENDING_PICKUP checkout or
+ * due BOOKED reservation.
  */
 export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => {
   const { scanValue } = pickupScanBody.parse(await req.json());
@@ -22,7 +23,13 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
     select: { id: true, status: true, kind: true, requesterUserId: true, locationId: true },
   });
 
-  if (!booking || booking.kind !== "CHECKOUT" || booking.status !== "PENDING_PICKUP") {
+  if (
+    !booking ||
+    !(
+      (booking.kind === "CHECKOUT" && booking.status === "PENDING_PICKUP") ||
+      (booking.kind === "RESERVATION" && booking.status === "BOOKED")
+    )
+  ) {
     throw new HttpError(404, "Pending pickup not found");
   }
   const activeBooking = booking;
@@ -45,7 +52,13 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
   }
 
   const bulkResult = await db.$transaction(
-    (tx) => scanKioskPickupBulkUnit(tx, { bookingId: params.id, scanValue }),
+    (tx) => activeBooking.kind === "RESERVATION"
+      ? stageKioskReservationPickupBulkUnit(tx, {
+          bookingId: params.id,
+          scanValue,
+          deviceContext: req.headers.get("user-agent") ?? "kiosk",
+        })
+      : scanKioskPickupBulkUnit(tx, { bookingId: params.id, scanValue }),
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
   if (bulkResult.handled) {

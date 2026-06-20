@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Dialog,
@@ -500,18 +501,20 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
                           >
                             <button
                               type="button"
-                              className="flex aspect-square w-full items-center justify-center overflow-hidden rounded bg-muted outline-none transition-[box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                              className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded bg-muted outline-none transition-[box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                               onClick={() => setSelectedSearchResult(result)}
                               aria-label={`Select image: ${result.title}`}
                               aria-pressed={selected}
                             >
-                              <img
+                              <Image
                                 src={result.thumbnailUrl || result.url}
                                 alt={result.title}
-                                className="h-full w-full object-contain"
+                                fill
+                                sizes="(min-width: 640px) 25vw, 50vw"
+                                className="object-contain"
                                 loading="lazy"
-                                decoding="async"
                                 referrerPolicy="no-referrer"
+                                unoptimized
                                 onError={(event) => {
                                   const img = event.currentTarget;
                                   if (result.url && img.src !== result.url) {
@@ -601,12 +604,18 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
               />
               {urlPreview && (
                 <div className="image-preview-container mt-4">
-                  <img
-                    src={urlPreview}
-                    alt="Preview"
-                    onError={() => { setUrlError(true); setUrlPreview(null); }}
-                    onLoad={() => setUrlError(false)}
-                  />
+                  <div className="relative h-[240px] w-full">
+                    <Image
+                      src={urlPreview}
+                      alt="Preview"
+                      fill
+                      sizes="min(100vw, 640px)"
+                      className="object-contain"
+                      unoptimized
+                      onError={() => { setUrlError(true); setUrlPreview(null); }}
+                      onLoad={() => setUrlError(false)}
+                    />
+                  </div>
                 </div>
               )}
               {urlError && <p className="text-sm mt-2" style={{ color: "var(--red)" }}>Could not load image from this URL</p>}
@@ -633,7 +642,16 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
                 onClick={() => fileInputRef.current?.click()}
               >
                 {filePreview ? (
-                  <img src={filePreview} alt="Preview" className="image-drop-zone-preview" />
+                  <div className="relative h-[200px] w-full">
+                    <Image
+                      src={filePreview}
+                      alt="Preview"
+                      fill
+                      sizes="min(100vw, 640px)"
+                      className="object-contain"
+                      unoptimized
+                    />
+                  </div>
                 ) : (
                   <div className="text-center">
                     <ImageIcon className="size-12 text-[var(--text-tertiary)] mb-2" />

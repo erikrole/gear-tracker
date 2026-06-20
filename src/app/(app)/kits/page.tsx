@@ -219,12 +219,13 @@ export default function KitsPage() {
   const locationOptions = locations ?? [];
   const locationFilterUnavailable = locationsLoading || Boolean(locationsError) || locationOptions.length === 0;
 
+  const reloadKits = query.reload;
   const handleCreated = useCallback(
     () => {
       toast.success("Kit created");
-      query.reload();
+      reloadKits();
     },
-    [query.reload],
+    [reloadKits],
   );
 
   function toggleSort(column: KitSortColumn) {

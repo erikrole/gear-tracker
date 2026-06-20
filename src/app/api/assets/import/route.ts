@@ -558,11 +558,13 @@ export const POST = withAuth(async (req, { user }) => {
         });
         continue;
       }
-      const data = buildAssetData(row, locationId, departmentId);
-      const { serialNumber: _sn, ...updateDataWithImage } = data;
+      const { serialNumber, ...updateDataWithImage } = buildAssetData(row, locationId, departmentId);
+      void serialNumber;
       const updateData = row.imageUrl
         ? updateDataWithImage
-        : (({ imageUrl: _imageUrl, ...rest }) => rest)(updateDataWithImage);
+        : Object.fromEntries(
+            Object.entries(updateDataWithImage).filter(([key]) => key !== "imageUrl"),
+          );
       toUpdate.push({ id: existing.id, data: updateData });
       updatedCount += 1;
     } else {

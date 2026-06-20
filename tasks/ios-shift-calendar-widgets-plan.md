@@ -10,7 +10,7 @@
 - `docs/AREA_SHIFTS.md`: Schedule owns shifts, call windows, assignment status, student availability conflicts, trade board, and schedule readiness. The source concept is `ShiftAssignment` tied to `Shift` and `CalendarEvent`.
 - `docs/AREA_EVENTS.md`: Calendar source sync is already hardened, daily `morning-refresh` refreshes sources, and missing/stale external event data must not block non-event operations.
 - `docs/AREA_NOTIFICATIONS.md`: shift assignment, approval, removal, call-time changes, and personal call-time changes already create notifications with push and event routing context.
-- `tasks/sprint-april-plan.md`: older planning deferred iCal shift subscription to iOS EventKit, but current source now ships an ICS token/feed path from iOS. Treat this plan as a reconciliation of that drift.
+- `tasks/archive/completed-2026-06/sprint-april-plan-2026-04-17.md`: older planning deferred iCal shift subscription to iOS EventKit, but current source now ships an ICS token/feed path from iOS. Treat this plan as a reconciliation of that drift.
 - `src/app/api/my-shifts/route.ts`: `/api/my-shifts` returns upcoming direct/approved assignments with event, call window, area, worker type, and linked gear status.
 - `src/app/api/shifts/ics-token/route.ts`: users can fetch or rotate an ICS token; rotation is rate-limited and audited.
 - `src/app/api/shifts/ics/[token]/route.ts`: current ICS feed exposes assigned/approved shifts for an active user, one month back through one year forward, but only includes basic UID, DTSTART, DTEND, SUMMARY, LOCATION, and optional notes.

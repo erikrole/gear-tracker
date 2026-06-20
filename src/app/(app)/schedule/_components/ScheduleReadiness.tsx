@@ -2,7 +2,6 @@ import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangleIcon,
-  CalendarDaysIcon,
   CheckCircle2Icon,
   ClockIcon,
   CloudAlertIcon,
@@ -11,6 +10,7 @@ import {
   UserCheckIcon,
   UsersIcon,
 } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
 import { cn } from "@/lib/utils";
 import { effectiveCallWindow, isInheritedFullDayCallWindow } from "@/lib/shift-call-windows";
 import { formatCalendarEventDateRange } from "@/lib/calendar-event-dates";
@@ -318,9 +318,13 @@ export function ScheduleReadiness({
         );
       })}
       {filteredEntries.length === 0 && entries.length > 0 && (
-        <div className="col-span-full rounded-lg border border-dashed border-border/70 bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground">
-          <CalendarDaysIcon className="mr-1 inline size-3.5" />
-          Current filters hide all schedule entries.
+        <div className="col-span-full">
+          <EmptyState
+            icon="calendar"
+            title="Filters hide every event"
+            description="Adjust or clear the schedule filters to see events again."
+            inline
+          />
         </div>
       )}
     </div>

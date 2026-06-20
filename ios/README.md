@@ -29,6 +29,12 @@ xcodegen generate
 
 Then build and run from Xcode (⌘R).
 
+To verify the checked-in project matches `project.yml` without mutating the working tree:
+
+```bash
+npm run ios:project:check
+```
+
 ## TestFlight
 
 1. Select **Any iOS Device (arm64)** as destination

@@ -10,10 +10,6 @@ const addBulkMemberSchema = z.object({
   quantity: z.number().int().min(1).max(999),
 });
 
-const updateBulkMemberSchema = z.object({
-  quantity: z.number().int().min(1).max(999),
-});
-
 export const POST = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "kit", "edit");
   const body = addBulkMemberSchema.parse(await req.json());

@@ -9,6 +9,7 @@ const OVERDUE_REPORT_EXPORT_LIMIT = 5000;
 const SCAN_REPORT_EXPORT_LIMIT = 5000;
 const BULK_LOSS_REPORT_EXPORT_LIMIT = 5000;
 const UTILIZATION_REPORT_EXPORT_LIMIT = 5000;
+const CHECKOUT_CUSTODY_REPORT_STATUSES = [BookingStatus.OPEN, BookingStatus.COMPLETED] as const;
 
 export async function getUtilizationReport() {
   const results = await Promise.allSettled([
@@ -167,7 +168,9 @@ export async function getCheckoutReport(days: number) {
       SELECT to_char(date_trunc('day', "created_at" AT TIME ZONE 'UTC'), 'YYYY-MM-DD') AS date,
              COUNT(*)::bigint AS count
       FROM bookings
-      WHERE kind = 'CHECKOUT' AND "status" <> 'DRAFT' AND "created_at" >= ${heatmapSince}
+      WHERE kind = 'CHECKOUT'
+        AND "status" IN ('OPEN', 'COMPLETED')
+        AND "created_at" >= ${heatmapSince}
       GROUP BY 1
       ORDER BY 1
     `,
@@ -229,7 +232,7 @@ function checkoutReportSince(days: number) {
 function buildCheckoutReportWhere(days: number): Prisma.BookingWhereInput {
   return {
     kind: "CHECKOUT",
-    status: { not: BookingStatus.DRAFT },
+    status: { in: [...CHECKOUT_CUSTODY_REPORT_STATUSES] },
     createdAt: { gte: checkoutReportSince(days) },
   };
 }

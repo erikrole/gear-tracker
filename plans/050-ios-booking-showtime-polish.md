@@ -13,6 +13,7 @@
 - **Depends on**: none
 - **Category**: direction
 - **Planned at**: commit `182c9de9`, 2026-06-11
+- **Result**: DONE ON MAIN, 2026-06-19
 
 ## Why this matters
 
@@ -353,18 +354,18 @@ If `npx tsc --noEmit --pretty false` fails only on the pre-existing unrelated `t
 
 All must hold:
 
-- [ ] Event-linked iOS booking titles use `sportCode vs/at opponent`: `VB vs Maryland`, `FB at Minnesota`, `MBB vs Texas`.
-- [ ] Neutral/unknown `isHome` uses `vs`, with no extra `(Neutral)` suffix in iOS booking titles.
-- [ ] Selecting an event does not overwrite booking pickup location with event venue.
-- [ ] Details and review copy use pickup/return language.
-- [ ] No separate `"Batteries & Counted Items"` picker section remains.
-- [ ] Review equipment rows show thumbnails or thumbnail slots for both serialized and counted equipment.
-- [ ] Linked events are indicated inline by icon/fact-row treatment, not a separate review card.
-- [ ] Existing `eventIds[]`, `serializedAssetIds`, and `bulkItems` payload semantics are preserved.
-- [ ] Focused vitest command exits 0.
-- [ ] `npm run drift:ios`, `npm run audit:ios:gaps`, and `git diff --check` exit 0.
-- [ ] iOS simulator build succeeds.
-- [ ] Docs reflect shipped behavior, and `plans/README.md` status is updated.
+- [x] Event-linked iOS booking titles use `sportCode vs/at opponent`: `VB vs Maryland`, `FB at Minnesota`, `MBB vs Texas`.
+- [x] Neutral/unknown `isHome` uses `vs`, with no extra `(Neutral)` suffix in iOS booking titles.
+- [x] Selecting an event does not overwrite booking pickup location with event venue.
+- [x] Details and review copy use pickup/return language.
+- [x] No separate `"Batteries & Counted Items"` picker section remains.
+- [x] Review equipment rows show thumbnails or thumbnail slots for both serialized and counted equipment.
+- [x] Linked events are indicated inline by icon/fact-row treatment, not a separate review card.
+- [x] Existing `eventIds[]`, `serializedAssetIds`, and `bulkItems` payload semantics are preserved.
+- [x] Focused vitest command exits 0.
+- [x] `npm run drift:ios`, `npm run audit:ios:gaps`, and `git diff --check` exit 0.
+- [x] iOS simulator build succeeds.
+- [x] Docs reflect shipped behavior, and `plans/README.md` status is updated.
 
 ## STOP conditions
 
@@ -382,3 +383,10 @@ Stop and report back if:
 - The current web `deriveFromPrimary()` still returns `locationId: primary.location?.id`. The user clarified location under requester means pickup location, not event venue. This plan fixes iOS only; if web must change too, create a separate web plan.
 - Keep the `selectedAssetSnapshots` pattern. Prior mobile work found it prevents selected serialized assets from becoming unremovable after search/filter changes.
 - Do not fold this into the larger `CreateBookingSheet` decomposition plan. This is a visible behavior and polish slice that can land first.
+
+## Review
+
+- Shipped 2026-06-19: native reservation creation now formats event-linked titles from sport codes, keeps pickup location independent from event venue, uses pickup/return copy in Details and Confirm, and removes the separate linked-event review card in favor of an inline event fact.
+- Counted item families now live in the same Equipment section as serialized gear while preserving the shipped category grouping for serialized assets. Review equipment rows use shared thumbnail slots for both serialized assets and counted SKUs.
+- No API, Prisma, kiosk custody, or payload contract changes were needed; existing `eventIds[]`, `serializedAssetIds`, `bulkItems`, and `BulkSku.imageUrl` contracts were preserved.
+- Verification: focused iOS create-booking/student source-contract tests, `npm run drift:ios`, `npm run audit:ios:gaps`, XcodeBuildMCP simulator build, `npx tsc --noEmit --pretty false`, `npm test`, `npm run lint`, `npm run verify:docs`, and `git diff --check` passed.

@@ -6,6 +6,14 @@ function source(relativeFile: string) {
   return readFileSync(path.join(process.cwd(), relativeFile), "utf8");
 }
 
+function createBookingSource() {
+  return [
+    "ios/Wisconsin/Views/CreateBookingSheet.swift",
+    "ios/Wisconsin/Views/CreateBooking/CreateBookingViewModel.swift",
+    "ios/Wisconsin/Views/CreateBooking/CreateBookingEquipmentRows.swift",
+  ].map(source).join("\n");
+}
+
 describe("student field mobile contracts", () => {
   it("keeps iOS active checkouts scoped to open and pending-pickup work", () => {
     const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
@@ -33,7 +41,7 @@ describe("student field mobile contracts", () => {
     expect(appTab).toContain("isStaffOrAdmin ? \"Bookings\" : \"My Gear\"");
     expect(appTab).toContain("if isStaffOrAdmin");
     expect(bookingsView).toContain("mineOnly = currentUserRole == \"STUDENT\"");
-    expect(bookingsView).toContain("vm.tab == .reservations ? \"Reservations\" : \"Checkouts\"");
+    expect(bookingsView).toContain("vm.tab == .reservations ? \"No Reservations\" : \"No Checkouts\"");
     expect(bookingsView).toContain("Label(vm.mineOnly ? \"Mine\" : \"All\"");
     expect(bookingsView).toContain("Label(\"New\", systemImage: \"plus\")");
     expect(bookingsView).toContain("Picker(\"Booking type\"");
@@ -45,9 +53,9 @@ describe("student field mobile contracts", () => {
     expect(scheduleView).toContain("scheduleControlStrip");
     expect(scheduleView).toContain("Picker(\"Schedule view\"");
     expect(scheduleView).toContain("\"My shifts\"");
-    expect(scheduleView).toContain("Label(title, systemImage: systemImage)");
+    expect(scheduleView).toContain("FilterChip(");
     expect(scheduleView).toContain("\"Past events\"");
-    expect(scheduleView).toContain("Label(\"Trades\", systemImage: \"arrow.triangle.2.circlepath\")");
+    expect(scheduleView).toContain("Label(\"Trades\", systemImage: \"arrow.left.arrow.right\")");
     expect(scheduleView).toContain("Label(\"Calendar\", systemImage: isSubscribing ? \"calendar\" : \"calendar.badge.plus\")");
     expect(scheduleView).not.toContain("Switch to calendar view");
     expect(scheduleView).not.toContain("Switch to list view");
@@ -95,21 +103,23 @@ describe("student field mobile contracts", () => {
   });
 
   it("keeps iOS Profile controls self-describing", () => {
-    const appTab = source("ios/Wisconsin/Views/AppTabView.swift");
+    const profile = source("ios/Wisconsin/Views/ProfileView.swift");
+    const notifications = source("ios/Wisconsin/Views/NotificationSettingsView.swift");
+    const availability = source("ios/Wisconsin/Views/AvailabilityView.swift");
 
-    expect(appTab).toContain("Text(\"Pause alerts\")");
-    expect(appTab).toContain("Text(\"Pause \\(label)\")");
-    expect(appTab).toContain("title: \"Email alerts\"");
-    expect(appTab).toContain("title: \"Push alerts\"");
-    expect(appTab).toContain("title: \"Delivery status\"");
-    expect(appTab).toContain("title: \"Theme\"");
-    expect(appTab).toContain("title: \"My Availability\"");
-    expect(appTab).toContain("Label(\"Add availability block\", systemImage: \"plus\")");
-    expect(appTab).toContain("Label(\"Add block\", systemImage: \"plus\")");
+    expect(notifications).toContain("Text(\"Pause alerts\")");
+    expect(notifications).toContain("Text(\"Pause \\(label)\")");
+    expect(notifications).toContain("title: \"Email alerts\"");
+    expect(notifications).toContain("title: \"Push alerts\"");
+    expect(notifications).toContain("title: \"Delivery status\"");
+    expect(profile).toContain("title: \"Theme\"");
+    expect(profile).toContain("title: \"My Availability\"");
+    expect(availability).toContain("Label(\"Add availability block\", systemImage: \"plus\")");
+    expect(availability).toContain("Label(\"Add block\", systemImage: \"plus\")");
   });
 
   it("keeps iOS Create Booking actions and selected equipment recoverable", () => {
-    const createSheet = source("ios/Wisconsin/Views/CreateBookingSheet.swift");
+    const createSheet = createBookingSource();
 
     expect(createSheet).toContain("selectedAssetSnapshots: [String: Asset]");
     expect(createSheet).toContain("selectedBulkQuantities: [String: Int]");
@@ -123,11 +133,14 @@ describe("student field mobile contracts", () => {
     expect(createSheet).toContain("Text(\"Reserve for later\")");
     expect(createSheet).toContain("Text(vm.title.isEmpty ? \"Review your reservation\" : vm.title)");
     expect(createSheet).toContain("Text(\"Selected Equipment\")");
-    expect(createSheet).toContain("Text(\"Batteries & Counted Items\")");
+    expect(createSheet).toContain("Text(\"Equipment\")");
+    expect(createSheet).not.toContain("Batteries & Counted Items");
     expect(createSheet).toContain("Label(\"Scan equipment\", systemImage: \"barcode.viewfinder\")");
     expect(createSheet).toContain("SelectedEquipmentRow");
     expect(createSheet).toContain("SelectedBulkRow");
     expect(createSheet).toContain("BulkQuantityRow");
+    expect(createSheet).toContain("BookingAssetThumbnail");
+    expect(createSheet).toContain("BookingBulkThumbnail");
     expect(createSheet).toContain("Label(\"Remove\", systemImage: \"xmark.circle.fill\")");
     expect(createSheet).toContain("Remove anything you do not want before creating the reservation.");
     expect(createSheet).toContain("func removeSelectedAsset(_ asset: Asset)");

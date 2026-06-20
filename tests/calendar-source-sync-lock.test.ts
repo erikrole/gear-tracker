@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Role } from "@prisma/client";
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: vi.fn(),
@@ -38,6 +39,14 @@ import { POST } from "@/app/api/calendar-sources/[id]/sync/route";
 
 const params = { params: Promise.resolve({ id: "source-1" }) };
 
+function updateManyResult(count: number) {
+  return { count } as Awaited<ReturnType<typeof db.calendarSource.updateMany>>;
+}
+
+function calendarSource(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.calendarSource.findUnique>>;
+}
+
 function postRequest() {
   return new Request("https://app.example.com/api/calendar-sources/source-1/sync", {
     method: "POST",
@@ -54,13 +63,13 @@ beforeEach(() => {
     id: "admin-1",
     email: "admin@example.com",
     name: "Admin One",
-    role: "ADMIN" as any,
+    role: Role.ADMIN,
     avatarUrl: null,
   });
   vi.mocked(enforceRateLimit).mockResolvedValue(undefined);
   vi.mocked(db.calendarSource.updateMany)
-    .mockResolvedValueOnce({ count: 1 } as any)
-    .mockResolvedValue({ count: 1 } as any);
+    .mockResolvedValueOnce(updateManyResult(1))
+    .mockResolvedValue(updateManyResult(1));
   vi.mocked(db.calendarSource.findUnique).mockResolvedValue(null);
   vi.mocked(syncCalendarSource).mockResolvedValue({
     added: 1,
@@ -110,11 +119,11 @@ describe("calendar source sync lock", () => {
 
   it("returns 409 when another sync holds an active lease", async () => {
     vi.mocked(db.calendarSource.updateMany).mockReset();
-    vi.mocked(db.calendarSource.updateMany).mockResolvedValue({ count: 0 } as any);
-    vi.mocked(db.calendarSource.findUnique).mockResolvedValue({
+    vi.mocked(db.calendarSource.updateMany).mockResolvedValue(updateManyResult(0));
+    vi.mocked(db.calendarSource.findUnique).mockResolvedValue(calendarSource({
       enabled: true,
       syncLeaseUntil: new Date(Date.now() + 60_000),
-    } as any);
+    }));
 
     const res = await POST(postRequest(), params);
     const body = await res.json();

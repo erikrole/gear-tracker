@@ -210,16 +210,16 @@ export function AssignPageClient() {
             className="gap-1"
             aria-label="Filter assignment review state"
           >
-            <ToggleGroupItem value="all" className="h-9 px-2 text-xs">
+            <ToggleGroupItem value="all" className="h-10 px-2.5 text-xs">
               All
             </ToggleGroupItem>
-            <ToggleGroupItem value="conflicts" className="h-9 px-2 text-xs">
+            <ToggleGroupItem value="conflicts" className="h-10 px-2.5 text-xs">
               Conflicts
             </ToggleGroupItem>
-            <ToggleGroupItem value="open" className="h-9 px-2 text-xs">
+            <ToggleGroupItem value="open" className="h-10 px-2.5 text-xs">
               Open
             </ToggleGroupItem>
-            <ToggleGroupItem value="clean" className="h-9 px-2 text-xs">
+            <ToggleGroupItem value="clean" className="h-10 px-2.5 text-xs">
               Clean
             </ToggleGroupItem>
           </ToggleGroup>

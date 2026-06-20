@@ -34,11 +34,19 @@ const mockedDb = db as unknown as {
   };
 };
 
+function systemConfig(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.systemConfig.upsert>>;
+}
+
+function createManyResult(count: number) {
+  return { count } as Awaited<ReturnType<typeof db.notification.createMany>>;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
-  mockedDb.systemConfig.upsert.mockResolvedValue({} as any);
+  mockedDb.systemConfig.upsert.mockResolvedValue(systemConfig({}));
   mockedDb.user.findMany.mockResolvedValue([]);
-  mockedDb.notification.createMany.mockResolvedValue({ count: 0 } as any);
+  mockedDb.notification.createMany.mockResolvedValue(createManyResult(0));
 });
 
 describe("calendar sync health escalation", () => {
@@ -55,7 +63,7 @@ describe("calendar sync health escalation", () => {
       },
     });
     mockedDb.user.findMany.mockResolvedValue([{ id: "admin-1" }, { id: "admin-2" }]);
-    mockedDb.notification.createMany.mockResolvedValue({ count: 2 } as any);
+    mockedDb.notification.createMany.mockResolvedValue(createManyResult(2));
 
     const result = await updateCalendarSyncHealth({
       sourceId: "source-1",

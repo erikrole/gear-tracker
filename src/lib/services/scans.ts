@@ -505,6 +505,7 @@ export async function completeCheckoutScan(bookingId: string, actorUserId: strin
 }
 
 export async function completeCheckinScan(bookingId: string, actorUserId: string, actorRole: Role) {
+  void actorRole;
   // Wrap state validation + session close in a transaction to prevent concurrent completions
   const result = await db.$transaction(async (tx) => {
     const state = await buildScanCompletionState(tx, bookingId, ScanPhase.CHECKIN);

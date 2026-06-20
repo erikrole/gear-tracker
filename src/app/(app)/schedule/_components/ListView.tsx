@@ -447,7 +447,7 @@ function ShiftRowList({
                           type="button"
                           variant="ghost"
                           size="icon-sm"
-                          className="ml-1 size-8 text-muted-foreground transition-[background-color,color,scale] hover:text-destructive active:scale-[0.96]"
+                          className="relative ml-1 size-8 text-muted-foreground transition-[background-color,color,scale] before:absolute before:-inset-1 before:content-[''] hover:text-destructive active:scale-[0.96]"
                           disabled={Boolean(removingAssignmentId)}
                           aria-label={`Remove ${user.name} from ${areaLabel} shift`}
                           onClick={(e) => {
@@ -934,14 +934,14 @@ export function ListView({
                   <div
                     className={cn(
                       "sticky top-0 z-10 flex items-stretch border-b border-border/50",
-                      isGroupToday ? "bg-[#A00000]/[0.04]" : "bg-card",
+                      isGroupToday ? "bg-[var(--wi-red)]/[0.04] dark:bg-[var(--wi-red)]/[0.08]" : "bg-card",
                     )}
                   >
                     {/* Date marker */}
                     <div
                       className={cn(
                         "flex flex-col items-center justify-center px-4 py-2 border-r border-border/40 w-[56px] flex-shrink-0",
-                        isGroupToday ? "text-[#A00000]" : "text-muted-foreground",
+                        isGroupToday ? "text-[var(--wi-red)]" : "text-muted-foreground",
                       )}
                     >
                       <span
@@ -953,7 +953,7 @@ export function ListView({
                       <span
                         className={cn(
                           "text-[22px] font-black leading-tight tabular-nums",
-                          isGroupToday ? "text-[#A00000]" : "text-foreground",
+                          isGroupToday ? "text-[var(--wi-red)]" : "text-foreground",
                         )}
                         style={{ fontFamily: "var(--font-heading)" }}
                       >
@@ -974,7 +974,7 @@ export function ListView({
                       </span>
                       {isGroupToday && (
                         <span
-                          className="text-[10px] font-black text-[#A00000] uppercase tracking-widest"
+                          className="text-[10px] font-black text-[var(--wi-red)] uppercase tracking-widest"
                           style={{ fontFamily: "var(--font-heading)" }}
                         >
                           Today
@@ -1377,7 +1377,7 @@ function EventRows({
               type="button"
               aria-label={isExpanded ? "Collapse shifts" : "Expand shifts"}
               aria-expanded={isExpanded}
-              className="flex size-9 items-center justify-center rounded-md text-muted-foreground transition-[background-color,color,scale] duration-150 hover:bg-muted hover:text-foreground active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
+              className="relative flex size-9 items-center justify-center rounded-md text-muted-foreground transition-[background-color,color,scale] duration-150 before:absolute before:-inset-0.5 before:content-[''] hover:bg-muted hover:text-foreground active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
               onClick={(e) => {
                 e.stopPropagation();
                 onToggle();

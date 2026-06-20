@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { BulkUnitStatus, Role } from "@prisma/client";
 
 vi.mock("@/lib/auth", () => ({ requireAuth: vi.fn() }));
 vi.mock("@/lib/db", () => ({
@@ -53,10 +54,11 @@ beforeEach(() => {
     id: "staff-1",
     name: "Staff",
     email: "staff@example.com",
-    role: "STAFF",
-  } as any);
+    role: Role.STAFF,
+    avatarUrl: null,
+  });
   dbMock.$transaction.mockImplementation(async (cb: (innerTx: typeof tx) => Promise<unknown>) => cb(tx));
-  vi.mocked(createAuditEntry).mockResolvedValue(undefined as any);
+  vi.mocked(createAuditEntry).mockResolvedValue(undefined);
 });
 
 describe("Brother label CSV export (GET)", () => {
@@ -141,8 +143,8 @@ describe("Brother label CSV export (GET)", () => {
 
   it("denies users without bulk_sku adjust permission", async () => {
     vi.mocked(requireAuth).mockResolvedValue({
-      id: "student-1", name: "Student", email: "s@example.com", role: "STUDENT",
-    } as any);
+      id: "student-1", name: "Student", email: "s@example.com", role: Role.STUDENT, avatarUrl: null,
+    });
 
     const res = await exportLabels(getReq("/api/bulk-skus/sku-1/units/labels"), params);
     expect(res.status).toBe(403);
@@ -153,9 +155,9 @@ describe("mark labels printed (POST)", () => {
   it("marks only unprinted, non-retired units and reports counts plus audit", async () => {
     tx.bulkSku.findUnique.mockResolvedValue({ id: "sku-1", trackByNumber: true });
     tx.bulkSkuUnit.findMany.mockResolvedValue([
-      { id: "u1", unitNumber: 1, status: "AVAILABLE", labelPrintedAt: null },
-      { id: "u2", unitNumber: 2, status: "AVAILABLE", labelPrintedAt: new Date() },
-      { id: "u3", unitNumber: 3, status: "RETIRED", labelPrintedAt: null },
+      { id: "u1", unitNumber: 1, status: BulkUnitStatus.AVAILABLE, labelPrintedAt: null },
+      { id: "u2", unitNumber: 2, status: BulkUnitStatus.AVAILABLE, labelPrintedAt: new Date() },
+      { id: "u3", unitNumber: 3, status: BulkUnitStatus.RETIRED, labelPrintedAt: null },
     ]);
     tx.bulkSkuUnit.updateMany.mockResolvedValue({ count: 1 });
 
@@ -182,7 +184,7 @@ describe("mark labels printed (POST)", () => {
   it("rejects unit numbers that do not belong to the SKU", async () => {
     tx.bulkSku.findUnique.mockResolvedValue({ id: "sku-1", trackByNumber: true });
     tx.bulkSkuUnit.findMany.mockResolvedValue([
-      { id: "u1", unitNumber: 1, status: "AVAILABLE", labelPrintedAt: null },
+      { id: "u1", unitNumber: 1, status: BulkUnitStatus.AVAILABLE, labelPrintedAt: null },
     ]);
 
     const res = await markPrinted(postReq({ unitNumbers: [1, 99], printed: true }), params);
@@ -193,8 +195,8 @@ describe("mark labels printed (POST)", () => {
 
   it("denies users without bulk_sku adjust permission", async () => {
     vi.mocked(requireAuth).mockResolvedValue({
-      id: "student-1", name: "Student", email: "s@example.com", role: "STUDENT",
-    } as any);
+      id: "student-1", name: "Student", email: "s@example.com", role: Role.STUDENT, avatarUrl: null,
+    });
 
     const res = await markPrinted(postReq({ unitNumbers: [1], printed: true }), params);
     expect(res.status).toBe(403);

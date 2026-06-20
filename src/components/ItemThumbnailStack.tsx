@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { normalizeAssetImageSrc } from "@/lib/asset-image";
@@ -40,7 +41,7 @@ export function ItemThumbnailStack({
           <span
             key={item.id}
             className={cn(
-              "flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 text-[9px] font-semibold text-muted-foreground",
+              "relative flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 text-[9px] font-semibold text-muted-foreground",
               surfaceClassName,
             )}
             title={item.name}
@@ -78,12 +79,14 @@ function StackImage({ src, fallback }: { src?: string | null; fallback: string }
   }
 
   return (
-    <img
+    <Image
       src={normalizedSrc}
       alt=""
-      className="size-full object-cover"
+      fill
+      sizes="24px"
+      className="object-cover"
       loading="lazy"
-      decoding="async"
+      unoptimized
       onError={() => setFailed(true)}
     />
   );

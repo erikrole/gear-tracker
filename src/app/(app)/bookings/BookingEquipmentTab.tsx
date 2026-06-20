@@ -201,7 +201,7 @@ export default function BookingEquipmentTab({
       if (isAbortError(err)) return;
       toast.error("Failed to check equipment conflicts — try refreshing.");
     }
-  }, [isActive, booking.id, booking.location.id, booking.startsAt, booking.endsAt, booking.serializedItems]);
+  }, [isActive, booking.id, booking.location.id, booking.startsAt, booking.endsAt, booking.serializedItems, booking.bulkItems]);
 
   useEffect(() => {
     fetchConflicts();

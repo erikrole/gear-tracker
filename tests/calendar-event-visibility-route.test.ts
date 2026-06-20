@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Role } from "@prisma/client";
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: vi.fn(),
@@ -14,11 +15,15 @@ import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { PATCH } from "@/app/api/calendar-events/[id]/visibility/route";
 
+const dbMock = db as unknown as {
+  $transaction: ReturnType<typeof vi.fn>;
+};
+
 const staffUser = {
   id: "staff-1",
   email: "staff@example.com",
   name: "Staff One",
-  role: "STAFF" as any,
+  role: Role.STAFF,
   avatarUrl: null,
 };
 
@@ -27,7 +32,7 @@ const studentUser = {
   id: "student-1",
   email: "student@example.com",
   name: "Student One",
-  role: "STUDENT" as any,
+  role: Role.STUDENT,
 };
 
 function patch(body: unknown) {
@@ -60,7 +65,7 @@ function txMock(existing: { id: string; summary: string; isHidden: boolean } | n
       create: vi.fn().mockResolvedValue({ id: "audit-1" }),
     },
   };
-  vi.mocked(db.$transaction).mockImplementation(async (fn: any) => fn(tx));
+  dbMock.$transaction.mockImplementation(async (fn: (innerTx: typeof tx) => Promise<unknown>) => fn(tx));
   return tx;
 }
 
@@ -78,7 +83,7 @@ describe("PATCH /api/calendar-events/[id]/visibility", () => {
     });
 
     expect(res.status).toBe(200);
-    expect(db.$transaction).toHaveBeenCalledOnce();
+    expect(dbMock.$transaction).toHaveBeenCalledOnce();
     expect(tx.calendarEvent.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: "event-1" },
@@ -105,7 +110,7 @@ describe("PATCH /api/calendar-events/[id]/visibility", () => {
     });
 
     expect(res.status).toBe(403);
-    expect(db.$transaction).not.toHaveBeenCalled();
+    expect(dbMock.$transaction).not.toHaveBeenCalled();
   });
 
   it("rejects malformed visibility payloads", async () => {
@@ -114,7 +119,7 @@ describe("PATCH /api/calendar-events/[id]/visibility", () => {
     });
 
     expect(res.status).toBe(400);
-    expect(db.$transaction).not.toHaveBeenCalled();
+    expect(dbMock.$transaction).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the event does not exist", async () => {

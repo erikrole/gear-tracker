@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reports & Analytics
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-02
+- Last Updated: 2026-06-18
 - Status: Active
 - Version: V1
 
@@ -48,12 +48,12 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - **Page:** `src/app/(app)/reports/checkouts/page.tsx`
 - **Type:** Tabular report with filterable list
 - **Columns:** Title, requester, due date, item count, status
-- **Metrics:** Total non-draft checkout activity in the selected period, currently overdue checkouts
+- **Metrics:** Total custody checkout activity in the selected period, currently overdue checkouts
 - **Charts:** Daily checkout trend, top requesters, 365-day heatmap
 - **Filters:** Period (7d, 30d, 90d)
 - **Data:** `GET /api/reports/checkouts?days=...`
-- **Export:** `GET /api/reports/checkouts?format=csv&days=...` returns up to 5,000 matching non-draft checkout activity rows with `X-Exported-Count`, `X-Total-Count`, and `X-Truncated` headers when capped.
-- **Semantics:** Draft bookings are excluded from operational checkout activity metrics and charts.
+- **Export:** `GET /api/reports/checkouts?format=csv&days=...` returns up to 5,000 matching custody checkout activity rows with `X-Exported-Count`, `X-Total-Count`, and `X-Truncated` headers when capped.
+- **Semantics:** Checkout activity metrics, charts, heatmap, and CSV exports count actual custody rows only: `OPEN` and `COMPLETED` checkouts. `DRAFT`, `PENDING_PICKUP`, and `CANCELLED` checkout rows are excluded so awaiting pickup does not inflate custody analytics.
 
 ### `/reports/overdue`
 - **Page:** `src/app/(app)/reports/overdue/page.tsx`
@@ -142,10 +142,11 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 
 ## Change Log
 - 2026-06-18: Schedule Source Of Truth Slice 13 added Schedule CSV exports outside the main Reports shell. `/api/schedule/export?type=...` is still governed by `report.view`, uses shared formula-safe CSV escaping, returns export count/truncation headers, caps date windows to 366 days, and supports roster, hours, open slots, conflicts, trades/open-work requests, and gear-readiness exports from the Schedule page.
+- 2026-06-18: Kiosk-only custody Slice 5 tightened Checkouts report semantics. `/reports/checkouts` metrics, top requesters, recent rows, heatmap, and CSV export now count only custody checkout rows (`OPEN` and `COMPLETED`) so `PENDING_PICKUP` awaiting-pickup records and cancelled records do not inflate actual checkout activity.
 - 2026-06-02: Web operator trust sweep added Utilization row-level CSV export. `/reports/utilization` now exports bounded server-backed inventory rows with derived status evidence, stored status, location, department, category, and availability flags while keeping JSON metric/card/chart behavior unchanged.
 - 2026-06-02: Web operator trust sweep added Missing Units evidence CSV export. `/reports/bulk-losses` now exports bounded server-backed report-evidence rows across missing-unit groupings, requester attribution, recent loss events, battery family summaries, missing battery units, checkout history, and repeat patterns while keeping the JSON report sections and drill-down links unchanged.
 - 2026-06-02: Web operator trust sweep tightened Overdue report CSV export semantics. `/reports/overdue` now exports overdue checkout rows through a bounded server-backed CSV path, includes outstanding item summaries that exclude already-returned bulk quantities, reports capped exports with row-count headers/copy, and keeps the JSON leaderboard grouping and expansion behavior unchanged.
-- 2026-06-02: Web operator trust sweep tightened Checkouts report CSV export semantics. `/reports/checkouts` now exports all matching non-draft checkout activity rows for the selected period through a bounded server-backed CSV path, reports capped exports with row-count headers/copy, and keeps JSON report metrics/charts/heatmap unchanged.
+- 2026-06-02: Web operator trust sweep tightened Checkouts report CSV export semantics. `/reports/checkouts` exports matching checkout activity rows for the selected period through a bounded server-backed CSV path, reports capped exports with row-count headers/copy, and keeps JSON report metrics/charts/heatmap unchanged.
 - 2026-06-02: Web operator trust sweep tightened Scans report CSV export semantics. `/reports/scans` now exports all matching filtered scan events through a bounded server-backed CSV path, reports capped exports with row-count headers/copy, and keeps JSON report pagination/charts unchanged.
 - 2026-06-02: Web operator trust sweep tightened Audit report CSV export semantics. `/reports/audit` now exports all matching filtered audit rows through a bounded server-backed CSV path, reports capped exports with row-count headers/copy, and keeps the JSON report browse pagination/charts unchanged.
 - 2026-06-02: Web operator trust sweep tightened report CSV exports. Utilization, Checkouts, Overdue, Scans, Audit, and Badges now label exports as visible-row downloads, ignore rapid duplicate export clicks, and show completion copy that names the exact visible row scope without changing report APIs or analytics semantics.

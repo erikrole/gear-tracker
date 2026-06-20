@@ -207,7 +207,8 @@ export default function NotificationsPage() {
     }),
   });
 
-  const notifications = data?.notifications ?? [];
+  const rawNotifications = data?.notifications;
+  const notifications = useMemo(() => rawNotifications ?? [], [rawNotifications]);
   const total = data?.total ?? 0;
   const unreadCount = data?.unreadCount ?? 0;
   const readCount = Math.max(total - unreadCount, 0);

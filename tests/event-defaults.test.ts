@@ -67,11 +67,12 @@ describe("resolveEventDefaults", () => {
     const call = mockDb.calendarEvent.findFirst.mock.calls[0]![0];
     expect(call.where.sportCode).toBe("WBB");
     expect(call.where.status).toBe("CONFIRMED");
-    expect(call.where.startsAt.gte).toBeInstanceOf(Date);
     expect(call.where.startsAt.lte).toBeInstanceOf(Date);
+    expect(call.where.endsAt.gt).toBeInstanceOf(Date);
 
-    // Verify the window is approximately 30 days
-    const windowMs = call.where.startsAt.lte.getTime() - call.where.startsAt.gte.getTime();
+    // Verify the lookup ceiling is approximately 30 days from now while allowing
+    // already-started events that have not ended today.
+    const windowMs = call.where.startsAt.lte.getTime() - Date.now();
     const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
     expect(windowMs).toBeGreaterThan(thirtyDaysMs - 60_000); // within 1 minute tolerance
     expect(windowMs).toBeLessThan(thirtyDaysMs + 60_000);

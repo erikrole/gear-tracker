@@ -27,7 +27,7 @@
 - `src/components/booking-wizard/flow-summary.ts`: already centralizes warning summary copy and should remain the single helper for warning totals.
 - `src/components/EquipmentPicker.tsx`: shared picker should not be redesigned deeply in this slice; tune category chips, loading rows, and low-value controls without changing picker selection/search/scan contracts.
 - `src/components/ui/`: shadcn primitives already available for `Button`, `Dialog`, `Card`, `Tabs`, `Progress`, `Separator`, `Badge`, `Alert`, `ScrollArea`, `Tooltip`, `Switch`, `Select`, and form controls.
-- Prior plans: `tasks/booking-create-ux-goal-plan.md`, `tasks/booking-creation-ownership-pass.md`, and `tasks/booking-create-hardening-plan.md` show the current UX is intentional and recently hardened. This pass should not reopen server or lifecycle scope.
+- Prior plans: `tasks/archive/completed-2026-06/booking-create-ux-goal-plan-2026-05-30.md`, `tasks/archive/completed-2026-06/booking-creation-ownership-pass-2026-05-07.md`, and `tasks/archive/completed-2026-06/booking-create-hardening-plan-2026-05-30.md` show the current UX is intentional and recently hardened. This pass should not reopen server or lifecycle scope.
 
 ## Apple Flow Takeaways To Translate
 - Lead with the chosen outcome, not the form mechanics. Apple review screens make the appointment or pickup moment the star, then place supporting facts underneath.

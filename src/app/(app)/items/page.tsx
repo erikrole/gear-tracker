@@ -232,7 +232,7 @@ export default function ItemsPage() {
       a.assetTag.localeCompare(b.assetTag, undefined, { numeric: true, sensitivity: "base" })
     );
     return [...serializedItems, ...bulkAssets];
-  }, [query.items, query.bulkItems, filters.itemType, filters.sortKey]);
+  }, [query.items, query.bulkItems, filters.itemType, filters.sorting]);
 
   const visibleRowCount = mergedData.length;
   const pageLoading = !preferencesLoaded || query.loading;
@@ -319,6 +319,7 @@ export default function ItemsPage() {
     }
   }, [filters]);
 
+  const reloadItems = query.reload;
   const handleRowAction = useCallback(async (action: string, asset: Asset) => {
     if (busyRef.current) return;
     if (isBulkRowId(asset.id) && action !== "open") {
@@ -340,7 +341,7 @@ export default function ItemsPage() {
           if (handleAuthRedirect(res)) return;
           if (res.ok) {
             toast.success(`Duplicated ${asset.assetTag}`);
-            query.reload();
+            reloadItems();
           } else {
             toast.error(await parseErrorMessage(res, "Failed to duplicate item"));
           }
@@ -359,7 +360,7 @@ export default function ItemsPage() {
           if (handleAuthRedirect(res)) return;
           if (res.ok) {
             toast.success(`Updated ${asset.assetTag} maintenance status`);
-            query.reload();
+            reloadItems();
           } else {
             toast.error(await parseErrorMessage(res, "Failed to update maintenance status"));
           }
@@ -374,7 +375,7 @@ export default function ItemsPage() {
         setRetireTarget(asset);
         break;
     }
-  }, [query.reload, router]);
+  }, [reloadItems, router]);
 
   async function confirmRetireTarget() {
     if (!retireTarget || busyRef.current) return;

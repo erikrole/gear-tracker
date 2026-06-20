@@ -1,4 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AssetStatus, Role } from "@prisma/client";
+
+declare global {
+  var __wave12TransactionOptions: unknown;
+}
+
+type MockLoadedAsset = {
+  computedStatus?: string | null;
+  [key: string]: unknown;
+};
 
 const mockTx = {
   asset: {
@@ -17,7 +27,7 @@ vi.mock("@/lib/auth", () => ({
 vi.mock("@/lib/db", () => ({
   db: {
     $transaction: vi.fn(async (fn: (tx: typeof mockTx) => Promise<unknown>, options?: unknown) => {
-      (globalThis as any).__wave12TransactionOptions = options;
+      globalThis.__wave12TransactionOptions = options;
       return fn(mockTx);
     }),
     asset: {
@@ -43,7 +53,7 @@ vi.mock("@/lib/rate-limit", () => ({
 
 vi.mock("@/lib/services/status", () => ({
   buildDerivedStatusWhere: vi.fn(() => []),
-  enrichAssetsWithStatusFromLoaded: vi.fn(async (assets: any[]) =>
+  enrichAssetsWithStatusFromLoaded: vi.fn(async (assets: MockLoadedAsset[]) =>
     assets.map((asset) => ({ ...asset, computedStatus: asset.computedStatus ?? "AVAILABLE" })),
   ),
 }));
@@ -72,9 +82,27 @@ const staffUser = {
   id: "staff-1",
   email: "staff@example.com",
   name: "Staff One",
-  role: "STAFF" as any,
+  role: Role.STAFF,
   avatarUrl: null,
 };
+
+type DerivedStatusWhere = { status: AssetStatus; __derived: boolean };
+
+function bulkSkuResult(value: { id: string }) {
+  return value as unknown as Awaited<ReturnType<typeof db.bulkSku.findUnique>>;
+}
+
+function auditFindFirstResult(value: { id: string } | null) {
+  return value as unknown as Awaited<ReturnType<typeof db.auditLog.findFirst>>;
+}
+
+function assetFindManyResult(rows: Array<Record<string, unknown>>) {
+  return rows as unknown as Awaited<ReturnType<typeof db.asset.findMany>>;
+}
+
+function derivedStatusWhereResult(rows: DerivedStatusWhere[]) {
+  return rows as unknown as ReturnType<typeof buildDerivedStatusWhere>;
+}
 
 function get(path: string) {
   return new Request(`https://app.example.com${path}`, {
@@ -97,14 +125,14 @@ function post(path: string, body: Record<string, unknown>) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  (globalThis as any).__wave12TransactionOptions = undefined;
+  globalThis.__wave12TransactionOptions = undefined;
   vi.mocked(requireAuth).mockResolvedValue(staffUser);
   vi.mocked(enforceRateLimit).mockResolvedValue(undefined);
   vi.mocked(db.asset.findMany).mockResolvedValue([]);
   vi.mocked(db.asset.count).mockResolvedValue(0);
   vi.mocked(db.favoriteItem.findMany).mockResolvedValue([]);
-  vi.mocked(db.bulkSku.findUnique).mockResolvedValue({ id: "sku-1" } as any);
-  vi.mocked(db.auditLog.findFirst).mockResolvedValue({ id: "cursor-1" } as any);
+  vi.mocked(db.bulkSku.findUnique).mockResolvedValue(bulkSkuResult({ id: "sku-1" }));
+  vi.mocked(db.auditLog.findFirst).mockResolvedValue(auditFindFirstResult({ id: "cursor-1" }));
   vi.mocked(db.auditLog.findMany).mockResolvedValue([]);
   mockTx.asset.findMany.mockResolvedValue([
     { id: "asset-1", status: "AVAILABLE" },
@@ -118,7 +146,7 @@ beforeEach(() => {
 
 describe("API hardening wave 12", () => {
   it("rate limits asset export and uses formula-safe CSV fields", async () => {
-    vi.mocked(db.asset.findMany).mockResolvedValue([
+    vi.mocked(db.asset.findMany).mockResolvedValue(assetFindManyResult([
       {
         assetTag: "=CAM-1",
         name: "+Camera",
@@ -132,7 +160,7 @@ describe("API hardening wave 12", () => {
         purchaseDate: null,
         purchasePrice: null,
       },
-    ] as any);
+    ]));
     vi.mocked(db.asset.count).mockResolvedValue(1);
 
     const res = await exportAssets(get("/api/assets/export"), { params: Promise.resolve({}) });
@@ -156,8 +184,8 @@ describe("API hardening wave 12", () => {
   });
 
   it("filters equipment picker available-only by derived availability, not stored status", async () => {
-    const derivedAvailable = [{ status: "AVAILABLE", __derived: true }];
-    vi.mocked(buildDerivedStatusWhere).mockReturnValue(derivedAvailable as any);
+    const derivedAvailable: DerivedStatusWhere[] = [{ status: AssetStatus.AVAILABLE, __derived: true }];
+    vi.mocked(buildDerivedStatusWhere).mockReturnValue(derivedStatusWhereResult(derivedAvailable));
 
     await pickerSearch(
       get("/api/assets/picker-search?only_available=true"),
@@ -183,8 +211,8 @@ describe("API hardening wave 12", () => {
   });
 
   it("keeps ids hydration and qr lookup exempt from available-only filtering", async () => {
-    const derivedAvailable = [{ status: "AVAILABLE", __derived: true }];
-    vi.mocked(buildDerivedStatusWhere).mockReturnValue(derivedAvailable as any);
+    const derivedAvailable: DerivedStatusWhere[] = [{ status: AssetStatus.AVAILABLE, __derived: true }];
+    vi.mocked(buildDerivedStatusWhere).mockReturnValue(derivedStatusWhereResult(derivedAvailable));
 
     await pickerSearch(
       get("/api/assets/picker-search?only_available=true&ids=asset-stale"),
@@ -209,10 +237,10 @@ describe("API hardening wave 12", () => {
   });
 
   it("runs bulk maintenance toggles inside a Serializable transaction", async () => {
-    vi.mocked(db.asset.findMany).mockResolvedValue([
-      { id: "asset-1", status: "AVAILABLE", locationId: "loc-1", categoryId: "cat-1" },
-      { id: "asset-2", status: "MAINTENANCE", locationId: "loc-1", categoryId: "cat-1" },
-    ] as any);
+    vi.mocked(db.asset.findMany).mockResolvedValue(assetFindManyResult([
+      { id: "asset-1", status: AssetStatus.AVAILABLE, locationId: "loc-1", categoryId: "cat-1" },
+      { id: "asset-2", status: AssetStatus.MAINTENANCE, locationId: "loc-1", categoryId: "cat-1" },
+    ]));
 
     const res = await bulkAssets(
       post("/api/assets/bulk", {
@@ -223,7 +251,7 @@ describe("API hardening wave 12", () => {
     );
 
     expect(res.status).toBe(200);
-    expect((globalThis as any).__wave12TransactionOptions).toEqual({
+    expect(globalThis.__wave12TransactionOptions).toEqual({
       isolationLevel: "Serializable",
     });
     expect(mockTx.asset.updateMany).toHaveBeenCalledTimes(2);

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { Role } from "@prisma/client";
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: vi.fn(),
@@ -41,9 +42,17 @@ const user = {
   id: "cm000000000000000000000001",
   email: "admin@test.com",
   name: "Admin",
-  role: "ADMIN" as const,
+  role: Role.ADMIN,
   avatarUrl: null,
 };
+
+function location(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.location.findFirst>>;
+}
+
+function draft(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.booking.findFirst>>;
+}
 
 const noParams = { params: Promise.resolve({}) };
 const draftParams = { params: Promise.resolve({ id: "cm000000000000000000000010" }) };
@@ -82,7 +91,7 @@ function makeGetRequest() {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(requireAuth).mockResolvedValue(user);
-  vi.mocked(db.location.findFirst).mockResolvedValue({ id: "cm000000000000000000000002" } as any);
+  vi.mocked(db.location.findFirst).mockResolvedValue(location({ id: "cm000000000000000000000002" }));
 });
 
 describe("POST /api/drafts", () => {
@@ -143,7 +152,7 @@ describe("POST /api/drafts", () => {
 
 describe("GET /api/drafts/[id]", () => {
   it("returns ordered linked events for draft resume", async () => {
-    vi.mocked(db.booking.findFirst).mockResolvedValue({
+    vi.mocked(db.booking.findFirst).mockResolvedValue(draft({
       id: "cm000000000000000000000010",
       kind: "RESERVATION",
       title: "Regional road trip",
@@ -189,7 +198,7 @@ describe("GET /api/drafts/[id]", () => {
       serializedItems: [],
       bulkItems: [],
       updatedAt: new Date("2026-05-07T02:00:00Z"),
-    } as any);
+    }));
 
     const res = await GET(makeGetRequest(), draftParams);
 

@@ -88,22 +88,22 @@
 
 | File | Lines |
 |---|---:|
-| `src/components/EquipmentPicker.tsx` | 1083 |
+| `src/components/EquipmentPicker.tsx` | 1087 |
 | `src/components/TradeBoard.tsx` | 929 |
 | `src/components/ActivityTimeline.tsx` | 906 |
 | `src/components/BookingDetailsSheet.tsx` | 803 |
 | `src/components/ShiftDetailPanel.tsx` | 783 |
-| `src/components/onboarding/OnboardingDialog.tsx` | 756 |
+| `src/components/onboarding/OnboardingDialog.tsx` | 757 |
 | `src/components/ui/sidebar.tsx` | 727 |
-| `src/components/booking-wizard/BookingWizard.tsx` | 711 |
-| `src/components/ChooseImageModal.tsx` | 676 |
-| `src/components/AppShell.tsx` | 601 |
+| `src/components/booking-wizard/BookingWizard.tsx` | 709 |
+| `src/components/ChooseImageModal.tsx` | 694 |
+| `src/components/AppShell.tsx` | 595 |
 | `src/components/booking-wizard/WizardStep1.tsx` | 565 |
-| `src/components/BookingListPage.tsx` | 506 |
-| `src/components/ui/heatmap.tsx` | 431 |
+| `src/components/BookingListPage.tsx` | 507 |
+| `src/components/ui/heatmap.tsx` | 422 |
 | `src/components/ui/chart.tsx` | 389 |
-| `src/components/FormCombobox.tsx` | 373 |
 | `src/components/Sidebar.tsx` | 373 |
+| `src/components/FormCombobox.tsx` | 372 |
 | `src/components/shift-detail/ShiftSlotCard.tsx` | 370 |
 | `src/components/PageBreadcrumb.tsx` | 356 |
 | `src/components/booking-details/BookingOverview.tsx` | 300 |

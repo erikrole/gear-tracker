@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   scanKioskCheckinBulkUnit,
   scanKioskPickupBulkUnit,
+  stageKioskReservationPickupBulkUnit,
 } from "@/lib/services/bulk-unit-scans";
 
 function makeTx(overrides: Partial<Record<string, unknown>> = {}) {
@@ -11,9 +12,10 @@ function makeTx(overrides: Partial<Record<string, unknown>> = {}) {
     bulkSkuUnit: { findUnique: vi.fn(), update: vi.fn() },
     bookingBulkUnitAllocation: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
     bookingBulkItem: { update: vi.fn() },
+    scanEvent: { findMany: vi.fn(), create: vi.fn() },
     ...overrides,
   };
-  return tx as typeof tx & any;
+  return tx as typeof tx & Parameters<typeof scanKioskPickupBulkUnit>[0];
 }
 
 const pickupBooking = {
@@ -33,6 +35,14 @@ const pickupBooking = {
       trackByNumber: true,
     },
   }],
+};
+
+const reservationBooking = {
+  ...pickupBooking,
+  id: "reservation-1",
+  kind: "RESERVATION",
+  status: "BOOKED",
+  requesterUserId: "user-1",
 };
 
 describe("scanKioskPickupBulkUnit", () => {
@@ -248,6 +258,54 @@ describe("scanKioskPickupBulkUnit", () => {
     });
     expect(tx.bookingBulkUnitAllocation.create).not.toHaveBeenCalled();
     expect(tx.bulkSkuUnit.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("stageKioskReservationPickupBulkUnit", () => {
+  it("stages a numbered unit scan on the reservation without checking it out", async () => {
+    const tx = makeTx();
+    tx.booking.findUnique.mockResolvedValue(reservationBooking);
+    tx.bulkSkuUnit.findUnique.mockResolvedValue({
+      id: "unit-7",
+      bulkSkuId: "sku-1",
+      unitNumber: 7,
+      status: "AVAILABLE",
+      allocations: [],
+    });
+    tx.scanEvent.findMany.mockResolvedValue([]);
+    tx.scanEvent.create.mockResolvedValue({ id: "scan-1" });
+
+    const result = await stageKioskReservationPickupBulkUnit(tx, {
+      bookingId: "reservation-1",
+      scanValue: "94e068d1-7",
+      deviceContext: "vitest-kiosk",
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      handled: true,
+      success: true,
+      item: expect.objectContaining({
+        id: "bulk-item-1:slot:1",
+        tagName: "#7",
+        unitNumber: 7,
+      }),
+    }));
+    expect(tx.scanEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        bookingId: "reservation-1",
+        actorUserId: "user-1",
+        scanType: "BULK_BIN",
+        scanValue: "94e068d1-7",
+        success: true,
+        phase: "CHECKOUT",
+        bulkSkuId: "sku-1",
+        quantity: 1,
+        deviceContext: "vitest-kiosk",
+      }),
+    });
+    expect(tx.bookingBulkUnitAllocation.create).not.toHaveBeenCalled();
+    expect(tx.bulkSkuUnit.update).not.toHaveBeenCalled();
+    expect(tx.bookingBulkItem.update).not.toHaveBeenCalled();
   });
 });
 

@@ -153,7 +153,6 @@ export function CategoryCombobox({
 }: CategoryComboboxProps) {
   const [open, setOpen] = useState(false);
 
-  const parents = categories.filter((c) => !c.parentId);
   const selectedCat = categories.find((c) => c.id === value);
 
   if (disabled) {

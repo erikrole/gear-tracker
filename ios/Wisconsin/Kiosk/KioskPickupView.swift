@@ -313,7 +313,22 @@ struct KioskPickupView: View {
         isLoading = true
         error = nil
         do {
-            detail = try await KioskAPI.shared.kioskCheckoutDetail(id: bookingId)
+            let loaded = try await KioskAPI.shared.kioskCheckoutDetail(id: bookingId)
+            confirmedIds = []
+            confirmedItemOverrides = [:]
+            for item in loaded.items where item.returned {
+                confirmedIds.insert(item.id)
+                confirmedItemOverrides[item.id] = KioskScanResult.ScannedItem(
+                    id: item.id,
+                    name: item.name,
+                    tagName: item.tagName,
+                    type: item.type,
+                    imageUrl: item.imageUrl,
+                    bulkSkuId: item.bulkSkuId,
+                    unitNumber: item.unitNumber
+                )
+            }
+            detail = loaded
         } catch {
             self.error = (error as? APIError)?.errorDescription ?? "Could not load pickup details."
         }

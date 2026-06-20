@@ -6,6 +6,9 @@ struct UserAvatarView: View {
     let name: String
     let avatarUrl: String?
     var size: CGFloat = 36
+    var fallbackBackground: Color = Color.accentColor.opacity(0.12)
+    var fallbackForeground: Color = Color.accentColor
+    var showsBorder = true
 
     var body: some View {
         if let urlString = avatarUrl, !urlString.isEmpty, let url = URL(string: urlString) {
@@ -18,7 +21,11 @@ struct UserAvatarView: View {
             }
             .frame(width: size, height: size)
             .clipShape(Circle())
-            .overlay(Circle().strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5))
+            .overlay {
+                if showsBorder {
+                    Circle().strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5)
+                }
+            }
         } else {
             initialsCircle
         }
@@ -27,11 +34,16 @@ struct UserAvatarView: View {
     private var initialsCircle: some View {
         ZStack {
             Circle()
-                .fill(Color.accentColor.opacity(0.12))
+                .fill(fallbackBackground)
                 .frame(width: size, height: size)
             Text(initials.isEmpty ? "?" : initials)
                 .font(.system(size: max(size * 0.36, 9), weight: .semibold))
-                .foregroundStyle(.tint)
+                .foregroundStyle(fallbackForeground)
+        }
+        .overlay {
+            if showsBorder {
+                Circle().strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5)
+            }
         }
     }
 

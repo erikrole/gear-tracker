@@ -13,6 +13,7 @@
 - **Depends on**: none
 - **Category**: tech-debt
 - **Planned at**: commit `e8566c54`, 2026-06-10
+- **Result**: DONE ON MAIN, 2026-06-19
 
 ## Why This Matters
 
@@ -102,15 +103,15 @@ Update:
 
 ## Done Criteria
 
-- [ ] `AppTabView.swift` contains the tab shell and only minimal shell helpers.
-- [ ] Profile, notification settings, account security, and availability code live in separate Swift files.
-- [ ] No user-facing iOS behavior changes.
-- [ ] `npx vitest run tests/ios-tabbar-stability.test.ts tests/ios-settings-first-class.test.ts tests/student-field-contracts.test.ts` exits 0.
-- [ ] `npm run drift:ios` exits 0.
-- [ ] iOS build succeeds.
-- [ ] `npm test` exits 0.
-- [ ] Docs no longer claim availability lives in `AppTabView.swift` to avoid a new file.
-- [ ] `plans/README.md` status row updated.
+- [x] `AppTabView.swift` contains the tab shell and only minimal shell helpers.
+- [x] Profile, notification settings, account security, and availability code live in separate Swift files.
+- [x] No user-facing iOS behavior changes.
+- [x] `npx vitest run tests/ios-tabbar-stability.test.ts tests/ios-settings-first-class.test.ts tests/student-field-contracts.test.ts` exits 0.
+- [x] `npm run drift:ios` exits 0.
+- [x] iOS build succeeds.
+- [x] `npm test` exits 0.
+- [x] Docs no longer claim availability lives in `AppTabView.swift` to avoid a new file.
+- [x] `plans/README.md` status row updated.
 
 ## STOP Conditions
 
@@ -122,3 +123,8 @@ Update:
 
 Reviewers should treat this as a behavior-preserving refactor. The main risk is accidentally touching the stable tab shell that was restored after the Schedule selection crash.
 
+## Review
+
+- Shipped 2026-06-19: `AppTabView.swift` now owns the native tab shell and push routing only. Profile, notification settings, account security, account avatar, and student availability code moved into focused Swift files under `ios/Wisconsin/Views/`.
+- Behavior scope: no tab labels, tags, badges, role gating, Schedule routing, API clients, or models changed.
+- Verification: focused source-contract tests, `npm run drift:ios`, XcodeBuildMCP simulator build, `npm test`, `npm run lint`, `npm run verify:docs`, and `git diff --check` passed.

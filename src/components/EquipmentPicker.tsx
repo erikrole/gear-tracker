@@ -225,10 +225,10 @@ export default function EquipmentPicker({
 }: EquipmentPickerProps) {
   const [internalSection, setInternalSection] = useState<EquipmentSectionKey>(EQUIPMENT_SECTIONS[0]!.key);
   const activeSection = controlledSection ?? internalSection;
-  const setActiveSection = (sec: EquipmentSectionKey) => {
+  const setActiveSection = useCallback((sec: EquipmentSectionKey) => {
     setInternalSection(sec);
     onActiveSectionChange?.(sec);
-  };
+  }, [onActiveSectionChange]);
   const activeSectionMeta = EQUIPMENT_SECTIONS.find((s) => s.key === activeSection) ?? EQUIPMENT_SECTIONS[0]!;
   const [sectionSearchBySection, setSectionSearchBySection] = useState<Record<EquipmentSectionKey, string>>({
     cameras: "",
@@ -363,6 +363,7 @@ export default function EquipmentPicker({
 
   // ── Indexed lookups ──
   const assetById = useMemo(() => {
+    void cacheVersion;
     const m = new Map<string, PickerAsset>();
     for (const a of sectionResults) m.set(a.id, a);
     selectedAssetsCache.forEach((a, id) => { if (!m.has(id)) m.set(id, a); });
@@ -373,6 +374,7 @@ export default function EquipmentPicker({
 
   // ── Selected count per section (for section-level actions) ──
   const selectedBySection = useMemo(() => {
+    void cacheVersion;
     const c: Record<EquipmentSectionKey, number> = { cameras: 0, lenses: 0, batteries: 0, audio: 0, tripods: 0, lighting: 0, other: 0 };
     for (const id of selectedAssetIds) {
       const a = selectedAssetsCache.get(id) ?? assetById.get(id);
@@ -387,12 +389,14 @@ export default function EquipmentPicker({
 
   // ── Resolved selected items for shelf display ──
   const resolvedSelectedAssets = useMemo(() => {
+    void cacheVersion;
     return selectedAssetIds
       .map((id) => selectedAssetsCache.get(id) ?? assetById.get(id))
       .filter((a): a is PickerAsset => !!a);
   }, [selectedAssetIds, assetById, selectedAssetsCache, cacheVersion]);
 
   const unresolvedSelectedAssetIds = useMemo(() => {
+    void cacheVersion;
     return selectedAssetIds.filter((id) => !assetById.has(id) && !selectedAssetsCache.has(id));
   }, [assetById, selectedAssetIds, selectedAssetsCache, cacheVersion]);
 
@@ -425,7 +429,7 @@ export default function EquipmentPicker({
     );
   }
 
-  function setBulkQty(bulkSkuId: string, qty: number) {
+  const setBulkQty = useCallback((bulkSkuId: string, qty: number) => {
     setBulkCountRecovery(null);
     const sku = bulkById.get(bulkSkuId);
     const maxQty = sku ? getBulkAvailable(sku) : Number.POSITIVE_INFINITY;
@@ -440,7 +444,7 @@ export default function EquipmentPicker({
         return [...prev, { bulkSkuId, quantity: nextQty }];
       });
     }
-  }
+  }, [bulkById, setSelectedBulkItems]);
 
   function clearCurrentSection() {
     const assetIdsInSection = new Set(
@@ -535,7 +539,7 @@ export default function EquipmentPicker({
     } finally {
       setScanLookupBusy(false);
     }
-  }, [findBulkScanMatch, rememberAsset, scanLookupBusy, selectedAssetIds, selectedBulkItems]);
+  }, [findBulkScanMatch, rememberAsset, scanLookupBusy, selectedAssetIds, selectedBulkItems, setActiveSection, setBulkQty, setSelectedAssetIds]);
 
   const bulkQuantity = selectedBulkItems.reduce((s, i) => s + i.quantity, 0);
   const selectedConflictCount = resolvedSelectedAssets.filter((asset) => conflicts.has(asset.id)).length;

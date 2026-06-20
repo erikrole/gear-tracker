@@ -135,7 +135,6 @@ describe("iOS API contracts — kiosk checkout context", () => {
     expect(checkoutView).toContain("KioskCheckoutTimeCard");
     expect(checkoutView).toContain("KioskCheckoutAvailabilityBanner");
     expect(checkoutView).toContain("KioskCheckoutContextSummary");
-    expect(checkoutView).toContain("KioskCheckoutReviewSheet");
     expect(checkoutView).toContain("KioskScannerHealthBadge");
     expect(checkoutView).toContain("KioskCartGroupRow");
     expect(checkoutView).toContain("dueBackAt");
@@ -145,6 +144,18 @@ describe("iOS API contracts — kiosk checkout context", () => {
     expect(checkoutView).toContain("Scan Items");
     expect(checkoutView).toContain("checkoutContextReady");
     expect(checkoutView).toContain("hasCheckoutContext");
+  });
+
+  it("kiosk checkout completion uses the shared kiosk API error path", () => {
+    const client = source("ios/Wisconsin/Kiosk/KioskAPIClient.swift");
+    const method = client.slice(
+      client.indexOf("func kioskCheckoutComplete("),
+      client.indexOf("func kioskCheckoutDetail("),
+    );
+
+    expect(method).toContain("let _: Response = try await perform(req)");
+    expect(method).not.toContain("session.data(for: req)");
+    expect(method).not.toContain("HTTPURLResponse");
   });
 });
 

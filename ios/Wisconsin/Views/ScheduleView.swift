@@ -621,7 +621,7 @@ struct ScheduleCalendarView: View {
 
     private var dotLegend: some View {
         HStack(spacing: 12) {
-            LegendDot(color: .accentColor, label: "My Shift")
+            LegendDot(color: Color.statusText(.blue), label: "My Shift")
             LegendDot(color: Color.statusText(.green), label: "Home")
             LegendDot(color: Color.statusText(.orange), label: "Away")
         }
@@ -678,7 +678,7 @@ struct ScheduleCalendarView: View {
                 if !calendar.isDate(displayedMonth, equalTo: Date(), toGranularity: .month) {
                     Button("Today") { goToToday() }
                         .font(.caption.weight(.medium))
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(Color.brandPrimary)
                         .buttonStyle(.plain)
                 }
             }
@@ -750,7 +750,7 @@ struct ScheduleCalendarView: View {
             let isShift = shiftsByEventId[event.id] != nil
             let color: Color
             if isShift {
-                color = .accentColor
+                color = Color.statusText(.blue)
             } else {
                 switch event.isHome {
                 case true:  color = Color.statusText(.green)
@@ -799,11 +799,11 @@ private struct DayCell: View {
             ZStack {
                 if isSelected {
                     Circle()
-                        .fill(isToday ? Color.accentColor : Color.accentColor.opacity(0.18))
+                        .fill(isToday ? Color.brandPrimary : Color.brandPrimary.opacity(0.18))
                         .frame(width: 34, height: 34)
                 } else if isToday {
                     Circle()
-                        .strokeBorder(Color.accentColor, lineWidth: 1.5)
+                        .strokeBorder(Color.brandPrimary, lineWidth: 1.5)
                         .frame(width: 34, height: 34)
                 }
                 Text(date.formatted(.dateTime.day()))
@@ -811,8 +811,8 @@ private struct DayCell: View {
                     .fontWeight(isToday ? .semibold : .regular)
                     .foregroundStyle(
                         isSelected && isToday ? .white :
-                        isSelected ? Color.accentColor :
-                        isToday ? Color.accentColor : .primary
+                        isSelected ? Color.brandPrimary :
+                        isToday ? Color.brandPrimary : .primary
                     )
             }
             .frame(width: 34, height: 34)
@@ -1007,7 +1007,7 @@ struct EventRow: View {
             // Accent stroke = "this is my shift"; hairline otherwise.
             RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
                 .strokeBorder(
-                    myShift != nil ? Color.accentColor : Color.hairline,
+                    myShift != nil ? Color.statusText(.blue) : Color.hairline,
                     lineWidth: myShift != nil ? 1.5 : 0.5
                 )
         )

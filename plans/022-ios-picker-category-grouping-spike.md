@@ -21,6 +21,7 @@
   exists, or assume it and note the dependency in the design doc)
 - **Category**: direction
 - **Planned at**: commit `6e4b35ae`, 2026-06-13
+- **State**: DONE ON MAIN (2026-06-19)
 
 ## Why this matters
 
@@ -116,12 +117,18 @@ If you find yourself editing `CreateBookingSheet.swift` or `route.ts` beyond rea
 
 ## Done criteria
 
-- [ ] `docs/DESIGN_ios-picker-grouping.md` exists and contains all five Deliverable sections (chosen approach + rationale, data contract, pagination story, thin first slice, non-goals)
-- [ ] The doc names the dependency on plan 020's `name` sort for within-group ordering
-- [ ] At least the three options above are evaluated with the inventory-size evidence that drives the choice
-- [ ] `docs/DECISIONS.md` has a pointer line (if that file exists)
-- [ ] No source files modified (`git status` shows only the doc(s))
-- [ ] `plans/README.md` status row for 022 updated
+- [x] `docs/DESIGN_ios-picker-grouping.md` exists and contains all five Deliverable sections (chosen approach + rationale, data contract, pagination story, thin first slice, non-goals)
+- [x] The doc names the dependency on plan 020's `name` sort for within-group ordering
+- [x] At least the three options above are evaluated with the inventory-size evidence that drives the choice
+- [x] `docs/DECISIONS.md` has a pointer line (if that file exists)
+- [x] No source files modified (`git status` shows only the doc(s), plan index, and task tracking)
+- [x] `plans/README.md` status row for 022 updated
+
+## Review
+
+- Shipped: `docs/DESIGN_ios-picker-grouping.md` chooses a bounded full-fetch client grouping approach for native iOS reservation creation, backed by live inventory counts and the existing `/api/assets` contract.
+- Verified: `npm run verify:docs`; `git diff --check`.
+- Deferred: implementation is intentionally out of scope and should become Plan 023.
 
 ## STOP conditions
 

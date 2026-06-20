@@ -267,7 +267,8 @@ export default function OnboardingDialog({
   }, [previewRows]);
   const blockingPreviewCount = previewRows.length - previewCounts.ready;
   const overBulkLimit = readyPreviewRows.length > 50;
-  const serverPreviewRows = serverPreview?.rows ?? [];
+  const rawServerPreviewRows = serverPreview?.rows;
+  const serverPreviewRows = useMemo(() => rawServerPreviewRows ?? [], [rawServerPreviewRows]);
   const serverPreviewSummary = serverPreview?.summary ?? {
     ready: 0,
     duplicate: 0,

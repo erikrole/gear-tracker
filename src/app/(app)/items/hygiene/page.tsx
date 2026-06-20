@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -173,8 +173,13 @@ export default function InventoryHygienePage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("needs-work");
+  const dataRef = useRef<HygieneData | null>(null);
 
-  async function load({ refresh = false } = {}) {
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
+
+  const load = useCallback(async ({ refresh = false } = {}) => {
     if (refresh) setRefreshing(true);
     else setLoading(true);
 
@@ -183,14 +188,14 @@ export default function InventoryHygienePage() {
       if (handleAuthRedirect(res, "/items/hygiene")) return;
       if (!res.ok) {
         const message = await parseErrorMessage(res, "Failed to load inventory hygiene");
-        if (refresh && data) toast.error(message);
+        if (refresh && dataRef.current) toast.error(message);
         else setError(message);
         return;
       }
       const json = await parseJsonSafely<{ data?: HygieneData }>(res);
       if (!json?.data) {
         const message = "Inventory hygiene returned an unreadable response";
-        if (refresh && data) toast.error(message);
+        if (refresh && dataRef.current) toast.error(message);
         else setError(message);
         return;
       }
@@ -199,17 +204,17 @@ export default function InventoryHygienePage() {
       if (refresh) toast.success("Inventory hygiene refreshed");
     } catch {
       const message = "Network error. Try again.";
-      if (refresh && data) toast.error(message);
+      if (refresh && dataRef.current) toast.error(message);
       else setError(message);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [load]);
 
   const sortedIssues = useMemo(() => {
     return [...(data?.issues ?? [])].sort((a, b) => {

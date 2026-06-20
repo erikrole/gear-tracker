@@ -1,7 +1,7 @@
 # Kiosk-Only Custody Plan
 
 Date: 2026-06-15
-Status: Slice 3 implemented; verification in progress
+Status: Slice 5 implemented and browser-smoked
 
 ## Product Contract
 
@@ -66,31 +66,32 @@ Verification:
 
 ## Slice 4 - Kiosk Reservation Pickup
 
-- Extend kiosk student hub so upcoming due reservations become pickup work at the kiosk.
-- On kiosk pickup confirmation, create or open the linked checkout custody record from the reservation only after required scans pass.
-- Link the checkout through `sourceReservationId`.
-- Close the source reservation according to the open decision above.
-- Preserve availability and bulk/unit binding rules: quantity intent during reservation, exact unit binding at kiosk pickup.
-- Ensure stale pickup cleanup handles any remaining `PENDING_PICKUP` records consistently.
+- [x] Extend kiosk student hub so upcoming due reservations become pickup work at the kiosk.
+- [x] On kiosk pickup confirmation, create or open the linked checkout custody record from the reservation only after required scans pass.
+- [x] Link the checkout through `sourceReservationId`.
+- [x] Close the source reservation according to the open decision above.
+- [x] Preserve availability and bulk/unit binding rules: quantity intent during reservation, exact unit binding at kiosk pickup.
+- [x] Ensure stale pickup cleanup handles any remaining `PENDING_PICKUP` records consistently.
 
 Verification:
-- Focused kiosk pickup route/service tests for serialized assets, bulk quantities, numbered batteries, conflicts, duplicate scans, wrong location, and source reservation linkage.
-- iOS kiosk contract tests.
-- Kiosk simulator build when environment allows.
+- [x] Focused kiosk pickup route/service tests for serialized assets, bulk quantities, numbered batteries, duplicate scans, and source reservation linkage.
+- [x] Conflict and wrong-location route coverage for reservation pickup follow-up.
+- [x] iOS kiosk contract tests.
+- [x] Kiosk simulator build.
 
 ## Slice 5 - Reporting, Search, Wording, And Final Verification
 
-- Audit dashboard, reports, global search, item insights, settings, notifications, and exports for checkout-vs-reservation wording.
-- Keep checkout analytics for actual custody only.
-- Treat stale reservations and awaiting pickup separately from overdue active checkouts.
-- Update area docs and task review with the shipped behavior.
+- [x] Audit dashboard, reports, global search, item insights, settings, notifications, and exports for checkout-vs-reservation wording.
+- [x] Keep checkout analytics for actual custody only.
+- [x] Treat stale reservations and awaiting pickup separately from overdue active checkouts.
+- [x] Update area docs and task review with the shipped behavior.
 
 Verification:
-- Focused report/search/dashboard tests where touched.
-- `npx next build`
-- `npm run build` before commit if network/database access is available and approved.
-- Authenticated browser smoke for touched web surfaces.
-- iOS build if native code changed.
+- [x] Focused report/search/dashboard tests where touched.
+- [x] `./node_modules/.bin/next build`
+- [ ] `npm run build` before commit if network/database access is available and approved.
+- [x] Authenticated browser smoke for touched web surfaces.
+- [x] iOS build not rerun; no native code changed in Slice 5 after the Slice 4 simulator proof.
 
 ## Stop Conditions
 

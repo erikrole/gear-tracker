@@ -24,7 +24,7 @@ Polish the operational Reports surfaces that touch checkout, overdue, and scan h
 
 ## Review
 
-- Checkout activity metrics, requester rankings, recent rows, and heatmap now use a shared non-draft checkout where clause.
+- Checkout activity metrics, requester rankings, recent rows, exports, and heatmap now use the shared custody checkout scope: `OPEN` and `COMPLETED`.
 - Overdue rows now query active serialized allocations and compute bulk outstanding quantities before rendering counts and item summaries.
 - Scan report URL state now handles invalid `page`, `period`, and `phase` params defensively, while the API rejects invalid dates, inverted ranges, and unsupported phases.
 - Browser smoke exposed a shared React Query hydration mismatch. The provider now creates isolated server query clients and defers browser persistence until after mount.

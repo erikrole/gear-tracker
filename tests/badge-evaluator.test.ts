@@ -33,6 +33,10 @@ vi.mock("@/lib/db", () => ({
 import { db } from "@/lib/db";
 import { onCheckoutOpened, onCheckoutReturned, onScanResult, onTradeCompleted } from "@/lib/badges/evaluator";
 
+const dbMock = db as unknown as {
+  $transaction: ReturnType<typeof vi.fn>;
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   mockTx.studentBadge.createMany.mockResolvedValue({ count: 0 });
@@ -330,15 +334,14 @@ describe("badge evaluator checkout events", () => {
   });
 
   it("retries serializable conflicts and no-ops duplicate scan source keys", async () => {
-    vi.mocked(db.$transaction)
+    dbMock.$transaction
       .mockRejectedValueOnce(
         new Prisma.PrismaClientKnownRequestError("Serializable conflict", {
           code: "P2034",
           clientVersion: "test",
         }),
       )
-      .mockImplementationOnce((async (fn: (tx: typeof mockTx) => Promise<unknown>) =>
-        fn(mockTx)) as any);
+      .mockImplementationOnce(async (fn: (tx: typeof mockTx) => Promise<unknown>) => fn(mockTx));
     mockTx.badgeStreak.findUnique
       .mockResolvedValueOnce({
         current: 1,

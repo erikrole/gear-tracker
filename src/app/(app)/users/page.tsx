@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import EmptyState from "@/components/EmptyState";
-import type { UserRow, Location, Role, SortKey, ListResponse } from "./types";
+import type { Location, Role, SortKey, ListResponse } from "./types";
 import { AREA_LABELS, STUDENT_YEAR_OPTIONS } from "./types";
 import { UserTableRow, UserMobileCard } from "./UserRow";
 import UserFilters from "./UserFilters";
@@ -19,7 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import Link from "next/link";
-import { ArrowUpDown, ClipboardList, Download, Loader2, Network, RefreshCw, UserPlus, WifiOff } from "lucide-react";
+import { ArrowUpDown, ClipboardList, Download, Network, RefreshCw, UserPlus, WifiOff } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFetch } from "@/hooks/use-fetch";
 import { PageHeader } from "@/components/PageHeader";

@@ -197,6 +197,7 @@ export async function createBooking(input: CreateBookingInput) {
         endsAt: input.endsAt,
         serializedAssetIds: resolvedSerializedAssetIds,
         bulkItems: resolvedBulkItems,
+        excludeBookingId: input.sourceReservationId,
         bookingKind: input.kind,
       });
 
@@ -204,7 +205,11 @@ export async function createBooking(input: CreateBookingInput) {
         throw new HttpError(409, "Availability conflict", availability);
       }
 
-      const status = input.kind === BookingKind.RESERVATION ? BookingStatus.BOOKED : BookingStatus.PENDING_PICKUP;
+      const status = input.kind === BookingKind.RESERVATION
+        ? BookingStatus.BOOKED
+        : input.custodySource === "KIOSK" && input.sourceReservationId
+          ? BookingStatus.OPEN
+          : BookingStatus.PENDING_PICKUP;
 
       // Resolve event linking: multi-event (eventIds) or legacy single (eventId).
       // Sort chronologically so primary = first.

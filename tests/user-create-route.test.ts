@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Role } from "@prisma/client";
 
 const mockTx = {
   user: {
@@ -40,7 +41,7 @@ const adminUser = {
   id: "admin-1",
   email: "admin@example.com",
   name: "Admin One",
-  role: "ADMIN" as any,
+  role: Role.ADMIN,
   avatarUrl: null,
 };
 

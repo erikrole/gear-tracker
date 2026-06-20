@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { ShiftArea } from "@prisma/client";
 import { expectSerializableIsolation } from "./_helpers/assert-transaction";
 
 // ─── Transaction tracking ───────────────────────────────────────────────────
@@ -51,7 +52,53 @@ import {
   bulkAddToRoster,
 } from "@/lib/services/sport-configs";
 
-const mockTx = (db as any)._mockTx;
+type SportConfigMockTx = {
+  sportConfig: {
+    findMany: ReturnType<typeof vi.fn>;
+    findUnique: ReturnType<typeof vi.fn>;
+    upsert: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
+  };
+  sportShiftConfig: {
+    upsert: ReturnType<typeof vi.fn>;
+  };
+  studentSportAssignment: {
+    findMany: ReturnType<typeof vi.fn>;
+    create: ReturnType<typeof vi.fn>;
+    createMany: ReturnType<typeof vi.fn>;
+    delete: ReturnType<typeof vi.fn>;
+  };
+};
+
+function sportConfigRows(rows: unknown[]) {
+  return rows as Awaited<ReturnType<typeof db.sportConfig.findMany>>;
+}
+
+function sportConfigRow(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.sportConfig.findUnique>>;
+}
+
+function sportConfigUpdateRow(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.sportConfig.update>>;
+}
+
+function studentSportAssignmentRows(rows: unknown[]) {
+  return rows as Awaited<ReturnType<typeof db.studentSportAssignment.findMany>>;
+}
+
+function studentSportAssignmentRow(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.studentSportAssignment.create>>;
+}
+
+function createManyResult(count: number) {
+  return { count } as Awaited<ReturnType<typeof db.studentSportAssignment.createMany>>;
+}
+
+function deleteResult(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.studentSportAssignment.delete>>;
+}
+
+const mockTx = (db as unknown as { _mockTx: SportConfigMockTx })._mockTx;
 
 beforeEach(() => {
   transactionCalls.length = 0;
@@ -66,7 +113,7 @@ describe("getAllSportConfigs", () => {
       { id: "sc-1", sportCode: "FB", active: true, shiftConfigs: [] },
       { id: "sc-2", sportCode: "MBB", active: true, shiftConfigs: [] },
     ];
-    vi.mocked(db.sportConfig.findMany).mockResolvedValue(configs as any);
+    vi.mocked(db.sportConfig.findMany).mockResolvedValue(sportConfigRows(configs));
 
     const result = await getAllSportConfigs();
 
@@ -86,7 +133,7 @@ describe("getAllSportConfigs", () => {
 describe("getSportConfig", () => {
   it("returns a single sport config by sportCode", async () => {
     const config = { id: "sc-1", sportCode: "FB", active: true, shiftConfigs: [] };
-    vi.mocked(db.sportConfig.findUnique).mockResolvedValue(config as any);
+    vi.mocked(db.sportConfig.findUnique).mockResolvedValue(sportConfigRow(config));
 
     const result = await getSportConfig("FB");
 
@@ -117,11 +164,11 @@ describe("upsertSportConfig", () => {
     mockTx.sportShiftConfig.upsert.mockResolvedValue({});
     mockTx.sportConfig.findUnique.mockResolvedValue({
       ...config,
-      shiftConfigs: [{ area: "FIELD", homeCount: 4, awayCount: 2 }],
+      shiftConfigs: [{ area: ShiftArea.VIDEO, homeCount: 4, awayCount: 2 }],
     });
 
     const result = await upsertSportConfig("FB", true, [
-      { area: "FIELD" as any, homeCount: 4, awayCount: 2 },
+      { area: ShiftArea.VIDEO, homeCount: 4, awayCount: 2 },
     ]);
 
     expect(mockTx.sportConfig.upsert).toHaveBeenCalledWith(
@@ -160,7 +207,7 @@ describe("upsertSportConfig", () => {
 
     await upsertSportConfig("FB", true, [
       {
-        area: "FIELD" as any,
+        area: ShiftArea.VIDEO,
         homeStaffCount: 1,
         homeStudentCount: 2,
         awayStaffCount: 1,
@@ -225,8 +272,8 @@ describe("upsertSportConfig", () => {
     mockTx.sportConfig.findUnique.mockResolvedValue({ id: "sc-1", shiftConfigs: [] });
 
     await upsertSportConfig("FB", true, [
-      { area: "FIELD" as any, homeCount: 4, awayCount: 2 },
-      { area: "COURT" as any, homeCount: 3, awayCount: 1 },
+      { area: ShiftArea.VIDEO, homeCount: 4, awayCount: 2 },
+      { area: ShiftArea.PHOTO, homeCount: 3, awayCount: 1 },
     ]);
 
     expect(mockTx.sportShiftConfig.upsert).toHaveBeenCalledTimes(2);
@@ -238,12 +285,12 @@ describe("upsertSportConfig", () => {
 // ═════════════════════════════════════════════════════════════════════════════
 describe("toggleSportConfig", () => {
   it("toggles a sport config active state", async () => {
-    vi.mocked(db.sportConfig.update).mockResolvedValue({
+    vi.mocked(db.sportConfig.update).mockResolvedValue(sportConfigUpdateRow({
       id: "sc-1",
       sportCode: "FB",
       active: false,
       shiftConfigs: [],
-    } as any);
+    }));
 
     const result = await toggleSportConfig("FB", false);
 
@@ -262,7 +309,7 @@ describe("toggleSportConfig", () => {
 // ═════════════════════════════════════════════════════════════════════════════
 describe("getSportRoster", () => {
   it("returns roster with user details", async () => {
-    vi.mocked(db.studentSportAssignment.findMany).mockResolvedValue([
+    vi.mocked(db.studentSportAssignment.findMany).mockResolvedValue(studentSportAssignmentRows([
       {
         id: "ssa-1",
         userId: "u-1",
@@ -270,7 +317,7 @@ describe("getSportRoster", () => {
         user: { id: "u-1", name: "Student 1", email: "s1@uw.edu", role: "STUDENT", primaryArea: null },
         createdAt: new Date("2026-01-01"),
       },
-    ] as any);
+    ]));
 
     const result = await getSportRoster("FB");
 
@@ -282,14 +329,14 @@ describe("getSportRoster", () => {
 
 describe("addToRoster", () => {
   it("creates a sport assignment", async () => {
-    vi.mocked(db.studentSportAssignment.create).mockResolvedValue({
+    vi.mocked(db.studentSportAssignment.create).mockResolvedValue(studentSportAssignmentRow({
       id: "ssa-new",
       userId: "u-1",
       sportCode: "FB",
       user: { id: "u-1", name: "Student 1" },
-    } as any);
+    }));
 
-    const result = await addToRoster("u-1", "FB");
+    await addToRoster("u-1", "FB");
 
     expect(db.studentSportAssignment.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -301,7 +348,7 @@ describe("addToRoster", () => {
 
 describe("removeFromRoster", () => {
   it("deletes a sport assignment", async () => {
-    vi.mocked(db.studentSportAssignment.delete).mockResolvedValue({} as any);
+    vi.mocked(db.studentSportAssignment.delete).mockResolvedValue(deleteResult({}));
 
     await removeFromRoster("ssa-1");
 
@@ -315,11 +362,11 @@ describe("removeFromRoster", () => {
 
 describe("bulkAddToRoster", () => {
   it("creates multiple assignments and returns updated roster", async () => {
-    vi.mocked(db.studentSportAssignment.createMany).mockResolvedValue({ count: 2 } as any);
-    vi.mocked(db.studentSportAssignment.findMany).mockResolvedValue([
+    vi.mocked(db.studentSportAssignment.createMany).mockResolvedValue(createManyResult(2));
+    vi.mocked(db.studentSportAssignment.findMany).mockResolvedValue(studentSportAssignmentRows([
       { id: "ssa-1", userId: "u-1", sportCode: "FB", user: { id: "u-1", name: "S1" }, createdAt: new Date() },
       { id: "ssa-2", userId: "u-2", sportCode: "FB", user: { id: "u-2", name: "S2" }, createdAt: new Date() },
-    ] as any);
+    ]));
 
     const result = await bulkAddToRoster(["u-1", "u-2"], "FB");
 

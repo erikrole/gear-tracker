@@ -71,7 +71,9 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   const availableQuantity = sku.trackByNumber
     ? sku.units.length
     : Math.max(0, onHand);
-  const { units: _u, ...skuRest } = sku;
+  const skuRest = Object.fromEntries(
+    Object.entries(sku).filter(([key]) => key !== "units"),
+  );
 
   const changedKeys = Object.keys(body);
   const beforeDiff: Record<string, unknown> = {};

@@ -26,7 +26,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { OperationalRowActions } from "@/components/OperationalRowActions";
-import { STATUS_STYLES, statusColor, type StatusColor } from "@/lib/status-styles";
+import { STATUS_STYLES, type StatusColor } from "@/lib/status-styles";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { isBulkRowId } from "./lib/item-href";

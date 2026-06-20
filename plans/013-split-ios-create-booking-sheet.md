@@ -13,6 +13,7 @@
 - **Depends on**: 011
 - **Category**: tech-debt
 - **Planned at**: commit `e8566c54`, 2026-06-10
+- **Result**: DONE ON MAIN, 2026-06-19
 
 ## Why This Matters
 
@@ -129,14 +130,14 @@ Manual reviewer check:
 
 ## Done Criteria
 
-- [ ] `CreateBookingSheet.swift` is reduced to orchestration and view model wiring.
-- [ ] Picker and passive row components live in focused files.
-- [ ] No booking creation behavior changes.
-- [ ] Source-contract tests still pin scan-to-add and bulk submission behavior.
-- [ ] `npm run drift:ios` exits 0.
-- [ ] `npm run audit:ios:gaps` exits 0.
-- [ ] iOS simulator build succeeds.
-- [ ] `plans/README.md` status row updated.
+- [x] `CreateBookingSheet.swift` is reduced to orchestration and view model wiring.
+- [x] Picker and passive row components live in focused files.
+- [x] No booking creation behavior changes.
+- [x] Source-contract tests still pin scan-to-add and bulk submission behavior.
+- [x] `npm run drift:ios` exits 0.
+- [x] `npm run audit:ios:gaps` exits 0.
+- [x] iOS simulator build succeeds.
+- [x] `plans/README.md` status row updated.
 
 ## STOP Conditions
 
@@ -149,3 +150,8 @@ Manual reviewer check:
 
 This should be a behavior-preserving refactor. If the executor finds a booking bug while moving code, record it and either add a separate fix plan or stop for maintainer approval before mixing fixes into the split.
 
+## Review
+
+- Shipped 2026-06-19: `CreateBookingSheet.swift` now owns sheet flow, scanner presentation, submit handling, and view-model wiring. Create booking view model logic, event-linking subviews, selected equipment rows, form rows, and picker views moved into focused files under `ios/Wisconsin/Views/CreateBooking/`.
+- Behavior scope: no booking creation payload, scan lookup, kiosk custody boundary, Details/Equipment/Confirm flow, or picker UI changes.
+- Verification: focused booking/API/student source-contract tests, `npm run drift:ios`, `npm run audit:ios:gaps`, XcodeBuildMCP simulator build, `npm test`, `npm run lint`, `npm run verify:docs`, and `git diff --check` passed.

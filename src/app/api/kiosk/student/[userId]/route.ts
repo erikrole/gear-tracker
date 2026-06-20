@@ -27,7 +27,7 @@ export const GET = withKiosk<{ userId: string }>(async (req, { kiosk, params }) 
 
   const now = new Date();
 
-  const [checkouts, pendingPickups, reservations] = await Promise.all([
+  const [checkouts, pendingPickups, dueReservations, reservations] = await Promise.all([
     // Active checkouts (OPEN)
     db.booking.findMany({
       where: {
@@ -65,8 +65,42 @@ export const GET = withKiosk<{ userId: string }>(async (req, { kiosk, params }) 
         requesterUserId: params.userId,
         kind: "CHECKOUT",
         status: "PENDING_PICKUP",
+        locationId: kiosk.locationId,
       },
       orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        title: true,
+        refNumber: true,
+        startsAt: true,
+        serializedItems: {
+          select: {
+            asset: {
+              select: { id: true, assetTag: true, name: true },
+            },
+          },
+        },
+        bulkItems: {
+          select: {
+            plannedQuantity: true,
+            bulkSku: { select: { name: true } },
+          },
+        },
+      },
+    }),
+
+    // Due reservations become kiosk pickup work. They stay reservations until
+    // scans pass and confirmation creates the linked checkout custody record.
+    db.booking.findMany({
+      where: {
+        requesterUserId: params.userId,
+        kind: "RESERVATION",
+        status: "BOOKED",
+        locationId: kiosk.locationId,
+        startsAt: { lte: now },
+        endsAt: { gte: now },
+      },
+      orderBy: { startsAt: "asc" },
       select: {
         id: true,
         title: true,
@@ -95,9 +129,10 @@ export const GET = withKiosk<{ userId: string }>(async (req, { kiosk, params }) 
         kind: "RESERVATION",
         status: "BOOKED",
         startsAt: {
-          gte: now,
+          gt: now,
           lte: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
         },
+        locationId: kiosk.locationId,
       },
       orderBy: { startsAt: "asc" },
       take: 5,
@@ -126,7 +161,7 @@ export const GET = withKiosk<{ userId: string }>(async (req, { kiosk, params }) 
       endsAt: c.endsAt,
       isOverdue: c.endsAt < now,
     })),
-    pendingPickups: pendingPickups.map((p) => ({
+    pendingPickups: [...pendingPickups, ...dueReservations].map((p) => ({
       id: p.id,
       title: p.title,
       refNumber: p.refNumber,

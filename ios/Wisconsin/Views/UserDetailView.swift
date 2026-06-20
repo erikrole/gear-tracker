@@ -158,7 +158,14 @@ struct UserDetailView: View {
         let tone = StatusTone.forRole(detail.role)
         return FormCard {
             HStack(alignment: .top, spacing: 16) {
-                profileAvatar(detail, tone: tone)
+                UserAvatarView(
+                    name: detail.name,
+                    avatarUrl: detail.avatarUrl,
+                    size: 56,
+                    fallbackBackground: Color.statusBackground(tone),
+                    fallbackForeground: Color.statusText(tone),
+                    showsBorder: false
+                )
                 VStack(alignment: .leading, spacing: 4) {
                     Text(detail.name)
                         .font(.headline)
@@ -201,33 +208,6 @@ struct UserDetailView: View {
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel(profileAccessibilityLabel(detail))
-        }
-    }
-
-    @ViewBuilder
-    private func profileAvatar(_ detail: AppUserDetail, tone: StatusTone) -> some View {
-        let placeholder = ZStack {
-            Circle()
-                .fill(Color.statusBackground(tone))
-                .frame(width: 56, height: 56)
-            Text(detail.name.searchInitials)
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(Color.statusText(tone))
-        }
-
-        if let urlString = detail.avatarUrl, let url = URL(string: urlString) {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                default:
-                    placeholder
-                }
-            }
-            .frame(width: 56, height: 56)
-            .clipShape(Circle())
-        } else {
-            placeholder
         }
     }
 

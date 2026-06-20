@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { Role } from "@prisma/client";
 import { HttpError } from "@/lib/http";
 
 vi.mock("@/lib/auth", () => ({
@@ -30,7 +31,7 @@ const staffUser = {
   id: "staff-1",
   email: "staff@example.com",
   name: "Staff One",
-  role: "STAFF" as any,
+  role: Role.STAFF,
   avatarUrl: null,
   forcePasswordChange: false,
 };
@@ -38,7 +39,7 @@ const staffUser = {
 const studentUser = {
   ...staffUser,
   id: "student-1",
-  role: "STUDENT" as any,
+  role: Role.STUDENT,
 };
 
 function get(path: string) {

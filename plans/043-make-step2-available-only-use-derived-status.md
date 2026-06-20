@@ -7,7 +7,7 @@
 
 ## Status
 
-- **State**: DONE (2026-06-11)
+- **State**: DONE ON MAIN (2026-06-19 reconciliation; implementation originally shipped 2026-06-11)
 - **Priority**: P1
 - **Effort**: S/M
 - **Risk**: MED
@@ -133,14 +133,14 @@ Add checkout and reservation changelog rows noting that Step 2 "Available only" 
 
 ## Done criteria
 
-- [ ] `only_available=true` excludes derived unavailable serialized assets, not just stored non-AVAILABLE rows.
-- [ ] `total` and `sectionCounts` are consistent with the filtered results.
-- [ ] `ids` hydration and `qr` lookup still bypass the filter.
-- [ ] `npx vitest run tests/api-hardening-wave12.test.ts` passes.
-- [ ] `npx vitest run tests/booking-create-ux.test.ts` passes.
-- [ ] `npx tsc --noEmit` passes.
-- [ ] `git diff --check` passes.
-- [ ] Area docs are updated.
+- [x] `only_available=true` excludes derived unavailable serialized assets, not just stored non-AVAILABLE rows.
+- [x] `total` and `sectionCounts` are consistent with the filtered results.
+- [x] `ids` hydration and `qr` lookup still bypass the filter.
+- [x] `npx vitest run tests/api-hardening-wave12.test.ts` passes.
+- [x] `npx vitest run tests/booking-create-ux.test.ts` passes.
+- [x] `npx tsc --noEmit` passes.
+- [x] `git diff --check` passes.
+- [x] Area docs are updated.
 
 ## STOP conditions
 
@@ -150,3 +150,9 @@ Add checkout and reservation changelog rows noting that Step 2 "Available only" 
 ## Maintenance notes
 
 Reviewers should check that the route still avoids unbounded reads. This is a picker route in the booking flow, so correctness must not create a slow serverless function.
+
+## Review
+
+- Shipped: picker-search available-only filtering uses `buildDerivedStatusWhere(["AVAILABLE"])` for rows, totals, and section counts while preserving `ids` and `qr` bypasses.
+- Verified: focused route and booking-create UX tests pass, plus typecheck and diff hygiene in the 2026-06-19 reconciliation pass.
+- Deferred: no follow-up needed.

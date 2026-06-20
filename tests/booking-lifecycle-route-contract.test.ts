@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Role } from "@prisma/client";
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: vi.fn(),
@@ -33,7 +34,7 @@ const staffUser = {
   id: "staff-1",
   email: "staff@example.com",
   name: "Staff One",
-  role: "STAFF" as any,
+  role: Role.STAFF,
   avatarUrl: null,
 };
 
@@ -65,13 +66,29 @@ function request(body: Record<string, unknown>, headers: Record<string, string> 
   });
 }
 
+function bookingDetail(row: unknown) {
+  return row as Awaited<ReturnType<typeof getBookingDetail>>;
+}
+
+function bookingActionResult(row: unknown) {
+  return row as Awaited<ReturnType<typeof requireBookingAction>>;
+}
+
+function checkoutUpdateResult(row: unknown) {
+  return row as Awaited<ReturnType<typeof updateCheckout>>;
+}
+
+function reservationUpdateResult(row: unknown) {
+  return row as Awaited<ReturnType<typeof updateReservation>>;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(requireAuth).mockResolvedValue(staffUser);
-  vi.mocked(getBookingDetail).mockResolvedValue(baseDetail as any);
-  vi.mocked(requireBookingAction).mockResolvedValue(baseDetail as any);
-  vi.mocked(updateCheckout).mockResolvedValue(baseDetail as any);
-  vi.mocked(updateReservation).mockResolvedValue({ ...baseDetail, kind: "RESERVATION" } as any);
+  vi.mocked(getBookingDetail).mockResolvedValue(bookingDetail(baseDetail));
+  vi.mocked(requireBookingAction).mockResolvedValue(bookingActionResult(baseDetail));
+  vi.mocked(updateCheckout).mockResolvedValue(checkoutUpdateResult(baseDetail));
+  vi.mocked(updateReservation).mockResolvedValue(reservationUpdateResult({ ...baseDetail, kind: "RESERVATION" }));
 });
 
 describe("booking lifecycle route contract", () => {
@@ -135,7 +152,7 @@ describe("booking lifecycle route contract", () => {
   });
 
   it("dispatches reservation edits to updateReservation", async () => {
-    vi.mocked(getBookingDetail).mockResolvedValue({ ...baseDetail, kind: "RESERVATION" } as any);
+    vi.mocked(getBookingDetail).mockResolvedValue(bookingDetail({ ...baseDetail, kind: "RESERVATION" }));
 
     const res = await PATCH(
       request(

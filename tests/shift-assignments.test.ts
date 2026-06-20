@@ -2,6 +2,17 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { makeShiftAssignment, makeShift } from "./_helpers/factories";
 import { expectSerializableIsolation } from "./_helpers/assert-transaction";
 
+type MockFn = ReturnType<typeof vi.fn>;
+type ShiftAssignmentsTx = {
+  shift: Record<"findUnique" | "findFirst" | "create" | "update", MockFn>;
+  shiftGroup: Record<"update", MockFn>;
+  shiftAssignment: Record<
+    "findFirst" | "findMany" | "findUnique" | "create" | "update" | "updateMany",
+    MockFn
+  >;
+  user: Record<"findUnique", MockFn>;
+};
+
 // ─── Transaction tracking ──────────��────────────────────────────────────────
 const transactionCalls: Array<{ options: unknown }> = [];
 
@@ -55,7 +66,7 @@ import {
   removeAssignment,
 } from "@/lib/services/shift-assignments";
 
-const mockTx = (db as any)._mockTx;
+const mockTx = (db as unknown as { _mockTx: ShiftAssignmentsTx })._mockTx;
 
 beforeEach(() => {
   transactionCalls.length = 0;
@@ -284,7 +295,7 @@ describe("requestShift", () => {
       status: "REQUESTED",
     });
 
-    const result = await requestShift(shift.id, "student-1");
+    await requestShift(shift.id, "student-1");
 
     expect(mockTx.shiftAssignment.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -481,7 +492,7 @@ describe("declineRequest", () => {
       status: "DECLINED",
     });
 
-    const result = await declineRequest(assignment.id);
+    await declineRequest(assignment.id);
 
     expect(mockTx.shiftAssignment.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -539,7 +550,7 @@ describe("initiateSwap", () => {
       status: "DIRECT_ASSIGNED",
     });
 
-    const result = await initiateSwap(assignment.id, "target-1", "admin-1");
+    await initiateSwap(assignment.id, "target-1", "admin-1");
 
     expect(mockTx.shiftAssignment.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -617,7 +628,7 @@ describe("removeAssignment", () => {
       status: "DECLINED",
     });
 
-    const result = await removeAssignment(assignment.id);
+    await removeAssignment(assignment.id);
 
     expect(mockTx.shiftAssignment.update).toHaveBeenCalledWith(
       expect.objectContaining({

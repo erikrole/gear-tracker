@@ -47,15 +47,7 @@ function parseSchema(schemaText) {
   return models
 }
 
-// ── 2. Extract field/model mentions from docs ─────────────────────────────────
-
-function extractMentions(text) {
-  // Look for backtick-quoted identifiers (field names, model names)
-  const backtickMatches = [...text.matchAll(/`(\w+)`/g)].map(m => m[1])
-  // Look for camelCase words that look like field names
-  const camelMatches = [...text.matchAll(/\b([a-z][a-zA-Z]+[A-Z][a-zA-Z]*)\b/g)].map(m => m[1])
-  return [...new Set([...backtickMatches, ...camelMatches])]
-}
+// ── 2. Read docs ─────────────────────────────────────────────────────────────
 
 function readAllDocs() {
   const docs = []
@@ -104,7 +96,7 @@ function audit() {
   const suspectModels = new Set()
   const knownNonModels = new Set(['Boolean', 'String', 'Int', 'Float', 'DateTime', 'Json', 'Bytes'])
 
-  for (const { file, content } of docs) {
+  for (const { content } of docs) {
     // Look for PascalCase words that could be model names
     const pascalMatches = [...content.matchAll(/\b([A-Z][a-zA-Z]{3,})\b/g)].map(m => m[1])
     for (const word of pascalMatches) {

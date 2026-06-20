@@ -16,13 +16,13 @@ function bodyBetween(text: string, startNeedle: string, endNeedle: string) {
 
 describe("iOS Settings detail menus", () => {
   it("keeps root Settings as a navigation hub for account and notifications", () => {
-    const appTab = source("ios/Wisconsin/Views/AppTabView.swift");
-    const profileBody = bodyBetween(appTab, "struct ProfileView: View", "private struct SettingsMenuRow");
-    const accountSection = bodyBetween(appTab, "private var accountSection", "private var notificationsSection");
-    const notificationsSection = bodyBetween(appTab, "private var notificationsSection", "private var appearanceSection");
+    const profile = source("ios/Wisconsin/Views/ProfileView.swift");
+    const profileBody = bodyBetween(profile, "struct ProfileView: View", "struct SettingsMenuRow");
+    const accountSection = bodyBetween(profile, "private var accountSection", "private var notificationsSection");
+    const notificationsSection = bodyBetween(profile, "private var notificationsSection", "private var appearanceSection");
 
-    expect(appTab).toContain("case notifications");
-    expect(appTab).toContain("case accountSecurity");
+    expect(profile).toContain("case notifications");
+    expect(profile).toContain("case accountSecurity");
     expect(profileBody).toContain("destinationView(for: dest)");
     expect(profileBody).toContain("NotificationSettingsView(");
     expect(profileBody).toContain("AccountSecuritySettingsView(manageAccountURL: Self.manageAccountURL)");
@@ -40,8 +40,7 @@ describe("iOS Settings detail menus", () => {
   });
 
   it("moves delivery, channel, pause, and category controls into the native Notifications detail", () => {
-    const appTab = source("ios/Wisconsin/Views/AppTabView.swift");
-    const detail = bodyBetween(appTab, "private struct NotificationSettingsView", "private struct AccountSecuritySettingsView");
+    const detail = source("ios/Wisconsin/Views/NotificationSettingsView.swift");
 
     expect(detail).toContain(".navigationTitle(\"Notifications\")");
     expect(detail).toContain("title: \"Delivery status\"");
@@ -70,10 +69,9 @@ describe("iOS Settings detail menus", () => {
   });
 
   it("adds a native Account & Security password workflow backed by the existing API", () => {
-    const appTab = source("ios/Wisconsin/Views/AppTabView.swift");
+    const accountDetail = source("ios/Wisconsin/Views/AccountSecuritySettingsView.swift");
     const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
     const route = source("src/app/api/me/change-password/route.ts");
-    const accountDetail = bodyBetween(appTab, "private struct AccountSecuritySettingsView", "// MARK: - Reusable avatar");
 
     expect(accountDetail).toContain(".navigationTitle(\"Account & Security\")");
     expect(accountDetail).toContain("title: \"Manage profile on web\"");

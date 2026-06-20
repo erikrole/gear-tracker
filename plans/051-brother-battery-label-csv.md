@@ -1,5 +1,12 @@
 # Brother battery label CSV and printed label tracking
 
+## Status
+
+- **State**: DONE ON MAIN (2026-06-19 reconciliation; implementation originally shipped 2026-06-11)
+- **Priority**: P1
+- **Effort**: M
+- **Depends on**: D-022 numbered bulk-unit model
+
 ## 1. Executive summary
 
 Add a Brother P-Touch-ready CSV export for numbered bulk battery units, starting with Sony battery SKUs, and add durable per-unit tracking for labels that have been printed and applied.
@@ -236,3 +243,8 @@ When implementing, update:
 - `docs/GAPS_AND_RISKS.md`
   - Remove or close any related battery-label tracking gap if one exists during implementation.
 
+## 10. Review
+
+- Shipped: numbered bulk units carry printed-label metadata, Brother CSV export derives QR values from `{binQrCodeValue}-{unitNumber}`, and Battery Ops plus numbered-unit detail expose export and label-state controls.
+- Verified: focused QR, label export, battery ops, bulk-unit adjustment, CSV, migration-check, typecheck, and diff hygiene commands pass in the 2026-06-19 reconciliation pass.
+- Deferred: no follow-up needed unless the Brother template requires different column names.

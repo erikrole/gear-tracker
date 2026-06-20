@@ -2,6 +2,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { makeShiftTrade, makeShiftAssignment, makeShift, makeUser } from "./_helpers/factories";
 import { expectSerializableIsolation } from "./_helpers/assert-transaction";
 
+type MockFn = ReturnType<typeof vi.fn>;
+type ShiftTradesTx = {
+  shiftTrade: Record<"findUnique" | "findFirst" | "create" | "update", MockFn>;
+  shiftAssignment: Record<"findUnique" | "create" | "update", MockFn>;
+  user: Record<"findUnique", MockFn>;
+};
+type ShiftTradesDb = {
+  _mockTx: ShiftTradesTx;
+  shiftTrade: Record<"findMany" | "count", MockFn>;
+};
+
 // ─── Transaction tracking ───────────────────────────────────────────────────
 const transactionCalls: Array<{ options: unknown }> = [];
 
@@ -64,8 +75,8 @@ import { checkTimeConflict } from "@/lib/services/shift-assignments";
 import { sendShiftTradeEmail } from "@/lib/services/shift-trade-emails";
 import { postTrade, claimTrade, approveTrade, declineTrade, cancelTrade, listTrades } from "@/lib/services/shift-trades";
 
-const mockTx = (db as any)._mockTx;
-const mockDb = db as any;
+const mockDb = db as unknown as ShiftTradesDb;
+const mockTx = mockDb._mockTx;
 
 beforeEach(() => {
   transactionCalls.length = 0;

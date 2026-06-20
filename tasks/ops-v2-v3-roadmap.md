@@ -1,18 +1,18 @@
 # Ops V2/V3 Roadmap
 
-Last updated: 2026-05-05
+Last updated: 2026-06-19
 
 Status: Saved for later. Do not implement without a slice plan and area-doc review.
 
 ## Context
 
-Camera attachments and numbered battery scanning are now shipped as V1 operational flows:
+Camera attachments and numbered battery scanning are now shipped operational flows:
 
 - Camera-tied SD cards, cages, and fixed parts are serialized item attachments.
 - QR-coded batteries remain numbered bulk units.
 - Booking creation requests battery quantity.
 - Kiosk pickup and check-in bind specific battery units by scan.
-- Battery audit/reporting remains deferred in GAP-37.
+- Battery Ops, explicit kiosk battery scan progress, battery guidance, and Missing Units battery audit reporting have shipped. GAP-37 is closed.
 
 ## V2: Ops Polish
 
@@ -20,11 +20,11 @@ Focus on pages people touch daily. V2 should make the shipped model easier to ru
 
 ### Bulk Inventory / Batteries V2
 
-- Add a battery-focused unit view: available, checked out, lost, retired.
-- Make quick unit actions obvious: mark lost, retire, release.
-- Keep all status changes audit-backed.
+- Add a battery-focused unit view: available, checked out, lost, retired. Shipped 2026-05-06.
+- Make quick unit actions obvious: mark lost, retire, release. Shipped through Battery Ops adjustment hardening.
+- Keep all status changes audit-backed. Shipped through Battery Ops adjustment hardening.
 - Add a low compatible batteries panel by camera model (shipped 2026-05-06).
-- Keep full reports deferred.
+- Keep broader inventory health separate from shipped Missing Units battery reporting.
 
 ### Item Detail / Attachments V2
 
@@ -35,7 +35,7 @@ Focus on pages people touch daily. V2 should make the shipped model easier to ru
 
 ### Kiosk V2
 
-- Make the battery scan step explicit during pickup.
+- Make the battery scan step explicit during pickup. Shipped 2026-05-13.
 - Improve mismatch messages (shipped 2026-05-06):
   - wrong battery type
   - already checked out
@@ -45,7 +45,7 @@ Focus on pages people touch daily. V2 should make the shipped model easier to ru
 
 ### Booking Create V2
 
-- Make battery warnings feel like guidance rather than generic alerts.
+- Make battery warnings feel like guidance rather than generic alerts. Shipped 2026-05-13.
 - Suggest compatible optional gear: batteries, media, readers, cages.
 - Keep battery entry quantity-based at booking creation.
 - Avoid forcing exact battery unit selection before pickup.
@@ -56,8 +56,10 @@ Do V3 only after V2 workflows feel solid.
 
 ### Battery Audit + Reporting
 
+Shipped 2026-05-13 through Missing Units and GAP-37 closure:
+
 - Missing batteries by unit.
-- Loss rate by SKU.
+- Missing rate by family.
 - Unit checkout history.
 - Repeated missing-unit patterns.
 - Aging checked-out battery units.
@@ -86,4 +88,4 @@ Do V3 only after V2 workflows feel solid.
 
 ## Recommended First Slice
 
-Start with Bulk Inventory / Batteries V2. The data model is now correct, but the staff-facing unit operations need to be easier before reports are worth building.
+Start with one of the remaining follow-ups in `tasks/bulk-battery-followups.md`: kiosk admin override visibility, optional gear suggestions, inventory health dashboard, attachment slot schema decision, templates/presets, or database-configurable equipment guidance.

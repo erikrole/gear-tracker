@@ -89,7 +89,7 @@ export function ScheduleFilters({ filters, entries, sourceSignal }: ScheduleFilt
             type="button"
             variant="ghost"
             size="sm"
-            className="h-8 gap-1.5 px-2.5 text-xs"
+            className="h-10 gap-1.5 px-2.5 text-xs"
             onClick={() => filters.setQueue(null)}
           >
             <XIcon className="size-3.5" />
@@ -308,7 +308,7 @@ export function ScheduleFilters({ filters, entries, sourceSignal }: ScheduleFilt
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-9 w-full text-xs font-medium"
+                  className="h-10 w-full text-xs font-medium"
                   onClick={filters.clearAll}
                 >
                   <XIcon className="size-3 mr-1" />

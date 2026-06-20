@@ -4,7 +4,7 @@
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Status: Shipped — iOS canonical (web kiosk deprecated 2026-04-24)
 - Created: 2026-04-07
-- Last Updated: 2026-06-15
+- Last Updated: 2026-06-19
 - Brief: `BRIEF_KIOSK.md`
 - Decision Refs: D-030, D-040
 
@@ -54,7 +54,7 @@ Files under `ios/Wisconsin/Kiosk/`:
   - `GET /events` — visible upcoming events for checkout context, capped to the next 7 days
   - `GET /users` — roster filtered by kiosk's `locationId`
   - `POST /identify` — resolves a scanned Wiscard value to an active, location-scoped kiosk user
-  - `GET /student/[userId]` — a student's active checkouts and reservations
+  - `GET /student/[userId]` — a student's active checkouts, pending pickups, due reservation pickups, and upcoming reservations
   - `POST /checkout/scan`, `POST /checkout/complete`, `GET /checkout/[id]`
   - `POST /checkin/[id]/scan`, `POST /checkin/[id]/complete`
   - `POST /pickup/[id]/scan`, `POST /pickup/[id]/confirm`
@@ -65,7 +65,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 - Serialized kiosk checkout, pickup, and return scans reconcile the asset's saved `locationId` to the kiosk's `locationId`. Pickup and return scan events store expected and actual location evidence plus a mismatch flag when the item or booking location does not match the kiosk handoff location.
 - Direct kiosk checkout requires an event or custom purpose before completion. If a selected event is used, the booking title is the event summary and the event is linked through both `Booking.eventId` and `BookingEvent`; custom detail is saved in notes when present. If no event is selected, the typed purpose becomes the booking title.
 - Direct kiosk checkout records pickup at the actual completion time and lets staff define the return date/time. Selected events prefill the due-back time from the event end when possible. The native kiosk preflights scanned items through `/api/kiosk/checkout/availability`, and checkout completion repeats the same conflict/shortage/unavailable checks inside the transaction before creating the booking.
-- Kiosk owns the reservation-to-custody bridge. When a due reservation is picked up at kiosk, the kiosk must validate identity and scans, create or open the linked checkout custody record through `sourceReservationId`, and mark the source reservation `COMPLETED` because the reservation was fulfilled.
+- Kiosk owns the reservation-to-custody bridge. When a due reservation is picked up at kiosk, the student hub surfaces it as pickup work. Scan evidence is staged on the source reservation, confirmation creates the linked checkout custody record through `sourceReservationId`, binds exact numbered units, opens checkout custody, and marks the source reservation `COMPLETED` because the reservation was fulfilled.
 - Stale pending-pickup checkouts auto-expire during the scheduled morning refresh after 48 hours past `startsAt`. Expiry cancels the booking, releases serialized allocations, restores held bulk stock, releases any scanned numbered units, cancels open scan sessions, and writes a system audit entry.
 - **Auth helpers:** `withKiosk()` (`src/lib/api.ts`) and `requireKiosk()` (`src/lib/auth.ts`) validate the kiosk-session cookie, enforce the server-side 7-day `sessionExpiresAt`, refresh `lastSeenAt`, throw 401 if expired/inactive/deactivated.
 
@@ -90,7 +90,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 | AC-15 | Heartbeat / dashboard 401 routes back to activation | ✅ Complete (2026-04-24) |
 | AC-16 | Idle dashboard survives partial read failures | ✅ Complete (2026-05-13) |
 | AC-17 | Stale pending-pickup checkouts auto-expire | ✅ Complete (2026-05-13) |
-| AC-18 | Reservation pickup can be fulfilled into linked checkout custody only through kiosk | Planned |
+| AC-18 | Reservation pickup can be fulfilled into linked checkout custody only through kiosk | ✅ Complete (2026-06-18) |
 
 ## Known Gaps
 
@@ -101,6 +101,11 @@ Files under `ios/Wisconsin/Kiosk/`:
 ## Change Log
 | Date | Change |
 |------|--------|
+| 2026-06-19 | Native kiosk checkout completion now routes through the shared kiosk API error path. Expired or deactivated kiosk sessions surface as `APIError.unauthorized`, matching heartbeat, pickup, and return flows instead of showing a generic checkout retry message until the next heartbeat. |
+| 2026-06-19 | Resumed kiosk pickup progress no longer dead-ends. Pending-pickup detail now marks already-scanned serialized items and already-picked numbered battery slots as complete, and the native pickup screen seeds its checklist from that server progress so a partially scanned pickup can be reopened and completed. |
+| 2026-06-19 | Kiosk checkout completion conflict hardening finished. The route already revalidates checkout availability inside the completion transaction; it now also maps a last-second allocation constraint race to a friendly 409 instead of a generic server error, with focused regression coverage in `tests/kiosk-checkout-complete-bulk-units.test.ts`. |
+| 2026-06-19 | Kiosk return-count regression coverage added. `tests/kiosk-checkin-routes.test.ts` now covers the return scan route, return completion route audit payload, and the battery-unit count path that prevents battery-only returns from reporting "All 0 items returned." |
+| 2026-06-18 | Kiosk-only custody Slice 4 shipped the reservation pickup bridge. `GET /api/kiosk/student/[userId]` now surfaces due `BOOKED` reservations as pickup work at the kiosk. `GET /api/kiosk/checkout/[id]`, pickup scan, and pickup confirm now accept due reservations alongside legacy `PENDING_PICKUP` checkouts. Reservation pickup stages serialized and numbered-bulk scan evidence on the source reservation, then confirmation creates an `OPEN` linked checkout with `sourceReservationId`, binds exact numbered units, writes kiosk pickup audit, emits checkout-opened badges, and marks the source reservation `COMPLETED`. |
 | 2026-06-16 | iOS kiosk all-day event display cleanup. `/api/kiosk/dashboard` now includes each idle event's `allDay` value and also treats local midnight-to-midnight spans as all-day when the stored flag is stale. Native kiosk event rows/details use the same fallback, so all-day events render without event-time rows, call-time rows, or worker call ranges. Timed kiosk events still show event and call ranges separately. |
 | 2026-06-16 | Kiosk UI batch (iOS + one API field). Student hub action list is now scrollable so several open checkouts/pickups can't push actions off-screen. Idle roster gains a keyboard-free A–Z quick filter (shown only when >12 names). Success screen is now action-aware — distinct icon, accent, and label for Checked Out / Returned / Picked Up (`KioskScreen.success` carries a `KioskSuccessInfo`). Bare loading spinners on the idle roster and student hub replaced with shimmering `KioskSkeletonBox` placeholders (static under Reduce Motion). Checkout detail drawer now shows asset thumbnails and a relative "due in/ago" chip — `GET /api/kiosk/checkout/[id]` items gained `imageUrl` (needs deploy for thumbnails to appear). Sleep overlay now shows a faint "Tap anywhere to wake" hint inside the pixel-shifted cluster. |
 | 2026-06-16 | Kiosk idle reliability + polish pass (iOS-only). The hidden Wiscard HID scanner field now unmounts while a detail sheet is open or the kiosk is asleep, so it can't swallow keystrokes or fight a presented view for first responder. The idle header gained a quiet session-health dot (Active / Stale / Offline) and, on a failed refresh, a "Can't reach the server" banner with a Retry that re-runs the dashboard/roster load and notes how old the shown data is. No API change. Deferred by user choice (not yet done): per-device rate limits on kiosk mutation routes, and a stable keychain-access-group entitlement. |

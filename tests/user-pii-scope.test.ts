@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Role } from "@prisma/client";
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: vi.fn(),
@@ -35,7 +36,7 @@ const adminUser = {
   id: "admin-1",
   email: "admin@test.com",
   name: "Admin",
-  role: "ADMIN" as const,
+  role: Role.ADMIN,
   avatarUrl: null,
 };
 
@@ -43,7 +44,7 @@ const staffUser = {
   id: "staff-1",
   email: "staff@test.com",
   name: "Staff",
-  role: "STAFF" as const,
+  role: Role.STAFF,
   avatarUrl: null,
 };
 
@@ -51,7 +52,7 @@ const studentUser = {
   id: "student-1",
   email: "student@test.com",
   name: "Student",
-  role: "STUDENT" as const,
+  role: Role.STUDENT,
   avatarUrl: null,
 };
 
@@ -65,11 +66,11 @@ function makeGetRequest(path: string) {
 }
 
 function mockExportUsers() {
-  vi.mocked(db.user.findMany).mockResolvedValue([
+  vi.mocked(db.user.findMany).mockResolvedValue(users([
     {
       id: "admin-target",
       name: "Admin Target",
-      role: "ADMIN",
+      role: Role.ADMIN,
       email: "admin-target@test.com",
       athleticsEmail: "admin-athletics@test.com",
       phone: "111-111-1111",
@@ -92,7 +93,7 @@ function mockExportUsers() {
     {
       id: "staff-target",
       name: "Staff Target",
-      role: "STAFF",
+      role: Role.STAFF,
       email: "staff-target@test.com",
       athleticsEmail: "staff-athletics@test.com",
       phone: "222-222-2222",
@@ -115,7 +116,7 @@ function mockExportUsers() {
     {
       id: "student-target",
       name: "Student Target",
-      role: "STUDENT",
+      role: Role.STUDENT,
       email: "student-target@test.com",
       athleticsEmail: "student-athletics@test.com",
       phone: "333-333-3333",
@@ -135,7 +136,11 @@ function mockExportUsers() {
       directReport: null,
       directReportName: null,
     },
-  ] as any);
+  ]));
+}
+
+function users(rows: unknown) {
+  return rows as Awaited<ReturnType<typeof db.user.findMany>>;
 }
 
 beforeEach(() => {
@@ -186,9 +191,9 @@ describe("user PII scope hardening", () => {
 
   it("limits form-options user directory to self for STUDENT callers", async () => {
     vi.mocked(requireAuth).mockResolvedValue(studentUser);
-    vi.mocked(db.user.findMany).mockResolvedValue([
+    vi.mocked(db.user.findMany).mockResolvedValue(users([
       { id: "student-1", name: "Student", avatarUrl: null },
-    ] as any);
+    ]));
 
     const res = await getFormOptions(makeGetRequest("/api/form-options"), noParams);
     const body = await res.json();

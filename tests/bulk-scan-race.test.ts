@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { ScanPhase, ScanType } from "@prisma/client";
 import { expectSerializableIsolation } from "./_helpers/assert-transaction";
 
 // ─── Transaction tracking ───────────────────────────────────────────────────
@@ -59,7 +60,15 @@ vi.mock("@/lib/services/availability", () => ({
 import { db } from "@/lib/db";
 import { recordScan } from "@/lib/services/scans";
 
-const mockTx = (db as any)._mockTx;
+type BulkScanMockTx = {
+  booking: { findUnique: ReturnType<typeof vi.fn> };
+  scanEvent: { findFirst: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn> };
+  bookingBulkItem: { findUnique: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> };
+  bulkSkuUnit: { findMany: ReturnType<typeof vi.fn>; updateMany: ReturnType<typeof vi.fn> };
+  bookingBulkUnitAllocation: { createMany: ReturnType<typeof vi.fn> };
+};
+
+const mockTx = (db as unknown as { _mockTx: BulkScanMockTx })._mockTx;
 
 beforeEach(() => {
   transactionCalls.length = 0;
@@ -106,8 +115,8 @@ describe("non-numbered bulk scan TOCTOU", () => {
     await recordScan({
       bookingId: "b-1",
       actorUserId: "actor-1",
-      phase: "CHECKOUT" as any,
-      scanType: "BULK_BIN" as any,
+      phase: ScanPhase.CHECKOUT,
+      scanType: ScanType.BULK_BIN,
       scanValue: "BIN-QR-1",
       quantity: 5,
     });
@@ -124,8 +133,8 @@ describe("non-numbered bulk scan TOCTOU", () => {
     await recordScan({
       bookingId: "b-1",
       actorUserId: "actor-1",
-      phase: "CHECKOUT" as any,
-      scanType: "BULK_BIN" as any,
+      phase: ScanPhase.CHECKOUT,
+      scanType: ScanType.BULK_BIN,
       scanValue: "BIN-QR-1",
       quantity: 5,
     });
@@ -140,8 +149,8 @@ describe("non-numbered bulk scan TOCTOU", () => {
     const result = await recordScan({
       bookingId: "b-1",
       actorUserId: "actor-1",
-      phase: "CHECKOUT" as any,
-      scanType: "BULK_BIN" as any,
+      phase: ScanPhase.CHECKOUT,
+      scanType: ScanType.BULK_BIN,
       scanValue: "BIN-QR-1",
       quantity: 2,
     });
@@ -162,8 +171,8 @@ describe("non-numbered bulk scan TOCTOU", () => {
       recordScan({
         bookingId: "b-1",
         actorUserId: "actor-1",
-        phase: "CHECKOUT" as any,
-        scanType: "BULK_BIN" as any,
+        phase: ScanPhase.CHECKOUT,
+        scanType: ScanType.BULK_BIN,
         scanValue: "BIN-QR-1",
         quantity: 5,
       })
@@ -177,8 +186,8 @@ describe("non-numbered bulk scan TOCTOU", () => {
       recordScan({
         bookingId: "b-1",
         actorUserId: "actor-1",
-        phase: "CHECKOUT" as any,
-        scanType: "BULK_BIN" as any,
+        phase: ScanPhase.CHECKOUT,
+        scanType: ScanType.BULK_BIN,
         scanValue: "BIN-QR-1",
       })
     ).rejects.toThrow("Bulk scans require a positive quantity");
@@ -217,8 +226,8 @@ describe("numbered bulk derived unit QR scans", () => {
     const result = await recordScan({
       bookingId: "b-1",
       actorUserId: "actor-1",
-      phase: "CHECKOUT" as any,
-      scanType: "BULK_BIN" as any,
+      phase: ScanPhase.CHECKOUT,
+      scanType: ScanType.BULK_BIN,
       scanValue: "94e068d1-7",
     });
 
@@ -249,8 +258,8 @@ describe("numbered bulk derived unit QR scans", () => {
     await expect(recordScan({
       bookingId: "b-1",
       actorUserId: "actor-1",
-      phase: "CHECKOUT" as any,
-      scanType: "BULK_BIN" as any,
+      phase: ScanPhase.CHECKOUT,
+      scanType: ScanType.BULK_BIN,
       scanValue: "not-this-bin-7",
     })).rejects.toThrow("Scanned bulk bin QR does not belong to this checkout");
   });
@@ -264,8 +273,8 @@ describe("numbered bulk derived unit QR scans", () => {
     await expect(recordScan({
       bookingId: "b-1",
       actorUserId: "actor-1",
-      phase: "CHECKOUT" as any,
-      scanType: "BULK_BIN" as any,
+      phase: ScanPhase.CHECKOUT,
+      scanType: ScanType.BULK_BIN,
       scanValue: "94e068d1-7",
     })).rejects.toThrow("Units not available");
   });
@@ -309,8 +318,8 @@ describe("numbered bulk derived unit QR scans", () => {
     await recordScan({
       bookingId: "b-1",
       actorUserId: "actor-1",
-      phase: "CHECKOUT" as any,
-      scanType: "BULK_BIN" as any,
+      phase: ScanPhase.CHECKOUT,
+      scanType: ScanType.BULK_BIN,
       scanValue: "94e068d1-7",
       quantity: 2,
     });

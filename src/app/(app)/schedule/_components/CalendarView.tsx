@@ -200,20 +200,24 @@ export function CalendarView({
       {/* ── Calendar Header ── */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-10 text-muted-foreground"
             onClick={prevMonth}
             aria-label="Previous month"
-            className="flex size-10 items-center justify-center rounded-md text-muted-foreground transition-[background-color,color,scale] hover:bg-muted/60 hover:text-foreground active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
           >
             <ChevronLeft className="size-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-10 text-muted-foreground"
             onClick={nextMonth}
             aria-label="Next month"
-            className="flex size-10 items-center justify-center rounded-md text-muted-foreground transition-[background-color,color,scale] hover:bg-muted/60 hover:text-foreground active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
           >
             <ChevronRight className="size-4" />
-          </button>
+          </Button>
           <h2
             className="text-xl font-bold tracking-tight uppercase"
             style={{ fontFamily: "var(--font-heading)" }}
@@ -284,7 +288,7 @@ export function CalendarView({
                   "min-h-[88px] p-1 overflow-hidden border-t border-border/40",
                   i % 7 !== 0 && "border-l border-l-border/40",
                   cell.day === null ? "bg-muted/15" : "bg-card",
-                  today && "bg-[#A00000]/[0.04]",
+                  today && "bg-[var(--wi-red)]/[0.04] dark:bg-[var(--wi-red)]/[0.08]",
                   isExpanded && "z-10 relative shadow-lg",
                 )}
               >
@@ -296,7 +300,7 @@ export function CalendarView({
                         className={cn(
                           "inline-flex items-center justify-center size-[26px] text-sm leading-none rounded-full font-bold transition-colors",
                           today
-                            ? "bg-[#A00000] text-white"
+                            ? "bg-[var(--wi-red)] text-white"
                             : "text-foreground hover:bg-muted/60",
                         )}
                         style={{ fontFamily: "var(--font-heading)" }}

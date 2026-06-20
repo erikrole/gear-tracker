@@ -273,7 +273,6 @@ export default function LicensesPage() {
           currentUserId={currentUserId}
           isAdmin={isAdmin}
           hasMyLicense={!!myLicense}
-          myClaimId={myLicense?.claimId ?? null}
           onClickAvailable={handleClickAvailable}
           onClickClaimed={handleClickClaimed}
           showExpiry={hasExpiry}

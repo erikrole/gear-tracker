@@ -159,7 +159,7 @@ Wizard Step 1 replaces single-event selection with multi-select. All current sin
 - `docs/AREA_CHECKOUTS.md` — add "Multi-Event Booking" subsection
 - `docs/AREA_EVENTS.md` — note reverse lookup behavior
 - `docs/DECISIONS.md` — D-NEW: why junction table over FK array
-- `tasks/sprint-april-plan.md` — mark Tier 4 Feature 1 as shipped
+- `tasks/archive/completed-2026-06/sprint-april-plan-2026-04-17.md` — mark Tier 4 Feature 1 as shipped
 
 ---
 

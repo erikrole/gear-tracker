@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { BulkUnitStatus, Role } from "@prisma/client";
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: vi.fn(),
@@ -21,6 +22,14 @@ import { GET as getBatteryOps } from "@/app/api/bulk-skus/batteries/route";
 
 const noParams = { params: Promise.resolve({}) };
 
+function batterySkus(rows: unknown) {
+  return rows as Awaited<ReturnType<typeof db.bulkSku.findMany>>;
+}
+
+function cameraAssets(rows: unknown) {
+  return rows as Awaited<ReturnType<typeof db.asset.findMany>>;
+}
+
 function makeGetRequest(path: string) {
   return new Request(`https://app.example.com${path}`, {
     method: "GET",
@@ -34,13 +43,14 @@ beforeEach(() => {
     id: "staff-1",
     name: "Staff",
     email: "staff@example.com",
-    role: "STAFF",
-  } as any);
+    role: Role.STAFF,
+    avatarUrl: null,
+  });
 });
 
 describe("battery ops live counts", () => {
   it("returns no-store battery metrics derived from numbered unit status", async () => {
-    vi.mocked(db.bulkSku.findMany).mockResolvedValue([
+    vi.mocked(db.bulkSku.findMany).mockResolvedValue(batterySkus([
       {
         id: "sku-battery",
         name: "Sony Battery",
@@ -55,7 +65,7 @@ describe("battery ops live counts", () => {
           {
             id: "unit-1",
             unitNumber: 1,
-            status: "AVAILABLE",
+            status: BulkUnitStatus.AVAILABLE,
             notes: null,
             labelPrintedAt: new Date("2026-06-01T00:00:00.000Z"),
             labelPrintedById: "staff-1",
@@ -65,7 +75,7 @@ describe("battery ops live counts", () => {
           {
             id: "unit-2",
             unitNumber: 2,
-            status: "CHECKED_OUT",
+            status: BulkUnitStatus.CHECKED_OUT,
             notes: null,
             labelPrintedAt: null,
             labelPrintedById: null,
@@ -84,8 +94,8 @@ describe("battery ops live counts", () => {
               },
             }],
           },
-          { id: "unit-3", unitNumber: 3, status: "LOST", notes: null, labelPrintedAt: null, labelPrintedById: null, labelPrintBatchId: null, allocations: [] },
-          { id: "unit-4", unitNumber: 4, status: "RETIRED", notes: null, labelPrintedAt: null, labelPrintedById: null, labelPrintBatchId: null, allocations: [] },
+          { id: "unit-3", unitNumber: 3, status: BulkUnitStatus.LOST, notes: null, labelPrintedAt: null, labelPrintedById: null, labelPrintBatchId: null, allocations: [] },
+          { id: "unit-4", unitNumber: 4, status: BulkUnitStatus.RETIRED, notes: null, labelPrintedAt: null, labelPrintedById: null, labelPrintBatchId: null, allocations: [] },
         ],
       },
       {
@@ -98,17 +108,17 @@ describe("battery ops live counts", () => {
         location: { id: "loc-1", name: "Camp Randall" },
         categoryRel: { id: "cat-2", name: "Cables" },
         balances: [{ onHandQuantity: 1 }],
-        units: [{ id: "unit-cable", unitNumber: 1, status: "AVAILABLE", notes: null, allocations: [] }],
+        units: [{ id: "unit-cable", unitNumber: 1, status: BulkUnitStatus.AVAILABLE, notes: null, allocations: [] }],
       },
-    ] as any);
-    vi.mocked(db.asset.findMany).mockResolvedValue([
+    ]));
+    vi.mocked(db.asset.findMany).mockResolvedValue(cameraAssets([
       {
         brand: "Sony",
         model: "FX3",
         type: "Camera",
         category: { name: "Cameras" },
       },
-    ] as any);
+    ]));
 
     const res = await getBatteryOps(makeGetRequest("/api/bulk-skus/batteries"), noParams);
     const body = await res.json();
@@ -158,7 +168,7 @@ describe("battery ops live counts", () => {
   });
 
   it("includes quantity-tracked battery families with stock-balance counts", async () => {
-    vi.mocked(db.bulkSku.findMany).mockResolvedValue([
+    vi.mocked(db.bulkSku.findMany).mockResolvedValue(batterySkus([
       {
         id: "sku-aa",
         name: "AA Batteries",
@@ -171,8 +181,8 @@ describe("battery ops live counts", () => {
         balances: [{ onHandQuantity: 7 }],
         units: [],
       },
-    ] as any);
-    vi.mocked(db.asset.findMany).mockResolvedValue([] as any);
+    ]));
+    vi.mocked(db.asset.findMany).mockResolvedValue(cameraAssets([]));
 
     const res = await getBatteryOps(makeGetRequest("/api/bulk-skus/batteries"), noParams);
     const body = await res.json();

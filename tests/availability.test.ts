@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { makeAsset, makeBulkStockBalance } from "./_helpers/factories";
+import { BookingStatus } from "@prisma/client";
 
 // No module mocking needed — these functions accept tx as a parameter
 import {
@@ -22,13 +22,19 @@ function createMockTx() {
   };
 }
 
+type AvailabilityTx = Parameters<typeof checkAvailability>[0];
+
+function availabilityTx(tx: ReturnType<typeof createMockTx>): AvailabilityTx {
+  return tx as unknown as AvailabilityTx;
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // checkSerializedConflicts
 // ═════════════════════════════════════════════════════════════════════════════
 describe("checkSerializedConflicts", () => {
   it("returns empty for no asset IDs", async () => {
     const tx = createMockTx();
-    const result = await checkSerializedConflicts(tx as any, {
+    const result = await checkSerializedConflicts(availabilityTx(tx), {
       serializedAssetIds: [],
       startsAt: new Date("2026-04-01"),
       endsAt: new Date("2026-04-02"),
@@ -47,7 +53,7 @@ describe("checkSerializedConflicts", () => {
       booking: { title: "Other booking" },
     }]);
 
-    const result = await checkSerializedConflicts(tx as any, {
+    const result = await checkSerializedConflicts(availabilityTx(tx), {
       serializedAssetIds: ["a-1"],
       startsAt: new Date("2026-04-01T10:00:00Z"),
       endsAt: new Date("2026-04-01T12:00:00Z"),
@@ -62,7 +68,7 @@ describe("checkSerializedConflicts", () => {
     const tx = createMockTx();
     tx.assetAllocation.findMany.mockResolvedValue([]);
 
-    const result = await checkSerializedConflicts(tx as any, {
+    const result = await checkSerializedConflicts(availabilityTx(tx), {
       serializedAssetIds: ["a-1"],
       startsAt: new Date("2026-04-01T08:00:00Z"),
       endsAt: new Date("2026-04-01T12:00:00Z"),
@@ -89,7 +95,7 @@ describe("checkSerializedConflicts", () => {
       booking: { title: "Late return" },
     }]);
 
-    const result = await checkSerializedConflicts(tx as any, {
+    const result = await checkSerializedConflicts(availabilityTx(tx), {
       serializedAssetIds: ["a-1"],
       startsAt: new Date("2026-04-01T08:00:00Z"),
       endsAt: new Date("2026-04-01T12:00:01Z"),
@@ -114,7 +120,7 @@ describe("checkSerializedConflicts", () => {
       booking: { title: "Pending pickup" },
     }]);
 
-    const result = await checkSerializedConflicts(tx as any, {
+    const result = await checkSerializedConflicts(availabilityTx(tx), {
       serializedAssetIds: ["a-1"],
       startsAt: new Date("2026-04-01T10:00:00Z"),
       endsAt: new Date("2026-04-01T12:00:00Z"),
@@ -142,7 +148,7 @@ describe("checkSerializedConflicts", () => {
     const tx = createMockTx();
     tx.assetAllocation.findMany.mockResolvedValue([]);
 
-    await checkSerializedConflicts(tx as any, {
+    await checkSerializedConflicts(availabilityTx(tx), {
       serializedAssetIds: ["a-1"],
       startsAt: new Date("2026-04-01"),
       endsAt: new Date("2026-04-02"),
@@ -165,7 +171,7 @@ describe("checkSerializedConflicts", () => {
 describe("checkUpcomingSerializedCommitments", () => {
   it("returns empty for no asset IDs", async () => {
     const tx = createMockTx();
-    const result = await checkUpcomingSerializedCommitments(tx as any, {
+    const result = await checkUpcomingSerializedCommitments(availabilityTx(tx), {
       serializedAssetIds: [],
       endsAt: new Date("2026-04-01T12:00:00Z"),
     });
@@ -199,7 +205,7 @@ describe("checkUpcomingSerializedCommitments", () => {
       },
     ]);
 
-    const result = await checkUpcomingSerializedCommitments(tx as any, {
+    const result = await checkUpcomingSerializedCommitments(availabilityTx(tx), {
       serializedAssetIds: ["a-1", "a-2"],
       endsAt: new Date("2026-04-01T17:00:00Z"),
       excludeBookingId: "b-self",
@@ -250,7 +256,7 @@ describe("checkSerializedTurnaroundRisks", () => {
     const tx = createMockTx();
     tx.checkinItemReport.findMany.mockResolvedValue([]);
 
-    const result = await checkSerializedTurnaroundRisks(tx as any, {
+    const result = await checkSerializedTurnaroundRisks(availabilityTx(tx), {
       serializedAssetIds: ["a-1"],
       locationId: "loc-current",
       endsAt: new Date("2026-04-01T20:00:00Z"),
@@ -260,7 +266,7 @@ describe("checkSerializedTurnaroundRisks", () => {
         bookingTitle: "Morning shoot",
         startsAt: new Date("2026-04-02T08:00:00Z"),
         endsAt: new Date("2026-04-02T12:00:00Z"),
-        status: "BOOKED" as any,
+        status: BookingStatus.BOOKED,
         nextLocationId: "loc-away",
         nextLocationName: "Camp Randall",
       }],
@@ -302,7 +308,7 @@ describe("checkSerializedTurnaroundRisks", () => {
       },
     ]);
 
-    const result = await checkSerializedTurnaroundRisks(tx as any, {
+    const result = await checkSerializedTurnaroundRisks(availabilityTx(tx), {
       serializedAssetIds: ["a-1", "a-2"],
       locationId: "loc-1",
       endsAt: new Date("2026-04-01T20:00:00Z"),
@@ -354,7 +360,7 @@ describe("checkBulkTurnaroundRisks", () => {
       },
     ]);
 
-    const result = await checkBulkTurnaroundRisks(tx as any, {
+    const result = await checkBulkTurnaroundRisks(availabilityTx(tx), {
       locationId: "loc-1",
       bulkItems: [{ bulkSkuId: "sku-1", quantity: 2 }],
       endsAt: new Date("2026-04-01T22:00:00Z"),
@@ -380,7 +386,7 @@ describe("checkBulkTurnaroundRisks", () => {
 describe("checkAssetStatuses", () => {
   it("returns empty for no asset IDs", async () => {
     const tx = createMockTx();
-    const result = await checkAssetStatuses(tx as any, { serializedAssetIds: [] });
+    const result = await checkAssetStatuses(availabilityTx(tx), { serializedAssetIds: [] });
     expect(result).toEqual([]);
   });
 
@@ -390,7 +396,7 @@ describe("checkAssetStatuses", () => {
       { id: "a-1", status: "MAINTENANCE", availableForCheckout: true, availableForReservation: true },
     ]);
 
-    const result = await checkAssetStatuses(tx as any, { serializedAssetIds: ["a-1"] });
+    const result = await checkAssetStatuses(availabilityTx(tx), { serializedAssetIds: ["a-1"] });
     expect(result).toHaveLength(1);
     expect(result[0]).toEqual({ assetId: "a-1", status: "MAINTENANCE" });
   });
@@ -399,7 +405,7 @@ describe("checkAssetStatuses", () => {
     const tx = createMockTx();
     tx.asset.findMany.mockResolvedValue([]);
 
-    const result = await checkAssetStatuses(tx as any, { serializedAssetIds: ["a-missing"] });
+    const result = await checkAssetStatuses(availabilityTx(tx), { serializedAssetIds: ["a-missing"] });
     expect(result).toHaveLength(1);
     expect(result[0]).toEqual({ assetId: "a-missing", status: "NOT_FOUND" });
   });
@@ -410,7 +416,7 @@ describe("checkAssetStatuses", () => {
       { id: "a-1", status: "AVAILABLE", availableForCheckout: false, availableForReservation: true },
     ]);
 
-    const result = await checkAssetStatuses(tx as any, {
+    const result = await checkAssetStatuses(availabilityTx(tx), {
       serializedAssetIds: ["a-1"],
       bookingKind: "CHECKOUT",
     });
@@ -424,7 +430,7 @@ describe("checkAssetStatuses", () => {
       { id: "a-1", status: "AVAILABLE", availableForCheckout: true, availableForReservation: false },
     ]);
 
-    const result = await checkAssetStatuses(tx as any, {
+    const result = await checkAssetStatuses(availabilityTx(tx), {
       serializedAssetIds: ["a-1"],
       bookingKind: "RESERVATION",
     });
@@ -438,7 +444,7 @@ describe("checkAssetStatuses", () => {
       { id: "a-1", status: "AVAILABLE", availableForCheckout: true, availableForReservation: true },
     ]);
 
-    const result = await checkAssetStatuses(tx as any, {
+    const result = await checkAssetStatuses(availabilityTx(tx), {
       serializedAssetIds: ["a-1"],
       bookingKind: "CHECKOUT",
     });
@@ -452,7 +458,7 @@ describe("checkAssetStatuses", () => {
 describe("checkBulkShortages", () => {
   it("returns empty for no bulk items", async () => {
     const tx = createMockTx();
-    const result = await checkBulkShortages(tx as any, {
+    const result = await checkBulkShortages(availabilityTx(tx), {
       locationId: "loc-1",
       bulkItems: [],
       startsAt: new Date("2026-04-01T08:00:00Z"),
@@ -468,7 +474,7 @@ describe("checkBulkShortages", () => {
     ]);
     tx.bookingBulkItem.groupBy.mockResolvedValue([]);
 
-    const result = await checkBulkShortages(tx as any, {
+    const result = await checkBulkShortages(availabilityTx(tx), {
       locationId: "loc-1",
       bulkItems: [{ bulkSkuId: "sku-1", quantity: 5 }],
       startsAt: new Date("2026-04-01T08:00:00Z"),
@@ -483,7 +489,7 @@ describe("checkBulkShortages", () => {
     tx.bulkStockBalance.findMany.mockResolvedValue([]);
     tx.bookingBulkItem.groupBy.mockResolvedValue([]);
 
-    const result = await checkBulkShortages(tx as any, {
+    const result = await checkBulkShortages(availabilityTx(tx), {
       locationId: "loc-1",
       bulkItems: [{ bulkSkuId: "sku-missing", quantity: 1 }],
       startsAt: new Date("2026-04-01T08:00:00Z"),
@@ -500,7 +506,7 @@ describe("checkBulkShortages", () => {
     ]);
     tx.bookingBulkItem.groupBy.mockResolvedValue([]);
 
-    const result = await checkBulkShortages(tx as any, {
+    const result = await checkBulkShortages(availabilityTx(tx), {
       locationId: "loc-1",
       bulkItems: [{ bulkSkuId: "sku-1", quantity: 50 }],
       startsAt: new Date("2026-04-01T08:00:00Z"),
@@ -518,7 +524,7 @@ describe("checkBulkShortages", () => {
       { bulkSkuId: "sku-1", _sum: { plannedQuantity: 7 } },
     ]);
 
-    const result = await checkBulkShortages(tx as any, {
+    const result = await checkBulkShortages(availabilityTx(tx), {
       locationId: "loc-1",
       bulkItems: [{ bulkSkuId: "sku-1", quantity: 4 }],
       startsAt: new Date("2026-04-01T08:00:00Z"),
@@ -547,7 +553,7 @@ describe("checkBulkShortages", () => {
     ]);
     tx.bookingBulkItem.groupBy.mockResolvedValue([]);
 
-    const result = await checkBulkShortages(tx as any, {
+    const result = await checkBulkShortages(availabilityTx(tx), {
       locationId: "loc-1",
       bulkItems: [{ bulkSkuId: "sku-1", quantity: 10 }],
       startsAt: new Date("2026-04-01T08:00:00Z"),
@@ -581,7 +587,7 @@ describe("checkAvailability", () => {
     tx.checkinItemReport.findMany.mockResolvedValue([]);
     tx.asset.findMany.mockResolvedValue([]);
 
-    const result = await checkAvailability(tx as any, {
+    const result = await checkAvailability(availabilityTx(tx), {
       locationId: "loc-1",
       startsAt: new Date("2026-04-01"),
       endsAt: new Date("2026-04-02"),

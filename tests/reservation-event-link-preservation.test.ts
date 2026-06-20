@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Role } from "@prisma/client";
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: vi.fn(),
@@ -43,7 +44,7 @@ const staffUser = {
   id: "staff-1",
   email: "staff@example.com",
   name: "Staff One",
-  role: "STAFF" as any,
+  role: Role.STAFF,
   avatarUrl: null,
 };
 
@@ -78,19 +79,31 @@ function ctx() {
   return { params: Promise.resolve({ id: RESERVATION_ID }) };
 }
 
+function bookingActionResult(row: unknown) {
+  return row as Awaited<ReturnType<typeof requireBookingAction>>;
+}
+
+function sourceReservation(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.booking.findUniqueOrThrow>>;
+}
+
+function createdBooking(row: unknown) {
+  return row as Awaited<ReturnType<typeof createBooking>>;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(requireAuth).mockResolvedValue(staffUser);
-  vi.mocked(requireBookingAction).mockResolvedValue(baseSource as any);
-  vi.mocked(createBooking).mockResolvedValue({ id: "new-booking", title: "x" } as any);
+  vi.mocked(requireBookingAction).mockResolvedValue(bookingActionResult(baseSource));
+  vi.mocked(createBooking).mockResolvedValue(createdBooking({ id: "new-booking", title: "x" }));
 });
 
 describe("reservation convert custody boundary", () => {
   it("blocks app/web conversion before creating checkout custody", async () => {
-    vi.mocked(db.booking.findUniqueOrThrow).mockResolvedValue({
+    vi.mocked(db.booking.findUniqueOrThrow).mockResolvedValue(sourceReservation({
       ...baseSource,
       events: [{ eventId: "evt-a" }, { eventId: "evt-b" }],
-    } as any);
+    }));
 
     const res = await convert(request(`/api/reservations/${RESERVATION_ID}/convert`), ctx());
     const body = await res.json();
@@ -104,10 +117,10 @@ describe("reservation convert custody boundary", () => {
 
 describe("reservation duplicate preserves multi-event links", () => {
   it("clones ordered eventIds and omits legacy eventId for multi-event sources", async () => {
-    vi.mocked(db.booking.findUniqueOrThrow).mockResolvedValue({
+    vi.mocked(db.booking.findUniqueOrThrow).mockResolvedValue(sourceReservation({
       ...baseSource,
       events: [{ eventId: "evt-a" }, { eventId: "evt-b" }],
-    } as any);
+    }));
 
     await duplicate(request(`/api/reservations/${RESERVATION_ID}/duplicate`), ctx());
 
@@ -117,10 +130,10 @@ describe("reservation duplicate preserves multi-event links", () => {
   });
 
   it("falls back to legacy eventId for single-event sources with no junction rows", async () => {
-    vi.mocked(db.booking.findUniqueOrThrow).mockResolvedValue({
+    vi.mocked(db.booking.findUniqueOrThrow).mockResolvedValue(sourceReservation({
       ...baseSource,
       events: [],
-    } as any);
+    }));
 
     await duplicate(request(`/api/reservations/${RESERVATION_ID}/duplicate`), ctx());
 
@@ -130,11 +143,11 @@ describe("reservation duplicate preserves multi-event links", () => {
   });
 
   it("rejects duplicating a non-BOOKED reservation before calling createBooking", async () => {
-    vi.mocked(db.booking.findUniqueOrThrow).mockResolvedValue({
+    vi.mocked(db.booking.findUniqueOrThrow).mockResolvedValue(sourceReservation({
       ...baseSource,
       status: "CANCELLED",
       events: [],
-    } as any);
+    }));
 
     const res = await duplicate(request(`/api/reservations/${RESERVATION_ID}/duplicate`), ctx());
 

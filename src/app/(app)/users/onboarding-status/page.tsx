@@ -99,7 +99,8 @@ export default function OnboardingStatusPage() {
     setLocalRows(null);
   }
 
-  const rows = localRows ?? data?.data ?? [];
+  const fetchedRows = data?.data;
+  const rows = useMemo(() => localRows ?? fetchedRows ?? [], [fetchedRows, localRows]);
   const enrichedRows = useMemo(
     () => rows.map((row) => ({ ...row, onboardingStatus: statusFor(row, now) })),
     [now, rows],

@@ -190,7 +190,7 @@ export function useAssignmentGrid(): UseAssignmentGridResult {
     queryKey: ["assignment-grid", eventsUrl, groupsUrl],
     queryFn: ({ signal }) => fetchGridData(eventsUrl, groupsUrl, signal),
   });
-  const visibleEvents = hydrated ? allEvents : [];
+  const visibleEvents = useMemo(() => hydrated ? allEvents : [], [allEvents, hydrated]);
   const loading = !hydrated || isLoading;
 
   useEffect(() => {

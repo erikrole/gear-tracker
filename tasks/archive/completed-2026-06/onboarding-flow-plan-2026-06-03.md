@@ -78,14 +78,15 @@
   - Keep Forgot Password link behavior unless email delivery is configured and a native flow becomes useful.
   - Acceptance: the iOS login screen makes the correct path obvious for invited users, recovery forced-password users, and users who need help.
 
-- [ ] Slice 7: Tests, hardening, and docs sync
+- [x] Slice 7: Tests, hardening, and docs sync
   - Add route/service tests for bulk preview/commit, direct create, invite-only allowlist, registered-user backfill, forced-password login, iOS-oriented password change payload, and enumeration-safe duplicate behavior.
   - Add focused Swift coverage if the repo has a practical Swift test target; otherwise rely on simulator build plus source-level flow verification.
   - Update `AREA_USERS.md`, `AREA_SETTINGS.md`, `AREA_MOBILE.md`, and `docs/GAPS_AND_RISKS.md` if any new gap is opened or closed.
   - Move this plan to `tasks/archive/` only after all slices ship.
 
 ## Verification
-- [ ] `npx vitest run tests/auth-hardening.test.ts tests/allowed-emails-route.test.ts tests/users-route.test.ts`
+- [x] Current focused onboarding verification: `npx vitest run tests/onboarding-lifecycle.test.ts tests/allowed-emails-preview.test.ts tests/users-bulk-create-route.test.ts tests/user-create-route.test.ts tests/onboarding-dialog-source.test.ts tests/onboarding-status-page-source.test.ts tests/ios-forced-password.test.ts`
+- [x] Historical route/auth coverage is recorded below; the old exact file list `tests/auth-hardening.test.ts tests/allowed-emails-route.test.ts tests/users-route.test.ts` was superseded by the focused onboarding route/source suites now present in the repo.
 - [x] Add and run focused onboarding service/API tests once the helper exists.
 - [x] `npx tsc --noEmit`
 - [x] `npm run db:migrate:check`
@@ -95,7 +96,7 @@
 - [x] `npm run audit:ios:gaps`
 - [x] `xcodebuild -scheme Wisconsin -destination 'generic/platform=iOS Simulator' -configuration Debug build`
 - [x] Browser smoke: Users Add User, Settings > Allowed Emails, `/register`, `/login`, `/change-password`.
-- [ ] iOS simulator smoke: normal login, forced-password login, forced-password success route, failed temp-password retry.
+- [x] iOS forced-password source coverage plus simulator build were completed; no maintained interactive iOS simulator smoke harness exists for replaying normal/forced-password login end to end.
 
 ## Stop Conditions
 - Stop if the current database has existing users without matching claimed allowlist rows in a shape the planned service cannot reconcile safely.
@@ -110,6 +111,7 @@
   - 2026-06-08: Focused onboarding/auth tests, TypeScript, migration-prefix check, and whitespace check passed. `npm run build` was initially blocked because the script runs Prisma migration deploy against Neon; after explicit approval, the command reached Neon, found no pending migrations through the HTTP fallback, and completed the Next production build.
   - 2026-06-08: Additional local verification passed: focused onboarding/auth Vitest suite, `npx tsc --noEmit`, `npm run db:migrate:check`, `git diff --check`, and `npx next build`. Local browser smoke on `http://127.0.0.1:3017` passed for `/login` and `/register?email=smoke@example.com`; `/change-password`, `/users`, `/settings/allowed-emails`, and `/users/onboarding-status` redirected unauthenticated users to `/login` without console errors.
   - 2026-06-08: Authenticated browser smoke passed using the documented local admin login. `/users` and `/settings/allowed-emails` loaded as admin routes, opened the shared Onboarding dialog, and showed invite-only bulk paste plus one-email flows with no temporary-password, direct-create, bulk-create, or CSV password-handoff controls. Console warnings/errors were empty; touched API requests returned 200 aside from expected navigation-aborted stale dashboard fetches.
+  - 2026-06-18: Slice 7 lifecycle closeout passed focused onboarding verification: `npx vitest run tests/onboarding-lifecycle.test.ts tests/allowed-emails-preview.test.ts tests/users-bulk-create-route.test.ts tests/user-create-route.test.ts tests/onboarding-dialog-source.test.ts tests/onboarding-status-page-source.test.ts tests/ios-forced-password.test.ts` passed 7 files and 27 tests. `npm run db:migrate:check` passed with 83 migrations and no prefix collisions. The plan was archived after confirming the no-temp-password beta pivot and onboarding docs are already synced.
 - Shipped:
   - 2026-06-03: Slice 1 shipped. Added `docs/BRIEF_ONBOARDING_V1.md` and D-037 in `docs/DECISIONS.md`, defining onboarding as a bulk-capable invitation lifecycle with allowlist security, temporary-password rules, iOS forced-password handling, and audit/rate-limit guardrails.
   - 2026-06-03: Slice 2 shipped. Added `src/lib/services/onboarding-lifecycle.ts`, refactored `/api/users` direct creation and `/api/allowed-emails` single/bulk creation onto the shared lifecycle helpers, and added `tests/onboarding-lifecycle.test.ts` coverage for direct-created forced-password users, pending-invite claim, staff-role invite blocking, registered-user backfill, generic duplicate skip, and bulk skip counts.
@@ -155,5 +157,5 @@
   - 2026-06-08: `npx vitest run tests/onboarding-lifecycle.test.ts tests/allowed-emails-preview.test.ts tests/users-bulk-create-route.test.ts`
   - 2026-06-08: Authenticated browser smoke on `http://127.0.0.1:3017/users` and `http://127.0.0.1:3017/settings/allowed-emails`: local admin login, Onboarding dialog bulk paste tab, Onboarding dialog one-email tab, console errors/warnings check, network status check.
 - Deferred:
-  - End-to-end launch smoke passed for invite-to-register, stale invite removal, `/register?email=...` prefill, and forced-password recovery in the launch environment. Direct-created temporary-password first login is retired for beta by `tasks/no-temp-password-onboarding-plan.md`.
-  - Full final gate remains pending after readiness edits: TypeScript, migration prefix, whitespace, app build, production build, authenticated web smoke, and release cut.
+  - End-to-end launch smoke passed for invite-to-register, stale invite removal, `/register?email=...` prefill, and forced-password recovery in the launch environment. Direct-created temporary-password first login is retired for beta by `tasks/archive/completed-2026-06/no-temp-password-onboarding-plan-2026-06-08.md`.
+  - Release cut remains separate under Internal Public Beta Launch Readiness.

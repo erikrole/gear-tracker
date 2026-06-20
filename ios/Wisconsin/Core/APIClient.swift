@@ -433,6 +433,8 @@ final class APIClient {
         qr: String? = nil,
         statuses: Set<AssetComputedStatus> = [],
         categoryId: String? = nil,
+        locationId: String? = nil,
+        sort: String? = nil,
         favoritesOnly: Bool = false,
         limit: Int = 30,
         offset: Int = 0
@@ -447,6 +449,8 @@ final class APIClient {
             items.append(.init(name: "status", value: status.rawValue))
         }
         if let categoryId { items.append(.init(name: "category_id", value: categoryId)) }
+        if let locationId, !locationId.isEmpty { items.append(.init(name: "location_id", value: locationId)) }
+        if let sort, !sort.isEmpty { items.append(.init(name: "sort", value: sort)) }
         if favoritesOnly { items.append(.init(name: "favorites_only", value: "true")) }
         return try await perform(request(path: "/api/assets", queryItems: items))
     }

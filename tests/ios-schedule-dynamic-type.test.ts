@@ -23,9 +23,9 @@ describe("iOS Schedule Dynamic Type", () => {
       "// MARK: - Event Row",
     );
 
-    expect(dateHeader).toContain(".font(.caption2.weight(.bold))");
-    expect(dateHeader).toContain(".font(.title2.weight(.heavy))");
-    expect(dateHeader).toContain(".frame(minWidth: 36)");
+    expect(dateHeader).toContain(".font(.caption2.weight(.semibold))");
+    expect(dateHeader).toContain(".font(.title2.weight(.bold))");
+    expect(dateHeader).toContain(".frame(width: 44)");
     expect(dateHeader).not.toContain(".font(.system(size:");
   });
 
@@ -37,10 +37,9 @@ describe("iOS Schedule Dynamic Type", () => {
       "private func calendarSame",
     );
 
-    expect(eventRow).toContain(".font(.caption2.weight(.bold))");
     expect(eventRow).toContain(".font(.caption2.weight(.semibold))");
-    expect(eventRow).toContain(".font(.caption2.weight(.medium))");
-    expect(eventRow).toContain(".font(.caption2.weight(.medium).monospacedDigit())");
+    expect(eventRow).toContain(".font(.caption2.weight(.semibold).monospacedDigit())");
+    expect(eventRow).toContain(".font(.subheadline)");
     expect(eventRow).not.toContain(".font(.system(size:");
   });
 });

@@ -101,7 +101,6 @@ export default function useItemData(id: string): UseItemDataReturn {
       .finally(() => {
         if (!controller.signal.aborted) setRefreshing(false);
       });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, setBreadcrumbLabel]);
 
   const loadCategories = useCallback(() => {

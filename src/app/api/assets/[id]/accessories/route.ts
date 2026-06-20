@@ -4,7 +4,6 @@ import { createAuditEntry } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
-import { Prisma } from "@prisma/client";
 
 const attachSchema = z.object({
   childAssetId: z.string().cuid(),

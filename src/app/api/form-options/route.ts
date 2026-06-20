@@ -16,6 +16,7 @@ export const GET = withAuth(async (_req, { user }) => {
       orderBy: { name: "asc" },
       select: {
         id: true, name: true, category: true, unit: true, locationId: true, binQrCodeValue: true, trackByNumber: true,
+        imageUrl: true,
         minThreshold: true,
         categoryRel: { select: { name: true } },
         balances: { select: { onHandQuantity: true } },
@@ -33,6 +34,7 @@ export const GET = withAuth(async (_req, { user }) => {
     return {
       id: s.id, name: s.name, category: s.category, unit: s.unit,
       locationId: s.locationId, binQrCodeValue: s.binQrCodeValue, trackByNumber: s.trackByNumber,
+      imageUrl: s.imageUrl,
       minThreshold: s.minThreshold,
       categoryName: s.categoryRel?.name ?? null,
       currentQuantity: onHandQuantity,

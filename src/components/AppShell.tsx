@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { SearchIcon, ClipboardCheckIcon, CalendarCheckIcon, BellIcon, UserIcon, LayoutGridIcon, LayersIcon, CalendarPlusIcon, ScanIcon, ArrowRightIcon } from "lucide-react";
 import AppSidebar from "./Sidebar";
@@ -265,7 +265,7 @@ export default function AppShell({
     }, 200);
 
     return () => { clearTimeout(timer); controller.abort(); };
-  }, [cmdQuery, user?.role]);
+  }, [cmdQuery, pathname, user?.role]);
 
   // Recent searches (localStorage)
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
@@ -373,12 +373,6 @@ export default function AppShell({
               {cmdResults.filter((r): r is EntitySearchResult => r.type === "item").map((r) => {
                 const status = r.computedStatus ?? "AVAILABLE";
                 const isOverdue = r.activeBooking?.isOverdue ?? false;
-                const dotColor = isOverdue ? STATUS_STYLES.red.dot
-                  : status === "CHECKED_OUT" ? STATUS_STYLES.blue.dot
-                  : status === "RESERVED" ? STATUS_STYLES.purple.dot
-                  : status === "MAINTENANCE" ? STATUS_STYLES.orange.dot
-                  : status === "RETIRED" ? STATUS_STYLES.gray.dot
-                  : STATUS_STYLES.green.dot;
                 const badgeStyle = isOverdue ? STATUS_STYLES.red.badge
                   : status === "CHECKED_OUT" ? STATUS_STYLES.blue.badge
                   : status === "RESERVED" ? STATUS_STYLES.purple.badge

@@ -60,6 +60,18 @@ function makeGetRequest(url = "https://app.example.com/api/badges") {
   });
 }
 
+function badgeDefinitionRows(rows: unknown[]) {
+  return rows as Awaited<ReturnType<typeof db.badgeDefinition.findMany>>;
+}
+
+function userRow(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.user.findUnique>>;
+}
+
+function systemConfigRow(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.systemConfig.findUnique>>;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   process.env.BADGES_ENABLED = "true";
@@ -84,7 +96,7 @@ describe("GET /api/badges", () => {
 
   it("returns active badge definitions", async () => {
     vi.mocked(requireAuth).mockResolvedValue(studentUser);
-    vi.mocked(db.badgeDefinition.findMany).mockResolvedValue([
+    vi.mocked(db.badgeDefinition.findMany).mockResolvedValue(badgeDefinitionRows([
       {
         id: "definition-1",
         key: "first_checkout",
@@ -99,8 +111,8 @@ describe("GET /api/badges", () => {
         active: true,
         sortOrder: 10,
         createdAt: new Date("2026-05-09T12:00:00.000Z"),
-      } as any,
-    ]);
+      },
+    ]));
 
     const res = await getBadgeCatalog(makeGetRequest(), { params: Promise.resolve({}) });
     const body = await res.json();
@@ -145,9 +157,9 @@ describe("GET /api/badges/user/[userId]", () => {
 
   it("returns active and historically earned inactive badges for visible users", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
-    vi.mocked(db.user.findUnique).mockResolvedValue({ id: "student-1", role: "STUDENT", active: true } as any);
-    vi.mocked(db.systemConfig.findUnique).mockResolvedValue({ key: "badges.peerVisible", value: false } as any);
-    vi.mocked(db.badgeDefinition.findMany).mockResolvedValue([
+    vi.mocked(db.user.findUnique).mockResolvedValue(userRow({ id: "student-1", role: "STUDENT", active: true }));
+    vi.mocked(db.systemConfig.findUnique).mockResolvedValue(systemConfigRow({ key: "badges.peerVisible", value: false }));
+    vi.mocked(db.badgeDefinition.findMany).mockResolvedValue(badgeDefinitionRows([
       {
         id: "definition-1",
         key: "first_checkout",
@@ -185,7 +197,7 @@ describe("GET /api/badges/user/[userId]", () => {
         createdAt: new Date("2026-05-09T12:00:00.000Z"),
         awards: [],
       },
-    ] as any);
+    ]));
 
     const res = await getUserBadges(makeGetRequest("https://app.example.com/api/badges/user/student-1"), {
       params: Promise.resolve({ userId: "student-1" }),
@@ -220,9 +232,9 @@ describe("GET /api/badges/user/[userId]", () => {
 
   it("returns real progress for supported threshold badges", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
-    vi.mocked(db.user.findUnique).mockResolvedValue({ id: "student-1", role: "STUDENT", active: true } as any);
+    vi.mocked(db.user.findUnique).mockResolvedValue(userRow({ id: "student-1", role: "STUDENT", active: true }));
     vi.mocked(db.systemConfig.findUnique).mockResolvedValue(null);
-    vi.mocked(db.badgeDefinition.findMany).mockResolvedValue([
+    vi.mocked(db.badgeDefinition.findMany).mockResolvedValue(badgeDefinitionRows([
       {
         id: "definition-1",
         key: "checkout_5",
@@ -255,7 +267,7 @@ describe("GET /api/badges/user/[userId]", () => {
         createdAt: new Date("2026-05-09T12:00:00.000Z"),
         awards: [],
       },
-    ] as any);
+    ]));
     vi.mocked(db.booking.count).mockResolvedValue(3);
 
     const res = await getUserBadges(makeGetRequest("https://app.example.com/api/badges/user/student-1"), {
@@ -278,8 +290,8 @@ describe("GET /api/badges/user/[userId]", () => {
 
   it("blocks peer students when badge peer visibility is disabled", async () => {
     vi.mocked(requireAuth).mockResolvedValue({ ...studentUser, id: "student-2" });
-    vi.mocked(db.user.findUnique).mockResolvedValue({ id: "student-1", role: "STUDENT", active: true } as any);
-    vi.mocked(db.systemConfig.findUnique).mockResolvedValue({ key: "badges.peerVisible", value: false } as any);
+    vi.mocked(db.user.findUnique).mockResolvedValue(userRow({ id: "student-1", role: "STUDENT", active: true }));
+    vi.mocked(db.systemConfig.findUnique).mockResolvedValue(systemConfigRow({ key: "badges.peerVisible", value: false }));
 
     const res = await getUserBadges(makeGetRequest("https://app.example.com/api/badges/user/student-1"), {
       params: Promise.resolve({ userId: "student-1" }),
@@ -291,7 +303,7 @@ describe("GET /api/badges/user/[userId]", () => {
 
   it("allows peer students when badge peer visibility is enabled", async () => {
     vi.mocked(requireAuth).mockResolvedValue({ ...studentUser, id: "student-2" });
-    vi.mocked(db.user.findUnique).mockResolvedValue({ id: "student-1", role: "STUDENT", active: true } as any);
+    vi.mocked(db.user.findUnique).mockResolvedValue(userRow({ id: "student-1", role: "STUDENT", active: true }));
     vi.mocked(db.systemConfig.findUnique).mockResolvedValue(null);
     vi.mocked(db.badgeDefinition.findMany).mockResolvedValue([]);
 
@@ -306,8 +318,8 @@ describe("GET /api/badges/user/[userId]", () => {
 
   it("returns badge profiles for staff users too", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
-    vi.mocked(db.user.findUnique).mockResolvedValue({ id: "staff-1", role: "STAFF", active: true } as any);
-    vi.mocked(db.systemConfig.findUnique).mockResolvedValue({ key: "badges.peerVisible", value: false } as any);
+    vi.mocked(db.user.findUnique).mockResolvedValue(userRow({ id: "staff-1", role: "STAFF", active: true }));
+    vi.mocked(db.systemConfig.findUnique).mockResolvedValue(systemConfigRow({ key: "badges.peerVisible", value: false }));
     vi.mocked(db.badgeDefinition.findMany).mockResolvedValue([]);
 
     const res = await getUserBadges(makeGetRequest("https://app.example.com/api/badges/user/staff-1"), {
@@ -322,7 +334,7 @@ describe("GET /api/badges/user/[userId]", () => {
 
   it("allows users to compare staff badges when peer visibility is enabled", async () => {
     vi.mocked(requireAuth).mockResolvedValue(studentUser);
-    vi.mocked(db.user.findUnique).mockResolvedValue({ id: "staff-1", role: "STAFF", active: true } as any);
+    vi.mocked(db.user.findUnique).mockResolvedValue(userRow({ id: "staff-1", role: "STAFF", active: true }));
     vi.mocked(db.systemConfig.findUnique).mockResolvedValue(null);
     vi.mocked(db.badgeDefinition.findMany).mockResolvedValue([]);
 

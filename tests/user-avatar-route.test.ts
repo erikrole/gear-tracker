@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Role } from "@prisma/client";
 
 vi.mock("@/lib/auth", () => ({
   requireAuth: vi.fn(),
@@ -48,7 +49,7 @@ const adminUser = {
   id: "admin-1",
   email: "admin@example.com",
   name: "Admin",
-  role: "ADMIN" as const,
+  role: Role.ADMIN,
   avatarUrl: null,
 };
 
@@ -56,9 +57,17 @@ const staffUser = {
   id: "staff-1",
   email: "staff@example.com",
   name: "Staff",
-  role: "STAFF" as const,
+  role: Role.STAFF,
   avatarUrl: null,
 };
+
+function userResult(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.user.findUnique>>;
+}
+
+function userUpdate(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.user.update>>;
+}
 
 const targetId = "student-1";
 const oldAvatarUrl = "https://old.public.blob.vercel-storage.com/avatar.webp";
@@ -94,14 +103,14 @@ function avatarDeleteRequest(pathId = targetId) {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(requireAuth).mockResolvedValue(adminUser);
-  vi.mocked(db.user.findUnique).mockResolvedValue({
+  vi.mocked(db.user.findUnique).mockResolvedValue(userResult({
     id: targetId,
     avatarUrl: oldAvatarUrl,
-  } as any);
-  vi.mocked(db.user.update).mockResolvedValue({
+  }));
+  vi.mocked(db.user.update).mockResolvedValue(userUpdate({
     id: targetId,
     avatarUrl: "https://blob.example.com/new-avatar.webp",
-  } as any);
+  }));
 });
 
 describe("/api/users/[id]/avatar", () => {

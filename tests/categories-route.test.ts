@@ -44,6 +44,53 @@ import {
   DELETE,
 } from "@/app/api/categories/[id]/route";
 
+type CategoryListRow = {
+  id: string;
+  name: string;
+  parentId: string | null;
+};
+
+type CategoryCountRow = {
+  categoryId: string | null;
+  _count: { id: number };
+};
+
+type CategoryResponseRow = CategoryListRow & {
+  itemCount: number;
+};
+
+function categoryFindManyResult(rows: CategoryListRow[]) {
+  return rows as unknown as Awaited<ReturnType<typeof db.category.findMany>>;
+}
+
+function assetGroupByResult(rows: CategoryCountRow[]) {
+  return rows as unknown as Awaited<ReturnType<typeof db.asset.groupBy>>;
+}
+
+function bulkSkuGroupByResult(rows: CategoryCountRow[]) {
+  return rows as unknown as Awaited<ReturnType<typeof db.bulkSku.groupBy>>;
+}
+
+function categoryFindUniqueResult(row: CategoryListRow | null) {
+  return row as unknown as Awaited<ReturnType<typeof db.category.findUnique>>;
+}
+
+function categoryFindFirstResult(row: CategoryListRow | null) {
+  return row as unknown as Awaited<ReturnType<typeof db.category.findFirst>>;
+}
+
+function categoryCreateResult(row: CategoryListRow) {
+  return row as unknown as Awaited<ReturnType<typeof db.category.create>>;
+}
+
+function categoryUpdateResult(row: CategoryListRow) {
+  return row as unknown as Awaited<ReturnType<typeof db.category.update>>;
+}
+
+function categoryDeleteResult(row: object) {
+  return row as unknown as Awaited<ReturnType<typeof db.category.delete>>;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -122,36 +169,36 @@ const categoryParams = { params: Promise.resolve({ id: "cm1234567890123456789012
 describe("GET /api/categories", () => {
   it("returns categories with item counts for any authenticated user", async () => {
     vi.mocked(requireAuth).mockResolvedValue(studentUser);
-    vi.mocked(db.category.findMany).mockResolvedValue([
+    vi.mocked(db.category.findMany).mockResolvedValue(categoryFindManyResult([
       { id: "cat-1", name: "Cameras", parentId: null },
       { id: "cat-2", name: "Tripods", parentId: null },
-    ] as any);
-    vi.mocked(db.asset.groupBy).mockResolvedValue([
+    ]));
+    vi.mocked(db.asset.groupBy).mockResolvedValue(assetGroupByResult([
       { categoryId: "cat-1", _count: { id: 5 } },
-    ] as any);
-    vi.mocked(db.bulkSku.groupBy).mockResolvedValue([
+    ]));
+    vi.mocked(db.bulkSku.groupBy).mockResolvedValue(bulkSkuGroupByResult([
       { categoryId: "cat-1", _count: { id: 3 } },
       { categoryId: "cat-2", _count: { id: 2 } },
-    ] as any);
+    ]));
 
     const res = await GET(makeGetRequest(), noParams);
 
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body = await res.json() as { data: CategoryResponseRow[] };
     expect(body.data).toHaveLength(2);
     // cat-1 has 5 assets + 3 bulk = 8
-    expect(body.data.find((c: any) => c.id === "cat-1").itemCount).toBe(8);
+    expect(body.data.find((c) => c.id === "cat-1")?.itemCount).toBe(8);
     // cat-2 has 0 assets + 2 bulk = 2
-    expect(body.data.find((c: any) => c.id === "cat-2").itemCount).toBe(2);
+    expect(body.data.find((c) => c.id === "cat-2")?.itemCount).toBe(2);
   });
 
   it("returns zero counts when no items exist", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
-    vi.mocked(db.category.findMany).mockResolvedValue([
+    vi.mocked(db.category.findMany).mockResolvedValue(categoryFindManyResult([
       { id: "cat-1", name: "Empty Category", parentId: null },
-    ] as any);
-    vi.mocked(db.asset.groupBy).mockResolvedValue([] as any);
-    vi.mocked(db.bulkSku.groupBy).mockResolvedValue([] as any);
+    ]));
+    vi.mocked(db.asset.groupBy).mockResolvedValue(assetGroupByResult([]));
+    vi.mocked(db.bulkSku.groupBy).mockResolvedValue(bulkSkuGroupByResult([]));
 
     const res = await GET(makeGetRequest(), noParams);
 
@@ -168,11 +215,11 @@ describe("POST /api/categories", () => {
   it("creates a new root category for ADMIN", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
     vi.mocked(db.category.findFirst).mockResolvedValue(null);
-    vi.mocked(db.category.create).mockResolvedValue({
+    vi.mocked(db.category.create).mockResolvedValue(categoryCreateResult({
       id: "cat-new",
       name: "Lighting",
       parentId: null,
-    } as any);
+    }));
 
     const res = await POST(
       makePostRequest({ name: "  Lighting  " }),
@@ -189,16 +236,17 @@ describe("POST /api/categories", () => {
 
   it("creates a child category with valid parentId", async () => {
     vi.mocked(requireAuth).mockResolvedValue(staffUser);
-    vi.mocked(db.category.findUnique).mockResolvedValue({
+    vi.mocked(db.category.findUnique).mockResolvedValue(categoryFindUniqueResult({
       id: "cm123456789012345678901234",
       name: "Equipment",
-    } as any);
+      parentId: null,
+    }));
     vi.mocked(db.category.findFirst).mockResolvedValue(null);
-    vi.mocked(db.category.create).mockResolvedValue({
+    vi.mocked(db.category.create).mockResolvedValue(categoryCreateResult({
       id: "cm234567890123456789012345",
       name: "Lenses",
       parentId: "cm123456789012345678901234",
-    } as any);
+    }));
 
     const res = await POST(
       makePostRequest({ name: "Lenses", parentId: "cm123456789012345678901234" }),
@@ -224,11 +272,11 @@ describe("POST /api/categories", () => {
 
   it("returns 409 when a category already exists in the same level", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
-    vi.mocked(db.category.findFirst).mockResolvedValue({
+    vi.mocked(db.category.findFirst).mockResolvedValue(categoryFindFirstResult({
       id: "cat-existing",
       name: "Lighting",
       parentId: null,
-    } as any);
+    }));
 
     const res = await POST(
       makePostRequest({ name: "Lighting" }),
@@ -297,17 +345,17 @@ describe("POST /api/categories", () => {
 describe("PATCH /api/categories/[id]", () => {
   it("renames a category with trimmed input", async () => {
     vi.mocked(requireAuth).mockResolvedValue(staffUser);
-    vi.mocked(db.category.findUnique).mockResolvedValue({
+    vi.mocked(db.category.findUnique).mockResolvedValue(categoryFindUniqueResult({
       id: "cm123456789012345678901234",
       name: "Cameras",
       parentId: null,
-    } as any);
+    }));
     vi.mocked(db.category.findFirst).mockResolvedValue(null);
-    vi.mocked(db.category.update).mockResolvedValue({
+    vi.mocked(db.category.update).mockResolvedValue(categoryUpdateResult({
       id: "cm123456789012345678901234",
       name: "Camera Bodies",
       parentId: null,
-    } as any);
+    }));
 
     const res = await PATCH(
       makePatchRequest({ name: "  Camera Bodies  " }),
@@ -334,16 +382,16 @@ describe("PATCH /api/categories/[id]", () => {
 
   it("returns 409 when rename would duplicate a sibling", async () => {
     vi.mocked(requireAuth).mockResolvedValue(staffUser);
-    vi.mocked(db.category.findUnique).mockResolvedValue({
+    vi.mocked(db.category.findUnique).mockResolvedValue(categoryFindUniqueResult({
       id: "cm123456789012345678901234",
       name: "Cameras",
       parentId: null,
-    } as any);
-    vi.mocked(db.category.findFirst).mockResolvedValue({
+    }));
+    vi.mocked(db.category.findFirst).mockResolvedValue(categoryFindFirstResult({
       id: "cm234567890123456789012345",
       name: "Lighting",
       parentId: null,
-    } as any);
+    }));
 
     const res = await PATCH(
       makePatchRequest({ name: "Lighting" }),
@@ -357,15 +405,16 @@ describe("PATCH /api/categories/[id]", () => {
   it("returns 400 when moving a category under its descendant", async () => {
     vi.mocked(requireAuth).mockResolvedValue(staffUser);
     vi.mocked(db.category.findUnique)
-      .mockResolvedValueOnce({
+      .mockResolvedValueOnce(categoryFindUniqueResult({
         id: "cm123456789012345678901234",
         name: "Cameras",
         parentId: null,
-      } as any)
-      .mockResolvedValueOnce({
+      }))
+      .mockResolvedValueOnce(categoryFindUniqueResult({
         id: "cm234567890123456789012345",
+        name: "Camera Lenses",
         parentId: "cm123456789012345678901234",
-      } as any);
+      }));
 
     const res = await PATCH(
       makePatchRequest({ parentId: "cm234567890123456789012345" }),
@@ -383,15 +432,15 @@ describe("PATCH /api/categories/[id]", () => {
 describe("DELETE /api/categories/[id]", () => {
   it("deletes an unused leaf category", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
-    vi.mocked(db.category.findUnique).mockResolvedValue({
+    vi.mocked(db.category.findUnique).mockResolvedValue(categoryFindUniqueResult({
       id: "cm123456789012345678901234",
       name: "Cameras",
       parentId: null,
-    } as any);
+    }));
     vi.mocked(db.asset.count).mockResolvedValue(0);
     vi.mocked(db.bulkSku.count).mockResolvedValue(0);
     vi.mocked(db.category.count).mockResolvedValue(0);
-    vi.mocked(db.category.delete).mockResolvedValue({} as any);
+    vi.mocked(db.category.delete).mockResolvedValue(categoryDeleteResult({}));
 
     const res = await DELETE(makeDeleteRequest(), categoryParams);
 
