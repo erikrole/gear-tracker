@@ -2,6 +2,7 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok, parsePagination } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
+import { optionalSportCodeSchema } from "@/lib/validation";
 import { Prisma } from "@prisma/client";
 
 export const GET = withAuth(async (req, { user }) => {
@@ -16,7 +17,7 @@ export const GET = withAuth(async (req, { user }) => {
   const activeParam = searchParams.get("active");
   const sort = searchParams.get("sort") || "name";
   const yearParam = searchParams.get("year");      // FRESHMAN | SOPHOMORE | JUNIOR | SENIOR | GRAD
-  const sportParam = searchParams.get("sport");    // sport code (e.g. WHKY)
+  const sportParam = optionalSportCodeSchema.parse(searchParams.get("sport") ?? undefined);    // sport code (e.g. WHKY)
   const areaParam = searchParams.get("area");      // ShiftArea enum value
 
   // Build where clause

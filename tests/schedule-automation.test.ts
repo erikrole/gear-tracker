@@ -49,6 +49,7 @@ describe("getScheduleAutomationDigest", () => {
         openTrades: { count: 0 },
         tradeApprovals: { count: 0 },
         gearGaps: { count: 1, eventCount: 1, eventIds: ["event-ready"] },
+        dataQuality: { count: 0, eventCount: 0, eventIds: [], issues: [] },
         hiddenEvents: { count: 0 },
         archivedEvents: { count: 0 },
       },
@@ -181,4 +182,3 @@ describe("getScheduleAutomationDigest", () => {
     expect(digest.partialFailures).toEqual(["gearGaps"]);
   });
 });
-

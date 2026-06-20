@@ -1,6 +1,7 @@
 import { BookingStatus, ShiftAssignmentStatus, ShiftTradeStatus, type Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { startOfTodayInAppTz } from "@/lib/app-time";
+import { summarizeScheduleDataQuality } from "@/lib/schedule-data-quality";
+import { buildScheduleEventWhere } from "@/lib/schedule-event-where";
 import type { ScheduleGearAssignmentStatus, ScheduleHealthSnapshot } from "@/lib/schedule-health-types";
 import { getScheduleChangeHistory } from "@/lib/services/schedule-change-history";
 
@@ -31,36 +32,6 @@ function gearStatusForBooking(status: BookingStatus): ScheduleGearAssignmentStat
   if (status === BookingStatus.PENDING_PICKUP) return "awaiting_pickup";
   if (status === BookingStatus.BOOKED) return "reserved";
   return null;
-}
-
-function buildScheduleHealthEventWhere({
-  parsedStartDate,
-  parsedEndDate,
-  includePast,
-  includeArchived,
-  sportCode,
-  includeHidden = false,
-  now = new Date(),
-}: ScheduleHealthInput & { includeHidden?: boolean }): Prisma.CalendarEventWhereInput {
-  const where: Prisma.CalendarEventWhereInput = {
-    status: { not: "CANCELLED" },
-    ...(!includeHidden ? { isHidden: false } : {}),
-    ...(!includeArchived ? { archivedAt: null } : {}),
-    ...(sportCode ? { sportCode } : {}),
-  };
-
-  if (parsedStartDate && parsedEndDate) {
-    where.startsAt = { lte: parsedEndDate };
-    where.endsAt = { gt: parsedStartDate };
-  } else if (parsedStartDate) {
-    where.endsAt = { gt: parsedStartDate };
-  } else if (parsedEndDate) {
-    where.startsAt = { lte: parsedEndDate };
-  } else if (!includePast) {
-    where.endsAt = { gt: startOfTodayInAppTz(now) };
-  }
-
-  return where;
 }
 
 function eventIdsFor(assignments: Array<{ shift: { shiftGroup: { eventId: string } } }>) {
@@ -139,13 +110,19 @@ function getNextCall(
 
 export async function getScheduleHealth(input: ScheduleHealthInput): Promise<ScheduleHealthSnapshot> {
   const now = input.now ?? new Date();
-  const visibleWhere = buildScheduleHealthEventWhere({ ...input, now });
-  const windowWhere = buildScheduleHealthEventWhere({ ...input, includeHidden: true, includeArchived: true, now });
+  const visibleWhere = buildScheduleEventWhere({ ...input, now });
+  const windowWhere = buildScheduleEventWhere({ ...input, includeHidden: true, includeArchived: true, now });
 
   const events = await db.calendarEvent.findMany({
     where: visibleWhere,
     orderBy: { startsAt: "asc" },
     include: {
+      location: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
       shiftGroup: {
         include: {
           shifts: {
@@ -178,6 +155,7 @@ export async function getScheduleHealth(input: ScheduleHealthInput): Promise<Sch
   );
   const assignmentIds = activeAssignments.map((assignment) => assignment.id);
   const eventIds = events.map((event) => event.id);
+  const dataQuality = summarizeScheduleDataQuality(events, now);
   const assignmentEventIds = new Map(activeAssignments.map((assignment) => [assignment.id, assignment.shift.shiftGroup.eventId]));
 
   let openSlots = 0;
@@ -371,6 +349,7 @@ export async function getScheduleHealth(input: ScheduleHealthInput): Promise<Sch
       openTrades: { count: readSettled(openTradeCountResult, "openTrades", 0) },
       tradeApprovals: { count: readSettled(tradeApprovalCountResult, "tradeApprovals", 0) },
       gearGaps: { count: gearGapAssignments.length, eventCount: eventIdsFor(gearGapAssignments), eventIds: uniqueEventIdsFor(gearGapAssignments) },
+      dataQuality,
       hiddenEvents: { count: readSettled(hiddenCountResult, "hiddenEvents", 0) },
       archivedEvents: { count: readSettled(archivedCountResult, "archivedEvents", 0) },
     },

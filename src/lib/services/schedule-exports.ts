@@ -2,6 +2,7 @@ import { BookingKind, BookingStatus, ShiftAssignmentStatus, type Prisma } from "
 import { csvField } from "@/lib/csv";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
+import { buildScheduleEventWhere } from "@/lib/schedule-event-where";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 import { shiftWorkerLabel, shiftWorkerSlotLabel } from "@/lib/shift-display";
 import { getSchedulePublicationState } from "@/lib/services/schedule-publication";
@@ -62,17 +63,6 @@ function assertWindow(start: Date, end: Date) {
   }
 }
 
-function eventWhere(input: ScheduleExportInput): Prisma.CalendarEventWhereInput {
-  return {
-    status: { not: "CANCELLED" },
-    isHidden: false,
-    ...(!input.includeArchived ? { archivedAt: null } : {}),
-    ...(input.sportCode ? { sportCode: input.sportCode } : {}),
-    startsAt: { lte: input.parsedEndDate },
-    endsAt: { gt: input.parsedStartDate },
-  };
-}
-
 function exportDate(value: Date | null | undefined) {
   return value ? value.toISOString() : "";
 }
@@ -120,7 +110,12 @@ function filename(type: ScheduleExportType, start: Date, end: Date) {
 
 async function loadScheduleExportGroups(input: ScheduleExportInput) {
   return db.shiftGroup.findMany({
-    where: { event: eventWhere(input) },
+    where: {
+      event: buildScheduleEventWhere({
+        ...input,
+        includePast: true,
+      }),
+    },
     orderBy: { event: { startsAt: "asc" } },
     take: SCHEDULE_EXPORT_LIMIT,
     select: {

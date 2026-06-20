@@ -40,12 +40,16 @@ describe("unescapeIcsText", () => {
 // ── cleanSummary unit tests ──
 
 describe("cleanSummary", () => {
+  it("strips 'Wisconsin Athletics' prefix", () => {
+    expect(cleanSummary("Wisconsin Athletics Women's Soccer vs North Dakota State")).toBe("Women's Soccer vs North Dakota State");
+  });
+
   it("strips 'Wisconsin Badgers' prefix", () => {
     expect(cleanSummary("Wisconsin Badgers Women's Tennis at Purdue")).toBe("Women's Tennis at Purdue");
   });
 
   it("strips prefix case-insensitively", () => {
-    expect(cleanSummary("wisconsin badgers Men's Hockey vs Minnesota")).toBe("Men's Hockey vs Minnesota");
+    expect(cleanSummary("wisconsin athletics Men's Hockey vs Minnesota")).toBe("Men's Hockey vs Minnesota");
   });
 
   it("strips prefix followed by a dash separator", () => {
@@ -78,7 +82,7 @@ describe("extractSportInfo label matching", () => {
   it("matches 'Men's Tennis vs #9 Illinois' → MTEN, home", () => {
     const result = extractSportInfo("Men's Tennis vs #9 Illinois");
     expect(result.sportCode).toBe("MTEN");
-    expect(result.opponent).toBe("#9 Illinois");
+    expect(result.opponent).toBe("Illinois");
     expect(result.isHome).toBe(true);
   });
 
@@ -107,6 +111,13 @@ describe("extractSportInfo label matching", () => {
     const result = extractSportInfo("MBB vs Iowa");
     expect(result.sportCode).toBe("MBB");
     expect(result.opponent).toBe("Iowa");
+    expect(result.isHome).toBe(true);
+  });
+
+  it("normalizes common opponent aliases", () => {
+    const result = extractSportInfo("Volleyball vs University of Louisville - Invitational");
+    expect(result.sportCode).toBe("VB");
+    expect(result.opponent).toBe("Louisville - Invitational");
     expect(result.isHome).toBe(true);
   });
 });
@@ -590,10 +601,17 @@ describe("splitEventsForSync", () => {
   });
 
   it("resolves location via regex mapping", () => {
-    const parsed = [makeParsedEvent({ uid: "evt-1", location: "Gymnasium A" })];
-    const mappings = [{ pattern: "gymnasium", locationId: "loc-gym" }];
+    const parsed = [makeParsedEvent({ uid: "evt-1", location: "Green Bay, Wis., Lambeau Field" })];
+    const mappings = [{ pattern: "green bay, wi, lambeau field", locationId: "loc-lambeau" }];
     const result = splitEventsForSync(parsed, [], mappings);
-    expect(result.toCreate[0]!.locationId).toBe("loc-gym");
+    expect(result.toCreate[0]!.locationId).toBe("loc-lambeau");
+  });
+
+  it("keeps existing raw-source venue regex mappings working", () => {
+    const parsed = [makeParsedEvent({ uid: "evt-1", location: "Green Bay, Wis., Lambeau Field" })];
+    const mappings = [{ pattern: "Green Bay, Wis\\., Lambeau Field", locationId: "loc-lambeau" }];
+    const result = splitEventsForSync(parsed, [], mappings);
+    expect(result.toCreate[0]!.locationId).toBe("loc-lambeau");
   });
 
   it("resolves location via plain text fallback for invalid regex", () => {
@@ -674,6 +692,20 @@ describe("splitEventsForSync", () => {
       location: "Camp Randall Stadium",
     })];
     const result = splitEventsForSync(parsed, [], []);
+    expect(result.toCreate[0]!.isHome).toBe(true);
+  });
+
+  it("uses mapped home venue status when raw location text has no known home keyword", () => {
+    const parsed = [makeParsedEvent({
+      uid: "mapped-home-1",
+      summary: "Wisconsin Badgers Volleyball vs Kentucky",
+      location: "UW Volleyball Arena Alias",
+    })];
+    const result = splitEventsForSync(parsed, [], [
+      { pattern: "UW Volleyball Arena Alias", locationId: "loc-fieldhouse", isHomeVenue: true },
+    ]);
+
+    expect(result.toCreate[0]!.locationId).toBe("loc-fieldhouse");
     expect(result.toCreate[0]!.isHome).toBe(true);
   });
 
@@ -778,6 +810,10 @@ describe("isHomeLocationText", () => {
 
   it("returns true for 'madison, wi' (case-insensitive)", () => {
     expect(isHomeLocationText("madison, wi, some venue")).toBe(true);
+  });
+
+  it("returns true for 'Madison, Wis.' source spelling", () => {
+    expect(isHomeLocationText("Madison, Wis., McClimon Track/Soccer Complex")).toBe(true);
   });
 
   it("returns true for Camp Randall without Madison, WI", () => {

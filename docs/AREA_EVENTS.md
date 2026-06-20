@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Events
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-18
+- Last Updated: 2026-06-19
 - Status: Active
 
 ## Direction
@@ -40,16 +40,15 @@ Make athletics schedule data the operational backbone for booking and checkout w
 19. **Schedule source freshness signal** — Staff/admin Schedule views show a compact source signal in the filter toolbar. It distinguishes manual visible events, imported visible events, healthy calendar sources, stale/never-synced sources, disabled sources, source errors, and source-status load failures without changing ICS sync semantics.
 20. **Morning-refresh automation digest** — `morning-refresh` now includes a read-only Schedule automation digest in its response after daily maintenance. The digest reports sync additions/updates, generated shift counts, archive counts, stale trade cleanup, pending pickup cleanup, publish readiness, auto-fill preview candidates, unresolved blockers, and source state. It is observability only; manual Settings sync and staff review actions remain the mutation paths.
 21. **Crew operations cleanup** — Event detail Crew keeps publish, auto-fill preview, direct assignment, call-window, and gear-prep paths visible. Template-review and attendance controls are no longer surfaced in the Event detail UI.
+22. **Event identity normalization** — Calendar sync, manual event creation, and event edit/revert paths share opponent and venue text cleanup. Opponents drop ranking/source boilerplate such as `No. 9` or `University of`, while venue matching normalizes source spellings such as `Wis.` to `WI` without overwriting `rawLocationText` evidence or confusing calendar venue with pickup location.
 
 ## Next
-1. Better normalization for opponent and venue fields.
-2. Schedule V2 enhancements: week view, gear readiness indicators, conflict detection — see `tasks/schedule-roadmap.md`.
-3. "Show archived" toggle on `/schedule` page (filter UI for archived events — API param already wired).
+1. Schedule V2 enhancements: week view, gear readiness indicators, conflict detection — see `tasks/schedule-roadmap.md`.
+2. Multi-source event ingestion, if required.
 
 ## Later
-1. Multi-source event ingestion, if required.
-2. Event quality scoring for operator confidence.
-3. "Wrapped"-style stats feature — per-staff/student season analytics. Depends on the soft-archive pipeline in item 17 above (no data deleted, all history preserved).
+1. Event quality scoring for operator confidence.
+2. "Wrapped"-style stats feature — per-staff/student season analytics. Depends on the soft-archive pipeline in item 17 above (no data deleted, all history preserved).
 
 ## Acceptance Criteria
 - [x] AC-1: Event picker shows relevant upcoming events by sport.
@@ -81,6 +80,16 @@ Make athletics schedule data the operational backbone for booking and checkout w
 4. Fallback behavior for incomplete events is implemented — treat event context as non-blocking metadata on all booking flows.
 
 ## Change Log
+- 2026-06-19: Event identity normalization shipped. Shared event identity helpers now clean UW source prefixes, opponent rankings and school boilerplate, and venue source spellings for sync, manual event creation, event edits, event revert, and Schedule title rendering while preserving raw calendar location text.
+- 2026-06-19: Schedule data-quality queue shipped. Schedule health now flags visible events whose existing CalendarEvent fields are incomplete for operations: missing sport context, missing opponent, missing venue/location mapping, future archived status, or shifts without sport metadata.
+- 2026-06-19: Venue mapping audit surface shipped. Settings > Venue Mappings now exposes home venues without mappings, mappings to inactive or missing locations, and home-looking mappings pointed at non-home locations so calendar venue data can be corrected before it affects event classification.
+- 2026-06-19: Manual calendar-event create schema hardening shipped. `/api/calendar-events` POST now validates manual event summary, start/end strings, all-day flag, pickup location, sport code, event type, and opponent through one route-local Zod schema before date normalization, create, and audit writes.
+- 2026-06-19: Sport-code route coverage and venue audit helper shipped. Remaining Schedule/Event-adjacent routes now have regression coverage for lowercase sport-code normalization and unknown-code rejection, and a read-only venue-mapping audit helper can flag active home venues without mappings plus mappings to missing or inactive locations.
+- 2026-06-19: Sport-code and home-venue hardening shipped. Controlled Event/Schedule API boundaries now normalize lowercase sport-code input to canonical UW codes and reject unknown codes before querying or persisting, while calendar sync now uses mapped `Location.isHomeVenue` data when deriving home versus neutral event state.
+- 2026-06-19: Schedule/Event query contract hardening shipped. Calendar-event list reads, Schedule health, Schedule automation, and Schedule exports now share one CalendarEvent where-builder for status, visibility, archive, date-overlap, sport, and unmapped filters.
+- 2026-06-19: Calendar event visibility hardening shipped. `/api/calendar-events` now rejects `includeHidden=true` for non-staff/admin callers, and GET route coverage now asserts default hidden/archive filters and staff-only hidden reads against the real route instead of a mirrored query helper.
+- 2026-06-19: Event detail Crew call-time display cleanup shipped. The Crew table now keeps event time, default/generated shift window, slot override, and personal override distinct, but visible row labels show one effective call time for the slot/person instead of a full call-time range.
+- 2026-06-19: Schedule title cleanup shipped. Schedule title formatting now strips UW source prefixes such as `Wisconsin Athletics` from imported fallback summaries, future calendar sync applies the same cleanup, and neutral structured games can use the mapped event location as the secondary schedule line without changing CalendarEvent schema.
 - 2026-06-18: Event editing clarity pass shipped. Event detail now exposes an Event type control with Home, Away, Neutral, and quiet Non-game classification, renames the internal location selector to Pickup location, keeps calendar venue as separate source context, and preserves manually locked opponent/event-type values through calendar sync.
 - 2026-06-18: Event detail Crew UI trim shipped. Removed the visible Review template action and attendance-style controls from Schedule crew management, removed the Changed recently badge path, and normalized event/Crew badges so status, source, sport, publication, coverage, row status, and gear state use consistent compact formatting.
 - 2026-06-18: Event detail schedule polish shipped. Crew is now the dominant operational summary, source metadata stays in the header unless edited synced fields need review, and events without crew setup lead with Set up crew before gear reservation so manual and synced event details have a clearer next action.

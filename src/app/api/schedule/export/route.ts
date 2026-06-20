@@ -6,6 +6,7 @@ import { requirePermission } from "@/lib/rbac";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { buildScheduleExport, parseScheduleExportType } from "@/lib/services/schedule-exports";
 import { startOfTodayInAppTz } from "@/lib/app-time";
+import { optionalSportCodeSchema } from "@/lib/validation";
 
 function defaultEndDate(start: Date) {
   const end = new Date(start);
@@ -33,7 +34,7 @@ export const GET = withAuth(async (req, { user }) => {
     parsedStartDate,
     parsedEndDate,
     includeArchived: searchParams.get("includeArchived") === "true",
-    sportCode: searchParams.get("sportCode"),
+    sportCode: optionalSportCodeSchema.parse(searchParams.get("sportCode") ?? undefined) ?? null,
   });
 
   return new NextResponse(exportData.csv, {

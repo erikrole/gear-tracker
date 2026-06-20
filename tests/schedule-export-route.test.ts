@@ -61,6 +61,22 @@ describe("schedule export route", () => {
     }));
   });
 
+  it("normalizes sportCode query filters before building the export", async () => {
+    const res = await GET(req("/api/schedule/export?type=roster&sportCode=vb"), { params: Promise.resolve({}) });
+
+    expect(res.status).toBe(200);
+    expect(buildScheduleExport).toHaveBeenCalledWith(expect.objectContaining({
+      sportCode: "VB",
+    }));
+  });
+
+  it("rejects unknown sportCode query filters before building the export", async () => {
+    const res = await GET(req("/api/schedule/export?type=roster&sportCode=football"), { params: Promise.resolve({}) });
+
+    expect(res.status).toBe(400);
+    expect(buildScheduleExport).not.toHaveBeenCalled();
+  });
+
   it("denies students before building an export", async () => {
     vi.mocked(requireAuth).mockResolvedValue({
       id: "student-1",

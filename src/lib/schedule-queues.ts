@@ -7,6 +7,7 @@ export const SCHEDULE_QUEUE_VALUES = [
   "pending-requests",
   "trade-approval",
   "gear-gaps",
+  "data-quality",
   "my-calls-today",
   "stale-source",
 ] as const;
@@ -50,6 +51,12 @@ export const SCHEDULE_QUEUE_META: Record<ScheduleQueue, ScheduleQueueMeta> = {
     shortLabel: "Gear gaps",
     emptyTitle: "No gear gaps",
     emptyDescription: "Assigned workers in this window have linked active gear preparation.",
+  },
+  "data-quality": {
+    label: "Data quality",
+    shortLabel: "Data quality",
+    emptyTitle: "No data-quality issues",
+    emptyDescription: "Visible events have the sport, opponent, venue, and archive context needed for Schedule.",
   },
   "my-calls-today": {
     label: "My calls today",
@@ -148,6 +155,10 @@ export function filterEntriesForScheduleQueue({
     }
     case "gear-gaps": {
       const ids = eventIdSet(health?.queues.gearGaps.eventIds);
+      return ids ? entries.filter((entry) => ids.has(entry.id)) : [];
+    }
+    case "data-quality": {
+      const ids = eventIdSet(health?.queues.dataQuality.eventIds);
       return ids ? entries.filter((entry) => ids.has(entry.id)) : [];
     }
     case "my-calls-today":

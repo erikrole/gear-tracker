@@ -37,7 +37,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - [x] Student availability exceptions: web profile Availability supports semester date ranges and one-time conflicts
 - [x] Shift trade emails: claimed, completed, approved, and declined trade events send best-effort email companions
 - [x] Staff/Student slot planning: sport templates generate separate Staff and Student slots and preserve the planned slot type after assignment
-- [x] Call-time overrides: default sport call windows can be overridden per shift and per assignment, with personal overrides used for conflict checks. Crew rows show one effective call-time range; the event time range stays global in the event header.
+- [x] Call-time overrides: default sport call windows can be overridden per shift and per assignment, with personal overrides used for conflict checks. Crew rows show one effective call time per slot/person; the full coverage window remains available for editing and conflict checks, and the event time range stays global in the event header.
 - [x] Assignment conflict review: staff/admin can filter assignment work by conflicted, open, and clean states and adjust personal call windows from the conflict context
 - [x] Candidate recommendations: staff/admin assignment pickers can show read-only recommended, good fit, warning, and overloaded candidate groups without changing manual assignment behavior
 - [x] Preview-first auto-fill: staff/admin auto-fill actions show proposed assignments, skipped slots, warnings, and require an explicit apply action before mutating assignments
@@ -56,13 +56,14 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 2. **Schedule readiness snapshot** — server-backed health queue cards for next call, staff needed, covered events, my shifts, trades, requests, conflicts, gear gaps, source/visibility state
 3. **Automation review** — staff/admin digest cards for review-first automation suggestions: staffing, auto-fill preview, publish readiness, blockers, sources, and cleanup
 4. **Work queues** — URL-backed `queue` state for Needs staffing, Conflicts, Pending requests, Trade approval, Gear gaps, My calls today, and Stale source
-5. **Filter Bar** (`ScheduleFilters`) — View, Venue, Needs staff, My Shifts, Past, Sport, Area, Coverage controls, and active queue banner
-6. **View Toggle** — List | Week | Calendar (persisted to localStorage)
-7. **List View** (`ListView`) — date-grouped expandable table; parent rows = events with crew, publication, and gear readiness chips; child rows = shifts with assignment gear state and reservation/prep jump actions
-8. **Week View** (`WeekView`) — 7-day strip with time-block events, coverage dots, navigation (prev/next/this week)
-9. **Calendar View** (`CalendarView`) — month grid with coverage indicator dots (green/orange/red)
-10. **ShiftDetailPanel** — side sheet for per-event shift management (add/remove shifts, assign users, publish, archive, and preview auto-fill)
-11. **Open Work / Trade Board** — sheet overlay with area/status filters for open shifts, premier pickup requests, posted trades, claimed trades awaiting approval, and my trade posts; Trade approval queue opens it to claimed trades
+5. **Data quality queue** — staff/admin Schedule health flags visible events with missing sport context, missing opponents, missing venue/location mapping, future archived status, or shifts without sport metadata. The queue filters the list to affected events and routes cleanup back through existing Event detail, Locations, and Venue Mappings ownership.
+6. **Filter Bar** (`ScheduleFilters`) — View, Venue, Needs staff, My Shifts, Past, Sport, Area, Coverage controls, and active queue banner
+7. **View Toggle** — List | Week | Calendar (persisted to localStorage)
+8. **List View** (`ListView`) — date-grouped expandable table; parent rows = events with crew, publication, and gear readiness chips; child rows = shifts with assignment gear state and reservation/prep jump actions
+9. **Week View** (`WeekView`) — 7-day strip with time-block events, coverage dots, navigation (prev/next/this week)
+10. **Calendar View** (`CalendarView`) — month grid with coverage indicator dots (green/orange/red)
+11. **ShiftDetailPanel** — side sheet for per-event shift management (add/remove shifts, assign users, publish, archive, and preview auto-fill)
+12. **Open Work / Trade Board** — sheet overlay with area/status filters for open shifts, premier pickup requests, posted trades, claimed trades awaiting approval, and my trade posts; Trade approval queue opens it to claimed trades
 
 ### Event Detail Page (`/events/[id]`)
 1. Event identity card — status plus Synced, Manual, or Edited source state, event timing, opponent, venue, and source context
@@ -87,8 +88,18 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - Sports code mappings (existing — `src/lib/sports.ts`)
 
 ## Change Log
+- 2026-06-19: Schedule event identity normalization shipped. Calendar sync and Schedule title rendering now share opponent and venue cleanup so ranked/boilerplate opponents and `Wis.` venue spellings do not leak into event rows, while calendar venue and pickup location remain separate operational concepts.
+- 2026-06-19: Schedule data-quality queue shipped. Schedule health now reports visible events with missing sport/opponent/venue mapping context, future archived status, or shifts without sport metadata, and `/schedule?queue=data-quality` filters staff/admin review to the affected events.
+- 2026-06-19: Venue mapping audit surface shipped. Admins can now review missing and stale venue mappings in Settings before those mappings affect Schedule home/neutral classification and venue-driven shift behavior.
+- 2026-06-19: Manual Schedule New Event API validation hardening shipped. Manual calendar-event creation now has schema-backed route validation for event identity, date strings, pickup location, sport code, event type, and opponent before the existing all-day/date handling and audit write.
+- 2026-06-19: Sport-code boundary coverage follow-up shipped. Schedule health, automation, exports, shift-group reads, bookings, users, and drafts now have route-level regression tests for canonical sport-code parsing, and the venue mapping audit helper covers home-venue mapping drift without adding mutations.
+- 2026-06-19: Sport-code and home-venue hardening shipped. Schedule filters, exports, shift-group reads, booking/draft sport inputs, user sport filters, and sport settings now parse canonical sport codes at API boundaries, and mapped home venue flags now participate in calendar sync home/neutral classification.
+- 2026-06-19: Schedule query contract hardening shipped. `/api/calendar-events`, `/api/schedule/health`, `/api/schedule/automation`, and Schedule exports now share CalendarEvent date-overlap, hidden, archived, cancelled, sport, and unmapped filtering through one server helper.
+- 2026-06-19: Schedule hardening improve follow-up shipped. Hidden calendar-event list reads are now staff/admin-only when `includeHidden=true` is requested, preserving hidden Schedule rows as operator-only context while keeping normal visible Schedule reads unchanged.
+- 2026-06-19: Schedule call-time display cleanup shipped. Crew rows, Schedule Assign tooltips, My Shifts, and shared Schedule call summaries now display one effective call time per slot/person while preserving full start/end coverage windows for editing, conflict checks, and hover context.
+- 2026-06-19: Schedule title cleanup shipped. `/schedule`, `/schedule/assign`, and Trade Board now share cleaner event title parts that remove UW source prefixes from fallback summaries while preserving structured sport/opponent titles and neutral-site location sublines.
 - 2026-06-19: iOS Availability refactor shipped. The student availability editor now lives in `ios/Wisconsin/Views/AvailabilityView.swift`, Profile entry points live in `ios/Wisconsin/Views/ProfileView.swift`, and `AppTabView.swift` remains the stable native tab shell with no schedule contract or availability behavior change.
-- 2026-06-18: Schedule event editing clarity pass shipped. Event edit/new-event flows now distinguish Event type from Pickup location, support quiet Non-game classification for one-off events and media days, preserve locked event-type/opponent values through calendar sync, and collapse Event detail Crew rows to one effective call-time range per row.
+- 2026-06-18: Schedule event editing clarity pass shipped. Event edit/new-event flows now distinguish Event type from Pickup location, support quiet Non-game classification for one-off events and media days, preserve locked event-type/opponent values through calendar sync, and collapse Event detail Crew rows to one effective call-time display per row.
 - 2026-06-18: Schedule crew UI trim pass shipped. Event detail and Shift Detail no longer surface attendance tracking or crew template-review actions, Schedule rows no longer show a Changed recently badge, and Crew badges now use one compact size/casing system while preserving Draft, Publish, review-required changes, auto-fill preview, and gear readiness.
 - 2026-06-18: Schedule MVP polish pass tightened the source-of-truth UI without changing scheduling data contracts. `/schedule` now prioritizes the main operational signals, keeps clean secondary health cards contextual, collapses Automation review by default, quiets non-action row badges, and gives Assign and Trade Board empty states recovery paths back to Schedule.
 - 2026-06-18: Schedule Source Of Truth Slice 15 reconciled and archived the Schedule source-of-truth plan. Slice 0 shipped evidence was matched back to Event detail source/docs/tests, remaining browser-smoke debt was explicitly covered by source-contract fallback where no authenticated browser harness exists, and no new Schedule product behavior was added.

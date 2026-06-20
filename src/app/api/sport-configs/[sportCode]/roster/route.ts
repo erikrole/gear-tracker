@@ -3,7 +3,7 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
-import { sportRosterSchema, sportRosterBulkSchema } from "@/lib/validation";
+import { sportCodeSchema, sportRosterSchema, sportRosterBulkSchema } from "@/lib/validation";
 import {
   getSportRoster,
   addToRoster,
@@ -19,14 +19,14 @@ const rosterBodySchema = z.union([
 
 export const GET = withAuth<{ sportCode: string }>(async (_req, { user, params }) => {
   requirePermission(user.role, "student_sport", "view");
-  const { sportCode } = params;
+  const sportCode = sportCodeSchema.parse(params.sportCode);
   const roster = await getSportRoster(sportCode);
   return ok({ data: roster });
 });
 
 export const POST = withAuth<{ sportCode: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "student_sport", "manage");
-  const { sportCode } = params;
+  const sportCode = sportCodeSchema.parse(params.sportCode);
 
   let body: z.infer<typeof rosterBodySchema>;
   try {
@@ -41,22 +41,22 @@ export const POST = withAuth<{ sportCode: string }>(async (req, { user, params }
   // Support both single and bulk add
   if ("userIds" in body) {
     const parsed = sportRosterBulkSchema.parse({ ...body, sportCode });
-    const roster = await bulkAddToRoster(parsed.userIds, sportCode);
+    const roster = await bulkAddToRoster(parsed.userIds, parsed.sportCode);
 
     await createAuditEntry({
       actorId: user.id,
       actorRole: user.role,
       entityType: "student_sport_assignment",
-      entityId: sportCode,
+      entityId: parsed.sportCode,
       action: "roster_bulk_added",
-      after: { sportCode, userIds: parsed.userIds },
+      after: { sportCode: parsed.sportCode, userIds: parsed.userIds },
     });
 
     return ok({ data: roster }, 201);
   }
 
   const parsed = sportRosterSchema.parse({ ...body, sportCode });
-  const assignment = await addToRoster(parsed.userId, sportCode);
+  const assignment = await addToRoster(parsed.userId, parsed.sportCode);
 
   await createAuditEntry({
     actorId: user.id,
@@ -64,7 +64,7 @@ export const POST = withAuth<{ sportCode: string }>(async (req, { user, params }
     entityType: "student_sport_assignment",
     entityId: assignment.id,
     action: "roster_added",
-    after: { sportCode, userId: parsed.userId },
+    after: { sportCode: parsed.sportCode, userId: parsed.userId },
   });
 
   return ok({ data: assignment }, 201);
@@ -72,7 +72,7 @@ export const POST = withAuth<{ sportCode: string }>(async (req, { user, params }
 
 export const PATCH = withAuth<{ sportCode: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "student_sport", "manage");
-  const { sportCode } = params;
+  const sportCode = sportCodeSchema.parse(params.sportCode);
 
   const { assignmentId, defaultTraveler } = z.object({
     assignmentId: z.string().cuid(),
@@ -98,7 +98,7 @@ export const PATCH = withAuth<{ sportCode: string }>(async (req, { user, params 
 
 export const DELETE = withAuth<{ sportCode: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "student_sport", "manage");
-  const { sportCode } = params;
+  const sportCode = sportCodeSchema.parse(params.sportCode);
   const url = new URL(req.url);
   const assignmentId = url.searchParams.get("assignmentId");
 

@@ -1,4 +1,5 @@
 import type { ScheduleChangeHistorySnapshot } from "@/lib/schedule-change-history-types";
+import type { ScheduleDataQualityIssue } from "@/lib/schedule-data-quality";
 
 export type ScheduleHealthQueue = {
   count: number;
@@ -69,6 +70,7 @@ export type ScheduleHealthSnapshot = {
     openTrades: ScheduleHealthQueue;
     tradeApprovals: ScheduleHealthQueue;
     gearGaps: ScheduleHealthQueue;
+    dataQuality: ScheduleHealthQueue & { issues: ScheduleDataQualityIssue[] };
     hiddenEvents: ScheduleHealthQueue;
     archivedEvents: ScheduleHealthQueue;
   };

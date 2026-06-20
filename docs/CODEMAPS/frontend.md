@@ -110,9 +110,9 @@
 | `src/components/QrScanner.tsx` | 288 |
 | `src/components/booking-wizard/WizardStep3.tsx` | 263 |
 | `src/components/ui/dropdown-menu.tsx` | 258 |
+| `src/components/shift-detail/CallWindowEditor.tsx` | 243 |
 | `src/components/shift-detail/UserAvatarPicker.tsx` | 242 |
 | `src/components/ui/context-menu.tsx` | 242 |
-| `src/components/shift-detail/CallWindowEditor.tsx` | 240 |
 | `src/components/booking-list/BookingRow.tsx` | 219 |
 | `src/components/booking-list/BookingFilters.tsx` | 202 |
 | `src/components/resources/MarkdownReader.tsx` | 202 |

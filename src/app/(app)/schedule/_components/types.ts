@@ -1,4 +1,5 @@
 import type { BadgeProps } from "@/components/ui/badge";
+import { cleanSourceSummary, normalizeOpponentName } from "@/lib/schedule-event-identity";
 import { sportLabel } from "@/lib/sports";
 
 /* ───── Types ───── */
@@ -118,12 +119,7 @@ export function getMonday(d: Date): Date {
 }
 
 function cleanTitleText(value: string): string {
-  return value
-    .replace(/^\s*\[[A-Z]\]\s*/i, "")
-    .replace(/^Wisconsin Badgers\s+/i, "")
-    .replace(/\s*\((home|away|neutral)\)\s*$/i, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  return cleanSourceSummary(value);
 }
 
 function splitTitleQualifier(value: string): { primary: string; qualifier: string | null } {
@@ -136,16 +132,21 @@ function splitTitleQualifier(value: string): { primary: string; qualifier: strin
   };
 }
 
-export function scheduleEventTitleParts(entry: Pick<CalendarEntry, "summary" | "sportCode" | "opponent" | "isHome">): {
+type ScheduleEventTitleInput = Pick<CalendarEntry, "summary" | "sportCode" | "opponent" | "isHome"> & {
+  location?: CalendarEntry["location"];
+};
+
+export function scheduleEventTitleParts(entry: ScheduleEventTitleInput): {
   title: string;
   detail: string | null;
 } {
   if (entry.sportCode && entry.opponent) {
-    const opponent = splitTitleQualifier(entry.opponent);
+    const opponent = splitTitleQualifier(normalizeOpponentName(entry.opponent) ?? entry.opponent);
     const venueWord = entry.isHome === false ? "at" : "vs";
+    const neutralLocation = entry.isHome === null ? entry.location?.name ?? null : null;
     return {
       title: `${sportLabel(entry.sportCode)} ${venueWord} ${opponent.primary}`,
-      detail: opponent.qualifier,
+      detail: opponent.qualifier ?? neutralLocation,
     };
   }
 

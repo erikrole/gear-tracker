@@ -41,7 +41,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: `/events/[id]`, `/events`
 - APIs: `/api/calendar-events/[id]/command-center`, `/api/calendar-events/[id]`, `/api/calendar-events/[id]/travel/[memberId]`, `/api/calendar-events/[id]/travel`, `/api/calendar-events/[id]/visibility`, `/api/calendar-events`, `/api/kiosk/events`
 - Services: _none matched_
-- Tests: `tests/calendar-events-query.test.ts`, `tests/calendar-events-route.test.ts`, `tests/kiosk-events-route.test.ts`
+- Tests: `tests/calendar-events-route.test.ts`, `tests/kiosk-events-route.test.ts`
 
 ## importer
 
@@ -103,7 +103,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 
 - Doc: `docs/AREA_REPORTS.md`
 - Pages: `/reports/audit`, `/reports/badges`, `/reports/bulk-losses`, `/reports/checkouts`, `/reports/overdue`, `/reports`, `/reports/scans`, `/reports/utilization`
-- APIs: `/api/audit/export`, `/api/audit/last`, `/api/audit`, `/api/bookings/[id]/audit-logs`, `/api/cron/audit-archive`, `/api/reports/audit`, `/api/reports/badges`, `/api/reports/bulk-losses`, `/api/reports/checkouts`, `/api/reports/overdue`
+- APIs: `/api/audit/export`, `/api/audit/last`, `/api/audit`, `/api/bookings/[id]/audit-logs`, `/api/cron/audit-archive`, `/api/location-mappings/audit`, `/api/reports/audit`, `/api/reports/badges`, `/api/reports/bulk-losses`, `/api/reports/checkouts`
 - Services: `src/lib/services/reports.ts`
 - Tests: `tests/booking-audit-history-recovery.test.ts`, `tests/reports-audit-export-route.test.ts`, `tests/reports-routes.test.ts`, `tests/reports-service.test.ts`, `tests/reports-utilization-display.test.ts`, `tests/settings-audit-filters.test.ts`, `tests/settings-audit-pagination.test.ts`, `tests/use-last-audit-response-parsing.test.ts`
 
@@ -153,7 +153,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: `/schedule/assign`, `/schedule`
 - APIs: `/api/my-shifts`, `/api/schedule/automation`, `/api/schedule/export`, `/api/schedule/health`, `/api/schedule/open-work`, `/api/shift-assignments/[id]/acknowledge`, `/api/shift-assignments/[id]/approve`, `/api/shift-assignments/[id]/attendance`, `/api/shift-assignments/[id]/decline`, `/api/shift-assignments/[id]`
 - Services: `src/lib/services/schedule-automation.ts`, `src/lib/services/schedule-change-history.ts`, `src/lib/services/schedule-exports.ts`, `src/lib/services/schedule-health.ts`, `src/lib/services/schedule-notification-policy.ts`, `src/lib/services/schedule-open-work.ts`, `src/lib/services/schedule-publication.ts`, `src/lib/services/schedule-template-review.ts`
-- Tests: `tests/ios-schedule-all-day-display.test.ts`, `tests/ios-schedule-calendar-hit-targets.test.ts`, `tests/ios-schedule-dynamic-type.test.ts`, `tests/schedule-assign-source.test.ts`, `tests/schedule-automation-source.test.ts`, `tests/schedule-automation.test.ts`, `tests/schedule-change-history.test.ts`, `tests/schedule-date-validation.test.ts`
+- Tests: `tests/ios-schedule-all-day-display.test.ts`, `tests/ios-schedule-calendar-hit-targets.test.ts`, `tests/ios-schedule-dynamic-type.test.ts`, `tests/schedule-assign-source.test.ts`, `tests/schedule-automation-source.test.ts`, `tests/schedule-automation.test.ts`, `tests/schedule-change-history.test.ts`, `tests/schedule-data-quality.test.ts`
 
 ## users
 

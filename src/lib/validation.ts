@@ -1,6 +1,7 @@
 import { Role, ShiftArea, ShiftWorkerType, StudentYear } from "@prisma/client";
 import { z } from "zod";
 import { sanitizeText } from "./sanitize";
+import { isSportCode, normalizeSportCode } from "./sports";
 
 /** Sanitize user-facing text fields in a booking payload */
 export function sanitizeBookingFields<T extends Record<string, unknown>>(data: T): T {
@@ -45,6 +46,23 @@ const eventIdsSchema = z.array(z.string().cuid()).max(3).superRefine((ids, ctx) 
   });
 }).optional();
 
+export const sportCodeSchema = z.string()
+  .trim()
+  .min(1)
+  .transform((value) => normalizeSportCode(value))
+  .refine(isSportCode, { message: "Invalid sport code" });
+
+export const optionalSportCodeSchema = z.preprocess((value) => {
+  if (typeof value === "string" && value.trim() === "") return undefined;
+  return value;
+}, sportCodeSchema.optional());
+
+export const nullableSportCodeSchema = z.preprocess((value) => {
+  if (value === undefined || value === null) return null;
+  if (typeof value === "string" && value.trim() === "") return null;
+  return value;
+}, sportCodeSchema.nullable());
+
 export const availabilitySchema = z.object({
   locationId: z.string().cuid(),
   startsAt: z.string(),
@@ -64,7 +82,7 @@ const bookingBaseShape = {
   bulkItems: bulkItemsSchema,
   eventId: z.string().cuid().optional(),
   eventIds: eventIdsSchema,
-  sportCode: z.string().max(10).optional(),
+  sportCode: optionalSportCodeSchema,
   notes: z.string().max(10000).optional(),
   shiftAssignmentId: z.string().cuid().optional(),
   kitId: z.string().cuid().optional(),
@@ -312,7 +330,7 @@ export const sportShiftConfigSchema = z.object({
 });
 
 export const upsertSportConfigSchema = z.object({
-  sportCode: z.string().min(1).max(10),
+  sportCode: sportCodeSchema,
   active: z.boolean().optional(),
   shiftConfigs: z.array(sportShiftConfigSchema).optional(),
   shiftStartOffset: z.number().int().min(0).max(480).optional(),
@@ -329,7 +347,7 @@ export const updateSportConfigSchema = z.object({
 /** Group update — apply the same patch atomically to N sport codes. */
 export const updateSportConfigGroupSchema = z
   .object({
-    codes: z.array(z.string().min(1).max(10)).min(1).max(10),
+    codes: z.array(sportCodeSchema).min(1).max(10),
     active: z.boolean().optional(),
     shiftConfigs: z.array(sportShiftConfigSchema).optional(),
     shiftStartOffset: z.number().int().min(0).max(480).optional(),
@@ -346,12 +364,12 @@ export const updateSportConfigGroupSchema = z
 
 export const sportRosterSchema = z.object({
   userId: z.string().cuid(),
-  sportCode: z.string().min(1).max(10),
+  sportCode: sportCodeSchema,
 });
 
 export const sportRosterBulkSchema = z.object({
   userIds: z.array(z.string().cuid()).min(1),
-  sportCode: z.string().min(1).max(10),
+  sportCode: sportCodeSchema,
 });
 
 export const createShiftSchema = z.object({

@@ -1,5 +1,11 @@
 import { db } from "@/lib/db";
 import type { CalendarEventStatus } from "@prisma/client";
+import {
+  buildVenueSearchText,
+  cleanSourceSummary,
+  normalizeOpponentName,
+  normalizeVenueText,
+} from "@/lib/schedule-event-identity";
 import { SPORT_CODES } from "@/lib/sports";
 
 /** Max events per createMany / update batch */
@@ -148,26 +154,12 @@ export type SyncResult = {
   error?: string;
 };
 
-// ── Summary cleaning ──
-
-/** Known team-name prefixes to strip from ICS summaries (case-insensitive). */
-const TEAM_PREFIXES = ["Wisconsin Badgers"];
-
 /**
  * Strip redundant team-name prefix from an event summary.
- * "Wisconsin Badgers Women's Tennis at Purdue" → "Women's Tennis at Purdue"
+ * "Wisconsin Athletics Women's Tennis at Purdue" → "Women's Tennis at Purdue"
  */
 export function cleanSummary(raw: string): string {
-  let cleaned = raw.trim();
-  for (const prefix of TEAM_PREFIXES) {
-    if (cleaned.toLowerCase().startsWith(prefix.toLowerCase())) {
-      cleaned = cleaned.slice(prefix.length).trim();
-      // Remove a leading dash/colon separator if present after stripping prefix
-      cleaned = cleaned.replace(/^[-–—:]\s*/, "");
-      break;
-    }
-  }
-  return cleaned || raw.trim();
+  return cleanSourceSummary(raw);
 }
 
 // ── Sport code extraction from ICS summaries ──
@@ -217,11 +209,11 @@ export function extractSportInfo(summary: string): {
     const code = codeMatch[1]!.toUpperCase(); // capture groups present when match succeeds
     if (SPORT_CODE_SET.has(code)) {
       const prep = codeMatch[2]!.toLowerCase().replace(".", "");
-      const opponent = codeMatch[3]!.trim();
+      const opponent = normalizeOpponentName(codeMatch[3]!.trim());
       const isNeutral = /\(Neutral\)/i.test(trimmed);
       return {
         sportCode: code,
-        opponent: opponent || null,
+        opponent,
         isHome: isNeutral ? null : prep === "vs" ? true : false,
       };
     }
@@ -252,11 +244,11 @@ export function extractSportInfo(summary: string): {
     const vsAtMatch = rest.match(/^(vs\.?|at)\s+(.+?)(?:\s*\(Neutral\))?$/i);
     if (vsAtMatch) {
       const prep = vsAtMatch[1]!.toLowerCase().replace(".", ""); // capture groups present when match succeeds
-      const opponent = vsAtMatch[2]!.trim();
+      const opponent = normalizeOpponentName(vsAtMatch[2]!.trim());
       const isNeutral = /\(Neutral\)/i.test(rest);
       return {
         sportCode: labelMatch.code,
-        opponent: opponent || null,
+        opponent,
         isHome: isNeutral ? null : prep === "vs" ? true : false,
       };
     }
@@ -289,7 +281,7 @@ const HOME_VENUE_KEYWORDS = [
  * Rule: "Madison, WI" in text OR any known Wisconsin facility keyword.
  */
 export function isHomeLocationText(locationText: string): boolean {
-  const lower = locationText.toLowerCase();
+  const lower = normalizeVenueText(locationText)?.toLowerCase() ?? "";
   if (lower.includes("madison, wi")) return true;
   return HOME_VENUE_KEYWORDS.some((kw) => lower.includes(kw.toLowerCase()));
 }
@@ -368,13 +360,25 @@ export function splitEventsForSync(
 
       const status = mapIcsStatus(event.status);
       let locationId: string | null = null;
-      const searchText = `${event.location} ${event.summary}`.toLowerCase();
+      let mappedIsHomeVenue: boolean | null = null;
+      const rawSearchText = `${event.location} ${event.summary}`.toLowerCase();
+      const searchText = buildVenueSearchText(event.location, event.summary);
 
       for (const mapping of mappings) {
         try {
-          if (new RegExp(mapping.pattern, "i").test(searchText)) { locationId = mapping.locationId; break; }
+          const matcher = new RegExp(mapping.pattern, "i");
+          if (matcher.test(searchText) || matcher.test(rawSearchText)) {
+            locationId = mapping.locationId;
+            mappedIsHomeVenue = mapping.isHomeVenue ?? null;
+            break;
+          }
         } catch {
-          if (searchText.includes(mapping.pattern.toLowerCase())) { locationId = mapping.locationId; break; }
+          const plainPattern = buildVenueSearchText(mapping.pattern) || mapping.pattern.toLowerCase();
+          if (searchText.includes(plainPattern) || rawSearchText.includes(mapping.pattern.toLowerCase())) {
+            locationId = mapping.locationId;
+            mappedIsHomeVenue = mapping.isHomeVenue ?? null;
+            break;
+          }
         }
       }
 
@@ -382,10 +386,10 @@ export function splitEventsForSync(
       const { sportCode, opponent, isHome: extractedIsHome } = extractSportInfo(cleaned);
       let isHome = extractedIsHome;
 
-      // Hardcoded home detection: "Madison, WI" or known Wisconsin facility → home
-      const locationText = event.location || "";
+      // Home detection: mapped home venue, "Madison, WI", or known Wisconsin facility.
+      const locationText = normalizeVenueText(event.location) || "";
       if (locationText) {
-        const homeByLocation = isHomeLocationText(locationText);
+        const homeByLocation = mappedIsHomeVenue === true || isHomeLocationText(locationText);
         if (isHome === null) {
           isHome = homeByLocation;
         } else if (isHome === true && !homeByLocation) {

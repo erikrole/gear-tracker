@@ -13,11 +13,11 @@
 | `src/lib/services/bookings-checkin.ts` | 612 |
 | `src/lib/services/bookings-helpers.ts` | 197 |
 | `src/lib/services/bookings-lifecycle.ts` | 900 |
-| `src/lib/services/bookings-queries.ts` | 232 |
+| `src/lib/services/bookings-queries.ts` | 234 |
 | `src/lib/services/bookings.ts` | 4 |
 | `src/lib/services/bulk-unit-scans.ts` | 589 |
 | `src/lib/services/calendar-sync-health.ts` | 164 |
-| `src/lib/services/calendar-sync.ts` | 650 |
+| `src/lib/services/calendar-sync.ts` | 654 |
 | `src/lib/services/candidate-scoring.ts` | 406 |
 | `src/lib/services/checkout-policies.ts` | 32 |
 | `src/lib/services/dashboard-counts.ts` | 111 |
@@ -35,10 +35,10 @@
 | `src/lib/services/reports.ts` | 1369 |
 | `src/lib/services/reservation-rules.ts` | 32 |
 | `src/lib/services/scans.ts` | 625 |
-| `src/lib/services/schedule-automation.ts` | 365 |
+| `src/lib/services/schedule-automation.ts` | 336 |
 | `src/lib/services/schedule-change-history.ts` | 354 |
-| `src/lib/services/schedule-exports.ts` | 491 |
-| `src/lib/services/schedule-health.ts` | 398 |
+| `src/lib/services/schedule-exports.ts` | 486 |
+| `src/lib/services/schedule-health.ts` | 377 |
 | `src/lib/services/schedule-notification-policy.ts` | 106 |
 | `src/lib/services/schedule-open-work.ts` | 422 |
 | `src/lib/services/schedule-publication.ts` | 263 |
@@ -106,16 +106,19 @@
 | `src/lib/scan-feedback.ts` | 87 |
 | `src/lib/schedule-automation-types.ts` | 55 |
 | `src/lib/schedule-change-history-types.ts` | 55 |
-| `src/lib/schedule-health-types.ts` | 79 |
+| `src/lib/schedule-data-quality.ts` | 91 |
+| `src/lib/schedule-event-identity.ts` | 78 |
+| `src/lib/schedule-event-where.ts` | 46 |
+| `src/lib/schedule-health-types.ts` | 81 |
 | `src/lib/schedule-publication-types.ts` | 34 |
-| `src/lib/schedule-queues.ts` | 163 |
+| `src/lib/schedule-queues.ts` | 174 |
 | `src/lib/schedule-template-review-types.ts` | 104 |
 | `src/lib/search-pages.ts` | 72 |
 | `src/lib/search-result-title.ts` | 13 |
-| `src/lib/shift-call-windows.ts` | 170 |
+| `src/lib/shift-call-windows.ts` | 176 |
 | `src/lib/shift-constants.ts` | 8 |
 | `src/lib/shift-display.ts` | 16 |
-| `src/lib/sports.ts` | 68 |
+| `src/lib/sports.ts` | 78 |
 | `src/lib/status-colors.ts` | 40 |
 | `src/lib/status-styles.ts` | 46 |
 | `src/lib/student-availability.ts` | 189 |
@@ -123,7 +126,8 @@
 | `src/lib/time.ts` | 28 |
 | `src/lib/url-sync.ts` | 16 |
 | `src/lib/utils.ts` | 7 |
-| `src/lib/validation.ts` | 460 |
+| `src/lib/validation.ts` | 478 |
+| `src/lib/venue-mapping-audit.ts` | 58 |
 | `src/lib/venue-tone.ts` | 74 |
 
 ## API Route Groups
@@ -341,6 +345,7 @@
 ### `/api/location-mappings`
 
 - `/api/location-mappings/[id]`
+- `/api/location-mappings/audit`
 - `/api/location-mappings`
 
 ### `/api/locations`

@@ -12,6 +12,7 @@ import { handleAuthRedirect, parseErrorMessage } from "@/lib/errors";
 import {
   callWindowSourceLabel,
   dateTimeLocalToIso,
+  formatCallTime,
   formatCallWindow,
   type CallWindowSource,
   type EffectiveCallWindow,
@@ -51,7 +52,7 @@ function hasOverride(window?: CallWindowPair): boolean {
 }
 
 function targetLabel(target?: EditableTarget): string {
-  return target?.type === "assignment" ? "personal call window" : "slot call window";
+  return target?.type === "assignment" ? "personal call time" : "slot call time";
 }
 
 export function CallWindowEditor({
@@ -98,11 +99,11 @@ export function CallWindowEditor({
       return;
     }
     if ((callStartsAt === null) !== (callEndsAt === null)) {
-      setError("Set both call start and call end.");
+      setError("Set both call time and coverage end.");
       return;
     }
     if (start && end && end <= start) {
-      setError("Call end must be after call start.");
+      setError("Coverage end must be after call time.");
       return;
     }
 
@@ -121,16 +122,16 @@ export function CallWindowEditor({
       });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) {
-        const msg = await parseErrorMessage(res, "Call window was not saved");
+        const msg = await parseErrorMessage(res, "Call time was not saved");
         setError(msg);
         toast.error(msg);
         return;
       }
-      toast.success(callStartsAt ? "Call window updated" : "Call window cleared");
+      toast.success(callStartsAt ? "Call time updated" : "Call time cleared");
       setOpen(false);
       onSaved?.();
     } catch {
-      const msg = "Could not reach the server. Call window was not saved.";
+      const msg = "Could not reach the server. Call time was not saved.";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -143,13 +144,14 @@ export function CallWindowEditor({
     const callStartsAt = dateTimeLocalToIso(startDraft);
     const callEndsAt = dateTimeLocalToIso(endDraft);
     if (!callStartsAt || !callEndsAt) {
-      setError("Set both call start and call end.");
+      setError("Set both call time and coverage end.");
       return;
     }
     void patchWindow(callStartsAt, callEndsAt);
   }
 
-  const label = formatCallWindow(effectiveWindow);
+  const label = formatCallTime(effectiveWindow);
+  const windowLabel = formatCallWindow(effectiveWindow);
   const trigger = (
     <Button
       type="button"
@@ -163,6 +165,7 @@ export function CallWindowEditor({
       )}
       disabled={disabled}
       aria-label={editable ? `Edit ${targetLabel(target)}` : `Call ${label}`}
+      title={windowLabel !== label ? `Coverage window: ${windowLabel}` : undefined}
       onClick={(event) => event.stopPropagation()}
     >
       <ClockIcon className="size-3.5 shrink-0 text-muted-foreground" />
@@ -185,12 +188,12 @@ export function CallWindowEditor({
           <div>
             <p className="text-sm font-semibold capitalize">{targetLabel(target)}</p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Clear the override to fall back to the inherited call window.
+              The row shows one call time. The coverage end is still used for conflict checks.
             </p>
           </div>
           <div className="grid gap-2">
             <div className="grid gap-1.5">
-              <Label htmlFor={`${target.id}-call-start`} className="text-xs">Call start</Label>
+              <Label htmlFor={`${target.id}-call-start`} className="text-xs">Call time</Label>
               <Input
                 id={`${target.id}-call-start`}
                 type="datetime-local"
@@ -200,7 +203,7 @@ export function CallWindowEditor({
               />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor={`${target.id}-call-end`} className="text-xs">Call end</Label>
+              <Label htmlFor={`${target.id}-call-end`} className="text-xs">Coverage end</Label>
               <Input
                 id={`${target.id}-call-end`}
                 type="datetime-local"

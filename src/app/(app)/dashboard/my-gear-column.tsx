@@ -9,7 +9,7 @@ import { ClipboardCheckIcon, CalendarCheckIcon, ClockIcon } from "lucide-react";
 import { ScaleIn } from "@/components/ui/motion";
 import { formatDayLabel, formatRelativeTime, isDueToday } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
-import { formatCallWindow } from "@/lib/shift-call-windows";
+import { formatCallTime } from "@/lib/shift-call-windows";
 import { GearAvatarStack } from "./dashboard-avatars";
 import { DashboardBookingRow, dashboardBookingAccent } from "./booking-row";
 import { DashboardSectionHeader } from "./section-header";
@@ -179,7 +179,7 @@ export function MyGearColumn({
                       <span className="text-muted-foreground font-normal">{eventTitle}</span>
                     </span>
                     <span className="flex items-center gap-1 text-xs text-muted-foreground leading-snug">
-                      {formatDayLabel(s.callStartsAt, now)}, Call {formatCallWindow({ startsAt: s.callStartsAt, endsAt: s.callEndsAt })}
+                      {formatDayLabel(s.callStartsAt, now)}, Call {formatCallTime({ startsAt: s.callStartsAt, endsAt: s.callEndsAt })}
                       {s.event.locationName && ` \u00B7 ${s.event.locationName}`}
                     </span>
                   </div>

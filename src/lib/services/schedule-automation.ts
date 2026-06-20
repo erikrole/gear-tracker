@@ -4,10 +4,10 @@ import {
   getCalendarSourceFreshness,
   type CalendarSourceFreshnessInput,
 } from "@/lib/calendar-source-freshness";
+import { buildScheduleEventWhere } from "@/lib/schedule-event-where";
 import { getScheduleHealth } from "@/lib/services/schedule-health";
 import { getSchedulePublicationState } from "@/lib/services/schedule-publication";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
-import { startOfTodayInAppTz } from "@/lib/app-time";
 import type { ScheduleAutomationDigest, ScheduleAutomationCard } from "@/lib/schedule-automation-types";
 
 type ScheduleAutomationInput = {
@@ -34,35 +34,6 @@ type ScheduleAutomationInput = {
 };
 
 const ACTIVE_STATUS_SET = new Set<string>(ACTIVE_ASSIGNMENT_STATUSES);
-
-function buildEventWhere({
-  parsedStartDate,
-  parsedEndDate,
-  includePast,
-  includeArchived,
-  sportCode,
-  now,
-}: ScheduleAutomationInput & { now: Date }): Prisma.CalendarEventWhereInput {
-  const where: Prisma.CalendarEventWhereInput = {
-    status: { not: "CANCELLED" },
-    isHidden: false,
-    ...(!includeArchived ? { archivedAt: null } : {}),
-    ...(sportCode ? { sportCode } : {}),
-  };
-
-  if (parsedStartDate && parsedEndDate) {
-    where.startsAt = { lte: parsedEndDate };
-    where.endsAt = { gt: parsedStartDate };
-  } else if (parsedStartDate) {
-    where.endsAt = { gt: parsedStartDate };
-  } else if (parsedEndDate) {
-    where.startsAt = { lte: parsedEndDate };
-  } else if (!includePast) {
-    where.endsAt = { gt: startOfTodayInAppTz(now) };
-  }
-
-  return where;
-}
 
 function countMissingShifts(event: AutomationEvent) {
   const shifts = event.shiftGroup?.shifts ?? [];
@@ -174,7 +145,7 @@ export async function getScheduleAutomationDigest(input: ScheduleAutomationInput
   const now = input.now ?? new Date();
   const [health, events, sourceState, staleTradesResult] = await Promise.allSettled([
     getScheduleHealth({ ...input, now }),
-    loadAutomationEvents(buildEventWhere({ ...input, now })),
+    loadAutomationEvents(buildScheduleEventWhere({ ...input, now })),
     loadCalendarSources(now),
     db.shiftTrade.count({
       where: {

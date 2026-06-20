@@ -8,6 +8,7 @@ import {
   extractSportInfo,
   isHomeLocationText,
 } from "@/lib/services/calendar-sync";
+import { normalizeOpponentName, normalizeVenueText } from "@/lib/schedule-event-identity";
 import { z } from "zod";
 
 const patchSchema = z
@@ -61,6 +62,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
         summaryLocked: true,
         isHomeLocked: true,
         locationLocked: true,
+        location: { select: { isHomeVenue: true } },
       },
     });
     if (!existing) throw new HttpError(404, "Event not found");
@@ -105,9 +107,9 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
         const info = extractSportInfo(cleaned);
         derived = info.isHome;
         derivedOpponent = info.opponent;
-        const locationText = existing.rawLocationText || "";
+        const locationText = normalizeVenueText(existing.rawLocationText) || "";
         if (locationText) {
-          const homeByLocation = isHomeLocationText(locationText);
+          const homeByLocation = existing.location?.isHomeVenue === true || isHomeLocationText(locationText);
           if (derived === null) derived = homeByLocation;
           else if (derived === true && !homeByLocation) derived = null;
         }
@@ -130,7 +132,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     if (body.opponent !== undefined) {
       before.opponent = existing.opponent;
       before.isHomeLocked = existing.isHomeLocked;
-      patch.opponent = body.opponent?.trim() || null;
+      patch.opponent = normalizeOpponentName(body.opponent);
       patch.isHomeLocked = true;
       after.opponent = patch.opponent;
       after.isHomeLocked = true;

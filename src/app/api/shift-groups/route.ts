@@ -5,6 +5,7 @@ import { requirePermission } from "@/lib/rbac";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 import { assertDateOrder, parseOptionalDate } from "@/lib/api-dates";
 import { getSchedulePublicationState } from "@/lib/services/schedule-publication";
+import { optionalSportCodeSchema } from "@/lib/validation";
 import type { Prisma } from "@prisma/client";
 
 function applyEventWindowFilter(
@@ -29,7 +30,7 @@ export const GET = withAuth(async (req, { user }) => {
   const { limit: rawLimit, offset } = parsePagination(url.searchParams);
   const limit = Math.min(rawLimit, 500);
 
-  const sportCode = url.searchParams.get("sportCode");
+  const sportCode = optionalSportCodeSchema.parse(url.searchParams.get("sportCode") ?? undefined);
   const startDate = url.searchParams.get("startDate");
   const endDate = url.searchParams.get("endDate");
   const eventId = url.searchParams.get("eventId");

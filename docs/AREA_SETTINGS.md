@@ -144,6 +144,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - Priority + longest-match tie-breaking.
 - Per D-027: ADMIN-only, STAFF cannot access.
 - Home venue toggling moved to the Locations tab as of 2026-04-25.
+- Read-only Mapping Audit surfaces home venues without mappings, mappings to inactive or missing locations, and home-looking mappings pointed at non-home locations. Missing-home-venue rows can prefill Add mapping with the location name and ID.
 
 ### Bookings (`/settings/bookings`)
 - Configure the extend-due-date presets shown when extending a booking.
@@ -190,6 +191,9 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages.
 
 ## Change Log
+- 2026-06-19: **Venue mapping audit surface.** Settings > Venue Mappings now renders the read-only audit helper as an admin diagnostics card, with recovery actions for missing home-venue mappings and links back to Locations for inactive or non-home venue fixes.
+- 2026-06-19: **Venue mapping audit helper.** A read-only helper now classifies home venues without active mappings and mappings that point to missing or inactive locations, giving Settings-owned venue data a regression target before future diagnostics UI.
+- 2026-06-19: **Sport settings code hardening.** Settings > Sports and related roster/config routes now normalize lowercase sport-code input to canonical UW codes and reject unknown codes before reads or writes. Locations' Home Venue flag is also consumed by calendar sync when mapped venues determine whether a `vs` event stays home or becomes neutral.
 - 2026-06-10: **iOS Settings detail menus.** Native Settings now has dedicated Notifications and Account & Security drill-downs. Notifications keeps the existing server-backed pause, email/push, category, and iOS permission controls; Account & Security changes passwords through the existing personal Security endpoint and keeps profile editing plus active-session review linked to web.
 - 2026-06-10: **iOS Settings first-class hub.** Native Profile now presents as Settings with grouped account, schedule, notification, appearance, tools, and app sections. The iOS surface keeps the web-owned backend settings model, existing notification preference API, student Availability entry, staff/admin sticker-code tool, and stable tab shell unchanged.
 - 2026-06-08: **No-temp-password onboarding pivot.** Settings > Allowed Emails now keeps the shared onboarding dialog invite-first only. First-time direct-create and bulk-create password handoffs are retired; operators add allowlist invitations so users register with their own password.

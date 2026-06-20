@@ -22,7 +22,7 @@ import type { GridShift, GridAssignment } from "@/hooks/use-assignment-grid";
 import { cn } from "@/lib/utils";
 import { AlertTriangleIcon, PlusIcon, UserIcon, XIcon } from "lucide-react";
 import { shiftWorkerLabel } from "@/lib/shift-display";
-import { effectiveCallWindow, formatCallWindow } from "@/lib/shift-call-windows";
+import { effectiveCallWindow, formatCallTime } from "@/lib/shift-call-windows";
 
 type Props = {
   shifts: GridShift[]; // all shifts for this event matching this area
@@ -265,7 +265,7 @@ export function AssignmentCell({
                       </TooltipTrigger>
                       <TooltipContent>
                         <span className="font-medium">{assignment.user.name}</span>
-                        <span className="ml-1 text-muted-foreground">Call {formatCallWindow(callWindow)}</span>
+                        <span className="ml-1 text-muted-foreground">Call {formatCallTime(callWindow)}</span>
                         {assignment.hasConflict && (
                           <span className="ml-1 text-muted-foreground">
                             {assignment.conflictNote ?? "Schedule conflict"}

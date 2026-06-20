@@ -3,6 +3,7 @@ import { assertDateOrder, parseOptionalDate } from "@/lib/api-dates";
 import { ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { getScheduleHealth } from "@/lib/services/schedule-health";
+import { optionalSportCodeSchema } from "@/lib/validation";
 
 export const GET = withAuth(async (req, { user }) => {
   requirePermission(user.role, "shift", "view");
@@ -18,7 +19,7 @@ export const GET = withAuth(async (req, { user }) => {
     parsedEndDate,
     includePast: searchParams.get("includePast") === "true",
     includeArchived: searchParams.get("includeArchived") === "true",
-    sportCode: searchParams.get("sportCode"),
+    sportCode: optionalSportCodeSchema.parse(searchParams.get("sportCode") ?? undefined) ?? null,
   });
 
   return ok({ data });

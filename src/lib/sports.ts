@@ -28,6 +28,15 @@ export const SPORT_CODES = [
 ] as const;
 
 export type SportCode = (typeof SPORT_CODES)[number]["code"];
+export const SPORT_CODE_SET = new Set<string>(SPORT_CODES.map((sport) => sport.code));
+
+export function normalizeSportCode(value: string): string {
+  return value.trim().toUpperCase();
+}
+
+export function isSportCode(value: string): value is SportCode {
+  return SPORT_CODE_SET.has(normalizeSportCode(value));
+}
 
 /** Legacy code aliases — maps old ungendered codes to labels for backward compat */
 const LEGACY_LABELS: Record<string, string> = {
@@ -42,9 +51,10 @@ const LEGACY_LABELS: Record<string, string> = {
 };
 
 export function sportLabel(code: string): string {
+  const normalized = normalizeSportCode(code);
   return (
-    SPORT_CODES.find((s) => s.code === code)?.label ??
-    LEGACY_LABELS[code] ??
+    SPORT_CODES.find((s) => s.code === normalized)?.label ??
+    LEGACY_LABELS[normalized] ??
     code
   );
 }

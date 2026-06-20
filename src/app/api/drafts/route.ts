@@ -3,6 +3,7 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
 import { z } from "zod";
+import { optionalSportCodeSchema } from "@/lib/validation";
 
 const saveDraftSchema = z.object({
   id: z.string().cuid().optional(),
@@ -14,7 +15,7 @@ const saveDraftSchema = z.object({
   endsAt: z.string().optional(),
   eventId: z.string().cuid().nullable().optional(),
   eventIds: z.array(z.string().cuid()).max(3).optional(),
-  sportCode: z.string().max(10).optional(),
+  sportCode: optionalSportCodeSchema,
   notes: z.string().max(10000).optional(),
   serializedAssetIds: z.array(z.string().cuid()).default([]),
   bulkItems: z

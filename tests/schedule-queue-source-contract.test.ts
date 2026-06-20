@@ -26,6 +26,7 @@ describe("schedule queue source contract", () => {
       "pending-requests",
       "conflicts",
       "gear-gaps",
+      "data-quality",
       "stale-source",
     ]) {
       expect(readiness).toContain(`"${queue}"`);

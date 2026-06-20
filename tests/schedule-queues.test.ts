@@ -54,6 +54,7 @@ function health(eventIds: Partial<Record<keyof ScheduleHealthSnapshot["queues"],
       openTrades: { count: 0 },
       tradeApprovals: { count: 0 },
       gearGaps: { count: 0, eventIds: eventIds.gearGaps },
+      dataQuality: { count: 0, eventIds: eventIds.dataQuality, issues: [] },
       hiddenEvents: { count: 0 },
       archivedEvents: { count: 0 },
     },
@@ -74,6 +75,7 @@ describe("schedule queues", () => {
   it("parses only supported queue names", () => {
     expect(parseScheduleQueue("needs-staffing")).toBe("needs-staffing");
     expect(parseScheduleQueue("gear-gaps")).toBe("gear-gaps");
+    expect(parseScheduleQueue("data-quality")).toBe("data-quality");
     expect(parseScheduleQueue("unknown")).toBeNull();
     expect(parseScheduleQueue(null)).toBeNull();
   });
@@ -94,7 +96,7 @@ describe("schedule queues", () => {
   });
 
   it("filters risk queues by health event ids", () => {
-    const entries = [entry({ id: "normal" }), entry({ id: "conflict" }), entry({ id: "gear" })];
+    const entries = [entry({ id: "normal" }), entry({ id: "conflict" }), entry({ id: "gear" }), entry({ id: "quality" })];
 
     expect(filterEntriesForScheduleQueue({
       entries,
@@ -107,6 +109,12 @@ describe("schedule queues", () => {
       queue: "gear-gaps",
       health: health({ gearGaps: ["gear"] }),
     }).map((item) => item.id)).toEqual(["gear"]);
+
+    expect(filterEntriesForScheduleQueue({
+      entries,
+      queue: "data-quality",
+      health: health({ dataQuality: ["quality"] }),
+    }).map((item) => item.id)).toEqual(["quality"]);
   });
 
   it("filters my calls today from active assignment call windows", () => {

@@ -113,8 +113,14 @@ export function formatCallWindow(window: Pick<EffectiveCallWindow, "startsAt" | 
   return start === end ? start : `${start} - ${end}`;
 }
 
+export function formatCallTime(window: Pick<EffectiveCallWindow, "startsAt" | "endsAt">): string {
+  return sameLocalDay(window.startsAt, window.endsAt)
+    ? formatCallWindowTime(window.startsAt)
+    : formatCallWindowDateTime(window.startsAt);
+}
+
 export function formatCallWindowLabel(window: Pick<EffectiveCallWindow, "startsAt" | "endsAt">): string {
-  return `Call ${formatCallWindow(window)}`;
+  return `Call ${formatCallTime(window)}`;
 }
 
 export function toDateTimeLocalValue(isoString: string | null | undefined): string {
@@ -157,12 +163,12 @@ export function summarizeEffectiveCallWindows(
   if (values.length === 1) {
     return {
       label: formatCallWindowLabel(values[0]!),
-      title: `${callWindowSourceLabel(values[0]!.source)} call window`,
+      title: `${callWindowSourceLabel(values[0]!.source)} call window: ${formatCallWindow(values[0]!)}`,
       mixed: false,
     };
   }
   return {
-    label: "Mixed call windows",
+    label: "Mixed call times",
     title: values.map((window) => `${callWindowSourceLabel(window.source)}: ${formatCallWindow(window)}`).join(", "),
     mixed: true,
   };

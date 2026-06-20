@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   effectiveCallWindow,
+  formatCallTime,
+  formatCallWindow,
   summarizeEffectiveCallWindows,
   toDateTimeLocalValue,
   dateTimeLocalToIso,
@@ -46,7 +48,17 @@ describe("shift call-window helpers", () => {
     });
   });
 
-  it("summarizes mixed effective call windows instead of one false shared label", () => {
+  it("formats visible call time as one start time while retaining full window formatting", () => {
+    const window = {
+      startsAt: "2026-07-07T12:30:00.000Z",
+      endsAt: "2026-07-07T15:30:00.000Z",
+    };
+
+    expect(formatCallTime(window)).not.toContain(" - ");
+    expect(formatCallWindow(window)).toContain(" - ");
+  });
+
+  it("summarizes mixed effective call times instead of one false shared label", () => {
     const summary = summarizeEffectiveCallWindows([
       effectiveCallWindow(shift),
       effectiveCallWindow(shift, {
@@ -56,7 +68,7 @@ describe("shift call-window helpers", () => {
     ]);
 
     expect(summary.mixed).toBe(true);
-    expect(summary.label).toBe("Mixed call windows");
+    expect(summary.label).toBe("Mixed call times");
     expect(summary.title).toContain("Slot:");
     expect(summary.title).toContain("Personal:");
   });
@@ -85,7 +97,7 @@ describe("shift call-window helpers", () => {
     ], { hideInheritedFullDayWindows: true });
 
     expect(summary.label).toContain("Call");
-    expect(summary.title).toBe("Slot call window");
+    expect(summary.title).toContain("Slot call window:");
   });
 
   it("suppresses all call-window labels when the owning event is all-day", () => {

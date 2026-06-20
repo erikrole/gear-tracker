@@ -36,6 +36,7 @@ describe("schedule source-of-truth smoke fallback contracts", () => {
       "pending-requests",
       "conflicts",
       "gear-gaps",
+      "data-quality",
       "stale-source",
     ]) {
       expect(readiness).toContain(`onShowQueue("${queue}")`);

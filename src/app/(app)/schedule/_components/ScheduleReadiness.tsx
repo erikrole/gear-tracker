@@ -5,6 +5,7 @@ import {
   CheckCircle2Icon,
   ClockIcon,
   CloudAlertIcon,
+  ListChecksIcon,
   PackageCheckIcon,
   Repeat2Icon,
   UserCheckIcon,
@@ -132,6 +133,8 @@ export function ScheduleReadiness({
   const pendingRequests = health?.queues.pendingRequests.count ?? 0;
   const conflicts = health?.queues.conflicts.count ?? 0;
   const gearGaps = health?.queues.gearGaps.count ?? 0;
+  const dataQualityIssues = health?.queues.dataQuality.count ?? 0;
+  const dataQualityEvents = health?.queues.dataQuality.eventCount ?? 0;
   const tradeApprovals = health?.queues.tradeApprovals.count ?? 0;
   const nextCall = health?.nextCall.label ?? formatNextCall(filteredEntries);
   const sourceNeedsAttention = sourceSignal?.severity === "attention";
@@ -174,6 +177,17 @@ export function ScheduleReadiness({
       icon: PackageCheckIcon,
       tone: gearGaps > 0 ? "attention" : "good",
       onClick: () => onShowQueue("gear-gaps"),
+      actionLabel: "Open queue",
+    },
+    {
+      label: "Data quality",
+      value: dataQualityIssues,
+      detail: dataQualityIssues > 0
+        ? `${dataQualityEvents} event${dataQualityEvents === 1 ? "" : "s"} need cleanup`
+        : "Event data looks clean",
+      icon: ListChecksIcon,
+      tone: dataQualityIssues > 0 ? "attention" : "good",
+      onClick: () => onShowQueue("data-quality"),
       actionLabel: "Open queue",
     },
     {

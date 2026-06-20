@@ -66,6 +66,26 @@ _2026-06-19 update: Reconciled stale low-priority backlog wording. GAP-33 is alr
 
 _2026-06-19 update: iOS reservation creation showtime polish shipped without opening a new gap. The slice used existing `eventIds[]`, `serializedAssetIds`, `bulkItems`, and `BulkSku.imageUrl` contracts, so no schema or API expansion was needed._
 
+_2026-06-19 update: Schedule title cleanup shipped without opening a new gap. The slice reused existing `CalendarEvent.summary`, `sportCode`, `opponent`, `isHome`, and mapped `location` data to clean imported UW source prefixes and preserve neutral-site sublines; no schema, API, or new decision was needed._
+
+_2026-06-19 update: Schedule call-time display cleanup shipped without opening a new gap. Existing shift and assignment call-window fields already model default/generated windows, slot overrides, and personal overrides; the slice changed display language so visible rows show one effective call time per slot/person while preserving start/end windows for editing and conflict checks._
+
+_2026-06-19 update: Schedule hardening improve follow-up shipped without opening a new gap. Hidden calendar-event list reads now require staff/admin when `includeHidden=true` is requested, and stale mirrored calendar-events query tests were replaced with route-backed coverage for visibility, archive, and overlap-window contracts._
+
+_2026-06-19 update: Schedule query-contract hardening shipped without opening a new gap. Calendar-event list reads, Schedule health, Schedule automation, and Schedule exports now share one CalendarEvent where-builder for cancelled, hidden, archived, date-overlap, sport, and unmapped filters._
+
+_2026-06-19 update: Sport-code and home-venue hardening shipped without opening a new gap. Canonical sport-code validation is enforced at controlled API boundaries while legacy stored values remain display-tolerant, and calendar sync now uses mapped home-venue flags already owned by Settings > Locations._
+
+_2026-06-19 update: Sport-code route coverage and venue mapping audit helper shipped without opening a new gap. The slice adds regression coverage and a read-only audit classifier only; it does not change venue data, expose a new UI, or add a migration._
+
+_2026-06-19 update: Manual calendar-event create schema hardening shipped without opening a new gap. The slice consolidates existing route validation before the same create/audit write path and does not expand the manual event authoring surface._
+
+_2026-06-19 update: Venue mapping audit surface shipped without opening a new gap. Settings > Venue Mappings now exposes the existing read-only venue audit to admins and routes fixes through existing mapping and Locations ownership paths._
+
+_2026-06-19 update: Schedule data-quality queue shipped without opening a new gap. The queue is read-only, uses existing CalendarEvent, ShiftGroup, Location, and archive fields, and routes cleanup through current Event detail and Settings ownership surfaces._
+
+_2026-06-19 update: Schedule event identity normalization shipped without opening a new gap. Shared helper code now normalizes opponent and venue strings at ingest/edit/display boundaries, preserving raw calendar venue evidence and the existing pickup-location separation._
+
 | ID | Description | Owner Area | Priority | Blocker? |
 |---|---|---|---|---|
 | ~~PD-1~~ | ~~D-009: Escalation recipient model~~ | ~~AREA_NOTIFICATIONS~~ | ~~Resolved~~ | ~~Requester + all admins; admin-configurable fatigue controls~~ |
@@ -214,6 +234,12 @@ _2026-06-19 update: iOS reservation creation showtime polish shipped without ope
 ---
 
 ## Change Log
+- 2026-06-19: Schedule event identity normalization shipped without opening a new gap. Opponent and venue cleanup is shared across Calendar sync, manual event creation, event edit/revert, and Schedule title rendering with no schema change.
+- 2026-06-19: Schedule data-quality queue shipped without opening a new gap. Existing Schedule health now exposes read-only event data issues for staff/admin review instead of adding new event fields or correction workflows.
+- 2026-06-19: Venue mapping audit surface shipped without opening a new gap. Admin diagnostics now expose missing home-venue mappings and stale mapping targets through Settings using existing Location and LocationMapping ownership.
+- 2026-06-19: Schedule query-contract hardening shipped without opening a new gap. Shared CalendarEvent where-building now prevents hidden/archive/date-window drift across Schedule list, health, automation, and export reads.
+- 2026-06-19: Schedule call-time display cleanup shipped without opening a new gap. Existing `Shift.startsAt/endsAt`, `Shift.callStartsAt/callEndsAt`, and `ShiftAssignment.callStartsAt/callEndsAt` contracts already model the needed layers; UI labels now show one effective call time while retaining full windows for conflict and edit behavior.
+- 2026-06-19: Schedule title cleanup shipped without opening a new gap. Shared Schedule title formatting now removes UW source prefixes from fallback summaries, future calendar sync uses the same prefix cleanup, and neutral structured games can show mapped location as the secondary line using existing CalendarEvent fields.
 - 2026-06-18: Schedule event editing clarity pass shipped without opening a new gap. Event type, pickup location, calendar venue, and crew call-time display were clarified using existing CalendarEvent and Shift call-window contracts rather than a schema migration.
 - 2026-06-18: Schedule crew UI trim pass simplified visible Schedule operations without opening a new gap. Attendance tracking and Review template affordances were removed from Event detail/Shift Detail UI, Changed recently badges were removed, and badge formatting was normalized locally on Event detail Crew.
 - 2026-06-18: Schedule MVP polish pass strengthened the existing Schedule source-of-truth track without opening a new gap. Overview noise, event-row badge duplication, event-detail action priority, New Event sheet sizing, and Assign/Trade Board empty-state recovery were tightened as UI contract work only.

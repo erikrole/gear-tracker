@@ -4,6 +4,58 @@ Last updated: 2026-06-19
 
 ---
 
+## Active: Schedule title cleanup (2026-06-19)
+
+Plan: `tasks/schedule-title-cleanup-plan.md`
+
+- [x] Confirmed Schedule/Event docs, schema, and shared formatter contract.
+- [x] Updated shared Schedule title formatting for UW Athletics source prefixes and neutral-site location sublines.
+- [x] Aligned future calendar sync prefix cleanup.
+- [x] Added focused Schedule formatter and calendar-sync regression tests.
+- [x] Run verification and record results.
+
+---
+
+## Active: Schedule call time display (2026-06-19)
+
+Plan: `tasks/schedule-call-time-display-plan.md`
+
+- [x] Confirmed the data model already separates event time, generated/default shift window, slot override, and personal override.
+- [x] Update shared call-time display so rows show one call time per slot/person while preserving full-window edit/conflict data.
+- [x] Run full verification and record results.
+
+---
+
+## Active: Schedule hardening from improve pass (2026-06-19)
+
+Plan: `tasks/schedule-hardening-improve-plan.md`
+Follow-up plan: `tasks/venue-mappings-audit-surface-plan.md`
+Follow-up plan: `tasks/schedule-data-quality-queue-plan.md`
+Follow-up plan: `tasks/schedule-event-identity-normalization-plan.md`
+
+- [x] Gate hidden calendar-event list reads by role.
+- [x] Replace stale mirrored calendar-events query coverage with route-backed tests.
+- [x] Update Schedule/Event docs and run verification.
+- [x] Centralize shared CalendarEvent where-building for Schedule/Event server reads.
+- [x] Harden sport-code API boundaries and mapped home-venue sync classification.
+- [x] Add sport-code route coverage and read-only venue mapping audit helper.
+- [x] Harden manual calendar-event creation with schema-backed validation.
+- [x] Surface the venue mapping audit in Settings for admin review and recovery.
+- [x] Add the Schedule data-quality queue for event cleanup review.
+- [x] Normalize noisy event opponent and venue identity strings at ingest/edit boundaries.
+
+### Review
+- 2026-06-19: Shipped the Schedule hardening improve follow-up. `/api/calendar-events?includeHidden=true` now rejects non-staff/admin users, route-backed GET tests cover default hidden/archive filtering plus staff-only hidden reads, and the stale mirrored query-helper test was removed. Verification passed with focused Vitest coverage, TypeScript, migration-prefix check, diff whitespace check, docs verification, and `build:app`.
+- 2026-06-19: Shipped the query-contract follow-up. `/api/calendar-events`, Schedule health, Schedule automation, and Schedule exports now share `buildScheduleEventWhere`, with helper-level tests covering visibility/archive/status/date-window/sport/unmapped behavior.
+- 2026-06-19: Shipped sport-code and venue hardening. API boundaries now normalize lowercase sport codes and reject unknown values before reads/writes, while calendar sync uses mapped home-venue flags when deriving home versus neutral event state.
+- 2026-06-19: Shipped route coverage and venue audit follow-up. Schedule health, automation, exports, shift groups, bookings, users, and drafts now have route-level sport-code normalization/rejection tests, and `auditVenueMappings` flags home-venue mapping drift without mutating data.
+- 2026-06-19: Shipped manual calendar-event creation schema hardening. `/api/calendar-events` POST now validates manual event payloads through one Zod schema before date normalization and create/audit writes.
+- 2026-06-19: Shipped the venue mapping audit surface. Settings > Venue Mappings now shows read-only diagnostics for missing home-venue mappings, stale inactive/missing mapping targets, and home-looking mappings that point at non-home locations.
+- 2026-06-19: Shipped the Schedule data-quality queue. Schedule health now flags visible events with missing sport/opponent/venue mapping context, future archived status, or shifts without sport metadata, and `/schedule?queue=data-quality` filters review to those events.
+- 2026-06-19: Shipped event identity normalization. Calendar sync, manual event creation, event edits, event revert, and Schedule title rendering now share opponent/venue cleanup while preserving raw calendar venue evidence and pickup-location separation.
+
+---
+
 ## Recently Archived: Plan 014, Plan 018, and iOS picker reconciliation (2026-06-19)
 
 Archived to `tasks/archive/completed-2026-06/plan-014-018-020-023-reconciliation-2026-06-19.md`:

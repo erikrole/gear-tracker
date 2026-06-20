@@ -3,6 +3,7 @@ import { assertDateOrder, parseOptionalDate } from "@/lib/api-dates";
 import { ok } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
 import { getScheduleAutomationDigest } from "@/lib/services/schedule-automation";
+import { optionalSportCodeSchema } from "@/lib/validation";
 
 export const GET = withAuth(async (req, { user }) => {
   requireRole(user.role, ["ADMIN", "STAFF"]);
@@ -18,9 +19,8 @@ export const GET = withAuth(async (req, { user }) => {
     parsedEndDate,
     includePast: searchParams.get("includePast") === "true",
     includeArchived: searchParams.get("includeArchived") === "true",
-    sportCode: searchParams.get("sportCode"),
+    sportCode: optionalSportCodeSchema.parse(searchParams.get("sportCode") ?? undefined) ?? null,
   });
 
   return ok({ data });
 });
-

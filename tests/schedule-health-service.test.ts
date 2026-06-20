@@ -40,6 +40,12 @@ describe("getScheduleHealth", () => {
       {
         id: "event-1",
         summary: "Women's Basketball",
+        sportCode: "WBB",
+        opponent: "Iowa",
+        isHome: true,
+        locationId: "loc-1",
+        location: { id: "loc-1", name: "Kohl Center" },
+        archivedAt: null,
         startsAt: new Date("2026-07-10T18:00:00Z"),
         endsAt: new Date("2026-07-10T21:00:00Z"),
         allDay: false,
@@ -78,6 +84,12 @@ describe("getScheduleHealth", () => {
       {
         id: "event-2",
         summary: "Manual meeting",
+        sportCode: null,
+        opponent: null,
+        isHome: null,
+        locationId: null,
+        location: null,
+        archivedAt: null,
         startsAt: new Date("2026-07-11T18:00:00Z"),
         endsAt: new Date("2026-07-11T21:00:00Z"),
         allDay: false,
@@ -121,6 +133,7 @@ describe("getScheduleHealth", () => {
     expect(health.queues.hiddenEvents).toEqual({ count: 2 });
     expect(health.queues.archivedEvents).toEqual({ count: 1 });
     expect(health.queues.gearGaps).toEqual({ count: 1, eventCount: 1, eventIds: ["event-1"] });
+    expect(health.queues.dataQuality).toEqual({ count: 0, eventCount: 0, eventIds: [], issues: [] });
     expect(health.gearReadiness.events["event-1"]).toEqual({
       eventId: "event-1",
       counts: {
@@ -160,6 +173,12 @@ describe("getScheduleHealth", () => {
       {
         id: "event-1",
         summary: "Volleyball",
+        sportCode: "VB",
+        opponent: "Kentucky",
+        isHome: null,
+        locationId: "loc-fiserv",
+        location: { id: "loc-fiserv", name: "Fiserv Forum" },
+        archivedAt: null,
         startsAt: new Date("2026-07-10T18:00:00Z"),
         endsAt: new Date("2026-07-10T21:00:00Z"),
         allDay: false,
@@ -269,6 +288,45 @@ describe("getScheduleHealth", () => {
     });
 
     expect(dbMock.booking.findMany).not.toHaveBeenCalled();
+  });
+
+  it("summarizes event data-quality issues", async () => {
+    dbMock.calendarEvent.findMany.mockResolvedValue([
+      {
+        id: "event-quality",
+        summary: "Soccer",
+        sportCode: "MSOC",
+        opponent: null,
+        isHome: true,
+        locationId: null,
+        location: null,
+        archivedAt: null,
+        startsAt: new Date("2026-07-10T18:00:00Z"),
+        endsAt: new Date("2026-07-10T21:00:00Z"),
+        allDay: false,
+        shiftGroup: { shifts: [] },
+      },
+    ]);
+
+    const health = await getScheduleHealth({
+      userId: "user-1",
+      parsedStartDate: null,
+      parsedEndDate: null,
+      includePast: false,
+      includeArchived: false,
+      sportCode: null,
+      now: new Date("2026-07-01T12:00:00Z"),
+    });
+
+    expect(health.queues.dataQuality).toEqual({
+      count: 2,
+      eventCount: 1,
+      eventIds: ["event-quality"],
+      issues: [
+        { eventId: "event-quality", reason: "missing_opponent" },
+        { eventId: "event-quality", reason: "missing_home_venue_mapping" },
+      ],
+    });
   });
 
   it("keeps the core health snapshot available when a non-critical count fails", async () => {

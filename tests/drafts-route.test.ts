@@ -148,6 +148,39 @@ describe("POST /api/drafts", () => {
     expect(mockTx.booking.create).not.toHaveBeenCalled();
     expect(mockTx.booking.update).not.toHaveBeenCalled();
   });
+
+  it("normalizes draft sportCode before saving", async () => {
+    mockTx.booking.create.mockResolvedValue({ id: "cm000000000000000000000010" });
+
+    const res = await POST(
+      makePostRequest({
+        kind: "RESERVATION",
+        title: "Volleyball draft",
+        sportCode: "vb",
+      }),
+      noParams,
+    );
+
+    expect(res.status).toBe(201);
+    expect(mockTx.booking.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ sportCode: "VB" }),
+    });
+  });
+
+  it("rejects unknown draft sportCode before saving", async () => {
+    const res = await POST(
+      makePostRequest({
+        kind: "RESERVATION",
+        title: "Bad sport draft",
+        sportCode: "volleyball",
+      }),
+      noParams,
+    );
+
+    expect(res.status).toBe(400);
+    expect(mockTx.booking.create).not.toHaveBeenCalled();
+    expect(mockTx.booking.update).not.toHaveBeenCalled();
+  });
 });
 
 describe("GET /api/drafts/[id]", () => {

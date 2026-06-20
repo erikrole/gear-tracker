@@ -5,6 +5,7 @@ import {
 } from "@prisma/client";
 import { db } from "@/lib/db";
 import { HttpError, parsePagination } from "@/lib/http";
+import { optionalSportCodeSchema } from "@/lib/validation";
 import { bookingInclude } from "./bookings-helpers";
 
 const bookingListInclude = {
@@ -76,6 +77,7 @@ export async function listBookings(
   const statusListParam = parseStatusListParam(searchParams.get("status_in"));
   const fromDate = parseSearchDate(searchParams.get("from"), "from");
   const toDate = parseSearchDate(searchParams.get("to"), "to");
+  const sportCode = optionalSportCodeSchema.parse(searchParams.get("sport_code") ?? undefined);
 
   const activeOnly = searchParams.get("active") === "true";
   const pastOnly = searchParams.get("past") === "true";
@@ -94,7 +96,7 @@ export async function listBookings(
           ? { status: { in: [BookingStatus.COMPLETED, BookingStatus.CANCELLED] } }
         : {}),
     ...(searchParams.get("location_id") ? { locationId: searchParams.get("location_id")! } : {}),
-    ...(searchParams.get("sport_code") ? { sportCode: searchParams.get("sport_code")! } : {}),
+    ...(sportCode ? { sportCode } : {}),
     ...(restrictToRequesterUserId
       ? { requesterUserId: restrictToRequesterUserId }
       : searchParams.get("requester_id")

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/ConfirmDialog";
 import EmptyState from "@/components/EmptyState";
@@ -23,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SettingsPageShell } from "../SettingsPageShell";
-import { Trash2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, MapPin, Plus, Trash2 } from "lucide-react";
 
 type LocationMapping = {
   id: string;
@@ -33,6 +34,36 @@ type LocationMapping = {
 };
 
 type Location = { id: string; name: string };
+
+type VenueAuditLocation = {
+  id: string;
+  name: string;
+  active: boolean;
+  isHomeVenue: boolean;
+};
+
+type VenueAuditMapping = {
+  id: string;
+  pattern: string;
+  locationId: string;
+  location: VenueAuditLocation | null;
+};
+
+type VenueMappingAudit = {
+  homeVenuesWithoutMappings: VenueAuditLocation[];
+  mappingsToMissingLocations: VenueAuditMapping[];
+  mappingsToInactiveLocations: VenueAuditMapping[];
+  homeMappingsToNonHomeLocations: VenueAuditMapping[];
+  issueCount: number;
+};
+
+const emptyAudit: VenueMappingAudit = {
+  homeVenuesWithoutMappings: [],
+  mappingsToMissingLocations: [],
+  mappingsToInactiveLocations: [],
+  homeMappingsToNonHomeLocations: [],
+  issueCount: 0,
+};
 
 export default function VenueMappingsPage() {
   const confirm = useConfirm();
@@ -51,14 +82,28 @@ export default function VenueMappingsPage() {
     returnTo: "/settings/venue-mappings",
     transform: (json) => (json.data as Location[]) ?? [],
   });
+  const {
+    data: fetchedAudit,
+    loading: auditLoading,
+    error: auditError,
+    reload: reloadAudit,
+  } = useFetch<VenueMappingAudit>({
+    url: "/api/location-mappings/audit",
+    returnTo: "/settings/venue-mappings",
+    transform: (json) => (json.data as VenueMappingAudit) ?? emptyAudit,
+  });
 
   const mappings = fetchedMappings ?? [];
   const locations = fetchedLocations ?? [];
+  const audit = fetchedAudit ?? emptyAudit;
   const locationsUnavailable = locationsLoading || Boolean(locationsError) || locations.length === 0;
 
   const [showAdd, setShowAdd] = useState(false);
   const [addingMapping, setAddingMapping] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [newPattern, setNewPattern] = useState("");
+  const [newLocationId, setNewLocationId] = useState("");
+  const [newPriority, setNewPriority] = useState("0");
 
   // Live regex tester — pure client-side (the regex is the user's input).
   const [testPattern, setTestPattern] = useState("");
@@ -84,18 +129,33 @@ export default function VenueMappingsPage() {
   }
   const testResult = evalRegex(testPattern, testSample);
 
+  function resetAddForm() {
+    setNewPattern("");
+    setNewLocationId("");
+    setNewPriority("0");
+    setTestPattern("");
+  }
+
+  function openAddMapping(defaults?: { pattern?: string; locationId?: string }) {
+    setShowAdd(true);
+    const nextPattern = defaults?.pattern ?? "";
+    setNewPattern(nextPattern);
+    setTestPattern(nextPattern);
+    setNewLocationId(defaults?.locationId ?? "");
+    setNewPriority("0");
+  }
+
   async function handleAddMapping(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setAddingMapping(true);
-    const form = new FormData(e.currentTarget);
     try {
       const res = await fetch("/api/location-mappings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pattern: form.get("pattern"),
-          locationId: form.get("locationId"),
-          priority: parseInt(form.get("priority") as string) || 0,
+          pattern: newPattern,
+          locationId: newLocationId,
+          priority: parseInt(newPriority, 10) || 0,
         }),
       });
       if (handleAuthRedirect(res, "/settings/venue-mappings")) return;
@@ -103,7 +163,8 @@ export default function VenueMappingsPage() {
         setShowAdd(false);
         toast.success("Venue mapping added");
         reloadMappings();
-        e.currentTarget.reset();
+        reloadAudit();
+        resetAddForm();
       } else {
         const msg = await parseErrorMessage(res, "Failed to create mapping");
         toast.error(msg);
@@ -112,8 +173,9 @@ export default function VenueMappingsPage() {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
       toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Failed to create mapping");
+    } finally {
+      setAddingMapping(false);
     }
-    setAddingMapping(false);
   }
 
   async function handleDeleteMapping(mapping: LocationMapping) {
@@ -133,6 +195,7 @@ export default function VenueMappingsPage() {
       if (res.ok) {
         toast.success("Venue mapping deleted");
         reloadMappings();
+        reloadAudit();
       } else {
         toast.error("Delete failed");
       }
@@ -140,8 +203,9 @@ export default function VenueMappingsPage() {
       if (isAbortError(err)) return;
       const kind = classifyError(err);
       toast.error(kind === "network" ? "You\u2019re offline. Check your connection." : "Delete failed");
+    } finally {
+      setDeletingId(null);
     }
-    setDeletingId(null);
   }
 
   return (
@@ -149,12 +213,148 @@ export default function VenueMappingsPage() {
       title="Venue Mappings"
       description="Map raw venue text from calendar feeds to one of your locations. Home-location matches flag events as home games for shift coverage. Manage locations on the Locations tab."
     >
-        {/* ── Venue Pattern Mappings ── */}
         <Card>
-          <CardHeader>
+          <CardHeader className="flex-row items-center justify-between gap-3">
+            <CardTitle>Mapping Audit</CardTitle>
+            <Button type="button" size="sm" variant="outline" onClick={reloadAudit}>
+              Refresh audit
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {auditLoading ? (
+              <div className="flex justify-center py-8">
+                <Spinner className="size-8" />
+              </div>
+            ) : auditError ? (
+              <Alert variant="destructive">
+                <AlertTriangle className="size-4" />
+                <AlertDescription className="flex flex-wrap items-center gap-2">
+                  <span>Venue mapping diagnostics could not load.</span>
+                  <Button type="button" size="sm" variant="outline" onClick={reloadAudit}>
+                    Retry audit
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            ) : audit.issueCount === 0 ? (
+              <div className="flex items-center gap-3 rounded-md border border-border/60 bg-muted/20 px-4 py-3">
+                <CheckCircle2 className="size-5 text-[var(--green)]" />
+                <div>
+                  <p className="text-sm font-medium">Venue mappings look current</p>
+                  <p className="text-sm text-muted-foreground">
+                    Active home venues have mappings, and existing mappings point at active locations.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="orange">{audit.issueCount} to review</Badge>
+                  <p className="text-sm text-muted-foreground">
+                    Fix these before relying on venue-derived home, away, and neutral schedule handling.
+                  </p>
+                </div>
+
+                {audit.homeVenuesWithoutMappings.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold">Home venues without mappings</h3>
+                    <div className="divide-y rounded-md border">
+                      {audit.homeVenuesWithoutMappings.map((location) => (
+                        <div key={location.id} className="flex flex-wrap items-center justify-between gap-3 p-3">
+                          <div className="flex items-center gap-3">
+                            <MapPin className="size-4 text-muted-foreground" />
+                            <div>
+                              <p className="text-sm font-medium">{location.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Add a pattern so synced events can map to this home venue.
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openAddMapping({ pattern: location.name, locationId: location.id })}
+                          >
+                            <Plus className="mr-1.5 size-4" />
+                            Add mapping
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {audit.mappingsToInactiveLocations.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold">Mappings to inactive locations</h3>
+                    <div className="divide-y rounded-md border">
+                      {audit.mappingsToInactiveLocations.map((mapping) => (
+                        <div key={mapping.id} className="flex flex-wrap items-center justify-between gap-3 p-3">
+                          <div>
+                            <p className="font-mono text-xs">{mapping.pattern}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Points at inactive location {mapping.location?.name ?? mapping.locationId}.
+                            </p>
+                          </div>
+                          <Button asChild size="sm" variant="outline">
+                            <Link href="/settings/locations">Review location</Link>
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {audit.mappingsToMissingLocations.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold">Mappings to missing locations</h3>
+                    <div className="divide-y rounded-md border">
+                      {audit.mappingsToMissingLocations.map((mapping) => (
+                        <div key={mapping.id} className="flex flex-wrap items-center justify-between gap-3 p-3">
+                          <div>
+                            <p className="font-mono text-xs">{mapping.pattern}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Points at location ID {mapping.locationId}, which no longer exists.
+                            </p>
+                          </div>
+                          <Badge variant="red">Broken mapping</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {audit.homeMappingsToNonHomeLocations.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold">Home-looking mappings to non-home locations</h3>
+                    <div className="divide-y rounded-md border">
+                      {audit.homeMappingsToNonHomeLocations.map((mapping) => (
+                        <div key={mapping.id} className="flex flex-wrap items-center justify-between gap-3 p-3">
+                          <div>
+                            <p className="font-mono text-xs">{mapping.pattern}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Points at {mapping.location?.name ?? mapping.locationId}, but that location is not marked Home Venue.
+                            </p>
+                          </div>
+                          <Button asChild size="sm" variant="outline">
+                            <Link href="/settings/locations">Review home venue</Link>
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        {/* Venue Pattern Mappings */}
+        <Card>
+          <CardHeader className="flex-row items-center justify-between gap-3">
             <CardTitle>Pattern Mappings</CardTitle>
             {!showAdd && (
-              <Button size="sm" onClick={() => setShowAdd(true)}>
+              <Button size="sm" onClick={() => openAddMapping()}>
+                <Plus className="mr-1.5 size-4" />
                 Add mapping
               </Button>
             )}
@@ -168,10 +368,19 @@ export default function VenueMappingsPage() {
                     name="pattern"
                     placeholder="Venue pattern (e.g. Camp Randall)"
                     required
+                    value={newPattern}
                     className="flex-[2] min-w-[150px]"
-                    onChange={(e) => setTestPattern(e.target.value)}
+                    onChange={(e) => {
+                      setNewPattern(e.target.value);
+                      setTestPattern(e.target.value);
+                    }}
                   />
-                  <Select name="locationId" required defaultValue="">
+                  <Select
+                    name="locationId"
+                    required
+                    value={newLocationId}
+                    onValueChange={setNewLocationId}
+                  >
                     <SelectTrigger className="flex-1 min-w-[120px]" disabled={locationsUnavailable}>
                       <SelectValue placeholder="Select location" />
                     </SelectTrigger>
@@ -186,7 +395,8 @@ export default function VenueMappingsPage() {
                   <Input
                     name="priority"
                     type="number"
-                    defaultValue="0"
+                    value={newPriority}
+                    onChange={(e) => setNewPriority(e.target.value)}
                     placeholder="Priority"
                     className="w-20"
                     title="Higher priority mappings are checked first"
@@ -199,7 +409,10 @@ export default function VenueMappingsPage() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => setShowAdd(false)}
+                      onClick={() => {
+                        setShowAdd(false);
+                        resetAddForm();
+                      }}
                     >
                       Cancel
                     </Button>
@@ -223,7 +436,6 @@ export default function VenueMappingsPage() {
                   </Alert>
                 ) : null}
 
-                {/* Inline regex tester — appears alongside the Add form */}
                 <div className="mt-3 rounded-md border bg-muted/30 p-3 space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <label htmlFor="vm-test-sample" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { HttpError, ok, parsePagination } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { BOOKING_SORT_MAP } from "@/lib/services/bookings-queries";
+import { optionalSportCodeSchema } from "@/lib/validation";
 
 /* ── Combined bookings list (both CHECKOUT and RESERVATION) ── */
 
@@ -56,7 +57,7 @@ export const GET = withAuth(async (req, { user }) => {
   const activeOnly = searchParams.get("active") === "true";
   const pastOnly = searchParams.get("past") === "true";
   const locationId = searchParams.get("location_id");
-  const sportCode = searchParams.get("sport_code");
+  const sportCode = optionalSportCodeSchema.parse(searchParams.get("sport_code") ?? undefined);
   const requesterId = searchParams.get("requester_id");
 
   const now = new Date();
