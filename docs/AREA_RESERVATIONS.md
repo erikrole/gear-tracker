@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-19
+- Last Updated: 2026-06-20
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
@@ -254,6 +254,9 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 8. Implement list page controls and row behavior from V1 list surface spec.
 
 ## Change Log
+- 2026-06-20: Reservation list filters inherit the refreshed shared `FilterChip` and active-filter chip treatment: lighter borders, 40px removable targets, active underline, and quieter applied-filter buttons while preserving the existing clear behavior and reservation filter semantics.
+- 2026-06-20: Reservation list filters inherit the lighter shared `OperationalToolbar` shell, keeping existing search/filter semantics while reducing the card-like frame around the command row.
+- 2026-06-20: Reservation detail inline-edit rows inherit the refreshed shared `SaveableField` dirty-row treatment, keeping title/notes save semantics while making pending save/cancel actions visually explicit and 40px target sized.
 - 2026-06-19: Native reservation creation showtime polish shipped. iOS event-linked reservation titles now use sport-code `vs`/`at` naming, selected events no longer overwrite pickup location with event venue, counted item families sit in the same Equipment flow as serialized assets, and the Confirm step uses pickup/return language with thumbnail-led equipment rows plus inline linked-event context.
 - 2026-06-19: Native reservation creation now loads available serialized equipment for the selected pickup location in a bounded 300-row request, groups rows by category in the iOS Equipment picker, and shows search recovery copy if more matches exist past the cap.
 - 2026-06-19: Native reservation creation now carries `BulkSku.imageUrl` through `/api/form-options` into iOS `FormBulkSku`, so battery and counted-item rows show SKU photos in the Equipment picker and selected list with the existing box fallback for photo-less SKUs.

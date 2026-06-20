@@ -7,7 +7,17 @@ export type ScheduleDataQualityEvent = {
   isHome: boolean | null;
   locationId?: string | null;
   location?: { id: string; name: string } | null;
-  shiftGroup?: { shifts: unknown[] } | null;
+  shiftGroup?: {
+    shifts: Array<{
+      id?: string;
+      workerType?: string | null;
+      assignments?: Array<{
+        id?: string;
+        status?: string | null;
+        user?: { role?: string | null } | null;
+      }>;
+    }>;
+  } | null;
   archivedAt?: Date | string | null;
 };
 
@@ -17,11 +27,14 @@ export type ScheduleDataQualityReason =
   | "missing_venue"
   | "missing_home_venue_mapping"
   | "future_archived"
-  | "shifts_without_sport";
+  | "shifts_without_sport"
+  | "role_slot_mismatch";
 
 export type ScheduleDataQualityIssue = {
   eventId: string;
   reason: ScheduleDataQualityReason;
+  shiftId?: string;
+  assignmentId?: string;
 };
 
 export type ScheduleDataQualitySummary = {
@@ -39,6 +52,14 @@ function isFutureArchived(event: ScheduleDataQualityEvent, now: Date) {
   if (!event.archivedAt) return false;
   const endsAt = new Date(event.endsAt);
   return !Number.isNaN(endsAt.getTime()) && endsAt.getTime() >= now.getTime();
+}
+
+function plannedWorkerTypeForRole(role: string | null | undefined) {
+  return role === "STUDENT" ? "ST" : "FT";
+}
+
+function isActiveAssignmentStatus(status: string | null | undefined) {
+  return status === "DIRECT_ASSIGNED" || status === "APPROVED";
 }
 
 export function getScheduleDataQuality(event: ScheduleDataQualityEvent, now = new Date()): ScheduleDataQualityIssue[] {
@@ -70,6 +91,21 @@ export function getScheduleDataQuality(event: ScheduleDataQualityEvent, now = ne
 
   if (isFutureArchived(event, now)) {
     issues.push({ eventId: event.id, reason: "future_archived" });
+  }
+
+  for (const shift of event.shiftGroup?.shifts ?? []) {
+    for (const assignment of shift.assignments ?? []) {
+      if (!isActiveAssignmentStatus(assignment.status)) continue;
+      const assignedWorkerType = plannedWorkerTypeForRole(assignment.user?.role);
+      if (shift.workerType && assignedWorkerType !== shift.workerType) {
+        issues.push({
+          eventId: event.id,
+          reason: "role_slot_mismatch",
+          shiftId: shift.id,
+          assignmentId: assignment.id,
+        });
+      }
+    }
   }
 
   return issues;

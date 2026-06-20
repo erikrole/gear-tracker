@@ -141,7 +141,7 @@ function AssigneeStatus({
       <Tooltip>
         <TooltipTrigger asChild>
           <span className="cursor-default">
-            <UserAvatar name={name} avatarUrl={avatarUrl} size="sm" className="size-[18px] text-[9px]" />
+            <UserAvatar name={name} avatarUrl={avatarUrl} size="xs" />
           </span>
         </TooltipTrigger>
         <TooltipContent>{name}</TooltipContent>

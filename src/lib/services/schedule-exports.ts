@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { buildScheduleEventWhere } from "@/lib/schedule-event-where";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
-import { shiftWorkerLabel, shiftWorkerSlotLabel } from "@/lib/shift-display";
+import { shiftWorkerLabel, shiftWorkerLabelForRole, shiftWorkerSlotLabel } from "@/lib/shift-display";
 import { getSchedulePublicationState } from "@/lib/services/schedule-publication";
 
 export const SCHEDULE_EXPORT_TYPES = [
@@ -170,6 +170,10 @@ function activeAssignment(shift: ExportShift) {
   return shift.assignments.find((assignment) => ACTIVE_STATUS_SET.has(assignment.status)) ?? null;
 }
 
+function assignedRoleLabel(assignment: ExportAssignment | null | undefined) {
+  return assignment ? shiftWorkerLabelForRole(assignment.user.role) : "";
+}
+
 function rosterRows(groups: ExportGroup[]) {
   return groups.flatMap((group) => {
     const publication = getSchedulePublicationState(group);
@@ -183,6 +187,7 @@ function rosterRows(groups: ExportGroup[]) {
         group.event.location?.name ?? "",
         group.event.sportCode ?? "",
         shift.area,
+        assignedRoleLabel(assignment),
         shiftWorkerSlotLabel(shift.workerType),
         assignment?.user.name ?? "",
         assignment?.status ?? "OPEN",
@@ -233,7 +238,7 @@ function hoursRows(groups: ExportGroup[]) {
     .sort((a, b) => b.hours - a.hours || a.name.localeCompare(b.name))
     .map((row) => [
       row.name,
-      row.role,
+      shiftWorkerLabelForRole(row.role),
       row.shiftCount,
       row.eventCount.size,
       row.hours.toFixed(2),
@@ -272,6 +277,7 @@ function conflictRows(groups: ExportGroup[]) {
           exportDate(group.event.startsAt),
           shift.area,
           shiftWorkerSlotLabel(shift.workerType),
+          shiftWorkerLabelForRole(assignment.user.role),
           assignment.user.name,
           assignment.status,
           exportDate(effectiveStartsAt(shift, assignment)),
@@ -320,6 +326,7 @@ async function tradeRows(groups: ExportGroup[]) {
       linked ? exportDate(linked.group.event.startsAt) : "",
       linked?.shift.area ?? "",
       linked ? shiftWorkerSlotLabel(linked.shift.workerType) : "",
+      linked ? shiftWorkerLabelForRole(linked.assignment.user.role) : "",
       linked?.assignment.user.name ?? "",
       trade.status,
       trade.requiresApproval ? "yes" : "no",
@@ -342,6 +349,7 @@ async function tradeRows(groups: ExportGroup[]) {
           exportDate(group.event.startsAt),
           shift.area,
           shiftWorkerSlotLabel(shift.workerType),
+          shiftWorkerLabelForRole(assignment.user.role),
           assignment.user.name,
           assignment.status,
           "",
@@ -423,6 +431,7 @@ async function gearRows(groups: ExportGroup[]) {
       exportDate(group.event.startsAt),
       shift.area,
       shiftWorkerSlotLabel(shift.workerType),
+      shiftWorkerLabelForRole(assignment.user.role),
       assignment.user.name,
       booking ? bookingStatusLabel(booking.status) : "Missing",
       linkType,
@@ -450,7 +459,7 @@ export async function buildScheduleExport(input: ScheduleExportInput): Promise<S
 
   if (input.type === "roster") {
     return buildResult(input.type, input, [
-      "Event ID", "Event", "Starts", "Ends", "Location", "Sport", "Area", "Role", "Assignee", "Status", "Call Starts", "Call Ends", "Publication", "Published At", "Acknowledged", "Acknowledged At", "Conflict", "Conflict Note",
+      "Event ID", "Event", "Starts", "Ends", "Location", "Sport", "Area", "Assigned Role", "Planned Slot", "Assignee", "Status", "Call Starts", "Call Ends", "Publication", "Published At", "Acknowledged", "Acknowledged At", "Conflict", "Conflict Note",
     ], rosterRows(groups));
   }
   if (input.type === "hours") {
@@ -465,17 +474,17 @@ export async function buildScheduleExport(input: ScheduleExportInput): Promise<S
   }
   if (input.type === "conflicts") {
     return buildResult(input.type, input, [
-      "Event ID", "Event", "Starts", "Area", "Role", "Worker", "Status", "Call Starts", "Call Ends", "Conflict Note",
+      "Event ID", "Event", "Starts", "Area", "Planned Slot", "Assigned Role", "Worker", "Status", "Call Starts", "Call Ends", "Conflict Note",
     ], conflictRows(groups));
   }
   if (input.type === "trades") {
     return buildResult(input.type, input, [
-      "Kind", "Event ID", "Event", "Starts", "Area", "Role", "Worker", "Status", "Requires Approval", "Posted By", "Claimed By", "Posted At", "Claimed At", "Resolved At",
+      "Kind", "Event ID", "Event", "Starts", "Area", "Planned Slot", "Assigned Role", "Worker", "Status", "Requires Approval", "Posted By", "Claimed By", "Posted At", "Claimed At", "Resolved At",
     ], await tradeRows(groups));
   }
 
   return buildResult(input.type, input, [
-    "Event ID", "Event", "Starts", "Area", "Role", "Worker", "Gear Status", "Link Type", "Booking ID", "Booking",
+    "Event ID", "Event", "Starts", "Area", "Planned Slot", "Assigned Role", "Worker", "Gear Status", "Link Type", "Booking ID", "Booking",
   ], await gearRows(groups));
 }
 

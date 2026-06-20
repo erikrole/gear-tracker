@@ -93,10 +93,10 @@
 | `src/components/ActivityTimeline.tsx` | 906 |
 | `src/components/BookingDetailsSheet.tsx` | 803 |
 | `src/components/ShiftDetailPanel.tsx` | 783 |
-| `src/components/onboarding/OnboardingDialog.tsx` | 757 |
+| `src/components/onboarding/OnboardingDialog.tsx` | 768 |
 | `src/components/ui/sidebar.tsx` | 727 |
+| `src/components/ChooseImageModal.tsx` | 714 |
 | `src/components/booking-wizard/BookingWizard.tsx` | 709 |
-| `src/components/ChooseImageModal.tsx` | 694 |
 | `src/components/AppShell.tsx` | 595 |
 | `src/components/booking-wizard/WizardStep1.tsx` | 565 |
 | `src/components/BookingListPage.tsx` | 507 |

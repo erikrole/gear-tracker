@@ -63,10 +63,10 @@ function SaveStatusIndicator({ status }: { status: SaveStatus }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 text-xs shrink-0 transition-opacity duration-300",
+        "inline-flex h-8 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-medium transition-opacity duration-300",
         status === "saving" && "text-muted-foreground",
-        status === "saved" && "text-[var(--green-text)]",
-        status === "error" && "text-destructive",
+        status === "saved" && "bg-[var(--green-bg)] text-[var(--green-text)]",
+        status === "error" && "bg-destructive/10 text-destructive",
       )}
     >
       {status === "saving" && (
@@ -117,7 +117,8 @@ export function SaveableField({
   return (
     <div
       className={cn(
-        "group/row flex items-center gap-3 rounded-md px-3 py-2.5 min-h-[44px] transition-colors hover:bg-muted/60",
+        "group/row relative flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 transition-[background-color,box-shadow] hover:bg-foreground/[0.03] focus-within:bg-background/60",
+        isDirty && "bg-primary/5 before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-primary/60",
         className,
       )}
     >
@@ -142,20 +143,20 @@ export function SaveableField({
             <Button
               variant="ghost"
               size="icon"
-              className="size-10 text-green-600 hover:text-green-700 hover:bg-green-500/10"
+              className="size-10 border border-primary/20 bg-primary/[0.06] text-foreground shadow-[0_1px_0_rgba(15,23,42,0.05)] hover:bg-primary/[0.1]"
               onClick={onCommit}
               aria-label={`Save ${label}`}
             >
-              <Check className="size-4" />
+              <Check className="size-4" aria-hidden="true" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="size-10 text-muted-foreground hover:text-foreground"
+              className="size-10 border border-border/60 bg-background/70 text-muted-foreground shadow-[0_1px_0_rgba(15,23,42,0.05)] hover:bg-foreground/[0.04] hover:text-foreground"
               onClick={onCancel}
               aria-label={`Cancel ${label}`}
             >
-              <X className="size-4" />
+              <X className="size-4" aria-hidden="true" />
             </Button>
           </div>
         ) : (

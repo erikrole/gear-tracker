@@ -126,15 +126,15 @@ export function BookingFilters({
             {specialFilter ? (
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                className="h-10 gap-1.5 px-3 text-xs"
+                className="relative h-10 gap-1.5 rounded-md border border-primary/20 bg-primary/[0.06] px-3 text-xs text-foreground shadow-[0_1px_0_rgba(15,23,42,0.05)] transition-[background-color,border-color,color,scale] after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-t-full after:bg-primary/60 hover:bg-primary/[0.08] active:scale-[0.96]"
                 onClick={() => onSpecialFilterChange("")}
                 aria-label={`Clear ${specialFilter === "overdue" ? "overdue" : "due today"} filter`}
               >
                 <span className="font-medium">Showing:</span>
                 <span className="font-semibold">{specialFilter === "overdue" ? "Overdue" : "Due today"}</span>
-                <XIcon className="size-3 opacity-60" aria-hidden="true" />
+                <XIcon className="size-3 text-muted-foreground" aria-hidden="true" />
               </Button>
             ) : (
               <FilterChip

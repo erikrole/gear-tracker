@@ -37,7 +37,7 @@ import { UserAvatarPicker, type PickerUser } from "@/components/shift-detail/Use
 import { handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 import { VENUE_TONES, venueToneFromEvent } from "@/lib/venue-tone";
-import { shiftWorkerLabel, shiftWorkerSlotLabel, type ShiftWorkerKind } from "@/lib/shift-display";
+import { formatRoleSlotAssignmentOutcome, shiftWorkerLabelForRole, shiftWorkerSlotLabel, type RoleSlotOutcomeLike, type ShiftWorkerKind } from "@/lib/shift-display";
 import { effectiveCallWindow, isInheritedFullDayCallWindow, summarizeEffectiveCallWindows } from "@/lib/shift-call-windows";
 import type { CalendarEntry, Shift } from "./types";
 import type { ScheduleGearAssignmentReadiness, ScheduleGearEventReadiness, ScheduleHealthSnapshot } from "@/lib/schedule-health-types";
@@ -105,10 +105,6 @@ function workerKindForShift(shift: Shift): ShiftWorkerKind {
   return shift.workerType === "FT" ? "FT" : "ST";
 }
 
-function roleLabel(kind: ShiftWorkerKind) {
-  return shiftWorkerLabel(kind);
-}
-
 function roleSlotLabel(kind: ShiftWorkerKind) {
   return shiftWorkerSlotLabel(kind);
 }
@@ -118,12 +114,7 @@ function RoleNeedSummary({ entry, compact = false }: { entry: CalendarEntry; com
 
   if (openSlots.length === 0) return null;
 
-  const staff = openSlots.filter((shift) => workerKindForShift(shift) === "FT").length;
-  const students = openSlots.length - staff;
-  const parts = [
-    staff > 0 ? `${staff} Staff` : null,
-    students > 0 ? `${students} Student${students === 1 ? "" : "s"}` : null,
-  ].filter(Boolean);
+  const openNeedLabel = `${openSlots.length} ${openSlots.length === 1 ? "person" : "people"}`;
 
   return (
     <span className={cn("inline-flex items-center gap-1 text-[11px] leading-none", compact && "text-[10px]")}>
@@ -131,7 +122,7 @@ function RoleNeedSummary({ entry, compact = false }: { entry: CalendarEntry; com
         Needs
       </span>
       <span className="font-semibold text-muted-foreground">
-        {parts.join(", ")}
+        {openNeedLabel}
       </span>
     </span>
   );
@@ -356,9 +347,10 @@ function ShiftRowList({
         const areaLabel = AREA_LABELS[shift.area] ?? shift.area;
         const workerType = workerKindForShift(shift);
         const slotLabel = roleSlotLabel(workerType);
-        const workerRoleLabel = roleLabel(workerType);
-        const emptyAssignLabel = compact ? `Assign ${workerRoleLabel}` : "Assign";
-        const emptyAssignAriaLabel = `Assign ${workerRoleLabel} to ${areaLabel}`;
+        const assignedRoleLabel = user ? shiftWorkerLabelForRole(user.role) : null;
+        const rowRoleLabel = assignedRoleLabel ?? slotLabel;
+        const emptyAssignLabel = compact ? "Assign" : "Assign";
+        const emptyAssignAriaLabel = `Assign open ${slotLabel.toLowerCase()} to ${areaLabel}`;
         const isAddingShift = addingShiftId === shift.id;
         const isRemovingAssignment = Boolean(activeAssignment && removingAssignmentId === activeAssignment.id);
         const slotWindow = effectiveCallWindow(shift);
@@ -463,7 +455,7 @@ function ShiftRowList({
                   )}
                   {compact && (
                     <span className="ml-auto shrink-0 text-xs font-medium text-muted-foreground">
-                      {workerRoleLabel}
+                      {assignedRoleLabel}
                     </span>
                   )}
                 </div>
@@ -502,6 +494,7 @@ function ShiftRowList({
                       onSearchChange={onPickerSearchChange}
                       onSelect={(userId) => onInlineAssign(shift.id, userId)}
                       disabled={assigning}
+                      slotWorkerType={workerType}
                     />
                   </PopoverContent>
                 </Popover>
@@ -525,7 +518,7 @@ function ShiftRowList({
             {!compact && (
               <div className="flex min-h-10 items-center justify-end">
                 <span className="text-xs font-medium text-muted-foreground">
-                  {workerRoleLabel}
+                  {rowRoleLabel}
                 </span>
               </div>
             )}
@@ -780,9 +773,11 @@ export function ListView({
       });
       if (handleAuthRedirect(res)) return;
       if (res.ok) {
+        const selectedUser = allUsers.find((user) => user.id === userId);
+        const json = await parseJsonSafely<{ meta?: { roleSlotOutcome?: RoleSlotOutcomeLike } }>(res);
         setUserSearch("");
         loadData();
-        toast.success("Assigned shift");
+        toast.success(formatRoleSlotAssignmentOutcome(json?.meta?.roleSlotOutcome, selectedUser?.name));
       } else {
         const msg = await parseErrorMessage(res, "Failed to assign shift");
         toast.error(msg);
@@ -794,7 +789,7 @@ export function ListView({
       assigningRef.current = false;
       setAssigning(false);
     }
-  }, [loadData]);
+  }, [allUsers, loadData]);
 
   const handleRemoveAssignment = useCallback(async (assignmentId: string) => {
     if (removingAssignmentRef.current) return;

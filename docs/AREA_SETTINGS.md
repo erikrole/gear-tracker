@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Settings
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-08
+- Last Updated: 2026-06-20
 - Status: Active
 - Version: V1
 
@@ -14,7 +14,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 
 ## Core Rules
 1. The Settings surface is open to any authenticated user (STUDENT / STAFF / ADMIN). Each sub-page declares its own `requiredRole`; the layout filters tabs accordingly. STUDENTs only see the Personal group.
-2. Settings layout provides unified role-aware section navigation — sub-pages should not render their own page-level `<h1>`.
+2. Settings layout provides unified role-aware section navigation via the shared `SectionNav` treatment; sub-pages should not render their own page-level `<h1>`.
 3. Each sub-page uses `SettingsPageShell`: compact intro rail (title + description) and main content for forms, tables, loading states, and errors.
 4. Mutations should provide immediate feedback via toast notifications and visible form-level errors for create/add forms.
 5. Personal-group preferences belong in **Personal** (top group). System configuration belongs in **People · Inventory · Scheduling · Devices · System**.
@@ -192,6 +192,7 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages. Role-gated Settings sibling menus now wait for the current role before becoming dropdowns, so the loading frame does not expose an empty menu. The global breadcrumb UI now uses a lighter trail treatment with the current Settings sub-page marked by a subtle underline instead of a filled chip.
 
 ## Change Log
+- 2026-06-20: **Settings section-nav refinement.** Settings now uses the shared `SectionNav` treatment for both the mobile horizontal strip and desktop side rail: lighter translucent chrome, 40px+ targets, active underline/accent states, and the existing role-aware grouping preserved.
 - 2026-06-20: **Breadcrumb UI refinement.** Settings breadcrumb trails now inherit the lighter global breadcrumb treatment: quieter parent-link hover states, softer separators, and a current-page underline that keeps the Settings header from competing with another framed control strip.
 - 2026-06-19: **Category cleanup wizard and picker visibility.** Items filters and shared category comboboxes now show every category as a full path, including parent categories with direct items and deeply nested subcategories. The Fill gaps wizard now gets server-side missing-category suggestions from already-categorized inventory and falls back to gear-term matching for common categories such as cameras, lenses, batteries, media, audio, cables, lighting, monitors, and support gear.
 - 2026-06-19: **Breadcrumb role-load polish.** The global breadcrumb keeps Settings sibling jumps role-aware and now withholds the dropdown state while the current role is unresolved, avoiding an empty Settings menu during the `/api/me` loading frame.

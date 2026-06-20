@@ -65,10 +65,10 @@ export function ScheduleFilters({ filters, entries, sourceSignal }: ScheduleFilt
     filters.areaFilter,
     filters.coverageFilter === "filled" ? filters.coverageFilter : "",
   ].filter(Boolean).length;
-  const needsStaffCount = entries.filter(
+  const needsCrewCount = entries.filter(
     (entry) => entry.coverage && entry.coverage.total > entry.coverage.filled,
   ).length;
-  const needsStaffActive = filters.coverageFilter === "unfilled";
+  const needsCrewActive = filters.coverageFilter === "unfilled";
 
   return (
     <div className="mb-4 rounded-lg border border-border/60 bg-card/80 p-2 shadow-sm">
@@ -167,27 +167,27 @@ export function ScheduleFilters({ filters, entries, sourceSignal }: ScheduleFilt
 
         <ToolbarGroup label="Coverage">
           <Button
-            variant={needsStaffActive ? "default" : "outline"}
+            variant={needsCrewActive ? "default" : "outline"}
             size="sm"
             className={cn(
               "h-10 gap-1.5 text-[13px]",
-              !needsStaffActive && needsStaffCount > 0 && "border-[var(--red-text)]/25 text-[var(--red-text)] hover:bg-[var(--red-bg)] hover:text-[var(--red-text)]",
+              !needsCrewActive && needsCrewCount > 0 && "border-[var(--red-text)]/25 text-[var(--red-text)] hover:bg-[var(--red-bg)] hover:text-[var(--red-text)]",
             )}
-            onClick={() => filters.setCoverageFilter(needsStaffActive ? "" : "unfilled")}
-            aria-label={`Needs staff${needsStaffCount > 0 ? `, ${needsStaffCount} event${needsStaffCount === 1 ? "" : "s"}` : ""}`}
+            onClick={() => filters.setCoverageFilter(needsCrewActive ? "" : "unfilled")}
+            aria-label={`Needs crew${needsCrewCount > 0 ? `, ${needsCrewCount} event${needsCrewCount === 1 ? "" : "s"}` : ""}`}
           >
             <AlertTriangleIcon className="size-3.5" />
-            Needs staff
-            {needsStaffCount > 0 && (
+            Needs crew
+            {needsCrewCount > 0 && (
               <span
                 className={cn(
                   "ml-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold tabular-nums",
-                  needsStaffActive
+                  needsCrewActive
                     ? "bg-white/20"
                     : "bg-[var(--red-text)]/15 text-[var(--red-text)]",
                 )}
               >
-                {needsStaffCount}
+                {needsCrewCount}
               </span>
             )}
           </Button>
@@ -291,13 +291,13 @@ export function ScheduleFilters({ filters, entries, sourceSignal }: ScheduleFilt
               value={filters.coverageFilter}
               displayValue={
                 filters.coverageFilter === "unfilled"
-                  ? "Needs staff"
+                  ? "Needs crew"
                   : filters.coverageFilter === "filled"
                     ? "Fully covered"
                     : ""
               }
               options={[
-                { value: "unfilled", label: "Needs staff" },
+                { value: "unfilled", label: "Needs crew" },
                 { value: "filled", label: "Fully covered" },
               ]}
               onSelect={(v) => filters.setCoverageFilter(v)}

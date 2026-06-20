@@ -5,6 +5,16 @@ import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 import { shiftWorkerTypeForRole } from "@/lib/shift-display";
 import { evaluateAvailabilityPreferences } from "@/lib/student-availability";
 
+export type RoleSlotOutcome = {
+  requestedShiftId: string;
+  targetShiftId: string;
+  originalWorkerType: ShiftWorkerType;
+  assignedWorkerType: ShiftWorkerType;
+  movedToMatchingSlot: boolean;
+  createdMatchingSlot: boolean;
+  reusedMatchingSlot: boolean;
+};
+
 function effectiveShiftWindow(shift: {
   startsAt: Date;
   endsAt: Date;
@@ -32,7 +42,20 @@ async function resolveAssignableShiftForUser(
   userRole: Role,
 ) {
   const targetWorkerType = shiftWorkerTypeForRole(userRole);
-  if (targetWorkerType === shift.workerType) return shift;
+  if (targetWorkerType === shift.workerType) {
+    return {
+      shift,
+      outcome: {
+        requestedShiftId: shift.id,
+        targetShiftId: shift.id,
+        originalWorkerType: shift.workerType,
+        assignedWorkerType: targetWorkerType,
+        movedToMatchingSlot: false,
+        createdMatchingSlot: false,
+        reusedMatchingSlot: false,
+      } satisfies RoleSlotOutcome,
+    };
+  }
 
   const compatibleOpenShift = await tx.shift.findFirst({
     where: {
@@ -48,7 +71,20 @@ async function resolveAssignableShiftForUser(
     orderBy: { createdAt: "asc" },
   });
 
-  if (compatibleOpenShift) return compatibleOpenShift;
+  if (compatibleOpenShift) {
+    return {
+      shift: compatibleOpenShift,
+      outcome: {
+        requestedShiftId: shift.id,
+        targetShiftId: compatibleOpenShift.id,
+        originalWorkerType: shift.workerType,
+        assignedWorkerType: targetWorkerType,
+        movedToMatchingSlot: true,
+        createdMatchingSlot: false,
+        reusedMatchingSlot: true,
+      } satisfies RoleSlotOutcome,
+    };
+  }
 
   const createdShift = await tx.shift.create({
     data: {
@@ -67,7 +103,18 @@ async function resolveAssignableShiftForUser(
     data: { manuallyEdited: true },
   });
 
-  return createdShift;
+  return {
+    shift: createdShift,
+    outcome: {
+      requestedShiftId: shift.id,
+      targetShiftId: createdShift.id,
+      originalWorkerType: shift.workerType,
+      assignedWorkerType: targetWorkerType,
+      movedToMatchingSlot: true,
+      createdMatchingSlot: true,
+      reusedMatchingSlot: false,
+    } satisfies RoleSlotOutcome,
+  };
 }
 
 /**
@@ -119,6 +166,16 @@ export async function directAssignShift(
   assignedBy: string,
   opts: { callStartsAt?: Date | null; callEndsAt?: Date | null; callNote?: string | null; notes?: string | null } = {},
 ) {
+  const result = await directAssignShiftWithOutcome(shiftId, userId, assignedBy, opts);
+  return result.assignment;
+}
+
+export async function directAssignShiftWithOutcome(
+  shiftId: string,
+  userId: string,
+  assignedBy: string,
+  opts: { callStartsAt?: Date | null; callEndsAt?: Date | null; callNote?: string | null; notes?: string | null } = {},
+) {
   return db.$transaction(async (tx) => {
     const shift = await tx.shift.findUnique({ where: { id: shiftId } });
     if (!shift) throw new HttpError(404, "Shift not found");
@@ -148,7 +205,7 @@ export async function directAssignShift(
     if (!assignee) throw new HttpError(404, "User not found");
     if (!assignee.active) throw new HttpError(400, "Cannot assign an inactive user");
 
-    const targetShift = await resolveAssignableShiftForUser(tx, shift, assignee.role);
+    const { shift: targetShift, outcome } = await resolveAssignableShiftForUser(tx, shift, assignee.role);
 
     // Check for existing active assignment on this shift
     const existing = await tx.shiftAssignment.findFirst({
@@ -199,7 +256,75 @@ export async function directAssignShift(
       },
     });
 
-    return assignment;
+    return { assignment, outcome };
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+}
+
+export async function repairRoleSlotMismatch(assignmentId: string) {
+  return db.$transaction(async (tx) => {
+    const assignment = await tx.shiftAssignment.findUnique({
+      where: { id: assignmentId },
+      include: {
+        user: { select: { id: true, role: true, name: true } },
+        shift: true,
+      },
+    });
+    if (!assignment) throw new HttpError(404, "Assignment not found");
+    if (!(ACTIVE_ASSIGNMENT_STATUSES as readonly ShiftAssignmentStatus[]).includes(assignment.status)) {
+      throw new HttpError(400, "Only active assignments can be repaired");
+    }
+
+    const targetWorkerType = shiftWorkerTypeForRole(assignment.user.role);
+    if (targetWorkerType === assignment.shift.workerType) {
+      return {
+        assignment,
+        outcome: {
+          requestedShiftId: assignment.shift.id,
+          targetShiftId: assignment.shift.id,
+          originalWorkerType: assignment.shift.workerType,
+          assignedWorkerType: targetWorkerType,
+          movedToMatchingSlot: false,
+          createdMatchingSlot: false,
+          reusedMatchingSlot: false,
+        } satisfies RoleSlotOutcome,
+      };
+    }
+
+    const { shift: targetShift, outcome } = await resolveAssignableShiftForUser(tx, assignment.shift, assignment.user.role);
+
+    const existing = await tx.shiftAssignment.findFirst({
+      where: {
+        shiftId: targetShift.id,
+        id: { not: assignment.id },
+        status: { in: ACTIVE_ASSIGNMENT_STATUSES as ShiftAssignmentStatus[] },
+      },
+    });
+    if (existing) {
+      throw new HttpError(409, "Matching slot already has an active assignment");
+    }
+
+    await tx.shiftAssignment.updateMany({
+      where: {
+        shiftId: targetShift.id,
+        status: "REQUESTED",
+      },
+      data: { status: "DECLINED" },
+    });
+
+    const repaired = await tx.shiftAssignment.update({
+      where: { id: assignment.id },
+      data: { shiftId: targetShift.id },
+      include: {
+        user: { select: { id: true, name: true, role: true, primaryArea: true, avatarUrl: true } },
+      },
+    });
+
+    await tx.shiftGroup.update({
+      where: { id: assignment.shift.shiftGroupId },
+      data: { manuallyEdited: true },
+    });
+
+    return { assignment: repaired, outcome };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 }
 

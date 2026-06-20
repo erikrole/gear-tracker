@@ -39,19 +39,21 @@ export function FilterChip({
     <Popover open={open} onOpenChange={setOpen}>
       <div
         className={cn(
-          "inline-flex h-10 overflow-hidden rounded-md border border-input bg-background shadow-xs",
-          active ? "bg-muted/80 border-border" : "text-muted-foreground",
+          "relative inline-flex min-h-10 overflow-hidden rounded-md border border-border/60 bg-background/70 shadow-[0_1px_0_rgba(15,23,42,0.05)] transition-[background-color,border-color,box-shadow]",
+          active
+            ? "border-primary/20 bg-primary/[0.06] text-foreground after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-t-full after:bg-primary/60"
+            : "text-muted-foreground hover:border-border hover:bg-foreground/[0.025]",
         )}
       >
         <PopoverTrigger asChild>
           <Button
             variant="ghost"
             size="sm"
-            className="h-full gap-1 rounded-none border-0 px-3 text-xs shadow-none hover:bg-muted/60"
+            className="h-10 max-w-[220px] min-w-0 gap-1.5 rounded-none border-0 px-3 text-xs shadow-none transition-[background-color,color,scale] hover:bg-foreground/[0.04] active:scale-[0.96]"
           >
-            <span className="font-medium">{label}{active && ":"}</span>
-            {active && <span className="font-semibold text-foreground">{displayValue || value}</span>}
-            {!active && <ChevronDown className="size-3 opacity-50" />}
+            <span className="shrink-0 font-medium">{label}{active && ":"}</span>
+            {active && <span className="truncate font-semibold text-foreground">{displayValue || value}</span>}
+            {!active && <ChevronDown className="size-3 opacity-50" aria-hidden="true" />}
           </Button>
         </PopoverTrigger>
         {active && (
@@ -60,10 +62,10 @@ export function FilterChip({
             variant="ghost"
             size="icon-xs"
             aria-label={`Clear ${label} filter`}
-            className="h-full w-10 rounded-none border-l border-border/50 text-muted-foreground shadow-none transition-[background-color,color,scale] hover:bg-muted hover:text-foreground active:scale-[0.96]"
+            className="h-10 w-10 rounded-none border-l border-border/50 text-muted-foreground shadow-none transition-[background-color,color,scale] hover:bg-primary/[0.08] hover:text-foreground active:scale-[0.96]"
             onClick={() => { onClear(); setOpen(false); }}
           >
-            <X className="size-3" />
+            <X className="size-3" aria-hidden="true" />
           </Button>
         )}
       </div>

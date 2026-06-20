@@ -203,7 +203,7 @@ function serializeOpenShift(shift: OpenWorkShift, args: {
   const ownRequest = shift.assignments.find((assignment) => assignment.userId === args.userId) ?? null;
   const isStudent = args.role === "STUDENT";
   const canAct = isStudent && shift.workerType === "ST" && !recommendation?.blockingConflict && !ownRequest;
-  const action = !isStudent || ownRequest || recommendation?.blockingConflict
+  const action = !canAct || !isStudent || shift.workerType !== "ST" || ownRequest || recommendation?.blockingConflict
     ? "none"
     : shift.shiftGroup.isPremier ? "request" : "claim";
 

@@ -8,6 +8,12 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+} from "@/components/ui/card";
+import {
   Dialog,
   DialogBody,
   DialogContent,
@@ -223,6 +229,44 @@ function serverPreviewLabel(status: ServerPreviewStatus): string {
     case "ready":
       return "Ready";
   }
+}
+
+function OnboardingMetricCard({
+  label,
+  value,
+}: {
+  label: string;
+  value: number;
+}) {
+  return (
+    <Card elevation="flat" className="bg-muted/20">
+      <CardHeader className="p-3 pb-1">
+        <CardDescription className="text-xs font-medium">{label}</CardDescription>
+      </CardHeader>
+      <CardContent className="p-3 pt-0">
+        <div className="text-2xl font-semibold tabular-nums">{value}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function OnboardingStatusCard({
+  label,
+  value,
+}: {
+  label: string;
+  value: number;
+}) {
+  return (
+    <Card elevation="flat" className="bg-background">
+      <CardHeader className="p-2 pb-0">
+        <CardDescription className="text-xs font-medium">{label}</CardDescription>
+      </CardHeader>
+      <CardContent className="p-2 pt-0">
+        <div className="text-lg font-semibold tabular-nums">{value}</div>
+      </CardContent>
+    </Card>
+  );
 }
 
 export default function OnboardingDialog({
@@ -498,18 +542,9 @@ export default function OnboardingDialog({
               </Alert>
 
               <div className="grid grid-cols-3 gap-2">
-                <div className="rounded-md border border-border/70 bg-muted/20 p-3">
-                  <div className="text-xs font-medium text-muted-foreground">Requested</div>
-                  <div className="text-2xl font-semibold tabular-nums">{completion.requested}</div>
-                </div>
-                <div className="rounded-md border border-border/70 bg-muted/20 p-3">
-                  <div className="text-xs font-medium text-muted-foreground">Added</div>
-                  <div className="text-2xl font-semibold tabular-nums">{completion.created}</div>
-                </div>
-                <div className="rounded-md border border-border/70 bg-muted/20 p-3">
-                  <div className="text-xs font-medium text-muted-foreground">Skipped</div>
-                  <div className="text-2xl font-semibold tabular-nums">{completion.skipped}</div>
-                </div>
+                <OnboardingMetricCard label="Requested" value={completion.requested} />
+                <OnboardingMetricCard label="Added" value={completion.created} />
+                <OnboardingMetricCard label="Skipped" value={completion.skipped} />
               </div>
             </DialogBody>
 
@@ -573,24 +608,12 @@ export default function OnboardingDialog({
                     </p>
                   </div>
                   {previewRows.length > 0 && (
-                    <div className="mt-3 grid gap-3 rounded-md border border-border/70 bg-muted/20 p-3">
+                    <div className="mt-3 grid gap-3 rounded-lg bg-muted/20 p-3 shadow-[0_1px_0_rgba(15,23,42,0.05)]">
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                        <div className="rounded-sm bg-background p-2">
-                          <div className="text-xs font-medium text-muted-foreground">Ready</div>
-                          <div className="text-lg font-semibold tabular-nums">{previewCounts.ready}</div>
-                        </div>
-                        <div className="rounded-sm bg-background p-2">
-                          <div className="text-xs font-medium text-muted-foreground">Duplicates</div>
-                          <div className="text-lg font-semibold tabular-nums">{previewCounts.duplicate}</div>
-                        </div>
-                        <div className="rounded-sm bg-background p-2">
-                          <div className="text-xs font-medium text-muted-foreground">Invalid</div>
-                          <div className="text-lg font-semibold tabular-nums">{previewCounts["invalid-email"] + previewCounts["invalid-role"]}</div>
-                        </div>
-                        <div className="rounded-sm bg-background p-2">
-                          <div className="text-xs font-medium text-muted-foreground">Blocked</div>
-                          <div className="text-lg font-semibold tabular-nums">{previewCounts["role-blocked"]}</div>
-                        </div>
+                        <OnboardingStatusCard label="Ready" value={previewCounts.ready} />
+                        <OnboardingStatusCard label="Duplicates" value={previewCounts.duplicate} />
+                        <OnboardingStatusCard label="Invalid" value={previewCounts["invalid-email"] + previewCounts["invalid-role"]} />
+                        <OnboardingStatusCard label="Blocked" value={previewCounts["role-blocked"]} />
                       </div>
 
                       {blockingPreviewCount > 0 ? (
@@ -621,7 +644,7 @@ export default function OnboardingDialog({
                   )}
 
                   {blockingPreviewCount === 0 && readyPreviewRows.length > 0 && !overBulkLimit && (
-                    <div className="mt-3 grid gap-3 rounded-md border border-border/70 bg-background p-3">
+                    <div className="mt-3 grid gap-3 rounded-lg bg-background p-3 shadow-[0_1px_0_rgba(15,23,42,0.05)]">
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <div className="text-sm font-medium">Account status</div>
@@ -638,22 +661,10 @@ export default function OnboardingDialog({
                       ) : serverPreviewComplete ? (
                         <>
                           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                            <div className="rounded-sm bg-muted/30 p-2">
-                              <div className="text-xs font-medium text-muted-foreground">Ready to save</div>
-                              <div className="text-lg font-semibold tabular-nums">{serverPreviewSummary.ready}</div>
-                            </div>
-                            <div className="rounded-sm bg-muted/30 p-2">
-                              <div className="text-xs font-medium text-muted-foreground">Existing users</div>
-                              <div className="text-lg font-semibold tabular-nums">{serverPreviewSummary.existing_user}</div>
-                            </div>
-                            <div className="rounded-sm bg-muted/30 p-2">
-                              <div className="text-xs font-medium text-muted-foreground">Pending invites</div>
-                              <div className="text-lg font-semibold tabular-nums">{serverPreviewSummary.pending_invite}</div>
-                            </div>
-                            <div className="rounded-sm bg-muted/30 p-2">
-                              <div className="text-xs font-medium text-muted-foreground">Claimed invites</div>
-                              <div className="text-lg font-semibold tabular-nums">{serverPreviewSummary.claimed_invite}</div>
-                            </div>
+                            <OnboardingStatusCard label="Ready to save" value={serverPreviewSummary.ready} />
+                            <OnboardingStatusCard label="Existing users" value={serverPreviewSummary.existing_user} />
+                            <OnboardingStatusCard label="Pending invites" value={serverPreviewSummary.pending_invite} />
+                            <OnboardingStatusCard label="Claimed invites" value={serverPreviewSummary.claimed_invite} />
                           </div>
 
                           {serverBlockingRows.length > 0 ? (
@@ -666,11 +677,11 @@ export default function OnboardingDialog({
                                     <Badge variant="orange" size="sm">{serverPreviewLabel(row.status)}</Badge>
                                   </div>
                                 ))}
+                                </div>
                               </div>
-                            </div>
                           ) : (
                             <p className="text-xs text-muted-foreground">
-                              All {finalReadyPreviewRows.length} invitation{finalReadyPreviewRows.length === 1 ? "" : "s"} are ready to save.
+                              All {finalReadyPreviewRows.length} invitation{finalReadyPreviewRows.length === 1 ? "" : "s"} {finalReadyPreviewRows.length === 1 ? "is" : "are"} ready to save.
                             </p>
                           )}
                         </>

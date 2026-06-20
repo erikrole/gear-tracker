@@ -624,7 +624,12 @@ export default function KitDetailPage() {
                 </ScrollArea>
               )}
               {addSearch.trim().length >= 2 && !searching && !searchError && searchResults.length === 0 && (
-                <p className="text-sm text-muted-foreground px-1">No matching items found.</p>
+                <EmptyState
+                  icon="search"
+                  title="No matching items"
+                  description="Try a different tag, name, brand, or model."
+                  inline
+                />
               )}
             </div>
 
@@ -795,11 +800,20 @@ export default function KitDetailPage() {
                     !bulkOptionsLoading &&
                     !bulkOptionsError &&
                     bulkSearchResults.length === 0 && (
-                      <p className="text-sm text-muted-foreground px-1">
-                        {bulkOptions && bulkOptions.length > 0
-                          ? "No matching item families."
-                          : "No item families available at this location."}
-                      </p>
+                      <EmptyState
+                        icon="search"
+                        title={
+                          bulkOptions && bulkOptions.length > 0
+                            ? "No matching item families"
+                            : "No item families available"
+                        }
+                        description={
+                          bulkOptions && bulkOptions.length > 0
+                            ? "Try another item family name."
+                            : "Add item families at this kit location before adding them to the kit."
+                        }
+                        inline
+                      />
                     )}
                 </div>
               )}
@@ -846,7 +860,12 @@ export default function KitDetailPage() {
                   </Table>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground py-4 text-center">No item families in this kit yet.</p>
+                <EmptyState
+                  icon="box"
+                  title="No item families in this kit"
+                  description="Search above to add quantity-tracked or unit-tracked item families."
+                  inline
+                />
               )}
             </CardContent>
           </Card>

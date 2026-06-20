@@ -130,6 +130,23 @@ describe("schedule open work", () => {
     }));
   });
 
+  it("does not present malformed Staff slots as student-pickup actions", async () => {
+    mockDb.user.findUnique.mockResolvedValue(activeStudent());
+    mockDb.shiftAssignment.findMany.mockResolvedValue([]);
+    mockDb.shift.findMany.mockResolvedValue([baseShift({ workerType: "FT" })]);
+
+    const result = await getScheduleOpenWork({
+      userId: "student-1",
+      role: "STUDENT",
+      now,
+    });
+
+    expect(result.openShifts[0]).toEqual(expect.objectContaining({
+      action: "none",
+      canAct: false,
+    }));
+  });
+
   it("claims a non-premier open shift as an acknowledged direct assignment", async () => {
     mockDb._mockTx.shift.findUnique.mockResolvedValue(baseShift());
     mockDb._mockTx.user.findUnique.mockResolvedValue(activeStudent());

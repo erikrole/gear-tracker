@@ -4,6 +4,78 @@ Last updated: 2026-06-20
 
 ---
 
+## Active: Schedule role-slot hardening (2026-06-20)
+
+Plan: `tasks/schedule-role-slot-hardening-plan.md`
+
+- [x] Add role-slot mismatch detection to shared Schedule data quality and health.
+- [x] Add explicit staff/admin repair route for historical role-slot mismatches.
+- [x] Return assignment reroute metadata and surface honest assignment toast copy.
+- [x] Split export columns into assigned role and planned slot context.
+- [x] Add picker/copy-forward/Open Work hardening coverage and docs.
+- [x] Run final verification and record results.
+
+### Review
+- 2026-06-20: Role-slot hardening shipped locally. Schedule data quality now flags active assignments whose assigned role disagrees with the planned slot, readiness highlights crew role-slot mismatches, `POST /api/shift-assignments/[id]/repair-role-slot` repairs historical mismatches through the same matching-slot rules, assignment APIs return role-slot outcome metadata for honest UI toasts, pickers explain when a matching slot will be used, exports split Assigned Role from Planned Slot, auto-fill preview labels planned versus assigned role, and Open Work defensively prevents Staff slots from becoming student pickup actions. Verification passed with focused Vitest, TypeScript, diff whitespace, and `npm run build:app`.
+
+---
+
+## Active: Schedule staff/student display cleanup (2026-06-20)
+
+Plan: `tasks/schedule-role-label-cleanup-plan.md`
+
+- [x] Audit Schedule filled-row, assignment, detail-panel, and readiness copy for planned-slot labels leaking into assigned-person labels.
+- [x] Patch assigned rows/cards to display the assigned user role, while reserving Staff/Student slot copy for open planning slots.
+- [x] Replace role-specific needs summary copy with neutral crew/people copy where the UI is counting open slots.
+- [x] Add focused regression coverage and sync Schedule docs.
+- [x] Run focused verification and record results.
+
+### Review
+- 2026-06-20: Staff/student display cleanup shipped locally. Filled Schedule rows and shift cards now show Staff or Student from the assigned user's role, open rows keep Staff slot/Student slot language, assignment buttons use generic open-slot copy, and coverage/readiness copy says Needs crew or Needs n people instead of Needs n students. Verification passed with focused Vitest, TypeScript, diff whitespace, and `npm run build:app`.
+
+---
+
+## Active: shadcn UI polish pass (2026-06-20)
+
+Plan: goal-tracked cross-cutting UI polish across shared shadcn-centered surfaces.
+
+- [x] Audit Settings/Reports tab rails against the lighter breadcrumb treatment and current docs.
+- [x] Patch Settings/Reports rails to use a shared lighter section-nav treatment with clear active states and 40px+ targets.
+- [x] Sync Settings/Reports docs and record nav-rail verification.
+- [x] Run focused TypeScript, build, docs, whitespace, and browser smoke checks for the nav-rail slice.
+- [x] Audit and patch FilterChip plus active filter chips.
+- [x] Audit and patch OperationalToolbar.
+- [x] Audit and patch SaveableField.
+- [x] Audit and patch avatar/UserAvatar adoption.
+- [x] Audit and patch hand-rolled empty states.
+
+### Review
+- 2026-06-20: Started the goal-tracked shadcn UI polish pass with the Settings/Reports navigation rail slice. Breadcrumb polish established the quieter navigation chrome direction; this slice is consolidating the matching section navigation treatment before moving to FilterChip and active filter chips.
+- 2026-06-20: Settings/Reports nav rail slice shipped locally. Added shared `SectionNav` chrome with a translucent shell, 40px+ link targets, horizontal active underline, and desktop Settings rail active accent. Settings and Reports now consume the helper, area docs are synced, and verification passed with TypeScript, app build, docs check, whitespace check, and authenticated browser smoke on `/settings/notifications` plus `/reports/checkouts`.
+- 2026-06-20: FilterChip and active-filter chip slice shipped locally. Shared filter chips now use lighter borders, clearer active underline treatment, truncated values, 40px trigger/clear targets, and quieter removable active-filter buttons across operational toolbars. Items, Checkouts, Reservations, and Reports docs are synced; verification is recorded after the focused checks and browser smoke.
+- 2026-06-20: OperationalToolbar shell slice shipped locally. The shared toolbar now uses lighter translucent chrome so list command rows read as page controls instead of bordered cards, while children keep their existing layout and 40px control contracts. Design language plus Items, Checkouts, Reservations, and Users docs are synced; verification is recorded after focused checks and browser smoke.
+- 2026-06-20: SaveableField slice shipped locally. Shared inline-edit rows now have a quieter hover treatment, visible dirty accent, status pills, and 40px save/cancel buttons with existing field-specific accessible names preserved. Design language plus Items, Checkouts, Reservations, Users, and Kits docs are synced; verification is recorded after focused checks and browser smoke.
+- 2026-06-20: UserAvatar slice shipped locally. The shared people avatar now object-fits uploaded photos, strengthens deterministic initials fallback styling, and Items custody/status badges use the semantic `xs` avatar size instead of a custom 18px override. Design language plus Items and Users docs are synced; verification is recorded after focused checks and browser smoke.
+- 2026-06-20: Empty-state slice shipped locally. Kit detail add-member misses and empty item-family membership now use shared inline `EmptyState` treatment instead of text-only placeholders. Design language and Kits docs are synced; verification is recorded after focused checks and browser smoke.
+
+---
+
+## Active: shadcn hand-rolled UI cleanup follow-up (2026-06-20)
+
+Plan: tighten older route-local UI that still duplicates shadcn primitives after the shared polish pass.
+
+- [x] Replace the raw global error actions and inline styling with shadcn `Button` plus semantic tokens.
+- [x] Replace image-picker text-only search notices and selectable image tile controls with shared shadcn primitives.
+- [x] Replace onboarding dialog local metric/status panels with shadcn `Card` composition.
+- [x] Sync design/users/items docs and record verification.
+- [x] Run TypeScript, app build, docs, whitespace, and browser smoke checks.
+
+### Review
+- 2026-06-20: Started the follow-up after the shadcn usage audit. Scope is intentionally narrow: global error fallback actions, image-picker search placeholders/selection tile controls, and onboarding dialog metric/status panels.
+- 2026-06-20: Follow-up shipped locally. `global-error` now uses shadcn `Button` and semantic tokens instead of inline-styled raw controls; `ChooseImageModal` uses shadcn `Empty` for search notices and shadcn `Button` for result selection; `OnboardingDialog` metric/status counts use shadcn `Card` without nested cards, and the account-status singular copy now reads correctly. Verification passed with TypeScript, docs/codemap check, app build, diff whitespace, and authenticated browser smoke for the image picker plus onboarding dialog.
+
+---
+
 ## Active: Categories visibility audit and patch (2026-06-19)
 
 Plan: `tasks/categories-visibility-plan.md`

@@ -1,6 +1,6 @@
 # AREA: Shift Calendar & Scheduling
 
-> Status: **Implemented** | Owner: TBD | Last Updated: 2026-06-19
+> Status: **Implemented** | Owner: TBD | Last Updated: 2026-06-20
 
 ## Purpose
 
@@ -37,6 +37,7 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - [x] Student availability exceptions: web profile Availability supports semester date ranges and one-time conflicts
 - [x] Shift trade emails: claimed, completed, approved, and declined trade events send best-effort email companions
 - [x] Staff/Student slot planning: sport templates generate separate Staff and Student slots and preserve the planned slot type after assignment
+- [x] Staff/Student display truth: filled Schedule rows/cards derive Staff or Student labels from the assigned user's role, while Staff slot/Student slot labels are reserved for open planned slots and editing controls
 - [x] Call-time overrides: default sport call windows can be overridden per shift and per assignment, with personal overrides used for conflict checks. Crew rows show one effective call time per slot/person; the full coverage window remains available for editing and conflict checks, and the event time range stays global in the event header.
 - [x] Assignment conflict review: staff/admin can filter assignment work by conflicted, open, and clean states and adjust personal call windows from the conflict context
 - [x] Candidate recommendations: staff/admin assignment pickers can show read-only recommended, good fit, warning, and overloaded candidate groups without changing manual assignment behavior
@@ -88,6 +89,8 @@ Replace Asana-based shift scheduling with a native shift calendar in Gear Tracke
 - Sports code mappings (existing — `src/lib/sports.ts`)
 
 ## Change Log
+- 2026-06-20: Schedule role-slot hardening shipped. Schedule data quality now detects filled slots whose planned worker type disagrees with the assigned user's role, readiness highlights those crew mismatches, staff/admin can repair a historical mismatch through an audited role-slot repair route, assignment success copy explains when a matching Staff/Student slot was reused or created, exports split Assigned Role from Planned Slot, auto-fill preview labels planned slot versus assigned role, and Open Work defensively keeps Staff slots out of student pickup actions.
+- 2026-06-20: Schedule staff/student display cleanup shipped. Filled Schedule rows and shift cards now show Staff or Student from the assigned user's actual role, open planned rows keep Staff slot/Student slot language, assignment buttons use generic open-slot copy, and readiness/open-needs summaries use neutral crew/people counts instead of role-specific "Needs n students" wording.
 - 2026-06-19: Schedule event identity normalization shipped. Calendar sync and Schedule title rendering now share opponent and venue cleanup so ranked/boilerplate opponents and `Wis.` venue spellings do not leak into event rows, while calendar venue and pickup location remain separate operational concepts.
 - 2026-06-19: Schedule data-quality queue shipped. Schedule health now reports visible events with missing sport/opponent/venue mapping context, future archived status, or shifts without sport metadata, and `/schedule?queue=data-quality` filters staff/admin review to the affected events.
 - 2026-06-19: Venue mapping audit surface shipped. Admins can now review missing and stale venue mappings in Settings before those mappings affect Schedule home/neutral classification and venue-driven shift behavior.

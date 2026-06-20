@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reports & Analytics
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-18
+- Last Updated: 2026-06-20
 - Status: Active
 - Version: V1
 
@@ -25,7 +25,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - **Behavior:** Redirects to `/reports/utilization`
 
 ### `/reports/layout.tsx`
-- **Layout:** Shared tab navigation bar showing all 7 report types:
+- **Layout:** Shared section navigation bar showing all 7 report types:
   - Utilization (default)
   - Checkouts
   - Overdue
@@ -33,7 +33,7 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
   - Missing Units
   - Audit
   - Badges
-- **Styling:** Tab buttons with active underline; responsive on mobile
+- **Styling:** Uses the shared `SectionNav` treatment with a quiet translucent shell, 40px+ link targets, and an active underline; responsive on mobile
 
 ### `/reports/utilization`
 - **Page:** `src/app/(app)/reports/utilization/page.tsx`
@@ -141,6 +141,8 @@ Provide staff and admin with analytics dashboards to track checkout/reservation 
 - [x] AC-8: Missing Units report includes unit-tracked battery missing-unit, missing-rate, custody-history, and repeat-pattern reporting
 
 ## Change Log
+- 2026-06-20: Report toolbars inherit the refreshed shared active-filter chip treatment, keeping Checkouts, Scans, and Audit non-default filters removable while making applied filters read as lighter controls with 40px targets and active underline.
+- 2026-06-20: Reports navigation now uses the shared `SectionNav` treatment adopted by Settings. The report switcher keeps mobile horizontal scrolling and active underlines, but drops the heavier bordered card shell so the nav reads as page chrome instead of another content panel.
 - 2026-06-18: Schedule Source Of Truth Slice 13 added Schedule CSV exports outside the main Reports shell. `/api/schedule/export?type=...` is still governed by `report.view`, uses shared formula-safe CSV escaping, returns export count/truncation headers, caps date windows to 366 days, and supports roster, hours, open slots, conflicts, trades/open-work requests, and gear-readiness exports from the Schedule page.
 - 2026-06-18: Kiosk-only custody Slice 5 tightened Checkouts report semantics. `/reports/checkouts` metrics, top requesters, recent rows, heatmap, and CSV export now count only custody checkout rows (`OPEN` and `COMPLETED`) so `PENDING_PICKUP` awaiting-pickup records and cancelled records do not inflate actual checkout activity.
 - 2026-06-02: Web operator trust sweep added Utilization row-level CSV export. `/reports/utilization` now exports bounded server-backed inventory rows with derived status evidence, stored status, location, department, category, and availability flags while keeping JSON metric/card/chart behavior unchanged.

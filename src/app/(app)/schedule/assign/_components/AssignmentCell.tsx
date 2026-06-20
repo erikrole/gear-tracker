@@ -21,7 +21,7 @@ import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/er
 import type { GridShift, GridAssignment } from "@/hooks/use-assignment-grid";
 import { cn } from "@/lib/utils";
 import { AlertTriangleIcon, PlusIcon, UserIcon, XIcon } from "lucide-react";
-import { shiftWorkerLabel } from "@/lib/shift-display";
+import { formatRoleSlotAssignmentOutcome, shiftWorkerLabel, type RoleSlotOutcomeLike } from "@/lib/shift-display";
 import { effectiveCallWindow, formatCallTime } from "@/lib/shift-call-windows";
 
 type Props = {
@@ -102,8 +102,10 @@ export function AssignmentCell({
           toast.error(msg);
           return;
         }
+        const selectedUser = allUsers.find((user) => user.id === userId);
+        const json = await parseJsonSafely<{ meta?: { roleSlotOutcome?: RoleSlotOutcomeLike } }>(res);
         onRefetch();
-        toast.success("Assigned shift");
+        toast.success(formatRoleSlotAssignmentOutcome(json?.meta?.roleSlotOutcome, selectedUser?.name));
       } catch {
         toast.error("Network error - could not assign");
       } finally {
@@ -111,7 +113,7 @@ export function AssignmentCell({
         setActing(null);
       }
     },
-    [onRefetch],
+    [allUsers, onRefetch],
   );
 
   const handleRemove = useCallback(
@@ -360,7 +362,7 @@ export function AssignmentCell({
                 >
                   <UserIcon className={cn("size-3.5 opacity-70", acting?.endsWith(firstOpenShift.id) && "animate-pulse")} />
                   <span className="min-w-0 truncate font-medium">
-                    {assignedShifts.length > 0 ? `${openCount} open` : `Assign ${shiftWorkerLabel(firstOpenShift.workerType)}`}
+                    {assignedShifts.length > 0 ? `${openCount} open` : "Assign open slot"}
                   </span>
                 </button>
               </PopoverTrigger>
@@ -379,6 +381,7 @@ export function AssignmentCell({
                   conflictsLoading={conflictsLoading}
                   candidateScores={candidateScores}
                   scoresLoading={scoresLoading}
+                  slotWorkerType={firstOpenShift.workerType}
                 />
               </PopoverContent>
             </Popover>

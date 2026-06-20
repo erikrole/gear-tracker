@@ -29,10 +29,14 @@ export function UserAvatar({
   const colorClass = noColor ? "bg-muted text-muted-foreground" : avatarColorClass(name);
 
   return (
-    <Avatar size={size} className={className}>
-      {avatarUrl && <AvatarImage src={avatarUrl} alt={name} />}
+    <Avatar size={size} className={cn("bg-muted", className)}>
+      {avatarUrl && <AvatarImage src={avatarUrl} alt={name} className="object-cover" />}
       <AvatarFallback
-        className={cn("font-medium", colorClass, fallbackClassName)}
+        className={cn(
+          "font-semibold uppercase shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)]",
+          colorClass,
+          fallbackClassName,
+        )}
       >
         {display}
       </AvatarFallback>

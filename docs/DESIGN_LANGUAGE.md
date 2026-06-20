@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-21
+- Last Updated: 2026-06-20
 - Status: Active
 - Purpose: Define the UI and UX rules that keep Gear Tracker cohesive, fast, dense, calm, and operationally clear.
 
@@ -33,7 +33,7 @@ Avoid:
 ### Layout
 - Use `PageHeader` for page title, optional description, and right-side actions.
 - Use page sections as full-width groups or direct content, not cards inside cards.
-- Use `OperationalToolbar` for search, filters, quick toggles, and clear actions on operational list pages.
+- Use `OperationalToolbar` for search, filters, quick toggles, and clear actions on operational list pages. The toolbar should read as quiet page chrome; individual controls carry the primary affordance.
 - Keep settings sub-pages under the Settings layout header and grouped Settings navigation; use `SettingsPageShell` for the compact section intro and main content, and do not render page-level `h1` inside sub-pages.
 
 ### Spacing And Density
@@ -134,13 +134,15 @@ Feature ideas to consider separately:
 - `/checkouts/new` confirmation: checkout handoff previously looked complete. Fixed to pending kiosk pickup language.
 - `/scan`: custom page heading and small controls drifted from shared page/header and target-size rules. Header and controls now align.
 - `/items`: toolbar was the best existing command surface. It now uses `OperationalToolbar` and shared active-filter chips.
+- Shared operational toolbar shell: `OperationalToolbar` now uses the lighter translucent chrome shared by breadcrumbs and section nav, while child controls keep 40px targets and their own borders.
 - `/items` row actions: table overflow actions now use `OperationalRowActions`.
 - `/bookings`: table rows, mobile rows, and booking cards now use `OperationalRowActions` for overflow commands while preserving right-click context menus.
 - `/bookings`: list filters now use `OperationalToolbar` plus shared active-filter chips, matching Items and Users instead of a route-local card-header toolbar.
 - Shared filter controls: `FilterChip` and `OperationalActiveFilterChips` now use 40px removable targets across Bookings, Schedule, Dashboard, Trade Board, Items, Users, and Reports.
 - `/checkouts/new` and `/reservations/new`: shared `EquipmentPicker` search clear, scanner close, select-visible, clear-section, bulk quantity, selected-shelf remove, and clear-all controls now follow the 40px operational target baseline.
 - Shared overlay primitives: `Dialog`, `Sheet`, and `Drawer` built-in close controls now use visible 40px targets so modal dismissal is consistent across create/edit/detail flows.
-- Shared inline field rows: `SaveableField` now renders display-only labels as text instead of untargeted form labels, preserves real label associations when `htmlFor` is provided, and names dirty-row save/cancel controls with the field label.
+- Shared inline field rows: `SaveableField` renders display-only labels as text instead of untargeted form labels, preserves real label associations when `htmlFor` is provided, names dirty-row save/cancel controls with the field label, and uses a visible dirty-row accent with 40px action buttons.
+- Shared people avatars: `UserAvatar` is the canonical web entry point for user photos and initials. Use its semantic size scale instead of hand-sized circular image overrides.
 - `/schedule` filters: view and venue segmented controls now use shadcn `ToggleGroup` while Schedule remains a documented domain-specific command-bar exception.
 - `/schedule` Trade Board: claim and staff approval stay visible; cancel and decline now use `OperationalRowActions` as secondary/destructive row commands.
 - `/schedule` Trade Board: cancel confirmation now names the event, shift window, posted owner, and assignment consequence instead of asking a generic trade question.
@@ -177,6 +179,10 @@ Feature ideas to consider separately:
 - `/events/[id]`: travel roster default-traveler, add, and remove controls now follow the 40px operational action baseline, and the empty roster uses shared inline empty-state language.
 - `/bulk-inventory/[id]`: unit-tracked item-family units tab now uses shared inline empty states when no units exist.
 - `/kits` and `/bulk-inventory/batteries`: summary metric strips now use `OperationalMetricCard` instead of route-local metric card helpers.
+- `/kits/[id]`: add-member search misses and empty item-family membership now use shared inline empty states instead of text-only placeholders.
+- Global error fallback: the app-level crash fallback now uses shadcn `Button` actions and semantic text/layout tokens instead of inline-styled raw controls.
+- Item image picker: search idle, empty, quota, and failed states now use shadcn `Empty` composition, and result selection uses the shared `Button` primitive while preserving the visible selected/focus treatment.
+- Shared onboarding dialog: completion, client preview, and account-status preview metrics now use shadcn `Card` composition instead of route-local bordered metric panels.
 - `/bulk-inventory/batteries`: checked-out battery units panel now uses shared inline empty states when no units are out.
 - `/labels` and `/search`: compact clear, open, result, and view-all controls now meet the 40px operational target baseline on the focused print queue and global command surfaces.
 - `/notifications`: summary metrics now use `OperationalMetricCard`, and header/retry/destination/mark-read controls meet the 40px operational target baseline.

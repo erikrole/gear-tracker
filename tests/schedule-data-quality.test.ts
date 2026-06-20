@@ -53,6 +53,42 @@ describe("schedule data quality", () => {
     }), new Date("2026-07-01T00:00:00Z")).map((issue) => issue.reason)).toEqual(["future_archived"]);
   });
 
+  it("flags active assignments whose user role disagrees with the planned slot", () => {
+    expect(getScheduleDataQuality(event({
+      shiftGroup: {
+        shifts: [
+          {
+            id: "shift-1",
+            workerType: "ST",
+            assignments: [
+              {
+                id: "assignment-1",
+                status: "DIRECT_ASSIGNED",
+                user: { role: "STAFF" },
+              },
+            ],
+          },
+          {
+            id: "shift-2",
+            workerType: "FT",
+            assignments: [
+              {
+                id: "assignment-2",
+                status: "DECLINED",
+                user: { role: "STUDENT" },
+              },
+            ],
+          },
+        ],
+      },
+    }))).toContainEqual({
+      eventId: "event-1",
+      reason: "role_slot_mismatch",
+      shiftId: "shift-1",
+      assignmentId: "assignment-1",
+    });
+  });
+
   it("summarizes issue count and unique event count", () => {
     const summary = summarizeScheduleDataQuality([
       event({ id: "event-1", sportCode: null, opponent: null, isHome: null, locationId: null, shiftGroup: { shifts: [{}] } }),

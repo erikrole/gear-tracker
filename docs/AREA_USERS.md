@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Users
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-15
+- Last Updated: 2026-06-20
 - Status: Active
 - Version: V1.2
 
@@ -114,6 +114,10 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 6. Ensure audit logs include actor role, target owner, and exception metadata.
 
 ## Change Log
+- 2026-06-20: Shared onboarding dialog metric/status panels now use shadcn `Card` composition for completion counts, client preview counts, and account-status preview counts, preserving invitation flow behavior while removing route-local bordered panel markup.
+- 2026-06-20: Users roster filters inherit the lighter shared `OperationalToolbar` shell and refreshed active-filter chips, preserving search/filter behavior while making the command row read as quiet page chrome instead of a bordered frame.
+- 2026-06-20: User detail inline-edit rows inherit the refreshed shared `SaveableField` dirty-row treatment, preserving existing profile save semantics while making pending save/cancel actions visually explicit and 40px target sized.
+- 2026-06-20: User avatars inherit the refreshed shared `UserAvatar` rendering: uploaded photos object-fit consistently, initials fallbacks are stronger and deterministic, and callers should use the semantic size scale instead of local circular image sizing.
 - 2026-06-15: Wiscard profile identity shipped. Users now have a unique nullable `wiscard_number` profile field so existing accounts migrate safely, invite-gated registration requires the value for new signups, and self-profile plus staff/admin user-detail editing can update it with duplicate-value conflicts reported clearly.
 - 2026-06-10: iOS Account & Security detail menu shipped. Native Settings now shows signed-in account context and lets every authenticated user change their password through the existing `/api/me/change-password` flow, including the optional sign-out-other-devices flag. Full profile editing and active-session list management remain on web Settings for this slice.
 - 2026-06-08: No-temp-password onboarding pivot shipped. `/api/users` first-time direct creation and `/api/users/bulk-create` now return a retired-flow response after auth checks, and the shared onboarding dialog only creates allowlist invitations so users set their own password at registration.

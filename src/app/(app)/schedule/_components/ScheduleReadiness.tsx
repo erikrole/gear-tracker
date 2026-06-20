@@ -135,6 +135,7 @@ export function ScheduleReadiness({
   const gearGaps = health?.queues.gearGaps.count ?? 0;
   const dataQualityIssues = health?.queues.dataQuality.count ?? 0;
   const dataQualityEvents = health?.queues.dataQuality.eventCount ?? 0;
+  const roleSlotMismatchCount = health?.queues.dataQuality.issues.filter((issue) => issue.reason === "role_slot_mismatch").length ?? 0;
   const tradeApprovals = health?.queues.tradeApprovals.count ?? 0;
   const nextCall = health?.nextCall.label ?? formatNextCall(filteredEntries);
   const sourceNeedsAttention = sourceSignal?.severity === "attention";
@@ -153,9 +154,9 @@ export function ScheduleReadiness({
       actionLabel: health?.nextCall.eventId ? "Open next event" : undefined,
     },
     {
-      label: "Staff needed",
+      label: "Crew needed",
       value: openSlots,
-      detail: needsCoverageEvents > 0 ? `${needsCoverageEvents} events need staff` : "Staffing is set",
+      detail: needsCoverageEvents > 0 ? `${needsCoverageEvents} events need crew` : "Crew is set",
       icon: AlertTriangleIcon,
       tone: openSlots > 0 ? "critical" : "good",
       onClick: () => onShowQueue("needs-staffing"),
@@ -182,7 +183,9 @@ export function ScheduleReadiness({
     {
       label: "Data quality",
       value: dataQualityIssues,
-      detail: dataQualityIssues > 0
+      detail: roleSlotMismatchCount > 0
+        ? `${roleSlotMismatchCount} crew role-slot mismatch${roleSlotMismatchCount === 1 ? "" : "es"}`
+        : dataQualityIssues > 0
         ? `${dataQualityEvents} event${dataQualityEvents === 1 ? "" : "s"} need cleanup`
         : "Event data looks clean",
       icon: ListChecksIcon,

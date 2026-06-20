@@ -29,8 +29,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { shiftWorkerLabel } from "@/lib/shift-display";
-import { shiftWorkerSlotLabel } from "@/lib/shift-display";
+import { formatRoleSlotAssignmentOutcome, shiftWorkerLabel, shiftWorkerLabelForRole, shiftWorkerSlotLabel, type RoleSlotOutcomeLike } from "@/lib/shift-display";
 import type { AutoFillPreviewResponse } from "@/lib/auto-fill-preview-types";
 
 /* ───── Types ───── */
@@ -287,15 +286,16 @@ export default function ShiftDetailPanel({
 
   /* ── Actions ── */
 
-  function handleAssign(shiftId: string, userId: string) {
+  async function handleAssign(shiftId: string, userId: string) {
+    if (actingRef.current) return;
     const assignedUser = allUsers.find((u) => u.id === userId);
     setPickerShiftId(null);
-    mutate(shiftId, "/api/shift-assignments", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ shiftId, userId }),
-    }, "Shift assigned", () => {
-      const prev = group;
+    actingRef.current = shiftId;
+    setActing(shiftId);
+    setActionError("");
+    setCreatedShiftNotice("");
+    const prev = group;
+    try {
       if (group && assignedUser) {
         setGroup({
           ...group,
@@ -312,8 +312,31 @@ export default function ShiftDetailPanel({
           ),
         });
       }
-      return prev;
-    });
+      const res = await fetch("/api/shift-assignments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shiftId, userId }),
+      });
+      if (handleAuthRedirect(res)) return;
+      if (res.ok) {
+        const json = await parseJsonSafely<{ meta?: { roleSlotOutcome?: RoleSlotOutcomeLike } }>(res);
+        toast.success(formatRoleSlotAssignmentOutcome(json?.meta?.roleSlotOutcome, assignedUser?.name));
+        await fetchGroup();
+        onUpdated?.();
+      } else {
+        if (prev) setGroup(prev);
+        const msg = await parseErrorMessage(res, "Action failed");
+        setActionError(msg);
+        toast.error(msg);
+      }
+    } catch {
+      if (prev) setGroup(prev);
+      setActionError("Could not reach the server. The shift change was not saved.");
+      toast.error("Could not reach the server. The shift change was not saved.");
+    } finally {
+      actingRef.current = null;
+      setActing(null);
+    }
   }
 
   const handleApprove = (id: string) =>
@@ -744,7 +767,7 @@ export default function ShiftDetailPanel({
                     <div className="min-w-0">
                       <div className="font-medium">{proposal.userName}</div>
                       <div className="text-xs text-muted-foreground">
-                        {proposal.area.charAt(0) + proposal.area.slice(1).toLowerCase()} · {shiftWorkerSlotLabel(proposal.workerType)}
+                        {proposal.area.charAt(0) + proposal.area.slice(1).toLowerCase()} · Planned {shiftWorkerSlotLabel(proposal.workerType)} · Assigned {shiftWorkerLabelForRole(proposal.userRole)}
                       </div>
                     </div>
                     <Badge variant={proposal.warnings.length > 0 ? "orange" : "green"} className="shrink-0 tabular-nums">

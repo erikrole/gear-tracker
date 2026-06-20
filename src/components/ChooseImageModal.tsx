@@ -15,6 +15,13 @@ import { useConfirm } from "./ConfirmDialog";
 import { toast } from "sonner";
 import { handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -92,6 +99,26 @@ function classifySourceDomain(domain: string): SourceCue {
     return "manufacturer";
   }
   return "unknown";
+}
+
+function SearchEmptyNotice({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <Empty className="min-h-[180px] border border-dashed bg-background/60 p-4 md:p-6">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <SearchIcon aria-hidden="true" />
+        </EmptyMedia>
+        <EmptyTitle className="text-base">{title}</EmptyTitle>
+        <EmptyDescription>{description}</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  );
 }
 
 async function fetchSearchData(query: string, controller: AbortController) {
@@ -499,9 +526,10 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
                               selected ? "border-primary ring-2 ring-primary/20" : "border-border hover:border-primary/60"
                             }`}
                           >
-                            <button
+                            <Button
                               type="button"
-                              className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded bg-muted outline-none transition-[box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                              variant="ghost"
+                              className="relative aspect-square h-auto w-full overflow-hidden rounded bg-muted p-0 shadow-none transition-[box-shadow] hover:bg-muted focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                               onClick={() => setSelectedSearchResult(result)}
                               aria-label={`Select image: ${result.title}`}
                               aria-pressed={selected}
@@ -524,7 +552,7 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
                                   img.style.display = "none";
                                 }}
                               />
-                            </button>
+                            </Button>
                             <span className="mt-1 min-h-8 overflow-hidden text-xs leading-4 text-foreground">
                               {result.title}
                             </span>
@@ -555,24 +583,16 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
                   )}
 
                   {searchState === "empty" && (
-                    <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-                      No images found. Try a more specific search.
-                    </p>
+                    <SearchEmptyNotice title="No images found" description="Try a more specific brand, model, or product name." />
                   )}
                   {searchState === "quota" && (
-                    <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-                      Image search is temporarily limited. Paste a URL or upload a file instead.
-                    </p>
+                    <SearchEmptyNotice title="Search temporarily limited" description="Paste a URL or upload a file instead." />
                   )}
                   {searchState === "failed" && (
-                    <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-                      Image search failed. Paste a URL or upload a file instead.
-                    </p>
+                    <SearchEmptyNotice title="Image search failed" description="Paste a URL or upload a file instead." />
                   )}
                   {searchState === "idle" && (
-                    <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-                      Search by brand and model to find product photos.
-                    </p>
+                    <SearchEmptyNotice title="Search product photos" description="Search by brand and model to find manufacturer or product images." />
                   )}
                 </div>
 

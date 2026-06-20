@@ -19,7 +19,7 @@ import { AlertTriangle, PlusIcon, XIcon } from "lucide-react";
 import { CallWindowEditor } from "./CallWindowEditor";
 import { UserAvatarPicker, type PickerUser } from "./UserAvatarPicker";
 import { effectiveCallWindow, isInheritedFullDayCallWindow } from "@/lib/shift-call-windows";
-import { shiftWorkerSlotLabel } from "@/lib/shift-display";
+import { shiftWorkerLabelForRole, shiftWorkerSlotLabel } from "@/lib/shift-display";
 
 type ShiftUser = {
   id: string;
@@ -119,6 +119,9 @@ export function ShiftSlotCard({
   const showAssignmentWindow = Boolean(
     assignmentWindow && !eventAllDay && !isInheritedFullDayCallWindow(assignmentWindow),
   );
+  const roleBadgeLabel = activeAssignment
+    ? shiftWorkerLabelForRole(activeAssignment.user.role)
+    : shiftWorkerSlotLabel(workerType);
 
   const contextItems = (
     <ContextMenuContent className="w-48">
@@ -158,7 +161,7 @@ export function ShiftSlotCard({
           elevation="flat"
           className={`p-3 mb-2 ${isAssigned ? "border-[var(--green)]/20 bg-[var(--green-bg)]" : ""}`}
         >
-          {/* Header: status badge + planned role */}
+          {/* Header: status badge + assigned role or open planned slot */}
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-1.5">
               {isAssigned ? (
@@ -170,7 +173,7 @@ export function ShiftSlotCard({
               ) : (
                 <Badge variant="red" size="sm">Open</Badge>
               )}
-              <Badge variant="gray" size="sm">{shiftWorkerSlotLabel(workerType)}</Badge>
+              <Badge variant="gray" size="sm">{roleBadgeLabel}</Badge>
             </div>
             {showSlotWindow && (
               <CallWindowEditor
@@ -341,6 +344,7 @@ export function ShiftSlotCard({
                       onSearchChange={onPickerSearchChange}
                       onSelect={(userId) => onAssign(userId)}
                       disabled={acting !== null}
+                      slotWorkerType={workerType}
                     />
                   </PopoverContent>
                 </Popover>

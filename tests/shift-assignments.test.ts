@@ -63,6 +63,7 @@ import {
   approveRequest,
   declineRequest,
   initiateSwap,
+  repairRoleSlotMismatch,
   removeAssignment,
 } from "@/lib/services/shift-assignments";
 
@@ -274,6 +275,78 @@ describe("directAssignShift", () => {
         callEndsAt: new Date("2026-04-01T10:00:00Z"),
       })
     ).rejects.toThrow("User already has a shift during this time");
+  });
+});
+
+describe("repairRoleSlotMismatch", () => {
+  it("moves an active mismatched assignment into a matching open slot", async () => {
+    const studentSlot = makeShift({ id: "student-slot", workerType: "ST" });
+    const staffSlot = makeShift({ id: "staff-slot", shiftGroupId: studentSlot.shiftGroupId, area: studentSlot.area, workerType: "FT" });
+    mockTx.shiftAssignment.findUnique.mockResolvedValue({
+      id: "assignment-1",
+      shiftId: studentSlot.id,
+      userId: "staff-1",
+      status: "DIRECT_ASSIGNED",
+      user: { id: "staff-1", name: "Staff One", role: "STAFF" },
+      shift: studentSlot,
+    });
+    mockTx.shift.findFirst.mockResolvedValue(staffSlot);
+    mockTx.shiftAssignment.findFirst.mockResolvedValue(null);
+    mockTx.shiftAssignment.updateMany.mockResolvedValue({ count: 0 });
+    mockTx.shiftAssignment.update.mockResolvedValue({
+      id: "assignment-1",
+      shiftId: staffSlot.id,
+      user: { id: "staff-1", name: "Staff One", role: "STAFF", primaryArea: null, avatarUrl: null },
+    });
+    mockTx.shiftGroup.update.mockResolvedValue({});
+
+    const result = await repairRoleSlotMismatch("assignment-1");
+
+    expect(mockTx.shiftAssignment.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "assignment-1" },
+      data: { shiftId: staffSlot.id },
+    }));
+    expect(result.outcome).toEqual(expect.objectContaining({
+      requestedShiftId: studentSlot.id,
+      targetShiftId: staffSlot.id,
+      movedToMatchingSlot: true,
+      reusedMatchingSlot: true,
+    }));
+    expectSerializableIsolation(transactionCalls, 0);
+  });
+
+  it("creates a matching slot when no open slot exists", async () => {
+    const studentSlot = makeShift({ id: "student-slot", workerType: "ST" });
+    const createdStaffSlot = makeShift({ id: "created-staff-slot", shiftGroupId: studentSlot.shiftGroupId, area: studentSlot.area, workerType: "FT" });
+    mockTx.shiftAssignment.findUnique.mockResolvedValue({
+      id: "assignment-1",
+      shiftId: studentSlot.id,
+      userId: "staff-1",
+      status: "APPROVED",
+      user: { id: "staff-1", name: "Staff One", role: "STAFF" },
+      shift: studentSlot,
+    });
+    mockTx.shift.findFirst.mockResolvedValue(null);
+    mockTx.shift.create.mockResolvedValue(createdStaffSlot);
+    mockTx.shiftGroup.update.mockResolvedValue({});
+    mockTx.shiftAssignment.findFirst.mockResolvedValue(null);
+    mockTx.shiftAssignment.updateMany.mockResolvedValue({ count: 0 });
+    mockTx.shiftAssignment.update.mockResolvedValue({ id: "assignment-1", shiftId: createdStaffSlot.id });
+
+    const result = await repairRoleSlotMismatch("assignment-1");
+
+    expect(mockTx.shift.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        shiftGroupId: studentSlot.shiftGroupId,
+        area: studentSlot.area,
+        workerType: "FT",
+      }),
+    });
+    expect(result.outcome).toEqual(expect.objectContaining({
+      targetShiftId: createdStaffSlot.id,
+      movedToMatchingSlot: true,
+      createdMatchingSlot: true,
+    }));
   });
 });
 

@@ -236,6 +236,8 @@ _2026-06-19 update: Category cleanup wizard and picker visibility shipped withou
 ---
 
 ## Change Log
+- 2026-06-20: Schedule role-slot hardening shipped without opening a new gap. Existing `Shift.workerType`, `User.role`, and `ShiftAssignment.shiftId` support mismatch detection and explicit repair; exports and Open Work now preserve assigned-role versus planned-slot semantics without schema changes.
+- 2026-06-20: Schedule staff/student display cleanup shipped without opening a new gap. Existing `User.role` and `Shift.workerType` already separate assigned-person identity from planned slot type; UI copy now uses the correct source for each state.
 - 2026-06-19: Schedule event identity normalization shipped without opening a new gap. Opponent and venue cleanup is shared across Calendar sync, manual event creation, event edit/revert, and Schedule title rendering with no schema change.
 - 2026-06-19: Schedule data-quality queue shipped without opening a new gap. Existing Schedule health now exposes read-only event data issues for staff/admin review instead of adding new event fields or correction workflows.
 - 2026-06-19: Venue mapping audit surface shipped without opening a new gap. Admin diagnostics now expose missing home-venue mappings and stale mapping targets through Settings using existing Location and LocationMapping ownership.

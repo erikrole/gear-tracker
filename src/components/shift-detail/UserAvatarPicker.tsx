@@ -13,6 +13,7 @@ import {
   type CandidateConflictFilter,
 } from "@/lib/assignment-conflict-review";
 import type { CandidateRecommendation, CandidateScoreBucket } from "@/lib/candidate-scoring-types";
+import { shiftWorkerSlotLabel, shiftWorkerTypeForRole } from "@/lib/shift-display";
 import { cn } from "@/lib/utils";
 
 const AREA_LABELS: Record<string, string> = {
@@ -44,6 +45,7 @@ type Props = {
   conflictsLoading?: boolean;
   candidateScores?: Record<string, CandidateRecommendation>;
   scoresLoading?: boolean;
+  slotWorkerType?: string | null;
 };
 
 const SCORE_BUCKET_LABELS: Record<CandidateScoreBucket, string> = {
@@ -75,6 +77,7 @@ export function UserAvatarPicker({
   conflictsLoading,
   candidateScores,
   scoresLoading,
+  slotWorkerType,
 }: Props) {
   const [conflictFilter, setConflictFilter] = useState<CandidateConflictFilter>("all");
   const canFilterConflicts = Boolean(conflictMap);
@@ -176,6 +179,10 @@ export function UserAvatarPicker({
                   const conflict = conflictMap?.[u.id];
                   const score = candidateScores?.[u.id];
                   const topReason = score?.warnings[0]?.label ?? score?.reasons[0]?.label;
+                  const candidateWorkerType = shiftWorkerTypeForRole(u.role);
+                  const roleSlotNote = slotWorkerType && candidateWorkerType !== slotWorkerType
+                    ? `Will use ${shiftWorkerSlotLabel(candidateWorkerType).toLowerCase()} and leave ${shiftWorkerSlotLabel(slotWorkerType).toLowerCase()} open.`
+                    : null;
                   return (
                     <Button
                       key={u.id}
@@ -184,7 +191,7 @@ export function UserAvatarPicker({
                       className="min-h-10 w-full justify-start gap-2 rounded-md p-1.5 text-left text-sm transition-[background-color,color,scale] hover:bg-accent active:scale-[0.96] disabled:opacity-50"
                       onClick={() => onSelect(u.id)}
                       disabled={disabled}
-                      title={topReason ?? conflict ?? undefined}
+                      title={roleSlotNote ?? topReason ?? conflict ?? undefined}
                     >
                       <div className="relative shrink-0">
                         <UserAvatar name={u.name} avatarUrl={u.avatarUrl} size="default" />
@@ -208,6 +215,11 @@ export function UserAvatarPicker({
                         {topReason && (
                           <div className="mt-0.5 truncate text-[10px] text-muted-foreground">
                             {topReason}
+                          </div>
+                        )}
+                        {roleSlotNote && (
+                          <div className="mt-0.5 text-pretty text-[10px] text-muted-foreground">
+                            {roleSlotNote}
                           </div>
                         )}
                       </div>

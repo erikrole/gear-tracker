@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Items
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-11
+- Last Updated: 2026-06-20
 - Status: Active
 - Version: V1
 
@@ -420,6 +420,11 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-06-20: **Image picker shadcn cleanup.** The shared item image modal search tab now uses shadcn `Empty` composition for idle, empty, quota, and failed states, and result selection uses the shared `Button` primitive instead of a raw button while preserving source links and selected/focus styling.
+- 2026-06-20: **Shared filter-chip UI refinement.** Items inherits the refreshed `FilterChip` and `OperationalActiveFilterChips` treatment: lighter filter chrome, 40px removable targets, clearer active underline, and less card-like active filter pills across the toolbar.
+- 2026-06-20: **OperationalToolbar shell refinement.** Items inherits the lighter shared toolbar chrome, so search, type toggles, filters, attachment switch, and applied filters sit in quiet page chrome instead of a bordered card-like frame.
+- 2026-06-20: **SaveableField refinement.** Item detail inline-edit rows inherit the refreshed shared dirty-row treatment: quieter row hover, visible dirty accent, status pills, and 40px save/cancel actions with field-specific accessible names.
+- 2026-06-20: **UserAvatar refinement.** Item list custody/status badges now use the shared semantic `UserAvatar` sizing instead of an ad hoc 18px override, inheriting the refreshed photo object-fit and initials fallback polish.
 - 2026-06-16: **Item detail nullable serial crash fix.** Serialized item detail now treats a missing serial number as a valid empty field, matching the nullable `Asset.serialNumber` schema. Newly-created items such as lenses without serial numbers no longer crash during Info tab render, and the QR identity dialog copy now uses the current Identity language.
 - 2026-06-15: Kiosk-only custody Slice 3. Item detail now exposes `Reserve` as the only non-kiosk booking creation action; direct item checkout starts only from the kiosk, while existing checkout status links remain visible for active custody records.
 - 2026-06-11: **Item-detail Reserve and Check out actions now align with booking availability.** The header treats `availableForReservation` and `availableForCheckout` as workflow policy, then layers current status on top: both actions only start a new booking when the item's derived status is `AVAILABLE`. Reserve previously stayed enabled for `MAINTENANCE` items even though server-side booking validation rejects any non-`AVAILABLE` status, sending staff into a flow doomed at submit time. Disabled buttons now name the real blocker (maintenance, retired, awaiting pickup, already checked out, or policy off) instead of always claiming the policy is off.

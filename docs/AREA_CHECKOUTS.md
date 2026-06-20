@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Checkouts
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-15
+- Last Updated: 2026-06-20
 - Status: Active — V1 Shipped
 - Version: V1
 
@@ -298,6 +298,9 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 5. Add regression coverage for race conditions, partial returns, non-kiosk custody attempts, and permission bypass attempts.
 
 ## Change Log
+- 2026-06-20: Checkout list filters inherit the refreshed shared `FilterChip` and active-filter chip treatment: lighter borders, 40px removable targets, active underline, and quieter applied-filter buttons while preserving the existing clear behavior and booking filter semantics.
+- 2026-06-20: Checkout list filters inherit the lighter shared `OperationalToolbar` shell, keeping existing search/filter semantics while reducing the card-like frame around the command row.
+- 2026-06-20: Checkout detail inline-edit rows inherit the refreshed shared `SaveableField` dirty-row treatment, keeping title/notes save semantics while making pending save/cancel actions visually explicit and 40px target sized.
 - 2026-06-15: Kiosk-only custody Slice 3. Web and non-kiosk iOS no longer expose checkout creation, reservation-to-checkout conversion, or return controls; checkout pages remain available for active custody visibility and history, while `/checkouts/new` redirects to reservation creation.
 - 2026-06-15: Server-side kiosk-only custody boundary shipped. `/api/checkouts` POST now rejects app/web checkout creation, app/web checkout pickup/return scan-session and completion routes reject custody mutation, and the shared `createBooking()` service refuses checkout creation unless the caller explicitly marks kiosk custody. Focused regressions cover checkout creation, retired reservation conversion, action gating, and blocked web return routes.
 - 2026-06-15: Accepted the kiosk-only custody contract (D-040). Checkout records remain the custody ledger, but direct checkout creation and return are kiosk-only; app/web creation becomes reservation-first. `PENDING_PICKUP` remains only as compatibility/staged handoff work, not the normal result of app/web checkout creation.
