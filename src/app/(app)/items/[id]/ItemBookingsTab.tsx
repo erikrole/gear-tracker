@@ -23,6 +23,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Check, Clock3, ShieldCheck, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { handleAuthRedirect } from "@/lib/errors";
+import { bookingStatusDisplay, bookingStatusDotClassName } from "@/lib/booking-status-display";
 import { UserAvatar } from "@/components/UserAvatar";
 import {
   Table,
@@ -55,6 +56,7 @@ export function UpcomingReservationsList({
       {reservations.map((r) => {
         const pastStart = new Date(r.startsAt) < now;
         const startsToday = !pastStart && isStartingToday(r.startsAt, now);
+        const status = bookingStatusDisplay(r.status, "RESERVATION");
         return (
           <button
             key={r.bookingId}
@@ -78,8 +80,8 @@ export function UpcomingReservationsList({
                 )}
               </span>
             </div>
-            <Badge variant={r.status === "BOOKED" ? "blue" : r.status === "DRAFT" ? "gray" : "blue"} size="sm">
-              {r.status === "BOOKED" ? "Booked" : r.status === "DRAFT" ? "Draft" : "Open"}
+            <Badge variant={status.variant} size="sm">
+              {status.label}
             </Badge>
           </button>
         );
@@ -183,7 +185,7 @@ export function PastBookingsPreview({
             const booking = entry.booking;
             const from = formatDateWithDayTime(booking.startsAt);
             const to = formatDateWithDayTime(booking.endsAt);
-            const status = bookingStatusLabel(booking.status, booking.kind);
+            const status = bookingStatusDisplay(booking.status, booking.kind);
             const range = formatBookingRange(from, to);
             return (
               <button
@@ -376,28 +378,10 @@ export function OperationalOverview({
   );
 }
 
-/* ── Booking Status Label ──────────────────────────────── */
+/* ── Booking Schedule Occupancy ──────────────────────────────── */
 
 function bookingOccupiesSchedule(status: string) {
   return status !== "CANCELLED";
-}
-
-function bookingStatusLabel(status: string, kind?: "CHECKOUT" | "RESERVATION"): { label: string; variant: "blue" | "purple" | "green" | "gray" | "red" | "orange" } {
-  switch (status) {
-    case "BOOKED": return kind === "RESERVATION"
-      ? { label: "Confirmed", variant: "purple" }
-      : { label: "Booked", variant: "blue" };
-    case "OPEN": return { label: "Checked out", variant: "blue" };
-    case "PENDING_PICKUP": return { label: "Awaiting pickup", variant: "orange" };
-    case "CHECKED_OUT": return { label: "Checked out", variant: "blue" };
-    case "COMPLETED": return { label: "Completed", variant: "gray" };
-    case "RETURNED": return { label: "Returned", variant: "gray" };
-    case "CANCELLED": return { label: "Cancelled", variant: "gray" };
-    case "DRAFT": return { label: "Draft", variant: "gray" };
-    case "CONVERTED": return { label: "Converted", variant: "gray" };
-    case "CLOSED": return { label: "Closed", variant: "gray" };
-    default: return { label: status, variant: "gray" };
-  }
 }
 
 /* ── Booking Kind Tab ───────────────────────────────────── */
@@ -484,7 +468,7 @@ export function BookingKindTab({
                 const from = formatDateWithDayTime(b.startsAt);
                 const to = formatDateWithDayTime(b.endsAt);
                 const dur = formatDuration(b.startsAt, b.endsAt);
-                const st = bookingStatusLabel(b.status, b.kind);
+                const st = bookingStatusDisplay(b.status, b.kind);
                 return (
                   <TableRow
                     key={entry.id}
@@ -497,7 +481,7 @@ export function BookingKindTab({
                     <TableCell>
                       <div className="font-medium text-primary">{b.title}</div>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className={`inline-block size-2 rounded-full ${st.variant === "purple" ? "bg-[var(--purple)]" : st.variant === "blue" ? "bg-[var(--blue)]" : st.variant === "orange" ? "bg-[var(--orange)]" : st.variant === "red" ? "bg-[var(--red)]" : "bg-muted-foreground"}`} />
+                        <span className={`inline-block size-2 rounded-full ${bookingStatusDotClassName(st.variant)}`} />
                         <span className="text-xs text-muted-foreground">{st.label}</span>
                       </div>
                     </TableCell>
@@ -579,7 +563,7 @@ export function CalendarTab({ asset, onSelectBooking }: { asset: AssetDetail; on
   function ScheduleAgendaRow({ booking }: { booking: CalendarBooking }) {
     const starts = formatDateWithDayTime(booking.startsAt);
     const ends = formatDateWithDayTime(booking.endsAt);
-    const status = bookingStatusLabel(booking.status, booking.kind);
+    const status = bookingStatusDisplay(booking.status, booking.kind);
     return (
       <button
         key={booking.id}
@@ -886,7 +870,7 @@ export function BookingsTab({
                 const from = formatDateWithDayTime(b.startsAt);
                 const to = formatDateWithDayTime(b.endsAt);
                 const dur = formatDuration(b.startsAt, b.endsAt);
-                const st = bookingStatusLabel(b.status, b.kind);
+                const st = bookingStatusDisplay(b.status, b.kind);
                 return (
                   <TableRow
                     key={entry.id}
@@ -899,7 +883,7 @@ export function BookingsTab({
                     <TableCell>
                       <div className="font-medium text-primary">{b.title}</div>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className={`inline-block size-2 rounded-full ${st.variant === "purple" ? "bg-[var(--purple)]" : st.variant === "blue" ? "bg-[var(--blue)]" : st.variant === "orange" ? "bg-[var(--orange)]" : st.variant === "red" ? "bg-[var(--red)]" : "bg-muted-foreground"}`} />
+                        <span className={`inline-block size-2 rounded-full ${bookingStatusDotClassName(st.variant)}`} />
                         <span className="text-xs text-muted-foreground">{st.label}</span>
                       </div>
                     </TableCell>

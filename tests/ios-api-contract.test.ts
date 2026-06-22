@@ -105,6 +105,61 @@ describe("iOS API contracts — kiosk checkout scan photos", () => {
   });
 });
 
+describe("iOS API contracts — kiosk dashboard decoding", () => {
+  it("keeps idle dashboard decoding tolerant of partial or skewed sections", () => {
+    const route = source("src/app/api/kiosk/dashboard/route.ts");
+    const models = source("ios/Wisconsin/Kiosk/KioskModels.swift");
+    const client = source("ios/Wisconsin/Kiosk/KioskAPIClient.swift");
+
+    expect(route).toContain("partialFailures");
+    expect(route).toContain("settledValue(");
+    expect(models).toContain("private struct LossyDecodableArray<Element: Decodable>: Decodable");
+    expect(models).toContain("stats = try container.decodeIfPresent(Stats.self, forKey: .stats) ?? Stats()");
+    expect(models).toContain("LossyDecodableArray<KioskEvent>");
+    expect(models).toContain("LossyDecodableArray<ActiveItem>");
+    expect(models).toContain("LossyDecodableArray<KioskActiveCheckout>");
+    expect(models).toContain("sleepMode = try container.decodeIfPresent(Bool.self, forKey: .sleepMode) ?? false");
+    expect(models).toContain("assignedUsers = try container.decodeIfPresent(LossyDecodableArray<AssignedUser>.self");
+    expect(models).toContain("requesterInitials = try container.decodeIfPresent(String.self, forKey: .requesterInitials) ?? Self.initials(for: requesterName)");
+    expect(client).toContain("[KioskAPI] decode failed for");
+  });
+
+  it("uses kiosk-wide fractional ISO date decoding so counters and row lists stay aligned", () => {
+    const client = source("ios/Wisconsin/Kiosk/KioskAPIClient.swift");
+
+    expect(client).toContain("d.dateDecodingStrategy = .custom");
+    expect(client).toContain("isoDateFormatterWithFractionalSeconds.date(from: value)");
+    expect(client).toContain("KioskAPI.isoDateFormatter.date(from: value)");
+    expect(client).toContain("formatOptions = [.withInternetDateTime, .withFractionalSeconds]");
+    expect(client).not.toContain("d.dateDecodingStrategy = .iso8601");
+  });
+});
+
+describe("iOS API contracts — kiosk student context decoding", () => {
+  it("keeps student hub decoding tolerant and avoids false network copy", () => {
+    const route = source("src/app/api/kiosk/student/[userId]/route.ts");
+    const models = source("ios/Wisconsin/Kiosk/KioskModels.swift");
+    const studentHub = source("ios/Wisconsin/Kiosk/KioskStudentHubView.swift");
+
+    expect(route).toContain("return ok({");
+    expect(route).toContain("checkouts: checkouts.map");
+    expect(route).toContain("pendingPickups: [...pendingPickups, ...dueReservations].map");
+    expect(route).toContain("reservations: reservations.map");
+    expect(models).toContain("struct KioskStudentContext: Decodable");
+    expect(models).toContain("LossyDecodableArray<KioskStudentCheckout>");
+    expect(models).toContain("LossyDecodableArray<KioskPendingPickup>");
+    expect(models).toContain("LossyDecodableArray<KioskReservation>");
+    expect(models).toContain("items = try container.decodeIfPresent(LossyDecodableArray<StudentItem>.self");
+    expect(models).toContain("serializedItems = try container.decodeIfPresent(LossyDecodableArray<SerializedItem>.self");
+    expect(models).toContain("bulkItems = try container.decodeIfPresent(LossyDecodableArray<BulkItem>.self");
+    expect(studentHub).toContain("studentContextErrorMessage(for: error)");
+    expect(studentHub).toContain("case .networkError:");
+    expect(studentHub).toContain("case .decodingError:");
+    expect(studentHub).toContain("store.deactivate()");
+    expect(studentHub).not.toContain('self.error = "Check your connection and try again."');
+  });
+});
+
 describe("iOS API contracts — kiosk checkout context", () => {
   it("kiosk checkout completion requires an event or custom purpose", () => {
     const schema = source("src/lib/schemas/kiosk.ts");
@@ -335,5 +390,37 @@ describe("iOS project configuration", () => {
     expect(projectYml).toContain("bundleId: com.erikrole.Wisconsin");
     expect(pbxproj).toMatch(/PRODUCT_BUNDLE_IDENTIFIER = com\.erikrole\.Wisconsin;/);
     expect(projectYml).not.toContain("bundleId: com.erikrole.creative");
+  });
+
+  it("keeps iOS 17 support scoped to the kiosk-only target", () => {
+    const projectYml = source("ios/project.yml");
+    const pbxproj = source("ios/Wisconsin.xcodeproj/project.pbxproj");
+
+    const appTarget = projectYml.slice(
+      projectYml.indexOf("  Wisconsin:\n"),
+      projectYml.indexOf("  WisconsinKiosk:\n"),
+    );
+    const kioskTarget = projectYml.slice(
+      projectYml.indexOf("  WisconsinKiosk:\n"),
+      projectYml.indexOf("  WisconsinTests:\n"),
+    );
+    const testsTarget = projectYml.slice(projectYml.indexOf("  WisconsinTests:\n"));
+
+    expect(appTarget).toContain('deploymentTarget: "26.0"');
+    expect(appTarget).toContain("- KioskOnly/**");
+    expect(testsTarget).toContain('deploymentTarget: "26.0"');
+
+    expect(kioskTarget).toContain('deploymentTarget: "17.0"');
+    expect(kioskTarget).toContain("bundleId: com.erikrole.WisconsinKiosk");
+    expect(kioskTarget).toContain("- path: Wisconsin/KioskOnly");
+    expect(kioskTarget).toContain("- path: Wisconsin/Kiosk");
+    expect(kioskTarget).toContain("- path: Wisconsin/Assets.xcassets");
+    expect(kioskTarget).toContain("- path: Wisconsin/Resources");
+    expect(kioskTarget).not.toContain("- path: Wisconsin/Views");
+    expect(kioskTarget).not.toContain("- path: Wisconsin/Core");
+
+    expect(pbxproj).toMatch(/PRODUCT_BUNDLE_IDENTIFIER = com\.erikrole\.Wisconsin;/);
+    expect(pbxproj).toMatch(/PRODUCT_BUNDLE_IDENTIFIER = com\.erikrole\.WisconsinKiosk;/);
+    expect(pbxproj).toMatch(/IPHONEOS_DEPLOYMENT_TARGET = 17\.0;/);
   });
 });

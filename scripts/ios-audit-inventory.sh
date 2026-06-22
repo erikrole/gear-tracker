@@ -107,6 +107,7 @@ Search/FloatingSearchButton.swift      |                             | exempt-ti
 Search/ScanResultHeroCard.swift        |                             | exempt-shared
 Search/SearchResultRow.swift           |                             | exempt-shared
 Kiosk/KioskScannerField.swift          |                             | exempt-shared
+Kiosk/KioskNativeTextField.swift       |                             | exempt-shared
 Kiosk/KioskAPIClient.swift             |                             | exempt-infra
 Kiosk/KioskColors.swift                |                             | exempt-infra
 Kiosk/KioskDesign.swift                |                             | exempt-infra

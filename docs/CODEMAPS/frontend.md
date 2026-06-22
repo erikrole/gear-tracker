@@ -88,7 +88,7 @@
 
 | File | Lines |
 |---|---:|
-| `src/components/EquipmentPicker.tsx` | 1087 |
+| `src/components/EquipmentPicker.tsx` | 991 |
 | `src/components/TradeBoard.tsx` | 929 |
 | `src/components/ActivityTimeline.tsx` | 906 |
 | `src/components/ShiftDetailPanel.tsx` | 807 |
@@ -96,7 +96,7 @@
 | `src/components/onboarding/OnboardingDialog.tsx` | 768 |
 | `src/components/ui/sidebar.tsx` | 727 |
 | `src/components/ChooseImageModal.tsx` | 714 |
-| `src/components/booking-wizard/BookingWizard.tsx` | 709 |
+| `src/components/booking-wizard/BookingWizard.tsx` | 710 |
 | `src/components/AppShell.tsx` | 595 |
 | `src/components/booking-wizard/WizardStep1.tsx` | 565 |
 | `src/components/BookingListPage.tsx` | 507 |
@@ -116,8 +116,8 @@
 | `src/components/booking-list/BookingRow.tsx` | 219 |
 | `src/components/booking-list/BookingFilters.tsx` | 202 |
 | `src/components/resources/MarkdownReader.tsx` | 202 |
-| `src/components/booking-list/types.ts` | 195 |
 | `src/components/ui/item.tsx` | 194 |
+| `src/components/ui/select.tsx` | 187 |
 
 ## Hooks
 
@@ -131,11 +131,11 @@
 | `src/hooks/use-fetch.ts` | 110 |
 | `src/hooks/use-form-options.ts` | 32 |
 | `src/hooks/use-form-submit.ts` | 188 |
-| `src/hooks/use-last-audit.ts` | 74 |
+| `src/hooks/use-last-audit.ts` | 77 |
 | `src/hooks/use-mobile.ts` | 20 |
 | `src/hooks/use-mutate.ts` | 89 |
 | `src/hooks/use-scan-submission.ts` | 241 |
 | `src/hooks/use-schedule-data.ts` | 524 |
 | `src/hooks/use-url-state.ts` | 166 |
 | `src/hooks/useBookingActions.ts` | 172 |
-| `src/hooks/useBookingDetail.ts` | 71 |
+| `src/hooks/useBookingDetail.ts` | 69 |

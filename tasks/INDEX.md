@@ -1,6 +1,13 @@
 # Tasks Index
 
-Last updated: 2026-06-19
+Last updated: 2026-06-22
+
+## Start Here
+
+- Use `DESLOPPIFY.md` for the current cleanup backlog and next recommended desloppify task.
+- Use `tasks/todo.md` for active execution notes and recent closeout reviews.
+- Use this index for the task-root contract, archive buckets, and active follow-up ledgers.
+- Treat `plans/README.md` as historical improve-plan context unless a current task explicitly references it.
 
 ## Root Folder Contract
 

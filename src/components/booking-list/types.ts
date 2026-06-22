@@ -3,6 +3,7 @@
 import type { PickerAsset, PickerBulkSku } from "@/components/EquipmentPicker";
 import type { TabKey as BookingSheetSection } from "@/components/booking-details/types";
 import type { BookingKind } from "@/lib/booking-actions";
+import { bookingStatusVisual } from "@/lib/booking-status-display";
 
 /* ───── Types ───── */
 
@@ -135,43 +136,7 @@ export function getStatusVisual(status: string, isOverdue: boolean, kind?: "CHEC
   /** Tailwind classes to apply to the booking title */
   titleClass: string;
 } {
-  if (isOverdue) return {
-    dot: "var(--red)",
-    label: "Overdue",
-    rowClass: "",
-    titleClass: "text-destructive",
-  };
-  switch (status) {
-    case "DRAFT":
-      return { dot: "var(--text-muted)", label: "Draft", rowClass: "", titleClass: "text-muted-foreground" };
-    case "BOOKED":
-      return {
-        dot: kind === "RESERVATION" ? "var(--purple)" : "var(--blue)",
-        label: kind === "RESERVATION" ? "Confirmed" : "Booked",
-        rowClass: "",
-        titleClass: "",
-      };
-    case "PENDING_PICKUP":
-      return { dot: "var(--orange)", label: "Awaiting Pickup", rowClass: "", titleClass: "" };
-    case "OPEN":
-      return { dot: "var(--blue)", label: "Checked Out", rowClass: "", titleClass: "" };
-    case "CANCELLED":
-      return {
-        dot: "var(--text-muted)",
-        label: "Cancelled",
-        rowClass: "",
-        titleClass: "line-through text-muted-foreground",
-      };
-    case "COMPLETED":
-      return {
-        dot: "var(--text-muted)",
-        label: "Completed",
-        rowClass: "opacity-60",
-        titleClass: "text-muted-foreground",
-      };
-    default:
-      return { dot: "var(--text-muted)", label: status.toLowerCase(), rowClass: "", titleClass: "" };
-  }
+  return bookingStatusVisual(status, { overdue: isOverdue, kind });
 }
 
 export function formatDate(iso: string) {

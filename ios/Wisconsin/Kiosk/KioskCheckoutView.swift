@@ -1,6 +1,10 @@
 import SwiftUI
 import UIKit
 
+private enum KioskCheckoutFocusedField: Hashable {
+    case customPurpose
+}
+
 struct KioskCheckoutView: View {
     @Environment(KioskStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -23,6 +27,7 @@ struct KioskCheckoutView: View {
     @State private var availabilityResult = KioskCheckoutAvailabilityResult()
     @State private var isCheckingAvailability = false
     @State private var availabilityError: String?
+    @FocusState private var focusedCheckoutField: KioskCheckoutFocusedField?
 
     enum ScanFeedback: Equatable {
         case success(String)
@@ -50,6 +55,9 @@ struct KioskCheckoutView: View {
     private var groupedScannedItems: [KioskCartDisplayGroup] {
         KioskCartDisplayGroup.groups(from: scannedItems)
     }
+    private var shouldListenForHIDScans: Bool {
+        checkoutContextReady && focusedCheckoutField == nil && !showCamera && !showScannerHelp && !showEditContextConfirm
+    }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -59,8 +67,9 @@ struct KioskCheckoutView: View {
         }
         .overlay(alignment: .bottom) {
             if checkoutContextReady {
-                // Hidden HID scanner field only mounts after checkout context is set.
-                KioskScannerField { value in
+                // Hidden HID scanner field stays mounted in scan mode, but yields
+                // first responder whenever visible checkout inputs need the keyboard.
+                KioskScannerField(isEnabled: shouldListenForHIDScans) { value in
                     handleScan(value)
                 }
                 .frame(width: 1, height: 1)
@@ -88,6 +97,9 @@ struct KioskCheckoutView: View {
         ) {
             Button("Edit Details") {
                 checkoutContextReady = false
+                DispatchQueue.main.async {
+                    focusedCheckoutField = .customPurpose
+                }
                 Haptics.warning()
             }
             Button("Keep Scanning", role: .cancel) {}
@@ -168,7 +180,8 @@ struct KioskCheckoutView: View {
                     errorMessage: eventLoadError,
                     selectedEventId: $selectedEventId,
                     customPurpose: $customPurpose,
-                    selectedEvent: selectedEvent
+                    selectedEvent: selectedEvent,
+                    focusedField: $focusedCheckoutField
                 )
                 .frame(maxWidth: 760)
 
@@ -542,6 +555,7 @@ struct KioskCheckoutView: View {
 
     private func startScanning() {
         guard hasCheckoutContext, hasValidReturnTime else { return }
+        focusedCheckoutField = nil
         checkoutContextReady = true
         store.resetInactivity()
         Haptics.success()
@@ -550,6 +564,9 @@ struct KioskCheckoutView: View {
     private func requestEditContext() {
         if scannedItems.isEmpty {
             checkoutContextReady = false
+            DispatchQueue.main.async {
+                focusedCheckoutField = .customPurpose
+            }
         } else {
             showEditContextConfirm = true
         }
@@ -1085,6 +1102,7 @@ private struct KioskCheckoutContextCard: View {
     @Binding var selectedEventId: String?
     @Binding var customPurpose: String
     let selectedEvent: KioskCheckoutEvent?
+    let focusedField: FocusState<KioskCheckoutFocusedField?>.Binding
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -1157,11 +1175,14 @@ private struct KioskCheckoutContextCard: View {
                 .frame(maxWidth: .infinity)
                 .disabled(isLoading || events.isEmpty)
 
-                TextField(selectedEvent == nil ? "Custom event or purpose" : "Optional details", text: $customPurpose)
-                    .textInputAutocapitalization(.words)
-                    .disableAutocorrection(true)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(KioskText.primary)
+                KioskNativeTextField(
+                    placeholder: selectedEvent == nil ? "Custom event or purpose" : "Optional details",
+                    text: $customPurpose,
+                    isFocused: Binding(
+                        get: { focusedField.wrappedValue == .customPurpose },
+                        set: { focusedField.wrappedValue = $0 ? .customPurpose : nil }
+                    )
+                )
                     .padding(.horizontal, 14)
                     .frame(height: 56)
                     .background(KioskSurface.sunken, in: RoundedRectangle(cornerRadius: KioskRadius.md))

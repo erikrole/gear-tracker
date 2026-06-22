@@ -5,19 +5,23 @@ import { ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
 import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
+import { isValidVenueMappingPattern, sortVenueMappings } from "@/lib/venue-mapping-contract";
 
 const createMappingSchema = z.object({
-  pattern: z.string().min(1),
+  pattern: z.string().trim().min(1).refine(isValidVenueMappingPattern, {
+    message: "Pattern must be a valid regular expression",
+  }),
   locationId: z.string().cuid(),
   priority: z.number().int().min(0).default(0)
 });
 
-export const GET = withAuth(async () => {
+export const GET = withAuth(async (_req, { user }) => {
+  requirePermission(user.role, "location_mapping", "view");
   const mappings = await db.locationMapping.findMany({
     include: { location: { select: { id: true, name: true } } },
-    orderBy: { priority: "desc" }
+    orderBy: [{ priority: "desc" }, { createdAt: "asc" }],
   });
-  return ok({ data: mappings });
+  return ok({ data: sortVenueMappings(mappings) });
 });
 
 export const POST = withAuth(async (req, { user }) => {

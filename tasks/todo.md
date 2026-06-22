@@ -1,6 +1,221 @@
 # Task Queue
 
-Last updated: 2026-06-20
+Last updated: 2026-06-22
+
+---
+
+## Active: iOS kiosk input and student hub recovery (2026-06-22)
+
+Plan: hotfix from live iPad testing on iPadOS 17.7.11.
+
+- [x] Keep checkout detail text entry on the native iOS keyboard while removing the iPad shortcut/suggestion assistant bar.
+- [x] Make student-context decoding tolerant of partial checkout/pickup/reservation rows.
+- [x] Replace generic "check your connection" first-load copy with classified network/session/server/decode handling.
+- [x] Run focused source-contract tests, iOS drift/audit gates, and kiosk/full-app builds.
+
+### Review
+- 2026-06-22: Live iPad hotfix installed on the connected iPad Pro 10.5. Checkout detail text entry now uses a native UIKit text field that keeps the iOS keyboard but clears the assistant/suggestion bar, including the hidden scanner field. Student hub loads now wait through brief connectivity loss, decode partial context rows lossily, route 401 back to activation, ignore cancellations, and show network/server/decode/not-found failures distinctly instead of always blaming the internet. Verification passed with focused iOS contract tests, drift check, iOS audit gaps, XcodeGen project check, kiosk simulator build, kiosk generic iOS build, full Wisconsin simulator build, signed device build, clean uninstall/install, and launch on the connected iPad.
+
+---
+
+## Active: iOS kiosk counter/list skew hotfix (2026-06-22)
+
+Plan: hotfix from live iPad testing on iPadOS 17.7.11.
+
+- [x] Diagnose why dashboard counters can decode while Items Out / Checkouts / student active-checkout rows appear empty.
+- [x] Make kiosk API date decoding accept server ISO timestamps with and without fractional seconds.
+- [x] Run focused source-contract tests, iOS drift/audit gates, and kiosk/full-app builds.
+- [x] Install and launch the rebuilt kiosk app on the connected iPad.
+
+### Review
+- 2026-06-22: Counter/list skew hotfix installed on the connected iPad Pro 10.5. Root cause was kiosk row models requiring `Date` fields while the default Swift ISO8601 decoder can reject server timestamps with fractional seconds, letting numeric counters decode while Items Out, Checkouts, and student hub rows decode to empty. `KioskAPIClient` now accepts ISO dates with and without fractional seconds. Verification passed with focused iOS contract tests, runtime warning contract, scanner focus, idle cancellation, all-day tests, iOS drift, iOS audit gaps, whitespace check, kiosk simulator build, kiosk generic iOS build, full Wisconsin simulator build, signed device build, clean uninstall/install, and launch on the connected iPad.
+
+---
+
+## Active: iOS 17 kiosk compatibility (2026-06-22)
+
+Plan: `tasks/ios17-kiosk-compat-plan.md`
+
+- [x] Back out the whole-app target downgrade and keep non-kiosk SwiftUI views untouched.
+- [x] Add a native iOS 17 kiosk-only app target for the dedicated iPad.
+- [x] Generate the Xcode project and build the kiosk target.
+- [x] Sync mobile/kiosk docs and record verification.
+
+### Review
+- 2026-06-22: Native iOS 17 kiosk-only target shipped locally. `WisconsinKiosk` is an iPad-only app target that starts directly in kiosk mode, includes only kiosk source/resources, and builds for iOS 17.0. The full `Wisconsin` app and tests remain on iOS 26.0, with non-kiosk SwiftUI views untouched. Verification passed with XcodeGen project check, focused iOS source-contract Vitest, iOS drift, iOS audit gaps, docs codemap check, diff whitespace, kiosk simulator build, and full app simulator build.
+
+---
+
+## Active: Largest ownership files policy closeout (2026-06-22)
+
+Plan: `tasks/largest-ownership-files-policy-plan.md`
+
+- [x] Re-check current largest-file evidence in `docs/CODEMAPS/architecture.md`.
+- [x] Confirm the touched hotspot, `EquipmentPicker.tsx`, received one stable render-only extraction.
+- [x] Leave untouched ownership hotspots for future related work instead of splitting them speculatively.
+- [x] Sync `DESLOPPIFY.md` and close the plan checklist.
+- [x] Run documentation verification gates.
+
+### Review
+- 2026-06-22: Largest ownership files policy closed locally. The oversized-source watchlist in `docs/CODEMAPS/architecture.md` now keeps current hotspots visible, N4 already extracted one stable render-only responsibility from the touched `EquipmentPicker.tsx` hotspot, and the remaining large ownership files are explicitly left for future related area work rather than a speculative standalone split. Verification passed with docs/codemap check, migration prefix check, and diff whitespace check.
+
+---
+
+## Active: Equipment picker render split (2026-06-22)
+
+Plan: `tasks/equipment-picker-render-split-plan.md`
+
+- [x] Inspect `EquipmentPicker.tsx`, existing picker helpers, and N4 backlog guidance.
+- [x] Keep the slice render-only: no search, scan, conflict-check, or data-hook changes.
+- [x] Extract the selected-items shelf into a presentational component.
+- [x] Add focused source-contract coverage.
+- [x] Sync `DESLOPPIFY.md`, generated codemaps, and task ledger.
+- [x] Run focused tests and closeout gates.
+
+### Review
+- 2026-06-22: Equipment picker render split shipped locally. The selected-items shelf moved into `src/components/equipment-picker/SelectedEquipmentShelf.tsx` as a presentational component, while `EquipmentPicker.tsx` still owns search, scan lookup, conflict checks, section data, and selection state. `tests/equipment-picker-render-split-source.test.ts` pins the split boundary. Verification passed with focused Vitest, TypeScript, codemap regeneration/docs check, migration prefix check, diff whitespace check, and `npm run build:app`.
+
+---
+
+## Active: Hook dependency escape hatch cleanup (2026-06-22)
+
+Plan: `tasks/hook-dependency-escape-hatch-plan.md`
+
+- [x] Inspect M4 target files and current `react-hooks/exhaustive-deps` / `as unknown as` usage.
+- [x] Remove safe dependency suppressions from primitive-key cache update callbacks and URL/keyed effects.
+- [x] Add rationale coverage for remaining derived-key suppressions.
+- [x] Add focused source-contract coverage.
+- [x] Sync `DESLOPPIFY.md`, generated codemaps if needed, and close the plan checklist.
+- [x] Run focused tests and closeout gates.
+
+### Review
+- 2026-06-22: Hook dependency escape hatch cleanup shipped locally. Avoidable `react-hooks/exhaustive-deps` suppressions were removed from last-audit lookup, booking detail cache patching, booking list background-error toasts, booking wizard defaults, item detail keyboard tabs, notifications cache patching, and items cache patching. Remaining derived-key suppressions in event context and equipment conflict checks now carry rationale comments, and `tests/hook-escape-hatches-source.test.ts` pins documented suppressions plus primitive cache keys. Verification passed with focused Vitest, TypeScript, codemap regeneration/docs check, migration prefix check, diff whitespace check, and `npm run build:app`.
+
+---
+
+## Active: Oversized file watchlist (2026-06-22)
+
+Plan: `tasks/oversized-file-watchlist-plan.md`
+
+- [x] Inspect `DESLOPPIFY.md`, `scripts/generate-codemaps.mjs`, generated codemaps, and `tasks/todo.md`.
+- [x] Choose an informational codemap section without adding hard line-count policy.
+- [x] Add the generated watchlist and regenerate codemaps.
+- [x] Sync `DESLOPPIFY.md` and close the plan checklist.
+- [x] Run doc-focused verification and record results.
+
+### Review
+- 2026-06-22: Oversized file watchlist shipped locally. `scripts/generate-codemaps.mjs` now generates an informational top-20 TypeScript/TSX source file table in `docs/CODEMAPS/architecture.md`, with explicit copy that line count is not a failure threshold. Verification passed with codemap regeneration, docs/codemap check, migration prefix check, and diff whitespace check.
+
+---
+
+## Active: Plan ledger navigation cleanup (2026-06-22)
+
+Plan: `tasks/plan-ledger-navigation-plan.md`
+
+- [x] Inspect `plans/README.md`, `tasks/README.md`, `tasks/INDEX.md`, `tasks/todo.md`, and `DESLOPPIFY.md`.
+- [x] Add explicit current-vs-historical navigation guidance to `plans/README.md`.
+- [x] Add a start-here note to `tasks/INDEX.md`.
+- [x] Sync `DESLOPPIFY.md` and close the plan checklist.
+- [x] Run doc-focused verification and record results.
+
+### Review
+- 2026-06-22: Plan ledger navigation cleanup shipped locally. `plans/README.md` now identifies itself as a historical improve-plan registry and points current cleanup work to `DESLOPPIFY.md`, `tasks/todo.md`, and `tasks/INDEX.md`; `tasks/INDEX.md` now has a start-here note that separates active backlog execution from historical plan context. Verification passed with docs/codemap check, migration prefix check, and diff whitespace check.
+
+---
+
+## Active: Decision contract tests (2026-06-22)
+
+Plan: `tasks/decision-contracts-plan.md`
+
+- [x] Inspect decision text, helper ownership, existing focused tests, and app/web route surfaces.
+- [x] Add `tests/decision-contracts.test.ts` for the three target decisions.
+- [x] Run focused Vitest and closeout gates.
+- [x] Sync `DESLOPPIFY.md` and `tasks/todo.md`.
+
+### Review
+- 2026-06-22: Decision contract tests shipped locally. `tests/decision-contracts.test.ts` now pins D-025 booking status label/display behavior, D-027 venue mapping regex validation and admin-only deterministic matching, and D-040 app/web reservation-first custody boundaries. Verification passed with focused Vitest, TypeScript, docs/codemap check, migration prefix check, whitespace check, and `npm run build:app`.
+
+---
+
+## Active: Testing guide refresh (2026-06-22)
+
+Plan: `tasks/testing-guide-refresh-plan.md`
+
+- [x] Inspect `docs/TESTING.md`, `plans/README.md`, `package.json`, current test inventory, helpers, and `BUG:` usage.
+- [x] Replace stale suite counts and known-bug table with current inventory and conventions.
+- [x] Document when to run focused Vitest, TypeScript, docs/codemap, migration-prefix, build, and iOS gates.
+- [x] Add a reusable test inventory refresh command.
+- [x] Sync `plans/README.md`, `DESLOPPIFY.md`, and `tasks/todo.md`.
+- [x] Run doc-focused verification and record results.
+
+### Review
+- 2026-06-22: Testing guide refresh shipped locally. `docs/TESTING.md` now reflects 242 test files, 1,430 static test declarations, current `BUG:` usage, current helper files, verification gate guidance, and reusable inventory commands. `plans/README.md` now points readers to `docs/TESTING.md` for current inventory instead of historical improve-plan counts. Verification passed with the documented inventory commands, `npm run verify:docs`, `npm run db:migrate:check`, and `git diff --check`.
+
+---
+
+## Active: Booking status display cleanup (2026-06-22)
+
+Plan: `tasks/booking-status-display-cleanup-plan.md`
+
+- [x] Audit D-025, booking detail helpers, booking list helpers, item booking history, and existing status-label tests.
+- [x] Add a shared display-only booking status helper.
+- [x] Keep existing detail/list imports stable through wrappers or re-exports.
+- [x] Migrate item booking history/calendar rows away from local status switches.
+- [x] Delete impossible legacy booking-status branches from item history UI.
+- [x] Add focused regression and source-contract coverage.
+- [x] Sync DESLOPPIFY, relevant area docs, codemaps, and task ledger.
+- [x] Run focused Vitest, TypeScript, docs, migration, whitespace, and app-build gates.
+
+### Review
+- 2026-06-22: Booking status display cleanup shipped locally. Booking details, booking-list visuals, item booking overview/history, upcoming item reservations, and item schedule agenda rows now use `src/lib/booking-status-display.ts` for labels and badge/status colors. The item tab's local booking status switch and legacy booking states were removed. Verification passed with focused Vitest, TypeScript, docs/codemap check, migration prefix check, whitespace check, and `npm run build:app`.
+
+---
+
+## Active: Venue mapping contract cleanup (2026-06-22)
+
+Plan: `tasks/venue-mapping-contract-plan.md`
+
+- [x] Audit D-027 source, schema, docs, route, sync, and tests.
+- [x] Add shared venue mapping contract helpers.
+- [x] Enforce ADMIN-only route access and invalid-regex rejection.
+- [x] Apply deterministic matching in calendar sync and audit helpers.
+- [x] Add focused regression tests and sync docs.
+- [x] Run verification and record results.
+
+### Review
+- 2026-06-22: D-027 venue mapping contract cleanup shipped locally. Venue mappings now share regex validation/matching/ordering helpers; API reads are ADMIN-only; create rejects invalid regexes; calendar sync applies priority plus longest-pattern matching; audit and sync no longer use substring fallback for invalid regex patterns. Verification passed with focused Vitest, TypeScript, docs/codemap check, migration prefix check, whitespace check, and `npm run build:app`.
+
+---
+
+## Active: Booking action policy cleanup (2026-06-22)
+
+Plan: `tasks/booking-action-policy-cleanup-plan.md`
+
+- [x] Audit D-040 docs, client action helper, server rules, list menu usage, and tests.
+- [x] Extract shared DB-free booking action policy.
+- [x] Remove stale app/web `checkin` action exposure.
+- [x] Update focused client/server action tests.
+- [x] Sync DESLOPPIFY and relevant docs.
+- [x] Run verification and record results.
+
+### Review
+- 2026-06-22: Booking action policy cleanup shipped locally. App/web booking list actions and server booking rules now share DB-free booking action policy helpers, so OPEN checkouts no longer expose `checkin` in regular app/web menus under D-040. Verification passed with focused booking action Vitest, TypeScript, docs/codemap check, migration prefix check, whitespace check, and `npm run build:app`.
+
+---
+
+## Active: Assets gap query bounds (2026-06-22)
+
+Plan: `tasks/assets-gap-query-bounds-plan.md`
+
+- [x] Audit missing-field asset route, Gap Wizard consumer, docs, and tests.
+- [x] Bound standard item and item-family gap reads at the database query layer.
+- [x] Preserve totals and return suggestion cap metadata.
+- [x] Add focused route tests.
+- [x] Sync DESLOPPIFY and relevant docs.
+- [x] Run verification and record results.
+
+### Review
+- 2026-06-22: Assets gap query bounds shipped locally. Missing-category and missing-department cleanup now counts standard items and item families separately, pages source reads at the database layer, and reports capped suggestion matching to the Gap Wizard. Verification passed with focused missing-gap route Vitest, category cleanup wizard source-contract Vitest, TypeScript, docs/codemap check, migration prefix check, whitespace check, and `npm run build:app`.
 
 ---
 

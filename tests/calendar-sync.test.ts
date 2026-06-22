@@ -614,12 +614,23 @@ describe("splitEventsForSync", () => {
     expect(result.toCreate[0]!.locationId).toBe("loc-lambeau");
   });
 
-  it("resolves location via plain text fallback for invalid regex", () => {
+  it("does not resolve invalid regex mappings through substring fallback", () => {
     const parsed = [makeParsedEvent({ uid: "evt-1", location: "Field (north" })];
-    // Unbalanced parenthesis is invalid regex, so it falls back to includes()
     const mappings = [{ pattern: "field (north", locationId: "loc-field" }];
     const result = splitEventsForSync(parsed, [], mappings);
-    expect(result.toCreate[0]!.locationId).toBe("loc-field");
+    expect(result.toCreate[0]!.locationId).toBeNull();
+  });
+
+  it("uses the longest equal-priority venue mapping first", () => {
+    const parsed = [makeParsedEvent({ uid: "evt-1", location: "Madison, WI, Camp Randall Stadium" })];
+    const mappings = [
+      { id: "short", pattern: "Camp", locationId: "loc-short", priority: 10, createdAt: new Date("2026-01-01T00:00:00.000Z") },
+      { id: "long", pattern: "Camp Randall", locationId: "loc-long", priority: 10, createdAt: new Date("2026-01-02T00:00:00.000Z") },
+    ];
+
+    const result = splitEventsForSync(parsed, [], mappings);
+
+    expect(result.toCreate[0]!.locationId).toBe("loc-long");
   });
 
   it("handles large feed without per-event DB queries (pure function)", () => {

@@ -156,6 +156,7 @@ export function BookingWizard() {
   // ── Current user ──
   const { data: meData } = useCurrentUser();
   const initialRequester = initialRequesterUserId ?? meData?.id ?? "";
+  const firstLocationId = locations[0]?.id ?? "";
 
   // ── Existing drafts (for resume banner) ──
   // Persist dismissal for 1 hour via sessionStorage so it doesn't reappear on every reload.
@@ -207,13 +208,13 @@ export function BookingWizard() {
     if (initialRequester && !form.requester) {
       dispatch({ type: "SET_REQUESTER", value: initialRequester });
     }
-  }, [initialRequester]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [initialRequester, form.requester]);
 
   useEffect(() => {
-    if (locations.length > 0 && !form.locationId) {
-      dispatch({ type: "SET_LOCATION_ID", value: locations[0]!.id });
+    if (firstLocationId && !form.locationId) {
+      dispatch({ type: "SET_LOCATION_ID", value: firstLocationId });
     }
-  }, [locations]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [firstLocationId, form.locationId]);
 
   // ── Equipment state ──
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>(initialAssetIds ?? []);

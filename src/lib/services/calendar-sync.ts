@@ -7,6 +7,7 @@ import {
   normalizeVenueText,
 } from "@/lib/schedule-event-identity";
 import { SPORT_CODES } from "@/lib/sports";
+import { sortVenueMappings, venueMappingMatches } from "@/lib/venue-mapping-contract";
 
 /** Max events per createMany / update batch */
 export const WRITE_CHUNK_SIZE = 500;
@@ -341,9 +342,10 @@ export type ParsedIcsEvent = {
 export function splitEventsForSync(
   parsedEvents: ParsedIcsEvent[],
   existingRows: ExistingEventRow[],
-  mappings: Array<{ pattern: string; locationId: string; isHomeVenue?: boolean }>,
+  mappings: Array<{ pattern: string; locationId: string; isHomeVenue?: boolean; priority?: number | null; createdAt?: Date | string | null; id?: string | null }>,
 ) {
   const existingMap = new Map(existingRows.map((r) => [r.externalId, r]));
+  const sortedMappings = sortVenueMappings(mappings);
 
   const toCreate: ValidatedEventData[] = [];
   const toUpdate: Array<{ id: string; data: ValidatedEventData }> = [];
@@ -364,21 +366,11 @@ export function splitEventsForSync(
       const rawSearchText = `${event.location} ${event.summary}`.toLowerCase();
       const searchText = buildVenueSearchText(event.location, event.summary);
 
-      for (const mapping of mappings) {
-        try {
-          const matcher = new RegExp(mapping.pattern, "i");
-          if (matcher.test(searchText) || matcher.test(rawSearchText)) {
-            locationId = mapping.locationId;
-            mappedIsHomeVenue = mapping.isHomeVenue ?? null;
-            break;
-          }
-        } catch {
-          const plainPattern = buildVenueSearchText(mapping.pattern) || mapping.pattern.toLowerCase();
-          if (searchText.includes(plainPattern) || rawSearchText.includes(mapping.pattern.toLowerCase())) {
-            locationId = mapping.locationId;
-            mappedIsHomeVenue = mapping.isHomeVenue ?? null;
-            break;
-          }
+      for (const mapping of sortedMappings) {
+        if (venueMappingMatches(mapping.pattern, searchText, rawSearchText)) {
+          locationId = mapping.locationId;
+          mappedIsHomeVenue = mapping.isHomeVenue ?? null;
+          break;
         }
       }
 
@@ -536,16 +528,19 @@ export async function syncCalendarSource(sourceId: string): Promise<SyncResult> 
 
   // ── Phase 1: Bulk-load existing data (2 queries) ──
 
-  let mappings: Array<{ pattern: string; locationId: string; isHomeVenue?: boolean }> = [];
+  let mappings: Array<{ id: string; pattern: string; locationId: string; isHomeVenue?: boolean; priority: number; createdAt: Date }> = [];
   try {
     const rawMappings = await db.locationMapping.findMany({
-      orderBy: { priority: "desc" },
+      orderBy: [{ priority: "desc" }, { createdAt: "asc" }],
       include: { location: { select: { isHomeVenue: true } } },
     });
     mappings = rawMappings.map((m) => ({
+      id: m.id,
       pattern: m.pattern,
       locationId: m.locationId,
       isHomeVenue: m.location.isHomeVenue,
+      priority: m.priority,
+      createdAt: m.createdAt,
     }));
   } catch (err) {
     console.error("[calendar-sync] Failed to load venue mappings", err);

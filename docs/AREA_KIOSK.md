@@ -4,13 +4,15 @@
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Status: Shipped — iOS canonical (web kiosk deprecated 2026-04-24)
 - Created: 2026-04-07
-- Last Updated: 2026-06-19
+- Last Updated: 2026-06-22
 - Brief: `BRIEF_KIOSK.md`
 - Decision Refs: D-030, D-040
 
 ## Description
 
 Self-serve iPad kiosk for gear checkout / reservation pickup / return at the equipment counter, plus on-the-floor kiosk activation by staff carrying an iPad. Implementation lives in the **native iOS app** (`ios/Wisconsin/Kiosk/`). The previously-shipped web kiosk surface (`src/app/(kiosk)/kiosk/`) was deleted on 2026-04-24 to remove the dual-implementation maintenance burden — iPads run the Wisconsin app directly and flip into kiosk mode via `KioskStore`.
+
+For older dedicated kiosk hardware, the repo also ships a separate native `WisconsinKiosk` iOS target. That target is iPad-only, deploys to iOS 17.0+, and includes only `ios/Wisconsin/Kiosk/`, `ios/Wisconsin/KioskOnly/`, app assets, and resources. The full `Wisconsin` app target remains iOS 26.0 and continues to own the normal authenticated mobile app surfaces.
 
 ## Trust Model
 
@@ -27,6 +29,9 @@ If at some point the kiosk needs to operate unattended or in a less-trusted phys
 
 ### iOS — Canonical Surface
 Files under `ios/Wisconsin/Kiosk/`:
+
+- **`ios/project.yml` target `WisconsinKiosk`** — iPad-only native kiosk app for iOS 17.0+ hardware. It starts directly in `KioskShellView`, uses kiosk device activation instead of a user session, and intentionally excludes the full app's non-kiosk views.
+- **`KioskOnly/KioskOnlyApp.swift`** — kiosk-only app entry point and minimal support shims needed by the kiosk source set when it compiles without the full app target.
 
 - **`KioskStore.swift`** — `@Observable` state machine. Owns `screen` (`activation | idle | studentHub | checkout | pickup | return | success`), `info` (KioskInfo from activation), inactivity timer, heartbeat task, persisted `kiosk_info_v1` in UserDefaults.
 - **`KioskShellView.swift`** — switches between screens, applies dark color scheme, hides system overlays + status bar, captures every touch via `simultaneousGesture` to reset the inactivity timer.
@@ -101,6 +106,13 @@ Files under `ios/Wisconsin/Kiosk/`:
 ## Change Log
 | Date | Change |
 |------|--------|
+| 2026-06-22 | Native kiosk API date decoding now accepts server ISO timestamps with or without fractional seconds. This prevents idle dashboard counters from showing live totals while the tapped Items Out / Checkouts lists and student hub rows decode to empty because their `startsAt`/`endsAt` fields use fractional-second JSON dates. |
+| 2026-06-22 | Native kiosk student hub loading no longer mislabels every first-load failure as an internet disconnect. The student-context decoder now tolerates partial checkout/pickup/reservation rows, transient cancellations stay quiet, 401 deactivates the kiosk session, and visible errors distinguish network, server, not-found, and response-shape failures. Kiosk native text entry also uses a UIKit-backed system keyboard field that clears the iPad shortcut/suggestion assistant bar without reintroducing an in-app keyboard. |
+| 2026-06-22 | Native kiosk dashboard decoding now tolerates partial or rollout-skewed dashboard sections. Missing stats/standby fields fall back safely, malformed event/item/checkout rows are dropped instead of blanking the whole idle screen, and DEBUG builds log the underlying decode key/type when the kiosk API response still cannot decode. |
+| 2026-06-22 | Native kiosk checkout setup preserves native iOS text and return-time controls while scanner capture is inactive. The shell activity gesture now waits for real drag movement instead of treating every touch as a drag, so compact return date/time pickers and the custom-purpose TextField can own taps on iPadOS 17 hardware. |
+| 2026-06-22 | Native kiosk idle refresh now treats Swift/URLSession cancellation as a quiet no-op instead of an offline dashboard/users load failure. Real network failures still show the server connection banner, but expected task cancellation from view transitions or focus churn no longer pollutes device logs or flips kiosk health state. |
+| 2026-06-22 | Native kiosk checkout now pauses HID scanner focus capture while checkout detail text fields, camera fallback, scanner help, or edit confirmation own interaction. The shared hidden scanner field also cancels pending flushes and resigns first responder when disabled or dismantled, preventing the scanner from stealing keyboard focus from checkout details on iPadOS 17 hardware. |
+| 2026-06-22 | Added a separate native `WisconsinKiosk` iPad app target for older dedicated kiosk hardware running iPadOS 17. The target compiles only the kiosk source set plus kiosk-only support/resources, starts directly in kiosk mode, and leaves the full `Wisconsin` app target on iOS 26 with non-kiosk views untouched. |
 | 2026-06-19 | Native kiosk checkout completion now routes through the shared kiosk API error path. Expired or deactivated kiosk sessions surface as `APIError.unauthorized`, matching heartbeat, pickup, and return flows instead of showing a generic checkout retry message until the next heartbeat. |
 | 2026-06-19 | Resumed kiosk pickup progress no longer dead-ends. Pending-pickup detail now marks already-scanned serialized items and already-picked numbered battery slots as complete, and the native pickup screen seeds its checklist from that server progress so a partially scanned pickup can be reopened and completed. |
 | 2026-06-19 | Kiosk checkout completion conflict hardening finished. The route already revalidates checkout availability inside the completion transaction; it now also maps a last-second allocation constraint race to a friendly 409 instead of a generic server error, with focused regression coverage in `tests/kiosk-checkout-complete-bulk-units.test.ts`. |

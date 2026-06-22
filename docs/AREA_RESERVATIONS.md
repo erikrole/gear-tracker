@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-20
+- Last Updated: 2026-06-22
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
@@ -71,7 +71,7 @@ The reservation detail page (`/reservations/[id]`) uses the shared `BookingDetai
 - **Old routes**: `GET/PATCH /api/reservations/[id]` redirect (308) to `/api/bookings/[id]`
 
 ### Reservation-Specific Behavior
-- Status badge shows "Confirmed" (not "BOOKED") via `statusLabel()` helper
+- Status badge shows "Confirmed" (not "BOOKED") through the shared booking status display helper.
 - Primary custody guidance points to kiosk pickup when the reservation is due; app/web does not expose `Start checkout` as a normal action.
 - Action buttons: `[Actions ▼] [Edit] [Extend]` for app-owned actions.
 - Actions dropdown contains: Duplicate, Cancel
@@ -254,6 +254,8 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 8. Implement list page controls and row behavior from V1 list surface spec.
 
 ## Change Log
+- 2026-06-22: Booking status display cleanup. Reservation detail helpers, booking-list rows/cards, upcoming item reservations, and item booking history now resolve labels and badge/status colors through `src/lib/booking-status-display.ts`, preserving D-025 display-only labels without route-local booking status switches.
+- 2026-06-22: Booking action policy cleanup. Reservation/check-out list menus now resolve actions through the shared app/web booking policy, preserving D-040 by keeping custody conversion and return actions off regular app/web menus.
 - 2026-06-20: Reservation list filters inherit the refreshed shared `FilterChip` and active-filter chip treatment: lighter borders, 40px removable targets, active underline, and quieter applied-filter buttons while preserving the existing clear behavior and reservation filter semantics.
 - 2026-06-20: Reservation list filters inherit the lighter shared `OperationalToolbar` shell, keeping existing search/filter semantics while reducing the card-like frame around the command row.
 - 2026-06-20: Reservation detail inline-edit rows inherit the refreshed shared `SaveableField` dirty-row treatment, keeping title/notes save semantics while making pending save/cancel actions visually explicit and 40px target sized.

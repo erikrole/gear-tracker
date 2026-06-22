@@ -10,6 +10,7 @@ import { parseDerivedBulkUnitQr } from "@/lib/bulk-unit-qr";
 import { BookingKind, BookingStatus, Prisma } from "@prisma/client";
 
 const departmentIdSchema = z.string().min(1);
+const GAP_SUGGESTION_SOURCE_LIMIT = 5000;
 
 const createAssetSchema = z.object({
   assetTag: z.string().min(1),
@@ -174,47 +175,69 @@ export const GET = withAuth(async (req, { user }) => {
   }
 
   if (missingField === "category" || missingField === "department") {
+    const bulkGapWhere: Prisma.BulkSkuWhereInput = {
+      active: true,
+      ...(locationIds.length === 1 ? { locationId: locationIds[0] } : {}),
+      ...(locationIds.length > 1 ? { locationId: { in: locationIds } } : {}),
+      ...(missingField === "category" ? { categoryId: null } : {}),
+      ...(missingField === "department" ? { departmentId: null } : {}),
+      ...(q ? {
+        OR: [
+          { name: { contains: q, mode: "insensitive" as const } },
+          { category: { contains: q, mode: "insensitive" as const } },
+        ],
+      } : {}),
+    };
+
+    const [assetGapTotal, bulkGapTotal] = await Promise.all([
+      db.asset.count({ where }),
+      db.bulkSku.count({ where: bulkGapWhere }),
+    ]);
+    const total = assetGapTotal + bulkGapTotal;
+
+    const assetSkip = Math.min(offset, assetGapTotal);
+    const assetTake = Math.min(limit, Math.max(0, assetGapTotal - assetSkip));
+    const bulkSkip = Math.max(0, offset - assetGapTotal);
+    const bulkTake = limit - assetTake;
+
     const [assetGaps, bulkGaps] = await Promise.all([
-      db.asset.findMany({
-        where,
-        orderBy,
-        select: {
-          id: true,
-          assetTag: true,
-          name: true,
-          brand: true,
-          model: true,
-          categoryId: true,
-          category: { select: { name: true } },
-          imageUrl: true,
-        },
-      }),
-      db.bulkSku.findMany({
-        where: {
-          active: true,
-          ...(locationIds.length === 1 ? { locationId: locationIds[0] } : {}),
-          ...(locationIds.length > 1 ? { locationId: { in: locationIds } } : {}),
-          ...(missingField === "category" ? { categoryId: null } : {}),
-          ...(missingField === "department" ? { departmentId: null } : {}),
-          ...(q ? {
-            OR: [
-              { name: { contains: q, mode: "insensitive" as const } },
-              { category: { contains: q, mode: "insensitive" as const } },
-            ],
-          } : {}),
-        },
-        orderBy: { name: "asc" },
-        select: {
-          id: true,
-          name: true,
-          category: true,
-          categoryId: true,
-          imageUrl: true,
-        },
-      }),
+      assetTake > 0
+        ? db.asset.findMany({
+            where,
+            orderBy,
+            skip: assetSkip,
+            take: assetTake,
+            select: {
+              id: true,
+              assetTag: true,
+              name: true,
+              brand: true,
+              model: true,
+              categoryId: true,
+              category: { select: { name: true } },
+              imageUrl: true,
+            },
+          })
+        : Promise.resolve([]),
+      bulkTake > 0
+        ? db.bulkSku.findMany({
+            where: bulkGapWhere,
+            orderBy: { name: "asc" },
+            skip: bulkSkip,
+            take: bulkTake,
+            select: {
+              id: true,
+              name: true,
+              category: true,
+              categoryId: true,
+              imageUrl: true,
+            },
+          })
+        : Promise.resolve([]),
     ]);
 
     const departmentSuggestionByCategory = new Map<string, string>();
+    let suggestionsLimited = false;
     if (missingField === "department") {
       const categoryIds = [
         ...new Set(
@@ -254,16 +277,21 @@ export const GET = withAuth(async (req, { user }) => {
         const [assetSources, bulkSources] = await Promise.all([
           db.asset.findMany({
             where: assetSourceWhere,
+            take: GAP_SUGGESTION_SOURCE_LIMIT + 1,
             select: { categoryId: true, category: { select: { name: true } }, departmentId: true },
           }),
           db.bulkSku.findMany({
             where: bulkSourceWhere,
+            take: GAP_SUGGESTION_SOURCE_LIMIT + 1,
             select: { categoryId: true, category: true, departmentId: true },
           }),
         ]);
+        suggestionsLimited = assetSources.length > GAP_SUGGESTION_SOURCE_LIMIT || bulkSources.length > GAP_SUGGESTION_SOURCE_LIMIT;
+        const cappedAssetSources = assetSources.slice(0, GAP_SUGGESTION_SOURCE_LIMIT);
+        const cappedBulkSources = bulkSources.slice(0, GAP_SUGGESTION_SOURCE_LIMIT);
 
         const counts = new Map<string, Map<string, number>>();
-        for (const source of assetSources) {
+        for (const source of cappedAssetSources) {
           if (!source.departmentId) continue;
           for (const key of getCategorySuggestionKeys(source.categoryId, source.category?.name ?? null)) {
             const categoryCounts = counts.get(key) ?? new Map<string, number>();
@@ -271,7 +299,7 @@ export const GET = withAuth(async (req, { user }) => {
             counts.set(key, categoryCounts);
           }
         }
-        for (const source of bulkSources) {
+        for (const source of cappedBulkSources) {
           if (!source.departmentId) continue;
           for (const key of getCategorySuggestionKeys(source.categoryId, source.category)) {
             const categoryCounts = counts.get(key) ?? new Map<string, number>();
@@ -313,18 +341,21 @@ export const GET = withAuth(async (req, { user }) => {
     ].sort((a, b) => a.assetTag.localeCompare(b.assetTag, undefined, { numeric: true, sensitivity: "base" }));
 
     if (missingField === "category" && gapItems.length > 0) {
-      const categorySuggestions = await buildCategorySuggestions(gapItems);
+      const categorySuggestionResult = await buildCategorySuggestions(gapItems);
+      suggestionsLimited = categorySuggestionResult.limited;
       for (const item of gapItems) {
-        item.suggestedCategoryId = categorySuggestions.get(item.id) ?? null;
+        item.suggestedCategoryId = categorySuggestionResult.suggestions.get(item.id) ?? null;
       }
     }
 
     return ok({
-      data: gapItems.slice(offset, offset + limit),
+      data: gapItems,
       bulkItems: [],
-      total: gapItems.length,
+      total,
       limit,
       offset,
+      truncated: total > offset + gapItems.length,
+      suggestionsLimited,
       statusBreakdown: {
         available: 0,
         checkedOut: 0,
@@ -632,15 +663,18 @@ async function buildCategorySuggestions(items: CategoryGapItem[]) {
     db.category.findMany({ select: { id: true, name: true } }),
     db.asset.findMany({
       where: { categoryId: { not: null } },
-      take: 5000,
+      take: GAP_SUGGESTION_SOURCE_LIMIT + 1,
       select: { assetTag: true, name: true, brand: true, model: true, categoryId: true },
     }),
     db.bulkSku.findMany({
       where: { active: true, categoryId: { not: null } },
-      take: 5000,
+      take: GAP_SUGGESTION_SOURCE_LIMIT + 1,
       select: { name: true, category: true, categoryId: true },
     }),
   ]);
+  const limited = assetSources.length > GAP_SUGGESTION_SOURCE_LIMIT || bulkSources.length > GAP_SUGGESTION_SOURCE_LIMIT;
+  const cappedAssetSources = assetSources.slice(0, GAP_SUGGESTION_SOURCE_LIMIT);
+  const cappedBulkSources = bulkSources.slice(0, GAP_SUGGESTION_SOURCE_LIMIT);
 
   const categoryIdByLegacyName = new Map(
     categories.map((category) => [normalizeSuggestionKey(category.name), category.id])
@@ -656,10 +690,10 @@ async function buildCategorySuggestions(items: CategoryGapItem[]) {
     }
   }
 
-  for (const source of assetSources) {
+  for (const source of cappedAssetSources) {
     addSource(identitySuggestionKeys(source), source.categoryId);
   }
-  for (const source of bulkSources) {
+  for (const source of cappedBulkSources) {
     addSource(bulkSuggestionKeys(source), source.categoryId);
   }
 
@@ -676,11 +710,14 @@ async function buildCategorySuggestions(items: CategoryGapItem[]) {
     return null;
   }
 
-  return new Map(
-    items
-      .map((item) => [item.id, bestCategoryId(item.kind === "bulk" ? bulkSuggestionKeys(item) : identitySuggestionKeys(item))] as const)
-      .filter((entry): entry is readonly [string, string] => Boolean(entry[1]))
-  );
+  return {
+    limited,
+    suggestions: new Map(
+      items
+        .map((item) => [item.id, bestCategoryId(item.kind === "bulk" ? bulkSuggestionKeys(item) : identitySuggestionKeys(item))] as const)
+        .filter((entry): entry is readonly [string, string] => Boolean(entry[1]))
+    ),
+  };
 }
 
 function identitySuggestionKeys(item: { assetTag?: string | null; name?: string | null; brand?: string | null; model?: string | null }) {

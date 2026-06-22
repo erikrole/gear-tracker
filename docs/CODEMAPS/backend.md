@@ -9,7 +9,7 @@
 | `src/lib/services/auto-fill-preview.ts` | 180 |
 | `src/lib/services/availability.ts` | 551 |
 | `src/lib/services/booking-ref.ts` | 26 |
-| `src/lib/services/booking-rules.ts` | 198 |
+| `src/lib/services/booking-rules.ts` | 104 |
 | `src/lib/services/bookings-checkin.ts` | 612 |
 | `src/lib/services/bookings-helpers.ts` | 197 |
 | `src/lib/services/bookings-lifecycle.ts` | 900 |
@@ -17,7 +17,7 @@
 | `src/lib/services/bookings.ts` | 4 |
 | `src/lib/services/bulk-unit-scans.ts` | 589 |
 | `src/lib/services/calendar-sync-health.ts` | 164 |
-| `src/lib/services/calendar-sync.ts` | 654 |
+| `src/lib/services/calendar-sync.ts` | 649 |
 | `src/lib/services/candidate-scoring.ts` | 406 |
 | `src/lib/services/checkout-policies.ts` | 32 |
 | `src/lib/services/dashboard-counts.ts` | 111 |
@@ -69,7 +69,9 @@
 | `src/lib/battery-compatibility.ts` | 166 |
 | `src/lib/bhphoto-image.ts` | 67 |
 | `src/lib/blob.ts` | 151 |
-| `src/lib/booking-actions.ts` | 104 |
+| `src/lib/booking-action-policy.ts` | 163 |
+| `src/lib/booking-actions.ts` | 14 |
+| `src/lib/booking-status-display.ts` | 124 |
 | `src/lib/bulk-batteries.ts` | 28 |
 | `src/lib/bulk-unit-qr.ts` | 109 |
 | `src/lib/calendar-event-dates.ts` | 168 |
@@ -128,7 +130,8 @@
 | `src/lib/url-sync.ts` | 16 |
 | `src/lib/utils.ts` | 7 |
 | `src/lib/validation.ts` | 478 |
-| `src/lib/venue-mapping-audit.ts` | 58 |
+| `src/lib/venue-mapping-audit.ts` | 56 |
+| `src/lib/venue-mapping-contract.ts` | 46 |
 | `src/lib/venue-tone.ts` | 74 |
 
 ## API Route Groups

@@ -1,26 +1,75 @@
 # Testing Guide
 
+Last refreshed: 2026-06-22
+
 ## Overview
 
-The test suite uses **Vitest** with Node.js environment. Tests live in `tests/` and follow the naming convention `tests/<feature>.test.ts`.
+The automated test suite uses Vitest in the Node.js environment. Tests live in `tests/` and follow `tests/<feature>.test.ts`.
 
-**Current state:** 327 tests across 22 files covering services, RBAC, API wrappers, and route handlers.
+Current static inventory:
 
-## Running Tests
+- 245 test files under `tests/`
+- 1,435 `it()` / `test()` declarations by static grep
+- 27 iOS source-contract files named `ios-*.test.ts`
+- 37 source or contract files with `source` or `contract` in the filename
+- 45 route-focused files with `route` or `routes` in the filename
+- 2 current `BUG:`-prefixed tests, both in `tests/auth-hardening.test.ts`
+
+Refresh the inventory with:
 
 ```bash
-# Full suite
+find tests -name '*.test.ts' -type f | wc -l
+rg -n '\b(it|test)\s*\(' tests --glob '*.test.ts' | wc -l
+rg -n 'BUG:' tests --glob '*.test.ts'
+```
+
+These counts are orientation data, not a coverage guarantee. Use focused tests and the required gates for the code touched by a slice.
+
+## Verification Gates
+
+Use the smallest focused test that proves the touched behavior first, then run broader gates according to blast radius.
+
+```bash
+# Focused Vitest file
+npx vitest run tests/<feature>.test.ts
+
+# Full Vitest suite
 npm test
 
-# Single file
-npx vitest run tests/shift-trades.test.ts
+# TypeScript
+npx tsc --noEmit --pretty false
 
-# Watch mode
-npx vitest tests/shift-trades.test.ts
+# Codemap/docs drift
+npm run verify:docs
 
-# With coverage
-npx vitest run --coverage
+# Prisma migration prefix sanity
+npm run db:migrate:check
+
+# Production app build without live migration deploy
+npm run build:app
+
+# Full production build, including migration deploy wrapper
+npm run build
 ```
+
+Default local closeout for web/API cleanup slices:
+
+1. Focused Vitest files for the changed behavior.
+2. `npx tsc --noEmit --pretty false`.
+3. `npm run verify:docs` after code, docs, or codemap-owned files change.
+4. `npm run db:migrate:check` for any repo-wide closeout, and always after migration/schema work.
+5. `git diff --check`.
+6. `npm run build:app` before declaring a shippable local slice.
+
+Run `npm test` when shared behavior, auth, route wrappers, booking lifecycle, or broad service helpers change enough that focused files do not cover the risk. For iOS source slices, also run `npm run drift:ios` and `npm run audit:ios:gaps`; use an XcodeBuildMCP simulator build when Swift compile or UI proof is part of the slice.
+
+## Test Layers
+
+- **Service tests:** Pure or DB-mocked business logic, such as booking rules, availability, reports, badge evaluation, schedule health, and status derivation.
+- **Route tests:** API route handlers with mocked auth, database, and request context. These protect permission gates, safe parsing, transaction behavior, and response contracts.
+- **Source-contract tests:** Static tests that pin important architectural decisions, app/iOS contracts, route wrappers, and UI affordance ownership.
+- **iOS contract tests:** Static checks over Swift files and API contracts used by the native app. These do not replace a simulator build.
+- **Regression tests:** Tests that prevent a fixed bug from returning. They should name the bug in plain language and point at the behavior that must stay true.
 
 ## Mock Pattern: `vi.mock("@/lib/db")` + `_mockTx`
 
@@ -33,7 +82,6 @@ vi.mock("@/lib/db", () => {
   const mockTx = {
     booking: { findUnique: vi.fn(), update: vi.fn() },
     auditLog: { create: vi.fn() },
-    // ... add models as needed
   };
 
   return {
@@ -51,11 +99,12 @@ import { db } from "@/lib/db";
 const mockTx = (db as any)._mockTx;
 ```
 
-### Key principles:
-1. **`vi.mock` must be at module scope** — hoisted above imports
-2. **`transactionCalls` tracks isolation levels** — verify SERIALIZABLE usage
-3. **`_mockTx` exposes the tx for test assertions**
-4. **`beforeEach` clears mocks and resets tracking**
+Key rules:
+
+1. Keep `vi.mock` at module scope so it is hoisted above imports.
+2. Track transaction options when isolation level is part of the contract.
+3. Expose `_mockTx` for assertions instead of rebuilding a second mock.
+4. Clear mocks and reset call-tracking state in `beforeEach`.
 
 ## Transaction Isolation Verification
 
@@ -64,12 +113,11 @@ Use helpers from `tests/_helpers/assert-transaction.ts`:
 ```ts
 import { expectSerializableIsolation, expectNoIsolation } from "./_helpers/assert-transaction";
 
-// Assert a function uses SERIALIZABLE
 expectSerializableIsolation(transactionCalls, 0);
-
-// Assert a function uses NO isolation (bug proof)
 expectNoIsolation(transactionCalls, 0);
 ```
+
+`expectNoIsolation` is useful only when proving legacy behavior or guarding an intentionally non-transactional path. Prefer `expectSerializableIsolation` for mutation paths where concurrent writes can corrupt state.
 
 ## Data Factories
 
@@ -80,13 +128,14 @@ import { makeBooking, makeUser, makeBulkItem } from "./_helpers/factories";
 
 const booking = makeBooking({ status: "COMPLETED" });
 const user = makeUser({ role: "ADMIN" });
+const bulkItem = makeBulkItem({ plannedQuantity: 2 });
 ```
 
-Available: `makeUser`, `makeBooking`, `makeSerializedItem`, `makeBulkItem`, `makeAsset`, `makeShiftTrade`, `makeShiftAssignment`, `makeShift`, `makeBulkSku`, `makeBulkStockBalance`.
+Available helpers include `makeUser`, `makeBooking`, `makeSerializedItem`, `makeBulkItem`, `makeAsset`, `makeShiftTrade`, `makeShiftAssignment`, `makeShift`, `makeBulkSku`, and `makeBulkStockBalance`.
 
 ## Testing Functions That Accept `tx`
 
-Some functions (e.g., `checkAvailability`, `checkSerializedConflicts`) accept a transaction client as a parameter. These don't need `vi.mock("@/lib/db")` — create a local mock:
+Functions that accept a transaction client do not need to mock `@/lib/db`; pass a local mock transaction instead:
 
 ```ts
 function createMockTx() {
@@ -97,57 +146,45 @@ function createMockTx() {
 }
 
 const tx = createMockTx();
-const result = await checkSerializedConflicts(tx as any, { ... });
+const result = await checkSerializedConflicts(tx as any, { /* ... */ });
 ```
 
-## Bug Documentation Convention
+## `BUG:` Convention
 
-Tests that prove known bugs use the `BUG:` prefix in both the test name and comments:
+Use `BUG:` sparingly. It currently appears only in `tests/auth-hardening.test.ts`, where the tests document fixed high-risk authentication regressions:
 
-```ts
-it("BUG: uses no transaction isolation level (double-claim possible)", async () => {
-  // ... test that asserts the buggy behavior exists
-  expectNoIsolation(transactionCalls, 0);
-});
-```
+- Self-service password change must invalidate existing sessions atomically.
+- Password reset must consume the token inside a Serializable transaction.
 
-### Known Bugs Documented by Tests
+For new tests:
 
-| Bug | File | Test |
-|-----|------|------|
-| `claimTrade` missing isolation level | `shift-trades.test.ts` | "BUG: uses no transaction isolation level" |
-| Bulk scan TOCTOU gap | `bulk-scan-race.test.ts` | "BUG: quantity guard reads outside the increment transaction" |
-| `markCheckoutCompleted` double-return | `mark-checkout-completed.test.ts` | "BUG: returns checkedOutQuantity without subtracting checkedInQuantity" |
-| CSRF bypass with missing Origin | `api-wrapper.test.ts` | "BUG: allows POST when Origin header is absent" |
+- Use `BUG:` only when the test name is intentionally tied to a known bug report or high-risk regression.
+- If the bug is still open and the test proves current broken behavior, say that in a nearby comment and track the open gap in `docs/GAPS_AND_RISKS.md` or the relevant plan.
+- If the bug is fixed, write the assertion against the desired behavior and treat `BUG:` as regression history, not as an expected failure marker.
+- Do not keep stale "known bug" tables in this guide. Use live `rg -n 'BUG:' tests --glob '*.test.ts'` output instead.
 
 ## Adding a New Test File
 
-1. Create `tests/<feature>.test.ts`
-2. Add `vi.mock("@/lib/db")` block with required models
-3. Import the function under test **after** `vi.mock`
-4. Add `beforeEach` to clear mocks and reset `transactionCalls`
-5. Write tests using factories and assertion helpers
-6. Run `npx vitest run tests/<feature>.test.ts` to verify
+1. Create `tests/<feature>.test.ts`.
+2. Choose the layer: service, route, source-contract, iOS contract, or regression.
+3. Add the minimal mocks needed for the behavior under test.
+4. Import the subject after module-scope `vi.mock` calls.
+5. Reset mocks and shared arrays in `beforeEach`.
+6. Use factories for complex domain objects.
+7. Run `npx vitest run tests/<feature>.test.ts`.
+8. Add the relevant closeout gates for the slice.
 
-## File Structure
+## Current Helper Files
 
+```text
+tests/_setup.ts
+tests/_helpers/assert-transaction.ts
+tests/_helpers/factories.ts
+tests/_helpers/mock-db.ts
 ```
-tests/
-├── _setup.ts                    # Global beforeEach (clearAllMocks)
-├── _helpers/
-│   ├── mock-db.ts               # Reusable mock DB factory
-│   ├── factories.ts             # Data factories
-│   └── assert-transaction.ts    # Transaction isolation assertions
-├── shift-trades.test.ts         # Shift trade lifecycle
-├── bulk-scan-race.test.ts       # Bulk scan TOCTOU bug proof
-├── mark-checkout-completed.test.ts  # Completion + double-return bug
-├── availability.test.ts         # Availability checking
-├── create-booking.test.ts       # Booking creation
-├── extend-booking.test.ts       # Booking extension
-├── checkin-bulk-item.test.ts    # Bulk item check-in
-├── rbac.test.ts                 # Role-based access control
-├── api-wrapper.test.ts          # withAuth/withHandler + CSRF
-├── role-escalation.test.ts      # Role change API route
-├── transaction-safety.test.ts   # Scan transaction safety
-└── ... (other existing tests)
-```
+
+## Notes
+
+- `npm run build:app` is the safer local app-build gate when the slice should not deploy migrations.
+- `npm run build` runs the migration deploy wrapper before `next build`; reserve it for ship paths where that side effect is intended.
+- Browser smoke remains necessary when the request is visual or route-proof oriented. Tests and builds do not prove authenticated UI behavior by themselves.

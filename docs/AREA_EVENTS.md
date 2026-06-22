@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Events
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-19
+- Last Updated: 2026-06-22
 - Status: Active
 
 ## Direction
@@ -80,6 +80,7 @@ Make athletics schedule data the operational backbone for booking and checkout w
 4. Fallback behavior for incomplete events is implemented — treat event context as non-blocking metadata on all booking flows.
 
 ## Change Log
+- 2026-06-22: Venue mapping sync contract hardened. Calendar sync now applies venue mappings in priority plus longest-pattern order and invalid regex patterns no longer fall back to substring matching.
 - 2026-06-19: Event identity normalization shipped. Shared event identity helpers now clean UW source prefixes, opponent rankings and school boilerplate, and venue source spellings for sync, manual event creation, event edits, event revert, and Schedule title rendering while preserving raw calendar location text.
 - 2026-06-19: Schedule data-quality queue shipped. Schedule health now flags visible events whose existing CalendarEvent fields are incomplete for operations: missing sport context, missing opponent, missing venue/location mapping, future archived status, or shifts without sport metadata.
 - 2026-06-19: Venue mapping audit surface shipped. Settings > Venue Mappings now exposes home venues without mappings, mappings to inactive or missing locations, and home-looking mappings pointed at non-home locations so calendar venue data can be corrected before it affects event classification.

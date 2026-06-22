@@ -16,7 +16,7 @@ struct KioskAPI {
         config.httpCookieStorage = HTTPCookieStorage.shared
         config.httpShouldSetCookies = true
         config.httpCookieAcceptPolicy = .always
-        config.waitsForConnectivity = false
+        config.waitsForConnectivity = true
         config.timeoutIntervalForRequest = 15
         config.timeoutIntervalForResource = 30
         config.multipathServiceType = .none
@@ -26,7 +26,18 @@ struct KioskAPI {
     private let decoder: JSONDecoder = {
         let d = JSONDecoder()
         d.keyDecodingStrategy = .convertFromSnakeCase
-        d.dateDecodingStrategy = .iso8601
+        d.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let value = try container.decode(String.self)
+            if let date = KioskAPI.isoDateFormatterWithFractionalSeconds.date(from: value) ??
+                KioskAPI.isoDateFormatter.date(from: value) {
+                return date
+            }
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Invalid ISO8601 date: \(value)"
+            )
+        }
         return d
     }()
 
@@ -246,6 +257,12 @@ struct KioskAPI {
         return formatter
     }()
 
+    private static let isoDateFormatterWithFractionalSeconds: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
     private func request(path: String, method: String = "GET") -> URLRequest {
         var req = URLRequest(url: baseURL.appendingPathComponent(path))
         req.httpMethod = method
@@ -276,6 +293,9 @@ struct KioskAPI {
             do {
                 return (try decoder.decode(T.self, from: data), http)
             } catch {
+                #if DEBUG
+                print("[KioskAPI] decode failed for \(request.url?.path ?? "unknown path"): \(error)")
+                #endif
                 throw APIError.decodingError(error)
             }
         case 401:

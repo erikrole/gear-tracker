@@ -10,7 +10,6 @@ describe("iOS runtime warning cleanup", () => {
   it("keeps native URLSession clients on explicit mobile timeouts without multipath fallback", () => {
     for (const file of [
       "ios/Wisconsin/Core/APIClient.swift",
-      "ios/Wisconsin/Kiosk/KioskAPIClient.swift",
       "ios/Wisconsin/Core/ThumbnailLoader.swift",
     ]) {
       const swift = source(file);
@@ -20,6 +19,12 @@ describe("iOS runtime warning cleanup", () => {
       expect(swift).toContain("config.timeoutIntervalForResource = 30");
       expect(swift).toContain("config.multipathServiceType = .none");
     }
+
+    const kiosk = source("ios/Wisconsin/Kiosk/KioskAPIClient.swift");
+    expect(kiosk).toContain("config.waitsForConnectivity = true");
+    expect(kiosk).toContain("config.timeoutIntervalForRequest = 15");
+    expect(kiosk).toContain("config.timeoutIntervalForResource = 30");
+    expect(kiosk).toContain("config.multipathServiceType = .none");
   });
 
   it("does not restart VisionKit behind the Scan result sheet", () => {

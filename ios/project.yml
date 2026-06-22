@@ -19,6 +19,8 @@ targets:
     bundleId: com.erikrole.Wisconsin
     sources:
       - path: Wisconsin
+        excludes:
+          - KioskOnly/**
     info:
       path: Wisconsin/Supporting/Info.plist
       properties:
@@ -60,6 +62,46 @@ targets:
         Debug:
           OTHER_SWIFT_FLAGS: "-DDEBUG"
 
+  WisconsinKiosk:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    bundleId: com.erikrole.WisconsinKiosk
+    sources:
+      - path: Wisconsin/KioskOnly
+      - path: Wisconsin/Kiosk
+      - path: Wisconsin/Assets.xcassets
+      - path: Wisconsin/Resources
+    info:
+      path: Wisconsin/KioskOnly/Info.plist
+      properties:
+        UILaunchScreen:
+          UIColorName: ""
+        UIRequiresFullScreen: true
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSCameraUsageDescription: "Scan gear barcodes and QR codes"
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: false
+        UIAppFonts:
+          - Gotham-Black.ttf
+          - Gotham-Bold.ttf
+    settings:
+      base:
+        PRODUCT_NAME: Wisconsin Kiosk
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        TARGETED_DEVICE_FAMILY: "2"
+        DEVELOPMENT_TEAM: T26T3G8C7Q
+      configs:
+        Debug:
+          OTHER_SWIFT_FLAGS: "-DDEBUG"
+
   WisconsinTests:
     type: bundle.unit-test
     platform: iOS
@@ -83,3 +125,8 @@ schemes:
     test:
       targets:
         - WisconsinTests
+
+  WisconsinKiosk:
+    build:
+      targets:
+        WisconsinKiosk: all

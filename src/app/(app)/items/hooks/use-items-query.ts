@@ -175,12 +175,10 @@ export function useItemsQuery(deps: QueryDeps) {
   /** Optimistic update for items array (e.g. favorites toggle) */
   const setItems = useCallback(
     (updater: (items: Asset[]) => Asset[]) => {
-      queryClient.setQueryData<AssetsResponse>(queryKey, (prev) =>
+      queryClient.setQueryData<AssetsResponse>(["items", url], (prev) =>
         prev ? { ...prev, data: updater(prev.data) } : prev,
       );
     },
-    // queryKey changes with filters, which is correct
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [url, queryClient],
   );
 

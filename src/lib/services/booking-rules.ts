@@ -2,6 +2,13 @@ import { BookingKind, BookingStatus, Role } from "@prisma/client";
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import type { AuthUser } from "@/lib/auth";
+import {
+  canPerformBookingAction as canPerformBookingActionPolicy,
+  getAllowedBookingActions as getAllowedBookingActionsPolicy,
+  type ActionCheckResult,
+  type CheckoutAction,
+  type ReservationAction,
+} from "@/lib/booking-action-policy";
 
 /**
  * Unified booking action gating rules (checkouts + reservations).
@@ -30,14 +37,8 @@ import type { AuthUser } from "@/lib/auth";
  * "owner" = STUDENT who is the requester or creator of the booking
  */
 
-export type CheckoutAction = "edit" | "extend" | "cancel" | "checkin" | "open" | "force-complete" | "nudge";
-export type ReservationAction = "edit" | "extend" | "cancel" | "convert" | "duplicate";
+export type { CheckoutAction, ReservationAction };
 export type BookingAction = string;
-
-export type ActionCheckResult = {
-  allowed: boolean;
-  reason?: string;
-};
 
 type BookingContext = {
   kind: BookingKind;
@@ -51,43 +52,6 @@ type ActorContext = {
   role: Role;
 };
 
-function isStaffOrAbove(role: Role): boolean {
-  return role === Role.ADMIN || role === Role.STAFF;
-}
-
-function isOwner(actor: ActorContext, booking: BookingContext): boolean {
-  return actor.id === booking.requesterUserId || actor.id === booking.createdBy;
-}
-
-function hasAccess(actor: ActorContext, booking: BookingContext): boolean {
-  return isStaffOrAbove(actor.role) || isOwner(actor, booking);
-}
-
-/**
- * State × Action matrix per booking kind.
- */
-const STATE_ACTIONS: Record<BookingKind, Record<BookingStatus, Set<string>>> = {
-  [BookingKind.CHECKOUT]: {
-    [BookingStatus.DRAFT]: new Set(["edit", "cancel"]),
-    [BookingStatus.BOOKED]: new Set(["edit", "extend", "cancel", "open"]),
-    [BookingStatus.PENDING_PICKUP]: new Set(["edit", "cancel"]),
-    [BookingStatus.OPEN]: new Set(["edit", "extend", "cancel", "force-complete", "nudge"]),
-    [BookingStatus.COMPLETED]: new Set(),
-    [BookingStatus.CANCELLED]: new Set(),
-  },
-  [BookingKind.RESERVATION]: {
-    [BookingStatus.DRAFT]: new Set(["edit", "cancel"]),
-    [BookingStatus.BOOKED]: new Set(["edit", "extend", "cancel", "duplicate"]),
-    [BookingStatus.PENDING_PICKUP]: new Set(),
-    [BookingStatus.OPEN]: new Set(),
-    [BookingStatus.COMPLETED]: new Set(),
-    [BookingStatus.CANCELLED]: new Set(),
-  },
-};
-
-const ALL_CHECKOUT_ACTIONS: CheckoutAction[] = ["edit", "extend", "cancel", "checkin", "open", "force-complete", "nudge"];
-const ALL_RESERVATION_ACTIONS: ReservationAction[] = ["edit", "extend", "cancel", "convert", "duplicate"];
-
 /**
  * Check if a specific action is allowed for the given actor and booking.
  */
@@ -96,64 +60,7 @@ export function canPerformBookingAction(
   booking: BookingContext,
   action: string
 ): ActionCheckResult {
-  // "view" is a read-access check, not a state-transition action. It must be
-  // allowed for staff+ or the owner regardless of booking state (including
-  // COMPLETED/CANCELLED, which have empty action sets). Gating it through the
-  // state matrix below would 403 every role on every booking.
-  if (action === "view") {
-    return hasAccess(actor, booking)
-      ? { allowed: true }
-      : { allowed: false, reason: "You do not have permission to view this booking" };
-  }
-
-  const kindActions = STATE_ACTIONS[booking.kind];
-  if (!kindActions) {
-    return { allowed: false, reason: `Unknown booking kind: ${booking.kind}` };
-  }
-
-  const stateActions = kindActions[booking.status];
-  if (!stateActions || !stateActions.has(action)) {
-    return {
-      allowed: false,
-      reason: `Action "${action}" is not available in ${booking.status} state`,
-    };
-  }
-
-  // Special case: cancel on OPEN checkouts requires staff+
-  if (booking.kind === BookingKind.CHECKOUT && action === "cancel" && booking.status === BookingStatus.OPEN) {
-    if (!isStaffOrAbove(actor.role)) {
-      return {
-        allowed: false,
-        reason: "Only staff or admin can cancel an active checkout",
-      };
-    }
-    return { allowed: true };
-  }
-
-  // Force-complete requires ADMIN only
-  if (action === "force-complete") {
-    if (actor.role !== Role.ADMIN) {
-      return { allowed: false, reason: "Only admins can force-complete a checkout" };
-    }
-    return { allowed: true };
-  }
-
-  // Nudge requires staff+
-  if (action === "nudge") {
-    if (!isStaffOrAbove(actor.role)) {
-      return { allowed: false, reason: "Only staff or admin can send nudge notifications" };
-    }
-    return { allowed: true };
-  }
-
-  if (!hasAccess(actor, booking)) {
-    return {
-      allowed: false,
-      reason: "You do not have permission to perform this action",
-    };
-  }
-
-  return { allowed: true };
+  return canPerformBookingActionPolicy(actor, booking, action);
 }
 
 /**
@@ -163,8 +70,7 @@ export function getAllowedBookingActions(
   actor: ActorContext,
   booking: BookingContext
 ): string[] {
-  const all = booking.kind === BookingKind.CHECKOUT ? ALL_CHECKOUT_ACTIONS : ALL_RESERVATION_ACTIONS;
-  return all.filter((action) => canPerformBookingAction(actor, booking, action).allowed);
+  return getAllowedBookingActionsPolicy(actor, booking, { includeServerActions: true });
 }
 
 /**

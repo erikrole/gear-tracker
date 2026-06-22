@@ -1,3 +1,5 @@
+import { venueMappingMatches } from "@/lib/venue-mapping-contract";
+
 export type VenueAuditLocation = {
   id: string;
   name: string;
@@ -20,11 +22,7 @@ export type VenueMappingAudit = {
 };
 
 function patternMatchesLocation(pattern: string, locationName: string) {
-  try {
-    return new RegExp(pattern, "i").test(locationName);
-  } catch {
-    return locationName.toLowerCase().includes(pattern.toLowerCase());
-  }
+  return venueMappingMatches(pattern, locationName);
 }
 
 function looksLikeHomeVenueMapping(mapping: VenueAuditMapping) {

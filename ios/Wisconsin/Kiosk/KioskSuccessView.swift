@@ -3,7 +3,6 @@ import UIKit
 
 struct KioskSuccessView: View {
     @Environment(KioskStore.self) private var store
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let info: KioskSuccessInfo
     @State private var countdown = 5
 
@@ -23,7 +22,6 @@ struct KioskSuccessView: View {
                 Image(systemName: info.kind.icon)
                     .font(.system(size: 96))
                     .foregroundStyle(accent)
-                    .symbolEffect(.bounce, options: reduceMotion ? .nonRepeating.speed(0) : .nonRepeating)
 
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 34))

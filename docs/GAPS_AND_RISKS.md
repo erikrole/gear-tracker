@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-20
+- Last Updated: 2026-06-22
 - Status: Living registry — update when shipping features or resolving decisions
 - Purpose: Single file listing every open gap, pending decision, and known risk across all docs
 
@@ -89,6 +89,18 @@ _2026-06-19 update: Sport-code route coverage and venue mapping audit helper shi
 _2026-06-19 update: Manual calendar-event create schema hardening shipped without opening a new gap. The slice consolidates existing route validation before the same create/audit write path and does not expand the manual event authoring surface._
 
 _2026-06-19 update: Venue mapping audit surface shipped without opening a new gap. Settings > Venue Mappings now exposes the existing read-only venue audit to admins and routes fixes through existing mapping and Locations ownership paths._
+
+_2026-06-22 update: D-027 venue mapping enforcement reconciled without opening a new gap. API reads are ADMIN-only, creates reject invalid regex patterns, and calendar sync uses priority plus longest-pattern matching without substring fallback._
+
+_2026-06-22 update: Booking action policy cleanup shipped without opening a new gap. The booking-list UI and server booking rules now share a DB-free action policy, and app/web helpers no longer expose checkout check-in under D-040._
+
+_2026-06-22 update: Assets gap query bounds shipped without opening a new gap. The existing missing-field cleanup API now pages standard items and item families before materializing rows and exposes capped suggestion metadata._
+
+_2026-06-22 update: iOS 17 kiosk-only target shipped without opening a new gap. The dedicated `WisconsinKiosk` target compiles only kiosk sources for older iPads while the full native app remains iOS 26.0 and app/web custody boundaries stay unchanged._
+
+_2026-06-22 update: iOS kiosk student hub/input recovery shipped without opening a new gap. The fix stays inside the native kiosk client contract: text entry remains native iOS keyboard input with the assistant bar removed, student-context decoding is tolerant of partial rows, and transient/session/server failures are surfaced distinctly._
+
+_2026-06-22 update: iOS kiosk fractional-date decoding shipped without opening a new gap. The fix is client-side rollout tolerance for existing JSON date output, so no API contract or schema decision changed._
 
 _2026-06-19 update: Schedule data-quality queue shipped without opening a new gap. The queue is read-only, uses existing CalendarEvent, ShiftGroup, Location, and archive fields, and routes cleanup through current Event detail and Settings ownership surfaces._
 
@@ -246,6 +258,10 @@ _2026-06-19 update: Category cleanup wizard and picker visibility shipped withou
 ---
 
 ## Change Log
+- 2026-06-22: iOS 17 kiosk-only target shipped without opening a new gap. The dedicated native `WisconsinKiosk` iPad target uses existing kiosk APIs, kiosk device auth, and kiosk source files; no schema, app/web custody, or normal mobile target downgrade was needed.
+- 2026-06-22: Assets gap query bounds shipped without opening a new gap. Existing Asset and BulkSku models support the cleanup flow; the fix bounds reads and reports sampled suggestions without adding schema or workflow surface.
+- 2026-06-22: Booking action policy cleanup shipped without opening a new gap. Existing D-040 custody boundaries remain unchanged; this reconciles duplicated app/web action gating with the server rule contract.
+- 2026-06-22: D-027 venue mapping enforcement reconciled without opening a new gap. Existing LocationMapping data model supports ADMIN-only reads, regex validation, and deterministic priority plus longest-pattern matching.
 - 2026-06-20: Schedule role-slot hardening shipped without opening a new gap. Existing `Shift.workerType`, `User.role`, and `ShiftAssignment.shiftId` support mismatch detection and explicit repair; exports and Open Work now preserve assigned-role versus planned-slot semantics without schema changes.
 - 2026-06-20: Schedule staff/student display cleanup shipped without opening a new gap. Existing `User.role` and `Shift.workerType` already separate assigned-person identity from planned slot type; UI copy now uses the correct source for each state.
 - 2026-06-19: Schedule event identity normalization shipped without opening a new gap. Opponent and venue cleanup is shared across Calendar sync, manual event creation, event edit/revert, and Schedule title rendering with no schema change.

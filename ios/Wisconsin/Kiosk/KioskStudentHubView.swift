@@ -246,13 +246,51 @@ struct KioskStudentHubView: View {
         do {
             context = try await KioskAPI.shared.kioskStudentContext(userId: user.id)
             error = nil
+        } catch APIError.unauthorized {
+            store.deactivate()
+        } catch where isCancellation(error) {
+            // View transitions can cancel the first load; don't turn that into
+            // a visible network failure.
         } catch {
             // Keep last-good context; if we never had one, surface the error
             // page. Otherwise the next refresh will retry silently.
             if context == nil {
-                self.error = "Check your connection and try again."
+                self.error = studentContextErrorMessage(for: error)
             }
         }
+    }
+
+    private func studentContextErrorMessage(for error: Error) -> String {
+        if let apiError = error as? APIError {
+            switch apiError {
+            case .networkError:
+                return apiError.errorDescription ?? "Check the kiosk network and try again."
+            case .decodingError:
+                return "The server response changed. Try again after the kiosk refreshes."
+            case .serverError(let message):
+                return message
+            case .notFound:
+                return "This profile is no longer available at this kiosk."
+            case .unauthorized:
+                return apiError.errorDescription ?? "This kiosk session expired."
+            }
+        }
+        return "Try again in a moment."
+    }
+
+    private func isCancellation(_ error: Error) -> Bool {
+        if error is CancellationError {
+            return true
+        }
+        if let apiError = error as? APIError,
+           case .networkError(let underlying) = apiError {
+            return isCancellation(underlying)
+        }
+        if let urlError = error as? URLError {
+            return urlError.code == .cancelled
+        }
+        let nsError = error as NSError
+        return nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled
     }
 }
 

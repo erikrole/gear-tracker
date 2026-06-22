@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { parseJsonSafely } from "@/lib/errors";
 
@@ -43,11 +43,15 @@ function isLastAuditMap(value: unknown): value is LastAuditMap {
  * changes (uses the joined string as a stable identity).
  */
 export function useLastAudit(entityType: string, entityIds: string[]): LastAuditMap {
-  const key = entityIds.slice().sort().join(",");
+  const entityIdsKey = entityIds.slice().sort().join(",");
+  const requestEntityIds = useMemo(
+    () => (entityIdsKey ? entityIdsKey.split(",") : []),
+    [entityIdsKey],
+  );
   const [map, setMap] = useState<LastAuditMap>({});
 
   useEffect(() => {
-    if (entityIds.length === 0) {
+    if (requestEntityIds.length === 0) {
       setMap({});
       return;
     }
@@ -55,7 +59,7 @@ export function useLastAudit(entityType: string, entityIds: string[]): LastAudit
     fetch("/api/audit/last", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ entityType, entityIds }),
+      body: JSON.stringify({ entityType, entityIds: requestEntityIds }),
       signal: controller.signal,
     })
       .then(async (res) => (res.ok ? parseJsonSafely<LastAuditResponse>(res) : null))
@@ -66,8 +70,7 @@ export function useLastAudit(entityType: string, entityIds: string[]): LastAudit
         // Silent — last-edited is decoration, not load-bearing.
       });
     return () => controller.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entityType, key]);
+  }, [entityType, requestEntityIds]);
 
   return map;
 }

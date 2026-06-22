@@ -50,12 +50,10 @@ export function useBookingDetail(id: string) {
   /** Optimistically patch local booking state (e.g. after inline save) */
   const patchLocal = useCallback(
     (patch: Partial<BookingDetail>) => {
-      queryClient.setQueryData<BookingDetail>(queryKey, (prev) =>
+      queryClient.setQueryData<BookingDetail>(["booking", id], (prev) =>
         prev ? { ...prev, ...patch } : prev,
       );
     },
-    // queryKey is stable for a given id
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [id, queryClient],
   );
 

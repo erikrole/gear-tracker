@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Mobile Operations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-19
+- Last Updated: 2026-06-22
 - Status: Active
 - Version: V1
 
@@ -125,6 +125,9 @@ Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md` (revised 2026-03-
 - **V3 (later)**: Bottom nav badge counts via live `/api/nav-counts` polling, game-day/shift context cards
 
 ## Change Log
+- 2026-06-22: **iOS kiosk fractional-date decoding** - native kiosk API decoding now accepts server ISO dates with fractional seconds, keeping idle counters, tapped dashboard lists, and student hub active-checkout rows aligned on older iPadOS builds.
+- 2026-06-22: **iOS kiosk student hub/input recovery** - native kiosk checkout detail text entry now keeps the real iOS keyboard while hiding the iPad shortcut/suggestion assistant bar, and the student hub no longer treats decode/server/session failures as generic internet disconnects.
+- 2026-06-22: **iOS kiosk native input recovery** - native kiosk checkout setup now keeps the custom purpose/details field as a system `TextField` and the return time as a native compact `DatePicker`, with scanner capture inactive until scan mode and the shell drag activity gesture relaxed so it does not swallow control taps on older iPadOS hardware.
 - 2026-06-19: **Breadcrumb display polish.** Web breadcrumbs now keep global AppShell ownership while making mobile-crowded trails more compact, preventing empty role-gated sibling menus during identity load, and applying the quieter creation/import treatment through route shape instead of two hardcoded booking paths.
 - 2026-06-20: **Breadcrumb UI refinement.** The global breadcrumb now reads as a quiet navigation trail instead of a framed toolbar: parent links use lighter hover surfaces, separators are softer, and the current page is marked with a subtle Wisconsin-red underline rather than a filled chip.
 - 2026-06-19: **iOS reservation creation showtime polish** - native reservation creation now uses sport-code event titles such as `VB vs Maryland` and `FB at Minnesota`, treats booking location copy as pickup location instead of event venue, keeps serialized and counted equipment in one Equipment flow, and makes the Confirm step pickup/return-oriented with thumbnail-led equipment rows plus compact linked-event indication.

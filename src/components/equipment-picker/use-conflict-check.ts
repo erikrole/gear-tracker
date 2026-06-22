@@ -163,6 +163,8 @@ export function useConflictCheck({
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
+    // assetIds and bulkItems are intentionally keyed by serialized value so
+    // parent array/object identity churn does not re-run availability checks.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startsAt, endsAt, locationId, excludeBookingId, assetIds.join(","), JSON.stringify(bulkItems), check]);
 

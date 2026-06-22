@@ -49,7 +49,10 @@ struct KioskShellView: View {
         .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
         .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
         .simultaneousGesture(TapGesture().onEnded { store.resetInactivity() })
-        .simultaneousGesture(DragGesture(minimumDistance: 0).onChanged { _ in store.resetInactivity() })
+        // Keep drag activity from resetting the timer without converting every
+        // control tap into a drag. Zero-distance drags interfere with compact
+        // DatePicker/TextField ownership on older iPadOS builds.
+        .simultaneousGesture(DragGesture(minimumDistance: 16).onChanged { _ in store.resetInactivity() })
         .animation(.easeInOut(duration: 0.2), value: store.inactivityWarningVisible)
     }
 }

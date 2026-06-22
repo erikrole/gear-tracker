@@ -1,4 +1,10 @@
 import { formatRelativeTime } from "@/lib/format";
+import {
+  bookingStatusBadgeVariant,
+  bookingStatusLabel,
+  type BookingDisplayKind,
+  type BookingStatusBadgeVariant,
+} from "@/lib/booking-status-display";
 export function formatRelative(iso: string) { return formatRelativeTime(iso, new Date()); }
 
 export function toLocalDateTimeValue(date: Date) {
@@ -11,36 +17,13 @@ export function toLocalDateTimeValue(date: Date) {
 }
 
 /** Status → shadcn Badge variant, kind-aware for BOOKED */
-export function statusBadgeVariant(status: string, kind?: "CHECKOUT" | "RESERVATION"): "gray" | "blue" | "green" | "purple" | "red" | "orange" {
-  switch (status) {
-    case "BOOKED": return kind === "RESERVATION" ? "purple" : "blue";
-    case "OPEN": return "blue";
-    case "PENDING_PICKUP": return "orange";
-    case "CANCELLED": return "gray";
-    case "DRAFT":
-    case "COMPLETED":
-    default: return "gray";
-  }
+export function statusBadgeVariant(status: string, kind?: BookingDisplayKind): BookingStatusBadgeVariant {
+  return bookingStatusBadgeVariant(status, kind);
 }
 
 /** Universal user-facing status labels — DB enum stays unchanged */
-export function statusLabel(status: string, kind?: "CHECKOUT" | "RESERVATION"): string {
-  switch (status) {
-    case "DRAFT":
-      return "Draft";
-    case "BOOKED":
-      return kind === "CHECKOUT" ? "Booked" : "Confirmed";
-    case "PENDING_PICKUP":
-      return "Awaiting Pickup";
-    case "OPEN":
-      return "Checked out";
-    case "COMPLETED":
-      return "Completed";
-    case "CANCELLED":
-      return "Cancelled";
-    default:
-      return status.charAt(0) + status.slice(1).toLowerCase();
-  }
+export function statusLabel(status: string, kind?: BookingDisplayKind): string {
+  return bookingStatusLabel(status, kind);
 }
 
 /** Audit log fields to never display in the history tab */

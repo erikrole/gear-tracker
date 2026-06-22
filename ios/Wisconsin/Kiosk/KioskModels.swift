@@ -23,6 +23,25 @@ struct KioskInfo: Codable {
 
 // MARK: - Dashboard
 
+private struct LossyDecodableArray<Element: Decodable>: Decodable {
+    let elements: [Element]
+
+    init(from decoder: Decoder) throws {
+        var container = try decoder.unkeyedContainer()
+        var decoded: [Element] = []
+        while !container.isAtEnd {
+            do {
+                decoded.append(try container.decode(Element.self))
+            } catch {
+                _ = try? container.decode(DiscardedElement.self)
+            }
+        }
+        elements = decoded
+    }
+
+    private struct DiscardedElement: Decodable {}
+}
+
 struct KioskDashboard: Decodable {
     let stats: Stats
     let capabilities: Capabilities
@@ -42,18 +61,24 @@ struct KioskDashboard: Decodable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        stats = try container.decode(Stats.self, forKey: .stats)
+        stats = try container.decodeIfPresent(Stats.self, forKey: .stats) ?? Stats()
         capabilities = try container.decodeIfPresent(Capabilities.self, forKey: .capabilities) ?? Capabilities()
         standby = try container.decodeIfPresent(Standby.self, forKey: .standby)
-        events = try container.decodeIfPresent([KioskEvent].self, forKey: .events) ?? []
-        activeItems = try container.decodeIfPresent([ActiveItem].self, forKey: .activeItems) ?? []
-        checkouts = try container.decodeIfPresent([KioskActiveCheckout].self, forKey: .checkouts) ?? []
+        events = try container.decodeIfPresent(LossyDecodableArray<KioskEvent>.self, forKey: .events)?.elements ?? []
+        activeItems = try container.decodeIfPresent(LossyDecodableArray<ActiveItem>.self, forKey: .activeItems)?.elements ?? []
+        checkouts = try container.decodeIfPresent(LossyDecodableArray<KioskActiveCheckout>.self, forKey: .checkouts)?.elements ?? []
     }
 
     struct Stats: Decodable {
         let itemsOut: Int
         let checkouts: Int
         let overdue: Int
+
+        init(itemsOut: Int = 0, checkouts: Int = 0, overdue: Int = 0) {
+            self.itemsOut = itemsOut
+            self.checkouts = checkouts
+            self.overdue = overdue
+        }
     }
 
     struct Capabilities: Decodable {
@@ -72,6 +97,23 @@ struct KioskDashboard: Decodable {
         let nightHours: Bool
         let nearbyEventCount: Int
         let nearbyBookingWindowCount: Int
+
+        enum CodingKeys: String, CodingKey {
+            case sleepMode
+            case reason
+            case nightHours
+            case nearbyEventCount
+            case nearbyBookingWindowCount
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            sleepMode = try container.decodeIfPresent(Bool.self, forKey: .sleepMode) ?? false
+            reason = try container.decodeIfPresent(String.self, forKey: .reason) ?? "active_window"
+            nightHours = try container.decodeIfPresent(Bool.self, forKey: .nightHours) ?? false
+            nearbyEventCount = try container.decodeIfPresent(Int.self, forKey: .nearbyEventCount) ?? 0
+            nearbyBookingWindowCount = try container.decodeIfPresent(Int.self, forKey: .nearbyBookingWindowCount) ?? 0
+        }
     }
 
     struct ActiveItem: Decodable, Identifiable, Equatable {
@@ -148,7 +190,7 @@ struct KioskEvent: Decodable, Identifiable {
         callStartsAt = try container.decodeIfPresent(Date.self, forKey: .callStartsAt)
         callEndsAt = try container.decodeIfPresent(Date.self, forKey: .callEndsAt)
         shiftCount = try container.decodeIfPresent(Int.self, forKey: .shiftCount) ?? 0
-        assignedUsers = try container.decodeIfPresent([AssignedUser].self, forKey: .assignedUsers) ?? []
+        assignedUsers = try container.decodeIfPresent(LossyDecodableArray<AssignedUser>.self, forKey: .assignedUsers)?.elements ?? []
         assignedUserCount = try container.decodeIfPresent(Int.self, forKey: .assignedUserCount) ?? assignedUsers.count
     }
 
@@ -271,8 +313,41 @@ struct KioskActiveCheckout: Decodable, Identifiable {
     let endsAt: Date
     let isOverdue: Bool
 
+    enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case requesterName
+        case requesterAvatarUrl
+        case requesterInitials
+        case items
+        case itemCount
+        case endsAt
+        case isOverdue
+    }
+
     struct CheckoutItem: Decodable {
         let name: String
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        title = try container.decodeIfPresent(String.self, forKey: .title) ?? "Checkout"
+        requesterName = try container.decodeIfPresent(String.self, forKey: .requesterName) ?? "Student"
+        requesterAvatarUrl = try container.decodeIfPresent(String.self, forKey: .requesterAvatarUrl)
+        requesterInitials = try container.decodeIfPresent(String.self, forKey: .requesterInitials) ?? Self.initials(for: requesterName)
+        items = try container.decodeIfPresent(LossyDecodableArray<CheckoutItem>.self, forKey: .items)?.elements ?? []
+        itemCount = try container.decodeIfPresent(Int.self, forKey: .itemCount) ?? items.count
+        endsAt = try container.decode(Date.self, forKey: .endsAt)
+        isOverdue = try container.decodeIfPresent(Bool.self, forKey: .isOverdue) ?? (endsAt < Date())
+    }
+
+    private static func initials(for name: String) -> String {
+        name.split(separator: " ").prefix(2)
+            .compactMap { $0.first }
+            .map { String($0) }
+            .joined()
+            .uppercased()
     }
 }
 
@@ -301,6 +376,19 @@ struct KioskStudentContext: Decodable {
     let checkouts: [KioskStudentCheckout]
     let pendingPickups: [KioskPendingPickup]
     let reservations: [KioskReservation]
+
+    enum CodingKeys: String, CodingKey {
+        case checkouts
+        case pendingPickups
+        case reservations
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        checkouts = try container.decodeIfPresent(LossyDecodableArray<KioskStudentCheckout>.self, forKey: .checkouts)?.elements ?? []
+        pendingPickups = try container.decodeIfPresent(LossyDecodableArray<KioskPendingPickup>.self, forKey: .pendingPickups)?.elements ?? []
+        reservations = try container.decodeIfPresent(LossyDecodableArray<KioskReservation>.self, forKey: .reservations)?.elements ?? []
+    }
 }
 
 struct KioskStudentCheckout: Decodable, Identifiable {
@@ -314,6 +402,36 @@ struct KioskStudentCheckout: Decodable, Identifiable {
     struct StudentItem: Decodable {
         let name: String
         let tagName: String
+
+        enum CodingKeys: String, CodingKey {
+            case name
+            case tagName
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            name = try container.decodeIfPresent(String.self, forKey: .name) ?? "Item"
+            tagName = try container.decodeIfPresent(String.self, forKey: .tagName) ?? name
+        }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case refNumber
+        case items
+        case endsAt
+        case isOverdue
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        title = try container.decodeIfPresent(String.self, forKey: .title) ?? "Checkout"
+        refNumber = try container.decodeIfPresent(String.self, forKey: .refNumber)
+        items = try container.decodeIfPresent(LossyDecodableArray<StudentItem>.self, forKey: .items)?.elements ?? []
+        endsAt = try container.decode(Date.self, forKey: .endsAt)
+        isOverdue = try container.decodeIfPresent(Bool.self, forKey: .isOverdue) ?? (endsAt < Date())
     }
 }
 
@@ -329,11 +447,54 @@ struct KioskPendingPickup: Decodable, Identifiable {
         let id: String
         let tagName: String
         let name: String
+
+        enum CodingKeys: String, CodingKey {
+            case id
+            case tagName
+            case name
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            id = try container.decode(String.self, forKey: .id)
+            name = try container.decodeIfPresent(String.self, forKey: .name) ?? "Item"
+            tagName = try container.decodeIfPresent(String.self, forKey: .tagName) ?? name
+        }
     }
 
     struct BulkItem: Decodable {
         let name: String
         let quantity: Int
+
+        enum CodingKeys: String, CodingKey {
+            case name
+            case quantity
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            name = try container.decodeIfPresent(String.self, forKey: .name) ?? "Item"
+            quantity = try container.decodeIfPresent(Int.self, forKey: .quantity) ?? 0
+        }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case refNumber
+        case startsAt
+        case serializedItems
+        case bulkItems
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        title = try container.decodeIfPresent(String.self, forKey: .title) ?? "Pickup"
+        refNumber = try container.decodeIfPresent(String.self, forKey: .refNumber)
+        startsAt = try container.decode(Date.self, forKey: .startsAt)
+        serializedItems = try container.decodeIfPresent(LossyDecodableArray<SerializedItem>.self, forKey: .serializedItems)?.elements ?? []
+        bulkItems = try container.decodeIfPresent(LossyDecodableArray<BulkItem>.self, forKey: .bulkItems)?.elements ?? []
     }
 
     var itemCount: Int {
@@ -345,6 +506,19 @@ struct KioskReservation: Decodable, Identifiable {
     let id: String
     let title: String
     let startsAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case startsAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        title = try container.decodeIfPresent(String.self, forKey: .title) ?? "Reservation"
+        startsAt = try container.decode(Date.self, forKey: .startsAt)
+    }
 }
 
 // MARK: - Scan

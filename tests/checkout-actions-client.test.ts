@@ -81,20 +81,20 @@ describe("getAllowedActionsClient", () => {
   describe("OPEN state", () => {
     const ctx = booking("OPEN");
 
-    it("staff can edit, extend, cancel, checkin", () => {
+    it("staff can edit, extend, cancel, but not checkin", () => {
       const actions = getActions(staff, ctx);
       expect(has(actions, "edit")).toBe(true);
       expect(has(actions, "extend")).toBe(true);
       expect(has(actions, "cancel")).toBe(true);
-      expect(has(actions, "checkin")).toBe(true);
+      expect(has(actions, "checkin")).toBe(false);
       expect(has(actions, "open")).toBe(false);
     });
 
-    it("owner can edit, extend, checkin but NOT cancel", () => {
+    it("owner can edit and extend but NOT cancel or checkin", () => {
       const actions = getActions(owner, ctx);
       expect(has(actions, "edit")).toBe(true);
       expect(has(actions, "extend")).toBe(true);
-      expect(has(actions, "checkin")).toBe(true);
+      expect(has(actions, "checkin")).toBe(false);
       expect(has(actions, "cancel")).toBe(false);
     });
 
@@ -140,7 +140,7 @@ describe("getAllowedActionsClient", () => {
       const ctx = booking("OPEN", "other-student", "student-1");
       const actions = getActions(owner, ctx);
       expect(has(actions, "edit")).toBe(true);
-      expect(has(actions, "checkin")).toBe(true);
+      expect(has(actions, "checkin")).toBe(false);
     });
   });
 

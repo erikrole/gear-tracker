@@ -218,12 +218,10 @@ export default function NotificationsPage() {
   /** Optimistically update the raw query cache for notifications */
   const setNotificationsData = useCallback(
     (updater: (prev: Record<string, unknown>) => Record<string, unknown>) => {
-      queryClient.setQueryData<Record<string, unknown>>(queryKey, (prev) =>
+      queryClient.setQueryData<Record<string, unknown>>(["fetch", fetchUrl], (prev) =>
         prev ? updater(prev) : prev,
       );
     },
-    // queryKey changes with fetchUrl which is correct
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [fetchUrl, queryClient],
   );
 

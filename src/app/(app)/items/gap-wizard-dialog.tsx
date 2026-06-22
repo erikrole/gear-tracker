@@ -70,6 +70,7 @@ export function GapWizardDialog({ open, onOpenChange, categories, departments, o
   const [selectedValue, setSelectedValue] = useState("");
   const [reviewingSkipped, setReviewingSkipped] = useState(false);
   const [sessionTotal, setSessionTotal] = useState<number | null>(null);
+  const [suggestionsLimited, setSuggestionsLimited] = useState(false);
 
   const item = queue[0] ?? null;
 
@@ -116,6 +117,7 @@ export function GapWizardDialog({ open, onOpenChange, categories, departments, o
       setSaveError(null);
       setReviewingSkipped(false);
       setSessionTotal(null);
+      setSuggestionsLimited(false);
     }
   }, [open]);
 
@@ -126,12 +128,13 @@ export function GapWizardDialog({ open, onOpenChange, categories, departments, o
       const res = await fetch(`/api/assets?missing=${gap}&limit=${QUEUE_LIMIT}&offset=${offset}`);
       if (handleAuthRedirect(res)) return;
       if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to load items"));
-      const json = await parseJsonSafely<{ data?: unknown; total?: unknown }>(res);
+      const json = await parseJsonSafely<{ data?: unknown; total?: unknown; suggestionsLimited?: unknown }>(res);
       if (!json || !Array.isArray(json.data) || typeof json.total !== "number") {
         throw new Error("Could not read the next item queue");
       }
       const items = json.data as GapItem[];
       const total = json.total;
+      setSuggestionsLimited(Boolean(json.suggestionsLimited));
       setCounts((prev) => ({ ...prev, [gap]: total }));
       if (offset === 0 && !reviewingSkipped) setSessionTotal(total);
       if (items.length === 0) {
@@ -234,6 +237,7 @@ export function GapWizardDialog({ open, onOpenChange, categories, departments, o
     setSelectedValue("");
     setReviewingSkipped(false);
     setSessionTotal(null);
+    setSuggestionsLimited(false);
     void loadCounts();
   }, [loadCounts]);
 
@@ -380,7 +384,7 @@ export function GapWizardDialog({ open, onOpenChange, categories, departments, o
             <DialogHeader>
               <DialogTitle>Assign {field}</DialogTitle>
               <DialogDescription>
-                {loading ? "Loading..." : `${progressLabel} - ${assigned} assigned this session`}
+                {loading ? "Loading..." : `${progressLabel} - ${assigned} assigned this session${suggestionsLimited ? " - suggestions use a capped sample" : ""}`}
               </DialogDescription>
             </DialogHeader>
 

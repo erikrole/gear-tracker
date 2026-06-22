@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Items
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-20
+- Last Updated: 2026-06-22
 - Status: Active
 - Version: V1
 
@@ -49,7 +49,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 3. Each issue card links to the existing repair surface instead of adding new mutation paths.
 4. Slice 1 checks missing category, missing department, missing primary scan code, missing image, duplicate scan identity, retired items still in active kits, camera bodies with no attachments, and active bulk SKUs below threshold.
 5. The page frames those checks as a read-only cleanup queue with priority ordering, clean/check progress, needs-work/all/clean views, partial-failure warnings, and tag-first sample rows.
-6. The Items Fill gaps wizard can repair missing categories and departments across standard items and item families. Missing-category suggestions prefer existing categorized inventory patterns, then fall back to gear-term matching.
+6. The Items Fill gaps wizard can repair missing categories and departments across standard items and item families. Missing-category suggestions prefer existing categorized inventory patterns, then fall back to gear-term matching. The backing missing-field API counts standard items and item families separately, pages each source at the database layer, and reports when suggestion matching used a capped sample.
 
 ### Create Item
 1. User starts `Add item`.
@@ -229,6 +229,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
    - Time window
    - Owner
    - Direct link into the reservation record
+   - Status labels and badge colors come from the shared booking status display helper, not item-detail-local booking status switches.
 4. Recent past bookings render below upcoming reservations for quick context without requiring a tab switch.
    - Rows stay compact, use the requester avatar when available, and prioritize title, requester, date range, booking kind, and status.
 5. If no active check-out, upcoming reservation, or past booking context exists, show a clear empty state instead of blank space.
@@ -420,6 +421,8 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-06-22: **Item booking status display cleanup.** Item detail booking overview, upcoming reservations, schedule agenda, and booking history now use the shared booking status display helper instead of a local switch with retired booking states.
+- 2026-06-22: **Fill gaps query bounds.** `/api/assets?missing=category|department` now counts standard items and item families separately, fetches only the requested cleanup page from each source, and tells the wizard when suggestion matching used a capped source sample.
 - 2026-06-20: **Image picker shadcn cleanup.** The shared item image modal search tab now uses shadcn `Empty` composition for idle, empty, quota, and failed states, and result selection uses the shared `Button` primitive instead of a raw button while preserving source links and selected/focus styling.
 - 2026-06-20: **Shared filter-chip UI refinement.** Items inherits the refreshed `FilterChip` and `OperationalActiveFilterChips` treatment: lighter filter chrome, 40px removable targets, clearer active underline, and less card-like active filter pills across the toolbar.
 - 2026-06-20: **OperationalToolbar shell refinement.** Items inherits the lighter shared toolbar chrome, so search, type toggles, filters, attachment switch, and applied filters sit in quiet page chrome instead of a bordered card-like frame.

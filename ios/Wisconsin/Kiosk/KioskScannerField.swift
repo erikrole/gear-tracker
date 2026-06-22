@@ -3,18 +3,21 @@ import UIKit
 
 // UIViewRepresentable text field for Bluetooth HID barcode scanners.
 // Suppresses the on-screen keyboard (inputView = UIView()) while still
-// capturing keystrokes from HID devices. Aggressively re-acquires
-// first responder so the scanner is always active.
+// capturing keystrokes from HID devices. Re-acquires first responder while
+// enabled so the scanner stays active during dedicated scan phases.
 struct KioskScannerField: UIViewRepresentable {
     private static let scannerIdleFlushDelay: TimeInterval = 0.5
 
+    let isEnabled: Bool
     let onScan: (String) -> Void
     let onFocusChange: ((Bool) -> Void)?
 
     init(
+        isEnabled: Bool = true,
         onScan: @escaping (String) -> Void,
         onFocusChange: ((Bool) -> Void)? = nil
     ) {
+        self.isEnabled = isEnabled
         self.onScan = onScan
         self.onFocusChange = onFocusChange
     }
@@ -23,15 +26,38 @@ struct KioskScannerField: UIViewRepresentable {
         let field = HIDTextField()
         field.inputView = UIView()          // suppress software keyboard
         field.autocorrectionType = .no
+        field.spellCheckingType = .no
         field.autocapitalizationType = .none
+        field.textContentType = nil
+        field.inputAssistantItem.leadingBarButtonGroups = []
+        field.inputAssistantItem.trailingBarButtonGroups = []
         field.delegate = context.coordinator
         field.tintColor = .clear            // hide cursor
         return field
     }
 
     func updateUIView(_ uiView: UITextField, context: Context) {
+        context.coordinator.setEnabled(isEnabled)
+        guard isEnabled else {
+            uiView.text = ""
+            if uiView.isFirstResponder {
+                uiView.resignFirstResponder()
+            }
+            return
+        }
+
         if !uiView.isFirstResponder {
             DispatchQueue.main.async { uiView.becomeFirstResponder() }
+        }
+        uiView.inputAssistantItem.leadingBarButtonGroups = []
+        uiView.inputAssistantItem.trailingBarButtonGroups = []
+    }
+
+    static func dismantleUIView(_ uiView: UITextField, coordinator: Coordinator) {
+        coordinator.setEnabled(false)
+        uiView.text = ""
+        if uiView.isFirstResponder {
+            uiView.resignFirstResponder()
         }
     }
 
@@ -43,6 +69,7 @@ struct KioskScannerField: UIViewRepresentable {
         let onScan: (String) -> Void
         let onFocusChange: ((Bool) -> Void)?
         private var pendingFlush: DispatchWorkItem?
+        private(set) var isEnabled = true
 
         init(
             onScan: @escaping (String) -> Void,
@@ -50,6 +77,14 @@ struct KioskScannerField: UIViewRepresentable {
         ) {
             self.onScan = onScan
             self.onFocusChange = onFocusChange
+        }
+
+        func setEnabled(_ enabled: Bool) {
+            isEnabled = enabled
+            if !enabled {
+                pendingFlush?.cancel()
+                pendingFlush = nil
+            }
         }
 
         func textFieldDidBeginEditing(_ textField: UITextField) {
@@ -61,6 +96,7 @@ struct KioskScannerField: UIViewRepresentable {
             shouldChangeCharactersIn range: NSRange,
             replacementString string: String
         ) -> Bool {
+            guard isEnabled else { return false }
             guard let current = textField.text,
                   let textRange = Range(range, in: current) else {
                 return true
@@ -77,6 +113,7 @@ struct KioskScannerField: UIViewRepresentable {
         }
 
         func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+            guard isEnabled else { return false }
             submit(textField.text ?? "", textField: textField)
             return false
         }
@@ -84,15 +121,17 @@ struct KioskScannerField: UIViewRepresentable {
         // Re-acquire focus if something else steals it
         func textFieldDidEndEditing(_ textField: UITextField) {
             onFocusChange?(false)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self, weak textField] in
+                guard let self, self.isEnabled, let textField else { return }
                 textField.becomeFirstResponder()
             }
         }
 
         private func scheduleFlush(for textField: UITextField) {
+            guard isEnabled else { return }
             pendingFlush?.cancel()
             let workItem = DispatchWorkItem { [weak self, weak textField] in
-                guard let self, let textField else { return }
+                guard let self, self.isEnabled, let textField else { return }
                 self.submit(textField.text ?? "", textField: textField)
             }
             pendingFlush = workItem
@@ -100,6 +139,7 @@ struct KioskScannerField: UIViewRepresentable {
         }
 
         private func submit(_ text: String, textField: UITextField) {
+            guard isEnabled else { return }
             pendingFlush?.cancel()
             pendingFlush = nil
             let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -109,8 +149,8 @@ struct KioskScannerField: UIViewRepresentable {
     }
 }
 
-// Custom UITextField that ignores attempts to resign first responder
-// from gestures on other views, keeping the scanner always active.
+// Custom UITextField used only as a HID scanner sink. Focus ownership is
+// controlled by KioskScannerField's enabled state.
 private final class HIDTextField: UITextField {
     override var canBecomeFirstResponder: Bool { true }
 }

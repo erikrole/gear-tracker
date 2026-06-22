@@ -72,8 +72,8 @@ export const PERMISSIONS: Record<string, Record<string, Role[]>> = {
   },
   location_mapping: {
     // ADMIN-only per D-027 (Venue Mappings is admin configuration of how
-    // calendar event venues map to locations — STAFF cannot mutate it).
-    view: ["ADMIN", "STAFF", "STUDENT"],
+    // calendar event venues map to locations — STAFF cannot access or mutate it).
+    view: ["ADMIN"],
     create: ["ADMIN"],
     delete: ["ADMIN"],
   },

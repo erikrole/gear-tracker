@@ -140,7 +140,7 @@ export default function BookingListPage({
         : `Couldn't refresh — showing cached data`);
     }
     prevIsErrorRef.current = isError;
-  }, [isError]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isError, listData]);
 
   // Only show error screen on initial load (no cached data to fall back on)
   const loadError: false | "network" | "server" = isError && !listData

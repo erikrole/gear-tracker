@@ -103,11 +103,6 @@ function SerializedItemDetailsPage({ id }: { id: string }) {
     saveHeaderField,
   } = useItemActions({ asset, setAsset, loadAsset });
 
-  // URL-synced tab switching
-  function switchTab(tab: TabKey) {
-    setActiveTab(tab);
-  }
-
   // Keyboard shortcuts: 1-6 to switch tabs
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -115,13 +110,12 @@ function SerializedItemDetailsPage({ id }: { id: string }) {
       const num = parseInt(e.key);
       if (num >= 1 && num <= tabDefs.length) {
         e.preventDefault();
-        switchTab(tabDefs[num - 1]!.key);
+        setActiveTab(tabDefs[num - 1]!.key);
       }
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [setActiveTab]);
 
   if (fetchError && !asset) {
     return (
@@ -242,7 +236,7 @@ function SerializedItemDetailsPage({ id }: { id: string }) {
       />
 
       {/* Tabs — sticky on scroll, horizontally scrollable on mobile */}
-      <Tabs value={activeTab} onValueChange={(v) => switchTab(v as TabKey)}>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabKey)}>
         <TabsList className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm overflow-x-auto scrollbar-hide">
           {tabDefs.map((tab) => {
             const count =

@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Checkouts
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-20
+- Last Updated: 2026-06-22
 - Status: Active — V1 Shipped
 - Version: V1
 
@@ -203,7 +203,7 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 - **Old route**: `GET /api/checkouts/[id]` redirects (308) to `/api/bookings/[id]`
 
 ### Checkout-Specific Behavior
-- Status badge shows display labels via `statusLabel()` helper: `PENDING_PICKUP` -> "Awaiting Pickup", `OPEN` -> "Checked out".
+- Status badge shows display labels through the shared booking status display helper: `PENDING_PICKUP` -> "Awaiting Pickup", `OPEN` -> "Checked out".
 - "Due back" countdown rendered as urgency-colored Badge (red/orange/yellow/neutral)
 - Action buttons: `[Actions ▼] [Edit] [Extend]` for app-owned actions. Custody pickup/return scans happen at the kiosk.
 - Actions dropdown contains: Nudge borrower, Force complete, Duplicate, and Cancel when each action is allowed. It must not link to `/scan?checkout=...`.
@@ -298,6 +298,8 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 5. Add regression coverage for race conditions, partial returns, non-kiosk custody attempts, and permission bypass attempts.
 
 ## Change Log
+- 2026-06-22: Booking status display cleanup. Checkout detail helpers, booking-list rows/cards, and item booking history now resolve labels and badge/status colors through `src/lib/booking-status-display.ts`, preserving D-025 display-only labels without route-local booking status switches.
+- 2026-06-22: Booking action policy cleanup. Booking-list UI actions now use the same shared app/web action policy as server-side booking rules, so OPEN checkouts no longer advertise app/web check-in actions under the D-040 kiosk-only return contract.
 - 2026-06-20: Checkout list filters inherit the refreshed shared `FilterChip` and active-filter chip treatment: lighter borders, 40px removable targets, active underline, and quieter applied-filter buttons while preserving the existing clear behavior and booking filter semantics.
 - 2026-06-20: Checkout list filters inherit the lighter shared `OperationalToolbar` shell, keeping existing search/filter semantics while reducing the card-like frame around the command row.
 - 2026-06-20: Checkout detail inline-edit rows inherit the refreshed shared `SaveableField` dirty-row treatment, keeping title/notes save semantics while making pending save/cancel actions visually explicit and 40px target sized.
