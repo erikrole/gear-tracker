@@ -99,7 +99,9 @@ struct KioskIdleView: View {
                 .presentationDragIndicator(.visible)
         }
         .sheet(item: $selectedCheckout) { context in
-            KioskCheckoutDetailSheet(context: context)
+            KioskCheckoutDetailSheet(context: context) {
+                Task { await loadAll() }
+            }
                 .presentationDetents([.height(520), .large])
                 .presentationDragIndicator(.visible)
         }
@@ -489,7 +491,7 @@ struct KioskIdleView: View {
                 let itemGroups = ActiveItemGroup.groups(from: dashboard.activeItems)
                 KioskDashboardList(title: "Items Out", emptyMessage: "No items are out.", isEmpty: dashboard.activeItems.isEmpty, onClose: { toggleSummary(.itemsOut) }) {
                     ForEach(itemGroups) { group in
-                        ActiveItemRow(group: group) { openCheckout(id: group.first.checkoutId, title: group.first.checkoutTitle, requesterName: group.first.requesterName, requesterAvatarUrl: group.first.requesterAvatarUrl, endsAt: group.first.endsAt, isOverdue: group.first.isOverdue) }
+                        ActiveItemRow(group: group) { openCheckout(id: group.first.checkoutId, title: group.first.checkoutTitle, requesterId: group.first.requesterId, requesterName: group.first.requesterName, requesterAvatarUrl: group.first.requesterAvatarUrl, endsAt: group.first.endsAt, isOverdue: group.first.isOverdue) }
                     }
                 }
             case .checkouts:
@@ -513,6 +515,7 @@ struct KioskIdleView: View {
         openCheckout(
             id: checkout.id,
             title: checkout.title,
+            requesterId: checkout.requesterId,
             requesterName: checkout.requesterName,
             requesterAvatarUrl: checkout.requesterAvatarUrl,
             endsAt: checkout.endsAt,
@@ -520,10 +523,11 @@ struct KioskIdleView: View {
         )
     }
 
-    private func openCheckout(id: String, title: String, requesterName: String, requesterAvatarUrl: String?, endsAt: Date, isOverdue: Bool) {
+    private func openCheckout(id: String, title: String, requesterId: String?, requesterName: String, requesterAvatarUrl: String?, endsAt: Date, isOverdue: Bool) {
         selectedCheckout = KioskCheckoutDrawerContext(
             checkoutId: id,
             title: title,
+            requesterId: requesterId,
             requesterName: requesterName,
             requesterAvatarUrl: requesterAvatarUrl,
             endsAt: endsAt,
@@ -1469,6 +1473,7 @@ private struct CheckoutRow: View {
 private struct KioskCheckoutDrawerContext: Identifiable {
     let checkoutId: String
     let title: String
+    let requesterId: String?
     let requesterName: String
     let requesterAvatarUrl: String?
     let endsAt: Date
@@ -1488,10 +1493,18 @@ private struct KioskCheckoutDrawerContext: Identifiable {
 private struct KioskCheckoutDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
     let context: KioskCheckoutDrawerContext
+    let onChanged: () -> Void
 
     @State private var detail: KioskCheckoutDetail?
     @State private var isLoading = true
     @State private var loadError: String?
+    @State private var editTitle = ""
+    @State private var editEndsAt = Date().addingTimeInterval(24 * 60 * 60)
+    @State private var addScanValue = ""
+    @State private var titleFocused = false
+    @State private var scanFocused = false
+    @State private var isMutating = false
+    @State private var mutationMessage: KioskMutationMessage?
 
     private struct ItemGroup: Identifiable {
         let id: String
@@ -1527,6 +1540,26 @@ private struct KioskCheckoutDetailSheet: View {
         return groups
     }
 
+    private var actorId: String? {
+        context.requesterId ?? detail?.requesterId
+    }
+
+    private var canEditActiveCheckout: Bool {
+        detail?.status == "OPEN" && actorId != nil
+    }
+
+    private var currentTitle: String {
+        detail?.title ?? context.title
+    }
+
+    private var currentEndsAt: Date {
+        detail?.endsAt ?? context.endsAt
+    }
+
+    private var currentIsOverdue: Bool {
+        currentEndsAt < Date()
+    }
+
     var body: some View {
         ZStack {
             KioskSurface.base.ignoresSafeArea()
@@ -1534,6 +1567,10 @@ private struct KioskCheckoutDetailSheet: View {
                 header
 
                 timingRow
+
+                if canEditActiveCheckout {
+                    editPanel
+                }
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Items")
@@ -1568,7 +1605,7 @@ private struct KioskCheckoutDetailSheet: View {
         HStack(alignment: .top, spacing: 14) {
             KioskAvatar(url: context.requesterAvatarUrl, initials: context.requesterInitials, size: 48)
             VStack(alignment: .leading, spacing: 4) {
-                Text(context.title)
+                Text(currentTitle)
                     .font(.title2.weight(.heavy))
                     .foregroundStyle(KioskText.primary)
                     .lineLimit(2)
@@ -1587,26 +1624,100 @@ private struct KioskCheckoutDetailSheet: View {
         }
     }
 
+    private var editPanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Edit Checkout")
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(KioskText.primary)
+                Spacer()
+                Button(isMutating ? "Saving..." : "Save") {
+                    Task { await saveDetails() }
+                }
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(Color.kioskRed.opacity(isMutating ? 0.45 : 0.9), in: Capsule())
+                .disabled(isMutating)
+            }
+
+            HStack(spacing: 10) {
+                KioskNativeTextField(
+                    placeholder: "Checkout title",
+                    text: $editTitle,
+                    isFocused: $titleFocused
+                )
+                .padding(.horizontal, 12)
+                .frame(height: 46)
+                .background(KioskSurface.sunken, in: RoundedRectangle(cornerRadius: KioskRadius.md))
+                .overlay(RoundedRectangle(cornerRadius: KioskRadius.md).stroke(KioskStroke.standard, lineWidth: 1))
+
+                DatePicker(
+                    "Due back",
+                    selection: $editEndsAt,
+                    in: Date().addingTimeInterval(5 * 60)...,
+                    displayedComponents: [.date, .hourAndMinute]
+                )
+                .labelsHidden()
+                .datePickerStyle(.compact)
+                .tint(Color.kioskRed)
+                .frame(height: 46)
+                .padding(.horizontal, 10)
+                .background(KioskSurface.sunken, in: RoundedRectangle(cornerRadius: KioskRadius.md))
+                .overlay(RoundedRectangle(cornerRadius: KioskRadius.md).stroke(KioskStroke.standard, lineWidth: 1))
+            }
+
+            HStack(spacing: 10) {
+                KioskNativeTextField(
+                    placeholder: "Scan or type item",
+                    text: $addScanValue,
+                    isFocused: $scanFocused
+                )
+                .padding(.horizontal, 12)
+                .frame(height: 46)
+                .background(KioskSurface.sunken, in: RoundedRectangle(cornerRadius: KioskRadius.md))
+                .overlay(RoundedRectangle(cornerRadius: KioskRadius.md).stroke(KioskStroke.standard, lineWidth: 1))
+
+                Button(isMutating ? "Adding..." : "Add") {
+                    Task { await addItem() }
+                }
+                .font(.caption.weight(.bold))
+                .foregroundStyle(KioskText.primary)
+                .frame(width: 76, height: 46)
+                .background(KioskSurface.cardSelected, in: RoundedRectangle(cornerRadius: KioskRadius.md))
+                .disabled(isMutating || addScanValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+
+            if let mutationMessage {
+                KioskFeedbackBanner(tone: mutationMessage.tone, message: mutationMessage.text)
+            }
+        }
+        .padding(14)
+        .background(KioskSurface.card, in: RoundedRectangle(cornerRadius: KioskRadius.lg))
+        .overlay(RoundedRectangle(cornerRadius: KioskRadius.lg).stroke(KioskStroke.standard, lineWidth: 1))
+    }
+
     private var timingRow: some View {
         HStack(spacing: 10) {
-            Image(systemName: context.isOverdue ? "exclamationmark.triangle.fill" : "clock.badge.checkmark")
-                .foregroundStyle(context.isOverdue ? Color.statusText(.red) : Color.kioskRed)
+            Image(systemName: currentIsOverdue ? "exclamationmark.triangle.fill" : "clock.badge.checkmark")
+                .foregroundStyle(currentIsOverdue ? Color.statusText(.red) : Color.kioskRed)
                 .accessibilityHidden(true)
-            Text(context.isOverdue ? "Overdue" : "Due")
+            Text(currentIsOverdue ? "Overdue" : "Due")
                 .font(.caption.weight(.bold))
                 .tracking(0.8)
-                .foregroundStyle(context.isOverdue ? Color.statusText(.red) : KioskText.tertiary)
+                .foregroundStyle(currentIsOverdue ? Color.statusText(.red) : KioskText.tertiary)
                 .textCase(.uppercase)
-            Text(context.endsAt.formatted(date: .abbreviated, time: .shortened))
+            Text(currentEndsAt.formatted(date: .abbreviated, time: .shortened))
                 .font(.subheadline.weight(.semibold).monospacedDigit())
                 .foregroundStyle(KioskText.primary)
             Text(relativeDue)
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(context.isOverdue ? Color.statusText(.red) : KioskText.tertiary)
+                .foregroundStyle(currentIsOverdue ? Color.statusText(.red) : KioskText.tertiary)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
                 .background(
-                    (context.isOverdue ? Color.statusText(.red) : KioskText.tertiary).opacity(0.14),
+                    (currentIsOverdue ? Color.statusText(.red) : KioskText.tertiary).opacity(0.14),
                     in: Capsule()
                 )
             Spacer()
@@ -1619,12 +1730,12 @@ private struct KioskCheckoutDetailSheet: View {
                 .stroke(KioskStroke.standard, lineWidth: 1)
         )
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(context.isOverdue ? "Overdue, due" : "Due") \(context.endsAt.formatted(date: .abbreviated, time: .shortened))")
+        .accessibilityLabel("\(currentIsOverdue ? "Overdue, due" : "Due") \(currentEndsAt.formatted(date: .abbreviated, time: .shortened))")
     }
 
     private var relativeDue: String {
-        let rel = Self.relativeFormatter.localizedString(for: context.endsAt, relativeTo: Date())
-        return context.isOverdue ? "\(rel)" : rel
+        let rel = Self.relativeFormatter.localizedString(for: currentEndsAt, relativeTo: Date())
+        return currentIsOverdue ? "\(rel)" : rel
     }
 
     private static let relativeFormatter: RelativeDateTimeFormatter = {
@@ -1674,6 +1785,17 @@ private struct KioskCheckoutDetailSheet: View {
                 }
             }
             Spacer()
+            if canEditActiveCheckout, let removable = removableItem(in: group) {
+                Button(group.count > 1 ? "Remove one" : "Remove") {
+                    Task { await removeItem(removable) }
+                }
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(Color.statusText(.red))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color.statusText(.red).opacity(0.14), in: Capsule())
+                .disabled(isMutating)
+            }
             if group.returnedCount > 0 {
                 Text(group.returnedCount == group.count ? "Returned" : "\(group.returnedCount)/\(group.count) back")
                     .font(.caption2.weight(.bold))
@@ -1687,6 +1809,10 @@ private struct KioskCheckoutDetailSheet: View {
             RoundedRectangle(cornerRadius: KioskRadius.md)
                 .stroke(KioskStroke.hairline, lineWidth: 1)
         )
+    }
+
+    private func removableItem(in group: ItemGroup) -> KioskCheckoutDetail.ReturnItem? {
+        group.items.first { !$0.returned }
     }
 
     @ViewBuilder
@@ -1728,12 +1854,79 @@ private struct KioskCheckoutDetailSheet: View {
         isLoading = true
         loadError = nil
         do {
-            detail = try await KioskAPI.shared.kioskCheckoutDetail(id: context.checkoutId)
+            let loaded = try await KioskAPI.shared.kioskCheckoutDetail(id: context.checkoutId)
+            detail = loaded
+            editTitle = loaded.title
+            editEndsAt = loaded.endsAt
         } catch {
             loadError = (error as? APIError)?.errorDescription ?? "Could not load checkout details."
         }
         isLoading = false
     }
+
+    private func saveDetails() async {
+        guard let actorId else { return }
+        let title = editTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else {
+            mutationMessage = KioskMutationMessage(tone: .warning, text: "Title is required")
+            return
+        }
+        isMutating = true
+        do {
+            let result = try await KioskAPI.shared.kioskUpdateActiveCheckout(
+                id: context.checkoutId,
+                actorId: actorId,
+                title: title,
+                endsAt: editEndsAt
+            )
+            mutationMessage = KioskMutationMessage(tone: result.success ? .success : .warning, text: result.message ?? result.error ?? "Checkout updated")
+            await load()
+            onChanged()
+        } catch {
+            mutationMessage = KioskMutationMessage(tone: .error, text: (error as? APIError)?.errorDescription ?? "Could not update checkout")
+        }
+        isMutating = false
+    }
+
+    private func addItem() async {
+        guard let actorId else { return }
+        let value = addScanValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return }
+        isMutating = true
+        do {
+            let result = try await KioskAPI.shared.kioskAddActiveCheckoutItem(id: context.checkoutId, actorId: actorId, scanValue: value)
+            mutationMessage = KioskMutationMessage(tone: result.success ? .success : .warning, text: result.message ?? result.error ?? "Scan handled")
+            if result.success {
+                addScanValue = ""
+                await load()
+                onChanged()
+            }
+        } catch {
+            mutationMessage = KioskMutationMessage(tone: .error, text: (error as? APIError)?.errorDescription ?? "Could not add item")
+        }
+        isMutating = false
+    }
+
+    private func removeItem(_ item: KioskCheckoutDetail.ReturnItem) async {
+        guard let actorId else { return }
+        isMutating = true
+        do {
+            let result = try await KioskAPI.shared.kioskRemoveActiveCheckoutItem(id: context.checkoutId, actorId: actorId, item: item)
+            mutationMessage = KioskMutationMessage(tone: result.success ? .success : .warning, text: result.message ?? result.error ?? "Remove handled")
+            if result.success {
+                await load()
+                onChanged()
+            }
+        } catch {
+            mutationMessage = KioskMutationMessage(tone: .error, text: (error as? APIError)?.errorDescription ?? "Could not remove item")
+        }
+        isMutating = false
+    }
+}
+
+private struct KioskMutationMessage {
+    let tone: KioskBannerTone
+    let text: String
 }
 
 /// First name when unique in the visible roster, "First L." when another

@@ -18,6 +18,20 @@ Plan: hotfix from live iPad testing on iPadOS 17.7.11.
 
 ---
 
+## Active: Kiosk active checkout edits (2026-06-22)
+
+Plan: `tasks/archive/kiosk-active-checkout-edit-plan.md`
+
+- [x] Add kiosk-authenticated active checkout mutation routes.
+- [x] Add native kiosk drawer controls for title/due-back edit, scan-add, and remove.
+- [x] Add route/source contract coverage.
+- [x] Sync docs and run verification.
+
+### Review
+- 2026-06-22: Active checkout edit slice shipped locally and installed on the connected iPad Pro 10.5. `/api/kiosk/checkout/[id]` now supports kiosk-scoped PATCH/POST/DELETE mutations for detail updates, scan-add, and remove-one-item, with availability checks, serializable transactions, allocation/bulk-unit updates, and audit entries. Native kiosk detail drawers expose title/due-back editing, scan-add, and remove controls using native input/date controls and refresh dashboard data after successful mutations. Verification passed with TypeScript, focused Vitest, docs/codemap check, iOS drift/audit gates, whitespace check, WisconsinKiosk simulator build, Wisconsin simulator build, WisconsinKiosk generic iOS device compile, signed device build, normal device install, and launch.
+
+---
+
 ## Active: iOS kiosk counter/list skew hotfix (2026-06-22)
 
 Plan: hotfix from live iPad testing on iPadOS 17.7.11.

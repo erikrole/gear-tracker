@@ -241,7 +241,7 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
             id: true,
             title: true,
             endsAt: true,
-            requester: { select: { name: true, avatarUrl: true } },
+            requester: { select: { id: true, name: true, avatarUrl: true } },
           },
         },
       },
@@ -283,7 +283,7 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
                 id: true,
                 title: true,
                 endsAt: true,
-                requester: { select: { name: true, avatarUrl: true } },
+            requester: { select: { id: true, name: true, avatarUrl: true } },
               },
             },
           },
@@ -424,7 +424,7 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
         id: string;
         title: string;
         endsAt: Date;
-        requester: { name: string; avatarUrl: string | null };
+        requester: { id: string; name: string; avatarUrl: string | null };
       };
     }>,
     "active items",
@@ -443,7 +443,7 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
           id: string;
           title: string;
           endsAt: Date;
-          requester: { name: string; avatarUrl: string | null };
+          requester: { id: string; name: string; avatarUrl: string | null };
         };
       };
     }>,
@@ -544,6 +544,7 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
         unitNumber: null,
         checkoutId: entry.booking.id,
         checkoutTitle: entry.booking.title,
+        requesterId: entry.booking.requester.id,
         requesterName: entry.booking.requester.name,
         requesterAvatarUrl: entry.booking.requester.avatarUrl,
         requesterInitials: getInitials(entry.booking.requester.name),
@@ -559,6 +560,7 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
         unitNumber: entry.bulkSkuUnit.unitNumber,
         checkoutId: entry.bookingBulkItem.booking.id,
         checkoutTitle: entry.bookingBulkItem.booking.title,
+        requesterId: entry.bookingBulkItem.booking.requester.id,
         requesterName: entry.bookingBulkItem.booking.requester.name,
         requesterAvatarUrl: entry.bookingBulkItem.booking.requester.avatarUrl,
         requesterInitials: getInitials(entry.bookingBulkItem.booking.requester.name),
@@ -582,6 +584,7 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
         id: c.id,
         title: c.title,
         requesterName: c.requester.name,
+        requesterId: c.requester.id,
         requesterAvatarUrl: c.requester.avatarUrl,
         requesterInitials: getInitials(c.requester.name),
         items: c.serializedItems.map((si) => ({

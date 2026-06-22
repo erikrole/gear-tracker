@@ -125,6 +125,7 @@ struct KioskDashboard: Decodable {
         let unitNumber: Int?
         let checkoutId: String
         let checkoutTitle: String
+        let requesterId: String?
         let requesterName: String
         let requesterAvatarUrl: String?
         let endsAt: Date
@@ -306,6 +307,7 @@ struct KioskActiveCheckout: Decodable, Identifiable {
     let id: String
     let title: String
     let requesterName: String
+    let requesterId: String?
     let requesterAvatarUrl: String?
     let requesterInitials: String
     let items: [CheckoutItem]
@@ -317,6 +319,7 @@ struct KioskActiveCheckout: Decodable, Identifiable {
         case id
         case title
         case requesterName
+        case requesterId
         case requesterAvatarUrl
         case requesterInitials
         case items
@@ -334,6 +337,7 @@ struct KioskActiveCheckout: Decodable, Identifiable {
         id = try container.decode(String.self, forKey: .id)
         title = try container.decodeIfPresent(String.self, forKey: .title) ?? "Checkout"
         requesterName = try container.decodeIfPresent(String.self, forKey: .requesterName) ?? "Student"
+        requesterId = try container.decodeIfPresent(String.self, forKey: .requesterId)
         requesterAvatarUrl = try container.decodeIfPresent(String.self, forKey: .requesterAvatarUrl)
         requesterInitials = try container.decodeIfPresent(String.self, forKey: .requesterInitials) ?? Self.initials(for: requesterName)
         items = try container.decodeIfPresent(LossyDecodableArray<CheckoutItem>.self, forKey: .items)?.elements ?? []
@@ -552,6 +556,7 @@ struct KioskCheckoutDetail: Decodable {
     let title: String
     let refNumber: String?
     let status: String
+    let requesterId: String?
     let endsAt: Date
     let scanSummary: ScanSummary?
     let items: [ReturnItem]
@@ -579,6 +584,12 @@ struct KioskCheckoutDetail: Decodable {
     var numberedBulkItems: [ReturnItem] {
         items.filter(\.isNumberedBulk)
     }
+}
+
+struct KioskActiveCheckoutMutationResult: Decodable {
+    let success: Bool
+    let message: String?
+    let error: String?
 }
 
 // MARK: - Checkin / Return result

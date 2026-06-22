@@ -125,6 +125,7 @@ Navigation shell versioned roadmap: `tasks/sidebar-roadmap.md` (revised 2026-03-
 - **V3 (later)**: Bottom nav badge counts via live `/api/nav-counts` polling, game-day/shift context cards
 
 ## Change Log
+- 2026-06-22: **iOS kiosk active checkout edits** - native kiosk checkout details now let the counter update an active checkout's title and due-back time, scan another item into the checkout, or remove one unreturned active item without leaving kiosk mode. The drawer stays on native iOS keyboard/date controls and refreshes the idle dashboard after successful mutations.
 - 2026-06-22: **iOS kiosk fractional-date decoding** - native kiosk API decoding now accepts server ISO dates with fractional seconds, keeping idle counters, tapped dashboard lists, and student hub active-checkout rows aligned on older iPadOS builds.
 - 2026-06-22: **iOS kiosk student hub/input recovery** - native kiosk checkout detail text entry now keeps the real iOS keyboard while hiding the iPad shortcut/suggestion assistant bar, and the student hub no longer treats decode/server/session failures as generic internet disconnects.
 - 2026-06-22: **iOS kiosk native input recovery** - native kiosk checkout setup now keeps the custom purpose/details field as a system `TextField` and the return time as a native compact `DatePicker`, with scanner capture inactive until scan mode and the shell drag activity gesture relaxed so it does not swallow control taps on older iPadOS hardware.

@@ -65,7 +65,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: `/settings/kiosk-devices`
 - APIs: `/api/kiosk-devices/[id]/regenerate-code`, `/api/kiosk-devices/[id]`, `/api/kiosk-devices`, `/api/kiosk/activate`, `/api/kiosk/checkin/[id]/complete`, `/api/kiosk/checkin/[id]/scan`, `/api/kiosk/checkout/[id]`, `/api/kiosk/checkout/availability`, `/api/kiosk/checkout/complete`, `/api/kiosk/checkout/scan`
 - Services: `src/lib/services/kiosk-checkout-complete.ts`, `src/lib/services/kiosk-location.ts`, `src/lib/services/kiosk-scan.ts`
-- Tests: `tests/bulk-unit-kiosk-scans.test.ts`, `tests/ios-kiosk-all-day-contract.test.ts`, `tests/ios-kiosk-reservation-pickup-contract.test.ts`, `tests/kiosk-bulk-detail-routes.test.ts`, `tests/kiosk-checkin-routes.test.ts`, `tests/kiosk-checkout-availability-route.test.ts`, `tests/kiosk-checkout-complete-bulk-units.test.ts`, `tests/kiosk-checkout-scan-badges.test.ts`
+- Tests: `tests/bulk-unit-kiosk-scans.test.ts`, `tests/ios-kiosk-all-day-contract.test.ts`, `tests/ios-kiosk-idle-cancellation.test.ts`, `tests/ios-kiosk-reservation-pickup-contract.test.ts`, `tests/ios-kiosk-scanner-focus.test.ts`, `tests/kiosk-active-checkout-edit-source.test.ts`, `tests/kiosk-bulk-detail-routes.test.ts`, `tests/kiosk-checkin-routes.test.ts`
 
 ## kits
 
@@ -129,7 +129,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 - Pages: `/reports/scans`, `/scan`
 - APIs: `/api/checkouts/[id]/checkin-scan`, `/api/checkouts/[id]/scan-status`, `/api/checkouts/[id]/scan`, `/api/checkouts/[id]/start-scan-session`, `/api/kiosk/checkin/[id]/scan`, `/api/kiosk/checkout/scan`, `/api/kiosk/pickup/[id]/scan`, `/api/kiosk/scan-lookup`, `/api/reports/scans`
 - Services: `src/lib/services/bulk-unit-scans.ts`, `src/lib/services/kiosk-scan.ts`, `src/lib/services/scans.ts`
-- Tests: `tests/bulk-scan-race.test.ts`, `tests/bulk-unit-kiosk-scans.test.ts`, `tests/ios-scan-result-retry.test.ts`, `tests/kiosk-checkout-scan-badges.test.ts`, `tests/scan-route-gate-contract.test.ts`
+- Tests: `tests/bulk-scan-race.test.ts`, `tests/bulk-unit-kiosk-scans.test.ts`, `tests/ios-kiosk-scanner-focus.test.ts`, `tests/ios-scan-result-retry.test.ts`, `tests/kiosk-checkout-scan-badges.test.ts`, `tests/scan-route-gate-contract.test.ts`
 
 ## search
 

@@ -102,6 +102,8 @@ _2026-06-22 update: iOS kiosk student hub/input recovery shipped without opening
 
 _2026-06-22 update: iOS kiosk fractional-date decoding shipped without opening a new gap. The fix is client-side rollout tolerance for existing JSON date output, so no API contract or schema decision changed._
 
+_2026-06-22 update: Kiosk active checkout edits shipped without opening a new gap. Existing kiosk device auth, Booking, AssetAllocation, numbered bulk unit, stock movement, availability, and audit contracts support the active checkout edit path._
+
 _2026-06-19 update: Schedule data-quality queue shipped without opening a new gap. The queue is read-only, uses existing CalendarEvent, ShiftGroup, Location, and archive fields, and routes cleanup through current Event detail and Settings ownership surfaces._
 
 _2026-06-19 update: Schedule event identity normalization shipped without opening a new gap. Shared helper code now normalizes opponent and venue strings at ingest/edit/display boundaries, preserving raw calendar venue evidence and the existing pickup-location separation._
@@ -258,6 +260,7 @@ _2026-06-19 update: Category cleanup wizard and picker visibility shipped withou
 ---
 
 ## Change Log
+- 2026-06-22: Kiosk active checkout edits shipped without opening a new gap. The native kiosk can now update an OPEN checkout's title/return time and add/remove unreturned active items through kiosk-scoped, audited, serializable mutations using the existing custody models.
 - 2026-06-22: iOS 17 kiosk-only target shipped without opening a new gap. The dedicated native `WisconsinKiosk` iPad target uses existing kiosk APIs, kiosk device auth, and kiosk source files; no schema, app/web custody, or normal mobile target downgrade was needed.
 - 2026-06-22: Assets gap query bounds shipped without opening a new gap. Existing Asset and BulkSku models support the cleanup flow; the fix bounds reads and reports sampled suggestions without adding schema or workflow surface.
 - 2026-06-22: Booking action policy cleanup shipped without opening a new gap. Existing D-040 custody boundaries remain unchanged; this reconciles duplicated app/web action gating with the server rule contract.

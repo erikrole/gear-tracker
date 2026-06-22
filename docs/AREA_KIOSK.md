@@ -60,7 +60,7 @@ Files under `ios/Wisconsin/Kiosk/`:
   - `GET /users` — roster filtered by kiosk's `locationId`
   - `POST /identify` — resolves a scanned Wiscard value to an active, location-scoped kiosk user
   - `GET /student/[userId]` — a student's active checkouts, pending pickups, due reservation pickups, and upcoming reservations
-  - `POST /checkout/scan`, `POST /checkout/complete`, `GET /checkout/[id]`
+  - `POST /checkout/scan`, `POST /checkout/complete`, `GET/PATCH/POST/DELETE /checkout/[id]`
   - `POST /checkin/[id]/scan`, `POST /checkin/[id]/complete`
   - `POST /pickup/[id]/scan`, `POST /pickup/[id]/confirm`
   - `POST /scan-lookup` — read-only item-by-tag lookup
@@ -70,6 +70,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 - Serialized kiosk checkout, pickup, and return scans reconcile the asset's saved `locationId` to the kiosk's `locationId`. Pickup and return scan events store expected and actual location evidence plus a mismatch flag when the item or booking location does not match the kiosk handoff location.
 - Direct kiosk checkout requires an event or custom purpose before completion. If a selected event is used, the booking title is the event summary and the event is linked through both `Booking.eventId` and `BookingEvent`; custom detail is saved in notes when present. If no event is selected, the typed purpose becomes the booking title.
 - Direct kiosk checkout records pickup at the actual completion time and lets staff define the return date/time. Selected events prefill the due-back time from the event end when possible. The native kiosk preflights scanned items through `/api/kiosk/checkout/availability`, and checkout completion repeats the same conflict/shortage/unavailable checks inside the transaction before creating the booking.
+- Active kiosk checkouts can be edited from the idle detail drawer. The kiosk-authenticated checkout detail route can update title/return time, add one scanned serialized asset or numbered bulk unit, and remove one unreturned active item. Mutations are scoped to `OPEN` `CHECKOUT` rows at the kiosk location, run in `SERIALIZABLE` transactions, re-check availability when custody changes, update active allocations/bulk unit status, and write audit entries.
 - Kiosk owns the reservation-to-custody bridge. When a due reservation is picked up at kiosk, the student hub surfaces it as pickup work. Scan evidence is staged on the source reservation, confirmation creates the linked checkout custody record through `sourceReservationId`, binds exact numbered units, opens checkout custody, and marks the source reservation `COMPLETED` because the reservation was fulfilled.
 - Stale pending-pickup checkouts auto-expire during the scheduled morning refresh after 48 hours past `startsAt`. Expiry cancels the booking, releases serialized allocations, restores held bulk stock, releases any scanned numbered units, cancels open scan sessions, and writes a system audit entry.
 - **Auth helpers:** `withKiosk()` (`src/lib/api.ts`) and `requireKiosk()` (`src/lib/auth.ts`) validate the kiosk-session cookie, enforce the server-side 7-day `sessionExpiresAt`, refresh `lastSeenAt`, throw 401 if expired/inactive/deactivated.
@@ -96,6 +97,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 | AC-16 | Idle dashboard survives partial read failures | ✅ Complete (2026-05-13) |
 | AC-17 | Stale pending-pickup checkouts auto-expire | ✅ Complete (2026-05-13) |
 | AC-18 | Reservation pickup can be fulfilled into linked checkout custody only through kiosk | ✅ Complete (2026-06-18) |
+| AC-19 | Active kiosk checkouts can be edited without leaving kiosk mode | ✅ Complete (2026-06-22) |
 
 ## Known Gaps
 
@@ -106,6 +108,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 ## Change Log
 | Date | Change |
 |------|--------|
+| 2026-06-22 | Native kiosk active checkout edits shipped. The active-checkout drawer can update title and due-back time, add scanned serialized assets or numbered bulk units, and remove unreturned active items. `/api/kiosk/checkout/[id]` now owns kiosk-authenticated PATCH/POST/DELETE mutations with location scoping, availability re-checks, serializable transactions, allocation/bulk-unit updates, and audit entries. |
 | 2026-06-22 | Native kiosk API date decoding now accepts server ISO timestamps with or without fractional seconds. This prevents idle dashboard counters from showing live totals while the tapped Items Out / Checkouts lists and student hub rows decode to empty because their `startsAt`/`endsAt` fields use fractional-second JSON dates. |
 | 2026-06-22 | Native kiosk student hub loading no longer mislabels every first-load failure as an internet disconnect. The student-context decoder now tolerates partial checkout/pickup/reservation rows, transient cancellations stay quiet, 401 deactivates the kiosk session, and visible errors distinguish network, server, not-found, and response-shape failures. Kiosk native text entry also uses a UIKit-backed system keyboard field that clears the iPad shortcut/suggestion assistant bar without reintroducing an in-app keyboard. |
 | 2026-06-22 | Native kiosk dashboard decoding now tolerates partial or rollout-skewed dashboard sections. Missing stats/standby fields fall back safely, malformed event/item/checkout rows are dropped instead of blanking the whole idle screen, and DEBUG builds log the underlying decode key/type when the kiosk API response still cannot decode. |

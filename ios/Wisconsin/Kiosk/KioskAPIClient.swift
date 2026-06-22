@@ -189,6 +189,48 @@ struct KioskAPI {
         return try await perform(req)
     }
 
+    func kioskUpdateActiveCheckout(id: String, actorId: String, title: String?, endsAt: Date?) async throws -> KioskActiveCheckoutMutationResult {
+        struct Body: Encodable {
+            let actorId: String
+            let title: String?
+            let endsAt: String?
+        }
+        var req = request(path: "/api/kiosk/checkout/\(id)", method: "PATCH")
+        req.httpBody = try JSONEncoder().encode(Body(
+            actorId: actorId,
+            title: title,
+            endsAt: endsAt.map { isoString(from: $0) }
+        ))
+        return try await perform(req)
+    }
+
+    func kioskAddActiveCheckoutItem(id: String, actorId: String, scanValue: String) async throws -> KioskActiveCheckoutMutationResult {
+        struct Body: Encodable {
+            let actorId: String
+            let scanValue: String
+        }
+        var req = request(path: "/api/kiosk/checkout/\(id)", method: "POST")
+        req.httpBody = try JSONEncoder().encode(Body(actorId: actorId, scanValue: scanValue))
+        return try await perform(req)
+    }
+
+    func kioskRemoveActiveCheckoutItem(id: String, actorId: String, item: KioskCheckoutDetail.ReturnItem) async throws -> KioskActiveCheckoutMutationResult {
+        struct Body: Encodable {
+            let actorId: String
+            let assetId: String?
+            let bulkSkuId: String?
+            let unitNumber: Int?
+        }
+        var req = request(path: "/api/kiosk/checkout/\(id)", method: "DELETE")
+        req.httpBody = try JSONEncoder().encode(Body(
+            actorId: actorId,
+            assetId: item.isNumberedBulk ? nil : item.id,
+            bulkSkuId: item.isNumberedBulk ? item.bulkSkuId : nil,
+            unitNumber: item.isNumberedBulk ? item.unitNumber : nil
+        ))
+        return try await perform(req)
+    }
+
     // MARK: - Checkin (Return)
 
     func kioskCheckinScan(bookingId: String, scanValue: String) async throws -> KioskScanResult {

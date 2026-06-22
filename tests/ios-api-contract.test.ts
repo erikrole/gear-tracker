@@ -118,6 +118,7 @@ describe("iOS API contracts — kiosk dashboard decoding", () => {
     expect(models).toContain("LossyDecodableArray<KioskEvent>");
     expect(models).toContain("LossyDecodableArray<ActiveItem>");
     expect(models).toContain("LossyDecodableArray<KioskActiveCheckout>");
+    expect(models).toContain("let requesterId: String?");
     expect(models).toContain("sleepMode = try container.decodeIfPresent(Bool.self, forKey: .sleepMode) ?? false");
     expect(models).toContain("assignedUsers = try container.decodeIfPresent(LossyDecodableArray<AssignedUser>.self");
     expect(models).toContain("requesterInitials = try container.decodeIfPresent(String.self, forKey: .requesterInitials) ?? Self.initials(for: requesterName)");

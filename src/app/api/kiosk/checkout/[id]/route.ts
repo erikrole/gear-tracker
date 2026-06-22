@@ -1,6 +1,51 @@
 import { db } from "@/lib/db";
 import { withKiosk } from "@/lib/api";
 import { HttpError, ok } from "@/lib/http";
+import { createAuditEntryTx } from "@/lib/audit";
+import { activeCheckoutAddItemBody, activeCheckoutRemoveItemBody, activeCheckoutUpdateBody } from "@/lib/schemas/kiosk";
+import { findAssetByScanValue } from "@/lib/services/kiosk-scan";
+import { findBulkUnitByScanValue } from "@/lib/services/bulk-unit-scans";
+import { assetLocationEvidence, locationEvidencePayload, reconcileAssetLocationToKiosk } from "@/lib/services/kiosk-location";
+import { checkAvailability } from "@/lib/services/availability";
+import { upsertBulkBalancesAndMovements } from "@/lib/services/bookings-helpers";
+import { BookingKind, BulkMovementKind, BulkUnitStatus, Prisma } from "@prisma/client";
+
+function hasBlockingAvailabilityIssue(result: Awaited<ReturnType<typeof checkAvailability>>) {
+  return result.conflicts.length > 0 || result.shortages.length > 0 || result.unavailableAssets.length > 0;
+}
+
+async function requireActor(tx: Prisma.TransactionClient, actorId: string) {
+  const actor = await tx.user.findFirst({
+    where: { id: actorId, active: true },
+    select: { id: true, role: true },
+  });
+  if (!actor) throw new HttpError(404, "User not found");
+  return actor;
+}
+
+async function requireEditableCheckout(
+  tx: Prisma.TransactionClient,
+  args: { checkoutId: string; locationId: string },
+) {
+  const booking = await tx.booking.findFirst({
+    where: {
+      id: args.checkoutId,
+      kind: "CHECKOUT",
+      status: "OPEN",
+      locationId: args.locationId,
+    },
+    select: {
+      id: true,
+      title: true,
+      startsAt: true,
+      endsAt: true,
+      locationId: true,
+      requesterUserId: true,
+    },
+  });
+  if (!booking) throw new HttpError(404, "Active checkout not found");
+  return booking;
+}
 
 /** Get checkout details for kiosk return and pickup flows */
 export const GET = withKiosk<{ id: string }>(async (_req, { params }) => {
@@ -12,6 +57,7 @@ export const GET = withKiosk<{ id: string }>(async (_req, { params }) => {
       refNumber: true,
       status: true,
       kind: true,
+      requesterUserId: true,
       endsAt: true,
       scanEvents: {
         where: {
@@ -175,6 +221,7 @@ export const GET = withKiosk<{ id: string }>(async (_req, { params }) => {
     title: booking.title,
     refNumber: booking.refNumber,
     status: booking.status,
+    requesterId: booking.requesterUserId,
     endsAt: booking.endsAt,
     scanSummary: {
       serializedTotal: serializedItems.length,
@@ -183,4 +230,420 @@ export const GET = withKiosk<{ id: string }>(async (_req, { params }) => {
     },
     items: [...serializedItems, ...bulkItems],
   });
+});
+
+export const PATCH = withKiosk<{ id: string }>(async (req, { kiosk, params }) => {
+  const body = activeCheckoutUpdateBody.parse(await req.json());
+  const actorId = body.actorId;
+  const requestedEndsAt = body.endsAt ? new Date(body.endsAt) : null;
+
+  const updated = await db.$transaction(async (tx) => {
+    const actor = await requireActor(tx, actorId);
+    const booking = await requireEditableCheckout(tx, {
+      checkoutId: params.id,
+      locationId: kiosk.locationId,
+    });
+
+    if (requestedEndsAt && requestedEndsAt <= new Date()) {
+      throw new HttpError(400, "Return time must be in the future");
+    }
+    if (requestedEndsAt && requestedEndsAt <= booking.startsAt) {
+      throw new HttpError(400, "Return time must be after checkout start");
+    }
+
+    if (requestedEndsAt) {
+      const activeSerialized = await tx.bookingSerializedItem.findMany({
+        where: { bookingId: booking.id, allocationStatus: "active" },
+        select: { assetId: true },
+      });
+      const activeBulkUnits = await tx.bookingBulkUnitAllocation.findMany({
+        where: {
+          checkedOutAt: { not: null },
+          checkedInAt: null,
+          bookingBulkItem: { bookingId: booking.id },
+        },
+        select: {
+          bookingBulkItem: { select: { bulkSkuId: true } },
+        },
+      });
+      const bulkCounts = new Map<string, number>();
+      for (const allocation of activeBulkUnits) {
+        const bulkSkuId = allocation.bookingBulkItem.bulkSkuId;
+        bulkCounts.set(bulkSkuId, (bulkCounts.get(bulkSkuId) ?? 0) + 1);
+      }
+
+      const availability = await checkAvailability(tx, {
+        locationId: booking.locationId,
+        startsAt: booking.startsAt,
+        endsAt: requestedEndsAt,
+        serializedAssetIds: activeSerialized.map((item) => item.assetId),
+        bulkItems: [...bulkCounts.entries()].map(([bulkSkuId, quantity]) => ({ bulkSkuId, quantity })),
+        bookingKind: BookingKind.CHECKOUT,
+        excludeBookingId: booking.id,
+      });
+      if (hasBlockingAvailabilityIssue(availability)) {
+        throw new HttpError(409, "One or more items are not available through that return time", availability);
+      }
+    }
+
+    const next = await tx.booking.update({
+      where: { id: booking.id },
+      data: {
+        title: body.title,
+        endsAt: requestedEndsAt ?? undefined,
+      },
+      select: { id: true, title: true, endsAt: true },
+    });
+
+    if (requestedEndsAt) {
+      await tx.assetAllocation.updateMany({
+        where: { bookingId: booking.id, active: true },
+        data: { endsAt: requestedEndsAt },
+      });
+    }
+
+    await createAuditEntryTx(tx, {
+      actorId,
+      actorRole: actor.role,
+      entityType: "booking",
+      entityId: booking.id,
+      action: "kiosk_checkout_updated",
+      before: {
+        title: booking.title,
+        endsAt: booking.endsAt.toISOString(),
+      },
+      after: {
+        title: next.title,
+        endsAt: next.endsAt.toISOString(),
+        kioskDeviceId: kiosk.kioskId,
+      },
+    });
+
+    return next;
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+  return ok({ success: true, booking: updated });
+});
+
+export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => {
+  const body = activeCheckoutAddItemBody.parse(await req.json());
+  const actorId = body.actorId;
+  const scanValue = body.scanValue;
+
+  const bulkUnit = await findBulkUnitByScanValue(scanValue);
+  const asset = bulkUnit ? null : await findAssetByScanValue(scanValue, {
+    id: true,
+    assetTag: true,
+    name: true,
+    imageUrl: true,
+    status: true,
+    category: { select: { name: true } },
+  });
+
+  if (!bulkUnit && !asset) {
+    return ok({ success: false, error: "Item not found" });
+  }
+
+  const result = await db.$transaction(async (tx) => {
+    const actor = await requireActor(tx, actorId);
+    const booking = await requireEditableCheckout(tx, {
+      checkoutId: params.id,
+      locationId: kiosk.locationId,
+    });
+    const now = new Date();
+
+    if (bulkUnit) {
+      if (bulkUnit.status !== BulkUnitStatus.AVAILABLE) {
+        return { success: false, error: `${bulkUnit.name} is not available` };
+      }
+
+      const unit = await tx.bulkSkuUnit.findUnique({
+        where: {
+          bulkSkuId_unitNumber: {
+            bulkSkuId: bulkUnit.bulkSkuId,
+            unitNumber: bulkUnit.unitNumber,
+          },
+        },
+        include: { bulkSku: { select: { id: true, name: true, active: true, imageUrl: true } } },
+      });
+      if (!unit || !unit.bulkSku.active) {
+        return { success: false, error: "Battery unit not found" };
+      }
+
+      const updatedUnit = await tx.bulkSkuUnit.updateMany({
+        where: { id: unit.id, status: BulkUnitStatus.AVAILABLE },
+        data: { status: BulkUnitStatus.CHECKED_OUT },
+      });
+      if (updatedUnit.count !== 1) {
+        return { success: false, error: `${unit.bulkSku.name} #${unit.unitNumber} is no longer available` };
+      }
+
+      const bulkItem = await tx.bookingBulkItem.upsert({
+        where: {
+          bookingId_bulkSkuId: {
+            bookingId: booking.id,
+            bulkSkuId: unit.bulkSkuId,
+          },
+        },
+        create: {
+          bookingId: booking.id,
+          bulkSkuId: unit.bulkSkuId,
+          plannedQuantity: 1,
+          checkedOutQuantity: 1,
+        },
+        update: {
+          plannedQuantity: { increment: 1 },
+          checkedOutQuantity: { increment: 1 },
+        },
+        select: { id: true },
+      });
+
+      await tx.bookingBulkUnitAllocation.create({
+        data: {
+          bookingBulkItemId: bulkItem.id,
+          bulkSkuUnitId: unit.id,
+          checkedOutAt: now,
+        },
+      });
+
+      await upsertBulkBalancesAndMovements(tx, {
+        locationId: booking.locationId,
+        bookingId: booking.id,
+        actorUserId: actorId,
+        kind: BulkMovementKind.CHECKOUT,
+        items: [{ bulkSkuId: unit.bulkSkuId, quantity: 1 }],
+      });
+
+      await createAuditEntryTx(tx, {
+        actorId,
+        actorRole: actor.role,
+        entityType: "booking",
+        entityId: booking.id,
+        action: "kiosk_checkout_item_added",
+        after: {
+          bulkSkuId: unit.bulkSkuId,
+          unitNumber: unit.unitNumber,
+          kioskDeviceId: kiosk.kioskId,
+        },
+      });
+
+      return {
+        success: true,
+        message: `${unit.bulkSku.name} #${unit.unitNumber} added`,
+      };
+    }
+
+    if (!asset) {
+      return { success: false, error: "Item not found" };
+    }
+    if (asset.status === "RETIRED") {
+      return { success: false, error: `${asset.assetTag} is retired` };
+    }
+    if (asset.status === "MAINTENANCE") {
+      return { success: false, error: `${asset.assetTag} is in maintenance` };
+    }
+
+    const existingInBooking = await tx.bookingSerializedItem.findUnique({
+      where: { bookingId_assetId: { bookingId: booking.id, assetId: asset.id } },
+      select: { allocationStatus: true },
+    });
+    if (existingInBooking?.allocationStatus === "active") {
+      return { success: false, error: `${asset.assetTag} is already on this checkout` };
+    }
+
+    const availability = await checkAvailability(tx, {
+      locationId: booking.locationId,
+      startsAt: now,
+      endsAt: booking.endsAt,
+      serializedAssetIds: [asset.id],
+      bulkItems: [],
+      bookingKind: BookingKind.CHECKOUT,
+      excludeBookingId: booking.id,
+    });
+    if (hasBlockingAvailabilityIssue(availability)) {
+      return { success: false, error: "Item is not available for this checkout" };
+    }
+
+    const evidence = await assetLocationEvidence(tx, {
+      assetId: asset.id,
+      expectedLocationId: booking.locationId,
+    });
+    await reconcileAssetLocationToKiosk(tx, {
+      assetId: asset.id,
+      kioskLocationId: booking.locationId,
+    });
+
+    if (existingInBooking) {
+      await tx.bookingSerializedItem.update({
+        where: { bookingId_assetId: { bookingId: booking.id, assetId: asset.id } },
+        data: { allocationStatus: "active" },
+      });
+    } else {
+      await tx.bookingSerializedItem.create({
+        data: {
+          bookingId: booking.id,
+          assetId: asset.id,
+          allocationStatus: "active",
+        },
+      });
+    }
+    await tx.assetAllocation.create({
+      data: {
+        assetId: asset.id,
+        bookingId: booking.id,
+        startsAt: now,
+        endsAt: booking.endsAt,
+        active: true,
+        kind: "CHECKOUT",
+      },
+    });
+
+    await createAuditEntryTx(tx, {
+      actorId,
+      actorRole: actor.role,
+      entityType: "booking",
+      entityId: booking.id,
+      action: "kiosk_checkout_item_added",
+      after: {
+        assetId: asset.id,
+        tagName: asset.assetTag,
+        kioskDeviceId: kiosk.kioskId,
+        ...locationEvidencePayload(evidence),
+      },
+    });
+
+    return {
+      success: true,
+      message: `${asset.name || asset.assetTag} added`,
+      ...locationEvidencePayload(evidence),
+    };
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+  return ok(result);
+});
+
+export const DELETE = withKiosk<{ id: string }>(async (req, { kiosk, params }) => {
+  const body = activeCheckoutRemoveItemBody.parse(await req.json());
+  const actorId = body.actorId;
+
+  const result = await db.$transaction(async (tx) => {
+    const actor = await requireActor(tx, actorId);
+    const booking = await requireEditableCheckout(tx, {
+      checkoutId: params.id,
+      locationId: kiosk.locationId,
+    });
+
+    if (body.assetId) {
+      const item = await tx.bookingSerializedItem.findUnique({
+        where: { bookingId_assetId: { bookingId: booking.id, assetId: body.assetId } },
+        include: { asset: { select: { assetTag: true, name: true } } },
+      });
+      if (!item || item.allocationStatus !== "active") {
+        return { success: false, error: "Item is not active on this checkout" };
+      }
+
+      await tx.bookingSerializedItem.delete({ where: { id: item.id } });
+      await tx.assetAllocation.updateMany({
+        where: { bookingId: booking.id, assetId: body.assetId, active: true },
+        data: { active: false },
+      });
+
+      await createAuditEntryTx(tx, {
+        actorId,
+        actorRole: actor.role,
+        entityType: "booking",
+        entityId: booking.id,
+        action: "kiosk_checkout_item_removed",
+        before: {
+          assetId: body.assetId,
+          tagName: item.asset.assetTag,
+          kioskDeviceId: kiosk.kioskId,
+        },
+      });
+
+      return { success: true, message: `${item.asset.name || item.asset.assetTag} removed` };
+    }
+
+    const allocation = await tx.bookingBulkUnitAllocation.findFirst({
+      where: {
+        checkedOutAt: { not: null },
+        checkedInAt: null,
+        bulkSkuUnit: {
+          bulkSkuId: body.bulkSkuId,
+          unitNumber: body.unitNumber,
+        },
+        bookingBulkItem: { bookingId: booking.id },
+      },
+      include: {
+        bulkSkuUnit: {
+          select: {
+            id: true,
+            unitNumber: true,
+            bulkSkuId: true,
+            bulkSku: { select: { name: true } },
+          },
+        },
+        bookingBulkItem: {
+          select: {
+            id: true,
+            plannedQuantity: true,
+            checkedOutQuantity: true,
+            checkedInQuantity: true,
+          },
+        },
+      },
+    });
+    if (!allocation) {
+      return { success: false, error: "Battery unit is not active on this checkout" };
+    }
+    if (allocation.bookingBulkItem.checkedInQuantity > 0) {
+      return { success: false, error: "Returned battery units cannot be removed from checkout history" };
+    }
+
+    await tx.bookingBulkUnitAllocation.delete({ where: { id: allocation.id } });
+    await tx.bulkSkuUnit.update({
+      where: { id: allocation.bulkSkuUnit.id },
+      data: { status: BulkUnitStatus.AVAILABLE },
+    });
+
+    if (allocation.bookingBulkItem.plannedQuantity <= 1) {
+      await tx.bookingBulkItem.delete({ where: { id: allocation.bookingBulkItem.id } });
+    } else {
+      await tx.bookingBulkItem.update({
+        where: { id: allocation.bookingBulkItem.id },
+        data: {
+          plannedQuantity: { decrement: 1 },
+          checkedOutQuantity: { decrement: 1 },
+        },
+      });
+    }
+
+    await upsertBulkBalancesAndMovements(tx, {
+      locationId: booking.locationId,
+      bookingId: booking.id,
+      actorUserId: actorId,
+      kind: BulkMovementKind.CHECKIN,
+      items: [{ bulkSkuId: allocation.bulkSkuUnit.bulkSkuId, quantity: 1 }],
+    });
+
+    await createAuditEntryTx(tx, {
+      actorId,
+      actorRole: actor.role,
+      entityType: "booking",
+      entityId: booking.id,
+      action: "kiosk_checkout_item_removed",
+      before: {
+        bulkSkuId: allocation.bulkSkuUnit.bulkSkuId,
+        unitNumber: allocation.bulkSkuUnit.unitNumber,
+        kioskDeviceId: kiosk.kioskId,
+      },
+    });
+
+    return {
+      success: true,
+      message: `${allocation.bulkSkuUnit.bulkSku.name} #${allocation.bulkSkuUnit.unitNumber} removed`,
+    };
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+  return ok(result);
 });

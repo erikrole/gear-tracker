@@ -45,6 +45,35 @@ export const checkoutAvailabilityBody = z.object({
 });
 export type CheckoutAvailabilityBody = z.infer<typeof checkoutAvailabilityBody>;
 
+export const activeCheckoutUpdateBody = z.object({
+  actorId: cuidish,
+  title: z.string().trim().min(1).max(160).optional(),
+  endsAt: z.string().datetime({ offset: true }).optional(),
+}).refine((body) => body.title !== undefined || body.endsAt !== undefined, {
+  message: "Title or return time is required",
+});
+export type ActiveCheckoutUpdateBody = z.infer<typeof activeCheckoutUpdateBody>;
+
+export const activeCheckoutAddItemBody = z.object({
+  actorId: cuidish,
+  scanValue: z.string().trim().min(1, "Scan value required"),
+});
+export type ActiveCheckoutAddItemBody = z.infer<typeof activeCheckoutAddItemBody>;
+
+export const activeCheckoutRemoveItemBody = z.object({
+  actorId: cuidish,
+  assetId: cuidish.optional(),
+  bulkSkuId: cuidish.optional(),
+  unitNumber: z.number().int().positive().optional(),
+}).refine((body) => {
+  const serialized = !!body.assetId;
+  const bulkUnit = !!body.bulkSkuId && body.unitNumber !== undefined;
+  return serialized !== bulkUnit;
+}, {
+  message: "Provide either assetId or bulkSkuId plus unitNumber",
+});
+export type ActiveCheckoutRemoveItemBody = z.infer<typeof activeCheckoutRemoveItemBody>;
+
 export const checkinCompleteBody = z.object({
   actorId: cuidish,
 });
