@@ -368,8 +368,72 @@ describe("battery ops live counts", () => {
     }));
     expect(units[1]).toEqual(expect.objectContaining({
       unitNumber: 29,
+      status: BulkUnitStatus.AVAILABLE,
       checkedOutAt: null,
       booking: null,
     }));
+    expect(body.data.skus[0].counts).toEqual({
+      total: 2,
+      available: 1,
+      checkedOut: 1,
+      lost: 0,
+      retired: 0,
+    });
+  });
+
+  it("BUG: treats stale checked-out units without active checkout context as available", async () => {
+    vi.mocked(db.bulkSku.findMany).mockResolvedValue(batterySkus([
+      {
+        id: "sku-battery",
+        name: "Sony Battery",
+        category: "Batteries",
+        trackByNumber: true,
+        minThreshold: 10,
+        binQrCodeValue: "sony-battery",
+        location: { id: "loc-1", name: "Camp Randall" },
+        categoryRel: { id: "cat-1", name: "Batteries" },
+        balances: [],
+        units: [
+          {
+            id: "unit-29",
+            unitNumber: 29,
+            status: BulkUnitStatus.CHECKED_OUT,
+            updatedAt: new Date("2026-06-15T20:14:47.626Z"),
+            notes: null,
+            labelPrintedAt: null,
+            labelPrintedById: null,
+            labelPrintBatchId: null,
+            allocations: [],
+          },
+          {
+            id: "unit-31",
+            unitNumber: 31,
+            status: BulkUnitStatus.CHECKED_OUT,
+            updatedAt: new Date("2026-06-15T20:14:47.626Z"),
+            notes: null,
+            labelPrintedAt: null,
+            labelPrintedById: null,
+            labelPrintBatchId: null,
+            allocations: [],
+          },
+        ],
+      },
+    ]));
+    vi.mocked(db.asset.findMany).mockResolvedValue(cameraAssets([]));
+
+    const res = await getBatteryOps(makeGetRequest("/api/bulk-skus/batteries"), noParams);
+    const body = await res.json();
+
+    expect(body.data.skus[0].units).toEqual([
+      expect.objectContaining({ unitNumber: 29, status: BulkUnitStatus.AVAILABLE, booking: null }),
+      expect.objectContaining({ unitNumber: 31, status: BulkUnitStatus.AVAILABLE, booking: null }),
+    ]);
+    expect(body.data.skus[0].counts).toEqual({
+      total: 2,
+      available: 2,
+      checkedOut: 0,
+      lost: 0,
+      retired: 0,
+    });
   });
 });

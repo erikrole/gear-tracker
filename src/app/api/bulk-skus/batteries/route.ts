@@ -194,11 +194,12 @@ export const GET = withAuth(async (_req, { user }) => {
       const fallback = allocation ? null : fallbackAssignmentsByUnitId.get(unit.id);
       const booking = allocation?.bookingBulkItem.booking ?? fallback?.booking;
       const checkedOutAt = allocation?.checkedOutAt ?? allocation?.createdAt ?? fallback?.checkedOutAt ?? null;
+      const status = unit.status === "CHECKED_OUT" && !booking ? "AVAILABLE" : unit.status;
 
       return {
         id: unit.id,
         unitNumber: unit.unitNumber,
-        status: unit.status,
+        status,
         notes: unit.notes,
         labelPrintedAt: unit.labelPrintedAt?.toISOString() ?? null,
         labelPrintedById: unit.labelPrintedById,
