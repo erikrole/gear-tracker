@@ -15,7 +15,7 @@ export const GET = withAuth(async (_req, { user }) => {
   requirePermission(user.role, "bulk_sku", "adjust");
 
   const now = new Date();
-  const [rawSkus, cameraAssets, activeUnitAllocations] = await Promise.all([
+  const [rawSkus, cameraAssets, activeUnitAllocations, openUnitTrackedBulkItems] = await Promise.all([
     db.bulkSku.findMany({
       where: {
         active: true,
@@ -95,17 +95,105 @@ export const GET = withAuth(async (_req, { user }) => {
         },
       },
     }),
+    db.bookingBulkItem.findMany({
+      where: {
+        bulkSku: {
+          active: true,
+          trackByNumber: true,
+        },
+        booking: {
+          kind: BookingKind.CHECKOUT,
+          status: BookingStatus.OPEN,
+        },
+      },
+      orderBy: [{ booking: { endsAt: "asc" } }, { createdAt: "asc" }],
+      select: {
+        bulkSkuId: true,
+        plannedQuantity: true,
+        checkedInQuantity: true,
+        unitAllocations: {
+          where: { checkedInAt: null },
+          select: { id: true },
+        },
+        booking: {
+          select: {
+            id: true,
+            title: true,
+            refNumber: true,
+            startsAt: true,
+            endsAt: true,
+            requester: { select: { name: true } },
+          },
+        },
+      },
+    }),
   ]);
 
   const activeAllocationByUnitId = new Map(
     activeUnitAllocations.map((allocation) => [allocation.bulkSkuUnitId, allocation]),
   );
+  const fallbackContextsBySkuId = new Map<
+    string,
+    Array<{
+      remaining: number;
+      checkedOutAt: Date;
+      booking: {
+        id: string;
+        title: string;
+        refNumber: string | null;
+        endsAt: Date;
+        requester: { name: string };
+      };
+    }>
+  >();
+  for (const item of openUnitTrackedBulkItems) {
+    const outstanding = Math.max(0, item.plannedQuantity - item.checkedInQuantity - item.unitAllocations.length);
+    if (outstanding <= 0) continue;
+    const contexts = fallbackContextsBySkuId.get(item.bulkSkuId) ?? [];
+    contexts.push({
+      remaining: outstanding,
+      checkedOutAt: item.booking.startsAt,
+      booking: item.booking,
+    });
+    fallbackContextsBySkuId.set(item.bulkSkuId, contexts);
+  }
 
   const skus = rawSkus.filter(isBatterySku).map((sku) => {
+    const fallbackAssignmentsByUnitId = new Map<
+      string,
+      {
+        checkedOutAt: Date;
+        booking: {
+          id: string;
+          title: string;
+          refNumber: string | null;
+          endsAt: Date;
+          requester: { name: string };
+        };
+      }
+    >();
+    const fallbackContexts = fallbackContextsBySkuId.get(sku.id) ?? [];
+    if (fallbackContexts.length > 0) {
+      const orphanCheckedOutUnits = sku.units
+        .filter((unit) => unit.status === "CHECKED_OUT" && !activeAllocationByUnitId.has(unit.id) && unit.allocations.length === 0)
+        .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+
+      for (const unit of orphanCheckedOutUnits) {
+        const context = fallbackContexts.find((candidate) => candidate.remaining > 0);
+        if (!context) break;
+        fallbackAssignmentsByUnitId.set(unit.id, {
+          checkedOutAt: context.checkedOutAt,
+          booking: context.booking,
+        });
+        context.remaining -= 1;
+      }
+    }
+
     const units = sku.units.map((unit) => {
       const allocation = activeAllocationByUnitId.get(unit.id) ?? unit.allocations[0];
-      const booking = allocation?.bookingBulkItem.booking;
-      const checkedOutAt = allocation?.checkedOutAt ?? allocation?.createdAt ?? null;
+      const fallback = allocation ? null : fallbackAssignmentsByUnitId.get(unit.id);
+      const booking = allocation?.bookingBulkItem.booking ?? fallback?.booking;
+      const checkedOutAt = allocation?.checkedOutAt ?? allocation?.createdAt ?? fallback?.checkedOutAt ?? null;
 
       return {
         id: unit.id,

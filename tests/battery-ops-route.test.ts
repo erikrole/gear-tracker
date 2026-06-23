@@ -10,6 +10,7 @@ vi.mock("@/lib/db", () => ({
     bulkSku: { findMany: vi.fn() },
     asset: { findMany: vi.fn() },
     bookingBulkUnitAllocation: { findMany: vi.fn() },
+    bookingBulkItem: { findMany: vi.fn() },
   },
 }));
 
@@ -35,6 +36,10 @@ function unitAllocations(rows: unknown) {
   return rows as Awaited<ReturnType<typeof db.bookingBulkUnitAllocation.findMany>>;
 }
 
+function bookingBulkItems(rows: unknown) {
+  return rows as Awaited<ReturnType<typeof db.bookingBulkItem.findMany>>;
+}
+
 function makeGetRequest(path: string) {
   return new Request(`https://app.example.com${path}`, {
     method: "GET",
@@ -52,6 +57,7 @@ beforeEach(() => {
     avatarUrl: null,
   });
   vi.mocked(db.bookingBulkUnitAllocation.findMany).mockResolvedValue(unitAllocations([]));
+  vi.mocked(db.bookingBulkItem.findMany).mockResolvedValue(bookingBulkItems([]));
 });
 
 describe("battery ops live counts", () => {
@@ -286,6 +292,84 @@ describe("battery ops live counts", () => {
         endsAt: "2026-06-24T18:00:00.000Z",
         requesterName: "Alex Student",
       },
+    }));
+  });
+
+  it("BUG: falls back to open checkout bulk items for orphaned checked-out units", async () => {
+    vi.mocked(db.bulkSku.findMany).mockResolvedValue(batterySkus([
+      {
+        id: "sku-battery",
+        name: "Sony Battery",
+        category: "Batteries",
+        trackByNumber: true,
+        minThreshold: 10,
+        binQrCodeValue: "sony-battery",
+        location: { id: "loc-1", name: "Camp Randall" },
+        categoryRel: { id: "cat-1", name: "Batteries" },
+        balances: [],
+        units: [
+          {
+            id: "unit-2",
+            unitNumber: 2,
+            status: BulkUnitStatus.CHECKED_OUT,
+            updatedAt: new Date("2026-06-24T00:50:02.436Z"),
+            notes: null,
+            labelPrintedAt: null,
+            labelPrintedById: null,
+            labelPrintBatchId: null,
+            allocations: [],
+          },
+          {
+            id: "unit-29",
+            unitNumber: 29,
+            status: BulkUnitStatus.CHECKED_OUT,
+            updatedAt: new Date("2026-06-15T20:14:47.626Z"),
+            notes: null,
+            labelPrintedAt: null,
+            labelPrintedById: null,
+            labelPrintBatchId: null,
+            allocations: [],
+          },
+        ],
+      },
+    ]));
+    vi.mocked(db.asset.findMany).mockResolvedValue(cameraAssets([]));
+    vi.mocked(db.bookingBulkItem.findMany).mockResolvedValue(bookingBulkItems([
+      {
+        bulkSkuId: "sku-battery",
+        plannedQuantity: 1,
+        checkedInQuantity: 0,
+        unitAllocations: [],
+        booking: {
+          id: "booking-48",
+          title: "Alternate Jersey Shoot",
+          refNumber: "CO-0048",
+          startsAt: new Date("2026-06-24T00:50:02.347Z"),
+          endsAt: new Date("2026-06-24T19:00:00.000Z"),
+          requester: { name: "Jacob Phillips" },
+        },
+      },
+    ]));
+
+    const res = await getBatteryOps(makeGetRequest("/api/bulk-skus/batteries"), noParams);
+    const body = await res.json();
+    const units = body.data.skus[0].units;
+
+    expect(units[0]).toEqual(expect.objectContaining({
+      unitNumber: 2,
+      checkedOutAt: "2026-06-24T00:50:02.347Z",
+      booking: {
+        id: "booking-48",
+        title: "Alternate Jersey Shoot",
+        refNumber: "CO-0048",
+        endsAt: "2026-06-24T19:00:00.000Z",
+        requesterName: "Jacob Phillips",
+      },
+    }));
+    expect(units[1]).toEqual(expect.objectContaining({
+      unitNumber: 29,
+      checkedOutAt: null,
+      booking: null,
     }));
   });
 });

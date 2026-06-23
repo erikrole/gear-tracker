@@ -9,14 +9,14 @@ Last updated: 2026-06-23
 Plan: fix checked-out battery units that show "Unknown" and "No booking context" even though they are linked to active checkout bookings.
 
 - [x] Audit Battery Ops area docs, checkout/kiosk scan contracts, D-022, gaps, schema, page, API route, and peer allocation read models.
-- [x] Patch the Battery Ops API to derive checked-out holder/booking context from active `BookingBulkUnitAllocation` rows.
-- [x] Add focused route regression coverage for checked-out units whose context must come from the active allocation chain.
+- [x] Patch the Battery Ops API to derive checked-out holder/booking context from active `BookingBulkUnitAllocation` rows, with a bounded fallback for orphaned checked-out unit rows.
+- [x] Add focused route regression coverage for both active allocation context and the live orphaned unit shape.
 - [x] Sync Bulk Inventory docs and record verification results.
 - [x] Run focused tests and closeout gates.
 
 ### Review
-- 2026-06-23: Battery Ops now builds an active checked-out allocation map from `BookingBulkUnitAllocation` rows on `OPEN` checkout bookings and uses it to populate holder, booking, due date, and age for checked-out units. The page UI already rendered those fields when present, so the fix is contained to the API read model. Focused regression coverage added in `tests/battery-ops-route.test.ts`.
-  Verification passed with focused Battery Ops route Vitest, TypeScript, docs/codemap check, migration prefix check, whitespace check, and `npm run build:app`. Full `npm run build` was attempted but stopped at the migration deploy preflight because sandboxed DNS to Neon failed; escalation was rejected because the script can apply migrations to the shared database.
+- 2026-06-23: Live read-only Neon evidence showed `CO-0048` has an open unit-tracked Sony Battery bulk item with planned quantity but no active `BookingBulkUnitAllocation` rows, while several Sony Battery units are marked `CHECKED_OUT`. Battery Ops now prefers active allocation rows, then falls back to matching open unit-tracked checkout bulk items for the same SKU, capped by outstanding planned quantity and assigned to the most recently updated orphaned checked-out units. Focused regression coverage added in `tests/battery-ops-route.test.ts`.
+  Verification passed with focused Battery Ops route Vitest and TypeScript after the fallback patch. Earlier verification also passed docs/codemap check, migration prefix check, whitespace check, and `npm run build:app`. Full `npm run build` was attempted but stopped at the migration deploy preflight because sandboxed DNS to Neon failed; escalation was rejected because the script can apply migrations to the shared database.
 
 ---
 
