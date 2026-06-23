@@ -43,8 +43,9 @@ Operate item families backed by `BulkSku` records. Normal discovery happens in `
   1. **Metric strip:** available, checked out, lost, retired, and low-family counts.
   2. **Compatible battery lows:** camera-family battery health derived from active camera inventory and the existing compatibility rules.
   3. **Checked-out units table:** unit number, battery family, holder, booking, due date, and checked-out age.
-  4. **Battery family cards:** per-family available/out/lost/retired counts and direct unit controls.
-  5. **Report handoff:** `/reports/bulk-losses` now owns deeper battery audit/reporting for missing units, loss rate, checkout history, and repeat missing patterns.
+  4. **Inventory data warnings:** stale checked-out unit flags with no active checkout allocation are listed separately while Battery Ops counts them as available.
+  5. **Battery family cards:** per-family available/out/lost/retired counts and direct unit controls.
+  6. **Report handoff:** `/reports/bulk-losses` now owns deeper battery audit/reporting for missing units, loss rate, checkout history, and repeat missing patterns.
 - **Behaviors:**
   - Only active unit-tracked battery families are shown.
   - Low stock uses the existing battery rule of max(`minThreshold`, 10).
@@ -157,6 +158,7 @@ See `AREA_ITEMS.md` 2026-04-06 entry for bulk inventory page hardening:
 
 ## Change Log
 - 2026-06-23: Battery Ops checked-out unit context now derives holder, booking, due date, and age from active `BookingBulkUnitAllocation` rows for `OPEN` checkout bookings, while keeping future reservations as quantity intent until kiosk pickup. For existing orphaned checked-out unit rows created without allocation records, the read model falls back to matching open unit-tracked checkout bulk items for the same SKU, capped by outstanding planned quantity, so valid booking context is visible without over-attaching stale units. Orphaned `CHECKED_OUT` unit flags with no active checkout context read as Available on Battery Ops instead of inflating checked-out counts.
+- 2026-06-23: Battery Ops now exposes read-only inventory data warnings for stale checked-out unit flags that have no active checkout allocation. The warning card lists the affected unit numbers and family/location while the metrics continue to count those units as Available.
 - 2026-06-11: Brother battery label CSV export and printed-label tracking shipped. Added `labelPrintedAt`/`labelPrintedById`/`labelPrintBatchId` to `BulkSkuUnit` (migration 0077), a `buildDerivedBulkUnitQrValue` formatter, the `GET/POST /api/bulk-skus/[id]/units/labels` route (CSV export + audited batch mark-printed), label counts on Battery Ops cards with a Brother CSV download and mark-printed confirmation seeded from the exported unit numbers, per-unit printed-label indicators in Battery Ops and `BulkUnitGrid`, and a secondary export on the numbered-unit detail tab. QR values stay derived and are never stored.
 - 2026-06-11: Native iOS Scan and global search now decode `/api/assets` item-family `bulkItems`, so a printed derived unit QR such as `{binQrCodeValue}-1` resolves to the parent battery family and scanned unit context instead of being discarded as no item found. Scan-to-add in native reservation creation still asks users to add item families with the quantity controls.
 - 2026-05-30: Battery hardening adjustment slice shipped. Battery Ops now includes quantity-tracked battery families, adds audited signed quantity adjustments, adds audited numbered-unit creation with operator reasons, requires reasons for unit status changes, blocks any status mutation while a unit is checked out, and shows before/after count impact before staff confirm.

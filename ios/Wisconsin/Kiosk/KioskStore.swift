@@ -84,6 +84,7 @@ final class KioskStore {
 
     /// True when the inactivity warning should be shown ahead of the reset.
     var inactivityWarningVisible: Bool = false
+    var sleepDismissedUntil: Date?
 
     /// True while a cold-launch session restore is in flight, so the shell can
     /// show a brief splash instead of flashing the activation numpad.
@@ -96,6 +97,7 @@ final class KioskStore {
     private static let infoKey = "kiosk_info_v1"
     private static let inactivityTotal: UInt64 = 300_000_000_000        // 5 min
     private static let inactivityWarning: UInt64 = 270_000_000_000      // 4:30
+    private static let sleepDismissalDuration: TimeInterval = 10 * 60
 
     init() {
         if let data = UserDefaults.standard.data(forKey: Self.infoKey),
@@ -279,6 +281,17 @@ final class KioskStore {
     func dismissInactivityWarning() {
         inactivityWarningVisible = false
         resetInactivity()
+    }
+
+    /// Keep standby from immediately covering the idle screen after a real
+    /// interaction, even if the user briefly leaves and returns to idle.
+    func deferSleepMode(for duration: TimeInterval = 10 * 60) {
+        sleepDismissedUntil = Date().addingTimeInterval(duration)
+        resetInactivity()
+    }
+
+    func clearSleepModeDismissal() {
+        sleepDismissedUntil = nil
     }
 
     // MARK: - Cart persistence (P0 #2 fix)

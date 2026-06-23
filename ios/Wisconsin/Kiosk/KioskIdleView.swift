@@ -9,7 +9,6 @@ struct KioskIdleView: View {
     @State private var isLoading = false
     @State private var lastLoadedAt: Date?
     @State private var loadFailedAt: Date?
-    @State private var sleepDismissedUntil: Date?
     @State private var selectedSummary: KioskSummarySelection = .events
     @State private var selectedEvent: KioskEvent?
     @State private var selectedCheckout: KioskCheckoutDrawerContext?
@@ -112,7 +111,8 @@ struct KioskIdleView: View {
         if debugForcesSleepMode { return true }
         #endif
         guard dashboard?.standby?.sleepMode == true else { return false }
-        if let sleepDismissedUntil, sleepDismissedUntil > Date() {
+        guard sleepModeReason != "active_window" else { return false }
+        if let sleepDismissedUntil = store.sleepDismissedUntil, sleepDismissedUntil > Date() {
             return false
         }
         return true
@@ -122,7 +122,23 @@ struct KioskIdleView: View {
         #if DEBUG
         if debugForcesSleepMode { return "debug_night_mode" }
         #endif
-        return dashboard?.standby?.reason ?? "idle_window"
+        guard let dashboard, let standby = dashboard.standby else { return "idle_window" }
+        if standby.reason == "night_hours", !Self.isLocalNightHours(Date()) {
+            return isLocallyIdleWindow(dashboard, standby: standby) ? "idle_window" : "active_window"
+        }
+        return standby.reason
+    }
+
+    private func isLocallyIdleWindow(_ dashboard: KioskDashboard, standby: KioskDashboard.Standby) -> Bool {
+        dashboard.stats.checkouts == 0 &&
+        dashboard.stats.itemsOut == 0 &&
+        standby.nearbyEventCount == 0 &&
+        standby.nearbyBookingWindowCount == 0
+    }
+
+    private static func isLocalNightHours(_ date: Date) -> Bool {
+        let hour = Calendar.current.component(.hour, from: date)
+        return hour >= 22 || hour < 6
     }
 
     /// Pause Wiscard capture while a detail sheet is open or the kiosk is
@@ -150,7 +166,7 @@ struct KioskIdleView: View {
         Button {
             debugForcesSleepMode.toggle()
             if debugForcesSleepMode {
-                sleepDismissedUntil = nil
+                store.clearSleepModeDismissal()
             }
         } label: {
             Image(systemName: debugForcesSleepMode ? "moon.zzz.fill" : "moon.zzz")
@@ -170,8 +186,7 @@ struct KioskIdleView: View {
     #endif
 
     private func dismissSleepMode() {
-        sleepDismissedUntil = Date().addingTimeInterval(sleepWakeDuration)
-        store.resetInactivity()
+        store.deferSleepMode(for: sleepWakeDuration)
     }
 
     // MARK: - Left Panel
@@ -387,6 +402,7 @@ struct KioskIdleView: View {
                     LazyVGrid(columns: rosterColumns, spacing: 10) {
                         ForEach(filteredUsers) { user in
                             UserTile(user: user, displayName: labels[user.id] ?? user.name) {
+                                store.deferSleepMode(for: sleepWakeDuration)
                                 store.screen = .studentHub(user)
                             }
                         }
@@ -2000,24 +2016,24 @@ private struct KioskSleepModeView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(context.date.kioskClockParts().time)
                         .font(.gothamBlack(size: 58))
-                        .foregroundStyle(Color.white.opacity(0.18))
+                        .foregroundStyle(Color.white.opacity(0.42))
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
                     Text(sleepLabel)
                         .font(.gothamBold(size: 15))
                         .tracking(1.2)
-                        .foregroundStyle(Color.white.opacity(0.13))
+                        .foregroundStyle(Color.white.opacity(0.64))
                         .textCase(.uppercase)
                     Text(deviceName)
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(Color.white.opacity(0.1))
+                        .foregroundStyle(Color.white.opacity(0.42))
                     HStack(spacing: 6) {
                         Image(systemName: "hand.tap.fill")
                             .font(.caption2)
                         Text("Tap anywhere to wake")
                             .font(.caption2.weight(.semibold))
                     }
-                    .foregroundStyle(Color.white.opacity(0.09))
+                    .foregroundStyle(Color.white.opacity(0.5))
                     .padding(.top, 6)
                 }
                 .offset(pixelShiftOffset(for: context.date))

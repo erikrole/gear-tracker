@@ -435,5 +435,24 @@ describe("battery ops live counts", () => {
       lost: 0,
       retired: 0,
     });
+    expect(body.data.integrity).toEqual({
+      staleCheckedOutCount: 2,
+      staleCheckedOutUnits: [
+        {
+          id: "unit-29",
+          skuId: "sku-battery",
+          skuName: "Sony Battery",
+          locationName: "Camp Randall",
+          unitNumber: 29,
+        },
+        {
+          id: "unit-31",
+          skuId: "sku-battery",
+          skuName: "Sony Battery",
+          locationName: "Camp Randall",
+          unitNumber: 31,
+        },
+      ],
+    });
   });
 });

@@ -115,7 +115,8 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
   const nearPast = new Date(now.getTime() - 2 * 60 * 60 * 1000);
   const nearFuture = new Date(now.getTime() + 90 * 60 * 1000);
   const eventsWindow = dayWindowInTimeZone(now, 2, env.appTimezone);
-  const nightHours = now.getHours() >= 22 || now.getHours() < 6;
+  const localNow = localDateTimeParts(now, env.appTimezone);
+  const nightHours = localNow.hour >= 22 || localNow.hour < 6;
 
   const [
     statsResult,

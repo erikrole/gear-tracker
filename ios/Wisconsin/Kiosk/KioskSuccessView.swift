@@ -77,15 +77,15 @@ struct KioskSuccessView: View {
                 if Task.isCancelled { return }
                 countdown = i
             }
+            store.deferSleepMode()
             store.screen = .idle
-            store.resetInactivity()
         }
     }
 
     /// Tap "Done" or anywhere on the screen to short-circuit the 5 s countdown
     /// and return to idle immediately.
     private func skip() {
+        store.deferSleepMode()
         store.screen = .idle
-        store.resetInactivity()
     }
 }

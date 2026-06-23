@@ -4,6 +4,22 @@ Last updated: 2026-06-23
 
 ---
 
+## Active: iOS kiosk idle sleep-mode hotfix (2026-06-23)
+
+Plan: fix live iPad idle behavior after returning from a student hub.
+
+- [x] Use the app timezone, not the server process timezone, for kiosk night-hours standby.
+- [x] Preserve the wake/sleep-dismissal grace across navigation away from and back to idle.
+- [x] Improve sleep overlay text contrast while keeping the burn-in-mitigation treatment.
+- [x] Add focused route/source-contract coverage and run the iOS verification gates.
+- [x] Defensively ignore stale server `night_hours` reasons on the iPad when the device clock is outside 10 PM-6 AM.
+
+### Review
+- 2026-06-23: Kiosk standby now classifies night hours using the configured app timezone instead of the server process timezone, so 6:38 PM Central no longer becomes Night Sleep Mode. The iOS kiosk stores the sleep-dismissal grace in `KioskStore`, so returning from student hub or success screens does not immediately snap back into sleep overlay, and the sleep overlay text opacity was raised for readability. Verification passed with focused kiosk dashboard/source-contract Vitest, docs/codemap check, iOS drift check, whitespace check, WisconsinKiosk simulator build, full Wisconsin simulator build, WisconsinKiosk generic iOS device build, signed build for the connected iPad Pro 10.5-inch, install, and launch. `npx tsc --noEmit` was also run but is currently blocked by the separate active Battery Ops worktree: `src/app/(app)/bulk-inventory/batteries/page.tsx` has a `BatteryCockpitData` fixture missing `integrity`.
+- 2026-06-23 follow-up: Live iPad still showed Night Sleep Mode at 6:46 PM because the native app can receive a stale deployed `night_hours` response even after local API code is fixed. `KioskIdleView` now derives an effective sleep reason on-device: outside local 10 PM-6 AM, stale `night_hours` downgrades to `idle_window` when the dashboard is otherwise quiet, or `active_window` when work exists. The corrected build was signed, installed, and launched on the connected iPad.
+
+---
+
 ## Active: Battery Ops booking context hotfix (2026-06-23)
 
 Plan: fix checked-out battery units that show "Unknown" and "No booking context" even though they are linked to active checkout bookings.

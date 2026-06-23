@@ -90,6 +90,10 @@ type BatteryCockpitData = {
   };
   skus: BatterySku[];
   compatibility: BatteryCompatibility[];
+  integrity: {
+    staleCheckedOutCount: number;
+    staleCheckedOutUnits: BatteryIntegrityWarning[];
+  };
 };
 
 type BatteryCompatibility = {
@@ -102,6 +106,14 @@ type BatteryCompatibility = {
   availableQuantity: number;
   threshold: number;
   isLow: boolean;
+};
+
+type BatteryIntegrityWarning = {
+  id: string;
+  skuId: string;
+  skuName: string;
+  locationName: string;
+  unitNumber: number;
 };
 
 type PendingAction = {
@@ -266,6 +278,10 @@ export default function BatteryCockpitPage() {
   }, [data]);
   const unitSkus = useMemo(() => (data?.skus ?? []).filter((sku) => sku.trackByNumber), [data]);
   const quantitySkus = useMemo(() => (data?.skus ?? []).filter((sku) => !sku.trackByNumber), [data]);
+  const staleCheckedOutUnitIds = useMemo(
+    () => new Set((data?.integrity.staleCheckedOutUnits ?? []).map((unit) => unit.id)),
+    [data],
+  );
 
   function openStatusAction(action: NonNullable<PendingAction>) {
     setPendingAction(action);
@@ -545,6 +561,10 @@ export default function BatteryCockpitPage() {
         </Card>
       )}
 
+      {data && data.integrity.staleCheckedOutCount > 0 && (
+        <IntegrityWarningCard warnings={data.integrity.staleCheckedOutUnits} />
+      )}
+
       {data && data.skus.length === 0 ? (
         <EmptyState
           icon="box"
@@ -680,6 +700,7 @@ export default function BatteryCockpitPage() {
                         key={unit.id}
                         sku={sku}
                         unit={unit}
+                        dataWarning={staleCheckedOutUnitIds.has(unit.id)}
                         busy={busyKey === `${sku.id}-${unit.unitNumber}`}
                         onPendingAction={openStatusAction}
                       />
@@ -984,15 +1005,58 @@ function CompatibilityRow({ item }: { item: BatteryCompatibility }) {
   );
 }
 
+function IntegrityWarningCard({ warnings }: { warnings: BatteryIntegrityWarning[] }) {
+  const visibleWarnings = warnings.slice(0, 8);
+  const remaining = Math.max(0, warnings.length - visibleWarnings.length);
+
+  return (
+    <Card className="border-orange-200/70 bg-orange-50/40 shadow-none dark:border-orange-900/50 dark:bg-orange-950/10">
+      <CardHeader className="pb-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <CircleAlert className="size-4 text-[var(--orange-text)]" />
+            Inventory data warnings
+          </CardTitle>
+          <Badge variant="orange">{metricLabel(warnings.length, "unit")}</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="max-w-3xl text-sm text-muted-foreground">
+          These units still have a stored checked-out flag but no active checkout allocation, so Battery Ops is counting them as available.
+        </p>
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+          {visibleWarnings.map((warning) => (
+            <Link
+              key={warning.id}
+              href={`/bulk-inventory/${warning.skuId}`}
+              className="rounded-md border border-orange-200/70 bg-background/80 px-3 py-2 text-sm no-underline transition-colors hover:bg-background dark:border-orange-900/50"
+            >
+              <div className="font-medium">{warning.skuName} #{warning.unitNumber}</div>
+              <div className="mt-0.5 text-xs text-muted-foreground">{warning.locationName}</div>
+            </Link>
+          ))}
+        </div>
+        {remaining > 0 && (
+          <div className="text-xs text-muted-foreground">
+            {metricLabel(remaining, "more unit")} needs review.
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function UnitMenu({
   sku,
   unit,
   busy,
+  dataWarning,
   onPendingAction,
 }: {
   sku: BatterySku;
   unit: BatteryUnit;
   busy: boolean;
+  dataWarning: boolean;
   onPendingAction: (action: NonNullable<PendingAction>) => void;
 }) {
   const meta = STATUS_META[unit.status];
@@ -1008,7 +1072,7 @@ function UnitMenu({
       className={cn(
         "relative flex min-h-12 flex-col items-start justify-center rounded-md px-2.5 py-2 text-left transition-[background-color,scale] active:scale-[0.96]",
         meta.className,
-        unit.status === "CHECKED_OUT" ? "cursor-default opacity-80" : "cursor-pointer",
+        unit.status === "CHECKED_OUT" || dataWarning ? "cursor-default opacity-80" : "cursor-pointer",
       )}
     >
       {needsLabel && (
@@ -1025,7 +1089,7 @@ function UnitMenu({
     </div>
   );
 
-  if (unit.status === "CHECKED_OUT") {
+  if (unit.status === "CHECKED_OUT" || dataWarning) {
     return content;
   }
   const editableStatus = unit.status;
@@ -1113,5 +1177,5 @@ function updateUnitStatus(data: BatteryCockpitData | null, action: NonNullable<P
           : item,
       ).filter((item) => item.isLow);
 
-  return { totals, skus, compatibility };
+  return { totals, skus, compatibility, integrity: data.integrity };
 }

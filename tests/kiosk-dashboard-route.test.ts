@@ -43,6 +43,7 @@ describe("kiosk dashboard route", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -195,5 +196,22 @@ describe("kiosk dashboard route", () => {
     expect(body.events).toEqual([]);
     expect(body.checkouts).toEqual([]);
     expect(body.partialFailures).toEqual(["stats"]);
+  });
+
+  it("uses the app timezone for night-hours standby", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-23T23:38:00.000Z")); // 6:38 PM Central during CDT
+    mockDb.$queryRaw.mockResolvedValue([{ items_out: 0n, checkouts: 0n, overdue: 0n }]);
+    mockDb.calendarEvent.findMany.mockResolvedValue([]);
+    mockDb.booking.findMany.mockResolvedValue([]);
+
+    const res = await GET(request(), { params: Promise.resolve({}) });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.standby).toEqual(expect.objectContaining({
+      nightHours: false,
+      reason: "idle_window",
+    }));
   });
 });

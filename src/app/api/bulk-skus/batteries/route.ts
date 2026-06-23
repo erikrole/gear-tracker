@@ -158,6 +158,14 @@ export const GET = withAuth(async (_req, { user }) => {
     fallbackContextsBySkuId.set(item.bulkSkuId, contexts);
   }
 
+  const staleCheckedOutUnits: Array<{
+    id: string;
+    skuId: string;
+    skuName: string;
+    locationName: string;
+    unitNumber: number;
+  }> = [];
+
   const skus = rawSkus.filter(isBatterySku).map((sku) => {
     const fallbackAssignmentsByUnitId = new Map<
       string,
@@ -195,6 +203,15 @@ export const GET = withAuth(async (_req, { user }) => {
       const booking = allocation?.bookingBulkItem.booking ?? fallback?.booking;
       const checkedOutAt = allocation?.checkedOutAt ?? allocation?.createdAt ?? fallback?.checkedOutAt ?? null;
       const status = unit.status === "CHECKED_OUT" && !booking ? "AVAILABLE" : unit.status;
+      if (unit.status === "CHECKED_OUT" && !booking) {
+        staleCheckedOutUnits.push({
+          id: unit.id,
+          skuId: sku.id,
+          skuName: sku.name,
+          locationName: sku.location.name,
+          unitNumber: unit.unitNumber,
+        });
+      }
 
       return {
         id: unit.id,
@@ -291,5 +308,15 @@ export const GET = withAuth(async (_req, { user }) => {
     .filter((summary) => summary.isLow)
     .sort((a, b) => (a.availableQuantity - a.threshold) - (b.availableQuantity - b.threshold));
 
-  return ok({ data: { totals, skus, compatibility } });
+  return ok({
+    data: {
+      totals,
+      skus,
+      compatibility,
+      integrity: {
+        staleCheckedOutCount: staleCheckedOutUnits.length,
+        staleCheckedOutUnits,
+      },
+    },
+  });
 });

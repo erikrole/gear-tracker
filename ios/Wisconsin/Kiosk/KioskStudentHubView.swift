@@ -47,6 +47,7 @@ struct KioskStudentHubView: View {
     private var topBar: some View {
         HStack {
             Button {
+                store.deferSleepMode()
                 store.screen = .idle
             } label: {
                 Label("Back", systemImage: "chevron.left")
