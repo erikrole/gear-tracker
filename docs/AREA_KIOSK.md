@@ -4,7 +4,7 @@
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Status: Shipped — iOS canonical (web kiosk deprecated 2026-04-24)
 - Created: 2026-04-07
-- Last Updated: 2026-06-22
+- Last Updated: 2026-06-23
 - Brief: `BRIEF_KIOSK.md`
 - Decision Refs: D-030, D-040
 
@@ -108,6 +108,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 ## Change Log
 | Date | Change |
 |------|--------|
+| 2026-06-23 | Native kiosk checkout scanner capture is now explicitly armed only after Start Scanning. Completing checkout details no longer mounts the hidden HID scanner field by itself, and scanner capture is disabled again when editing context, leaving checkout, or completing checkout so native text fields and return-time pickers keep focus before scan mode. |
 | 2026-06-22 | Native kiosk active checkout edits shipped. The active-checkout drawer can update title and due-back time, add scanned serialized assets or numbered bulk units, and remove unreturned active items. `/api/kiosk/checkout/[id]` now owns kiosk-authenticated PATCH/POST/DELETE mutations with location scoping, availability re-checks, serializable transactions, allocation/bulk-unit updates, and audit entries. |
 | 2026-06-22 | Native kiosk API date decoding now accepts server ISO timestamps with or without fractional seconds. This prevents idle dashboard counters from showing live totals while the tapped Items Out / Checkouts lists and student hub rows decode to empty because their `startsAt`/`endsAt` fields use fractional-second JSON dates. |
 | 2026-06-22 | Native kiosk student hub loading no longer mislabels every first-load failure as an internet disconnect. The student-context decoder now tolerates partial checkout/pickup/reservation rows, transient cancellations stay quiet, 401 deactivates the kiosk session, and visible errors distinguish network, server, not-found, and response-shape failures. Kiosk native text entry also uses a UIKit-backed system keyboard field that clears the iPad shortcut/suggestion assistant bar without reintroducing an in-app keyboard. |

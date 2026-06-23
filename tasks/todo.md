@@ -1,6 +1,53 @@
 # Task Queue
 
-Last updated: 2026-06-22
+Last updated: 2026-06-23
+
+---
+
+## Active: Battery Ops booking context hotfix (2026-06-23)
+
+Plan: fix checked-out battery units that show "Unknown" and "No booking context" even though they are linked to active checkout bookings.
+
+- [x] Audit Battery Ops area docs, checkout/kiosk scan contracts, D-022, gaps, schema, page, API route, and peer allocation read models.
+- [x] Patch the Battery Ops API to derive checked-out holder/booking context from active `BookingBulkUnitAllocation` rows.
+- [x] Add focused route regression coverage for checked-out units whose context must come from the active allocation chain.
+- [x] Sync Bulk Inventory docs and record verification results.
+- [x] Run focused tests and closeout gates.
+
+### Review
+- 2026-06-23: Battery Ops now builds an active checked-out allocation map from `BookingBulkUnitAllocation` rows on `OPEN` checkout bookings and uses it to populate holder, booking, due date, and age for checked-out units. The page UI already rendered those fields when present, so the fix is contained to the API read model. Focused regression coverage added in `tests/battery-ops-route.test.ts`.
+  Verification passed with focused Battery Ops route Vitest, TypeScript, docs/codemap check, migration prefix check, whitespace check, and `npm run build:app`. Full `npm run build` was attempted but stopped at the migration deploy preflight because sandboxed DNS to Neon failed; escalation was rejected because the script can apply migrations to the shared database.
+
+---
+
+## Active: iOS kiosk scanner phase focus hotfix (2026-06-23)
+
+Plan: hotfix from live iPad testing on iPadOS 17.7.11 before Start Scanning.
+
+- [x] Trace checkout detail focus ownership between visible native fields and the hidden HID scanner field.
+- [x] Gate HID scanner capture behind an explicit scan-armed state set only by Start Scanning.
+- [x] Disable scanner capture when editing checkout context, leaving checkout, or completing checkout.
+- [x] Add source-contract coverage so the scanner cannot mount from checkout-context readiness alone.
+
+### Review
+- 2026-06-23: Checkout details no longer arm the hidden HID scanner just because event/purpose/return-time context is complete. `KioskCheckoutView` now uses explicit scanner-capture state that turns on only from Start Scanning and turns off for edit, disappear, and completion paths, so visible native text fields and date/time pickers keep keyboard/tap ownership before scan mode. Verification passed with focused scanner/API contract tests, docs check, iOS drift, iOS audit gaps, whitespace check, WisconsinKiosk simulator build, Wisconsin simulator build, and WisconsinKiosk generic iOS device compile. The physical 10.5-inch iPad was visible to CoreDevice but unavailable, so install/launch was not possible in this pass.
+
+---
+
+## Deferred: Kiosk extraction and consolidation debt (2026-06-22)
+
+Status: Deferred by user. Do not start until explicitly resumed.
+
+Plan: future slice should preserve the current `WisconsinKiosk` target split while reducing the debt created by recent kiosk velocity.
+
+- [ ] Extract `KioskCheckoutDetailSheet` and its edit/item-row subviews out of `KioskIdleView.swift`.
+- [ ] Move active checkout mutation logic from `/api/kiosk/checkout/[id]` into a focused kiosk checkout service.
+- [ ] Add service-level tests for update details, scan-add serialized item, scan-add numbered bulk unit, remove serialized item, and remove numbered bulk unit.
+- [ ] Keep `WisconsinKiosk` as a separate iOS 17 target, not a separate repo or product fork.
+- [ ] Continue requiring both `WisconsinKiosk` and full `Wisconsin` builds before shipping kiosk changes.
+
+### Rationale
+- 2026-06-22: Extraction plan is sound as a target split, but not as a full fork. The next work should be consolidation rather than features: shrink the oversized kiosk idle/detail drawer file, move custody mutations out of the route handler, and pin behavior with service tests.
 
 ---
 

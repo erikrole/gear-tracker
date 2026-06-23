@@ -4,6 +4,7 @@ import { isBatterySku } from "@/lib/bulk-batteries";
 import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
+import { BookingKind, BookingStatus } from "@prisma/client";
 
 function daysSince(value: Date | null | undefined, now: Date) {
   if (!value) return null;
@@ -14,7 +15,7 @@ export const GET = withAuth(async (_req, { user }) => {
   requirePermission(user.role, "bulk_sku", "adjust");
 
   const now = new Date();
-  const [rawSkus, cameraAssets] = await Promise.all([
+  const [rawSkus, cameraAssets, activeUnitAllocations] = await Promise.all([
     db.bulkSku.findMany({
       where: {
         active: true,
@@ -63,11 +64,46 @@ export const GET = withAuth(async (_req, { user }) => {
         category: { select: { name: true } },
       },
     }),
+    db.bookingBulkUnitAllocation.findMany({
+      where: {
+        checkedOutAt: { not: null },
+        checkedInAt: null,
+        bookingBulkItem: {
+          booking: {
+            kind: BookingKind.CHECKOUT,
+            status: BookingStatus.OPEN,
+          },
+        },
+      },
+      orderBy: [{ checkedOutAt: "desc" }, { createdAt: "desc" }],
+      select: {
+        bulkSkuUnitId: true,
+        checkedOutAt: true,
+        createdAt: true,
+        bookingBulkItem: {
+          select: {
+            booking: {
+              select: {
+                id: true,
+                title: true,
+                refNumber: true,
+                endsAt: true,
+                requester: { select: { name: true } },
+              },
+            },
+          },
+        },
+      },
+    }),
   ]);
+
+  const activeAllocationByUnitId = new Map(
+    activeUnitAllocations.map((allocation) => [allocation.bulkSkuUnitId, allocation]),
+  );
 
   const skus = rawSkus.filter(isBatterySku).map((sku) => {
     const units = sku.units.map((unit) => {
-      const allocation = unit.allocations[0];
+      const allocation = activeAllocationByUnitId.get(unit.id) ?? unit.allocations[0];
       const booking = allocation?.bookingBulkItem.booking;
       const checkedOutAt = allocation?.checkedOutAt ?? allocation?.createdAt ?? null;
 

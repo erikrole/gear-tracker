@@ -9,6 +9,7 @@ vi.mock("@/lib/db", () => ({
   db: {
     bulkSku: { findMany: vi.fn() },
     asset: { findMany: vi.fn() },
+    bookingBulkUnitAllocation: { findMany: vi.fn() },
   },
 }));
 
@@ -30,6 +31,10 @@ function cameraAssets(rows: unknown) {
   return rows as Awaited<ReturnType<typeof db.asset.findMany>>;
 }
 
+function unitAllocations(rows: unknown) {
+  return rows as Awaited<ReturnType<typeof db.bookingBulkUnitAllocation.findMany>>;
+}
+
 function makeGetRequest(path: string) {
   return new Request(`https://app.example.com${path}`, {
     method: "GET",
@@ -46,6 +51,7 @@ beforeEach(() => {
     role: Role.STAFF,
     avatarUrl: null,
   });
+  vi.mocked(db.bookingBulkUnitAllocation.findMany).mockResolvedValue(unitAllocations([]));
 });
 
 describe("battery ops live counts", () => {
@@ -208,6 +214,78 @@ describe("battery ops live counts", () => {
         retired: 0,
       },
       units: [],
+    }));
+  });
+
+  it("BUG: resolves checked-out battery booking context from active unit allocations", async () => {
+    vi.mocked(db.bulkSku.findMany).mockResolvedValue(batterySkus([
+      {
+        id: "sku-battery",
+        name: "Sony Battery",
+        category: "Batteries",
+        trackByNumber: true,
+        minThreshold: 10,
+        binQrCodeValue: "sony-battery",
+        location: { id: "loc-1", name: "Camp Randall" },
+        categoryRel: { id: "cat-1", name: "Batteries" },
+        balances: [],
+        units: [
+          {
+            id: "unit-2",
+            unitNumber: 2,
+            status: BulkUnitStatus.CHECKED_OUT,
+            notes: null,
+            labelPrintedAt: null,
+            labelPrintedById: null,
+            labelPrintBatchId: null,
+            allocations: [],
+          },
+        ],
+      },
+    ]));
+    vi.mocked(db.asset.findMany).mockResolvedValue(cameraAssets([]));
+    vi.mocked(db.bookingBulkUnitAllocation.findMany).mockResolvedValue(unitAllocations([
+      {
+        bulkSkuUnitId: "unit-2",
+        checkedOutAt: new Date("2026-06-20T12:00:00.000Z"),
+        createdAt: new Date("2026-06-20T12:00:00.000Z"),
+        bookingBulkItem: {
+          booking: {
+            id: "booking-2",
+            title: "Football media day",
+            refNumber: "CO-2026",
+            endsAt: new Date("2026-06-24T18:00:00.000Z"),
+            requester: { name: "Alex Student" },
+          },
+        },
+      },
+    ]));
+
+    const res = await getBatteryOps(makeGetRequest("/api/bulk-skus/batteries"), noParams);
+    const body = await res.json();
+
+    expect(db.bookingBulkUnitAllocation.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        checkedOutAt: { not: null },
+        checkedInAt: null,
+        bookingBulkItem: {
+          booking: {
+            kind: "CHECKOUT",
+            status: "OPEN",
+          },
+        },
+      }),
+    }));
+    expect(body.data.skus[0].units[0]).toEqual(expect.objectContaining({
+      unitNumber: 2,
+      checkedOutAt: "2026-06-20T12:00:00.000Z",
+      booking: {
+        id: "booking-2",
+        title: "Football media day",
+        refNumber: "CO-2026",
+        endsAt: "2026-06-24T18:00:00.000Z",
+        requesterName: "Alex Student",
+      },
     }));
   });
 });

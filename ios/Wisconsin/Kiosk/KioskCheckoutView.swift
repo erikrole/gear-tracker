@@ -20,6 +20,7 @@ struct KioskCheckoutView: View {
     @State private var selectedEventId: String?
     @State private var customPurpose = ""
     @State private var checkoutContextReady = false
+    @State private var scannerCaptureEnabled = false
     @State private var showScannerHelp = false
     @State private var showEditContextConfirm = false
     @State private var lastScanAt: Date?
@@ -56,7 +57,7 @@ struct KioskCheckoutView: View {
         KioskCartDisplayGroup.groups(from: scannedItems)
     }
     private var shouldListenForHIDScans: Bool {
-        checkoutContextReady && focusedCheckoutField == nil && !showCamera && !showScannerHelp && !showEditContextConfirm
+        scannerCaptureEnabled && checkoutContextReady && focusedCheckoutField == nil && !showCamera && !showScannerHelp && !showEditContextConfirm
     }
 
     var body: some View {
@@ -66,7 +67,7 @@ struct KioskCheckoutView: View {
             itemsList.frame(width: 430)
         }
         .overlay(alignment: .bottom) {
-            if checkoutContextReady {
+            if scannerCaptureEnabled {
                 // Hidden HID scanner field stays mounted in scan mode, but yields
                 // first responder whenever visible checkout inputs need the keyboard.
                 KioskScannerField(isEnabled: shouldListenForHIDScans) { value in
@@ -135,6 +136,14 @@ struct KioskCheckoutView: View {
         .onChange(of: dueBackAt) { _, _ in
             guard checkoutContextReady, !scannedItems.isEmpty else { return }
             Task { await refreshAvailability(for: scannedItems) }
+        }
+        .onChange(of: checkoutContextReady) { _, isReady in
+            if !isReady {
+                scannerCaptureEnabled = false
+            }
+        }
+        .onDisappear {
+            scannerCaptureEnabled = false
         }
     }
 
@@ -557,11 +566,13 @@ struct KioskCheckoutView: View {
         guard hasCheckoutContext, hasValidReturnTime else { return }
         focusedCheckoutField = nil
         checkoutContextReady = true
+        scannerCaptureEnabled = true
         store.resetInactivity()
         Haptics.success()
     }
 
     private func requestEditContext() {
+        scannerCaptureEnabled = false
         if scannedItems.isEmpty {
             checkoutContextReady = false
             DispatchQueue.main.async {
@@ -600,6 +611,7 @@ struct KioskCheckoutView: View {
                 )
                 Haptics.success()
                 store.clearCart(for: userId)
+                scannerCaptureEnabled = false
                 store.screen = .success(KioskSuccessInfo(kind: .checkout, message: message))
             } catch {
                 let message = (error as? APIError)?.errorDescription

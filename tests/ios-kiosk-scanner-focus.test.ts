@@ -19,11 +19,16 @@ describe("iOS kiosk scanner focus", () => {
     expect(scanner).toContain("guard let self, self.isEnabled, let textField else { return }");
 
     expect(checkout).toContain("@FocusState private var focusedCheckoutField: KioskCheckoutFocusedField?");
+    expect(checkout).toContain("@State private var scannerCaptureEnabled = false");
     expect(checkout).toContain("private var shouldListenForHIDScans: Bool");
+    expect(checkout).toContain("scannerCaptureEnabled && checkoutContextReady");
     expect(checkout).toContain("focusedCheckoutField == nil");
+    expect(checkout).toContain("if scannerCaptureEnabled {");
     expect(checkout).toContain("KioskScannerField(isEnabled: shouldListenForHIDScans)");
     expect(checkout).toContain("KioskNativeTextField(");
     expect(checkout).toContain("focusedField.wrappedValue == .customPurpose");
+    expect(checkout).toContain("scannerCaptureEnabled = true");
+    expect(checkout).toContain("scannerCaptureEnabled = false");
     expect(checkout).not.toContain("private struct KioskPurposeKeyboard: View");
 
     expect(shell).toContain("DragGesture(minimumDistance: 16)");
