@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { Prisma, Role } from "@prisma/client";
 
 // ─── Mock modules ───────────────────────────────────────────────────────────
@@ -125,6 +125,10 @@ function registeredUserResult(value: { id: string; role: Role } | null) {
 // GET /api/allowed-emails
 // ═════════════════════════════════════════════════════════════════════════════
 describe("GET /api/allowed-emails", () => {
+  afterEach(() => {
+    delete process.env.INTERNAL_OPERATOR_EMAILS;
+  });
+
   it("returns paginated allowed emails for ADMIN", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
     vi.mocked(db.allowedEmail.findMany).mockResolvedValue(allowedEmailFindManyResult([
@@ -140,6 +144,56 @@ describe("GET /api/allowed-emails", () => {
     expect(body.total).toBe(1);
   });
 
+  it("excludes rows claimed by hidden users by default", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(adminUser);
+    vi.mocked(db.allowedEmail.findMany).mockResolvedValue([]);
+    vi.mocked(db.allowedEmail.count).mockResolvedValue(0);
+
+    await GET(makeGetRequest(), noParams);
+
+    expect(db.allowedEmail.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            {
+              OR: [
+                { claimedById: null },
+                { claimedBy: { is: { hiddenFromRoster: false } } },
+              ],
+            },
+          ],
+        },
+      }),
+    );
+    expect(db.allowedEmail.count).toHaveBeenCalledWith({
+      where: {
+        AND: [
+          {
+            OR: [
+              { claimedById: null },
+              { claimedBy: { is: { hiddenFromRoster: false } } },
+            ],
+          },
+        ],
+      },
+    });
+  });
+
+  it("allows internal operators to include hidden claimed rows", async () => {
+    process.env.INTERNAL_OPERATOR_EMAILS = "admin@test.com";
+    vi.mocked(requireAuth).mockResolvedValue(adminUser);
+    vi.mocked(db.allowedEmail.findMany).mockResolvedValue([]);
+    vi.mocked(db.allowedEmail.count).mockResolvedValue(0);
+
+    await GET(makeGetRequest("?includeHidden=1"), noParams);
+
+    expect(db.allowedEmail.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {},
+      }),
+    );
+  });
+
   it("filters by search query", async () => {
     vi.mocked(requireAuth).mockResolvedValue(adminUser);
     vi.mocked(db.allowedEmail.findMany).mockResolvedValue([]);
@@ -149,9 +203,11 @@ describe("GET /api/allowed-emails", () => {
 
     expect(db.allowedEmail.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({
-          email: { contains: "test", mode: "insensitive" },
-        }),
+        where: {
+          AND: expect.arrayContaining([
+            { email: { contains: "test", mode: "insensitive" } },
+          ]),
+        },
       })
     );
   });
@@ -165,9 +221,11 @@ describe("GET /api/allowed-emails", () => {
 
     expect(db.allowedEmail.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({
-          claimedAt: null,
-        }),
+        where: {
+          AND: expect.arrayContaining([
+            { claimedAt: null },
+          ]),
+        },
       })
     );
   });

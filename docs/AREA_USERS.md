@@ -115,6 +115,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 6. Ensure audit logs include actor role, target owner, and exception metadata.
 
 ## Change Log
+- 2026-06-24: Hidden smoke user onboarding cleanup shipped. `/api/allowed-emails` now excludes allowlist rows claimed by hidden users by default, so `/users/onboarding-status` no longer surfaces claimed smoke/test accounts in daily onboarding review.
 - 2026-06-24: Hidden smoke user operational sweep shipped. The org chart now uses the shared visible-active user filter, and live user-picking helpers exclude active hidden smoke/test users while preserving historical user attribution.
 - 2026-06-24: Hidden smoke user cleanup shipped. User deactivation side effects now live in a reusable service, and `POST /api/users/hidden-cleanup` gives configured internal operators a dry-run-first way to deactivate old active `hiddenFromRoster` smoke/test users without deleting audit or booking history.
 - 2026-06-20: Shared onboarding dialog metric/status panels now use shadcn `Card` composition for completion counts, client preview counts, and account-status preview counts, preserving invitation flow behavior while removing route-local bordered panel markup.

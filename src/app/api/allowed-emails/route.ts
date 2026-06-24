@@ -5,6 +5,7 @@ import { ok, parsePagination } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createAllowedEmailSchema, createAllowedEmailBulkSchema } from "@/lib/validation";
 import { enforceRateLimit, SETTINGS_MUTATION_LIMIT } from "@/lib/rate-limit";
+import { shouldIncludeHiddenUsers } from "@/lib/user-visibility";
 import {
   createAllowedEmailInvite,
   createAllowedEmailInvitesBulk,
@@ -18,16 +19,26 @@ export const GET = withAuth(async (req, { user }) => {
   const { limit, offset } = parsePagination(url.searchParams);
   const q = url.searchParams.get("q")?.trim() || "";
   const status = url.searchParams.get("status"); // "claimed" | "unclaimed" | null
+  const includeHidden = shouldIncludeHiddenUsers(url.searchParams, user);
 
-  const where: Prisma.AllowedEmailWhereInput = {};
+  const conditions: Prisma.AllowedEmailWhereInput[] = [];
+  if (!includeHidden) {
+    conditions.push({
+      OR: [
+        { claimedById: null },
+        { claimedBy: { is: { hiddenFromRoster: false } } },
+      ],
+    });
+  }
   if (q) {
-    where.email = { contains: q, mode: "insensitive" };
+    conditions.push({ email: { contains: q, mode: "insensitive" } });
   }
   if (status === "claimed") {
-    where.claimedAt = { not: null };
+    conditions.push({ claimedAt: { not: null } });
   } else if (status === "unclaimed") {
-    where.claimedAt = null;
+    conditions.push({ claimedAt: null });
   }
+  const where: Prisma.AllowedEmailWhereInput = conditions.length > 0 ? { AND: conditions } : {};
 
   const [data, total] = await Promise.all([
     db.allowedEmail.findMany({
