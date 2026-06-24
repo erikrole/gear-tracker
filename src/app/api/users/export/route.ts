@@ -8,6 +8,7 @@ import { Prisma, type StudentYear } from "@prisma/client";
 import { sportLabel } from "@/lib/sports";
 import { csvField } from "@/lib/csv";
 import { optionalSportCodeSchema } from "@/lib/validation";
+import { shouldIncludeHiddenUsers, visibleUserWhere } from "@/lib/user-visibility";
 
 const EXPORT_LIMIT = { max: 5, windowMs: 60_000 };
 
@@ -47,8 +48,9 @@ export const GET = withAuth(async (req, { user }) => {
   const yearParam = searchParams.get("year");
   const sportParam = optionalSportCodeSchema.parse(searchParams.get("sport") ?? undefined);
   const areaParam = searchParams.get("area");
+  const includeHidden = shouldIncludeHiddenUsers(searchParams, user);
 
-  const conditions: Prisma.UserWhereInput[] = [];
+  const conditions: Prisma.UserWhereInput[] = [visibleUserWhere(user, { includeHidden })];
 
   if (activeParam === "false") conditions.push({ active: false });
   else if (activeParam !== "all") conditions.push({ active: true });

@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-22
+- Last Updated: 2026-06-24
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
@@ -203,8 +203,9 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 
 ### Trap: List results and detail state disagree after quick edits
 - Mitigation:
-  - Refresh affected list row after mutation success.
-  - Show subtle syncing indicator when list is stale.
+  - Refresh affected list rows after mutation success.
+  - Use the shared booking-change signal to refresh visible reservation lists and any open detail sheet for the changed booking id.
+  - Keep AC-12 open for an end-to-end kiosk pickup fulfillment proof.
 
 ## Edge Cases
 - Cross-midnight reservations and timezone conversions.
@@ -230,13 +231,16 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - [x] AC-9: Actions menu behavior matches state and policy mapping.
 - [x] AC-10: Reservations list supports status scope, search, sort, and required columns.
 - [x] AC-11: `Export` visibility follows role policy.
-- [ ] AC-12: List and detail views remain consistent after edit, cancel, and kiosk pickup fulfillment.
+- [ ] AC-12: List and detail views remain consistent after edit, cancel, and kiosk pickup fulfillment. **(Partial proof 2026-06-24: authenticated browser smoke proved web reservation list/detail consistency after edit and cancel through `/api/bookings/changes`; kiosk pickup fulfillment proof remains.)**
 
 ## Dependencies
 - Booking and allocation constraints from `DECISIONS.md` (D-001, D-006, D-007).
 - User permission model from `AREA_USERS.md`.
 - Event context behavior from `AREA_EVENTS.md`.
 - Mobile operations contract from `AREA_MOBILE.md`.
+
+## Change Log
+- 2026-06-24: Booking real-time sync partial AC-12 proof. Web reservation list and an already-open detail sheet now refresh from committed edit/cancel changes without manual refresh via the shared booking-change signal; the browser smoke also caught and fixed the detail-sheet local-state gap. Kiosk pickup fulfillment remains the unproven part of AC-12.
 
 ## Out of Scope (V1)
 1. Multi-calendar external reservation sync.

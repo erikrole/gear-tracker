@@ -80,6 +80,7 @@ export function useDashboardData(): UseDashboardDataResult {
     queryKey: DASHBOARD_KEY,
     queryFn: ({ signal }) => fetchDashboard(signal),
     staleTime: 5 * 60_000,
+    refetchOnMount: "always",
   });
 
   // Fast stats — single SQL query, 60-second stale time, refetch on window focus
@@ -87,6 +88,7 @@ export function useDashboardData(): UseDashboardDataResult {
     queryKey: DASHBOARD_STATS_KEY,
     queryFn: ({ signal }) => fetchDashboardStats(signal),
     staleTime: 60_000,
+    refetchOnMount: "always",
     refetchOnWindowFocus: true,
   });
 

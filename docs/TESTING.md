@@ -1,6 +1,6 @@
 # Testing Guide
 
-Last refreshed: 2026-06-22
+Last refreshed: 2026-06-24
 
 ## Overview
 
@@ -8,12 +8,12 @@ The automated test suite uses Vitest in the Node.js environment. Tests live in `
 
 Current static inventory:
 
-- 245 test files under `tests/`
-- 1,435 `it()` / `test()` declarations by static grep
-- 27 iOS source-contract files named `ios-*.test.ts`
-- 37 source or contract files with `source` or `contract` in the filename
-- 45 route-focused files with `route` or `routes` in the filename
-- 2 current `BUG:`-prefixed tests, both in `tests/auth-hardening.test.ts`
+- 251 test files under `tests/`
+- 1,463 `it()` / `test()` declarations by static grep
+- 30 iOS source-contract files named `ios-*.test.ts`
+- 39 source or contract files with `source` or `contract` in the filename
+- 46 route-focused files with `route` or `routes` in the filename
+- 5 current `BUG:`-prefixed tests, in `tests/auth-hardening.test.ts` and `tests/battery-ops-route.test.ts`
 
 Refresh the inventory with:
 
@@ -62,6 +62,8 @@ Default local closeout for web/API cleanup slices:
 6. `npm run build:app` before declaring a shippable local slice.
 
 Run `npm test` when shared behavior, auth, route wrappers, booking lifecycle, or broad service helpers change enough that focused files do not cover the risk. For iOS source slices, also run `npm run drift:ios` and `npm run audit:ios:gaps`; use an XcodeBuildMCP simulator build when Swift compile or UI proof is part of the slice.
+
+For operator-facing booking freshness work, add authenticated browser proof after the focused automated gates: create or mutate one visible booking from another authenticated client, confirm Dashboard counts/rows and `/bookings` list rows converge without using the manual refresh button, verify an already-open booking detail sheet updates for the changed booking id, then reload Dashboard to prove persisted cache does not resurrect stale rows. Store proof notes or screenshots under `tasks/archive/proofs/`.
 
 ## Test Layers
 

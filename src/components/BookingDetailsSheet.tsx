@@ -19,6 +19,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { getBookingCancelCopy } from "@/hooks/booking-action-copy";
+import { BOOKING_CHANGE_SYNC_EVENT } from "@/hooks/use-booking-change-sync";
 import { statusBadgeVariant, statusLabel } from "./booking-details/helpers";
 import { toLocalDateTimeValue } from "./booking-details/helpers";
 import {
@@ -195,6 +196,19 @@ export default function BookingDetailsSheet({
       setConflictError(null);
     }
     return () => { abortRef.current?.abort(); };
+  }, [bookingId, fetchBooking]);
+
+  useEffect(() => {
+    if (!bookingId) return;
+
+    const refreshChangedBooking = (event: Event) => {
+      const changedBookingIds = (event as CustomEvent<{ changedBookingIds?: unknown }>).detail?.changedBookingIds;
+      if (!Array.isArray(changedBookingIds) || !changedBookingIds.includes(bookingId)) return;
+      void fetchBooking({ silent: true });
+    };
+
+    window.addEventListener(BOOKING_CHANGE_SYNC_EVENT, refreshChangedBooking);
+    return () => window.removeEventListener(BOOKING_CHANGE_SYNC_EVENT, refreshChangedBooking);
   }, [bookingId, fetchBooking]);
 
   useEffect(() => {

@@ -1,11 +1,12 @@
 import { withAuth } from "@/lib/api";
-import { BookingKind, BookingStatus, BulkMovementKind, Prisma, ScanSessionStatus, ShiftArea, ShiftWorkerType, StudentYear } from "@prisma/client";
+import { Prisma, ShiftArea, ShiftWorkerType, StudentYear } from "@prisma/client";
 import { db } from "@/lib/db";
 import { HttpError, ok } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
 import { createAuditEntry } from "@/lib/audit";
-import { upsertBulkBalancesAndMovements } from "@/lib/services/bookings-helpers";
+import { deactivateUserWithCleanup } from "@/lib/services/user-deactivation";
 import { normalizeSlackHandle, normalizeSlackProfileUrl, normalizeWiscardNumber, slackHandleSchema, slackProfileUrlSchema, wiscardNumberSchema } from "@/lib/validation";
+import { canReadUserProfile } from "@/lib/user-visibility";
 import { z } from "zod";
 
 const updateUserSchema = z.object({
@@ -85,6 +86,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
     },
   });
   if (!target) throw new HttpError(404, "User not found");
+  if (!canReadUserProfile(user, target)) throw new HttpError(404, "User not found");
 
   const isSelfOrAdmin = user.id === id || user.role === "ADMIN";
 
@@ -104,6 +106,7 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
       primaryArea: target.primaryArea,
       avatarUrl: target.avatarUrl ?? null,
       active: target.active,
+      hiddenFromRoster: target.hiddenFromRoster,
       createdAt: target.createdAt?.toISOString() ?? null,
       sportAssignments: target.sportAssignments,
       areaAssignments: target.areaAssignments,
@@ -183,94 +186,11 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   if (body.active !== undefined) {
     // Deactivation requires atomic check + cancel + session cleanup
     if (body.active === false && target.active === true) {
-      const deactivationResult = await db.$transaction(async (tx) => {
-        // Re-check OPEN checkouts inside transaction to prevent TOCTOU
-        const openCheckouts = await tx.booking.count({
-          where: {
-            requesterUserId: id,
-            kind: "CHECKOUT",
-            status: BookingStatus.OPEN,
-          },
-        });
-        if (openCheckouts > 0) {
-          throw new HttpError(
-            400,
-            `Cannot deactivate: user has ${openCheckouts} open checkout${openCheckouts > 1 ? "s" : ""}. Return all gear first.`
-          );
-        }
-
-        // Auto-cancel non-open work and clean up allocations/scan sessions like booking cancellation does.
-        const toCancel = await tx.booking.findMany({
-          where: {
-            requesterUserId: id,
-            status: { in: [BookingStatus.BOOKED, BookingStatus.DRAFT, BookingStatus.PENDING_PICKUP] },
-          },
-          select: {
-            id: true,
-            kind: true,
-            status: true,
-            locationId: true,
-            bulkItems: { select: { bulkSkuId: true, plannedQuantity: true } },
-          },
-        });
-
-        if (toCancel.length > 0) {
-          for (const booking of toCancel) {
-            if (booking.kind === BookingKind.CHECKOUT && booking.status === BookingStatus.PENDING_PICKUP && booking.bulkItems.length > 0) {
-              await upsertBulkBalancesAndMovements(tx, {
-                locationId: booking.locationId,
-                bookingId: booking.id,
-                actorUserId: user.id,
-                kind: BulkMovementKind.CHECKIN,
-                items: booking.bulkItems.map((item) => ({
-                  bulkSkuId: item.bulkSkuId,
-                  quantity: item.plannedQuantity,
-                })),
-              });
-            }
-          }
-
-          await tx.booking.updateMany({
-            where: { id: { in: toCancel.map((b) => b.id) } },
-            data: { status: BookingStatus.CANCELLED },
-          });
-          await tx.assetAllocation.updateMany({
-            where: { bookingId: { in: toCancel.map((b) => b.id) } },
-            data: { active: false },
-          });
-          await tx.scanSession.updateMany({
-            where: { bookingId: { in: toCancel.map((b) => b.id) }, status: ScanSessionStatus.OPEN },
-            data: { status: ScanSessionStatus.CANCELLED },
-          });
-        }
-
-        // Invalidate all existing sessions so deactivated user is immediately locked out
-        await tx.session.deleteMany({ where: { userId: id } });
-        const directReportCleanup = await tx.user.updateMany({
-          where: { directReportId: id },
-          data: { directReportId: null },
-        });
-
-        return {
-          cancelledIds: toCancel.map((b) => b.id),
-          directReportsCleared: directReportCleanup.count,
-        };
-      }, { isolationLevel: "Serializable" });
-
-      if (deactivationResult.cancelledIds.length > 0 || deactivationResult.directReportsCleared > 0) {
-        await createAuditEntry({
-          actorId: user.id,
-          actorRole: user.role,
-          entityType: "user",
-          entityId: id,
-          action: "deactivation_cancelled_bookings",
-          after: {
-            cancelledBookingIds: deactivationResult.cancelledIds,
-            cancelledCount: deactivationResult.cancelledIds.length,
-            directReportsCleared: deactivationResult.directReportsCleared,
-          },
-        });
-      }
+      await deactivateUserWithCleanup({
+        targetUserId: id,
+        actorId: user.id,
+        actorRole: user.role,
+      });
     }
 
     updateData.active = body.active;
@@ -386,6 +306,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
       primaryArea: updated.primaryArea,
       avatarUrl: updated.avatarUrl ?? null,
       active: updated.active,
+      hiddenFromRoster: updated.hiddenFromRoster,
       createdAt: updated.createdAt?.toISOString() ?? null,
       sportAssignments: updated.sportAssignments,
       areaAssignments: updated.areaAssignments,

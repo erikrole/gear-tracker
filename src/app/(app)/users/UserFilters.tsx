@@ -34,6 +34,9 @@ export default function UserFilters({
   onAreaChange,
   showInactive,
   onShowInactiveChange,
+  canShowHiddenUsers = false,
+  showHiddenUsers,
+  onShowHiddenUsersChange,
   onClearAll,
   searching = false,
 }: {
@@ -54,12 +57,21 @@ export default function UserFilters({
   onAreaChange: (v: string) => void;
   showInactive: boolean;
   onShowInactiveChange: (v: boolean) => void;
+  canShowHiddenUsers?: boolean;
+  showHiddenUsers: boolean;
+  onShowHiddenUsersChange: (v: boolean) => void;
   onClearAll: () => void;
   searching?: boolean;
 }) {
   const [draftSearch, setDraftSearch] = useState(search);
   const [filtersOpen, setFiltersOpen] = useState(
-    !!roleFilter || !!locationFilter || !!yearFilter || !!sportFilter || !!areaFilter || showInactive,
+    !!roleFilter ||
+      !!locationFilter ||
+      !!yearFilter ||
+      !!sportFilter ||
+      !!areaFilter ||
+      showInactive ||
+      (canShowHiddenUsers && showHiddenUsers),
   );
   const previousFilterCountRef = useRef(0);
   const activeFilterCount =
@@ -68,7 +80,8 @@ export default function UserFilters({
     (areaFilter ? 1 : 0) +
     (yearFilter ? 1 : 0) +
     (sportFilter ? 1 : 0) +
-    (showInactive ? 1 : 0);
+    (showInactive ? 1 : 0) +
+    (canShowHiddenUsers && showHiddenUsers ? 1 : 0);
   const hasFilters = activeFilterCount > 0;
   const locationFilterUnavailable = locationsLoading || locationsError;
   const activeFilters: OperationalActiveFilter[] = [
@@ -112,6 +125,13 @@ export default function UserFilters({
         key: "inactive",
         label: "Showing inactive",
         onRemove: () => onShowInactiveChange(false),
+      }]
+      : []),
+    ...(canShowHiddenUsers && showHiddenUsers
+      ? [{
+        key: "hidden",
+        label: "Showing hidden test users",
+        onRemove: () => onShowHiddenUsersChange(false),
       }]
       : []),
   ];
@@ -269,6 +289,18 @@ export default function UserFilters({
               Show inactive
             </Label>
           </div>
+          {canShowHiddenUsers && (
+            <div className="flex h-10 items-center gap-2 rounded-md border border-border/70 bg-background px-3">
+              <Checkbox
+                id="show-hidden-users"
+                checked={showHiddenUsers}
+                onCheckedChange={(v) => onShowHiddenUsersChange(!!v)}
+              />
+              <Label htmlFor="show-hidden-users" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
+                Show hidden test users
+              </Label>
+            </div>
+          )}
         </div>
       )}
       <OperationalActiveFilterChips filters={activeFilters} />

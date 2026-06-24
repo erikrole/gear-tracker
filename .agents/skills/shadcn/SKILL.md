@@ -1,7 +1,6 @@
 ---
 name: shadcn
 description: Manages shadcn components and projects — adding, searching, fixing, debugging, styling, and composing UI. Provides project context, component docs, and usage examples. Applies when working with shadcn/ui, component registries, presets, --preset codes, or any project with a components.json file. Also triggers for "shadcn init", "create an app with --preset", or "switch to --preset".
-user-invocable: false
 allowed-tools: Bash(npx shadcn@latest *), Bash(pnpm dlx shadcn@latest *), Bash(bunx --bun shadcn@latest *)
 ---
 
@@ -25,6 +24,19 @@ The JSON above contains the project config and installed components. Use `npx sh
 2. **Compose, don't reinvent.** Settings page = Tabs + Card + form controls. Dashboard = Sidebar + Card + Chart + Table.
 3. **Use built-in variants before custom styles.** `variant="outline"`, `size="sm"`, etc.
 4. **Use semantic colors.** `bg-primary`, `text-muted-foreground` — never raw values like `bg-blue-500`.
+
+## Gear Tracker Project Rules
+
+When using this skill in Gear Tracker:
+
+- Read `components.json`, list `src/components/ui/`, and check existing shared primitives before running any shadcn CLI command.
+- Read `docs/DESIGN_LANGUAGE.md` for route-level design language and status semantics.
+- Prefer existing Gear Tracker primitives where they fit: `PageHeader`, `OperationalToolbar`, `OperationalMetricCard`, `OperationalPartialResultsAlert`, `OperationalActiveFilterChips`, `OperationalRowActions`, `EmptyState`, and `UserAvatar`.
+- Use shadcn primitives for new controls; do not add custom buttons, inputs, dialogs, sheets, tables, badges, or empty states when an installed component fits.
+- Keep `lucide-react` icons because `components.json` sets `iconLibrary` to `lucide`.
+- Use semantic Gear Tracker color meaning: green = available/free, orange = pending/waiting/maintenance/pickup handoff, blue = active use, purple = reserved/claimed, red = overdue/destructive/blocked/failed.
+- Keep operational controls at 40px+ hit targets on web and avoid nested interactive elements.
+- After component or shared-source changes, run the slice's focused checks plus `npm run codemap` when codemap-owned files changed, `npm run verify:docs`, `git diff --check`, and `npm run build:app` as applicable. Visible route changes need authenticated browser smoke or a recorded blocker.
 
 ## Critical Rules
 

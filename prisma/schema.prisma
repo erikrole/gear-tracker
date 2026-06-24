@@ -129,6 +129,7 @@ model User {
   role                 Role
   staffingType         ShiftWorkerType            @default(ST) @map("staffing_type")
   active               Boolean                    @default(true)
+  hiddenFromRoster     Boolean                    @default(false) @map("hidden_from_roster")
   phone                String?
   wiscardNumber        String?                    @unique @map("wiscard_number")
   slackHandle          String?                    @map("slack_handle")
@@ -191,6 +192,7 @@ model User {
   bottomSize          String?      @map("bottom_size")
   shoeSize            String?      @map("shoe_size")
 
+  @@index([active, hiddenFromRoster])
   @@index([directReportId])
   @@map("users")
 }

@@ -91,15 +91,15 @@
 | `src/components/EquipmentPicker.tsx` | 991 |
 | `src/components/TradeBoard.tsx` | 929 |
 | `src/components/ActivityTimeline.tsx` | 906 |
+| `src/components/BookingDetailsSheet.tsx` | 817 |
 | `src/components/ShiftDetailPanel.tsx` | 807 |
-| `src/components/BookingDetailsSheet.tsx` | 803 |
 | `src/components/onboarding/OnboardingDialog.tsx` | 768 |
 | `src/components/ui/sidebar.tsx` | 727 |
 | `src/components/ChooseImageModal.tsx` | 714 |
 | `src/components/booking-wizard/BookingWizard.tsx` | 710 |
 | `src/components/AppShell.tsx` | 595 |
 | `src/components/booking-wizard/WizardStep1.tsx` | 565 |
-| `src/components/BookingListPage.tsx` | 507 |
+| `src/components/BookingListPage.tsx` | 510 |
 | `src/components/ui/heatmap.tsx` | 422 |
 | `src/components/ui/chart.tsx` | 389 |
 | `src/components/PageBreadcrumb.tsx` | 379 |
@@ -125,8 +125,9 @@
 |---|---:|
 | `src/hooks/booking-action-copy.ts` | 22 |
 | `src/hooks/use-assignment-grid.ts` | 228 |
+| `src/hooks/use-booking-change-sync.ts` | 122 |
 | `src/hooks/use-current-user.ts` | 28 |
-| `src/hooks/use-dashboard-data.ts` | 168 |
+| `src/hooks/use-dashboard-data.ts` | 170 |
 | `src/hooks/use-dashboard-filters.ts` | 130 |
 | `src/hooks/use-fetch.ts` | 110 |
 | `src/hooks/use-form-options.ts` | 32 |
@@ -138,4 +139,4 @@
 | `src/hooks/use-schedule-data.ts` | 524 |
 | `src/hooks/use-url-state.ts` | 166 |
 | `src/hooks/useBookingActions.ts` | 172 |
-| `src/hooks/useBookingDetail.ts` | 69 |
+| `src/hooks/useBookingDetail.ts` | 70 |

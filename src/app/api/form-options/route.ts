@@ -1,13 +1,19 @@
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
+import { visibleUserWhere } from "@/lib/user-visibility";
 
 export const GET = withAuth(async (_req, { user }) => {
   const [locations, departments, users, bulkSkus] = await Promise.all([
     db.location.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.department.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.user.findMany({
-      where: user.role === "STUDENT" ? { id: user.id, active: true } : { active: true },
+      where: {
+        AND: [
+          visibleUserWhere(user),
+          user.role === "STUDENT" ? { id: user.id, active: true } : { active: true },
+        ],
+      },
       orderBy: { name: "asc" },
       select: { id: true, name: true, avatarUrl: true },
     }),

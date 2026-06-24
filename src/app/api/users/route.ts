@@ -2,6 +2,7 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { HttpError, ok, parsePagination } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
+import { shouldIncludeHiddenUsers, visibleUserWhere } from "@/lib/user-visibility";
 import { optionalSportCodeSchema } from "@/lib/validation";
 import { Prisma } from "@prisma/client";
 
@@ -19,9 +20,10 @@ export const GET = withAuth(async (req, { user }) => {
   const yearParam = searchParams.get("year");      // FRESHMAN | SOPHOMORE | JUNIOR | SENIOR | GRAD
   const sportParam = optionalSportCodeSchema.parse(searchParams.get("sport") ?? undefined);    // sport code (e.g. WHKY)
   const areaParam = searchParams.get("area");      // ShiftArea enum value
+  const includeHidden = shouldIncludeHiddenUsers(searchParams, user);
 
   // Build where clause
-  const conditions: Prisma.UserWhereInput[] = [];
+  const conditions: Prisma.UserWhereInput[] = [visibleUserWhere(user, { includeHidden })];
 
   // Default to active-only unless explicitly requesting all or inactive
   if (activeParam === "false") {
@@ -161,6 +163,7 @@ export const GET = withAuth(async (req, { user }) => {
       location: u.location?.name ?? null,
       avatarUrl: u.avatarUrl ?? null,
       active: u.active,
+      hiddenFromRoster: u.hiddenFromRoster,
       title: u.title ?? null,
       gradYear: u.gradYear ?? null,
       studentYearOverride: u.studentYearOverride ?? null,

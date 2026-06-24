@@ -1,6 +1,100 @@
 # Task Queue
 
-Last updated: 2026-06-23
+Last updated: 2026-06-24
+
+---
+
+## Active: Hidden smoke users visibility (2026-06-24)
+
+Plan: `tasks/hidden-smoke-users-plan.md`
+
+- [x] Add an additive `User.hiddenFromRoster` schema field and local migration.
+- [x] Add shared server visibility helpers for hidden users and internal operators.
+- [x] Gate `/api/users`, `/api/users/export`, form-options people pickers, kiosk user selection, and direct user lookup.
+- [x] Add focused route/helper coverage.
+- [x] Sync Settings docs and Gaps/Risks.
+- [x] Run focused verification and record results.
+- [x] Expose hidden-user visibility capability from `/api/me`.
+- [x] Add owner-only `/users` "Show hidden test users" filter and export wiring.
+- [x] Add focused API/source coverage and sync docs.
+- [x] Run Slice 2 verification and record results.
+- [x] Extract reusable user deactivation side effects.
+- [x] Add internal hidden-user cleanup endpoint with dry-run default.
+- [x] Add focused cleanup coverage and sync docs.
+- [x] Run Slice 3 verification and record results.
+
+### Review
+- 2026-06-24: Hidden smoke user visibility slice shipped locally. Added `User.hiddenFromRoster` and migration `0083_hide_smoke_users`, plus shared hidden-user visibility helpers gated by comma-separated `INTERNAL_OPERATOR_EMAILS`. Default roster, user export, form-options people picker, kiosk user picker, and non-internal direct user profile reads now exclude hidden users, while a hidden signed-in user can still read their own profile. Settings docs and Gaps/Risks are synced. Verification passed with `npx vitest run tests/users-hidden-visibility.test.ts tests/sport-code-route-boundaries.test.ts`, `npx prisma format`, `npx prisma generate`, `npx prisma validate`, `npm run db:migrate:check`, `npx tsc --noEmit`, `npm run codemap`, `npm run verify:docs`, `git diff --check`, and `npm run build:app`. Live migration health/deploy was not run; deploying the local migration is a separate database step.
+- 2026-06-24: Owner-only roster opt-in shipped locally. `/api/me` now returns `canViewHiddenUsers`, `/users` renders "Show hidden test users" only for configured internal operators, and the same opt-in carries into the roster CSV export. Non-owners cannot force the client opt-in with a stale URL; the server also keeps rejecting hidden inclusion unless `INTERNAL_OPERATOR_EMAILS` matches. Verification passed with `npx vitest run tests/users-hidden-visibility.test.ts`, `npx tsc --noEmit`, `npm run codemap`, `npm run verify:docs`, `git diff --check`, and `npm run build:app`.
+- 2026-06-24: Disposable hidden-user cleanup shipped locally. User deactivation side effects were extracted into `src/lib/services/user-deactivation.ts`, and `POST /api/users/hidden-cleanup` gives configured internal operators a dry-run-first cleanup path for active hidden users older than a requested TTL. The cleanup deactivates instead of deleting, preserves booking/audit history, clears sessions through the shared deactivation path, and writes cleanup audit entries when applied. Verification passed with `npx vitest run tests/api-route-wrapper-contract.test.ts tests/hidden-users-cleanup.test.ts tests/users-hidden-visibility.test.ts`, `npx tsc --noEmit`, `npm run codemap`, `npm run verify:docs`, `git diff --check`, and `npm run build:app`.
+
+---
+
+## Active: selected workflow skill refresh (2026-06-24)
+
+Plan: refresh the selected Gear Tracker skills so future doc sync, UI polish, shadcn, and migration work follow the current ledger, verification, and source-of-truth rules.
+
+- [x] Read the selected skills and current repo contracts: task root, task index, package scripts, design language, shadcn config, and migration workflows.
+- [x] Update `area-doc-sync` for current task-ledger routing, completed-plan archive buckets, codemap/docs verification, `build:app`, approved full build, and browser proof notes.
+- [x] Update `make-interfaces-feel-better` with Gear Tracker design-language, shared operational primitives, status-color semantics, hit targets, and browser proof context.
+- [x] Update `shadcn` with Gear Tracker project rules for existing primitives, installed components, lucide icons, semantic status colors, verification, and browser smoke.
+- [x] Promote `gt-migrate` as the canonical Prisma/Neon workflow and fold in schema-first guardrails from `prisma-migrate-safely`.
+- [x] Convert `prisma-migrate-safely` to a compatibility alias that delegates to `gt-migrate`.
+- [x] Validate the changed skills and inspect the diff.
+- [x] Record final review and verification.
+
+### Review
+- 2026-06-24: Selected workflow skills refreshed. `area-doc-sync` now routes through current task ledgers, completed-plan archive buckets, codemap/docs gates, `build:app`, approved full-build handling, and browser proof notes. `make-interfaces-feel-better` now includes Gear Tracker design-language context, shared operational primitives, status color semantics, hit targets, and authenticated browser proof expectations. `shadcn` now checks installed components/project config first, prefers Gear Tracker shared primitives, pins lucide/status semantics, and records docs/build/browser proof expectations; the stale unsupported `user-invocable` frontmatter key was removed. `gt-migrate` is now the canonical Prisma/Neon workflow, with schema-first audit, task-ledger, wrapper-backed health/deploy, codemap/docs, approval, and closeout guardrails. `prisma-migrate-safely` is now a compatibility alias that delegates to `gt-migrate` while preserving the key schema-safety warnings. Verification passed with `python3 /Users/erole/.codex/skills/.system/skill-creator/scripts/quick_validate.py` run individually for `area-doc-sync`, `make-interfaces-feel-better`, `shadcn`, `gt-migrate`, and `prisma-migrate-safely`; `git diff --check -- .agents/skills/area-doc-sync/SKILL.md .agents/skills/make-interfaces-feel-better/SKILL.md .agents/skills/shadcn/SKILL.md .agents/skills/gt-migrate/SKILL.md .agents/skills/prisma-migrate-safely/SKILL.md tasks/todo.md` also passed.
+
+---
+
+## Active: gt-plan skill hardening (2026-06-24)
+
+Plan: update `.agents/skills/gt-plan/SKILL.md` in place so future Gear Tracker planning is smarter, ledger-aware, and more trustworthy.
+
+- [x] Audit the existing `gt-plan` skill, task-root contract, package verification scripts, and relevant project lessons.
+- [x] Patch `gt-plan` to route through current ledgers before creating new plan files.
+- [x] Add source-of-truth reads, stop conditions, app/docs/browser/iOS verification guidance, and closeout rules.
+- [x] Validate skill metadata and inspect the diff.
+- [x] Record final review and verification.
+
+### Review
+- 2026-06-24: `gt-plan` now routes Gear Tracker work through current repo truth before implementation: North Star, task-root contracts, active ledgers, relevant area/brief/decision/gaps docs, schema when needed, source files, and tests. The workflow now distinguishes existing active plans, deferral ledgers, and new plan files; requires stop conditions; favors `npm run build:app` for app-only compile proof while keeping full `npm run build` for safe/approved shipping checks; adds docs/codemap, authenticated browser-smoke, and iOS drift/audit/build guidance; and requires closeout with shipped/verified/deferred/blocked/proof/next-slice notes. Verification passed with `python3 /Users/erole/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/gt-plan` and `git diff --check -- .agents/skills/gt-plan/SKILL.md tasks/todo.md`. The validator script is not directly executable, so the first direct invocation failed with `permission denied`; rerunning through Python passed.
+
+---
+
+## Active: North Star refresh (2026-06-24)
+
+Plan: update `docs/NORTH_STAR.md` so the authoritative product direction matches the shipped native iOS, kiosk-only custody, reservation-first, schedule-source-of-truth, item-family, and maintenance reality.
+
+- [x] Read the current North Star, decision log, gaps registry, task lessons, active task ledger, and current area docs for kiosk, checkouts, reservations, mobile, schedule, and bulk inventory.
+- [x] Patch the North Star product shape, user modes, core workflows, principles, roadmap, planning gaps, and improvement suggestions.
+- [x] Run doc verification and inspect the diff.
+- [x] Record final review and verification.
+
+### Review
+- 2026-06-24: `docs/NORTH_STAR.md` now reflects the shipped operating model: app/web are reservation-first outside the counter, native kiosk owns custody, native iOS is a first-class product surface, web remains the control room, Schedule is a gear-linked source-of-truth workflow, and item-family/Battery Ops work is part of the baseline rather than future scope. The stale March roadmap, native-app exclusion, kiosk Phase C deferral, and resolved planning gaps were replaced with current shipped baseline, near-term focus, deferred scope, risks, planning gaps, and next planning docs. Verification passed with `npm run verify:docs` and `git diff --check -- docs/NORTH_STAR.md tasks/todo.md`.
+
+---
+
+## Active: Booking real-time sync planning (2026-06-24)
+
+Plan: `tasks/booking-realtime-sync-plan.md`
+
+- [x] Audit dashboard/checkouts/reservations docs, decisions, gaps, schema, and current React Query data flow.
+- [x] Identify the current trust gap: dashboard stats can refresh ahead of stale dashboard rows, and persisted dashboard/detail cache can survive mount without a truth refresh.
+- [x] Re-run through the updated `gt-plan` route contract: Dashboard owns the slice, Reservations/Checkouts/Mobile are secondary contract surfaces, the existing active plan remains the ledger, and stop conditions now gate implementation.
+- [x] Slice 1: force fresh-on-mount behavior for operational booking surfaces.
+- [x] Slice 2: add a lightweight authenticated booking-change signal API.
+- [x] Slice 3: wire dashboard, bookings list, and booking detail cache invalidation to the signal.
+- [x] Slice 4: sync area docs, record verification, and browser-smoke the no-manual-refresh path.
+
+### Review
+- 2026-06-24 `gt-plan` rerun: Dashboard is the daily action console, checkouts/reservations feed the shared Booking model, `/checkouts` and `/reservations` already redirect into `/bookings`, dashboard uses persisted React Query cache for the full payload, and booking list/detail data already use centralized React Query keys. API envelopes were checked before client planning: `/api/dashboard` and `/api/dashboard/stats` return `ok({ data, partialFailures })`, `/api/bookings` returns `ok({ data, total, limit, offset })`, `/api/bookings/[id]` returns `ok({ data: { ...detail, allowedActions } })`, and checkout/reservation lists return the shared list envelope. Recommended V1 is fresh-on-mount operational queries plus a bounded server truth cursor and React Query invalidation. WebSockets/SSE are out of scope for V1 unless the cursor strategy cannot meet the operational trust requirement under Vercel serverless constraints.
+- 2026-06-24 Slice 1: Dashboard full payload, dashboard stats, booking detail, and shared booking-list queries now refetch on mount so reload/remount does not treat warm persisted cache as fresh. Added source-contract coverage in `tests/booking-realtime-sync-source.test.ts` and synced Dashboard/Testing docs. Verification passed with focused Vitest, TypeScript, codemap regeneration, docs check, migration-prefix check, whitespace check, and `npm run build:app`.
+- 2026-06-24 Slice 2: Added bounded authenticated `GET /api/bookings/changes?since=<cursor>` for committed booking-change evidence. The route requires booking view permission, rate limits per signed-in user, returns `ok({ data: { cursor, changedBookingIds } })`, uses `Booking.updatedAt` plus indexed booking audit evidence, and scopes returned booking ids to the viewer. Verification passed with focused route/source Vitest, TypeScript, codemap regeneration, docs check, migration-prefix check, whitespace check, and `npm run build:app`.
+- 2026-06-24 Slice 3: Added shared `useBookingChangeSync`, wired it into Dashboard and the shared booking list, and invalidates dashboard, dashboard stats, booking-list, and changed booking-detail query keys when `/api/bookings/changes` reports committed changes. The hook only polls while visible and online. Verification passed with focused route/source Vitest, TypeScript, codemap regeneration, docs check, migration-prefix check, whitespace check, and `npm run build:app`.
+- 2026-06-24 Slice 4: Authenticated browser smoke created reservation `cmqs2rrjt000hkv9t8pp1kicm`, proved Dashboard Reserved 0 -> 1 and `/bookings?tab=reservations` convergence without manual refresh, caught the open-detail-sheet stale local-state bug, fixed it with a booking-change event bridge, proved the open sheet title/notes refreshed after a second mutation, cancelled the smoke reservation, and reloaded Dashboard with Reserved 0 and no stale smoke row. Remaining proof debt is checkout-specific list smoke and actual kiosk pickup fulfillment smoke, not code-blocking for this reservation/dashboard slice.
 
 ---
 

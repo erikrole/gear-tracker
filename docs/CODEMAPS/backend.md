@@ -23,6 +23,7 @@
 | `src/lib/services/dashboard-counts.ts` | 111 |
 | `src/lib/services/event-defaults.ts` | 69 |
 | `src/lib/services/firmware-watch.ts` | 298 |
+| `src/lib/services/hidden-users-cleanup.ts` | 126 |
 | `src/lib/services/kiosk-checkout-complete.ts` | 51 |
 | `src/lib/services/kiosk-location.ts` | 72 |
 | `src/lib/services/kiosk-scan.ts` | 36 |
@@ -49,6 +50,7 @@
 | `src/lib/services/shift-trades.ts` | 755 |
 | `src/lib/services/sport-configs.ts` | 257 |
 | `src/lib/services/status.ts` | 439 |
+| `src/lib/services/user-deactivation.ts` | 111 |
 
 ## Key Library Files
 
@@ -128,6 +130,7 @@
 | `src/lib/theme.ts` | 145 |
 | `src/lib/time.ts` | 28 |
 | `src/lib/url-sync.ts` | 16 |
+| `src/lib/user-visibility.ts` | 37 |
 | `src/lib/utils.ts` | 7 |
 | `src/lib/validation.ts` | 478 |
 | `src/lib/venue-mapping-audit.ts` | 56 |
@@ -198,6 +201,7 @@
 - `/api/bookings/[id]/extend`
 - `/api/bookings/[id]/nudge`
 - `/api/bookings/[id]`
+- `/api/bookings/changes`
 - `/api/bookings/export`
 - `/api/bookings`
 
@@ -490,5 +494,6 @@
 - `/api/users/[id]`
 - `/api/users/bulk-create`
 - `/api/users/export`
+- `/api/users/hidden-cleanup`
 - `/api/users/org-chart`
 - `/api/users`

@@ -16,6 +16,7 @@ export type UserRow = {
   location: string | null;
   avatarUrl: string | null;
   active?: boolean;
+  hiddenFromRoster?: boolean;
   // Surfaced from migration 0048 so the list can display Title (staff) / Year (student).
   title: string | null;
   gradYear: number | null;

@@ -94,6 +94,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - Student attempts to edit a booking that was reassigned.
 - Staff account is demoted while editing a record.
 - Owner is deactivated with active reservations/check-outs: `OPEN` checkouts block deactivation; `BOOKED`, `DRAFT`, and `PENDING_PICKUP` work is cancelled with allocation/session cleanup, and pending-pickup bulk stock is restored before sessions are invalidated.
+- Disposable hidden smoke/test users are cleaned up by deactivation, not hard delete. `POST /api/users/hidden-cleanup` is internal-operator-only via `INTERNAL_OPERATOR_EMAILS`, defaults to dry-run, scans active `hiddenFromRoster` users older than the requested TTL, and reuses the same deactivation side effects as normal user edits.
 - Draft created by one user but accessed by another user.
 - API request bypasses UI and attempts unauthorized edit.
 
@@ -114,6 +115,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 6. Ensure audit logs include actor role, target owner, and exception metadata.
 
 ## Change Log
+- 2026-06-24: Hidden smoke user cleanup shipped. User deactivation side effects now live in a reusable service, and `POST /api/users/hidden-cleanup` gives configured internal operators a dry-run-first way to deactivate old active `hiddenFromRoster` smoke/test users without deleting audit or booking history.
 - 2026-06-20: Shared onboarding dialog metric/status panels now use shadcn `Card` composition for completion counts, client preview counts, and account-status preview counts, preserving invitation flow behavior while removing route-local bordered panel markup.
 - 2026-06-20: Users roster filters inherit the lighter shared `OperationalToolbar` shell and refreshed active-filter chips, preserving search/filter behavior while making the command row read as quiet page chrome instead of a bordered frame.
 - 2026-06-20: User detail inline-edit rows inherit the refreshed shared `SaveableField` dirty-row treatment, preserving existing profile save semantics while making pending save/cancel actions visually explicit and 40px target sized.

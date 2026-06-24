@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { formatRelativeTime } from "@/lib/format";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { useDashboardData, DASHBOARD_STATS_KEY } from "@/hooks/use-dashboard-data";
+import { useBookingChangeSync } from "@/hooks/use-booking-change-sync";
 import { useQuery } from "@tanstack/react-query";
 import type { DashboardStats } from "./dashboard-types";
 import { useDashboardFilters } from "@/hooks/use-dashboard-filters";
@@ -31,6 +32,7 @@ import type { BookingSummary, CreateBookingContext } from "./dashboard-types";
 
 export default function DashboardPage() {
   const { data, fetchError, refreshing, lastRefreshed, loadData, setData } = useDashboardData();
+  useBookingChangeSync();
 
   // Fast stats — populated from cache immediately on return visits, then kept
   // fresh every 60s. Drives the stat strip and overdue count before the full

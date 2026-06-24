@@ -88,6 +88,14 @@ function serializeInactiveParam(value: boolean): string | null {
   return value ? "all" : null;
 }
 
+function parseHiddenParam(raw: string | null): boolean {
+  return raw === "1" || raw === "true";
+}
+
+function serializeHiddenParam(value: boolean): string | null {
+  return value ? "1" : null;
+}
+
 function parsePageParam(raw: string | null): number {
   const page = Number.parseInt(raw ?? "", 10);
   return Number.isFinite(page) && page > 0 ? page : 0;
@@ -221,6 +229,11 @@ export default function UsersPage() {
     parseInactiveParam,
     serializeInactiveParam,
   );
+  const [showHiddenUsers, setShowHiddenUsers] = useUrlState<boolean>(
+    "includeHidden",
+    parseHiddenParam,
+    serializeHiddenParam,
+  );
   const [page, setPage] = useUrlState<number>(
     "page",
     parsePageParam,
@@ -238,7 +251,23 @@ export default function UsersPage() {
       return;
     }
     setPage(0);
-  }, [search, roleFilter, locationFilter, yearFilter, sportFilter, areaFilter, sort, showInactive, setPage]);
+  }, [search, roleFilter, locationFilter, yearFilter, sportFilter, areaFilter, sort, showInactive, showHiddenUsers, setPage]);
+
+  // Auth
+  const { data: meData } = useFetch<{ user: { id: string; role: Role }; canViewHiddenUsers: boolean }>({
+    url: "/api/me",
+    transform: (json) => json as { user: { id: string; role: Role }; canViewHiddenUsers: boolean },
+    refetchOnFocus: false,
+  });
+  const currentUserRole = meData?.user.role ?? null;
+  const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
+  const canShowHiddenUsers = meData?.canViewHiddenUsers === true;
+
+  useEffect(() => {
+    if (meData && !canShowHiddenUsers && showHiddenUsers) {
+      setShowHiddenUsers(false);
+    }
+  }, [canShowHiddenUsers, meData, setShowHiddenUsers, showHiddenUsers]);
 
   // ── Build URL for user list fetch ──
   const usersUrl = useMemo(() => {
@@ -254,8 +283,9 @@ export default function UsersPage() {
     if (sportFilter) params.set("sport", sportFilter);
     if (areaFilter) params.set("area", areaFilter);
     if (showInactive) params.set("active", "all");
+    if (canShowHiddenUsers && showHiddenUsers) params.set("includeHidden", "1");
     return `/api/users?${params}`;
-  }, [page, search, sort, roleFilter, locationFilter, yearFilter, sportFilter, areaFilter, showInactive]);
+  }, [page, search, sort, roleFilter, locationFilter, yearFilter, sportFilter, areaFilter, showInactive, canShowHiddenUsers, showHiddenUsers]);
 
   const exportHref = useMemo(() => {
     const params = new URLSearchParams();
@@ -267,9 +297,10 @@ export default function UsersPage() {
     if (sportFilter) params.set("sport", sportFilter);
     if (areaFilter) params.set("area", areaFilter);
     if (showInactive) params.set("active", "all");
+    if (canShowHiddenUsers && showHiddenUsers) params.set("includeHidden", "1");
     const qs = params.toString();
     return qs ? `/api/users/export?${qs}` : "/api/users/export";
-  }, [search, roleFilter, locationFilter, yearFilter, sportFilter, areaFilter, showInactive]);
+  }, [search, roleFilter, locationFilter, yearFilter, sportFilter, areaFilter, showInactive, canShowHiddenUsers, showHiddenUsers]);
 
   const {
     data: listData,
@@ -301,17 +332,15 @@ export default function UsersPage() {
   });
   const locations = formOptions?.locations ?? [];
 
-  // Auth
-  const { data: meData } = useFetch<{ id: string; role: Role }>({
-    url: "/api/me",
-    transform: (json) => (json as Record<string, unknown>).user as { id: string; role: Role },
-    refetchOnFocus: false,
-  });
-  const currentUserRole = meData?.role ?? null;
-  const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
-
   const totalPages = Math.ceil(total / LIMIT);
-  const hasFilters = !!search.trim() || !!roleFilter || !!locationFilter || !!yearFilter || !!sportFilter || !!areaFilter || showInactive;
+  const hasFilters = !!search.trim() ||
+    !!roleFilter ||
+    !!locationFilter ||
+    !!yearFilter ||
+    !!sportFilter ||
+    !!areaFilter ||
+    showInactive ||
+    (canShowHiddenUsers && showHiddenUsers);
   const isInitialLoad = loading && users.length === 0 && !loadError;
 
   useEffect(() => {
@@ -397,6 +426,9 @@ export default function UsersPage() {
           onAreaChange={setAreaFilter}
           showInactive={showInactive}
           onShowInactiveChange={setShowInactive}
+          canShowHiddenUsers={canShowHiddenUsers}
+          showHiddenUsers={showHiddenUsers}
+          onShowHiddenUsersChange={setShowHiddenUsers}
           searching={refreshing && !loading}
           onClearAll={() => {
             setRoleFilter("");
@@ -405,6 +437,7 @@ export default function UsersPage() {
             setSportFilter("");
             setAreaFilter("");
             setShowInactive(false);
+            setShowHiddenUsers(false);
           }}
         />
 

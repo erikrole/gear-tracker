@@ -75,7 +75,7 @@ Values: `ACTIVE`, `MAINTENANCE`, `UNKNOWN`
 
 ## Model `User`
 
-Fields: 68
+Fields: 69
 
 - `id                   String                     @id @default(cuid())`
 - `name                 String`
@@ -85,6 +85,7 @@ Fields: 68
 - `role                 Role`
 - `staffingType         ShiftWorkerType            @default(ST) @map("staffing_type")`
 - `active               Boolean                    @default(true)`
+- `hiddenFromRoster     Boolean                    @default(false) @map("hidden_from_roster")`
 - `phone                String?`
 - `wiscardNumber        String?                    @unique @map("wiscard_number")`
 - `slackHandle          String?                    @map("slack_handle")`
@@ -148,6 +149,7 @@ Fields: 68
 
 Indexes and constraints:
 
+- `@@index([active, hiddenFromRoster])`
 - `@@index([directReportId])`
 - `@@map("users")`
 

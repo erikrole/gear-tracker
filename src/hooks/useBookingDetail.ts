@@ -44,6 +44,7 @@ export function useBookingDetail(id: string) {
   const { data, isLoading, isFetching, error: queryError, refetch } = useQuery<BookingDetail>({
     queryKey,
     queryFn: ({ signal }) => fetchBooking(id, signal),
+    refetchOnMount: "always",
     refetchOnWindowFocus: true,
   });
 

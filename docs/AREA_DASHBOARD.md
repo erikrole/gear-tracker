@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Dashboard
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-05-25
+- Last Updated: 2026-06-24
 - Status: Active — V3 shipped, reliability + UX polish complete
 - Version: V3
 
@@ -150,6 +150,8 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - [x] AC-8: Concurrent fetch races are prevented (AbortController).
 - [x] AC-9: Draft delete is optimistic with rollback on failure.
 - [x] AC-10: Manual refresh button shows data freshness ("Updated X ago").
+- [x] AC-11: Operational dashboard, booking list, and booking detail queries verify server truth on mount instead of trusting warm persisted cache as fresh.
+- [x] AC-12: Dashboard booking counts and rows converge from committed booking changes without manual refresh while the page is visible and online.
 
 ## Edge Cases
 - No overdue items: banner hidden.
@@ -157,7 +159,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - Cross-midnight and DST countdown behavior.
 - Booking linked to deleted or changed event source record.
 - Mixed-location return suggestion for multi-location allocations.
-- Temporary stale data causing count mismatches: show refresh status.
+- Temporary stale data causing count mismatches: show refresh status, refetch operational booking surfaces on mount, and invalidate dashboard/list/detail booking reads from the committed booking-change signal.
 
 ## Dependencies
 - Booking and allocation read models.
@@ -177,6 +179,10 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 7. Add regression tests for permissions, window filtering (7 days), and overdue consistency.
 
 ## Change Log
+- 2026-06-24: Booking real-time sync Slice 4. Authenticated browser smoke on local dev created, edited, and cancelled reservation `cmqs2rrjt000hkv9t8pp1kicm`; Dashboard moved Reserved 0 -> 1 without Refresh, `/bookings?tab=reservations` showed the row, an open booking detail sheet refreshed title/notes after the detail listener fix, cancellation removed the row from active reservations, and a Dashboard reload showed Reserved 0 with no stale smoke row. Proof notes/screenshots live under `tasks/archive/proofs/`.
+- 2026-06-24: Booking real-time sync Slice 3. Dashboard and the shared booking list now mount a shared booking-change sync hook. The hook polls `/api/bookings/changes` only while visible and online, then invalidates dashboard, dashboard stats, booking-list, and changed booking-detail query keys when the server reports committed booking changes.
+- 2026-06-24: Booking real-time sync Slice 2. Added bounded authenticated `GET /api/bookings/changes?since=<cursor>` as the server truth signal for later client invalidation. The route requires booking view permission, rate limits per signed-in user, returns `ok({ data: { cursor, changedBookingIds } })`, uses committed `Booking.updatedAt` plus indexed booking audit evidence, and scopes returned booking ids to the viewer.
+- 2026-06-24: Booking real-time sync Slice 1. Dashboard full payload, dashboard stats, shared booking lists, and booking details now set `refetchOnMount: "always"` so a route remount or browser reload verifies server truth instead of treating warm dashboard/detail cache as fresh. Source-contract coverage pins the operational-query mount behavior while the bounded booking-change signal remains the next slice.
 - 2026-06-16: Dashboard Upcoming Events now preserves the actual event title when an event has sport metadata but no opponent, preventing manual events like Lambeau Field Visit from collapsing to the sport label `Football`.
 - 2026-06-15: Kiosk-only custody Slice 3. Dashboard quick actions and My Gear empty/prep states now create reservations only, and reservation rows no longer expose conversion to checkout outside a kiosk.
 - 2026-06-11: Plan 039. Dashboard `View all` overflow links are now filter-aware. Previously the section header counts scoped to the active sport or location filter while the overflow footers only checked `activeSport`, so a location-only filter could show a scoped count above a `View all N` link pointing at the unfiltered total. Both columns now hide overflow totals whenever any dashboard filter is active across My checkouts, My reservations, Team checkouts, Awaiting pickup, Stale reservations, and Team reservations, while sport-specific empty-state copy is preserved.

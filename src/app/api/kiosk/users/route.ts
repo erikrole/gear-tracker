@@ -7,6 +7,7 @@ export const GET = withKiosk(async (_req, { kiosk }) => {
   const users = await db.user.findMany({
     where: {
       active: true,
+      hiddenFromRoster: false,
       OR: [{ locationId: kiosk.locationId }, { locationId: null }],
     },
     orderBy: { name: "asc" },

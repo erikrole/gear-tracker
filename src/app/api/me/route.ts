@@ -4,9 +4,13 @@ import { createAuditEntry } from "@/lib/audit";
 import { hashPassword, verifyPassword } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
+import { canViewHiddenUsers } from "@/lib/user-visibility";
 
 export const GET = withAuth(async (_req, { user }) => {
-  return ok({ user });
+  return ok({
+    user,
+    canViewHiddenUsers: canViewHiddenUsers(user),
+  });
 });
 
 const updateProfileSchema = z.object({

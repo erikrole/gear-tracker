@@ -7,6 +7,19 @@ description: Design engineering principles for making interfaces feel polished. 
 
 Great interfaces rarely come from a single thing. It's usually a collection of small details that compound into a great experience. Apply these principles when building or reviewing UI code.
 
+## Gear Tracker Context
+
+When working in Gear Tracker, read `docs/DESIGN_LANGUAGE.md` before making broad UI calls. Use shadcn/ui and existing operational primitives first: `PageHeader`, `OperationalToolbar`, `OperationalMetricCard`, `OperationalPartialResultsAlert`, `OperationalActiveFilterChips`, `OperationalRowActions`, `EmptyState`, `UserAvatar`, `Badge`, `Button`, `Input`, `Select`, `ToggleGroup`, `Switch`, `Dialog`, `AlertDialog`, `Sheet`, `Drawer`, `Table`, and `Card`.
+
+For Gear Tracker web UI:
+
+- Keep operational surfaces dense but readable. Avoid marketing-style hero layouts, decorative gradients, oversized cards, and cards inside cards.
+- Green means available/free. Use orange for waiting, pending, maintenance, and pickup handoff states.
+- Keep actions at 40px+ hit targets on web. Use 44px where touch is primary.
+- Use lucide icons inside buttons when an icon exists, with accessible names for icon-only controls.
+- Treat phone-width web checks as smoke. The iOS app owns primary phone workflows.
+- Record visible UI proof with authenticated browser smoke when credentials/session/runtime are available.
+
 ## Quick Reference
 
 | Category | When to Use |
@@ -99,7 +112,7 @@ Interactive elements need at least 40×40px hit area. Extend with a pseudo-eleme
 
 ## Review Output Format
 
-Always present changes as a markdown table with **Before** and **After** columns. Include every change you made — not just a subset. Never list findings as separate "Before:" / "After:" lines outside of a table. Group changes by principle using a heading above each table, and keep each row focused on a single diff so the reader can scan the whole list quickly.
+For focused visual review, present changes as a markdown table with **Before** and **After** columns. Include every material UI change made. For ordinary implementation closeout in Gear Tracker, keep the final response concise and put full proof details in the task ledger or plan review.
 
 ### Example
 
@@ -125,6 +138,7 @@ Rows should cite the specific file and the specific property that changed when i
 
 ## Review Checklist
 
+- [ ] Gear Tracker work checked `docs/DESIGN_LANGUAGE.md` and existing shared primitives first
 - [ ] Nested rounded elements use concentric border radius
 - [ ] Icons are optically centered, not just geometrically
 - [ ] Shadows used instead of borders where appropriate
@@ -139,6 +153,7 @@ Rows should cite the specific file and the specific property that changed when i
 - [ ] No `transition: all` — only specific properties
 - [ ] `will-change` only on transform/opacity/filter, never `all`
 - [ ] Interactive elements have at least 40×40px hit area
+- [ ] Authenticated browser smoke recorded for visible Gear Tracker route changes when available
 
 ## Reference Files
 

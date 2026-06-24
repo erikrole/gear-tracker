@@ -16,6 +16,7 @@ import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useFormOptions } from "@/hooks/use-form-options";
+import { useBookingChangeSync } from "@/hooks/use-booking-change-sync";
 import { applyBookingItemsUpdate } from "@/components/booking-list/list-recovery";
 
 import {
@@ -63,6 +64,7 @@ export default function BookingListPage({
   const urlParams = useSearchParams();
   const router = useRouter();
   const urlSignature = urlParams.toString();
+  useBookingChangeSync();
 
   // ── Filter state ──
   const [page, setPage] = useState(0);
@@ -124,6 +126,7 @@ export default function BookingListPage({
       }
       return json;
     },
+    refetchOnMount: "always",
     refetchOnWindowFocus: true,
   });
   const reload = async () => { await refetch(); };

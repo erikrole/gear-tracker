@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Checkouts
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-22
+- Last Updated: 2026-06-24
 - Status: Active — V1 Shipped
 - Version: V1
 
@@ -298,6 +298,7 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 5. Add regression coverage for race conditions, partial returns, non-kiosk custody attempts, and permission bypass attempts.
 
 ## Change Log
+- 2026-06-24: Booking real-time sync Slice 4. Checkout list/dashboard read freshness now shares the booking-change signal used by reservations; while the browser smoke used a reservation mutation, the same shared `/bookings` list hook invalidates checkout tabs and dashboard checkout rows from committed booking-change evidence without adding app/web custody mutation paths.
 - 2026-06-22: Booking status display cleanup. Checkout detail helpers, booking-list rows/cards, and item booking history now resolve labels and badge/status colors through `src/lib/booking-status-display.ts`, preserving D-025 display-only labels without route-local booking status switches.
 - 2026-06-22: Booking action policy cleanup. Booking-list UI actions now use the same shared app/web action policy as server-side booking rules, so OPEN checkouts no longer advertise app/web check-in actions under the D-040 kiosk-only return contract.
 - 2026-06-20: Checkout list filters inherit the refreshed shared `FilterChip` and active-filter chip treatment: lighter borders, 40px removable targets, active underline, and quieter applied-filter buttons while preserving the existing clear behavior and booking filter semantics.

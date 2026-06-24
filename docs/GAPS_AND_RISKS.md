@@ -110,6 +110,8 @@ _2026-06-19 update: Schedule event identity normalization shipped without openin
 
 _2026-06-20 update: Explicit Schedule worker-class model shipped and closed PENDING-SCHEDULE-01. `User.staffingType` is now the Staff/Student scheduling source while `User.role` remains the permissions source._
 
+_2026-06-24 update: Hidden smoke user visibility shipped without opening a new gap. `User.hiddenFromRoster` keeps active smoke/test identities out of default roster, export, form-option picker, kiosk selection, and non-internal direct profile reads, while hidden users can still authenticate and read their own profile. Owner opt-in uses `INTERNAL_OPERATOR_EMAILS`; `/api/me` exposes the capability, `/users` renders an owner-only "Show hidden test users" filter that carries into roster export, and `POST /api/users/hidden-cleanup` gives internal operators dry-run-first age-based deactivation for disposable hidden users. Automatic scheduled cleanup remains deferred._
+
 _2026-06-19 update: Category cleanup wizard and picker visibility shipped without opening a new gap. Items filters and shared category pickers now include every category as a full path, and the Fill gaps wizard suggests missing categories from existing categorized inventory before using gear-term fallback matching._
 
 | ID | Description | Owner Area | Priority | Blocker? |
