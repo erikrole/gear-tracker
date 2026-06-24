@@ -6,7 +6,7 @@
 | File | Lines |
 |---|---:|
 | `src/lib/services/auto-assign.ts` | 91 |
-| `src/lib/services/auto-fill-preview.ts` | 180 |
+| `src/lib/services/auto-fill-preview.ts` | 181 |
 | `src/lib/services/availability.ts` | 551 |
 | `src/lib/services/booking-ref.ts` | 26 |
 | `src/lib/services/booking-rules.ts` | 104 |
@@ -16,21 +16,21 @@
 | `src/lib/services/bookings-queries.ts` | 234 |
 | `src/lib/services/bookings.ts` | 4 |
 | `src/lib/services/bulk-unit-scans.ts` | 589 |
-| `src/lib/services/calendar-sync-health.ts` | 164 |
+| `src/lib/services/calendar-sync-health.ts` | 165 |
 | `src/lib/services/calendar-sync.ts` | 649 |
-| `src/lib/services/candidate-scoring.ts` | 406 |
+| `src/lib/services/candidate-scoring.ts` | 407 |
 | `src/lib/services/checkout-policies.ts` | 32 |
 | `src/lib/services/dashboard-counts.ts` | 111 |
 | `src/lib/services/event-defaults.ts` | 69 |
-| `src/lib/services/firmware-watch.ts` | 298 |
+| `src/lib/services/firmware-watch.ts` | 299 |
 | `src/lib/services/hidden-users-cleanup.ts` | 126 |
 | `src/lib/services/kiosk-checkout-complete.ts` | 51 |
 | `src/lib/services/kiosk-location.ts` | 72 |
 | `src/lib/services/kiosk-scan.ts` | 36 |
 | `src/lib/services/kits.ts` | 327 |
-| `src/lib/services/licenses.ts` | 489 |
+| `src/lib/services/licenses.ts` | 490 |
 | `src/lib/services/notification-prefs.ts` | 103 |
-| `src/lib/services/notifications.ts` | 818 |
+| `src/lib/services/notifications.ts` | 819 |
 | `src/lib/services/onboarding-lifecycle.ts` | 503 |
 | `src/lib/services/pending-pickup-expiry.ts` | 218 |
 | `src/lib/services/reports.ts` | 1369 |
@@ -130,7 +130,7 @@
 | `src/lib/theme.ts` | 145 |
 | `src/lib/time.ts` | 28 |
 | `src/lib/url-sync.ts` | 16 |
-| `src/lib/user-visibility.ts` | 37 |
+| `src/lib/user-visibility.ts` | 45 |
 | `src/lib/utils.ts` | 7 |
 | `src/lib/validation.ts` | 478 |
 | `src/lib/venue-mapping-audit.ts` | 56 |

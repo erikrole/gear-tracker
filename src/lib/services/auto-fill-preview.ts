@@ -10,6 +10,7 @@ import type {
 import { getCandidateScoresForShift } from "@/lib/services/candidate-scoring";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 import { shiftWorkerTypeForProfile } from "@/lib/shift-display";
+import { visibleActiveUserWhere } from "@/lib/user-visibility";
 
 type PreviewShift = {
   id: string;
@@ -160,7 +161,7 @@ export async function getAutoFillPreview(shiftGroupId: string): Promise<AutoFill
   const openShifts = group.shifts.filter(isOpenShift);
   const [users, scorePairs] = await Promise.all([
     db.user.findMany({
-      where: { active: true },
+      where: visibleActiveUserWhere(),
       select: { id: true, name: true, role: true, staffingType: true },
       orderBy: { name: "asc" },
     }),

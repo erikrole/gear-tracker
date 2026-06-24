@@ -31,13 +31,14 @@ vi.mock("@/lib/rate-limit", () => ({
 
 import { requireAuth, requireKiosk } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { canViewHiddenUsers, visibleUserWhere } from "@/lib/user-visibility";
+import { canViewHiddenUsers, visibleActiveUserWhere, visibleUserWhere } from "@/lib/user-visibility";
 import { GET as getMe } from "@/app/api/me/route";
 import { GET as getUsers } from "@/app/api/users/route";
 import { GET as exportUsers } from "@/app/api/users/export/route";
 import { GET as getUserById } from "@/app/api/users/[id]/route";
 import { GET as getFormOptions } from "@/app/api/form-options/route";
 import { GET as getKioskUsers } from "@/app/api/kiosk/users/route";
+import { GET as getOrgChart } from "@/app/api/users/org-chart/route";
 
 const operator = {
   id: "staff-1",
@@ -231,6 +232,11 @@ describe("hidden smoke user visibility", () => {
     expect(canViewHiddenUsers({ email: "OWNER@example.com" })).toBe(true);
     expect(canViewHiddenUsers({ email: "staff@example.com" })).toBe(false);
     expect(visibleUserWhere({ email: "staff@example.com" })).toEqual({ hiddenFromRoster: false });
+    expect(visibleActiveUserWhere({ role: "ADMIN" })).toEqual({
+      role: "ADMIN",
+      active: true,
+      hiddenFromRoster: false,
+    });
   });
 
   it("surfaces the hidden-user capability from /api/me", async () => {
@@ -252,5 +258,35 @@ describe("hidden smoke user visibility", () => {
     expect(pageSource).toContain("canShowHiddenUsers && showHiddenUsers");
     expect(filtersSource).toContain("canShowHiddenUsers");
     expect(filtersSource).toContain("Show hidden test users");
+  });
+
+  it("keeps hidden users out of the org chart", async () => {
+    await getOrgChart(getReq("/api/users/org-chart"), { params: Promise.resolve({}) });
+
+    expect(db.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          active: true,
+          hiddenFromRoster: false,
+        }),
+      }),
+    );
+  });
+
+  it("keeps live operational user reads on the shared visible-active helper", () => {
+    const files = [
+      "src/lib/services/candidate-scoring.ts",
+      "src/lib/services/auto-fill-preview.ts",
+      "src/app/api/shifts/[id]/conflicts/route.ts",
+      "src/app/api/users/org-chart/route.ts",
+      "src/lib/services/notifications.ts",
+      "src/lib/services/licenses.ts",
+      "src/lib/services/calendar-sync-health.ts",
+      "src/lib/services/firmware-watch.ts",
+    ];
+
+    for (const file of files) {
+      expect(readFileSync(file, "utf8"), file).toContain("visibleActiveUserWhere");
+    }
   });
 });

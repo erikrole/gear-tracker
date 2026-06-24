@@ -4,6 +4,7 @@ import { HttpError } from "@/lib/http";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/lib/shift-constants";
 import { evaluateAvailabilityPreferences, type AvailabilityBlockLike } from "@/lib/student-availability";
 import { shiftWorkerTypeForProfile } from "@/lib/shift-display";
+import { visibleActiveUserWhere } from "@/lib/user-visibility";
 import type {
   CandidateRecommendation,
   CandidateScoreBucket,
@@ -311,7 +312,7 @@ export async function getCandidateScoresForShift(shiftId: string, opts: { now?: 
 
   const targetWindow = effectiveWindow(shift);
   const users = await db.user.findMany({
-    where: { active: true },
+    where: visibleActiveUserWhere(),
     orderBy: { name: "asc" },
     select: {
       id: true,

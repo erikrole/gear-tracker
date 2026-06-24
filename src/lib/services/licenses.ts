@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { sendPush } from "@/lib/push/apns";
 import { loadUserPrefs, shouldDeliverPush, shouldDeliverCategory, type NotificationCategory } from "@/lib/services/notification-prefs";
+import { visibleActiveUserWhere } from "@/lib/user-visibility";
 
 const MAX_SLOTS = 2;
 
@@ -378,7 +379,7 @@ export async function processExpiryWarnings() {
   if (expiring.length === 0) return { warned: 0 };
 
   const admins = await db.user.findMany({
-    where: { role: { in: ["ADMIN", "STAFF"] } },
+    where: visibleActiveUserWhere({ role: { in: ["ADMIN", "STAFF"] } }),
     select: { id: true },
   });
   if (admins.length === 0) return { warned: 0 };

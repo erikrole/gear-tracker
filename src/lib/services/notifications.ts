@@ -11,6 +11,7 @@ import {
   shouldNotifyWorkerForScheduleEvent,
   type GearPrepNotificationSource,
 } from "@/lib/services/schedule-notification-policy";
+import { visibleActiveUserWhere } from "@/lib/user-visibility";
 
 export async function sendPushToUser(
   userId: string,
@@ -109,7 +110,7 @@ export async function processOverdueNotifications(): Promise<{
       orderBy: { endsAt: "asc" }, // Most overdue first
     }),
     db.user.findMany({
-      where: { role: "ADMIN" },
+      where: visibleActiveUserWhere({ role: "ADMIN" }),
       select: { id: true, email: true }
     }),
   ]);
@@ -685,7 +686,7 @@ export async function notifyItemReport(args: {
   reporterName: string;
 }): Promise<void> {
   const supervisors = await db.user.findMany({
-    where: { role: { in: ["ADMIN", "STAFF"] }, active: true },
+    where: visibleActiveUserWhere({ role: { in: ["ADMIN", "STAFF"] } }),
     select: { id: true, email: true },
   });
 
@@ -754,7 +755,7 @@ export async function notifyLowStock(args: {
   minThreshold: number;
 }) {
   const admins = await db.user.findMany({
-    where: { role: "ADMIN", active: true },
+    where: visibleActiveUserWhere({ role: "ADMIN" }),
     select: { id: true },
   });
 

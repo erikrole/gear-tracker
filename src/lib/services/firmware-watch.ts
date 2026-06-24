@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { sendPushToUser } from "@/lib/services/notifications";
 import { validateFirmwareSourceUrl } from "@/lib/firmware-watch-targets";
+import { visibleActiveUserWhere } from "@/lib/user-visibility";
 
 export type FirmwareRelease = {
   version: string;
@@ -182,7 +183,7 @@ async function notifyAdminsOfFirmwareRelease(
   now: Date,
 ): Promise<number> {
   const admins = await db.user.findMany({
-    where: { role: "ADMIN", active: true },
+    where: visibleActiveUserWhere({ role: "ADMIN" }),
     select: { id: true },
   });
   if (admins.length === 0) return 0;

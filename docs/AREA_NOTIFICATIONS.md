@@ -151,6 +151,9 @@ Implementation: `src/lib/services/notifications.ts`
 - Clean hard sync results reset the source counter. Partial malformed-event skips without a hard `SyncResult.error` remain visible in source health but do not trigger repeated-failure notifications.
 - Implementation: `src/lib/services/calendar-sync-health.ts` called from `GET /api/cron/morning-refresh`.
 
+## Hidden Smoke/Test Users
+- Admin and supervisor fan-out uses the shared visible-active user filter. Hidden smoke/test identities do not receive overdue admin escalation, item-report, low-stock, license-expiry, calendar-sync-health, or firmware-watch notifications even while they remain active for verification.
+
 ## Firmware Watch Triggers (Implemented 2026-06-10)
 
 | Event | Type | Recipient | Trigger point |

@@ -27,6 +27,14 @@ export function visibleUserWhere(
   return { hiddenFromRoster: false };
 }
 
+export function visibleActiveUserWhere(extra: Prisma.UserWhereInput = {}): Prisma.UserWhereInput {
+  return {
+    ...extra,
+    active: true,
+    hiddenFromRoster: false,
+  };
+}
+
 export function canReadUserProfile(
   actor: Pick<AuthUser, "id" | "email">,
   target: { id: string; hiddenFromRoster?: boolean | null },

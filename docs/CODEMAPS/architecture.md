@@ -37,7 +37,7 @@ Informational only. These are the largest TypeScript and TSX files under `src/`;
 | `src/components/TradeBoard.tsx` | 929 |
 | `src/components/ActivityTimeline.tsx` | 906 |
 | `src/lib/services/bookings-lifecycle.ts` | 900 |
-| `src/lib/services/notifications.ts` | 818 |
+| `src/lib/services/notifications.ts` | 819 |
 | `src/components/BookingDetailsSheet.tsx` | 817 |
 | `src/components/ShiftDetailPanel.tsx` | 807 |
 | `src/app/api/assets/route.ts` | 805 |

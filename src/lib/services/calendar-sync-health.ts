@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import type { SyncResult } from "@/lib/services/calendar-sync";
+import { visibleActiveUserWhere } from "@/lib/user-visibility";
 
 export const CALENDAR_SYNC_HEALTH_CONFIG_KEY = "calendar_sync_health";
 export const CALENDAR_SYNC_FAILURE_NOTIFY_THRESHOLD = 3;
@@ -104,7 +105,7 @@ export async function updateCalendarSyncHealth(args: {
   }
 
   const admins = await db.user.findMany({
-    where: { role: "ADMIN", active: true },
+    where: visibleActiveUserWhere({ role: "ADMIN" }),
     select: { id: true },
   });
   if (admins.length === 0) {

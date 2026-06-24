@@ -4,9 +4,9 @@ Last updated: 2026-06-24
 
 ---
 
-## Active: Hidden smoke users visibility (2026-06-24)
+## Completed: Hidden smoke users visibility (2026-06-24)
 
-Plan: `tasks/hidden-smoke-users-plan.md`
+Plan: `tasks/archive/completed-2026-06/hidden-smoke-users-plan.md`
 
 - [x] Add an additive `User.hiddenFromRoster` schema field and local migration.
 - [x] Add shared server visibility helpers for hidden users and internal operators.
@@ -22,11 +22,22 @@ Plan: `tasks/hidden-smoke-users-plan.md`
 - [x] Add internal hidden-user cleanup endpoint with dry-run default.
 - [x] Add focused cleanup coverage and sync docs.
 - [x] Run Slice 3 verification and record results.
+- [x] Add shared active visible-user helper.
+- [x] Sweep Schedule candidate/conflict/org-chart and notification-recipient reads.
+- [x] Add focused operational-sweep coverage and sync docs.
+- [x] Run Slice 4 verification and record results.
+- [x] Check live Neon migration health for the hidden smoke users migration.
+- [x] Inspect production hidden/active user counts and smoke/test candidates.
+- [x] Configure production `INTERNAL_OPERATOR_EMAILS` after the exact owner email is explicitly approved.
 
 ### Review
 - 2026-06-24: Hidden smoke user visibility slice shipped locally. Added `User.hiddenFromRoster` and migration `0083_hide_smoke_users`, plus shared hidden-user visibility helpers gated by comma-separated `INTERNAL_OPERATOR_EMAILS`. Default roster, user export, form-options people picker, kiosk user picker, and non-internal direct user profile reads now exclude hidden users, while a hidden signed-in user can still read their own profile. Settings docs and Gaps/Risks are synced. Verification passed with `npx vitest run tests/users-hidden-visibility.test.ts tests/sport-code-route-boundaries.test.ts`, `npx prisma format`, `npx prisma generate`, `npx prisma validate`, `npm run db:migrate:check`, `npx tsc --noEmit`, `npm run codemap`, `npm run verify:docs`, `git diff --check`, and `npm run build:app`. Live migration health/deploy was not run; deploying the local migration is a separate database step.
 - 2026-06-24: Owner-only roster opt-in shipped locally. `/api/me` now returns `canViewHiddenUsers`, `/users` renders "Show hidden test users" only for configured internal operators, and the same opt-in carries into the roster CSV export. Non-owners cannot force the client opt-in with a stale URL; the server also keeps rejecting hidden inclusion unless `INTERNAL_OPERATOR_EMAILS` matches. Verification passed with `npx vitest run tests/users-hidden-visibility.test.ts`, `npx tsc --noEmit`, `npm run codemap`, `npm run verify:docs`, `git diff --check`, and `npm run build:app`.
 - 2026-06-24: Disposable hidden-user cleanup shipped locally. User deactivation side effects were extracted into `src/lib/services/user-deactivation.ts`, and `POST /api/users/hidden-cleanup` gives configured internal operators a dry-run-first cleanup path for active hidden users older than a requested TTL. The cleanup deactivates instead of deleting, preserves booking/audit history, clears sessions through the shared deactivation path, and writes cleanup audit entries when applied. Verification passed with `npx vitest run tests/api-route-wrapper-contract.test.ts tests/hidden-users-cleanup.test.ts tests/users-hidden-visibility.test.ts`, `npx tsc --noEmit`, `npm run codemap`, `npm run verify:docs`, `git diff --check`, and `npm run build:app`.
+- 2026-06-24: Hidden-user operational sweep shipped locally. Added `visibleActiveUserWhere`, then used it for Schedule candidate scoring, auto-fill preview candidates, shift conflict maps, org chart rows, overdue admin escalation, item-report supervisors, low-stock admins, license-expiry recipients, calendar-sync-health admins, and firmware-watch admins. Historical report attribution and onboarding identity checks remain intentionally unchanged. Verification passed with `npx vitest run tests/users-hidden-visibility.test.ts tests/candidate-scoring.test.ts`, `npx tsc --noEmit`, `npm run codemap`, `npm run verify:docs`, `git diff --check`, and `npm run build:app`.
+- 2026-06-24: Production rollout check passed. `npm run db:migrate:health` reported Neon has all 85 local migrations applied, including newest migration `0083_hide_smoke_users`, with no pending local migrations, no unresolved failed rows, and no applied DB-only migrations. Read-only production inspection found 10 active visible users, 4 inactive visible smoke/test users, and 0 active hidden users. After owner email confirmation, Vercel production `INTERNAL_OPERATOR_EMAILS` was configured for `role@wisc.edu` and verified present as an encrypted production variable.
+
+Deferred: optional tagging of the four inactive historical smoke/test users as hidden, endpoint dry-run after the next production deployment if active hidden smoke users exist, and automatic scheduled cleanup.
 
 ---
 

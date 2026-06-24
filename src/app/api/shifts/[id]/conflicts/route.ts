@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { ok, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { availabilityConflictNote } from "@/lib/student-availability";
+import { visibleActiveUserWhere } from "@/lib/user-visibility";
 
 /**
  * GET /api/shifts/[id]/conflicts
@@ -25,11 +26,10 @@ export const GET = withAuth<{ id: string }>(async (_req, { user, params }) => {
   const effectiveEndsAt = shift.callEndsAt ?? shift.endsAt;
   // Only check student availability; Staff users don't have class blocks.
   const students = await db.user.findMany({
-    where: {
+    where: visibleActiveUserWhere({
       role: "STUDENT",
-      active: true,
       availabilityBlocks: { some: {} },
-    },
+    }),
     select: {
       id: true,
       availabilityBlocks: {

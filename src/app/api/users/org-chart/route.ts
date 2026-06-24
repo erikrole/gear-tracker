@@ -2,12 +2,13 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
 import { requireRole } from "@/lib/rbac";
+import { visibleActiveUserWhere } from "@/lib/user-visibility";
 
 export const GET = withAuth(async (_req, { user }) => {
   requireRole(user.role, ["ADMIN", "STAFF"]);
 
   const rows = await db.user.findMany({
-    where: { active: true },
+    where: visibleActiveUserWhere(),
     select: {
       id: true,
       name: true,

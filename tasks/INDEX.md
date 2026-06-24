@@ -56,6 +56,7 @@ Audit files intentionally remain at root for now because the repo audit skills r
 
 ## Recently Archived
 
+- `hidden-smoke-users-plan.md` - completed hidden smoke/test user visibility, owner opt-in, cleanup endpoint, operational sweep, and rollout check.
 - `booking-creation-ownership-pass-2026-05-07.md` - completed booking creation ownership pass.
 - `scan-ownership-pass-2026-06-19.md` - completed lookup-only scan ownership pass.
 - `reports-ownership-pass-2026-06-19.md` - completed reports ownership pass.
