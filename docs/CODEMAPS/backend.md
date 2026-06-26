@@ -7,7 +7,7 @@
 |---|---:|
 | `src/lib/services/auto-assign.ts` | 91 |
 | `src/lib/services/auto-fill-preview.ts` | 181 |
-| `src/lib/services/availability.ts` | 551 |
+| `src/lib/services/availability.ts` | 554 |
 | `src/lib/services/booking-ref.ts` | 26 |
 | `src/lib/services/booking-rules.ts` | 105 |
 | `src/lib/services/bookings-checkin.ts` | 775 |
@@ -73,6 +73,7 @@
 | `src/lib/blob.ts` | 151 |
 | `src/lib/booking-action-policy.ts` | 163 |
 | `src/lib/booking-actions.ts` | 14 |
+| `src/lib/booking-availability-window.ts` | 19 |
 | `src/lib/booking-status-display.ts` | 124 |
 | `src/lib/bulk-batteries.ts` | 28 |
 | `src/lib/bulk-unit-qr.ts` | 109 |

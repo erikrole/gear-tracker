@@ -28,6 +28,7 @@
 ## Data Integrity
 
 - **Asset status is derived, not stored** (D-001): Always compute from allocations. Never write to a status field.
+- **Availability needs operational turnaround, not just mathematical overlap**: For serialized gear, do not treat `previous.endsAt === next.startsAt` as available by default. Gear return, inspection, transfer, and pickup need a buffer, and the same buffer must be enforced in picker UI, scan-to-add, and server availability checks.
 - **Numbered bulk unit QR codes are derived identities**: A QR value like `{binQrCodeValue}-{unitNumber}` should resolve through the parent `BulkSku` and existing `BulkSkuUnit` row. Do not add per-unit QR fields or convert batteries to serialized assets unless the operational model changes.
 - **Hand-scanner labels need scanner-stream tolerance**: Kiosk custody scans should accept the operational identity even when the scanner emits a legacy `QR-` prefix, URL/query wrapper, Unicode dash, tab suffix, non-printing control bytes, or no Return suffix. Keep the canonical stored QR simple, but normalize at the scan boundary and use a conservative HID idle flush so partial scans do not submit before the suffix arrives.
 - **Kiosk scan contracts need rollout-skew tolerance**: If a scan response uses a synthetic cart identity like `bulk:{sku}:unit:{n}`, the completion route must normalize that legacy `assetId` shape back into the same numbered bulk unit write path as the typed `{bulkSkuId, unitNumber}` payload. Native rebuild skew should not decide whether a checked-out battery is saved.

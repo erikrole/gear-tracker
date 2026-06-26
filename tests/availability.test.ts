@@ -64,7 +64,7 @@ describe("checkSerializedConflicts", () => {
     expect(result[0]!.conflictingBookingId).toBe("b-other");
   });
 
-  it("allows reuse when an earlier booking ends exactly at the next pickup time", async () => {
+  it("allows reuse when an earlier booking ends exactly at the serialized turnaround buffer", async () => {
     const tx = createMockTx();
     tx.assetAllocation.findMany.mockResolvedValue([]);
 
@@ -79,10 +79,35 @@ describe("checkSerializedConflicts", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           startsAt: { lt: new Date("2026-04-01T12:00:00Z") },
-          endsAt: { gt: new Date("2026-04-01T08:00:00Z") },
+          endsAt: { gt: new Date("2026-04-01T07:00:00Z") },
         }),
       }),
     );
+  });
+
+  it("blocks reuse when an earlier booking ends inside the serialized turnaround buffer", async () => {
+    const tx = createMockTx();
+    tx.assetAllocation.findMany.mockResolvedValue([{
+      assetId: "a-1",
+      bookingId: "b-too-tight",
+      startsAt: new Date("2026-04-01T06:00:00Z"),
+      endsAt: new Date("2026-04-01T07:30:00Z"),
+      booking: { title: "Too tight" },
+    }]);
+
+    const result = await checkSerializedConflicts(availabilityTx(tx), {
+      serializedAssetIds: ["a-1"],
+      startsAt: new Date("2026-04-01T08:00:00Z"),
+      endsAt: new Date("2026-04-01T12:00:00Z"),
+    });
+
+    expect(result).toEqual([{
+      assetId: "a-1",
+      conflictingBookingId: "b-too-tight",
+      conflictingBookingTitle: "Too tight",
+      startsAt: new Date("2026-04-01T06:00:00Z"),
+      endsAt: new Date("2026-04-01T07:30:00Z"),
+    }]);
   });
 
   it("blocks reuse when an earlier booking runs past the next pickup time", async () => {

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { usePickerSearch } from "@/components/equipment-picker/use-picker-search";
+import { canSelectSerializedAssetForWindow } from "@/components/equipment-picker/serialized-selection";
 import { SelectedEquipmentShelf } from "@/components/equipment-picker/SelectedEquipmentShelf";
 import {
   getBulkAvailableQuantity,
@@ -522,10 +523,13 @@ export default function EquipmentPicker({
       }
       rememberAsset(asset);
       setActiveSection(classifyAssetType(asset.type, asset.categoryName));
-      if (asset.computedStatus !== "AVAILABLE") {
+      const scanConflict = conflicts.get(asset.id);
+      if (!canSelectSerializedAssetForWindow(asset, { startsAt, conflict: scanConflict })) {
         setScanFeedback({
           kind: "error",
-          message: `${asset.assetTag} is ${statusText(asset.computedStatus)} and cannot be added`,
+          message: scanConflict
+            ? `${asset.assetTag} conflicts with another booking`
+            : `${asset.assetTag} is ${statusText(asset.computedStatus)} and cannot be added`,
         });
         return;
       }
@@ -540,7 +544,7 @@ export default function EquipmentPicker({
     } finally {
       setScanLookupBusy(false);
     }
-  }, [findBulkScanMatch, rememberAsset, scanLookupBusy, selectedAssetIds, selectedBulkItems, setActiveSection, setBulkQty, setSelectedAssetIds]);
+  }, [conflicts, findBulkScanMatch, rememberAsset, scanLookupBusy, selectedAssetIds, selectedBulkItems, setActiveSection, setBulkQty, setSelectedAssetIds, startsAt]);
 
   const bulkQuantity = selectedBulkItems.reduce((s, i) => s + i.quantity, 0);
   const selectedConflictCount = resolvedSelectedAssets.filter((asset) => conflicts.has(asset.id)).length;
@@ -791,8 +795,8 @@ export default function EquipmentPicker({
               const risks = turnaroundRisks.get(asset.id);
               const risk = primaryRisk(risks);
               const riskText = riskLabel(risks);
-              const isAvailable = asset.computedStatus === "AVAILABLE";
-              const isUnavailable = !isAvailable && !isSelected;
+              const canSelect = canSelectSerializedAssetForWindow(asset, { startsAt, conflict });
+              const isUnavailable = !canSelect && !isSelected;
               const holder = asset.currentHolder;
 
               return (
@@ -831,7 +835,7 @@ export default function EquipmentPicker({
                         <ItemDescription className="truncate text-xs">
                           {[asset.brand, asset.model].filter(Boolean).join(" ") || asset.name}
                         </ItemDescription>
-                        {isUnavailable && holder && (
+                        {holder && (
                           <p className="mt-0.5 truncate text-[10px] text-muted-foreground/80">
                             Held by {holder.holderName}
                             {holder.endsAt && ` · Returns ${new Date(holder.endsAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}

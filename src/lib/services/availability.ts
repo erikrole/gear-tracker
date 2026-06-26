@@ -1,4 +1,5 @@
 import { BookingKind, BookingStatus, PrismaClient, type Prisma } from "@prisma/client";
+import { subtractSerializedTurnaroundBuffer } from "@/lib/booking-availability-window";
 
 export type BulkRequest = {
   bulkSkuId: string;
@@ -87,6 +88,8 @@ export async function checkSerializedConflicts(
     return [];
   }
 
+  const bufferedStartsAt = subtractSerializedTurnaroundBuffer(args.startsAt);
+
   const conflicts = await tx.assetAllocation.findMany({
     where: {
       assetId: { in: args.serializedAssetIds },
@@ -95,7 +98,7 @@ export async function checkSerializedConflicts(
         status: { in: serializedBlockingStatuses }
       },
       startsAt: { lt: args.endsAt },
-      endsAt: { gt: args.startsAt },
+      endsAt: { gt: bufferedStartsAt },
       ...(args.excludeBookingId ? { bookingId: { not: args.excludeBookingId } } : {})
     },
     select: {

@@ -88,7 +88,7 @@
 
 | File | Lines |
 |---|---:|
-| `src/components/EquipmentPicker.tsx` | 991 |
+| `src/components/EquipmentPicker.tsx` | 995 |
 | `src/components/TradeBoard.tsx` | 929 |
 | `src/components/ActivityTimeline.tsx` | 906 |
 | `src/components/ShiftDetailPanel.tsx` | 807 |

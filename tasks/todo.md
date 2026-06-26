@@ -17,6 +17,21 @@ Plan: keep non-game/media-day event summaries visible in the shared booking wiza
 
 ---
 
+## Active: Reservation equipment future-return selection (2026-06-26)
+
+Plan: align `/reservations/new` equipment selection with server availability windows so current holdings due back before the requested reservation can still be selected.
+
+- [x] Read Reservations/Checkouts docs, schema, shared picker, availability service, and booking wizard entry points.
+- [x] Patch serialized picker row and scan-to-add selection rules to distinguish terminal item states from time-bounded active holdings.
+- [x] Add focused regression coverage for due-back-before-start selection and overlapping/terminal blocking.
+- [x] Sync Reservations and Checkouts docs.
+- [x] Run focused tests, TypeScript, docs, diff, and build verification.
+
+### Review
+- 2026-06-26: Reservation equipment future-return selection shipped locally. The shared picker and scan-to-add path now allow serialized gear currently held by someone else only when the holder's due-back time is at least 60 minutes before the requested reservation start; tighter handoffs, overlapping allocations, and terminal item states stay blocked. Server availability now applies the same 60-minute serialized turnaround buffer, so submit-time conflict checks match the picker. Verification passed with focused availability/picker/booking UX tests, TypeScript, docs/codemap check, whitespace diff check, and `npm run build:app`.
+
+---
+
 ## Active: Item data cleanup (2026-06-25)
 
 Plan: `tasks/item-data-cleanup-plan.md`

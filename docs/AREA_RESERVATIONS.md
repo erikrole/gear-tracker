@@ -17,7 +17,7 @@ Make app and web reservation-first. A user who is not physically at a kiosk rese
 4. Cancel and archive patterns are used in V1. No hard delete.
 5. Role and ownership controls follow `AREA_USERS.md`.
 6. Availability checks treat overlapping `PENDING_PICKUP` checkout allocations as committed gear and subtract overlapping `BOOKED` bulk reservation quantities from available bulk stock.
-7. Booking windows are half-open for availability: `endsAt === next.startsAt` is allowed, while any positive overlap is blocked.
+7. Serialized booking windows include a 60-minute turnaround buffer before the next pickup/start. An item due back at the exact next start time is blocked; it must be due back at least 60 minutes earlier. Bulk/countable availability remains overlap-based against committed quantities.
 8. Reservation creation is guarded at the shared service boundary: creates require at least one equipment item, duplicate multi-event links and duplicate bulk lines are rejected, invalid windows fail before availability work, and DB overlap races return booking conflict responses.
 
 ## V1 Workflow
@@ -258,6 +258,7 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 8. Implement list page controls and row behavior from V1 list surface spec.
 
 ## Change Log
+- 2026-06-26: Reservation equipment picker now treats current holdings as time-bounded commitments instead of blanket disabled rows. Serialized gear held by someone else remains selectable when its active booking ends at least 60 minutes before the requested reservation starts, while tighter handoffs, overlapping allocations, and terminal item states stay blocked.
 - 2026-06-26: Reservation linked-event picker now preserves full non-game event summaries even when sport metadata exists, so media-day events display and auto-fill as their actual event names instead of collapsing to only the sport label.
 - 2026-06-22: Booking status display cleanup. Reservation detail helpers, booking-list rows/cards, upcoming item reservations, and item booking history now resolve labels and badge/status colors through `src/lib/booking-status-display.ts`, preserving D-025 display-only labels without route-local booking status switches.
 - 2026-06-22: Booking action policy cleanup. Reservation/check-out list menus now resolve actions through the shared app/web booking policy, preserving D-040 by keeping custody conversion and return actions off regular app/web menus.
@@ -327,7 +328,7 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - 2026-05-07: **Booking creation final-screen polish** — Reservation confirmation now leads with confirmed-for-later language, location, start timing, and the staff handoff expectation that checkout begins from the reservation when gear changes custody.
 - 2026-05-08: **API hardening Wave 11** — Reservation duplicate now re-checks that the loaded source is still BOOKED before creating a copy, while conversion was re-verified to validate `sourceReservationId` inside `createBooking`'s SERIALIZABLE transaction.
 - 2026-05-08: **API hardening Wave 13** — Shared booking edit hardening now applies to reservations: indexed search, required optimistic-lock headers, full before snapshots in edit audits, and 30-day stale draft pruning.
-- 2026-05-08: **Busy-day availability stress** — Live API smoke created overlapping checkouts/reservations and confirmed serialized conflicts block against `PENDING_PICKUP` checkouts, non-overlapping same-asset reservations pass, exact pickup handoff edges are allowed, one-minute overruns fail, and overlapping bulk reservations fail once existing `BOOKED` commitments consume available quantity.
+- 2026-05-08: **Busy-day availability stress** — Live API smoke created overlapping checkouts/reservations and confirmed serialized conflicts block against `PENDING_PICKUP` checkouts, non-overlapping same-asset reservations pass under the then-current half-open contract, and overlapping bulk reservations fail once existing `BOOKED` commitments consume available quantity. Superseded 2026-06-26 by the 60-minute serialized turnaround buffer.
 - 2026-05-08: **Future booking context** — Availability checks now return the next future serialized commitment per item, and reservation creation/edit plus reservation equipment rows surface a blue "Back before" badge with the exact next needed time.
 - 2026-05-08: **Turnaround risk guard** — Availability checks now return advisory serialized and bulk turnaround risks, and reservation creation/edit plus reservation equipment rows surface compact "Turnaround" warnings for short handoffs, next-use location transfers, recent damage/lost reports, and tight future bulk bookings.
 - 2026-05-13: **Battery guidance polish** — Reservation creation/edit shares the updated EquipmentPicker battery guidance: compatible battery families are recommended from selected cameras, item-family quantities read as requested, and exact Units are still scanned only at kiosk pickup.
