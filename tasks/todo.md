@@ -4,6 +4,30 @@ Last updated: 2026-06-25
 
 ---
 
+## Active: Item data cleanup (2026-06-25)
+
+Plan: `tasks/item-data-cleanup-plan.md`
+
+- [x] Write the execution prompt and slice plan.
+- [x] Add a repeatable read-only item-data audit script.
+- [x] Record audit output and decide the first mutation slice.
+- [x] Normalize serialized and item-family category/department data.
+- [x] Resolve serialized-vs-item-family duplicate scan identities.
+- [x] Backfill safe missing primary scan codes.
+- [x] Convert camera-tied accessories/fixed parts into attachments where operationally correct.
+- [x] Sync relevant area docs and run closeout verification after each shipped slice.
+
+### Review
+- 2026-06-25: Started goal-tracked item data cleanup. Live read-only audit showed 50 serialized assets missing category, 20 active item families missing category, 18 active item families missing department, 22 serialized assets missing `primaryScanCode`, 15 active item families missing image, 9 cross-table duplicate scan values, and 46 camera/body-like rows with no attachments. Added a plan and read-only audit script so later data mutation slices can be driven by repeatable evidence.
+- 2026-06-25: Slice 1 verified with `npm run audit:item-data`, which reached Neon through the configured Prisma adapter and reproduced the baseline counts. Next mutation slice is taxonomy normalization: fill serialized and item-family category/department gaps before resolving scan collisions or attachments.
+- 2026-06-25: Slice 2 discovery found exact or unique category suggestions for 23 of 50 serialized missing-category rows and 13 of 21 item-family rows. Explicit legacy mappings are needed for `Media Storage/Hard Drives`, `Cameras/Camera Accessories`, `Gimbals`, and `general`; `Recording Equipment` needs product-family splitting instead of one broad category.
+- 2026-06-26: Full item-data cleanup applied and verified. `scripts/cleanup-item-data.mjs` retired 9 serialized duplicates in favor of item families, rewrote their scan identity to retired namespaces, normalized all serialized and item-family category/department gaps, backfilled 22 safe primary scan codes, and wrote system audit-log evidence. Final `npm run audit:item-data` reports 0 serialized missing categories, 0 serialized missing departments, 0 serialized missing primary scan codes, 0 active item-family missing categories, 0 active item-family missing departments, and 0 duplicate scan values. The cleanup dry-run now plans 0 data mutations; 9 cage/top-plate/lens-cap rows remain as physical attachment review rows because the database does not prove parent asset identity.
+- 2026-06-26: Attachment follow-up applied one provable mapping: `a7 V 2 Grip` is now attached to `A7 V 2` with child checkout/reservation/custody disabled. Remaining physical mapping decisions are tracked in `tasks/item-attachment-mapping-review.md`.
+- 2026-06-26: Item-family image follow-up copied 6 exact-match existing asset images onto active item families through the audit-logged cleanup script. Active item-family missing images dropped from 15 to 9; remaining rows are tracked in `tasks/item-family-image-sourcing.md` because they need sourced product images or identity decisions.
+- 2026-06-26: Serialized metadata follow-up cleared unknown brand/model counts to 0 by fixing the Dell monitor and Monitor Battery from stored source evidence, and retired the active smoke-test asset with no history. Remaining serialized serial/image gaps are tracked in `tasks/serialized-metadata-review.md`.
+
+---
+
 ## Active: Admin checkout force-complete exception (2026-06-25)
 
 Plan: add an admin-only exception path for physically verified returns that cannot be scanned, without reopening app/web as the normal return surface.

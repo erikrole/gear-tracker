@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Items
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-22
+- Last Updated: 2026-06-26
 - Status: Active
 - Version: V1
 
@@ -421,6 +421,10 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-06-26: Item-data cleanup shipped as a data-only pass. A repeatable audit script and dry-run/apply cleanup script now cover item metadata hygiene. Live cleanup normalized serialized category gaps to 0, serialized department gaps to 0, primary scan-code gaps to 0, and cross-table duplicate scan identities to 0. The 9 serialized rows that duplicated active item families were retired with scan values moved into retired namespaces, preserving history while item-family QR scans now resolve to the family. Camera cage/top-plate/lens-cap rows without provable parent asset identity remain review-only physical mapping items.
+- 2026-06-26: Attachment cleanup follow-up attached `a7 V 2 Grip` to `A7 V 2` using an exact case-insensitive tag-prefix match and disabled checkout/reservation/custody policy on the child. Remaining cage/top-plate/lens-cap/vertical-grip candidates are tracked in `tasks/item-attachment-mapping-review.md` until physical parent ownership is confirmed.
+- 2026-06-26: Item-family image follow-up backfilled 6 missing family images from exact active serialized asset image matches, reducing active item-family missing images from 15 to 9. Remaining rows need sourced product photos or identity decisions and are tracked in `tasks/item-family-image-sourcing.md`.
+- 2026-06-26: Serialized metadata follow-up cleared unknown brand/model rows to 0 by fixing the Dell monitor and Monitor Battery from stored source evidence, and retired the active smoke-test asset with no history. Remaining serial/image gaps need physical or source-truth review and are tracked in `tasks/serialized-metadata-review.md`.
 - 2026-06-22: **Item booking status display cleanup.** Item detail booking overview, upcoming reservations, schedule agenda, and booking history now use the shared booking status display helper instead of a local switch with retired booking states.
 - 2026-06-22: **Fill gaps query bounds.** `/api/assets?missing=category|department` now counts standard items and item families separately, fetches only the requested cleanup page from each source, and tells the wizard when suggestion matching used a capped source sample.
 - 2026-06-20: **Image picker shadcn cleanup.** The shared item image modal search tab now uses shadcn `Empty` composition for idle, empty, quota, and failed states, and result selection uses the shared `Button` primitive instead of a raw button while preserving source links and selected/focus styling.

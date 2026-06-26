@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Bulk Inventory Management
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-25
+- Last Updated: 2026-06-26
 - Status: Active
 - Version: V1
 
@@ -164,6 +164,8 @@ See `AREA_ITEMS.md` 2026-04-06 entry for bulk inventory page hardening:
 - [x] AC-8: Staff can export a Brother P-Touch label CSV (`item_number,qr_code`) for a numbered SKU and mark the exported labels printed, with printed-label state visible per card and per unit and surviving refresh
 
 ## Change Log
+- 2026-06-26: Item-family data cleanup shipped. All 21 active item families now have canonical category and department FKs, and 9 duplicate serialized rows for batteries, SD cards, lens caps, sandbags, milk crates, and similar stock were retired in favor of the active `BulkSku` item-family records. Cross-table scan collisions between serialized assets and item families are now 0, so bin QR scans route to the family instead of the retired duplicate asset.
+- 2026-06-26: Item-family image cleanup backfilled 6 missing `BulkSku.imageUrl` values from exact active serialized asset image matches through the audit-logged item-data cleanup script. Active item families missing images now stand at 9, tracked in `tasks/item-family-image-sourcing.md`.
 - 2026-06-25: Battery custody trust hardening shipped. Effective numbered-unit status is now centralized and allocation-aware across Battery Ops, `/api/assets`, kiosk pickup/reservation staging, and generic scan recording; stale raw checked-out battery flags can be repaired from Battery Ops with audited `repair_stale_checked_out` entries; migration `0084_unique_active_bulk_unit_allocation` adds a partial unique index so one numbered unit cannot have two active checkout allocations.
 - 2026-06-23: Battery Ops checked-out unit context now derives holder, booking, due date, and age from active `BookingBulkUnitAllocation` rows for `OPEN` checkout bookings, while keeping future reservations as quantity intent until kiosk pickup. For existing orphaned checked-out unit rows created without allocation records, the read model falls back to matching open unit-tracked checkout bulk items for the same SKU, capped by outstanding planned quantity, so valid booking context is visible without over-attaching stale units. Orphaned `CHECKED_OUT` unit flags with no active checkout context read as Available on Battery Ops instead of inflating checked-out counts.
 - 2026-06-23: Battery Ops now exposes read-only inventory data warnings for stale checked-out unit flags that have no active checkout allocation. The warning card lists the affected unit numbers and family/location while the metrics continue to count those units as Available.

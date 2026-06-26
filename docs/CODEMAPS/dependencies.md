@@ -70,8 +70,10 @@
 - `analyze`: `ANALYZE=true next build`
 - `audit:ios`: `bash scripts/ios-audit-inventory.sh`
 - `audit:ios:gaps`: `bash scripts/ios-audit-inventory.sh --gaps`
+- `audit:item-data`: `node --env-file=.env scripts/audit-item-data.mjs`
 - `build`: `node scripts/prisma-migrate-deploy.mjs && next build`
 - `build:app`: `next build`
+- `cleanup:item-data`: `node --env-file=.env scripts/cleanup-item-data.mjs`
 - `codemap`: `node scripts/generate-codemaps.mjs`
 - `codemap:check`: `node scripts/generate-codemaps.mjs --check`
 - `db:check:dupe-allocations`: `node --env-file=.env scripts/check-dupe-allocations.mjs`

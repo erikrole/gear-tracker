@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-25
+- Last Updated: 2026-06-26
 - Status: Living registry — update when shipping features or resolving decisions
 - Purpose: Single file listing every open gap, pending decision, and known risk across all docs
 
@@ -115,6 +115,8 @@ _2026-06-25 update: Admin close-without-scan for checkouts shipped without openi
 _2026-06-24 update: Hidden smoke user visibility shipped without opening a new gap. `User.hiddenFromRoster` keeps active smoke/test identities out of default roster, export, form-option picker, kiosk selection, non-internal direct profile reads, Schedule candidate/conflict reads, org chart rows, admin/supervisor notification fan-out, and default allowlist/onboarding-status review, while hidden users can still authenticate and read their own profile. Owner opt-in uses `INTERNAL_OPERATOR_EMAILS`; `/api/me` exposes the capability, `/users` renders an owner-only "Show hidden test users" filter that carries into roster export, and `POST /api/users/hidden-cleanup` gives internal operators dry-run-first age-based deactivation for disposable hidden users. Historical report attribution is preserved; automatic scheduled cleanup remains deferred._
 
 _2026-06-19 update: Category cleanup wizard and picker visibility shipped without opening a new gap. Items filters and shared category pickers now include every category as a full path, and the Fill gaps wizard suggests missing categories from existing categorized inventory before using gear-term fallback matching._
+
+_2026-06-26 update: Item-data cleanup shipped without opening a new gap. Existing Asset, BulkSku, Category, Department, scan identity, and audit-log contracts supported the data-only pass. Serialized category, department, and primary-scan gaps are now 0; active item-family category and department gaps are now 0; cross-table duplicate scan identities are now 0. Nine possible cage/top-plate/lens-cap attachments remain an operator physical-mapping review because the database does not prove their parent asset._
 
 | ID | Description | Owner Area | Priority | Blocker? |
 |---|---|---|---|---|
@@ -264,6 +266,7 @@ _2026-06-19 update: Category cleanup wizard and picker visibility shipped withou
 ---
 
 ## Change Log
+- 2026-06-26: Item-data cleanup shipped without opening a new gap. The cleanup used existing schema and audit-log contracts, retired serialized duplicates in favor of active item families, normalized taxonomy and primary scan identity, and left only physical attachment mapping as operator-reviewed data work.
 - 2026-06-22: Kiosk active checkout edits shipped without opening a new gap. The native kiosk can now update an OPEN checkout's title/return time and add/remove unreturned active items through kiosk-scoped, audited, serializable mutations using the existing custody models.
 - 2026-06-22: iOS 17 kiosk-only target shipped without opening a new gap. The dedicated native `WisconsinKiosk` iPad target uses existing kiosk APIs, kiosk device auth, and kiosk source files; no schema, app/web custody, or normal mobile target downgrade was needed.
 - 2026-06-22: Assets gap query bounds shipped without opening a new gap. Existing Asset and BulkSku models support the cleanup flow; the fix bounds reads and reports sampled suggestions without adding schema or workflow surface.
