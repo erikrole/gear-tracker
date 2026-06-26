@@ -21,7 +21,7 @@ import type { ItemTypeFilter } from "../hooks/use-url-filters";
 
 const STATUS_OPTIONS = [
   { value: "AVAILABLE", label: "Available" },
-  { value: "CHECKED_OUT", label: "Checked out" },
+  { value: "CHECKED_OUT", label: "Checked Out" },
   { value: "PENDING_PICKUP", label: "Awaiting pickup" },
   { value: "RESERVED", label: "Reserved" },
   { value: "MAINTENANCE", label: "Maintenance" },

@@ -42,23 +42,6 @@ export type ActiveBooking = {
   endsAt?: string;
 };
 
-function formatDueLabel(endsAt: string | undefined, isOverdue: boolean | undefined): string | null {
-  if (!endsAt) return null;
-  const end = new Date(endsAt);
-  if (Number.isNaN(end.getTime())) return null;
-  const diffMs = end.getTime() - Date.now();
-  const dayMs = 24 * 60 * 60 * 1000;
-  const days = Math.round(diffMs / dayMs);
-  if (isOverdue) {
-    const overdueDays = Math.max(1, Math.abs(days));
-    return overdueDays === 1 ? "1d overdue" : `${overdueDays}d overdue`;
-  }
-  if (days <= 0) return "due today";
-  if (days === 1) return "due 1d";
-  if (days < 14) return `due ${days}d`;
-  return null;
-}
-
 export type Asset = {
   id: string;
   assetTag: string;
@@ -106,14 +89,12 @@ function AssigneeStatus({
   label,
   name,
   avatarUrl,
-  subText,
   endsAt,
 }: {
   color: StatusColor;
   label: string;
   name?: string;
   avatarUrl?: string | null;
-  subText?: string | null;
   endsAt?: string;
 }) {
   const dueAt = formatDueAt(endsAt);
@@ -126,9 +107,6 @@ function AssigneeStatus({
           <Badge className={STATUS_STYLES[color].badge}>
             <StatusDot color={color} />
             {label}
-            {subText && (
-              <span className="ml-1 text-[10px] font-normal opacity-80 tabular-nums">· {subText}</span>
-            )}
           </Badge>
         </TooltipTrigger>
         <TooltipContent>{labelTooltip}</TooltipContent>
@@ -148,11 +126,8 @@ function AssigneeStatus({
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="text-[11px] font-semibold uppercase tracking-wide cursor-default">
+          <span className="cursor-default text-[11px] font-semibold">
             {label}
-            {subText && (
-              <span className="ml-1 font-normal opacity-80 tabular-nums normal-case">· {subText}</span>
-            )}
           </span>
         </TooltipTrigger>
         <TooltipContent>{labelTooltip}</TooltipContent>
@@ -175,14 +150,12 @@ export function statusBadge(asset: Asset) {
     case "CHECKED_OUT": {
       const isOverdue = activeBooking?.isOverdue;
       const color = isOverdue ? "red" : "blue";
-      const due = formatDueLabel(activeBooking?.endsAt, isOverdue);
       return (
         <AssigneeStatus
           color={color}
-          label={isOverdue ? "Overdue" : "Checked out"}
+          label={isOverdue ? "Overdue" : "Checked Out"}
           name={activeBooking?.requesterName}
           avatarUrl={activeBooking?.requesterAvatarUrl}
-          subText={due}
           endsAt={activeBooking?.endsAt}
         />
       );
