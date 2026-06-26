@@ -29,7 +29,7 @@ function unitStatusLabel(status: string) {
     case "AVAILABLE":
       return "Available";
     case "CHECKED_OUT":
-      return "Checked out";
+      return "Checked Out";
     case "LOST":
       return "Missing";
     case "RETIRED":
@@ -88,6 +88,13 @@ export function ItemPreviewDrawer({ item, onClose }: ItemPreviewDrawerProps) {
 
               <div className="mt-2 flex justify-center">
                 <Badge variant={statusBadgeVariantEquipment(item.computedStatus)}>
+                  {isBooked && (
+                    <UserAvatar
+                      name={item.activeBooking!.requesterName}
+                      avatarUrl={item.activeBooking!.requesterAvatarUrl}
+                      size="xs"
+                    />
+                  )}
                   {item.availabilityLabel ?? statusLabelEquipment(item.computedStatus)}
                 </Badge>
               </div>

@@ -6,6 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { SearchIcon, ClipboardCheckIcon, CalendarCheckIcon, BellIcon, UserIcon, LayoutGridIcon, LayersIcon, CalendarPlusIcon, ScanIcon, ArrowRightIcon } from "lucide-react";
 import AppSidebar from "./Sidebar";
 import { AssetImage } from "@/components/AssetImage";
+import { UserAvatar } from "@/components/UserAvatar";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -38,7 +39,7 @@ type EntitySearchResult = {
   imageUrl?: string | null;
   // Item-specific fields for status display
   computedStatus?: string;
-  activeBooking?: { requesterName: string; isOverdue: boolean; endsAt?: string } | null;
+  activeBooking?: { requesterName: string; requesterAvatarUrl?: string | null; isOverdue: boolean; endsAt?: string } | null;
 };
 
 type SearchResult = EntitySearchResult | PageSearchResult;
@@ -58,6 +59,7 @@ type AssetSearchItem = {
   computedStatus?: string | null;
   activeBooking?: {
     requesterName?: string | null;
+    requesterAvatarUrl?: string | null;
     isOverdue?: boolean | null;
     endsAt?: string | null;
   } | null;
@@ -216,7 +218,12 @@ export default function AppShell({
               href: `/items/${item.id}`,
               imageUrl: item.imageUrl ?? null,
               computedStatus: item.computedStatus ?? undefined,
-              activeBooking: item.activeBooking ? { requesterName: item.activeBooking.requesterName ?? "", isOverdue: !!item.activeBooking.isOverdue, endsAt: item.activeBooking.endsAt ?? undefined } : null,
+              activeBooking: item.activeBooking ? {
+                requesterName: item.activeBooking.requesterName ?? "",
+                requesterAvatarUrl: item.activeBooking.requesterAvatarUrl ?? null,
+                isOverdue: !!item.activeBooking.isOverdue,
+                endsAt: item.activeBooking.endsAt ?? undefined,
+              } : null,
             });
           }
         } else {
@@ -379,22 +386,33 @@ export default function AppShell({
                   : status === "MAINTENANCE" ? STATUS_STYLES.orange.badge
                   : status === "RETIRED" ? STATUS_STYLES.gray.badge
                   : STATUS_STYLES.green.badge;
-                const dueLabel = r.activeBooking?.endsAt
-                  ? ` · Due ${new Date(r.activeBooking.endsAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
-                  : "";
-                const statusLabel = isOverdue ? `Overdue — ${r.activeBooking?.requesterName}${dueLabel}`
-                  : status === "CHECKED_OUT" ? [r.activeBooking?.requesterName ?? "Checked out", dueLabel.replace(/^ · /, "")].filter(Boolean).join(" · ")
-                  : status === "RESERVED" ? `Reserved — ${r.activeBooking?.requesterName ?? "scheduled"}${dueLabel}`
+                const statusLabel = isOverdue ? "Overdue"
+                  : status === "CHECKED_OUT" ? "Checked Out"
+                  : status === "RESERVED" ? "Reserved"
                   : status === "MAINTENANCE" ? "In maintenance"
                   : status === "RETIRED" ? "Retired"
                   : "Available";
+                const showHolder = !!r.activeBooking && (isOverdue || status === "CHECKED_OUT" || status === "RESERVED");
                 return (
                   <CommandItem key={r.id} value={r.title} onSelect={() => handleCmdSelect(r.href)} className="gap-3">
                     <AssetImage src={r.imageUrl} alt={r.title} size={32} className="rounded" />
                     <div className="min-w-0">
                       <div className="truncate font-medium">{r.title}</div>
                       <div className="mt-0.5">
-                        <Badge className={badgeStyle} size="sm">{statusLabel}</Badge>
+                        <Badge
+                          className={badgeStyle}
+                          size="sm"
+                          title={showHolder ? `${statusLabel} by ${r.activeBooking?.requesterName}` : statusLabel}
+                        >
+                          {showHolder && (
+                            <UserAvatar
+                              name={r.activeBooking?.requesterName ?? "Unknown"}
+                              avatarUrl={r.activeBooking?.requesterAvatarUrl}
+                              size="xs"
+                            />
+                          )}
+                          {statusLabel}
+                        </Badge>
                       </div>
                     </div>
                   </CommandItem>

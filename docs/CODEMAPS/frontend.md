@@ -97,7 +97,7 @@
 | `src/components/ui/sidebar.tsx` | 727 |
 | `src/components/ChooseImageModal.tsx` | 714 |
 | `src/components/booking-wizard/BookingWizard.tsx` | 710 |
-| `src/components/AppShell.tsx` | 595 |
+| `src/components/AppShell.tsx` | 613 |
 | `src/components/booking-wizard/WizardStep1.tsx` | 565 |
 | `src/components/BookingListPage.tsx` | 510 |
 | `src/components/ui/heatmap.tsx` | 422 |

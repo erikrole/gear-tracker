@@ -7,6 +7,7 @@ import { InlineTitle } from "@/components/InlineTitle";
 import { OperationalRowActions } from "@/components/OperationalRowActions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { UserAvatar } from "@/components/UserAvatar";
 import {
   DropdownMenuItem,
   DropdownMenuSeparator,
@@ -26,28 +27,33 @@ function StatusLine({ asset }: { asset: AssetDetail }) {
   if (s === "AVAILABLE") return <Badge variant="green" className="px-2.5 py-1 text-xs">Available</Badge>;
   if (s === "CHECKED_OUT" && b) {
     const href = `/checkouts/${b.id}`;
+    const isOverdue = new Date(b.endsAt) < new Date();
+    const label = isOverdue ? "Overdue" : "Checked Out";
     return (
-      <Badge variant="blue" className="px-2.5 py-1 text-xs" asChild>
-        <Link href={href} className="no-underline">
-          Checked out by {b.requesterName}
+      <Badge variant={isOverdue ? "red" : "blue"} className="gap-1 px-1.5 py-1 pr-2 text-xs" asChild>
+        <Link href={href} className="no-underline" title={`${label} by ${b.requesterName}`}>
+          <UserAvatar name={b.requesterName} avatarUrl={b.requesterAvatarUrl} size="xs" />
+          {label}
         </Link>
       </Badge>
     );
   }
   if (s === "PENDING_PICKUP" && b) {
     return (
-      <Badge variant="orange" className="px-2.5 py-1 text-xs" asChild>
-        <Link href={`/checkouts/${b.id}`} className="no-underline">
-          Awaiting pickup by {b.requesterName}
+      <Badge variant="orange" className="gap-1 px-1.5 py-1 pr-2 text-xs" asChild>
+        <Link href={`/checkouts/${b.id}`} className="no-underline" title={`Awaiting Pickup by ${b.requesterName}`}>
+          <UserAvatar name={b.requesterName} avatarUrl={b.requesterAvatarUrl} size="xs" />
+          Awaiting Pickup
         </Link>
       </Badge>
     );
   }
   if (s === "RESERVED" && b) {
     return (
-      <Badge variant="purple" className="px-2.5 py-1 text-xs" asChild>
-        <Link href={`/reservations/${b.id}`} className="no-underline">
-          Reserved by {b.requesterName}
+      <Badge variant="purple" className="gap-1 px-1.5 py-1 pr-2 text-xs" asChild>
+        <Link href={`/reservations/${b.id}`} className="no-underline" title={`Reserved by ${b.requesterName}`}>
+          <UserAvatar name={b.requesterName} avatarUrl={b.requesterAvatarUrl} size="xs" />
+          Reserved
         </Link>
       </Badge>
     );

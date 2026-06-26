@@ -8,6 +8,7 @@ export type ActiveBookingDetail = {
   startsAt: string;
   endsAt: string;
   requesterName: string;
+  requesterAvatarUrl?: string | null;
 };
 
 export type UpcomingReservation = {
