@@ -72,6 +72,7 @@
 
 ## UX Patterns
 
+- **Active item badges should lead with holder identity**: In dense item rows, when an item is checked out, reserved, awaiting pickup, or overdue and a holder exists, the visible badge text should be the person name. The status is carried by the badge color and the adjacent status rail/bar, which must share the exact same tone source. Preserve the explicit status label in hover/title/accessibility text instead of repeating it in the row.
 - **Separate event context from operational handoff context**: On Schedule/Event surfaces, calendar venue and pickup location are different jobs. Calendar venue describes where the event happens; pickup location describes where gear/work handoff happens. Label them separately before adding more fields, and keep crew rows focused on the one call time they need to act on.
 - **Call time is a start time, not the whole coverage window**: On Schedule/Event crew rows, keep event time, generated/default shift window, slot override, and personal override distinct. Conflict checks and editors may need start/end ranges, but visible row labels should show the one effective call time for the slot/person.
 - **When Schedule feedback says "do not need," retire the affordance, not just the badge**: If a visible scheduling control is overbuilt for the real workflow, remove it from every exposed Schedule/Event surface and update source-contract tests that pinned it. Keep backend safety code only when deleting it would turn a UI trim into a risky data-contract migration.

@@ -98,7 +98,7 @@ function AssigneeStatus({
   endsAt?: string;
 }) {
   const dueAt = formatDueAt(endsAt);
-  const labelTooltip = dueAt ? `Due ${dueAt}` : label;
+  const labelTooltip = dueAt ? `${label} · Due ${dueAt}` : label;
 
   if (!name) {
     return (
@@ -127,7 +127,7 @@ function AssigneeStatus({
       <Tooltip>
         <TooltipTrigger asChild>
           <span className="cursor-default text-[11px] font-semibold">
-            {label}
+            {name}
           </span>
         </TooltipTrigger>
         <TooltipContent>{labelTooltip}</TooltipContent>

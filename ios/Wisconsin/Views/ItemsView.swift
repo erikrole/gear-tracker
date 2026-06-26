@@ -468,10 +468,12 @@ struct AssetRow: View {
     }
 
     var body: some View {
+        let tone = assetStatusTone(asset)
+
         HStack(spacing: 12) {
             // Shared rail atom — same leading accent the Bookings and dashboard
             // rows use, tinted by the item's status (overdue red, etc.).
-            StatusRail(tone: assetStatusTone(asset))
+            StatusRail(tone: tone)
 
             AssetThumbnail(imageUrl: asset.imageUrl, size: 44)
                 .accessibilityHidden(true)
@@ -515,7 +517,7 @@ struct AssetRow: View {
 
             Spacer()
 
-            AssetListBadge(asset: asset)
+            AssetListBadge(asset: asset, tone: tone)
 
             Image(systemName: "chevron.right")
                 .font(.caption2.weight(.semibold))
@@ -586,8 +588,10 @@ struct ItemFamilyListRow: View {
     let family: AssetFamilySearchResult
 
     var body: some View {
+        let tone: StatusTone = .green
+
         HStack(spacing: 12) {
-            StatusRail(tone: .green)
+            StatusRail(tone: tone)
 
             SearchBulkThumbnail(imageUrl: family.imageUrl, size: 44)
                 .accessibilityHidden(true)
@@ -615,8 +619,8 @@ struct ItemFamilyListRow: View {
                     .fixedSize()
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Color.statusBackground(.green), in: Capsule())
-                    .foregroundStyle(Color.statusText(.green))
+                    .background(Color.statusBackground(tone), in: Capsule())
+                    .foregroundStyle(Color.statusText(tone))
 
                 Text(family.trackByNumber ? "Units" : "Quantity")
                     .font(.caption2)
@@ -661,12 +665,11 @@ func assetStatusTone(_ asset: Asset) -> StatusTone {
 
 private struct AssetListBadge: View {
     let asset: Asset
-
-    private var tone: StatusTone { assetStatusTone(asset) }
+    let tone: StatusTone
 
     private var badgeText: String {
-        if asset.computedStatus == .checkedOut, asset.activeBooking?.isOverdue == true {
-            return "Overdue"
+        if showsHolderAvatar, let booking = asset.activeBooking {
+            return booking.requesterName
         }
         return asset.computedStatus.label
     }
