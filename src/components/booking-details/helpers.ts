@@ -58,7 +58,16 @@ export const actionLabels: Record<string, string> = {
   "booking.items_added": "added items",
   "booking.items_removed": "removed items",
   "booking.items_qty_changed": "changed item quantities",
+  kiosk_checkout: "checked out at kiosk",
+  kiosk_checkout_updated: "updated at kiosk",
+  kiosk_checkin: "checked in at kiosk",
+  kiosk_return: "returned at kiosk",
 };
+
+/** Friendly label for an audit action, humanizing unknown codes. */
+export function auditActionLabel(action: string): string {
+  return actionLabels[action] || action.replace(/[._]+/g, " ");
+}
 
 export function urgencyBadgeClassName(urgency: string): string {
   switch (urgency) {

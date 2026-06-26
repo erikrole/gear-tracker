@@ -166,3 +166,24 @@ export function SaveableField({
     </div>
   );
 }
+
+/* ── FieldGroup (labeled section of saveable rows) ─────── */
+
+export function FieldGroup({
+  label,
+  children,
+}: {
+  label?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="border-t border-border/30 pb-1 first:border-t-0">
+      {label && (
+        <div className="px-3 pb-1 pt-3 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground/55">
+          {label}
+        </div>
+      )}
+      <div className="grid grid-cols-1 divide-y divide-border/30">{children}</div>
+    </section>
+  );
+}

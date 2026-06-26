@@ -49,6 +49,25 @@ export function formatCountdown(endsAt: string, now: Date): string {
   return `DUE BACK IN ${timeStr}`;
 }
 
+/** Compact duration: "2d 23h", "5h 12m", "8m" */
+function formatCompactDuration(ms: number): string {
+  const abs = Math.abs(ms);
+  const days = Math.floor(abs / 86_400_000);
+  const hours = Math.floor((abs % 86_400_000) / 3_600_000);
+  const minutes = Math.floor((abs % 3_600_000) / 60_000);
+  if (days > 0) return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
+  if (hours > 0) return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  if (minutes > 0) return `${minutes}m`;
+  return "<1m";
+}
+
+/** Compact countdown for badges: "2d 23h left", "Overdue 2d 23h" */
+export function formatCountdownCompact(endsAt: string, now: Date): string {
+  const diff = new Date(endsAt).getTime() - now.getTime();
+  const compact = formatCompactDuration(diff);
+  return diff <= 0 ? `Overdue ${compact}` : `${compact} left`;
+}
+
 // ── Date formatting ──────────────────────────────────────
 
 /**

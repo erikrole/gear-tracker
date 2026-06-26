@@ -450,6 +450,13 @@ function BulkRow({
   const allReturned = isCheckout && item.checkedOutQuantity > 0 && inQty >= outQty;
   const riskText = riskLabel(risks);
 
+  // Unit-tracked bulk SKUs (e.g. numbered batteries) carry specific unit numbers.
+  const assignedUnits =
+    item.unitAllocations
+      ?.map((a) => a.bulkSkuUnit.unitNumber)
+      .sort((a, b) => a - b) ?? [];
+  const showUnits = item.bulkSku.trackByNumber && assignedUnits.length > 0;
+
   return (
     <div className={`group/row flex items-center gap-3 px-3 py-2.5 rounded-md ${allReturned ? "opacity-60" : "hover:bg-muted/50"}`}>
       {/* Returned indicator */}
@@ -481,6 +488,18 @@ function BulkRow({
             : `Qty: ${isCheckout ? outQty : item.plannedQuantity}`}{" "}
           <span className="text-muted-foreground/60">{item.bulkSku.unit}</span>
         </div>
+        {showUnits && (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {assignedUnits.map((n) => (
+              <span
+                key={n}
+                className="inline-flex items-center rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-muted-foreground"
+              >
+                #{n}
+              </span>
+            ))}
+          </div>
+        )}
         {riskText && !allReturned && (
           <div className="truncate text-[10px] text-orange-600 dark:text-orange-400">
             {riskText}

@@ -6,18 +6,14 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import Link from "next/link";
 import { formatDateTime } from "@/lib/format";
 import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
 import { toLocalDateTimeValue } from "./helpers";
-import { CalendarIcon, ClockIcon, UserIcon, MapPinIcon, CalendarCheckIcon, LinkIcon, StickyNoteIcon, TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 import type { BookingDetail, CheckinProgress, ConflictData } from "./types";
-import { InlineDateField } from "./InlineDateField";
-import { UserAvatar } from "@/components/UserAvatar";
+import BookingInfoCard from "./BookingInfoCard";
 
 type ExtendPreset = { label: string; minutes: number };
 
@@ -30,20 +26,9 @@ type Props = {
   extending: boolean;
   onExtendTo: (endsAt: string) => void;
   canEdit?: boolean;
-  onSaveDate?: (field: "startsAt" | "endsAt", iso: string) => Promise<void>;
+  onSave: (field: string, value: unknown) => Promise<void>;
+  onPatch: (patch: Partial<BookingDetail>) => void;
 };
-
-function InfoRow({ icon: Icon, label, children }: { icon: React.ComponentType<{ className?: string }>; label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-start gap-3 py-2.5">
-      <Icon className="size-4 text-muted-foreground mt-0.5 shrink-0" />
-      <div className="min-w-0 flex-1">
-        <div className="text-xs text-muted-foreground mb-0.5">{label}</div>
-        <div className="text-sm font-medium">{children}</div>
-      </div>
-    </div>
-  );
-}
 
 export default function BookingOverview({
   booking,
@@ -54,7 +39,8 @@ export default function BookingOverview({
   extending,
   onExtendTo,
   canEdit = false,
-  onSaveDate,
+  onSave,
+  onPatch,
 }: Props) {
   const confirm = useConfirm();
   const [customOpen, setCustomOpen] = useState(false);
@@ -63,13 +49,13 @@ export default function BookingOverview({
   const { data: presetsData } = useQuery<ExtendPreset[]>({
     queryKey: ["extend-presets"],
     queryFn: async () => {
-	      const r = await fetch("/api/settings/extend-presets");
-	      if (handleAuthRedirect(r)) throw new DOMException("Auth redirect", "AbortError");
-	      if (!r.ok) throw new Error("server");
-	      const json = await parseJsonSafely<{ data?: { presets?: ExtendPreset[] } }>(r);
-	      if (!Array.isArray(json?.data?.presets)) throw new Error("server");
-	      return json.data.presets;
-	    },
+      const r = await fetch("/api/settings/extend-presets");
+      if (handleAuthRedirect(r)) throw new DOMException("Auth redirect", "AbortError");
+      if (!r.ok) throw new Error("server");
+      const json = await parseJsonSafely<{ data?: { presets?: ExtendPreset[] } }>(r);
+      if (!Array.isArray(json?.data?.presets)) throw new Error("server");
+      return json.data.presets;
+    },
     staleTime: 10 * 60_000,
   });
   const presets = presetsData ?? [];
@@ -122,7 +108,7 @@ export default function BookingOverview({
             {conflictError.conflicts.map((c, i) => (
               <div key={i} className="text-xs">
                 {c.conflictingBookingTitle ? `"${c.conflictingBookingTitle}"` : "Another booking"}{" "}
-                ({formatDateTime(c.startsAt)} {"\u2013"} {formatDateTime(c.endsAt)})
+                ({formatDateTime(c.startsAt)} {"–"} {formatDateTime(c.endsAt)})
               </div>
             ))}
           </AlertDescription>
@@ -139,111 +125,19 @@ export default function BookingOverview({
         </div>
       )}
 
-      {/* Main info card */}
-      <Card elevation="flat" className="rounded-lg border-border/50 shadow-xs">
-        <CardContent className="py-1 divide-y divide-border/40">
-          {/* Start — editable inline for reservations */}
-          <InfoRow icon={CalendarIcon} label="Start">
-            <InlineDateField
-              value={booking.startsAt}
-              canEdit={canEdit && !!onSaveDate && booking.kind === "RESERVATION"}
-              onSave={(iso) => onSaveDate!("startsAt", iso)}
-            />
-          </InfoRow>
-          {/* Due / End — editable inline for both kinds */}
-          <InfoRow icon={ClockIcon} label={booking.kind === "RESERVATION" ? "End" : "Due"}>
-            <InlineDateField
-              value={booking.endsAt}
-              canEdit={canEdit && !!onSaveDate}
-              onSave={(iso) => onSaveDate!("endsAt", iso)}
-              minDate={booking.startsAt}
-            />
-          </InfoRow>
-          <InfoRow icon={UserIcon} label="Requester">
-            <div className="flex min-w-0 items-center gap-2">
-              <UserAvatar
-                name={booking.requester?.name ?? "Unknown"}
-                avatarUrl={booking.requester?.avatarUrl}
-                size="sm"
-                className="shrink-0"
-              />
-              <div className="min-w-0">
-                <div className="truncate">{booking.requester?.name ?? "Unknown"}</div>
-                {booking.requester?.email && (
-                  <div className="truncate text-xs font-normal text-muted-foreground">{booking.requester.email}</div>
-                )}
-              </div>
-            </div>
-          </InfoRow>
-          <InfoRow icon={MapPinIcon} label="Location">
-            {booking.location?.name ?? "\u2014"}
-          </InfoRow>
-          {booking.events && booking.events.length > 1 ? (
-            <InfoRow icon={CalendarCheckIcon} label="Events">
-              <div className="flex flex-col gap-1.5">
-                {booking.events.map((ev) => (
-                  <Link
-                    key={ev.id}
-                    href={`/events/${ev.id}`}
-                    className="group flex items-center gap-1.5 hover:underline"
-                  >
-                    <span>{ev.summary}</span>
-                    {ev.sportCode && (
-                      <Badge variant="outline" size="sm">{ev.sportCode}</Badge>
-                    )}
-                  </Link>
-                ))}
-              </div>
-            </InfoRow>
-          ) : booking.event && (
-            <InfoRow icon={CalendarCheckIcon} label="Event">
-              <Link href={`/events/${booking.event.id}`} className="hover:underline">
-                {booking.event.summary}
-              </Link>
-              {booking.event.sportCode && (
-                <Badge variant="outline" size="sm" className="ml-1.5">{booking.event.sportCode}</Badge>
-              )}
-            </InfoRow>
-          )}
-          {booking.shiftAssignment && (
-            <InfoRow icon={CalendarCheckIcon} label="Shift">
-              <Badge variant="outline" size="sm">{booking.shiftAssignment.shift.area}</Badge>
-            </InfoRow>
-          )}
-          {booking.sourceReservation && (
-            <InfoRow icon={LinkIcon} label="Converted from">
-              <Link href={`/reservations/${booking.sourceReservation.id}`} className="text-primary hover:underline">
-                {booking.sourceReservation.refNumber || booking.sourceReservation.title}
-              </Link>
-            </InfoRow>
-          )}
-          {booking.notes && (
-            <InfoRow icon={StickyNoteIcon} label="Notes">
-              <span className="font-normal text-muted-foreground">{booking.notes}</span>
-            </InfoRow>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Created by */}
-      {booking.creator && (
-        <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
-          <UserAvatar
-            name={booking.creator.name}
-            avatarUrl={booking.creator.avatarUrl}
-            size="xs"
-            className="shrink-0"
-          />
-          <span className="min-w-0 truncate">
-            Created by <span className="font-medium text-foreground">{booking.creator.name}</span> on {formatDateTime(booking.createdAt)}
-          </span>
-        </div>
-      )}
+      {/* Booking fields */}
+      <BookingInfoCard
+        booking={booking}
+        canEdit={canEdit}
+        onSave={onSave}
+        onPatch={onPatch}
+        bare
+      />
 
       {/* Return suggestion */}
       {returnSuggestion && booking.isActive && (
         <div className="flex items-center gap-2 px-3.5 py-2.5 bg-muted rounded-md text-sm">
-          <span className="text-lg">{"\u21b5"}</span>
+          <span className="text-lg">{"↵"}</span>
           {returnSuggestion}
         </div>
       )}

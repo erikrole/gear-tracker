@@ -454,20 +454,24 @@ export default function BookingDetailsSheet({
     }
   }
 
-  async function handleSaveDate(field: "startsAt" | "endsAt", iso: string) {
+  function mergeBooking(patch: Partial<BookingDetail>) {
+    setBooking((prev) => (prev ? { ...prev, ...patch } : prev));
+  }
+
+  async function handleSaveField(field: string, value: unknown) {
     if (!booking) return;
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (booking.updatedAt) headers["If-Unmodified-Since"] = new Date(booking.updatedAt).toUTCString();
     const res = await fetchWithTimeout(`/api/bookings/${booking.id}`, {
       method: "PATCH",
       headers,
-      body: JSON.stringify({ [field]: iso }),
+      body: JSON.stringify({ [field]: value }),
     });
-    if (handleAuthRedirect(res)) return;
+    if (handleAuthRedirect(res)) throw new DOMException("Auth redirect", "AbortError");
     if (!res.ok) {
       const json = await parseJsonSafely<ApiEnvelope<ConflictData>>(res);
       if (res.status === 409 && json?.data) setConflictError(json.data);
-      throw new Error(json?.error || "Failed to save date");
+      throw new Error(json?.error || "Failed to save");
     }
     await fetchBooking({ silent: true });
     onUpdated?.();
@@ -701,7 +705,8 @@ export default function BookingDetailsSheet({
                     extending={extending}
                     onExtendTo={handleExtendTo}
                     canEdit={!!canEdit}
-                    onSaveDate={handleSaveDate}
+                    onSave={handleSaveField}
+                    onPatch={mergeBooking}
                   />
                 </div>
               </div>

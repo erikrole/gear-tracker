@@ -4,25 +4,16 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { InlineTitle } from "@/components/InlineTitle";
 import {
   Collapsible,
   CollapsibleTrigger,
   CollapsibleContent,
 } from "@/components/ui/collapsible";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Dialog,
   DialogBody,
@@ -34,7 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { AlertCircle, Clock, ChevronDown, Copy, RefreshCw } from "lucide-react";
+import { AlertCircle, ChevronDown } from "lucide-react";
 import BookingDetailsSheet from "@/components/BookingDetailsSheet";
 import { toast } from "sonner";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
@@ -42,16 +33,15 @@ import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 import { useBookingDetail } from "@/hooks/useBookingDetail";
 import { useBookingActions } from "@/hooks/useBookingActions";
 import {
-  statusBadgeVariant,
-  statusLabel,
   toLocalDateTimeValue,
-  actionLabels,
+  auditActionLabel,
   formatRelative,
-  urgencyBadgeClassName,
 } from "@/components/booking-details/helpers";
-import { formatCountdown, formatDateTime, getUrgency } from "@/lib/format";
+import { BookingHeader } from "@/components/booking-details/BookingHeader";
+import BookingInfoCard from "@/components/booking-details/BookingInfoCard";
+import { UserAvatar } from "@/components/UserAvatar";
+import { formatCountdownCompact, formatDateTime, getUrgency } from "@/lib/format";
 
-import BookingInfoTab from "./BookingInfoTab";
 import BookingEquipmentTab from "./BookingEquipmentTab";
 import BookingHistoryTab from "./BookingHistoryTab";
 
@@ -121,6 +111,13 @@ export default function BookingDetailPage({
     setShowExtend(true);
   }
 
+  function toggleExtend() {
+    setShowExtend((v) => {
+      if (!v && booking) setExtendDate(toLocalDateTimeValue(new Date(booking.endsAt)));
+      return !v;
+    });
+  }
+
   async function handleForceComplete() {
     const reason = forceCompleteReason.trim();
     if (reason.length < 10) {
@@ -145,7 +142,6 @@ export default function BookingDetailPage({
   const canForceComplete = kind === "CHECKOUT" && allowedActions.includes("force-complete");
   const isOpen = booking?.status === "OPEN";
   const isActive = isOpen || booking?.status === "BOOKED";
-  const hasAnyAction = canEdit || canExtend || canCancel || canDuplicate || canNudge || canForceComplete;
   const kioskHandoffLabel =
     kind === "CHECKOUT" && booking?.status === "PENDING_PICKUP"
       ? "Pickup at kiosk"
@@ -153,7 +149,7 @@ export default function BookingDetailPage({
         ? "Return at kiosk"
         : kind === "RESERVATION" && booking?.status === "BOOKED"
           ? "Pick up at kiosk"
-        : null;
+          : null;
 
   // Keyboard shortcut: E to open edit sheet
   useEffect(() => {
@@ -174,7 +170,7 @@ export default function BookingDetailPage({
   const kindLabelPlural = kind === "CHECKOUT" ? "Checkouts" : "Reservations";
 
   // Countdown for active bookings
-  const countdown = booking && isActive ? formatCountdown(booking.endsAt, now) : null;
+  const countdown = booking && isActive ? formatCountdownCompact(booking.endsAt, now) : null;
   const urgency = isActive ? liveUrgency : "normal";
 
   /* ── Loading state ── */
@@ -182,16 +178,27 @@ export default function BookingDetailPage({
   if (loading) {
     return (
       <div className="space-y-6">
-        <Skeleton className="h-4 w-48" />
-        <Skeleton className="h-8 w-64" />
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-5 w-20 rounded-full" />
-          <Skeleton className="h-5 w-24 rounded-full" />
-          <Skeleton className="h-5 w-48 rounded-full" />
+        {/* Header card skeleton */}
+        <div className="rounded-lg border border-border/50 bg-card px-4 py-4 shadow-xs sm:px-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex gap-4">
+              <Skeleton className="size-20 rounded-full shrink-0" />
+              <div className="space-y-2 pt-1">
+                <Skeleton className="h-5 w-24 rounded-full" />
+                <Skeleton className="h-8 w-56" />
+                <Skeleton className="h-3 w-40" />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-8 w-20" />
+              <Skeleton className="h-8 w-20" />
+            </div>
+          </div>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-3">
-          <Skeleton className="h-72 rounded-xl" />
-          <Skeleton className="h-72 rounded-xl" />
+        {/* Two-column body skeleton */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
+          <Skeleton className="h-80 rounded-xl" />
+          <Skeleton className="h-80 rounded-xl" />
         </div>
       </div>
     );
@@ -232,161 +239,35 @@ export default function BookingDetailPage({
     );
   }
 
-
-
   return (
     <div className="space-y-6">
-      {/* Breadcrumb handled by global PageBreadcrumb in AppShell */}
-
       {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="min-w-0">
-          <InlineTitle
-            value={booking.title}
-            canEdit={canEdit}
-            onSave={async (v) => {
-              await actions.saveField("title", v);
-              patchLocal({ title: v });
-            }}
-            className="text-2xl font-semibold tracking-tight leading-tight"
-            placeholder="Untitled booking"
-          />
-        </div>
-
-        {hasAnyAction && <div className="flex items-center gap-2 shrink-0 overflow-x-auto">
-          {/* Actions dropdown — secondary/less-common actions */}
-          {(canDuplicate || canCancel || canNudge || canForceComplete) && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-1.5">
-                  Actions
-                  <ChevronDown className="size-3.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {canNudge && (
-                  <DropdownMenuItem
-                    onSelect={actions.nudge}
-                    disabled={!!actions.actionLoading}
-                  >
-                    {actions.actionLoading === "nudge" ? "Sending..." : "Nudge borrower"}
-                  </DropdownMenuItem>
-                )}
-                {canForceComplete && (
-                  <DropdownMenuItem
-                    onSelect={() => setForceCompleteOpen(true)}
-                    disabled={!!actions.actionLoading}
-                  >
-                    {actions.actionLoading === "force-complete" ? "Closing..." : "Close without scan"}
-                  </DropdownMenuItem>
-                )}
-                {canDuplicate && (
-                  <DropdownMenuItem
-                    onSelect={actions.duplicate}
-                    disabled={!!actions.actionLoading}
-                  >
-                    {actions.actionLoading === "duplicate" ? "Duplicating..." : "Duplicate"}
-                  </DropdownMenuItem>
-                )}
-                {canCancel && (
-                  <DropdownMenuItem
-                    variant="destructive"
-                    onSelect={actions.cancel}
-                    disabled={!!actions.actionLoading}
-                  >
-                    {actions.actionLoading === "cancel" ? "Cancelling..." : "Cancel"}
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-
-          {/* Promoted action buttons */}
-          {canEdit && (
-            <Button
-              variant="outline"
-              onClick={() => setEditSheetOpen(true)}
-            >
-              Edit
-            </Button>
-          )}
-          {canExtend && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowExtend((v) => {
-                  if (!v && booking) setExtendDate(toLocalDateTimeValue(new Date(booking.endsAt)));
-                  return !v;
-                });
-              }}
-            >
-              Extend
-            </Button>
-          )}
-        </div>}
-      </div>
-
-      {/* ── Status strip ── */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <Badge variant={statusBadgeVariant(booking.status, kind)}>
-          {statusLabel(booking.status, kind)}
-        </Badge>
-        {booking.refNumber && (
-          <Badge
-            variant="outline"
-            className="font-mono cursor-pointer hover:bg-muted/60 transition-colors gap-1"
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(booking.refNumber!);
-                toast.success("Copied to clipboard");
-              } catch {
-                toast.error("Failed to copy");
-              }
-            }}
-            title="Click to copy"
-          >
-            {booking.refNumber}
-            <Copy className="size-3 text-muted-foreground" />
-          </Badge>
-        )}
-        {countdown && (
-          <Badge
-            variant="outline"
-            className={`gap-1.5 font-medium ${urgencyBadgeClassName(urgency)}`}
-          >
-            <Clock className="size-3" />
-            {countdown}
-          </Badge>
-        )}
-        {kioskHandoffLabel && (
-          <Badge variant="outline" className="font-medium">
-            {kioskHandoffLabel}
-          </Badge>
-        )}
-        <span className="ml-auto shrink-0">
-          {reloading ? (
-            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Spinner className="size-3" />
-              Refreshing…
-            </span>
-          ) : (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={reload}
-                  className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <RefreshCw className="size-3" />
-                  {booking.updatedAt
-                    ? `Updated ${new Date(booking.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
-                    : "Refresh"}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>Click to refresh</TooltipContent>
-            </Tooltip>
-          )}
-        </span>
-      </div>
+      <BookingHeader
+        booking={booking}
+        kind={kind}
+        canEdit={canEdit}
+        canExtend={canExtend}
+        canCancel={canCancel}
+        canDuplicate={canDuplicate}
+        canNudge={canNudge}
+        canForceComplete={canForceComplete}
+        countdown={countdown}
+        urgency={urgency}
+        kioskHandoffLabel={kioskHandoffLabel}
+        reloading={reloading}
+        actionLoading={actions.actionLoading}
+        onSaveTitle={async (v) => {
+          await actions.saveField("title", v);
+          patchLocal({ title: v });
+        }}
+        onReload={reload}
+        onEdit={() => setEditSheetOpen(true)}
+        onToggleExtend={toggleExtend}
+        onCancel={actions.cancel}
+        onDuplicate={actions.duplicate}
+        onNudge={actions.nudge}
+        onForceComplete={() => setForceCompleteOpen(true)}
+      />
 
       {/* ── Extend panel ── */}
       {showExtend && (
@@ -433,24 +314,18 @@ export default function BookingDetailPage({
         </Card>
       )}
 
-      {/* ── Two-column layout: Info + Equipment ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-3">
-        {/* Left: Info card */}
-        <div>
-          <BookingInfoTab
-            booking={booking}
-            canEdit={canEdit}
-            onSave={actions.saveField}
-            onPatch={patchLocal}
-          />
-        </div>
+      {/* ── Two-column layout: Equipment + Info ── */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
+        {/* Left: Equipment manifest */}
+        <BookingEquipmentTab booking={booking} />
 
-        {/* Right: Equipment card */}
-        <div>
-          <BookingEquipmentTab
-            booking={booking}
-          />
-        </div>
+        {/* Right: Info card */}
+        <BookingInfoCard
+          booking={booking}
+          canEdit={canEdit}
+          onSave={actions.saveField}
+          onPatch={patchLocal}
+        />
       </div>
 
       {/* ── History section (inline, collapsible) ── */}
@@ -467,11 +342,24 @@ export default function BookingDetailPage({
               </CollapsibleTrigger>
               {/* Collapsed preview: show latest entry */}
               {!historyExpanded && booking.auditLogs[0] && (
-                <p className="text-xs text-muted-foreground mt-1.5 ml-6 truncate">
-                  {booking.auditLogs[0].actor?.name ?? "Unknown"}{" "}
-                  {actionLabels[booking.auditLogs[0].action] || booking.auditLogs[0].action}{" "}
-                  — {formatRelative(booking.auditLogs[0].createdAt)}{" · "}{formatDateTime(booking.auditLogs[0].createdAt)}
-                </p>
+                <div
+                  className="mt-1.5 ml-6 flex items-center gap-2 text-xs text-muted-foreground"
+                  title={formatDateTime(booking.auditLogs[0].createdAt)}
+                >
+                  <UserAvatar
+                    name={booking.auditLogs[0].actor?.name ?? "Unknown"}
+                    size="xs"
+                    className="shrink-0"
+                  />
+                  <span className="min-w-0 truncate">
+                    <span className="font-medium text-foreground">
+                      {booking.auditLogs[0].actor?.name ?? "Unknown"}
+                    </span>{" "}
+                    {auditActionLabel(booking.auditLogs[0].action)}
+                  </span>
+                  <span className="shrink-0 text-muted-foreground/40">·</span>
+                  <span className="shrink-0">{formatRelative(booking.auditLogs[0].createdAt)}</span>
+                </div>
               )}
             </CardHeader>
             <CollapsibleContent>
