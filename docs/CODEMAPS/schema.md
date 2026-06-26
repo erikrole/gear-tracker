@@ -75,7 +75,7 @@ Values: `ACTIVE`, `MAINTENANCE`, `UNKNOWN`
 
 ## Model `User`
 
-Fields: 69
+Fields: 70
 
 - `id                   String                     @id @default(cuid())`
 - `name                 String`
@@ -114,6 +114,7 @@ Fields: 69
 - `tradesPosted         ShiftTrade[]               @relation("TradePostedBy")`
 - `tradesClaimed        ShiftTrade[]               @relation("TradeClaimedBy")`
 - `favorites            FavoriteItem[]`
+- `familyFavorites      FavoriteItemFamily[]`
 - `passwordResetTokens  PasswordResetToken[]`
 - `notifications        Notification[]`
 - `deviceTokens         DeviceToken[]`
@@ -453,34 +454,35 @@ Indexes and constraints:
 
 ## Model `BulkSku`
 
-Fields: 26
+Fields: 27
 
-- `id             String              @id @default(cuid())`
+- `id             String               @id @default(cuid())`
 - `name           String`
 - `category       String`
 - `unit           String`
-- `locationId     String              @map("location_id")`
-- `categoryId     String?             @map("category_id")`
-- `departmentId   String?             @map("department_id")`
-- `binQrCodeValue String              @map("bin_qr_code_value")`
-- `minThreshold   Int                 @default(0) @map("min_threshold")`
-- `trackByNumber  Boolean             @default(false) @map("track_by_number")`
-- `purchasePrice  Decimal?            @map("purchase_price") @db.Decimal(10, 2)`
-- `purchaseLink   String?             @map("purchase_link")`
+- `locationId     String               @map("location_id")`
+- `categoryId     String?              @map("category_id")`
+- `departmentId   String?              @map("department_id")`
+- `binQrCodeValue String               @map("bin_qr_code_value")`
+- `minThreshold   Int                  @default(0) @map("min_threshold")`
+- `trackByNumber  Boolean              @default(false) @map("track_by_number")`
+- `purchasePrice  Decimal?             @map("purchase_price") @db.Decimal(10, 2)`
+- `purchaseLink   String?              @map("purchase_link")`
 - `notes          String?`
-- `imageUrl       String?             @map("image_url")`
-- `active         Boolean             @default(true)`
-- `createdAt      DateTime            @default(now()) @map("created_at")`
-- `updatedAt      DateTime            @updatedAt @map("updated_at")`
-- `location       Location            @relation(fields: [locationId], references: [id], onDelete: Restrict)`
-- `categoryRel    Category?           @relation(fields: [categoryId], references: [id], onDelete: SetNull)`
-- `department     Department?         @relation(fields: [departmentId], references: [id], onDelete: SetNull)`
+- `imageUrl       String?              @map("image_url")`
+- `active         Boolean              @default(true)`
+- `createdAt      DateTime             @default(now()) @map("created_at")`
+- `updatedAt      DateTime             @updatedAt @map("updated_at")`
+- `location       Location             @relation(fields: [locationId], references: [id], onDelete: Restrict)`
+- `categoryRel    Category?            @relation(fields: [categoryId], references: [id], onDelete: SetNull)`
+- `department     Department?          @relation(fields: [departmentId], references: [id], onDelete: SetNull)`
 - `balances       BulkStockBalance[]`
 - `movements      BulkStockMovement[]`
 - `bookingItems   BookingBulkItem[]`
 - `scans          ScanEvent[]`
 - `units          BulkSkuUnit[]`
 - `kitBulkMembers KitBulkMembership[]`
+- `favoritedBy    FavoriteItemFamily[]`
 
 Indexes and constraints:
 
@@ -913,6 +915,24 @@ Indexes and constraints:
 - `@@unique([userId, assetId])`
 - `@@index([userId])`
 - `@@map("favorite_items")`
+
+## Model `FavoriteItemFamily`
+
+Fields: 6
+
+- `id        String   @id @default(cuid())`
+- `userId    String   @map("user_id")`
+- `bulkSkuId String   @map("bulk_sku_id")`
+- `createdAt DateTime @default(now()) @map("created_at")`
+- `user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)`
+- `bulkSku   BulkSku  @relation(fields: [bulkSkuId], references: [id], onDelete: Cascade)`
+
+Indexes and constraints:
+
+- `@@unique([userId, bulkSkuId])`
+- `@@index([userId])`
+- `@@index([bulkSkuId])`
+- `@@map("favorite_item_families")`
 
 ## Model `AllowedEmail`
 

@@ -128,16 +128,20 @@ function RowContextMenu({
           <Copy />
           Copy tag
         </ContextMenuItem>
-        {!isBulk && (
-          <ContextMenuItem onSelect={() => onToggleFavorite?.(item)}>
-            <Star className={item.isFavorited ? "fill-current" : undefined} />
-            {item.isFavorited ? "Remove favorite" : "Add favorite"}
+        <ContextMenuItem onSelect={() => onToggleFavorite?.(item)}>
+          <Star className={item.isFavorited ? "fill-current" : undefined} />
+          {item.isFavorited ? "Remove favorite" : "Add favorite"}
+        </ContextMenuItem>
+        {isBulk && (
+          <ContextMenuItem onSelect={() => onRowAction?.("manage-family", item)}>
+            <ExternalLink />
+            Manage inventory
           </ContextMenuItem>
         )}
-        {!isBulk && (
+        {(!isBulk || item.itemFamilyTrackByNumber) && (
           <ContextMenuItem onSelect={() => onRowAction?.("print-label", item)}>
             <Printer />
-            Print label
+            {isBulk ? "Export unit labels" : "Print label"}
           </ContextMenuItem>
         )}
         {canMutateSerialized && (

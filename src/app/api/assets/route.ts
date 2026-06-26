@@ -9,7 +9,7 @@ import { buildDerivedStatusWhere, enrichAssetsWithStatusFromLoaded } from "@/lib
 import { buildActiveBulkUnitAllocationMap } from "@/lib/bulk-unit-status";
 import { summarizeItemFamilyState } from "@/lib/item-family-state";
 import { parseDerivedBulkUnitQr } from "@/lib/bulk-unit-qr";
-import { compareItemAssetTags } from "@/lib/item-asset-tag-sort";
+import { compareItemAssetTags, getAssetTagSearchAliases } from "@/lib/item-asset-tag-sort";
 import { databaseIdSchema, moneyDecimalSchema, nullableHttpUrlSchema } from "@/lib/validation";
 import { AssetStatus, BookingKind, BookingStatus, Prisma } from "@prisma/client";
 
@@ -95,6 +95,7 @@ type BulkListItem = {
   departmentId: string | null;
   departmentName: string | null;
   binQrCodeValue: string;
+  isFavorited?: boolean;
 };
 
 async function loadOperationallySortedAssets(
@@ -370,6 +371,7 @@ export const GET = withAuth(async (req, { user }) => {
   const showAccessories = searchParams.get("show_accessories") === "true";
   const includeAccessories = searchParams.get("include_accessories") === "true";
   const favoritesOnly = searchParams.get("favorites_only") === "true";
+  const searchAliases = q ? getAssetTagSearchAliases(q) : [];
   const itemKind = readItemKindFilter(searchParams.get("item_type") ?? searchParams.get("type"));
   const includeSerializedRows = itemKind === "all" || itemKind === "serialized";
   const includeBulkRows = itemKind === "all" || itemKind === "unit-tracked" || itemKind === "quantity-tracked";
@@ -428,11 +430,13 @@ export const GET = withAuth(async (req, { user }) => {
               { assetTag: { equals: qr, mode: "insensitive" as const } },
             ] : []),
             ...(q ? [
-              { assetTag: { contains: q, mode: "insensitive" as const } },
+              ...searchAliases.flatMap((term) => [
+                { assetTag: { contains: term, mode: "insensitive" as const } },
+                { model: { contains: term, mode: "insensitive" as const } },
+                { name: { contains: term, mode: "insensitive" as const } },
+              ]),
               { brand: { contains: q, mode: "insensitive" as const } },
-              { model: { contains: q, mode: "insensitive" as const } },
               { serialNumber: { contains: q, mode: "insensitive" as const } },
-              { name: { contains: q, mode: "insensitive" as const } },
               { notes: { contains: q, mode: "insensitive" as const } },
               { category: { name: { contains: q, mode: "insensitive" as const } } },
               { location: { name: { contains: q, mode: "insensitive" as const } } },
@@ -491,7 +495,10 @@ export const GET = withAuth(async (req, { user }) => {
       ...(missingField === "department" ? { departmentId: null } : {}),
       ...(q ? {
         OR: [
-          { name: { contains: q, mode: "insensitive" as const } },
+          ...searchAliases.flatMap((term) => [
+            { name: { contains: term, mode: "insensitive" as const } },
+            { category: { contains: term, mode: "insensitive" as const } },
+          ]),
           { category: { contains: q, mode: "insensitive" as const } },
         ],
       } : {}),
@@ -679,7 +686,6 @@ export const GET = withAuth(async (req, { user }) => {
     includeBulkRows &&
     !showAccessories &&
     !includeAccessories &&
-    !favoritesOnly &&
     brandParams.length === 0 &&
     (!hasStatusFilter || statusParams.includes("AVAILABLE"));
 
@@ -694,11 +700,15 @@ export const GET = withAuth(async (req, { user }) => {
         ...(categoryIds.length > 1 ? { categoryId: { in: categoryIds } } : {}),
         ...(departmentIds.length === 1 ? { departmentId: departmentIds[0] } : {}),
         ...(departmentIds.length > 1 ? { departmentId: { in: departmentIds } } : {}),
+        ...(favoritesOnly ? { favoritedBy: { some: { userId: user.id } } } : {}),
         ...(q ? {
           OR: [
-            { name: { contains: q, mode: "insensitive" as const } },
+            ...searchAliases.flatMap((term) => [
+              { name: { contains: term, mode: "insensitive" as const } },
+              { category: { contains: term, mode: "insensitive" as const } },
+              { categoryRel: { name: { contains: term, mode: "insensitive" as const } } },
+            ]),
             { category: { contains: q, mode: "insensitive" as const } },
-            { categoryRel: { name: { contains: q, mode: "insensitive" as const } } },
           ],
         } : {}),
         ...(qr ? {
@@ -837,11 +847,15 @@ export const GET = withAuth(async (req, { user }) => {
 
   const data = await enrichAssetsWithStatusFromLoaded(rawData);
 
-  const [enrichedWithBookings, favoriteItems] = await Promise.all([
+  const [enrichedWithBookings, favoriteItems, favoriteItemFamilies] = await Promise.all([
     attachActiveBookings(data),
     db.favoriteItem.findMany({
       where: { userId: user.id, assetId: { in: data.map((a) => a.id) } },
       select: { assetId: true },
+    }),
+    db.favoriteItemFamily.findMany({
+      where: { userId: user.id, bulkSkuId: { in: bulkItems.map((b) => b.id) } },
+      select: { bulkSkuId: true },
     }),
   ]);
 
@@ -850,6 +864,11 @@ export const GET = withAuth(async (req, { user }) => {
   const enrichedWithFavorites = enrichedWithBookings.map((a) => ({
     ...a,
     isFavorited: favoriteAssetIds.has(a.id),
+  }));
+  const favoriteBulkSkuIds = new Set(favoriteItemFamilies.map((f) => f.bulkSkuId));
+  bulkItems = bulkItems.map((b) => ({
+    ...b,
+    isFavorited: favoriteBulkSkuIds.has(b.id),
   }));
 
   // Status breakdown counts using derived status logic

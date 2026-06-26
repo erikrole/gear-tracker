@@ -59,6 +59,8 @@ export type Asset = {
   imageUrl: string | null;
   activeBooking: ActiveBooking | null;
   isFavorited?: boolean;
+  isItemFamily?: boolean;
+  itemFamilyTrackByNumber?: boolean;
   _count?: { accessories: number };
 };
 
@@ -272,9 +274,6 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
     meta: { thClassName: "w-11" },
     cell: ({ row }) => {
       const asset = row.original;
-      if (isBulkRowId(asset.id)) {
-        return <span className="block size-9" aria-hidden="true" />;
-      }
       return (
         <Button
           variant="ghost"
@@ -416,7 +415,20 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
               <ExternalLink className="size-4" />
               Open
             </DropdownMenuItem>
-            {!isBulk && (
+            {isBulk ? (
+              <>
+                <DropdownMenuItem onClick={() => meta.onRowAction?.("manage-family", asset)}>
+                  <ExternalLink className="size-4" />
+                  Manage inventory
+                </DropdownMenuItem>
+                {asset.itemFamilyTrackByNumber && (
+                  <DropdownMenuItem onClick={() => meta.onRowAction?.("print-label", asset)}>
+                    <Printer className="size-4" />
+                    Export unit labels
+                  </DropdownMenuItem>
+                )}
+              </>
+            ) : (
               <>
                 <DropdownMenuItem onClick={() => meta.onRowAction?.("print-label", asset)}>
                   <Printer className="size-4" />

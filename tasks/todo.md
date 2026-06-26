@@ -20,6 +20,22 @@ Plan: `tasks/items-freshness-plan.md`
 
 ---
 
+## Active: Items list niceties (2026-06-26)
+
+Plan: `tasks/items-list-niceties-plan.md`
+
+- [x] Rename the default sort option from `Name` to `Asset tag`.
+- [x] Add durable favorites for item-family rows and include them in the Favorites filter.
+- [x] Normalize asset-tag search aliases so compact and hyphenated family tags find each other.
+- [x] Keep unavailable row badges consistent with the holder-first status grammar.
+- [x] Add valid item-family row actions without exposing serialized-only mutations.
+- [x] Add focused tests, sync docs, and run verification.
+
+### Review
+- 2026-06-26: Items list niceties shipped locally. Added migration `0085_item_family_favorites` plus `/api/bulk-skus/[id]/favorite` so item-family favorites persist and mirror serialized favorite permission/audit behavior. `/api/assets` now returns item-family favorite state and includes favorited families in Favorites-only views. Items and picker search share compact/hyphenated asset-tag aliases, the sort selector now says `Asset tag`, and item-family menus expose valid actions only, including inventory management and numbered-unit label CSV export. Verification passed with focused tests, Prisma format/generate/validate, migration-prefix check, TypeScript, docs/codemap check, whitespace check, and `npm run build:app`. Live migration deploy/health was not run; the new migration is pending for deploy.
+
+---
+
 ## Active: Reservation linked-event title cleanup (2026-06-26)
 
 Plan: keep non-game/media-day event summaries visible in the shared booking wizard when events also carry sport metadata.

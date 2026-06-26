@@ -15,7 +15,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 
 - Doc: `docs/AREA_BULK_INVENTORY.md`
 - Pages: `/bulk-inventory/[id]`, `/bulk-inventory/batteries`, `/bulk-inventory`
-- APIs: `/api/bulk-skus/[id]/activity`, `/api/bulk-skus/[id]/adjust`, `/api/bulk-skus/[id]/convert-to-numbered`, `/api/bulk-skus/[id]/image`, `/api/bulk-skus/[id]`, `/api/bulk-skus/[id]/units/[unitNumber]`, `/api/bulk-skus/[id]/units/labels`, `/api/bulk-skus/[id]/units`, `/api/bulk-skus/batteries/repair-stale`, `/api/bulk-skus/batteries`
+- APIs: `/api/bulk-skus/[id]/activity`, `/api/bulk-skus/[id]/adjust`, `/api/bulk-skus/[id]/convert-to-numbered`, `/api/bulk-skus/[id]/favorite`, `/api/bulk-skus/[id]/image`, `/api/bulk-skus/[id]`, `/api/bulk-skus/[id]/units/[unitNumber]`, `/api/bulk-skus/[id]/units/labels`, `/api/bulk-skus/[id]/units`, `/api/bulk-skus/batteries/repair-stale`
 - Services: _none matched_
 - Tests: _none matched_
 

@@ -93,7 +93,7 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
 
       const updated = await tx.booking.updateMany({
         where: { id: params.id, status: "PENDING_PICKUP" },
-        data: { status: "OPEN" },
+        data: { status: "OPEN", pickupKioskDeviceId: kiosk.kioskId },
       });
       if (updated.count !== 1) {
         throw new HttpError(409, "Pickup was already confirmed. Refresh this checkout.");
@@ -230,6 +230,7 @@ export const POST = withKiosk<{ id: string }>(async (req, { kiosk, params }) => 
       sportCode: sourceReservation.sportCode ?? undefined,
       shiftAssignmentId: sourceReservation.shiftAssignmentId ?? undefined,
       kitId: sourceReservation.kitId ?? undefined,
+      pickupKioskDeviceId: kiosk.kioskId,
     });
 
     if (bulkUnitItems.length > 0) {

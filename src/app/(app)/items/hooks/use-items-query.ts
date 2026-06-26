@@ -56,6 +56,7 @@ export type BulkItem = {
   departmentId: string | null;
   departmentName: string | null;
   binQrCodeValue: string;
+  isFavorited?: boolean;
 };
 
 type AssetsResponse = {
@@ -189,6 +190,15 @@ export function useItemsQuery(deps: QueryDeps) {
     [url, queryClient],
   );
 
+  const setBulkItems = useCallback(
+    (updater: (items: BulkItem[]) => BulkItem[]) => {
+      queryClient.setQueryData<AssetsResponse>(["items", url], (prev) =>
+        prev ? { ...prev, bulkItems: updater(prev.bulkItems ?? []) } : prev,
+      );
+    },
+    [url, queryClient],
+  );
+
   // Invalidate every cached filter combination, not just the active one. A
   // favorite (or bulk mutation) changes data that other cached filter views
   // also depend on; without this they keep serving stale rows within
@@ -210,6 +220,7 @@ export function useItemsQuery(deps: QueryDeps) {
     bulkItems,
     itemOrder,
     setItems,
+    setBulkItems,
     total,
     statusBreakdown,
     page,

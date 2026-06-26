@@ -36,7 +36,7 @@ const ITEM_TYPE_LABELS: Record<ItemTypeFilter, string> = {
 };
 
 const SORT_OPTIONS = [
-  { value: "assetTag", label: "Name" },
+  { value: "assetTag", label: "Asset tag" },
   { value: "popular", label: "Most popular" },
   { value: "category", label: "Category" },
   { value: "department", label: "Department" },

@@ -45,6 +45,8 @@ type CreateBookingInput = {
   sportCode?: string;
   shiftAssignmentId?: string;
   kitId?: string;
+  /** KioskDevice that handled pickup — captured at kiosk custody transitions. */
+  pickupKioskDeviceId?: string;
 };
 
 type UpdateBookingInput = {
@@ -250,7 +252,8 @@ export async function createBooking(input: CreateBookingInput) {
           eventId: primaryEventId,
           sportCode: input.sportCode ?? null,
           shiftAssignmentId: input.shiftAssignmentId ?? null,
-          kitId: input.kitId ?? null
+          kitId: input.kitId ?? null,
+          pickupKioskDeviceId: input.pickupKioskDeviceId ?? null
         }
       });
 

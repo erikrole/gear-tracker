@@ -25,7 +25,15 @@ vi.mock("@/lib/db", () => ({
     asset: {
       findUnique: vi.fn(),
     },
+    bulkSku: {
+      findUnique: vi.fn(),
+    },
     favoriteItem: {
+      findUnique: vi.fn(),
+      deleteMany: vi.fn(),
+      create: vi.fn(),
+    },
+    favoriteItemFamily: {
       findUnique: vi.fn(),
       deleteMany: vi.fn(),
       create: vi.fn(),
@@ -47,6 +55,7 @@ import { db } from "@/lib/db";
 import { createAuditEntry, createAuditEntryTx } from "@/lib/audit";
 import { POST as retireAsset } from "@/app/api/assets/[id]/retire/route";
 import { POST as favoriteAsset } from "@/app/api/assets/[id]/favorite/route";
+import { POST as favoriteItemFamily } from "@/app/api/bulk-skus/[id]/favorite/route";
 import { PATCH as moveAccessory } from "@/app/api/assets/[id]/accessories/route";
 
 const assetParams = { params: Promise.resolve({ id: "asset-1" }) };
@@ -57,6 +66,10 @@ function assetRow(row: unknown) {
 
 function favoriteRow(row: unknown) {
   return row as Awaited<ReturnType<typeof db.favoriteItem.create>>;
+}
+
+function familyFavoriteRow(row: unknown) {
+  return row as Awaited<ReturnType<typeof db.favoriteItemFamily.create>>;
 }
 
 function post(path: string) {
@@ -94,8 +107,11 @@ beforeEach(() => {
   mockTx.asset.findUnique.mockResolvedValue({ id: "asset-1", status: "AVAILABLE" });
   mockTx.asset.update.mockResolvedValue({ id: "asset-1", status: "RETIRED" });
   vi.mocked(db.asset.findUnique).mockResolvedValue(assetRow({ id: "asset-1" }));
+  vi.mocked(db.bulkSku.findUnique).mockResolvedValue({ id: "sku-1" } as Awaited<ReturnType<typeof db.bulkSku.findUnique>>);
   vi.mocked(db.favoriteItem.findUnique).mockResolvedValue(null);
   vi.mocked(db.favoriteItem.create).mockResolvedValue(favoriteRow({ id: "favorite-1" }));
+  vi.mocked(db.favoriteItemFamily.findUnique).mockResolvedValue(null);
+  vi.mocked(db.favoriteItemFamily.create).mockResolvedValue(familyFavoriteRow({ id: "family-favorite-1" }));
 });
 
 describe("asset action hardening", () => {
@@ -156,6 +172,41 @@ describe("asset action hardening", () => {
     expect(res.status).toBe(404);
     expect(db.favoriteItem.findUnique).not.toHaveBeenCalled();
     expect(db.favoriteItem.create).not.toHaveBeenCalled();
+  });
+
+  it("checks item-family existence before creating a family favorite", async () => {
+    const res = await favoriteItemFamily(post("/api/bulk-skus/sku-1/favorite"), {
+      params: Promise.resolve({ id: "sku-1" }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(db.bulkSku.findUnique).toHaveBeenCalledWith({
+      where: { id: "sku-1" },
+      select: { id: true },
+    });
+    expect(db.favoriteItemFamily.create).toHaveBeenCalledWith({
+      data: { userId: "staff-1", bulkSkuId: "sku-1" },
+    });
+    expect(createAuditEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorId: "staff-1",
+        entityType: "bulk_sku",
+        entityId: "sku-1",
+        action: "favorite_added",
+      }),
+    );
+  });
+
+  it("returns 404 before item-family favorite writes when the family is missing", async () => {
+    vi.mocked(db.bulkSku.findUnique).mockResolvedValue(null);
+
+    const res = await favoriteItemFamily(post("/api/bulk-skus/missing/favorite"), {
+      params: Promise.resolve({ id: "missing" }),
+    });
+
+    expect(res.status).toBe(404);
+    expect(db.favoriteItemFamily.findUnique).not.toHaveBeenCalled();
+    expect(db.favoriteItemFamily.create).not.toHaveBeenCalled();
   });
 
   it("moves an accessory to a new standalone parent and audits the previous parent", async () => {

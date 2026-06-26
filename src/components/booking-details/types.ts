@@ -77,6 +77,7 @@ export type BookingDetail = {
   sportCode?: string | null;
   shiftAssignment?: { id: string; shift: { area: string } } | null;
   kit?: { id: string; name: string } | null;
+  pickupKioskDevice?: { id: string; name: string; location: { id: string; name: string } } | null;
   photos?: BookingPhoto[];
 };
 

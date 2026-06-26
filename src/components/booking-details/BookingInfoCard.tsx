@@ -120,6 +120,16 @@ export default function BookingInfoCard({
         <SaveableField label="Location">
           <span className="text-sm">{booking.location?.name ?? "—"}</span>
         </SaveableField>
+        {booking.pickupKioskDevice && (
+          <SaveableField label="Picked up at">
+            <span className="text-sm">
+              {booking.pickupKioskDevice.name}
+              {booking.pickupKioskDevice.location?.name && (
+                <span className="text-muted-foreground"> · {booking.pickupKioskDevice.location.name}</span>
+              )}
+            </span>
+          </SaveableField>
+        )}
         {booking.events && booking.events.length > 1 ? (
           <SaveableField label="Events">
             <div className="flex flex-col gap-1.5 text-sm">

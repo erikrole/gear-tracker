@@ -142,6 +142,7 @@ export const POST = withKiosk(async (req, { kiosk }) => {
             endsAt,
             refNumber,
             notes,
+            pickupKioskDeviceId: kiosk.kioskId,
           },
         });
 

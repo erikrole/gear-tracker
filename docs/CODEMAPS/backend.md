@@ -103,7 +103,7 @@
 | `src/lib/http.ts` | 90 |
 | `src/lib/image-search-modal.ts` | 59 |
 | `src/lib/image-search.ts` | 239 |
-| `src/lib/item-asset-tag-sort.ts` | 170 |
+| `src/lib/item-asset-tag-sort.ts` | 196 |
 | `src/lib/item-family-state.ts` | 75 |
 | `src/lib/nav-sections.ts` | 219 |
 | `src/lib/observability.ts` | 19 |
@@ -215,6 +215,7 @@
 - `/api/bulk-skus/[id]/activity`
 - `/api/bulk-skus/[id]/adjust`
 - `/api/bulk-skus/[id]/convert-to-numbered`
+- `/api/bulk-skus/[id]/favorite`
 - `/api/bulk-skus/[id]/image`
 - `/api/bulk-skus/[id]`
 - `/api/bulk-skus/[id]/units/[unitNumber]`

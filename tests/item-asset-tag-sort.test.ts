@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareItemAssetTags, getItemAssetTagSortKey } from "@/lib/item-asset-tag-sort";
+import { compareItemAssetTags, getAssetTagSearchAliases, getItemAssetTagSortKey } from "@/lib/item-asset-tag-sort";
 
 describe("item asset tag sorting", () => {
   it("uses the equipment family instead of operational prefixes", () => {
@@ -102,5 +102,11 @@ describe("item asset tag sorting", () => {
       "Dell Single Monitor Arm-2",
       "Dell Single Monitor Arm-5",
     ]);
+  });
+
+  it("expands compact and hyphenated numeric family search aliases", () => {
+    expect(getAssetTagSearchAliases("70200")).toEqual(["70200", "70-200"]);
+    expect(getAssetTagSearchAliases("70-200")).toEqual(["70-200", "70200"]);
+    expect(getAssetTagSearchAliases("FB 100400")).toEqual(["FB 100400", "FB 100-400"]);
   });
 });

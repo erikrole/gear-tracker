@@ -11,7 +11,7 @@
 
 | Model | Fields | Model-level indexes/constraints |
 |---|---:|---:|
-| `User` | 69 | 3 |
+| `User` | 70 | 3 |
 | `Session` | 6 | 2 |
 | `PasswordResetToken` | 6 | 2 |
 | `Location` | 17 | 1 |
@@ -23,7 +23,7 @@
 | `BookingSerializedItem` | 7 | 3 |
 | `BookingBulkItem` | 10 | 3 |
 | `AssetAllocation` | 11 | 4 |
-| `BulkSku` | 26 | 5 |
+| `BulkSku` | 27 | 5 |
 | `BulkStockBalance` | 7 | 4 |
 | `BulkStockMovement` | 13 | 4 |
 | `BulkSkuUnit` | 12 | 4 |
@@ -43,6 +43,7 @@
 | `Notification` | 12 | 5 |
 | `EscalationRule` | 10 | 1 |
 | `FavoriteItem` | 6 | 3 |
+| `FavoriteItemFamily` | 6 | 4 |
 | `AllowedEmail` | 9 | 2 |
 | `SystemConfig` | 3 | 1 |
 | `BadgeDefinition` | 14 | 3 |

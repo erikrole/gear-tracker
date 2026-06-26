@@ -44,7 +44,7 @@ import { STATUS_STYLES } from "@/lib/status-styles";
 import { Download, Rows3, Rows4 } from "lucide-react";
 import { FadeUp } from "@/components/ui/motion";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
-import { buildBulkRowId, getItemHref, isBulkRowId } from "./lib/item-href";
+import { buildBulkRowId, getItemHref, isBulkRowId, parseBulkRowId } from "./lib/item-href";
 import { compareItemAssetTags } from "@/lib/item-asset-tag-sort";
 
 export default function ItemsPage() {
@@ -215,7 +215,9 @@ export default function ItemsPage() {
           department: b.departmentId && b.departmentName ? { id: b.departmentId, name: b.departmentName } : null,
           imageUrl: b.imageUrl,
           activeBooking: null,
-          isFavorited: false,
+          isFavorited: !!b.isFavorited,
+          isItemFamily: true,
+          itemFamilyTrackByNumber: b.trackByNumber,
         }))
       : [];
 
@@ -245,19 +247,24 @@ export default function ItemsPage() {
 
   // Optimistic favorite toggle
   const handleToggleFavorite = useCallback(async (asset: Asset) => {
-    if (isBulkRowId(asset.id)) {
-      toast.info("Item-family favorites are not available yet");
-      return;
-    }
+    const bulkSkuId = parseBulkRowId(asset.id);
+    const isFamily = !!bulkSkuId;
+    const endpoint = isFamily ? `/api/bulk-skus/${bulkSkuId}/favorite` : `/api/assets/${asset.id}/favorite`;
     // Ignore re-clicks while a toggle for this asset is still resolving.
     if (favoriteInFlight.current.has(asset.id)) return;
     favoriteInFlight.current.add(asset.id);
     const prev = asset.isFavorited;
-    query.setItems((items) =>
-      items.map((a) => a.id === asset.id ? { ...a, isFavorited: !prev } : a)
-    );
+    if (isFamily) {
+      query.setBulkItems((items) =>
+        items.map((b) => b.id === bulkSkuId ? { ...b, isFavorited: !prev } : b)
+      );
+    } else {
+      query.setItems((items) =>
+        items.map((a) => a.id === asset.id ? { ...a, isFavorited: !prev } : a)
+      );
+    }
     try {
-      const res = await fetch(`/api/assets/${asset.id}/favorite`, { method: "POST" });
+      const res = await fetch(endpoint, { method: "POST" });
       if (handleAuthRedirect(res)) return;
       if (!res.ok) throw new Error();
       // Reconcile to the server's authoritative state: the endpoint toggles
@@ -265,9 +272,15 @@ export default function ItemsPage() {
       const json = await parseJsonSafely<{ favorited?: unknown }>(res);
       if (typeof json?.favorited === "boolean") {
         const favorited = json.favorited;
-        query.setItems((items) =>
-          items.map((a) => a.id === asset.id ? { ...a, isFavorited: favorited } : a)
-        );
+        if (isFamily) {
+          query.setBulkItems((items) =>
+            items.map((b) => b.id === bulkSkuId ? { ...b, isFavorited: favorited } : b)
+          );
+        } else {
+          query.setItems((items) =>
+            items.map((a) => a.id === asset.id ? { ...a, isFavorited: favorited } : a)
+          );
+        }
       } else {
         toast.error("Favorite updated, but the response could not be confirmed. Refreshing items.");
         query.invalidate(true);
@@ -276,9 +289,15 @@ export default function ItemsPage() {
       // a filter doesn't resurrect a fav state this toggle just changed.
       query.invalidate(false);
     } catch {
-      query.setItems((items) =>
-        items.map((a) => a.id === asset.id ? { ...a, isFavorited: prev } : a)
-      );
+      if (isFamily) {
+        query.setBulkItems((items) =>
+          items.map((b) => b.id === bulkSkuId ? { ...b, isFavorited: prev } : b)
+        );
+      } else {
+        query.setItems((items) =>
+          items.map((a) => a.id === asset.id ? { ...a, isFavorited: prev } : a)
+        );
+      }
       toast.error("Failed to update favorite");
     } finally {
       favoriteInFlight.current.delete(asset.id);
@@ -329,9 +348,47 @@ export default function ItemsPage() {
   const reloadItems = query.reload;
   const handleRowAction = useCallback(async (action: string, asset: Asset) => {
     if (busyRef.current) return;
-    if (isBulkRowId(asset.id) && action !== "open") {
-      toast.info("Open the item family for unit labels, status, and admin operations");
-      return;
+    const bulkSkuId = parseBulkRowId(asset.id);
+    if (bulkSkuId) {
+      switch (action) {
+        case "open":
+          router.push(getItemHref(asset.id));
+          return;
+        case "manage-family":
+          router.push(`/bulk-inventory/${bulkSkuId}`);
+          return;
+        case "print-label":
+          if (!asset.itemFamilyTrackByNumber) return;
+          busyRef.current = true;
+          setActionBusy(true);
+          try {
+            const res = await fetch(`/api/bulk-skus/${bulkSkuId}/units/labels?scope=unprinted`);
+            if (handleAuthRedirect(res)) return;
+            if (!res.ok) {
+              toast.error(await parseErrorMessage(res, "Failed to export unit labels"));
+              return;
+            }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `unit-labels-${asset.assetTag.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || bulkSkuId}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+            toast.success(`Unit labels exported for ${asset.assetTag}`);
+          } catch {
+            toast.error("Network error — could not export unit labels");
+          } finally {
+            busyRef.current = false;
+            setActionBusy(false);
+          }
+          return;
+        default:
+          toast.info("Open the item family for status and admin operations");
+          return;
+      }
     }
     switch (action) {
       case "open":

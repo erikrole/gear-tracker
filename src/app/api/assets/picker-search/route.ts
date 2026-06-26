@@ -12,7 +12,7 @@ import { Prisma } from "@prisma/client";
 import { buildDerivedStatusWhere, enrichAssetsWithStatusFromLoaded } from "@/lib/services/status";
 import { sectionWhere, ALL_SECTION_KEYS } from "@/lib/equipment-section-filters";
 import type { EquipmentSectionKey } from "@/lib/equipment-sections";
-import { compareItemAssetTags } from "@/lib/item-asset-tag-sort";
+import { compareItemAssetTags, getAssetTagSearchAliases } from "@/lib/item-asset-tag-sort";
 
 const VALID_SECTIONS = new Set<string>(ALL_SECTION_KEYS);
 const MAX_PICKER_LIMIT = 100;
@@ -37,6 +37,7 @@ const pickerSelect = {
 export const GET = withAuth(async (req, { user }) => {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q")?.trim() || undefined;
+  const searchAliases = q ? getAssetTagSearchAliases(q) : [];
   const qr = searchParams.get("qr")?.trim() || undefined;
   const sectionParam = searchParams.get("section")?.trim();
   const onlyAvailable = searchParams.get("only_available") === "true";
@@ -100,11 +101,13 @@ export const GET = withAuth(async (req, { user }) => {
   if (q) {
     conditions.push({
       OR: [
-        { assetTag: { contains: q, mode: "insensitive" } },
+        ...searchAliases.flatMap((term) => [
+          { assetTag: { contains: term, mode: "insensitive" as const } },
+          { model: { contains: term, mode: "insensitive" as const } },
+          { name: { contains: term, mode: "insensitive" as const } },
+        ]),
         { brand: { contains: q, mode: "insensitive" } },
-        { model: { contains: q, mode: "insensitive" } },
         { serialNumber: { contains: q, mode: "insensitive" } },
-        { name: { contains: q, mode: "insensitive" } },
         { type: { contains: q, mode: "insensitive" } },
         { category: { name: { contains: q, mode: "insensitive" } } },
       ],

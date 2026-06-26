@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   assetCount: vi.fn(),
   assetAllocationFindMany: vi.fn(),
   favoriteItemFindMany: vi.fn(),
+  favoriteItemFamilyFindMany: vi.fn(),
   bulkSkuFindMany: vi.fn(),
   bookingBulkUnitAllocationFindMany: vi.fn(),
   bookingSerializedItemFindMany: vi.fn(),
@@ -28,6 +29,9 @@ vi.mock("@/lib/db", () => ({
     },
     favoriteItem: {
       findMany: mocks.favoriteItemFindMany,
+    },
+    favoriteItemFamily: {
+      findMany: mocks.favoriteItemFamilyFindMany,
     },
     bulkSku: {
       findMany: mocks.bulkSkuFindMany,
@@ -148,6 +152,7 @@ beforeEach(() => {
   mocks.assetCount.mockResolvedValue(0);
   mocks.assetAllocationFindMany.mockResolvedValue([]);
   mocks.favoriteItemFindMany.mockResolvedValue([]);
+  mocks.favoriteItemFamilyFindMany.mockResolvedValue([]);
   mocks.bulkSkuFindMany.mockResolvedValue([]);
   mocks.bookingBulkUnitAllocationFindMany.mockResolvedValue([]);
   mocks.bookingSerializedItemFindMany.mockResolvedValue([]);
@@ -220,6 +225,43 @@ describe("/api/assets item-family rows", () => {
     expect(mocks.assetFindMany).not.toHaveBeenCalled();
     expect(mocks.bulkSkuFindMany).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({ active: true, trackByNumber: true }),
+    }));
+  });
+
+  it("returns item-family favorite state and allows favorites-only family filtering", async () => {
+    mocks.bulkSkuFindMany.mockResolvedValue([numberedBatterySku()]);
+    mocks.favoriteItemFamilyFindMany.mockResolvedValue([{ bulkSkuId: "sku-battery" }]);
+
+    const res = await getAssets(request("/api/assets?item_type=unit-tracked&favorites_only=true&limit=25"), {
+      params: Promise.resolve({}),
+    });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.bulkItems).toMatchObject([
+      { id: "sku-battery", isFavorited: true },
+    ]);
+    expect(body.total).toBe(1);
+    expect(mocks.bulkSkuFindMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        active: true,
+        trackByNumber: true,
+        favoritedBy: { some: { userId: "user-1" } },
+      }),
+    }));
+  });
+
+  it("expands compact family search aliases for item-family names", async () => {
+    await getAssets(request("/api/assets?q=70200&limit=25"), {
+      params: Promise.resolve({}),
+    });
+
+    expect(mocks.bulkSkuFindMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        OR: expect.arrayContaining([
+          { name: { contains: "70-200", mode: "insensitive" } },
+        ]),
+      }),
     }));
   });
 

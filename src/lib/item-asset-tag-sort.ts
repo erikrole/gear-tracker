@@ -119,6 +119,32 @@ function normalizeFamilyToken(token: string) {
   return `${token.slice(0, 3)}-${token.slice(3)}`;
 }
 
+function compactFamilyToken(token: string) {
+  return token.replace(/(\d)-(\d)/g, "$1$2");
+}
+
+export function getAssetTagSearchAliases(query: string) {
+  const normalized = normalizeAssetTag(query);
+  if (!normalized) return [];
+
+  const aliases = new Set([normalized]);
+  const tokens = normalized.split(" ").filter(Boolean);
+
+  for (const token of tokens) {
+    const hyphenated = normalizeFamilyToken(token);
+    if (hyphenated !== token) {
+      aliases.add(normalized.replace(token, hyphenated));
+    }
+
+    const compact = compactFamilyToken(token);
+    if (compact !== token && /^\d{4,6}$/.test(compact)) {
+      aliases.add(normalized.replace(token, compact));
+    }
+  }
+
+  return [...aliases];
+}
+
 function getItemAssetTagSortParts(assetTag: string) {
   const { prefix, value } = readOperationalPrefix(assetTag);
   const key = value

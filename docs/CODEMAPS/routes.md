@@ -128,6 +128,7 @@
 - `/api/bulk-skus/[id]/activity` -> `src/app/api/bulk-skus/[id]/activity/route.ts`
 - `/api/bulk-skus/[id]/adjust` -> `src/app/api/bulk-skus/[id]/adjust/route.ts`
 - `/api/bulk-skus/[id]/convert-to-numbered` -> `src/app/api/bulk-skus/[id]/convert-to-numbered/route.ts`
+- `/api/bulk-skus/[id]/favorite` -> `src/app/api/bulk-skus/[id]/favorite/route.ts`
 - `/api/bulk-skus/[id]/image` -> `src/app/api/bulk-skus/[id]/image/route.ts`
 - `/api/bulk-skus/[id]` -> `src/app/api/bulk-skus/[id]/route.ts`
 - `/api/bulk-skus/[id]/units/[unitNumber]` -> `src/app/api/bulk-skus/[id]/units/[unitNumber]/route.ts`
