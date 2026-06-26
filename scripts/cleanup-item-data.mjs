@@ -16,6 +16,8 @@ const db = new PrismaClient({
 });
 
 const ACTION_SOURCE = "item-data-cleanup-2026-06";
+const LEGACY_QR_LABEL_PATTERN = /^[A-Z]\d-\d{3,}$/i;
+const REAL_QR_CODE_PATTERN = /^[a-z0-9]{6,}$/i;
 
 function compact(value) {
   return (value ?? "").toString().trim();
@@ -106,10 +108,36 @@ function departmentIdFor(name, departmentsByName) {
   return departmentsByName.get(name) ?? null;
 }
 
+function currentCategoryPath(item, categoriesById) {
+  const categoryId = item.categoryId;
+  if (!categoryId) return null;
+  const category = categoriesById.get(categoryId);
+  return category ? buildCategoryPath(category, categoriesById) : null;
+}
+
+function isLensOrCameraLike(asset, categoriesById) {
+  const categoryPath = currentCategoryPath(asset, categoriesById);
+  const joined = normalize([asset.name, asset.brand, asset.model, asset.type, categoryPath].join(" "));
+  return includesAny(joined, ["lens", "camera", "body", "gimbal", "flash"]);
+}
+
+function categoryImprovementPath(asset, categoriesById) {
+  const joined = normalize([asset.assetTag, asset.name, asset.brand, asset.model, asset.type].join(" "));
+  const currentPath = currentCategoryPath(asset, categoriesById);
+
+  if (includesAny(joined, ["teleconverter"])) return "Lenses/Accessories";
+  if (includesAny(joined, ["monitor arm"])) return "Office/Peripherals";
+  if (includesAny(joined, ["wireless flash", "flash trigger", "godox x1rs", "xt16 receiver"])) return "Lighting";
+
+  if (currentPath === "Cameras/Accessories") return null;
+  return null;
+}
+
 function suggestCategoryPath({ name, brand, model, type, legacyCategory }) {
   const joined = normalize([name, brand, model, type, legacyCategory].join(" "));
   const source = normalize(legacyCategory || type);
 
+  if (includesAny(joined, ["teleconverter"])) return "Lenses/Accessories";
   if (includesAny(joined, ["sandbag", "milk crate"])) return "Lighting";
   if (includesAny(joined, ["lens cap", "front cap", "rear cap"])) return "Lenses/Accessories";
   if (includesAny(joined, ["nd filter", "variable nd", "filter"])) return "Lenses/ND Filters";
@@ -121,8 +149,8 @@ function suggestCategoryPath({ name, brand, model, type, legacyCategory }) {
   if (includesAny(joined, ["sdxc", "sd card", "uhs-ii", "memory card"])) return "Media Storage/SD Cards";
   if (includesAny(joined, ["ssd", "solid state", "extreme pro portable"])) return "Media Storage/SSDs";
   if (includesAny(joined, ["hard drive", "hdd", "g-drive", "g drive"])) return "Media Storage/HDDs";
-  if (includesAny(joined, ["lav", "microphone", "mic ", "shotgun", "recorder", "tascam", "headphone", "headset", "xlr"])) return "Audio/Microphones";
   if (includesAny(joined, ["cage", "top plate", "baseplate", "monitor mount", "handle", "cheese plate", "camera accessory"])) return "Cameras/Accessories";
+  if (includesAny(joined, ["lav", "microphone", "mic ", "shotgun", "recorder", "tascam", "headphone", "headset", "xlr"])) return "Audio/Microphones";
   if (includesAny(joined, ["fx3", "fx30", "a7", "ilce", "ilme", "camera body", "camcorder"])) return "Cameras/Camera Bodies";
   if (includesAny(joined, ["lens ", "tamron", "sony fe", "sigma "])) return "Lenses/Lenses";
   if (includesAny(joined, ["keyboard", "mouse", "trackpad", "monitor arm", "dock"])) return "Office/Peripherals";
@@ -154,7 +182,7 @@ function suggestDepartmentId({ name, category }, departmentsByName) {
   if (includesAny(joined, ["basketball", "mbb"])) return departmentIdFor("Men's Basketball", departmentsByName);
   if (includesAny(joined, ["photo", "photography"])) return departmentIdFor("Photography", departmentsByName);
   if (includesAny(joined, ["live production"])) return departmentIdFor("Live Production", departmentsByName);
-  return departmentIdFor("Video", departmentsByName);
+  return departmentIdFor("Creative", departmentsByName);
 }
 
 function scanValueOwners(assets, bulkSkus, plannedAssetUpdates) {
@@ -241,16 +269,100 @@ async function main() {
   const bulkImageActions = [];
   const duplicateActions = [];
   const attachmentActions = [];
+  const assetDepartmentActions = [];
+  const bulkDepartmentActions = [];
+  const assetCategoryImprovementActions = [];
+  const primaryScanRepairActions = [];
   const taxonomySkipped = [];
   const bulkSkipped = [];
   const bulkImageSkipped = [];
   const duplicateSkipped = [];
   const attachmentReview = [];
+  const legacyQrReview = [];
 
   const bulkScanValues = new Map();
   for (const sku of bulkSkus) {
     if (!sku.active || !compact(sku.binQrCodeValue)) continue;
     bulkScanValues.set(normalize(sku.binQrCodeValue), sku);
+  }
+
+  for (const asset of assets) {
+    if (asset.departmentId === departmentIdFor("Video", departmentsByName)) {
+      const creativeDepartmentId = departmentIdFor("Creative", departmentsByName);
+      if (creativeDepartmentId) {
+        const data = { departmentId: creativeDepartmentId };
+        assetDepartmentActions.push({
+          type: "assetDepartmentVideoToCreative",
+          asset,
+          data,
+          reason: "Video department is retired as an operational owner; Creative is the current shared owner",
+        });
+        plannedAssetUpdates.set(asset.id, { ...(plannedAssetUpdates.get(asset.id) ?? {}), ...data });
+      }
+    }
+
+    const improvedCategoryPath = categoryImprovementPath(asset, categoriesById);
+    const improvedCategoryId = improvedCategoryPath ? categoryIdFor(improvedCategoryPath, categoryPaths) : null;
+    if (improvedCategoryId && asset.categoryId !== improvedCategoryId) {
+      const data = { categoryId: improvedCategoryId };
+      assetCategoryImprovementActions.push({
+        type: "assetCategoryImprovement",
+        asset,
+        categoryPath: improvedCategoryPath,
+        data,
+        reason: "deterministic product-name category cleanup",
+      });
+      plannedAssetUpdates.set(asset.id, { ...(plannedAssetUpdates.get(asset.id) ?? {}), ...data });
+    }
+  }
+
+  for (const sku of bulkSkus) {
+    if (sku.departmentId !== departmentIdFor("Video", departmentsByName)) continue;
+    const creativeDepartmentId = departmentIdFor("Creative", departmentsByName);
+    if (!creativeDepartmentId) continue;
+
+    bulkDepartmentActions.push({
+      type: "bulkDepartmentVideoToCreative",
+      sku,
+      data: { departmentId: creativeDepartmentId },
+      reason: "Video department is retired as an operational owner; Creative is the current shared owner",
+    });
+  }
+
+  for (const asset of assets) {
+    if (!isLensOrCameraLike(asset, categoriesById)) continue;
+    const planned = plannedAssetUpdates.get(asset.id) ?? {};
+    const primaryScanCode = compact(planned.primaryScanCode ?? asset.primaryScanCode);
+    const qrCodeValue = compact(planned.qrCodeValue ?? asset.qrCodeValue);
+
+    if (
+      LEGACY_QR_LABEL_PATTERN.test(primaryScanCode)
+      && REAL_QR_CODE_PATTERN.test(qrCodeValue)
+      && normalize(primaryScanCode) !== normalize(qrCodeValue)
+    ) {
+      const data = { primaryScanCode: qrCodeValue };
+      primaryScanRepairActions.push({
+        type: "assetPrimaryScanQrRepair",
+        asset,
+        data,
+        reason: "qrCodeValue already stores the real alphanumeric QR while primaryScanCode stores the legacy E-label",
+      });
+      plannedAssetUpdates.set(asset.id, { ...planned, ...data });
+      continue;
+    }
+
+    if (LEGACY_QR_LABEL_PATTERN.test(primaryScanCode) && LEGACY_QR_LABEL_PATTERN.test(qrCodeValue)) {
+      legacyQrReview.push({
+        assetTag: asset.assetTag,
+        name: asset.name,
+        type: asset.type,
+        qrCodeValue,
+        primaryScanCode,
+        categoryPath: currentCategoryPath(asset, categoriesById),
+        departmentId: planned.departmentId ?? asset.departmentId,
+        reason: "no stored alphanumeric QR code to use safely",
+      });
+    }
   }
 
   for (const asset of assets) {
@@ -491,6 +603,10 @@ async function main() {
     ...bulkNameActions,
     ...bulkImageActions,
     ...attachmentActions,
+    ...assetDepartmentActions,
+    ...bulkDepartmentActions,
+    ...assetCategoryImprovementActions,
+    ...primaryScanRepairActions,
     ...primaryBackfillActions,
   ];
 
@@ -506,6 +622,10 @@ async function main() {
       bulkNameUpdates: bulkNameActions.length,
       bulkImageBackfills: bulkImageActions.length,
       attachmentUpdates: attachmentActions.length,
+      assetDepartmentVideoToCreativeUpdates: assetDepartmentActions.length,
+      bulkDepartmentVideoToCreativeUpdates: bulkDepartmentActions.length,
+      assetCategoryImprovementUpdates: assetCategoryImprovementActions.length,
+      primaryScanQrRepairs: primaryScanRepairActions.length,
       primaryScanBackfills: primaryBackfillActions.length,
       skippedAssetTaxonomy: taxonomySkipped.length,
       skippedBulkTaxonomy: bulkSkipped.length,
@@ -513,6 +633,7 @@ async function main() {
       skippedDuplicates: duplicateSkipped.length,
       skippedPrimaryScanBackfills: primarySkipped.length,
       attachmentReviewRows: attachmentReview.length,
+      legacyQrReviewRows: legacyQrReview.length,
     },
     actions: actions.map((action) => {
       if (action.asset) {
@@ -545,6 +666,7 @@ async function main() {
       duplicates: duplicateSkipped,
       primaryScanBackfill: primarySkipped,
       attachmentReview,
+      legacyQrReview,
     },
   };
 
@@ -582,8 +704,22 @@ async function main() {
   printRows("Attachment updates", attachmentActions, (action) => (
     `${action.asset.assetTag} -> ${action.parent.assetTag}`
   ));
+  printRows("Video department rows moving to Creative", [...assetDepartmentActions, ...bulkDepartmentActions], (action) => (
+    action.asset
+      ? `${action.asset.assetTag}: ${action.reason}`
+      : `${action.sku.name}: ${action.reason}`
+  ));
+  printRows("Category improvements", assetCategoryImprovementActions, (action) => (
+    `${action.asset.assetTag}: ${currentCategoryPath(action.asset, categoriesById)} -> ${action.categoryPath}`
+  ));
+  printRows("Primary scan QR repairs", primaryScanRepairActions, (action) => (
+    `${action.asset.assetTag}: ${action.asset.primaryScanCode} -> ${action.data.primaryScanCode}`
+  ));
   printRows("Attachment rows needing physical mapping", attachmentReview.slice(0, 30), (row) => (
     `${row.assetTag}: ${row.reason}`
+  ));
+  printRows("Legacy QR rows needing physical code lookup", legacyQrReview.slice(0, 60), (row) => (
+    `${row.assetTag}: ${row.qrCodeValue} / ${row.reason}`
   ));
 
   if (!APPLY) {
@@ -597,7 +733,7 @@ async function main() {
 
   await db.$transaction(async (tx) => {
     for (const action of actions) {
-      if (action.type === "bulkTaxonomy" || action.type === "bulkLegacyCategory" || action.type === "bulkName" || action.type === "bulkImageBackfill") {
+      if (action.type === "bulkTaxonomy" || action.type === "bulkLegacyCategory" || action.type === "bulkName" || action.type === "bulkImageBackfill" || action.type === "bulkDepartmentVideoToCreative") {
         await tx.bulkSku.update({
           where: { id: action.sku.id },
           data: action.data,
@@ -611,7 +747,9 @@ async function main() {
                 ? "data_cleanup_bulk_legacy_category"
                 : action.type === "bulkName"
                   ? "data_cleanup_bulk_name"
-                  : "data_cleanup_bulk_image_backfill",
+                  : action.type === "bulkImageBackfill"
+                    ? "data_cleanup_bulk_image_backfill"
+                    : "data_cleanup_bulk_department",
             entityType: "BulkSku",
             entityId: action.sku.id,
             beforeJson: { ...beforeBulkSku(action.sku), source: ACTION_SOURCE },
@@ -636,7 +774,13 @@ async function main() {
                 ? "data_cleanup_asset_metadata"
                 : action.type === "assetAttachment"
                   ? "data_cleanup_asset_attachment"
-                  : "data_cleanup_primary_scan_backfill",
+                  : action.type === "assetDepartmentVideoToCreative"
+                    ? "data_cleanup_asset_department"
+                    : action.type === "assetCategoryImprovement"
+                      ? "data_cleanup_asset_category"
+                      : action.type === "assetPrimaryScanQrRepair"
+                        ? "data_cleanup_primary_scan_qr_repair"
+                        : "data_cleanup_primary_scan_backfill",
           entityType: "Asset",
           entityId: action.asset.id,
           beforeJson: { ...beforeAsset(action.asset), source: ACTION_SOURCE },
