@@ -177,27 +177,27 @@ export const POST = withAuth(async (req, { user }) => {
   } else if (action === "delete") {
     requirePermission(user.role, "asset", "delete");
 
-    // Check for active bookings that would be affected
-    const activeBookingCount = await db.assetAllocation.count({
-      where: { assetId: { in: ids }, active: true },
-    });
+    const assetIds = assets.map((asset) => asset.id);
 
-    if (activeBookingCount > 0) {
-      throw new HttpError(
-        409,
-        `Cannot delete: ${activeBookingCount} asset(s) have active bookings. Return them first.`
-      );
-    }
+    // Match single-item delete policy: items with booking history must be retired, not deleted.
+    updated = await db.$transaction(async (tx) => {
+      const [bookingCount, activeAllocCount] = await Promise.all([
+        tx.bookingSerializedItem.count({ where: { assetId: { in: assetIds } } }),
+        tx.assetAllocation.count({ where: { assetId: { in: assetIds }, active: true } }),
+      ]);
 
-    // Clean up non-cascading relations, then delete assets
-    await db.$transaction(async (tx) => {
-      await tx.bookingSerializedItem.deleteMany({ where: { assetId: { in: ids } } });
-      await tx.assetAllocation.deleteMany({ where: { assetId: { in: ids } } });
-      await tx.scanEvent.deleteMany({ where: { assetId: { in: ids } } });
-      await tx.checkinItemReport.deleteMany({ where: { assetId: { in: ids } } });
-      const result = await tx.asset.deleteMany({ where: { id: { in: ids } } });
-      updated = result.count;
-    });
+      if (bookingCount > 0 || activeAllocCount > 0) {
+        throw new HttpError(
+          409,
+          "Cannot delete: selected item(s) have booking history. Use Retire instead."
+        );
+      }
+
+      await tx.scanEvent.deleteMany({ where: { assetId: { in: assetIds } } });
+      await tx.checkinItemReport.deleteMany({ where: { assetId: { in: assetIds } } });
+      const result = await tx.asset.deleteMany({ where: { id: { in: assetIds } } });
+      return result.count;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
     await createAuditEntries(
       assets.map((asset) => ({

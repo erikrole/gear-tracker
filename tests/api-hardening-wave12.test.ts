@@ -14,6 +14,21 @@ const mockTx = {
   asset: {
     findMany: vi.fn(),
     updateMany: vi.fn(),
+    deleteMany: vi.fn(),
+  },
+  bookingSerializedItem: {
+    count: vi.fn(),
+    deleteMany: vi.fn(),
+  },
+  assetAllocation: {
+    count: vi.fn(),
+    deleteMany: vi.fn(),
+  },
+  scanEvent: {
+    deleteMany: vi.fn(),
+  },
+  checkinItemReport: {
+    deleteMany: vi.fn(),
   },
   auditLog: {
     createMany: vi.fn(),
@@ -86,6 +101,14 @@ const staffUser = {
   avatarUrl: null,
 };
 
+const adminUser = {
+  id: "admin-1",
+  email: "admin@example.com",
+  name: "Admin One",
+  role: Role.ADMIN,
+  avatarUrl: null,
+};
+
 type DerivedStatusWhere = { status: AssetStatus; __derived: boolean };
 
 function bulkSkuResult(value: { id: string }) {
@@ -141,6 +164,13 @@ beforeEach(() => {
   mockTx.asset.updateMany
     .mockResolvedValueOnce({ count: 1 })
     .mockResolvedValueOnce({ count: 1 });
+  mockTx.asset.deleteMany.mockResolvedValue({ count: 1 });
+  mockTx.bookingSerializedItem.count.mockResolvedValue(0);
+  mockTx.bookingSerializedItem.deleteMany.mockResolvedValue({ count: 0 });
+  mockTx.assetAllocation.count.mockResolvedValue(0);
+  mockTx.assetAllocation.deleteMany.mockResolvedValue({ count: 0 });
+  mockTx.scanEvent.deleteMany.mockResolvedValue({ count: 0 });
+  mockTx.checkinItemReport.deleteMany.mockResolvedValue({ count: 0 });
   mockTx.auditLog.createMany.mockResolvedValue({ count: 2 });
 });
 
@@ -256,6 +286,32 @@ describe("API hardening wave 12", () => {
     });
     expect(mockTx.asset.updateMany).toHaveBeenCalledTimes(2);
     expect(mockTx.auditLog.createMany).toHaveBeenCalledOnce();
+  });
+
+  it("blocks bulk delete when selected assets have booking history", async () => {
+    vi.mocked(requireAuth).mockResolvedValue(adminUser);
+    vi.mocked(db.asset.findMany).mockResolvedValue(assetFindManyResult([
+      { id: "cm111111111111111111111111", status: AssetStatus.AVAILABLE, locationId: "loc-1", categoryId: "cat-1" },
+    ]));
+    mockTx.bookingSerializedItem.count.mockResolvedValue(1);
+
+    const res = await bulkAssets(
+      post("/api/assets/bulk", {
+        ids: ["cm111111111111111111111111"],
+        action: "delete",
+      }),
+      { params: Promise.resolve({}) },
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(409);
+    expect(body.error).toContain("booking history");
+    expect(globalThis.__wave12TransactionOptions).toEqual({
+      isolationLevel: "Serializable",
+    });
+    expect(mockTx.bookingSerializedItem.deleteMany).not.toHaveBeenCalled();
+    expect(mockTx.assetAllocation.deleteMany).not.toHaveBeenCalled();
+    expect(mockTx.asset.deleteMany).not.toHaveBeenCalled();
   });
 
   it("rejects bulk activity cursors outside the current SKU activity scope", async () => {
