@@ -16,30 +16,21 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { getBookingCancelCopy } from "@/hooks/booking-action-copy";
 import { BOOKING_CHANGE_SYNC_EVENT } from "@/hooks/use-booking-change-sync";
 import { statusBadgeVariant, statusLabel } from "./booking-details/helpers";
 import { toLocalDateTimeValue } from "./booking-details/helpers";
-import {
-  BookingOverview,
-  BookingEditForm,
-  BookingItems,
-} from "./booking-details";
-import {
-  auditHistoryFailureMessage,
-  auditHistoryRecoveryAction,
-  type AuditHistoryRecoveryAction,
-  normalizeAuditHistoryPage,
-} from "./booking-details/audit-history";
+import { BookingEditForm, BookingItems } from "./booking-details";
+import BookingInfoCard from "./booking-details/BookingInfoCard";
 import dynamic from "next/dynamic";
 import type { PickerBulkSku } from "@/components/EquipmentPicker";
 const EquipmentPicker = dynamic(() => import("@/components/EquipmentPicker"), { ssr: false });
-import ActivityTimeline from "@/components/ActivityTimeline";
 import { UserAvatar } from "@/components/UserAvatar";
 import Link from "next/link";
-import { ExternalLinkIcon } from "lucide-react";
+import { ExternalLinkIcon, TriangleAlert } from "lucide-react";
 import type {
   BookingDetail,
   BulkSkuOption,
@@ -128,27 +119,15 @@ export default function BookingDetailsSheet({
   const [conflictError, setConflictError] = useState<ConflictData | null>(null);
   const [optionsError, setOptionsError] = useState(false);
 
-  // Audit log pagination
-  const [extraAuditLogs, setExtraAuditLogs] = useState<BookingDetail["auditLogs"]>([]);
-  const [auditLogCursor, setAuditLogCursor] = useState<string | null>(null);
-  const [hasMoreAuditLogs, setHasMoreAuditLogs] = useState(false);
-  const [loadingMoreAuditLogs, setLoadingMoreAuditLogs] = useState(false);
-  const [auditLoadError, setAuditLoadError] = useState<string | null>(null);
-  const [auditLoadRecovery, setAuditLoadRecovery] = useState<AuditHistoryRecoveryAction>("retry");
-
   const [fetchError, setFetchError] = useState(false);
 
-  const [extending, setExtending] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const saveBusyRef = useRef(false);
   const equipSaveBusyRef = useRef(false);
-  const extendBusyRef = useRef(false);
   const cancelBusyRef = useRef(false);
-  const auditBusyRef = useRef(false);
   const sheetBodyRef = useRef<HTMLDivElement | null>(null);
   const detailsSectionRef = useRef<HTMLDivElement | null>(null);
   const equipmentSectionRef = useRef<HTMLDivElement | null>(null);
-  const historySectionRef = useRef<HTMLDivElement | null>(null);
 
   /* ───── Data fetching ───── */
 
@@ -172,11 +151,6 @@ export default function BookingDetailsSheet({
         const json = await parseJsonSafely<ApiEnvelope<BookingDetail>>(res);
         if (json?.data) {
           setBooking(json.data);
-          setExtraAuditLogs([]);
-          setAuditLogCursor(json.data.auditLogNextCursor ?? null);
-          setHasMoreAuditLogs(json.data.hasMoreAuditLogs ?? false);
-          setAuditLoadError(null);
-          setAuditLoadRecovery("retry");
         }
       } else {
         if (!opts?.silent) setFetchError(true);
@@ -211,15 +185,12 @@ export default function BookingDetailsSheet({
     return () => window.removeEventListener(BOOKING_CHANGE_SYNC_EVENT, refreshChangedBooking);
   }, [bookingId, fetchBooking]);
 
+  // Scroll to the equipment section when opened with that intent.
   useEffect(() => {
     if (!bookingId || loading || !booking || editMode || equipEditMode) return;
-    const section = initialTab === "equipment"
-      ? equipmentSectionRef.current
-      : initialTab === "history"
-        ? historySectionRef.current
-        : detailsSectionRef.current;
-
-    if (!section || initialTab === "details" || !initialTab) return;
+    if (initialTab !== "equipment") return;
+    const section = equipmentSectionRef.current;
+    if (!section) return;
     const frame = window.requestAnimationFrame(() => {
       const body = sheetBodyRef.current;
       if (!body) return;
@@ -245,46 +216,6 @@ export default function BookingDetailsSheet({
     }
   }, []);
 
-  /* ───── Audit log load-more ───── */
-
-  const showAuditHistoryFailure = useCallback((status?: number) => {
-    const message = auditHistoryFailureMessage(status);
-    setAuditLoadRecovery(auditHistoryRecoveryAction(status));
-    setAuditLoadError(message);
-    toast.error(message);
-  }, []);
-
-  const loadMoreAuditLogs = useCallback(async () => {
-    if (!bookingId || !auditLogCursor || auditBusyRef.current) return;
-    auditBusyRef.current = true;
-    setLoadingMoreAuditLogs(true);
-    setAuditLoadError(null);
-    try {
-      const res = await fetchWithTimeout(
-        `/api/bookings/${bookingId}/audit-logs?cursor=${encodeURIComponent(auditLogCursor)}`
-      );
-      if (handleAuthRedirect(res)) return;
-      if (res.ok) {
-        const json = await parseJsonSafely<ApiEnvelope<BookingDetail["auditLogs"]>>(res);
-        const page = normalizeAuditHistoryPage(json);
-        if (!page) {
-          showAuditHistoryFailure(res.status);
-          return;
-        }
-        setExtraAuditLogs((prev) => [...prev, ...page.entries]);
-        setAuditLogCursor(page.nextCursor);
-        setHasMoreAuditLogs(page.hasMore);
-      } else {
-        showAuditHistoryFailure(res.status);
-      }
-    } catch {
-      showAuditHistoryFailure();
-    } finally {
-      auditBusyRef.current = false;
-      setLoadingMoreAuditLogs(false);
-    }
-  }, [bookingId, auditLogCursor, showAuditHistoryFailure]);
-
   /* ───── Derived state ───── */
 
   const checkinProgress = useMemo(() => {
@@ -296,27 +227,11 @@ export default function BookingDetailsSheet({
     return { returned, total, percent: Math.round((returned / total) * 100) };
   }, [booking]);
 
-  const allAuditLogs = useMemo(() => {
-    if (!booking) return [];
-    return [...(booking.auditLogs ?? []), ...extraAuditLogs];
-  }, [booking, extraAuditLogs]);
-
-
-  const returnSuggestion = useMemo(() => {
-    if (!booking) return null;
-    if (booking.locationMode === "SINGLE") {
-      return `Return to ${booking.itemLocations[0]?.name || booking.location.name}`;
-    }
-    const names = booking.itemLocations.map((l) => l.name);
-    return `Return to both: ${names.join(" + ")}`;
-  }, [booking]);
-
   /* ───── Permission flags ───── */
 
   const actions = booking?.allowedActions ?? [];
   const canEdit = booking && actions.includes("edit");
   const canCancel = booking && actions.includes("cancel");
-  const canExtend = booking && actions.includes("extend");
   const canEditEquipment = canEdit;
 
   /* ───── Filtered equipment ───── */
@@ -477,36 +392,6 @@ export default function BookingDetailsSheet({
     onUpdated?.();
   }
 
-  async function handleExtendTo(endsAt: string) {
-    if (!booking || extendBusyRef.current) return;
-    extendBusyRef.current = true;
-    setExtending(true);
-    try {
-      const res = await fetchWithTimeout(`/api/bookings/${booking.id}/extend`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ endsAt }),
-      });
-      if (handleAuthRedirect(res)) return;
-      if (res.ok) {
-        const newDate = new Date(endsAt).toLocaleDateString("en-US", {
-          month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
-        });
-        toast.success(`Extended to ${newDate}`);
-        await fetchBooking({ silent: true });
-        onUpdated?.();
-      } else {
-        const msg = await parseErrorMessage(res, "Could not extend the booking. Review conflicts and try again.");
-        toast.error(msg);
-      }
-    } catch {
-      toast.error("Could not reach the server. The booking was not extended.");
-    } finally {
-      extendBusyRef.current = false;
-      setExtending(false);
-    }
-  }
-
   async function handleCancel() {
     if (!booking || cancelBusyRef.current) return;
     const typeLabel = booking.kind === "RESERVATION" ? "reservation" : "checkout";
@@ -569,7 +454,7 @@ export default function BookingDetailsSheet({
                 {booking?.title || "Loading..."}
               </SheetTitle>
               <SheetDescription className="sr-only">
-                Booking preview with timing, requester, equipment, history, and a link to the full booking page.
+                Booking summary with timing, requester, equipment, and a link to the full booking page.
               </SheetDescription>
               {booking && (
                   <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs leading-relaxed text-muted-foreground">
@@ -690,29 +575,45 @@ export default function BookingDetailsSheet({
 
           ) : (
 
-            /* ── Normal single-scroll view ── */
+            /* ── Summary view ── */
             <>
               {/* ─ Details section ─ */}
               <div ref={detailsSectionRef} data-booking-sheet-section="details" className="border-b border-border/40 bg-background">
                 <SectionHead label="Details" />
-                <div className="px-6 pb-4 pt-2">
-                  <BookingOverview
+                <div className="px-6 pb-4 pt-2 flex flex-col gap-4">
+                  {conflictError?.conflicts && conflictError.conflicts.length > 0 && (
+                    <Alert variant="destructive">
+                      <TriangleAlert className="size-4" />
+                      <AlertDescription>
+                        <strong className="block mb-1">Scheduling conflict</strong>
+                        {conflictError.conflicts.map((c, i) => (
+                          <div key={i} className="text-xs">
+                            {c.conflictingBookingTitle ? `"${c.conflictingBookingTitle}"` : "Another booking"}
+                          </div>
+                        ))}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  {checkinProgress && checkinProgress.returned > 0 && (
+                    <div className="flex items-center gap-3 px-1">
+                      <Progress value={checkinProgress.percent} className="flex-1 h-2" />
+                      <span className="text-xs text-muted-foreground whitespace-nowrap font-medium">
+                        {checkinProgress.returned}/{checkinProgress.total} returned
+                      </span>
+                    </div>
+                  )}
+                  <BookingInfoCard
                     booking={booking}
-                    conflictError={conflictError}
-                    returnSuggestion={returnSuggestion}
-                    checkinProgress={checkinProgress}
-                    canExtend={!!canExtend}
-                    extending={extending}
-                    onExtendTo={handleExtendTo}
                     canEdit={!!canEdit}
                     onSave={handleSaveField}
                     onPatch={mergeBooking}
+                    bare
                   />
                 </div>
               </div>
 
               {/* ─ Equipment section ─ */}
-              <div ref={equipmentSectionRef} data-booking-sheet-section="equipment" className="border-b border-border/40 bg-background">
+              <div ref={equipmentSectionRef} data-booking-sheet-section="equipment" className="bg-background">
                 <SectionHead
                   label="Equipment"
                   count={totalEquipItems}
@@ -741,46 +642,6 @@ export default function BookingDetailsSheet({
                     canCheckin={false}
                     checkinLoading={false}
                     onEnterEquipEditMode={enterEquipEditMode}
-                  />
-                </div>
-              </div>
-
-              {/* ─ History section ─ */}
-              <div ref={historySectionRef} data-booking-sheet-section="history" className="bg-background">
-                <SectionHead label="History" count={allAuditLogs.length} />
-                <div className="px-6 pb-4 pt-2">
-                  {auditLoadError && (
-                    <Alert variant="destructive" className="mb-3">
-                      <AlertDescription className="flex items-start justify-between gap-3">
-                        <span>{auditLoadError}</span>
-                        {(auditLoadRecovery === "refresh" || (hasMoreAuditLogs && auditLogCursor)) && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={loadingMoreAuditLogs}
-                            onClick={
-                              auditLoadRecovery === "refresh"
-                                ? () => fetchBooking({ silent: true })
-                                : loadMoreAuditLogs
-                            }
-                          >
-                            {loadingMoreAuditLogs
-                              ? "Retrying..."
-                              : auditLoadRecovery === "refresh"
-                                ? "Refresh"
-                                : "Retry"}
-                          </Button>
-                        )}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                  <ActivityTimeline
-                    entries={allAuditLogs}
-                    context="booking"
-                    entityName={booking?.title}
-                    hasMore={hasMoreAuditLogs}
-                    loading={loadingMoreAuditLogs}
-                    onLoadMore={loadMoreAuditLogs}
                   />
                 </div>
               </div>

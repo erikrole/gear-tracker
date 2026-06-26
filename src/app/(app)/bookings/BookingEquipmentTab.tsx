@@ -514,13 +514,9 @@ function BulkRow({
             Turnaround
           </Badge>
         )}
-        {allReturned ? (
+        {allReturned && (
           <span className="text-xs font-medium text-[var(--green-text)]">
             Returned
-          </span>
-        ) : (
-          <span className="text-sm text-muted-foreground tabular-nums">
-            {isCheckout ? outQty : item.plannedQuantity}
           </span>
         )}
       </div>
