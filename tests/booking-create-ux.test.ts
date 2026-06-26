@@ -143,6 +143,13 @@ describe("WizardStep1 event selection contract", () => {
     expect(wizardStep1Source).toMatch(/form\.selectedEvents\.map\(\(ev\) =>/);
     expect(wizardStep1Source).toMatch(/aria-label=\{`Remove \$\{ev\.opponent/);
   });
+
+  it("uses full event summaries for non-game linked events with sport metadata", () => {
+    expect(wizardStep1Source).toContain("function eventSummaryLabel(ev: CalendarEvent)");
+    expect(wizardStep1Source).toContain("return ev.summary;");
+    expect(wizardStep1Source).toContain("const eventLabel = `${eventDateLabel(ev, true)} ${eventSummaryLabel(ev)}`");
+    expect(wizardStep1Source).not.toContain("ev.opponent ?? (ev.sportCode ? sportLabel(ev.sportCode) : ev.summary)");
+  });
 });
 
 describe("applyBulkShortageRecovery", () => {

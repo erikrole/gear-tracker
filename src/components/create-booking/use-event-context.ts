@@ -17,7 +17,7 @@ const BOOKING_EVENT_LOOKAHEAD_DAYS = 30;
 export function deriveFromPrimary(events: CalendarEvent[], sport: string) {
   if (events.length === 0) return {};
   const primary = events[0]!; // guarded by events.length === 0 early return above
-  const title = primary.sportCode || sport
+  const title = primary.opponent && (primary.sportCode || sport)
     ? generateEventTitle(primary.sportCode || sport, primary.opponent, primary.isHome)
     : primary.summary;
   // endsAt derives from the LAST event — multi-event span covers the whole window.

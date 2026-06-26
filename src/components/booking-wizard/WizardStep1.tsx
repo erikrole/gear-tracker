@@ -70,6 +70,13 @@ function eventDateLabel(ev: CalendarEvent, includeYear = false) {
       : formatChipTime(ev.startsAt);
 }
 
+function eventSummaryLabel(ev: CalendarEvent) {
+  if (ev.opponent) {
+    return `${ev.sportCode ? `${sportLabel(ev.sportCode)} ` : ""}${ev.isHome === false ? "at" : "vs"} ${ev.opponent}`;
+  }
+  return ev.summary;
+}
+
 function Field({
   label,
   htmlFor,
@@ -197,7 +204,7 @@ export function WizardStep1({
                     <span className="font-medium">
                       {eventDateLabel(ev)}
                       {" · "}
-                      {ev.opponent ?? ev.summary}
+                      {eventSummaryLabel(ev)}
                     </span>
                     <XIcon />
                   </Button>
@@ -270,9 +277,7 @@ export function WizardStep1({
                     // At cap, unselected rows stay focusable and clickable so
                     // toggleEvent can surface the cap toast — never hard-disabled.
                     const capped = !selected && atCap;
-                    const eventLabel = `${eventDateLabel(ev, true)} ${
-                      ev.opponent ?? (ev.sportCode ? sportLabel(ev.sportCode) : ev.summary)
-                    }`;
+                    const eventLabel = `${eventDateLabel(ev, true)} ${eventSummaryLabel(ev)}`;
                     return (
                       <div
                         key={ev.id}
@@ -314,7 +319,7 @@ export function WizardStep1({
                               "text-foreground",
                             )}
                           >
-                            {ev.sportCode && (
+                            {ev.sportCode && ev.opponent && (
                               <span
                                 className={cn(
                                   "font-normal",
@@ -328,7 +333,7 @@ export function WizardStep1({
                             {ev.opponent ? (
                               <>{ev.isHome === false ? "at " : "vs "}{ev.opponent}</>
                             ) : (
-                              !ev.sportCode ? ev.summary : ""
+                              ev.summary
                             )}
                           </div>
                           <div

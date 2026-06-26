@@ -258,6 +258,7 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 8. Implement list page controls and row behavior from V1 list surface spec.
 
 ## Change Log
+- 2026-06-26: Reservation linked-event picker now preserves full non-game event summaries even when sport metadata exists, so media-day events display and auto-fill as their actual event names instead of collapsing to only the sport label.
 - 2026-06-22: Booking status display cleanup. Reservation detail helpers, booking-list rows/cards, upcoming item reservations, and item booking history now resolve labels and badge/status colors through `src/lib/booking-status-display.ts`, preserving D-025 display-only labels without route-local booking status switches.
 - 2026-06-22: Booking action policy cleanup. Reservation/check-out list menus now resolve actions through the shared app/web booking policy, preserving D-040 by keeping custody conversion and return actions off regular app/web menus.
 - 2026-06-20: Reservation list filters inherit the refreshed shared `FilterChip` and active-filter chip treatment: lighter borders, 40px removable targets, active underline, and quieter applied-filter buttons while preserving the existing clear behavior and reservation filter semantics.

@@ -28,6 +28,17 @@ describe("booking defaults from linked all-day events", () => {
     expect(result.locationId).toBe("loc-1");
   });
 
+  it("keeps non-game event summaries even when sport metadata exists", () => {
+    const result = deriveFromPrimary([
+      event({
+        summary: "Men's Basketball Mini Media Day",
+        sportCode: "MBB",
+      }),
+    ], "");
+
+    expect(result.title).toBe("Men's Basketball Mini Media Day");
+  });
+
   it("keeps existing timed-event buffers for timed events", () => {
     const result = deriveFromPrimary([
       event({

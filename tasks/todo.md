@@ -4,6 +4,19 @@ Last updated: 2026-06-26
 
 ---
 
+## Active: Reservation linked-event title cleanup (2026-06-26)
+
+Plan: keep non-game/media-day event summaries visible in the shared booking wizard when events also carry sport metadata.
+
+- [x] Patch linked-event row, chip, ARIA, and auto-fill title logic to prefer summary when no opponent exists.
+- [x] Add focused regression coverage for media-day summary preservation.
+- [x] Sync Reservations and Events docs.
+
+### Review
+- 2026-06-26: Reservation linked-event title cleanup shipped locally. Non-game events with sport metadata now display and auto-fill from `CalendarEvent.summary`; opponent-based games still use sport plus home/away matchup copy. Verification recorded after focused tests.
+
+---
+
 ## Active: Item data cleanup (2026-06-25)
 
 Plan: `tasks/item-data-cleanup-plan.md`

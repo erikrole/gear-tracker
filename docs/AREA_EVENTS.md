@@ -80,6 +80,7 @@ Make athletics schedule data the operational backbone for booking and checkout w
 4. Fallback behavior for incomplete events is implemented — treat event context as non-blocking metadata on all booking flows.
 
 ## Change Log
+- 2026-06-26: Booking wizard event labels now preserve full non-game event summaries with sport metadata, keeping media-day titles visible in reservation event linking while matchup events still use sport/opponent labels.
 - 2026-06-22: Venue mapping sync contract hardened. Calendar sync now applies venue mappings in priority plus longest-pattern order and invalid regex patterns no longer fall back to substring matching.
 - 2026-06-19: Event identity normalization shipped. Shared event identity helpers now clean UW source prefixes, opponent rankings and school boilerplate, and venue source spellings for sync, manual event creation, event edits, event revert, and Schedule title rendering while preserving raw calendar location text.
 - 2026-06-19: Schedule data-quality queue shipped. Schedule health now flags visible events whose existing CalendarEvent fields are incomplete for operations: missing sport context, missing opponent, missing venue/location mapping, future archived status, or shifts without sport metadata.
