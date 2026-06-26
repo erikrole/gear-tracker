@@ -218,6 +218,169 @@ export async function markCheckoutCompleted(bookingId: string, actorUserId: stri
   return { success: true };
 }
 
+export async function forceCompleteCheckout(args: {
+  bookingId: string;
+  actorUserId: string;
+  reason: string;
+}) {
+  const reason = args.reason.trim();
+  if (reason.length < 10) {
+    throw new HttpError(400, "A reason of at least 10 characters is required");
+  }
+
+  const result = await db.$transaction(async (tx) => {
+    const booking = await tx.booking.findUnique({
+      where: { id: args.bookingId },
+      include: {
+        serializedItems: true,
+        bulkItems: {
+          include: {
+            unitAllocations: {
+              where: { checkedOutAt: { not: null }, checkedInAt: null },
+              include: { bulkSkuUnit: { select: { id: true, unitNumber: true } } },
+            },
+          },
+        },
+      },
+    });
+
+    if (!booking || booking.kind !== BookingKind.CHECKOUT) {
+      throw new HttpError(404, "Checkout not found");
+    }
+
+    if (booking.status !== BookingStatus.OPEN) {
+      throw new HttpError(400, `Checkout is not open (current status: ${booking.status})`);
+    }
+
+    const completedAt = new Date();
+    const actorRole = await lookupActorRole(tx, args.actorUserId);
+    const serializedReturnedCount = booking.serializedItems.filter(
+      (item) => item.allocationStatus !== "returned",
+    ).length;
+    const checkinItems = booking.bulkItems
+      .map((item) => {
+        const outQty = item.checkedOutQuantity ?? item.plannedQuantity;
+        const checkedInQty = item.checkedInQuantity ?? 0;
+        return {
+          bulkItemId: item.id,
+          bulkSkuId: item.bulkSkuId,
+          outQty,
+          checkedInQty,
+          quantity: Math.max(0, outQty - checkedInQty),
+        };
+      })
+      .filter((item) => item.quantity > 0);
+    const returnedUnitIds = booking.bulkItems.flatMap((item) =>
+      item.unitAllocations.map((allocation) => allocation.bulkSkuUnit.id),
+    );
+    const returnedUnitAllocationIds = booking.bulkItems.flatMap((item) =>
+      item.unitAllocations.map((allocation) => allocation.id),
+    );
+    const returnedUnits = booking.bulkItems
+      .map((item) => ({
+        bulkSkuId: item.bulkSkuId,
+        unitNumbers: item.unitAllocations.map((allocation) => allocation.bulkSkuUnit.unitNumber),
+      }))
+      .filter((item) => item.unitNumbers.length > 0);
+
+    await tx.bookingSerializedItem.updateMany({
+      where: { bookingId: booking.id, allocationStatus: { not: "returned" } },
+      data: { allocationStatus: "returned" },
+    });
+
+    await tx.assetAllocation.updateMany({
+      where: { bookingId: booking.id, active: true },
+      data: { active: false },
+    });
+
+    for (const item of checkinItems) {
+      await tx.bookingBulkItem.update({
+        where: { id: item.bulkItemId },
+        data: { checkedInQuantity: item.outQty },
+      });
+    }
+
+    if (returnedUnitIds.length > 0) {
+      await tx.bookingBulkUnitAllocation.updateMany({
+        where: { id: { in: returnedUnitAllocationIds } },
+        data: { checkedInAt: completedAt },
+      });
+
+      await tx.bulkSkuUnit.updateMany({
+        where: { id: { in: returnedUnitIds } },
+        data: { status: BulkUnitStatus.AVAILABLE },
+      });
+    }
+
+    if (checkinItems.length > 0) {
+      await upsertBulkBalancesAndMovements(tx, {
+        bookingId: booking.id,
+        locationId: booking.locationId,
+        actorUserId: args.actorUserId,
+        kind: BulkMovementKind.CHECKIN,
+        items: checkinItems.map((item) => ({ bulkSkuId: item.bulkSkuId, quantity: item.quantity })),
+      });
+    }
+
+    await tx.booking.update({
+      where: { id: booking.id },
+      data: { status: BookingStatus.COMPLETED, completedAt },
+    });
+
+    await tx.scanSession.updateMany({
+      where: { bookingId: booking.id, phase: ScanPhase.CHECKIN, status: ScanSessionStatus.OPEN },
+      data: { status: ScanSessionStatus.COMPLETED, completedAt },
+    });
+
+    await tx.overrideEvent.create({
+      data: {
+        bookingId: booking.id,
+        actorUserId: args.actorUserId,
+        reason,
+        details: {
+          type: "admin_force_complete",
+          refNumber: booking.refNumber,
+          serializedReturnedCount,
+          bulkReturnedQuantity: checkinItems.reduce((sum, item) => sum + item.quantity, 0),
+          returnedUnits,
+          completedAt: completedAt.toISOString(),
+        },
+      },
+    });
+
+    await createAuditEntryTx(tx, {
+      actorId: args.actorUserId,
+      actorRole,
+      entityType: "booking",
+      entityId: booking.id,
+      action: "admin_force_completed_checkout",
+      after: {
+        reason,
+        serializedReturnedCount,
+        bulkReturnedQuantity: checkinItems.reduce((sum, item) => sum + item.quantity, 0),
+        returnedUnits,
+        completedAt,
+      },
+    });
+
+    return {
+      userId: booking.requesterUserId,
+      completedAt,
+      wasOnTime: wasReturnedOnTime(booking.endsAt, completedAt),
+    };
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+  await badges.onCheckoutReturned({
+    userId: result.userId,
+    bookingId: args.bookingId,
+    completedAt: result.completedAt,
+    wasOnTime: result.wasOnTime,
+    sourceKey: args.bookingId,
+  });
+
+  return { success: true };
+}
+
 /**
  * Partial check-in: return individual serialized items from a checkout.
  * Marks each item's allocationStatus as "returned" and deactivates its allocation.

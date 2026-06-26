@@ -9,13 +9,13 @@
 | `src/lib/services/auto-fill-preview.ts` | 181 |
 | `src/lib/services/availability.ts` | 551 |
 | `src/lib/services/booking-ref.ts` | 26 |
-| `src/lib/services/booking-rules.ts` | 104 |
-| `src/lib/services/bookings-checkin.ts` | 612 |
+| `src/lib/services/booking-rules.ts` | 105 |
+| `src/lib/services/bookings-checkin.ts` | 775 |
 | `src/lib/services/bookings-helpers.ts` | 197 |
 | `src/lib/services/bookings-lifecycle.ts` | 900 |
 | `src/lib/services/bookings-queries.ts` | 234 |
 | `src/lib/services/bookings.ts` | 4 |
-| `src/lib/services/bulk-unit-scans.ts` | 589 |
+| `src/lib/services/bulk-unit-scans.ts` | 597 |
 | `src/lib/services/calendar-sync-health.ts` | 165 |
 | `src/lib/services/calendar-sync.ts` | 649 |
 | `src/lib/services/candidate-scoring.ts` | 407 |
@@ -35,7 +35,7 @@
 | `src/lib/services/pending-pickup-expiry.ts` | 218 |
 | `src/lib/services/reports.ts` | 1369 |
 | `src/lib/services/reservation-rules.ts` | 32 |
-| `src/lib/services/scans.ts` | 625 |
+| `src/lib/services/scans.ts` | 643 |
 | `src/lib/services/schedule-automation.ts` | 336 |
 | `src/lib/services/schedule-change-history.ts` | 354 |
 | `src/lib/services/schedule-exports.ts` | 495 |
@@ -76,6 +76,7 @@
 | `src/lib/booking-status-display.ts` | 124 |
 | `src/lib/bulk-batteries.ts` | 28 |
 | `src/lib/bulk-unit-qr.ts` | 109 |
+| `src/lib/bulk-unit-status.ts` | 30 |
 | `src/lib/calendar-event-dates.ts` | 168 |
 | `src/lib/calendar-source-freshness.ts` | 259 |
 | `src/lib/candidate-scoring-types.ts` | 26 |
@@ -199,6 +200,7 @@
 - `/api/bookings/[id]/audit-logs`
 - `/api/bookings/[id]/cancel`
 - `/api/bookings/[id]/extend`
+- `/api/bookings/[id]/force-complete`
 - `/api/bookings/[id]/nudge`
 - `/api/bookings/[id]`
 - `/api/bookings/changes`
@@ -215,6 +217,7 @@
 - `/api/bulk-skus/[id]/units/[unitNumber]`
 - `/api/bulk-skus/[id]/units/labels`
 - `/api/bulk-skus/[id]/units`
+- `/api/bulk-skus/batteries/repair-stale`
 - `/api/bulk-skus/batteries`
 - `/api/bulk-skus`
 

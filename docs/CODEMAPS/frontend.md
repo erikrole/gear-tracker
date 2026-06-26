@@ -138,5 +138,5 @@
 | `src/hooks/use-scan-submission.ts` | 241 |
 | `src/hooks/use-schedule-data.ts` | 524 |
 | `src/hooks/use-url-state.ts` | 166 |
-| `src/hooks/useBookingActions.ts` | 172 |
+| `src/hooks/useBookingActions.ts` | 192 |
 | `src/hooks/useBookingDetail.ts` | 70 |

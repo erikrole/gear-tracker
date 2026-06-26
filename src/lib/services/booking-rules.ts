@@ -22,6 +22,7 @@ import {
  * | extend   | ✗            | staff+/owner | ✗              | staff+/owner  | ✗         | ✗         |
  * | cancel   | staff+/owner | staff+/owner | staff+/owner   | staff+ only   | ✗         | ✗         |
  * | checkin  | ✗            | ✗            | ✗              | kiosk only    | ✗         | ✗         |
+ * | force-complete | ✗       | ✗            | ✗              | admin only    | ✗         | ✗         |
  * | open     | ✗            | staff+/owner | ✗              | ✗             | ✗         | ✗         |
  * | pickup   | ✗            | ✗            | kiosk only     | ✗             | ✗         | ✗         |
  *

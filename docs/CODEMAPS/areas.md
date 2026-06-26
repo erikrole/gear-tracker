@@ -15,7 +15,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 
 - Doc: `docs/AREA_BULK_INVENTORY.md`
 - Pages: `/bulk-inventory/[id]`, `/bulk-inventory/batteries`, `/bulk-inventory`
-- APIs: `/api/bulk-skus/[id]/activity`, `/api/bulk-skus/[id]/adjust`, `/api/bulk-skus/[id]/convert-to-numbered`, `/api/bulk-skus/[id]/image`, `/api/bulk-skus/[id]`, `/api/bulk-skus/[id]/units/[unitNumber]`, `/api/bulk-skus/[id]/units/labels`, `/api/bulk-skus/[id]/units`, `/api/bulk-skus/batteries`, `/api/bulk-skus`
+- APIs: `/api/bulk-skus/[id]/activity`, `/api/bulk-skus/[id]/adjust`, `/api/bulk-skus/[id]/convert-to-numbered`, `/api/bulk-skus/[id]/image`, `/api/bulk-skus/[id]`, `/api/bulk-skus/[id]/units/[unitNumber]`, `/api/bulk-skus/[id]/units/labels`, `/api/bulk-skus/[id]/units`, `/api/bulk-skus/batteries/repair-stale`, `/api/bulk-skus/batteries`
 - Services: _none matched_
 - Tests: _none matched_
 
@@ -111,7 +111,7 @@ This map is heuristic. It links `docs/AREA_*.md` files to likely routes, APIs, s
 
 - Doc: `docs/AREA_RESERVATIONS.md`
 - Pages: `/bookings`, `/reservations/[id]`, `/reservations/new`, `/reservations`, `/settings/bookings`
-- APIs: `/api/bookings/[id]/audit-logs`, `/api/bookings/[id]/cancel`, `/api/bookings/[id]/extend`, `/api/bookings/[id]/nudge`, `/api/bookings/[id]`, `/api/bookings/changes`, `/api/bookings/export`, `/api/bookings`, `/api/reservations/[id]/cancel`, `/api/reservations/[id]/convert`
+- APIs: `/api/bookings/[id]/audit-logs`, `/api/bookings/[id]/cancel`, `/api/bookings/[id]/extend`, `/api/bookings/[id]/force-complete`, `/api/bookings/[id]/nudge`, `/api/bookings/[id]`, `/api/bookings/changes`, `/api/bookings/export`, `/api/bookings`, `/api/reservations/[id]/cancel`
 - Services: `src/lib/services/bookings-checkin.ts`, `src/lib/services/bookings-helpers.ts`, `src/lib/services/bookings-lifecycle.ts`, `src/lib/services/bookings-queries.ts`, `src/lib/services/bookings.ts`
 - Tests: `tests/ios-bookings-empty-state.test.ts`
 

@@ -45,6 +45,7 @@ describe('canPerformBookingAction("view")', () => {
 
   it("still gates real state-machine actions (view fix did not loosen them)", () => {
     // force-complete is ADMIN-only and only in OPEN state
+    expect(canPerformBookingAction(admin, booking({ status: BookingStatus.OPEN }), "force-complete").allowed).toBe(true);
     expect(canPerformBookingAction(staff, booking({ status: BookingStatus.OPEN }), "force-complete").allowed).toBe(false);
     expect(canPerformBookingAction(owner, booking({ status: BookingStatus.COMPLETED }), "edit").allowed).toBe(false);
   });

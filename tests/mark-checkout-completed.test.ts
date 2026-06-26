@@ -5,10 +5,15 @@ import { expectSerializableIsolation } from "./_helpers/assert-transaction";
 type MockFn = ReturnType<typeof vi.fn>;
 type MarkCheckoutCompletedTx = {
   booking: Record<"findUnique" | "update", MockFn>;
+  bookingSerializedItem: Record<"updateMany", MockFn>;
+  bookingBulkItem: Record<"update", MockFn>;
+  bookingBulkUnitAllocation: Record<"updateMany", MockFn>;
   assetAllocation: Record<"updateMany", MockFn>;
+  bulkSkuUnit: Record<"updateMany", MockFn>;
   bulkStockBalance: Record<"findMany" | "upsert", MockFn>;
   bulkStockMovement: Record<"createMany", MockFn>;
   scanSession: Record<"updateMany", MockFn>;
+  overrideEvent: Record<"create", MockFn>;
   auditLog: Record<"create", MockFn>;
   user: Record<"findUnique", MockFn>;
 };
@@ -20,10 +25,15 @@ const transactionCalls: Array<{ options: unknown }> = [];
 vi.mock("@/lib/db", () => {
   const mockTx = {
     booking: { findUnique: vi.fn(), update: vi.fn() },
+    bookingSerializedItem: { updateMany: vi.fn() },
+    bookingBulkItem: { update: vi.fn() },
+    bookingBulkUnitAllocation: { updateMany: vi.fn() },
     assetAllocation: { updateMany: vi.fn() },
+    bulkSkuUnit: { updateMany: vi.fn() },
     bulkStockBalance: { findMany: vi.fn(), upsert: vi.fn() },
     bulkStockMovement: { createMany: vi.fn() },
     scanSession: { updateMany: vi.fn() },
+    overrideEvent: { create: vi.fn() },
     auditLog: { create: vi.fn() },
     user: { findUnique: vi.fn().mockResolvedValue({ role: "ADMIN" }) },
   };
@@ -51,7 +61,7 @@ vi.mock("@/lib/badges", () => ({
 
 import { db } from "@/lib/db";
 import { badges } from "@/lib/badges";
-import { markCheckoutCompleted } from "@/lib/services/bookings";
+import { forceCompleteCheckout, markCheckoutCompleted } from "@/lib/services/bookings";
 
 const mockTx = (db as unknown as { _mockTx: MarkCheckoutCompletedTx })._mockTx;
 
@@ -236,6 +246,130 @@ describe("markCheckoutCompleted", () => {
         wasOnTime: expect.any(Boolean),
         sourceKey: "b-1",
       }),
+    );
+  });
+});
+
+describe("forceCompleteCheckout", () => {
+  function openCheckout(overrides: Record<string, unknown> = {}) {
+    return {
+      id: "b-1",
+      refNumber: "CO-0001",
+      kind: "CHECKOUT",
+      status: "OPEN",
+      locationId: "loc-1",
+      requesterUserId: "user-1",
+      endsAt: new Date("2026-05-09T18:00:00.000Z"),
+      serializedItems: [{ id: "bsi-1", allocationStatus: "active", assetId: "asset-1" }],
+      bulkItems: [],
+      ...overrides,
+    };
+  }
+
+  it("requires an explicit reason before writing", async () => {
+    await expect(
+      forceCompleteCheckout({ bookingId: "b-1", actorUserId: "actor-1", reason: "short" }),
+    ).rejects.toThrow("reason");
+
+    expect(transactionCalls).toHaveLength(0);
+  });
+
+  it("marks verified serialized and numbered bulk returns available instead of lost", async () => {
+    const plainBulk = makeBulkItem({
+      id: "bulk-plain",
+      bulkSkuId: "sku-plain",
+      plannedQuantity: 10,
+      checkedOutQuantity: 10,
+      checkedInQuantity: 4,
+      unitAllocations: [],
+    });
+    const numberedBulk = makeBulkItem({
+      id: "bulk-numbered",
+      bulkSkuId: "sku-numbered",
+      plannedQuantity: 2,
+      checkedOutQuantity: 2,
+      checkedInQuantity: 1,
+      unitAllocations: [
+        { id: "alloc-1", bulkSkuUnit: { id: "unit-1", unitNumber: 7 } },
+      ],
+    });
+    mockTx.booking.findUnique.mockResolvedValue(openCheckout({ bulkItems: [plainBulk, numberedBulk] }));
+    mockTx.bookingSerializedItem.updateMany.mockResolvedValue({});
+    mockTx.bookingBulkItem.update.mockResolvedValue({});
+    mockTx.bookingBulkUnitAllocation.updateMany.mockResolvedValue({});
+    mockTx.assetAllocation.updateMany.mockResolvedValue({});
+    mockTx.bulkSkuUnit.updateMany.mockResolvedValue({});
+    mockTx.bulkStockBalance.findMany.mockResolvedValue([]);
+    mockTx.bulkStockBalance.upsert.mockResolvedValue({});
+    mockTx.bulkStockMovement.createMany.mockResolvedValue({});
+    mockTx.booking.update.mockResolvedValue({});
+    mockTx.scanSession.updateMany.mockResolvedValue({});
+    mockTx.overrideEvent.create.mockResolvedValue({});
+    mockTx.auditLog.create.mockResolvedValue({});
+
+    await forceCompleteCheckout({
+      bookingId: "b-1",
+      actorUserId: "actor-1",
+      reason: "Scanner offline, all gear verified on shelf.",
+    });
+
+    expectSerializableIsolation(transactionCalls, 0);
+    expect(mockTx.bookingSerializedItem.updateMany).toHaveBeenCalledWith({
+      where: { bookingId: "b-1", allocationStatus: { not: "returned" } },
+      data: { allocationStatus: "returned" },
+    });
+    expect(mockTx.assetAllocation.updateMany).toHaveBeenCalledWith({
+      where: { bookingId: "b-1", active: true },
+      data: { active: false },
+    });
+    expect(mockTx.bookingBulkItem.update).toHaveBeenCalledWith({
+      where: { id: "bulk-plain" },
+      data: { checkedInQuantity: 10 },
+    });
+    expect(mockTx.bookingBulkItem.update).toHaveBeenCalledWith({
+      where: { id: "bulk-numbered" },
+      data: { checkedInQuantity: 2 },
+    });
+    expect(mockTx.bookingBulkUnitAllocation.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: { in: ["alloc-1"] },
+        }),
+        data: { checkedInAt: expect.any(Date) },
+      }),
+    );
+    expect(mockTx.bulkSkuUnit.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["unit-1"] } },
+      data: { status: "AVAILABLE" },
+    });
+    expect(mockTx.bulkSkuUnit.updateMany).not.toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: "LOST" }) }),
+    );
+    expect(mockTx.booking.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "b-1" },
+        data: expect.objectContaining({ status: "COMPLETED", completedAt: expect.any(Date) }),
+      }),
+    );
+    expect(mockTx.overrideEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          bookingId: "b-1",
+          actorUserId: "actor-1",
+          reason: "Scanner offline, all gear verified on shelf.",
+        }),
+      }),
+    );
+    expect(mockTx.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          actorUserId: "actor-1",
+          action: "admin_force_completed_checkout",
+        }),
+      }),
+    );
+    expect(badges.onCheckoutReturned).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "user-1", bookingId: "b-1" }),
     );
   });
 });

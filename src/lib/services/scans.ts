@@ -4,6 +4,7 @@ import { HttpError } from "@/lib/http";
 import { markCheckoutCompleted } from "@/lib/services/bookings";
 import { createAuditEntry } from "@/lib/audit";
 import { parseDerivedBulkUnitQr } from "@/lib/bulk-unit-qr";
+import { buildActiveBulkUnitAllocationMap, effectiveBulkUnitStatus } from "@/lib/bulk-unit-status";
 
 export async function startScanSession(args: {
   bookingId: string;
@@ -207,28 +208,43 @@ export async function recordScan(args: {
         throw new HttpError(400, `Unit numbers not found: ${missing.join(", ")}`);
       }
 
+      const activeAllocations = await tx.bookingBulkUnitAllocation.findMany({
+        where: {
+          bulkSkuUnitId: { in: units.map((u) => u.id) },
+          checkedOutAt: { not: null },
+          checkedInAt: null,
+        },
+        select: {
+          bookingBulkItemId: true,
+          bulkSkuUnitId: true,
+        },
+      });
+      const activeAllocationByUnitId = buildActiveBulkUnitAllocationMap(activeAllocations);
+
       if (args.phase === ScanPhase.CHECKOUT) {
-        const unavailable = units.filter((u) => u.status !== BulkUnitStatus.AVAILABLE);
+        const unavailable = units
+          .map((unit) => ({
+            ...unit,
+            effectiveStatus: effectiveBulkUnitStatus(unit, activeAllocationByUnitId.get(unit.id)),
+          }))
+          .filter((unit) => unit.effectiveStatus !== BulkUnitStatus.AVAILABLE);
         if (unavailable.length > 0) {
-          throw new HttpError(409, `Units not available: ${unavailable.map((u) => `#${u.unitNumber} (${u.status})`).join(", ")}`);
+          throw new HttpError(409, `Units not available: ${unavailable.map((u) => `#${u.unitNumber} (${u.effectiveStatus})`).join(", ")}`);
         }
       } else {
-        const notCheckedOut = units.filter((u) => u.status !== BulkUnitStatus.CHECKED_OUT);
+        const notCheckedOut = units
+          .map((unit) => ({
+            ...unit,
+            effectiveStatus: effectiveBulkUnitStatus(unit, activeAllocationByUnitId.get(unit.id)),
+          }))
+          .filter((unit) => unit.effectiveStatus !== BulkUnitStatus.CHECKED_OUT);
         if (notCheckedOut.length > 0) {
-          throw new HttpError(409, `Units not checked out: ${notCheckedOut.map((u) => `#${u.unitNumber} (${u.status})`).join(", ")}`);
+          throw new HttpError(409, `Units not checked out: ${notCheckedOut.map((u) => `#${u.unitNumber} (${u.effectiveStatus})`).join(", ")}`);
         }
 
         // Verify these units are actually allocated to THIS booking — prevents a student
         // from checking in units that belong to a different booking's checkout.
-        const ownedAllocations = await tx.bookingBulkUnitAllocation.findMany({
-          where: {
-            bookingBulkItemId: bulkItem.id,
-            bulkSkuUnitId: { in: units.map((u) => u.id) },
-            checkedOutAt: { not: null },
-            checkedInAt: null,
-          },
-          select: { bulkSkuUnitId: true },
-        });
+        const ownedAllocations = activeAllocations.filter((allocation) => allocation.bookingBulkItemId === bulkItem.id);
         if (ownedAllocations.length !== units.length) {
           const ownedIds = new Set(ownedAllocations.map((a) => a.bulkSkuUnitId));
           const unowned = units.filter((u) => !ownedIds.has(u.id));
@@ -279,7 +295,9 @@ export async function recordScan(args: {
           await tx.bookingBulkUnitAllocation.updateMany({
             where: {
               bookingBulkItemId: bulkItem.id,
-              bulkSkuUnitId: unit.id
+              bulkSkuUnitId: unit.id,
+              checkedOutAt: { not: null },
+              checkedInAt: null,
             },
             data: { checkedInAt: now }
           });

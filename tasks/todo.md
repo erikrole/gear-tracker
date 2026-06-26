@@ -1,6 +1,38 @@
 # Task Queue
 
-Last updated: 2026-06-24
+Last updated: 2026-06-25
+
+---
+
+## Active: Admin checkout force-complete exception (2026-06-25)
+
+Plan: add an admin-only exception path for physically verified returns that cannot be scanned, without reopening app/web as the normal return surface.
+
+- [x] Audit checkout, kiosk, scan, decision, schema, action-policy, detail-page, service, and route contracts.
+- [x] Add the force-complete service and API route with required reason capture.
+- [x] Wire the admin-only detail-page action through shadcn dialog/textarea controls.
+- [x] Add focused service, route/source, policy, and custody-contract coverage.
+- [x] Sync checkout/kiosk docs and record verification results.
+- [x] Run focused verification and build gates.
+
+### Review
+- 2026-06-25: Admin checkout close-without-scan shipped locally. `POST /api/bookings/[id]/force-complete` is admin-gated through booking action policy, requires a 10+ character reason, completes only `OPEN` checkouts, marks active serialized allocations returned, restores outstanding bulk stock, marks verified numbered units available instead of lost, closes open check-in scan sessions, writes `OverrideEvent` plus audit evidence, and emits returned badge events. Booking detail exposes the action as "Close without scan" behind the existing actions menu with a shadcn dialog and reason textarea. Checkout, Kiosk, Decisions, Gaps/Risks, and codemaps are synced. Verification passed with `npx vitest run tests/mark-checkout-completed.test.ts tests/admin-force-complete-route.test.ts tests/booking-view-access.test.ts tests/booking-detail-custody-contract.test.ts tests/kiosk-only-custody-routes.test.ts`, `npx tsc --noEmit`, `npm run codemap`, `npm run verify:docs`, `git diff --check`, and `npm run build:app`. Initial `npm run verify:docs` failed because codemaps were stale, then passed after regeneration.
+
+---
+
+## Active: Battery custody trust hardening (2026-06-25)
+
+Plan: `tasks/battery-custody-trust-hardening-plan.md`
+
+- [x] Add shared allocation-aware effective numbered-unit status helper.
+- [x] Adopt it in Battery Ops, `/api/assets`, kiosk pickup/reservation staging, generic scan recording, and scan lookup.
+- [x] Add audited stale checked-out battery flag repair route and Battery Ops action.
+- [x] Add partial unique migration for one active allocation per numbered unit.
+- [x] Add focused regression coverage.
+- [x] Run full closeout verification and record results.
+
+### Review
+- 2026-06-25: Battery custody trust hardening shipped locally. Focused tests passed for the helper, Battery Ops repair route, `/api/assets`, Battery Ops read model, kiosk numbered-unit scans, generic numbered scans, and migration source contract. Full closeout verification passed with TypeScript, migration-prefix check, whitespace check, codemap regeneration/docs check, iOS drift/gap checks, and `npm run build:app`.
 
 ---
 

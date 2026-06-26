@@ -140,6 +140,25 @@ export function useBookingActions(
     }
   }, [bookingId]);
 
+  const forceComplete = useCallback(
+    async (reason: string) => {
+      if (!guardStart("force-complete")) return false;
+      try {
+        const result = await callAction(`/api/bookings/${bookingId}/force-complete`, "POST", { reason });
+        if (result.ok) {
+          toast.success("Checkout closed");
+          onSuccess();
+        } else {
+          toast.error(result.error!);
+        }
+        return result.ok;
+      } finally {
+        guardEnd();
+      }
+    },
+    [bookingId, onSuccess],
+  );
+
   const saveField = useCallback(
     async (field: string, value: unknown) => {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -166,6 +185,7 @@ export function useBookingActions(
     extend,
     duplicate,
     nudge,
+    forceComplete,
     saveField,
   };
 }

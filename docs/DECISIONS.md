@@ -3,7 +3,7 @@
 ## Document Control
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Product: Gear Tracker
-- Last Updated: 2026-06-15
+- Last Updated: 2026-06-25
 - Status: Living decision log
 - Purpose: track durable decisions, rationale, and downstream constraints
 
@@ -523,7 +523,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 
 ## D-028: Photo Requirement on Checkout/Checkin
 
-**Decision (2026-03-30, amended 2026-05-10):** Every checkout and checkin completion requires physical verification. The active execution path is kiosk scanning for pickup and return. The signed-in app `/scan` page is lookup-only.
+**Decision (2026-03-30, amended 2026-06-25):** Every checkout and checkin completion requires physical verification. The active execution path is kiosk scanning for pickup and return. The signed-in app `/scan` page is lookup-only. Admins may bypass scanning only through a reasoned close-without-scan exception after physically verifying returned gear.
 
 **Context:** Equipment accountability requires documenting condition at both handoff points. Without photos, damage disputes lack evidence. Without scan-based checkin, items can be marked as returned without physical verification.
 
@@ -533,7 +533,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 - Photos stored in Vercel Blob under `bookings/{id}/{phase}/`
 - `BookingPhoto` model tracks phase, image URL, actor, and timestamp
 - Completion endpoints (`completeCheckoutScan`, `completeCheckinScan`) enforce photo existence
-- Admin override bypasses photo requirement (consistent with scan override pattern)
+- Admin override bypasses photo/scan requirements only through explicit exception paths with reasoned audit evidence.
 - Photos displayed on booking detail page in the info tab
 
 **Downstream Effects:**
@@ -766,14 +766,15 @@ These are non-negotiable integrity constraints. Every feature must preserve them
   - The app `/scan` surface is already lookup-only by D-028, and the native iOS kiosk is already the canonical checkout, pickup, and return surface by D-030.
   - The unified `Booking` model already supports reservations and checkouts, including `sourceReservationId` for preserving a fulfilled-reservation trail.
 - Decision:
-  - Direct checkout and return mutations are kiosk-only. They must require kiosk authentication, scan evidence where applicable, and the kiosk's physical location context.
+  - Direct checkout and standard return mutations are kiosk-only. They must require kiosk authentication, scan evidence where applicable, and the kiosk's physical location context.
+  - Admin close-without-scan is a narrow repair exception for `OPEN` checkouts where all gear has been physically verified but cannot be scanned. It requires a reason, writes override/audit evidence, and must not reopen app/web as a normal return surface.
   - App and web users create and manage reservations when they are not physically at the kiosk with the gear.
   - Direct "I need this now" checkout remains available through kiosk checkout, not through app/web checkout creation.
   - Reservation pickup is fulfilled at the kiosk. Once scans pass, the kiosk creates or opens the linked checkout custody record and marks the source reservation `COMPLETED`; it must not treat a fulfilled reservation as user-cancelled.
   - `PENDING_PICKUP` may remain as a compatibility or staged handoff state, but it is no longer the normal result of app/web checkout creation.
   - Checkout records remain the custody ledger for active and historical gear-out reporting, search, and audit.
 - Consequences:
-  - Non-kiosk app/web routes must not create checkout custody, convert reservations into pickup custody, or return gear.
+  - Non-kiosk app/web routes must not create checkout custody, convert reservations into pickup custody, or run normal return flows.
   - Overdue checkout counts mean physical gear is out. Stale reservations, due reservations, and awaiting-pickup work must be reported separately.
   - Existing `PENDING_PICKUP` records need a compatibility path during rollout; they continue to block availability until cancelled, picked up, or expired.
 - Guardrails:
@@ -790,6 +791,7 @@ These are non-negotiable integrity constraints. Every feature must preserve them
 4. ~~Student mobile KPI definitions~~ — resolved (PD-5): taps-to-checkout ≤3, scan success ≥95%, task completion <30s. Telemetry deferred to Phase B.
 
 ## Change Log
+- 2026-06-25: Amended D-028 and D-040 for admin close-without-scan. Kiosk remains the standard custody return surface, while admins can close a physically verified returned checkout through a reasoned override with audit and override evidence.
 - 2026-06-15: Added D-040 for kiosk-only custody. App/web becomes reservation-first; direct checkout, reservation pickup, and return custody mutations are kiosk-only, with fulfilled source reservations closing as `COMPLETED`.
 - 2026-06-08: Updated D-029/D-037 for the no-temp-password beta pivot. First-time onboarding now stays invite-first through AllowedEmail registration, while forced-password handling remains recovery-only.
 - 2026-06-03: Added D-037 to make onboarding a bulk-capable, invitation-scoped account lifecycle while preserving the allowlist gate and forced-password safety.

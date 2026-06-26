@@ -1,5 +1,6 @@
 import { BookingKind, BookingStatus, BulkUnitStatus, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { effectiveBulkUnitStatus } from "@/lib/bulk-unit-status";
 import { parseDerivedBulkUnitQr } from "@/lib/bulk-unit-qr";
 import { HttpError } from "@/lib/http";
 import type { BadgeScanErrorCode } from "@/lib/badges/types";
@@ -175,8 +176,10 @@ export async function scanKioskPickupBulkUnit(
     return { handled: true, success: false, error: `${bulkItem.bulkSku.name} #${unit.unitNumber} already scanned`, errorCode: "duplicate" };
   }
 
-  if (unit.status === BulkUnitStatus.CHECKED_OUT) {
-    const activeBooking = unit.allocations[0]?.bookingBulkItem.booking;
+  const activeAllocation = unit.allocations?.[0] ?? null;
+  const unitStatus = effectiveBulkUnitStatus(unit, activeAllocation);
+  if (unitStatus === BulkUnitStatus.CHECKED_OUT) {
+    const activeBooking = activeAllocation?.bookingBulkItem.booking;
     const holder = activeBooking?.requester.name;
     return {
       handled: true,
@@ -196,11 +199,11 @@ export async function scanKioskPickupBulkUnit(
     };
   }
 
-  if (unit.status !== BulkUnitStatus.AVAILABLE) {
+  if (unitStatus !== BulkUnitStatus.AVAILABLE) {
     return {
       handled: true,
       success: false,
-      error: `${bulkItem.bulkSku.name} #${unit.unitNumber} is marked ${statusLabel(unit.status)} and cannot be picked up`,
+      error: `${bulkItem.bulkSku.name} #${unit.unitNumber} is marked ${statusLabel(unitStatus)} and cannot be picked up`,
       errorCode: "wrong_status",
     };
   }
@@ -335,8 +338,10 @@ export async function stageKioskReservationPickupBulkUnit(
     };
   }
 
-  if (unit.status === BulkUnitStatus.CHECKED_OUT) {
-    const activeBooking = unit.allocations[0]?.bookingBulkItem.booking;
+  const activeAllocation = unit.allocations?.[0] ?? null;
+  const unitStatus = effectiveBulkUnitStatus(unit, activeAllocation);
+  if (unitStatus === BulkUnitStatus.CHECKED_OUT) {
+    const activeBooking = activeAllocation?.bookingBulkItem.booking;
     const holder = activeBooking?.requester.name;
     return {
       handled: true,
@@ -346,11 +351,11 @@ export async function stageKioskReservationPickupBulkUnit(
     };
   }
 
-  if (unit.status !== BulkUnitStatus.AVAILABLE) {
+  if (unitStatus !== BulkUnitStatus.AVAILABLE) {
     return {
       handled: true,
       success: false,
-      error: `${bulkItem.bulkSku.name} #${unit.unitNumber} is marked ${statusLabel(unit.status)} and cannot be picked up`,
+      error: `${bulkItem.bulkSku.name} #${unit.unitNumber} is marked ${statusLabel(unitStatus)} and cannot be picked up`,
       errorCode: "wrong_status",
     };
   }
@@ -466,8 +471,10 @@ export async function scanKioskCheckinBulkUnit(
   });
 
   if (!allocation || !allocation.checkedOutAt) {
-    if (unit.status === BulkUnitStatus.CHECKED_OUT) {
-      const activeBooking = unit.allocations[0]?.bookingBulkItem.booking;
+    const activeAllocation = unit.allocations?.[0] ?? null;
+    const unitStatus = effectiveBulkUnitStatus(unit, activeAllocation);
+    if (unitStatus === BulkUnitStatus.CHECKED_OUT) {
+      const activeBooking = activeAllocation?.bookingBulkItem.booking;
       const holder = activeBooking?.requester.name;
       return {
         handled: true,
@@ -476,11 +483,11 @@ export async function scanKioskCheckinBulkUnit(
         errorCode: "wrong_status",
       };
     }
-    if (unit.status === BulkUnitStatus.LOST || unit.status === BulkUnitStatus.RETIRED) {
+    if (unitStatus === BulkUnitStatus.LOST || unitStatus === BulkUnitStatus.RETIRED) {
       return {
         handled: true,
         success: false,
-        error: `${bulkItem.bulkSku.name} #${unit.unitNumber} is marked ${statusLabel(unit.status)}`,
+        error: `${bulkItem.bulkSku.name} #${unit.unitNumber} is marked ${statusLabel(unitStatus)}`,
         errorCode: "wrong_status",
       };
     }
@@ -570,6 +577,7 @@ export async function findBulkUnitByScanValue(scanValue: string) {
   });
 
   const booking = activeAllocation?.bookingBulkItem.booking;
+  const status = effectiveBulkUnitStatus(unit, activeAllocation);
 
   return {
     id: unit.id,
@@ -577,7 +585,7 @@ export async function findBulkUnitByScanValue(scanValue: string) {
     tagName: unitTagName(unit.unitNumber),
     type: unit.bulkSku.category,
     imageUrl: unit.bulkSku.imageUrl,
-    status: unit.status,
+    status,
     bulkSkuName: unit.bulkSku.name,
     bulkSkuId: unit.bulkSku.id,
     unitNumber: unit.unitNumber,

@@ -199,6 +199,36 @@ describe("scanKioskPickupBulkUnit", () => {
     });
   });
 
+  it("allows pickup when a raw checked-out unit has no active allocation", async () => {
+    const tx = makeTx();
+    tx.booking.findUnique.mockResolvedValue(pickupBooking);
+    tx.bulkSkuUnit.findUnique.mockResolvedValue({
+      id: "unit-7",
+      bulkSkuId: "sku-1",
+      unitNumber: 7,
+      status: "CHECKED_OUT",
+      allocations: [],
+    });
+    tx.bookingBulkUnitAllocation.findUnique.mockResolvedValue(null);
+
+    const result = await scanKioskPickupBulkUnit(tx, {
+      bookingId: "booking-1",
+      scanValue: "94e068d1-7",
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      handled: true,
+      success: true,
+      item: expect.objectContaining({ unitNumber: 7 }),
+    }));
+    expect(tx.bookingBulkUnitAllocation.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        bookingBulkItemId: "bulk-item-1",
+        bulkSkuUnitId: "unit-7",
+      }),
+    });
+  });
+
   it("blocks pickup when the requested battery quantity is already fully scanned", async () => {
     const tx = makeTx();
     tx.booking.findUnique.mockResolvedValue({
@@ -306,6 +336,33 @@ describe("stageKioskReservationPickupBulkUnit", () => {
     expect(tx.bookingBulkUnitAllocation.create).not.toHaveBeenCalled();
     expect(tx.bulkSkuUnit.update).not.toHaveBeenCalled();
     expect(tx.bookingBulkItem.update).not.toHaveBeenCalled();
+  });
+
+  it("stages a raw checked-out unit when there is no active allocation", async () => {
+    const tx = makeTx();
+    tx.booking.findUnique.mockResolvedValue(reservationBooking);
+    tx.bulkSkuUnit.findUnique.mockResolvedValue({
+      id: "unit-7",
+      bulkSkuId: "sku-1",
+      unitNumber: 7,
+      status: "CHECKED_OUT",
+      allocations: [],
+    });
+    tx.scanEvent.findMany.mockResolvedValue([]);
+    tx.scanEvent.create.mockResolvedValue({ id: "scan-1" });
+
+    const result = await stageKioskReservationPickupBulkUnit(tx, {
+      bookingId: "reservation-1",
+      scanValue: "94e068d1-7",
+      deviceContext: "vitest-kiosk",
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      handled: true,
+      success: true,
+      item: expect.objectContaining({ unitNumber: 7 }),
+    }));
+    expect(tx.scanEvent.create).toHaveBeenCalled();
   });
 });
 

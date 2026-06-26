@@ -1,6 +1,7 @@
 import { withAuth } from "@/lib/api";
 import { getBatteryCompatibilitySummaries } from "@/lib/battery-compatibility";
 import { isBatterySku } from "@/lib/bulk-batteries";
+import { buildActiveBulkUnitAllocationMap, effectiveBulkUnitStatus } from "@/lib/bulk-unit-status";
 import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
@@ -129,9 +130,7 @@ export const GET = withAuth(async (_req, { user }) => {
     }),
   ]);
 
-  const activeAllocationByUnitId = new Map(
-    activeUnitAllocations.map((allocation) => [allocation.bulkSkuUnitId, allocation]),
-  );
+  const activeAllocationByUnitId = buildActiveBulkUnitAllocationMap(activeUnitAllocations);
   const fallbackContextsBySkuId = new Map<
     string,
     Array<{
@@ -202,7 +201,9 @@ export const GET = withAuth(async (_req, { user }) => {
       const fallback = allocation ? null : fallbackAssignmentsByUnitId.get(unit.id);
       const booking = allocation?.bookingBulkItem.booking ?? fallback?.booking;
       const checkedOutAt = allocation?.checkedOutAt ?? allocation?.createdAt ?? fallback?.checkedOutAt ?? null;
-      const status = unit.status === "CHECKED_OUT" && !booking ? "AVAILABLE" : unit.status;
+      const status = fallback
+        ? unit.status
+        : effectiveBulkUnitStatus(unit, allocation);
       if (unit.status === "CHECKED_OUT" && !booking) {
         staleCheckedOutUnits.push({
           id: unit.id,

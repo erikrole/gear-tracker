@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BatteryCharging, CircleAlert, Download, ExternalLink, Plus, RefreshCw, SlidersHorizontal, Tag } from "lucide-react";
+import { BatteryCharging, CircleAlert, Download, ExternalLink, Plus, RefreshCw, SlidersHorizontal, Tag, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import EmptyState from "@/components/EmptyState";
 import { OperationalMetricCard } from "@/components/OperationalFeedback";
@@ -145,6 +145,11 @@ type PendingLabelMark = {
   unitNumbers: number[];
 } | null;
 
+type PendingStaleRepair = {
+  count: number;
+  units: BatteryIntegrityWarning[];
+} | null;
+
 const STATUS_META: Record<UnitStatus, { label: string; className: string; dot: string }> = {
   AVAILABLE: {
     label: "Available",
@@ -231,6 +236,10 @@ export default function BatteryCockpitPage() {
   const [labelBusy, setLabelBusy] = useState(false);
   const labelBusyRef = useRef(false);
   const [exportingSkuId, setExportingSkuId] = useState<string | null>(null);
+  const [pendingStaleRepair, setPendingStaleRepair] = useState<PendingStaleRepair>(null);
+  const [repairReason, setRepairReason] = useState("Repair stale checked-out battery flags with no active allocation");
+  const [repairBusy, setRepairBusy] = useState(false);
+  const repairBusyRef = useRef(false);
 
   async function load({ refresh = false } = {}) {
     if (refresh) setRefreshing(true);
@@ -495,6 +504,40 @@ export default function BatteryCockpitPage() {
     }
   }
 
+  async function submitStaleRepair(action: NonNullable<PendingStaleRepair>) {
+    if (repairBusyRef.current) return;
+    const reason = repairReason.trim();
+    if (reason.length < 3) {
+      toast.error("Add a reason before repairing stale flags.");
+      return;
+    }
+
+    repairBusyRef.current = true;
+    setRepairBusy(true);
+    try {
+      const res = await fetch("/api/bulk-skus/batteries/repair-stale", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      });
+      if (handleAuthRedirect(res, "/bulk-inventory/batteries")) return;
+      if (!res.ok) {
+        toast.error(await parseErrorMessage(res, "Failed to repair stale battery flags"));
+        return;
+      }
+      const json = await parseJsonSafely<{ data?: { repairedCount: number } }>(res);
+      const repaired = json?.data?.repairedCount ?? action.count;
+      toast.success(`Repaired ${metricLabel(repaired, "stale battery flag")}`);
+      setPendingStaleRepair(null);
+      void load({ refresh: true });
+    } catch {
+      toast.error("Network error. Stale battery flags were not repaired.");
+    } finally {
+      repairBusyRef.current = false;
+      setRepairBusy(false);
+    }
+  }
+
   if (loading && !data) {
     return (
       <div className="space-y-5">
@@ -562,7 +605,17 @@ export default function BatteryCockpitPage() {
       )}
 
       {data && data.integrity.staleCheckedOutCount > 0 && (
-        <IntegrityWarningCard warnings={data.integrity.staleCheckedOutUnits} />
+        <IntegrityWarningCard
+          warnings={data.integrity.staleCheckedOutUnits}
+          repairBusy={repairBusy}
+          onRepair={() => {
+            setPendingStaleRepair({
+              count: data.integrity.staleCheckedOutCount,
+              units: data.integrity.staleCheckedOutUnits,
+            });
+            setRepairReason("Repair stale checked-out battery flags with no active allocation");
+          }}
+        />
       )}
 
       {data && data.skus.length === 0 ? (
@@ -963,6 +1016,52 @@ export default function BatteryCockpitPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog
+        open={!!pendingStaleRepair}
+        onOpenChange={(open) => {
+          if (!open && !repairBusy) setPendingStaleRepair(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Repair stale battery flags?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingStaleRepair
+                ? `This will set ${metricLabel(pendingStaleRepair.count, "orphaned checked-out unit")} back to Available because there is no active checkout allocation.`
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {pendingStaleRepair && (
+            <div className="space-y-3">
+              <div className="rounded-md bg-muted/40 px-3 py-2 text-sm">
+                Units {summarizeUnitNumbers(pendingStaleRepair.units.map((unit) => unit.unitNumber), 12)}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="battery-stale-repair-reason">Reason</Label>
+                <Textarea
+                  id="battery-stale-repair-reason"
+                  value={repairReason}
+                  onChange={(event) => setRepairReason(event.target.value)}
+                  maxLength={500}
+                />
+              </div>
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={repairBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!pendingStaleRepair || repairBusy || repairReason.trim().length < 3}
+              onClick={(event) => {
+                event.preventDefault();
+                if (pendingStaleRepair) void submitStaleRepair(pendingStaleRepair);
+              }}
+            >
+              {repairBusy ? "Repairing..." : "Repair flags"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -1005,7 +1104,15 @@ function CompatibilityRow({ item }: { item: BatteryCompatibility }) {
   );
 }
 
-function IntegrityWarningCard({ warnings }: { warnings: BatteryIntegrityWarning[] }) {
+function IntegrityWarningCard({
+  warnings,
+  repairBusy,
+  onRepair,
+}: {
+  warnings: BatteryIntegrityWarning[];
+  repairBusy: boolean;
+  onRepair: () => void;
+}) {
   const visibleWarnings = warnings.slice(0, 8);
   const remaining = Math.max(0, warnings.length - visibleWarnings.length);
 
@@ -1017,7 +1124,13 @@ function IntegrityWarningCard({ warnings }: { warnings: BatteryIntegrityWarning[
             <CircleAlert className="size-4 text-[var(--orange-text)]" />
             Inventory data warnings
           </CardTitle>
-          <Badge variant="orange">{metricLabel(warnings.length, "unit")}</Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="orange">{metricLabel(warnings.length, "unit")}</Badge>
+            <Button size="sm" variant="outline" onClick={onRepair} disabled={repairBusy}>
+              <Wrench className="size-3.5" />
+              {repairBusy ? "Repairing..." : "Repair flags"}
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">

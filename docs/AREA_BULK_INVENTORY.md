@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Bulk Inventory Management
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-11
+- Last Updated: 2026-06-25
 - Status: Active
 - Version: V1
 
@@ -21,7 +21,7 @@ Operate item families backed by `BulkSku` records. Normal discovery happens in `
 8. QR-coded batteries stay as unit-tracked item families when they follow the existing Sony battery pattern: one SKU/family with unit-level tracking beneath it.
 9. Numbered bulk unit QR values are derived as `{binQrCodeValue}-{unitNumber}` and scan directly as that one unit; printed label text can stay as the unit number only.
 10. Camera-slot SD cards are not bulk inventory when assigned to a specific camera slot; they are serialized item attachments under the camera.
-11. Numbered battery available quantity derives from `BulkSkuUnit.status = AVAILABLE`; low-stock warnings use available units and default to threshold 10 when the SKU threshold is lower or unset.
+11. Numbered battery available quantity derives from effective unit status: active `BookingBulkUnitAllocation` rows make a unit checked out, `LOST` and `RETIRED` remain unavailable, and orphaned raw `CHECKED_OUT` flags with no active allocation read as available until repaired.
 12. Quantity-only available quantity derives from current `BulkStockBalance.onHandQuantity`; checkout creation, pending pickup, cancellation, and return paths move that balance through audited stock movements, so read models must not subtract active checkout quantities again.
 
 ## Routes
@@ -43,7 +43,7 @@ Operate item families backed by `BulkSku` records. Normal discovery happens in `
   1. **Metric strip:** available, checked out, lost, retired, and low-family counts.
   2. **Compatible battery lows:** camera-family battery health derived from active camera inventory and the existing compatibility rules.
   3. **Checked-out units table:** unit number, battery family, holder, booking, due date, and checked-out age.
-  4. **Inventory data warnings:** stale checked-out unit flags with no active checkout allocation are listed separately while Battery Ops counts them as available.
+  4. **Inventory data warnings:** stale checked-out unit flags with no active checkout allocation are listed separately while Battery Ops counts them as available; staff/admin can repair those stored flags from the warning card with an audited reason.
   5. **Battery family cards:** per-family available/out/lost/retired counts and direct unit controls.
   6. **Report handoff:** `/reports/bulk-losses` now owns deeper battery audit/reporting for missing units, loss rate, checkout history, and repeat missing patterns.
 - **Behaviors:**
@@ -52,6 +52,7 @@ Operate item families backed by `BulkSku` records. Normal discovery happens in `
   - Compatible battery lows reuse `src/lib/battery-compatibility.ts`; no separate camera-to-battery schema exists.
   - Unit actions reuse the audited `/api/bulk-skus/[id]/units/[unitNumber]` status endpoint.
   - Checked-out units are read-only in this surface and must be returned through check-in before status changes.
+  - Stale checked-out flag repair uses `POST /api/bulk-skus/batteries/repair-stale`; it is limited to active battery families, requires `bulk_sku.adjust`, runs in a serializable transaction, and writes one audit entry per repaired unit.
 
 ## Data Model
 
@@ -118,6 +119,12 @@ Operate item families backed by `BulkSku` records. Normal discovery happens in `
 **DELETE `/api/bulk-skus/[id]/units/[unitId]`**
 - Marks unit as RETIRED (soft delete; cannot actually delete for audit trail)
 - Returns: Updated `BulkSkuUnit` with status = RETIRED
+
+**POST `/api/bulk-skus/batteries/repair-stale`**
+- Body: `{ reason?: string }`
+- Repairs active battery-family units where raw `BulkSkuUnit.status = CHECKED_OUT` but no active `BookingBulkUnitAllocation` exists.
+- Sets those stale rows to `AVAILABLE` and writes `repair_stale_checked_out` audit entries.
+- Does not alter true active checkout allocations or non-battery bulk families.
 - Requires: ADMIN/STAFF
 
 ## Components
@@ -157,6 +164,7 @@ See `AREA_ITEMS.md` 2026-04-06 entry for bulk inventory page hardening:
 - [x] AC-8: Staff can export a Brother P-Touch label CSV (`item_number,qr_code`) for a numbered SKU and mark the exported labels printed, with printed-label state visible per card and per unit and surviving refresh
 
 ## Change Log
+- 2026-06-25: Battery custody trust hardening shipped. Effective numbered-unit status is now centralized and allocation-aware across Battery Ops, `/api/assets`, kiosk pickup/reservation staging, and generic scan recording; stale raw checked-out battery flags can be repaired from Battery Ops with audited `repair_stale_checked_out` entries; migration `0084_unique_active_bulk_unit_allocation` adds a partial unique index so one numbered unit cannot have two active checkout allocations.
 - 2026-06-23: Battery Ops checked-out unit context now derives holder, booking, due date, and age from active `BookingBulkUnitAllocation` rows for `OPEN` checkout bookings, while keeping future reservations as quantity intent until kiosk pickup. For existing orphaned checked-out unit rows created without allocation records, the read model falls back to matching open unit-tracked checkout bulk items for the same SKU, capped by outstanding planned quantity, so valid booking context is visible without over-attaching stale units. Orphaned `CHECKED_OUT` unit flags with no active checkout context read as Available on Battery Ops instead of inflating checked-out counts.
 - 2026-06-23: Battery Ops now exposes read-only inventory data warnings for stale checked-out unit flags that have no active checkout allocation. The warning card lists the affected unit numbers and family/location while the metrics continue to count those units as Available.
 - 2026-06-11: Brother battery label CSV export and printed-label tracking shipped. Added `labelPrintedAt`/`labelPrintedById`/`labelPrintBatchId` to `BulkSkuUnit` (migration 0077), a `buildDerivedBulkUnitQrValue` formatter, the `GET/POST /api/bulk-skus/[id]/units/labels` route (CSV export + audited batch mark-printed), label counts on Battery Ops cards with a Brother CSV download and mark-printed confirmation seeded from the exported unit numbers, per-unit printed-label indicators in Battery Ops and `BulkUnitGrid`, and a secondary export on the numbered-unit detail tab. QR values stay derived and are never stored.

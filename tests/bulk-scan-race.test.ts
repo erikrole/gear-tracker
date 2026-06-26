@@ -65,7 +65,11 @@ type BulkScanMockTx = {
   scanEvent: { findFirst: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn> };
   bookingBulkItem: { findUnique: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> };
   bulkSkuUnit: { findMany: ReturnType<typeof vi.fn>; updateMany: ReturnType<typeof vi.fn> };
-  bookingBulkUnitAllocation: { createMany: ReturnType<typeof vi.fn> };
+  bookingBulkUnitAllocation: {
+    findMany: ReturnType<typeof vi.fn>;
+    createMany: ReturnType<typeof vi.fn>;
+    updateMany: ReturnType<typeof vi.fn>;
+  };
 };
 
 const mockTx = (db as unknown as { _mockTx: BulkScanMockTx })._mockTx;
@@ -214,6 +218,7 @@ describe("numbered bulk derived unit QR scans", () => {
     mockTx.bulkSkuUnit.findMany.mockResolvedValue([
       { id: "unit-7", bulkSkuId: "sku-1", unitNumber: 7, status: "AVAILABLE" },
     ]);
+    mockTx.bookingBulkUnitAllocation.findMany.mockResolvedValue([]);
     mockTx.scanEvent.create.mockResolvedValue({ id: "event-1" });
     mockTx.bulkSkuUnit.updateMany.mockResolvedValue({ count: 1 });
     mockTx.bookingBulkUnitAllocation.createMany.mockResolvedValue({ count: 1 });
@@ -269,6 +274,9 @@ describe("numbered bulk derived unit QR scans", () => {
     mockTx.bulkSkuUnit.findMany.mockResolvedValue([
       { id: "unit-7", bulkSkuId: "sku-1", unitNumber: 7, status: "CHECKED_OUT" },
     ]);
+    mockTx.bookingBulkUnitAllocation.findMany.mockResolvedValue([
+      { bookingBulkItemId: "other-bi", bulkSkuUnitId: "unit-7" },
+    ]);
 
     await expect(recordScan({
       bookingId: "b-1",
@@ -277,6 +285,30 @@ describe("numbered bulk derived unit QR scans", () => {
       scanType: ScanType.BULK_BIN,
       scanValue: "94e068d1-7",
     })).rejects.toThrow("Units not available");
+  });
+
+  it("allows a raw checked-out derived unit QR when no active allocation exists", async () => {
+    setupNumberedBulkScan();
+    mockTx.bulkSkuUnit.findMany.mockResolvedValue([
+      { id: "unit-7", bulkSkuId: "sku-1", unitNumber: 7, status: "CHECKED_OUT" },
+    ]);
+    mockTx.bookingBulkUnitAllocation.findMany.mockResolvedValue([]);
+
+    const result = await recordScan({
+      bookingId: "b-1",
+      actorUserId: "actor-1",
+      phase: ScanPhase.CHECKOUT,
+      scanType: ScanType.BULK_BIN,
+      scanValue: "94e068d1-7",
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockTx.bookingBulkUnitAllocation.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({
+        bookingBulkItemId: "bi-1",
+        bulkSkuUnitId: "unit-7",
+      })],
+    });
   });
 
   it("keeps exact bin QR matches ahead of derived unit parsing", async () => {

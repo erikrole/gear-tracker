@@ -20,6 +20,8 @@ describe("booking detail custody contracts", () => {
     expect(actionSource).not.toContain("/checkin-items");
     expect(actionSource).not.toContain("/checkin-bulk");
     expect(actionSource).not.toContain("/complete-checkin");
+    expect(actionSource).toContain("/force-complete");
+    expect(detailSource).toContain("Close without scan");
   });
 
   it("keeps reservation-to-checkout conversion out of web detail surfaces", () => {

@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Checkouts
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-24
+- Last Updated: 2026-06-25
 - Status: Active — V1 Shipped
 - Version: V1
 
@@ -69,6 +69,7 @@ Legacy documentation below describes the retired web wizard contract and is pres
 2. Checkout remains `OPEN` until all allocated items are returned.
 3. Auto-transition to `COMPLETED` when full return is confirmed.
 4. Standard return execution is kiosk-owned. Web detail surfaces return progress and admin override controls only where explicitly gated; it must not present desktop return buttons as the normal custody path.
+5. Admins can close an `OPEN` checkout without scan only as an exception after physically verifying all gear is back. The action requires a reason, marks serialized items and numbered bulk units returned/available, writes an override record plus audit entry, and does not re-enable the retired app/web check-in endpoints.
 
 ### Cancel Checkout
 1. Allowed only by policy and role.
@@ -172,7 +173,8 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[CHECKOUT
   - Edit (staff+ or owner)
   - Extend (staff+ or owner)
   - Cancel (staff+ only — students cannot cancel OPEN checkouts even if owner)
-  - Check in (partial or full, staff+ or owner)
+  - Check in at kiosk
+  - Close without scan (admin-only exception with required reason)
 
 ### `COMPLETED`
 - Allowed actions:
@@ -206,7 +208,7 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 - Status badge shows display labels through the shared booking status display helper: `PENDING_PICKUP` -> "Awaiting Pickup", `OPEN` -> "Checked out".
 - "Due back" countdown rendered as urgency-colored Badge (red/orange/yellow/neutral)
 - Action buttons: `[Actions ▼] [Edit] [Extend]` for app-owned actions. Custody pickup/return scans happen at the kiosk.
-- Actions dropdown contains: Nudge borrower, Force complete, Duplicate, and Cancel when each action is allowed. It must not link to `/scan?checkout=...`.
+- Actions dropdown contains: Nudge borrower, Close without scan, Duplicate, and Cancel when each action is allowed. Close without scan is admin-only, requires a reason, records an override event, and must not link to `/scan?checkout=...`.
 - Equipment tab shows returned progress and item context, but standard return execution remains at the kiosk.
 - Equipment rows show hover-reveal "..." menu (View item)
 - Checkin progress bar in equipment header: `████░░░░ 12/30 returned`
@@ -270,7 +272,7 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 - [x] AC-5: Extend flow blocks cleanly with actionable overlap details.
 - [x] AC-6: Permission and ownership gates match `AREA_USERS.md`.
 - [x] AC-7: Every mutation emits audit records with actor and diff context.
-- [x] AC-8: Non-kiosk app/web callers cannot create checkout custody or return gear; only kiosk-authenticated routes can perform those mutations.
+- [x] AC-8: Non-kiosk app/web callers cannot create checkout custody or perform normal return flows; kiosk-authenticated routes own standard custody mutation, with a separate admin-only close-without-scan exception requiring reasoned override evidence.
 - [ ] AC-9: Existing `PENDING_PICKUP` records remain visible and recoverable during rollout without presenting web/app checkout creation as the forward path.
 
 ## Dependencies
@@ -298,6 +300,7 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 5. Add regression coverage for race conditions, partial returns, non-kiosk custody attempts, and permission bypass attempts.
 
 ## Change Log
+- 2026-06-25: Admin close-without-scan exception shipped. Checkout detail now exposes an admin-only reasoned override for `OPEN` checkouts when all gear has been physically verified but cannot be scanned. `POST /api/bookings/[id]/force-complete` marks serialized items returned, restores outstanding bulk stock, marks returned numbered units available, closes open check-in scan sessions, writes `OverrideEvent` plus audit evidence, emits returned badge events, and leaves retired app/web check-in endpoints blocked.
 - 2026-06-24: Booking real-time sync Slice 4. Checkout list/dashboard read freshness now shares the booking-change signal used by reservations; while the browser smoke used a reservation mutation, the same shared `/bookings` list hook invalidates checkout tabs and dashboard checkout rows from committed booking-change evidence without adding app/web custody mutation paths.
 - 2026-06-22: Booking status display cleanup. Checkout detail helpers, booking-list rows/cards, and item booking history now resolve labels and badge/status colors through `src/lib/booking-status-display.ts`, preserving D-025 display-only labels without route-local booking status switches.
 - 2026-06-22: Booking action policy cleanup. Booking-list UI actions now use the same shared app/web action policy as server-side booking rules, so OPEN checkouts no longer advertise app/web check-in actions under the D-040 kiosk-only return contract.

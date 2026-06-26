@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-22
+- Last Updated: 2026-06-25
 - Status: Living registry — update when shipping features or resolving decisions
 - Purpose: Single file listing every open gap, pending decision, and known risk across all docs
 
@@ -109,6 +109,8 @@ _2026-06-19 update: Schedule data-quality queue shipped without opening a new ga
 _2026-06-19 update: Schedule event identity normalization shipped without opening a new gap. Shared helper code now normalizes opponent and venue strings at ingest/edit/display boundaries, preserving raw calendar venue evidence and the existing pickup-location separation._
 
 _2026-06-20 update: Explicit Schedule worker-class model shipped and closed PENDING-SCHEDULE-01. `User.staffingType` is now the Staff/Student scheduling source while `User.role` remains the permissions source._
+
+_2026-06-25 update: Admin close-without-scan for checkouts shipped without opening a new gap. The slice reuses existing Booking, OverrideEvent, audit, bulk-stock, numbered-unit, scan-session, and badge-return contracts to provide an admin-only reasoned exception while leaving D-040 kiosk-owned standard return flows intact._
 
 _2026-06-24 update: Hidden smoke user visibility shipped without opening a new gap. `User.hiddenFromRoster` keeps active smoke/test identities out of default roster, export, form-option picker, kiosk selection, non-internal direct profile reads, Schedule candidate/conflict reads, org chart rows, admin/supervisor notification fan-out, and default allowlist/onboarding-status review, while hidden users can still authenticate and read their own profile. Owner opt-in uses `INTERNAL_OPERATOR_EMAILS`; `/api/me` exposes the capability, `/users` renders an owner-only "Show hidden test users" filter that carries into roster export, and `POST /api/users/hidden-cleanup` gives internal operators dry-run-first age-based deactivation for disposable hidden users. Historical report attribution is preserved; automatic scheduled cleanup remains deferred._
 
@@ -275,6 +277,7 @@ _2026-06-19 update: Category cleanup wizard and picker visibility shipped withou
 - 2026-06-19: Schedule query-contract hardening shipped without opening a new gap. Shared CalendarEvent where-building now prevents hidden/archive/date-window drift across Schedule list, health, automation, and export reads.
 - 2026-06-19: Schedule call-time display cleanup shipped without opening a new gap. Existing `Shift.startsAt/endsAt`, `Shift.callStartsAt/callEndsAt`, and `ShiftAssignment.callStartsAt/callEndsAt` contracts already model the needed layers; UI labels now show one effective call time while retaining full windows for conflict and edit behavior.
 - 2026-06-19: Schedule title cleanup shipped without opening a new gap. Shared Schedule title formatting now removes UW source prefixes from fallback summaries, future calendar sync uses the same prefix cleanup, and neutral structured games can show mapped location as the secondary line using existing CalendarEvent fields.
+- 2026-06-25: Battery custody trust hardening shipped without opening a new gap. Existing numbered battery status drift is now handled by one allocation-aware effective status rule across Battery Ops, `/api/assets`, kiosk pickup/reservation staging, and generic numbered scan recording; Battery Ops has an audited stale-flag repair action; migration `0084_unique_active_bulk_unit_allocation` prevents a numbered bulk unit from having two active allocation rows.
 - 2026-06-18: Schedule event editing clarity pass shipped without opening a new gap. Event type, pickup location, calendar venue, and crew call-time display were clarified using existing CalendarEvent and Shift call-window contracts rather than a schema migration.
 - 2026-06-18: Schedule crew UI trim pass simplified visible Schedule operations without opening a new gap. Attendance tracking and Review template affordances were removed from Event detail/Shift Detail UI, Changed recently badges were removed, and badge formatting was normalized locally on Event detail Crew.
 - 2026-06-18: Schedule MVP polish pass strengthened the existing Schedule source-of-truth track without opening a new gap. Overview noise, event-row badge duplication, event-detail action priority, New Event sheet sizing, and Assign/Trade Board empty-state recovery were tightened as UI contract work only.

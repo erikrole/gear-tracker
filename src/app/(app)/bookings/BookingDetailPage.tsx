@@ -23,6 +23,17 @@ import {
 } from "@/components/ui/collapsible";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { AlertCircle, Clock, ChevronDown, Copy, RefreshCw } from "lucide-react";
 import BookingDetailsSheet from "@/components/BookingDetailsSheet";
 import { toast } from "sonner";
@@ -70,6 +81,11 @@ export default function BookingDetailPage({
   // Edit sheet state
   const [editSheetOpen, setEditSheetOpen] = useState(false);
 
+  // Admin exception state
+  const [forceCompleteOpen, setForceCompleteOpen] = useState(false);
+  const [forceCompleteReason, setForceCompleteReason] = useState("");
+  const [forceCompleteError, setForceCompleteError] = useState("");
+
   useEffect(() => {
     if (booking?.title) setBreadcrumbLabel(booking.title);
   }, [booking?.title, setBreadcrumbLabel]);
@@ -105,6 +121,20 @@ export default function BookingDetailPage({
     setShowExtend(true);
   }
 
+  async function handleForceComplete() {
+    const reason = forceCompleteReason.trim();
+    if (reason.length < 10) {
+      setForceCompleteError("Enter a reason of at least 10 characters.");
+      return;
+    }
+    const ok = await actions.forceComplete(reason);
+    if (ok) {
+      setForceCompleteOpen(false);
+      setForceCompleteReason("");
+      setForceCompleteError("");
+    }
+  }
+
   // Derived
   const allowedActions = booking?.allowedActions ?? [];
   const canEdit = allowedActions.includes("edit");
@@ -112,9 +142,10 @@ export default function BookingDetailPage({
   const canCancel = allowedActions.includes("cancel");
   const canDuplicate = kind === "RESERVATION" && allowedActions.includes("duplicate");
   const canNudge = allowedActions.includes("nudge");
+  const canForceComplete = kind === "CHECKOUT" && allowedActions.includes("force-complete");
   const isOpen = booking?.status === "OPEN";
   const isActive = isOpen || booking?.status === "BOOKED";
-  const hasAnyAction = canEdit || canExtend || canCancel || canDuplicate || canNudge;
+  const hasAnyAction = canEdit || canExtend || canCancel || canDuplicate || canNudge || canForceComplete;
   const kioskHandoffLabel =
     kind === "CHECKOUT" && booking?.status === "PENDING_PICKUP"
       ? "Pickup at kiosk"
@@ -224,7 +255,7 @@ export default function BookingDetailPage({
 
         {hasAnyAction && <div className="flex items-center gap-2 shrink-0 overflow-x-auto">
           {/* Actions dropdown — secondary/less-common actions */}
-          {(canDuplicate || canCancel || canNudge) && (
+          {(canDuplicate || canCancel || canNudge || canForceComplete) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="gap-1.5">
@@ -239,6 +270,14 @@ export default function BookingDetailPage({
                     disabled={!!actions.actionLoading}
                   >
                     {actions.actionLoading === "nudge" ? "Sending..." : "Nudge borrower"}
+                  </DropdownMenuItem>
+                )}
+                {canForceComplete && (
+                  <DropdownMenuItem
+                    onSelect={() => setForceCompleteOpen(true)}
+                    disabled={!!actions.actionLoading}
+                  >
+                    {actions.actionLoading === "force-complete" ? "Closing..." : "Close without scan"}
                   </DropdownMenuItem>
                 )}
                 {canDuplicate && (
@@ -453,6 +492,63 @@ export default function BookingDetailPage({
           reload();
         }}
       />
+
+      <Dialog
+        open={forceCompleteOpen}
+        onOpenChange={(open) => {
+          if (actions.actionLoading === "force-complete") return;
+          setForceCompleteOpen(open);
+          if (!open) {
+            setForceCompleteReason("");
+            setForceCompleteError("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Close without scan?</DialogTitle>
+            <DialogDescription>
+              Use this only when an admin has physically verified every item is back. The checkout will close and the exception will be recorded in history.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="force-complete-reason">Reason</Label>
+              <Textarea
+                id="force-complete-reason"
+                value={forceCompleteReason}
+                onChange={(event) => {
+                  setForceCompleteReason(event.target.value);
+                  if (forceCompleteError) setForceCompleteError("");
+                }}
+                placeholder="Example: Scanner offline, all gear verified on shelf by admin."
+                rows={4}
+                aria-invalid={forceCompleteError ? true : undefined}
+                disabled={actions.actionLoading === "force-complete"}
+              />
+              {forceCompleteError && (
+                <p className="text-sm text-destructive">{forceCompleteError}</p>
+              )}
+            </div>
+          </DialogBody>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setForceCompleteOpen(false)}
+              disabled={actions.actionLoading === "force-complete"}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleForceComplete}
+              disabled={actions.actionLoading === "force-complete" || forceCompleteReason.trim().length < 10}
+            >
+              {actions.actionLoading === "force-complete" ? "Closing..." : "Close checkout"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

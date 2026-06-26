@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { ok, parsePagination } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { buildDerivedStatusWhere, enrichAssetsWithStatusFromLoaded } from "@/lib/services/status";
+import { buildActiveBulkUnitAllocationMap, effectiveBulkUnitStatus } from "@/lib/bulk-unit-status";
 import { parseDerivedBulkUnitQr } from "@/lib/bulk-unit-qr";
 import { BookingKind, BookingStatus, Prisma } from "@prisma/client";
 
@@ -469,20 +470,16 @@ export const GET = withAuth(async (req, { user }) => {
       orderBy: { name: "asc" },
     });
 
-    const matchedUnitId = derivedBulkUnitQr
-      ? bulkSkus
-          .find((sku) => sku.id === derivedBulkUnitQr.bulkSkuId)
-          ?.units.find((unit) => unit.unitNumber === derivedBulkUnitQr.unitNumber)
-          ?.id
-      : null;
-    const matchedUnitAllocation = matchedUnitId
-      ? await db.bookingBulkUnitAllocation.findFirst({
+    const bulkUnitIds = bulkSkus.flatMap((sku) => sku.units.map((unit) => unit.id));
+    const activeUnitAllocations = bulkUnitIds.length > 0
+      ? await db.bookingBulkUnitAllocation.findMany({
           where: {
-            bulkSkuUnitId: matchedUnitId,
+            bulkSkuUnitId: { in: bulkUnitIds },
             checkedOutAt: { not: null },
             checkedInAt: null,
           },
           select: {
+            bulkSkuUnitId: true,
             bookingBulkItem: {
               select: {
                 booking: {
@@ -498,30 +495,36 @@ export const GET = withAuth(async (req, { user }) => {
           },
           orderBy: { checkedOutAt: "desc" },
         })
-      : null;
-    const matchedUnitBooking = matchedUnitAllocation?.bookingBulkItem.booking;
+      : [];
+    const activeAllocationByUnitId = buildActiveBulkUnitAllocationMap(activeUnitAllocations);
 
     bulkItems = bulkSkus.map((sku) => {
       const balanceOnHand = sku.balances.reduce((sum, b) => sum + b.onHandQuantity, 0);
+      const unitsWithDisplayStatus = sku.units.map((unit) => ({
+        ...unit,
+        displayStatus: effectiveBulkUnitStatus(unit, activeAllocationByUnitId.get(unit.id)),
+      }));
       const checkedOutQuantity = sku.trackByNumber
-        ? sku.units.filter((unit) => unit.status === "CHECKED_OUT").length
+        ? unitsWithDisplayStatus.filter((unit) => unit.displayStatus === "CHECKED_OUT").length
         : 0;
       const lostQuantity = sku.trackByNumber
-        ? sku.units.filter((unit) => unit.status === "LOST").length
+        ? unitsWithDisplayStatus.filter((unit) => unit.displayStatus === "LOST").length
         : 0;
       const retiredQuantity = sku.trackByNumber
-        ? sku.units.filter((unit) => unit.status === "RETIRED").length
+        ? unitsWithDisplayStatus.filter((unit) => unit.displayStatus === "RETIRED").length
         : 0;
       const availableQuantity = sku.trackByNumber
-        ? sku.units.filter((unit) => unit.status === "AVAILABLE").length
+        ? unitsWithDisplayStatus.filter((unit) => unit.displayStatus === "AVAILABLE").length
         : Math.max(0, balanceOnHand);
       const onHand = sku.trackByNumber
         ? sku.units.length
         : balanceOnHand;
       const matchedUnit = derivedBulkUnitQr?.bulkSkuId === sku.id
-        ? sku.units.find((unit) => unit.unitNumber === derivedBulkUnitQr.unitNumber)
+        ? unitsWithDisplayStatus.find((unit) => unit.unitNumber === derivedBulkUnitQr.unitNumber)
         : null;
-      const matchedUnitCustody = matchedUnit && matchedUnit.id === matchedUnitId && matchedUnitBooking
+      const matchedUnitAllocation = matchedUnit ? activeAllocationByUnitId.get(matchedUnit.id) : null;
+      const matchedUnitBooking = matchedUnitAllocation?.bookingBulkItem.booking;
+      const matchedUnitCustody = matchedUnit && matchedUnitBooking
         ? {
             matchedUnitHolder: matchedUnitBooking.requester.name,
             matchedUnitHolderAvatarUrl: matchedUnitBooking.requester.avatarUrl,
@@ -545,14 +548,14 @@ export const GET = withAuth(async (req, { user }) => {
         ...(matchedUnit
           ? {
               matchedUnitNumber: matchedUnit.unitNumber,
-              matchedUnitStatus: matchedUnit.status,
+              matchedUnitStatus: matchedUnit.displayStatus,
               ...matchedUnitCustody,
               // Per-unit roster, only on the exact-unit scan path so list
               // searches don't ship every unit of every SKU.
-              units: sku.units
+              units: unitsWithDisplayStatus
                 .slice()
                 .sort((a, b) => a.unitNumber - b.unitNumber)
-                .map((u) => ({ unitNumber: u.unitNumber, status: u.status })),
+                .map((u) => ({ unitNumber: u.unitNumber, status: u.displayStatus })),
             }
           : {}),
         imageUrl: sku.imageUrl,

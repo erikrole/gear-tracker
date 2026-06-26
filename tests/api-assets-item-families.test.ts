@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   assetCount: vi.fn(),
   favoriteItemFindMany: vi.fn(),
   bulkSkuFindMany: vi.fn(),
-  bookingBulkUnitAllocationFindFirst: vi.fn(),
+  bookingBulkUnitAllocationFindMany: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -26,7 +26,7 @@ vi.mock("@/lib/db", () => ({
       findMany: mocks.bulkSkuFindMany,
     },
     bookingBulkUnitAllocation: {
-      findFirst: mocks.bookingBulkUnitAllocationFindFirst,
+      findMany: mocks.bookingBulkUnitAllocationFindMany,
     },
     bookingSerializedItem: {
       findMany: vi.fn(),
@@ -94,7 +94,7 @@ beforeEach(() => {
   mocks.assetCount.mockResolvedValue(0);
   mocks.favoriteItemFindMany.mockResolvedValue([]);
   mocks.bulkSkuFindMany.mockResolvedValue([]);
-  mocks.bookingBulkUnitAllocationFindFirst.mockResolvedValue(null);
+  mocks.bookingBulkUnitAllocationFindMany.mockResolvedValue([]);
 });
 
 describe("/api/assets item-family rows", () => {
@@ -115,9 +115,9 @@ describe("/api/assets item-family rows", () => {
         name: "Sony Battery",
         category: "Batteries",
         trackByNumber: true,
-        availableQuantity: 43,
+        availableQuantity: 45,
         onHandQuantity: 46,
-        checkedOutQuantity: 2,
+        checkedOutQuantity: 0,
         lostQuantity: 1,
         retiredQuantity: 0,
         locationName: "Cage",
@@ -146,12 +146,20 @@ describe("/api/assets item-family rows", () => {
       name: "Sony Battery",
       trackByNumber: true,
       matchedUnitNumber: 44,
-      matchedUnitStatus: "CHECKED_OUT",
-      availableQuantity: 43,
+      matchedUnitStatus: "AVAILABLE",
+      availableQuantity: 45,
+      checkedOutQuantity: 0,
       onHandQuantity: 46,
     });
-    expect(mocks.bookingBulkUnitAllocationFindFirst).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({ bulkSkuUnitId: "unit-44" }),
+    expect(body.bulkItems[0].units).toEqual(expect.arrayContaining([
+      { unitNumber: 44, status: "AVAILABLE" },
+      { unitNumber: 45, status: "AVAILABLE" },
+      { unitNumber: 46, status: "LOST" },
+    ]));
+    expect(mocks.bookingBulkUnitAllocationFindMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        bulkSkuUnitId: { in: expect.arrayContaining(["unit-44"]) },
+      }),
     }));
   });
 
@@ -161,15 +169,17 @@ describe("/api/assets item-family rows", () => {
         { id: "sku-battery", binQrCodeValue: "BAT", trackByNumber: true },
       ])
       .mockResolvedValueOnce([numberedBatterySku()]);
-    mocks.bookingBulkUnitAllocationFindFirst.mockResolvedValue({
+    mocks.bookingBulkUnitAllocationFindMany.mockResolvedValue([{
+      bulkSkuUnitId: "unit-44",
       bookingBulkItem: {
         booking: {
+          id: "booking-1",
           title: "Minnesota travel kit",
           endsAt: new Date("2026-05-16T18:00:00.000Z"),
-          requester: { name: "Taylor Student" },
+          requester: { name: "Taylor Student", avatarUrl: null },
         },
       },
-    });
+    }]);
 
     const res = await getAssets(request("/api/assets?qr=BAT-44&limit=5"), {
       params: Promise.resolve({}),
@@ -181,9 +191,16 @@ describe("/api/assets item-family rows", () => {
       id: "sku-battery",
       matchedUnitNumber: 44,
       matchedUnitStatus: "CHECKED_OUT",
+      availableQuantity: 44,
+      checkedOutQuantity: 1,
       matchedUnitHolder: "Taylor Student",
       matchedUnitDueAt: "2026-05-16T18:00:00.000Z",
       matchedUnitBookingTitle: "Minnesota travel kit",
+      matchedUnitBookingId: "booking-1",
     });
+    expect(body.bulkItems[0].units).toEqual(expect.arrayContaining([
+      { unitNumber: 44, status: "CHECKED_OUT" },
+      { unitNumber: 45, status: "AVAILABLE" },
+    ]));
   });
 });

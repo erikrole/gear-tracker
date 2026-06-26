@@ -4,7 +4,7 @@
 - Owner: Erik Role (Wisconsin Athletics Creative)
 - Status: Shipped — iOS canonical (web kiosk deprecated 2026-04-24)
 - Created: 2026-04-07
-- Last Updated: 2026-06-23
+- Last Updated: 2026-06-25
 - Brief: `BRIEF_KIOSK.md`
 - Decision Refs: D-030, D-040
 
@@ -71,6 +71,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 - Direct kiosk checkout requires an event or custom purpose before completion. If a selected event is used, the booking title is the event summary and the event is linked through both `Booking.eventId` and `BookingEvent`; custom detail is saved in notes when present. If no event is selected, the typed purpose becomes the booking title.
 - Direct kiosk checkout records pickup at the actual completion time and lets staff define the return date/time. Selected events prefill the due-back time from the event end when possible. The native kiosk preflights scanned items through `/api/kiosk/checkout/availability`, and checkout completion repeats the same conflict/shortage/unavailable checks inside the transaction before creating the booking.
 - Active kiosk checkouts can be edited from the idle detail drawer. The kiosk-authenticated checkout detail route can update title/return time, add one scanned serialized asset or numbered bulk unit, and remove one unreturned active item. Mutations are scoped to `OPEN` `CHECKOUT` rows at the kiosk location, run in `SERIALIZABLE` transactions, re-check availability when custody changes, update active allocations/bulk unit status, and write audit entries.
+- Standard checkout return remains kiosk-owned. Web can close an `OPEN` checkout without scan only through the admin-only reasoned override route when staff have physically verified every item is back; that path records override/audit evidence and is not a general app/web return flow.
 - Kiosk owns the reservation-to-custody bridge. When a due reservation is picked up at kiosk, the student hub surfaces it as pickup work. Scan evidence is staged on the source reservation, confirmation creates the linked checkout custody record through `sourceReservationId`, binds exact numbered units, opens checkout custody, and marks the source reservation `COMPLETED` because the reservation was fulfilled.
 - Stale pending-pickup checkouts auto-expire during the scheduled morning refresh after 48 hours past `startsAt`. Expiry cancels the booking, releases serialized allocations, restores held bulk stock, releases any scanned numbered units, cancels open scan sessions, and writes a system audit entry.
 - **Auth helpers:** `withKiosk()` (`src/lib/api.ts`) and `requireKiosk()` (`src/lib/auth.ts`) validate the kiosk-session cookie, enforce the server-side 7-day `sessionExpiresAt`, refresh `lastSeenAt`, throw 401 if expired/inactive/deactivated.
@@ -108,6 +109,7 @@ Files under `ios/Wisconsin/Kiosk/`:
 ## Change Log
 | Date | Change |
 |------|--------|
+| 2026-06-25 | Admin checkout close-without-scan exception shipped on web. Kiosk remains the standard return surface, while admins can now close an `OPEN` checkout from detail only after entering a reason and physically verifying returned gear. The route writes override and audit evidence, restores outstanding bulk/numbered-unit availability, and leaves app/web check-in endpoints blocked. |
 | 2026-06-23 | Native kiosk idle sleep mode now uses the app timezone for night-hours standby, so evening Central-time kiosks no longer show Night Sleep Mode because the server is on UTC. The iOS client also defensively downgrades stale `night_hours` responses to idle or active-window behavior when the iPad clock is outside 10 PM-6 AM. The iOS sleep-dismissal grace survives navigation away from and back to idle, and the dim standby overlay text is brighter while preserving burn-in mitigation. |
 | 2026-06-23 | Native kiosk checkout scanner capture is now explicitly armed only after Start Scanning. Completing checkout details no longer mounts the hidden HID scanner field by itself, and scanner capture is disabled again when editing context, leaving checkout, or completing checkout so native text fields and return-time pickers keep focus before scan mode. |
 | 2026-06-22 | Native kiosk active checkout edits shipped. The active-checkout drawer can update title and due-back time, add scanned serialized assets or numbered bulk units, and remove unreturned active items. `/api/kiosk/checkout/[id]` now owns kiosk-authenticated PATCH/POST/DELETE mutations with location scoping, availability re-checks, serializable transactions, allocation/bulk-unit updates, and audit entries. |
