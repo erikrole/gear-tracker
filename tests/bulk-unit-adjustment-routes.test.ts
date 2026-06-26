@@ -85,6 +85,7 @@ beforeEach(() => {
     unitNumber: 7,
     status: BulkUnitStatus.AVAILABLE,
     notes: null,
+    allocations: [],
   });
   tx.bulkSkuUnit.update.mockResolvedValue({
     id: "unit-7",
@@ -160,6 +161,7 @@ describe("bulk unit adjustment routes", () => {
       unitNumber: 7,
       status: BulkUnitStatus.AVAILABLE,
       notes: null,
+      allocations: [],
       labelPrintedAt: new Date("2026-06-01T00:00:00.000Z"),
       labelPrintedById: "staff-1",
       labelPrintBatchId: "batch-1",
@@ -179,13 +181,14 @@ describe("bulk unit adjustment routes", () => {
     expect(updateArg.data).toEqual({ status: "LOST", notes: null });
   });
 
-  it("blocks any status change while a unit is checked out", async () => {
+  it("blocks any status change while a unit has an active checkout allocation", async () => {
     tx.bulkSkuUnit.findUnique.mockResolvedValueOnce({
       id: "unit-7",
       bulkSkuId: "sku-1",
       unitNumber: 7,
-      status: BulkUnitStatus.CHECKED_OUT,
+      status: BulkUnitStatus.AVAILABLE,
       notes: null,
+      allocations: [{ id: "alloc-1", bulkSkuUnitId: "unit-7" }],
     });
 
     const res = await updateBulkUnit(
@@ -198,5 +201,32 @@ describe("bulk unit adjustment routes", () => {
     expect(body.error).toContain("checked-out unit");
     expect(tx.bulkSkuUnit.update).not.toHaveBeenCalled();
     expect(tx.bulkStockMovement.create).not.toHaveBeenCalled();
+  });
+
+  it("allows stale checked-out unit flags without active allocations to be corrected", async () => {
+    tx.bulkSkuUnit.findUnique.mockResolvedValueOnce({
+      id: "unit-7",
+      bulkSkuId: "sku-1",
+      unitNumber: 7,
+      status: BulkUnitStatus.CHECKED_OUT,
+      notes: null,
+      allocations: [],
+    });
+
+    const res = await updateBulkUnit(
+      request("/api/bulk-skus/sku-1/units/7", "PATCH", { status: "LOST", reason: "Shelf audit correction" }),
+      routeParams,
+    );
+
+    expect(res.status).toBe(200);
+    expect(tx.bulkStockBalance.update).toHaveBeenCalledWith({
+      where: { bulkSkuId_locationId: { bulkSkuId: "sku-1", locationId: "loc-1" } },
+      data: { onHandQuantity: { decrement: 1 } },
+    });
+    expect(createAuditEntry).toHaveBeenCalledWith(expect.objectContaining({
+      action: "update_status",
+      before: expect.objectContaining({ status: "CHECKED_OUT" }),
+      after: expect.objectContaining({ status: "LOST", reason: "Shelf audit correction" }),
+    }));
   });
 });

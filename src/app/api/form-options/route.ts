@@ -2,6 +2,7 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
 import { visibleUserWhere } from "@/lib/user-visibility";
+import { buildActiveBulkUnitAllocationMap, effectiveBulkUnitStatus } from "@/lib/bulk-unit-status";
 
 export const GET = withAuth(async (_req, { user }) => {
   const [locations, departments, users, bulkSkus] = await Promise.all([
@@ -26,16 +27,30 @@ export const GET = withAuth(async (_req, { user }) => {
         minThreshold: true,
         categoryRel: { select: { name: true } },
         balances: { select: { onHandQuantity: true } },
-        // Available units count for numbered SKUs
-        units: { where: { status: "AVAILABLE" }, select: { id: true } },
+        units: { select: { id: true, status: true } },
       }
     })
   ]);
 
+  const unitIds = bulkSkus.flatMap((sku) => sku.trackByNumber ? sku.units.map((unit) => unit.id) : []);
+  const activeAllocations = unitIds.length
+    ? await db.bookingBulkUnitAllocation.findMany({
+        where: {
+          bulkSkuUnitId: { in: unitIds },
+          checkedOutAt: { not: null },
+          checkedInAt: null,
+        },
+        select: { bulkSkuUnitId: true },
+      })
+    : [];
+  const activeAllocationByUnitId = buildActiveBulkUnitAllocationMap(activeAllocations);
+
   const bulkSkusFlat = bulkSkus.map((s) => {
     const onHandQuantity = s.balances.reduce((sum, b) => sum + b.onHandQuantity, 0);
     const availableQuantity = s.trackByNumber
-      ? s.units.length
+      ? s.units.filter((unit) => (
+          effectiveBulkUnitStatus(unit, activeAllocationByUnitId.get(unit.id)) === "AVAILABLE"
+        )).length
       : Math.max(0, onHandQuantity);
     return {
       id: s.id, name: s.name, category: s.category, unit: s.unit,

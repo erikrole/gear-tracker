@@ -5,6 +5,7 @@ import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { updateBulkUnitSchema } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
+import { effectiveBulkUnitStatus } from "@/lib/bulk-unit-status";
 
 export const PATCH = withAuth<{ id: string; unitNumber: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "bulk_sku", "adjust");
@@ -16,11 +17,22 @@ export const PATCH = withAuth<{ id: string; unitNumber: string }>(async (req, { 
 
   const result = await db.$transaction(async (tx) => {
     const unit = await tx.bulkSkuUnit.findUnique({
-      where: { bulkSkuId_unitNumber: { bulkSkuId: id, unitNumber } }
+      where: { bulkSkuId_unitNumber: { bulkSkuId: id, unitNumber } },
+      include: {
+        allocations: {
+          where: {
+            checkedOutAt: { not: null },
+            checkedInAt: null,
+          },
+          take: 1,
+        },
+      },
     });
     if (!unit) throw new HttpError(404, "Unit not found");
 
-    if (unit.status === BulkUnitStatus.CHECKED_OUT) {
+    const effectiveStatus = effectiveBulkUnitStatus(unit, unit.allocations[0]);
+
+    if (effectiveStatus === BulkUnitStatus.CHECKED_OUT) {
       throw new HttpError(
         409,
         "Cannot change a checked-out unit. Check it in first."
@@ -38,7 +50,7 @@ export const PATCH = withAuth<{ id: string; unitNumber: string }>(async (req, { 
     });
 
     // Adjust on-hand balance when taking a unit out of / back into service
-    const wasAvailable = unit.status === BulkUnitStatus.AVAILABLE;
+    const wasAvailable = effectiveStatus === BulkUnitStatus.AVAILABLE;
     const isAvailable = body.status === "AVAILABLE";
 
     const availabilityChanged = wasAvailable !== isAvailable;

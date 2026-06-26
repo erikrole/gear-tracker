@@ -11,6 +11,7 @@ vi.mock("@/lib/db", () => ({
     department: { findMany: vi.fn() },
     user: { findMany: vi.fn() },
     bulkSku: { findMany: vi.fn() },
+    bookingBulkUnitAllocation: { findMany: vi.fn() },
   },
 }));
 
@@ -47,6 +48,7 @@ beforeEach(() => {
   vi.mocked(db.location.findMany).mockResolvedValue([]);
   vi.mocked(db.department.findMany).mockResolvedValue([]);
   vi.mocked(db.user.findMany).mockResolvedValue([]);
+  vi.mocked(db.bookingBulkUnitAllocation.findMany).mockResolvedValue([]);
 });
 
 describe("form-options bulk count freshness", () => {
@@ -64,7 +66,11 @@ describe("form-options bulk count freshness", () => {
         minThreshold: 10,
         categoryRel: { name: "Batteries" },
         balances: [{ onHandQuantity: 99 }],
-        units: [{ id: "unit-1" }, { id: "unit-2" }],
+        units: [
+          { id: "unit-1", status: "AVAILABLE" },
+          { id: "unit-2", status: "CHECKED_OUT" },
+          { id: "unit-3", status: "LOST" },
+        ],
       },
       {
         id: "sku-qty",
@@ -81,6 +87,9 @@ describe("form-options bulk count freshness", () => {
         units: [],
       },
     ]));
+    vi.mocked(db.bookingBulkUnitAllocation.findMany).mockResolvedValue([
+      { bulkSkuUnitId: "unit-1" },
+    ] as Awaited<ReturnType<typeof db.bookingBulkUnitAllocation.findMany>>);
 
     const res = await getFormOptions(makeGetRequest("/api/form-options"), noParams);
     const body = await res.json();
@@ -90,7 +99,7 @@ describe("form-options bulk count freshness", () => {
       expect.objectContaining({
         id: "sku-units",
         currentQuantity: 99,
-        availableQuantity: 2,
+        availableQuantity: 1,
         trackByNumber: true,
         imageUrl: "https://blob.example/sony-battery.jpg",
       }),
