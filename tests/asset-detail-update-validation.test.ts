@@ -11,6 +11,15 @@ vi.mock("@/lib/db", () => ({
       findUnique: vi.fn(),
       update: vi.fn(),
     },
+    location: {
+      findUnique: vi.fn(),
+    },
+    category: {
+      findUnique: vi.fn(),
+    },
+    department: {
+      findUnique: vi.fn(),
+    },
   },
 }));
 
@@ -56,6 +65,9 @@ describe("PATCH /api/assets/[id] validation", () => {
     vi.clearAllMocks();
     vi.mocked(requireAuth).mockResolvedValue(staffUser);
     vi.mocked(createAuditEntry).mockResolvedValue(undefined);
+    vi.mocked(db.location.findUnique).mockResolvedValue({ id: "loc-1" } as Awaited<ReturnType<typeof db.location.findUnique>>);
+    vi.mocked(db.category.findUnique).mockResolvedValue({ id: "cat-1" } as Awaited<ReturnType<typeof db.category.findUnique>>);
+    vi.mocked(db.department.findUnique).mockResolvedValue({ id: "54a4abe3-2500-4a28-8970-86f671cfffd3" } as Awaited<ReturnType<typeof db.department.findUnique>>);
     vi.mocked(db.asset.findUnique).mockResolvedValue({
       id: "asset-1",
       assetTag: "FX3 1",
@@ -101,5 +113,39 @@ describe("PATCH /api/assets/[id] validation", () => {
       before: expect.objectContaining({ departmentId: null }),
       after: expect.objectContaining({ departmentId }),
     }));
+  });
+
+  it("normalizes links and blocks missing reference IDs", async () => {
+    const linkUpdate = await PATCH(
+      patch({ linkUrl: "bhphotovideo.com/c/product/sony-fx3" }),
+      { params: Promise.resolve({ id: "asset-1" }) },
+    );
+
+    expect(linkUpdate.status).toBe(200);
+    expect(db.asset.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        linkUrl: "https://bhphotovideo.com/c/product/sony-fx3",
+      }),
+    }));
+
+    vi.mocked(db.location.findUnique).mockResolvedValueOnce(null);
+    const missingLocation = await PATCH(
+      patch({ locationId: "cm000000000000000000404" }),
+      { params: Promise.resolve({ id: "asset-1" }) },
+    );
+
+    expect(missingLocation.status).toBe(400);
+    const body = await missingLocation.json() as { error?: string };
+    expect(body.error).toBe("Location not found");
+  });
+
+  it("rejects money values outside the stored decimal contract", async () => {
+    const res = await PATCH(
+      patch({ purchasePrice: 123.456 }),
+      { params: Promise.resolve({ id: "asset-1" }) },
+    );
+
+    expect(res.status).toBe(400);
+    expect(db.asset.update).not.toHaveBeenCalled();
   });
 });

@@ -421,6 +421,7 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-06-26: Item detail field validation is now server-owned for organization, link, and money edits. Standard item create/update routes preflight location/category/department IDs and return clear 400s for missing targets, product links normalize missing schemes to `https://`, and purchase/residual values must fit the stored `Decimal(10,2)` contract instead of relying on Prisma failures.
 - 2026-06-26: Item detail department edits now accept both CUID and UUID foreign-key IDs across Standard item and item-family routes. This fixes the generic "Validation failed" error seen when changing the department on UUID-backed records such as Sony Battery, while keeping the server-side FK validation bounded to recognized database ID formats.
 - 2026-06-26: Remaining operational item-family summary surfaces now use effective state. Admin Fix Today battery lows, Inventory Hygiene item-family low-stock checks, and Missing Units battery summary totals now match the shared item-family availability contract instead of counting raw stored unit flags.
 - 2026-06-26: Item-family state read-model consolidation. Items list, Items export, item-family list/detail, and form-option picker APIs now share the same item-family state helper, reducing duplicate availability math across routes and pinning list/detail/export/form behavior with focused regression coverage.

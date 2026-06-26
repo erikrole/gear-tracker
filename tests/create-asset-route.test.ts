@@ -10,6 +10,15 @@ vi.mock("@/lib/db", () => ({
     asset: {
       create: vi.fn(),
     },
+    location: {
+      findUnique: vi.fn(),
+    },
+    category: {
+      findUnique: vi.fn(),
+    },
+    department: {
+      findUnique: vi.fn(),
+    },
   },
 }));
 
@@ -54,6 +63,9 @@ function post(body: Record<string, unknown>) {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(requireAuth).mockResolvedValue(staffUser);
+  vi.mocked(db.location.findUnique).mockResolvedValue({ id: "cmlocation000000000000001" } as Awaited<ReturnType<typeof db.location.findUnique>>);
+  vi.mocked(db.category.findUnique).mockResolvedValue({ id: "cmcategory000000000000001" } as Awaited<ReturnType<typeof db.category.findUnique>>);
+  vi.mocked(db.department.findUnique).mockResolvedValue({ id: "54a4abe3-2500-4a28-8970-86f671cfffd3" } as Awaited<ReturnType<typeof db.department.findUnique>>);
   vi.mocked(db.asset.create).mockResolvedValue(assetCreateResult({
     id: "cmasset000000000000000001",
     assetTag: "SMOKE-1",
@@ -100,5 +112,50 @@ describe("POST /api/assets", () => {
       }),
     );
     expect(createAuditEntry).toHaveBeenCalledOnce();
+  });
+
+  it("normalizes product links and rejects missing locations before create", async () => {
+    vi.mocked(db.location.findUnique).mockResolvedValueOnce(null);
+
+    const missingLocation = await POST(
+      post({
+        assetTag: "SMOKE-2",
+        name: "Smoke Test Asset",
+        type: "equipment",
+        brand: "Smoke",
+        model: "Verifier",
+        qrCodeValue: "SMOKE-2",
+        locationId: "cmlocation000000000000404",
+        categoryId: "cmcategory000000000000001",
+      }),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(missingLocation.status).toBe(400);
+    expect(db.asset.create).not.toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ assetTag: "SMOKE-2" }),
+    }));
+
+    const res = await POST(
+      post({
+        assetTag: "SMOKE-3",
+        name: "Smoke Test Asset",
+        type: "equipment",
+        brand: "Smoke",
+        model: "Verifier",
+        qrCodeValue: "SMOKE-3",
+        locationId: "cmlocation000000000000001",
+        categoryId: "cmcategory000000000000001",
+        linkUrl: "bhphotovideo.com/c/product/sony",
+      }),
+      { params: Promise.resolve({}) },
+    );
+
+    expect(res.status).toBe(201);
+    expect(db.asset.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        linkUrl: "https://bhphotovideo.com/c/product/sony",
+      }),
+    }));
   });
 });

@@ -29,6 +29,7 @@ Plan: `tasks/item-data-cleanup-plan.md`
 - [x] Add cross-surface item-family state-contract coverage for list/detail/export/form-options.
 - [x] Align operational low-stock and battery report summaries with effective item-family state.
 - [x] Fix item detail department edits for UUID-backed departments on Standard and item-family records.
+- [x] Harden item detail organization/link/money fields with shared server-side validation.
 - [x] Sync relevant area docs and run closeout verification after each shipped slice.
 
 ### Review
@@ -52,6 +53,7 @@ Plan: `tasks/item-data-cleanup-plan.md`
 - 2026-06-26: Item-family state consolidation follow-up extracted the shared `summarizeItemFamilyState` helper and adopted it in `/api/assets`, `/api/assets/export`, `/api/bulk-skus`, `/api/bulk-skus/[id]`, and `/api/form-options`. Focused contract coverage now pins the helper plus list, detail, export, and form-option behavior so future item-family routes do not reimplement divergent availability math.
 - 2026-06-26: Operational state sweep follow-up moved Admin Fix Today low-battery checks, Inventory Hygiene low-stock item-family checks, and Missing Units battery summary totals onto effective item-family state. The shared unit-status helper now also preserves Missing/Retired as terminal states even if stale active allocation context exists, keeping custody reports honest while leaving raw-status reads in place only where they power stale-data warnings or missing-unit evidence.
 - 2026-06-26: Item detail department-edit follow-up fixed the "Validation failed" path for Sony Battery and other records whose department/category/location IDs are UUID-shaped. Item-family create/update and serialized item create/update now share a database ID validator that accepts both CUID and UUID foreign keys, with focused route coverage for item-family and serialized department updates.
+- 2026-06-26: Item detail field hardening follow-up moved URL normalization and money-scale checks into shared server validation, added reference preflight checks for location/category/department updates, and aligned item-family purchase links with Standard item behavior. Missing FK targets now return clear 400 errors instead of falling through to Prisma, product links accept missing schemes and normalize to `https://`, and money fields reject values that do not fit the stored `Decimal(10,2)` contract.
 
 ---
 

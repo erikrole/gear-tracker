@@ -11,6 +11,54 @@ export const databaseIdSchema = z.string().trim().min(1).refine(
   { message: "Invalid id" },
 );
 
+const maxDecimal10_2 = 99_999_999.99;
+
+export const moneyDecimalSchema = z.number()
+  .finite()
+  .nonnegative()
+  .max(maxDecimal10_2)
+  .refine((value) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-8, {
+    message: "Enter a value with no more than two decimal places",
+  });
+
+export function normalizeHttpUrl(value: string): string {
+  const trimmed = value.trim();
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  let parsed: URL;
+  try {
+    parsed = new URL(withScheme);
+  } catch {
+    throw new Error("Enter a valid http or https URL");
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error("Enter a valid http or https URL");
+  }
+  const normalized = parsed.toString();
+  if (normalized.length > 2000) {
+    throw new Error("URL must be 2,000 characters or fewer");
+  }
+  return normalized;
+}
+
+export const nullableHttpUrlSchema = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+  z.string()
+    .trim()
+    .nullable()
+    .transform((value, ctx) => {
+      if (value === null) return null;
+      try {
+        return normalizeHttpUrl(value);
+      } catch (error) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: error instanceof Error ? error.message : "Enter a valid http or https URL",
+        });
+        return z.NEVER;
+      }
+    }),
+);
+
 /** Sanitize user-facing text fields in a booking payload */
 export function sanitizeBookingFields<T extends Record<string, unknown>>(data: T): T {
   const d = data as Record<string, unknown>;
@@ -178,8 +226,8 @@ export const updateBulkSkuSchema = z.object({
   locationId: databaseIdSchema.optional(),
   binQrCodeValue: z.string().min(1).max(500).optional(),
   minThreshold: z.number().int().min(0).optional(),
-  purchasePrice: z.number().nonnegative().nullable().optional(),
-  purchaseLink: z.string().url().max(2000).nullable().optional(),
+  purchasePrice: moneyDecimalSchema.nullable().optional(),
+  purchaseLink: nullableHttpUrlSchema.optional(),
   notes: z.string().max(5000).nullable().optional(),
   active: z.boolean().optional(),
 }).strict();

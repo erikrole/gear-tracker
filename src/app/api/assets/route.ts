@@ -3,14 +3,14 @@ import { NextResponse } from "next/server";
 import { withAuth } from "@/lib/api";
 import { createAuditEntry } from "@/lib/audit";
 import { db } from "@/lib/db";
-import { ok, parsePagination } from "@/lib/http";
+import { HttpError, ok, parsePagination } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { buildDerivedStatusWhere, enrichAssetsWithStatusFromLoaded } from "@/lib/services/status";
 import { buildActiveBulkUnitAllocationMap } from "@/lib/bulk-unit-status";
 import { summarizeItemFamilyState } from "@/lib/item-family-state";
 import { parseDerivedBulkUnitQr } from "@/lib/bulk-unit-qr";
 import { compareItemAssetTags } from "@/lib/item-asset-tag-sort";
-import { databaseIdSchema } from "@/lib/validation";
+import { databaseIdSchema, moneyDecimalSchema, nullableHttpUrlSchema } from "@/lib/validation";
 import { AssetStatus, BookingKind, BookingStatus, Prisma } from "@prisma/client";
 
 const GAP_SUGGESTION_SOURCE_LIMIT = 5000;
@@ -24,13 +24,13 @@ const createAssetSchema = z.object({
   serialNumber: z.string().optional(),
   qrCodeValue: z.string().min(1),
   purchaseDate: z.string().optional(),
-  purchasePrice: z.number().nonnegative().optional(),
+  purchasePrice: moneyDecimalSchema.optional(),
   warrantyDate: z.string().optional(),
-  residualValue: z.number().nonnegative().optional(),
+  residualValue: moneyDecimalSchema.optional(),
   locationId: databaseIdSchema,
   categoryId: databaseIdSchema.optional(),
   departmentId: databaseIdSchema.optional(),
-  linkUrl: z.string().url().max(2000).optional(),
+  linkUrl: nullableHttpUrlSchema.optional(),
   uwAssetTag: z.string().max(200).optional(),
   parentAssetId: z.string().cuid().optional(),
   availableForReservation: z.boolean().optional(),
@@ -849,6 +849,7 @@ function normalizeSuggestionKey(value?: string | null) {
 export const POST = withAuth(async (req, { user }) => {
   requirePermission(user.role, "asset", "create");
   const body = createAssetSchema.parse(await req.json());
+  await validateCreateAssetReferences(body);
 
   let asset;
   try {
@@ -906,3 +907,19 @@ export const POST = withAuth(async (req, { user }) => {
 
   return ok({ data: asset }, 201);
 });
+
+async function validateCreateAssetReferences(body: z.infer<typeof createAssetSchema>) {
+  const [location, category, department] = await Promise.all([
+    db.location.findUnique({ where: { id: body.locationId }, select: { id: true } }),
+    body.categoryId
+      ? db.category.findUnique({ where: { id: body.categoryId }, select: { id: true } })
+      : Promise.resolve({ id: null }),
+    body.departmentId
+      ? db.department.findUnique({ where: { id: body.departmentId }, select: { id: true } })
+      : Promise.resolve({ id: null }),
+  ]);
+
+  if (!location) throw new HttpError(400, "Location not found");
+  if (body.categoryId && !category) throw new HttpError(400, "Category not found");
+  if (body.departmentId && !department) throw new HttpError(400, "Department not found");
+}

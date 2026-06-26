@@ -69,12 +69,19 @@ export const POST = withAuth(async (req, { user }) => {
   const body = createBulkSkuSchema.parse(await req.json());
 
   const result = await db.$transaction(async (tx) => {
-    const category = body.categoryId
-      ? await tx.category.findUnique({
+    const [location, category] = await Promise.all([
+      tx.location.findUnique({
+        where: { id: body.locationId },
+        select: { id: true },
+      }),
+      body.categoryId
+        ? tx.category.findUnique({
           where: { id: body.categoryId },
           select: { name: true },
         })
-      : null;
+        : Promise.resolve(null),
+    ]);
+    if (!location) throw new HttpError(400, "Location not found");
     if (body.categoryId && !category) throw new HttpError(400, "Category not found");
 
     const sku = await tx.bulkSku.create({

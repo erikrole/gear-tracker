@@ -7,7 +7,7 @@ import { BookingStatus, Prisma } from "@prisma/client";
 import { deriveAssetStatus } from "@/lib/services/status";
 import { createAuditEntry } from "@/lib/audit";
 import { canonicalFirmwareIdentity } from "@/lib/firmware-watch-targets";
-import { databaseIdSchema } from "@/lib/validation";
+import { databaseIdSchema, moneyDecimalSchema, nullableHttpUrlSchema } from "@/lib/validation";
 
 const nullableTrimmedString = (max = 500) =>
   z.preprocess(
@@ -32,18 +32,15 @@ const patchAssetSchema = z
     serialNumber: nullableTrimmedString(500).optional(),
     qrCodeValue: z.string().trim().min(1).optional(),
     purchaseDate: nullableDateString.optional(),
-    purchasePrice: z.number().nonnegative().nullable().optional(),
+    purchasePrice: moneyDecimalSchema.nullable().optional(),
     warrantyDate: nullableDateString.optional(),
-    residualValue: z.number().nonnegative().nullable().optional(),
+    residualValue: moneyDecimalSchema.nullable().optional(),
     locationId: databaseIdSchema.optional(),
     categoryId: databaseIdSchema.nullable().optional(),
     departmentId: databaseIdSchema.nullable().optional(),
     status: z.enum(["AVAILABLE", "MAINTENANCE", "RETIRED"]).optional(),
     notes: z.string().max(10000).optional(),
-    linkUrl: z.preprocess(
-      (value) => (typeof value === "string" && value.trim() === "" ? null : value),
-      z.string().trim().url().nullable(),
-    ).optional(),
+    linkUrl: nullableHttpUrlSchema.optional(),
     availableForReservation: z.boolean().optional(),
     availableForCheckout: z.boolean().optional(),
     availableForCustody: z.boolean().optional(),
@@ -294,6 +291,8 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   const before = await db.asset.findUnique({ where: { id: params.id } });
   if (!before) throw new HttpError(404, "Asset not found");
 
+  await validateAssetFieldReferences(body);
+
   let asset;
   try {
     const updateData: Prisma.AssetUpdateInput = {
@@ -351,6 +350,24 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
 
   return ok({ data: asset });
 });
+
+async function validateAssetFieldReferences(body: z.infer<typeof patchAssetSchema>) {
+  const [location, category, department] = await Promise.all([
+    body.locationId
+      ? db.location.findUnique({ where: { id: body.locationId }, select: { id: true } })
+      : Promise.resolve({ id: null }),
+    body.categoryId
+      ? db.category.findUnique({ where: { id: body.categoryId }, select: { id: true } })
+      : Promise.resolve({ id: null }),
+    body.departmentId
+      ? db.department.findUnique({ where: { id: body.departmentId }, select: { id: true } })
+      : Promise.resolve({ id: null }),
+  ]);
+
+  if (body.locationId && !location) throw new HttpError(400, "Location not found");
+  if (body.categoryId && !category) throw new HttpError(400, "Category not found");
+  if (body.departmentId && !department) throw new HttpError(400, "Department not found");
+}
 
 export const DELETE = withAuth<{ id: string }>(async (req, { user, params }) => {
   requirePermission(user.role, "asset", "delete");

@@ -12,6 +12,22 @@ import type { BulkSkuDetail } from "./types";
 
 type DepartmentOption = { id: string; name: string };
 
+function normalizeExternalUrl(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  let parsed: URL;
+  try {
+    parsed = new URL(withScheme);
+  } catch {
+    throw new Error("Enter a valid http or https URL");
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error("Enter a valid http or https URL");
+  }
+  return parsed.toString();
+}
+
 function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between px-4 py-3 border-b border-border/50 last:border-0 gap-4">
@@ -123,7 +139,7 @@ export function BulkSkuInfoTab({
             placeholder="https://..."
             id="bulk-sku-purchase-link"
             name="purchaseLink"
-            onSave={(v) => patchField("purchaseLink", v || null)}
+            onSave={(v) => patchField("purchaseLink", v ? normalizeExternalUrl(v) : null)}
             linkHref={sku.purchaseLink}
           />
         ) : sku.purchaseLink ? (

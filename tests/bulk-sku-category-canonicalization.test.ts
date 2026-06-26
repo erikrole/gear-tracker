@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   requireAuth: vi.fn(),
   createAuditEntry: vi.fn(),
   txCategoryFindUnique: vi.fn(),
+  txLocationFindUnique: vi.fn(),
   txBulkSkuCreate: vi.fn(),
   txBulkStockBalanceCreate: vi.fn(),
   txBulkStockMovementCreate: vi.fn(),
@@ -13,6 +14,8 @@ const mocks = vi.hoisted(() => ({
   dbBulkSkuFindUnique: vi.fn(),
   dbBulkSkuUpdate: vi.fn(),
   dbCategoryFindUnique: vi.fn(),
+  dbLocationFindUnique: vi.fn(),
+  dbDepartmentFindUnique: vi.fn(),
   dbBookingBulkUnitAllocationFindMany: vi.fn(),
 }));
 
@@ -29,6 +32,12 @@ vi.mock("@/lib/db", () => ({
     },
     category: {
       findUnique: mocks.dbCategoryFindUnique,
+    },
+    location: {
+      findUnique: mocks.dbLocationFindUnique,
+    },
+    department: {
+      findUnique: mocks.dbDepartmentFindUnique,
     },
     bookingBulkUnitAllocation: {
       findMany: mocks.dbBookingBulkUnitAllocationFindMany,
@@ -75,6 +84,7 @@ beforeEach(() => {
   mocks.requireAuth.mockResolvedValue(adminUser);
   mocks.createAuditEntry.mockResolvedValue(undefined);
   mocks.txCategoryFindUnique.mockResolvedValue({ name: "Batteries" });
+  mocks.txLocationFindUnique.mockResolvedValue({ id: "cm000000000000000000000002" });
   mocks.txBulkSkuCreate.mockResolvedValue({ id: "sku-1" });
   mocks.txBulkStockBalanceCreate.mockResolvedValue({});
   mocks.txBulkStockMovementCreate.mockResolvedValue({});
@@ -83,6 +93,7 @@ beforeEach(() => {
   mocks.dbTransaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
     fn({
       category: { findUnique: mocks.txCategoryFindUnique },
+      location: { findUnique: mocks.txLocationFindUnique },
       bulkSku: {
         create: mocks.txBulkSkuCreate,
         findUniqueOrThrow: mocks.txBulkSkuFindUniqueOrThrow,
@@ -99,6 +110,8 @@ beforeEach(() => {
     categoryId: null,
   });
   mocks.dbCategoryFindUnique.mockResolvedValue({ name: "Batteries" });
+  mocks.dbLocationFindUnique.mockResolvedValue({ id: "cm000000000000000000000002" });
+  mocks.dbDepartmentFindUnique.mockResolvedValue({ id: "54a4abe3-2500-4a28-8970-86f671cfffd3" });
   mocks.dbBookingBulkUnitAllocationFindMany.mockResolvedValue([]);
   mocks.dbBulkSkuUpdate.mockResolvedValue({
     id: "sku-1",
@@ -192,5 +205,43 @@ describe("BulkSku category canonicalization", () => {
       where: { id: "sku-1" },
       data: { departmentId },
     }));
+  });
+
+  it("normalizes purchase links and rejects invalid money values on item families", async () => {
+    const linkRes = await updateBulkSku(
+      request("/api/bulk-skus/sku-1", "PATCH", {
+        purchaseLink: "bhphotovideo.com/c/product/sony-battery",
+      }),
+      { params: Promise.resolve({ id: "sku-1" }) },
+    );
+
+    expect(linkRes.status).toBe(200);
+    expect(mocks.dbBulkSkuUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      data: { purchaseLink: "https://bhphotovideo.com/c/product/sony-battery" },
+    }));
+
+    const moneyRes = await updateBulkSku(
+      request("/api/bulk-skus/sku-1", "PATCH", {
+        purchasePrice: 123.456,
+      }),
+      { params: Promise.resolve({ id: "sku-1" }) },
+    );
+
+    expect(moneyRes.status).toBe(400);
+  });
+
+  it("returns a clean validation error for missing item-family locations", async () => {
+    mocks.dbLocationFindUnique.mockResolvedValueOnce(null);
+
+    const res = await updateBulkSku(
+      request("/api/bulk-skus/sku-1", "PATCH", {
+        locationId: "cm000000000000000000000404",
+      }),
+      { params: Promise.resolve({ id: "sku-1" }) },
+    );
+
+    expect(res.status).toBe(400);
+    const body = await res.json() as { error?: string };
+    expect(body.error).toBe("Location not found");
   });
 });

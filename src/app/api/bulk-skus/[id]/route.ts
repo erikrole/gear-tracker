@@ -55,13 +55,23 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   const before = await db.bulkSku.findUnique({ where: { id: params.id } });
   if (!before) throw new HttpError(404, "Bulk SKU not found");
 
-  const category = body.categoryId
-    ? await db.category.findUnique({
-        where: { id: body.categoryId },
-        select: { name: true },
-      })
-    : null;
+  const [location, category, department] = await Promise.all([
+    body.locationId
+      ? db.location.findUnique({ where: { id: body.locationId }, select: { id: true } })
+      : Promise.resolve({ id: null }),
+    body.categoryId
+      ? db.category.findUnique({
+          where: { id: body.categoryId },
+          select: { name: true },
+        })
+      : Promise.resolve(null),
+    body.departmentId
+      ? db.department.findUnique({ where: { id: body.departmentId }, select: { id: true } })
+      : Promise.resolve({ id: null }),
+  ]);
+  if (body.locationId && !location) throw new HttpError(400, "Location not found");
   if (body.categoryId && !category) throw new HttpError(400, "Category not found");
+  if (body.departmentId && !department) throw new HttpError(400, "Department not found");
   const data = category ? { ...body, category: category.name } : body;
 
   const sku = await db.bulkSku.update({
