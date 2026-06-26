@@ -61,6 +61,7 @@ export type BulkItem = {
 type AssetsResponse = {
   data: Asset[];
   bulkItems?: BulkItem[];
+  itemOrder?: string[];
   total: number;
   limit: number;
   offset: number;
@@ -110,6 +111,7 @@ async function fetchAssets(url: string, signal?: AbortSignal): Promise<AssetsRes
   return {
     ...json,
     bulkItems: Array.isArray(json.bulkItems) ? json.bulkItems : [],
+    itemOrder: Array.isArray(json.itemOrder) ? json.itemOrder.filter((id): id is string => typeof id === "string") : [],
   };
 }
 
@@ -171,6 +173,7 @@ export function useItemsQuery(deps: QueryDeps) {
 
   const items = response?.data ?? [];
   const bulkItems = response?.bulkItems ?? [];
+  const itemOrder = response?.itemOrder ?? [];
   const total = response?.total ?? 0;
   const statusBreakdown = response?.statusBreakdown ?? null;
   const totalPages = Math.ceil(total / limit);
@@ -204,6 +207,7 @@ export function useItemsQuery(deps: QueryDeps) {
   return {
     items,
     bulkItems,
+    itemOrder,
     setItems,
     total,
     statusBreakdown,

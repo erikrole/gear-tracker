@@ -59,6 +59,14 @@ type AssetListRow = Prisma.AssetGetPayload<{ include: typeof assetInclude }>;
 type BulkSkuListRow = Prisma.BulkSkuGetPayload<{ include: typeof bulkSkuInclude }>;
 type DerivedBulkUnitQr = ReturnType<typeof parseDerivedBulkUnitQr>;
 type ItemKindFilter = "all" | "serialized" | "unit-tracked" | "quantity-tracked";
+type PopularityKind = "asset" | "bulk";
+
+type PopularityKey = `${PopularityKind}:${string}`;
+
+type PopularityScore = {
+  score: number;
+  lastActivityAt: number;
+};
 
 type BulkListItem = {
   id: string;
@@ -201,6 +209,137 @@ async function buildBulkListItems(
   });
 }
 
+function popularityKey(kind: PopularityKind, id: string): PopularityKey {
+  return `${kind}:${id}`;
+}
+
+function addPopularity(
+  scores: Map<PopularityKey, PopularityScore>,
+  key: PopularityKey,
+  amount: number,
+  activityAt?: Date | null
+) {
+  const current = scores.get(key) ?? { score: 0, lastActivityAt: 0 };
+  const activityTime = activityAt?.getTime() ?? 0;
+  scores.set(key, {
+    score: current.score + amount,
+    lastActivityAt: Math.max(current.lastActivityAt, activityTime),
+  });
+}
+
+function popularityScore(scores: Map<PopularityKey, PopularityScore>, key: PopularityKey, recentCutoff: Date) {
+  const score = scores.get(key);
+  if (!score) return 0;
+  return score.score + (score.lastActivityAt >= recentCutoff.getTime() ? 2 : 0);
+}
+
+async function loadPopularityScores(assetIds: string[], bulkSkuIds: string[]) {
+  const scores = new Map<PopularityKey, PopularityScore>();
+  const usedSince = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+  const bookingStatuses = [
+    BookingStatus.BOOKED,
+    BookingStatus.PENDING_PICKUP,
+    BookingStatus.OPEN,
+    BookingStatus.COMPLETED,
+  ];
+
+  const [serializedBookings, bulkBookings, assetScans, bulkScans] = await Promise.all([
+    assetIds.length > 0
+      ? db.bookingSerializedItem.findMany({
+          where: {
+            assetId: { in: assetIds },
+            booking: {
+              startsAt: { gte: usedSince },
+              status: { in: bookingStatuses },
+            },
+          },
+          select: {
+            assetId: true,
+            createdAt: true,
+            booking: {
+              select: {
+                kind: true,
+                startsAt: true,
+              },
+            },
+          },
+        })
+      : Promise.resolve([]),
+    bulkSkuIds.length > 0
+      ? db.bookingBulkItem.findMany({
+          where: {
+            bulkSkuId: { in: bulkSkuIds },
+            booking: {
+              startsAt: { gte: usedSince },
+              status: { in: bookingStatuses },
+            },
+          },
+          select: {
+            bulkSkuId: true,
+            plannedQuantity: true,
+            createdAt: true,
+            booking: {
+              select: {
+                kind: true,
+                startsAt: true,
+              },
+            },
+          },
+        })
+      : Promise.resolve([]),
+    assetIds.length > 0
+      ? db.scanEvent.findMany({
+          where: {
+            assetId: { in: assetIds },
+            success: true,
+            createdAt: { gte: usedSince },
+          },
+          select: {
+            assetId: true,
+            createdAt: true,
+          },
+        })
+      : Promise.resolve([]),
+    bulkSkuIds.length > 0
+      ? db.scanEvent.findMany({
+          where: {
+            bulkSkuId: { in: bulkSkuIds },
+            success: true,
+            createdAt: { gte: usedSince },
+          },
+          select: {
+            bulkSkuId: true,
+            createdAt: true,
+          },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  for (const row of serializedBookings) {
+    const weight = row.booking.kind === BookingKind.CHECKOUT ? 5 : 3;
+    addPopularity(scores, popularityKey("asset", row.assetId), weight, row.booking.startsAt ?? row.createdAt);
+  }
+  for (const row of bulkBookings) {
+    const weight = row.booking.kind === BookingKind.CHECKOUT ? 5 : 3;
+    addPopularity(
+      scores,
+      popularityKey("bulk", row.bulkSkuId),
+      weight * Math.max(1, row.plannedQuantity),
+      row.booking.startsAt ?? row.createdAt
+    );
+  }
+  for (const row of assetScans) {
+    if (!row.assetId) continue;
+    addPopularity(scores, popularityKey("asset", row.assetId), 1, row.createdAt);
+  }
+  for (const row of bulkScans) {
+    if (!row.bulkSkuId) continue;
+    addPopularity(scores, popularityKey("bulk", row.bulkSkuId), 1, row.createdAt);
+  }
+
+  return scores;
+}
+
 /** Map sort param to Prisma orderBy clause. */
 const SORT_MAP: Record<
   string,
@@ -251,6 +390,7 @@ export const GET = withAuth(async (req, { user }) => {
     ? `-${sortParam}`
     : sortParam || "assetTag";
   const orderBy = SORT_MAP[sortKey] ?? SORT_MAP["assetTag"];
+  const shouldUsePopularitySort = sortKey === "popular" || sortKey === "-popular";
 
   const derivedBulkUnitQr = qr
     ? parseDerivedBulkUnitQr(
@@ -573,10 +713,11 @@ export const GET = withAuth(async (req, { user }) => {
 
   let rawData: AssetListRow[] = [];
   let bulkItems: BulkListItem[] = [];
+  let itemOrder: string[] = [];
   let total = 0;
   let matchingBulkTotal = 0;
   const shouldUseOperationalAssetTagSort = sortKey === "assetTag" || sortKey === "-assetTag";
-  const shouldUseUnifiedAssetTagPagination = shouldUseOperationalAssetTagSort && bulkWhere !== null;
+  const shouldUseUnifiedAssetTagPagination = (shouldUseOperationalAssetTagSort || shouldUsePopularitySort) && bulkWhere !== null;
 
   if (shouldUseUnifiedAssetTagPagination) {
     const [allAssets, assetTotal, bulkSkus] = await Promise.all([
@@ -596,31 +737,76 @@ export const GET = withAuth(async (req, { user }) => {
     ]);
     const allBulkItems = await buildBulkListItems(bulkSkus, derivedBulkUnitQr);
     matchingBulkTotal = allBulkItems.length;
+    const recentCutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    const popularityScores = shouldUsePopularitySort
+      ? await loadPopularityScores(
+          allAssets.map((asset) => asset.id),
+          allBulkItems.map((bulk) => bulk.id)
+        )
+      : new Map<PopularityKey, PopularityScore>();
     const combinedRows = [
-      ...allAssets.map((asset) => ({ kind: "asset" as const, sortTag: asset.assetTag, asset })),
-      ...allBulkItems.map((bulk) => ({ kind: "bulk" as const, sortTag: bulk.name, bulk })),
-    ].sort((a, b) => compareItemAssetTags(a.sortTag, b.sortTag));
+      ...allAssets.map((asset) => ({
+        kind: "asset" as const,
+        id: asset.id,
+        sortTag: asset.assetTag,
+        popularity: popularityScore(popularityScores, popularityKey("asset", asset.id), recentCutoff),
+        asset,
+      })),
+      ...allBulkItems.map((bulk) => ({
+        kind: "bulk" as const,
+        id: bulk.id,
+        sortTag: bulk.name,
+        popularity: popularityScore(popularityScores, popularityKey("bulk", bulk.id), recentCutoff),
+        bulk,
+      })),
+    ].sort((a, b) => {
+      if (shouldUsePopularitySort && a.popularity !== b.popularity) return b.popularity - a.popularity;
+      return compareItemAssetTags(a.sortTag, b.sortTag);
+    });
 
-    if (sortKey === "-assetTag") combinedRows.reverse();
+    if (sortKey === "-assetTag" || sortKey === "-popular") combinedRows.reverse();
 
     const pageRows = combinedRows.slice(offset, offset + limit);
     rawData = pageRows.flatMap((row) => row.kind === "asset" ? [row.asset] : []);
     bulkItems = pageRows.flatMap((row) => row.kind === "bulk" ? [row.bulk] : []);
+    itemOrder = pageRows.map((row) => row.kind === "asset" ? row.asset.id : `bulk-${row.bulk.id}`);
     total = assetTotal + allBulkItems.length;
   } else {
     if (includeSerializedRows) {
-      [rawData, total] = shouldUseOperationalAssetTagSort
-        ? await loadOperationallySortedAssets(where, sortKey === "-assetTag", offset, limit)
-        : await Promise.all([
-            db.asset.findMany({
-              where,
-              include: assetInclude,
-              orderBy,
-              take: limit,
-              skip: offset,
-            }),
-            db.asset.count({ where }),
-          ]);
+      if (shouldUsePopularitySort) {
+        const [allAssets, assetTotal] = await Promise.all([
+          db.asset.findMany({
+            where,
+            include: assetInclude,
+            orderBy: { assetTag: "asc" },
+          }),
+          db.asset.count({ where }),
+        ]);
+        const recentCutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+        const popularityScores = await loadPopularityScores(allAssets.map((asset) => asset.id), []);
+        const sortedAssets = allAssets.sort((a, b) => {
+          const popularityDiff = popularityScore(popularityScores, popularityKey("asset", b.id), recentCutoff)
+            - popularityScore(popularityScores, popularityKey("asset", a.id), recentCutoff);
+          if (popularityDiff !== 0) return popularityDiff;
+          return compareItemAssetTags(a.assetTag, b.assetTag);
+        });
+        if (sortKey === "-popular") sortedAssets.reverse();
+        rawData = sortedAssets.slice(offset, offset + limit);
+        total = assetTotal;
+      } else {
+        [rawData, total] = shouldUseOperationalAssetTagSort
+          ? await loadOperationallySortedAssets(where, sortKey === "-assetTag", offset, limit)
+          : await Promise.all([
+              db.asset.findMany({
+                where,
+                include: assetInclude,
+                orderBy,
+                take: limit,
+                skip: offset,
+              }),
+              db.asset.count({ where }),
+            ]);
+      }
     }
 
     if (bulkWhere && !includeSerializedRows) {
@@ -631,8 +817,19 @@ export const GET = withAuth(async (req, { user }) => {
       });
       const allBulkItems = await buildBulkListItems(bulkSkus, derivedBulkUnitQr);
       matchingBulkTotal = allBulkItems.length;
-      const sortedBulkItems = allBulkItems.sort((a, b) => compareItemAssetTags(a.name, b.name));
-      if (sortKey === "-assetTag") sortedBulkItems.reverse();
+      const recentCutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+      const popularityScores = shouldUsePopularitySort
+        ? await loadPopularityScores([], allBulkItems.map((bulk) => bulk.id))
+        : new Map<PopularityKey, PopularityScore>();
+      const sortedBulkItems = allBulkItems.sort((a, b) => {
+        if (shouldUsePopularitySort) {
+          const popularityDiff = popularityScore(popularityScores, popularityKey("bulk", b.id), recentCutoff)
+            - popularityScore(popularityScores, popularityKey("bulk", a.id), recentCutoff);
+          if (popularityDiff !== 0) return popularityDiff;
+        }
+        return compareItemAssetTags(a.name, b.name);
+      });
+      if (sortKey === "-assetTag" || sortKey === "-popular") sortedBulkItems.reverse();
       bulkItems = sortedBulkItems.slice(offset, offset + limit);
       total = allBulkItems.length;
     }
@@ -673,6 +870,7 @@ export const GET = withAuth(async (req, { user }) => {
   return ok({
     data: enrichedWithFavorites,
     bulkItems,
+    itemOrder,
     total,
     limit,
     offset,

@@ -222,13 +222,21 @@ export default function ItemsPage() {
     // When sorted by name (default), interleave everything together alphabetically.
     // For other sort fields, bulks append at bottom since server sort doesn't apply to them.
     const sortingById = filters.sorting[0]?.id ?? "assetTag";
+    if (sortingById === "popular" && query.itemOrder.length > 0) {
+      const rowById = new Map([...serializedItems, ...bulkAssets].map((item) => [item.id, item]));
+      return query.itemOrder.flatMap((id) => {
+        const row = rowById.get(id);
+        return row ? [row] : [];
+      });
+    }
+
     if (sortingById === "assetTag" || filters.sorting.length === 0) {
       return [...serializedItems, ...bulkAssets].sort((a, b) => compareItemAssetTags(a.assetTag, b.assetTag));
     }
 
     bulkAssets.sort((a, b) => compareItemAssetTags(a.assetTag, b.assetTag));
     return [...serializedItems, ...bulkAssets];
-  }, [query.items, query.bulkItems, filters.itemType, filters.sorting]);
+  }, [query.items, query.bulkItems, query.itemOrder, filters.itemType, filters.sorting]);
 
   const visibleRowCount = mergedData.length;
   const pageLoading = !preferencesLoaded || query.loading;
@@ -667,6 +675,8 @@ export default function ItemsPage() {
                 onFavoritesOnlyChange={(v) => { filters.setFavoritesOnly(v); query.setPage(0); }}
                 itemType={filters.itemType}
                 onItemTypeChange={(v) => { filters.setItemType(v); query.setPage(0); }}
+                sorting={filters.sorting}
+                onSortingChange={(v) => { filters.setSorting(v); query.setPage(0); }}
                 hasActiveFilters={filters.hasActiveFilters}
                 onClearAllFilters={() => { filters.clearAllFilters(); query.setPage(0); }}
                 locations={options.locations}

@@ -27,6 +27,7 @@ Informational only. These are the largest TypeScript and TSX files under `src/`;
 | `src/app/(app)/users/[id]/UserInfoTab.tsx` | 1325 |
 | `src/app/(app)/schedule/_components/ListView.tsx` | 1321 |
 | `src/app/(app)/bulk-inventory/batteries/page.tsx` | 1295 |
+| `src/app/api/assets/route.ts` | 1124 |
 | `src/app/(app)/resources/page.tsx` | 1076 |
 | `src/app/(app)/users/[id]/page.tsx` | 1063 |
 | `src/app/(app)/users/[id]/UserBadgesTab.tsx` | 1037 |
@@ -35,7 +36,6 @@ Informational only. These are the largest TypeScript and TSX files under `src/`;
 | `src/app/(app)/items/[id]/ItemBookingsTab.tsx` | 946 |
 | `src/app/(app)/events/[id]/_components/ShiftCoverageCard.tsx` | 929 |
 | `src/components/TradeBoard.tsx` | 929 |
-| `src/app/api/assets/route.ts` | 926 |
 | `src/components/ActivityTimeline.tsx` | 906 |
 | `src/lib/services/bookings-lifecycle.ts` | 900 |
 | `src/lib/services/notifications.ts` | 819 |

@@ -2,11 +2,19 @@
 
 import { type RefObject, useEffect, useRef, useState } from "react";
 import { SearchIcon, SlidersHorizontal, Star, XIcon } from "lucide-react";
+import type { SortingState } from "@tanstack/react-table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { OperationalActiveFilterChips, type OperationalActiveFilter, OperationalToolbar } from "@/components/OperationalToolbar";
 import { FacetedFilter } from "../faceted-filter";
 import type { ItemTypeFilter } from "../hooks/use-url-filters";
@@ -26,6 +34,14 @@ const ITEM_TYPE_LABELS: Record<ItemTypeFilter, string> = {
   "unit-tracked": "Units",
   "quantity-tracked": "Quantity",
 };
+
+const SORT_OPTIONS = [
+  { value: "assetTag", label: "Name" },
+  { value: "popular", label: "Most popular" },
+  { value: "category", label: "Category" },
+  { value: "department", label: "Department" },
+  { value: "location", label: "Location" },
+];
 
 type Location = { id: string; name: string };
 type Department = { id: string; name: string };
@@ -50,6 +66,8 @@ export function ItemsToolbar({
   onFavoritesOnlyChange,
   itemType,
   onItemTypeChange,
+  sorting,
+  onSortingChange,
   hasActiveFilters,
   onClearAllFilters,
   locations,
@@ -76,6 +94,8 @@ export function ItemsToolbar({
   onFavoritesOnlyChange: (value: boolean) => void;
   itemType: ItemTypeFilter;
   onItemTypeChange: (value: ItemTypeFilter) => void;
+  sorting: SortingState;
+  onSortingChange: (value: SortingState) => void;
   hasActiveFilters: boolean;
   onClearAllFilters: () => void;
   locations: Location[];
@@ -85,6 +105,7 @@ export function ItemsToolbar({
 }) {
   const [filtersOpen, setFiltersOpen] = useState(hasActiveFilters);
   const previousActiveFilterCountRef = useRef(0);
+  const currentSort = sorting[0]?.id ?? "assetTag";
   const activeFilterCount =
     statusFilter.size +
     locationFilter.size +
@@ -218,6 +239,23 @@ export function ItemsToolbar({
             </ToggleGroup>
           </div>
           <div className="hidden h-6 w-px bg-border/70 lg:block" aria-hidden="true" />
+          <Select
+            value={SORT_OPTIONS.some((option) => option.value === currentSort) ? currentSort : "assetTag"}
+            onValueChange={(value) => {
+              onSortingChange(value === "assetTag" ? [] : [{ id: value, desc: false }]);
+            }}
+          >
+            <SelectTrigger className="h-10 w-[152px] bg-background" aria-label="Sort items">
+              <SelectValue placeholder="Sort" />
+            </SelectTrigger>
+            <SelectContent align="end">
+              {SORT_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button
             variant={favoritesOnly ? "default" : "outline"}
             size="sm"

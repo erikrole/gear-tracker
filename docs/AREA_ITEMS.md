@@ -89,7 +89,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
    - Item kind
    - Kit status
    Category options are exact-ID filters and use full hierarchy paths, including parent nodes and deeply nested subcategories.
-3. Sort defaults to tagName ascending.
+3. Sort defaults to tagName ascending and also supports Most popular for recent operational usage.
 4. View toggle supports table mode as required baseline.
 5. Mobile keeps search and filter access pinned at top for long lists per `AREA_MOBILE.md`.
 
@@ -421,6 +421,7 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-06-26: Items list Most popular sort added. `/api/assets` now scores serialized assets and item families together from recent checkout/reservation usage plus successful scans, returns a server-provided mixed row order for the current page, and keeps asset-tag family sorting as the tie-breaker. The Items toolbar exposes the sort without changing the default Name/tag behavior.
 - 2026-06-26: Data cleanup follow-up moved every current `Video` department row to `Creative`, improved deterministic category assignments for teleconverters, monitor arms, and flash/trigger/receiver rows, and repaired 11 lens primary scan codes where the real alphanumeric QR was already stored in `qrCodeValue`. Thirty remaining legacy QR rows have no stored alphanumeric replacement and are tracked in `tasks/item-qr-physical-review.md` for physical/source lookup before mutation.
 - 2026-06-26: Cheqroom CSV QR crosscheck reduced the legacy QR review queue from 30 rows to 8. The cleanup script now reads the archived Cheqroom CSV, repairs rows only when `Barcodes` matches the current legacy QR and `Codes` contains one collision-free alphanumeric value, and writes audited updates to both `qrCodeValue` and `primaryScanCode`.
 - 2026-06-26: Item detail field validation is now server-owned for organization, link, and money edits. Standard item create/update routes preflight location/category/department IDs and return clear 400s for missing targets, product links normalize missing schemes to `https://`, and purchase/residual values must fit the stored `Decimal(10,2)` contract instead of relying on Prisma failures.

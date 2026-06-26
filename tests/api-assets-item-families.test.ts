@@ -8,6 +8,9 @@ const mocks = vi.hoisted(() => ({
   favoriteItemFindMany: vi.fn(),
   bulkSkuFindMany: vi.fn(),
   bookingBulkUnitAllocationFindMany: vi.fn(),
+  bookingSerializedItemFindMany: vi.fn(),
+  bookingBulkItemFindMany: vi.fn(),
+  scanEventFindMany: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -33,7 +36,13 @@ vi.mock("@/lib/db", () => ({
       findMany: mocks.bookingBulkUnitAllocationFindMany,
     },
     bookingSerializedItem: {
-      findMany: vi.fn(),
+      findMany: mocks.bookingSerializedItemFindMany,
+    },
+    bookingBulkItem: {
+      findMany: mocks.bookingBulkItemFindMany,
+    },
+    scanEvent: {
+      findMany: mocks.scanEventFindMany,
     },
   },
 }));
@@ -141,6 +150,9 @@ beforeEach(() => {
   mocks.favoriteItemFindMany.mockResolvedValue([]);
   mocks.bulkSkuFindMany.mockResolvedValue([]);
   mocks.bookingBulkUnitAllocationFindMany.mockResolvedValue([]);
+  mocks.bookingSerializedItemFindMany.mockResolvedValue([]);
+  mocks.bookingBulkItemFindMany.mockResolvedValue([]);
+  mocks.scanEventFindMany.mockResolvedValue([]);
 });
 
 describe("/api/assets item-family rows", () => {
@@ -245,6 +257,65 @@ describe("/api/assets item-family rows", () => {
     expect(mocks.assetFindMany).toHaveBeenCalledWith(expect.objectContaining({
       orderBy: { assetTag: "asc" },
     }));
+  });
+
+  it("sorts serialized assets and item families by recent popularity with asset-tag tie breaks", async () => {
+    const camera = assetRow("camera-1", "FX3 1");
+    const lens = assetRow("lens-1", "70-200 1");
+    const tripod = assetRow("tripod-1", "Tripod 1");
+    const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    mocks.assetFindMany.mockResolvedValue([tripod, lens, camera]);
+    mocks.assetCount.mockResolvedValue(3);
+    mocks.bulkSkuFindMany.mockResolvedValue([
+      numberedBatterySku({ id: "sku-battery", name: "Sony Battery" }),
+      numberedBatterySku({ id: "sku-card", name: "SanDisk Card", trackByNumber: false, units: [], balances: [{ onHandQuantity: 8 }] }),
+    ]);
+    mocks.bookingSerializedItemFindMany.mockResolvedValue([
+      {
+        assetId: "camera-1",
+        createdAt: daysAgo(1),
+        booking: { kind: "CHECKOUT", startsAt: daysAgo(1) },
+      },
+      {
+        assetId: "lens-1",
+        createdAt: daysAgo(2),
+        booking: { kind: "RESERVATION", startsAt: daysAgo(2) },
+      },
+    ]);
+    mocks.bookingBulkItemFindMany.mockResolvedValue([
+      {
+        bulkSkuId: "sku-battery",
+        plannedQuantity: 2,
+        createdAt: daysAgo(3),
+        booking: { kind: "CHECKOUT", startsAt: daysAgo(3) },
+      },
+    ]);
+    mocks.scanEventFindMany
+      .mockResolvedValueOnce([{ assetId: "tripod-1", createdAt: daysAgo(4) }])
+      .mockResolvedValueOnce([{ bulkSkuId: "sku-card", createdAt: daysAgo(4) }]);
+
+    const res = await getAssets(request("/api/assets?sort=popular&limit=5"), {
+      params: Promise.resolve({}),
+    });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.itemOrder).toEqual([
+      "bulk-sku-battery",
+      "camera-1",
+      "lens-1",
+      "bulk-sku-card",
+      "tripod-1",
+    ]);
+    expect(body.data.map((asset: { assetTag: string }) => asset.assetTag)).toEqual([
+      "FX3 1",
+      "70-200 1",
+      "Tripod 1",
+    ]);
+    expect(body.bulkItems.map((item: { name: string }) => item.name)).toEqual([
+      "Sony Battery",
+      "SanDisk Card",
+    ]);
   });
 
   it("excludes retired serialized rows from the default list", async () => {
