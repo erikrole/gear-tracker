@@ -256,6 +256,7 @@ struct ItemsView: View {
                         }
                         .listStyle(.plain)
                         .scrollContentBackground(.hidden)
+                        .contentMargins(.bottom, 96, for: .scrollContent)
                         .background(Color(.systemGroupedBackground))
                     }
                 }
@@ -421,15 +422,12 @@ struct ItemsView: View {
                     vm.favoritesOnly.toggle()
                     Task { await vm.load(reset: true) }
                 } label: {
-                    Label("Favorites", systemImage: vm.favoritesOnly ? "star.fill" : "star")
-                        .font(.subheadline.weight(.semibold))
-                        .padding(.horizontal, 12)
-                        .frame(minHeight: 44)
-                        .background(
-                            vm.favoritesOnly ? Color(.secondarySystemFill) : Color(.tertiarySystemFill),
-                            in: Capsule()
-                        )
-                        .foregroundStyle(vm.favoritesOnly ? AnyShapeStyle(.yellow) : AnyShapeStyle(.primary))
+                    ItemControlPill(
+                        title: "Favorites",
+                        systemImage: vm.favoritesOnly ? "star.fill" : "star",
+                        isActive: vm.favoritesOnly,
+                        tone: .orange
+                    )
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(vm.favoritesOnly ? "Favorites on" : "Favorites off")
@@ -467,6 +465,12 @@ struct AssetRow: View {
         return candidate
     }
 
+    private var metadataLine: String {
+        [asset.category?.name, asset.location.name]
+            .compactMap { $0 }
+            .joined(separator: " · ")
+    }
+
     var body: some View {
         let tone = assetStatusTone(asset)
 
@@ -499,21 +503,13 @@ struct AssetRow: View {
                         .font(.subheadline.weight(.medium))
                         .lineLimit(1)
                 }
-                HStack(spacing: 4) {
-                    if let cat = asset.category {
-                        Text(cat.name)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    if asset.category != nil {
-                        Text("·").font(.caption).foregroundStyle(.tertiary)
-                    }
-                    Text(asset.location.name)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                Text(metadataLine)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .truncationMode(.tail)
                 .lineLimit(1)
             }
+            .layoutPriority(1)
 
             Spacer()
 
@@ -524,16 +520,7 @@ struct AssetRow: View {
                 .foregroundStyle(.tertiary)
                 .accessibilityHidden(true)
         }
-        .padding(.vertical, 12)
-        .padding(.horizontal, 14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.cardSurface)
-        .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
-                .strokeBorder(Color.hairline, lineWidth: 0.5)
-        )
-        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 3)
+        .brandCard(padding: Brand.Space.md, radius: Brand.Radius.card)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(rowAccessibilityLabel)
         .accessibilityHint("Double-tap to view item details")
@@ -587,6 +574,10 @@ struct AssetRow: View {
 struct ItemFamilyListRow: View {
     let family: AssetFamilySearchResult
 
+    private var metadataLine: String {
+        "\(family.category) · \(family.locationName)"
+    }
+
     var body: some View {
         let tone: StatusTone = .green
 
@@ -604,11 +595,13 @@ struct ItemFamilyListRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                Text("\(family.category) · \(family.locationName)")
+                Text(metadataLine)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .truncationMode(.tail)
                     .lineLimit(1)
             }
+            .layoutPriority(1)
 
             Spacer()
 
@@ -629,16 +622,7 @@ struct ItemFamilyListRow: View {
             .frame(maxWidth: 140, alignment: .trailing)
             .accessibilityHidden(true)
         }
-        .padding(.vertical, 12)
-        .padding(.horizontal, 14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.cardSurface)
-        .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
-                .strokeBorder(Color.hairline, lineWidth: 0.5)
-        )
-        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 3)
+        .brandCard(padding: Brand.Space.md, radius: Brand.Radius.card)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(family.name), \(family.trackingStyleLabel), \(family.category), \(family.locationName), \(family.listAvailabilityLabel)")
         .accessibilityHint("Swipe or open the context menu to reserve")
@@ -798,11 +782,12 @@ struct AssetStatusFilterMenu: View {
                 }
             }
         } label: {
-            Label(statusFilterTitle, systemImage: "line.3.horizontal.decrease.circle\(selected.isEmpty ? "" : ".fill")")
-                .font(.subheadline.weight(.semibold))
-                .padding(.horizontal, 12)
-                .frame(minHeight: 44)
-                .background(Color(.tertiarySystemFill), in: Capsule())
+            ItemControlPill(
+                title: statusFilterTitle,
+                systemImage: "line.3.horizontal.decrease.circle\(selected.isEmpty ? "" : ".fill")",
+                isActive: !selected.isEmpty,
+                tone: .blue
+            )
         }
         .accessibilityLabel(selected.isEmpty ? "Filter by status" : "Filtering by \(selected.count) statuses")
     }
@@ -831,12 +816,36 @@ struct ItemSortMenu: View {
                 }
             }
         } label: {
-            Label(selected.label, systemImage: "arrow.up.arrow.down")
-                .font(.subheadline.weight(.semibold))
-                .padding(.horizontal, 12)
-                .frame(minHeight: 44)
-                .background(Color(.tertiarySystemFill), in: Capsule())
+            ItemControlPill(
+                title: selected.label,
+                systemImage: "arrow.up.arrow.down",
+                isActive: selected != .assetTag,
+                tone: .red
+            )
         }
         .accessibilityLabel("Sort items by \(selected.label)")
+    }
+}
+
+private struct ItemControlPill: View {
+    let title: String
+    let systemImage: String
+    let isActive: Bool
+    let tone: StatusTone
+
+    var body: some View {
+        Label(title, systemImage: systemImage)
+            .font(.subheadline.weight(.semibold))
+            .lineLimit(1)
+            .foregroundStyle(isActive ? Color.statusText(tone) : Color.primary)
+            .padding(.horizontal, 12)
+            .frame(minHeight: 44)
+            .background {
+                Capsule().fill(isActive ? Color.statusBackground(tone) : Color(.secondarySystemBackground))
+                Capsule().strokeBorder(
+                    isActive ? Color.statusText(tone).opacity(0.35) : Color.primary.opacity(0.12),
+                    lineWidth: 1
+                )
+            }
     }
 }
