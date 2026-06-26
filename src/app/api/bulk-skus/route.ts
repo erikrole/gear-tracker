@@ -5,6 +5,7 @@ import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createBulkSkuSchema } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
+import { buildActiveBulkUnitAllocationMap, effectiveBulkUnitStatus } from "@/lib/bulk-unit-status";
 
 export const GET = withAuth(async (req) => {
   const { searchParams } = new URL(req.url);
@@ -40,14 +41,32 @@ export const GET = withAuth(async (req) => {
     db.bulkSku.count({ where }),
   ]);
 
-  // Compute availableQuantity: numbered -> AVAILABLE units; non-numbered -> current stock balance.
+  const unitIds = raw.flatMap((sku) => sku.units.map((unit) => unit.id));
+  const activeUnitAllocations = unitIds.length > 0
+    ? await db.bookingBulkUnitAllocation.findMany({
+        where: {
+          bulkSkuUnitId: { in: unitIds },
+          checkedOutAt: { not: null },
+          checkedInAt: null,
+        },
+        select: { bulkSkuUnitId: true },
+        orderBy: { checkedOutAt: "desc" },
+      })
+    : [];
+  const activeAllocationByUnitId = buildActiveBulkUnitAllocationMap(activeUnitAllocations);
+
+  // Compute availableQuantity: numbered -> effective AVAILABLE units; non-numbered -> current stock balance.
   // BulkStockBalance is already movement-adjusted by checkout/checkin flows.
   const data = raw.map((sku) => {
     const onHand = sku.balances.reduce((s, b) => s + b.onHandQuantity, 0);
+    const units = sku.units.map((unit) => ({
+      ...unit,
+      status: effectiveBulkUnitStatus(unit, activeAllocationByUnitId.get(unit.id)),
+    }));
     const availableQuantity = sku.trackByNumber
-      ? sku.units.filter((u) => u.status === "AVAILABLE").length
+      ? units.filter((u) => u.status === "AVAILABLE").length
       : Math.max(0, onHand);
-    return { ...sku, availableQuantity };
+    return { ...sku, units, availableQuantity };
   });
 
   return ok({ data, total, limit, offset });
