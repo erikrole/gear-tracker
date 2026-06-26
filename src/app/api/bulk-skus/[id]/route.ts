@@ -55,9 +55,18 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
   const before = await db.bulkSku.findUnique({ where: { id: params.id } });
   if (!before) throw new HttpError(404, "Bulk SKU not found");
 
+  const category = body.categoryId
+    ? await db.category.findUnique({
+        where: { id: body.categoryId },
+        select: { name: true },
+      })
+    : null;
+  if (body.categoryId && !category) throw new HttpError(400, "Category not found");
+  const data = category ? { ...body, category: category.name } : body;
+
   const sku = await db.bulkSku.update({
     where: { id: params.id },
-    data: body,
+    data,
     include: {
       location: { select: { id: true, name: true } },
       categoryRel: { select: { id: true, name: true } },
@@ -75,7 +84,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     Object.entries(sku).filter(([key]) => key !== "units"),
   );
 
-  const changedKeys = Object.keys(body);
+  const changedKeys = Object.keys(data);
   const beforeDiff: Record<string, unknown> = {};
   const afterDiff: Record<string, unknown> = {};
   for (const key of changedKeys) {

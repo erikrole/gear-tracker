@@ -16,6 +16,7 @@ Plan: `tasks/item-data-cleanup-plan.md`
 - [x] Backfill safe missing primary scan codes.
 - [x] Convert camera-tied accessories/fixed parts into attachments where operationally correct.
 - [x] Align the Items list feed with cleaned data so default All excludes retired serialized rows and item-family categories display canonical taxonomy.
+- [x] Normalize legacy item-family category text and harden future item-family writes against stale category fallbacks.
 - [x] Sync relevant area docs and run closeout verification after each shipped slice.
 
 ### Review
@@ -27,6 +28,7 @@ Plan: `tasks/item-data-cleanup-plan.md`
 - 2026-06-26: Item-family image follow-up copied 6 exact-match existing asset images onto active item families through the audit-logged cleanup script. Active item-family missing images dropped from 15 to 9; remaining rows are tracked in `tasks/item-family-image-sourcing.md` because they need sourced product images or identity decisions.
 - 2026-06-26: Serialized metadata follow-up cleared unknown brand/model counts to 0 by fixing the Dell monitor and Monitor Battery from stored source evidence, and retired the active smoke-test asset with no history. Remaining serialized serial/image gaps are tracked in `tasks/serialized-metadata-review.md`.
 - 2026-06-26: Items list feed follow-up fixed the Dia-visible cleanup gaps. `/api/assets` now excludes retired serialized rows from the default no-status list while preserving explicit `status=RETIRED`, keeps active item families out of Retired-only views, and returns item-family category labels from canonical `BulkSku.categoryRel` before falling back to the legacy text field. Focused route regression coverage passed.
+- 2026-06-26: Legacy item-family category text follow-up applied 12 audit-logged `BulkSku.category` normalizations from canonical category rows, including the Dia-visible `Recording Equipment`, `Cameras/Camera Accessories`, and `general` cases. `POST /api/bulk-skus` and `PATCH /api/bulk-skus/[id]` now derive the legacy category text from `categoryId` so new writes cannot reintroduce stale labels. Cleanup dry-run now plans 0 data mutations.
 
 ---
 

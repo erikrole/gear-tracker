@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
-import { ok } from "@/lib/http";
+import { HttpError, ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { createBulkSkuSchema } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
@@ -58,10 +58,18 @@ export const POST = withAuth(async (req, { user }) => {
   const body = createBulkSkuSchema.parse(await req.json());
 
   const result = await db.$transaction(async (tx) => {
+    const category = body.categoryId
+      ? await tx.category.findUnique({
+          where: { id: body.categoryId },
+          select: { name: true },
+        })
+      : null;
+    if (body.categoryId && !category) throw new HttpError(400, "Category not found");
+
     const sku = await tx.bulkSku.create({
       data: {
         name: body.name,
-        category: body.category,
+        category: category?.name ?? body.category,
         categoryId: body.categoryId ?? null,
         unit: body.unit,
         locationId: body.locationId,

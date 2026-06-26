@@ -73,7 +73,7 @@ function afterBulkSku(sku, data) {
   return {
     id: sku.id,
     name: sku.name,
-    category: sku.category,
+    category: data.category ?? sku.category,
     categoryId: data.categoryId ?? sku.categoryId,
     departmentId: data.departmentId ?? sku.departmentId,
     imageUrl: data.imageUrl ?? sku.imageUrl,
@@ -236,6 +236,7 @@ async function main() {
   const taxonomyActions = [];
   const assetMetadataActions = [];
   const bulkTaxonomyActions = [];
+  const bulkLegacyCategoryActions = [];
   const bulkImageActions = [];
   const duplicateActions = [];
   const attachmentActions = [];
@@ -357,6 +358,7 @@ async function main() {
       const categoryId = categoryPath ? categoryIdFor(categoryPath, categoryPaths) : null;
       if (categoryId) {
         data.categoryId = categoryId;
+        data.category = categoriesById.get(categoryId)?.name ?? sku.category;
       } else {
         bulkSkipped.push({
           name: sku.name,
@@ -380,6 +382,19 @@ async function main() {
         data,
       });
     }
+  }
+
+  for (const sku of bulkSkus) {
+    if (!sku.categoryId) continue;
+    const category = categoriesById.get(sku.categoryId);
+    if (!category) continue;
+    if (compact(sku.category) === category.name) continue;
+
+    bulkLegacyCategoryActions.push({
+      type: "bulkLegacyCategory",
+      sku,
+      data: { category: category.name },
+    });
   }
 
   const activeAssetImagesByName = new Map();
@@ -459,6 +474,7 @@ async function main() {
     ...taxonomyActions,
     ...assetMetadataActions,
     ...bulkTaxonomyActions,
+    ...bulkLegacyCategoryActions,
     ...bulkImageActions,
     ...attachmentActions,
     ...primaryBackfillActions,
@@ -472,6 +488,7 @@ async function main() {
       assetTaxonomyUpdates: taxonomyActions.length,
       assetMetadataUpdates: assetMetadataActions.length,
       bulkTaxonomyUpdates: bulkTaxonomyActions.length,
+      bulkLegacyCategoryUpdates: bulkLegacyCategoryActions.length,
       bulkImageBackfills: bulkImageActions.length,
       attachmentUpdates: attachmentActions.length,
       primaryScanBackfills: primaryBackfillActions.length,
@@ -535,6 +552,9 @@ async function main() {
   printRows("Item-family taxonomy updates", bulkTaxonomyActions, (action) => (
     `${action.sku.name}: ${action.categoryPath ?? "category unchanged"}${action.data.departmentId ? ", department set" : ""}`
   ));
+  printRows("Item-family legacy category text updates", bulkLegacyCategoryActions, (action) => (
+    `${action.sku.name}: ${action.sku.category} -> ${action.data.category}`
+  ));
   printRows("Item-family image backfills", bulkImageActions, (action) => (
     `${action.sku.name}: copied from ${action.sourceAsset.assetTag}`
   ));
@@ -559,7 +579,7 @@ async function main() {
 
   await db.$transaction(async (tx) => {
     for (const action of actions) {
-      if (action.type === "bulkTaxonomy" || action.type === "bulkImageBackfill") {
+      if (action.type === "bulkTaxonomy" || action.type === "bulkLegacyCategory" || action.type === "bulkImageBackfill") {
         await tx.bulkSku.update({
           where: { id: action.sku.id },
           data: action.data,
@@ -569,7 +589,9 @@ async function main() {
             actorUserId: null,
             action: action.type === "bulkTaxonomy"
               ? "data_cleanup_bulk_taxonomy"
-              : "data_cleanup_bulk_image_backfill",
+              : action.type === "bulkLegacyCategory"
+                ? "data_cleanup_bulk_legacy_category"
+                : "data_cleanup_bulk_image_backfill",
             entityType: "BulkSku",
             entityId: action.sku.id,
             beforeJson: { ...beforeBulkSku(action.sku), source: ACTION_SOURCE },

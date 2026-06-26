@@ -105,11 +105,12 @@ export const BulkItemForm = forwardRef<BulkFormHandle, Props>(
             openLabel: "Open item",
           };
         }
+        const selectedCategory = categories.find((category) => category.id === categoryId);
         return {
           url: "/api/bulk-skus",
           body: {
             name: bulkName.trim(),
-            category: "general",
+            category: selectedCategory?.name ?? "Uncategorized",
             ...(categoryId ? { categoryId } : {}),
             locationId,
             binQrCodeValue: bulkQrCode.trim(),
