@@ -8,6 +8,8 @@ describe("item asset tag sorting", () => {
     expect(getItemAssetTagSortKey("FB A7 V 1")).toBe("A7 V 1");
     expect(getItemAssetTagSortKey("FB Wireless Flash")).toBe("Wireless Flash");
     expect(getItemAssetTagSortKey("FX6 2")).toBe("FX6 2");
+    expect(getItemAssetTagSortKey("70200 4")).toBe("70-200 4");
+    expect(getItemAssetTagSortKey("100400 2")).toBe("100-400 2");
   });
 
   it("does not strip broad words unless the remainder is a known equipment tag", () => {
@@ -35,9 +37,33 @@ describe("item asset tag sorting", () => {
       "MBB 70-180 1",
       "70-200 1",
       "FB 70-200 2",
-      "FB FX3 1",
       "FX3 2",
+      "FB FX3 1",
       "FX6 1",
+    ]);
+  });
+
+  it("groups operational prefixes inside the same equipment family", () => {
+    const tags = [
+      "FB 70-200 3",
+      "70-200 3",
+      "FB 70-200 1",
+      "70-200 1",
+      "100-400 1",
+      "FB 70-200 2",
+      "70200 4",
+      "70-200 2",
+    ];
+
+    expect(tags.sort(compareItemAssetTags)).toEqual([
+      "70-200 1",
+      "70-200 2",
+      "70-200 3",
+      "70200 4",
+      "FB 70-200 1",
+      "FB 70-200 2",
+      "FB 70-200 3",
+      "100-400 1",
     ]);
   });
 
