@@ -22,6 +22,7 @@ Plan: `tasks/item-data-cleanup-plan.md`
 - [x] Harden asset-tag-family sorting against broad-prefix false positives and expand edge-case coverage.
 - [x] Unify serialized and item-family pagination so unit/quantity rows do not splice into page 1 while page 2 resumes serialized rows.
 - [x] Harden bulk item delete so it preserves booking history and matches single-item delete policy.
+- [x] Align item CSV export with the Items list contract for active serialized rows and item families.
 - [x] Sync relevant area docs and run closeout verification after each shipped slice.
 
 ### Review
@@ -39,6 +40,7 @@ Plan: `tasks/item-data-cleanup-plan.md`
 - 2026-06-26: Asset-tag sort hardening follow-up made prefix stripping more conservative. Team/sport prefixes still group ordinary equipment tags such as `FB Wireless Flash`, but broad department words such as `Video` and `Photo` strip only when the remaining tag is clearly a known equipment family. Regression coverage now protects `Video Assist 1` from being mis-sorted as `Assist 1` while keeping `Video FX6 2` grouped with FX6 rows.
 - 2026-06-26: Items pagination follow-up fixed split serialized/item-family paging. `/api/assets` now accepts the selected item kind and builds one asset-tag sorted page across serialized assets and active item families, so unit/quantity rows occupy real slots instead of being injected into page 1 while page 2 resumes serialized assets. Units and Quantity tabs now paginate from the API instead of client-side hiding.
 - 2026-06-26: Bulk delete safety follow-up fixed a history-destroying mismatch between single-item delete and `/api/assets/bulk`. Bulk delete now checks booking history and active allocations inside a SERIALIZABLE transaction, blocks with Retire guidance when either exists, and no longer deletes `BookingSerializedItem` or `AssetAllocation` rows to make deletion pass.
+- 2026-06-26: Export parity follow-up aligned `/api/assets/export` with the active Items list contract. Default export now excludes retired serialized rows, explicit retired status still works, item-family rows export under All/Units/Quantity when list filters allow them, and the Items page passes the selected item kind into the export request.
 
 ---
 

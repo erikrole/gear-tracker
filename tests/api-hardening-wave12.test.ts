@@ -56,8 +56,13 @@ vi.mock("@/lib/db", () => ({
       findFirst: vi.fn(),
       findMany: vi.fn(),
     },
+    bookingBulkUnitAllocation: {
+      findMany: vi.fn(),
+    },
     bulkSku: {
       findUnique: vi.fn(),
+      findMany: vi.fn(),
+      count: vi.fn(),
     },
   },
 }));
@@ -115,6 +120,10 @@ function bulkSkuResult(value: { id: string }) {
   return value as unknown as Awaited<ReturnType<typeof db.bulkSku.findUnique>>;
 }
 
+function bulkSkuFindManyResult(rows: Array<Record<string, unknown>>) {
+  return rows as unknown as Awaited<ReturnType<typeof db.bulkSku.findMany>>;
+}
+
 function auditFindFirstResult(value: { id: string } | null) {
   return value as unknown as Awaited<ReturnType<typeof db.auditLog.findFirst>>;
 }
@@ -155,6 +164,9 @@ beforeEach(() => {
   vi.mocked(db.asset.count).mockResolvedValue(0);
   vi.mocked(db.favoriteItem.findMany).mockResolvedValue([]);
   vi.mocked(db.bulkSku.findUnique).mockResolvedValue(bulkSkuResult({ id: "sku-1" }));
+  vi.mocked(db.bulkSku.findMany).mockResolvedValue(bulkSkuFindManyResult([]));
+  vi.mocked(db.bulkSku.count).mockResolvedValue(0);
+  vi.mocked(db.bookingBulkUnitAllocation.findMany).mockResolvedValue([]);
   vi.mocked(db.auditLog.findFirst).mockResolvedValue(auditFindFirstResult({ id: "cursor-1" }));
   vi.mocked(db.auditLog.findMany).mockResolvedValue([]);
   mockTx.asset.findMany.mockResolvedValue([
@@ -201,6 +213,35 @@ describe("API hardening wave 12", () => {
     expect(body).toContain("'=CAM-1");
     expect(body).toContain("'+Camera");
     expect(body).toContain("'-SERIAL");
+  });
+
+  it("exports item-family rows for the selected Items list kind", async () => {
+    vi.mocked(db.bulkSku.findMany).mockResolvedValue(bulkSkuFindManyResult([
+      {
+        id: "sku-quantity-1",
+        name: "Impact MC-FULL Milk Crate (Full Size)",
+        category: "Recording Equipment",
+        categoryRel: { name: "Lighting" },
+        department: { name: "Video" },
+        location: { name: "Camp Randall" },
+        balances: [{ onHandQuantity: 4 }],
+        units: [],
+        trackByNumber: false,
+        purchasePrice: null,
+      },
+    ]));
+    vi.mocked(db.bulkSku.count).mockResolvedValue(1);
+
+    const res = await exportAssets(get("/api/assets/export?item_type=quantity-tracked"), { params: Promise.resolve({}) });
+    const body = await res.text();
+
+    expect(res.status).toBe(200);
+    expect(db.asset.findMany).not.toHaveBeenCalled();
+    expect(body).toContain("Impact MC-FULL Milk Crate (Full Size)");
+    expect(body).toContain("Quantity-tracked item family");
+    expect(body).toContain("4/4 available");
+    expect(body).toContain("Lighting");
+    expect(body).toContain("Video");
   });
 
   it("caps equipment picker page size at the route boundary", async () => {

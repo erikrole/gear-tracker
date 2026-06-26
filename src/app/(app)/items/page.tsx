@@ -288,6 +288,7 @@ export default function ItemsPage() {
       filters.categoryKey.split(",").filter(Boolean).forEach((v) => params.append("category_id", v));
       filters.brandKey.split(",").filter(Boolean).forEach((v) => params.append("brand", v));
       filters.departmentKey.split(",").filter(Boolean).forEach((v) => params.append("department_id", v));
+      if (filters.itemType !== "all") params.set("item_type", filters.itemType);
       if (filters.showAccessories) params.set("show_accessories", "true");
       if (filters.favoritesOnly) params.set("favorites_only", "true");
 
