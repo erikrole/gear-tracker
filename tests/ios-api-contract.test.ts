@@ -75,16 +75,39 @@ describe("iOS API contracts — asset lookup item families", () => {
     const scanner = source("ios/Wisconsin/Views/Search/QRScannerSheet.swift");
 
     expect(route).toContain("bulkItems,");
+    expect(route).toContain("itemOrder,");
     expect(route).toContain("matchedUnitNumber");
     expect(models).toContain("struct AssetFamilySearchResult");
     expect(models).toContain("let bulkItems: [AssetFamilySearchResult]");
+    expect(models).toContain("let itemOrder: [String]");
     expect(models).toContain("decodeIfPresent([AssetFamilySearchResult].self, forKey: .bulkItems) ?? []");
+    expect(models).toContain("decodeIfPresent([String].self, forKey: .itemOrder) ?? []");
     expect(searchService).toContain("var itemFamilies: [AssetFamilySearchResult] = []");
     expect(searchService).toContain("itemsResp.bulkItems");
     expect(searchService).toContain("itemFamilies.isEmpty");
     expect(scanView).toContain("ItemFamilyResultRow(family: family)");
     expect(scanner).toContain("case itemFamily(AssetFamilySearchResult)");
     expect(scanner).toContain("onMatch(.itemFamily(family))");
+  });
+
+  it("iOS Items list renders the mixed /api/assets order and exposes web-backed sort choices", () => {
+    const route = source("src/app/api/assets/route.ts");
+    const models = source("ios/Wisconsin/Models/AssetModels.swift");
+    const apiClient = source("ios/Wisconsin/Core/APIClient.swift");
+    const itemsView = source("ios/Wisconsin/Views/ItemsView.swift");
+
+    expect(route).toContain("shouldUseUnifiedAssetTagPagination");
+    expect(route).toContain("sortKey === \"popular\"");
+    expect(models).toContain("enum ItemListRow");
+    expect(models).toContain("var orderedRows: [ItemListRow]");
+    expect(models).toContain("for id in itemOrder");
+    expect(apiClient).toContain("if let sort, !sort.isEmpty { items.append(.init(name: \"sort\", value: sort)) }");
+    expect(itemsView).toContain("var rows: [ItemListRow] = []");
+    expect(itemsView).toContain("case popular = \"popular\"");
+    expect(itemsView).toContain("sort: sortOption.rawValue");
+    expect(itemsView).toContain("let resultRows = result.orderedRows");
+    expect(itemsView).toContain("ItemFamilyListRow(family: family)");
+    expect(itemsView).toContain("vm.prefillReservation(forFamily: family)");
   });
 });
 

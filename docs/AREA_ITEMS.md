@@ -41,7 +41,9 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 1. Search stays in the native search bar.
 2. Favorites and Status scope controls are visible named controls above the list, not icon-only toolbar buttons.
 3. Row actions remain swipe and context-menu based: Favorite, Reserve, and Copy Asset Tag.
-4. The mobile Items list intentionally avoids desktop-only sorting, bulk actions, and advanced filter density.
+4. The mobile Items list supports the web-backed `Asset tag` and `Most popular` sorts through a compact native menu.
+5. The mobile Items list renders serialized assets and item families in the server-provided mixed order; unit-tracked and quantity-tracked families keep the same naming as web rows.
+6. The mobile Items list intentionally avoids desktop-only bulk actions and advanced filter density.
 
 ### Inventory Hygiene
 1. Staff/admin opens `/items/hygiene` from the Admin nav.
@@ -421,6 +423,7 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-06-26: iOS Items web-parity slice shipped. Native Items now consumes `/api/assets.itemOrder`, renders serialized assets and active item families in the same mixed order as web, exposes Asset tag and Most popular sorts, labels item families as Unit-tracked or Quantity-tracked, and keeps active status badges calm with holder avatars beside Checked Out, Reserved, Awaiting Pickup, and Overdue states.
 - 2026-06-26: Active item status surfaces now keep the holder avatar paired with the status label. Item detail headers, global command item results, and scan preview badges use calm title-case labels such as `Checked Out`, `Reserved`, and `Overdue` while the avatar remains the visual cue for who has the item.
 - 2026-06-26: Items list status labels calmed down. Checked-out rows now show `Checked Out` in title case, with due timing kept in the hover hint instead of inline badge text. The Checked Out filter label now matches the row badge.
 - 2026-06-26: Photo-less quantity-tracked `Sony Battery` item family archived after live verification showed 4 booking rows and 6 stock movements, so hard delete would have destroyed operational history. The active `Sony NP-FZ100 Battery` family remains. The Items table also hides disabled selection checkboxes on item-family rows so families no longer show a broken-looking bulk-action affordance.

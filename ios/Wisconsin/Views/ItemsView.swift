@@ -17,13 +17,28 @@ struct AssetRouteId: Hashable {
 @MainActor
 @Observable
 final class ItemsViewModel {
-    var assets: [Asset] = []
+    enum SortOption: String, CaseIterable, Identifiable {
+        case assetTag = "assetTag"
+        case popular = "popular"
+
+        var id: String { rawValue }
+
+        var label: String {
+            switch self {
+            case .assetTag: "Asset tag"
+            case .popular: "Most popular"
+            }
+        }
+    }
+
+    var rows: [ItemListRow] = []
     var isLoading = false
     var error: String?
     var pageError: String?
     var searchText = ""
     var selectedStatuses: Set<AssetComputedStatus> = []
     var favoritesOnly = false
+    var sortOption: SortOption = .assetTag
     var hasMore = true
 
     private var offset = 0
@@ -55,16 +70,18 @@ final class ItemsViewModel {
             let result = try await APIClient.shared.assets(
                 search: searchText.isEmpty ? nil : searchText,
                 statuses: selectedStatuses,
+                sort: sortOption.rawValue,
                 favoritesOnly: favoritesOnly,
                 limit: limit,
                 offset: offset
             )
             if Task.isCancelled { isLoading = false; return }
-            if reset { assets = result.data } else { assets += result.data }
-            offset += result.data.count
+            let resultRows = result.orderedRows
+            if reset { rows = resultRows } else { rows += resultRows }
+            offset += resultRows.count
             hasMore = offset < result.total
             pageError = nil
-            if reset && offset == result.data.count && searchText.isEmpty && selectedStatuses.isEmpty && !favoritesOnly {
+            if reset && offset == resultRows.count && searchText.isEmpty && selectedStatuses.isEmpty && !favoritesOnly {
                 GearStore.shared.seedAssets(result.data)
             }
         } catch is CancellationError {
@@ -101,7 +118,8 @@ final class ItemsViewModel {
         searchText = ""
         selectedStatuses = []
         favoritesOnly = false
-        assets = []
+        sortOption = .assetTag
+        rows = []
         offset = 0
         hasMore = true
         error = nil
@@ -115,7 +133,12 @@ final class ItemsViewModel {
             let newState = try await APIClient.shared.toggleFavorite(assetId: asset.id)
             applyFavorite(assetId: asset.id, value: newState)
             if favoritesOnly && !newState {
-                assets.removeAll { $0.id == asset.id }
+                rows.removeAll { row in
+                    if case .asset(let item) = row {
+                        return item.id == asset.id
+                    }
+                    return false
+                }
             }
         } catch {
             applyFavorite(assetId: asset.id, value: asset.isFavorited)
@@ -124,7 +147,10 @@ final class ItemsViewModel {
     }
 
     private func applyFavorite(assetId: String, value: Bool) {
-        assets = assets.map { $0.id == assetId ? $0.withFavorited(value) : $0 }
+        rows = rows.map { row in
+            guard case .asset(let asset) = row, asset.id == assetId else { return row }
+            return .asset(asset.withFavorited(value))
+        }
     }
 
     private func itemListErrorMessage(_ error: Error, loadingMore: Bool = false) -> String {
@@ -148,6 +174,7 @@ final class ItemsViewModel {
 struct ItemsView: View {
     @State private var vm = ItemsViewModel()
     @State private var reserveAsset: Asset?
+    @State private var reserveFamily: AssetFamilySearchResult?
     @State private var navigationPath = NavigationPath()
     @State private var toast: Toast?
     @Environment(AppState.self) private var appState
@@ -157,7 +184,7 @@ struct ItemsView: View {
             VStack(spacing: 0) {
                 itemsControlStrip
                 Group {
-                    if let error = vm.error, vm.assets.isEmpty {
+                    if let error = vm.error, vm.rows.isEmpty {
                         ContentUnavailableView {
                             Label("Couldn't load items", systemImage: "exclamationmark.triangle")
                         } description: {
@@ -166,7 +193,7 @@ struct ItemsView: View {
                             Button("Retry") { Task { await vm.load(reset: true) } }
                                 .buttonStyle(.borderedProminent)
                         }
-                    } else if vm.assets.isEmpty && vm.isLoading {
+                    } else if vm.rows.isEmpty && vm.isLoading {
                         List {
                             ForEach(0..<10, id: \.self) { _ in
                                 ItemRowSkeleton()
@@ -180,7 +207,7 @@ struct ItemsView: View {
                         .background(Color(.systemGroupedBackground))
                         .allowsHitTesting(false)
                         .accessibilityHidden(true)  // Don't pollute VO with placeholder shapes during initial load.
-                    } else if vm.assets.isEmpty {
+                    } else if vm.rows.isEmpty {
                         ContentUnavailableView {
                             Label(
                                 vm.favoritesOnly ? "No Favorites" : "No Items",
@@ -195,63 +222,8 @@ struct ItemsView: View {
                         }
                     } else {
                         List {
-                            ForEach(vm.assets) { asset in
-                                // Hidden NavigationLink behind the card removes the
-                                // default disclosure chevron; the card draws its own.
-                                ZStack {
-                                    NavigationLink(value: asset) { EmptyView() }.opacity(0)
-                                    AssetRow(asset: asset)
-                                }
-                                .listRowSeparator(.hidden)
-                                .listRowBackground(Color.clear)
-                                .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
-                                .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                                    Button {
-                                        Task { await toggleFavorite(asset) }
-                                    } label: {
-                                        Label(
-                                            asset.isFavorited ? "Unfavorite" : "Favorite",
-                                            systemImage: asset.isFavorited ? "star.slash" : "star"
-                                        )
-                                    }
-                                    .tint(.yellow)
-                                }
-                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                    if asset.computedStatus != .retired {
-                                        Button {
-                                            reserveAsset = asset
-                                        } label: {
-                                            Label("Reserve", systemImage: "plus.circle")
-                                        }
-                                        .tint(.accentColor)
-                                    }
-                                }
-                                .contextMenu {
-                                    Button {
-                                        Task { await toggleFavorite(asset) }
-                                    } label: {
-                                        Label(
-                                            asset.isFavorited ? "Unfavorite" : "Favorite",
-                                            systemImage: asset.isFavorited ? "star.slash" : "star"
-                                        )
-                                    }
-
-                                    if asset.computedStatus != .retired {
-                                        Button {
-                                            reserveAsset = asset
-                                        } label: {
-                                            Label("Reserve", systemImage: "plus.circle")
-                                        }
-                                    }
-
-                                    if let tag = asset.assetTag {
-                                        Button {
-                                            UIPasteboard.general.string = tag
-                                        } label: {
-                                            Label("Copy Asset Tag", systemImage: "doc.on.doc")
-                                        }
-                                    }
-                                }
+                            ForEach(vm.rows) { row in
+                                itemRow(row)
                             }
                             if let pageError = vm.pageError {
                                 VStack(spacing: 8) {
@@ -271,8 +243,8 @@ struct ItemsView: View {
                                     .frame(maxWidth: .infinity)
                                     .listRowSeparator(.hidden)
                                     .listRowBackground(Color.clear)
-                                    .task(id: vm.assets.count) { await vm.load() }
-                            } else if vm.assets.count > 10 {
+                                    .task(id: vm.rows.count) { await vm.load() }
+                            } else if vm.rows.count > 10 {
                                 Text("End of list")
                                     .font(.caption2)
                                     .foregroundStyle(.tertiary)
@@ -290,7 +262,7 @@ struct ItemsView: View {
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Items")
-            .searchable(text: $vm.searchText, prompt: "Search gear…")
+            .searchable(text: $vm.searchText, prompt: "Search tag, model, serial, location")
             .onChange(of: vm.searchText) { vm.onSearchChange() }
             .refreshable { await vm.load(reset: true) }
             .task { await vm.load(reset: true) }
@@ -298,6 +270,7 @@ struct ItemsView: View {
             .onChange(of: appState.tabResetToken) { _, _ in
                 guard appState.resetTab == 2 else { return }
                 reserveAsset = nil
+                reserveFamily = nil
                 navigationPath = NavigationPath()
                 vm.resetDefaults()
                 Task { await vm.load(reset: true) }
@@ -318,6 +291,97 @@ struct ItemsView: View {
                     navigationPath.append(BookingRouteId(id: newId))
                 }
             }
+            .sheet(item: $reserveFamily) { family in
+                CreateBookingSheet(vm: {
+                    let vm = CreateBookingViewModel()
+                    vm.prefillReservation(forFamily: family)
+                    return vm
+                }()) { newId in
+                    reserveFamily = nil
+                    navigationPath.append(BookingRouteId(id: newId))
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func itemRow(_ row: ItemListRow) -> some View {
+        switch row {
+        case .asset(let asset):
+            ZStack {
+                NavigationLink(value: asset) { EmptyView() }.opacity(0)
+                AssetRow(asset: asset)
+            }
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
+            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                Button {
+                    Task { await toggleFavorite(asset) }
+                } label: {
+                    Label(
+                        asset.isFavorited ? "Unfavorite" : "Favorite",
+                        systemImage: asset.isFavorited ? "star.slash" : "star"
+                    )
+                }
+                .tint(.yellow)
+            }
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                if asset.computedStatus != .retired {
+                    Button {
+                        reserveAsset = asset
+                    } label: {
+                        Label("Reserve", systemImage: "plus.circle")
+                    }
+                    .tint(.accentColor)
+                }
+            }
+            .contextMenu {
+                Button {
+                    Task { await toggleFavorite(asset) }
+                } label: {
+                    Label(
+                        asset.isFavorited ? "Unfavorite" : "Favorite",
+                        systemImage: asset.isFavorited ? "star.slash" : "star"
+                    )
+                }
+
+                if asset.computedStatus != .retired {
+                    Button {
+                        reserveAsset = asset
+                    } label: {
+                        Label("Reserve", systemImage: "plus.circle")
+                    }
+                }
+
+                if let tag = asset.assetTag {
+                    Button {
+                        UIPasteboard.general.string = tag
+                    } label: {
+                        Label("Copy Asset Tag", systemImage: "doc.on.doc")
+                    }
+                }
+            }
+        case .family(let family):
+            ItemFamilyListRow(family: family)
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button {
+                        reserveFamily = family
+                    } label: {
+                        Label("Reserve", systemImage: "plus.circle")
+                    }
+                    .tint(.accentColor)
+                }
+                .contextMenu {
+                    Button {
+                        reserveFamily = family
+                    } label: {
+                        Label("Reserve", systemImage: "plus.circle")
+                    }
+                }
         }
     }
 
@@ -372,6 +436,10 @@ struct ItemsView: View {
                 .sensoryFeedback(.selection, trigger: vm.favoritesOnly)
 
                 AssetStatusFilterMenu(selected: $vm.selectedStatuses) {
+                    Task { await vm.load(reset: true) }
+                }
+
+                ItemSortMenu(selected: $vm.sortOption) {
                     Task { await vm.load(reset: true) }
                 }
             }
@@ -492,7 +560,8 @@ struct AssetRow: View {
         // Status + due/overdue: speak who has it (when applicable) + status label.
         if let name = asset.activeBooking?.requesterName,
            asset.computedStatus == .checkedOut || asset.computedStatus == .pendingPickup || asset.computedStatus == .reserved {
-            parts.append("\(asset.computedStatus.label.lowercased()) by \(name)")
+            let activeLabel = isOverdue ? "overdue" : asset.computedStatus.label.lowercased()
+            parts.append("\(activeLabel) by \(name)")
         } else {
             parts.append(asset.computedStatus.label)
         }
@@ -510,6 +579,65 @@ struct AssetRow: View {
             }
         }
         return parts.joined(separator: ", ")
+    }
+}
+
+struct ItemFamilyListRow: View {
+    let family: AssetFamilySearchResult
+
+    var body: some View {
+        HStack(spacing: 12) {
+            StatusRail(tone: .green)
+
+            SearchBulkThumbnail(imageUrl: family.imageUrl, size: 44)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(family.name)
+                    .font(.subheadline.weight(.medium))
+                    .lineLimit(1)
+                Text(family.trackingStyleLabel)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Text("\(family.category) · \(family.locationName)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(family.listAvailabilityLabel)
+                    .font(.caption2.weight(.semibold))
+                    .lineLimit(1)
+                    .fixedSize()
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.statusBackground(.green), in: Capsule())
+                    .foregroundStyle(Color.statusText(.green))
+
+                Text(family.trackByNumber ? "Units" : "Quantity")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: 140, alignment: .trailing)
+            .accessibilityHidden(true)
+        }
+        .padding(.vertical, 12)
+        .padding(.horizontal, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.cardSurface)
+        .clipShape(RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Brand.Radius.md, style: .continuous)
+                .strokeBorder(Color.hairline, lineWidth: 0.5)
+        )
+        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 3)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(family.name), \(family.trackingStyleLabel), \(family.category), \(family.locationName), \(family.listAvailabilityLabel)")
+        .accessibilityHint("Swipe or open the context menu to reserve")
     }
 }
 
@@ -537,44 +665,38 @@ private struct AssetListBadge: View {
     private var tone: StatusTone { assetStatusTone(asset) }
 
     private var badgeText: String {
-        if let name = asset.activeBooking?.requesterName,
-           asset.computedStatus == .checkedOut || asset.computedStatus == .pendingPickup || asset.computedStatus == .reserved {
-            return name
+        if asset.computedStatus == .checkedOut, asset.activeBooking?.isOverdue == true {
+            return "Overdue"
         }
         return asset.computedStatus.label
     }
 
-    private var dueLabel: String? {
-        guard asset.computedStatus == .checkedOut, let booking = asset.activeBooking else { return nil }
-        let endsAt = booking.endsAt
-        let days = Int((endsAt.timeIntervalSinceNow / 86_400).rounded())
-        if booking.isOverdue {
-            let overdueDays = max(1, abs(days))
-            return overdueDays == 1 ? "1d overdue" : "\(overdueDays)d overdue"
-        }
-        if days <= 0 { return "due today" }
-        if days == 1 { return "due 1d" }
-        if days < 14 { return "due \(days)d" }
-        return nil
+    private var showsHolderAvatar: Bool {
+        asset.activeBooking != nil &&
+            (asset.computedStatus == .checkedOut || asset.computedStatus == .pendingPickup || asset.computedStatus == .reserved)
     }
 
     var body: some View {
-        VStack(alignment: .trailing, spacing: 2) {
+        HStack(spacing: 5) {
+            if showsHolderAvatar, let booking = asset.activeBooking {
+                UserAvatarView(
+                    name: booking.requesterName,
+                    avatarUrl: booking.requesterAvatarUrl,
+                    size: 18,
+                    fallbackBackground: Color.statusBackground(tone),
+                    fallbackForeground: Color.statusText(tone),
+                    showsBorder: false
+                )
+            }
             Text(badgeText)
                 .font(.caption2.weight(.semibold))
                 .lineLimit(1)
                 .fixedSize()
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(Color.statusBackground(tone), in: Capsule())
-                .foregroundStyle(Color.statusText(tone))
-            if let dueLabel {
-                Text(dueLabel)
-                    .font(.caption2)
-                    .foregroundStyle(Color.statusText(tone).opacity(0.8))
-                    .monospacedDigit()
-            }
         }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(Color.statusBackground(tone), in: Capsule())
+        .foregroundStyle(Color.statusText(tone))
         .frame(maxWidth: 140, alignment: .trailing)
         .accessibilityHidden(true)  // Status surfaced via the combined row label in AssetRow.
     }
@@ -641,7 +763,7 @@ struct AssetStatusFilterMenu: View {
     @Binding var selected: Set<AssetComputedStatus>
     let onSelect: () -> Void
 
-    private let statuses: [AssetComputedStatus] = [.available, .checkedOut, .pendingPickup, .reserved, .maintenance]
+    private let statuses: [AssetComputedStatus] = [.available, .checkedOut, .pendingPickup, .reserved, .maintenance, .retired]
 
     var body: some View {
         Menu {
@@ -684,5 +806,34 @@ struct AssetStatusFilterMenu: View {
 
     private var statusFilterTitle: String {
         selected.isEmpty ? "All statuses" : "\(selected.count) statuses"
+    }
+}
+
+struct ItemSortMenu: View {
+    @Binding var selected: ItemsViewModel.SortOption
+    let onSelect: () -> Void
+
+    var body: some View {
+        Menu {
+            ForEach(ItemsViewModel.SortOption.allCases) { option in
+                Button {
+                    guard selected != option else { return }
+                    selected = option
+                    onSelect()
+                } label: {
+                    HStack {
+                        Text(option.label)
+                        if selected == option { Image(systemName: "checkmark") }
+                    }
+                }
+            }
+        } label: {
+            Label(selected.label, systemImage: "arrow.up.arrow.down")
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 12)
+                .frame(minHeight: 44)
+                .background(Color(.tertiarySystemFill), in: Capsule())
+        }
+        .accessibilityLabel("Sort items by \(selected.label)")
     }
 }

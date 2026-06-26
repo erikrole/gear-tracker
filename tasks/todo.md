@@ -62,6 +62,25 @@ Plan: `tasks/item-data-cleanup-plan.md`
 
 ---
 
+## Completed: iOS Items web parity (2026-06-26)
+
+Plan: `tasks/archive/completed-2026-06/ios-items-web-parity-plan.md`
+
+- [x] Audit current docs, web API route, iOS models, API client, and Items view.
+- [x] Add mixed item row modeling and `itemOrder` decoding.
+- [x] Render item-family rows in the native list.
+- [x] Add native sort selection wired to `/api/assets?sort=...`.
+- [x] Align active status display with holder avatar where applicable.
+- [x] Add focused iOS API contract coverage.
+- [x] Sync docs and task review.
+- [x] Run iOS drift, gap, whitespace, and build verification.
+
+### Review
+- 2026-06-26: Implementation complete before verification. `AssetsResponse` now decodes optional `itemOrder` and exposes ordered mixed rows, native Items renders serialized and item-family rows, item-family rows use Unit-tracked/Quantity-tracked naming with web-style availability counts, the list offers Asset tag and Most popular sort, and active serialized status badges pair `Checked Out`/`Reserved`/`Awaiting Pickup`/`Overdue` with the holder avatar.
+- 2026-06-26: Verification passed with focused iOS/API contract coverage, TypeScript, iOS drift, iOS audit-gap inventory, docs/codemap checks, whitespace check, Wisconsin simulator build, and `npm run build:app`. Full `npm run build` was attempted first but the sandboxed run could not reach Neon, and escalation was rejected because the script can apply remote Prisma migrations; `build:app` was the safer compile gate.
+
+---
+
 ## Active: Admin checkout force-complete exception (2026-06-25)
 
 Plan: add an admin-only exception path for physically verified returns that cannot be scanned, without reopening app/web as the normal return surface.

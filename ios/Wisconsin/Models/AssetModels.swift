@@ -136,6 +136,14 @@ struct AssetFamilySearchResult: Codable, Identifiable, Hashable {
             : "\(availableQuantity) \(unit) available"
     }
 
+    var listAvailabilityLabel: String {
+        "\(availableQuantity)/\(onHandQuantity) available"
+    }
+
+    var trackingStyleLabel: String {
+        trackByNumber ? "Unit-tracked item family" : "Quantity-tracked item family"
+    }
+
     var scannedUnitLabel: String? {
         guard let matchedUnitNumber else { return nil }
         let status = matchedUnitStatus?
@@ -149,32 +157,73 @@ struct AssetFamilySearchResult: Codable, Identifiable, Hashable {
     }
 }
 
+enum ItemListRow: Identifiable, Hashable {
+    case asset(Asset)
+    case family(AssetFamilySearchResult)
+
+    var id: String {
+        switch self {
+        case .asset(let asset): asset.id
+        case .family(let family): "bulk-\(family.id)"
+        }
+    }
+}
+
 struct AssetsResponse: Codable {
     let data: [Asset]
     let bulkItems: [AssetFamilySearchResult]
+    let itemOrder: [String]
     let total: Int
     let limit: Int
     let offset: Int
 
-    init(data: [Asset], bulkItems: [AssetFamilySearchResult], total: Int, limit: Int, offset: Int) {
+    init(data: [Asset], bulkItems: [AssetFamilySearchResult], itemOrder: [String] = [], total: Int, limit: Int, offset: Int) {
         self.data = data
         self.bulkItems = bulkItems
+        self.itemOrder = itemOrder
         self.total = total
         self.limit = limit
         self.offset = offset
     }
 
     enum CodingKeys: String, CodingKey {
-        case data, bulkItems, total, limit, offset
+        case data, bulkItems, itemOrder, total, limit, offset
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         data = try container.decode([Asset].self, forKey: .data)
         bulkItems = try container.decodeIfPresent([AssetFamilySearchResult].self, forKey: .bulkItems) ?? []
+        itemOrder = try container.decodeIfPresent([String].self, forKey: .itemOrder) ?? []
         total = try container.decode(Int.self, forKey: .total)
         limit = try container.decode(Int.self, forKey: .limit)
         offset = try container.decode(Int.self, forKey: .offset)
+    }
+
+    var orderedRows: [ItemListRow] {
+        let assetById = Dictionary(uniqueKeysWithValues: data.map { ($0.id, $0) })
+        let familyByOrderId = Dictionary(uniqueKeysWithValues: bulkItems.map { ("bulk-\($0.id)", $0) })
+        var rows: [ItemListRow] = []
+        var seen = Set<String>()
+
+        for id in itemOrder {
+            if let asset = assetById[id] {
+                rows.append(.asset(asset))
+                seen.insert(id)
+            } else if let family = familyByOrderId[id] {
+                rows.append(.family(family))
+                seen.insert(id)
+            }
+        }
+
+        for asset in data where !seen.contains(asset.id) {
+            rows.append(.asset(asset))
+        }
+        for family in bulkItems where !seen.contains("bulk-\(family.id)") {
+            rows.append(.family(family))
+        }
+
+        return rows
     }
 }
 
