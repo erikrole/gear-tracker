@@ -1,7 +1,9 @@
+import type { BulkUnitStatus } from "@prisma/client";
 import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
+import { summarizeItemFamilyState } from "@/lib/item-family-state";
 
 const SAMPLE_LIMIT = 6;
 const DEFAULT_BULK_THRESHOLD = 1;
@@ -230,7 +232,20 @@ export const GET = withAuth(async (_req, { user }) => {
         location: { select: { name: true } },
         categoryRel: { select: { name: true } },
         balances: { select: { onHandQuantity: true } },
-        units: { select: { status: true } },
+        units: {
+          select: {
+            id: true,
+            status: true,
+            allocations: {
+              where: {
+                checkedOutAt: { not: null },
+                checkedInAt: null,
+              },
+              take: 1,
+              select: { bulkSkuUnitId: true },
+            },
+          },
+        },
       },
     }),
   ]);
@@ -257,7 +272,11 @@ export const GET = withAuth(async (_req, { user }) => {
     location: { name: string };
     categoryRel: { name: string } | null;
     balances: Array<{ onHandQuantity: number }>;
-    units: Array<{ status: string }>;
+    units: Array<{
+      id: string;
+      status: BulkUnitStatus | `${BulkUnitStatus}`;
+      allocations?: Array<{ bulkSkuUnitId: string }>;
+    }>;
   }> = [];
   const missingCategoryCount = settledValue(missingCategoryCountResult, 0, "missingCategoryCount", partialFailures);
   const missingCategoryRows = settledValue(missingCategoryRowsResult, assetRowsFallback, "missingCategoryRows", partialFailures);
@@ -276,12 +295,12 @@ export const GET = withAuth(async (_req, { user }) => {
 
   const lowBulkRows = bulkRows
     .map((sku) => {
-      const onHand = sku.balances.reduce((sum, balance) => sum + balance.onHandQuantity, 0);
-      const available = sku.trackByNumber
-        ? sku.units.filter((unit) => unit.status === "AVAILABLE").length
-        : Math.max(0, onHand);
+      const activeAllocationByUnitId = new Map(
+        sku.units.flatMap((unit) => (unit.allocations ?? []).map((allocation) => [unit.id, allocation] as const)),
+      );
+      const state = summarizeItemFamilyState(sku, activeAllocationByUnitId);
       const threshold = Math.max(DEFAULT_BULK_THRESHOLD, sku.minThreshold);
-      return { sku, available, threshold };
+      return { sku, available: state.availableQuantity, threshold };
     })
     .filter((row) => row.available < row.threshold);
 

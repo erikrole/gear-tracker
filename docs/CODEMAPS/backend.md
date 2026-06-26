@@ -33,7 +33,7 @@
 | `src/lib/services/notifications.ts` | 819 |
 | `src/lib/services/onboarding-lifecycle.ts` | 503 |
 | `src/lib/services/pending-pickup-expiry.ts` | 218 |
-| `src/lib/services/reports.ts` | 1369 |
+| `src/lib/services/reports.ts` | 1378 |
 | `src/lib/services/reservation-rules.ts` | 32 |
 | `src/lib/services/scans.ts` | 643 |
 | `src/lib/services/schedule-automation.ts` | 336 |
@@ -56,7 +56,7 @@
 
 | File | Lines |
 |---|---:|
-| `src/lib/admin-fix-today.ts` | 389 |
+| `src/lib/admin-fix-today.ts` | 408 |
 | `src/lib/api-dates.ts` | 32 |
 | `src/lib/api.ts` | 162 |
 | `src/lib/app-time.ts` | 104 |
@@ -76,7 +76,7 @@
 | `src/lib/booking-status-display.ts` | 124 |
 | `src/lib/bulk-batteries.ts` | 28 |
 | `src/lib/bulk-unit-qr.ts` | 109 |
-| `src/lib/bulk-unit-status.ts` | 30 |
+| `src/lib/bulk-unit-status.ts` | 33 |
 | `src/lib/calendar-event-dates.ts` | 168 |
 | `src/lib/calendar-source-freshness.ts` | 259 |
 | `src/lib/candidate-scoring-types.ts` | 26 |

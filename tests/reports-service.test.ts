@@ -514,8 +514,8 @@ describe("reports service", () => {
       skuCount: 1,
       totalUnits: 4,
       lost: 2,
-      available: 1,
-      checkedOut: 1,
+      available: 2,
+      checkedOut: 0,
       repeatPatternCount: 2,
     });
     expect(report.batteryAudit.totals.lossRate).toBe(0.5);

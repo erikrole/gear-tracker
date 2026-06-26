@@ -28,6 +28,17 @@ describe("effectiveBulkUnitStatus", () => {
     )).toBe(BulkUnitStatus.RETIRED);
   });
 
+  it("preserves missing and retired status even when stale active allocation context exists", () => {
+    expect(effectiveBulkUnitStatus(
+      { id: "unit-1", status: BulkUnitStatus.LOST },
+      { bulkSkuUnitId: "unit-1" },
+    )).toBe(BulkUnitStatus.LOST);
+    expect(effectiveBulkUnitStatus(
+      { id: "unit-2", status: BulkUnitStatus.RETIRED },
+      { bulkSkuUnitId: "unit-2" },
+    )).toBe(BulkUnitStatus.RETIRED);
+  });
+
   it("keeps the first active allocation by unit id", () => {
     const map = buildActiveBulkUnitAllocationMap([
       { id: "newer", bulkSkuUnitId: "unit-1" },

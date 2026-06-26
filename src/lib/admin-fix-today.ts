@@ -1,5 +1,7 @@
+import type { BulkUnitStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { calendarSourceFailureDetail, getCalendarSyncFailureCounts } from "@/lib/services/calendar-sync-health";
+import { summarizeItemFamilyState } from "@/lib/item-family-state";
 
 const SAMPLE_LIMIT = 5;
 const KIOSK_OFFLINE_AFTER_MINUTES = 15;
@@ -91,16 +93,20 @@ type BatterySkuRow = {
   location: { name: string };
   categoryRel: { name: string } | null;
   balances: Array<{ onHandQuantity: number }>;
-  units: Array<{ status: string }>;
+  units: Array<{
+    id: string;
+    status: BulkUnitStatus | `${BulkUnitStatus}`;
+    allocations?: Array<{ bulkSkuUnitId: string }>;
+  }>;
 };
 
 function batteryAvailability(sku: BatterySkuRow) {
-  const onHand = sku.balances.reduce((sum, balance) => sum + balance.onHandQuantity, 0);
-  const available = sku.trackByNumber
-    ? sku.units.filter((unit) => unit.status === "AVAILABLE").length
-    : Math.max(0, onHand);
+  const activeAllocationByUnitId = new Map(
+    sku.units.flatMap((unit) => (unit.allocations ?? []).map((allocation) => [unit.id, allocation] as const)),
+  );
+  const state = summarizeItemFamilyState(sku, activeAllocationByUnitId);
   const threshold = Math.max(DEFAULT_BULK_THRESHOLD, sku.minThreshold);
-  return { available, threshold };
+  return { available: state.availableQuantity, threshold };
 }
 
 export async function getAdminFixTodayQueue(now = new Date()): Promise<AdminFixTodayQueue> {
@@ -197,7 +203,20 @@ export async function getAdminFixTodayQueue(now = new Date()): Promise<AdminFixT
         location: { select: { name: true } },
         categoryRel: { select: { name: true } },
         balances: { select: { onHandQuantity: true } },
-        units: { select: { status: true } },
+        units: {
+          select: {
+            id: true,
+            status: true,
+            allocations: {
+              where: {
+                checkedOutAt: { not: null },
+                checkedInAt: null,
+              },
+              take: 1,
+              select: { bulkSkuUnitId: true },
+            },
+          },
+        },
       },
     }),
     db.calendarSource.count({ where: { enabled: true, lastError: { not: null } } }),

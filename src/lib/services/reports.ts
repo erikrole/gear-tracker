@@ -1,6 +1,7 @@
 import { BookingStatus, Prisma } from "@prisma/client";
 import { isBatterySku } from "@/lib/bulk-batteries";
 import { db } from "@/lib/db";
+import { summarizeItemFamilyState } from "@/lib/item-family-state";
 import { countAssetsByEffectiveStatus, deriveAssetStatusesFromLoaded } from "@/lib/services/status";
 
 const AUDIT_REPORT_EXPORT_LIMIT = 5000;
@@ -808,9 +809,17 @@ async function getBatteryAuditReport() {
     : [];
   const batterySkuIds = new Set(batterySkus.map((sku) => sku.id));
   const bySku = batterySkus.map((sku) => {
-    const total = sku.units.length;
-    const available = sku.units.filter((unit) => unit.status === "AVAILABLE").length;
-    const checkedOut = sku.units.filter((unit) => unit.status === "CHECKED_OUT").length;
+    const activeAllocationByUnitId = new Map(
+      sku.units.flatMap((unit) =>
+        unit.allocations
+          .filter((allocation) => allocation.checkedOutAt && !allocation.checkedInAt)
+          .map((allocation) => [unit.id, allocation] as const)
+      ),
+    );
+    const state = summarizeItemFamilyState({ ...sku, trackByNumber: true, balances: [] }, activeAllocationByUnitId);
+    const total = state.onHandQuantity;
+    const available = state.availableQuantity;
+    const checkedOut = state.checkedOutQuantity;
     const lost = sku.units.filter((unit) => unit.status === "LOST").length;
     const retired = sku.units.filter((unit) => unit.status === "RETIRED").length;
     const missingUnits = sku.units.filter((unit) => unit.status === "LOST");
