@@ -1,15 +1,13 @@
 const assetTagCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
-const OPERATIONAL_PREFIXES = new Set([
+const TEAM_PREFIXES = new Set([
   "BASE",
   "BB",
-  "CREATIVE",
   "FB",
   "GOLF",
   "HKY",
   "MBB",
   "MSOC",
-  "PHOTO",
   "ROW",
   "SB",
   "SOC",
@@ -17,13 +15,46 @@ const OPERATIONAL_PREFIXES = new Set([
   "TENNIS",
   "TRACK",
   "VB",
-  "VIDEO",
   "WBB",
   "WHKY",
   "WRE",
   "WRESTLING",
   "WSOC",
   "XC",
+]);
+
+const DEPARTMENT_PREFIXES = new Set(["CREATIVE", "PHOTO", "VIDEO"]);
+
+const EQUIPMENT_STARTERS = new Set([
+  "A1",
+  "A7",
+  "A9",
+  "ANTON",
+  "ANTON/BAUER",
+  "APUTURE",
+  "CANON",
+  "DELL",
+  "DJI",
+  "FX3",
+  "FX30",
+  "FX6",
+  "GODOX",
+  "GOPRO",
+  "IMPACT",
+  "INSTA360",
+  "JUPIO",
+  "JVC",
+  "LAOWA",
+  "LOGITECH",
+  "MONITOR",
+  "PANASONIC",
+  "PROGRADE",
+  "SANDISK",
+  "SIGMA",
+  "SMALLRIG",
+  "SONY",
+  "TAMRON",
+  "WATSON",
 ]);
 
 function normalizeAssetTag(value: string) {
@@ -35,8 +66,30 @@ function stripOperationalPrefix(value: string) {
   const [firstToken, ...rest] = normalized.split(" ");
   if (!firstToken || rest.length === 0) return normalized;
 
-  if (!OPERATIONAL_PREFIXES.has(firstToken.toUpperCase())) return normalized;
-  return rest.join(" ");
+  const prefix = firstToken.toUpperCase();
+  const restValue = rest.join(" ");
+  if (TEAM_PREFIXES.has(prefix) && looksLikeTeamScopedAssetTag(rest)) return restValue;
+  if (DEPARTMENT_PREFIXES.has(prefix) && looksLikeKnownEquipmentTag(rest)) return restValue;
+  return normalized;
+}
+
+function looksLikeTeamScopedAssetTag(tokens: string[]) {
+  const value = tokens.join(" ");
+  if (looksLikeKnownEquipmentTag(tokens)) return true;
+  if (/^\d/.test(value)) return true;
+  return tokens.length > 1;
+}
+
+function looksLikeKnownEquipmentTag(tokens: string[]) {
+  const value = tokens.join(" ");
+  const first = tokens[0]?.toUpperCase();
+  if (!first) return false;
+
+  return (
+    /^\d/.test(value) ||
+    /^(?:A\d|FX\d|FX\d{2}|FS\d)\b/i.test(value) ||
+    EQUIPMENT_STARTERS.has(first)
+  );
 }
 
 export function getItemAssetTagSortKey(assetTag: string) {

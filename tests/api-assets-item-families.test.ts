@@ -153,10 +153,12 @@ describe("/api/assets item-family rows", () => {
       assetRow("70-200-1", "70-200 1"),
       assetRow("fb-16-35-1", "FB 16-35 1"),
       assetRow("fb-fx3-1", "FB FX3 1"),
+      assetRow("video-assist-1", "Video Assist 1"),
+      assetRow("video-fx6-2", "Video FX6 2"),
     ]);
-    mocks.assetCount.mockResolvedValue(7);
+    mocks.assetCount.mockResolvedValue(9);
 
-    const res = await getAssets(request("/api/assets?limit=3&offset=0"), {
+    const res = await getAssets(request("/api/assets?limit=8&offset=0"), {
       params: Promise.resolve({}),
     });
     const body = await res.json();
@@ -166,8 +168,13 @@ describe("/api/assets item-family rows", () => {
       "FB 16-35 1",
       "MBB 28-75 1",
       "70-200 1",
+      "FB 70-200 2",
+      "FB FX3 1",
+      "FX3 2",
+      "FX6 1",
+      "Video FX6 2",
     ]);
-    expect(body.total).toBe(7);
+    expect(body.total).toBe(9);
     expect(mocks.assetFindMany).toHaveBeenCalledWith(expect.objectContaining({
       orderBy: { assetTag: "asc" },
     }));

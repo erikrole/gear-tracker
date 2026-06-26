@@ -5,7 +5,16 @@ describe("item asset tag sorting", () => {
   it("uses the equipment family instead of operational prefixes", () => {
     expect(getItemAssetTagSortKey("FB 70-200 1")).toBe("70-200 1");
     expect(getItemAssetTagSortKey("MBB 28-75 1")).toBe("28-75 1");
+    expect(getItemAssetTagSortKey("FB A7 V 1")).toBe("A7 V 1");
+    expect(getItemAssetTagSortKey("FB Wireless Flash")).toBe("Wireless Flash");
     expect(getItemAssetTagSortKey("FX6 2")).toBe("FX6 2");
+  });
+
+  it("does not strip broad words unless the remainder is a known equipment tag", () => {
+    expect(getItemAssetTagSortKey("Video Assist 1")).toBe("Video Assist 1");
+    expect(getItemAssetTagSortKey("Photo Printer 1")).toBe("Photo Printer 1");
+    expect(getItemAssetTagSortKey("Video FX6 1")).toBe("FX6 1");
+    expect(getItemAssetTagSortKey("Creative 70-200 1")).toBe("70-200 1");
   });
 
   it("sorts prefixed department/team rows with their asset-tag family", () => {
@@ -16,17 +25,30 @@ describe("item asset tag sorting", () => {
       "MBB 28-75 1",
       "70-200 1",
       "FB 16-35 1",
+      "MBB 70-180 1",
       "FB FX3 1",
     ];
 
     expect(tags.sort(compareItemAssetTags)).toEqual([
       "FB 16-35 1",
       "MBB 28-75 1",
+      "MBB 70-180 1",
       "70-200 1",
       "FB 70-200 2",
       "FB FX3 1",
       "FX3 2",
       "FX6 1",
+    ]);
+  });
+
+  it("keeps broad-word false positives in their own natural position", () => {
+    const tags = ["FX6 1", "Video Assist 1", "Video FX6 2", "FB FX6 3"];
+
+    expect(tags.sort(compareItemAssetTags)).toEqual([
+      "FX6 1",
+      "Video FX6 2",
+      "FB FX6 3",
+      "Video Assist 1",
     ]);
   });
 
