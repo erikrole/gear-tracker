@@ -5,7 +5,8 @@ import { requirePermission } from "@/lib/rbac";
 import { buildDerivedStatusWhere, enrichAssetsWithStatusFromLoaded } from "@/lib/services/status";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import { csvField } from "@/lib/csv";
-import { buildActiveBulkUnitAllocationMap, effectiveBulkUnitStatus } from "@/lib/bulk-unit-status";
+import { buildActiveBulkUnitAllocationMap } from "@/lib/bulk-unit-status";
+import { summarizeItemFamilyState } from "@/lib/item-family-state";
 import { compareItemAssetTags } from "@/lib/item-asset-tag-sort";
 import type { Prisma } from "@prisma/client";
 
@@ -228,18 +229,13 @@ async function buildBulkExportRows(bulkSkus: BulkSkuExportRow[]) {
   const activeAllocationByUnitId = buildActiveBulkUnitAllocationMap(activeUnitAllocations);
 
   return bulkSkus.map((sku) => {
-    const balanceOnHand = sku.balances.reduce((sum, b) => sum + b.onHandQuantity, 0);
-    const unitsWithDisplayStatus = sku.units.map((unit) => effectiveBulkUnitStatus(unit, activeAllocationByUnitId.get(unit.id)));
-    const availableQuantity = sku.trackByNumber
-      ? unitsWithDisplayStatus.filter((status) => status === "AVAILABLE").length
-      : Math.max(0, balanceOnHand);
-    const onHandQuantity = sku.trackByNumber ? sku.units.length : balanceOnHand;
+    const state = summarizeItemFamilyState(sku, activeAllocationByUnitId);
 
     return {
       name: sku.name,
       trackByNumber: sku.trackByNumber,
-      availableQuantity,
-      onHandQuantity,
+      availableQuantity: state.availableQuantity,
+      onHandQuantity: state.onHandQuantity,
       category: sku.categoryRel?.name ?? sku.category,
       departmentName: sku.department?.name ?? null,
       locationName: sku.location.name,

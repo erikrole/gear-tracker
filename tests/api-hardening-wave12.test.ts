@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AssetStatus, Role } from "@prisma/client";
+import { AssetStatus, BulkUnitStatus, Role } from "@prisma/client";
 
 declare global {
   var __wave12TransactionOptions: unknown;
@@ -242,6 +242,39 @@ describe("API hardening wave 12", () => {
     expect(body).toContain("4/4 available");
     expect(body).toContain("Lighting");
     expect(body).toContain("Video");
+  });
+
+  it("exports unit-tracked item-family availability from effective unit state", async () => {
+    vi.mocked(db.bulkSku.findMany).mockResolvedValue(bulkSkuFindManyResult([
+      {
+        id: "sku-units-1",
+        name: "Sony NP-FZ100 Battery",
+        category: "Batteries",
+        categoryRel: { name: "Batteries" },
+        department: { name: "Video" },
+        location: { name: "Camp Randall" },
+        balances: [{ onHandQuantity: 99 }],
+        units: [
+          { id: "unit-orphan", status: BulkUnitStatus.CHECKED_OUT },
+          { id: "unit-active", status: BulkUnitStatus.AVAILABLE },
+          { id: "unit-lost", status: BulkUnitStatus.LOST },
+        ],
+        trackByNumber: true,
+        purchasePrice: null,
+      },
+    ]));
+    vi.mocked(db.bulkSku.count).mockResolvedValue(1);
+    vi.mocked(db.bookingBulkUnitAllocation.findMany).mockResolvedValue([
+      { bulkSkuUnitId: "unit-active" },
+    ] as Awaited<ReturnType<typeof db.bookingBulkUnitAllocation.findMany>>);
+
+    const res = await exportAssets(get("/api/assets/export?item_type=unit-tracked"), { params: Promise.resolve({}) });
+    const body = await res.text();
+
+    expect(res.status).toBe(200);
+    expect(body).toContain("Sony NP-FZ100 Battery");
+    expect(body).toContain("Unit-tracked item family");
+    expect(body).toContain("1/3 available");
   });
 
   it("caps equipment picker page size at the route boundary", async () => {

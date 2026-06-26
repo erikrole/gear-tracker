@@ -2,7 +2,8 @@ import { withAuth } from "@/lib/api";
 import { db } from "@/lib/db";
 import { ok } from "@/lib/http";
 import { visibleUserWhere } from "@/lib/user-visibility";
-import { buildActiveBulkUnitAllocationMap, effectiveBulkUnitStatus } from "@/lib/bulk-unit-status";
+import { buildActiveBulkUnitAllocationMap } from "@/lib/bulk-unit-status";
+import { summarizeItemFamilyState } from "@/lib/item-family-state";
 
 export const GET = withAuth(async (_req, { user }) => {
   const [locations, departments, users, bulkSkus] = await Promise.all([
@@ -46,20 +47,15 @@ export const GET = withAuth(async (_req, { user }) => {
   const activeAllocationByUnitId = buildActiveBulkUnitAllocationMap(activeAllocations);
 
   const bulkSkusFlat = bulkSkus.map((s) => {
-    const onHandQuantity = s.balances.reduce((sum, b) => sum + b.onHandQuantity, 0);
-    const availableQuantity = s.trackByNumber
-      ? s.units.filter((unit) => (
-          effectiveBulkUnitStatus(unit, activeAllocationByUnitId.get(unit.id)) === "AVAILABLE"
-        )).length
-      : Math.max(0, onHandQuantity);
+    const state = summarizeItemFamilyState(s, activeAllocationByUnitId);
     return {
       id: s.id, name: s.name, category: s.category, unit: s.unit,
       locationId: s.locationId, binQrCodeValue: s.binQrCodeValue, trackByNumber: s.trackByNumber,
       imageUrl: s.imageUrl,
       minThreshold: s.minThreshold,
       categoryName: s.categoryRel?.name ?? null,
-      currentQuantity: onHandQuantity,
-      availableQuantity,
+      currentQuantity: state.balanceOnHandQuantity,
+      availableQuantity: state.availableQuantity,
     };
   });
 

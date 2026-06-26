@@ -6,7 +6,8 @@ import { db } from "@/lib/db";
 import { ok, parsePagination } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { buildDerivedStatusWhere, enrichAssetsWithStatusFromLoaded } from "@/lib/services/status";
-import { buildActiveBulkUnitAllocationMap, effectiveBulkUnitStatus } from "@/lib/bulk-unit-status";
+import { buildActiveBulkUnitAllocationMap } from "@/lib/bulk-unit-status";
+import { summarizeItemFamilyState } from "@/lib/item-family-state";
 import { parseDerivedBulkUnitQr } from "@/lib/bulk-unit-qr";
 import { compareItemAssetTags } from "@/lib/item-asset-tag-sort";
 import { AssetStatus, BookingKind, BookingStatus, Prisma } from "@prisma/client";
@@ -148,28 +149,9 @@ async function buildBulkListItems(
   const activeAllocationByUnitId = buildActiveBulkUnitAllocationMap(activeUnitAllocations);
 
   return bulkSkus.map((sku) => {
-    const balanceOnHand = sku.balances.reduce((sum, b) => sum + b.onHandQuantity, 0);
-    const unitsWithDisplayStatus = sku.units.map((unit) => ({
-      ...unit,
-      displayStatus: effectiveBulkUnitStatus(unit, activeAllocationByUnitId.get(unit.id)),
-    }));
-    const checkedOutQuantity = sku.trackByNumber
-      ? unitsWithDisplayStatus.filter((unit) => unit.displayStatus === "CHECKED_OUT").length
-      : 0;
-    const lostQuantity = sku.trackByNumber
-      ? unitsWithDisplayStatus.filter((unit) => unit.displayStatus === "LOST").length
-      : 0;
-    const retiredQuantity = sku.trackByNumber
-      ? unitsWithDisplayStatus.filter((unit) => unit.displayStatus === "RETIRED").length
-      : 0;
-    const availableQuantity = sku.trackByNumber
-      ? unitsWithDisplayStatus.filter((unit) => unit.displayStatus === "AVAILABLE").length
-      : Math.max(0, balanceOnHand);
-    const onHand = sku.trackByNumber
-      ? sku.units.length
-      : balanceOnHand;
+    const state = summarizeItemFamilyState(sku, activeAllocationByUnitId);
     const matchedUnit = derivedBulkUnitQr?.bulkSkuId === sku.id
-      ? unitsWithDisplayStatus.find((unit) => unit.unitNumber === derivedBulkUnitQr.unitNumber)
+      ? state.effectiveUnits.find((unit) => unit.unitNumber === derivedBulkUnitQr.unitNumber)
       : null;
     const matchedUnitAllocation = matchedUnit ? activeAllocationByUnitId.get(matchedUnit.id) : null;
     const matchedUnitBooking = matchedUnitAllocation?.bookingBulkItem.booking;
@@ -190,22 +172,22 @@ async function buildBulkListItems(
       category: sku.categoryRel?.name ?? sku.category,
       unit: sku.unit,
       trackByNumber: sku.trackByNumber,
-      onHandQuantity: onHand,
-      availableQuantity,
-      checkedOutQuantity,
-      lostQuantity,
-      retiredQuantity,
+      onHandQuantity: state.onHandQuantity,
+      availableQuantity: state.availableQuantity,
+      checkedOutQuantity: state.checkedOutQuantity,
+      lostQuantity: state.lostQuantity,
+      retiredQuantity: state.retiredQuantity,
       ...(matchedUnit
         ? {
             matchedUnitNumber: matchedUnit.unitNumber,
-            matchedUnitStatus: matchedUnit.displayStatus,
+            matchedUnitStatus: matchedUnit.status,
             ...matchedUnitCustody,
             // Per-unit roster, only on the exact-unit scan path so list
             // searches don't ship every unit of every SKU.
-            units: unitsWithDisplayStatus
+            units: state.effectiveUnits
               .slice()
               .sort((a, b) => a.unitNumber - b.unitNumber)
-              .map((u) => ({ unitNumber: u.unitNumber, status: u.displayStatus })),
+              .map((u) => ({ unitNumber: u.unitNumber, status: u.status })),
           }
         : {}),
       imageUrl: sku.imageUrl,

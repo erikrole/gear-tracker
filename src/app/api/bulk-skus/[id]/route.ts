@@ -4,7 +4,8 @@ import { ok, HttpError } from "@/lib/http";
 import { requirePermission } from "@/lib/rbac";
 import { updateBulkSkuSchema } from "@/lib/validation";
 import { createAuditEntry } from "@/lib/audit";
-import { buildActiveBulkUnitAllocationMap, effectiveBulkUnitStatus } from "@/lib/bulk-unit-status";
+import { buildActiveBulkUnitAllocationMap } from "@/lib/bulk-unit-status";
+import { summarizeItemFamilyState } from "@/lib/item-family-state";
 
 export const GET = withAuth<{ id: string }>(async (_req, { params }) => {
   const sku = await db.bulkSku.findUnique({
@@ -41,17 +42,10 @@ export const GET = withAuth<{ id: string }>(async (_req, { params }) => {
 
   if (!sku) throw new HttpError(404, "Bulk SKU not found");
 
-  const onHand = sku.balances.reduce((s, b) => s + b.onHandQuantity, 0);
   const activeAllocationByUnitId = await loadActiveBulkUnitAllocationMap(sku.units.map((unit) => unit.id));
-  const units = sku.units.map((unit) => ({
-    ...unit,
-    status: effectiveBulkUnitStatus(unit, activeAllocationByUnitId.get(unit.id)),
-  }));
-  const availableQuantity = sku.trackByNumber
-    ? units.filter((u) => u.status === "AVAILABLE").length
-    : Math.max(0, onHand);
+  const state = summarizeItemFamilyState(sku, activeAllocationByUnitId);
 
-  return ok({ data: { ...sku, units, onHand, availableQuantity } });
+  return ok({ data: { ...sku, units: state.effectiveUnits, onHand: state.balanceOnHandQuantity, availableQuantity: state.availableQuantity } });
 });
 
 export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
@@ -82,15 +76,8 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     },
   });
 
-  const onHand = sku.balances.reduce((s, b) => s + b.onHandQuantity, 0);
   const activeAllocationByUnitId = await loadActiveBulkUnitAllocationMap(sku.units.map((unit) => unit.id));
-  const effectiveUnits = sku.units.map((unit) => ({
-    ...unit,
-    status: effectiveBulkUnitStatus(unit, activeAllocationByUnitId.get(unit.id)),
-  }));
-  const availableQuantity = sku.trackByNumber
-    ? effectiveUnits.filter((u) => u.status === "AVAILABLE").length
-    : Math.max(0, onHand);
+  const state = summarizeItemFamilyState(sku, activeAllocationByUnitId);
   const skuRest = Object.fromEntries(
     Object.entries(sku).filter(([key]) => key !== "units"),
   );
@@ -113,7 +100,7 @@ export const PATCH = withAuth<{ id: string }>(async (req, { user, params }) => {
     after: afterDiff,
   });
 
-  return ok({ data: { ...skuRest, onHand, availableQuantity } });
+  return ok({ data: { ...skuRest, onHand: state.balanceOnHandQuantity, availableQuantity: state.availableQuantity } });
 });
 
 async function loadActiveBulkUnitAllocationMap(unitIds: string[]) {

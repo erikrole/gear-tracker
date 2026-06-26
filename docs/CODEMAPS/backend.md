@@ -103,6 +103,7 @@
 | `src/lib/image-search-modal.ts` | 59 |
 | `src/lib/image-search.ts` | 239 |
 | `src/lib/item-asset-tag-sort.ts` | 111 |
+| `src/lib/item-family-state.ts` | 75 |
 | `src/lib/nav-sections.ts` | 219 |
 | `src/lib/observability.ts` | 19 |
 | `src/lib/permissions.ts` | 163 |

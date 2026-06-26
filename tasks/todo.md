@@ -25,6 +25,8 @@ Plan: `tasks/item-data-cleanup-plan.md`
 - [x] Align item CSV export with the Items list contract for active serialized rows and item families.
 - [x] Propagate effective numbered-unit state to generic item-family list/detail read models.
 - [x] Align numbered-unit mutations and picker form-options with effective unit state.
+- [x] Consolidate duplicated item-family state read-model logic into one shared helper.
+- [x] Add cross-surface item-family state-contract coverage for list/detail/export/form-options.
 - [x] Sync relevant area docs and run closeout verification after each shipped slice.
 
 ### Review
@@ -45,6 +47,7 @@ Plan: `tasks/item-data-cleanup-plan.md`
 - 2026-06-26: Export parity follow-up aligned `/api/assets/export` with the active Items list contract. Default export now excludes retired serialized rows, explicit retired status still works, item-family rows export under All/Units/Quantity when list filters allow them, and the Items page passes the selected item kind into the export request.
 - 2026-06-26: Numbered item-family state follow-up propagated the shared effective unit-status rule to `GET /api/bulk-skus`, `GET /api/bulk-skus/[id]`, and the item-family PATCH response. Generic item-family list/detail views now count active unit allocations as checked out and orphaned raw checked-out flags as available, matching Battery Ops and `/items`.
 - 2026-06-26: Numbered item-family mutation/picker follow-up aligned the remaining high-impact state surfaces. Per-unit status changes now block only true active checkout allocations, so stale raw `CHECKED_OUT` flags can be corrected with audited status changes and correct stock-balance deltas. `/api/form-options` now computes numbered-family availability from active allocation rows plus the shared effective unit-status rule, so booking pickers agree with `/items`, Battery Ops, and item-family detail reads.
+- 2026-06-26: Item-family state consolidation follow-up extracted the shared `summarizeItemFamilyState` helper and adopted it in `/api/assets`, `/api/assets/export`, `/api/bulk-skus`, `/api/bulk-skus/[id]`, and `/api/form-options`. Focused contract coverage now pins the helper plus list, detail, export, and form-option behavior so future item-family routes do not reimplement divergent availability math.
 
 ---
 

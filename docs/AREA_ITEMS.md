@@ -421,6 +421,7 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-06-26: Item-family state read-model consolidation. Items list, Items export, item-family list/detail, and form-option picker APIs now share the same item-family state helper, reducing duplicate availability math across routes and pinning list/detail/export/form behavior with focused regression coverage.
 - 2026-06-26: Item-family state alignment now covers the booking picker path. `/api/form-options` computes numbered item-family availability from active unit allocation rows and the shared effective unit-status helper instead of raw `AVAILABLE` rows, so forms, `/items`, item-family detail, and Battery Ops agree when a raw unit flag is stale or a live allocation is present.
 - 2026-06-26: Items CSV export parity hardening. `/api/assets/export` now follows the active Items list contract: the default export excludes retired serialized rows, explicit retired-status export still works, item-family rows export under All/Units/Quantity when filters allow them, and the Items page sends the selected item kind to the export route.
 - 2026-06-26: Bulk item delete safety hardening. `/api/assets/bulk` now matches single-item delete policy by checking booking history and active allocations inside a SERIALIZABLE transaction. Bulk delete no longer removes `BookingSerializedItem` or `AssetAllocation` history rows to force deletion; operators receive Retire guidance for any selected item with booking history.
