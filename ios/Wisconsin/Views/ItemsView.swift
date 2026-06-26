@@ -466,9 +466,11 @@ struct AssetRow: View {
     }
 
     private var metadataLine: String {
-        [asset.category?.name, asset.location.name]
-            .compactMap { $0 }
-            .joined(separator: " · ")
+        asset.location.name
+    }
+
+    private var shouldShowLocation: Bool {
+        asset.computedStatus == .available
     }
 
     var body: some View {
@@ -483,11 +485,9 @@ struct AssetRow: View {
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 3) {
-                // Asset tag is an ID — render in SF Mono to match web's font-mono
-                // treatment for asset tags. Fallback (brand+model) stays in SF Pro.
                 if let tag = asset.assetTag {
                     Text(tag)
-                        .font(.system(.subheadline, design: .monospaced).weight(.medium))
+                        .font(.gothamBold(size: 17))
                         .lineLimit(1)
                     // Web parity: when the tag is the primary, brand/model
                     // (or a custom name) reads as the subtitle — but only when
@@ -503,11 +503,13 @@ struct AssetRow: View {
                         .font(.subheadline.weight(.medium))
                         .lineLimit(1)
                 }
-                Text(metadataLine)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .truncationMode(.tail)
-                .lineLimit(1)
+                if shouldShowLocation {
+                    Text(metadataLine)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .truncationMode(.tail)
+                        .lineLimit(1)
+                }
             }
             .layoutPriority(1)
 
@@ -543,8 +545,9 @@ struct AssetRow: View {
             parts.append(asset.displayName)
         }
 
-        if let cat = asset.category { parts.append(cat.name) }
-        parts.append(asset.location.name)
+        if shouldShowLocation {
+            parts.append(asset.location.name)
+        }
 
         // Status + due/overdue: speak who has it (when applicable) + status label.
         if let name = asset.activeBooking?.requesterName,
@@ -575,7 +578,11 @@ struct ItemFamilyListRow: View {
     let family: AssetFamilySearchResult
 
     private var metadataLine: String {
-        "\(family.category) · \(family.locationName)"
+        family.locationName
+    }
+
+    private var shouldShowLocation: Bool {
+        family.availableQuantity > 0
     }
 
     var body: some View {
@@ -591,15 +598,13 @@ struct ItemFamilyListRow: View {
                 Text(family.name)
                     .font(.subheadline.weight(.medium))
                     .lineLimit(1)
-                Text(family.trackingStyleLabel)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                Text(metadataLine)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .truncationMode(.tail)
-                    .lineLimit(1)
+                if shouldShowLocation {
+                    Text(metadataLine)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .truncationMode(.tail)
+                        .lineLimit(1)
+                }
             }
             .layoutPriority(1)
 
@@ -614,18 +619,23 @@ struct ItemFamilyListRow: View {
                     .padding(.vertical, 2)
                     .background(Color.statusBackground(tone), in: Capsule())
                     .foregroundStyle(Color.statusText(tone))
-
-                Text(family.trackByNumber ? "Units" : "Quantity")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
             }
             .frame(maxWidth: 140, alignment: .trailing)
             .accessibilityHidden(true)
         }
         .brandCard(padding: Brand.Space.md, radius: Brand.Radius.card)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(family.name), \(family.trackingStyleLabel), \(family.category), \(family.locationName), \(family.listAvailabilityLabel)")
+        .accessibilityLabel(rowAccessibilityLabel)
         .accessibilityHint("Swipe or open the context menu to reserve")
+    }
+
+    private var rowAccessibilityLabel: String {
+        var parts = [family.name]
+        if shouldShowLocation {
+            parts.append(family.locationName)
+        }
+        parts.append(family.listAvailabilityLabel)
+        return parts.joined(separator: ", ")
     }
 }
 
