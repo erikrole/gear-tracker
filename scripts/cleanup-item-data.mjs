@@ -18,6 +18,7 @@ const db = new PrismaClient({
 const ACTION_SOURCE = "item-data-cleanup-2026-06";
 const LEGACY_QR_LABEL_PATTERN = /^[A-Z]\d-\d{3,}$/i;
 const REAL_QR_CODE_PATTERN = /^[a-z0-9]{6,}$/i;
+const CHEQROOM_CSV_PATH = "docs/archive/imports/cheqroom-items-2026-02-27.csv";
 
 function compact(value) {
   return (value ?? "").toString().trim();
@@ -33,6 +34,77 @@ function includesAny(text, terms) {
 
 function unique(values) {
   return [...new Set(values.filter(Boolean))];
+}
+
+function parseDelimitedLine(line, delimiter) {
+  const cells = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+
+    if (char === "\"") {
+      if (inQuotes && line[i + 1] === "\"") {
+        current += "\"";
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === delimiter && !inQuotes) {
+      cells.push(current.trim());
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  cells.push(current.trim());
+  return cells;
+}
+
+function splitScanValues(value) {
+  return compact(value)
+    .split(/[\s,]+/)
+    .map((scanValue) => scanValue.trim())
+    .filter(Boolean);
+}
+
+async function loadCheqroomRows() {
+  const filePath = path.join(process.cwd(), CHEQROOM_CSV_PATH);
+  const content = await fs.readFile(filePath, "utf8");
+  const lines = content.split(/\r?\n/).filter((line) => line.trim().length > 0);
+  const delimiter = lines[0]?.includes(";") ? ";" : ",";
+  const headers = parseDelimitedLine(lines[0] ?? "", delimiter);
+
+  return lines.slice(1).map((line, index) => {
+    const values = parseDelimitedLine(line, delimiter);
+    return Object.fromEntries([
+      ...headers.map((header, headerIndex) => [header, values[headerIndex] ?? ""]),
+      ["_row", index + 2],
+    ]);
+  });
+}
+
+function buildCheqroomLookup(rows) {
+  const byName = new Map();
+  const byBarcode = new Map();
+
+  for (const row of rows) {
+    const name = normalize(row.Name);
+    if (name && !byName.has(name)) byName.set(name, row);
+
+    for (const barcode of splitScanValues(row.Barcodes)) {
+      const key = normalize(barcode);
+      if (key && !byBarcode.has(key)) byBarcode.set(key, row);
+    }
+  }
+
+  return { byName, byBarcode };
 }
 
 function printRows(title, rows, formatter) {
@@ -209,6 +281,11 @@ function scanValueOwners(assets, bulkSkus, plannedAssetUpdates) {
   return ownerMap;
 }
 
+function scanValueForeignOwners(value, ownerMap, asset) {
+  const matchingOwners = ownerMap.get(normalize(value)) ?? [];
+  return matchingOwners.filter((owner) => owner.kind !== "asset" || owner.id !== asset.id);
+}
+
 function safeBackfillActions(assets, bulkSkus, plannedAssetUpdates) {
   const owners = scanValueOwners(assets, bulkSkus, plannedAssetUpdates);
   const actions = [];
@@ -249,16 +326,18 @@ function safeBackfillActions(assets, bulkSkus, plannedAssetUpdates) {
 }
 
 async function main() {
-  const [categories, departments, assets, bulkSkus] = await Promise.all([
+  const [categories, departments, assets, bulkSkus, cheqroomRows] = await Promise.all([
     db.category.findMany({ orderBy: [{ name: "asc" }] }),
     db.department.findMany({ orderBy: [{ name: "asc" }] }),
     db.asset.findMany({ orderBy: [{ assetTag: "asc" }] }),
     db.bulkSku.findMany({ orderBy: [{ name: "asc" }] }),
+    loadCheqroomRows(),
   ]);
 
   const categoriesById = new Map(categories.map((category) => [category.id, category]));
   const categoryPaths = new Map(categories.map((category) => [buildCategoryPath(category, categoriesById), category.id]));
   const departmentsByName = new Map(departments.map((department) => [department.name, department.id]));
+  const cheqroomLookup = buildCheqroomLookup(cheqroomRows);
 
   const plannedAssetUpdates = new Map();
   const taxonomyActions = [];
@@ -279,6 +358,7 @@ async function main() {
   const duplicateSkipped = [];
   const attachmentReview = [];
   const legacyQrReview = [];
+  const csvQrSkipped = [];
 
   const bulkScanValues = new Map();
   for (const sku of bulkSkus) {
@@ -329,6 +409,8 @@ async function main() {
     });
   }
 
+  const initialScanOwners = scanValueOwners(assets, bulkSkus, plannedAssetUpdates);
+
   for (const asset of assets) {
     if (!isLensOrCameraLike(asset, categoriesById)) continue;
     const planned = plannedAssetUpdates.get(asset.id) ?? {};
@@ -352,6 +434,46 @@ async function main() {
     }
 
     if (LEGACY_QR_LABEL_PATTERN.test(primaryScanCode) && LEGACY_QR_LABEL_PATTERN.test(qrCodeValue)) {
+      const csvRow = cheqroomLookup.byName.get(normalize(asset.assetTag))
+        ?? cheqroomLookup.byBarcode.get(normalize(qrCodeValue));
+      const csvCodes = unique(splitScanValues(csvRow?.Codes).filter((code) => REAL_QR_CODE_PATTERN.test(code)));
+      const csvBarcodes = splitScanValues(csvRow?.Barcodes).map(normalize);
+      const csvBarcodeMatches = csvBarcodes.includes(normalize(qrCodeValue));
+      const proposedQrCode = csvCodes.length === 1 ? csvCodes[0] : null;
+      const foreignOwners = proposedQrCode
+        ? scanValueForeignOwners(proposedQrCode, initialScanOwners, asset)
+        : [];
+
+      if (csvRow && csvBarcodeMatches && proposedQrCode && foreignOwners.length === 0) {
+        const data = {
+          qrCodeValue: proposedQrCode,
+          primaryScanCode: proposedQrCode,
+        };
+        primaryScanRepairActions.push({
+          type: "assetPrimaryScanQrRepair",
+          asset,
+          data,
+          reason: `Cheqroom CSV row ${csvRow._row} maps barcode ${qrCodeValue} to code ${proposedQrCode}`,
+        });
+        plannedAssetUpdates.set(asset.id, { ...planned, ...data });
+        continue;
+      }
+
+      csvQrSkipped.push({
+        assetTag: asset.assetTag,
+        qrCodeValue,
+        csvRow: csvRow?._row,
+        csvCodes: csvRow?.Codes,
+        csvBarcodes: csvRow?.Barcodes,
+        reason: !csvRow
+          ? "no matching Cheqroom CSV row"
+          : !csvBarcodeMatches
+            ? "Cheqroom barcode does not match current legacy QR"
+            : csvCodes.length !== 1
+              ? "Cheqroom row does not contain exactly one alphanumeric Codes value"
+              : `proposed code collides with ${foreignOwners.map((owner) => `${owner.kind}:${owner.id}:${owner.source}`).join(", ")}`,
+      });
+
       legacyQrReview.push({
         assetTag: asset.assetTag,
         name: asset.name,
@@ -634,6 +756,7 @@ async function main() {
       skippedPrimaryScanBackfills: primarySkipped.length,
       attachmentReviewRows: attachmentReview.length,
       legacyQrReviewRows: legacyQrReview.length,
+      csvQrSkippedRows: csvQrSkipped.length,
     },
     actions: actions.map((action) => {
       if (action.asset) {
@@ -667,6 +790,7 @@ async function main() {
       primaryScanBackfill: primarySkipped,
       attachmentReview,
       legacyQrReview,
+      csvQrSkipped,
     },
   };
 
@@ -720,6 +844,9 @@ async function main() {
   ));
   printRows("Legacy QR rows needing physical code lookup", legacyQrReview.slice(0, 60), (row) => (
     `${row.assetTag}: ${row.qrCodeValue} / ${row.reason}`
+  ));
+  printRows("Cheqroom CSV QR rows skipped", csvQrSkipped.slice(0, 60), (row) => (
+    `${row.assetTag}: ${row.reason}`
   ));
 
   if (!APPLY) {
