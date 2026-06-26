@@ -72,7 +72,7 @@ function beforeAsset(asset) {
 function afterBulkSku(sku, data) {
   return {
     id: sku.id,
-    name: sku.name,
+    name: data.name ?? sku.name,
     category: data.category ?? sku.category,
     categoryId: data.categoryId ?? sku.categoryId,
     departmentId: data.departmentId ?? sku.departmentId,
@@ -237,6 +237,7 @@ async function main() {
   const assetMetadataActions = [];
   const bulkTaxonomyActions = [];
   const bulkLegacyCategoryActions = [];
+  const bulkNameActions = [];
   const bulkImageActions = [];
   const duplicateActions = [];
   const attachmentActions = [];
@@ -397,6 +398,18 @@ async function main() {
     });
   }
 
+  for (const sku of bulkSkus) {
+    if (!sku.active) continue;
+    if (sku.binQrCodeValue === "94e068d1" && sku.name === "Sony Battery") {
+      bulkNameActions.push({
+        type: "bulkName",
+        sku,
+        data: { name: "Sony NP-FZ100 Battery" },
+        reason: "retired duplicate asset with matching former scan identity stores model NP-FZ100 and B&H source link",
+      });
+    }
+  }
+
   const activeAssetImagesByName = new Map();
   for (const asset of assets) {
     if (asset.status === "RETIRED" || !compact(asset.imageUrl)) continue;
@@ -475,6 +488,7 @@ async function main() {
     ...assetMetadataActions,
     ...bulkTaxonomyActions,
     ...bulkLegacyCategoryActions,
+    ...bulkNameActions,
     ...bulkImageActions,
     ...attachmentActions,
     ...primaryBackfillActions,
@@ -489,6 +503,7 @@ async function main() {
       assetMetadataUpdates: assetMetadataActions.length,
       bulkTaxonomyUpdates: bulkTaxonomyActions.length,
       bulkLegacyCategoryUpdates: bulkLegacyCategoryActions.length,
+      bulkNameUpdates: bulkNameActions.length,
       bulkImageBackfills: bulkImageActions.length,
       attachmentUpdates: attachmentActions.length,
       primaryScanBackfills: primaryBackfillActions.length,
@@ -555,6 +570,9 @@ async function main() {
   printRows("Item-family legacy category text updates", bulkLegacyCategoryActions, (action) => (
     `${action.sku.name}: ${action.sku.category} -> ${action.data.category}`
   ));
+  printRows("Item-family name updates", bulkNameActions, (action) => (
+    `${action.sku.name}: ${action.data.name} (${action.reason})`
+  ));
   printRows("Item-family image backfills", bulkImageActions, (action) => (
     `${action.sku.name}: copied from ${action.sourceAsset.assetTag}`
   ));
@@ -579,7 +597,7 @@ async function main() {
 
   await db.$transaction(async (tx) => {
     for (const action of actions) {
-      if (action.type === "bulkTaxonomy" || action.type === "bulkLegacyCategory" || action.type === "bulkImageBackfill") {
+      if (action.type === "bulkTaxonomy" || action.type === "bulkLegacyCategory" || action.type === "bulkName" || action.type === "bulkImageBackfill") {
         await tx.bulkSku.update({
           where: { id: action.sku.id },
           data: action.data,
@@ -591,7 +609,9 @@ async function main() {
               ? "data_cleanup_bulk_taxonomy"
               : action.type === "bulkLegacyCategory"
                 ? "data_cleanup_bulk_legacy_category"
-                : "data_cleanup_bulk_image_backfill",
+                : action.type === "bulkName"
+                  ? "data_cleanup_bulk_name"
+                  : "data_cleanup_bulk_image_backfill",
             entityType: "BulkSku",
             entityId: action.sku.id,
             beforeJson: { ...beforeBulkSku(action.sku), source: ACTION_SOURCE },

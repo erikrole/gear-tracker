@@ -17,6 +17,7 @@ Plan: `tasks/item-data-cleanup-plan.md`
 - [x] Convert camera-tied accessories/fixed parts into attachments where operationally correct.
 - [x] Align the Items list feed with cleaned data so default All excludes retired serialized rows and item-family categories display canonical taxonomy.
 - [x] Normalize legacy item-family category text and harden future item-family writes against stale category fallbacks.
+- [x] Disambiguate source-backed duplicate item-family names where the retired duplicate asset proves the model.
 - [x] Sync relevant area docs and run closeout verification after each shipped slice.
 
 ### Review
@@ -29,6 +30,7 @@ Plan: `tasks/item-data-cleanup-plan.md`
 - 2026-06-26: Serialized metadata follow-up cleared unknown brand/model counts to 0 by fixing the Dell monitor and Monitor Battery from stored source evidence, and retired the active smoke-test asset with no history. Remaining serialized serial/image gaps are tracked in `tasks/serialized-metadata-review.md`.
 - 2026-06-26: Items list feed follow-up fixed the Dia-visible cleanup gaps. `/api/assets` now excludes retired serialized rows from the default no-status list while preserving explicit `status=RETIRED`, keeps active item families out of Retired-only views, and returns item-family category labels from canonical `BulkSku.categoryRel` before falling back to the legacy text field. Focused route regression coverage passed.
 - 2026-06-26: Legacy item-family category text follow-up applied 12 audit-logged `BulkSku.category` normalizations from canonical category rows, including the Dia-visible `Recording Equipment`, `Cameras/Camera Accessories`, and `general` cases. `POST /api/bulk-skus` and `PATCH /api/bulk-skus/[id]` now derive the legacy category text from `categoryId` so new writes cannot reintroduce stale labels. Cleanup dry-run now plans 0 data mutations.
+- 2026-06-26: Source-backed item-family name follow-up renamed the unit-tracked `Sony Battery` family with bin `94e068d1` to `Sony NP-FZ100 Battery`, using the retired duplicate asset's former scan identity, model, and B&H source link as evidence. The remaining quantity-tracked `Sony Battery` row stays unchanged because stored data does not prove its exact model. Cleanup dry-run again plans 0 data mutations.
 
 ---
 
