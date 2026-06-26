@@ -8,7 +8,7 @@ import { requirePermission } from "@/lib/rbac";
 import { buildDerivedStatusWhere, enrichAssetsWithStatusFromLoaded } from "@/lib/services/status";
 import { buildActiveBulkUnitAllocationMap, effectiveBulkUnitStatus } from "@/lib/bulk-unit-status";
 import { parseDerivedBulkUnitQr } from "@/lib/bulk-unit-qr";
-import { BookingKind, BookingStatus, Prisma } from "@prisma/client";
+import { AssetStatus, BookingKind, BookingStatus, Prisma } from "@prisma/client";
 
 const departmentIdSchema = z.string().min(1);
 const GAP_SUGGESTION_SOURCE_LIMIT = 5000;
@@ -146,7 +146,8 @@ export const GET = withAuth(async (req, { user }) => {
 
   // Build status filter using DB-level derived status clauses
   let where: Prisma.AssetWhereInput;
-  if (statusParams.length > 0) {
+  const hasStatusFilter = statusParams.length > 0;
+  if (hasStatusFilter) {
     const statusClauses = buildDerivedStatusWhere(statusParams);
     where = {
       AND: [
@@ -154,8 +155,15 @@ export const GET = withAuth(async (req, { user }) => {
         { OR: statusClauses },
       ],
     };
-  } else {
+  } else if (qr) {
     where = baseWhere;
+  } else {
+    where = {
+      AND: [
+        baseWhere,
+        { status: { not: AssetStatus.RETIRED } },
+      ],
+    };
   }
 
   // ids-only mode: return matching asset IDs (capped) for "select all matching" flows.
@@ -435,7 +443,13 @@ export const GET = withAuth(async (req, { user }) => {
     binQrCodeValue: string;
   }> = [];
 
-  if (offset === 0 && !showAccessories && !includeAccessories) {
+  const shouldFetchBulkItems =
+    offset === 0 &&
+    !showAccessories &&
+    !includeAccessories &&
+    (!hasStatusFilter || statusParams.includes("AVAILABLE"));
+
+  if (shouldFetchBulkItems) {
     const bulkWhere: Prisma.BulkSkuWhereInput = {
       active: true,
       ...(locationIds.length === 1 ? { locationId: locationIds[0] } : {}),
@@ -448,6 +462,7 @@ export const GET = withAuth(async (req, { user }) => {
         OR: [
           { name: { contains: q, mode: "insensitive" as const } },
           { category: { contains: q, mode: "insensitive" as const } },
+          { categoryRel: { name: { contains: q, mode: "insensitive" as const } } },
         ],
       } : {}),
       ...(qr ? {
@@ -463,6 +478,7 @@ export const GET = withAuth(async (req, { user }) => {
       where: bulkWhere,
       include: {
         location: { select: { name: true } },
+        categoryRel: { select: { id: true, name: true } },
         department: { select: { id: true, name: true } },
         balances: { select: { onHandQuantity: true } },
         units: { select: { id: true, unitNumber: true, status: true } },
@@ -537,7 +553,7 @@ export const GET = withAuth(async (req, { user }) => {
         id: sku.id,
         kind: "bulk" as const,
         name: sku.name,
-        category: sku.category,
+        category: sku.categoryRel?.name ?? sku.category,
         unit: sku.unit,
         trackByNumber: sku.trackByNumber,
         onHandQuantity: onHand,

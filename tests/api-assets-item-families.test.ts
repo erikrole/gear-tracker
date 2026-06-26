@@ -35,7 +35,7 @@ vi.mock("@/lib/db", () => ({
 }));
 
 vi.mock("@/lib/services/status", () => ({
-  buildDerivedStatusWhere: vi.fn(() => [{}]),
+  buildDerivedStatusWhere: vi.fn((statuses: string[]) => statuses.map((status) => ({ status }))),
   enrichAssetsWithStatusFromLoaded: vi.fn(async (assets: unknown[]) => assets),
 }));
 
@@ -72,6 +72,7 @@ function numberedBatterySku(overrides: Record<string, unknown> = {}) {
     imageUrl: null,
     locationId: "loc-1",
     categoryId: "cat-1",
+    categoryRel: { id: "cat-1", name: "Batteries" },
     departmentId: "dept-1",
     binQrCodeValue: "BAT",
     location: { name: "Cage" },
@@ -98,6 +99,47 @@ beforeEach(() => {
 });
 
 describe("/api/assets item-family rows", () => {
+  it("excludes retired serialized rows from the default list", async () => {
+    const res = await getAssets(request("/api/assets?limit=25"), {
+      params: Promise.resolve({}),
+    });
+
+    expect(res.status).toBe(200);
+    expect(mocks.assetFindMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: {
+        AND: [
+          { parentAssetId: null },
+          { status: { not: "RETIRED" } },
+        ],
+      },
+    }));
+    expect(mocks.assetCount).toHaveBeenCalledWith({
+      where: {
+        AND: [
+          { parentAssetId: null },
+          { status: { not: "RETIRED" } },
+        ],
+      },
+    });
+  });
+
+  it("keeps retired rows available through an explicit Retired status filter", async () => {
+    const res = await getAssets(request("/api/assets?status=RETIRED&limit=25"), {
+      params: Promise.resolve({}),
+    });
+
+    expect(res.status).toBe(200);
+    expect(mocks.assetFindMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: {
+        AND: [
+          { parentAssetId: null },
+          { OR: [{ status: "RETIRED" }] },
+        ],
+      },
+    }));
+    expect(mocks.bulkSkuFindMany).not.toHaveBeenCalled();
+  });
+
   it("returns one unit-tracked item-family row with availability counts for search", async () => {
     mocks.bulkSkuFindMany.mockResolvedValue([numberedBatterySku()]);
 
@@ -124,6 +166,27 @@ describe("/api/assets item-family rows", () => {
         departmentName: "Production",
       },
     ]);
+  });
+
+  it("uses the canonical category relation for item-family display", async () => {
+    mocks.bulkSkuFindMany.mockResolvedValue([
+      numberedBatterySku({
+        category: "Recording Equipment",
+        categoryRel: { id: "cat-1", name: "Batteries" },
+      }),
+    ]);
+
+    const res = await getAssets(request("/api/assets?q=battery&limit=25"), {
+      params: Promise.resolve({}),
+    });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.bulkItems[0]).toMatchObject({
+      id: "sku-battery",
+      category: "Batteries",
+      categoryId: "cat-1",
+    });
   });
 
   it("resolves a derived unit QR to the parent item family with unit status", async () => {
