@@ -53,6 +53,7 @@ export default function ItemsPage() {
 
   const query = useItemsQuery({
     debouncedSearch: filters.debouncedSearch,
+    itemType: filters.itemType,
     statusKey: filters.statusKey,
     locationKey: filters.locationKey,
     categoryKey: filters.categoryKey,
@@ -186,8 +187,6 @@ export default function ItemsPage() {
       setSelectingAll(false);
     }
   }, [filters]);
-
-  const itemFamilyOnly = filters.itemType === "unit-tracked" || filters.itemType === "quantity-tracked";
 
   // Merge item-family rows into the main table as Asset-shaped rows.
   const mergedData = useMemo(() => {
@@ -698,15 +697,14 @@ export default function ItemsPage() {
         {/* Pagination footer */}
         {!pageLoading && !query.loadError && visibleRowCount > 0 && (
           <ItemsPagination
-            total={itemFamilyOnly ? mergedData.length : query.total}
+            total={query.total}
             page={query.page}
-            totalPages={itemFamilyOnly ? 1 : query.totalPages}
-            limit={itemFamilyOnly ? Math.max(mergedData.length, 1) : query.limit}
-            offset={itemFamilyOnly ? 0 : query.page * query.limit}
+            totalPages={query.totalPages}
+            limit={query.limit}
+            offset={query.page * query.limit}
             selectedCount={selectedCount}
             onPageChange={query.setPage}
             onLimitChange={(v) => { query.setLimit(v); query.setPage(0); }}
-            rowsPerPageDisabled={itemFamilyOnly}
           />
         )}
       </div>

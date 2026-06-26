@@ -20,6 +20,7 @@ Plan: `tasks/item-data-cleanup-plan.md`
 - [x] Disambiguate source-backed duplicate item-family names where the retired duplicate asset proves the model.
 - [x] Sort the Items list by operational asset-tag family so department/team prefixes do not split related gear.
 - [x] Harden asset-tag-family sorting against broad-prefix false positives and expand edge-case coverage.
+- [x] Unify serialized and item-family pagination so unit/quantity rows do not splice into page 1 while page 2 resumes serialized rows.
 - [x] Sync relevant area docs and run closeout verification after each shipped slice.
 
 ### Review
@@ -35,6 +36,7 @@ Plan: `tasks/item-data-cleanup-plan.md`
 - 2026-06-26: Source-backed item-family name follow-up renamed the unit-tracked `Sony Battery` family with bin `94e068d1` to `Sony NP-FZ100 Battery`, using the retired duplicate asset's former scan identity, model, and B&H source link as evidence. The remaining quantity-tracked `Sony Battery` row stays unchanged because stored data does not prove its exact model. Cleanup dry-run again plans 0 data mutations.
 - 2026-06-26: Items list asset-tag sort follow-up shipped locally. Default Name/tag sorting now compares an operational asset-tag family key instead of the raw display tag, so department/team prefixes such as `FB` and `MBB` no longer push related gear into the F/M sections. Examples like `FB 70-200 1`, `MBB 28-75 1`, `FX3`, and `FX6` now sort by the underlying gear family while preserving the visible tag text.
 - 2026-06-26: Asset-tag sort hardening follow-up made prefix stripping more conservative. Team/sport prefixes still group ordinary equipment tags such as `FB Wireless Flash`, but broad department words such as `Video` and `Photo` strip only when the remaining tag is clearly a known equipment family. Regression coverage now protects `Video Assist 1` from being mis-sorted as `Assist 1` while keeping `Video FX6 2` grouped with FX6 rows.
+- 2026-06-26: Items pagination follow-up fixed split serialized/item-family paging. `/api/assets` now accepts the selected item kind and builds one asset-tag sorted page across serialized assets and active item families, so unit/quantity rows occupy real slots instead of being injected into page 1 while page 2 resumes serialized assets. Units and Quantity tabs now paginate from the API instead of client-side hiding.
 
 ---
 

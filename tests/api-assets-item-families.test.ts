@@ -144,6 +144,73 @@ beforeEach(() => {
 });
 
 describe("/api/assets item-family rows", () => {
+  it("uses one sorted page across serialized assets and item families", async () => {
+    mocks.assetFindMany.mockResolvedValue([
+      assetRow("16-35-1", "16-35 1"),
+      assetRow("24-70-1", "24-70 1"),
+      assetRow("35-150-1", "35-150 1"),
+      assetRow("50-500-1", "50-500 1"),
+      assetRow("70-macro-1", "70 macro 1"),
+      assetRow("mbb-70-180-1", "MBB 70-180 1"),
+      assetRow("70-200-1", "70-200 1"),
+      assetRow("100-400-1", "100-400 1"),
+    ]);
+    mocks.assetCount.mockResolvedValue(8);
+    mocks.bulkSkuFindMany.mockResolvedValue([
+      numberedBatterySku({ id: "sku-anton", name: "Anton Bauer Digital 150 Gold-Mount Battery" }),
+    ]);
+
+    const pageOne = await getAssets(request("/api/assets?limit=5&offset=0"), {
+      params: Promise.resolve({}),
+    });
+    const pageOneBody = await pageOne.json();
+
+    expect(pageOne.status).toBe(200);
+    expect(pageOneBody.total).toBe(9);
+    expect(pageOneBody.data.map((asset: { assetTag: string }) => asset.assetTag)).toEqual([
+      "16-35 1",
+      "24-70 1",
+      "35-150 1",
+      "50-500 1",
+      "70 macro 1",
+    ]);
+    expect(pageOneBody.bulkItems).toEqual([]);
+
+    const pageTwo = await getAssets(request("/api/assets?limit=5&offset=5"), {
+      params: Promise.resolve({}),
+    });
+    const pageTwoBody = await pageTwo.json();
+
+    expect(pageTwo.status).toBe(200);
+    expect(pageTwoBody.data.map((asset: { assetTag: string }) => asset.assetTag)).toEqual([
+      "MBB 70-180 1",
+      "70-200 1",
+      "100-400 1",
+    ]);
+    expect(pageTwoBody.bulkItems).toMatchObject([
+      { id: "sku-anton", name: "Anton Bauer Digital 150 Gold-Mount Battery" },
+    ]);
+  });
+
+  it("applies item-family kind filters at the API layer", async () => {
+    mocks.bulkSkuFindMany.mockResolvedValue([numberedBatterySku()]);
+
+    const res = await getAssets(request("/api/assets?item_type=unit-tracked&limit=25"), {
+      params: Promise.resolve({}),
+    });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.data).toEqual([]);
+    expect(body.total).toBe(1);
+    expect(body.statusBreakdown).toMatchObject({ available: 1, checkedOut: 0, retired: 0 });
+    expect(body.bulkItems).toMatchObject([{ id: "sku-battery", trackByNumber: true }]);
+    expect(mocks.assetFindMany).not.toHaveBeenCalled();
+    expect(mocks.bulkSkuFindMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ active: true, trackByNumber: true }),
+    }));
+  });
+
   it("paginates default asset-tag sorting by operational tag family", async () => {
     mocks.assetFindMany.mockResolvedValue([
       assetRow("fx6-1", "FX6 1"),

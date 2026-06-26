@@ -7,9 +7,11 @@ import { toast } from "sonner";
 import type { SortingState } from "@tanstack/react-table";
 import type { Asset } from "../columns";
 import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
+import type { ItemTypeFilter } from "./use-url-filters";
 
 type QueryDeps = {
   debouncedSearch: string;
+  itemType: ItemTypeFilter;
   statusKey: string;
   locationKey: string;
   categoryKey: string;
@@ -79,6 +81,7 @@ function buildUrl(page: number, limit: number, deps: QueryDeps): string {
   const params = new URLSearchParams();
   params.set("limit", String(limit));
   params.set("offset", String(page * limit));
+  if (deps.itemType !== "all") params.set("item_type", deps.itemType);
   if (deps.debouncedSearch) params.set("q", deps.debouncedSearch);
   deps.statusKey.split(",").filter(Boolean).forEach((v) => params.append("status", v));
   deps.locationKey.split(",").filter(Boolean).forEach((v) => params.append("location_id", v));

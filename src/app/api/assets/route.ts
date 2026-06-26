@@ -46,7 +46,47 @@ const assetInclude = {
   _count: { select: { accessories: true } },
 };
 
+const bulkSkuInclude = {
+  location: { select: { name: true } },
+  categoryRel: { select: { id: true, name: true } },
+  department: { select: { id: true, name: true } },
+  balances: { select: { onHandQuantity: true } },
+  units: { select: { id: true, unitNumber: true, status: true } },
+};
+
 type AssetListRow = Prisma.AssetGetPayload<{ include: typeof assetInclude }>;
+type BulkSkuListRow = Prisma.BulkSkuGetPayload<{ include: typeof bulkSkuInclude }>;
+type DerivedBulkUnitQr = ReturnType<typeof parseDerivedBulkUnitQr>;
+type ItemKindFilter = "all" | "serialized" | "unit-tracked" | "quantity-tracked";
+
+type BulkListItem = {
+  id: string;
+  kind: "bulk";
+  name: string;
+  category: string;
+  unit: string;
+  trackByNumber: boolean;
+  onHandQuantity: number;
+  availableQuantity: number;
+  checkedOutQuantity: number;
+  lostQuantity: number;
+  retiredQuantity: number;
+  matchedUnitNumber?: number;
+  matchedUnitStatus?: string;
+  matchedUnitHolder?: string | null;
+  matchedUnitHolderAvatarUrl?: string | null;
+  matchedUnitDueAt?: string | null;
+  matchedUnitBookingTitle?: string | null;
+  matchedUnitBookingId?: string | null;
+  units?: Array<{ unitNumber: number; status: string }>;
+  imageUrl: string | null;
+  locationName: string;
+  locationId: string;
+  categoryId: string | null;
+  departmentId: string | null;
+  departmentName: string | null;
+  binQrCodeValue: string;
+};
 
 async function loadOperationallySortedAssets(
   where: Prisma.AssetWhereInput,
@@ -67,6 +107,116 @@ async function loadOperationallySortedAssets(
   if (descending) rows.reverse();
 
   return [rows.slice(offset, offset + limit), total];
+}
+
+function readItemKindFilter(value: string | null): ItemKindFilter {
+  if (value === "bulk") return "unit-tracked";
+  if (value === "serialized" || value === "unit-tracked" || value === "quantity-tracked") return value;
+  return "all";
+}
+
+async function buildBulkListItems(
+  bulkSkus: BulkSkuListRow[],
+  derivedBulkUnitQr: DerivedBulkUnitQr
+): Promise<BulkListItem[]> {
+  const bulkUnitIds = bulkSkus.flatMap((sku) => sku.units.map((unit) => unit.id));
+  const activeUnitAllocations = bulkUnitIds.length > 0
+    ? await db.bookingBulkUnitAllocation.findMany({
+        where: {
+          bulkSkuUnitId: { in: bulkUnitIds },
+          checkedOutAt: { not: null },
+          checkedInAt: null,
+        },
+        select: {
+          bulkSkuUnitId: true,
+          bookingBulkItem: {
+            select: {
+              booking: {
+                select: {
+                  id: true,
+                  title: true,
+                  endsAt: true,
+                  requester: { select: { name: true, avatarUrl: true } },
+                },
+              },
+            },
+          },
+        },
+        orderBy: { checkedOutAt: "desc" },
+      })
+    : [];
+  const activeAllocationByUnitId = buildActiveBulkUnitAllocationMap(activeUnitAllocations);
+
+  return bulkSkus.map((sku) => {
+    const balanceOnHand = sku.balances.reduce((sum, b) => sum + b.onHandQuantity, 0);
+    const unitsWithDisplayStatus = sku.units.map((unit) => ({
+      ...unit,
+      displayStatus: effectiveBulkUnitStatus(unit, activeAllocationByUnitId.get(unit.id)),
+    }));
+    const checkedOutQuantity = sku.trackByNumber
+      ? unitsWithDisplayStatus.filter((unit) => unit.displayStatus === "CHECKED_OUT").length
+      : 0;
+    const lostQuantity = sku.trackByNumber
+      ? unitsWithDisplayStatus.filter((unit) => unit.displayStatus === "LOST").length
+      : 0;
+    const retiredQuantity = sku.trackByNumber
+      ? unitsWithDisplayStatus.filter((unit) => unit.displayStatus === "RETIRED").length
+      : 0;
+    const availableQuantity = sku.trackByNumber
+      ? unitsWithDisplayStatus.filter((unit) => unit.displayStatus === "AVAILABLE").length
+      : Math.max(0, balanceOnHand);
+    const onHand = sku.trackByNumber
+      ? sku.units.length
+      : balanceOnHand;
+    const matchedUnit = derivedBulkUnitQr?.bulkSkuId === sku.id
+      ? unitsWithDisplayStatus.find((unit) => unit.unitNumber === derivedBulkUnitQr.unitNumber)
+      : null;
+    const matchedUnitAllocation = matchedUnit ? activeAllocationByUnitId.get(matchedUnit.id) : null;
+    const matchedUnitBooking = matchedUnitAllocation?.bookingBulkItem.booking;
+    const matchedUnitCustody = matchedUnit && matchedUnitBooking
+      ? {
+          matchedUnitHolder: matchedUnitBooking.requester.name,
+          matchedUnitHolderAvatarUrl: matchedUnitBooking.requester.avatarUrl,
+          matchedUnitDueAt: matchedUnitBooking.endsAt.toISOString(),
+          matchedUnitBookingTitle: matchedUnitBooking.title,
+          matchedUnitBookingId: matchedUnitBooking.id,
+        }
+      : {};
+
+    return {
+      id: sku.id,
+      kind: "bulk" as const,
+      name: sku.name,
+      category: sku.categoryRel?.name ?? sku.category,
+      unit: sku.unit,
+      trackByNumber: sku.trackByNumber,
+      onHandQuantity: onHand,
+      availableQuantity,
+      checkedOutQuantity,
+      lostQuantity,
+      retiredQuantity,
+      ...(matchedUnit
+        ? {
+            matchedUnitNumber: matchedUnit.unitNumber,
+            matchedUnitStatus: matchedUnit.displayStatus,
+            ...matchedUnitCustody,
+            // Per-unit roster, only on the exact-unit scan path so list
+            // searches don't ship every unit of every SKU.
+            units: unitsWithDisplayStatus
+              .slice()
+              .sort((a, b) => a.unitNumber - b.unitNumber)
+              .map((u) => ({ unitNumber: u.unitNumber, status: u.displayStatus })),
+          }
+        : {}),
+      imageUrl: sku.imageUrl,
+      locationName: sku.location.name,
+      locationId: sku.locationId,
+      categoryId: sku.categoryId,
+      departmentId: sku.departmentId,
+      departmentName: sku.department?.name ?? null,
+      binQrCodeValue: sku.binQrCodeValue,
+    };
+  });
 }
 
 /** Map sort param to Prisma orderBy clause. */
@@ -99,6 +249,9 @@ export const GET = withAuth(async (req, { user }) => {
   const showAccessories = searchParams.get("show_accessories") === "true";
   const includeAccessories = searchParams.get("include_accessories") === "true";
   const favoritesOnly = searchParams.get("favorites_only") === "true";
+  const itemKind = readItemKindFilter(searchParams.get("item_type") ?? searchParams.get("type"));
+  const includeSerializedRows = itemKind === "all" || itemKind === "serialized";
+  const includeBulkRows = itemKind === "all" || itemKind === "unit-tracked" || itemKind === "quantity-tracked";
 
   // Support multi-value filters: ?status=A&status=B or single ?status=A
   const statusParams = searchParams.getAll("status").filter(Boolean);
@@ -400,19 +553,108 @@ export const GET = withAuth(async (req, { user }) => {
     });
   }
 
+  const canReturnBulkItems =
+    includeBulkRows &&
+    !showAccessories &&
+    !includeAccessories &&
+    !favoritesOnly &&
+    brandParams.length === 0 &&
+    (!hasStatusFilter || statusParams.includes("AVAILABLE"));
+
+  const bulkWhere: Prisma.BulkSkuWhereInput | null = canReturnBulkItems
+    ? {
+        active: true,
+        ...(itemKind === "unit-tracked" ? { trackByNumber: true } : {}),
+        ...(itemKind === "quantity-tracked" ? { trackByNumber: false } : {}),
+        ...(locationIds.length === 1 ? { locationId: locationIds[0] } : {}),
+        ...(locationIds.length > 1 ? { locationId: { in: locationIds } } : {}),
+        ...(categoryIds.length === 1 ? { categoryId: categoryIds[0] } : {}),
+        ...(categoryIds.length > 1 ? { categoryId: { in: categoryIds } } : {}),
+        ...(departmentIds.length === 1 ? { departmentId: departmentIds[0] } : {}),
+        ...(departmentIds.length > 1 ? { departmentId: { in: departmentIds } } : {}),
+        ...(q ? {
+          OR: [
+            { name: { contains: q, mode: "insensitive" as const } },
+            { category: { contains: q, mode: "insensitive" as const } },
+            { categoryRel: { name: { contains: q, mode: "insensitive" as const } } },
+          ],
+        } : {}),
+        ...(qr ? {
+          OR: [
+            { binQrCodeValue: { equals: qr, mode: "insensitive" as const } },
+            { binQrCodeValue: { equals: `QR-${qr}`, mode: "insensitive" as const } },
+            ...(derivedBulkUnitQr ? [{ id: derivedBulkUnitQr.bulkSkuId }] : []),
+          ],
+        } : {}),
+      }
+    : null;
+
+  let rawData: AssetListRow[] = [];
+  let bulkItems: BulkListItem[] = [];
+  let total = 0;
+  let matchingBulkTotal = 0;
   const shouldUseOperationalAssetTagSort = sortKey === "assetTag" || sortKey === "-assetTag";
-  const [rawData, total] = shouldUseOperationalAssetTagSort
-    ? await loadOperationallySortedAssets(where, sortKey === "-assetTag", offset, limit)
-    : await Promise.all([
-        db.asset.findMany({
-          where,
-          include: assetInclude,
-          orderBy,
-          take: limit,
-          skip: offset,
-        }),
-        db.asset.count({ where }),
-      ]);
+  const shouldUseUnifiedAssetTagPagination = shouldUseOperationalAssetTagSort && bulkWhere !== null;
+
+  if (shouldUseUnifiedAssetTagPagination) {
+    const [allAssets, assetTotal, bulkSkus] = await Promise.all([
+      includeSerializedRows
+        ? db.asset.findMany({
+            where,
+            include: assetInclude,
+            orderBy: { assetTag: "asc" },
+          })
+        : Promise.resolve([]),
+      includeSerializedRows ? db.asset.count({ where }) : Promise.resolve(0),
+      db.bulkSku.findMany({
+        where: bulkWhere,
+        include: bulkSkuInclude,
+        orderBy: { name: "asc" },
+      }),
+    ]);
+    const allBulkItems = await buildBulkListItems(bulkSkus, derivedBulkUnitQr);
+    matchingBulkTotal = allBulkItems.length;
+    const combinedRows = [
+      ...allAssets.map((asset) => ({ kind: "asset" as const, sortTag: asset.assetTag, asset })),
+      ...allBulkItems.map((bulk) => ({ kind: "bulk" as const, sortTag: bulk.name, bulk })),
+    ].sort((a, b) => compareItemAssetTags(a.sortTag, b.sortTag));
+
+    if (sortKey === "-assetTag") combinedRows.reverse();
+
+    const pageRows = combinedRows.slice(offset, offset + limit);
+    rawData = pageRows.flatMap((row) => row.kind === "asset" ? [row.asset] : []);
+    bulkItems = pageRows.flatMap((row) => row.kind === "bulk" ? [row.bulk] : []);
+    total = assetTotal + allBulkItems.length;
+  } else {
+    if (includeSerializedRows) {
+      [rawData, total] = shouldUseOperationalAssetTagSort
+        ? await loadOperationallySortedAssets(where, sortKey === "-assetTag", offset, limit)
+        : await Promise.all([
+            db.asset.findMany({
+              where,
+              include: assetInclude,
+              orderBy,
+              take: limit,
+              skip: offset,
+            }),
+            db.asset.count({ where }),
+          ]);
+    }
+
+    if (bulkWhere && !includeSerializedRows) {
+      const bulkSkus = await db.bulkSku.findMany({
+        where: bulkWhere,
+        include: bulkSkuInclude,
+        orderBy: { name: "asc" },
+      });
+      const allBulkItems = await buildBulkListItems(bulkSkus, derivedBulkUnitQr);
+      matchingBulkTotal = allBulkItems.length;
+      const sortedBulkItems = allBulkItems.sort((a, b) => compareItemAssetTags(a.name, b.name));
+      if (sortKey === "-assetTag") sortedBulkItems.reverse();
+      bulkItems = sortedBulkItems.slice(offset, offset + limit);
+      total = allBulkItems.length;
+    }
+  }
 
   const data = await enrichAssetsWithStatusFromLoaded(rawData);
 
@@ -433,184 +675,18 @@ export const GET = withAuth(async (req, { user }) => {
 
   // Status breakdown counts using derived status logic
   const statusKeys = ["AVAILABLE", "CHECKED_OUT", "PENDING_PICKUP", "RESERVED", "MAINTENANCE", "RETIRED"] as const;
-  const breakdownCounts = await Promise.all(
-    statusKeys.map((s) => {
-      const clauses = buildDerivedStatusWhere([s]);
-      return db.asset.count({ where: { AND: [baseWhere, { OR: clauses }] } });
-    })
-  );
-
-  // Fetch bulk items (only on first page and when not filtering attachment-related rows)
-  let bulkItems: Array<{
-    id: string;
-    kind: "bulk";
-    name: string;
-    category: string;
-    unit: string;
-    trackByNumber: boolean;
-    onHandQuantity: number;
-    availableQuantity: number;
-    checkedOutQuantity: number;
-    lostQuantity: number;
-    retiredQuantity: number;
-    matchedUnitNumber?: number;
-    matchedUnitStatus?: string;
-    matchedUnitHolder?: string | null;
-    matchedUnitHolderAvatarUrl?: string | null;
-    matchedUnitDueAt?: string | null;
-    matchedUnitBookingTitle?: string | null;
-    matchedUnitBookingId?: string | null;
-    units?: Array<{ unitNumber: number; status: string }>;
-    imageUrl: string | null;
-    locationName: string;
-    locationId: string;
-    categoryId: string | null;
-    departmentId: string | null;
-    departmentName: string | null;
-    binQrCodeValue: string;
-  }> = [];
-
-  const shouldFetchBulkItems =
-    offset === 0 &&
-    !showAccessories &&
-    !includeAccessories &&
-    (!hasStatusFilter || statusParams.includes("AVAILABLE"));
-
-  if (shouldFetchBulkItems) {
-    const bulkWhere: Prisma.BulkSkuWhereInput = {
-      active: true,
-      ...(locationIds.length === 1 ? { locationId: locationIds[0] } : {}),
-      ...(locationIds.length > 1 ? { locationId: { in: locationIds } } : {}),
-      ...(categoryIds.length === 1 ? { categoryId: categoryIds[0] } : {}),
-      ...(categoryIds.length > 1 ? { categoryId: { in: categoryIds } } : {}),
-      ...(departmentIds.length === 1 ? { departmentId: departmentIds[0] } : {}),
-      ...(departmentIds.length > 1 ? { departmentId: { in: departmentIds } } : {}),
-      ...(q ? {
-        OR: [
-          { name: { contains: q, mode: "insensitive" as const } },
-          { category: { contains: q, mode: "insensitive" as const } },
-          { categoryRel: { name: { contains: q, mode: "insensitive" as const } } },
-        ],
-      } : {}),
-      ...(qr ? {
-        OR: [
-          { binQrCodeValue: { equals: qr, mode: "insensitive" as const } },
-          { binQrCodeValue: { equals: `QR-${qr}`, mode: "insensitive" as const } },
-          ...(derivedBulkUnitQr ? [{ id: derivedBulkUnitQr.bulkSkuId }] : []),
-        ],
-      } : {}),
-    };
-
-    const bulkSkus = await db.bulkSku.findMany({
-      where: bulkWhere,
-      include: {
-        location: { select: { name: true } },
-        categoryRel: { select: { id: true, name: true } },
-        department: { select: { id: true, name: true } },
-        balances: { select: { onHandQuantity: true } },
-        units: { select: { id: true, unitNumber: true, status: true } },
-      },
-      orderBy: { name: "asc" },
-    });
-
-    const bulkUnitIds = bulkSkus.flatMap((sku) => sku.units.map((unit) => unit.id));
-    const activeUnitAllocations = bulkUnitIds.length > 0
-      ? await db.bookingBulkUnitAllocation.findMany({
-          where: {
-            bulkSkuUnitId: { in: bulkUnitIds },
-            checkedOutAt: { not: null },
-            checkedInAt: null,
-          },
-          select: {
-            bulkSkuUnitId: true,
-            bookingBulkItem: {
-              select: {
-                booking: {
-                  select: {
-                    id: true,
-                    title: true,
-                    endsAt: true,
-                    requester: { select: { name: true, avatarUrl: true } },
-                  },
-                },
-              },
-            },
-          },
-          orderBy: { checkedOutAt: "desc" },
+  const assetBreakdownCounts: [number, number, number, number, number, number] = includeSerializedRows
+    ? await Promise.all(
+        statusKeys.map((s) => {
+          const clauses = buildDerivedStatusWhere([s]);
+          return db.asset.count({ where: { AND: [baseWhere, { OR: clauses }] } });
         })
-      : [];
-    const activeAllocationByUnitId = buildActiveBulkUnitAllocationMap(activeUnitAllocations);
-
-    bulkItems = bulkSkus.map((sku) => {
-      const balanceOnHand = sku.balances.reduce((sum, b) => sum + b.onHandQuantity, 0);
-      const unitsWithDisplayStatus = sku.units.map((unit) => ({
-        ...unit,
-        displayStatus: effectiveBulkUnitStatus(unit, activeAllocationByUnitId.get(unit.id)),
-      }));
-      const checkedOutQuantity = sku.trackByNumber
-        ? unitsWithDisplayStatus.filter((unit) => unit.displayStatus === "CHECKED_OUT").length
-        : 0;
-      const lostQuantity = sku.trackByNumber
-        ? unitsWithDisplayStatus.filter((unit) => unit.displayStatus === "LOST").length
-        : 0;
-      const retiredQuantity = sku.trackByNumber
-        ? unitsWithDisplayStatus.filter((unit) => unit.displayStatus === "RETIRED").length
-        : 0;
-      const availableQuantity = sku.trackByNumber
-        ? unitsWithDisplayStatus.filter((unit) => unit.displayStatus === "AVAILABLE").length
-        : Math.max(0, balanceOnHand);
-      const onHand = sku.trackByNumber
-        ? sku.units.length
-        : balanceOnHand;
-      const matchedUnit = derivedBulkUnitQr?.bulkSkuId === sku.id
-        ? unitsWithDisplayStatus.find((unit) => unit.unitNumber === derivedBulkUnitQr.unitNumber)
-        : null;
-      const matchedUnitAllocation = matchedUnit ? activeAllocationByUnitId.get(matchedUnit.id) : null;
-      const matchedUnitBooking = matchedUnitAllocation?.bookingBulkItem.booking;
-      const matchedUnitCustody = matchedUnit && matchedUnitBooking
-        ? {
-            matchedUnitHolder: matchedUnitBooking.requester.name,
-            matchedUnitHolderAvatarUrl: matchedUnitBooking.requester.avatarUrl,
-            matchedUnitDueAt: matchedUnitBooking.endsAt.toISOString(),
-            matchedUnitBookingTitle: matchedUnitBooking.title,
-            matchedUnitBookingId: matchedUnitBooking.id,
-          }
-        : {};
-      return {
-        id: sku.id,
-        kind: "bulk" as const,
-        name: sku.name,
-        category: sku.categoryRel?.name ?? sku.category,
-        unit: sku.unit,
-        trackByNumber: sku.trackByNumber,
-        onHandQuantity: onHand,
-        availableQuantity,
-        checkedOutQuantity,
-        lostQuantity,
-        retiredQuantity,
-        ...(matchedUnit
-          ? {
-              matchedUnitNumber: matchedUnit.unitNumber,
-              matchedUnitStatus: matchedUnit.displayStatus,
-              ...matchedUnitCustody,
-              // Per-unit roster, only on the exact-unit scan path so list
-              // searches don't ship every unit of every SKU.
-              units: unitsWithDisplayStatus
-                .slice()
-                .sort((a, b) => a.unitNumber - b.unitNumber)
-                .map((u) => ({ unitNumber: u.unitNumber, status: u.displayStatus })),
-            }
-          : {}),
-        imageUrl: sku.imageUrl,
-        locationName: sku.location.name,
-        locationId: sku.locationId,
-        categoryId: sku.categoryId,
-        departmentId: sku.departmentId,
-        departmentName: sku.department?.name ?? null,
-        binQrCodeValue: sku.binQrCodeValue,
-      };
-    });
-  }
+      ) as [number, number, number, number, number, number]
+    : [0, 0, 0, 0, 0, 0];
+  const breakdownCounts = [
+    assetBreakdownCounts[0] + matchingBulkTotal,
+    ...assetBreakdownCounts.slice(1),
+  ];
 
   return ok({
     data: enrichedWithFavorites,
