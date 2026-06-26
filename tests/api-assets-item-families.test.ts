@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   requireAuth: vi.fn(),
   assetFindMany: vi.fn(),
   assetCount: vi.fn(),
+  assetAllocationFindMany: vi.fn(),
   favoriteItemFindMany: vi.fn(),
   bulkSkuFindMany: vi.fn(),
   bookingBulkUnitAllocationFindMany: vi.fn(),
@@ -18,6 +19,9 @@ vi.mock("@/lib/db", () => ({
     asset: {
       findMany: mocks.assetFindMany,
       count: mocks.assetCount,
+    },
+    assetAllocation: {
+      findMany: mocks.assetAllocationFindMany,
     },
     favoriteItem: {
       findMany: mocks.favoriteItemFindMany,
@@ -88,17 +92,87 @@ function numberedBatterySku(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function assetRow(id: string, assetTag: string) {
+  return {
+    id,
+    assetTag,
+    name: null,
+    type: "Lens",
+    brand: "Sony",
+    model: assetTag,
+    serialNumber: null,
+    qrCodeValue: `QR-${id}`,
+    primaryScanCode: `SCAN-${id}`,
+    purchaseDate: null,
+    purchasePrice: null,
+    warrantyDate: null,
+    residualValue: null,
+    locationId: "loc-1",
+    departmentId: "dept-1",
+    categoryId: "cat-1",
+    status: "AVAILABLE",
+    computedStatus: "AVAILABLE",
+    consumable: false,
+    availableForReservation: true,
+    availableForCheckout: true,
+    availableForCustody: true,
+    linkUrl: null,
+    imageUrl: null,
+    imageRehostAttempts: 0,
+    uwAssetTag: null,
+    notes: null,
+    sourcePayload: null,
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    parentAssetId: null,
+    location: { id: "loc-1", name: "Camp Randall" },
+    category: { id: "cat-1", name: "Lenses" },
+    department: { id: "dept-1", name: "Creative" },
+    _count: { accessories: 0 },
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.requireAuth.mockResolvedValue(authedUser);
   mocks.assetFindMany.mockResolvedValue([]);
   mocks.assetCount.mockResolvedValue(0);
+  mocks.assetAllocationFindMany.mockResolvedValue([]);
   mocks.favoriteItemFindMany.mockResolvedValue([]);
   mocks.bulkSkuFindMany.mockResolvedValue([]);
   mocks.bookingBulkUnitAllocationFindMany.mockResolvedValue([]);
 });
 
 describe("/api/assets item-family rows", () => {
+  it("paginates default asset-tag sorting by operational tag family", async () => {
+    mocks.assetFindMany.mockResolvedValue([
+      assetRow("fx6-1", "FX6 1"),
+      assetRow("fb-70-200-2", "FB 70-200 2"),
+      assetRow("fx3-2", "FX3 2"),
+      assetRow("mbb-28-75-1", "MBB 28-75 1"),
+      assetRow("70-200-1", "70-200 1"),
+      assetRow("fb-16-35-1", "FB 16-35 1"),
+      assetRow("fb-fx3-1", "FB FX3 1"),
+    ]);
+    mocks.assetCount.mockResolvedValue(7);
+
+    const res = await getAssets(request("/api/assets?limit=3&offset=0"), {
+      params: Promise.resolve({}),
+    });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.data.map((asset: { assetTag: string }) => asset.assetTag)).toEqual([
+      "FB 16-35 1",
+      "MBB 28-75 1",
+      "70-200 1",
+    ]);
+    expect(body.total).toBe(7);
+    expect(mocks.assetFindMany).toHaveBeenCalledWith(expect.objectContaining({
+      orderBy: { assetTag: "asc" },
+    }));
+  });
+
   it("excludes retired serialized rows from the default list", async () => {
     const res = await getAssets(request("/api/assets?limit=25"), {
       params: Promise.resolve({}),

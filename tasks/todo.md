@@ -18,6 +18,7 @@ Plan: `tasks/item-data-cleanup-plan.md`
 - [x] Align the Items list feed with cleaned data so default All excludes retired serialized rows and item-family categories display canonical taxonomy.
 - [x] Normalize legacy item-family category text and harden future item-family writes against stale category fallbacks.
 - [x] Disambiguate source-backed duplicate item-family names where the retired duplicate asset proves the model.
+- [x] Sort the Items list by operational asset-tag family so department/team prefixes do not split related gear.
 - [x] Sync relevant area docs and run closeout verification after each shipped slice.
 
 ### Review
@@ -31,6 +32,7 @@ Plan: `tasks/item-data-cleanup-plan.md`
 - 2026-06-26: Items list feed follow-up fixed the Dia-visible cleanup gaps. `/api/assets` now excludes retired serialized rows from the default no-status list while preserving explicit `status=RETIRED`, keeps active item families out of Retired-only views, and returns item-family category labels from canonical `BulkSku.categoryRel` before falling back to the legacy text field. Focused route regression coverage passed.
 - 2026-06-26: Legacy item-family category text follow-up applied 12 audit-logged `BulkSku.category` normalizations from canonical category rows, including the Dia-visible `Recording Equipment`, `Cameras/Camera Accessories`, and `general` cases. `POST /api/bulk-skus` and `PATCH /api/bulk-skus/[id]` now derive the legacy category text from `categoryId` so new writes cannot reintroduce stale labels. Cleanup dry-run now plans 0 data mutations.
 - 2026-06-26: Source-backed item-family name follow-up renamed the unit-tracked `Sony Battery` family with bin `94e068d1` to `Sony NP-FZ100 Battery`, using the retired duplicate asset's former scan identity, model, and B&H source link as evidence. The remaining quantity-tracked `Sony Battery` row stays unchanged because stored data does not prove its exact model. Cleanup dry-run again plans 0 data mutations.
+- 2026-06-26: Items list asset-tag sort follow-up shipped locally. Default Name/tag sorting now compares an operational asset-tag family key instead of the raw display tag, so department/team prefixes such as `FB` and `MBB` no longer push related gear into the F/M sections. Examples like `FB 70-200 1`, `MBB 28-75 1`, `FX3`, and `FX6` now sort by the underlying gear family while preserving the visible tag text.
 
 ---
 

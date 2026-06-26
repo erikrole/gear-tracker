@@ -44,6 +44,7 @@ import { Download, Rows3, Rows4 } from "lucide-react";
 import { FadeUp } from "@/components/ui/motion";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { buildBulkRowId, getItemHref, isBulkRowId } from "./lib/item-href";
+import { compareItemAssetTags } from "@/lib/item-asset-tag-sort";
 
 export default function ItemsPage() {
   const router = useRouter();
@@ -223,14 +224,10 @@ export default function ItemsPage() {
     // For other sort fields, bulks append at bottom since server sort doesn't apply to them.
     const sortingById = filters.sorting[0]?.id ?? "assetTag";
     if (sortingById === "assetTag" || filters.sorting.length === 0) {
-      return [...serializedItems, ...bulkAssets].sort((a, b) =>
-        a.assetTag.localeCompare(b.assetTag, undefined, { numeric: true, sensitivity: "base" })
-      );
+      return [...serializedItems, ...bulkAssets].sort((a, b) => compareItemAssetTags(a.assetTag, b.assetTag));
     }
 
-    bulkAssets.sort((a, b) =>
-      a.assetTag.localeCompare(b.assetTag, undefined, { numeric: true, sensitivity: "base" })
-    );
+    bulkAssets.sort((a, b) => compareItemAssetTags(a.assetTag, b.assetTag));
     return [...serializedItems, ...bulkAssets];
   }, [query.items, query.bulkItems, filters.itemType, filters.sorting]);
 

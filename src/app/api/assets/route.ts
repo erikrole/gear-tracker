@@ -8,6 +8,7 @@ import { requirePermission } from "@/lib/rbac";
 import { buildDerivedStatusWhere, enrichAssetsWithStatusFromLoaded } from "@/lib/services/status";
 import { buildActiveBulkUnitAllocationMap, effectiveBulkUnitStatus } from "@/lib/bulk-unit-status";
 import { parseDerivedBulkUnitQr } from "@/lib/bulk-unit-qr";
+import { compareItemAssetTags } from "@/lib/item-asset-tag-sort";
 import { AssetStatus, BookingKind, BookingStatus, Prisma } from "@prisma/client";
 
 const departmentIdSchema = z.string().min(1);
@@ -44,6 +45,29 @@ const assetInclude = {
   department: { select: { id: true, name: true } },
   _count: { select: { accessories: true } },
 };
+
+type AssetListRow = Prisma.AssetGetPayload<{ include: typeof assetInclude }>;
+
+async function loadOperationallySortedAssets(
+  where: Prisma.AssetWhereInput,
+  descending: boolean,
+  offset: number,
+  limit: number
+): Promise<[AssetListRow[], number]> {
+  const [rows, total] = await Promise.all([
+    db.asset.findMany({
+      where,
+      include: assetInclude,
+      orderBy: { assetTag: "asc" },
+    }),
+    db.asset.count({ where }),
+  ]);
+
+  rows.sort((a, b) => compareItemAssetTags(a.assetTag, b.assetTag));
+  if (descending) rows.reverse();
+
+  return [rows.slice(offset, offset + limit), total];
+}
 
 /** Map sort param to Prisma orderBy clause. */
 const SORT_MAP: Record<
@@ -376,16 +400,19 @@ export const GET = withAuth(async (req, { user }) => {
     });
   }
 
-  const [rawData, total] = await Promise.all([
-    db.asset.findMany({
-      where,
-      include: assetInclude,
-      orderBy,
-      take: limit,
-      skip: offset,
-    }),
-    db.asset.count({ where }),
-  ]);
+  const shouldUseOperationalAssetTagSort = sortKey === "assetTag" || sortKey === "-assetTag";
+  const [rawData, total] = shouldUseOperationalAssetTagSort
+    ? await loadOperationallySortedAssets(where, sortKey === "-assetTag", offset, limit)
+    : await Promise.all([
+        db.asset.findMany({
+          where,
+          include: assetInclude,
+          orderBy,
+          take: limit,
+          skip: offset,
+        }),
+        db.asset.count({ where }),
+      ]);
 
   const data = await enrichAssetsWithStatusFromLoaded(rawData);
 
