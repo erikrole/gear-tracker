@@ -269,16 +269,18 @@ export function getColumns(meta: ColumnMeta): ColumnDef<Asset>[] {
     ),
     cell: ({ row }) => {
       const canSelect = row.getCanSelect();
+      if (!canSelect) {
+        return <span className="block size-9" aria-hidden="true" />;
+      }
       return (
         <div
           className="-m-2 p-2 inline-flex items-center justify-center"
           onClick={(e) => e.stopPropagation()}
         >
           <Checkbox
-            checked={canSelect ? row.getIsSelected() : false}
-            disabled={!canSelect}
+            checked={row.getIsSelected()}
             onCheckedChange={(value) => row.toggleSelected(!!value)}
-            aria-label={canSelect ? "Select row" : "Item-family rows use detail-page actions"}
+            aria-label="Select row"
           />
         </div>
       );
