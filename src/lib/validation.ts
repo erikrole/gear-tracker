@@ -3,6 +3,14 @@ import { z } from "zod";
 import { sanitizeText } from "./sanitize";
 import { isSportCode, normalizeSportCode } from "./sports";
 
+const cuidSchema = z.string().cuid();
+const uuidSchema = z.string().uuid();
+
+export const databaseIdSchema = z.string().trim().min(1).refine(
+  (value) => cuidSchema.safeParse(value).success || uuidSchema.safeParse(value).success,
+  { message: "Invalid id" },
+);
+
 /** Sanitize user-facing text fields in a booking payload */
 export function sanitizeBookingFields<T extends Record<string, unknown>>(data: T): T {
   const d = data as Record<string, unknown>;
@@ -151,9 +159,9 @@ export const overrideSchema = z.object({
 export const createBulkSkuSchema = z.object({
   name: z.string().min(1),
   category: z.string().min(1),
-  categoryId: z.string().cuid().nullable().optional(),
+  categoryId: databaseIdSchema.nullable().optional(),
   unit: z.string().min(1).default("ea"),
-  locationId: z.string().cuid(),
+  locationId: databaseIdSchema,
   binQrCodeValue: z.string().min(1),
   minThreshold: z.number().int().min(0).default(0),
   active: z.boolean().default(true),
@@ -164,10 +172,10 @@ export const createBulkSkuSchema = z.object({
 export const updateBulkSkuSchema = z.object({
   name: z.string().min(1).max(500).optional(),
   category: z.string().optional(),
-  categoryId: z.string().cuid().nullable().optional(),
-  departmentId: z.string().cuid().nullable().optional(),
+  categoryId: databaseIdSchema.nullable().optional(),
+  departmentId: databaseIdSchema.nullable().optional(),
   unit: z.string().min(1).max(100).optional(),
-  locationId: z.string().cuid().optional(),
+  locationId: databaseIdSchema.optional(),
   binQrCodeValue: z.string().min(1).max(500).optional(),
   minThreshold: z.number().int().min(0).optional(),
   purchasePrice: z.number().nonnegative().nullable().optional(),

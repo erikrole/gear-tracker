@@ -28,6 +28,7 @@ Plan: `tasks/item-data-cleanup-plan.md`
 - [x] Consolidate duplicated item-family state read-model logic into one shared helper.
 - [x] Add cross-surface item-family state-contract coverage for list/detail/export/form-options.
 - [x] Align operational low-stock and battery report summaries with effective item-family state.
+- [x] Fix item detail department edits for UUID-backed departments on Standard and item-family records.
 - [x] Sync relevant area docs and run closeout verification after each shipped slice.
 
 ### Review
@@ -50,6 +51,7 @@ Plan: `tasks/item-data-cleanup-plan.md`
 - 2026-06-26: Numbered item-family mutation/picker follow-up aligned the remaining high-impact state surfaces. Per-unit status changes now block only true active checkout allocations, so stale raw `CHECKED_OUT` flags can be corrected with audited status changes and correct stock-balance deltas. `/api/form-options` now computes numbered-family availability from active allocation rows plus the shared effective unit-status rule, so booking pickers agree with `/items`, Battery Ops, and item-family detail reads.
 - 2026-06-26: Item-family state consolidation follow-up extracted the shared `summarizeItemFamilyState` helper and adopted it in `/api/assets`, `/api/assets/export`, `/api/bulk-skus`, `/api/bulk-skus/[id]`, and `/api/form-options`. Focused contract coverage now pins the helper plus list, detail, export, and form-option behavior so future item-family routes do not reimplement divergent availability math.
 - 2026-06-26: Operational state sweep follow-up moved Admin Fix Today low-battery checks, Inventory Hygiene low-stock item-family checks, and Missing Units battery summary totals onto effective item-family state. The shared unit-status helper now also preserves Missing/Retired as terminal states even if stale active allocation context exists, keeping custody reports honest while leaving raw-status reads in place only where they power stale-data warnings or missing-unit evidence.
+- 2026-06-26: Item detail department-edit follow-up fixed the "Validation failed" path for Sony Battery and other records whose department/category/location IDs are UUID-shaped. Item-family create/update and serialized item create/update now share a database ID validator that accepts both CUID and UUID foreign keys, with focused route coverage for item-family and serialized department updates.
 
 ---
 

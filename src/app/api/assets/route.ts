@@ -10,9 +10,9 @@ import { buildActiveBulkUnitAllocationMap } from "@/lib/bulk-unit-status";
 import { summarizeItemFamilyState } from "@/lib/item-family-state";
 import { parseDerivedBulkUnitQr } from "@/lib/bulk-unit-qr";
 import { compareItemAssetTags } from "@/lib/item-asset-tag-sort";
+import { databaseIdSchema } from "@/lib/validation";
 import { AssetStatus, BookingKind, BookingStatus, Prisma } from "@prisma/client";
 
-const departmentIdSchema = z.string().min(1);
 const GAP_SUGGESTION_SOURCE_LIMIT = 5000;
 
 const createAssetSchema = z.object({
@@ -27,9 +27,9 @@ const createAssetSchema = z.object({
   purchasePrice: z.number().nonnegative().optional(),
   warrantyDate: z.string().optional(),
   residualValue: z.number().nonnegative().optional(),
-  locationId: z.string().cuid(),
-  categoryId: z.string().cuid().optional(),
-  departmentId: departmentIdSchema.optional(),
+  locationId: databaseIdSchema,
+  categoryId: databaseIdSchema.optional(),
+  departmentId: databaseIdSchema.optional(),
   linkUrl: z.string().url().max(2000).optional(),
   uwAssetTag: z.string().max(200).optional(),
   parentAssetId: z.string().cuid().optional(),

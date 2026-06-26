@@ -7,6 +7,7 @@ import { BookingStatus, Prisma } from "@prisma/client";
 import { deriveAssetStatus } from "@/lib/services/status";
 import { createAuditEntry } from "@/lib/audit";
 import { canonicalFirmwareIdentity } from "@/lib/firmware-watch-targets";
+import { databaseIdSchema } from "@/lib/validation";
 
 const nullableTrimmedString = (max = 500) =>
   z.preprocess(
@@ -34,9 +35,9 @@ const patchAssetSchema = z
     purchasePrice: z.number().nonnegative().nullable().optional(),
     warrantyDate: nullableDateString.optional(),
     residualValue: z.number().nonnegative().nullable().optional(),
-    locationId: z.string().cuid().optional(),
-    categoryId: z.string().cuid().nullable().optional(),
-    departmentId: z.string().cuid().nullable().optional(),
+    locationId: databaseIdSchema.optional(),
+    categoryId: databaseIdSchema.nullable().optional(),
+    departmentId: databaseIdSchema.nullable().optional(),
     status: z.enum(["AVAILABLE", "MAINTENANCE", "RETIRED"]).optional(),
     notes: z.string().max(10000).optional(),
     linkUrl: z.preprocess(

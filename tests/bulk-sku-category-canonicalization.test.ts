@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   dbBulkSkuFindUnique: vi.fn(),
   dbBulkSkuUpdate: vi.fn(),
   dbCategoryFindUnique: vi.fn(),
+  dbBookingBulkUnitAllocationFindMany: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -28,6 +29,9 @@ vi.mock("@/lib/db", () => ({
     },
     category: {
       findUnique: mocks.dbCategoryFindUnique,
+    },
+    bookingBulkUnitAllocation: {
+      findMany: mocks.dbBookingBulkUnitAllocationFindMany,
     },
   },
 }));
@@ -95,6 +99,7 @@ beforeEach(() => {
     categoryId: null,
   });
   mocks.dbCategoryFindUnique.mockResolvedValue({ name: "Batteries" });
+  mocks.dbBookingBulkUnitAllocationFindMany.mockResolvedValue([]);
   mocks.dbBulkSkuUpdate.mockResolvedValue({
     id: "sku-1",
     name: "Sony Battery",
@@ -159,6 +164,33 @@ describe("BulkSku category canonicalization", () => {
     expect(mocks.createAuditEntry).toHaveBeenCalledWith(expect.objectContaining({
       before: expect.objectContaining({ category: "general" }),
       after: expect.objectContaining({ category: "Batteries" }),
+    }));
+  });
+
+  it("accepts UUID department IDs when updating an item family", async () => {
+    const departmentId = "54a4abe3-2500-4a28-8970-86f671cfffd3";
+    mocks.dbBulkSkuUpdate.mockResolvedValueOnce({
+      id: "sku-1",
+      name: "Sony Battery",
+      category: "Batteries",
+      categoryId,
+      departmentId,
+      trackByNumber: false,
+      balances: [{ onHandQuantity: 0 }],
+      units: [],
+    });
+
+    const res = await updateBulkSku(
+      request("/api/bulk-skus/sku-1", "PATCH", {
+        departmentId,
+      }),
+      { params: Promise.resolve({ id: "sku-1" }) },
+    );
+
+    expect(res.status).toBe(200);
+    expect(mocks.dbBulkSkuUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "sku-1" },
+      data: { departmentId },
     }));
   });
 });
