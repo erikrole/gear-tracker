@@ -19,6 +19,7 @@ import { AccessoriesSection } from "./ItemSettingsTab";
 
 import useItemData from "./_hooks/use-item-data";
 import useItemActions from "./_hooks/use-item-actions";
+import { useItemChangeSync } from "@/hooks/use-item-change-sync";
 import { useUrlState } from "@/hooks/use-url-state";
 import { ItemHeader } from "./_components/ItemHeader";
 import { BulkSkuDetailExperience } from "../../bulk-inventory/[id]/BulkSkuDetailExperience";
@@ -79,6 +80,7 @@ function SerializedItemDetailsPage({ id }: { id: string }) {
   const [activeTab, setActiveTab] = useUrlState<TabKey>("tab", parseItemDetailTab, serializeDetailTab);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [imageModalOpen, setImageModalOpen] = useState(false);
+  useItemChangeSync();
 
   const {
     asset,

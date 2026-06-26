@@ -132,6 +132,8 @@
 | `src/hooks/use-fetch.ts` | 110 |
 | `src/hooks/use-form-options.ts` | 32 |
 | `src/hooks/use-form-submit.ts` | 188 |
+| `src/hooks/use-item-cache-invalidation.ts` | 18 |
+| `src/hooks/use-item-change-sync.ts` | 92 |
 | `src/hooks/use-last-audit.ts` | 77 |
 | `src/hooks/use-mobile.ts` | 20 |
 | `src/hooks/use-mutate.ts` | 89 |

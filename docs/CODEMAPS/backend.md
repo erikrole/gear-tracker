@@ -305,6 +305,10 @@
 
 - `/api/inventory-hygiene`
 
+### `/api/items`
+
+- `/api/items/changes`
+
 ### `/api/items-page-init`
 
 - `/api/items-page-init`

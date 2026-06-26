@@ -160,6 +160,7 @@ export function useItemsQuery(deps: QueryDeps) {
     queryKey,
     queryFn: ({ signal }) => fetchAssets(url, signal),
     staleTime: 60_000,
+    refetchOnMount: "always",
   });
 
   // Toast on background refresh failure

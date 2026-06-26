@@ -20,6 +20,8 @@
 
 _2026-06-06 update: iOS Scan result retry recovery shipped as HIG polish. No new gap or pending decision opened._
 
+_2026-06-26 update: Items list/detail freshness shipped without opening a new gap. `/items` now refetches on mount, successful serialized-item and item-family detail mutations invalidate shared catalog caches, and `/api/items/changes` lets visible item surfaces converge from committed `Asset`, `BulkSku`, and audit-log changes._
+
 _2026-06-06 update: Web booking wizard kit-list recovery shipped for checkout/reservation creation. No new gap or pending decision opened._
 
 _2026-06-06 update: Web full-search item identity fallback shipped. No new gap or pending decision opened._

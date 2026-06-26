@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 import { toast } from "sonner";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { ITEM_CHANGE_SYNC_EVENT, type ItemChangeSyncEventDetail } from "@/hooks/use-item-change-sync";
 import {
   classifyError,
   isAbortError,
@@ -148,6 +149,16 @@ export default function useItemData(id: string): UseItemDataReturn {
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [loadAsset]);
+
+  useEffect(() => {
+    function onItemChange(event: Event) {
+      const detail = (event as CustomEvent<ItemChangeSyncEventDetail>).detail;
+      if (detail?.changedAssetIds.includes(id)) loadAsset();
+    }
+
+    window.addEventListener(ITEM_CHANGE_SYNC_EVENT, onItemChange);
+    return () => window.removeEventListener(ITEM_CHANGE_SYNC_EVENT, onItemChange);
+  }, [id, loadAsset]);
 
   const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
 

@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/ConfirmDialog";
+import { useInvalidateItemCatalog } from "@/hooks/use-item-cache-invalidation";
 import { toast } from "sonner";
 
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
@@ -28,6 +29,7 @@ export default function useItemActions({
 }: UseItemActionsParams): UseItemActionsReturn {
   const router = useRouter();
   const confirmDialog = useConfirm();
+  const invalidateItemCatalog = useInvalidateItemCatalog();
   const [actionBusy, setActionBusy] = useState(false);
   const busyRef = useRef(false);
   const favoriteBusyRef = useRef(false);
@@ -47,13 +49,14 @@ export default function useItemActions({
         const msg = await parseErrorMessage(res, "Failed to update favorite");
         throw new Error(msg);
       }
+      invalidateItemCatalog();
     } catch (error) {
       setAsset((a) => a ? { ...a, isFavorited: prev } : a);
       toast.error(error instanceof Error ? error.message : "Failed to update favorite");
     } finally {
       favoriteBusyRef.current = false;
     }
-  }, [asset, setAsset]);
+  }, [asset, invalidateItemCatalog, setAsset]);
 
   async function saveHeaderField(field: string, value: string) {
     if (!asset) return;
@@ -69,6 +72,7 @@ export default function useItemActions({
       throw new Error(msg);
     }
     setAsset((prev) => prev ? { ...prev, [field]: value } : prev);
+    invalidateItemCatalog();
   }
 
   async function handleAction(action: string) {
@@ -89,6 +93,7 @@ export default function useItemActions({
             return;
           }
           router.push(`/items/${json.data.id}`);
+          invalidateItemCatalog();
         } else {
           const msg = await parseErrorMessage(res, "Duplicate failed");
           toast.error(msg);
@@ -106,7 +111,9 @@ export default function useItemActions({
         if (!res.ok) {
           const msg = await parseErrorMessage(res, "Retire failed");
           toast.error(msg);
+          return;
         }
+        invalidateItemCatalog();
         loadAsset();
       } else if (action === "maintenance") {
         const res = await fetch(`/api/assets/${asset.id}/maintenance`, { method: "POST" });
@@ -114,7 +121,9 @@ export default function useItemActions({
         if (!res.ok) {
           const msg = await parseErrorMessage(res, "Action failed");
           toast.error(msg);
+          return;
         }
+        invalidateItemCatalog();
         loadAsset();
       } else if (action === "delete") {
         const ok = await confirmDialog({
@@ -127,6 +136,7 @@ export default function useItemActions({
         const res = await fetch(`/api/assets/${asset.id}`, { method: "DELETE" });
         if (handleAuthRedirect(res)) return;
         if (res.ok) {
+          invalidateItemCatalog();
           router.push("/items");
         } else {
           const msg = await parseErrorMessage(res, "Delete failed");

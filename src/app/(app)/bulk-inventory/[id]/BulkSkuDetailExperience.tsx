@@ -11,6 +11,8 @@ import { BulkSkuHeader } from "./_components/BulkSkuHeader";
 import { BulkSkuInfoTab } from "./BulkSkuInfoTab";
 import { BulkSkuOverviewCard } from "./BulkSkuOverviewCard";
 import useBulkSkuData from "./_hooks/use-bulk-sku-data";
+import { useInvalidateItemCatalog } from "@/hooks/use-item-cache-invalidation";
+import { useItemChangeSync } from "@/hooks/use-item-change-sync";
 import { useUrlState } from "@/hooks/use-url-state";
 import ActivityFeed from "../../items/[id]/ItemHistoryTab";
 
@@ -46,6 +48,8 @@ export function BulkSkuDetailExperience({
   const [activeTab, setActiveTab] = useUrlState<TabKey>("tab", parseBulkDetailTab, serializeDetailTab);
 
   const { sku, setSku, fetchError, refreshing, canEdit, currentUserRole, loadSku } = useBulkSkuData(id);
+  const invalidateItemCatalog = useInvalidateItemCatalog();
+  useItemChangeSync();
 
   function switchTab(tab: TabKey) {
     setActiveTab(tab);
@@ -109,7 +113,10 @@ export function BulkSkuDetailExperience({
         canEdit={canEdit}
         onRefresh={loadSku}
         operationsHref={operationsHref}
-        onImageChanged={(url) => setSku((prev) => prev ? { ...prev, imageUrl: url } : prev)}
+        onImageChanged={(url) => {
+          setSku((prev) => prev ? { ...prev, imageUrl: url } : prev);
+          invalidateItemCatalog();
+        }}
       />
 
       <Tabs value={activeTab} onValueChange={(v) => switchTab(v as TabKey)}>
@@ -127,7 +134,10 @@ export function BulkSkuDetailExperience({
           <BulkSkuInfoTab
             sku={sku}
             canEdit={canEdit}
-            onFieldSaved={(partial) => setSku((prev) => prev ? { ...prev, ...partial } : prev)}
+            onFieldSaved={(partial) => {
+              setSku((prev) => prev ? { ...prev, ...partial } : prev);
+              invalidateItemCatalog();
+            }}
           />
           <BulkSkuOverviewCard sku={sku} />
         </div>
@@ -138,11 +148,12 @@ export function BulkSkuDetailExperience({
           sku={sku}
           canEdit={canEdit}
           onRefresh={loadSku}
-          onUnitsAdded={(count) =>
+          onUnitsAdded={(count) => {
+            invalidateItemCatalog();
             setSku((prev) =>
               prev ? { ...prev, onHand: prev.onHand + count, availableQuantity: prev.availableQuantity + count } : prev
-            )
-          }
+            );
+          }}
         />
       )}
 
@@ -150,7 +161,10 @@ export function BulkSkuDetailExperience({
         <BulkSkuQrTab
           sku={sku}
           canEdit={canEdit}
-          onFieldSaved={(partial) => setSku((prev) => prev ? { ...prev, ...partial } : prev)}
+          onFieldSaved={(partial) => {
+            setSku((prev) => prev ? { ...prev, ...partial } : prev);
+            invalidateItemCatalog();
+          }}
         />
       )}
 
@@ -168,7 +182,13 @@ export function BulkSkuDetailExperience({
       )}
 
       {activeTab === "settings" && canEdit && (
-        <BulkSkuSettingsTab sku={sku} onRefresh={loadSku} />
+        <BulkSkuSettingsTab
+          sku={sku}
+          onRefresh={() => {
+            invalidateItemCatalog();
+            void loadSku();
+          }}
+        />
       )}
     </FadeUp>
   );

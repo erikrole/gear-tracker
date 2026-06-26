@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Check, X, ExternalLink } from "lucide-react";
+import { useInvalidateItemCatalog } from "@/hooks/use-item-cache-invalidation";
 import { Spinner } from "@/components/ui/spinner";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -62,6 +63,7 @@ export function BulkSkuInfoTab({
   onFieldSaved: (partial: Partial<BulkSkuDetail>) => void;
 }) {
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
+  const invalidateItemCatalog = useInvalidateItemCatalog();
 
   useEffect(() => {
     fetch("/api/departments")
@@ -86,6 +88,7 @@ export function BulkSkuInfoTab({
       throw new Error(`Update saved, but ${field} response was incomplete. Refresh and try again.`);
     }
     onFieldSaved(json.data);
+    invalidateItemCatalog();
   }
 
   async function saveDepartment(name: string) {

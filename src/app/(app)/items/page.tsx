@@ -39,6 +39,7 @@ import { BulkActionBar } from "./components/bulk-action-bar";
 import { ItemsToolbar } from "./components/items-toolbar";
 import { ItemsPagination } from "./components/items-pagination";
 import { useKeyboardShortcuts } from "./hooks/use-keyboard-shortcuts";
+import { useItemChangeSync } from "@/hooks/use-item-change-sync";
 import { STATUS_STYLES } from "@/lib/status-styles";
 import { Download, Rows3, Rows4 } from "lucide-react";
 import { FadeUp } from "@/components/ui/motion";
@@ -50,6 +51,7 @@ export default function ItemsPage() {
   const router = useRouter();
   const filters = useUrlFilters();
   const options = useFilterOptions();
+  useItemChangeSync();
 
   const query = useItemsQuery({
     debouncedSearch: filters.debouncedSearch,

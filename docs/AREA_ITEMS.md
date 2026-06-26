@@ -366,6 +366,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - [x] AC-12: Export visibility follows role rules. **(Shipped — Export button in items page header, visible to ADMIN/STAFF only. Downloads filtered CSV.)**
 - [x] AC-13: Image and metadata prefill never overwrite `tagName`.
 - [x] AC-14: All item mutations are auditable.
+- [x] AC-15: Items list and detail surfaces verify committed item and item-family changes without requiring manual browser refresh. `/items` refetches on mount, successful detail mutations invalidate item-family caches, and a lightweight item-change signal converges visible list/detail state from `Asset`, `BulkSku`, and audit changes.
 
 ## Dependencies
 - User role and ownership model from `AREA_USERS.md`.
@@ -423,6 +424,7 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-06-26: Items list/detail freshness shipped. `/items` now verifies server truth on mount instead of trusting a still-fresh 60s cache after Back navigation, serialized item detail mutations invalidate the item-family list and picker caches after successful saves, and a lightweight `/api/items/changes` signal refreshes visible item list/detail surfaces from committed `Asset`, `BulkSku`, and audit-log changes.
 - 2026-06-26: Equipment picker sorting aligned with Items asset-tag ordering. `/api/assets/picker-search` and picker bulk rows now reuse the shared asset-tag family comparator, keeping prefixed rows grouped with their real equipment family across Items and checkout/reservation selection.
 - 2026-06-26: iOS Items list visual polish shipped. Native Items controls now use calmer default chip styling so unfiltered `All statuses` no longer reads as an active red state, non-default sort/filter selections still carry semantic tint, serialized and item-family rows share the app's standard card surface, available rows show the current location name instead of category taxonomy, unavailable rows defer to holder/status cues, bulk rows omit tracking-style labels from the compact list, and list content keeps bottom clearance above the floating tab bar.
 - 2026-06-26: iOS Items web-parity slice shipped. Native Items now consumes `/api/assets.itemOrder`, renders serialized assets and active item families in the same mixed order as web, exposes Asset tag and Most popular sorts, labels item families as Unit-tracked or Quantity-tracked, and keeps active status badges focused on the holder name while the badge color and row status rail carry Checked Out, Reserved, Awaiting Pickup, and Overdue state together.

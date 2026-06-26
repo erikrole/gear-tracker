@@ -11,6 +11,7 @@ import {
 } from "@/lib/errors";
 import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { ITEM_CHANGE_SYNC_EVENT, type ItemChangeSyncEventDetail } from "@/hooks/use-item-change-sync";
 import type { BulkSkuDetail } from "../types";
 
 export type UseBulkSkuDataReturn = {
@@ -80,6 +81,16 @@ export default function useBulkSkuData(id: string): UseBulkSkuDataReturn {
     loadSku();
     return () => { abortRef.current?.abort(); };
   }, [loadSku]);
+
+  useEffect(() => {
+    function onItemChange(event: Event) {
+      const detail = (event as CustomEvent<ItemChangeSyncEventDetail>).detail;
+      if (detail?.changedBulkSkuIds.includes(id)) loadSku();
+    }
+
+    window.addEventListener(ITEM_CHANGE_SYNC_EVENT, onItemChange);
+    return () => window.removeEventListener(ITEM_CHANGE_SYNC_EVENT, onItemChange);
+  }, [id, loadSku]);
 
   const canEdit = currentUserRole === "ADMIN" || currentUserRole === "STAFF";
 

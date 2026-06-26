@@ -162,8 +162,10 @@ See `AREA_ITEMS.md` 2026-04-06 entry for bulk inventory page hardening:
 - [x] AC-6: Change unit status (mark lost, retire, release) with audit trail
 - [x] AC-7: Unit-tracked battery audit/reporting exposes missing units, loss rate by family, custody history, and repeated missing-unit patterns
 - [x] AC-8: Staff can export a Brother P-Touch label CSV (`item_number,qr_code`) for a numbered SKU and mark the exported labels printed, with printed-label state visible per card and per unit and surviving refresh
+- [x] AC-9: Item-family detail edits and unit/image mutations invalidate `/items` catalog caches and participate in the shared item-change signal so Back navigation and open detail views converge without manual refresh.
 
 ## Change Log
+- 2026-06-26: Item-family freshness shipped. Bulk SKU detail edits, image changes, QR/settings updates, and unit additions now invalidate shared Items catalog caches, while open item-family detail pages listen to the shared item-change signal for committed `BulkSku` updates from other surfaces.
 - 2026-06-26: Active item-family department cleanup moved every family still assigned to `Video` onto `Creative`, leaving canonical category FKs and legacy category text intact. The audit-logged cleanup script now treats `Creative` as the default generic family department for future deterministic data repair.
 - 2026-06-26: Item-family detail field validation is now hardened for location/category/department references, purchase links, and purchase price. `POST /api/bulk-skus` verifies the target location before creating the SKU and stock balance, `PATCH /api/bulk-skus/[id]` returns clear 400s for missing FK targets, purchase links normalize missing schemes to `https://`, and purchase price is bounded to the stored `Decimal(10,2)` shape.
 - 2026-06-26: Item-family detail edits now accept both CUID and UUID foreign-key IDs for category, department, and location updates. This fixes the Sony Battery department save path where a valid UUID department ID was rejected by route validation before Prisma could update the `BulkSku`.

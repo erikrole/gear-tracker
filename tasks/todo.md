@@ -4,6 +4,22 @@ Last updated: 2026-06-26
 
 ---
 
+## Active: Items list and detail freshness (2026-06-26)
+
+Plan: `tasks/items-freshness-plan.md`
+
+- [x] Add item/catalog change polling for Asset and BulkSku updates.
+- [x] Make `/items` verify server truth on mount instead of trusting a 60s fresh cache.
+- [x] Invalidate item-family caches after serialized-item and bulk-SKU detail edits.
+- [x] Refresh open detail views from committed item/catalog change signals.
+- [x] Add tests and docs for the shipped freshness contract.
+- [x] Run focused tests, docs checks, migration check, typecheck, and build.
+
+### Review
+- 2026-06-26: Items freshness shipped locally. `/items` now refetches on mount, serialized item and item-family detail mutations invalidate shared catalog caches, and `/api/items/changes` lets mounted Items surfaces converge from committed `Asset`, `BulkSku`, and audit-log changes. Verification passed with focused source-contract tests, TypeScript, codemap/docs checks, migration-prefix check, whitespace diff check, and `npm run build:app`.
+
+---
+
 ## Active: Reservation linked-event title cleanup (2026-06-26)
 
 Plan: keep non-game/media-day event summaries visible in the shared booking wizard when events also carry sport metadata.

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useInvalidateItemCatalog } from "@/hooks/use-item-cache-invalidation";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -917,6 +918,7 @@ export function QRModal({
   onOpenChange: (open: boolean) => void;
 }) {
   const confirmDialog = useConfirm();
+  const invalidateItemCatalog = useInvalidateItemCatalog();
   const [manualEntry, setManualEntry] = useState(false);
   const [qrDraft, setQrDraft] = useState("");
   const [saving, setSaving] = useState(false);
@@ -984,6 +986,7 @@ export function QRModal({
         setError(msg);
         return;
       }
+      invalidateItemCatalog();
       onRefresh();
     } catch {
       setError("Network error. Please try again.");
@@ -1013,6 +1016,7 @@ export function QRModal({
       }
       setManualEntry(false);
       setQrDraft("");
+      invalidateItemCatalog();
       onRefresh();
     } catch {
       setError("Network error. Please try again.");
@@ -1200,6 +1204,7 @@ export default function ItemInfoCard({
 }) {
   const [showQrModal, setShowQrModal] = useState(false);
   const [copiedScanValue, setCopiedScanValue] = useState<"qr" | "serial" | null>(null);
+  const invalidateItemCatalog = useInvalidateItemCatalog();
   const saveField = useCallback(
     async (patchKey: string, value: string) => {
       const body: Record<string, unknown> = {};
@@ -1245,8 +1250,9 @@ export default function ItemInfoCard({
           [patchKey]: nextValue,
         } as Partial<AssetDetail>);
       }
+      invalidateItemCatalog();
     },
-    [asset.id, asset.metadata, onFieldSaved],
+    [asset.id, asset.metadata, invalidateItemCatalog, onFieldSaved],
   );
 
   async function saveCategory(categoryId: string) {
@@ -1257,6 +1263,7 @@ export default function ItemInfoCard({
     });
     if (handleAuthRedirect(res)) return;
     if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to save category"));
+    invalidateItemCatalog();
     onRefresh();
   }
 
@@ -1268,6 +1275,7 @@ export default function ItemInfoCard({
     });
     if (handleAuthRedirect(res)) return;
     if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to save department"));
+    invalidateItemCatalog();
     onRefresh();
   }
 
@@ -1279,6 +1287,7 @@ export default function ItemInfoCard({
     });
     if (handleAuthRedirect(res)) return;
     if (!res.ok) throw new Error(await parseErrorMessage(res, "Failed to save location"));
+    invalidateItemCatalog();
     onRefresh();
   }
 
