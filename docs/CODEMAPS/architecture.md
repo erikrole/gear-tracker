@@ -31,7 +31,7 @@ Informational only. These are the largest TypeScript and TSX files under `src/`;
 | `src/app/(app)/resources/page.tsx` | 1076 |
 | `src/app/(app)/users/[id]/page.tsx` | 1063 |
 | `src/app/(app)/users/[id]/UserBadgesTab.tsx` | 1037 |
-| `src/components/EquipmentPicker.tsx` | 995 |
+| `src/components/EquipmentPicker.tsx` | 996 |
 | `src/app/(app)/kits/[id]/page.tsx` | 979 |
 | `src/app/(app)/items/[id]/ItemBookingsTab.tsx` | 946 |
 | `src/app/(app)/events/[id]/_components/ShiftCoverageCard.tsx` | 929 |

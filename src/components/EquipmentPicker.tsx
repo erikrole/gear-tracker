@@ -58,6 +58,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { handleAuthRedirect, isAbortError, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
 import { getBatteryCompatibilitySummaries } from "@/lib/battery-compatibility";
+import { compareItemAssetTags } from "@/lib/item-asset-tag-sort";
 import { AssetImage } from "@/components/AssetImage";
 import QrScanner from "@/components/QrScanner";
 
@@ -292,9 +293,9 @@ export default function EquipmentPicker({
   // ── Section data ──
   const sectionBulk = useMemo(() => {
     const q = sectionSearch.toLowerCase();
-    return (bulkBySection[activeSection] || []).filter((s) =>
-      !q || s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q)
-    );
+    return (bulkBySection[activeSection] || [])
+      .filter((s) => !q || s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q))
+      .sort((a, b) => compareItemAssetTags(a.name, b.name));
   }, [bulkBySection, activeSection, sectionSearch]);
 
   const conflictPreviewAssetIds = useMemo(() => {

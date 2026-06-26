@@ -12,6 +12,7 @@ import { Prisma } from "@prisma/client";
 import { buildDerivedStatusWhere, enrichAssetsWithStatusFromLoaded } from "@/lib/services/status";
 import { sectionWhere, ALL_SECTION_KEYS } from "@/lib/equipment-section-filters";
 import type { EquipmentSectionKey } from "@/lib/equipment-sections";
+import { compareItemAssetTags } from "@/lib/item-asset-tag-sort";
 
 const VALID_SECTIONS = new Set<string>(ALL_SECTION_KEYS);
 const MAX_PICKER_LIMIT = 100;
@@ -129,11 +130,9 @@ export const GET = withAuth(async (req, { user }) => {
     Promise.all([
       db.asset.findMany({
         where,
-        select: {
-          ...pickerSelect,
-          _count: { select: { bookingItems: true } },
-        },
-        // Base ordering — we'll re-sort in memory for favorites + popularity
+        select: pickerSelect,
+        // Base deterministic order from the DB; the picker applies the same
+        // family-aware asset-tag comparator as `/items` before returning rows.
         orderBy: { assetTag: "asc" },
         take: limit,
         skip: offset,
@@ -153,17 +152,10 @@ export const GET = withAuth(async (req, { user }) => {
 
   const favoriteAssetIds = new Set(favRows.map((f) => f.assetId));
 
-  // Sort: favorites first, then by checkout frequency (popularity), then alphabetical
+  // Sort by the visible asset identity. Hidden popularity/favorite priority made
+  // category lists feel random because rows like `FB FX3 2` separated from `FX3 1`.
   const sorted = [...rawAssets].sort((a, b) => {
-    const aFav = favoriteAssetIds.has(a.id) ? 0 : 1;
-    const bFav = favoriteAssetIds.has(b.id) ? 0 : 1;
-    if (aFav !== bFav) return aFav - bFav;
-
-    const aPop = a._count?.bookingItems ?? 0;
-    const bPop = b._count?.bookingItems ?? 0;
-    if (aPop !== bPop) return bPop - aPop; // higher popularity first
-
-    return a.assetTag.localeCompare(b.assetTag);
+    return compareItemAssetTags(a.assetTag, b.assetTag);
   });
 
   // Enrich with computed status (CHECKED_OUT, RESERVED, etc.)

@@ -287,6 +287,29 @@ describe("API hardening wave 12", () => {
     );
   });
 
+  it("sorts equipment picker rows by asset-tag family instead of hidden popularity", async () => {
+    vi.mocked(db.asset.findMany).mockResolvedValue(assetFindManyResult([
+      { id: "asset-fx3-1", assetTag: "FX3 1", status: AssetStatus.AVAILABLE, category: null },
+      { id: "asset-a1-2", assetTag: "a1 II 1", status: AssetStatus.AVAILABLE, category: null },
+      { id: "asset-fb-a7", assetTag: "FB A7 IV 1", status: AssetStatus.AVAILABLE, category: null },
+      { id: "asset-fb-fx3", assetTag: "FB FX3 2", status: AssetStatus.AVAILABLE, category: null },
+      { id: "asset-fb-a1", assetTag: "FB a1 1", status: AssetStatus.AVAILABLE, category: null },
+    ]));
+    vi.mocked(db.asset.count).mockResolvedValue(5);
+
+    const res = await pickerSearch(get("/api/assets/picker-search?section=cameras"), { params: Promise.resolve({}) });
+    const body = await res.json() as { data: { assets: Array<{ assetTag: string }> } };
+
+    expect(res.status).toBe(200);
+    expect(body.data.assets.map((asset) => asset.assetTag)).toEqual([
+      "FB a1 1",
+      "a1 II 1",
+      "FB A7 IV 1",
+      "FX3 1",
+      "FB FX3 2",
+    ]);
+  });
+
   it("filters equipment picker available-only by derived availability, not stored status", async () => {
     const derivedAvailable: DerivedStatusWhere[] = [{ status: AssetStatus.AVAILABLE, __derived: true }];
     vi.mocked(buildDerivedStatusWhere).mockReturnValue(derivedStatusWhereResult(derivedAvailable));
