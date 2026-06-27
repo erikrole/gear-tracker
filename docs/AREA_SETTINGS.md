@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Settings
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-26
+- Last Updated: 2026-06-27
 - Status: Active
 - Version: V1
 
@@ -105,7 +105,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - Older-page failures preserve the loaded entries and show persistent inline recovery copy plus a retry-labeled pagination action so partial history is not mistaken for complete history.
 - **Auto-refresh** toggle: when on, polls `GET /api/audit?after=<newestCursor>` every 30 seconds and prepends new rows with a dismissible new-count banner.
 - Auto-refresh failures preserve the loaded entries, show an inline stale-data warning, and expose `Retry now` so admins do not mistake a failed live-tail check for a current audit feed.
-- Filters: entity type (exact), action (substring), from date, to date. Apply button validates invalid or inverted dates inline before a fresh first-page load; "Clear filters" resets to unfiltered.
+- Filters: entity type (exact), action (substring), from date, to date. The filter row uses the shared operational toolbar and removable active-filter chips. Apply validates invalid or inverted dates inline before a fresh first-page load; "Clear filters" resets to unfiltered.
 - Retention banner shows the configured retention window (90 days) from the API response.
 - Each row: timestamp, entity type + entity ID (8-char prefix), action badge, actor name (or "System" for server-generated events).
 - `GET /api/audit` (ADMIN, 60/min): keyset pagination on `(createdAt DESC, id DESC)`; supports `?cursor`, `?after`, `?entityType`, `?actor`, `?action`, `?from`, `?to`, `?limit` (default 50, max 100). Returns `{ data, nextCursor, hasMore, retentionDays }`.
@@ -193,6 +193,7 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages. Role-gated Settings sibling menus now wait for the current role before becoming dropdowns, so the loading frame does not expose an empty menu. The global breadcrumb UI now uses a lighter trail treatment with the current Settings sub-page marked by a subtle underline instead of a filled chip.
 
 ## Change Log
+- 2026-06-27: **Audit command surface cleanup.** Settings > Audit now uses the shared `OperationalToolbar`, `OperationalActiveFilterChips`, shadcn `Table`, and shared `EmptyState` composition for filters, audit rows, empty results, and retryable load failures while preserving the existing keyset pagination and auto-refresh behavior.
 - 2026-06-26: **Kiosk Devices health indicator cleanup.** Settings > Kiosk Devices now uses the shared shadcn-backed status indicator for device health instead of a route-local dot plus separate status badges. Online remains green, stale heartbeat is orange, offline is red, and pending/deactivated devices are gray.
 - 2026-06-26: **shadcn status indicator cleanup.** The shared Calendar Sources health indicator now composes shadcn `Badge` variants instead of route-local/raw color spans. Active feeds stay green, stale feeds use the Gear Tracker orange warning tone, errors stay red, and disabled or never-synced feeds use gray.
 - 2026-06-24: **Hidden smoke onboarding cleanup.** Allowed Emails and Onboarding Status now hide rows claimed by `hiddenFromRoster` users by default, keeping smoke/test invite history out of daily onboarding review while preserving the audit row.

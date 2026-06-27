@@ -22,8 +22,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import StatusIndicator from "@/components/ui/status-indicator";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { handleAuthRedirect, parseErrorMessage, parseJsonSafely } from "@/lib/errors";
+import { summarizeOperationalHealth } from "@/lib/operational-health";
 import { cn } from "@/lib/utils";
 
 type HygieneIssueKey =
@@ -229,6 +231,13 @@ export default function InventoryHygienePage() {
   const cleanChecks = data ? Math.max(0, data.totals.activeChecks - data.totals.checksNeedingWork) : 0;
   const completion = data?.totals.activeChecks ? Math.round((cleanChecks / data.totals.activeChecks) * 100) : 100;
   const partialFailures = data?.partialFailures ?? [];
+  const checklistHealth = data
+    ? summarizeOperationalHealth({
+        cleanLabel: "Checklist clean",
+        needsWorkCount: data.totals.checksNeedingWork,
+        partialFailureCount: partialFailures.length,
+      })
+    : null;
 
   if (loading && !data) {
     return <InventoryHygieneSkeleton />;
@@ -250,6 +259,14 @@ export default function InventoryHygienePage() {
     <div className="space-y-5">
       <PageHeader title="Inventory Hygiene">
         <div className="flex flex-wrap items-center justify-end gap-2">
+          {checklistHealth && (
+            <StatusIndicator
+              state={checklistHealth.state}
+              label={checklistHealth.label}
+              size="sm"
+              title={checklistHealth.description}
+            />
+          )}
           {data && (
             <span className="text-xs text-muted-foreground">
               Updated {formatGeneratedAt(data.generatedAt)}
@@ -274,6 +291,7 @@ export default function InventoryHygienePage() {
           <OperationalPartialResultsAlert failures={partialFailures} title="Some checks used fallback data" />
 
           <QueueSummary
+            health={checklistHealth}
             completion={completion}
             cleanChecks={cleanChecks}
             data={data}
@@ -343,11 +361,13 @@ function QueueSummary({
   completion,
   cleanChecks,
   data,
+  health,
   topIssue,
 }: {
   completion: number;
   cleanChecks: number;
   data: HygieneData;
+  health: ReturnType<typeof summarizeOperationalHealth> | null;
   topIssue: HygieneIssue | null;
 }) {
   const topMeta = topIssue ? getIssueMeta(topIssue) : null;
@@ -416,9 +436,14 @@ function QueueSummary({
               <ShieldCheck className="size-4 text-[var(--green-text)]" />
               Checklist health
             </CardTitle>
-            <Badge variant="outline" className="tabular-nums">
-              {completion}%
-            </Badge>
+            {health && (
+              <StatusIndicator
+                state={health.state}
+                label={health.label}
+                size="sm"
+                title={health.description}
+              />
+            )}
           </div>
         </CardHeader>
         <CardContent className="space-y-3">

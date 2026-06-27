@@ -48,7 +48,7 @@ This is a working checklist, not a redesign brief. Use it before future page-spe
 | `/items` | Strong | Uses `PageHeader`, `OperationalToolbar`, `OperationalActiveFilterChips`, shadcn table, shared empty states, stable pagination, and documented tag-first identity. | No immediate code fix. Keep item-family rows and serialized rows in one discovery surface, but do not add item-family-only custom controls unless they also meet the shared toolbar/row-action rules. |
 | `/bookings` | Strong | Uses `PageHeader`, shadcn tabs/toggles, shared `BookingListPage`, `OperationalToolbar`, shared active-filter chips, shared empty states, and `OperationalRowActions` in table rows, mobile rows, and cards. The list content is still framed in a route-level `Card`, which is acceptable because the card owns filters plus results, not a decorative page section. | No immediate code fix. Do not disturb unified checkout/reservation behavior. |
 | `/users` | Strong | Uses `PageHeader`, `OperationalToolbar`, `OperationalActiveFilterChips`, shadcn table, shared empty states, URL state, roster stats, and role-aware actions. | No immediate code fix. If row-level user actions expand beyond navigation, use `OperationalRowActions` instead of adding local icon menus. |
-| `/settings` | Strong | Uses `PageHeader`, role-aware grouped rail, horizontal smaller-screen scroller, search command, overview map, and `SettingsPageShell` for the shared sub-page split. Area 4 aligned high-confidence sub-page drift in Bookings, Kiosk Devices, Allowed Emails, and Database Health. | No immediate code fix. Keep new Settings pages on `SettingsPageShell` and shared inline empty states. |
+| `/settings` | Strong | Uses `PageHeader`, role-aware grouped rail, horizontal smaller-screen scroller, search command, overview map, and `SettingsPageShell` for the shared sub-page split. Area 4 aligned high-confidence sub-page drift in Bookings, Kiosk Devices, Allowed Emails, Database Health, and Audit. | No immediate code fix. Keep new Settings pages on `SettingsPageShell`, shared inline empty states, and shared command surfaces when a sub-page has search/filter/clear controls. |
 | `/kits` | Mostly conforming | Uses `PageHeader`, URL-backed search/filter/sort, shared `EmptyState`, shared `OperationalMetricCard` summary metrics, and responsive table/card layouts. The route-local filter shell remains acceptable until it needs the full search/filter/clear toolbar pattern. | No immediate code fix. Re-evaluate the search/location/archived row only when Kits gets more filter complexity. |
 | `/licenses` | Strong | Uses `PageHeader`, shared `EmptyState`, explicit admin/user actions, `OperationalMetricCard` summary metrics, and lifecycle copy that matches the 2-slot license model. Compact header/admin controls now meet the 40px target baseline. | No immediate code fix. If license row actions expand, keep destructive actions in shared menu or dialogs with target/consequence copy. |
 | `/resources` | Intentional exception | Uses `PageHeader`, shared `EmptyState`, URL-backed search/sort/filter state, shared active-filter chips, shadcn `Select`, and 40px search/filter/sort/contact controls, but the sticky left rail is a knowledge-base navigation model rather than a standard operational toolbar. | No immediate code fix. Keep the rail as the documented resources exception; avoid adding a second competing toolbar. |
@@ -122,12 +122,13 @@ This is a working checklist, not a redesign brief. Use it before future page-spe
 
 - **Header**: pass. Settings layout owns the page header via `PageHeader`.
 - **Toolbar and filters**: pass for navigation. The settings command/search palette is a navigation affordance, not an operational list toolbar.
+- **Toolbar and filters**: pass for navigation and Audit. The settings command/search palette is a navigation affordance, not an operational list toolbar; Audit now uses `OperationalToolbar` plus active-filter chips because it has a standard admin search/filter/clear pattern.
 - **Rows and actions**: pass at the shell level; sub-pages need the Area 4 inventory.
 - **Empty, loading, error**: pass at overview and shell level. Sub-pages need follow-through verification.
 - **Targets and focus**: pass for rail, strip, command entry, and overview cards.
 - **Status and color**: pass. Role badges use Staff+, Admin, and Everyone labels rather than hiding policy.
 - **Copy**: pass. Overview explains control domains without marketing language.
-- **Evidence**: `src/app/(app)/settings/layout.tsx`, `src/app/(app)/settings/page.tsx`, `src/app/(app)/settings/SettingsPageShell.tsx`, `docs/AREA_SETTINGS.md`, authenticated screenshot `tasks/design-language-proof-settings.png`.
+- **Evidence**: `src/app/(app)/settings/layout.tsx`, `src/app/(app)/settings/page.tsx`, `src/app/(app)/settings/SettingsPageShell.tsx`, `src/app/(app)/settings/audit/page.tsx`, `docs/AREA_SETTINGS.md`, authenticated screenshot `tasks/design-language-proof-settings.png`.
 
 ## First Decision From This Pass
 
@@ -252,3 +253,4 @@ Do not force every route into `OperationalToolbar`. Use it when the route has th
 1. Audit remaining low-traffic detail routes after page-specific edits, not as a standalone redesign pass.
 2. If Kits filters expand, evaluate `OperationalToolbar`; do not migrate it preemptively while the current compact filter shell remains simpler.
 3. Keep future Labels, Search, Notifications, Licenses, Resources, and user-detail assignment additions on named 40px controls.
+4. Settings Audit is no longer a command-surface follow-up; keep future Audit filter additions inside the shared toolbar/chip pattern.

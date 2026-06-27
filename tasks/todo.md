@@ -1,6 +1,21 @@
 # Task Queue
 
-Last updated: 2026-06-26
+Last updated: 2026-06-27
+
+---
+
+## Active: Settings Audit command surface cleanup (2026-06-27)
+
+Plan: move the next command-surface slice from status indicators into a bounded Settings Audit pass.
+
+- [x] Confirm the route has a standard search/filter/clear pattern that fits `OperationalToolbar`.
+- [x] Convert the filter surface to shared toolbar and active-filter chips.
+- [x] Move local audit table and empty/error shells onto shared shadcn-backed primitives.
+- [x] Sync Settings and design-language docs.
+- [x] Run focused tests, typecheck, docs/codemap checks, build, and protected-route smoke.
+
+### Review
+- 2026-06-27: Settings > Audit now uses the shared `OperationalToolbar` and `OperationalActiveFilterChips` for entity/action/date filters, keeps individual filter removal visible, and renders audit rows through shadcn `Table` plus shared `EmptyState` retry/empty states. `OperationalToolbar` now accepts standard div attributes so route-level command surfaces can carry labels. Verification passed with `npx vitest run tests/settings-audit-command-surface-source.test.ts tests/settings-audit-filters.test.ts tests/settings-audit-pagination.test.ts`, `npx tsc --noEmit`, `npm run codemap`, `npm run verify:docs`, `git diff --check`, and `npm run build:app`. Browser automation was blocked because the repo has no Playwright dependency and the bundled Playwright browser binary is not installed; HTTP protected-route smoke passed with `HEAD /settings/audit` returning `307` to `/login`.
 
 ---
 
@@ -29,6 +44,21 @@ Plan: wire the shared shadcn-backed status indicator into the remaining high-val
 
 ### Review
 - 2026-06-26: Dashboard, `/bookings`, and full booking detail now show the shared booking-change sync health from `useBookingChangeSync` through the shadcn-backed `StatusIndicator`: live, retrying, offline, and paused states are visible while the existing cache invalidation remains unchanged. Settings > Kiosk Devices now uses the same status indicator for Online, Heartbeat stale, Offline, Pending activation, and Deactivated device health. Verification passed with `npx vitest run tests/booking-realtime-sync-source.test.ts`, `npx tsc --noEmit`, `npm run codemap`, `npm run verify:docs`, quoted `git diff --check`, and `npm run build:app`. Browser smoke on `http://127.0.0.1:3072/`, `/bookings`, and `/settings/kiosk-devices` redirected to `/login` because the Chrome context was unauthenticated; login rendered cleanly with no console errors.
+
+---
+
+## Active: admin health status indicators (2026-06-27)
+
+Plan: extend the shared shadcn-backed status indicator to the daily admin health surfaces.
+
+- [x] Add a shared queue/checklist health mapper for critical, needs-work, partial-data, and clean states.
+- [x] Wire Fix Today overall queue and section health through `StatusIndicator`.
+- [x] Wire Inventory Hygiene checklist health through `StatusIndicator`.
+- [x] Sync Dashboard and Items docs.
+- [x] Run focused tests, typecheck, docs/codemap checks, build, and browser smoke.
+
+### Review
+- 2026-06-27: Fix Today and Inventory Hygiene now share one `summarizeOperationalHealth` helper that maps critical, needs-work, partial-data, and clean states into the shadcn-backed `StatusIndicator`. Fix Today shows queue health in the header/admin queue panel and per-section cards; Inventory Hygiene shows checklist health in the header and checklist health panel. Verification passed with `npx vitest run tests/admin-health-status-indicators-source.test.ts`, `npx tsc --noEmit`, `npm run codemap`, `npm run verify:docs`, quoted `git diff --check`, and `npm run build:app`. Browser smoke on `http://127.0.0.1:3073/admin/fix-today` and `/items/hygiene` redirected to `/login` because the Chrome context was unauthenticated; login rendered cleanly with no console errors.
 
 ---
 

@@ -2,7 +2,7 @@
 
 ## Document Control
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-20
+- Last Updated: 2026-06-27
 - Status: Active
 - Purpose: Define the UI and UX rules that keep Gear Tracker cohesive, fast, dense, calm, and operationally clear.
 
@@ -157,6 +157,7 @@ Feature ideas to consider separately:
 - `/settings/kiosk-devices`: pending-pickup summary, activation-code copy, pending-pickup cancel, and empty pending-pickup dialog states now have named controls, visible focus, 40px targets, and shared inline empty-state language.
 - `/settings/allowed-emails`: add-mode controls now use 40px segmented targets with visible focus and `aria-pressed`.
 - `/settings/database`: initial no-diagnostics state now uses shared inline `EmptyState` copy instead of a route-local text placeholder.
+- `/settings/audit`: filter controls now use `OperationalToolbar` plus shared active-filter chips, and audit rows render through shadcn `Table` with shared empty/error states.
 - `/admin/fix-today` and `/items/hygiene`: duplicate metric and partial-results patterns now use shared primitives.
 - `/settings`: uses `PageHeader` plus role-aware grouped navigation. Large desktop uses a left rail; smaller screens keep a horizontal section scroller. Sub-pages now share `SettingsPageShell` for the compact intro/main split.
 - `/reports/*`: report metric cards now render through `OperationalMetricCard` via the report adapter, preserving report links, tooltips, badges, and string values without maintaining a separate metric primitive.

@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, RefreshCw, WifiOff, X } from "lucide-react";
+import { AlertTriangle, X } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
+import {
+  OperationalActiveFilterChips,
+  OperationalToolbar,
+  type OperationalActiveFilter,
+} from "@/components/OperationalToolbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +16,14 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { handleAuthRedirect, classifyError, isAbortError, parseJsonSafely } from "@/lib/errors";
 import { SettingsPageShell } from "../SettingsPageShell";
 import {
@@ -221,15 +235,36 @@ export default function AuditLogPage() {
     setNewCount(0);
   }
 
+  function removeFilter(key: keyof AuditFilters) {
+    setFilterError(null);
+    setDraftFilters((draft) => ({ ...draft, [key]: "" }));
+    setFilters((current) => ({ ...current, [key]: "" }));
+    setNewCount(0);
+  }
+
   const hasActiveFilters = Object.values(filters).some(Boolean);
   const hasDraftChanges = JSON.stringify(draftFilters) !== JSON.stringify(filters);
+  const activeFilters: OperationalActiveFilter[] = [
+    filters.entityType
+      ? { key: "entityType", label: `Entity: ${filters.entityType}`, onRemove: () => removeFilter("entityType") }
+      : null,
+    filters.action
+      ? { key: "action", label: `Action: ${filters.action}`, onRemove: () => removeFilter("action") }
+      : null,
+    filters.from
+      ? { key: "from", label: `From: ${filters.from}`, onRemove: () => removeFilter("from") }
+      : null,
+    filters.to
+      ? { key: "to", label: `To: ${filters.to}`, onRemove: () => removeFilter("to") }
+      : null,
+  ].filter((filter): filter is OperationalActiveFilter => Boolean(filter));
   const paginationCopy = paginationError ? auditPaginationErrorCopy(paginationError) : null;
   const refreshCopy = refreshError ? auditRefreshErrorCopy(refreshError) : null;
 
   const description = "A real-time feed of every create, update, and delete action across the system. Visible to admins only.";
 
   return (
-    <SettingsPageShell title="Audit Log" description={description} mainClassName="space-y-4">
+    <SettingsPageShell title="Audit Log" description={description} mainClassName="flex flex-col gap-4">
       {/* Retention banner */}
       {retentionDays && (
         <p className="text-xs text-muted-foreground">
@@ -237,10 +272,9 @@ export default function AuditLogPage() {
         </p>
       )}
 
-      {/* Filters */}
-      <div className="rounded-md border border-border bg-muted/30 p-3 space-y-3">
+      <OperationalToolbar aria-label="Audit filters">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="space-y-1">
+          <div className="flex flex-col gap-1">
             <Label htmlFor="audit-entity-type" className="text-xs">Entity type</Label>
             <Input
               id="audit-entity-type"
@@ -248,10 +282,10 @@ export default function AuditLogPage() {
               placeholder="e.g. Item, User"
               value={draftFilters.entityType}
               onChange={(e) => updateDraftFilter("entityType", e.target.value)}
-              className="h-8 text-sm"
+              className="h-10 text-sm"
             />
           </div>
-          <div className="space-y-1">
+          <div className="flex flex-col gap-1">
             <Label htmlFor="audit-action" className="text-xs">Action contains</Label>
             <Input
               id="audit-action"
@@ -259,10 +293,10 @@ export default function AuditLogPage() {
               placeholder="e.g. create, update"
               value={draftFilters.action}
               onChange={(e) => updateDraftFilter("action", e.target.value)}
-              className="h-8 text-sm"
+              className="h-10 text-sm"
             />
           </div>
-          <div className="space-y-1">
+          <div className="flex flex-col gap-1">
             <Label htmlFor="audit-from" className="text-xs">From</Label>
             <Input
               id="audit-from"
@@ -270,10 +304,10 @@ export default function AuditLogPage() {
               type="date"
               value={draftFilters.from}
               onChange={(e) => updateDraftFilter("from", e.target.value)}
-              className="h-8 text-sm"
+              className="h-10 text-sm"
             />
           </div>
-          <div className="space-y-1">
+          <div className="flex flex-col gap-1">
             <Label htmlFor="audit-to" className="text-xs">To</Label>
             <Input
               id="audit-to"
@@ -281,10 +315,11 @@ export default function AuditLogPage() {
               type="date"
               value={draftFilters.to}
               onChange={(e) => updateDraftFilter("to", e.target.value)}
-              className="h-8 text-sm"
+              className="h-10 text-sm"
             />
           </div>
         </div>
+        <OperationalActiveFilterChips filters={activeFilters} />
         {filterError && (
           <Alert variant="destructive">
             <AlertTriangle className="size-4" />
@@ -292,17 +327,17 @@ export default function AuditLogPage() {
             <AlertDescription>{filterError}</AlertDescription>
           </Alert>
         )}
-        <div className="flex items-center gap-2">
-          <Button size="sm" onClick={applyFilters} disabled={!hasDraftChanges && !hasActiveFilters}>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Button size="sm" className="h-10" onClick={applyFilters} disabled={!hasDraftChanges && !hasActiveFilters}>
             Apply
           </Button>
           {hasActiveFilters && (
-            <Button size="sm" variant="ghost" onClick={clearFilters}>
-              <X className="size-3.5 mr-1" />
+            <Button size="sm" variant="ghost" className="h-10" onClick={clearFilters}>
+              <X data-icon="inline-start" />
               Clear filters
             </Button>
           )}
-          <div className="ml-auto flex items-center gap-2">
+          <div className="flex items-center gap-2 sm:ml-auto">
             <Label htmlFor="auto-refresh" className="text-xs text-muted-foreground cursor-pointer">
               Auto-refresh
             </Label>
@@ -313,7 +348,7 @@ export default function AuditLogPage() {
             />
           </div>
         </div>
-      </div>
+      </OperationalToolbar>
 
       {/* New rows banner */}
       {newCount > 0 && (
@@ -342,53 +377,50 @@ export default function AuditLogPage() {
 
       {/* Content */}
       {loading ? (
-        <div className="space-y-1.5">
+        <div className="flex flex-col gap-1.5">
           {Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} className="h-12 w-full rounded-md" />
           ))}
         </div>
       ) : error ? (
-        <div className="rounded-md border border-border bg-card p-8 flex flex-col items-center gap-4 text-center">
-          {error === "network"
-            ? <WifiOff className="size-8 text-muted-foreground" />
-            : <AlertTriangle className="size-8 text-muted-foreground" />}
-          <p className="text-sm text-muted-foreground">
-            {error === "network" ? "Could not reach the server." : "Failed to load audit entries."}
-          </p>
-          <Button variant="outline" size="sm" onClick={() => fetchPage(filters)}>
-            Retry
-          </Button>
-        </div>
+        <EmptyState
+          icon={error === "network" ? "wifi-off" : "clipboard"}
+          title={error === "network" ? "Could not reach the server" : "Audit entries did not load"}
+          description={error === "network" ? "Retry when the connection is back." : "Retry before treating the visible audit feed as current."}
+          actionLabel="Retry"
+          onAction={() => fetchPage(filters)}
+        />
       ) : rows.length === 0 ? (
-        <div className="rounded-md border border-border bg-card p-8 flex flex-col items-center gap-2 text-center">
-          <RefreshCw className="size-8 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">
-            {hasActiveFilters ? "No entries match these filters." : "No audit entries yet."}
-          </p>
-        </div>
+        <EmptyState
+          icon={hasActiveFilters ? "search" : "clipboard"}
+          title={hasActiveFilters ? "No audit entries match" : "No audit entries yet"}
+          description={hasActiveFilters ? "Remove a filter or widen the date range to review more audit history." : "New create, update, and delete actions will appear here."}
+          actionLabel={hasActiveFilters ? "Clear filters" : undefined}
+          onAction={hasActiveFilters ? clearFilters : undefined}
+        />
       ) : (
         <div className="rounded-md border border-border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 border-b border-border">
-              <tr>
-                <th className="text-left font-medium text-muted-foreground px-3 py-2 w-44">Time</th>
-                <th className="text-left font-medium text-muted-foreground px-3 py-2">Entity</th>
-                <th className="text-left font-medium text-muted-foreground px-3 py-2">Action</th>
-                <th className="text-left font-medium text-muted-foreground px-3 py-2">Actor</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
+          <Table>
+            <TableHeader>
+              <TableRow striped={false}>
+                <TableHead className="w-44">Time</TableHead>
+                <TableHead>Entity</TableHead>
+                <TableHead>Action</TableHead>
+                <TableHead>Actor</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {rows.map((row) => (
                 <AuditTableRow key={row.id} row={row} />
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
 
       {/* Load more */}
       {nextCursor && !loading && (
-        <div className="space-y-2 pt-1">
+        <div className="flex flex-col gap-2 pt-1">
           {paginationCopy && (
             <Alert variant="destructive" className="mx-auto max-w-2xl">
               <AlertTriangle className="size-4" />
@@ -409,22 +441,22 @@ export default function AuditLogPage() {
 
 function AuditTableRow({ row }: { row: AuditRow }) {
   return (
-    <tr className="hover:bg-muted/30 transition-colors">
-      <td className="px-3 py-2.5 tabular-nums text-muted-foreground text-xs whitespace-nowrap">
+    <TableRow>
+      <TableCell className="tabular-nums text-xs text-muted-foreground">
         {formatTs(row.createdAt)}
-      </td>
-      <td className="px-3 py-2.5">
+      </TableCell>
+      <TableCell>
         <span className="font-medium">{row.entityType}</span>
         <span className="text-muted-foreground ml-1 font-mono text-xs">{row.entityId.slice(0, 8)}</span>
-      </td>
-      <td className="px-3 py-2.5">
+      </TableCell>
+      <TableCell>
         <Badge variant="secondary" className="font-mono text-xs font-normal">
           {row.action}
         </Badge>
-      </td>
-      <td className="px-3 py-2.5 text-muted-foreground">
+      </TableCell>
+      <TableCell className="text-muted-foreground">
         {row.actor ? row.actor.name : <span className="text-xs italic">System</span>}
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 }

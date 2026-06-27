@@ -16,31 +16,33 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import StatusIndicator from "@/components/ui/status-indicator";
 import { useFetch } from "@/hooks/use-fetch";
 import type { AdminFixTodayQueue, AdminFixTodaySection, AdminFixTodaySeverity } from "@/lib/admin-fix-today";
+import { summarizeOperationalHealth, type OperationalHealthState } from "@/lib/operational-health";
 import { cn } from "@/lib/utils";
 
 const SEVERITY_META: Record<AdminFixTodaySeverity, {
   label: string;
-  badge: "red" | "orange" | "blue";
+  state: OperationalHealthState;
   iconTone: string;
   cardTone: string;
 }> = {
   critical: {
     label: "Critical",
-    badge: "red",
+    state: "down",
     iconTone: "text-red-600 bg-red-50 dark:bg-red-950/30",
     cardTone: "border-red-200/80 bg-red-50/40 dark:border-red-950 dark:bg-red-950/10",
   },
   warning: {
     label: "Needs work",
-    badge: "orange",
+    state: "fixing",
     iconTone: "text-orange-600 bg-orange-50 dark:bg-orange-950/30",
     cardTone: "border-orange-200/80 bg-orange-50/40 dark:border-orange-950 dark:bg-orange-950/10",
   },
   info: {
     label: "Watch",
-    badge: "blue",
+    state: "idle",
     iconTone: "text-blue-600 bg-blue-50 dark:bg-blue-950/30",
     cardTone: "border-border bg-card",
   },
@@ -112,11 +114,27 @@ export default function FixTodayClient() {
   const cleanChecks = data ? Math.max(0, data.totals.activeChecks - data.totals.checksNeedingWork) : 0;
   const completion = data?.totals.activeChecks ? Math.round((cleanChecks / data.totals.activeChecks) * 100) : 100;
   const partialFailures = data?.partialFailures ?? [];
+  const queueHealth = data
+    ? summarizeOperationalHealth({
+        cleanLabel: "Queue clean",
+        criticalCount: data.totals.criticalChecks,
+        needsWorkCount: data.totals.checksNeedingWork,
+        partialFailureCount: partialFailures.length,
+      })
+    : null;
 
   return (
     <div className="space-y-5">
       <PageHeader title="Fix Today">
         <div className="flex flex-wrap items-center justify-end gap-2">
+          {queueHealth && (
+            <StatusIndicator
+              state={queueHealth.state}
+              label={queueHealth.label}
+              size="sm"
+              title={queueHealth.description}
+            />
+          )}
           {data && (
             <span className="text-xs text-muted-foreground">
               Updated {formatGeneratedAt(data.generatedAt)}
@@ -141,6 +159,14 @@ export default function FixTodayClient() {
               <div className="min-w-0 space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-xl font-semibold text-balance">Admin daily queue</h2>
+                  {queueHealth && (
+                    <StatusIndicator
+                      state={queueHealth.state}
+                      label={queueHealth.label}
+                      size="sm"
+                      title={queueHealth.description}
+                    />
+                  )}
                   <Badge variant="outline" className="gap-1.5">
                     <ShieldCheck className="size-3" />
                     Admin only
@@ -209,9 +235,12 @@ function QueueSectionCard({ section }: { section: AdminFixTodaySection }) {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <CardTitle className="text-base leading-tight text-balance">{section.title}</CardTitle>
-              <Badge variant={hasWork ? meta.badge : "outline"} size="sm">
-                {hasWork ? meta.label : "Clean"}
-              </Badge>
+              <StatusIndicator
+                state={hasWork ? meta.state : "active"}
+                label={hasWork ? meta.label : "Clean"}
+                size="sm"
+                title={hasWork ? section.description : "This check is clean."}
+              />
             </div>
             <p className="mt-1 text-sm text-muted-foreground text-pretty">{section.description}</p>
           </div>

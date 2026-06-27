@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -6,7 +6,8 @@ import { cn } from "@/lib/utils";
 export function OperationalToolbar({
   children,
   className,
-}: {
+  ...props
+}: ComponentProps<"div"> & {
   children: ReactNode;
   className?: string;
 }) {
@@ -16,6 +17,7 @@ export function OperationalToolbar({
         "flex w-full flex-col gap-2 rounded-lg bg-background/45 p-2 shadow-[0_1px_0_rgba(15,23,42,0.05)] backdrop-blur supports-[backdrop-filter]:bg-background/35",
         className,
       )}
+      {...props}
     >
       {children}
     </div>

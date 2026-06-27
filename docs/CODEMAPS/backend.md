@@ -107,6 +107,7 @@
 | `src/lib/item-family-state.ts` | 75 |
 | `src/lib/nav-sections.ts` | 219 |
 | `src/lib/observability.ts` | 19 |
+| `src/lib/operational-health.ts` | 50 |
 | `src/lib/permissions.ts` | 163 |
 | `src/lib/query-client.ts` | 56 |
 | `src/lib/rate-limit.ts` | 159 |

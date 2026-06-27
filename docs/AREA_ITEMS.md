@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Items
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-26
+- Last Updated: 2026-06-27
 - Status: Active
 - Version: V1
 
@@ -51,7 +51,8 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 3. Each issue card links to the existing repair surface instead of adding new mutation paths.
 4. Slice 1 checks missing category, missing department, missing primary scan code, missing image, duplicate scan identity, retired items still in active kits, camera bodies with no attachments, and active bulk SKUs below threshold.
 5. The page frames those checks as a read-only cleanup queue with priority ordering, clean/check progress, needs-work/all/clean views, partial-failure warnings, and tag-first sample rows.
-6. The Items Fill gaps wizard can repair missing categories and departments across standard items and item families. Missing-category suggestions prefer existing categorized inventory patterns, then fall back to gear-term matching. The backing missing-field API counts standard items and item families separately, pages each source at the database layer, and reports when suggestion matching used a capped sample.
+6. Checklist health uses the shared shadcn-backed status indicator: green for clean, orange for needs-work or partial data, and red only for critical/blocking states.
+7. The Items Fill gaps wizard can repair missing categories and departments across standard items and item families. Missing-category suggestions prefer existing categorized inventory patterns, then fall back to gear-term matching. The backing missing-field API counts standard items and item families separately, pages each source at the database layer, and reports when suggestion matching used a capped sample.
 
 ### Create Item
 1. User starts `Add item`.
@@ -424,6 +425,7 @@ Item families can optionally enable `trackByNumber` on the backing `BulkSku` imp
 5. Preserve audit coverage for every mutation.
 
 ## Change Log
+- 2026-06-27: Inventory Hygiene checklist health indicator. `/items/hygiene` now maps needs-work, partial-data, and clean checklist state through the shared shadcn-backed status indicator in the page header and checklist health card while keeping the page read-only and repair-surface linked.
 - 2026-06-26: Items list niceties shipped. The web sort selector now names the default sort `Asset tag`; item-family rows can be favorited through the same star and context-menu paths as standard items; `/api/assets?favorites_only=true` now includes favorited item families instead of silently filtering them out; shared asset-tag search aliases let compact and hyphenated family tags such as `70200` and `70-200` find each other in Items and picker search; and item-family row actions now expose valid shortcuts only, including inventory management and numbered-unit label export.
 - 2026-06-26: Asset-tag sort now groups repeated equipment families before operational prefixes. Tags such as `70-200 1`, `70-200 2`, `70200 4`, and then `FB 70-200 1` sort as one readable family block instead of alternating by copy number across unprefixed and team-prefixed rows.
 - 2026-06-26: Items list/detail freshness shipped. `/items` now verifies server truth on mount instead of trusting a still-fresh 60s cache after Back navigation, serialized item detail mutations invalidate the item-family list and picker caches after successful saves, and a lightweight `/api/items/changes` signal refreshes visible item list/detail surfaces from committed `Asset`, `BulkSku`, and audit-log changes.
