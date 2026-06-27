@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Dashboard
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-24
+- Last Updated: 2026-06-26
 - Status: Active — V3 shipped, reliability + UX polish complete
 - Version: V3
 
@@ -152,6 +152,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - [x] AC-10: Manual refresh button shows data freshness ("Updated X ago").
 - [x] AC-11: Operational dashboard, booking list, and booking detail queries verify server truth on mount instead of trusting warm persisted cache as fresh.
 - [x] AC-12: Dashboard booking counts and rows converge from committed booking changes without manual refresh while the page is visible and online.
+- [x] AC-13: Dashboard, booking list, and full booking detail expose the shared booking-change sync health as a visible status indicator.
 
 ## Edge Cases
 - No overdue items: banner hidden.
@@ -159,7 +160,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - Cross-midnight and DST countdown behavior.
 - Booking linked to deleted or changed event source record.
 - Mixed-location return suggestion for multi-location allocations.
-- Temporary stale data causing count mismatches: show refresh status, refetch operational booking surfaces on mount, and invalidate dashboard/list/detail booking reads from the committed booking-change signal.
+- Temporary stale data causing count mismatches: show refresh status, expose shared sync health, refetch operational booking surfaces on mount, and invalidate dashboard/list/detail booking reads from the committed booking-change signal.
 
 ## Dependencies
 - Booking and allocation read models.
@@ -179,6 +180,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 7. Add regression tests for permissions, window filtering (7 days), and overdue consistency.
 
 ## Change Log
+- 2026-06-26: Booking sync health indicator. Dashboard, `/bookings`, and the full booking detail header now show the shared shadcn-backed booking sync status (`Live sync`, `Sync retrying`, `Offline`, or `Sync paused`) from the existing booking-change hook. The hook still invalidates dashboard, stats, booking-list, and changed booking-detail caches from `/api/bookings/changes`; this slice makes that freshness state visible without adding new custody actions.
 - 2026-06-24: Booking real-time sync Slice 4. Authenticated browser smoke on local dev created, edited, and cancelled reservation `cmqs2rrjt000hkv9t8pp1kicm`; Dashboard moved Reserved 0 -> 1 without Refresh, `/bookings?tab=reservations` showed the row, an open booking detail sheet refreshed title/notes after the detail listener fix, cancellation removed the row from active reservations, and a Dashboard reload showed Reserved 0 with no stale smoke row. Proof notes/screenshots live under `tasks/archive/proofs/`.
 - 2026-06-24: Booking real-time sync Slice 3. Dashboard and the shared booking list now mount a shared booking-change sync hook. The hook polls `/api/bookings/changes` only while visible and online, then invalidates dashboard, dashboard stats, booking-list, and changed booking-detail query keys when the server reports committed booking changes.
 - 2026-06-24: Booking real-time sync Slice 2. Added bounded authenticated `GET /api/bookings/changes?since=<cursor>` as the server truth signal for later client invalidation. The route requires booking view permission, rate limits per signed-in user, returns `ok({ data: { cursor, changedBookingIds } })`, uses committed `Booking.updatedAt` plus indexed booking audit evidence, and scopes returned booking ids to the viewer.

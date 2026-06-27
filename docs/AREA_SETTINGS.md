@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Settings
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-22
+- Last Updated: 2026-06-26
 - Status: Active
 - Version: V1
 
@@ -132,7 +132,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 
 ### Calendar Sources (`/settings/calendar-sources`)
 - Enable/disable ICS calendar sources for event sync.
-- Sync status badges (green/yellow/red based on `lastFetchedAt` staleness).
+- Sync status badges use the shared shadcn-backed status indicator: green for active, orange for stale/needs attention, red for errors, and gray for disabled or never synced.
 - Manual "Sync Now" button. Add/delete sources.
 - Manual sync reports returned feed errors, event add/refresh/cancel/skip counts, and shift-generation outcome instead of treating every 200 response as success.
 - Manual sync, test, add, enable/disable, and delete actions use immediate duplicate-action guards before React disabled state renders.
@@ -161,6 +161,7 @@ Design language reference: `docs/DESIGN_LANGUAGE.md`.
 - Activated kiosks can't regenerate (must deactivate first; server returns 409).
 - Kiosk sessions are **always-on**: a bound device has no server-side session expiry and stays active until an admin deactivates it. The HTTP-only cookie is rolled forward on every authenticated kiosk request (~395-day window) to stay under browser cookie-lifetime caps without ever forcing a re-activation on a live device.
 - Toggle active/inactive (deactivating clears the session token, which ends the session immediately), delete, and inspect last-seen timestamp.
+- Device rows use the shared shadcn-backed status indicator for `Online`, `Heartbeat stale`, `Offline`, `Pending activation`, and `Deactivated` health.
 
 ### Allowed Emails (`/settings/allowed-emails`)
 - Admin-managed email allowlist for registration gating (D-029).
@@ -192,6 +193,8 @@ Navigation breadcrumb versioned roadmap: `tasks/breadcrumbs-roadmap.md`
 All versions shipped. Duplicate breadcrumb removed; parent-level sibling quick-jump dropdown on "Settings" crumb navigates between sub-pages. Role-gated Settings sibling menus now wait for the current role before becoming dropdowns, so the loading frame does not expose an empty menu. The global breadcrumb UI now uses a lighter trail treatment with the current Settings sub-page marked by a subtle underline instead of a filled chip.
 
 ## Change Log
+- 2026-06-26: **Kiosk Devices health indicator cleanup.** Settings > Kiosk Devices now uses the shared shadcn-backed status indicator for device health instead of a route-local dot plus separate status badges. Online remains green, stale heartbeat is orange, offline is red, and pending/deactivated devices are gray.
+- 2026-06-26: **shadcn status indicator cleanup.** The shared Calendar Sources health indicator now composes shadcn `Badge` variants instead of route-local/raw color spans. Active feeds stay green, stale feeds use the Gear Tracker orange warning tone, errors stay red, and disabled or never-synced feeds use gray.
 - 2026-06-24: **Hidden smoke onboarding cleanup.** Allowed Emails and Onboarding Status now hide rows claimed by `hiddenFromRoster` users by default, keeping smoke/test invite history out of daily onboarding review while preserving the audit row.
 - 2026-06-24: **Hidden smoke user visibility.** Added `User.hiddenFromRoster` so smoke/test identities can remain active for verification while staying out of default roster, export, form-option picker, kiosk user-selection, non-internal profile reads, Schedule candidate/conflict reads, org chart rows, and admin/supervisor notification fan-out. Internal operator opt-in is controlled by `INTERNAL_OPERATOR_EMAILS`; `/api/me` exposes that current-user capability, `/users` shows an owner-only "Show hidden test users" filter that also carries into roster CSV export, and `POST /api/users/hidden-cleanup` lets internal operators dry-run or apply age-based hidden-user deactivation. Normal staff/admin access still excludes hidden users by default.
 - 2026-06-22: **Venue mapping contract cleanup.** `GET /api/location-mappings` now enforces ADMIN-only access, create rejects invalid regex patterns before storage, and list ordering follows priority plus longest-pattern tie-breaking to match D-027.

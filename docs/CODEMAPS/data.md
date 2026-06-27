@@ -19,7 +19,7 @@
 | `Category` | 9 | 3 |
 | `Asset` | 41 | 7 |
 | `FirmwareWatchTarget` | 17 | 3 |
-| `Booking` | 37 | 13 |
+| `Booking` | 39 | 14 |
 | `BookingSerializedItem` | 7 | 3 |
 | `BookingBulkItem` | 10 | 3 |
 | `AssetAllocation` | 11 | 4 |
@@ -62,7 +62,7 @@
 | `StudentAvailabilityBlock` | 20 | 6 |
 | `BookingPhoto` | 8 | 2 |
 | `CheckinItemReport` | 11 | 3 |
-| `KioskDevice` | 12 | 3 |
+| `KioskDevice` | 13 | 3 |
 | `Resource` | 18 | 6 |
 | `EventTravelMember` | 7 | 3 |
 

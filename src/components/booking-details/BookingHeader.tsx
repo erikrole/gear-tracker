@@ -3,6 +3,7 @@
 import { InlineTitle } from "@/components/InlineTitle";
 import { Button } from "@/components/ui/button";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
+import StatusIndicator from "@/components/ui/status-indicator";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -15,6 +16,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { ChevronDown, Clock, Copy, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { statusBadgeVariant, statusLabel, urgencyBadgeClassName } from "./helpers";
+import type { BookingChangeSyncStatus } from "@/hooks/use-booking-change-sync";
 import type { BookingDetail } from "./types";
 
 type Props = {
@@ -30,6 +32,7 @@ type Props = {
   urgency: string;
   kioskHandoffLabel: string | null;
   reloading: boolean;
+  syncStatus?: BookingChangeSyncStatus;
   actionLoading: string | null;
   onSaveTitle: (value: string) => Promise<void>;
   onReload: () => void;
@@ -54,6 +57,7 @@ export function BookingHeader({
   urgency,
   kioskHandoffLabel,
   reloading,
+  syncStatus,
   actionLoading,
   onSaveTitle,
   onReload,
@@ -238,7 +242,15 @@ export function BookingHeader({
             </div>
           )}
 
-          <div className="flex items-center gap-1 text-[10px] leading-none text-muted-foreground/40 lg:justify-end">
+          <div className="flex flex-wrap items-center gap-2 text-[10px] leading-none text-muted-foreground/40 lg:justify-end">
+            {syncStatus && (
+              <StatusIndicator
+                state={syncStatus.state}
+                label={syncStatus.label}
+                size="sm"
+                title={syncStatus.description}
+              />
+            )}
             {reloading ? (
               <span className="inline-flex items-center gap-1.5 text-muted-foreground">
                 <Spinner className="size-3" />

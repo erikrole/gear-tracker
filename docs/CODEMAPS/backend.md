@@ -12,8 +12,8 @@
 | `src/lib/services/booking-rules.ts` | 105 |
 | `src/lib/services/bookings-checkin.ts` | 775 |
 | `src/lib/services/bookings-helpers.ts` | 197 |
-| `src/lib/services/bookings-lifecycle.ts` | 900 |
-| `src/lib/services/bookings-queries.ts` | 234 |
+| `src/lib/services/bookings-lifecycle.ts` | 903 |
+| `src/lib/services/bookings-queries.ts` | 235 |
 | `src/lib/services/bookings.ts` | 4 |
 | `src/lib/services/bulk-unit-scans.ts` | 597 |
 | `src/lib/services/calendar-sync-health.ts` | 165 |

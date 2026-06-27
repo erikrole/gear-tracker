@@ -45,6 +45,7 @@ type BookingListPageProps = {
   viewMode?: "table" | "cards";
   hideHeader?: boolean;
   hideNewButton?: boolean;
+  enableBookingChangeSync?: boolean;
   initialHighlight?: string | null;
   initialSheetTab?: BookingSheetSection | null;
 };
@@ -58,13 +59,14 @@ export default function BookingListPage({
   viewMode = "table",
   hideHeader = false,
   hideNewButton = false,
+  enableBookingChangeSync = true,
   initialHighlight,
   initialSheetTab,
 }: BookingListPageProps) {
   const urlParams = useSearchParams();
   const router = useRouter();
   const urlSignature = urlParams.toString();
-  useBookingChangeSync();
+  useBookingChangeSync(enableBookingChangeSync);
 
   // ── Filter state ──
   const [page, setPage] = useState(0);

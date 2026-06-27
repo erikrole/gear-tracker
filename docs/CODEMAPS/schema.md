@@ -334,7 +334,7 @@ Indexes and constraints:
 
 ## Model `Booking`
 
-Fields: 37
+Fields: 39
 
 - `id                  String                  @id @default(cuid())`
 - `kind                BookingKind`
@@ -352,12 +352,14 @@ Fields: 37
 - `refNumber           String?                 @unique @map("ref_number")`
 - `shiftAssignmentId   String?                 @map("shift_assignment_id")`
 - `kitId               String?                 @map("kit_id")`
+- `pickupKioskDeviceId String?                 @map("pickup_kiosk_device_id")`
 - `createdAt           DateTime                @default(now()) @map("created_at")`
 - `updatedAt           DateTime                @updatedAt @map("updated_at")`
 - `completedAt         DateTime?               @map("completed_at")`
 - `requester           User                    @relation("BookingRequester", fields: [requesterUserId], references: [id], onDelete: Restrict)`
 - `creator             User                    @relation("BookingCreator", fields: [createdBy], references: [id], onDelete: Restrict)`
 - `location            Location                @relation(fields: [locationId], references: [id], onDelete: Restrict)`
+- `pickupKioskDevice   KioskDevice?            @relation("BookingPickupKiosk", fields: [pickupKioskDeviceId], references: [id], onDelete: SetNull)`
 - `sourceReservation   Booking?                @relation("CheckoutFromReservation", fields: [sourceReservationId], references: [id], onDelete: SetNull)`
 - `derivedCheckouts    Booking[]               @relation("CheckoutFromReservation")`
 - `event               CalendarEvent?          @relation(fields: [eventId], references: [id], onDelete: SetNull)`
@@ -384,6 +386,7 @@ Indexes and constraints:
 - `@@index([shiftAssignmentId])`
 - `@@index([requesterUserId])`
 - `@@index([kitId])`
+- `@@index([pickupKioskDeviceId])`
 - `@@index([kind, status, endsAt])`
 - `@@index([kind, status, requesterUserId, endsAt])`
 - `@@index([startsAt, endsAt])`
@@ -1377,7 +1380,7 @@ Indexes and constraints:
 
 ## Model `KioskDevice`
 
-Fields: 12
+Fields: 13
 
 - `id               String    @id @default(cuid())`
 - `name             String // "Video Office iPad"`
@@ -1390,7 +1393,8 @@ Fields: 12
 - `active           Boolean   @default(true)`
 - `createdAt        DateTime  @default(now()) @map("created_at")`
 - `updatedAt        DateTime  @updatedAt @map("updated_at")`
-- `location Location @relation(fields: [locationId], references: [id], onDelete: Restrict)`
+- `location       Location  @relation(fields: [locationId], references: [id], onDelete: Restrict)`
+- `pickupBookings Booking[] @relation("BookingPickupKiosk")`
 
 Indexes and constraints:
 

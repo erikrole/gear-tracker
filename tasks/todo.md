@@ -4,6 +4,34 @@ Last updated: 2026-06-26
 
 ---
 
+## Active: shadcn operational status indicator (2026-06-26)
+
+Plan: keep operational status indicators on shadcn `Badge` composition and Gear Tracker semantic status colors.
+
+- [x] Refactor the shared status indicator away from raw colored spans.
+- [x] Preserve existing Calendar Sources health behavior while moving stale health to orange.
+- [x] Sync Settings docs and run focused verification.
+
+### Review
+- 2026-06-26: Shared status indicators now compose shadcn `Badge` variants instead of custom raw color spans. Calendar Sources health keeps the same active/error/disabled/never-synced behavior, maps stale feeds to the Gear Tracker orange warning tone, and uses gray for idle states. Verification passed with `npx tsc --noEmit`, `npm run codemap`, `npm run verify:docs`, `git diff --check -- src/components/ui/status-indicator.tsx docs/AREA_SETTINGS.md tasks/todo.md docs/CODEMAPS/architecture.md docs/CODEMAPS/backend.md docs/CODEMAPS/frontend.md docs/CODEMAPS/data.md docs/CODEMAPS/schema.md`, and `npm run build:app`. Browser smoke on `http://127.0.0.1:3071/settings/calendar-sources` redirected to `/login` because the Chrome context was unauthenticated; login rendered cleanly with no app console errors.
+
+---
+
+## Active: operational sync and device status indicators (2026-06-26)
+
+Plan: wire the shared shadcn-backed status indicator into the remaining high-value places selected by the user.
+
+- [x] Expose booking-change sync health from the shared booking sync hook.
+- [x] Show booking sync health on Dashboard, `/bookings`, and full booking detail.
+- [x] Replace Kiosk Devices route-local health dots/badges with the shared status indicator.
+- [x] Sync Dashboard, Checkouts, Reservations, and Settings docs.
+- [x] Run focused tests, typecheck, docs/codemap checks, build, and browser smoke.
+
+### Review
+- 2026-06-26: Dashboard, `/bookings`, and full booking detail now show the shared booking-change sync health from `useBookingChangeSync` through the shadcn-backed `StatusIndicator`: live, retrying, offline, and paused states are visible while the existing cache invalidation remains unchanged. Settings > Kiosk Devices now uses the same status indicator for Online, Heartbeat stale, Offline, Pending activation, and Deactivated device health. Verification passed with `npx vitest run tests/booking-realtime-sync-source.test.ts`, `npx tsc --noEmit`, `npm run codemap`, `npm run verify:docs`, quoted `git diff --check`, and `npm run build:app`. Browser smoke on `http://127.0.0.1:3072/`, `/bookings`, and `/settings/kiosk-devices` redirected to `/login` because the Chrome context was unauthenticated; login rendered cleanly with no console errors.
+
+---
+
 ## Active: Items list and detail freshness (2026-06-26)
 
 Plan: `tasks/items-freshness-plan.md`

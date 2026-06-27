@@ -8,6 +8,7 @@ const BookingDetailsSheet = lazy(() => import("@/components/BookingDetailsSheet"
 import EmptyState from "@/components/EmptyState";
 import { PageHeader } from "@/components/PageHeader";
 import { Progress } from "@/components/ui/progress";
+import StatusIndicator from "@/components/ui/status-indicator";
 import { PlusIcon, RefreshCwIcon } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useConfirm } from "@/components/ConfirmDialog";
@@ -32,7 +33,7 @@ import type { BookingSummary, CreateBookingContext } from "./dashboard-types";
 
 export default function DashboardPage() {
   const { data, fetchError, refreshing, lastRefreshed, loadData, setData } = useDashboardData();
-  useBookingChangeSync();
+  const bookingSync = useBookingChangeSync();
 
   // Fast stats — populated from cache immediately on return visits, then kept
   // fresh every 60s. Drives the stat strip and overdue count before the full
@@ -192,6 +193,12 @@ export default function DashboardPage() {
       {/* ══════ Page Header + Quick Actions ══════ */}
       <PageHeader title="Dashboard" className="mb-4 max-md:mb-3">
         <div className="flex flex-wrap items-center justify-end gap-2">
+          <StatusIndicator
+            state={bookingSync.state}
+            label={bookingSync.label}
+            size="sm"
+            title={bookingSync.description}
+          />
           <div className="flex items-center gap-1 rounded-md border border-border/60 bg-muted/20 p-1">
             <Tooltip>
               <TooltipTrigger asChild>

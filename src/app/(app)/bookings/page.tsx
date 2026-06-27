@@ -8,7 +8,9 @@ import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { LayoutGridIcon, ListIcon } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import StatusIndicator from "@/components/ui/status-indicator";
 import { handleAuthRedirect, isAbortError, parseErrorMessage } from "@/lib/errors";
+import { useBookingChangeSync } from "@/hooks/use-booking-change-sync";
 import { FadeUp } from "@/components/ui/motion";
 import { PageHeader } from "@/components/PageHeader";
 import type { TabKey as BookingSheetSection } from "@/components/booking-details/types";
@@ -52,6 +54,7 @@ export default function BookingsPage() {
   const [viewMode, setViewModeRaw] = useState<"cards" | "table">("cards");
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const actionBusyRef = useRef(false);
+  const bookingSync = useBookingChangeSync();
 
   // Consume highlight once from URL so only the correct tab receives it (avoids all-tabs-mount race)
   const [pendingHighlight, setPendingHighlight] = useState<{ id: string; tab: "all" | "checkouts" | "reservations"; sheetTab: BookingSheetSection | null } | null>(() => {
@@ -340,6 +343,12 @@ export default function BookingsPage() {
             </TabsTrigger>
           </TabsList>
           <div className="flex flex-wrap items-center gap-2">
+            <StatusIndicator
+              state={bookingSync.state}
+              label={bookingSync.label}
+              size="sm"
+              title={bookingSync.description}
+            />
             <ToggleGroup
               type="single"
               value={scope}
@@ -374,15 +383,15 @@ export default function BookingsPage() {
         </div>
 
         <TabsContent value="all">
-          <BookingListPage key={`all-${scope}`} config={allConfig} viewMode={viewMode} hideHeader hideNewButton initialHighlight={pendingHighlight?.tab === "all" ? pendingHighlight.id : null} initialSheetTab={pendingHighlight?.tab === "all" ? pendingHighlight.sheetTab : null} />
+          <BookingListPage key={`all-${scope}`} config={allConfig} viewMode={viewMode} hideHeader hideNewButton enableBookingChangeSync={false} initialHighlight={pendingHighlight?.tab === "all" ? pendingHighlight.id : null} initialSheetTab={pendingHighlight?.tab === "all" ? pendingHighlight.sheetTab : null} />
         </TabsContent>
 
         <TabsContent value="checkouts">
-          <BookingListPage key={`checkouts-${scope}`} config={checkoutConfig} viewMode={viewMode} hideHeader hideNewButton initialHighlight={pendingHighlight?.tab === "checkouts" ? pendingHighlight.id : null} initialSheetTab={pendingHighlight?.tab === "checkouts" ? pendingHighlight.sheetTab : null} />
+          <BookingListPage key={`checkouts-${scope}`} config={checkoutConfig} viewMode={viewMode} hideHeader hideNewButton enableBookingChangeSync={false} initialHighlight={pendingHighlight?.tab === "checkouts" ? pendingHighlight.id : null} initialSheetTab={pendingHighlight?.tab === "checkouts" ? pendingHighlight.sheetTab : null} />
         </TabsContent>
 
         <TabsContent value="reservations">
-          <BookingListPage key={`reservations-${scope}`} config={reservationConfig} viewMode={viewMode} hideHeader initialHighlight={pendingHighlight?.tab === "reservations" ? pendingHighlight.id : null} initialSheetTab={pendingHighlight?.tab === "reservations" ? pendingHighlight.sheetTab : null} />
+          <BookingListPage key={`reservations-${scope}`} config={reservationConfig} viewMode={viewMode} hideHeader enableBookingChangeSync={false} initialHighlight={pendingHighlight?.tab === "reservations" ? pendingHighlight.id : null} initialSheetTab={pendingHighlight?.tab === "reservations" ? pendingHighlight.sheetTab : null} />
         </TabsContent>
       </Tabs>
     </FadeUp>

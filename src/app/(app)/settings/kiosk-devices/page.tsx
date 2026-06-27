@@ -10,9 +10,9 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import StatusIndicator from "@/components/ui/status-indicator";
 import {
   Select,
   SelectContent,
@@ -85,14 +85,48 @@ function connectionStatus(device: KioskDevice): "online" | "recent" | "offline" 
   return "offline";
 }
 
-function StatusDot({ status }: { status: ReturnType<typeof connectionStatus> }) {
-  if (status === "online")
-    return <span className="relative flex size-2"><span className="absolute inline-flex size-full rounded-full bg-emerald-500 opacity-75 animate-ping" /><span className="relative inline-flex size-2 rounded-full bg-emerald-500" /></span>;
-  if (status === "recent")
-    return <span className="size-2 rounded-full bg-amber-400" />;
-  if (status === "offline")
-    return <span className="size-2 rounded-full bg-destructive" />;
-  return <span className="size-2 rounded-full bg-muted-foreground/40" />;
+function kioskHealth(device: KioskDevice): {
+  state: "active" | "down" | "fixing" | "idle";
+  label: string;
+  description: string;
+} {
+  if (!device.active) {
+    return {
+      state: "idle",
+      label: "Deactivated",
+      description: "This kiosk is inactive and cannot use its device session.",
+    };
+  }
+  if (!device.activated) {
+    return {
+      state: "idle",
+      label: "Pending activation",
+      description: "This kiosk needs an activation code entered on the iPad.",
+    };
+  }
+
+  const status = connectionStatus(device);
+  if (status === "online") {
+    return {
+      state: "active",
+      label: "Online",
+      description: "This kiosk checked in within the last 5 minutes.",
+    };
+  }
+  if (status === "recent") {
+    return {
+      state: "fixing",
+      label: "Heartbeat stale",
+      description: "This kiosk has checked in within 24 hours but not within the last 5 minutes.",
+    };
+  }
+  return {
+    state: "down",
+    label: "Offline",
+    description: device.lastSeenAt
+      ? "This kiosk has not checked in for over 24 hours."
+      : "This kiosk has not checked in yet.",
+  };
 }
 
 export default function KioskDevicesPage() {
@@ -491,7 +525,7 @@ export default function KioskDevicesPage() {
       {!loading && !error && (devices ?? []).length > 0 && (
         <div className="space-y-3">
           {(devices ?? []).map((device) => {
-            const status = connectionStatus(device);
+            const health = kioskHealth(device);
             return (
               <Card key={device.id} className={cn(!device.active && "opacity-60")}>
                 <CardContent className="py-4 space-y-3">
@@ -503,20 +537,13 @@ export default function KioskDevicesPage() {
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <StatusDot status={status} />
                         <span className="font-medium truncate">{device.name}</span>
-                        {device.active ? (
-                          <Badge variant="outline" size="sm">
-                            {device.activated ? "Active" : "Pending activation"}
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary" size="sm">Deactivated</Badge>
-                        )}
-                        {status === "offline" && (
-                          <Badge variant="orange" size="sm" title="No heartbeat in over 24 hours">
-                            Offline
-                          </Badge>
-                        )}
+                        <StatusIndicator
+                          state={health.state}
+                          label={health.label}
+                          size="sm"
+                          title={health.description}
+                        />
                       </div>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
                         <span>{device.location.name}</span>

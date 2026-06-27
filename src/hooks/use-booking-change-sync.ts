@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { DASHBOARD_KEY, DASHBOARD_STATS_KEY } from "@/hooks/use-dashboard-data";
 import { handleAuthRedirect, parseJsonSafely } from "@/lib/errors";
@@ -11,6 +11,20 @@ export const BOOKING_CHANGE_SYNC_EVENT = "booking-change-sync";
 type BookingChangeSignal = {
   cursor: string;
   changedBookingIds: string[];
+};
+
+export type BookingChangeSyncStatus = {
+  state: "active" | "down" | "fixing" | "idle";
+  label: string;
+  description: string;
+  lastCheckedAt: Date | null;
+};
+
+const initialSyncStatus: BookingChangeSyncStatus = {
+  state: "idle",
+  label: "Sync starting",
+  description: "Booking freshness check has not completed yet.",
+  lastCheckedAt: null,
 };
 
 async function fetchBookingChanges(cursor: string | null, signal: AbortSignal): Promise<BookingChangeSignal> {
@@ -31,19 +45,32 @@ async function fetchBookingChanges(cursor: string | null, signal: AbortSignal): 
   };
 }
 
+function getPollBlockReason(): "hidden" | "offline" | null {
+  if (typeof document !== "undefined" && document.visibilityState === "hidden") return "hidden";
+  if (typeof navigator !== "undefined" && !navigator.onLine) return "offline";
+  return null;
+}
+
 function canPoll() {
-  if (typeof document !== "undefined" && document.visibilityState === "hidden") return false;
-  if (typeof navigator !== "undefined" && !navigator.onLine) return false;
-  return true;
+  return getPollBlockReason() === null;
 }
 
 export function useBookingChangeSync(enabled = true) {
   const queryClient = useQueryClient();
   const cursorRef = useRef<string | null>(null);
   const inFlightRef = useRef(false);
+  const [status, setStatus] = useState<BookingChangeSyncStatus>(initialSyncStatus);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      setStatus({
+        state: "idle",
+        label: "Sync paused",
+        description: "Booking freshness sync is disabled for this view.",
+        lastCheckedAt: null,
+      });
+      return;
+    }
 
     let stopped = false;
     let timeout: ReturnType<typeof setTimeout> | null = null;
@@ -79,7 +106,16 @@ export function useBookingChangeSync(enabled = true) {
 
     const poll = async () => {
       if (stopped) return;
-      if (!canPoll()) {
+      const blockReason = getPollBlockReason();
+      if (blockReason) {
+        setStatus((prev) => ({
+          state: blockReason === "offline" ? "down" : "idle",
+          label: blockReason === "offline" ? "Offline" : "Sync paused",
+          description: blockReason === "offline"
+            ? "Booking freshness sync will retry when the browser is online."
+            : "Booking freshness sync pauses while this tab is in the background.",
+          lastCheckedAt: prev.lastCheckedAt,
+        }));
         schedule(BOOKING_CHANGE_SYNC_INTERVAL_MS);
         return;
       }
@@ -91,9 +127,24 @@ export function useBookingChangeSync(enabled = true) {
         const result = await fetchBookingChanges(cursorRef.current, controller.signal);
         cursorRef.current = result.cursor;
         invalidateBookingCaches(result.changedBookingIds);
+        const checkedAt = new Date();
+        setStatus({
+          state: "active",
+          label: result.changedBookingIds.length > 0 ? "Sync updated" : "Live sync",
+          description: result.changedBookingIds.length > 0
+            ? `Refreshed ${result.changedBookingIds.length} changed booking${result.changedBookingIds.length === 1 ? "" : "s"}.`
+            : "Booking freshness sync is current.",
+          lastCheckedAt: checkedAt,
+        });
       } catch (error) {
         if (!(error instanceof DOMException && error.name === "AbortError")) {
           // Keep the current cursor and retry on the next scheduled tick.
+          setStatus((prev) => ({
+            state: "fixing",
+            label: "Sync retrying",
+            description: "Booking freshness sync could not reach the server and will retry.",
+            lastCheckedAt: prev.lastCheckedAt,
+          }));
         }
       } finally {
         inFlightRef.current = false;
@@ -118,4 +169,6 @@ export function useBookingChangeSync(enabled = true) {
       window.removeEventListener("online", pollSoon);
     };
   }, [enabled, queryClient]);
+
+  return status;
 }

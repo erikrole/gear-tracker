@@ -32,6 +32,7 @@ import { useBreadcrumbLabel } from "@/components/BreadcrumbContext";
 
 import { useBookingDetail } from "@/hooks/useBookingDetail";
 import { useBookingActions } from "@/hooks/useBookingActions";
+import { useBookingChangeSync } from "@/hooks/use-booking-change-sync";
 import {
   toLocalDateTimeValue,
   auditActionLabel,
@@ -60,6 +61,7 @@ export default function BookingDetailPage({
 
   // Actions
   const actions = useBookingActions(id, kind, reload, booking?.updatedAt);
+  const bookingSync = useBookingChangeSync();
 
   // Extend panel state
   const [showExtend, setShowExtend] = useState(false);
@@ -255,6 +257,7 @@ export default function BookingDetailPage({
         urgency={urgency}
         kioskHandoffLabel={kioskHandoffLabel}
         reloading={reloading}
+        syncStatus={bookingSync}
         actionLoading={actions.actionLoading}
         onSaveTitle={async (v) => {
           await actions.saveField("title", v);

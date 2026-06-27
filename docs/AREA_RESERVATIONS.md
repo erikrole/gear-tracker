@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Reservations
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-24
+- Last Updated: 2026-06-26
 - Status: Active — V1 Shipped (2026-03-10)
 - Version: V1
 
@@ -205,6 +205,7 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - Mitigation:
   - Refresh affected list rows after mutation success.
   - Use the shared booking-change signal to refresh visible reservation lists and any open detail sheet for the changed booking id.
+  - Surface shared booking-change sync health on reservation list/detail chrome so operators can see when freshness is current, paused, offline, or retrying.
   - Keep AC-12 open for an end-to-end kiosk pickup fulfillment proof.
 
 ## Edge Cases
@@ -240,6 +241,7 @@ Source of truth: `src/lib/services/booking-rules.ts` — `STATE_ACTIONS[RESERVAT
 - Mobile operations contract from `AREA_MOBILE.md`.
 
 ## Change Log
+- 2026-06-26: Reservation list and full reservation detail now surface the shared booking-change sync health via the shadcn-backed status indicator. The existing committed-change invalidation remains unchanged; this makes visible whether reservation freshness is live, paused, offline, or retrying.
 - 2026-06-24: Booking real-time sync partial AC-12 proof. Web reservation list and an already-open detail sheet now refresh from committed edit/cancel changes without manual refresh via the shared booking-change signal; the browser smoke also caught and fixed the detail-sheet local-state gap. Kiosk pickup fulfillment remains the unproven part of AC-12.
 
 ## Out of Scope (V1)

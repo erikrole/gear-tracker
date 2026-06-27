@@ -1,85 +1,76 @@
-import React from "react";
+import type { ComponentProps } from "react";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-interface StatusIndicatorProps {
-  state: "active" | "down" | "fixing" | "idle";
-  color?: string;
+type StatusIndicatorState = "active" | "down" | "fixing" | "idle";
+
+interface StatusIndicatorProps extends Omit<ComponentProps<"span">, "color"> {
+  state: StatusIndicatorState;
   label?: string;
-  className?: string;
   size?: "sm" | "md" | "lg";
   labelClassName?: string;
 }
 
-const getStateColors = (state: StatusIndicatorProps["state"]) => {
-  switch (state) {
-    case "active":
-      return { dot: "bg-green-500", ping: "bg-green-300" };
-    case "down":
-      return { dot: "bg-red-500", ping: "bg-red-300" };
-    case "fixing":
-      return { dot: "bg-yellow-500", ping: "bg-yellow-300" };
-    case "idle":
-    default:
-      return { dot: "bg-slate-700", ping: "bg-slate-400" };
-  }
+const stateVariant: Record<StatusIndicatorState, BadgeProps["variant"]> = {
+  active: "green",
+  down: "red",
+  fixing: "orange",
+  idle: "gray",
 };
 
 const getSizeClasses = (size: StatusIndicatorProps["size"]) => {
   switch (size) {
     case "sm":
-      return { dot: "size-2", ping: "size-2" };
+      return { badge: "gap-1.5", dot: "size-1.5", ping: "size-1.5" };
     case "lg":
-      return { dot: "size-4", ping: "size-4" };
+      return { badge: "gap-2 px-3 py-1 text-sm", dot: "size-2.5", ping: "size-2.5" };
     case "md":
     default:
-      return { dot: "size-3", ping: "size-3" };
+      return { badge: "gap-1.5", dot: "size-2", ping: "size-2" };
   }
 };
 
-const StatusIndicator: React.FC<StatusIndicatorProps> = ({
+export default function StatusIndicator({
   state = "idle",
   label,
   className,
   size = "md",
-  labelClassName
-}) => {
+  labelClassName,
+  ...props
+}: StatusIndicatorProps) {
   const shouldAnimate =
     state === "active" || state === "fixing" || state === "down";
-  const colors = getStateColors(state);
   const sizeClasses = getSizeClasses(size);
 
   return (
-    <div className={cn("flex items-center gap-2", className)}>
-      <div className="relative flex items-center">
+    <Badge
+      variant={stateVariant[state]}
+      size={size === "sm" ? "sm" : undefined}
+      className={cn(sizeClasses.badge, className)}
+      {...props}
+    >
+      <span className="relative inline-flex items-center" aria-hidden="true">
         {shouldAnimate && (
           <span
             className={cn(
               "absolute inline-flex rounded-full opacity-75 animate-ping",
               sizeClasses.ping,
-              colors.ping
+              "bg-current"
             )}
           />
         )}
         <span
           className={cn(
-            "relative inline-flex rounded-full",
-            sizeClasses.dot,
-            colors.dot
+            "relative inline-flex rounded-full bg-current",
+            sizeClasses.dot
           )}
         />
-      </div>
+      </span>
       {label && (
-        <p
-          className={cn(
-            "text-sm text-slate-700 dark:text-slate-300",
-            labelClassName
-          )}
-        >
+        <span className={cn("font-medium", labelClassName)}>
           {label}
-        </p>
+        </span>
       )}
-    </div>
+    </Badge>
   );
-};
-
-export default StatusIndicator;
+}

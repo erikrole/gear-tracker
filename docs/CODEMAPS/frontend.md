@@ -99,16 +99,16 @@
 | `src/components/BookingDetailsSheet.tsx` | 683 |
 | `src/components/AppShell.tsx` | 613 |
 | `src/components/booking-wizard/WizardStep1.tsx` | 570 |
-| `src/components/BookingListPage.tsx` | 510 |
+| `src/components/BookingListPage.tsx` | 512 |
 | `src/components/ui/heatmap.tsx` | 422 |
 | `src/components/ui/chart.tsx` | 389 |
 | `src/components/PageBreadcrumb.tsx` | 379 |
 | `src/components/shift-detail/ShiftSlotCard.tsx` | 375 |
 | `src/components/Sidebar.tsx` | 373 |
-| `src/components/booking-details/BookingInfoCard.tsx` | 332 |
+| `src/components/booking-details/BookingInfoCard.tsx` | 342 |
 | `src/components/FormCombobox.tsx` | 329 |
 | `src/components/QrScanner.tsx` | 288 |
-| `src/components/booking-details/BookingHeader.tsx` | 269 |
+| `src/components/booking-details/BookingHeader.tsx` | 281 |
 | `src/components/booking-wizard/WizardStep3.tsx` | 263 |
 | `src/components/ui/dropdown-menu.tsx` | 258 |
 | `src/components/shift-detail/UserAvatarPicker.tsx` | 256 |
@@ -125,7 +125,7 @@
 |---|---:|
 | `src/hooks/booking-action-copy.ts` | 22 |
 | `src/hooks/use-assignment-grid.ts` | 228 |
-| `src/hooks/use-booking-change-sync.ts` | 122 |
+| `src/hooks/use-booking-change-sync.ts` | 175 |
 | `src/hooks/use-current-user.ts` | 28 |
 | `src/hooks/use-dashboard-data.ts` | 170 |
 | `src/hooks/use-dashboard-filters.ts` | 130 |

@@ -53,12 +53,33 @@ describe("booking real-time sync source contract", () => {
 
   it("wires booking change sync into dashboard and the shared booking list", () => {
     const dashboard = source("src/app/(app)/page.tsx");
+    const bookings = source("src/app/(app)/bookings/page.tsx");
     const list = source("src/components/BookingListPage.tsx");
 
     expect(dashboard).toContain('import { useBookingChangeSync } from "@/hooks/use-booking-change-sync"');
-    expect(dashboard).toContain("useBookingChangeSync();");
+    expect(dashboard).toContain("const bookingSync = useBookingChangeSync();");
+    expect(dashboard).toContain('import StatusIndicator from "@/components/ui/status-indicator"');
+    expect(bookings).toContain('import { useBookingChangeSync } from "@/hooks/use-booking-change-sync"');
+    expect(bookings).toContain("const bookingSync = useBookingChangeSync();");
+    expect(bookings).toContain('import StatusIndicator from "@/components/ui/status-indicator"');
     expect(list).toContain('import { useBookingChangeSync } from "@/hooks/use-booking-change-sync"');
-    expect(list).toContain("useBookingChangeSync();");
+    expect(list).toContain("useBookingChangeSync(enableBookingChangeSync);");
+    expect(bookings).toContain("enableBookingChangeSync={false}");
+  });
+
+  it("exposes booking sync health for visible status indicators", () => {
+    const hook = source("src/hooks/use-booking-change-sync.ts");
+    const detail = source("src/app/(app)/bookings/BookingDetailPage.tsx");
+    const header = source("src/components/booking-details/BookingHeader.tsx");
+
+    expect(hook).toContain("export type BookingChangeSyncStatus");
+    expect(hook).toContain('"Live sync"');
+    expect(hook).toContain('label: "Sync retrying"');
+    expect(hook).toContain('"Offline"');
+    expect(detail).toContain("const bookingSync = useBookingChangeSync();");
+    expect(detail).toContain("syncStatus={bookingSync}");
+    expect(header).toContain('import StatusIndicator from "@/components/ui/status-indicator"');
+    expect(header).toContain("syncStatus?: BookingChangeSyncStatus");
   });
 
   it("refreshes an open booking detail sheet when its booking id changes", () => {
