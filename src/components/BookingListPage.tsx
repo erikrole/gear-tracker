@@ -289,12 +289,12 @@ export default function BookingListPage({
       if (res.ok) {
         toast.success(`Extended by ${days} day${days !== 1 ? "s" : ""}`);
       } else {
-        const msg = await parseErrorMessage(res, "Extend failed");
+        const msg = await parseErrorMessage(res, "Could not extend the booking. Refresh and check for conflicts.");
         toast.error(msg);
       }
       await reload();
     } catch {
-      toast.error("Network error \u2014 please try again.");
+      toast.error("Could not reach the server. The booking was not extended.");
     } finally {
       extendingRef.current = false;
       setExtendingId(null);
@@ -382,8 +382,8 @@ export default function BookingListPage({
         ) : loadError ? (
           <EmptyState
             icon={loadError === "network" ? "wifi-off" : "clipboard"}
-            title={loadError === "network" ? "You\u2019re offline" : `Failed to load ${config.labelPlural.toLowerCase()}`}
-            description={loadError === "network" ? "Check your connection and try again." : "Something went wrong \u2014 usually temporary."}
+            title={loadError === "network" ? "You\u2019re offline" : `${config.labelPlural} did not load`}
+            description={loadError === "network" ? `Could not reach the server. Retry before acting on this ${config.labelPlural.toLowerCase()} list.` : `Retry before acting on this ${config.labelPlural.toLowerCase()} list.`}
             actionLabel="Retry"
             onAction={reload}
           />

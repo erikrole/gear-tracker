@@ -2,7 +2,7 @@
 
 import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import { ErrorRecoveryPanel } from "@/components/ErrorRecoveryPanel";
 
 export default function GlobalError({
   error,
@@ -18,22 +18,16 @@ export default function GlobalError({
   return (
     <html lang="en">
       <body>
-        <div className="mx-auto my-20 flex max-w-[480px] flex-col items-center gap-6 px-10 text-center font-sans">
-          <div className="flex flex-col gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Something went wrong</h1>
-            <p className="text-sm text-muted-foreground">
-              Try refreshing the page, or sign in again if the issue persists.
-            </p>
-          </div>
-          <div className="flex justify-center gap-3">
-            <Button type="button" onClick={reset}>
-              Try again
-            </Button>
-            <Button asChild variant="outline">
-              <a href="/login">Sign in</a>
-            </Button>
-          </div>
-        </div>
+        <ErrorRecoveryPanel
+          title="Gear Tracker could not finish loading"
+          description="Retry the app before trusting this screen. If the issue returns after signing in again, the error has been recorded for review."
+          reset={reset}
+          retryLabel="Retry app"
+          secondaryHref="/login"
+          secondaryLabel="Sign in"
+          secondaryIcon="login"
+          digest={error.digest}
+        />
       </body>
     </html>
   );

@@ -81,6 +81,9 @@ Avoid:
 - **Empty states**: use `EmptyState`; explain the state and offer the next useful action when one exists. Use `inline` for card/table interiors so empty rows stay compact but still carry an icon, title, and recovery copy.
 - **Alerts**: use warnings for partial data and stale reads; destructive alerts are for failed/blocking work.
 - **Toasts**: use for completed background actions and refresh/save feedback; do not rely on toast as the only form error.
+- **Loading states**: use `OperationalLoadingState` for app-shell, command, sheet, and inline loading placeholders so waits preserve layout, announce busy state, and stay on shadcn `Skeleton` instead of route-local spinner/text placeholders.
+- **Pending actions**: keep the action label stable while work is in flight and use shadcn `Button loading` or a visible inline spinner for menu actions. Avoid swapping labels to `Saving...`, `Uploading...`, or other temporary progress copy.
+- **Partial results**: use `OperationalPartialResultsAlert` with named failed sources whenever a fan-out surface shows available data after one source fails. The alert should say what remains visible and when to refresh before trusting a clean result.
 
 ## Workflow Language
 - **Create**: "Add {thing}" for starting; "Create {thing}" for final submit; show the post-submit handoff.
@@ -182,6 +185,11 @@ Feature ideas to consider separately:
 - `/kits` and `/bulk-inventory/batteries`: summary metric strips now use `OperationalMetricCard` instead of route-local metric card helpers.
 - `/kits/[id]`: add-member search misses and empty item-family membership now use shared inline empty states instead of text-only placeholders.
 - Global error fallback: the app-level crash fallback now uses shadcn `Button` actions and semantic text/layout tokens instead of inline-styled raw controls.
+- App error boundaries: root, app-shell, and global failures now share a shadcn-backed recovery panel with operational retry/sign-in/dashboard copy, optional error ID display, and no generic "Something went wrong" fallback.
+- Shared loading states: AppShell boot, command search, and Booking detail sheet loading now use `OperationalLoadingState`; Booking detail recovery/not-found states use shared inline `EmptyState`, and pending booking sheet actions use shadcn `Button loading`.
+- Shared pending actions: Booking wizard, Booking detail header/dropdown actions, Booking edit form, and item image modal mutations now keep stable action labels while shadcn loading affordances or inline menu spinners show the active request.
+- Shared action result copy: Booking list extension failures and Trade Board claim/approve/decline/cancel/request failures now use object-specific recovery and "not changed/not saved" language instead of generic network or failed-action copy.
+- `/search` and quick search: partial endpoint failures now use `OperationalPartialResultsAlert` with named failed result types instead of local generic warning copy.
 - Item image picker: search idle, empty, quota, and failed states now use shadcn `Empty` composition, and result selection uses the shared `Button` primitive while preserving the visible selected/focus treatment.
 - Shared onboarding dialog: completion, client preview, and account-status preview metrics now use shadcn `Card` composition instead of route-local bordered metric panels.
 - `/bulk-inventory/batteries`: checked-out battery units panel now uses shared inline empty states when no units are out.

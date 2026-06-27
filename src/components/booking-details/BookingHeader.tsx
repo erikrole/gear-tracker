@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { InlineTitle } from "@/components/InlineTitle";
 import { Button } from "@/components/ui/button";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
@@ -9,6 +10,7 @@ import { Spinner } from "@/components/ui/spinner";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -43,6 +45,21 @@ type Props = {
   onNudge: () => void;
   onForceComplete: () => void;
 };
+
+function PendingDropdownMenuItem({
+  active,
+  children,
+  ...props
+}: ComponentProps<typeof DropdownMenuItem> & {
+  active: boolean;
+}) {
+  return (
+    <DropdownMenuItem aria-busy={active || undefined} {...props}>
+      {active ? <Spinner aria-hidden="true" /> : null}
+      {children}
+    </DropdownMenuItem>
+  );
+}
 
 export function BookingHeader({
   booking,
@@ -202,30 +219,45 @@ export function BookingHeader({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    {canNudge && (
-                      <DropdownMenuItem onSelect={onNudge} disabled={!!actionLoading}>
-                        {actionLoading === "nudge" ? "Sending..." : "Nudge borrower"}
-                      </DropdownMenuItem>
-                    )}
-                    {canForceComplete && (
-                      <DropdownMenuItem onSelect={onForceComplete} disabled={!!actionLoading}>
-                        {actionLoading === "force-complete" ? "Closing..." : "Close without scan"}
-                      </DropdownMenuItem>
-                    )}
-                    {canDuplicate && (
-                      <DropdownMenuItem onSelect={onDuplicate} disabled={!!actionLoading}>
-                        {actionLoading === "duplicate" ? "Duplicating..." : "Duplicate"}
-                      </DropdownMenuItem>
-                    )}
-                    {canCancel && (
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onSelect={onCancel}
-                        disabled={!!actionLoading}
-                      >
-                        {actionLoading === "cancel" ? "Cancelling..." : "Cancel"}
-                      </DropdownMenuItem>
-                    )}
+                    <DropdownMenuGroup>
+                      {canNudge && (
+                        <PendingDropdownMenuItem
+                          active={actionLoading === "nudge"}
+                          onSelect={onNudge}
+                          disabled={!!actionLoading}
+                        >
+                          Nudge borrower
+                        </PendingDropdownMenuItem>
+                      )}
+                      {canForceComplete && (
+                        <PendingDropdownMenuItem
+                          active={actionLoading === "force-complete"}
+                          onSelect={onForceComplete}
+                          disabled={!!actionLoading}
+                        >
+                          Close without scan
+                        </PendingDropdownMenuItem>
+                      )}
+                      {canDuplicate && (
+                        <PendingDropdownMenuItem
+                          active={actionLoading === "duplicate"}
+                          onSelect={onDuplicate}
+                          disabled={!!actionLoading}
+                        >
+                          Duplicate
+                        </PendingDropdownMenuItem>
+                      )}
+                      {canCancel && (
+                        <PendingDropdownMenuItem
+                          active={actionLoading === "cancel"}
+                          variant="destructive"
+                          onSelect={onCancel}
+                          disabled={!!actionLoading}
+                        >
+                          Cancel
+                        </PendingDropdownMenuItem>
+                      )}
+                    </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}

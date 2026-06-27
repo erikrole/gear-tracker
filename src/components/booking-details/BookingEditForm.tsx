@@ -99,10 +99,10 @@ export default function BookingEditForm({
 
       <div className="flex gap-2 mt-4">
         <Button
-          disabled={saving}
+          loading={saving}
           onClick={onSave}
         >
-          {saving ? "Saving..." : "Save changes"}
+          Save changes
         </Button>
         <Button variant="outline" onClick={onCancel}>Cancel</Button>
       </div>

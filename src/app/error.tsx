@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect } from "react";
+import { ErrorRecoveryPanel } from "@/components/ErrorRecoveryPanel";
 
 export default function RootError({
   error,
@@ -16,65 +16,16 @@ export default function RootError({
 
   return (
     <html lang="en">
-      <body
-        style={{
-          margin: 0,
-          fontFamily:
-            '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-          background: "#fafafa",
-          color: "#111",
-        }}
-      >
-        <div
-          style={{
-            padding: 40,
-            textAlign: "center",
-            maxWidth: 480,
-            margin: "120px auto",
-          }}
-        >
-          <h1 style={{ fontSize: 24, marginBottom: 12 }}>
-            Something went wrong
-          </h1>
-          <p style={{ color: "#666", marginBottom: 24, lineHeight: 1.5 }}>
-            An unexpected error occurred. This is usually temporary.
-          </p>
-          <div
-            style={{ display: "flex", gap: 12, justifyContent: "center" }}
-          >
-            <button
-              onClick={reset}
-              style={{
-                padding: "10px 20px",
-                background: "#111",
-                color: "#fff",
-                border: "none",
-                borderRadius: 8,
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              Try again
-            </button>
-            <Link
-              href="/"
-              style={{
-                padding: "10px 20px",
-                background: "transparent",
-                color: "#111",
-                border: "1px solid #ddd",
-                borderRadius: 8,
-                fontSize: 14,
-                fontWeight: 600,
-                textDecoration: "none",
-                cursor: "pointer",
-              }}
-            >
-              Go home
-            </Link>
-          </div>
-        </div>
+      <body>
+        <ErrorRecoveryPanel
+          title="Gear Tracker could not recover this page"
+          description="Retry the page before acting on the visible state. If the problem returns, go back to the dashboard and reopen the workflow."
+          reset={reset}
+          retryLabel="Retry page"
+          secondaryHref="/"
+          secondaryLabel="Dashboard"
+          digest={error.digest}
+        />
       </body>
     </html>
   );

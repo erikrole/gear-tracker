@@ -90,13 +90,17 @@ export function OperationalMetricCard({
 
 export function OperationalPartialResultsAlert({
   className,
+  failureLabel = "Failed checks",
   failures,
   noun = "check",
+  recoveryCopy = "Refresh before treating a clean result as final.",
   title = "Some checks did not load",
 }: {
   className?: string;
+  failureLabel?: string;
   failures: string[];
   noun?: string;
+  recoveryCopy?: string;
   title?: string;
 }) {
   if (failures.length === 0) return null;
@@ -106,9 +110,9 @@ export function OperationalPartialResultsAlert({
       <AlertTriangle className="size-4 text-[var(--orange-text)]" />
       <AlertTitle>{title}</AlertTitle>
       <AlertDescription className="text-muted-foreground">
-        {pluralize(failures.length, noun)} could not finish. Refresh before treating a clean result as final.
+        {pluralize(failures.length, noun)} could not finish. {recoveryCopy}
         <span className="block pt-1 text-xs">
-          Failed checks: {failures.join(", ")}.
+          {failureLabel}: {failures.join(", ")}.
         </span>
       </AlertDescription>
     </Alert>

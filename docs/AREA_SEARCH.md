@@ -3,7 +3,7 @@
 ## Document Control
 - Area: Search
 - Owner: Wisconsin Athletics Creative Product
-- Last Updated: 2026-06-11
+- Last Updated: 2026-06-27
 - Status: Active
 - Version: V1
 
@@ -40,6 +40,7 @@ Make search a fast operational jump layer. It should find records when the user 
 5. The full search page and quick palette should not disagree on destination search.
 
 ## Change Log
+- 2026-06-27: Web partial-result visibility standardized. Quick Search and `/search` now track the exact failed result types and render the shared `OperationalPartialResultsAlert`, so operators can keep using available matches while knowing which sources need a refresh before trusting a clean result.
 - 2026-06-10: Web ambient type-to-search removed from the quick palette. Quick Search now opens only from the top-bar search trigger, mobile search button, or `Cmd/Ctrl+K`, leaving all printable typing to the active page or focused field.
 - 2026-06-10: Web quick-search input guard tightened. The global type-to-search shortcut now respects page-owned keyboard events and the currently focused text-entry control, so local search fields such as Items search keep typing focus instead of being interrupted by the command palette.
 - 2026-06-11: Native iOS global search and QR shortcut now keep item-family results from `/api/assets.bulkItems`, so printed numbered battery unit labels can show the resolved Sony battery family instead of being treated as no match.

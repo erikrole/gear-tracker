@@ -676,7 +676,7 @@ export function BookingWizard() {
               }}
               className="text-muted-foreground"
             >
-              {savingDraft ? "Saving..." : "Save draft & exit"}
+              Save draft & exit
             </Button>
           )}
         </div>
@@ -699,7 +699,7 @@ export function BookingWizard() {
               variant="brand"
               size="lg"
             >
-              {submitting ? config.actionLabelProgress : config.actionLabel}
+              {config.actionLabel}
             </Button>
           )}
         </div>

@@ -6,8 +6,9 @@ import { useRouter, usePathname } from "next/navigation";
 import { SearchIcon, ClipboardCheckIcon, CalendarCheckIcon, BellIcon, UserIcon, LayoutGridIcon, LayersIcon, CalendarPlusIcon, ScanIcon, ArrowRightIcon } from "lucide-react";
 import AppSidebar from "./Sidebar";
 import { AssetImage } from "@/components/AssetImage";
+import { OperationalPartialResultsAlert } from "@/components/OperationalFeedback";
+import { OperationalLoadingState } from "@/components/OperationalLoadingState";
 import { UserAvatar } from "@/components/UserAvatar";
-import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import PageBreadcrumb from "@/components/PageBreadcrumb";
@@ -87,6 +88,13 @@ type DashboardStatsBadgeResponse = {
   };
 };
 
+const SEARCH_RESULT_SOURCES = {
+  items: "Items",
+  checkouts: "Checkouts",
+  reservations: "Reservations",
+  users: "Users",
+} as const;
+
 const bottomNavItems = [
   { label: "Home", href: "/", icon: LayoutGridIcon },
   { label: "Items", href: "/items", icon: LayersIcon },
@@ -163,7 +171,7 @@ export default function AppShell({
   const [cmdResults, setCmdResults] = useState<SearchResult[]>([]);
   const [cmdLoading, setCmdLoading] = useState(false);
   const [cmdError, setCmdError] = useState<"network" | "server" | null>(null);
-  const [cmdPartialFailures, setCmdPartialFailures] = useState(0);
+  const [cmdPartialFailures, setCmdPartialFailures] = useState<string[]>([]);
   const cmdAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -180,11 +188,11 @@ export default function AppShell({
   // Live search when query changes
   useEffect(() => {
     const q = cmdQuery.trim();
-    if (!q) { setCmdResults([]); setCmdLoading(false); setCmdError(null); setCmdPartialFailures(0); return; }
+    if (!q) { setCmdResults([]); setCmdLoading(false); setCmdError(null); setCmdPartialFailures([]); return; }
 
     setCmdLoading(true);
     setCmdError(null);
-    setCmdPartialFailures(0);
+    setCmdPartialFailures([]);
     cmdAbortRef.current?.abort();
     const controller = new AbortController();
     cmdAbortRef.current = controller;
@@ -200,7 +208,7 @@ export default function AppShell({
         ]);
         if (controller.signal.aborted) return;
         const merged: SearchResult[] = getVisiblePageSearchResults(user?.role, q);
-        let failures = 0;
+        const failures: string[] = [];
         if (itemsRes.status === "fulfilled" && handleAuthRedirect(itemsRes.value, pathname)) return;
         if (checkoutsRes.status === "fulfilled" && handleAuthRedirect(checkoutsRes.value, pathname)) return;
         if (reservationsRes.status === "fulfilled" && handleAuthRedirect(reservationsRes.value, pathname)) return;
@@ -209,7 +217,7 @@ export default function AppShell({
         if (itemsRes.status === "fulfilled" && itemsRes.value.ok) {
           const json = await parseJsonSafely<ApiSearchList<AssetSearchItem>>(itemsRes.value);
           const data = json?.data;
-          if (!data) failures += 1;
+          if (!data) failures.push(SEARCH_RESULT_SOURCES.items);
           for (const item of (data ?? []).slice(0, 8)) {
             merged.push({
               type: "item", id: item.id,
@@ -227,42 +235,42 @@ export default function AppShell({
             });
           }
         } else {
-          failures += 1;
+          failures.push(SEARCH_RESULT_SOURCES.items);
         }
         if (checkoutsRes.status === "fulfilled" && checkoutsRes.value.ok) {
           const json = await parseJsonSafely<ApiSearchList<BookingSearchItem>>(checkoutsRes.value);
           const data = json?.data;
-          if (!data) failures += 1;
+          if (!data) failures.push(SEARCH_RESULT_SOURCES.checkouts);
           for (const b of (data ?? []).slice(0, 8)) {
             merged.push({ type: "checkout", id: b.id, title: b.title ?? "Untitled checkout", subtitle: b.requester?.name || "", href: `/checkouts/${b.id}` });
           }
         } else {
-          failures += 1;
+          failures.push(SEARCH_RESULT_SOURCES.checkouts);
         }
         if (reservationsRes.status === "fulfilled" && reservationsRes.value.ok) {
           const json = await parseJsonSafely<ApiSearchList<BookingSearchItem>>(reservationsRes.value);
           const data = json?.data;
-          if (!data) failures += 1;
+          if (!data) failures.push(SEARCH_RESULT_SOURCES.reservations);
           for (const b of (data ?? []).slice(0, 8)) {
             merged.push({ type: "reservation", id: b.id, title: b.title ?? "Untitled reservation", subtitle: b.requester?.name || "", href: `/reservations/${b.id}` });
           }
         } else {
-          failures += 1;
+          failures.push(SEARCH_RESULT_SOURCES.reservations);
         }
         if (usersRes.status === "fulfilled" && usersRes.value.ok) {
           const json = await parseJsonSafely<ApiSearchList<UserSearchItem>>(usersRes.value);
           const data = json?.data;
-          if (!data) failures += 1;
+          if (!data) failures.push(SEARCH_RESULT_SOURCES.users);
           for (const u of (data ?? []).slice(0, 5)) {
             merged.push({ type: "user", id: u.id, title: u.name ?? "Unnamed user", subtitle: u.email || "", href: `/users/${u.id}` });
           }
         } else {
-          failures += 1;
+          failures.push(SEARCH_RESULT_SOURCES.users);
         }
         if (!controller.signal.aborted) {
           setCmdResults(merged);
           setCmdPartialFailures(failures);
-          setCmdError(failures === 4 && merged.length === 0 ? "server" : null);
+          setCmdError(failures.length === 4 && merged.length === 0 ? "server" : null);
           setCmdLoading(false);
         }
       } catch (err) {
@@ -324,9 +332,12 @@ export default function AppShell({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Spinner className="size-8" />
-      </div>
+      <OperationalLoadingState
+        variant="page"
+        title="Loading workspace"
+        description="Checking your session and preparing the navigation."
+        rows={3}
+      />
     );
   }
 
@@ -337,7 +348,7 @@ export default function AppShell({
       <a href="#main-content" className="absolute -top-[100px] left-4 z-[var(--z-sidebar)] px-4 py-2 bg-[var(--btn-primary-bg)] text-[var(--btn-primary-text)] rounded-[var(--radius)] font-[var(--weight-semibold)] text-[var(--text-base)] no-underline transition-[top] duration-200 focus:top-4">Skip to content</a>
 
       {/* Command palette */}
-      <CommandDialog open={cmdOpen} onOpenChange={(open) => { setCmdOpen(open); if (!open) { setCmdQuery(""); setCmdResults([]); setCmdError(null); setCmdPartialFailures(0); } }}>
+      <CommandDialog open={cmdOpen} onOpenChange={(open) => { setCmdOpen(open); if (!open) { setCmdQuery(""); setCmdResults([]); setCmdError(null); setCmdPartialFailures([]); } }}>
         <CommandInput placeholder="Search tag, borrower, page, setting, report..." value={cmdQuery} onValueChange={setCmdQuery} />
         <CommandList>
           {!cmdQuery.trim() && recentSearches.length > 0 && (
@@ -350,17 +361,28 @@ export default function AppShell({
               ))}
             </CommandGroup>
           )}
-          {cmdLoading && <div className="py-4 text-center text-sm text-muted-foreground" role="status" aria-live="polite">Searching...</div>}
+          {cmdLoading && (
+            <OperationalLoadingState
+              variant="command"
+              title="Searching Gear Tracker"
+              rows={3}
+            />
+          )}
           {!cmdLoading && cmdError && cmdQuery.trim() && (
             <CommandEmpty>{cmdError === "network" ? "Search is offline. Check your connection and try again." : "Search is temporarily unavailable. Try the page shortcut or search again."}</CommandEmpty>
           )}
           {!cmdLoading && !cmdError && cmdQuery.trim() && cmdResults.length === 0 && (
             <CommandEmpty>No matches. Try a tag, borrower, page name, setting, or report.</CommandEmpty>
           )}
-          {!cmdLoading && !cmdError && cmdPartialFailures > 0 && cmdResults.length > 0 && (
-            <div className="px-3 py-2 text-xs text-muted-foreground" role="status">
-              Some result types could not load. Showing available matches.
-            </div>
+          {!cmdLoading && !cmdError && cmdPartialFailures.length > 0 && cmdResults.length > 0 && (
+            <OperationalPartialResultsAlert
+              className="mx-2 mb-2 text-xs"
+              failureLabel="Unavailable result types"
+              failures={cmdPartialFailures}
+              noun="result type"
+              recoveryCopy="Showing available matches. Refresh before treating this search as complete."
+              title="Some result types did not load"
+            />
           )}
           {cmdResults.filter((r) => r.type === "page").length > 0 && (
             <CommandGroup heading="Go to">

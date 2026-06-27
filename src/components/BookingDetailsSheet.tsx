@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
+import EmptyState from "@/components/EmptyState";
+import { OperationalLoadingState } from "@/components/OperationalLoadingState";
 import {
   Sheet,
   SheetContent,
@@ -14,7 +16,6 @@ import {
   SheetBody,
   SheetFooter,
 } from "@/components/ui/sheet";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -451,7 +452,7 @@ export default function BookingDetailsSheet({
               )}
               <div className="min-w-0 flex-1">
               <SheetTitle className="truncate">
-                {booking?.title || "Loading..."}
+                {booking?.title || "Loading booking"}
               </SheetTitle>
               <SheetDescription className="sr-only">
                 Booking summary with timing, requester, equipment, and a link to the full booking page.
@@ -485,20 +486,28 @@ export default function BookingDetailsSheet({
         {/* Body — single scrollable column */}
         <SheetBody ref={sheetBodyRef} className="relative flex flex-col bg-muted/20 px-0 py-0">
           {loading ? (
-            <div className="space-y-3 px-6 py-5">
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-4 w-1/2" />
-              <Skeleton className="h-4 w-2/3" />
-              <Skeleton className="h-4 w-1/3" />
-              <Skeleton className="h-4 w-3/5" />
-            </div>
+            <OperationalLoadingState
+              variant="sheet"
+              title="Loading booking details"
+              description="Keeping this sheet stable while the latest booking state loads."
+              rows={5}
+            />
           ) : fetchError ? (
-            <div className="py-10 px-6 text-center space-y-3">
-              <p className="text-muted-foreground">Booking details could not load. Retry before taking action on this record.</p>
-              <Button variant="outline" size="sm" onClick={() => fetchBooking()}>Retry</Button>
-            </div>
+            <EmptyState
+              inline
+              icon="wifi-off"
+              title="Booking details could not load"
+              description="Retry before taking action on this record."
+              actionLabel="Retry booking"
+              onAction={() => fetchBooking()}
+            />
           ) : !booking ? (
-            <div className="py-10 px-6 text-center text-muted-foreground">Booking not found</div>
+            <EmptyState
+              inline
+              icon="clipboard"
+              title="Booking not found"
+              description="The booking may have been cancelled, archived, or moved since this sheet opened."
+            />
           ) : editMode ? (
 
             /* ── Edit mode ── */
@@ -564,8 +573,8 @@ export default function BookingDetailsSheet({
                 excludeBookingId={booking.id}
               />
               <div className="flex gap-2">
-                <Button disabled={equipSaving} onClick={handleEquipSave}>
-                  {equipSaving ? "Saving..." : "Save equipment"}
+                <Button loading={equipSaving} onClick={handleEquipSave}>
+                  Save equipment
                 </Button>
                 <Button variant="outline" onClick={() => { setEquipEditMode(false); setConflictError(null); }}>
                   Cancel
@@ -660,8 +669,8 @@ export default function BookingDetailsSheet({
                 </Button>
               )}
               {canCancel && (
-                <Button variant="destructive" size="sm" onClick={handleCancel} disabled={cancelling}>
-                  {cancelling ? "Cancelling..." : "Cancel"}
+                <Button variant="destructive" size="sm" onClick={handleCancel} loading={cancelling}>
+                  Cancel
                 </Button>
               )}
 
@@ -670,7 +679,7 @@ export default function BookingDetailsSheet({
               {/* Right: Full page */}
               <Button variant="outline" size="sm" asChild>
                 <Link href={detailHref}>
-                  Open full booking <ExternalLinkIcon className="size-3.5 ml-1" />
+                  Open full booking <ExternalLinkIcon data-icon="inline-end" />
                 </Link>
               </Button>
             </div>

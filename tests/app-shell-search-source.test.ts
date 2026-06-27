@@ -24,4 +24,18 @@ describe("app shell quick search source", () => {
     expect(source).not.toContain("e.key.length === 1");
     expect(source).not.toContain("setCmdQuery(e.key)");
   });
+
+  it("uses shared named partial-results visibility for degraded quick search sources", () => {
+    const source = readFileSync("src/components/AppShell.tsx", "utf8");
+
+    expect(source).toContain('import { OperationalPartialResultsAlert } from "@/components/OperationalFeedback";');
+    expect(source).toContain("const [cmdPartialFailures, setCmdPartialFailures] = useState<string[]>([]);");
+    expect(source).toContain("failures.push(SEARCH_RESULT_SOURCES.items)");
+    expect(source).toContain("failures.push(SEARCH_RESULT_SOURCES.checkouts)");
+    expect(source).toContain("failures.push(SEARCH_RESULT_SOURCES.reservations)");
+    expect(source).toContain("failures.push(SEARCH_RESULT_SOURCES.users)");
+    expect(source).toContain("<OperationalPartialResultsAlert");
+    expect(source).toContain('failureLabel="Unavailable result types"');
+    expect(source).not.toContain("Some result types could not load. Showing available matches.");
+  });
 });

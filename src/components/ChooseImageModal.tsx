@@ -75,6 +75,7 @@ const B_AND_H_DISPLAY_LIMIT = 3;
 type ImageTab = "url" | "upload" | "search";
 type SearchState = "idle" | "loading" | "empty" | "quota" | "failed" | "ready";
 type SourceCue = "manufacturer" | "retailer" | "marketplace" | "unknown";
+type ImageSavingAction = "search" | "url" | "upload" | "remove";
 
 const SOURCE_CUE_STYLES: Record<SourceCue, string> = {
   manufacturer: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300",
@@ -143,7 +144,7 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
   const [file, setFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [fileError, setFileError] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [savingAction, setSavingAction] = useState<ImageSavingAction | null>(null);
   const [dragging, setDragging] = useState(false);
   const [searchConfigured, setSearchConfigured] = useState(false);
   const [searchText, setSearchText] = useState(searchQuery ?? "");
@@ -156,6 +157,7 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
   const savingRef = useRef(false);
   const confirm = useConfirm();
   const searchSuggestions = buildImageSearchSuggestions(searchText);
+  const saving = savingAction !== null;
 
   const reset = useCallback(() => {
     searchAbortRef.current?.abort();
@@ -167,7 +169,7 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
     setFile(null);
     setFilePreview(null);
     setFileError("");
-    setSaving(false);
+    setSavingAction(null);
     setDragging(false);
     setSearchConfigured(false);
     setSearchText("");
@@ -339,7 +341,7 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
   async function saveUrl() {
     if (!urlPreview || savingRef.current) return;
     savingRef.current = true;
-    setSaving(true);
+    setSavingAction("url");
     try {
       const imageUrl = await putImageUrl(urlPreview);
       if (!imageUrl) return;
@@ -350,14 +352,14 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
       toast.error(err instanceof Error ? err.message : "Failed to save image");
     } finally {
       savingRef.current = false;
-      setSaving(false);
+      setSavingAction(null);
     }
   }
 
   async function saveSearchResult() {
     if (!selectedSearchResult || savingRef.current) return;
     savingRef.current = true;
-    setSaving(true);
+    setSavingAction("search");
     try {
       let imageUrl: string | null = null;
       try {
@@ -377,14 +379,14 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
       toast.error(err instanceof Error ? err.message : "Failed to save image");
     } finally {
       savingRef.current = false;
-      setSaving(false);
+      setSavingAction(null);
     }
   }
 
   async function uploadFile() {
     if (!file || savingRef.current) return;
     savingRef.current = true;
-    setSaving(true);
+    setSavingAction("upload");
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -406,7 +408,7 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
       toast.error(err instanceof Error ? err.message : "Upload failed");
     } finally {
       savingRef.current = false;
-      setSaving(false);
+      setSavingAction(null);
     }
   }
 
@@ -420,7 +422,7 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
     });
     if (!ok) return;
     savingRef.current = true;
-    setSaving(true);
+    setSavingAction("remove");
     try {
       const res = await fetch(endpoint, { method: "DELETE" });
       if (handleAuthRedirect(res)) return;
@@ -435,7 +437,7 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
       toast.error(err instanceof Error ? err.message : "Failed to remove image");
     } finally {
       savingRef.current = false;
-      setSaving(false);
+      setSavingAction(null);
     }
   }
 
@@ -599,13 +601,13 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
                 <p className="mt-3 text-xs text-muted-foreground">Pick a manufacturer or product photo.</p>
                 <div className="mt-4 flex justify-end gap-2">
                   {currentImageUrl && (
-                    <Button variant="destructive" onClick={removeImage} disabled={saving} className="mr-auto">
+                    <Button variant="destructive" onClick={removeImage} loading={savingAction === "remove"} disabled={saving && savingAction !== "remove"} className="mr-auto">
                       Remove
                     </Button>
                   )}
                   <Button variant="outline" onClick={handleClose}>Cancel</Button>
-                  <Button onClick={saveSearchResult} disabled={!selectedSearchResult || saving}>
-                    {saving ? "Saving..." : "Save"}
+                  <Button onClick={saveSearchResult} loading={savingAction === "search"} disabled={!selectedSearchResult || (saving && savingAction !== "search")}>
+                    Save
                   </Button>
                 </div>
               </TabsContent>
@@ -641,13 +643,13 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
               {urlError && <p className="text-sm mt-2" style={{ color: "var(--red)" }}>Could not load image from this URL</p>}
               <div className="flex justify-end gap-2 mt-4">
                 {currentImageUrl && (
-                  <Button variant="destructive" onClick={removeImage} disabled={saving} className="mr-auto">
+                  <Button variant="destructive" onClick={removeImage} loading={savingAction === "remove"} disabled={saving && savingAction !== "remove"} className="mr-auto">
                     Remove
                   </Button>
                 )}
                 <Button variant="outline" onClick={handleClose}>Cancel</Button>
-                <Button onClick={saveUrl} disabled={!urlPreview || urlError || saving}>
-                  {saving ? "Saving..." : "Save"}
+                <Button onClick={saveUrl} loading={savingAction === "url"} disabled={!urlPreview || urlError || (saving && savingAction !== "url")}>
+                  Save
                 </Button>
               </div>
             </TabsContent>
@@ -695,13 +697,13 @@ export default function ChooseImageModal({ open, onClose, uploadEndpoint, assetI
               {fileError && <p className="text-sm mt-2" style={{ color: "var(--red)" }}>{fileError}</p>}
               <div className="flex justify-end gap-2 mt-4">
                 {currentImageUrl && (
-                  <Button variant="destructive" onClick={removeImage} disabled={saving} className="mr-auto">
+                  <Button variant="destructive" onClick={removeImage} loading={savingAction === "remove"} disabled={saving && savingAction !== "remove"} className="mr-auto">
                     Remove
                   </Button>
                 )}
                 <Button variant="outline" onClick={handleClose}>Cancel</Button>
-                <Button onClick={uploadFile} disabled={!file || !!fileError || saving}>
-                  {saving ? "Uploading..." : "Upload"}
+                <Button onClick={uploadFile} loading={savingAction === "upload"} disabled={!file || !!fileError || (saving && savingAction !== "upload")}>
+                  Upload
                 </Button>
               </div>
             </TabsContent>

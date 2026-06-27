@@ -300,6 +300,7 @@ The checkout detail page (`/checkouts/[id]`) uses the shared `BookingDetailPage`
 5. Add regression coverage for race conditions, partial returns, non-kiosk custody attempts, and permission bypass attempts.
 
 ## Change Log
+- 2026-06-27: Shared booking-list extension and initial-load failures now use checkout-safe recovery copy that says the booking was not extended or the list should be retried before acting, replacing generic network and temporary-error wording.
 - 2026-06-26: Checkout list and full checkout detail now surface the shared booking-change sync health via the shadcn-backed status indicator. This keeps checkout freshness visible on the operator list/detail surfaces while preserving D-040: checkout custody creation and standard returns remain kiosk-owned.
 - 2026-06-26: Equipment picker asset-tag sorting now uses the refined family-group comparator, so repeated lenses and bodies stay in readable blocks such as unprefixed `70-200` copies followed by `FB 70-200` copies instead of alternating by unit number.
 - 2026-06-26: Equipment picker serialized and bulk row sorting now uses the shared Items asset-tag comparator. The picker no longer uses hidden checkout popularity as its default ordering, so prefixed team/department rows such as `FB FX3 2` group with the real `FX3` family instead of drifting away from related gear.

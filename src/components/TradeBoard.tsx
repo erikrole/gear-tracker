@@ -150,6 +150,41 @@ const STATUS_META: Record<string, { label: string; variant: BadgeProps["variant"
   },
 };
 
+const TRADE_OUTCOME_COPY = {
+  claimTrade: {
+    server: "Could not claim the trade. Refresh Open Work and try again.",
+    network: "Could not reach the server. The trade was not claimed.",
+  },
+  approveTrade: {
+    server: "Could not approve the trade. The shift assignment was not changed.",
+    network: "Could not reach the server. The trade was not approved.",
+  },
+  declineTrade: {
+    server: "Could not decline the trade. The claim stayed in review.",
+    network: "Could not reach the server. The trade was not declined.",
+  },
+  cancelTrade: {
+    server: "Could not cancel the trade. The shift stays assigned to the poster.",
+    network: "Could not reach the server. The trade was not cancelled.",
+  },
+  claimShift: {
+    server: "Could not claim the shift. Refresh Open Work and try again.",
+    network: "Could not reach the server. The shift was not claimed.",
+  },
+  requestShift: {
+    server: "Could not request the shift. Refresh Open Work and try again.",
+    network: "Could not reach the server. The shift request was not sent.",
+  },
+  approveRequest: {
+    server: "Could not approve the pickup request. The shift assignment was not changed.",
+    network: "Could not reach the server. The pickup request was not approved.",
+  },
+  declineRequest: {
+    server: "Could not decline the pickup request. The request stayed in review.",
+    network: "Could not reach the server. The pickup request was not declined.",
+  },
+} as const;
+
 function statusMeta(status: string) {
   return STATUS_META[status] ?? {
     label: status,
@@ -355,11 +390,11 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
         toast.success("Trade claimed");
         await reloadWork();
       } else {
-        const msg = await parseErrorMessage(res, "Failed to claim trade");
+        const msg = await parseErrorMessage(res, TRADE_OUTCOME_COPY.claimTrade.server);
         toast.error(msg);
       }
     } catch {
-      toast.error("Network error: could not claim trade");
+      toast.error(TRADE_OUTCOME_COPY.claimTrade.network);
     } finally {
       endAction(tradeId);
     }
@@ -374,11 +409,11 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
         toast.success("Trade approved");
         await reloadWork();
       } else {
-        const msg = await parseErrorMessage(res, "Failed to approve trade");
+        const msg = await parseErrorMessage(res, TRADE_OUTCOME_COPY.approveTrade.server);
         toast.error(msg);
       }
     } catch {
-      toast.error("Network error: could not approve trade");
+      toast.error(TRADE_OUTCOME_COPY.approveTrade.network);
     } finally {
       endAction(tradeId);
     }
@@ -393,11 +428,11 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
         toast.success("Trade declined");
         await reloadWork();
       } else {
-        const msg = await parseErrorMessage(res, "Failed to decline trade");
+        const msg = await parseErrorMessage(res, TRADE_OUTCOME_COPY.declineTrade.server);
         toast.error(msg);
       }
     } catch {
-      toast.error("Network error: could not decline trade");
+      toast.error(TRADE_OUTCOME_COPY.declineTrade.network);
     } finally {
       endAction(tradeId);
     }
@@ -421,11 +456,11 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
         toast.success(`Trade cancelled for ${eventLabel}`);
         await reloadWork();
       } else {
-        const msg = await parseErrorMessage(res, "Failed to cancel trade");
+        const msg = await parseErrorMessage(res, TRADE_OUTCOME_COPY.cancelTrade.server);
         toast.error(msg);
       }
     } catch {
-      toast.error("Network error: could not cancel trade");
+      toast.error(TRADE_OUTCOME_COPY.cancelTrade.network);
     } finally {
       endAction(tradeId);
     }
@@ -433,6 +468,7 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
 
   const handlePickup = useCallback(async (shift: OpenWorkShift) => {
     const actionId = `pickup:${shift.id}`;
+    const outcomeCopy = shift.action === "request" ? TRADE_OUTCOME_COPY.requestShift : TRADE_OUTCOME_COPY.claimShift;
     if (!beginAction(actionId)) return;
     try {
       const res = await fetch("/api/shift-assignments/pickup", {
@@ -445,11 +481,11 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
         toast.success(shift.action === "request" ? "Shift requested" : "Shift claimed");
         await reloadWork();
       } else {
-        const msg = await parseErrorMessage(res, "Failed to claim shift");
+        const msg = await parseErrorMessage(res, outcomeCopy.server);
         toast.error(msg);
       }
     } catch {
-      toast.error("Network error: could not update shift");
+      toast.error(outcomeCopy.network);
     } finally {
       endAction(actionId);
     }
@@ -465,11 +501,11 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
         toast.success("Pickup request approved");
         await reloadWork();
       } else {
-        const msg = await parseErrorMessage(res, "Failed to approve request");
+        const msg = await parseErrorMessage(res, TRADE_OUTCOME_COPY.approveRequest.server);
         toast.error(msg);
       }
     } catch {
-      toast.error("Network error: could not approve request");
+      toast.error(TRADE_OUTCOME_COPY.approveRequest.network);
     } finally {
       endAction(actionId);
     }
@@ -485,11 +521,11 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
         toast.success("Pickup request declined");
         await reloadWork();
       } else {
-        const msg = await parseErrorMessage(res, "Failed to decline request");
+        const msg = await parseErrorMessage(res, TRADE_OUTCOME_COPY.declineRequest.server);
         toast.error(msg);
       }
     } catch {
-      toast.error("Network error: could not decline request");
+      toast.error(TRADE_OUTCOME_COPY.declineRequest.network);
     } finally {
       endAction(actionId);
     }
@@ -591,7 +627,7 @@ export default function TradeBoard({ currentUserId, currentUserRole, initialStat
           <TradeSkeleton />
         ) : hasLoadError ? (
           <CardContent className="p-4 text-center">
-            <p className="mb-3 text-sm text-muted-foreground">Failed to load open work.</p>
+            <p className="mb-3 text-sm text-muted-foreground">Open Work did not load. Retry before acting on shift or trade coverage.</p>
             <Button variant="outline" size="sm" onClick={reloadWork}>
               Retry
             </Button>

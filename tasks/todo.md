@@ -4,6 +4,81 @@ Last updated: 2026-06-27
 
 ---
 
+## Active: standardized partial-data visibility (2026-06-27)
+
+Plan: normalize the next partial-result warning slice on the shared shadcn-backed alert primitive.
+
+- [x] Audit partial-result drift and existing shared warning primitive.
+- [x] Preserve named failed source labels in quick search and `/search`.
+- [x] Replace route-local partial warnings with `OperationalPartialResultsAlert`.
+- [x] Sync Search and design-language docs and add source-contract coverage.
+- [x] Run focused tests, typecheck, docs/codemap checks, build, and runtime smoke as available.
+
+### Review
+- 2026-06-27: Quick Search and `/search` now track named failed result types across Items, Checkouts, Reservations, and Users, then render the shared shadcn-backed `OperationalPartialResultsAlert` instead of route-local generic warning copy. The shared alert now accepts contextual failure labels and recovery copy while preserving existing defaults for admin queue/checklist uses. Verification passed with `npx vitest run tests/search-page-source.test.ts tests/app-shell-search-source.test.ts tests/action-result-copy-source.test.ts tests/pending-action-feedback-source.test.ts tests/operational-loading-state-source.test.ts tests/app-error-recovery-source.test.ts`, `npx tsc --noEmit`, `npm run codemap`, `npm run verify:docs`, `git diff --check`, and `npm run build:app`. Runtime smoke on `http://127.0.0.1:3079/search` returned `307` to `/login`; `/login` returned `200`.
+
+---
+
+## Active: standardized pending action feedback (2026-06-27)
+
+Plan: normalize high-visibility save/upload/cancel/nudge pending affordances after the shared loading-state slice.
+
+- [x] Audit pending-action drift and existing shadcn button/menu primitives.
+- [x] Keep booking wizard and booking detail actions on stable labels with visible loading state.
+- [x] Give image modal save/upload/remove actions action-specific pending state.
+- [x] Sync design-language docs and add source-contract coverage.
+- [x] Run focused tests, typecheck, docs/codemap checks, build, and runtime smoke as available.
+
+### Review
+- 2026-06-27: Booking wizard draft/final submit, Booking detail dropdown actions, Booking edit save, and item image modal save/upload/remove now keep stable action labels while shadcn loading affordances show the active request. Booking header dropdown actions now use a local pending menu item with inline spinner and `aria-busy`; image mutations track the exact pending action so saving, uploading, and removing do not make unrelated buttons look active. Verification passed with `npx vitest run tests/pending-action-feedback-source.test.ts tests/operational-loading-state-source.test.ts tests/app-error-recovery-source.test.ts`, `npx tsc --noEmit`, `npm run codemap`, `npm run verify:docs`, `git diff --check`, and `npm run build:app`. Runtime smoke on `http://127.0.0.1:3077/reservations/new` returned `307` to `/login`; `/login` returned `200`.
+
+---
+
+## Active: standardized action result copy (2026-06-27)
+
+Plan: normalize booking and trade failure copy so operational toasts and recovery states say what changed, what did not change, and where to recover.
+
+- [x] Audit booking/trade result-copy drift against the design language.
+- [x] Replace generic Trade Board claim/approve/decline/cancel/request failures with consequence-aware copy.
+- [x] Replace booking-list extension and initial-load fallback copy with object-specific recovery language.
+- [x] Sync design-language docs and add source-contract coverage.
+- [x] Run focused tests, typecheck, docs/codemap checks, build, and runtime smoke as available.
+
+### Review
+- 2026-06-27: Booking list extension and initial-load failures plus Trade Board claim, approve, decline, cancel, open-shift pickup, and pickup-request failures now use object-specific recovery copy that says what did not change and where to retry. Verification passed with `npx vitest run tests/action-result-copy-source.test.ts tests/pending-action-feedback-source.test.ts tests/operational-loading-state-source.test.ts tests/app-error-recovery-source.test.ts`, `npx tsc --noEmit`, `npm run codemap`, `npm run verify:docs`, `git diff --check`, and `npm run build:app`. Runtime smoke on `http://127.0.0.1:3078/bookings` and `/schedule` returned `307` to `/login`; `/login` returned `200`.
+
+---
+
+## Active: standardized loading and pending states (2026-06-27)
+
+Plan: establish the first shared shadcn-backed loading-state pattern and wire it into the highest-visibility app shell and booking detail surfaces.
+
+- [x] Audit loading/pending drift and existing shadcn primitives.
+- [x] Add a shared operational loading-state component backed by shadcn `Skeleton`.
+- [x] Replace AppShell boot/search loading and BookingDetailsSheet load/error/not-found states with shared primitives.
+- [x] Sync design-language docs and add source-contract coverage.
+- [x] Run focused tests, typecheck, docs/codemap checks, build, and runtime smoke as available.
+
+### Review
+- 2026-06-27: AppShell boot loading, command-palette search loading, and Booking detail sheet initial loading now use `OperationalLoadingState`, a shadcn `Skeleton`-backed shared loading surface with announced busy state and stable placeholder rows. Booking detail load failure and missing-record states now use shared inline `EmptyState`, and the sheet's equipment-save/cancel pending actions use shadcn `Button loading` instead of swapping label text. Verification passed with `npx vitest run tests/operational-loading-state-source.test.ts tests/app-error-recovery-source.test.ts`, `npx tsc --noEmit`, `npm run codemap`, `npm run verify:docs`, `git diff --check`, and `npm run build:app`. Runtime smoke on `http://127.0.0.1:3076/settings` returned `307` to `/login`; `/login` returned `200`.
+
+---
+
+## Active: app recovery states cleanup (2026-06-27)
+
+Plan: make the first site-wide recovery/action-feedback slice land at the app error-boundary layer.
+
+- [x] Audit generic top-level error copy and recovery shells.
+- [x] Add one shared shadcn-backed recovery panel for app error boundaries.
+- [x] Replace root, app-shell, and global error boundaries with operational recovery copy.
+- [x] Sync design-language docs and add source-contract coverage.
+- [x] Run focused tests, typecheck, docs/codemap checks, build, and protected-route smoke as available.
+
+### Review
+- 2026-06-27: Root, app-shell, and global error boundaries now share `ErrorRecoveryPanel`, a shadcn-backed recovery surface with retry plus dashboard/sign-in actions, operational caution copy, optional error IDs, and no generic "Something went wrong" or inline-styled fallback. Verification passed with `npx vitest run tests/app-error-recovery-source.test.ts`, `npx tsc --noEmit`, `npm run codemap`, `npm run verify:docs`, `git diff --check`, and `npm run build:app`. Runtime smoke on `http://127.0.0.1:3075/settings` returned `307` to `/login`; `/login` returned `200`.
+
+---
+
 ## Active: Settings Audit command surface cleanup (2026-06-27)
 
 Plan: move the next command-surface slice from status indicators into a bounded Settings Audit pass.

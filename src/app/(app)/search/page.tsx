@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { useUrlState } from "@/hooks/use-url-state";
 import { AlertCircleIcon, ArrowRightIcon, SearchIcon, WifiOff, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { OperationalPartialResultsAlert } from "@/components/OperationalFeedback";
 import { PageHeader } from "@/components/PageHeader";
 import { FadeUp } from "@/components/ui/motion";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -60,6 +61,13 @@ type UserSearchItem = {
   email?: string | null;
 };
 
+const SEARCH_RESULT_SOURCES = {
+  items: "Items",
+  checkouts: "Checkouts",
+  reservations: "Reservations",
+  users: "Users",
+} as const;
+
 function formatStatusLabel(status: string): string {
   switch (status) {
     case "PENDING_PICKUP": return "Awaiting pickup";
@@ -85,7 +93,7 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [searchError, setSearchError] = useState<"network" | "server" | false>(false);
-  const [partialFailures, setPartialFailures] = useState(0);
+  const [partialFailures, setPartialFailures] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -99,7 +107,7 @@ export default function SearchPage() {
     setLoading(false);
     setSearched(false);
     setSearchError(false);
-    setPartialFailures(0);
+    setPartialFailures([]);
   }, []);
 
   useEffect(() => {
@@ -137,7 +145,7 @@ export default function SearchPage() {
     setLoading(true);
     setSearched(true);
     setSearchError(false as const);
-    setPartialFailures(0);
+    setPartialFailures([]);
 
     const encoded = encodeURIComponent(trimmed);
 
@@ -150,7 +158,7 @@ export default function SearchPage() {
       ]);
 
       const merged: SearchResult[] = getVisiblePageSearchResults(user?.role, trimmed, 12);
-      let failures = 0;
+      const failures: string[] = [];
 
       if (itemsRes.status === "fulfilled" && handleAuthRedirect(itemsRes.value, "/search")) return;
       if (checkoutsRes.status === "fulfilled" && handleAuthRedirect(checkoutsRes.value, "/search")) return;
@@ -160,7 +168,7 @@ export default function SearchPage() {
       if (itemsRes.status === "fulfilled" && itemsRes.value.ok) {
         const json = await parseJsonSafely<ApiSearchList<AssetSearchItem>>(itemsRes.value);
         const data = json?.data;
-        if (!data) failures += 1;
+        if (!data) failures.push(SEARCH_RESULT_SOURCES.items);
         for (const item of (data ?? []).slice(0, 10)) {
           merged.push({
             type: "item",
@@ -172,13 +180,13 @@ export default function SearchPage() {
           });
         }
       } else {
-        failures += 1;
+        failures.push(SEARCH_RESULT_SOURCES.items);
       }
 
       if (checkoutsRes.status === "fulfilled" && checkoutsRes.value.ok) {
         const json = await parseJsonSafely<ApiSearchList<BookingSearchItem>>(checkoutsRes.value);
         const data = json?.data;
-        if (!data) failures += 1;
+        if (!data) failures.push(SEARCH_RESULT_SOURCES.checkouts);
         for (const b of (data ?? []).slice(0, 10)) {
           merged.push({
             type: "checkout",
@@ -190,13 +198,13 @@ export default function SearchPage() {
           });
         }
       } else {
-        failures += 1;
+        failures.push(SEARCH_RESULT_SOURCES.checkouts);
       }
 
       if (reservationsRes.status === "fulfilled" && reservationsRes.value.ok) {
         const json = await parseJsonSafely<ApiSearchList<BookingSearchItem>>(reservationsRes.value);
         const data = json?.data;
-        if (!data) failures += 1;
+        if (!data) failures.push(SEARCH_RESULT_SOURCES.reservations);
         for (const b of (data ?? []).slice(0, 10)) {
           merged.push({
             type: "reservation",
@@ -208,13 +216,13 @@ export default function SearchPage() {
           });
         }
       } else {
-        failures += 1;
+        failures.push(SEARCH_RESULT_SOURCES.reservations);
       }
 
       if (usersRes.status === "fulfilled" && usersRes.value.ok) {
         const json = await parseJsonSafely<ApiSearchList<UserSearchItem>>(usersRes.value);
         const data = json?.data;
-        if (!data) failures += 1;
+        if (!data) failures.push(SEARCH_RESULT_SOURCES.users);
         for (const u of (data ?? []).slice(0, 10)) {
           merged.push({
             type: "user",
@@ -225,11 +233,11 @@ export default function SearchPage() {
           });
         }
       } else {
-        failures += 1;
+        failures.push(SEARCH_RESULT_SOURCES.users);
       }
 
       if (!controller.signal.aborted) {
-        if (failures === 4 && merged.length === 0) {
+        if (failures.length === 4 && merged.length === 0) {
           setSearchError("server");
         } else {
           setResults(merged);
@@ -241,7 +249,7 @@ export default function SearchPage() {
       if (!controller.signal.aborted) {
         setResults([]);
         setSearchError("network");
-        setPartialFailures(0);
+        setPartialFailures([]);
       }
     } finally {
       if (!controller.signal.aborted) {
@@ -355,10 +363,15 @@ export default function SearchPage() {
         </div>
       )}
 
-      {!loading && !searchError && partialFailures > 0 && results.length > 0 && (
-        <div className="mb-4 rounded-lg border border-border/60 bg-muted/35 px-3 py-2 text-sm text-muted-foreground" role="status">
-          Some result types could not load. Showing available matches.
-        </div>
+      {!loading && !searchError && partialFailures.length > 0 && results.length > 0 && (
+        <OperationalPartialResultsAlert
+          className="mb-4"
+          failureLabel="Unavailable result types"
+          failures={partialFailures}
+          noun="result type"
+          recoveryCopy="Showing available matches. Refresh before treating this search as complete."
+          title="Some result types did not load"
+        />
       )}
 
       {!loading && !searchError && searched && results.length === 0 && (
